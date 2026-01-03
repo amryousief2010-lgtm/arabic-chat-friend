@@ -14,6 +14,7 @@ import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import Employees from "./pages/Employees";
 import NewOrder from "./pages/NewOrder";
+import Notifications from "./pages/Notifications";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -52,6 +53,11 @@ const App = () => (
             <Route path="/customers" element={
               <ProtectedRoute>
                 <Customers />
+              </ProtectedRoute>
+            } />
+            <Route path="/notifications" element={
+              <ProtectedRoute>
+                <Notifications />
               </ProtectedRoute>
             } />
             <Route path="/reports" element={

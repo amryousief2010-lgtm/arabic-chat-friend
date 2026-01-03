@@ -55,19 +55,27 @@ export const useOrderNotifications = () => {
           schema: 'public',
           table: 'orders',
         },
-        (payload) => {
+        async (payload) => {
           console.log('New order created:', payload);
-          const newOrder = payload.new as { order_number: string; total: number };
+          const newOrder = payload.new as { id: string; order_number: string; total: number };
+          
+          const title = '🆕 طلب جديد';
+          const description = `تم إنشاء الطلب ${newOrder.order_number} بقيمة ${newOrder.total} ر.س`;
+          
+          // Save notification to database
+          await supabase.from('notifications').insert({
+            title,
+            description,
+            type: 'new_order',
+            order_id: newOrder.id,
+          });
           
           // Play notification sound if enabled
           if (settings.soundEnabled) {
             playNotificationSound();
           }
           
-          toast({
-            title: '🆕 طلب جديد',
-            description: `تم إنشاء الطلب ${newOrder.order_number} بقيمة ${newOrder.total} ر.س`,
-          });
+          toast({ title, description });
         }
       )
       .on(
@@ -77,17 +85,25 @@ export const useOrderNotifications = () => {
           schema: 'public',
           table: 'orders',
         },
-        (payload) => {
+        async (payload) => {
           console.log('Order updated:', payload);
           const oldOrder = payload.old as { status: string };
-          const updatedOrder = payload.new as { order_number: string; status: string };
+          const updatedOrder = payload.new as { id: string; order_number: string; status: string };
           
           if (oldOrder.status !== updatedOrder.status) {
             const newStatusLabel = statusLabels[updatedOrder.status] || updatedOrder.status;
-            toast({
-              title: '📦 تحديث حالة الطلب',
-              description: `الطلب ${updatedOrder.order_number} أصبح: ${newStatusLabel}`,
+            const title = '📦 تحديث حالة الطلب';
+            const description = `الطلب ${updatedOrder.order_number} أصبح: ${newStatusLabel}`;
+            
+            // Save notification to database
+            await supabase.from('notifications').insert({
+              title,
+              description,
+              type: 'status_update',
+              order_id: updatedOrder.id,
             });
+            
+            toast({ title, description });
           }
         }
       )

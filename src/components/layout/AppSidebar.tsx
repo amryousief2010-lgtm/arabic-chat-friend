@@ -7,6 +7,7 @@ import {
   BarChart3,
   Settings,
   LogOut,
+  Bell,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -15,6 +16,7 @@ const allMenuItems = [
   { icon: Package, label: "المنتجات", path: "/products", roles: ['admin', 'supervisor', 'employee'] },
   { icon: ShoppingCart, label: "الطلبات", path: "/orders", roles: ['admin', 'supervisor', 'employee'] },
   { icon: Users, label: "العملاء", path: "/customers", roles: ['admin', 'supervisor', 'employee'] },
+  { icon: Bell, label: "الإشعارات", path: "/notifications", roles: ['admin', 'supervisor', 'employee'] },
   { icon: BarChart3, label: "التقارير", path: "/reports", roles: ['admin', 'supervisor'] },
   { icon: Users, label: "الموظفين", path: "/employees", roles: ['admin'] },
   { icon: Settings, label: "الإعدادات", path: "/settings", roles: ['admin'] },
