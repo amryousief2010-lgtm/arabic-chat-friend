@@ -1,7 +1,8 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { useNotificationSettings } from '@/hooks/useNotificationSettings';
 
 const statusLabels: Record<string, string> = {
   pending: 'قيد الانتظار',
@@ -38,6 +39,7 @@ const playNotificationSound = () => {
 export const useOrderNotifications = () => {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { settings } = useNotificationSettings();
 
   useEffect(() => {
     if (!user) return;
@@ -57,8 +59,10 @@ export const useOrderNotifications = () => {
           console.log('New order created:', payload);
           const newOrder = payload.new as { order_number: string; total: number };
           
-          // Play notification sound
-          playNotificationSound();
+          // Play notification sound if enabled
+          if (settings.soundEnabled) {
+            playNotificationSound();
+          }
           
           toast({
             title: '🆕 طلب جديد',

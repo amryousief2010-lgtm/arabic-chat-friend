@@ -6,11 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Settings as SettingsIcon, Building2, Bell, CreditCard, Shield } from "lucide-react";
+import { Settings as SettingsIcon, Building2, Bell, CreditCard, Shield, Volume2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useNotificationSettings } from "@/hooks/useNotificationSettings";
 
 const Settings = () => {
   const { toast } = useToast();
+  const { settings, updateSettings } = useNotificationSettings();
 
   const handleSave = () => {
     toast({
@@ -85,6 +87,22 @@ const Settings = () => {
                 </p>
               </div>
               <Switch defaultChecked />
+            </div>
+            <Separator />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Volume2 className="w-4 h-4 text-muted-foreground" />
+                <div>
+                  <p className="font-medium">صوت الإشعارات</p>
+                  <p className="text-sm text-muted-foreground">
+                    تشغيل صوت تنبيه مع الإشعارات
+                  </p>
+                </div>
+              </div>
+              <Switch 
+                checked={settings.soundEnabled} 
+                onCheckedChange={(checked) => updateSettings({ soundEnabled: checked })}
+              />
             </div>
             <Separator />
             <div className="flex items-center justify-between">
