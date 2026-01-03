@@ -11,6 +11,7 @@ import Orders from "./pages/Orders";
 import Customers from "./pages/Customers";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
+import Employees from "./pages/Employees";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -48,6 +49,11 @@ const App = () => (
             <Route path="/reports" element={
               <ProtectedRoute allowedRoles={['admin', 'supervisor']}>
                 <Reports />
+              </ProtectedRoute>
+            } />
+            <Route path="/employees" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <Employees />
               </ProtectedRoute>
             } />
             <Route path="/settings" element={

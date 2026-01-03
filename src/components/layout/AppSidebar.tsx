@@ -16,6 +16,7 @@ const allMenuItems = [
   { icon: ShoppingCart, label: "الطلبات", path: "/orders", roles: ['admin', 'supervisor', 'employee'] },
   { icon: Users, label: "العملاء", path: "/customers", roles: ['admin', 'supervisor', 'employee'] },
   { icon: BarChart3, label: "التقارير", path: "/reports", roles: ['admin', 'supervisor'] },
+  { icon: Users, label: "الموظفين", path: "/employees", roles: ['admin'] },
   { icon: Settings, label: "الإعدادات", path: "/settings", roles: ['admin'] },
 ];
 
