@@ -12,6 +12,7 @@ import Customers from "./pages/Customers";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import Employees from "./pages/Employees";
+import NewOrder from "./pages/NewOrder";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -39,6 +40,11 @@ const App = () => (
             <Route path="/orders" element={
               <ProtectedRoute>
                 <Orders />
+              </ProtectedRoute>
+            } />
+            <Route path="/orders/new" element={
+              <ProtectedRoute>
+                <NewOrder />
               </ProtectedRoute>
             } />
             <Route path="/customers" element={
