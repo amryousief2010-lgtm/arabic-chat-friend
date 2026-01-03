@@ -1,0 +1,342 @@
+import { useState } from "react";
+import DashboardLayout from "@/components/layout/DashboardLayout";
+import Header from "@/components/layout/Header";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Plus, Edit, Trash2, Package } from "lucide-react";
+import { mockProducts } from "@/data/mockData";
+import { Product } from "@/types/sales";
+import { useToast } from "@/hooks/use-toast";
+
+const categories = ["لحوم طازجة", "لحوم مصنعة", "منتجات أخرى"];
+
+const Products = () => {
+  const [products, setProducts] = useState<Product[]>(mockProducts);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const { toast } = useToast();
+
+  const [formData, setFormData] = useState({
+    name: "",
+    category: "",
+    price: "",
+    stock: "",
+    unit: "",
+    image: "",
+  });
+
+  const filteredProducts = products.filter(
+    (product) =>
+      product.name.includes(searchQuery) ||
+      product.category.includes(searchQuery)
+  );
+
+  const handleOpenDialog = (product?: Product) => {
+    if (product) {
+      setEditingProduct(product);
+      setFormData({
+        name: product.name,
+        category: product.category,
+        price: product.price.toString(),
+        stock: product.stock.toString(),
+        unit: product.unit,
+        image: product.image,
+      });
+    } else {
+      setEditingProduct(null);
+      setFormData({
+        name: "",
+        category: "",
+        price: "",
+        stock: "",
+        unit: "كيلو",
+        image: "",
+      });
+    }
+    setIsDialogOpen(true);
+  };
+
+  const handleSubmit = () => {
+    if (!formData.name || !formData.category || !formData.price) {
+      toast({
+        title: "خطأ",
+        description: "يرجى ملء جميع الحقول المطلوبة",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (editingProduct) {
+      setProducts(
+        products.map((p) =>
+          p.id === editingProduct.id
+            ? {
+                ...p,
+                ...formData,
+                price: parseFloat(formData.price),
+                stock: parseInt(formData.stock),
+              }
+            : p
+        )
+      );
+      toast({
+        title: "تم التحديث",
+        description: "تم تحديث المنتج بنجاح",
+      });
+    } else {
+      const newProduct: Product = {
+        id: Date.now().toString(),
+        ...formData,
+        price: parseFloat(formData.price),
+        stock: parseInt(formData.stock),
+      };
+      setProducts([...products, newProduct]);
+      toast({
+        title: "تمت الإضافة",
+        description: "تم إضافة المنتج بنجاح",
+      });
+    }
+    setIsDialogOpen(false);
+  };
+
+  const handleDelete = (id: string) => {
+    setProducts(products.filter((p) => p.id !== id));
+    toast({
+      title: "تم الحذف",
+      description: "تم حذف المنتج بنجاح",
+    });
+  };
+
+  return (
+    <DashboardLayout>
+      <Header title="المنتجات" subtitle="إدارة منتجات لحوم النعام" />
+
+      <Card className="glass-card">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <Package className="w-5 h-5 text-primary" />
+            قائمة المنتجات ({filteredProducts.length})
+          </CardTitle>
+          <div className="flex items-center gap-4">
+            <Input
+              placeholder="بحث عن منتج..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-64 input-modern"
+            />
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  className="btn-primary"
+                  onClick={() => handleOpenDialog()}
+                >
+                  <Plus className="w-4 h-4 ml-2" />
+                  إضافة منتج
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>
+                    {editingProduct ? "تعديل المنتج" : "إضافة منتج جديد"}
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label>اسم المنتج *</Label>
+                    <Input
+                      value={formData.name}
+                      onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
+                      placeholder="أدخل اسم المنتج"
+                      className="input-modern"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>التصنيف *</Label>
+                    <Select
+                      value={formData.category}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, category: value })
+                      }
+                    >
+                      <SelectTrigger className="input-modern">
+                        <SelectValue placeholder="اختر التصنيف" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.map((cat) => (
+                          <SelectItem key={cat} value={cat}>
+                            {cat}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>السعر (ج.م) *</Label>
+                      <Input
+                        type="number"
+                        value={formData.price}
+                        onChange={(e) =>
+                          setFormData({ ...formData, price: e.target.value })
+                        }
+                        placeholder="0"
+                        className="input-modern"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>المخزون</Label>
+                      <Input
+                        type="number"
+                        value={formData.stock}
+                        onChange={(e) =>
+                          setFormData({ ...formData, stock: e.target.value })
+                        }
+                        placeholder="0"
+                        className="input-modern"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>الوحدة</Label>
+                    <Select
+                      value={formData.unit}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, unit: value })
+                      }
+                    >
+                      <SelectTrigger className="input-modern">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="كيلو">كيلو</SelectItem>
+                        <SelectItem value="عبوة">عبوة</SelectItem>
+                        <SelectItem value="قطعة">قطعة</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>رابط الصورة</Label>
+                    <Input
+                      value={formData.image}
+                      onChange={(e) =>
+                        setFormData({ ...formData, image: e.target.value })
+                      }
+                      placeholder="https://..."
+                      className="input-modern"
+                    />
+                  </div>
+                  <Button onClick={handleSubmit} className="w-full btn-primary">
+                    {editingProduct ? "حفظ التعديلات" : "إضافة المنتج"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-right">المنتج</TableHead>
+                <TableHead className="text-right">التصنيف</TableHead>
+                <TableHead className="text-right">السعر</TableHead>
+                <TableHead className="text-right">المخزون</TableHead>
+                <TableHead className="text-right">الحالة</TableHead>
+                <TableHead className="text-right">الإجراءات</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredProducts.map((product) => (
+                <TableRow key={product.id} className="table-row-hover">
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={product.image}
+                        alt={product.name}
+                        className="w-12 h-12 rounded-lg object-cover"
+                      />
+                      <span className="font-medium">{product.name}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{product.category}</Badge>
+                  </TableCell>
+                  <TableCell className="font-semibold">
+                    {product.price} ج.م / {product.unit}
+                  </TableCell>
+                  <TableCell>{product.stock}</TableCell>
+                  <TableCell>
+                    <Badge
+                      className={
+                        product.stock < 25
+                          ? "bg-destructive text-destructive-foreground"
+                          : product.stock < 35
+                          ? "bg-warning text-warning-foreground"
+                          : "bg-success text-success-foreground"
+                      }
+                    >
+                      {product.stock < 25
+                        ? "منخفض جداً"
+                        : product.stock < 35
+                        ? "منخفض"
+                        : "متوفر"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleOpenDialog(product)}
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => handleDelete(product.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </DashboardLayout>
+  );
+};
+
+export default Products;
