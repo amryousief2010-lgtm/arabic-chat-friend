@@ -327,9 +327,11 @@ const Orders = () => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => setSelectedOrder(order)}
+                        asChild
                       >
-                        <Eye className="w-4 h-4" />
+                        <Link to={`/orders/${order.id}`}>
+                          <Eye className="w-4 h-4" />
+                        </Link>
                       </Button>
                     </TableCell>
                   </TableRow>
