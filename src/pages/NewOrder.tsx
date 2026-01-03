@@ -49,8 +49,10 @@ import {
   Banknote,
   UserPlus,
   Search,
-  Package
+  Package,
+  Gift
 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface Product {
   id: string;
@@ -69,9 +71,27 @@ interface Customer {
   city: string | null;
 }
 
+interface OfferBox {
+  id: string;
+  name: string;
+  description: string | null;
+  is_active: boolean;
+  expires_at: string | null;
+}
+
+interface OfferBoxItem {
+  id: string;
+  product_id: string;
+  custom_price: number;
+  quantity: number;
+  product: Product | null;
+}
+
 interface CartItem {
   product: Product;
   quantity: number;
+  customPrice?: number; // For offer box items
+  isOfferItem?: boolean;
 }
 
 const NewOrder = () => {
@@ -80,6 +100,7 @@ const NewOrder = () => {
   
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [offerBoxes, setOfferBoxes] = useState<OfferBox[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   
@@ -109,16 +130,25 @@ const NewOrder = () => {
 
   const fetchData = async () => {
     try {
-      const [productsRes, customersRes] = await Promise.all([
+      const [productsRes, customersRes, offersRes] = await Promise.all([
         supabase.from('products').select('*').eq('is_active', true).gt('stock', 0),
         supabase.from('customers').select('*').order('name'),
+        supabase.from('offer_boxes').select('*').eq('is_active', true),
       ]);
 
       if (productsRes.error) throw productsRes.error;
       if (customersRes.error) throw customersRes.error;
+      if (offersRes.error) throw offersRes.error;
 
       setProducts(productsRes.data || []);
       setCustomers(customersRes.data || []);
+      
+      // Filter out expired offers
+      const activeOffers = (offersRes.data || []).filter(offer => {
+        if (!offer.expires_at) return true;
+        return new Date(offer.expires_at) > new Date();
+      });
+      setOfferBoxes(activeOffers);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('حدث خطأ أثناء جلب البيانات');
@@ -127,8 +157,12 @@ const NewOrder = () => {
     }
   };
 
-  const addToCart = (product: Product) => {
-    const existingItem = cart.find(item => item.product.id === product.id);
+  const addToCart = (product: Product, customPrice?: number, isOfferItem?: boolean) => {
+    const existingItem = cart.find(item => 
+      item.product.id === product.id && 
+      item.customPrice === customPrice && 
+      item.isOfferItem === isOfferItem
+    );
     
     if (existingItem) {
       if (existingItem.quantity >= product.stock) {
@@ -136,18 +170,65 @@ const NewOrder = () => {
         return;
       }
       setCart(cart.map(item =>
-        item.product.id === product.id
+        item.product.id === product.id && item.customPrice === customPrice && item.isOfferItem === isOfferItem
           ? { ...item, quantity: item.quantity + 1 }
           : item
       ));
     } else {
-      setCart([...cart, { product, quantity: 1 }]);
+      setCart([...cart, { product, quantity: 1, customPrice, isOfferItem }]);
     }
   };
 
-  const updateQuantity = (productId: string, delta: number) => {
+  const addOfferBoxToCart = async (offerBox: OfferBox) => {
+    try {
+      // Fetch offer box items with product details
+      const { data: items, error } = await supabase
+        .from('offer_box_items')
+        .select('*')
+        .eq('offer_box_id', offerBox.id);
+
+      if (error) throw error;
+
+      if (!items || items.length === 0) {
+        toast.error('هذا العرض لا يحتوي على منتجات');
+        return;
+      }
+
+      // Get product details for each item
+      const productIds = items.map(item => item.product_id);
+      const { data: productData, error: productError } = await supabase
+        .from('products')
+        .select('*')
+        .in('id', productIds);
+
+      if (productError) throw productError;
+
+      // Add each item to cart with custom price
+      let addedCount = 0;
+      for (const item of items) {
+        const product = productData?.find(p => p.id === item.product_id);
+        if (product && product.stock > 0) {
+          for (let i = 0; i < item.quantity; i++) {
+            addToCart(product as Product, item.custom_price, true);
+          }
+          addedCount++;
+        }
+      }
+
+      if (addedCount > 0) {
+        toast.success(`تم إضافة ${addedCount} منتج من عرض "${offerBox.name}" للسلة`);
+      } else {
+        toast.error('المنتجات في هذا العرض غير متاحة حالياً');
+      }
+    } catch (error) {
+      console.error('Error adding offer box:', error);
+      toast.error('حدث خطأ أثناء إضافة العرض');
+    }
+  };
+
+  const updateQuantity = (productId: string, delta: number, customPrice?: number, isOfferItem?: boolean) => {
     setCart(cart.map(item => {
-      if (item.product.id === productId) {
+      if (item.product.id === productId && item.customPrice === customPrice && item.isOfferItem === isOfferItem) {
         const newQuantity = item.quantity + delta;
         if (newQuantity <= 0) return item;
         if (newQuantity > item.product.stock) {
@@ -160,11 +241,16 @@ const NewOrder = () => {
     }));
   };
 
-  const removeFromCart = (productId: string) => {
-    setCart(cart.filter(item => item.product.id !== productId));
+  const removeFromCart = (productId: string, customPrice?: number, isOfferItem?: boolean) => {
+    setCart(cart.filter(item => 
+      !(item.product.id === productId && item.customPrice === customPrice && item.isOfferItem === isOfferItem)
+    ));
   };
 
-  const subtotal = cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+  const subtotal = cart.reduce((sum, item) => {
+    const price = item.customPrice ?? item.product.price;
+    return sum + (price * item.quantity);
+  }, 0);
   const total = subtotal - discount + deliveryFee;
 
   const handleAddCustomer = async () => {
@@ -250,10 +336,10 @@ const NewOrder = () => {
       const orderItems = cart.map(item => ({
         order_id: order.id,
         product_id: item.product.id,
-        product_name: item.product.name,
+        product_name: item.isOfferItem ? `${item.product.name} (عرض)` : item.product.name,
         quantity: item.quantity,
-        unit_price: item.product.price,
-        total_price: item.product.price * item.quantity,
+        unit_price: item.customPrice ?? item.product.price,
+        total_price: (item.customPrice ?? item.product.price) * item.quantity,
       }));
 
       const { error: itemsError } = await supabase
@@ -426,42 +512,92 @@ const NewOrder = () => {
               </CardContent>
             </Card>
 
-            {/* Products */}
+            {/* Products & Offers */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Package className="w-5 h-5" />
-                  المنتجات
+                  المنتجات والعروض
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="relative mb-4">
-                  <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    placeholder="بحث عن منتج..."
-                    className="pr-10"
-                    value={productSearch}
-                    onChange={(e) => setProductSearch(e.target.value)}
-                  />
-                </div>
+                <Tabs defaultValue="products" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 mb-4">
+                    <TabsTrigger value="products" className="gap-2">
+                      <Package className="w-4 h-4" />
+                      المنتجات
+                    </TabsTrigger>
+                    <TabsTrigger value="offers" className="gap-2">
+                      <Gift className="w-4 h-4" />
+                      العروض
+                      {offerBoxes.length > 0 && (
+                        <span className="bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded-full">
+                          {offerBoxes.length}
+                        </span>
+                      )}
+                    </TabsTrigger>
+                  </TabsList>
 
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {filteredProducts.map((product) => (
-                    <button
-                      key={product.id}
-                      onClick={() => addToCart(product)}
-                      className="p-4 border rounded-lg text-right hover:border-primary hover:bg-primary/5 transition-all"
-                    >
-                      <p className="font-medium text-sm line-clamp-1">{product.name}</p>
-                      <p className="text-primary font-bold mt-1">
-                        {product.price.toLocaleString()} ج.م / {product.unit}
-                      </p>
-                      <Badge variant="outline" className="mt-2 text-xs">
-                        متاح: {product.stock}
-                      </Badge>
-                    </button>
-                  ))}
-                </div>
+                  <TabsContent value="products" className="mt-0">
+                    <div className="relative mb-4">
+                      <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        placeholder="بحث عن منتج..."
+                        className="pr-10"
+                        value={productSearch}
+                        onChange={(e) => setProductSearch(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      {filteredProducts.map((product) => (
+                        <button
+                          key={product.id}
+                          onClick={() => addToCart(product)}
+                          className="p-4 border rounded-lg text-right hover:border-primary hover:bg-primary/5 transition-all"
+                        >
+                          <p className="font-medium text-sm line-clamp-1">{product.name}</p>
+                          <p className="text-primary font-bold mt-1">
+                            {product.price.toLocaleString()} ج.م / {product.unit}
+                          </p>
+                          <Badge variant="outline" className="mt-2 text-xs">
+                            متاح: {product.stock}
+                          </Badge>
+                        </button>
+                      ))}
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="offers" className="mt-0">
+                    {offerBoxes.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Gift className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                        <p>لا توجد عروض متاحة حالياً</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {offerBoxes.map((offer) => (
+                          <button
+                            key={offer.id}
+                            onClick={() => addOfferBoxToCart(offer)}
+                            className="p-4 border rounded-lg text-right hover:border-primary hover:bg-primary/5 transition-all group"
+                          >
+                            <div className="flex items-center gap-2 mb-2">
+                              <Gift className="w-5 h-5 text-primary" />
+                              <p className="font-medium">{offer.name}</p>
+                            </div>
+                            {offer.description && (
+                              <p className="text-sm text-muted-foreground line-clamp-2">{offer.description}</p>
+                            )}
+                            <Badge className="mt-2 bg-green-100 text-green-700 hover:bg-green-100">
+                              أسعار مخفضة
+                            </Badge>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
+                </Tabs>
               </CardContent>
             </Card>
           </div>
@@ -486,15 +622,35 @@ const NewOrder = () => {
                 ) : (
                   <>
                     <div className="space-y-3 max-h-64 overflow-auto">
-                      {cart.map((item) => (
+                      {cart.map((item, index) => (
                         <div
-                          key={item.product.id}
-                          className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                          key={`${item.product.id}-${item.customPrice}-${index}`}
+                          className={`flex items-center justify-between p-3 rounded-lg ${
+                            item.isOfferItem ? 'bg-green-50 dark:bg-green-950/20 border border-green-200' : 'bg-muted/50'
+                          }`}
                         >
                           <div className="flex-1">
-                            <p className="font-medium text-sm">{item.product.name}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-sm">{item.product.name}</p>
+                              {item.isOfferItem && (
+                                <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
+                                  عرض
+                                </Badge>
+                              )}
+                            </div>
                             <p className="text-sm text-muted-foreground">
-                              {item.product.price.toLocaleString()} × {item.quantity}
+                              {item.isOfferItem && item.customPrice ? (
+                                <>
+                                  <span className="line-through text-muted-foreground/60 mr-1">
+                                    {item.product.price.toLocaleString()}
+                                  </span>
+                                  <span className="text-green-600 font-medium">
+                                    {item.customPrice.toLocaleString()}
+                                  </span>
+                                </>
+                              ) : (
+                                item.product.price.toLocaleString()
+                              )} × {item.quantity}
                             </p>
                           </div>
                           <div className="flex items-center gap-2">
@@ -502,7 +658,7 @@ const NewOrder = () => {
                               variant="outline"
                               size="icon"
                               className="h-7 w-7"
-                              onClick={() => updateQuantity(item.product.id, -1)}
+                              onClick={() => updateQuantity(item.product.id, -1, item.customPrice, item.isOfferItem)}
                             >
                               <Minus className="w-3 h-3" />
                             </Button>
@@ -513,7 +669,7 @@ const NewOrder = () => {
                               variant="outline"
                               size="icon"
                               className="h-7 w-7"
-                              onClick={() => updateQuantity(item.product.id, 1)}
+                              onClick={() => updateQuantity(item.product.id, 1, item.customPrice, item.isOfferItem)}
                             >
                               <Plus className="w-3 h-3" />
                             </Button>
@@ -521,7 +677,7 @@ const NewOrder = () => {
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7 text-destructive"
-                              onClick={() => removeFromCart(item.product.id)}
+                              onClick={() => removeFromCart(item.product.id, item.customPrice, item.isOfferItem)}
                             >
                               <Trash2 className="w-3 h-3" />
                             </Button>
