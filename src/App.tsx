@@ -21,6 +21,7 @@ import Auth from "./pages/Auth";
 import TeamPerformance from "./pages/TeamPerformance";
 import SalesTargets from "./pages/SalesTargets";
 import OfferBoxes from "./pages/OfferBoxes";
+import SeedUsers from "./pages/SeedUsers";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -101,6 +102,7 @@ const App = () => (
               </ProtectedRoute>
             } />
             <Route path="/install" element={<Install />} />
+            <Route path="/seed-users" element={<SeedUsers />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
             </Routes>
