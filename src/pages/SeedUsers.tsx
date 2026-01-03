@@ -58,6 +58,13 @@ const testUsers: TestUser[] = [
     roleLabel: 'مشرف مبيعات'
   },
   {
+    email: 'majhoul@test.com',
+    password: 'Moderator4@123',
+    fullName: 'مجهول',
+    role: 'sales_moderator',
+    roleLabel: 'مشرف مبيعات'
+  },
+  {
     email: 'mohamed.shaala@test.com',
     password: 'Account@123',
     fullName: 'محمد شعلة',
