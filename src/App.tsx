@@ -18,6 +18,7 @@ import Notifications from "./pages/Notifications";
 import OrderDetails from "./pages/OrderDetails";
 import Install from "./pages/Install";
 import Auth from "./pages/Auth";
+import TeamPerformance from "./pages/TeamPerformance";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -80,6 +81,11 @@ const App = () => (
             <Route path="/settings" element={
               <ProtectedRoute allowedRoles={['general_manager']}>
                 <Settings />
+              </ProtectedRoute>
+            } />
+            <Route path="/team-performance" element={
+              <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager']}>
+                <TeamPerformance />
               </ProtectedRoute>
             } />
             <Route path="/install" element={<Install />} />

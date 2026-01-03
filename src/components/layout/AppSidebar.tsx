@@ -9,6 +9,7 @@ import {
   LogOut,
   Bell,
   Warehouse,
+  UsersRound,
 } from "lucide-react";
 import { useAuth, AppRole } from "@/hooks/useAuth";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
@@ -55,6 +56,12 @@ const allMenuItems: {
     label: "التقارير", 
     path: "/reports", 
     roles: ['general_manager', 'executive_manager', 'sales_manager', 'accountant'] 
+  },
+  { 
+    icon: UsersRound, 
+    label: "أداء الفريق", 
+    path: "/team-performance", 
+    roles: ['general_manager', 'executive_manager', 'sales_manager'] 
   },
   { 
     icon: Users, 
