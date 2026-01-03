@@ -1,11 +1,12 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import Header from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Check, CheckCheck, Trash2, Package, RefreshCw } from "lucide-react";
+import { Bell, Check, CheckCheck, Trash2, Package, RefreshCw, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -23,6 +24,7 @@ interface Notification {
 
 const Notifications = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const { data: notifications = [], isLoading, refetch } = useQuery({
@@ -144,14 +146,25 @@ const Notifications = () => {
               </div>
             ) : (
               <div className="space-y-3">
-                {notifications.map((notification) => (
+                {notifications.map((notification) => {
+                  const hasOrder = !!notification.order_id;
+                  return (
                   <div
                     key={notification.id}
+                    onClick={() => {
+                      if (hasOrder) {
+                        // Mark as read when navigating
+                        if (!notification.is_read) {
+                          markAsReadMutation.mutate(notification.id);
+                        }
+                        navigate(`/orders?highlight=${notification.order_id}`);
+                      }
+                    }}
                     className={`p-4 rounded-lg border transition-colors ${
                       notification.is_read
                         ? 'bg-background/50 border-border/50'
                         : 'bg-primary/5 border-primary/20'
-                    }`}
+                    } ${hasOrder ? 'cursor-pointer hover:border-primary/50' : ''}`}
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex items-start gap-3 flex-1">
@@ -170,6 +183,9 @@ const Notifications = () => {
                                 جديد
                               </Badge>
                             )}
+                            {hasOrder && (
+                              <ExternalLink className="w-3 h-3 text-muted-foreground" />
+                            )}
                           </div>
                           <p className="text-sm text-muted-foreground mt-1">
                             {notification.description}
@@ -184,7 +200,10 @@ const Notifications = () => {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => markAsReadMutation.mutate(notification.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              markAsReadMutation.mutate(notification.id);
+                            }}
                             title="تحديد كمقروء"
                           >
                             <Check className="w-4 h-4" />
@@ -193,7 +212,10 @@ const Notifications = () => {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => deleteNotificationMutation.mutate(notification.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteNotificationMutation.mutate(notification.id);
+                          }}
                           className="text-destructive hover:text-destructive"
                           title="حذف"
                         >
@@ -202,7 +224,8 @@ const Notifications = () => {
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>
