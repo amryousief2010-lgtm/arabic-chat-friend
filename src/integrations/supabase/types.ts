@@ -94,6 +94,78 @@ export type Database = {
           },
         ]
       }
+      offer_box_items: {
+        Row: {
+          created_at: string
+          custom_price: number
+          id: string
+          offer_box_id: string
+          product_id: string
+          quantity: number
+        }
+        Insert: {
+          created_at?: string
+          custom_price: number
+          id?: string
+          offer_box_id: string
+          product_id: string
+          quantity?: number
+        }
+        Update: {
+          created_at?: string
+          custom_price?: number
+          id?: string
+          offer_box_id?: string
+          product_id?: string
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offer_box_items_offer_box_id_fkey"
+            columns: ["offer_box_id"]
+            isOneToOne: false
+            referencedRelation: "offer_boxes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offer_box_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      offer_boxes: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       order_items: {
         Row: {
           created_at: string
@@ -350,6 +422,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_add_products: { Args: { _user_id: string }; Returns: boolean }
+      can_edit_product_price: { Args: { _user_id: string }; Returns: boolean }
       generate_order_number: { Args: never; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
