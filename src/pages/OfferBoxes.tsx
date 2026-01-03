@@ -32,9 +32,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Gift, Plus, Edit, Trash2, Package, X, Clock, AlertTriangle } from 'lucide-react';
-import { format, isPast, parseISO } from 'date-fns';
+import { Gift, Plus, Edit, Trash2, Package, X, Clock, AlertTriangle, Bell } from 'lucide-react';
+import { format, isPast, parseISO, differenceInHours, addDays } from 'date-fns';
 import { ar } from 'date-fns/locale';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface OfferBox {
   id: string;
@@ -88,6 +89,15 @@ const OfferBoxes = () => {
     return isPast(parseISO(expiresAt));
   };
 
+  // Helper to check if offer expires within 24 hours
+  const isExpiringSoon = (expiresAt: string | null) => {
+    if (!expiresAt) return false;
+    const expiryDate = parseISO(expiresAt);
+    if (isPast(expiryDate)) return false;
+    const hoursUntilExpiry = differenceInHours(expiryDate, new Date());
+    return hoursUntilExpiry <= 24 && hoursUntilExpiry > 0;
+  };
+
   const isManager = role === 'general_manager' || role === 'executive_manager' || role === 'sales_manager';
 
   // Fetch offer boxes
@@ -106,7 +116,9 @@ const OfferBoxes = () => {
     },
   });
 
-  // Fetch products
+  // Get offers expiring soon
+  const expiringOffers = offerBoxes.filter(box => box.is_active && isExpiringSoon(box.expires_at));
+
   const { data: products = [] } = useQuery({
     queryKey: ['products-for-offers'],
     queryFn: async () => {
@@ -271,6 +283,26 @@ const OfferBoxes = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {/* Expiring Soon Alert */}
+        {isManager && expiringOffers.length > 0 && (
+          <Alert variant="destructive" className="border-orange-500 bg-orange-50 dark:bg-orange-950/20">
+            <Bell className="h-4 w-4 text-orange-600" />
+            <AlertTitle className="text-orange-700 dark:text-orange-400">تنبيه: عروض تنتهي قريباً</AlertTitle>
+            <AlertDescription className="text-orange-600 dark:text-orange-300">
+              {expiringOffers.length === 1 ? (
+                <span>
+                  العرض "{expiringOffers[0].name}" سينتهي خلال 24 ساعة 
+                  ({format(parseISO(expiringOffers[0].expires_at!), 'dd MMM - hh:mm a', { locale: ar })})
+                </span>
+              ) : (
+                <span>
+                  {expiringOffers.length} عروض ستنتهي خلال 24 ساعة: {expiringOffers.map(o => o.name).join('، ')}
+                </span>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
