@@ -32,7 +32,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Target, Plus, TrendingUp, TrendingDown, Award, Users } from 'lucide-react';
+import { Target, Plus, TrendingUp, TrendingDown, Award, Users, BarChart3 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 
 const months = [
   { value: 1, label: 'يناير' },
@@ -416,6 +417,82 @@ const SalesTargets = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Performance Chart */}
+        {targetsWithAchieved.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                مقارنة أداء الموظفين
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={targetsWithAchieved.map(t => ({
+                      name: t.profile?.full_name || 'غير معروف',
+                      الهدف: Number(t.target_amount),
+                      المحقق: t.achieved_amount,
+                      percentage: Number(t.target_amount) > 0 
+                        ? (t.achieved_amount / Number(t.target_amount)) * 100 
+                        : 0,
+                    }))}
+                    layout="vertical"
+                    margin={{ top: 20, right: 30, left: 100, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                    <XAxis type="number" tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                    <YAxis dataKey="name" type="category" width={90} tick={{ fontSize: 12 }} />
+                    <Tooltip 
+                      formatter={(value: number) => [`${value.toLocaleString()} ر.س`, '']}
+                      labelFormatter={(label) => label}
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--card))', 
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                        direction: 'rtl'
+                      }}
+                    />
+                    <Legend />
+                    <Bar dataKey="الهدف" fill="hsl(var(--muted-foreground))" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="المحقق" radius={[0, 4, 4, 0]}>
+                      {targetsWithAchieved.map((entry, index) => {
+                        const percentage = Number(entry.target_amount) > 0 
+                          ? (entry.achieved_amount / Number(entry.target_amount)) * 100 
+                          : 0;
+                        let fill = 'hsl(0, 84%, 60%)'; // red
+                        if (percentage >= 100) fill = 'hsl(142, 71%, 45%)'; // green
+                        else if (percentage >= 75) fill = 'hsl(217, 91%, 60%)'; // blue
+                        else if (percentage >= 50) fill = 'hsl(45, 93%, 47%)'; // yellow
+                        return <Cell key={`cell-${index}`} fill={fill} />;
+                      })}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="flex items-center justify-center gap-6 mt-4 text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-green-500" />
+                  <span>100%+ محقق</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-blue-500" />
+                  <span>75-99%</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-yellow-500" />
+                  <span>50-74%</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-red-500" />
+                  <span>أقل من 50%</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Targets Table */}
         <Card>
