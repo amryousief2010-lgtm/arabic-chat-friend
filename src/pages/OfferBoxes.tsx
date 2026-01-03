@@ -32,7 +32,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Gift, Plus, Edit, Trash2, Package, X } from 'lucide-react';
+import { Gift, Plus, Edit, Trash2, Package, X, Clock, AlertTriangle } from 'lucide-react';
+import { format, isPast, parseISO } from 'date-fns';
+import { ar } from 'date-fns/locale';
 
 interface OfferBox {
   id: string;
@@ -40,6 +42,7 @@ interface OfferBox {
   description: string | null;
   is_active: boolean;
   created_at: string;
+  expires_at: string | null;
 }
 
 interface OfferBoxItem {
@@ -71,8 +74,19 @@ const OfferBoxes = () => {
   const [isItemsDialogOpen, setIsItemsDialogOpen] = useState(false);
   const [editingBox, setEditingBox] = useState<OfferBox | null>(null);
   const [selectedBox, setSelectedBox] = useState<OfferBox | null>(null);
-  const [formData, setFormData] = useState({ name: '', description: '' });
+  const [formData, setFormData] = useState({ name: '', description: '', expires_at: '' });
   const [newItem, setNewItem] = useState({ product_id: '', custom_price: '', quantity: '1' });
+
+  // Check and deactivate expired offers on load
+  const checkExpiredOffers = async () => {
+    await supabase.rpc('deactivate_expired_offers');
+  };
+
+  // Helper to check if offer is expired
+  const isExpired = (expiresAt: string | null) => {
+    if (!expiresAt) return false;
+    return isPast(parseISO(expiresAt));
+  };
 
   const isManager = role === 'general_manager' || role === 'executive_manager' || role === 'sales_manager';
 
@@ -80,6 +94,9 @@ const OfferBoxes = () => {
   const { data: offerBoxes = [], isLoading } = useQuery({
     queryKey: ['offer-boxes'],
     queryFn: async () => {
+      // First deactivate expired offers
+      await checkExpiredOffers();
+      
       const { data, error } = await supabase
         .from('offer_boxes')
         .select('*')
@@ -130,10 +147,11 @@ const OfferBoxes = () => {
 
   // Create box
   const createBoxMutation = useMutation({
-    mutationFn: async (data: { name: string; description: string }) => {
+    mutationFn: async (data: { name: string; description: string; expires_at: string }) => {
       const { error } = await supabase.from('offer_boxes').insert({
         name: data.name,
         description: data.description || null,
+        expires_at: data.expires_at || null,
         created_by: user?.id,
       });
       if (error) throw error;
@@ -142,7 +160,7 @@ const OfferBoxes = () => {
       queryClient.invalidateQueries({ queryKey: ['offer-boxes'] });
       toast({ title: 'تم إنشاء صندوق العرض بنجاح' });
       setIsDialogOpen(false);
-      setFormData({ name: '', description: '' });
+      setFormData({ name: '', description: '', expires_at: '' });
     },
     onError: () => {
       toast({ title: 'حدث خطأ', variant: 'destructive' });
@@ -151,10 +169,15 @@ const OfferBoxes = () => {
 
   // Update box
   const updateBoxMutation = useMutation({
-    mutationFn: async (data: { id: string; name: string; description: string; is_active: boolean }) => {
+    mutationFn: async (data: { id: string; name: string; description: string; is_active: boolean; expires_at: string | null }) => {
       const { error } = await supabase
         .from('offer_boxes')
-        .update({ name: data.name, description: data.description, is_active: data.is_active })
+        .update({ 
+          name: data.name, 
+          description: data.description, 
+          is_active: data.is_active,
+          expires_at: data.expires_at || null
+        })
         .eq('id', data.id);
       if (error) throw error;
     },
@@ -163,7 +186,7 @@ const OfferBoxes = () => {
       toast({ title: 'تم تحديث صندوق العرض' });
       setIsDialogOpen(false);
       setEditingBox(null);
-      setFormData({ name: '', description: '' });
+      setFormData({ name: '', description: '', expires_at: '' });
     },
   });
 
@@ -207,10 +230,14 @@ const OfferBoxes = () => {
   const handleOpenDialog = (box?: OfferBox) => {
     if (box) {
       setEditingBox(box);
-      setFormData({ name: box.name, description: box.description || '' });
+      setFormData({ 
+        name: box.name, 
+        description: box.description || '',
+        expires_at: box.expires_at ? box.expires_at.slice(0, 16) : ''
+      });
     } else {
       setEditingBox(null);
-      setFormData({ name: '', description: '' });
+      setFormData({ name: '', description: '', expires_at: '' });
     }
     setIsDialogOpen(true);
   };
@@ -221,7 +248,7 @@ const OfferBoxes = () => {
       return;
     }
     if (editingBox) {
-      updateBoxMutation.mutate({ ...editingBox, ...formData });
+      updateBoxMutation.mutate({ ...editingBox, ...formData, expires_at: formData.expires_at || null });
     } else {
       createBoxMutation.mutate(formData);
     }
@@ -282,6 +309,17 @@ const OfferBoxes = () => {
                       placeholder="وصف العرض"
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label>تاريخ انتهاء العرض (اختياري)</Label>
+                    <Input
+                      type="datetime-local"
+                      value={formData.expires_at}
+                      onChange={(e) => setFormData({ ...formData, expires_at: e.target.value })}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      سيتم إيقاف العرض تلقائياً عند انتهاء هذا التاريخ
+                    </p>
+                  </div>
                   <Button className="w-full" onClick={handleSubmit}>
                     {editingBox ? 'حفظ التعديلات' : 'إنشاء العرض'}
                   </Button>
@@ -301,20 +339,39 @@ const OfferBoxes = () => {
               <p>لا توجد عروض حالياً</p>
             </div>
           ) : (
-            offerBoxes.map((box) => (
-              <Card key={box.id} className={`${!box.is_active ? 'opacity-60' : ''}`}>
+            offerBoxes.map((box) => {
+              const expired = isExpired(box.expires_at);
+              return (
+              <Card key={box.id} className={`${!box.is_active || expired ? 'opacity-60' : ''}`}>
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-lg flex items-center gap-2">
                       <Gift className="h-5 w-5 text-primary" />
                       {box.name}
                     </CardTitle>
-                    <Badge variant={box.is_active ? 'default' : 'secondary'}>
-                      {box.is_active ? 'نشط' : 'معطل'}
-                    </Badge>
+                    <div className="flex items-center gap-1">
+                      {expired && (
+                        <Badge variant="destructive" className="gap-1">
+                          <AlertTriangle className="h-3 w-3" />
+                          منتهي
+                        </Badge>
+                      )}
+                      <Badge variant={box.is_active && !expired ? 'default' : 'secondary'}>
+                        {box.is_active && !expired ? 'نشط' : 'معطل'}
+                      </Badge>
+                    </div>
                   </div>
                   {box.description && (
                     <p className="text-sm text-muted-foreground">{box.description}</p>
+                  )}
+                  {box.expires_at && (
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                      <Clock className="h-3 w-3" />
+                      <span>
+                        {expired ? 'انتهى في: ' : 'ينتهي في: '}
+                        {format(parseISO(box.expires_at), 'dd MMM yyyy - hh:mm a', { locale: ar })}
+                      </span>
+                    </div>
                   )}
                 </CardHeader>
                 <CardContent>
@@ -349,7 +406,7 @@ const OfferBoxes = () => {
                   </div>
                 </CardContent>
               </Card>
-            ))
+            );})
           )}
         </div>
 

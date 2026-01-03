@@ -141,6 +141,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           description: string | null
+          expires_at: string | null
           id: string
           is_active: boolean
           name: string
@@ -150,6 +151,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          expires_at?: string | null
           id?: string
           is_active?: boolean
           name: string
@@ -159,6 +161,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          expires_at?: string | null
           id?: string
           is_active?: boolean
           name?: string
@@ -424,6 +427,8 @@ export type Database = {
     Functions: {
       can_add_products: { Args: { _user_id: string }; Returns: boolean }
       can_edit_product_price: { Args: { _user_id: string }; Returns: boolean }
+      check_offer_expiry: { Args: never; Returns: boolean }
+      deactivate_expired_offers: { Args: never; Returns: undefined }
       generate_order_number: { Args: never; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
