@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import Header from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,14 +31,25 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus, Edit, Trash2, Package } from "lucide-react";
-import { mockProducts } from "@/data/mockData";
-import { Product } from "@/types/sales";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 
 const categories = ["لحوم طازجة", "لحوم مصنعة", "منتجات أخرى"];
 
+interface Product {
+  id: string;
+  name: string;
+  category: string | null;
+  price: number;
+  stock: number;
+  unit: string;
+  image_url: string | null;
+  is_active: boolean;
+}
+
 const Products = () => {
-  const [products, setProducts] = useState<Product[]>(mockProducts);
+  const { role } = useAuth();
+  const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -47,14 +60,32 @@ const Products = () => {
     category: "",
     price: "",
     stock: "",
-    unit: "",
-    image: "",
+    unit: "كيلو",
+    image_url: "",
+  });
+
+  // Permission checks
+  const canAddProducts = role === 'general_manager' || role === 'executive_manager' || role === 'sales_manager' || role === 'warehouse_supervisor';
+  const canEditPrice = role === 'general_manager' || role === 'executive_manager' || role === 'accountant';
+  const canManageProducts = role === 'general_manager' || role === 'executive_manager' || role === 'sales_manager' || role === 'warehouse_supervisor';
+
+  // Fetch products from Supabase
+  const { data: products = [], isLoading } = useQuery({
+    queryKey: ['products'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('name');
+      if (error) throw error;
+      return data as Product[];
+    },
   });
 
   const filteredProducts = products.filter(
     (product) =>
       product.name.includes(searchQuery) ||
-      product.category.includes(searchQuery)
+      (product.category && product.category.includes(searchQuery))
   );
 
   const handleOpenDialog = (product?: Product) => {
@@ -62,11 +93,11 @@ const Products = () => {
       setEditingProduct(product);
       setFormData({
         name: product.name,
-        category: product.category,
+        category: product.category || "",
         price: product.price.toString(),
         stock: product.stock.toString(),
         unit: product.unit,
-        image: product.image,
+        image_url: product.image_url || "",
       });
     } else {
       setEditingProduct(null);
@@ -76,11 +107,65 @@ const Products = () => {
         price: "",
         stock: "",
         unit: "كيلو",
-        image: "",
+        image_url: "",
       });
     }
     setIsDialogOpen(true);
   };
+
+  // Create product mutation
+  const createMutation = useMutation({
+    mutationFn: async (data: typeof formData) => {
+      const { error } = await supabase.from('products').insert({
+        name: data.name,
+        category: data.category || null,
+        price: parseFloat(data.price),
+        stock: parseInt(data.stock) || 0,
+        unit: data.unit,
+        image_url: data.image_url || null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      toast({ title: 'تم إضافة المنتج بنجاح' });
+      setIsDialogOpen(false);
+    },
+    onError: () => {
+      toast({ title: 'حدث خطأ', variant: 'destructive' });
+    },
+  });
+
+  // Update product mutation
+  const updateMutation = useMutation({
+    mutationFn: async (data: { id: string; updates: Partial<Product> }) => {
+      const { error } = await supabase
+        .from('products')
+        .update(data.updates)
+        .eq('id', data.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      toast({ title: 'تم تحديث المنتج بنجاح' });
+      setIsDialogOpen(false);
+    },
+    onError: () => {
+      toast({ title: 'حدث خطأ', variant: 'destructive' });
+    },
+  });
+
+  // Delete product mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('products').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      toast({ title: 'تم حذف المنتج' });
+    },
+  });
 
   const handleSubmit = () => {
     if (!formData.name || !formData.category || !formData.price) {
@@ -93,44 +178,25 @@ const Products = () => {
     }
 
     if (editingProduct) {
-      setProducts(
-        products.map((p) =>
-          p.id === editingProduct.id
-            ? {
-                ...p,
-                ...formData,
-                price: parseFloat(formData.price),
-                stock: parseInt(formData.stock),
-              }
-            : p
-        )
-      );
-      toast({
-        title: "تم التحديث",
-        description: "تم تحديث المنتج بنجاح",
-      });
-    } else {
-      const newProduct: Product = {
-        id: Date.now().toString(),
-        ...formData,
-        price: parseFloat(formData.price),
-        stock: parseInt(formData.stock),
+      const updates: Partial<Product> = {
+        name: formData.name,
+        category: formData.category,
+        stock: parseInt(formData.stock) || 0,
+        unit: formData.unit,
+        image_url: formData.image_url || null,
       };
-      setProducts([...products, newProduct]);
-      toast({
-        title: "تمت الإضافة",
-        description: "تم إضافة المنتج بنجاح",
-      });
+      // Only include price if user can edit it
+      if (canEditPrice) {
+        updates.price = parseFloat(formData.price);
+      }
+      updateMutation.mutate({ id: editingProduct.id, updates });
+    } else {
+      createMutation.mutate(formData);
     }
-    setIsDialogOpen(false);
   };
 
   const handleDelete = (id: string) => {
-    setProducts(products.filter((p) => p.id !== id));
-    toast({
-      title: "تم الحذف",
-      description: "تم حذف المنتج بنجاح",
-    });
+    deleteMutation.mutate(id);
   };
 
   return (
@@ -150,189 +216,205 @@ const Products = () => {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-64 input-modern"
             />
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button
-                  className="btn-primary"
-                  onClick={() => handleOpenDialog()}
-                >
-                  <Plus className="w-4 h-4 ml-2" />
-                  إضافة منتج
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>
-                    {editingProduct ? "تعديل المنتج" : "إضافة منتج جديد"}
-                  </DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label>اسم المنتج *</Label>
-                    <Input
-                      value={formData.name}
-                      onChange={(e) =>
-                        setFormData({ ...formData, name: e.target.value })
-                      }
-                      placeholder="أدخل اسم المنتج"
-                      className="input-modern"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>التصنيف *</Label>
-                    <Select
-                      value={formData.category}
-                      onValueChange={(value) =>
-                        setFormData({ ...formData, category: value })
-                      }
-                    >
-                      <SelectTrigger className="input-modern">
-                        <SelectValue placeholder="اختر التصنيف" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map((cat) => (
-                          <SelectItem key={cat} value={cat}>
-                            {cat}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>السعر (ج.م) *</Label>
-                      <Input
-                        type="number"
-                        value={formData.price}
-                        onChange={(e) =>
-                          setFormData({ ...formData, price: e.target.value })
-                        }
-                        placeholder="0"
-                        className="input-modern"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>المخزون</Label>
-                      <Input
-                        type="number"
-                        value={formData.stock}
-                        onChange={(e) =>
-                          setFormData({ ...formData, stock: e.target.value })
-                        }
-                        placeholder="0"
-                        className="input-modern"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>الوحدة</Label>
-                    <Select
-                      value={formData.unit}
-                      onValueChange={(value) =>
-                        setFormData({ ...formData, unit: value })
-                      }
-                    >
-                      <SelectTrigger className="input-modern">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="كيلو">كيلو</SelectItem>
-                        <SelectItem value="عبوة">عبوة</SelectItem>
-                        <SelectItem value="قطعة">قطعة</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>رابط الصورة</Label>
-                    <Input
-                      value={formData.image}
-                      onChange={(e) =>
-                        setFormData({ ...formData, image: e.target.value })
-                      }
-                      placeholder="https://..."
-                      className="input-modern"
-                    />
-                  </div>
-                  <Button onClick={handleSubmit} className="w-full btn-primary">
-                    {editingProduct ? "حفظ التعديلات" : "إضافة المنتج"}
+            {canAddProducts && (
+              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    className="btn-primary"
+                    onClick={() => handleOpenDialog()}
+                  >
+                    <Plus className="w-4 h-4 ml-2" />
+                    إضافة منتج
                   </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>
+                      {editingProduct ? "تعديل المنتج" : "إضافة منتج جديد"}
+                    </DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label>اسم المنتج *</Label>
+                      <Input
+                        value={formData.name}
+                        onChange={(e) =>
+                          setFormData({ ...formData, name: e.target.value })
+                        }
+                        placeholder="أدخل اسم المنتج"
+                        className="input-modern"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>التصنيف *</Label>
+                      <Select
+                        value={formData.category}
+                        onValueChange={(value) =>
+                          setFormData({ ...formData, category: value })
+                        }
+                      >
+                        <SelectTrigger className="input-modern">
+                          <SelectValue placeholder="اختر التصنيف" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories.map((cat) => (
+                            <SelectItem key={cat} value={cat}>
+                              {cat}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>السعر (ج.م) *</Label>
+                        <Input
+                          type="number"
+                          value={formData.price}
+                          onChange={(e) =>
+                            setFormData({ ...formData, price: e.target.value })
+                          }
+                          placeholder="0"
+                          className="input-modern"
+                          disabled={editingProduct !== null && !canEditPrice}
+                        />
+                        {editingProduct && !canEditPrice && (
+                          <p className="text-xs text-muted-foreground">
+                            تعديل السعر متاح للمحاسب والمديرين فقط
+                          </p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label>المخزون</Label>
+                        <Input
+                          type="number"
+                          value={formData.stock}
+                          onChange={(e) =>
+                            setFormData({ ...formData, stock: e.target.value })
+                          }
+                          placeholder="0"
+                          className="input-modern"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>الوحدة</Label>
+                      <Select
+                        value={formData.unit}
+                        onValueChange={(value) =>
+                          setFormData({ ...formData, unit: value })
+                        }
+                      >
+                        <SelectTrigger className="input-modern">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="كيلو">كيلو</SelectItem>
+                          <SelectItem value="عبوة">عبوة</SelectItem>
+                          <SelectItem value="قطعة">قطعة</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>رابط الصورة</Label>
+                      <Input
+                        value={formData.image_url}
+                        onChange={(e) =>
+                          setFormData({ ...formData, image_url: e.target.value })
+                        }
+                        placeholder="https://..."
+                        className="input-modern"
+                      />
+                    </div>
+                    <Button onClick={handleSubmit} className="w-full btn-primary">
+                      {editingProduct ? "حفظ التعديلات" : "إضافة المنتج"}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="text-right">المنتج</TableHead>
-                <TableHead className="text-right">التصنيف</TableHead>
-                <TableHead className="text-right">السعر</TableHead>
-                <TableHead className="text-right">المخزون</TableHead>
-                <TableHead className="text-right">الحالة</TableHead>
-                <TableHead className="text-right">الإجراءات</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredProducts.map((product) => (
-                <TableRow key={product.id} className="table-row-hover">
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={product.image}
-                        alt={product.name}
-                        className="w-12 h-12 rounded-lg object-cover"
-                      />
-                      <span className="font-medium">{product.name}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{product.category}</Badge>
-                  </TableCell>
-                  <TableCell className="font-semibold">
-                    {product.price} ج.م / {product.unit}
-                  </TableCell>
-                  <TableCell>{product.stock}</TableCell>
-                  <TableCell>
-                    <Badge
-                      className={
-                        product.stock < 25
-                          ? "bg-destructive text-destructive-foreground"
-                          : product.stock < 35
-                          ? "bg-warning text-warning-foreground"
-                          : "bg-success text-success-foreground"
-                      }
-                    >
-                      {product.stock < 25
-                        ? "منخفض جداً"
-                        : product.stock < 35
-                        ? "منخفض"
-                        : "متوفر"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleOpenDialog(product)}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => handleDelete(product.id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          {isLoading ? (
+            <div className="text-center py-8 text-muted-foreground">جاري التحميل...</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-right">المنتج</TableHead>
+                  <TableHead className="text-right">التصنيف</TableHead>
+                  <TableHead className="text-right">السعر</TableHead>
+                  <TableHead className="text-right">المخزون</TableHead>
+                  <TableHead className="text-right">الحالة</TableHead>
+                  {canManageProducts && <TableHead className="text-right">الإجراءات</TableHead>}
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredProducts.map((product) => (
+                  <TableRow key={product.id} className="table-row-hover">
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        {product.image_url && (
+                          <img
+                            src={product.image_url}
+                            alt={product.name}
+                            className="w-12 h-12 rounded-lg object-cover"
+                          />
+                        )}
+                        <span className="font-medium">{product.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{product.category}</Badge>
+                    </TableCell>
+                    <TableCell className="font-semibold">
+                      {product.price} ج.م / {product.unit}
+                    </TableCell>
+                    <TableCell>{product.stock}</TableCell>
+                    <TableCell>
+                      <Badge
+                        className={
+                          product.stock < 25
+                            ? "bg-destructive text-destructive-foreground"
+                            : product.stock < 35
+                            ? "bg-warning text-warning-foreground"
+                            : "bg-success text-success-foreground"
+                        }
+                      >
+                        {product.stock < 25
+                          ? "منخفض جداً"
+                          : product.stock < 35
+                          ? "منخفض"
+                          : "متوفر"}
+                      </Badge>
+                    </TableCell>
+                    {canManageProducts && (
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleOpenDialog(product)}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => handleDelete(product.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </DashboardLayout>

@@ -20,6 +20,7 @@ import Install from "./pages/Install";
 import Auth from "./pages/Auth";
 import TeamPerformance from "./pages/TeamPerformance";
 import SalesTargets from "./pages/SalesTargets";
+import OfferBoxes from "./pages/OfferBoxes";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -92,6 +93,11 @@ const App = () => (
             <Route path="/sales-targets" element={
               <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager']}>
                 <SalesTargets />
+              </ProtectedRoute>
+            } />
+            <Route path="/offer-boxes" element={
+              <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator']}>
+                <OfferBoxes />
               </ProtectedRoute>
             } />
             <Route path="/install" element={<Install />} />

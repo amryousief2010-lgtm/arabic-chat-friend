@@ -11,6 +11,7 @@ import {
   Warehouse,
   UsersRound,
   Target,
+  Gift,
 } from "lucide-react";
 import { useAuth, AppRole } from "@/hooks/useAuth";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
@@ -69,6 +70,12 @@ const allMenuItems: {
     label: "أهداف المبيعات", 
     path: "/sales-targets", 
     roles: ['general_manager', 'executive_manager', 'sales_manager'] 
+  },
+  { 
+    icon: Gift, 
+    label: "صناديق العروض", 
+    path: "/offer-boxes", 
+    roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator'] 
   },
   { 
     icon: Users, 
