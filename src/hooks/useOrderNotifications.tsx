@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -9,6 +9,30 @@ const statusLabels: Record<string, string> = {
   ready: 'جاهز للتسليم',
   delivered: 'تم التسليم',
   cancelled: 'ملغي',
+};
+
+// Create notification sound using Web Audio API
+const playNotificationSound = () => {
+  try {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+    oscillator.frequency.setValueAtTime(600, audioContext.currentTime + 0.1);
+    oscillator.frequency.setValueAtTime(800, audioContext.currentTime + 0.2);
+    
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.4);
+  } catch (error) {
+    console.log('Could not play notification sound:', error);
+  }
 };
 
 export const useOrderNotifications = () => {
@@ -32,6 +56,10 @@ export const useOrderNotifications = () => {
         (payload) => {
           console.log('New order created:', payload);
           const newOrder = payload.new as { order_number: string; total: number };
+          
+          // Play notification sound
+          playNotificationSound();
+          
           toast({
             title: '🆕 طلب جديد',
             description: `تم إنشاء الطلب ${newOrder.order_number} بقيمة ${newOrder.total} ر.س`,
