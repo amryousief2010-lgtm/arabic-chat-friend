@@ -8,20 +8,66 @@ import {
   Settings,
   LogOut,
   Bell,
+  Warehouse,
 } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth, AppRole } from "@/hooks/useAuth";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
 import { Badge } from "@/components/ui/badge";
 
-const allMenuItems = [
-  { icon: LayoutDashboard, label: "لوحة التحكم", path: "/", roles: ['admin', 'supervisor', 'employee'] },
-  { icon: Package, label: "المنتجات", path: "/products", roles: ['admin', 'supervisor', 'employee'] },
-  { icon: ShoppingCart, label: "الطلبات", path: "/orders", roles: ['admin', 'supervisor', 'employee'] },
-  { icon: Users, label: "العملاء", path: "/customers", roles: ['admin', 'supervisor', 'employee'] },
-  { icon: Bell, label: "الإشعارات", path: "/notifications", roles: ['admin', 'supervisor', 'employee'] },
-  { icon: BarChart3, label: "التقارير", path: "/reports", roles: ['admin', 'supervisor'] },
-  { icon: Users, label: "الموظفين", path: "/employees", roles: ['admin'] },
-  { icon: Settings, label: "الإعدادات", path: "/settings", roles: ['admin'] },
+const allMenuItems: { 
+  icon: React.ElementType; 
+  label: string; 
+  path: string; 
+  roles: AppRole[] 
+}[] = [
+  { 
+    icon: LayoutDashboard, 
+    label: "لوحة التحكم", 
+    path: "/", 
+    roles: ['general_manager', 'executive_manager', 'sales_moderator', 'accountant', 'warehouse_supervisor'] 
+  },
+  { 
+    icon: Package, 
+    label: "المنتجات", 
+    path: "/products", 
+    roles: ['general_manager', 'executive_manager', 'sales_moderator', 'warehouse_supervisor'] 
+  },
+  { 
+    icon: ShoppingCart, 
+    label: "الطلبات", 
+    path: "/orders", 
+    roles: ['general_manager', 'executive_manager', 'sales_moderator', 'accountant', 'warehouse_supervisor'] 
+  },
+  { 
+    icon: Users, 
+    label: "العملاء", 
+    path: "/customers", 
+    roles: ['general_manager', 'executive_manager', 'sales_moderator'] 
+  },
+  { 
+    icon: Bell, 
+    label: "الإشعارات", 
+    path: "/notifications", 
+    roles: ['general_manager', 'executive_manager', 'sales_moderator', 'accountant', 'warehouse_supervisor'] 
+  },
+  { 
+    icon: BarChart3, 
+    label: "التقارير", 
+    path: "/reports", 
+    roles: ['general_manager', 'executive_manager', 'accountant'] 
+  },
+  { 
+    icon: Users, 
+    label: "الموظفين", 
+    path: "/employees", 
+    roles: ['general_manager'] 
+  },
+  { 
+    icon: Settings, 
+    label: "الإعدادات", 
+    path: "/settings", 
+    roles: ['general_manager'] 
+  },
 ];
 
 const AppSidebar = () => {

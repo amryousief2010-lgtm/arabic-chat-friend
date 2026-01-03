@@ -37,7 +37,7 @@ const App = () => (
               </ProtectedRoute>
             } />
             <Route path="/products" element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_moderator', 'warehouse_supervisor']}>
                 <Products />
               </ProtectedRoute>
             } />
@@ -47,12 +47,12 @@ const App = () => (
               </ProtectedRoute>
             } />
             <Route path="/orders/new" element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_moderator']}>
                 <NewOrder />
               </ProtectedRoute>
             } />
             <Route path="/customers" element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_moderator']}>
                 <Customers />
               </ProtectedRoute>
             } />
@@ -62,17 +62,17 @@ const App = () => (
               </ProtectedRoute>
             } />
             <Route path="/reports" element={
-              <ProtectedRoute allowedRoles={['admin', 'supervisor']}>
+              <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant']}>
                 <Reports />
               </ProtectedRoute>
             } />
             <Route path="/employees" element={
-              <ProtectedRoute allowedRoles={['admin']}>
+              <ProtectedRoute allowedRoles={['general_manager']}>
                 <Employees />
               </ProtectedRoute>
             } />
             <Route path="/settings" element={
-              <ProtectedRoute allowedRoles={['admin']}>
+              <ProtectedRoute allowedRoles={['general_manager']}>
                 <Settings />
               </ProtectedRoute>
             } />

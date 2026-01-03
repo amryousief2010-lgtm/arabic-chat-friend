@@ -34,13 +34,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { UserPlus, MoreHorizontal, Shield, Search, Users, UserCheck, UserX } from 'lucide-react';
+import { UserPlus, MoreHorizontal, Shield, Search, Users, UserCheck, Warehouse, Calculator, ShoppingCart } from 'lucide-react';
 import { z } from 'zod';
-
-type AppRole = 'admin' | 'supervisor' | 'employee';
+import { AppRole } from '@/hooks/useAuth';
 
 interface Employee {
   id: string;
@@ -51,22 +50,34 @@ interface Employee {
 }
 
 const roleLabels: Record<AppRole, string> = {
-  admin: 'مدير',
-  supervisor: 'مشرف',
-  employee: 'موظف',
+  general_manager: 'مدير عام',
+  executive_manager: 'مدير تنفيذي',
+  sales_moderator: 'مودريتور مبيعات',
+  accountant: 'محاسب',
+  warehouse_supervisor: 'مشرف مخازن',
 };
 
-const roleBadgeVariants: Record<AppRole, 'default' | 'secondary' | 'outline'> = {
-  admin: 'default',
-  supervisor: 'secondary',
-  employee: 'outline',
+const roleBadgeVariants: Record<AppRole, 'default' | 'secondary' | 'outline' | 'destructive'> = {
+  general_manager: 'default',
+  executive_manager: 'default',
+  sales_moderator: 'secondary',
+  accountant: 'outline',
+  warehouse_supervisor: 'outline',
+};
+
+const roleIcons: Record<AppRole, React.ElementType> = {
+  general_manager: Shield,
+  executive_manager: UserCheck,
+  sales_moderator: ShoppingCart,
+  accountant: Calculator,
+  warehouse_supervisor: Warehouse,
 };
 
 const addEmployeeSchema = z.object({
   fullName: z.string().min(2, 'الاسم يجب أن يكون حرفين على الأقل').max(100),
   email: z.string().email('البريد الإلكتروني غير صالح').max(255),
   password: z.string().min(6, 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'),
-  role: z.enum(['admin', 'supervisor', 'employee']),
+  role: z.enum(['general_manager', 'executive_manager', 'sales_moderator', 'accountant', 'warehouse_supervisor']),
 });
 
 const Employees = () => {
@@ -80,7 +91,7 @@ const Employees = () => {
   const [newFullName, setNewFullName] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [newRole, setNewRole] = useState<AppRole>('employee');
+  const [newRole, setNewRole] = useState<AppRole>('sales_moderator');
 
   const fetchEmployees = async () => {
     try {
@@ -103,7 +114,7 @@ const Employees = () => {
           id: profile.id,
           full_name: profile.full_name,
           email: profile.email,
-          role: (userRole?.role as AppRole) || 'employee',
+          role: (userRole?.role as AppRole) || 'sales_moderator',
           created_at: profile.created_at,
         };
       });
@@ -152,8 +163,8 @@ const Employees = () => {
 
       if (authError) throw authError;
 
-      if (authData.user && newRole !== 'employee') {
-        // Update role if not default employee
+      if (authData.user && newRole !== 'sales_moderator') {
+        // Update role if not default sales_moderator
         const { error: roleError } = await supabase
           .from('user_roles')
           .update({ role: newRole })
@@ -198,7 +209,7 @@ const Employees = () => {
     setNewFullName('');
     setNewEmail('');
     setNewPassword('');
-    setNewRole('employee');
+    setNewRole('sales_moderator');
   };
 
   const filteredEmployees = employees.filter(emp =>
@@ -208,9 +219,11 @@ const Employees = () => {
 
   const stats = {
     total: employees.length,
-    admins: employees.filter(e => e.role === 'admin').length,
-    supervisors: employees.filter(e => e.role === 'supervisor').length,
-    employees: employees.filter(e => e.role === 'employee').length,
+    generalManagers: employees.filter(e => e.role === 'general_manager').length,
+    executiveManagers: employees.filter(e => e.role === 'executive_manager').length,
+    salesModerators: employees.filter(e => e.role === 'sales_moderator').length,
+    accountants: employees.filter(e => e.role === 'accountant').length,
+    warehouseSupervisors: employees.filter(e => e.role === 'warehouse_supervisor').length,
   };
 
   return (
@@ -268,15 +281,17 @@ const Employees = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="role">الصلاحية</Label>
+                  <Label htmlFor="role">الوظيفة</Label>
                   <Select value={newRole} onValueChange={(value: AppRole) => setNewRole(value)}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="employee">موظف</SelectItem>
-                      <SelectItem value="supervisor">مشرف</SelectItem>
-                      <SelectItem value="admin">مدير</SelectItem>
+                      <SelectItem value="sales_moderator">مودريتور مبيعات</SelectItem>
+                      <SelectItem value="accountant">محاسب</SelectItem>
+                      <SelectItem value="warehouse_supervisor">مشرف مخازن</SelectItem>
+                      <SelectItem value="executive_manager">مدير تنفيذي</SelectItem>
+                      <SelectItem value="general_manager">مدير عام</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -294,10 +309,10 @@ const Employees = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">إجمالي الموظفين</CardTitle>
+              <CardTitle className="text-sm font-medium">الإجمالي</CardTitle>
               <Users className="w-4 h-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -306,29 +321,47 @@ const Employees = () => {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">المديرون</CardTitle>
+              <CardTitle className="text-sm font-medium">مدراء عام</CardTitle>
               <Shield className="w-4 h-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-primary">{stats.admins}</div>
+              <div className="text-2xl font-bold text-primary">{stats.generalManagers}</div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">المشرفون</CardTitle>
-              <UserCheck className="w-4 h-4 text-secondary" />
+              <CardTitle className="text-sm font-medium">مدراء تنفيذيين</CardTitle>
+              <UserCheck className="w-4 h-4 text-blue-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-secondary">{stats.supervisors}</div>
+              <div className="text-2xl font-bold text-blue-500">{stats.executiveManagers}</div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">الموظفون</CardTitle>
-              <UserX className="w-4 h-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">مودريتور مبيعات</CardTitle>
+              <ShoppingCart className="w-4 h-4 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.employees}</div>
+              <div className="text-2xl font-bold text-green-500">{stats.salesModerators}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">محاسبين</CardTitle>
+              <Calculator className="w-4 h-4 text-orange-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-orange-500">{stats.accountants}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">مشرفي مخازن</CardTitle>
+              <Warehouse className="w-4 h-4 text-purple-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-purple-500">{stats.warehouseSupervisors}</div>
             </CardContent>
           </Card>
         </div>
@@ -352,7 +385,7 @@ const Employees = () => {
                 <TableRow>
                   <TableHead className="text-right">الموظف</TableHead>
                   <TableHead className="text-right">البريد الإلكتروني</TableHead>
-                  <TableHead className="text-right">الصلاحية</TableHead>
+                  <TableHead className="text-right">الوظيفة</TableHead>
                   <TableHead className="text-right">تاريخ الانضمام</TableHead>
                   <TableHead className="text-right">إجراءات</TableHead>
                 </TableRow>
@@ -371,59 +404,77 @@ const Employees = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredEmployees.map((employee) => (
-                    <TableRow key={employee.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
-                            {employee.full_name.charAt(0)}
+                  filteredEmployees.map((employee) => {
+                    const RoleIcon = roleIcons[employee.role];
+                    return (
+                      <TableRow key={employee.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
+                              {employee.full_name.charAt(0)}
+                            </div>
+                            <span className="font-medium">{employee.full_name}</span>
                           </div>
-                          <span className="font-medium">{employee.full_name}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">{employee.email}</TableCell>
-                      <TableCell>
-                        <Badge variant={roleBadgeVariants[employee.role]}>
-                          {roleLabels[employee.role]}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {new Date(employee.created_at).toLocaleDateString('ar-EG')}
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem 
-                              onClick={() => handleChangeRole(employee.id, 'admin')}
-                              disabled={employee.role === 'admin'}
-                            >
-                              <Shield className="w-4 h-4 ml-2" />
-                              ترقية إلى مدير
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handleChangeRole(employee.id, 'supervisor')}
-                              disabled={employee.role === 'supervisor'}
-                            >
-                              <UserCheck className="w-4 h-4 ml-2" />
-                              ترقية إلى مشرف
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handleChangeRole(employee.id, 'employee')}
-                              disabled={employee.role === 'employee'}
-                            >
-                              <UserX className="w-4 h-4 ml-2" />
-                              تخفيض إلى موظف
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{employee.email}</TableCell>
+                        <TableCell>
+                          <Badge variant={roleBadgeVariants[employee.role]} className="gap-1">
+                            <RoleIcon className="w-3 h-3" />
+                            {roleLabels[employee.role]}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {new Date(employee.created_at).toLocaleDateString('ar-EG')}
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem 
+                                onClick={() => handleChangeRole(employee.id, 'general_manager')}
+                                disabled={employee.role === 'general_manager'}
+                              >
+                                <Shield className="w-4 h-4 ml-2" />
+                                مدير عام
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => handleChangeRole(employee.id, 'executive_manager')}
+                                disabled={employee.role === 'executive_manager'}
+                              >
+                                <UserCheck className="w-4 h-4 ml-2" />
+                                مدير تنفيذي
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => handleChangeRole(employee.id, 'sales_moderator')}
+                                disabled={employee.role === 'sales_moderator'}
+                              >
+                                <ShoppingCart className="w-4 h-4 ml-2" />
+                                مودريتور مبيعات
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => handleChangeRole(employee.id, 'accountant')}
+                                disabled={employee.role === 'accountant'}
+                              >
+                                <Calculator className="w-4 h-4 ml-2" />
+                                محاسب
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => handleChangeRole(employee.id, 'warehouse_supervisor')}
+                                disabled={employee.role === 'warehouse_supervisor'}
+                              >
+                                <Warehouse className="w-4 h-4 ml-2" />
+                                مشرف مخازن
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
