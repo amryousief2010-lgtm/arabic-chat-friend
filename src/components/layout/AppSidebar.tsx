@@ -8,18 +8,24 @@ import {
   Settings,
   LogOut,
 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
-const menuItems = [
-  { icon: LayoutDashboard, label: "لوحة التحكم", path: "/" },
-  { icon: Package, label: "المنتجات", path: "/products" },
-  { icon: ShoppingCart, label: "الطلبات", path: "/orders" },
-  { icon: Users, label: "العملاء", path: "/customers" },
-  { icon: BarChart3, label: "التقارير", path: "/reports" },
-  { icon: Settings, label: "الإعدادات", path: "/settings" },
+const allMenuItems = [
+  { icon: LayoutDashboard, label: "لوحة التحكم", path: "/", roles: ['admin', 'supervisor', 'employee'] },
+  { icon: Package, label: "المنتجات", path: "/products", roles: ['admin', 'supervisor', 'employee'] },
+  { icon: ShoppingCart, label: "الطلبات", path: "/orders", roles: ['admin', 'supervisor', 'employee'] },
+  { icon: Users, label: "العملاء", path: "/customers", roles: ['admin', 'supervisor', 'employee'] },
+  { icon: BarChart3, label: "التقارير", path: "/reports", roles: ['admin', 'supervisor'] },
+  { icon: Settings, label: "الإعدادات", path: "/settings", roles: ['admin'] },
 ];
 
 const AppSidebar = () => {
   const location = useLocation();
+  const { role, signOut } = useAuth();
+
+  const menuItems = allMenuItems.filter(item => 
+    role && item.roles.includes(role)
+  );
 
   return (
     <aside className="fixed right-0 top-0 h-screen w-64 bg-sidebar text-sidebar-foreground flex flex-col shadow-2xl z-50">
@@ -55,7 +61,10 @@ const AppSidebar = () => {
 
       {/* Footer */}
       <div className="p-4 border-t border-sidebar-border">
-        <button className="sidebar-item w-full text-destructive hover:bg-destructive/10">
+        <button 
+          onClick={signOut}
+          className="sidebar-item w-full text-destructive hover:bg-destructive/10"
+        >
           <LogOut className="w-5 h-5" />
           <span className="font-medium">تسجيل الخروج</span>
         </button>
