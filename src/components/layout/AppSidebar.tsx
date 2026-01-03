@@ -24,37 +24,37 @@ const allMenuItems: {
     icon: LayoutDashboard, 
     label: "لوحة التحكم", 
     path: "/", 
-    roles: ['general_manager', 'executive_manager', 'sales_moderator', 'accountant', 'warehouse_supervisor'] 
+    roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'accountant', 'warehouse_supervisor'] 
   },
   { 
     icon: Package, 
     label: "المنتجات", 
     path: "/products", 
-    roles: ['general_manager', 'executive_manager', 'sales_moderator', 'warehouse_supervisor'] 
+    roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'warehouse_supervisor'] 
   },
   { 
     icon: ShoppingCart, 
     label: "الطلبات", 
     path: "/orders", 
-    roles: ['general_manager', 'executive_manager', 'sales_moderator', 'accountant', 'warehouse_supervisor'] 
+    roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'accountant', 'warehouse_supervisor'] 
   },
   { 
     icon: Users, 
     label: "العملاء", 
     path: "/customers", 
-    roles: ['general_manager', 'executive_manager', 'sales_moderator'] 
+    roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator'] 
   },
   { 
     icon: Bell, 
     label: "الإشعارات", 
     path: "/notifications", 
-    roles: ['general_manager', 'executive_manager', 'sales_moderator', 'accountant', 'warehouse_supervisor'] 
+    roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'accountant', 'warehouse_supervisor'] 
   },
   { 
     icon: BarChart3, 
     label: "التقارير", 
     path: "/reports", 
-    roles: ['general_manager', 'executive_manager', 'accountant'] 
+    roles: ['general_manager', 'executive_manager', 'sales_manager', 'accountant'] 
   },
   { 
     icon: Users, 

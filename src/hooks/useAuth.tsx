@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
-export type AppRole = 'general_manager' | 'executive_manager' | 'sales_moderator' | 'accountant' | 'warehouse_supervisor';
+export type AppRole = 'general_manager' | 'executive_manager' | 'sales_manager' | 'sales_moderator' | 'accountant' | 'warehouse_supervisor';
 
 interface AuthContextType {
   user: User | null;
@@ -15,6 +15,7 @@ interface AuthContextType {
   // Role checks
   isGeneralManager: boolean;
   isExecutiveManager: boolean;
+  isSalesManager: boolean;
   isSalesModerator: boolean;
   isAccountant: boolean;
   isWarehouseSupervisor: boolean;
@@ -125,17 +126,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Role checks
   const isGeneralManager = role === 'general_manager';
   const isExecutiveManager = role === 'executive_manager';
+  const isSalesManager = role === 'sales_manager';
   const isSalesModerator = role === 'sales_moderator';
   const isAccountant = role === 'accountant';
   const isWarehouseSupervisor = role === 'warehouse_supervisor';
 
   // Permission helpers based on requirements
+  // Sales Manager has same permissions as Executive Manager
   const canManageEmployees = isGeneralManager;
-  const canManageProducts = isGeneralManager || isExecutiveManager || isWarehouseSupervisor;
-  const canManageOrders = isGeneralManager || isExecutiveManager || isAccountant || isWarehouseSupervisor;
-  const canViewReports = isGeneralManager || isExecutiveManager || isAccountant;
-  const canUpdatePaymentStatus = isGeneralManager || isExecutiveManager || isAccountant;
-  const canUpdateOrderStatus = isGeneralManager || isExecutiveManager || isWarehouseSupervisor;
+  const canManageProducts = isGeneralManager || isExecutiveManager || isSalesManager || isWarehouseSupervisor;
+  const canManageOrders = isGeneralManager || isExecutiveManager || isSalesManager || isAccountant || isWarehouseSupervisor;
+  const canViewReports = isGeneralManager || isExecutiveManager || isSalesManager || isAccountant;
+  const canUpdatePaymentStatus = isGeneralManager || isExecutiveManager || isSalesManager || isAccountant;
+  const canUpdateOrderStatus = isGeneralManager || isExecutiveManager || isSalesManager || isWarehouseSupervisor;
 
   const value: AuthContextType = {
     user,
@@ -147,6 +150,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     signOut,
     isGeneralManager,
     isExecutiveManager,
+    isSalesManager,
     isSalesModerator,
     isAccountant,
     isWarehouseSupervisor,
