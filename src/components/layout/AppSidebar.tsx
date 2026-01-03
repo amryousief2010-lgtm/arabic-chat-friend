@@ -10,6 +10,7 @@ import {
   Bell,
   Warehouse,
   UsersRound,
+  Target,
 } from "lucide-react";
 import { useAuth, AppRole } from "@/hooks/useAuth";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
@@ -61,6 +62,12 @@ const allMenuItems: {
     icon: UsersRound, 
     label: "أداء الفريق", 
     path: "/team-performance", 
+    roles: ['general_manager', 'executive_manager', 'sales_manager'] 
+  },
+  { 
+    icon: Target, 
+    label: "أهداف المبيعات", 
+    path: "/sales-targets", 
     roles: ['general_manager', 'executive_manager', 'sales_manager'] 
   },
   { 
