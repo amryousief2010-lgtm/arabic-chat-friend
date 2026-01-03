@@ -37,9 +37,30 @@ const testUsers: TestUser[] = [
     roleLabel: 'مدير مبيعات'
   },
   {
-    email: 'sales.moderator@test.com',
-    password: 'Moderator@123',
-    fullName: 'عمر حسن - مشرف مبيعات',
+    email: 'sales.moderator1@test.com',
+    password: 'Moderator1@123',
+    fullName: 'عمر حسن - مشرف مبيعات 1',
+    role: 'sales_moderator',
+    roleLabel: 'مشرف مبيعات'
+  },
+  {
+    email: 'sales.moderator2@test.com',
+    password: 'Moderator2@123',
+    fullName: 'علي سعيد - مشرف مبيعات 2',
+    role: 'sales_moderator',
+    roleLabel: 'مشرف مبيعات'
+  },
+  {
+    email: 'sales.moderator3@test.com',
+    password: 'Moderator3@123',
+    fullName: 'حسام كريم - مشرف مبيعات 3',
+    role: 'sales_moderator',
+    roleLabel: 'مشرف مبيعات'
+  },
+  {
+    email: 'sales.moderator4@test.com',
+    password: 'Moderator4@123',
+    fullName: 'طارق محمود - مشرف مبيعات 4',
     role: 'sales_moderator',
     roleLabel: 'مشرف مبيعات'
   },
