@@ -52,6 +52,7 @@ interface Employee {
 const roleLabels: Record<AppRole, string> = {
   general_manager: 'مدير عام',
   executive_manager: 'مدير تنفيذي',
+  sales_manager: 'مدير مبيعات',
   sales_moderator: 'مودريتور مبيعات',
   accountant: 'محاسب',
   warehouse_supervisor: 'مشرف مخازن',
@@ -60,6 +61,7 @@ const roleLabels: Record<AppRole, string> = {
 const roleBadgeVariants: Record<AppRole, 'default' | 'secondary' | 'outline' | 'destructive'> = {
   general_manager: 'default',
   executive_manager: 'default',
+  sales_manager: 'default',
   sales_moderator: 'secondary',
   accountant: 'outline',
   warehouse_supervisor: 'outline',
@@ -68,6 +70,7 @@ const roleBadgeVariants: Record<AppRole, 'default' | 'secondary' | 'outline' | '
 const roleIcons: Record<AppRole, React.ElementType> = {
   general_manager: Shield,
   executive_manager: UserCheck,
+  sales_manager: Users,
   sales_moderator: ShoppingCart,
   accountant: Calculator,
   warehouse_supervisor: Warehouse,
@@ -77,7 +80,7 @@ const addEmployeeSchema = z.object({
   fullName: z.string().min(2, 'الاسم يجب أن يكون حرفين على الأقل').max(100),
   email: z.string().email('البريد الإلكتروني غير صالح').max(255),
   password: z.string().min(6, 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'),
-  role: z.enum(['general_manager', 'executive_manager', 'sales_moderator', 'accountant', 'warehouse_supervisor']),
+  role: z.enum(['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'accountant', 'warehouse_supervisor']),
 });
 
 const Employees = () => {
