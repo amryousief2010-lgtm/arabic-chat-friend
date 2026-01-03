@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotificationSettings } from '@/hooks/useNotificationSettings';
+import { useQueryClient } from '@tanstack/react-query';
 
 const statusLabels: Record<string, string> = {
   pending: 'قيد الانتظار',
@@ -40,6 +41,7 @@ export const useOrderNotifications = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const { settings } = useNotificationSettings();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!user) return;
@@ -69,6 +71,10 @@ export const useOrderNotifications = () => {
             type: 'new_order',
             order_id: newOrder.id,
           });
+          
+          // Invalidate notifications query
+          queryClient.invalidateQueries({ queryKey: ['notifications'] });
+          queryClient.invalidateQueries({ queryKey: ['unread-notifications'] });
           
           // Play notification sound if enabled
           if (settings.soundEnabled) {
@@ -103,6 +109,15 @@ export const useOrderNotifications = () => {
               order_id: updatedOrder.id,
             });
             
+            // Invalidate notifications query
+            queryClient.invalidateQueries({ queryKey: ['notifications'] });
+            queryClient.invalidateQueries({ queryKey: ['unread-notifications'] });
+            
+            // Play notification sound if enabled
+            if (settings.soundEnabled) {
+              playNotificationSound();
+            }
+            
             toast({ title, description });
           }
         }
@@ -115,5 +130,5 @@ export const useOrderNotifications = () => {
       console.log('Cleaning up order notifications...');
       supabase.removeChannel(channel);
     };
-  }, [user, toast]);
+  }, [user, toast, settings.soundEnabled, queryClient]);
 };
