@@ -16,65 +16,58 @@ interface TestUser {
 
 const testUsers: TestUser[] = [
   {
-    email: 'general.manager@test.com',
+    email: 'amr.youssef@test.com',
     password: 'Manager@123',
-    fullName: 'أحمد محمد - مدير عام',
+    fullName: 'عمرو يوسف',
     role: 'general_manager',
     roleLabel: 'مدير عام'
   },
   {
-    email: 'executive.manager@test.com',
+    email: 'ahmed.elgamal@test.com',
     password: 'Executive@123',
-    fullName: 'محمود علي - مدير تنفيذي',
+    fullName: 'أحمد الجمل',
     role: 'executive_manager',
     roleLabel: 'مدير تنفيذي'
   },
   {
-    email: 'sales.manager@test.com',
+    email: 'alaa.elqenawy@test.com',
     password: 'Sales@123',
-    fullName: 'خالد أحمد - مدير مبيعات',
+    fullName: 'الاء القناوي',
     role: 'sales_manager',
     roleLabel: 'مدير مبيعات'
   },
   {
-    email: 'sales.moderator1@test.com',
+    email: 'aya.gamal@test.com',
     password: 'Moderator1@123',
-    fullName: 'عمر حسن - مشرف مبيعات 1',
+    fullName: 'آية جمال',
     role: 'sales_moderator',
     roleLabel: 'مشرف مبيعات'
   },
   {
-    email: 'sales.moderator2@test.com',
+    email: 'sara@test.com',
     password: 'Moderator2@123',
-    fullName: 'علي سعيد - مشرف مبيعات 2',
+    fullName: 'سارة',
     role: 'sales_moderator',
     roleLabel: 'مشرف مبيعات'
   },
   {
-    email: 'sales.moderator3@test.com',
+    email: 'noura@test.com',
     password: 'Moderator3@123',
-    fullName: 'حسام كريم - مشرف مبيعات 3',
+    fullName: 'نورا',
     role: 'sales_moderator',
     roleLabel: 'مشرف مبيعات'
   },
   {
-    email: 'sales.moderator4@test.com',
-    password: 'Moderator4@123',
-    fullName: 'طارق محمود - مشرف مبيعات 4',
-    role: 'sales_moderator',
-    roleLabel: 'مشرف مبيعات'
-  },
-  {
-    email: 'accountant@test.com',
+    email: 'mohamed.shaala@test.com',
     password: 'Account@123',
-    fullName: 'يوسف إبراهيم - محاسب',
+    fullName: 'محمد شعلة',
     role: 'accountant',
     roleLabel: 'محاسب'
   },
   {
-    email: 'warehouse@test.com',
+    email: 'ahmed.khater@test.com',
     password: 'Warehouse@123',
-    fullName: 'سعيد محمود - مشرف مخزن',
+    fullName: 'أحمد خاطر',
     role: 'warehouse_supervisor',
     roleLabel: 'مشرف مخزن'
   }
