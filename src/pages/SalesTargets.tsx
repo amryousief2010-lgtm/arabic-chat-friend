@@ -32,8 +32,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Target, Plus, TrendingUp, TrendingDown, Award, Users, BarChart3 } from 'lucide-react';
+import { Target, Plus, TrendingUp, TrendingDown, Award, Users, BarChart3, FileDown } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const months = [
   { value: 1, label: 'يناير' },
@@ -223,6 +225,50 @@ const SalesTargets = () => {
   const overallPercentage = totalTarget > 0 ? (totalAchieved / totalTarget) * 100 : 0;
   const achievedCount = targetsWithAchieved.filter(t => t.achieved_amount >= Number(t.target_amount)).length;
 
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    const monthName = months.find(m => m.value === selectedMonth)?.label || '';
+    
+    // Title
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.text(`Sales Performance Report - ${monthName} ${selectedYear}`, 105, 20, { align: 'center' });
+    
+    // Summary section
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Total Target: ${totalTarget.toLocaleString()} SAR`, 20, 40);
+    doc.text(`Total Achieved: ${totalAchieved.toLocaleString()} SAR`, 20, 50);
+    doc.text(`Achievement Rate: ${overallPercentage.toFixed(1)}%`, 20, 60);
+    doc.text(`Employees who achieved target: ${achievedCount} / ${targetsWithAchieved.length}`, 20, 70);
+    
+    // Table
+    const tableData = targetsWithAchieved.map(target => {
+      const percentage = Number(target.target_amount) > 0
+        ? (target.achieved_amount / Number(target.target_amount)) * 100
+        : 0;
+      return [
+        target.profile?.full_name || 'Unknown',
+        `${Number(target.target_amount).toLocaleString()} SAR`,
+        `${target.achieved_amount.toLocaleString()} SAR`,
+        `${percentage.toFixed(1)}%`,
+        percentage >= 100 ? 'Achieved' : 'In Progress'
+      ];
+    });
+
+    autoTable(doc, {
+      startY: 85,
+      head: [['Employee', 'Target', 'Achieved', 'Percentage', 'Status']],
+      body: tableData,
+      theme: 'striped',
+      headStyles: { fillColor: [59, 130, 246] },
+      styles: { halign: 'center' },
+    });
+
+    doc.save(`performance-report-${monthName}-${selectedYear}.pdf`);
+    toast({ title: 'تم تصدير التقرير بنجاح' });
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -266,6 +312,12 @@ const SalesTargets = () => {
                 ))}
               </SelectContent>
             </Select>
+            {targetsWithAchieved.length > 0 && (
+              <Button variant="outline" onClick={exportToPDF}>
+                <FileDown className="h-4 w-4 ml-2" />
+                تصدير PDF
+              </Button>
+            )}
             {isManager && (
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
