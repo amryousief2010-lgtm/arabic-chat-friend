@@ -1,13 +1,51 @@
-import { Bell, Search } from "lucide-react";
+import { Bell, Search, LogOut, Shield, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
 
 interface HeaderProps {
   title: string;
   subtitle?: string;
 }
 
+const roleLabels = {
+  admin: 'مدير',
+  supervisor: 'مشرف',
+  employee: 'موظف',
+};
+
+const roleBadgeVariants = {
+  admin: 'default' as const,
+  supervisor: 'secondary' as const,
+  employee: 'outline' as const,
+};
+
 const Header = ({ title, subtitle }: HeaderProps) => {
+  const { user, role, signOut } = useAuth();
+
+  const getUserInitial = () => {
+    if (user?.user_metadata?.full_name) {
+      return user.user_metadata.full_name.charAt(0);
+    }
+    return user?.email?.charAt(0).toUpperCase() || 'م';
+  };
+
+  const getUserName = () => {
+    if (user?.user_metadata?.full_name) {
+      return user.user_metadata.full_name;
+    }
+    return user?.email?.split('@')[0] || 'مستخدم';
+  };
+
   return (
     <header className="flex items-center justify-between mb-8">
       <div>
@@ -33,15 +71,44 @@ const Header = ({ title, subtitle }: HeaderProps) => {
           </span>
         </Button>
 
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold">
-            أ
-          </div>
-          <div className="text-sm">
-            <p className="font-semibold">أحمد محمد</p>
-            <p className="text-muted-foreground text-xs">مدير المبيعات</p>
-          </div>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+              <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold">
+                {getUserInitial()}
+              </div>
+              <div className="text-sm text-right">
+                <p className="font-semibold">{getUserName()}</p>
+                {role && (
+                  <Badge variant={roleBadgeVariants[role]} className="text-xs">
+                    {roleLabels[role]}
+                  </Badge>
+                )}
+              </div>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-48">
+            <DropdownMenuLabel className="flex items-center gap-2">
+              <User className="w-4 h-4" />
+              حسابي
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {role && (
+              <DropdownMenuItem disabled className="flex items-center gap-2 text-muted-foreground">
+                <Shield className="w-4 h-4" />
+                الصلاحية: {roleLabels[role]}
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem 
+              onClick={signOut}
+              className="flex items-center gap-2 text-destructive focus:text-destructive"
+            >
+              <LogOut className="w-4 h-4" />
+              تسجيل الخروج
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );
