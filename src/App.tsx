@@ -15,6 +15,7 @@ import Settings from "./pages/Settings";
 import Employees from "./pages/Employees";
 import NewOrder from "./pages/NewOrder";
 import Notifications from "./pages/Notifications";
+import Install from "./pages/Install";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -75,6 +76,7 @@ const App = () => (
                 <Settings />
               </ProtectedRoute>
             } />
+            <Route path="/install" element={<Install />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
             </Routes>
