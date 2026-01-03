@@ -10,6 +10,8 @@ import {
   Bell,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
+import { Badge } from "@/components/ui/badge";
 
 const allMenuItems = [
   { icon: LayoutDashboard, label: "لوحة التحكم", path: "/", roles: ['admin', 'supervisor', 'employee'] },
@@ -25,6 +27,7 @@ const allMenuItems = [
 const AppSidebar = () => {
   const location = useLocation();
   const { role, signOut } = useAuth();
+  const { unreadCount } = useUnreadNotifications();
 
   const menuItems = allMenuItems.filter(item => 
     role && item.roles.includes(role)
@@ -49,6 +52,7 @@ const AppSidebar = () => {
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
         {menuItems.map((item) => {
           const isActive = location.pathname === item.path;
+          const showBadge = item.path === '/notifications' && unreadCount > 0;
           return (
             <Link
               key={item.path}
@@ -56,7 +60,12 @@ const AppSidebar = () => {
               className={`sidebar-item ${isActive ? "sidebar-item-active" : ""}`}
             >
               <item.icon className="w-5 h-5" />
-              <span className="font-medium">{item.label}</span>
+              <span className="font-medium flex-1">{item.label}</span>
+              {showBadge && (
+                <Badge variant="destructive" className="h-5 min-w-5 px-1.5 text-xs">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </Badge>
+              )}
             </Link>
           );
         })}
