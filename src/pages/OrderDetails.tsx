@@ -1,0 +1,511 @@
+import { useState, useEffect } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import DashboardLayout from "@/components/layout/DashboardLayout";
+import Header from "@/components/layout/Header";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import {
+  ArrowRight,
+  Package,
+  User,
+  MapPin,
+  Calendar,
+  CreditCard,
+  Truck,
+  CheckCircle,
+  XCircle,
+  Clock,
+  ShoppingCart,
+  FileText,
+} from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
+
+type OrderStatus = 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+type PaymentStatus = 'pending' | 'paid' | 'failed';
+
+interface OrderItem {
+  id: string;
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+}
+
+interface Order {
+  id: string;
+  order_number: string;
+  customer_id: string | null;
+  customer_name: string;
+  customer_phone: string;
+  status: OrderStatus;
+  payment_method: string;
+  payment_status: PaymentStatus;
+  subtotal: number;
+  discount: number;
+  delivery_fee: number;
+  total: number;
+  notes: string | null;
+  delivery_address: string | null;
+  created_at: string;
+  items: OrderItem[];
+}
+
+const statusColors: Record<OrderStatus, string> = {
+  pending: "bg-warning text-warning-foreground",
+  processing: "bg-primary text-primary-foreground",
+  shipped: "bg-chart-4 text-primary-foreground",
+  delivered: "bg-success text-success-foreground",
+  cancelled: "bg-destructive text-destructive-foreground",
+};
+
+const statusLabels: Record<OrderStatus, string> = {
+  pending: "قيد الانتظار",
+  processing: "جاري التجهيز",
+  shipped: "تم الشحن",
+  delivered: "تم التوصيل",
+  cancelled: "ملغي",
+};
+
+const paymentLabels: Record<string, string> = {
+  cash: "نقدي (عند الاستلام)",
+  online: "إلكتروني",
+};
+
+const paymentStatusColors: Record<PaymentStatus, string> = {
+  pending: "bg-warning text-warning-foreground",
+  paid: "bg-success text-success-foreground",
+  failed: "bg-destructive text-destructive-foreground",
+};
+
+const paymentStatusLabels: Record<PaymentStatus, string> = {
+  pending: "قيد الانتظار",
+  paid: "مدفوع",
+  failed: "فشل الدفع",
+};
+
+const getStatusIcon = (status: OrderStatus) => {
+  switch (status) {
+    case "pending":
+      return <Clock className="w-4 h-4" />;
+    case "processing":
+      return <Package className="w-4 h-4" />;
+    case "shipped":
+      return <Truck className="w-4 h-4" />;
+    case "delivered":
+      return <CheckCircle className="w-4 h-4" />;
+    case "cancelled":
+      return <XCircle className="w-4 h-4" />;
+    default:
+      return null;
+  }
+};
+
+const OrderDetails = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { canUpdateOrderStatus, canUpdatePaymentStatus } = useAuth();
+  const [order, setOrder] = useState<Order | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
+
+  useEffect(() => {
+    if (id) {
+      fetchOrder(id);
+    }
+  }, [id]);
+
+  const fetchOrder = async (orderId: string) => {
+    try {
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          customers (name, phone)
+        `)
+        .eq('id', orderId)
+        .maybeSingle();
+
+      if (orderError) throw orderError;
+      if (!orderData) {
+        toast.error('الطلب غير موجود');
+        navigate('/orders');
+        return;
+      }
+
+      const { data: itemsData, error: itemsError } = await supabase
+        .from('order_items')
+        .select('*')
+        .eq('order_id', orderId);
+
+      if (itemsError) throw itemsError;
+
+      const formattedOrder: Order = {
+        id: orderData.id,
+        order_number: orderData.order_number,
+        customer_id: orderData.customer_id,
+        customer_name: orderData.customers?.name || 'عميل غير معروف',
+        customer_phone: orderData.customers?.phone || '',
+        status: orderData.status as OrderStatus,
+        payment_method: orderData.payment_method,
+        payment_status: orderData.payment_status as PaymentStatus,
+        subtotal: Number(orderData.subtotal),
+        discount: Number(orderData.discount),
+        delivery_fee: Number(orderData.delivery_fee),
+        total: Number(orderData.total),
+        notes: orderData.notes,
+        delivery_address: orderData.delivery_address,
+        created_at: orderData.created_at,
+        items: (itemsData || []).map(item => ({
+          id: item.id,
+          product_name: item.product_name,
+          quantity: Number(item.quantity),
+          unit_price: Number(item.unit_price),
+          total_price: Number(item.total_price),
+        })),
+      };
+
+      setOrder(formattedOrder);
+    } catch (error) {
+      console.error('Error fetching order:', error);
+      toast.error('حدث خطأ أثناء جلب بيانات الطلب');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStatusChange = async (newStatus: OrderStatus) => {
+    if (!order || !canUpdateOrderStatus) return;
+    
+    setUpdating(true);
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: newStatus })
+        .eq('id', order.id);
+
+      if (error) throw error;
+
+      setOrder({ ...order, status: newStatus });
+      toast.success(`تم تحديث حالة الطلب إلى "${statusLabels[newStatus]}"`);
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      toast.error('حدث خطأ أثناء تحديث حالة الطلب');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handlePaymentStatusChange = async (newStatus: PaymentStatus) => {
+    if (!order || !canUpdatePaymentStatus) return;
+    
+    setUpdating(true);
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ payment_status: newStatus })
+        .eq('id', order.id);
+
+      if (error) throw error;
+
+      setOrder({ ...order, payment_status: newStatus });
+      toast.success(`تم تحديث حالة الدفع إلى "${paymentStatusLabels[newStatus]}"`);
+    } catch (error) {
+      console.error('Error updating payment status:', error);
+      toast.error('حدث خطأ أثناء تحديث حالة الدفع');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!order) {
+    return (
+      <DashboardLayout>
+        <div className="flex flex-col items-center justify-center h-64 gap-4">
+          <p className="text-muted-foreground">الطلب غير موجود</p>
+          <Button asChild>
+            <Link to="/orders">العودة للطلبات</Link>
+          </Button>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" asChild>
+              <Link to="/orders">
+                <ArrowRight className="w-5 h-5" />
+              </Link>
+            </Button>
+            <Header 
+              title={`طلب ${order.order_number}`} 
+              subtitle={`تم الإنشاء في ${new Date(order.created_at).toLocaleDateString('ar-EG', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })}`} 
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge className={`${statusColors[order.status]} flex items-center gap-1 text-sm px-3 py-1`}>
+              {getStatusIcon(order.status)}
+              {statusLabels[order.status]}
+            </Badge>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main Content */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Products Card */}
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Package className="w-5 h-5 text-primary" />
+                  المنتجات ({order.items.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {order.items.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between p-4 rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                          <ShoppingCart className="w-6 h-6 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-semibold">{item.product_name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {item.unit_price.toLocaleString()} ج.م × {item.quantity}
+                          </p>
+                        </div>
+                      </div>
+                      <p className="font-bold text-lg">
+                        {item.total_price.toLocaleString()} ج.م
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                <Separator className="my-4" />
+
+                {/* Order Summary */}
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">المجموع الفرعي</span>
+                    <span>{order.subtotal.toLocaleString()} ج.م</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">رسوم التوصيل</span>
+                    <span>{order.delivery_fee.toLocaleString()} ج.م</span>
+                  </div>
+                  {order.discount > 0 && (
+                    <div className="flex justify-between text-success">
+                      <span>الخصم</span>
+                      <span>- {order.discount.toLocaleString()} ج.م</span>
+                    </div>
+                  )}
+                  <Separator />
+                  <div className="flex items-center justify-between pt-2">
+                    <span className="text-lg font-semibold">الإجمالي</span>
+                    <span className="text-2xl font-bold text-primary">
+                      {order.total.toLocaleString()} ج.م
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Notes Card */}
+            {order.notes && (
+              <Card className="glass-card">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-primary" />
+                    ملاحظات
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground whitespace-pre-wrap">{order.notes}</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Customer Info */}
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="w-5 h-5 text-primary" />
+                  معلومات العميل
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">الاسم</p>
+                  <p className="font-semibold">{order.customer_name}</p>
+                </div>
+                {order.customer_phone && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">رقم الهاتف</p>
+                    <p className="font-semibold" dir="ltr">{order.customer_phone}</p>
+                  </div>
+                )}
+                {order.delivery_address && (
+                  <div>
+                    <p className="text-sm text-muted-foreground flex items-center gap-1">
+                      <MapPin className="w-3 h-3" />
+                      عنوان التوصيل
+                    </p>
+                    <p className="font-semibold">{order.delivery_address}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Order Status */}
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Truck className="w-5 h-5 text-primary" />
+                  حالة الطلب
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {canUpdateOrderStatus ? (
+                  <Select
+                    value={order.status}
+                    onValueChange={(value: OrderStatus) => handleStatusChange(value)}
+                    disabled={updating}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(statusLabels).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          <div className="flex items-center gap-2">
+                            {getStatusIcon(value as OrderStatus)}
+                            {label}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Badge className={`${statusColors[order.status]} flex items-center gap-1 w-full justify-center py-2`}>
+                    {getStatusIcon(order.status)}
+                    {statusLabels[order.status]}
+                  </Badge>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Payment Info */}
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CreditCard className="w-5 h-5 text-primary" />
+                  معلومات الدفع
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">طريقة الدفع</p>
+                  <p className="font-semibold">
+                    {paymentLabels[order.payment_method] || order.payment_method}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground mb-2">حالة الدفع</p>
+                  {canUpdatePaymentStatus ? (
+                    <Select
+                      value={order.payment_status}
+                      onValueChange={(value: PaymentStatus) => handlePaymentStatusChange(value)}
+                      disabled={updating}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(paymentStatusLabels).map(([value, label]) => (
+                          <SelectItem key={value} value={value}>
+                            {label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Badge className={`${paymentStatusColors[order.payment_status]} w-full justify-center py-2`}>
+                      {paymentStatusLabels[order.payment_status]}
+                    </Badge>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Order Date */}
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-primary" />
+                  تاريخ الطلب
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="font-semibold">
+                  {new Date(order.created_at).toLocaleDateString('ar-EG', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  })}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {new Date(order.created_at).toLocaleTimeString('ar-EG', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    </DashboardLayout>
+  );
+};
+
+export default OrderDetails;

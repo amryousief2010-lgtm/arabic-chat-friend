@@ -15,6 +15,7 @@ import Settings from "./pages/Settings";
 import Employees from "./pages/Employees";
 import NewOrder from "./pages/NewOrder";
 import Notifications from "./pages/Notifications";
+import OrderDetails from "./pages/OrderDetails";
 import Install from "./pages/Install";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -49,6 +50,11 @@ const App = () => (
             <Route path="/orders/new" element={
               <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_moderator']}>
                 <NewOrder />
+              </ProtectedRoute>
+            } />
+            <Route path="/orders/:id" element={
+              <ProtectedRoute>
+                <OrderDetails />
               </ProtectedRoute>
             } />
             <Route path="/customers" element={
