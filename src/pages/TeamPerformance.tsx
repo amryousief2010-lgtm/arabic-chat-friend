@@ -29,6 +29,12 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   BarChart,
   Bar,
   XAxis,
@@ -51,7 +57,13 @@ import {
   UserPlus,
   UserMinus,
   Target,
+  Download,
+  FileSpreadsheet,
+  FileText,
 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 interface TeamMember {
   id: string;
@@ -283,23 +295,141 @@ const TeamPerformance = () => {
     { name: 'قيد التنفيذ', value: teamMembers.reduce((sum, m) => sum + m.pendingOrders, 0) },
   ];
 
+  const periodLabels: Record<string, string> = {
+    week: 'هذا الأسبوع',
+    month: 'هذا الشهر',
+    quarter: 'هذا الربع',
+    year: 'هذه السنة',
+  };
+
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    
+    // Add Arabic font support note - jsPDF has limited Arabic support
+    // For full Arabic support, you'd need to add custom fonts
+    doc.setFont('helvetica');
+    
+    // Title
+    doc.setFontSize(18);
+    doc.text('Team Performance Report', 105, 20, { align: 'center' });
+    
+    doc.setFontSize(12);
+    doc.text(`Period: ${periodLabels[period]}`, 105, 30, { align: 'center' });
+    doc.text(`Generated: ${new Date().toLocaleDateString('en-US')}`, 105, 38, { align: 'center' });
+    
+    // Summary stats
+    doc.setFontSize(14);
+    doc.text('Summary', 14, 55);
+    doc.setFontSize(11);
+    doc.text(`Team Members: ${teamMembers.length}`, 14, 65);
+    doc.text(`Total Orders: ${totalOrders}`, 14, 72);
+    doc.text(`Total Sales: ${totalSales.toLocaleString()} EGP`, 14, 79);
+    doc.text(`Average Order Value: ${avgOrderValue.toFixed(0)} EGP`, 14, 86);
+    
+    // Team performance table
+    const tableData = teamMembers.map(member => [
+      member.full_name,
+      member.email,
+      member.ordersCount.toString(),
+      `${member.totalSales.toLocaleString()} EGP`,
+      member.deliveredOrders.toString(),
+      member.pendingOrders.toString(),
+    ]);
+    
+    autoTable(doc, {
+      startY: 95,
+      head: [['Name', 'Email', 'Orders', 'Sales', 'Delivered', 'Pending']],
+      body: tableData,
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [59, 130, 246] },
+    });
+    
+    doc.save(`team-performance-${period}-${new Date().toISOString().split('T')[0]}.pdf`);
+    toast.success('تم تصدير التقرير بنجاح');
+  };
+
+  const exportToExcel = () => {
+    const worksheetData = [
+      ['تقرير أداء الفريق'],
+      [`الفترة: ${periodLabels[period]}`],
+      [`تاريخ التقرير: ${new Date().toLocaleDateString('ar-EG')}`],
+      [],
+      ['ملخص'],
+      [`عدد أعضاء الفريق: ${teamMembers.length}`],
+      [`إجمالي الطلبات: ${totalOrders}`],
+      [`إجمالي المبيعات: ${totalSales.toLocaleString()} ج.م`],
+      [`متوسط قيمة الطلب: ${avgOrderValue.toFixed(0)} ج.م`],
+      [],
+      ['الاسم', 'البريد الإلكتروني', 'عدد الطلبات', 'المبيعات', 'تم التوصيل', 'قيد التنفيذ'],
+      ...teamMembers.map(member => [
+        member.full_name,
+        member.email,
+        member.ordersCount,
+        member.totalSales,
+        member.deliveredOrders,
+        member.pendingOrders,
+      ]),
+    ];
+    
+    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+    
+    // Set column widths
+    worksheet['!cols'] = [
+      { wch: 25 },
+      { wch: 30 },
+      { wch: 12 },
+      { wch: 15 },
+      { wch: 12 },
+      { wch: 12 },
+    ];
+    
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'أداء الفريق');
+    
+    XLSX.writeFile(workbook, `team-performance-${period}-${new Date().toISOString().split('T')[0]}.xlsx`);
+    toast.success('تم تصدير التقرير بنجاح');
+  };
+
   return (
     <DashboardLayout>
       <Header title="أداء الفريق" subtitle="متابعة أداء فريق المبيعات" />
 
       {/* Controls */}
       <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
-        <Select value={period} onValueChange={setPeriod}>
-          <SelectTrigger className="w-48">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="week">هذا الأسبوع</SelectItem>
-            <SelectItem value="month">هذا الشهر</SelectItem>
-            <SelectItem value="quarter">هذا الربع</SelectItem>
-            <SelectItem value="year">هذه السنة</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-4">
+          <Select value={period} onValueChange={setPeriod}>
+            <SelectTrigger className="w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="week">هذا الأسبوع</SelectItem>
+              <SelectItem value="month">هذا الشهر</SelectItem>
+              <SelectItem value="quarter">هذا الربع</SelectItem>
+              <SelectItem value="year">هذه السنة</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {teamMembers.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <Download className="w-4 h-4" />
+                  تصدير
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onClick={exportToPDF} className="gap-2 cursor-pointer">
+                  <FileText className="w-4 h-4" />
+                  تصدير PDF
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={exportToExcel} className="gap-2 cursor-pointer">
+                  <FileSpreadsheet className="w-4 h-4" />
+                  تصدير Excel
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
 
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
