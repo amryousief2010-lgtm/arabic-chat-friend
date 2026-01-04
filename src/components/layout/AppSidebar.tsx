@@ -12,6 +12,7 @@ import {
   UsersRound,
   Target,
   Gift,
+  AlertTriangle,
 } from "lucide-react";
 import { useAuth, AppRole } from "@/hooks/useAuth";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
@@ -34,6 +35,12 @@ const allMenuItems: {
     label: "المنتجات", 
     path: "/products", 
     roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'warehouse_supervisor'] 
+  },
+  { 
+    icon: AlertTriangle, 
+    label: "مخزون منخفض", 
+    path: "/low-stock", 
+    roles: ['general_manager', 'executive_manager', 'sales_manager', 'warehouse_supervisor'] 
   },
   { 
     icon: ShoppingCart, 

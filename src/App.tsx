@@ -23,6 +23,7 @@ import SalesTargets from "./pages/SalesTargets";
 import OfferBoxes from "./pages/OfferBoxes";
 import SeedUsers from "./pages/SeedUsers";
 import Permissions from "./pages/Permissions";
+import LowStock from "./pages/LowStock";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -105,6 +106,11 @@ const App = () => (
             <Route path="/permissions" element={
               <ProtectedRoute>
                 <Permissions />
+              </ProtectedRoute>
+            } />
+            <Route path="/low-stock" element={
+              <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'warehouse_supervisor']}>
+                <LowStock />
               </ProtectedRoute>
             } />
             <Route path="/install" element={<Install />} />
