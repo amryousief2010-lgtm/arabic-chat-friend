@@ -13,6 +13,7 @@ import {
   Target,
   Gift,
   AlertTriangle,
+  Upload,
 } from "lucide-react";
 import { useAuth, AppRole } from "@/hooks/useAuth";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
@@ -89,6 +90,12 @@ const allMenuItems: {
     label: "الموظفين", 
     path: "/employees", 
     roles: ['general_manager'] 
+  },
+  { 
+    icon: Upload, 
+    label: "استيراد البيانات", 
+    path: "/import-sales", 
+    roles: ['general_manager', 'executive_manager'] 
   },
   { 
     icon: Settings, 
