@@ -21,6 +21,7 @@ import SeedUsers from "@/pages/SeedUsers";
 import Permissions from "@/pages/Permissions";
 import LowStock from "@/pages/LowStock";
 import NotFound from "@/pages/NotFound";
+import ImportSalesData from "@/pages/ImportSalesData";
 
 const AnimatedRoutes = () => {
   const location = useLocation();
@@ -111,6 +112,11 @@ const AnimatedRoutes = () => {
         } />
         <Route path="/seed-users" element={
           <PageTransition><SeedUsers /></PageTransition>
+        } />
+        <Route path="/import-sales" element={
+          <ProtectedRoute allowedRoles={['general_manager']}>
+            <PageTransition><ImportSalesData /></PageTransition>
+          </ProtectedRoute>
         } />
         <Route path="*" element={
           <PageTransition><NotFound /></PageTransition>
