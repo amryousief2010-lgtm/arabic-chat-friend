@@ -145,8 +145,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   
   // Function to check if user can update order status for a specific order
   const canUpdateOrderStatusForOrder = (orderCreatedBy: string | null) => {
-    // Managers and warehouse supervisors can update any order
-    if (isGeneralManager || isExecutiveManager || isSalesManager || isWarehouseSupervisor) {
+    // General Manager, Executive Manager, and Sales Manager can update any order
+    if (isGeneralManager || isExecutiveManager || isSalesManager) {
       return true;
     }
     // Sales moderator can only update their own orders

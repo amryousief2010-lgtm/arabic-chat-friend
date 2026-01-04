@@ -59,6 +59,7 @@ interface Order {
   delivery_address: string | null;
   created_at: string;
   created_by: string | null;
+  created_by_name: string | null;
   items: OrderItem[];
 }
 
@@ -151,6 +152,17 @@ const OrderDetails = () => {
 
       if (itemsError) throw itemsError;
 
+      // Fetch creator's name if created_by exists
+      let createdByName: string | null = null;
+      if (orderData.created_by) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', orderData.created_by)
+          .maybeSingle();
+        createdByName = profileData?.full_name || null;
+      }
+
       const formattedOrder: Order = {
         id: orderData.id,
         order_number: orderData.order_number,
@@ -168,6 +180,7 @@ const OrderDetails = () => {
         delivery_address: orderData.delivery_address,
         created_at: orderData.created_at,
         created_by: orderData.created_by,
+        created_by_name: createdByName,
         items: (itemsData || []).map(item => ({
           id: item.id,
           product_name: item.product_name,
@@ -477,6 +490,21 @@ const OrderDetails = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Order Creator */}
+            {order.created_by_name && (
+              <Card className="glass-card">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="w-5 h-5 text-primary" />
+                    منشئ الطلب
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="font-semibold">{order.created_by_name}</p>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Order Date */}
             <Card className="glass-card">
