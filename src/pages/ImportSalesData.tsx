@@ -12,20 +12,56 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface SalesRecord {
-  date: string;
+  timestamp: string;
+  moderator: string;
+  customerSource: string;
   customerName: string;
-  productName: string;
-  quantity: number;
-  unitPrice: number;
-  total: number;
-  status: "delivered" | "pending" | "cancelled";
-  paymentStatus: "paid" | "pending";
+  customerPhone: string;
+  customerPhone2?: string;
+  address: string;
+  shippingCompany: string;
+  orderValue: number;
+  offerType: string;
   notes?: string;
+  governorate: string;
+  city: string;
+  products: { name: string; quantity: number }[];
 }
+
+// Product column mapping (Arabic names to column indices)
+const PRODUCT_COLUMNS = [
+  { name: 'بيض', index: 11 },
+  { name: 'دبوس 7 كيلو', index: 12 },
+  { name: 'فخدة / نص نعامة', index: 13 },
+  { name: 'لحم', index: 14 },
+  { name: 'استيك', index: 15 },
+  { name: 'موزة', index: 16 },
+  { name: 'فراشة', index: 17 },
+  { name: 'قطعية الدبوس', index: 18 },
+  { name: 'تربيانكو', index: 19 },
+  { name: 'اسكالوب', index: 20 },
+  { name: 'رول', index: 21 },
+  { name: 'كباب', index: 22 },
+  { name: 'كبدة', index: 23 },
+  { name: 'قلب', index: 24 },
+  { name: 'قوانص', index: 25 },
+  { name: 'رقاب', index: 26 },
+  { name: 'كوارع', index: 27 },
+  { name: 'دهن', index: 28 },
+  { name: 'شاورما', index: 29 },
+  { name: 'شيش', index: 30 },
+  { name: 'كفتة', index: 31 },
+  { name: 'سجق', index: 32 },
+  { name: 'برجر', index: 33 },
+  { name: 'طرب', index: 34 },
+  { name: 'حواوشي', index: 35 },
+  { name: 'مفروم', index: 36 },
+  { name: 'كفتة أرز', index: 37 },
+  { name: 'ممبار', index: 38 },
+];
 
 const ImportSalesData = () => {
   const [records, setRecords] = useState<SalesRecord[]>([]);
-  const [rawHeaders, setRawHeaders] = useState<string[]>([]);
   const [rawPreview, setRawPreview] = useState<any[][]>([]);
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -45,67 +81,55 @@ const ImportSalesData = () => {
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
       
-      // Get raw data
       const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
       
-      console.log("Raw data from Excel:", rawData.slice(0, 20));
-      console.log("Sheet names:", workbook.SheetNames);
+      console.log("Raw data from Excel:", rawData.slice(0, 5));
+      setRawPreview(rawData.slice(0, 10));
       
-      // Show headers (first row)
-      if (rawData.length > 0) {
-        setRawHeaders(rawData[0]?.map((h: any) => String(h || '')) || []);
-        setRawPreview(rawData.slice(0, 15));
-      }
-      
-      // Parse the data based on actual structure
       const parsedRecords: SalesRecord[] = [];
       
-      // Find column indices by common names
-      const headers = rawData[0] || [];
-      const findColIndex = (names: string[]) => {
-        return headers.findIndex((h: any) => 
-          names.some(name => String(h || '').includes(name))
-        );
-      };
-      
-      const dateCol = findColIndex(['تاريخ', 'التاريخ', 'date', 'Date']);
-      const customerCol = findColIndex(['عميل', 'العميل', 'اسم العميل', 'customer', 'Customer', 'الاسم']);
-      const productCol = findColIndex(['منتج', 'المنتج', 'صنف', 'الصنف', 'product', 'Product', 'البيان']);
-      const qtyCol = findColIndex(['كمية', 'الكمية', 'quantity', 'Quantity', 'عدد']);
-      const priceCol = findColIndex(['سعر', 'السعر', 'price', 'Price', 'سعر الوحدة']);
-      const totalCol = findColIndex(['إجمالي', 'الإجمالي', 'المجموع', 'total', 'Total', 'المبلغ', 'القيمة']);
-      
-      console.log("Column indices:", { dateCol, customerCol, productCol, qtyCol, priceCol, totalCol });
-      
-      // Process data rows
+      // Skip header row and process data
       for (let i = 1; i < rawData.length; i++) {
         const row = rawData[i];
-        if (!row || row.length < 2) continue;
+        if (!row || row.length < 5) continue;
         
         // Skip empty rows
-        const hasData = row.some((cell: any) => cell !== null && cell !== undefined && cell !== '');
-        if (!hasData) continue;
+        const customerName = row[3];
+        if (!customerName || String(customerName).trim() === '') continue;
+        
+        // Parse products
+        const products: { name: string; quantity: number }[] = [];
+        for (const product of PRODUCT_COLUMNS) {
+          const qty = parseFloat(row[product.index]) || 0;
+          if (qty > 0) {
+            products.push({ name: product.name, quantity: qty });
+          }
+        }
         
         const record: SalesRecord = {
-          date: parseExcelDate(row[dateCol >= 0 ? dateCol : 0]) || `2025-10-${String(i).padStart(2, '0')}`,
-          customerName: String(row[customerCol >= 0 ? customerCol : 1] || `عميل ${i}`).trim(),
-          productName: String(row[productCol >= 0 ? productCol : 2] || 'منتج').trim(),
-          quantity: parseFloat(row[qtyCol >= 0 ? qtyCol : 3]) || 1,
-          unitPrice: parseFloat(row[priceCol >= 0 ? priceCol : 4]) || 0,
-          total: parseFloat(row[totalCol >= 0 ? totalCol : 5]) || 0,
-          status: "delivered",
-          paymentStatus: "paid",
-          notes: undefined
+          timestamp: parseExcelDate(row[0]) || new Date().toISOString(),
+          moderator: String(row[1] || '').trim(),
+          customerSource: String(row[2] || '').trim(),
+          customerName: String(row[3] || '').trim(),
+          customerPhone: String(row[4] || '').replace(/\s/g, ''),
+          customerPhone2: row[5] ? String(row[5]).replace(/\s/g, '') : undefined,
+          address: String(row[6] || '').trim(),
+          shippingCompany: String(row[7] || '').trim(),
+          orderValue: parseFloat(row[8]) || 0,
+          offerType: String(row[9] || '').trim(),
+          notes: row[10] ? String(row[10]).trim() : undefined,
+          governorate: String(row[39] || row[40] || '').trim(),
+          city: String(row[40] || row[41] || '').trim(),
+          products
         };
         
-        // Only add if has meaningful data
-        if (record.customerName && record.customerName !== 'undefined' && (record.total > 0 || record.quantity > 0)) {
+        if (record.customerName && record.orderValue > 0) {
           parsedRecords.push(record);
         }
       }
       
       setRecords(parsedRecords);
-      toast.success(`تم تحميل ${parsedRecords.length} سجل من الملف`);
+      toast.success(`تم تحميل ${parsedRecords.length} طلب من الملف`);
     } catch (error) {
       console.error("Error loading Excel file:", error);
       toast.error("فشل في تحميل الملف");
@@ -120,14 +144,25 @@ const ImportSalesData = () => {
     // If it's a number (Excel date serial)
     if (typeof value === 'number') {
       const date = new Date((value - 25569) * 86400 * 1000);
-      return date.toISOString().split('T')[0];
+      return date.toISOString();
     }
     
-    // If it's already a string
+    // If it's already a string like "10/1/2025 10:39:53"
     if (typeof value === 'string') {
+      const parts = value.split(' ');
+      if (parts.length >= 1) {
+        const dateParts = parts[0].split('/');
+        if (dateParts.length === 3) {
+          const month = dateParts[0].padStart(2, '0');
+          const day = dateParts[1].padStart(2, '0');
+          const year = dateParts[2];
+          const time = parts[1] || '12:00:00';
+          return `${year}-${month}-${day}T${time}Z`;
+        }
+      }
       const parsed = new Date(value);
       if (!isNaN(parsed.getTime())) {
-        return parsed.toISOString().split('T')[0];
+        return parsed.toISOString();
       }
     }
     
@@ -144,147 +179,153 @@ const ImportSalesData = () => {
     setImportProgress({ customers: 0, orders: 0, items: 0 });
 
     try {
-      // Group records by customer
-      const customerOrders = new Map<string, SalesRecord[]>();
-      
-      for (const record of records) {
-        const existing = customerOrders.get(record.customerName) || [];
-        existing.push(record);
-        customerOrders.set(record.customerName, existing);
-      }
-
       let customersCreated = 0;
       let ordersCreated = 0;
       let itemsCreated = 0;
+      
+      // Track processed customers to avoid duplicates
+      const processedCustomers = new Map<string, string>();
 
-      // Process each customer
-      for (const [customerName, customerRecords] of customerOrders) {
-        // Check if customer exists
-        let { data: existingCustomer } = await supabase
-          .from('customers')
-          .select('id')
-          .eq('name', customerName)
-          .single();
-
+      for (const record of records) {
+        // Use phone as unique identifier for customer
+        const customerKey = record.customerPhone;
         let customerId: string;
 
-        if (!existingCustomer) {
-          // Create new customer
-          const { data: newCustomer, error: customerError } = await supabase
+        if (processedCustomers.has(customerKey)) {
+          customerId = processedCustomers.get(customerKey)!;
+        } else {
+          // Check if customer exists
+          let { data: existingCustomer } = await supabase
             .from('customers')
-            .insert({
-              name: customerName,
-              phone: '0000000000',
-              address: 'عنوان غير محدد',
-              city: 'غير محدد'
-            })
             .select('id')
+            .eq('phone', record.customerPhone)
             .single();
 
-          if (customerError) {
-            console.error("Error creating customer:", customerError);
-            continue;
+          if (!existingCustomer) {
+            // Create new customer
+            const { data: newCustomer, error: customerError } = await supabase
+              .from('customers')
+              .insert({
+                name: record.customerName,
+                phone: record.customerPhone,
+                address: record.address,
+                city: record.city,
+                notes: `المحافظة: ${record.governorate} | المصدر: ${record.customerSource}${record.customerPhone2 ? ` | هاتف آخر: ${record.customerPhone2}` : ''}`
+              })
+              .select('id')
+              .single();
+
+            if (customerError) {
+              console.error("Error creating customer:", customerError);
+              continue;
+            }
+            customerId = newCustomer.id;
+            customersCreated++;
+          } else {
+            customerId = existingCustomer.id;
           }
-          customerId = newCustomer.id;
-          customersCreated++;
-        } else {
-          customerId = existingCustomer.id;
+          
+          processedCustomers.set(customerKey, customerId);
         }
 
         setImportProgress(prev => ({ ...prev, customers: customersCreated }));
 
-        // Group by date to create orders
-        const ordersByDate = new Map<string, SalesRecord[]>();
-        for (const record of customerRecords) {
-          const existing = ordersByDate.get(record.date) || [];
-          existing.push(record);
-          ordersByDate.set(record.date, existing);
+        // Generate order number
+        const orderDate = new Date(record.timestamp);
+        const orderNumber = `ORD-${orderDate.getFullYear()}${String(orderDate.getMonth() + 1).padStart(2, '0')}${String(orderDate.getDate()).padStart(2, '0')}-${String(ordersCreated + 1).padStart(4, '0')}`;
+
+        // Create order
+        const { data: newOrder, error: orderError } = await supabase
+          .from('orders')
+          .insert({
+            order_number: orderNumber,
+            customer_id: customerId,
+            subtotal: record.orderValue,
+            total: record.orderValue,
+            status: 'delivered', // الأخضر والأزرق = تم التسليم
+            payment_status: 'paid',
+            payment_method: 'cash',
+            delivery_address: record.address,
+            created_at: record.timestamp,
+            notes: `العرض: ${record.offerType} | شركة الشحن: ${record.shippingCompany} | المندوب: ${record.moderator}${record.notes ? ` | ملاحظات: ${record.notes}` : ''}`
+          })
+          .select('id')
+          .single();
+
+        if (orderError) {
+          console.error("Error creating order:", orderError);
+          continue;
         }
 
-        // Create orders
-        for (const [date, orderRecords] of ordersByDate) {
-          const subtotal = orderRecords.reduce((sum, r) => sum + r.total, 0);
-          
-          // Generate order number
-          const orderNumber = `ORD-${date.replace(/-/g, '')}-${String(ordersCreated + 1).padStart(4, '0')}`;
+        ordersCreated++;
+        setImportProgress(prev => ({ ...prev, orders: ordersCreated }));
 
-          const { data: newOrder, error: orderError } = await supabase
-            .from('orders')
-            .insert({
-              order_number: orderNumber,
-              customer_id: customerId,
-              subtotal: subtotal,
-              total: subtotal,
-              status: orderRecords[0].status === 'delivered' ? 'delivered' : 'pending',
-              payment_status: orderRecords[0].paymentStatus,
-              payment_method: 'cash',
-              delivery_address: 'عنوان التسليم',
-              created_at: `${date}T12:00:00Z`,
-              notes: `مستورد من ملف Excel - شهر 10/2025`
-            })
-            .select('id')
+        // Create order items
+        for (const product of record.products) {
+          // Try to find product in database
+          let { data: existingProduct } = await supabase
+            .from('products')
+            .select('id, price')
+            .ilike('name', `%${product.name}%`)
             .single();
 
-          if (orderError) {
-            console.error("Error creating order:", orderError);
-            continue;
+          const unitPrice = record.products.length > 0 
+            ? record.orderValue / record.products.reduce((sum, p) => sum + p.quantity, 0)
+            : existingProduct?.price || 0;
+
+          const { error: itemError } = await supabase
+            .from('order_items')
+            .insert({
+              order_id: newOrder.id,
+              product_id: existingProduct?.id || null,
+              product_name: product.name,
+              quantity: product.quantity,
+              unit_price: unitPrice,
+              total_price: unitPrice * product.quantity
+            });
+
+          if (!itemError) {
+            itemsCreated++;
+            setImportProgress(prev => ({ ...prev, items: itemsCreated }));
           }
+        }
 
-          ordersCreated++;
-          setImportProgress(prev => ({ ...prev, orders: ordersCreated }));
+        // If no products, create a single item for the offer
+        if (record.products.length === 0) {
+          const { error: itemError } = await supabase
+            .from('order_items')
+            .insert({
+              order_id: newOrder.id,
+              product_id: null,
+              product_name: record.offerType || 'طلب',
+              quantity: 1,
+              unit_price: record.orderValue,
+              total_price: record.orderValue
+            });
 
-          // Create order items
-          for (const record of orderRecords) {
-            // Try to find product
-            let { data: product } = await supabase
-              .from('products')
-              .select('id, price')
-              .eq('name', record.productName)
-              .single();
-
-            const { error: itemError } = await supabase
-              .from('order_items')
-              .insert({
-                order_id: newOrder.id,
-                product_id: product?.id || null,
-                product_name: record.productName,
-                quantity: record.quantity,
-                unit_price: record.unitPrice || (product?.price || 0),
-                total_price: record.total
-              });
-
-            if (!itemError) {
-              itemsCreated++;
-              setImportProgress(prev => ({ ...prev, items: itemsCreated }));
-            }
+          if (!itemError) {
+            itemsCreated++;
+            setImportProgress(prev => ({ ...prev, items: itemsCreated }));
           }
         }
       }
 
       // Update customer totals
-      for (const [customerName] of customerOrders) {
-        const { data: customer } = await supabase
-          .from('customers')
-          .select('id')
-          .eq('name', customerName)
-          .single();
+      for (const [_, customerId] of processedCustomers) {
+        const { data: orderStats } = await supabase
+          .from('orders')
+          .select('total')
+          .eq('customer_id', customerId);
 
-        if (customer) {
-          const { data: orderStats } = await supabase
-            .from('orders')
-            .select('total')
-            .eq('customer_id', customer.id);
-
-          if (orderStats) {
-            const totalSpent = orderStats.reduce((sum, o) => sum + Number(o.total), 0);
-            await supabase
-              .from('customers')
-              .update({
-                total_orders: orderStats.length,
-                total_spent: totalSpent
-              })
-              .eq('id', customer.id);
-          }
+        if (orderStats) {
+          const totalSpent = orderStats.reduce((sum, o) => sum + Number(o.total), 0);
+          await supabase
+            .from('customers')
+            .update({
+              total_orders: orderStats.length,
+              total_spent: totalSpent
+            })
+            .eq('id', customerId);
         }
       }
 
@@ -294,19 +335,6 @@ const ImportSalesData = () => {
       toast.error("حدث خطأ أثناء الاستيراد");
     } finally {
       setImporting(false);
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'delivered':
-        return <Badge className="bg-green-500">تم التسليم</Badge>;
-      case 'pending':
-        return <Badge className="bg-yellow-500">قيد الانتظار</Badge>;
-      case 'cancelled':
-        return <Badge className="bg-red-500">ملغي</Badge>;
-      default:
-        return <Badge>{status}</Badge>;
     }
   };
 
@@ -322,10 +350,10 @@ const ImportSalesData = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileSpreadsheet className="h-5 w-5" />
-              ملف المبيعات
+              ملف مبيعات شهر أكتوبر 2025
             </CardTitle>
             <CardDescription>
-              تم تحميل ملف مبيعات شهر 10 لعام 2025
+              سيتم إنشاء العملاء والطلبات تلقائياً من البيانات
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -340,13 +368,14 @@ const ImportSalesData = () => {
                     <AlertCircle className="h-5 w-5 text-yellow-500" />
                   )}
                   <span>
-                    {loading ? 'جاري تحميل البيانات...' : `${records.length} سجل جاهز للاستيراد`}
+                    {loading ? 'جاري تحميل البيانات...' : `${records.length} طلب جاهز للاستيراد`}
                   </span>
                 </div>
                 
                 <Button 
                   onClick={importToDatabase}
                   disabled={importing || records.length === 0}
+                  size="lg"
                 >
                   {importing ? (
                     <>
@@ -356,7 +385,7 @@ const ImportSalesData = () => {
                   ) : (
                     <>
                       <Upload className="h-4 w-4 ml-2" />
-                      استيراد للقاعدة
+                      استيراد {records.length} طلب
                     </>
                   )}
                 </Button>
@@ -367,16 +396,16 @@ const ImportSalesData = () => {
                   <p className="font-medium mb-2">تقدم الاستيراد:</p>
                   <div className="grid grid-cols-3 gap-4 text-center">
                     <div>
-                      <p className="text-2xl font-bold text-primary">{importProgress.customers}</p>
-                      <p className="text-sm text-muted-foreground">عميل</p>
+                      <p className="text-2xl font-bold text-green-600">{importProgress.customers}</p>
+                      <p className="text-sm text-muted-foreground">عميل جديد</p>
                     </div>
                     <div>
-                      <p className="text-2xl font-bold text-primary">{importProgress.orders}</p>
+                      <p className="text-2xl font-bold text-blue-600">{importProgress.orders}</p>
                       <p className="text-sm text-muted-foreground">طلب</p>
                     </div>
                     <div>
-                      <p className="text-2xl font-bold text-primary">{importProgress.items}</p>
-                      <p className="text-sm text-muted-foreground">عنصر</p>
+                      <p className="text-2xl font-bold text-purple-600">{importProgress.items}</p>
+                      <p className="text-sm text-muted-foreground">منتج</p>
                     </div>
                   </div>
                 </div>
@@ -385,37 +414,59 @@ const ImportSalesData = () => {
           </CardContent>
         </Card>
 
-        {/* Raw data preview to understand file structure */}
-        {rawPreview.length > 0 && (
+        {records.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle>البيانات الخام من الملف</CardTitle>
-              <CardDescription>
-                أعمدة الملف: {rawHeaders.join(' | ')}
-              </CardDescription>
+              <CardTitle>معاينة الطلبات</CardTitle>
+              <CardDescription>أول 30 طلب من الملف</CardDescription>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="h-[300px]">
+              <ScrollArea className="h-[500px]">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead className="text-right">#</TableHead>
-                      {rawHeaders.map((header, idx) => (
-                        <TableHead key={idx} className="text-right text-xs">
-                          {header || `عمود ${idx + 1}`}
-                        </TableHead>
-                      ))}
+                      <TableHead className="text-right">التاريخ</TableHead>
+                      <TableHead className="text-right">المندوب</TableHead>
+                      <TableHead className="text-right">العميل</TableHead>
+                      <TableHead className="text-right">الهاتف</TableHead>
+                      <TableHead className="text-right">المدينة</TableHead>
+                      <TableHead className="text-right">القيمة</TableHead>
+                      <TableHead className="text-right">العرض</TableHead>
+                      <TableHead className="text-right">المنتجات</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {rawPreview.slice(1).map((row, rowIdx) => (
-                      <TableRow key={rowIdx}>
-                        <TableCell className="font-bold">{rowIdx + 1}</TableCell>
-                        {row.map((cell, cellIdx) => (
-                          <TableCell key={cellIdx} className="text-xs">
-                            {cell !== null && cell !== undefined ? String(cell) : '-'}
-                          </TableCell>
-                        ))}
+                    {records.slice(0, 30).map((record, index) => (
+                      <TableRow key={index}>
+                        <TableCell className="font-medium">{index + 1}</TableCell>
+                        <TableCell className="text-xs">
+                          {new Date(record.timestamp).toLocaleDateString('ar-EG')}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{record.moderator}</Badge>
+                        </TableCell>
+                        <TableCell className="font-medium">{record.customerName}</TableCell>
+                        <TableCell className="text-xs font-mono">{record.customerPhone}</TableCell>
+                        <TableCell>{record.city}</TableCell>
+                        <TableCell className="font-bold text-green-600">
+                          {record.orderValue.toLocaleString()} ج.م
+                        </TableCell>
+                        <TableCell className="text-xs">{record.offerType}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {record.products.slice(0, 3).map((p, i) => (
+                              <Badge key={i} variant="secondary" className="text-xs">
+                                {p.name} ({p.quantity})
+                              </Badge>
+                            ))}
+                            {record.products.length > 3 && (
+                              <Badge variant="outline" className="text-xs">
+                                +{record.products.length - 3}
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -425,43 +476,50 @@ const ImportSalesData = () => {
           </Card>
         )}
 
+        {/* Statistics */}
         {records.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>معاينة البيانات المحللة</CardTitle>
-              <CardDescription>أول 50 سجل بعد التحليل</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[400px]">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-right">التاريخ</TableHead>
-                      <TableHead className="text-right">العميل</TableHead>
-                      <TableHead className="text-right">المنتج</TableHead>
-                      <TableHead className="text-right">الكمية</TableHead>
-                      <TableHead className="text-right">السعر</TableHead>
-                      <TableHead className="text-right">الإجمالي</TableHead>
-                      <TableHead className="text-right">الحالة</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {records.slice(0, 50).map((record, index) => (
-                      <TableRow key={index}>
-                        <TableCell>{record.date}</TableCell>
-                        <TableCell>{record.customerName}</TableCell>
-                        <TableCell>{record.productName}</TableCell>
-                        <TableCell>{record.quantity}</TableCell>
-                        <TableCell>{record.unitPrice?.toFixed(2)} ر.س</TableCell>
-                        <TableCell>{record.total?.toFixed(2)} ر.س</TableCell>
-                        <TableCell>{getStatusBadge(record.status)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </ScrollArea>
-            </CardContent>
-          </Card>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-3xl font-bold text-primary">
+                    {records.length}
+                  </p>
+                  <p className="text-sm text-muted-foreground">إجمالي الطلبات</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-3xl font-bold text-green-600">
+                    {records.reduce((sum, r) => sum + r.orderValue, 0).toLocaleString()}
+                  </p>
+                  <p className="text-sm text-muted-foreground">إجمالي المبيعات (ج.م)</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-3xl font-bold text-blue-600">
+                    {new Set(records.map(r => r.customerPhone)).size}
+                  </p>
+                  <p className="text-sm text-muted-foreground">عملاء فريدين</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-3xl font-bold text-purple-600">
+                    {new Set(records.map(r => r.moderator)).size}
+                  </p>
+                  <p className="text-sm text-muted-foreground">مندوبين</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         )}
       </div>
     </DashboardLayout>
