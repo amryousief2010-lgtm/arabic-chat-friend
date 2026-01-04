@@ -50,7 +50,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       {/* Main Content with Pull to Refresh */}
       <main 
         ref={containerRef}
-        className="md:mr-64 p-4 md:p-8 pb-24 md:pb-8 relative overflow-auto"
+        className="md:mr-64 p-4 md:p-8 pb-32 md:pb-8 relative overflow-auto"
         style={{ 
           minHeight: 'calc(100vh - 4rem)',
           transform: pullDistance > 0 ? `translateY(${pullDistance}px)` : undefined,
