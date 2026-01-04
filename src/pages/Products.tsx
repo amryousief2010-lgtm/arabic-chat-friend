@@ -30,9 +30,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Edit, Trash2, Package } from "lucide-react";
+import { Plus, Edit, Trash2, Package, Minus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 const categories = ["لحوم طازجة", "لحوم مصنعة", "منتجات أخرى"];
 
@@ -48,11 +53,12 @@ interface Product {
 }
 
 const Products = () => {
-  const { role } = useAuth();
+  const { role, canManageStock } = useAuth();
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [stockAdjustment, setStockAdjustment] = useState<{ [key: string]: number }>({});
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -166,6 +172,29 @@ const Products = () => {
       toast({ title: 'تم حذف المنتج' });
     },
   });
+
+  // Update stock mutation
+  const updateStockMutation = useMutation({
+    mutationFn: async (data: { id: string; newStock: number }) => {
+      const { error } = await supabase
+        .from('products')
+        .update({ stock: data.newStock })
+        .eq('id', data.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      toast({ title: 'تم تحديث المخزون بنجاح' });
+    },
+    onError: () => {
+      toast({ title: 'حدث خطأ في تحديث المخزون', variant: 'destructive' });
+    },
+  });
+
+  const handleStockAdjust = (productId: string, currentStock: number, adjustment: number) => {
+    const newStock = Math.max(0, currentStock + adjustment);
+    updateStockMutation.mutate({ id: productId, newStock });
+  };
 
   const handleSubmit = () => {
     if (!formData.name || !formData.category || !formData.price) {
@@ -371,7 +400,65 @@ const Products = () => {
                     <TableCell className="font-semibold">
                       {product.price} ج.م / {product.unit}
                     </TableCell>
-                    <TableCell>{product.stock}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{product.stock}</span>
+                        {canManageStock && (
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" size="sm" className="h-7 px-2">
+                                تعديل
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-64" align="start">
+                              <div className="space-y-3">
+                                <div className="text-sm font-medium">تعديل كمية {product.name}</div>
+                                <div className="flex items-center gap-2">
+                                  <Input
+                                    type="number"
+                                    placeholder="الكمية"
+                                    value={stockAdjustment[product.id] || ''}
+                                    onChange={(e) => setStockAdjustment({ 
+                                      ...stockAdjustment, 
+                                      [product.id]: parseInt(e.target.value) || 0 
+                                    })}
+                                    className="flex-1"
+                                  />
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    className="flex-1 bg-success hover:bg-success/90"
+                                    onClick={() => {
+                                      handleStockAdjust(product.id, product.stock, stockAdjustment[product.id] || 0);
+                                      setStockAdjustment({ ...stockAdjustment, [product.id]: 0 });
+                                    }}
+                                  >
+                                    <Plus className="w-3 h-3 ml-1" />
+                                    إضافة
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    className="flex-1"
+                                    onClick={() => {
+                                      handleStockAdjust(product.id, product.stock, -(stockAdjustment[product.id] || 0));
+                                      setStockAdjustment({ ...stockAdjustment, [product.id]: 0 });
+                                    }}
+                                  >
+                                    <Minus className="w-3 h-3 ml-1" />
+                                    خصم
+                                  </Button>
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  الرصيد الحالي: {product.stock} {product.unit}
+                                </div>
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <Badge
                         className={

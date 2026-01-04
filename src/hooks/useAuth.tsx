@@ -22,6 +22,7 @@ interface AuthContextType {
   // Permission helpers
   canManageEmployees: boolean;
   canManageProducts: boolean;
+  canManageStock: boolean;
   canManageOrders: boolean;
   canViewReports: boolean;
   canUpdatePaymentStatus: boolean;
@@ -135,8 +136,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Sales Manager has same permissions as Executive Manager
   const canManageEmployees = isGeneralManager;
   const canManageProducts = isGeneralManager || isExecutiveManager || isSalesManager || isWarehouseSupervisor;
+  const canManageStock = isGeneralManager || isExecutiveManager || isWarehouseSupervisor;
   const canManageOrders = isGeneralManager || isExecutiveManager || isSalesManager || isAccountant || isWarehouseSupervisor;
-  const canViewReports = isGeneralManager || isExecutiveManager || isSalesManager || isAccountant;
+  const canViewReports = isGeneralManager || isExecutiveManager || isSalesManager || isAccountant || isWarehouseSupervisor;
   const canUpdatePaymentStatus = isGeneralManager || isExecutiveManager || isSalesManager || isAccountant;
   const canUpdateOrderStatus = isGeneralManager || isExecutiveManager || isSalesManager || isWarehouseSupervisor;
 
@@ -156,6 +158,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     isWarehouseSupervisor,
     canManageEmployees,
     canManageProducts,
+    canManageStock,
     canManageOrders,
     canViewReports,
     canUpdatePaymentStatus,
