@@ -37,9 +37,19 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { UserPlus, MoreHorizontal, Shield, Search, Users, UserCheck, Warehouse, Calculator, ShoppingCart } from 'lucide-react';
+import { UserPlus, MoreHorizontal, Shield, Search, Users, UserCheck, Warehouse, Calculator, ShoppingCart, Trash2, UserMinus } from 'lucide-react';
 import { z } from 'zod';
-import { AppRole } from '@/hooks/useAuth';
+import { useAuth, AppRole } from '@/hooks/useAuth';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface Employee {
   id: string;
@@ -84,11 +94,15 @@ const addEmployeeSchema = z.object({
 });
 
 const Employees = () => {
+  const { isGeneralManager, user } = useAuth();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isAddLoading, setIsAddLoading] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
+  const [isDeleteLoading, setIsDeleteLoading] = useState(false);
   
   // Add employee form
   const [newFullName, setNewFullName] = useState('');
@@ -215,6 +229,42 @@ const Employees = () => {
     setNewRole('sales_moderator');
   };
 
+  const handleDeleteEmployee = async () => {
+    if (!employeeToDelete) return;
+    
+    setIsDeleteLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('يجب تسجيل الدخول أولاً');
+        return;
+      }
+
+      const response = await supabase.functions.invoke('delete-user', {
+        body: { userId: employeeToDelete.id },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || 'فشل في حذف الموظف');
+      }
+
+      toast.success('تم حذف الموظف بنجاح');
+      setIsDeleteDialogOpen(false);
+      setEmployeeToDelete(null);
+      fetchEmployees();
+    } catch (error: any) {
+      console.error('Error deleting employee:', error);
+      toast.error(error.message || 'حدث خطأ أثناء حذف الموظف');
+    } finally {
+      setIsDeleteLoading(false);
+    }
+  };
+
+  const openDeleteDialog = (employee: Employee) => {
+    setEmployeeToDelete(employee);
+    setIsDeleteDialogOpen(true);
+  };
+
   const filteredEmployees = employees.filter(emp =>
     emp.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     emp.email.toLowerCase().includes(searchTerm.toLowerCase())
@@ -239,13 +289,14 @@ const Employees = () => {
             <p className="text-muted-foreground mt-1">إضافة وتعديل صلاحيات الموظفين</p>
           </div>
 
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <UserPlus className="w-4 h-4" />
-                إضافة موظف
-              </Button>
-            </DialogTrigger>
+          <div className="flex gap-2">
+            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <UserPlus className="w-4 h-4" />
+                  إضافة موظف
+                </Button>
+              </DialogTrigger>
             <DialogContent className="sm:max-w-md" dir="rtl">
               <DialogHeader>
                 <DialogTitle>إضافة موظف جديد</DialogTitle>
@@ -309,6 +360,7 @@ const Employees = () => {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -472,6 +524,18 @@ const Employees = () => {
                                 <Warehouse className="w-4 h-4 ml-2" />
                                 مشرف مخازن
                               </DropdownMenuItem>
+                              {isGeneralManager && employee.id !== user?.id && (
+                                <>
+                                  <div className="my-1 border-t border-border" />
+                                  <DropdownMenuItem 
+                                    onClick={() => openDeleteDialog(employee)}
+                                    className="text-destructive focus:text-destructive"
+                                  >
+                                    <Trash2 className="w-4 h-4 ml-2" />
+                                    حذف الموظف
+                                  </DropdownMenuItem>
+                                </>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
@@ -483,6 +547,30 @@ const Employees = () => {
             </Table>
           </CardContent>
         </Card>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <AlertDialogContent dir="rtl">
+            <AlertDialogHeader>
+              <AlertDialogTitle>حذف الموظف</AlertDialogTitle>
+              <AlertDialogDescription>
+                هل أنت متأكد من حذف الموظف "{employeeToDelete?.full_name}"؟ 
+                <br />
+                <span className="text-destructive font-medium">هذا الإجراء لا يمكن التراجع عنه.</span>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-row-reverse gap-2">
+              <AlertDialogCancel disabled={isDeleteLoading}>إلغاء</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteEmployee}
+                disabled={isDeleteLoading}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isDeleteLoading ? 'جاري الحذف...' : 'حذف'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
   );
