@@ -66,7 +66,7 @@ const Products = () => {
 
   // Permission checks
   const canAddProducts = role === 'general_manager' || role === 'executive_manager' || role === 'sales_manager' || role === 'warehouse_supervisor';
-  const canEditPrice = role === 'general_manager' || role === 'executive_manager' || role === 'accountant';
+  const canEditPrice = role === 'general_manager' || role === 'executive_manager' || role === 'sales_manager' || role === 'accountant';
   const canManageProducts = role === 'general_manager' || role === 'executive_manager' || role === 'sales_manager' || role === 'warehouse_supervisor';
 
   // Fetch products from Supabase
@@ -280,7 +280,7 @@ const Products = () => {
                         />
                         {editingProduct && !canEditPrice && (
                           <p className="text-xs text-muted-foreground">
-                            تعديل السعر متاح للمحاسب والمديرين فقط
+                            تعديل السعر متاح للمديرين والمحاسب فقط
                           </p>
                         )}
                       </div>
