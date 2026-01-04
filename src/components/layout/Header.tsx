@@ -2,6 +2,7 @@ import { Bell, Search, LogOut, Shield, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,6 +38,7 @@ const roleBadgeVariants: Record<string, 'default' | 'secondary' | 'outline' | 'd
 
 const Header = ({ title, subtitle }: HeaderProps) => {
   const { user, role, signOut } = useAuth();
+  const navigate = useNavigate();
 
   const getUserInitial = () => {
     if (user?.user_metadata?.full_name) {
@@ -100,10 +102,15 @@ const Header = ({ title, subtitle }: HeaderProps) => {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             {role && (
-              <DropdownMenuItem disabled className="flex items-center gap-2 text-muted-foreground">
-                <Shield className="w-4 h-4" />
-                الصلاحية: {roleLabels[role]}
-              </DropdownMenuItem>
+              <>
+                <DropdownMenuItem
+                  className="flex items-center gap-2"
+                  onSelect={() => navigate("/permissions")}
+                >
+                  <Shield className="w-4 h-4" />
+                  الصلاحية: {roleLabels[role] ?? role} (عرض التفاصيل)
+                </DropdownMenuItem>
+              </>
             )}
             <DropdownMenuSeparator />
             <DropdownMenuItem 
