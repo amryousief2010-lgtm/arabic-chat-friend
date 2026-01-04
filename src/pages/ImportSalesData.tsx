@@ -25,6 +25,8 @@ interface SalesRecord {
 
 const ImportSalesData = () => {
   const [records, setRecords] = useState<SalesRecord[]>([]);
+  const [rawHeaders, setRawHeaders] = useState<string[]>([]);
+  const [rawPreview, setRawPreview] = useState<any[][]>([]);
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState({ customers: 0, orders: 0, items: 0 });
@@ -46,31 +48,58 @@ const ImportSalesData = () => {
       // Get raw data
       const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
       
-      console.log("Raw data from Excel:", rawData.slice(0, 10));
+      console.log("Raw data from Excel:", rawData.slice(0, 20));
+      console.log("Sheet names:", workbook.SheetNames);
       
-      // Parse the data - try to identify columns
+      // Show headers (first row)
+      if (rawData.length > 0) {
+        setRawHeaders(rawData[0]?.map((h: any) => String(h || '')) || []);
+        setRawPreview(rawData.slice(0, 15));
+      }
+      
+      // Parse the data based on actual structure
       const parsedRecords: SalesRecord[] = [];
       
-      // Skip header row(s) and process data
+      // Find column indices by common names
+      const headers = rawData[0] || [];
+      const findColIndex = (names: string[]) => {
+        return headers.findIndex((h: any) => 
+          names.some(name => String(h || '').includes(name))
+        );
+      };
+      
+      const dateCol = findColIndex(['تاريخ', 'التاريخ', 'date', 'Date']);
+      const customerCol = findColIndex(['عميل', 'العميل', 'اسم العميل', 'customer', 'Customer', 'الاسم']);
+      const productCol = findColIndex(['منتج', 'المنتج', 'صنف', 'الصنف', 'product', 'Product', 'البيان']);
+      const qtyCol = findColIndex(['كمية', 'الكمية', 'quantity', 'Quantity', 'عدد']);
+      const priceCol = findColIndex(['سعر', 'السعر', 'price', 'Price', 'سعر الوحدة']);
+      const totalCol = findColIndex(['إجمالي', 'الإجمالي', 'المجموع', 'total', 'Total', 'المبلغ', 'القيمة']);
+      
+      console.log("Column indices:", { dateCol, customerCol, productCol, qtyCol, priceCol, totalCol });
+      
+      // Process data rows
       for (let i = 1; i < rawData.length; i++) {
         const row = rawData[i];
-        if (!row || row.length < 3) continue;
+        if (!row || row.length < 2) continue;
         
-        // Try to extract meaningful data from each row
-        // This will need adjustment based on actual file structure
+        // Skip empty rows
+        const hasData = row.some((cell: any) => cell !== null && cell !== undefined && cell !== '');
+        if (!hasData) continue;
+        
         const record: SalesRecord = {
-          date: parseExcelDate(row[0]) || `2025-10-${String(i).padStart(2, '0')}`,
-          customerName: String(row[1] || row[2] || `عميل ${i}`),
-          productName: String(row[2] || row[3] || 'منتج غير محدد'),
-          quantity: parseFloat(row[3]) || parseFloat(row[4]) || 1,
-          unitPrice: parseFloat(row[4]) || parseFloat(row[5]) || 0,
-          total: parseFloat(row[5]) || parseFloat(row[6]) || 0,
+          date: parseExcelDate(row[dateCol >= 0 ? dateCol : 0]) || `2025-10-${String(i).padStart(2, '0')}`,
+          customerName: String(row[customerCol >= 0 ? customerCol : 1] || `عميل ${i}`).trim(),
+          productName: String(row[productCol >= 0 ? productCol : 2] || 'منتج').trim(),
+          quantity: parseFloat(row[qtyCol >= 0 ? qtyCol : 3]) || 1,
+          unitPrice: parseFloat(row[priceCol >= 0 ? priceCol : 4]) || 0,
+          total: parseFloat(row[totalCol >= 0 ? totalCol : 5]) || 0,
           status: "delivered",
           paymentStatus: "paid",
-          notes: row[7] ? String(row[7]) : undefined
+          notes: undefined
         };
         
-        if (record.customerName && record.total > 0) {
+        // Only add if has meaningful data
+        if (record.customerName && record.customerName !== 'undefined' && (record.total > 0 || record.quantity > 0)) {
           parsedRecords.push(record);
         }
       }
@@ -356,11 +385,51 @@ const ImportSalesData = () => {
           </CardContent>
         </Card>
 
+        {/* Raw data preview to understand file structure */}
+        {rawPreview.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>البيانات الخام من الملف</CardTitle>
+              <CardDescription>
+                أعمدة الملف: {rawHeaders.join(' | ')}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[300px]">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-right">#</TableHead>
+                      {rawHeaders.map((header, idx) => (
+                        <TableHead key={idx} className="text-right text-xs">
+                          {header || `عمود ${idx + 1}`}
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rawPreview.slice(1).map((row, rowIdx) => (
+                      <TableRow key={rowIdx}>
+                        <TableCell className="font-bold">{rowIdx + 1}</TableCell>
+                        {row.map((cell, cellIdx) => (
+                          <TableCell key={cellIdx} className="text-xs">
+                            {cell !== null && cell !== undefined ? String(cell) : '-'}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        )}
+
         {records.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle>معاينة البيانات</CardTitle>
-              <CardDescription>أول 50 سجل من الملف</CardDescription>
+              <CardTitle>معاينة البيانات المحللة</CardTitle>
+              <CardDescription>أول 50 سجل بعد التحليل</CardDescription>
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-[400px]">
