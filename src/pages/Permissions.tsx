@@ -22,15 +22,39 @@ type PermissionKey =
   | "manage_sales_targets"
   | "manage_offers";
 
-const permissionLabels: Record<PermissionKey, string> = {
-  manage_employees: "إدارة الموظفين",
-  manage_products: "إدارة المنتجات",
-  edit_prices: "تعديل الأسعار",
-  create_orders: "إنشاء الطلبات",
-  update_order_status: "تحديث حالة الطلب",
-  view_reports: "عرض التقارير",
-  manage_sales_targets: "إدارة أهداف المبيعات",
-  manage_offers: "إدارة صناديق العروض",
+const permissionDetails: Record<PermissionKey, { label: string; description: string }> = {
+  manage_employees: {
+    label: "إدارة الموظفين",
+    description: "إضافة وتعديل وحذف حسابات الموظفين وتغيير أدوارهم",
+  },
+  manage_products: {
+    label: "إدارة المنتجات",
+    description: "إضافة منتجات جديدة وتعديل بياناتها وحذفها",
+  },
+  edit_prices: {
+    label: "تعديل الأسعار",
+    description: "تغيير أسعار المنتجات في النظام",
+  },
+  create_orders: {
+    label: "إنشاء الطلبات",
+    description: "إنشاء طلبات جديدة للعملاء",
+  },
+  update_order_status: {
+    label: "تحديث حالة الطلب",
+    description: "تغيير حالة الطلب من معلق إلى جاهز أو تم التوصيل",
+  },
+  view_reports: {
+    label: "عرض التقارير",
+    description: "الوصول إلى تقارير المبيعات والأداء المالي",
+  },
+  manage_sales_targets: {
+    label: "إدارة أهداف المبيعات",
+    description: "تحديد الأهداف الشهرية للمندوبين ومتابعة تحقيقها",
+  },
+  manage_offers: {
+    label: "إدارة صناديق العروض",
+    description: "إنشاء وتعديل صناديق العروض الترويجية",
+  },
 };
 
 const roleLabels: Record<string, string> = {
@@ -148,10 +172,13 @@ export default function Permissions() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(Object.keys(permissionLabels) as PermissionKey[]).map((perm) => (
+                {(Object.keys(permissionDetails) as PermissionKey[]).map((perm) => (
                   <TableRow key={perm}>
-                    <TableCell className="font-medium whitespace-nowrap">
-                      {permissionLabels[perm]}
+                    <TableCell className="min-w-[200px]">
+                      <div className="font-medium">{permissionDetails[perm].label}</div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {permissionDetails[perm].description}
+                      </div>
                     </TableCell>
                     {rolesOrder.map((r) => (
                       <TableCell key={r}>
