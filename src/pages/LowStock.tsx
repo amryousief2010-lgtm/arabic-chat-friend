@@ -18,10 +18,12 @@ import {
   Search,
   Package,
   RefreshCw,
+  Download,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
+import * as XLSX from "xlsx";
 
 interface LowStockProduct {
   id: string;
@@ -80,6 +82,37 @@ const LowStock = () => {
     } else {
       return { label: "منخفض", variant: "warning" as const };
     }
+  };
+
+  const getStockStatusLabel = (stock: number, threshold: number) => {
+    if (stock === 0) return "نفذ المخزون";
+    if (stock <= threshold / 2) return "حرج";
+    return "منخفض";
+  };
+
+  const exportToExcel = () => {
+    if (filteredProducts.length === 0) {
+      toast.error("لا توجد منتجات للتصدير");
+      return;
+    }
+
+    const exportData = filteredProducts.map(product => ({
+      "اسم المنتج": product.name,
+      "الفئة": product.category || "غير محدد",
+      "المخزون الحالي": product.stock,
+      "الوحدة": product.unit,
+      "الحد الأدنى": product.low_stock_threshold,
+      "الحالة": getStockStatusLabel(product.stock, product.low_stock_threshold),
+      "السعر": product.price,
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "منتجات منخفضة المخزون");
+
+    const today = new Date().toLocaleDateString('ar-EG').replace(/\//g, '-');
+    XLSX.writeFile(workbook, `منتجات-منخفضة-المخزون-${today}.xlsx`);
+    toast.success("تم تصدير الملف بنجاح");
   };
 
   return (
@@ -166,6 +199,15 @@ const LowStock = () => {
                   disabled={loading}
                 >
                   <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={exportToExcel}
+                  disabled={loading || filteredProducts.length === 0}
+                  className="gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  <span className="hidden sm:inline">تصدير Excel</span>
                 </Button>
               </div>
             </div>
