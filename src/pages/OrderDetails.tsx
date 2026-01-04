@@ -58,6 +58,7 @@ interface Order {
   notes: string | null;
   delivery_address: string | null;
   created_at: string;
+  created_by: string | null;
   items: OrderItem[];
 }
 
@@ -114,7 +115,7 @@ const getStatusIcon = (status: OrderStatus) => {
 const OrderDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { canUpdateOrderStatus, canUpdatePaymentStatus } = useAuth();
+  const { canUpdateOrderStatusForOrder, canUpdatePaymentStatus } = useAuth();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
@@ -166,6 +167,7 @@ const OrderDetails = () => {
         notes: orderData.notes,
         delivery_address: orderData.delivery_address,
         created_at: orderData.created_at,
+        created_by: orderData.created_by,
         items: (itemsData || []).map(item => ({
           id: item.id,
           product_name: item.product_name,
@@ -185,7 +187,7 @@ const OrderDetails = () => {
   };
 
   const handleStatusChange = async (newStatus: OrderStatus) => {
-    if (!order || !canUpdateOrderStatus) return;
+    if (!order || !canUpdateOrderStatusForOrder(order.created_by)) return;
     
     setUpdating(true);
     try {
@@ -404,7 +406,7 @@ const OrderDetails = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {canUpdateOrderStatus ? (
+                {canUpdateOrderStatusForOrder(order.created_by) ? (
                   <Select
                     value={order.status}
                     onValueChange={(value: OrderStatus) => handleStatusChange(value)}

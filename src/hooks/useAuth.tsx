@@ -27,6 +27,7 @@ interface AuthContextType {
   canViewReports: boolean;
   canUpdatePaymentStatus: boolean;
   canUpdateOrderStatus: boolean;
+  canUpdateOrderStatusForOrder: (orderCreatedBy: string | null) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -141,6 +142,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const canViewReports = isGeneralManager || isExecutiveManager || isSalesManager || isAccountant || isWarehouseSupervisor;
   const canUpdatePaymentStatus = isGeneralManager || isExecutiveManager || isSalesManager || isAccountant;
   const canUpdateOrderStatus = isGeneralManager || isExecutiveManager || isSalesManager || isWarehouseSupervisor;
+  
+  // Function to check if user can update order status for a specific order
+  const canUpdateOrderStatusForOrder = (orderCreatedBy: string | null) => {
+    // Managers and warehouse supervisors can update any order
+    if (isGeneralManager || isExecutiveManager || isSalesManager || isWarehouseSupervisor) {
+      return true;
+    }
+    // Sales moderator can only update their own orders
+    if (isSalesModerator && user && orderCreatedBy === user.id) {
+      return true;
+    }
+    return false;
+  };
 
   const value: AuthContextType = {
     user,
@@ -163,6 +177,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     canViewReports,
     canUpdatePaymentStatus,
     canUpdateOrderStatus,
+    canUpdateOrderStatusForOrder,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
