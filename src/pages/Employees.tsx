@@ -292,7 +292,7 @@ const Employees = () => {
           <div className="flex gap-2">
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
-                <Button className="gap-2">
+                <Button className="gap-2" disabled={!isGeneralManager}>
                   <UserPlus className="w-4 h-4" />
                   إضافة موظف
                 </Button>
@@ -524,18 +524,15 @@ const Employees = () => {
                                 <Warehouse className="w-4 h-4 ml-2" />
                                 مشرف مخازن
                               </DropdownMenuItem>
-                              {isGeneralManager && employee.id !== user?.id && (
-                                <>
-                                  <div className="my-1 border-t border-border" />
-                                  <DropdownMenuItem 
-                                    onClick={() => openDeleteDialog(employee)}
-                                    className="text-destructive focus:text-destructive"
-                                  >
-                                    <Trash2 className="w-4 h-4 ml-2" />
-                                    حذف الموظف
-                                  </DropdownMenuItem>
-                                </>
-                              )}
+                              <div className="my-1 border-t border-border" />
+                              <DropdownMenuItem 
+                                onClick={() => openDeleteDialog(employee)}
+                                className="text-destructive focus:text-destructive"
+                                disabled={!isGeneralManager || employee.id === user?.id}
+                              >
+                                <Trash2 className="w-4 h-4 ml-2" />
+                                حذف الموظف {!isGeneralManager ? '(للمدير العام فقط)' : ''}
+                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
