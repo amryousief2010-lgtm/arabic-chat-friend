@@ -46,7 +46,7 @@ const permissionDetails: Record<PermissionKey, { label: string; description: str
   },
   update_order_status: {
     label: "تحديث حالة الطلب",
-    description: "تغيير حالة الطلب من معلق إلى جاهز أو تم التوصيل",
+    description: "تغيير حالة الطلب من معلق إلى جاهز أو تم التوصيل (المندوب لطلباته فقط)",
   },
   view_reports: {
     label: "عرض التقارير",
@@ -142,7 +142,7 @@ const permissionsMatrix: Record<(typeof rolesOrder)[number], Record<PermissionKe
     manage_stock: false,
     edit_prices: false,
     create_orders: true,
-    update_order_status: false,
+    update_order_status: true, // Only for their own orders
     view_reports: false,
     manage_sales_targets: false,
     manage_offers: false,
