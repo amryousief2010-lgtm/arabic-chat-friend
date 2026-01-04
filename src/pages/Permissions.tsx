@@ -15,6 +15,7 @@ import { useAuth } from "@/hooks/useAuth";
 type PermissionKey =
   | "manage_employees"
   | "manage_products"
+  | "manage_stock"
   | "edit_prices"
   | "create_orders"
   | "update_order_status"
@@ -30,6 +31,10 @@ const permissionDetails: Record<PermissionKey, { label: string; description: str
   manage_products: {
     label: "إدارة المنتجات",
     description: "إضافة منتجات جديدة وتعديل بياناتها وحذفها",
+  },
+  manage_stock: {
+    label: "إدارة المخزون",
+    description: "إضافة وتخفيض كميات المنتجات حسب رصيد المستودع",
   },
   edit_prices: {
     label: "تعديل الأسعار",
@@ -79,6 +84,7 @@ const permissionsMatrix: Record<(typeof rolesOrder)[number], Record<PermissionKe
   general_manager: {
     manage_employees: true,
     manage_products: true,
+    manage_stock: true,
     edit_prices: true,
     create_orders: true,
     update_order_status: true,
@@ -89,6 +95,7 @@ const permissionsMatrix: Record<(typeof rolesOrder)[number], Record<PermissionKe
   executive_manager: {
     manage_employees: false,
     manage_products: true,
+    manage_stock: true,
     edit_prices: true,
     create_orders: true,
     update_order_status: true,
@@ -99,6 +106,7 @@ const permissionsMatrix: Record<(typeof rolesOrder)[number], Record<PermissionKe
   sales_manager: {
     manage_employees: false,
     manage_products: true,
+    manage_stock: false,
     edit_prices: true,
     create_orders: true,
     update_order_status: false,
@@ -109,6 +117,7 @@ const permissionsMatrix: Record<(typeof rolesOrder)[number], Record<PermissionKe
   accountant: {
     manage_employees: false,
     manage_products: false,
+    manage_stock: false,
     edit_prices: true,
     create_orders: false,
     update_order_status: false,
@@ -119,16 +128,18 @@ const permissionsMatrix: Record<(typeof rolesOrder)[number], Record<PermissionKe
   warehouse_supervisor: {
     manage_employees: false,
     manage_products: true,
+    manage_stock: true,
     edit_prices: false,
     create_orders: false,
     update_order_status: true,
-    view_reports: false,
+    view_reports: true,
     manage_sales_targets: false,
     manage_offers: false,
   },
   sales_moderator: {
     manage_employees: false,
     manage_products: false,
+    manage_stock: false,
     edit_prices: false,
     create_orders: true,
     update_order_status: false,
