@@ -2,8 +2,10 @@ import { ReactNode, useCallback } from "react";
 import AppSidebar from "./AppSidebar";
 import MobileNavigation from "./MobileNavigation";
 import PullToRefreshIndicator from "./PullToRefresh";
+import SwipeIndicator from "./SwipeIndicator";
 import { useOrderNotifications } from "@/hooks/useOrderNotifications";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -27,6 +29,11 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
   const { containerRef, isRefreshing, pullDistance } = usePullToRefresh({
     onRefresh: handleRefresh,
+    isEnabled: isMobile,
+  });
+
+  // Enable swipe navigation on mobile
+  const { currentIndex, totalPages, canGoNext, canGoPrev } = useSwipeNavigation({
     isEnabled: isMobile,
   });
 
@@ -55,6 +62,16 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           isRefreshing={isRefreshing}
         />
         {children}
+        
+        {/* Swipe Navigation Indicator */}
+        {isMobile && currentIndex !== -1 && (
+          <SwipeIndicator 
+            currentIndex={currentIndex}
+            totalPages={totalPages}
+            canGoNext={canGoNext}
+            canGoPrev={canGoPrev}
+          />
+        )}
       </main>
     </div>
   );
