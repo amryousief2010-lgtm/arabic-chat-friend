@@ -13,11 +13,30 @@ const navigationOrder = [
 interface UseSwipeNavigationOptions {
   threshold?: number;
   isEnabled?: boolean;
+  hapticFeedback?: boolean;
 }
+
+// Haptic feedback utility
+const triggerHaptic = (type: 'light' | 'medium' | 'heavy' = 'light') => {
+  if (!('vibrate' in navigator)) return;
+  
+  const patterns = {
+    light: 10,
+    medium: 25,
+    heavy: 50,
+  };
+  
+  try {
+    navigator.vibrate(patterns[type]);
+  } catch (e) {
+    // Vibration not supported or blocked
+  }
+};
 
 export const useSwipeNavigation = ({
   threshold = 100,
   isEnabled = true,
+  hapticFeedback = true,
 }: UseSwipeNavigationOptions = {}) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -26,6 +45,7 @@ export const useSwipeNavigation = ({
   const startX = useRef(0);
   const startY = useRef(0);
   const isDragging = useRef(false);
+  const hasTriggeredFeedback = useRef(false);
 
   const getCurrentIndex = useCallback(() => {
     return navigationOrder.indexOf(location.pathname);
@@ -45,8 +65,13 @@ export const useSwipeNavigation = ({
       if (newIndex < 0) return;
     }
 
+    // Trigger haptic feedback on successful navigation
+    if (hapticFeedback) {
+      triggerHaptic('medium');
+    }
+
     navigate(navigationOrder[newIndex]);
-  }, [getCurrentIndex, navigate]);
+  }, [getCurrentIndex, navigate, hapticFeedback]);
 
   const handleTouchStart = useCallback((e: TouchEvent) => {
     if (!isEnabled || !isMobile) return;
@@ -54,7 +79,24 @@ export const useSwipeNavigation = ({
     startX.current = e.touches[0].clientX;
     startY.current = e.touches[0].clientY;
     isDragging.current = true;
+    hasTriggeredFeedback.current = false;
   }, [isEnabled, isMobile]);
+
+  const handleTouchMove = useCallback((e: TouchEvent) => {
+    if (!isEnabled || !isMobile || !isDragging.current) return;
+    
+    const currentX = e.touches[0].clientX;
+    const currentY = e.touches[0].clientY;
+    const diffX = currentX - startX.current;
+    const diffY = currentY - startY.current;
+    
+    // Light haptic when reaching threshold (only once per swipe)
+    if (hapticFeedback && !hasTriggeredFeedback.current && 
+        Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) >= threshold) {
+      triggerHaptic('light');
+      hasTriggeredFeedback.current = true;
+    }
+  }, [isEnabled, isMobile, threshold, hapticFeedback]);
 
   const handleTouchEnd = useCallback((e: TouchEvent) => {
     if (!isEnabled || !isMobile || !isDragging.current) return;
@@ -84,13 +126,15 @@ export const useSwipeNavigation = ({
     if (!isEnabled || !isMobile) return;
 
     document.addEventListener('touchstart', handleTouchStart, { passive: true });
+    document.addEventListener('touchmove', handleTouchMove, { passive: true });
     document.addEventListener('touchend', handleTouchEnd, { passive: true });
 
     return () => {
       document.removeEventListener('touchstart', handleTouchStart);
+      document.removeEventListener('touchmove', handleTouchMove);
       document.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [isEnabled, isMobile, handleTouchStart, handleTouchEnd]);
+  }, [isEnabled, isMobile, handleTouchStart, handleTouchMove, handleTouchEnd]);
 
   return {
     currentIndex: getCurrentIndex(),
