@@ -17,16 +17,22 @@ interface HeaderProps {
   subtitle?: string;
 }
 
-const roleLabels = {
-  admin: 'مدير',
-  supervisor: 'مشرف',
-  employee: 'موظف',
+const roleLabels: Record<string, string> = {
+  general_manager: 'المدير العام',
+  executive_manager: 'المدير التنفيذي',
+  sales_manager: 'مدير المبيعات',
+  sales_moderator: 'مندوب مبيعات',
+  accountant: 'المحاسب',
+  warehouse_supervisor: 'مشرف المخزن',
 };
 
-const roleBadgeVariants = {
-  admin: 'default' as const,
-  supervisor: 'secondary' as const,
-  employee: 'outline' as const,
+const roleBadgeVariants: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
+  general_manager: 'default',
+  executive_manager: 'default',
+  sales_manager: 'secondary',
+  sales_moderator: 'outline',
+  accountant: 'secondary',
+  warehouse_supervisor: 'secondary',
 };
 
 const Header = ({ title, subtitle }: HeaderProps) => {
