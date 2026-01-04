@@ -1,5 +1,6 @@
 import { ReactNode } from "react";
 import AppSidebar from "./AppSidebar";
+import MobileNavigation from "./MobileNavigation";
 import { useOrderNotifications } from "@/hooks/useOrderNotifications";
 
 interface DashboardLayoutProps {
@@ -12,8 +13,16 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
   return (
     <div className="min-h-screen bg-background">
-      <AppSidebar />
-      <main className="mr-64 p-8">
+      {/* Desktop Sidebar */}
+      <div className="hidden md:block">
+        <AppSidebar />
+      </div>
+      
+      {/* Mobile Bottom Navigation */}
+      <MobileNavigation />
+      
+      {/* Main Content */}
+      <main className="md:mr-64 p-4 md:p-8 pb-24 md:pb-8">
         {children}
       </main>
     </div>

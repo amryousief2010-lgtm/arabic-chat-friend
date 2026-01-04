@@ -162,6 +162,11 @@
   .btn-secondary {
     @apply bg-secondary hover:bg-secondary/90 text-secondary-foreground font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:-translate-y-0.5;
   }
+
+  /* Safe area for mobile bottom navigation */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
 }
 
 @layer utilities {

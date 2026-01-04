@@ -1,0 +1,77 @@
+import { Link, useLocation } from "react-router-dom";
+import {
+  LayoutDashboard,
+  Package,
+  ShoppingCart,
+  Bell,
+  Menu,
+} from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
+import { Badge } from "@/components/ui/badge";
+import { useState } from "react";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import MobileSidebarContent from "./MobileSidebarContent";
+
+const MobileNavigation = () => {
+  const location = useLocation();
+  const { role } = useAuth();
+  const { unreadCount } = useUnreadNotifications();
+  const [open, setOpen] = useState(false);
+
+  const quickNavItems = [
+    { icon: LayoutDashboard, label: "الرئيسية", path: "/" },
+    { icon: Package, label: "المنتجات", path: "/products" },
+    { icon: ShoppingCart, label: "الطلبات", path: "/orders" },
+    { icon: Bell, label: "الإشعارات", path: "/notifications", badge: unreadCount },
+  ];
+
+  return (
+    <div className="fixed bottom-0 left-0 right-0 bg-sidebar border-t border-sidebar-border z-50 md:hidden safe-area-bottom">
+      <nav className="flex items-center justify-around h-16 px-2">
+        {quickNavItems.map((item) => {
+          const isActive = location.pathname === item.path;
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`flex flex-col items-center justify-center gap-1 p-2 rounded-lg transition-colors relative ${
+                isActive 
+                  ? "text-sidebar-primary" 
+                  : "text-sidebar-foreground/70 hover:text-sidebar-foreground"
+              }`}
+            >
+              <item.icon className={`w-5 h-5 ${isActive ? "scale-110" : ""} transition-transform`} />
+              <span className="text-[10px] font-medium">{item.label}</span>
+              {item.badge && item.badge > 0 && (
+                <Badge 
+                  variant="destructive" 
+                  className="absolute -top-1 -right-1 h-4 min-w-4 px-1 text-[10px]"
+                >
+                  {item.badge > 99 ? '99+' : item.badge}
+                </Badge>
+              )}
+            </Link>
+          );
+        })}
+        
+        {/* Menu Button */}
+        <Sheet open={open} onOpenChange={setOpen}>
+          <SheetTrigger asChild>
+            <button
+              className="flex flex-col items-center justify-center gap-1 p-2 rounded-lg transition-colors text-sidebar-foreground/70 hover:text-sidebar-foreground"
+            >
+              <Menu className="w-5 h-5" />
+              <span className="text-[10px] font-medium">المزيد</span>
+            </button>
+          </SheetTrigger>
+          <SheetContent side="right" className="w-72 p-0 bg-sidebar">
+            <MobileSidebarContent onClose={() => setOpen(false)} />
+          </SheetContent>
+        </Sheet>
+      </nav>
+    </div>
+  );
+};
+
+export default MobileNavigation;
