@@ -28,36 +28,36 @@ interface SalesRecord {
   products: { name: string; quantity: number }[];
 }
 
-// Product column mapping (Arabic names to column indices)
+// Product column mapping for 2025 full year file
 const PRODUCT_COLUMNS = [
-  { name: 'بيض', index: 11 },
-  { name: 'دبوس 7 كيلو', index: 12 },
-  { name: 'فخدة / نص نعامة', index: 13 },
-  { name: 'لحم', index: 14 },
-  { name: 'استيك', index: 15 },
-  { name: 'موزة', index: 16 },
-  { name: 'فراشة', index: 17 },
-  { name: 'قطعية الدبوس', index: 18 },
-  { name: 'تربيانكو', index: 19 },
-  { name: 'اسكالوب', index: 20 },
-  { name: 'رول', index: 21 },
-  { name: 'كباب', index: 22 },
-  { name: 'كبدة', index: 23 },
-  { name: 'قلب', index: 24 },
-  { name: 'قوانص', index: 25 },
-  { name: 'رقاب', index: 26 },
-  { name: 'كوارع', index: 27 },
-  { name: 'دهن', index: 28 },
-  { name: 'شاورما', index: 29 },
-  { name: 'شيش', index: 30 },
-  { name: 'كفتة', index: 31 },
-  { name: 'سجق', index: 32 },
-  { name: 'برجر', index: 33 },
-  { name: 'طرب', index: 34 },
-  { name: 'حواوشي', index: 35 },
-  { name: 'مفروم', index: 36 },
-  { name: 'كفتة أرز', index: 37 },
-  { name: 'ممبار', index: 38 },
+  { name: 'لحم', index: 8 },
+  { name: 'دبوس/فخدة/نعامة', index: 9 },
+  { name: 'استيك', index: 10 },
+  { name: 'موزة', index: 11 },
+  { name: 'فراشة', index: 12 },
+  { name: 'قطعية الدبوس', index: 13 },
+  { name: 'تربيانكو', index: 14 },
+  { name: 'اسكالوب', index: 15 },
+  { name: 'ميت رول', index: 16 },
+  { name: 'كبدة', index: 17 },
+  { name: 'قلب', index: 18 },
+  { name: 'قوانص', index: 19 },
+  { name: 'رقاب', index: 20 },
+  { name: 'دهن', index: 21 },
+  { name: 'كوارع', index: 22 },
+  { name: 'كفتة', index: 23 },
+  { name: 'سجق', index: 24 },
+  { name: 'برجر', index: 25 },
+  { name: 'لانشون سادة', index: 26 },
+  { name: 'لانشون فلفل أسود', index: 27 },
+  { name: 'لانشون بيبروني', index: 28 },
+  { name: 'مفروم حواوشي', index: 29 },
+  { name: 'مفروم', index: 30 },
+  { name: 'كريم المفاصل', index: 31 },
+  { name: 'زيت الشعر', index: 32 },
+  { name: 'كريم الشعر', index: 33 },
+  { name: 'كريم للبشرة', index: 34 },
+  { name: 'لحم غزال', index: 40 },
 ];
 
 const ImportSalesData = () => {
@@ -74,7 +74,7 @@ const ImportSalesData = () => {
   const loadExcelFile = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/data/sales-october-2025.xlsx');
+      const response = await fetch('/data/sales-2025-full.xlsx');
       const arrayBuffer = await response.arrayBuffer();
       const workbook = XLSX.read(arrayBuffer, { type: 'array' });
       
@@ -115,11 +115,11 @@ const ImportSalesData = () => {
           customerPhone2: row[5] ? String(row[5]).replace(/\s/g, '') : undefined,
           address: String(row[6] || '').trim(),
           shippingCompany: String(row[7] || '').trim(),
-          orderValue: parseFloat(row[8]) || 0,
-          offerType: String(row[9] || '').trim(),
-          notes: row[10] ? String(row[10]).trim() : undefined,
-          governorate: String(row[39] || row[40] || '').trim(),
-          city: String(row[40] || row[41] || '').trim(),
+          orderValue: parseFloat(row[35]) || 0,
+          offerType: String(row[36] || '').trim(),
+          notes: row[37] ? String(row[37]).trim() : undefined,
+          governorate: String(row[38] || '').trim(),
+          city: String(row[39] || '').trim(),
           products
         };
         
@@ -342,7 +342,7 @@ const ImportSalesData = () => {
     <DashboardLayout>
       <Header 
         title="استيراد بيانات المبيعات" 
-        subtitle="استيراد بيانات شهر 10/2025 من ملف Excel"
+        subtitle="استيراد بيانات مبيعات عام 2025 كامل من ملف Excel"
       />
       
       <div className="p-4 space-y-6">
@@ -350,7 +350,7 @@ const ImportSalesData = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileSpreadsheet className="h-5 w-5" />
-              ملف مبيعات شهر أكتوبر 2025
+              ملف مبيعات عام 2025 كامل
             </CardTitle>
             <CardDescription>
               سيتم إنشاء العملاء والطلبات تلقائياً من البيانات
