@@ -130,7 +130,12 @@ const ImportSalesData = () => {
       if (!bestSheet) throw new Error("لم يتم العثور على بيانات");
 
       const rawData = XLSX.utils.sheet_to_json(bestSheet, { header: 1 }) as any[][];
-      console.log(`Found sheet with ${rawData.length} rows. Header:`, rawData[0]?.slice(0, 25));
+      console.log(`[IMPORT] Sheet rows: ${rawData.length}`);
+      console.log(`[IMPORT] Header row (all):`, JSON.stringify(rawData[0]));
+      console.log(`[IMPORT] Row 1 data (all):`, JSON.stringify(rawData[1]));
+      console.log(`[IMPORT] Row 2 data (all):`, JSON.stringify(rawData[2]));
+      // Log all sheet names for debugging
+      console.log(`[IMPORT] All sheets:`, workbook.SheetNames);
 
       const parsedRecords: SalesRecord[] = [];
       for (let i = 1; i < rawData.length; i++) {
