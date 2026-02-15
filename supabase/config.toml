@@ -1,1 +1,7 @@
 project_id = "ssznmzijopyxkwpctcxw"
+
+[functions.delete-user]
+verify_jwt = false
+
+[functions.import-sales]
+verify_jwt = false

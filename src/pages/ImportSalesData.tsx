@@ -10,6 +10,7 @@ import * as XLSX from "xlsx";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Progress } from "@/components/ui/progress";
 
 interface SalesRecord {
   timestamp: string;
@@ -62,14 +63,41 @@ const PRODUCT_COLUMNS = [
 
 const ImportSalesData = () => {
   const [records, setRecords] = useState<SalesRecord[]>([]);
-  const [rawPreview, setRawPreview] = useState<any[][]>([]);
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [importProgress, setImportProgress] = useState({ customers: 0, orders: 0, items: 0 });
+  const [importResult, setImportResult] = useState<{
+    success: boolean;
+    customersCreated: number;
+    ordersCreated: number;
+    itemsCreated: number;
+  } | null>(null);
 
   useEffect(() => {
     loadExcelFile();
   }, []);
+
+  const parseExcelDate = (value: any): string | null => {
+    if (!value) return null;
+    if (typeof value === 'number') {
+      return new Date((value - 25569) * 86400 * 1000).toISOString();
+    }
+    if (typeof value === 'string') {
+      const parts = value.split(' ');
+      if (parts.length >= 1) {
+        const dateParts = parts[0].split('/');
+        if (dateParts.length === 3) {
+          const month = dateParts[0].padStart(2, '0');
+          const day = dateParts[1].padStart(2, '0');
+          const year = dateParts[2].length === 2 ? `20${dateParts[2]}` : dateParts[2];
+          const time = parts[1] || '12:00:00';
+          return `${year}-${month}-${day}T${time}Z`;
+        }
+      }
+      const parsed = new Date(value);
+      if (!isNaN(parsed.getTime())) return parsed.toISOString();
+    }
+    return null;
+  };
 
   const loadExcelFile = async () => {
     setLoading(true);
@@ -77,36 +105,26 @@ const ImportSalesData = () => {
       const response = await fetch('/data/sales-2025-full.xlsx');
       const arrayBuffer = await response.arrayBuffer();
       const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-      
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      
-      const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
-      
-      console.log("Raw data from Excel:", rawData.slice(0, 5));
-      setRawPreview(rawData.slice(0, 10));
-      
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rawData = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+
       const parsedRecords: SalesRecord[] = [];
-      
-      // Skip header row and process data
       for (let i = 1; i < rawData.length; i++) {
         const row = rawData[i];
         if (!row || row.length < 5) continue;
-        
-        // Skip empty rows
         const customerName = row[3];
         if (!customerName || String(customerName).trim() === '') continue;
-        
-        // Parse products
+
         const products: { name: string; quantity: number }[] = [];
-        for (const product of PRODUCT_COLUMNS) {
-          const qty = parseFloat(row[product.index]) || 0;
-          if (qty > 0) {
-            products.push({ name: product.name, quantity: qty });
-          }
+        for (const col of PRODUCT_COLUMNS) {
+          const qty = parseFloat(row[col.index]) || 0;
+          if (qty > 0) products.push({ name: col.name, quantity: qty });
         }
-        
-        const record: SalesRecord = {
+
+        const orderValue = parseFloat(row[35]) || 0;
+        if (orderValue <= 0) continue;
+
+        parsedRecords.push({
           timestamp: parseExcelDate(row[0]) || new Date().toISOString(),
           moderator: String(row[1] || '').trim(),
           customerSource: String(row[2] || '').trim(),
@@ -115,19 +133,15 @@ const ImportSalesData = () => {
           customerPhone2: row[5] ? String(row[5]).replace(/\s/g, '') : undefined,
           address: String(row[6] || '').trim(),
           shippingCompany: String(row[7] || '').trim(),
-          orderValue: parseFloat(row[35]) || 0,
+          orderValue,
           offerType: String(row[36] || '').trim(),
           notes: row[37] ? String(row[37]).trim() : undefined,
           governorate: String(row[38] || '').trim(),
           city: String(row[39] || '').trim(),
-          products
-        };
-        
-        if (record.customerName && record.orderValue > 0) {
-          parsedRecords.push(record);
-        }
+          products,
+        });
       }
-      
+
       setRecords(parsedRecords);
       toast.success(`تم تحميل ${parsedRecords.length} طلب من الملف`);
     } catch (error) {
@@ -138,37 +152,6 @@ const ImportSalesData = () => {
     }
   };
 
-  const parseExcelDate = (value: any): string | null => {
-    if (!value) return null;
-    
-    // If it's a number (Excel date serial)
-    if (typeof value === 'number') {
-      const date = new Date((value - 25569) * 86400 * 1000);
-      return date.toISOString();
-    }
-    
-    // If it's already a string like "10/1/2025 10:39:53"
-    if (typeof value === 'string') {
-      const parts = value.split(' ');
-      if (parts.length >= 1) {
-        const dateParts = parts[0].split('/');
-        if (dateParts.length === 3) {
-          const month = dateParts[0].padStart(2, '0');
-          const day = dateParts[1].padStart(2, '0');
-          const year = dateParts[2];
-          const time = parts[1] || '12:00:00';
-          return `${year}-${month}-${day}T${time}Z`;
-        }
-      }
-      const parsed = new Date(value);
-      if (!isNaN(parsed.getTime())) {
-        return parsed.toISOString();
-      }
-    }
-    
-    return null;
-  };
-
   const importToDatabase = async () => {
     if (records.length === 0) {
       toast.error("لا توجد بيانات للاستيراد");
@@ -176,163 +159,30 @@ const ImportSalesData = () => {
     }
 
     setImporting(true);
-    setImportProgress({ customers: 0, orders: 0, items: 0 });
+    setImportResult(null);
 
     try {
-      let customersCreated = 0;
-      let ordersCreated = 0;
-      let itemsCreated = 0;
-      
-      // Track processed customers to avoid duplicates
-      const processedCustomers = new Map<string, string>();
+      const fileUrl = `${window.location.origin}/data/sales-2025-full.xlsx`;
 
-      for (const record of records) {
-        // Use phone as unique identifier for customer
-        const customerKey = record.customerPhone;
-        let customerId: string;
+      const { data, error } = await supabase.functions.invoke('import-sales', {
+        body: { fileUrl },
+      });
 
-        if (processedCustomers.has(customerKey)) {
-          customerId = processedCustomers.get(customerKey)!;
-        } else {
-          // Check if customer exists
-          let { data: existingCustomer } = await supabase
-            .from('customers')
-            .select('id')
-            .eq('phone', record.customerPhone)
-            .single();
+      if (error) throw error;
 
-          if (!existingCustomer) {
-            // Create new customer
-            const { data: newCustomer, error: customerError } = await supabase
-              .from('customers')
-              .insert({
-                name: record.customerName,
-                phone: record.customerPhone,
-                address: record.address,
-                city: record.city,
-                notes: `المحافظة: ${record.governorate} | المصدر: ${record.customerSource}${record.customerPhone2 ? ` | هاتف آخر: ${record.customerPhone2}` : ''}`
-              })
-              .select('id')
-              .single();
+      setImportResult({
+        success: true,
+        customersCreated: data.customersCreated,
+        ordersCreated: data.ordersCreated,
+        itemsCreated: data.itemsCreated,
+      });
 
-            if (customerError) {
-              console.error("Error creating customer:", customerError);
-              continue;
-            }
-            customerId = newCustomer.id;
-            customersCreated++;
-          } else {
-            customerId = existingCustomer.id;
-          }
-          
-          processedCustomers.set(customerKey, customerId);
-        }
-
-        setImportProgress(prev => ({ ...prev, customers: customersCreated }));
-
-        // Generate order number
-        const orderDate = new Date(record.timestamp);
-        const orderNumber = `ORD-${orderDate.getFullYear()}${String(orderDate.getMonth() + 1).padStart(2, '0')}${String(orderDate.getDate()).padStart(2, '0')}-${String(ordersCreated + 1).padStart(4, '0')}`;
-
-        // Create order
-        const { data: newOrder, error: orderError } = await supabase
-          .from('orders')
-          .insert({
-            order_number: orderNumber,
-            customer_id: customerId,
-            subtotal: record.orderValue,
-            total: record.orderValue,
-            status: 'delivered', // الأخضر والأزرق = تم التسليم
-            payment_status: 'paid',
-            payment_method: 'cash',
-            delivery_address: record.address,
-            created_at: record.timestamp,
-            notes: `العرض: ${record.offerType} | شركة الشحن: ${record.shippingCompany} | المندوب: ${record.moderator}${record.notes ? ` | ملاحظات: ${record.notes}` : ''}`
-          })
-          .select('id')
-          .single();
-
-        if (orderError) {
-          console.error("Error creating order:", orderError);
-          continue;
-        }
-
-        ordersCreated++;
-        setImportProgress(prev => ({ ...prev, orders: ordersCreated }));
-
-        // Create order items
-        for (const product of record.products) {
-          // Try to find product in database
-          let { data: existingProduct } = await supabase
-            .from('products')
-            .select('id, price')
-            .ilike('name', `%${product.name}%`)
-            .single();
-
-          const unitPrice = record.products.length > 0 
-            ? record.orderValue / record.products.reduce((sum, p) => sum + p.quantity, 0)
-            : existingProduct?.price || 0;
-
-          const { error: itemError } = await supabase
-            .from('order_items')
-            .insert({
-              order_id: newOrder.id,
-              product_id: existingProduct?.id || null,
-              product_name: product.name,
-              quantity: product.quantity,
-              unit_price: unitPrice,
-              total_price: unitPrice * product.quantity
-            });
-
-          if (!itemError) {
-            itemsCreated++;
-            setImportProgress(prev => ({ ...prev, items: itemsCreated }));
-          }
-        }
-
-        // If no products, create a single item for the offer
-        if (record.products.length === 0) {
-          const { error: itemError } = await supabase
-            .from('order_items')
-            .insert({
-              order_id: newOrder.id,
-              product_id: null,
-              product_name: record.offerType || 'طلب',
-              quantity: 1,
-              unit_price: record.orderValue,
-              total_price: record.orderValue
-            });
-
-          if (!itemError) {
-            itemsCreated++;
-            setImportProgress(prev => ({ ...prev, items: itemsCreated }));
-          }
-        }
-      }
-
-      // Update customer totals
-      for (const [_, customerId] of processedCustomers) {
-        const { data: orderStats } = await supabase
-          .from('orders')
-          .select('total')
-          .eq('customer_id', customerId);
-
-        if (orderStats) {
-          const totalSpent = orderStats.reduce((sum, o) => sum + Number(o.total), 0);
-          await supabase
-            .from('customers')
-            .update({
-              total_orders: orderStats.length,
-              total_spent: totalSpent
-            })
-            .eq('id', customerId);
-        }
-      }
-
-      toast.success(`تم استيراد البيانات بنجاح! العملاء: ${customersCreated}, الطلبات: ${ordersCreated}, العناصر: ${itemsCreated}`);
-    } catch (error) {
+      toast.success(
+        `تم الاستيراد! عملاء: ${data.customersCreated}, طلبات: ${data.ordersCreated}, عناصر: ${data.itemsCreated}`
+      );
+    } catch (error: any) {
       console.error("Import error:", error);
-      toast.error("حدث خطأ أثناء الاستيراد");
+      toast.error(`خطأ في الاستيراد: ${error.message || 'خطأ غير معروف'}`);
     } finally {
       setImporting(false);
     }
@@ -340,11 +190,11 @@ const ImportSalesData = () => {
 
   return (
     <DashboardLayout>
-      <Header 
-        title="استيراد بيانات المبيعات" 
+      <Header
+        title="استيراد بيانات المبيعات"
         subtitle="استيراد بيانات مبيعات عام 2025 كامل من ملف Excel"
       />
-      
+
       <div className="p-4 space-y-6">
         <Card>
           <CardHeader>
@@ -353,7 +203,7 @@ const ImportSalesData = () => {
               ملف مبيعات عام 2025 كامل
             </CardTitle>
             <CardDescription>
-              سيتم إنشاء العملاء والطلبات تلقائياً من البيانات
+              سيتم إنشاء العملاء والطلبات تلقائياً عبر الخادم (بدون حاجة لتسجيل الدخول)
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -371,8 +221,8 @@ const ImportSalesData = () => {
                     {loading ? 'جاري تحميل البيانات...' : `${records.length} طلب جاهز للاستيراد`}
                   </span>
                 </div>
-                
-                <Button 
+
+                <Button
                   onClick={importToDatabase}
                   disabled={importing || records.length === 0}
                   size="lg"
@@ -380,7 +230,7 @@ const ImportSalesData = () => {
                   {importing ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin ml-2" />
-                      جاري الاستيراد...
+                      جاري الاستيراد (قد يستغرق دقائق)...
                     </>
                   ) : (
                     <>
@@ -392,19 +242,29 @@ const ImportSalesData = () => {
               </div>
 
               {importing && (
-                <div className="bg-muted p-4 rounded-lg">
-                  <p className="font-medium mb-2">تقدم الاستيراد:</p>
+                <div className="bg-muted p-4 rounded-lg space-y-3">
+                  <p className="font-medium">جاري الاستيراد عبر الخادم... يرجى الانتظار</p>
+                  <Progress value={undefined} className="w-full animate-pulse" />
+                  <p className="text-sm text-muted-foreground">
+                    العملية تتم على الخادم مباشرة وقد تستغرق عدة دقائق حسب حجم البيانات
+                  </p>
+                </div>
+              )}
+
+              {importResult && (
+                <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 p-4 rounded-lg">
+                  <p className="font-bold text-green-700 dark:text-green-300 mb-3">✅ تم الاستيراد بنجاح!</p>
                   <div className="grid grid-cols-3 gap-4 text-center">
                     <div>
-                      <p className="text-2xl font-bold text-green-600">{importProgress.customers}</p>
+                      <p className="text-2xl font-bold text-green-600">{importResult.customersCreated}</p>
                       <p className="text-sm text-muted-foreground">عميل جديد</p>
                     </div>
                     <div>
-                      <p className="text-2xl font-bold text-blue-600">{importProgress.orders}</p>
+                      <p className="text-2xl font-bold text-blue-600">{importResult.ordersCreated}</p>
                       <p className="text-sm text-muted-foreground">طلب</p>
                     </div>
                     <div>
-                      <p className="text-2xl font-bold text-purple-600">{importProgress.items}</p>
+                      <p className="text-2xl font-bold text-purple-600">{importResult.itemsCreated}</p>
                       <p className="text-sm text-muted-foreground">منتج</p>
                     </div>
                   </div>
@@ -482,9 +342,7 @@ const ImportSalesData = () => {
             <Card>
               <CardContent className="pt-6">
                 <div className="text-center">
-                  <p className="text-3xl font-bold text-primary">
-                    {records.length}
-                  </p>
+                  <p className="text-3xl font-bold text-primary">{records.length}</p>
                   <p className="text-sm text-muted-foreground">إجمالي الطلبات</p>
                 </div>
               </CardContent>
