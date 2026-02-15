@@ -26,8 +26,11 @@ import {
   Users,
   Award,
   Target,
+  FileDown,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { moderatorPerformanceData, monthlySalesData } from "@/data/salesAnalytics2025";
+import { exportModeratorPDF } from "@/utils/exportModeratorReport";
 
 const COLORS = [
   "hsl(var(--primary))",
@@ -259,11 +262,25 @@ const ModeratorPerformance = () => {
   // Main list view
   return (
     <DashboardLayout>
-      <Header
-        title="أداء الموديراتور"
-        subtitle="تحليل تفصيلي لأداء كل موديراتور في 2025"
-      />
-
+      <div className="flex items-center justify-between mb-2">
+        <Header
+          title="أداء الموديراتور"
+          subtitle="تحليل تفصيلي لأداء كل موديراتور في 2025"
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => exportModeratorPDF({
+            moderators: moderatorPerformanceData,
+            monthlyData: moderatorMonthlyData,
+            totalSales,
+            totalOrders,
+          })}
+        >
+          <FileDown className="w-4 h-4 ml-1" />
+          تصدير PDF
+        </Button>
+      </div>
       {/* Summary */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-8">
         <Card className="stat-card">
