@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
+import html2canvas from "html2canvas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,7 +26,8 @@ import {
   PolarAngleAxis,
   PolarRadiusAxis,
 } from "recharts";
-import { GitCompareArrows, DollarSign, ShoppingCart, Target, TrendingUp } from "lucide-react";
+import { GitCompareArrows, DollarSign, ShoppingCart, Target, TrendingUp, Download, Link, Check } from "lucide-react";
+import { toast } from "sonner";
 
 interface ModeratorData {
   name: string;
@@ -54,11 +56,49 @@ interface Props {
   moderators: ModeratorData[];
   monthlyData: Record<string, MonthlyData[]>;
   onClose: () => void;
+  initialModA?: string;
+  initialModB?: string;
 }
 
-const ModeratorComparison = ({ moderators, monthlyData, onClose }: Props) => {
-  const [modA, setModA] = useState<string>(moderators[0]?.name || "");
-  const [modB, setModB] = useState<string>(moderators[1]?.name || "");
+const ModeratorComparison = ({ moderators, monthlyData, onClose, initialModA, initialModB }: Props) => {
+  const [modA, setModA] = useState<string>(initialModA || moderators[0]?.name || "");
+  const [modB, setModB] = useState<string>(initialModB || moderators[1]?.name || "");
+  const [isCapturing, setIsCapturing] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const comparisonRef = useRef<HTMLDivElement>(null);
+
+  const handleShareAsImage = useCallback(async () => {
+    if (!comparisonRef.current) return;
+    setIsCapturing(true);
+    try {
+      const canvas = await html2canvas(comparisonRef.current, {
+        backgroundColor: "#1a1a2e",
+        scale: 2,
+        useCORS: true,
+      });
+      const link = document.createElement("a");
+      link.download = `comparison-${modA}-vs-${modB}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+      toast.success("تم تحميل الصورة بنجاح");
+    } catch {
+      toast.error("فشل في إنشاء الصورة");
+    } finally {
+      setIsCapturing(false);
+    }
+  }, [modA, modB]);
+
+  const handleShareAsLink = useCallback(() => {
+    const url = new URL(window.location.href);
+    url.pathname = "/moderator-performance";
+    url.searchParams.set("compare", "1");
+    url.searchParams.set("a", modA);
+    url.searchParams.set("b", modB);
+    navigator.clipboard.writeText(url.toString());
+    setLinkCopied(true);
+    toast.success("تم نسخ الرابط");
+    setTimeout(() => setLinkCopied(false), 2000);
+  }, [modA, modB]);
 
   const dataA = moderators.find((m) => m.name === modA);
   const dataB = moderators.find((m) => m.name === modB);
@@ -98,8 +138,20 @@ const ModeratorComparison = ({ moderators, monthlyData, onClose }: Props) => {
           <GitCompareArrows className="w-5 h-5 text-primary" />
           مقارنة بين موديراتورين
         </h2>
-        <Button variant="ghost" size="sm" onClick={onClose}>إغلاق المقارنة</Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleShareAsImage} disabled={isCapturing}>
+            <Download className="w-4 h-4 ml-1" />
+            {isCapturing ? "جاري..." : "حفظ كصورة"}
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleShareAsLink}>
+            {linkCopied ? <Check className="w-4 h-4 ml-1" /> : <Link className="w-4 h-4 ml-1" />}
+            {linkCopied ? "تم النسخ" : "نسخ الرابط"}
+          </Button>
+          <Button variant="ghost" size="sm" onClick={onClose}>إغلاق</Button>
+        </div>
       </div>
+
+      <div ref={comparisonRef} className="space-y-6">
 
       {/* Selectors */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -229,6 +281,7 @@ const ModeratorComparison = ({ moderators, monthlyData, onClose }: Props) => {
             </CardContent>
           </Card>
         )}
+      </div>
       </div>
     </div>
   );

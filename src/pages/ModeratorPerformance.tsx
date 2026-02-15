@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import Header from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -91,8 +92,15 @@ const moderatorMonthlyData: Record<string, { month: string; sales: number; order
 };
 
 const ModeratorPerformance = () => {
+  const [searchParams] = useSearchParams();
   const [selectedModerator, setSelectedModerator] = useState<string | null>(null);
   const [showComparison, setShowComparison] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("compare") === "1") {
+      setShowComparison(true);
+    }
+  }, [searchParams]);
 
   const totalSales = moderatorPerformanceData.reduce((s, m) => s + m.sales, 0);
   const totalOrders = moderatorPerformanceData.reduce((s, m) => s + m.orders, 0);
@@ -301,6 +309,8 @@ const ModeratorPerformance = () => {
             moderators={moderatorPerformanceData}
             monthlyData={moderatorMonthlyData}
             onClose={() => setShowComparison(false)}
+            initialModA={searchParams.get("a") || undefined}
+            initialModB={searchParams.get("b") || undefined}
           />
         </div>
       )}
