@@ -162,23 +162,35 @@ const ImportSalesData = () => {
     setImportResult(null);
 
     try {
-      const fileUrl = `${window.location.origin}/data/sales-2025-full.xlsx`;
+      const CHUNK_SIZE = 100;
+      let totalCustomers = 0;
+      let totalOrders = 0;
+      let totalItems = 0;
 
-      const { data, error } = await supabase.functions.invoke('import-sales', {
-        body: { fileUrl },
-      });
+      for (let i = 0; i < records.length; i += CHUNK_SIZE) {
+        const chunk = records.slice(i, i + CHUNK_SIZE);
+        toast.info(`جاري استيراد الدفعة ${Math.floor(i / CHUNK_SIZE) + 1} من ${Math.ceil(records.length / CHUNK_SIZE)}...`);
 
-      if (error) throw error;
+        const { data, error } = await supabase.functions.invoke('import-sales', {
+          body: { records: chunk },
+        });
+
+        if (error) throw error;
+
+        totalCustomers += data.customersCreated || 0;
+        totalOrders += data.ordersCreated || 0;
+        totalItems += data.itemsCreated || 0;
+      }
 
       setImportResult({
         success: true,
-        customersCreated: data.customersCreated,
-        ordersCreated: data.ordersCreated,
-        itemsCreated: data.itemsCreated,
+        customersCreated: totalCustomers,
+        ordersCreated: totalOrders,
+        itemsCreated: totalItems,
       });
 
       toast.success(
-        `تم الاستيراد! عملاء: ${data.customersCreated}, طلبات: ${data.ordersCreated}, عناصر: ${data.itemsCreated}`
+        `تم الاستيراد! عملاء: ${totalCustomers}, طلبات: ${totalOrders}, عناصر: ${totalItems}`
       );
     } catch (error: any) {
       console.error("Import error:", error);
