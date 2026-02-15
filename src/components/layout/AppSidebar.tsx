@@ -14,6 +14,7 @@ import {
   Gift,
   AlertTriangle,
   Upload,
+  UserCheck,
 } from "lucide-react";
 import { useAuth, AppRole } from "@/hooks/useAuth";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
@@ -84,6 +85,12 @@ const allMenuItems: {
     label: "صناديق العروض", 
     path: "/offer-boxes", 
     roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator'] 
+  },
+  { 
+    icon: UserCheck, 
+    label: "أداء الموديراتور", 
+    path: "/moderator-performance", 
+    roles: ['general_manager', 'executive_manager', 'sales_manager'] 
   },
   { 
     icon: Users, 

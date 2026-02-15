@@ -22,6 +22,7 @@ import Permissions from "@/pages/Permissions";
 import LowStock from "@/pages/LowStock";
 import NotFound from "@/pages/NotFound";
 import ImportSalesData from "@/pages/ImportSalesData";
+import ModeratorPerformance from "@/pages/ModeratorPerformance";
 
 const AnimatedRoutes = () => {
   const location = useLocation();
@@ -116,6 +117,11 @@ const AnimatedRoutes = () => {
         <Route path="/import-sales" element={
           <ProtectedRoute allowedRoles={['general_manager']}>
             <PageTransition><ImportSalesData /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/moderator-performance" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager']}>
+            <PageTransition><ModeratorPerformance /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="*" element={
