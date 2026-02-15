@@ -4,6 +4,7 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import Header from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   BarChart,
   Bar,
@@ -31,7 +32,7 @@ import {
   GitCompareArrows,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { moderatorPerformanceData, monthlySalesData } from "@/data/salesAnalytics2025";
+import { useModeratorPerformance } from "@/hooks/useModeratorPerformance";
 import { exportModeratorPDF } from "@/utils/exportModeratorReport";
 import ModeratorComparison from "@/components/moderator/ModeratorComparison";
 
@@ -45,107 +46,17 @@ const COLORS = [
   "hsl(var(--warning))",
 ];
 
-// Monthly breakdown per moderator (proportionally distributed based on overall monthly trends)
-const moderatorMonthlyData: Record<string, { month: string; sales: number; orders: number }[]> = {
-  "أية": [
-    { month: "يناير", sales: 454000, orders: 173 },
-    { month: "فبراير", sales: 688000, orders: 363 },
-    { month: "مارس", sales: 407000, orders: 214 },
-    { month: "أبريل", sales: 361000, orders: 213 },
-    { month: "مايو", sales: 525000, orders: 281 },
-    { month: "يونيو", sales: 279000, orders: 137 },
-    { month: "يوليو", sales: 537000, orders: 336 },
-    { month: "أغسطس", sales: 655000, orders: 490 },
-    { month: "سبتمبر", sales: 553000, orders: 384 },
-    { month: "أكتوبر", sales: 449000, orders: 315 },
-    { month: "نوفمبر", sales: 449000, orders: 291 },
-    { month: "ديسمبر", sales: 542000, orders: 314 },
-  ],
-  "هبة": [
-    { month: "يناير", sales: 169000, orders: 64 },
-    { month: "فبراير", sales: 256000, orders: 135 },
-    { month: "مارس", sales: 151000, orders: 80 },
-    { month: "أبريل", sales: 134000, orders: 79 },
-    { month: "مايو", sales: 195000, orders: 104 },
-    { month: "يونيو", sales: 104000, orders: 51 },
-    { month: "يوليو", sales: 200000, orders: 125 },
-    { month: "أغسطس", sales: 243000, orders: 182 },
-    { month: "سبتمبر", sales: 206000, orders: 143 },
-    { month: "أكتوبر", sales: 167000, orders: 117 },
-    { month: "نوفمبر", sales: 167000, orders: 108 },
-    { month: "ديسمبر", sales: 201000, orders: 117 },
-  ],
-  "رانيا": [
-    { month: "يناير", sales: 139000, orders: 53 },
-    { month: "فبراير", sales: 212000, orders: 112 },
-    { month: "مارس", sales: 125000, orders: 66 },
-    { month: "أبريل", sales: 111000, orders: 66 },
-    { month: "مايو", sales: 161000, orders: 86 },
-    { month: "يونيو", sales: 86000, orders: 42 },
-    { month: "يوليو", sales: 165000, orders: 103 },
-    { month: "أغسطس", sales: 201000, orders: 151 },
-    { month: "سبتمبر", sales: 170000, orders: 118 },
-    { month: "أكتوبر", sales: 138000, orders: 97 },
-    { month: "نوفمبر", sales: 138000, orders: 90 },
-    { month: "ديسمبر", sales: 167000, orders: 97 },
-  ],
-  "سارة": [
-    { month: "يناير", sales: 137000, orders: 52 },
-    { month: "فبراير", sales: 207000, orders: 109 },
-    { month: "مارس", sales: 123000, orders: 64 },
-    { month: "أبريل", sales: 109000, orders: 64 },
-    { month: "مايو", sales: 158000, orders: 84 },
-    { month: "يونيو", sales: 84000, orders: 41 },
-    { month: "يوليو", sales: 162000, orders: 101 },
-    { month: "أغسطس", sales: 197000, orders: 147 },
-    { month: "سبتمبر", sales: 167000, orders: 116 },
-    { month: "أكتوبر", sales: 135000, orders: 95 },
-    { month: "نوفمبر", sales: 135000, orders: 88 },
-    { month: "ديسمبر", sales: 163000, orders: 95 },
-  ],
-  "سهيلة": [
-    { month: "يناير", sales: 78000, orders: 30 },
-    { month: "فبراير", sales: 118000, orders: 62 },
-    { month: "مارس", sales: 70000, orders: 37 },
-    { month: "أبريل", sales: 62000, orders: 37 },
-    { month: "مايو", sales: 90000, orders: 48 },
-    { month: "يونيو", sales: 48000, orders: 23 },
-    { month: "يوليو", sales: 92000, orders: 58 },
-    { month: "أغسطس", sales: 112000, orders: 84 },
-    { month: "سبتمبر", sales: 95000, orders: 66 },
-    { month: "أكتوبر", sales: 77000, orders: 54 },
-    { month: "نوفمبر", sales: 77000, orders: 50 },
-    { month: "ديسمبر", sales: 93000, orders: 54 },
-  ],
-  "نورا": [
-    { month: "يناير", sales: 41000, orders: 16 },
-    { month: "فبراير", sales: 63000, orders: 33 },
-    { month: "مارس", sales: 37000, orders: 20 },
-    { month: "أبريل", sales: 33000, orders: 19 },
-    { month: "مايو", sales: 48000, orders: 26 },
-    { month: "يونيو", sales: 26000, orders: 12 },
-    { month: "يوليو", sales: 49000, orders: 31 },
-    { month: "أغسطس", sales: 60000, orders: 45 },
-    { month: "سبتمبر", sales: 50000, orders: 35 },
-    { month: "أكتوبر", sales: 41000, orders: 29 },
-    { month: "نوفمبر", sales: 41000, orders: 27 },
-    { month: "ديسمبر", sales: 49000, orders: 29 },
-  ],
-};
-
 const ModeratorPerformance = () => {
   const [searchParams] = useSearchParams();
   const [selectedModerator, setSelectedModerator] = useState<string | null>(null);
   const [showComparison, setShowComparison] = useState(false);
+  const { moderators: moderatorPerformanceData, monthlyData: moderatorMonthlyData, totalSales, totalOrders, isLoading } = useModeratorPerformance();
 
   useEffect(() => {
     if (searchParams.get("compare") === "1") {
       setShowComparison(true);
     }
   }, [searchParams]);
-
-  const totalSales = moderatorPerformanceData.reduce((s, m) => s + m.sales, 0);
-  const totalOrders = moderatorPerformanceData.reduce((s, m) => s + m.orders, 0);
 
   if (selectedModerator) {
     const mod = moderatorPerformanceData.find((m) => m.name === selectedModerator);
@@ -365,7 +276,7 @@ const ModeratorPerformance = () => {
             </div>
             <div>
               <p className="text-muted-foreground text-xs">عدد الموديراتور</p>
-              <p className="text-2xl font-bold">{moderatorPerformanceData.length}</p>
+              {isLoading ? <Skeleton className="h-7 w-10" /> : <p className="text-2xl font-bold">{moderatorPerformanceData.length}</p>}
             </div>
           </div>
         </Card>
@@ -376,7 +287,7 @@ const ModeratorPerformance = () => {
             </div>
             <div>
               <p className="text-muted-foreground text-xs">إجمالي المبيعات</p>
-              <p className="text-2xl font-bold">{(totalSales / 1000000).toFixed(1)}M ج.م</p>
+              {isLoading ? <Skeleton className="h-7 w-20" /> : <p className="text-2xl font-bold">{(totalSales / 1000000).toFixed(1)}M ج.م</p>}
             </div>
           </div>
         </Card>
@@ -387,13 +298,23 @@ const ModeratorPerformance = () => {
             </div>
             <div>
               <p className="text-muted-foreground text-xs">إجمالي الطلبات</p>
-              <p className="text-2xl font-bold">{totalOrders.toLocaleString()}</p>
+              {isLoading ? <Skeleton className="h-7 w-16" /> : <p className="text-2xl font-bold">{totalOrders.toLocaleString()}</p>}
             </div>
           </div>
         </Card>
       </div>
 
       {/* Charts */}
+      {isLoading ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {[1, 2].map((i) => (
+            <Card key={i} className="glass-card">
+              <CardHeader><Skeleton className="h-6 w-40" /></CardHeader>
+              <CardContent><Skeleton className="h-[300px] w-full" /></CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <Card className="glass-card">
           <CardHeader>
@@ -469,6 +390,7 @@ const ModeratorPerformance = () => {
           </CardContent>
         </Card>
       </div>
+      )}
 
       {/* Moderator Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
