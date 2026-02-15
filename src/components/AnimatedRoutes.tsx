@@ -111,9 +111,11 @@ const AnimatedRoutes = () => {
         <Route path="/install" element={
           <PageTransition><Install /></PageTransition>
         } />
-        <Route path="/seed-users" element={
-          <PageTransition><SeedUsers /></PageTransition>
-        } />
+        {import.meta.env.DEV && (
+          <Route path="/seed-users" element={
+            <PageTransition><SeedUsers /></PageTransition>
+          } />
+        )}
         <Route path="/import-sales" element={
           <ProtectedRoute allowedRoles={['general_manager']}>
             <PageTransition><ImportSalesData /></PageTransition>
