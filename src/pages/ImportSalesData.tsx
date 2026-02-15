@@ -29,36 +29,45 @@ interface SalesRecord {
   products: { name: string; quantity: number }[];
 }
 
-// Product column mapping for 2025 full year file
+// Product column mapping for the 2025 analysis file (Page 7 raw data sheet)
+// Columns start at index 25 based on header: اللحم, الاستيك, الموزه, ...
 const PRODUCT_COLUMNS = [
-  { name: 'لحم', index: 8 },
-  { name: 'دبوس/فخدة/نعامة', index: 9 },
-  { name: 'استيك', index: 10 },
-  { name: 'موزة', index: 11 },
-  { name: 'فراشة', index: 12 },
-  { name: 'قطعية الدبوس', index: 13 },
-  { name: 'تربيانكو', index: 14 },
-  { name: 'اسكالوب', index: 15 },
-  { name: 'ميت رول', index: 16 },
-  { name: 'كبدة', index: 17 },
-  { name: 'قلب', index: 18 },
-  { name: 'قوانص', index: 19 },
-  { name: 'رقاب', index: 20 },
-  { name: 'دهن', index: 21 },
-  { name: 'كوارع', index: 22 },
-  { name: 'كفتة', index: 23 },
-  { name: 'سجق', index: 24 },
-  { name: 'برجر', index: 25 },
-  { name: 'لانشون سادة', index: 26 },
-  { name: 'لانشون فلفل أسود', index: 27 },
-  { name: 'لانشون بيبروني', index: 28 },
-  { name: 'مفروم حواوشي', index: 29 },
-  { name: 'مفروم', index: 30 },
-  { name: 'كريم المفاصل', index: 31 },
-  { name: 'زيت الشعر', index: 32 },
-  { name: 'كريم الشعر', index: 33 },
-  { name: 'كريم للبشرة', index: 34 },
-  { name: 'لحم غزال', index: 40 },
+  { name: 'اللحم', index: 25 },
+  { name: 'الاستيك', index: 26 },
+  { name: 'الموزه', index: 27 },
+  { name: 'الفراشه', index: 28 },
+  { name: 'قطعية الدبوس', index: 29 },
+  { name: 'قطعية التريبيانكو', index: 30 },
+  { name: 'قطعية الاسكلوب', index: 31 },
+  { name: 'ميت رول', index: 32 },
+  { name: 'الكبده', index: 33 },
+  { name: 'القلب', index: 34 },
+  { name: 'القوانص', index: 35 },
+  { name: 'الرقاب', index: 36 },
+  { name: 'الدهن', index: 37 },
+  { name: 'الكوارع', index: 38 },
+  { name: 'كفتة', index: 39 },
+  { name: 'سجق', index: 40 },
+  { name: 'برجر', index: 41 },
+  { name: 'لانشون سادة', index: 42 },
+  { name: 'لانشون بالفلفل الاسود', index: 43 },
+  { name: 'لانشون ببروني', index: 44 },
+  { name: 'مفروم حواوشي', index: 45 },
+  { name: 'مفروم', index: 46 },
+  { name: 'كريم المفاصل', index: 47 },
+  { name: 'زيت الشعر', index: 48 },
+  { name: 'كريم الشعر', index: 49 },
+  { name: 'كريم للبشرة', index: 50 },
+  { name: 'لحم غزال', index: 51 },
+  { name: 'شاورما', index: 52 },
+  { name: 'كباب', index: 53 },
+  { name: 'شيش', index: 54 },
+  { name: 'ممبار', index: 55 },
+  { name: 'كفتة أرز', index: 56 },
+  { name: 'بيض', index: 57 },
+  { name: 'دبوس 7 كيلو', index: 58 },
+  { name: 'طرب', index: 59 },
+  { name: 'برجر بالجبنة', index: 60 },
 ];
 
 const ImportSalesData = () => {
@@ -105,39 +114,63 @@ const ImportSalesData = () => {
       const response = await fetch('/data/sales-2025-full.xlsx');
       const arrayBuffer = await response.arrayBuffer();
       const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rawData = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+
+      // Find the sheet with raw order data (the one with most rows, typically named with order data)
+      let bestSheet: any = null;
+      let bestRowCount = 0;
+      for (const sheetName of workbook.SheetNames) {
+        const s = workbook.Sheets[sheetName];
+        const data = XLSX.utils.sheet_to_json(s, { header: 1 }) as any[][];
+        if (data.length > bestRowCount) {
+          bestRowCount = data.length;
+          bestSheet = s;
+        }
+      }
+
+      if (!bestSheet) throw new Error("لم يتم العثور على بيانات");
+
+      const rawData = XLSX.utils.sheet_to_json(bestSheet, { header: 1 }) as any[][];
+      console.log(`Found sheet with ${rawData.length} rows. Header:`, rawData[0]?.slice(0, 25));
 
       const parsedRecords: SalesRecord[] = [];
       for (let i = 1; i < rawData.length; i++) {
         const row = rawData[i];
-        if (!row || row.length < 5) continue;
-        const customerName = row[3];
+        if (!row || row.length < 20) continue;
+
+        // Column mapping based on the 2025 analysis file structure:
+        // 4: OrderDateTime, 6: Moderator_Norm, 8: Source_Norm, 10: Shipping_Norm
+        // 12: Governorate_Norm, 13: City, 15: Customer Name, 16: Phone, 17: Phone2
+        // 18: Address, 19: OrderValue, 22: BigItem_Desc
+        const customerName = row[15];
         if (!customerName || String(customerName).trim() === '') continue;
+
+        const orderValue = parseFloat(String(row[19]).replace(/,/g, '')) || 0;
+        if (orderValue <= 0) continue;
 
         const products: { name: string; quantity: number }[] = [];
         for (const col of PRODUCT_COLUMNS) {
-          const qty = parseFloat(row[col.index]) || 0;
-          if (qty > 0) products.push({ name: col.name, quantity: qty });
+          const rawQty = row[col.index];
+          const qty = parseFloat(String(rawQty).replace(/\./g, '').replace(',', '.')) || parseFloat(rawQty) || 0;
+          if (qty > 0) products.push({ name: col.name, quantity: Math.round(qty) || qty });
         }
 
-        const orderValue = parseFloat(row[35]) || 0;
-        if (orderValue <= 0) continue;
+        const bigItemDesc = String(row[22] || '').trim();
+        const offerType = bigItemDesc && bigItemDesc !== 'nan' ? bigItemDesc : '';
 
         parsedRecords.push({
-          timestamp: parseExcelDate(row[0]) || new Date().toISOString(),
-          moderator: String(row[1] || '').trim(),
-          customerSource: String(row[2] || '').trim(),
-          customerName: String(row[3] || '').trim(),
-          customerPhone: String(row[4] || '').replace(/\s/g, ''),
-          customerPhone2: row[5] ? String(row[5]).replace(/\s/g, '') : undefined,
-          address: String(row[6] || '').trim(),
-          shippingCompany: String(row[7] || '').trim(),
+          timestamp: parseExcelDate(row[4]) || new Date().toISOString(),
+          moderator: String(row[6] || '').trim(), // Moderator_Norm
+          customerSource: String(row[8] || '').trim(), // Source_Norm
+          customerName: String(customerName).trim(),
+          customerPhone: String(row[16] || '').replace(/\s/g, '').replace(/\+/g, ''),
+          customerPhone2: row[17] ? String(row[17]).replace(/\s/g, '').replace(/\+/g, '') : undefined,
+          address: String(row[18] || '').trim(),
+          shippingCompany: String(row[10] || '').trim(), // Shipping_Norm
           orderValue,
-          offerType: String(row[36] || '').trim(),
-          notes: row[37] ? String(row[37]).trim() : undefined,
-          governorate: String(row[38] || '').trim(),
-          city: String(row[39] || '').trim(),
+          offerType,
+          notes: '',
+          governorate: String(row[12] || '').trim(), // Governorate_Norm
+          city: String(row[13] || '').trim(), // City/Centre
           products,
         });
       }
@@ -204,7 +237,7 @@ const ImportSalesData = () => {
     <DashboardLayout>
       <Header
         title="استيراد بيانات المبيعات"
-        subtitle="استيراد بيانات مبيعات عام 2025 كامل من ملف Excel"
+        subtitle="استيراد بيانات تحليل مبيعات عام 2025 كامل من ملف Excel"
       />
 
       <div className="p-4 space-y-6">
