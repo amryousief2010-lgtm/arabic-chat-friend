@@ -26,11 +26,19 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    console.log(`Processing ${records.length} records`);
+    // Get current max order count for sequential numbering
+    const { count: existingCount } = await supabase
+      .from("orders")
+      .select("id", { count: "exact", head: true });
+
+    let globalCounter = existingCount || 0;
+
+    console.log(`Processing ${records.length} records, existing orders: ${globalCounter}`);
 
     let customersCreated = 0;
     let ordersCreated = 0;
     let itemsCreated = 0;
+    let skipped = 0;
     const processedCustomers = new Map<string, string>();
 
     for (let b = 0; b < records.length; b += batchSize) {
@@ -74,8 +82,25 @@ Deno.serve(async (req) => {
           processedCustomers.set(customerKey, customerId);
         }
 
-        const orderDate = new Date(record.timestamp);
-        const orderNumber = `ORD-${orderDate.getFullYear()}${String(orderDate.getMonth() + 1).padStart(2, "0")}${String(orderDate.getDate()).padStart(2, "0")}-${String(ordersCreated + 1).padStart(4, "0")}`;
+        // Check for duplicate order (same customer, same date, same value)
+        if (record.skipDuplicateCheck !== true) {
+          const { data: existingOrder } = await supabase
+            .from("orders")
+            .select("id")
+            .eq("customer_id", customerId)
+            .eq("total", record.orderValue)
+            .gte("created_at", record.timestamp.split("T")[0] + "T00:00:00Z")
+            .lte("created_at", record.timestamp.split("T")[0] + "T23:59:59Z")
+            .maybeSingle();
+
+          if (existingOrder) {
+            skipped++;
+            continue;
+          }
+        }
+
+        globalCounter++;
+        const orderNumber = `IMP-${Date.now()}-${String(globalCounter).padStart(5, "0")}`;
 
         const { data: newOrder, error: orderErr } = await supabase
           .from("orders")
@@ -159,6 +184,7 @@ Deno.serve(async (req) => {
         customersCreated,
         ordersCreated,
         itemsCreated,
+        skipped,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
