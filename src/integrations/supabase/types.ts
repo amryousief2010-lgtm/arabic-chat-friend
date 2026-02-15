@@ -226,10 +226,13 @@ export type Database = {
           delivery_fee: number
           discount: number
           id: string
+          moderator: string | null
           notes: string | null
           order_number: string
           payment_method: string
           payment_status: string
+          shipping_company: string | null
+          source: string | null
           status: string
           subtotal: number
           total: number
@@ -243,10 +246,13 @@ export type Database = {
           delivery_fee?: number
           discount?: number
           id?: string
+          moderator?: string | null
           notes?: string | null
           order_number: string
           payment_method?: string
           payment_status?: string
+          shipping_company?: string | null
+          source?: string | null
           status?: string
           subtotal?: number
           total?: number
@@ -260,10 +266,13 @@ export type Database = {
           delivery_fee?: number
           discount?: number
           id?: string
+          moderator?: string | null
           notes?: string | null
           order_number?: string
           payment_method?: string
           payment_status?: string
+          shipping_company?: string | null
+          source?: string | null
           status?: string
           subtotal?: number
           total?: number

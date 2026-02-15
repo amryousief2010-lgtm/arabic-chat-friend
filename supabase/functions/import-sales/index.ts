@@ -26,7 +26,6 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Get current max order count for sequential numbering
     const { count: existingCount } = await supabase
       .from("orders")
       .select("id", { count: "exact", head: true });
@@ -59,6 +58,15 @@ Deno.serve(async (req) => {
 
           if (existing) {
             customerId = existing.id;
+            // Update customer city/address if missing
+            await supabase
+              .from("customers")
+              .update({
+                city: record.governorate || record.city || null,
+                address: record.address || null,
+              })
+              .eq("id", customerId)
+              .is("city", null);
           } else {
             const { data: newCust, error: custErr } = await supabase
               .from("customers")
@@ -66,8 +74,8 @@ Deno.serve(async (req) => {
                 name: record.customerName,
                 phone: record.customerPhone,
                 address: record.address,
-                city: record.city,
-                notes: `المحافظة: ${record.governorate} | المصدر: ${record.customerSource}${record.customerPhone2 ? ` | هاتف آخر: ${record.customerPhone2}` : ""}`,
+                city: record.governorate || record.city,
+                notes: `المصدر: ${record.customerSource}${record.customerPhone2 ? ` | هاتف آخر: ${record.customerPhone2}` : ""}`,
               })
               .select("id")
               .single();
@@ -82,7 +90,7 @@ Deno.serve(async (req) => {
           processedCustomers.set(customerKey, customerId);
         }
 
-        // Check for duplicate order (same customer, same date, same value)
+        // Duplicate check
         if (record.skipDuplicateCheck !== true) {
           const { data: existingOrder } = await supabase
             .from("orders")
@@ -114,7 +122,10 @@ Deno.serve(async (req) => {
             payment_method: "cash",
             delivery_address: record.address,
             created_at: record.timestamp,
-            notes: `العرض: ${record.offerType} | شركة الشحن: ${record.shippingCompany} | المندوب: ${record.moderator}${record.notes ? ` | ملاحظات: ${record.notes}` : ""}`,
+            source: record.customerSource || null,
+            shipping_company: record.shippingCompany || null,
+            moderator: record.moderator || null,
+            notes: `العرض: ${record.offerType}${record.notes ? ` | ملاحظات: ${record.notes}` : ""}`,
           })
           .select("id")
           .single();
