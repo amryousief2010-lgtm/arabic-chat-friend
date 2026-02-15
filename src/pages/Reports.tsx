@@ -2,14 +2,6 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import Header from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { useState } from "react";
-import {
   BarChart,
   Bar,
   XAxis,
@@ -31,9 +23,21 @@ import {
   DollarSign,
   ShoppingCart,
   Users,
+  MapPin,
+  Truck,
+  UserCheck,
   Package,
+  Globe,
 } from "lucide-react";
-import { mockSalesData, mockProducts, mockOrders, mockCustomers } from "@/data/mockData";
+import {
+  monthlySalesData,
+  governorateSalesData,
+  customerSourcesData,
+  shippingCompanyData,
+  moderatorPerformanceData,
+  topProductsData,
+  summary2025,
+} from "@/data/salesAnalytics2025";
 
 const COLORS = [
   "hsl(var(--primary))",
@@ -41,79 +45,21 @@ const COLORS = [
   "hsl(var(--success))",
   "hsl(var(--chart-4))",
   "hsl(var(--chart-5))",
+  "hsl(var(--destructive))",
+  "hsl(var(--warning))",
 ];
 
 const Reports = () => {
-  const [period, setPeriod] = useState("year");
-
-  // Calculate category sales
-  const categorySales = mockProducts.reduce((acc, product) => {
-    const category = product.category;
-    if (!acc[category]) {
-      acc[category] = 0;
-    }
-    acc[category] += product.price * product.stock;
-    return acc;
-  }, {} as Record<string, number>);
-
-  const categoryData = Object.entries(categorySales).map(([name, value]) => ({
-    name,
-    value,
-  }));
-
-  // Calculate order status distribution
-  const orderStatusData = mockOrders.reduce((acc, order) => {
-    const status = order.status;
-    if (!acc[status]) {
-      acc[status] = 0;
-    }
-    acc[status]++;
-    return acc;
-  }, {} as Record<string, number>);
-
-  const statusData = [
-    { name: "تم التوصيل", value: orderStatusData.delivered || 0 },
-    { name: "جاري الشحن", value: orderStatusData.shipped || 0 },
-    { name: "جاري التجهيز", value: orderStatusData.processing || 0 },
-    { name: "قيد الانتظار", value: orderStatusData.pending || 0 },
-    { name: "ملغي", value: orderStatusData.cancelled || 0 },
-  ];
-
-  // Top products by sales
-  const topProducts = [...mockProducts]
-    .sort((a, b) => b.price * b.stock - a.price * a.stock)
-    .slice(0, 5)
-    .map((p) => ({
-      name: p.name,
-      sales: p.price * p.stock,
-    }));
-
-  // Summary stats
-  const totalRevenue = mockSalesData.reduce((acc, curr) => acc + curr.sales, 0);
-  const totalOrders = mockSalesData.reduce((acc, curr) => acc + curr.orders, 0);
-  const avgOrderValue = Math.round(totalRevenue / totalOrders);
+  const totalRevenue = summary2025.totalSales;
+  const totalOrders = summary2025.totalOrders;
+  const avgOrderValue = summary2025.avgOrderValue;
 
   return (
     <DashboardLayout>
-      <Header title="التقارير" subtitle="تحليلات وإحصائيات المبيعات" />
-
-      {/* Period Selector */}
-      <div className="flex justify-end mb-6">
-        <Select value={period} onValueChange={setPeriod}>
-          <SelectTrigger className="w-48 input-modern">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="week">هذا الأسبوع</SelectItem>
-            <SelectItem value="month">هذا الشهر</SelectItem>
-            <SelectItem value="quarter">هذا الربع</SelectItem>
-            <SelectItem value="year">هذه السنة</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      <Header title="التقارير والتحليلات" subtitle="تحليل شامل لمبيعات عام 2025" />
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-8">
         <Card className="stat-card">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-success flex items-center justify-center">
@@ -121,9 +67,7 @@ const Reports = () => {
             </div>
             <div>
               <p className="text-muted-foreground text-sm">إجمالي الإيرادات</p>
-              <p className="text-2xl font-bold">
-                {(totalRevenue / 1000).toFixed(0)}K ج.م
-              </p>
+              <p className="text-2xl font-bold">{(totalRevenue / 1000000).toFixed(1)}M ج.م</p>
             </div>
           </div>
         </Card>
@@ -134,7 +78,7 @@ const Reports = () => {
             </div>
             <div>
               <p className="text-muted-foreground text-sm">إجمالي الطلبات</p>
-              <p className="text-2xl font-bold">{totalOrders}</p>
+              <p className="text-2xl font-bold">{totalOrders.toLocaleString()}</p>
             </div>
           </div>
         </Card>
@@ -156,25 +100,24 @@ const Reports = () => {
             </div>
             <div>
               <p className="text-muted-foreground text-sm">العملاء</p>
-              <p className="text-2xl font-bold">{mockCustomers.length}</p>
+              <p className="text-2xl font-bold">{summary2025.totalCustomers.toLocaleString()}</p>
             </div>
           </div>
         </Card>
       </div>
 
-      {/* Charts Grid */}
+      {/* Charts Row 1: Sales Trend + Governorate */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Sales Trend */}
         <Card className="glass-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-primary" />
-              تطور المبيعات
+              تطور المبيعات الشهرية
             </CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={mockSalesData}>
+              <AreaChart data={monthlySalesData}>
                 <defs>
                   <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
@@ -182,11 +125,11 @@ const Reports = () => {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={11} />
                 <YAxis
                   stroke="hsl(var(--muted-foreground))"
-                  fontSize={12}
-                  tickFormatter={(value) => `${value / 1000}K`}
+                  fontSize={11}
+                  tickFormatter={(v) => `${(v / 1000000).toFixed(1)}M`}
                 />
                 <Tooltip
                   contentStyle={{
@@ -210,71 +153,29 @@ const Reports = () => {
           </CardContent>
         </Card>
 
-        {/* Category Distribution */}
         <Card className="glass-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Package className="w-5 h-5 text-secondary" />
-              توزيع المبيعات حسب التصنيف
+              <MapPin className="w-5 h-5 text-success" />
+              المبيعات حسب المحافظة (Top 10)
             </CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={categoryData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  paddingAngle={5}
-                  dataKey="value"
-                  label={({ name, percent }) =>
-                    `${name} ${(percent * 100).toFixed(0)}%`
-                  }
-                >
-                  {categoryData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "0.75rem",
-                    direction: "rtl",
-                  }}
-                  formatter={(value: number) => [`${value.toLocaleString()} ج.م`, "القيمة"]}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Top Products */}
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="w-5 h-5 text-primary" />
-              أفضل المنتجات مبيعاً
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={topProducts} layout="vertical">
+              <BarChart data={governorateSalesData} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis
                   type="number"
                   stroke="hsl(var(--muted-foreground))"
-                  fontSize={12}
-                  tickFormatter={(value) => `${value / 1000}K`}
+                  fontSize={11}
+                  tickFormatter={(v) => `${(v / 1000000).toFixed(1)}M`}
                 />
                 <YAxis
                   type="category"
                   dataKey="name"
                   stroke="hsl(var(--muted-foreground))"
-                  fontSize={12}
-                  width={100}
+                  fontSize={11}
+                  width={70}
                 />
                 <Tooltip
                   contentStyle={{
@@ -285,33 +186,37 @@ const Reports = () => {
                   }}
                   formatter={(value: number) => [`${value.toLocaleString()} ج.م`, "المبيعات"]}
                 />
-                <Bar dataKey="sales" fill="hsl(var(--secondary))" radius={[0, 8, 8, 0]} />
+                <Bar dataKey="sales" fill="hsl(var(--success))" radius={[0, 8, 8, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
+      </div>
 
-        {/* Order Status */}
+      {/* Charts Row 2: Customer Sources + Shipping */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <Card className="glass-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <ShoppingCart className="w-5 h-5 text-success" />
-              حالة الطلبات
+              <Globe className="w-5 h-5 text-primary" />
+              مصادر العملاء
             </CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
-                  data={statusData.filter((s) => s.value > 0)}
+                  data={customerSourcesData}
                   cx="50%"
                   cy="50%"
+                  innerRadius={60}
                   outerRadius={100}
+                  paddingAngle={3}
                   dataKey="value"
-                  label={({ name, value }) => `${name}: ${value}`}
+                  label={({ name, value }) => `${name} ${value}%`}
                 >
-                  {statusData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  {customerSourcesData.map((_, index) => (
+                    <Cell key={index} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip
@@ -321,12 +226,164 @@ const Reports = () => {
                     borderRadius: "0.75rem",
                     direction: "rtl",
                   }}
+                  formatter={(value: number, _: any, entry: any) => [
+                    `${value}% (${entry.payload.orders} طلب)`,
+                    "النسبة",
+                  ]}
                 />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
+
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Truck className="w-5 h-5 text-chart-4" />
+              أداء شركات الشحن
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={shippingCompanyData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "0.75rem",
+                    direction: "rtl",
+                  }}
+                  formatter={(value: number, _: any, entry: any) => [
+                    `${value}% (${entry.payload.orders} طلب)`,
+                    "النسبة",
+                  ]}
+                />
+                <Bar dataKey="value" fill="hsl(var(--chart-4))" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Charts Row 3: Moderator + Products */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <UserCheck className="w-5 h-5 text-secondary" />
+              أداء الموديراتور
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={moderatorPerformanceData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                <YAxis
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={11}
+                  tickFormatter={(v) => `${(v / 1000000).toFixed(1)}M`}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "0.75rem",
+                    direction: "rtl",
+                  }}
+                  formatter={(value: number, _: any, entry: any) => [
+                    `${value.toLocaleString()} ج.م (${entry.payload.percent}%)`,
+                    "المبيعات",
+                  ]}
+                />
+                <Bar dataKey="sales" fill="hsl(var(--secondary))" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="w-5 h-5 text-primary" />
+              أفضل المنتجات مبيعاً (بالكمية)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={topProductsData} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis
+                  type="number"
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={11}
+                  tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`}
+                />
+                <YAxis
+                  type="category"
+                  dataKey="name"
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={11}
+                  width={90}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "0.75rem",
+                    direction: "rtl",
+                  }}
+                  formatter={(value: number) => [`${value.toLocaleString()} وحدة`, "الكمية"]}
+                />
+                <Bar dataKey="quantity" fill="hsl(var(--primary))" radius={[0, 8, 8, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts Row 4: Monthly Growth */}
+      <Card className="glass-card mb-8">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="w-5 h-5 text-chart-4" />
+            النمو الشهري (MoM%)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={monthlySalesData.slice(1)}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+              <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => `${v}%`} />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "hsl(var(--card))",
+                  border: "1px solid hsl(var(--border))",
+                  borderRadius: "0.75rem",
+                  direction: "rtl",
+                }}
+                formatter={(value: number) => [`${value}%`, "النمو"]}
+              />
+              <Bar
+                dataKey="momPercent"
+                radius={[8, 8, 0, 0]}
+                fill="hsl(var(--chart-4))"
+              >
+                {monthlySalesData.slice(1).map((entry, index) => (
+                  <Cell
+                    key={index}
+                    fill={entry.momPercent >= 0 ? "hsl(var(--success))" : "hsl(var(--destructive))"}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
     </DashboardLayout>
   );
 };

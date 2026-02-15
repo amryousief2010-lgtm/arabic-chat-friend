@@ -171,8 +171,8 @@ const ImportSalesData = () => {
         const chunk = records.slice(i, i + CHUNK_SIZE);
         toast.info(`جاري استيراد الدفعة ${Math.floor(i / CHUNK_SIZE) + 1} من ${Math.ceil(records.length / CHUNK_SIZE)}...`);
 
-        const { data, error } = await supabase.functions.invoke('import-sales', {
-          body: { records: chunk },
+      const { data, error } = await supabase.functions.invoke('import-sales', {
+          body: { records: chunk, batchSize: 25 },
         });
 
         if (error) throw error;

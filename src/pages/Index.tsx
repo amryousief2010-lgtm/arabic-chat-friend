@@ -1,15 +1,18 @@
-import { useState } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import Header from "@/components/layout/Header";
 import StatCard from "@/components/dashboard/StatCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   DollarSign,
   ShoppingCart,
   Users,
   TrendingUp,
   Package,
+  MapPin,
+  Award,
+  BarChart3,
 } from "lucide-react";
 import {
   BarChart,
@@ -22,9 +25,10 @@ import {
   LineChart,
   Line,
 } from "recharts";
-import { mockOrders, mockSalesData, mockProducts } from "@/data/mockData";
+import { useDashboardStats, useRecentOrders } from "@/hooks/useSalesAnalytics";
+import { monthlySalesData, summary2025 } from "@/data/salesAnalytics2025";
 
-const statusColors = {
+const statusColors: Record<string, string> = {
   pending: "bg-warning text-warning-foreground",
   processing: "bg-primary text-primary-foreground",
   shipped: "bg-chart-4 text-primary-foreground",
@@ -32,7 +36,7 @@ const statusColors = {
   cancelled: "bg-destructive text-destructive-foreground",
 };
 
-const statusLabels = {
+const statusLabels: Record<string, string> = {
   pending: "قيد الانتظار",
   processing: "جاري التجهيز",
   shipped: "تم الشحن",
@@ -41,9 +45,8 @@ const statusLabels = {
 };
 
 const Index = () => {
-  const totalSales = mockSalesData.reduce((acc, curr) => acc + curr.sales, 0);
-  const totalOrders = mockOrders.length;
-  const lowStockProducts = mockProducts.filter((p) => p.stock < 30).length;
+  const { data: stats, isLoading } = useDashboardStats();
+  const { data: recentOrders, isLoading: ordersLoading } = useRecentOrders(5);
 
   return (
     <DashboardLayout>
@@ -53,34 +56,34 @@ const Index = () => {
       />
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
         <StatCard
           title="إجمالي المبيعات"
-          value={`${(totalSales / 1000).toFixed(0)}K ج.م`}
-          change="+12% من الشهر الماضي"
+          value={isLoading ? "..." : `${((stats?.totalSales || 0) / 1000000).toFixed(1)}M ج.م`}
+          change={`أفضل شهر: ${summary2025.bestMonth}`}
           changeType="positive"
           icon={DollarSign}
           iconColor="bg-success"
         />
         <StatCard
           title="الطلبات"
-          value={totalOrders}
-          change="+5 طلبات اليوم"
+          value={isLoading ? "..." : (stats?.totalOrders || 0).toLocaleString()}
+          change={`متوسط: ${summary2025.avgOrderValue} ج.م`}
           changeType="positive"
           icon={ShoppingCart}
           iconColor="bg-primary"
         />
         <StatCard
           title="العملاء"
-          value="156"
-          change="+8 عملاء جدد"
+          value={isLoading ? "..." : (stats?.totalCustomers || 0).toLocaleString()}
+          change="عملاء فريدين"
           changeType="positive"
           icon={Users}
           iconColor="bg-secondary"
         />
         <StatCard
           title="منتجات قليلة المخزون"
-          value={lowStockProducts}
+          value={isLoading ? "..." : stats?.lowStockProducts || 0}
           change="يحتاج إعادة طلب"
           changeType="negative"
           icon={Package}
@@ -88,29 +91,72 @@ const Index = () => {
         />
       </div>
 
+      {/* Highlights Row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
+        <Card className="glass-card p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Award className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">أفضل موديراتور</p>
+              <p className="font-bold">{summary2025.bestModerator}</p>
+            </div>
+          </div>
+        </Card>
+        <Card className="glass-card p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center">
+              <MapPin className="w-5 h-5 text-success" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">أفضل محافظة</p>
+              <p className="font-bold">{summary2025.bestGovernorate}</p>
+            </div>
+          </div>
+        </Card>
+        <Card className="glass-card p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center">
+              <BarChart3 className="w-5 h-5 text-secondary" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">متوسط الطلب</p>
+              <p className="font-bold">{summary2025.avgOrderValue} ج.م</p>
+            </div>
+          </div>
+        </Card>
+        <Card className="glass-card p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-chart-4/10 flex items-center justify-center">
+              <TrendingUp className="w-5 h-5 text-chart-4" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">أفضل مصدر</p>
+              <p className="font-bold text-sm">{summary2025.bestSource}</p>
+            </div>
+          </div>
+        </Card>
+      </div>
+
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Sales Chart */}
         <Card className="glass-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-primary" />
-              المبيعات الشهرية
+              المبيعات الشهرية 2025
             </CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={mockSalesData}>
+              <BarChart data={monthlySalesData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis
-                  dataKey="month"
-                  stroke="hsl(var(--muted-foreground))"
-                  fontSize={12}
-                />
+                <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
                 <YAxis
                   stroke="hsl(var(--muted-foreground))"
                   fontSize={12}
-                  tickFormatter={(value) => `${value / 1000}K`}
+                  tickFormatter={(v) => `${(v / 1000000).toFixed(1)}M`}
                 />
                 <Tooltip
                   contentStyle={{
@@ -121,17 +167,12 @@ const Index = () => {
                   }}
                   formatter={(value: number) => [`${value.toLocaleString()} ج.م`, "المبيعات"]}
                 />
-                <Bar
-                  dataKey="sales"
-                  fill="hsl(var(--primary))"
-                  radius={[8, 8, 0, 0]}
-                />
+                <Bar dataKey="sales" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        {/* Orders Chart */}
         <Card className="glass-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -141,17 +182,10 @@ const Index = () => {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={mockSalesData}>
+              <LineChart data={monthlySalesData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis
-                  dataKey="month"
-                  stroke="hsl(var(--muted-foreground))"
-                  fontSize={12}
-                />
-                <YAxis
-                  stroke="hsl(var(--muted-foreground))"
-                  fontSize={12}
-                />
+                <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: "hsl(var(--card))",
@@ -174,16 +208,19 @@ const Index = () => {
         </Card>
       </div>
 
-      {/* Recent Orders & Low Stock */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Orders */}
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle>أحدث الطلبات</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {mockOrders.slice(0, 5).map((order) => (
+      {/* Recent Orders */}
+      <Card className="glass-card">
+        <CardHeader>
+          <CardTitle>أحدث الطلبات</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {ordersLoading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full rounded-xl" />
+              ))
+            ) : (
+              (recentOrders || []).map((order: any) => (
                 <div
                   key={order.id}
                   className="flex items-center justify-between p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
@@ -193,71 +230,24 @@ const Index = () => {
                       <ShoppingCart className="w-5 h-5 text-primary" />
                     </div>
                     <div>
-                      <p className="font-semibold">{order.customerName}</p>
+                      <p className="font-semibold">{order.customers?.name || "عميل"}</p>
                       <p className="text-sm text-muted-foreground">
-                        {order.id} • {order.createdAt}
+                        {order.order_number} • {new Date(order.created_at).toLocaleDateString("ar-EG")}
                       </p>
                     </div>
                   </div>
                   <div className="text-left">
-                    <p className="font-bold">{order.total} ج.م</p>
-                    <Badge className={statusColors[order.status]}>
-                      {statusLabels[order.status]}
+                    <p className="font-bold">{Number(order.total).toLocaleString()} ج.م</p>
+                    <Badge className={statusColors[order.status] || ""}>
+                      {statusLabels[order.status] || order.status}
                     </Badge>
                   </div>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Low Stock Products */}
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle>منتجات قليلة المخزون</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {mockProducts
-                .filter((p) => p.stock < 35)
-                .slice(0, 5)
-                .map((product) => (
-                  <div
-                    key={product.id}
-                    className="flex items-center justify-between p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-4">
-                      <img
-                        src={product.image}
-                        alt={product.name}
-                        className="w-12 h-12 rounded-lg object-cover"
-                      />
-                      <div>
-                        <p className="font-semibold">{product.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {product.category}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-left">
-                      <p className="font-bold">{product.stock} {product.unit}</p>
-                      <Badge
-                        variant="outline"
-                        className={
-                          product.stock < 25
-                            ? "border-destructive text-destructive"
-                            : "border-warning text-warning"
-                        }
-                      >
-                        {product.stock < 25 ? "منخفض جداً" : "منخفض"}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+              ))
+            )}
+          </div>
+        </CardContent>
+      </Card>
     </DashboardLayout>
   );
 };
