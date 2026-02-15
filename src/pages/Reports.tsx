@@ -10,6 +10,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { exportToPDF, exportToExcel } from "@/utils/exportReports";
 import {
   BarChart,
   Bar,
@@ -36,6 +38,7 @@ import {
   Package,
   Globe,
   Calendar,
+  FileDown,
 } from "lucide-react";
 import { useReportsData, type ReportPeriod } from "@/hooks/useReportsData";
 
@@ -90,19 +93,41 @@ const Reports = () => {
     <DashboardLayout>
       <Header title="التقارير والتحليلات" subtitle="تحليل شامل للمبيعات من قاعدة البيانات" />
 
-      {/* Period Filter */}
-      <div className="flex items-center justify-end gap-3 mb-6">
-        <Calendar className="w-4 h-4 text-muted-foreground" />
-        <Select value={period} onValueChange={(v) => setPeriod(v as ReportPeriod)}>
-          <SelectTrigger className="w-48 input-modern">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {Object.entries(periodLabels).map(([key, label]) => (
-              <SelectItem key={key} value={key}>{label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      {/* Period Filter & Export */}
+      <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isLoading}
+            onClick={() => exportToPDF({ totalSales, totalOrders, avgOrderValue, totalCustomers, monthlySales, governorateData, sourceData, shippingData, moderatorData, productData, periodLabel: periodLabels[period] })}
+          >
+            <FileDown className="w-4 h-4 ml-1" />
+            PDF
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isLoading}
+            onClick={() => exportToExcel({ totalSales, totalOrders, avgOrderValue, totalCustomers, monthlySales, governorateData, sourceData, shippingData, moderatorData, productData, periodLabel: periodLabels[period] })}
+          >
+            <FileDown className="w-4 h-4 ml-1" />
+            Excel
+          </Button>
+        </div>
+        <div className="flex items-center gap-3">
+          <Calendar className="w-4 h-4 text-muted-foreground" />
+          <Select value={period} onValueChange={(v) => setPeriod(v as ReportPeriod)}>
+            <SelectTrigger className="w-48 input-modern">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(periodLabels).map(([key, label]) => (
+                <SelectItem key={key} value={key}>{label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Summary Stats */}
