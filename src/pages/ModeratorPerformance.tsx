@@ -27,10 +27,12 @@ import {
   Award,
   Target,
   FileDown,
+  GitCompareArrows,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { moderatorPerformanceData, monthlySalesData } from "@/data/salesAnalytics2025";
 import { exportModeratorPDF } from "@/utils/exportModeratorReport";
+import ModeratorComparison from "@/components/moderator/ModeratorComparison";
 
 const COLORS = [
   "hsl(var(--primary))",
@@ -90,6 +92,7 @@ const moderatorMonthlyData: Record<string, { month: string; sales: number; order
 
 const ModeratorPerformance = () => {
   const [selectedModerator, setSelectedModerator] = useState<string | null>(null);
+  const [showComparison, setShowComparison] = useState(false);
 
   const totalSales = moderatorPerformanceData.reduce((s, m) => s + m.sales, 0);
   const totalOrders = moderatorPerformanceData.reduce((s, m) => s + m.orders, 0);
@@ -262,25 +265,45 @@ const ModeratorPerformance = () => {
   // Main list view
   return (
     <DashboardLayout>
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-2 flex-wrap gap-3">
         <Header
           title="أداء الموديراتور"
           subtitle="تحليل تفصيلي لأداء كل موديراتور في 2025"
         />
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => exportModeratorPDF({
-            moderators: moderatorPerformanceData,
-            monthlyData: moderatorMonthlyData,
-            totalSales,
-            totalOrders,
-          })}
-        >
-          <FileDown className="w-4 h-4 ml-1" />
-          تصدير PDF
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant={showComparison ? "default" : "outline"}
+            size="sm"
+            onClick={() => setShowComparison(!showComparison)}
+          >
+            <GitCompareArrows className="w-4 h-4 ml-1" />
+            مقارنة
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => exportModeratorPDF({
+              moderators: moderatorPerformanceData,
+              monthlyData: moderatorMonthlyData,
+              totalSales,
+              totalOrders,
+            })}
+          >
+            <FileDown className="w-4 h-4 ml-1" />
+            تصدير PDF
+          </Button>
+        </div>
       </div>
+
+      {showComparison && (
+        <div className="mb-8">
+          <ModeratorComparison
+            moderators={moderatorPerformanceData}
+            monthlyData={moderatorMonthlyData}
+            onClose={() => setShowComparison(false)}
+          />
+        </div>
+      )}
       {/* Summary */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-8">
         <Card className="stat-card">
