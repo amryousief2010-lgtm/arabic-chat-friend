@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import ProductsAnalytics from "@/components/dashboard/ProductsAnalytics";
 import { supabase } from "@/integrations/supabase/client";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import Header from "@/components/layout/Header";
@@ -231,6 +232,8 @@ const Products = () => {
   return (
     <DashboardLayout>
       <Header title="المنتجات" subtitle="إدارة منتجات لحوم النعام" />
+      
+      <ProductsAnalytics products={filteredProducts} />
 
       <Card className="glass-card">
         <CardHeader className="flex flex-row items-center justify-between">

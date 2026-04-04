@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import OrdersAnalytics from "@/components/dashboard/OrdersAnalytics";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import Header from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -209,7 +210,7 @@ const Orders = () => {
 
   return (
     <DashboardLayout>
-      <Header title="الطلبات" subtitle="إدارة ومتابعة طلبات العملاء" />
+      <OrdersAnalytics orders={orders} />
 
       <Card className="glass-card">
         <CardHeader className="flex flex-row items-center justify-between">
