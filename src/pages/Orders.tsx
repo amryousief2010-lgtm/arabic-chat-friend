@@ -210,7 +210,7 @@ const Orders = () => {
 
   return (
     <DashboardLayout>
-      <Header title="الطلبات" subtitle="إدارة ومتابعة طلبات العملاء" />
+      <OrdersAnalytics orders={orders} />
 
       <Card className="glass-card">
         <CardHeader className="flex flex-row items-center justify-between">
