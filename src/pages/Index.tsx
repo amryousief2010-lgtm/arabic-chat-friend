@@ -92,10 +92,56 @@ const Index = () => {
 
   return (
     <DashboardLayout>
-      <Header
-        title="لوحة التحكم"
-        subtitle="نظام إدارة مبيعات نعام العاصمة - تحليلات 2025"
-      />
+      <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
+        <Header
+          title="لوحة التحكم"
+          subtitle="نظام إدارة مبيعات نعام العاصمة - تحليلات 2025"
+        />
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={reportData.isLoading}
+            onClick={() => exportToPDF({
+              totalSales: reportData.totalSales,
+              totalOrders: reportData.totalOrders,
+              avgOrderValue: reportData.avgOrderValue,
+              totalCustomers: reportData.totalCustomers,
+              monthlySales: reportData.monthlySales,
+              governorateData: reportData.governorateData,
+              sourceData: reportData.sourceData,
+              shippingData: reportData.shippingData,
+              moderatorData: reportData.moderatorData,
+              productData: reportData.productData,
+              periodLabel: "لوحة التحكم 2025",
+            })}
+          >
+            <FileDown className="w-4 h-4 ml-1" />
+            PDF
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={reportData.isLoading}
+            onClick={() => exportToExcel({
+              totalSales: reportData.totalSales,
+              totalOrders: reportData.totalOrders,
+              avgOrderValue: reportData.avgOrderValue,
+              totalCustomers: reportData.totalCustomers,
+              monthlySales: reportData.monthlySales,
+              governorateData: reportData.governorateData,
+              sourceData: reportData.sourceData,
+              shippingData: reportData.shippingData,
+              moderatorData: reportData.moderatorData,
+              productData: reportData.productData,
+              periodLabel: "لوحة التحكم 2025",
+            })}
+          >
+            <FileDown className="w-4 h-4 ml-1" />
+            Excel
+          </Button>
+        </div>
+      </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
