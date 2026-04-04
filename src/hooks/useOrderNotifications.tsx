@@ -45,7 +45,6 @@ export const useOrderNotifications = () => {
   const { settings } = useNotificationSettings();
   const queryClient = useQueryClient();
   const isManager = role ? managerRoles.includes(role) : false;
-  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!user) return;
