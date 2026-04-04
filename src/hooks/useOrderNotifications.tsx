@@ -67,13 +67,15 @@ export const useOrderNotifications = () => {
           const title = '🆕 طلب جديد';
           const description = `تم إنشاء الطلب ${newOrder.order_number} بقيمة ${newOrder.total} ر.س`;
           
-          // Save notification to database
-          await supabase.from('notifications').insert({
-            title,
-            description,
-            type: 'new_order',
-            order_id: newOrder.id,
-          });
+          // Save notification to database (only managers can insert)
+          if (isManager) {
+            await supabase.from('notifications').insert({
+              title,
+              description,
+              type: 'new_order',
+              order_id: newOrder.id,
+            });
+          }
           
           // Invalidate notifications query
           queryClient.invalidateQueries({ queryKey: ['notifications'] });
