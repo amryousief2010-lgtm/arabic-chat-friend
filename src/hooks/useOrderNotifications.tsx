@@ -137,5 +137,5 @@ export const useOrderNotifications = () => {
       console.log('Cleaning up order notifications...');
       supabase.removeChannel(channel);
     };
-  }, [user, toast, settings.soundEnabled, queryClient]);
+  }, [user, toast, settings.soundEnabled, queryClient, isManager]);
 };
