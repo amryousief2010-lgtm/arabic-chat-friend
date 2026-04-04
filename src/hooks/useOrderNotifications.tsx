@@ -106,13 +106,15 @@ export const useOrderNotifications = () => {
             const title = '📦 تحديث حالة الطلب';
             const description = `الطلب ${updatedOrder.order_number} أصبح: ${newStatusLabel}`;
             
-            // Save notification to database
-            await supabase.from('notifications').insert({
-              title,
-              description,
-              type: 'status_update',
-              order_id: updatedOrder.id,
-            });
+            // Save notification to database (only managers can insert)
+            if (isManager) {
+              await supabase.from('notifications').insert({
+                title,
+                description,
+                type: 'status_update',
+                order_id: updatedOrder.id,
+              });
+            }
             
             // Invalidate notifications query
             queryClient.invalidateQueries({ queryKey: ['notifications'] });
