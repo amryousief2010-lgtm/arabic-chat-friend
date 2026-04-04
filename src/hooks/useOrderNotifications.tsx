@@ -41,8 +41,10 @@ const playNotificationSound = () => {
 
 export const useOrderNotifications = () => {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const { settings } = useNotificationSettings();
+  const queryClient = useQueryClient();
+  const isManager = role ? managerRoles.includes(role) : false;
   const queryClient = useQueryClient();
 
   useEffect(() => {
