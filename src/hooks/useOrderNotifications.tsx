@@ -5,6 +5,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useNotificationSettings } from '@/hooks/useNotificationSettings';
 import { useQueryClient } from '@tanstack/react-query';
 
+const managerRoles = ['general_manager', 'executive_manager', 'sales_manager'];
+
 const statusLabels: Record<string, string> = {
   pending: 'قيد الانتظار',
   processing: 'قيد التجهيز',
@@ -39,9 +41,10 @@ const playNotificationSound = () => {
 
 export const useOrderNotifications = () => {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const { settings } = useNotificationSettings();
   const queryClient = useQueryClient();
+  const isManager = role ? managerRoles.includes(role) : false;
 
   useEffect(() => {
     if (!user) return;
@@ -64,13 +67,15 @@ export const useOrderNotifications = () => {
           const title = '🆕 طلب جديد';
           const description = `تم إنشاء الطلب ${newOrder.order_number} بقيمة ${newOrder.total} ر.س`;
           
-          // Save notification to database
-          await supabase.from('notifications').insert({
-            title,
-            description,
-            type: 'new_order',
-            order_id: newOrder.id,
-          });
+          // Save notification to database (only managers can insert)
+          if (isManager) {
+            await supabase.from('notifications').insert({
+              title,
+              description,
+              type: 'new_order',
+              order_id: newOrder.id,
+            });
+          }
           
           // Invalidate notifications query
           queryClient.invalidateQueries({ queryKey: ['notifications'] });
@@ -101,13 +106,15 @@ export const useOrderNotifications = () => {
             const title = '📦 تحديث حالة الطلب';
             const description = `الطلب ${updatedOrder.order_number} أصبح: ${newStatusLabel}`;
             
-            // Save notification to database
-            await supabase.from('notifications').insert({
-              title,
-              description,
-              type: 'status_update',
-              order_id: updatedOrder.id,
-            });
+            // Save notification to database (only managers can insert)
+            if (isManager) {
+              await supabase.from('notifications').insert({
+                title,
+                description,
+                type: 'status_update',
+                order_id: updatedOrder.id,
+              });
+            }
             
             // Invalidate notifications query
             queryClient.invalidateQueries({ queryKey: ['notifications'] });
@@ -130,5 +137,5 @@ export const useOrderNotifications = () => {
       console.log('Cleaning up order notifications...');
       supabase.removeChannel(channel);
     };
-  }, [user, toast, settings.soundEnabled, queryClient]);
+  }, [user, toast, settings.soundEnabled, queryClient, isManager]);
 };
