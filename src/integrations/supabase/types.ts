@@ -14,36 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      customer_import_stage: {
-        Row: {
-          address: string | null
-          city: string | null
-          name: string | null
-          notes: string | null
-          phone: string | null
-          total_orders: number | null
-          total_spent: number | null
-        }
-        Insert: {
-          address?: string | null
-          city?: string | null
-          name?: string | null
-          notes?: string | null
-          phone?: string | null
-          total_orders?: number | null
-          total_spent?: number | null
-        }
-        Update: {
-          address?: string | null
-          city?: string | null
-          name?: string | null
-          notes?: string | null
-          phone?: string | null
-          total_orders?: number | null
-          total_spent?: number | null
-        }
-        Relationships: []
-      }
       customers: {
         Row: {
           address: string | null
@@ -665,6 +635,21 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      order_status_stage: {
+        Row: {
+          created_at: string | null
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          status?: string | null
+        }
+        Relationships: []
       }
       orders: {
         Row: {
