@@ -73,9 +73,14 @@ const RecipeDetail = () => {
     const qty = i.quantity * factor;
     const cost = qty * (i.raw_material?.unit_cost || 0);
     const stockOk = (i.raw_material?.stock || 0) >= qty;
-    return { ...i, computedQty: qty, computedCost: cost, stockOk };
+    const unit = i.raw_material?.unit || "";
+    const base = toBaseQty(qty, unit);
+    return { ...i, computedQty: qty, computedCost: cost, stockOk, baseQty: base.qty, baseUnit: base.unit };
   });
-  const totalQty = rows.reduce((s, r) => s + r.computedQty, 0);
+  const totalsByDim = aggregateByDimension(
+    rows.map(r => ({ qty: r.computedQty, unit: r.raw_material?.unit || "" }))
+  );
+  const totalQtyText = totalsByDim.length ? formatAggregate(totalsByDim) : "0";
   const totalCost = rows.reduce((s, r) => s + r.computedCost, 0);
   const allStockOk = rows.every(r => r.stockOk);
 
