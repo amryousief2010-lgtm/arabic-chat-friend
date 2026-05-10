@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS public.apr_stage (ts timestamptz, status text);
