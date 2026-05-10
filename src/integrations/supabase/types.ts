@@ -56,6 +56,356 @@ export type Database = {
         }
         Relationships: []
       }
+      feed_batch_consumption: {
+        Row: {
+          batch_id: string
+          created_at: string
+          id: string
+          quantity: number
+          raw_material_id: string
+          total_cost: number
+          unit_cost: number
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          id?: string
+          quantity: number
+          raw_material_id: string
+          total_cost?: number
+          unit_cost?: number
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          id?: string
+          quantity?: number
+          raw_material_id?: string
+          total_cost?: number
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_batch_consumption_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "feed_production_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feed_batch_consumption_raw_material_id_fkey"
+            columns: ["raw_material_id"]
+            isOneToOne: false
+            referencedRelation: "feed_raw_materials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feed_production_batches: {
+        Row: {
+          actual_quantity: number | null
+          batch_number: string
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          recipe_id: string
+          started_at: string | null
+          status: string
+          target_quantity: number
+          total_cost: number
+          updated_at: string
+        }
+        Insert: {
+          actual_quantity?: number | null
+          batch_number: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          recipe_id: string
+          started_at?: string | null
+          status?: string
+          target_quantity: number
+          total_cost?: number
+          updated_at?: string
+        }
+        Update: {
+          actual_quantity?: number | null
+          batch_number?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          recipe_id?: string
+          started_at?: string | null
+          status?: string
+          target_quantity?: number
+          total_cost?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_production_batches_recipe_id_fkey"
+            columns: ["recipe_id"]
+            isOneToOne: false
+            referencedRelation: "feed_recipes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feed_raw_materials: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          low_stock_threshold: number
+          name: string
+          notes: string | null
+          stock: number
+          supplier: string | null
+          unit: string
+          unit_cost: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          low_stock_threshold?: number
+          name: string
+          notes?: string | null
+          stock?: number
+          supplier?: string | null
+          unit?: string
+          unit_cost?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          low_stock_threshold?: number
+          name?: string
+          notes?: string | null
+          stock?: number
+          supplier?: string | null
+          unit?: string
+          unit_cost?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      feed_recipe_items: {
+        Row: {
+          created_at: string
+          id: string
+          quantity: number
+          raw_material_id: string
+          recipe_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          quantity: number
+          raw_material_id: string
+          recipe_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          quantity?: number
+          raw_material_id?: string
+          recipe_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_recipe_items_raw_material_id_fkey"
+            columns: ["raw_material_id"]
+            isOneToOne: false
+            referencedRelation: "feed_raw_materials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feed_recipe_items_recipe_id_fkey"
+            columns: ["recipe_id"]
+            isOneToOne: false
+            referencedRelation: "feed_recipes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feed_recipes: {
+        Row: {
+          batch_size: number
+          created_at: string
+          created_by: string | null
+          description: string | null
+          feed_type: string
+          id: string
+          is_active: boolean
+          name: string
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          batch_size?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          feed_type: string
+          id?: string
+          is_active?: boolean
+          name: string
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          batch_size?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          feed_type?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      inventory_items: {
+        Row: {
+          category: string | null
+          created_at: string
+          expiry_date: string | null
+          id: string
+          is_active: boolean
+          low_stock_threshold: number
+          name: string
+          notes: string | null
+          sku: string | null
+          stock: number
+          unit: string
+          unit_cost: number
+          updated_at: string
+          warehouse_id: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          expiry_date?: string | null
+          id?: string
+          is_active?: boolean
+          low_stock_threshold?: number
+          name: string
+          notes?: string | null
+          sku?: string | null
+          stock?: number
+          unit?: string
+          unit_cost?: number
+          updated_at?: string
+          warehouse_id: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          expiry_date?: string | null
+          id?: string
+          is_active?: boolean
+          low_stock_threshold?: number
+          name?: string
+          notes?: string | null
+          sku?: string | null
+          stock?: number
+          unit?: string
+          unit_cost?: number
+          updated_at?: string
+          warehouse_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_items_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_movements: {
+        Row: {
+          created_at: string
+          destination_warehouse_id: string | null
+          id: string
+          item_id: string
+          movement_type: string
+          notes: string | null
+          party: string | null
+          performed_at: string
+          performed_by: string | null
+          quantity: number
+          reference: string | null
+          unit_cost: number | null
+          warehouse_id: string
+        }
+        Insert: {
+          created_at?: string
+          destination_warehouse_id?: string | null
+          id?: string
+          item_id: string
+          movement_type: string
+          notes?: string | null
+          party?: string | null
+          performed_at?: string
+          performed_by?: string | null
+          quantity: number
+          reference?: string | null
+          unit_cost?: number | null
+          warehouse_id: string
+        }
+        Update: {
+          created_at?: string
+          destination_warehouse_id?: string | null
+          id?: string
+          item_id?: string
+          movement_type?: string
+          notes?: string | null
+          party?: string | null
+          performed_at?: string
+          performed_by?: string | null
+          quantity?: number
+          reference?: string | null
+          unit_cost?: number | null
+          warehouse_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_movements_destination_warehouse_id_fkey"
+            columns: ["destination_warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string
@@ -429,6 +779,42 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      warehouses: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          location: string | null
+          manager_id: string | null
+          name: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          location?: string | null
+          manager_id?: string | null
+          name: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          location?: string | null
+          manager_id?: string | null
+          name?: string
+          type?: string
+          updated_at?: string
         }
         Relationships: []
       }
