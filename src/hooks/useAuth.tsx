@@ -41,6 +41,15 @@ interface AuthContextType {
   canUpdatePaymentStatus: boolean;
   canUpdateOrderStatus: boolean;
   canUpdateOrderStatusForOrder: (orderCreatedBy: string | null) => boolean;
+  // Module permissions
+  canManageFeedFactory: boolean;
+  canManageWarehouses: boolean;
+  canManageFarm: boolean;
+  canManageHatchery: boolean;
+  canManageBrooding: boolean;
+  canManageSlaughterhouse: boolean;
+  canManageMeatFactory: boolean;
+  canManageHr: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
