@@ -2,7 +2,20 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
-export type AppRole = 'general_manager' | 'executive_manager' | 'sales_manager' | 'sales_moderator' | 'accountant' | 'warehouse_supervisor';
+export type AppRole =
+  | 'general_manager'
+  | 'executive_manager'
+  | 'sales_manager'
+  | 'sales_moderator'
+  | 'accountant'
+  | 'warehouse_supervisor'
+  | 'farm_manager'
+  | 'hatchery_manager'
+  | 'brooding_manager'
+  | 'slaughterhouse_manager'
+  | 'meat_factory_manager'
+  | 'feed_factory_manager'
+  | 'hr_manager';
 
 interface AuthContextType {
   user: User | null;
