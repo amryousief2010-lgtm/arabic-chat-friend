@@ -17,8 +17,8 @@ export default defineConfig(({ mode }) => ({
       registerType: "autoUpdate",
       includeAssets: ["favicon.ico", "robots.txt"],
       manifest: {
-        name: "نعام العاصمة - نظام المبيعات",
-        short_name: "نعام العاصمة",
+        name: "شركة نعام العاصمة - إدارة العمليات",
+        short_name: "شركة نعام العاصمة",
         description: "نظام إدارة المبيعات والطلبات",
         theme_color: "#6366f1",
         background_color: "#0f172a",
