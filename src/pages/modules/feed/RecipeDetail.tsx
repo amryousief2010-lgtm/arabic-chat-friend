@@ -11,6 +11,7 @@ import { ArrowRight, Save, History, Wheat } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { aggregateByDimension, formatAggregate, toBaseQty, getBaseUnit } from "@/lib/unitConversion";
 
 interface Item {
   id: string;
@@ -72,9 +73,14 @@ const RecipeDetail = () => {
     const qty = i.quantity * factor;
     const cost = qty * (i.raw_material?.unit_cost || 0);
     const stockOk = (i.raw_material?.stock || 0) >= qty;
-    return { ...i, computedQty: qty, computedCost: cost, stockOk };
+    const unit = i.raw_material?.unit || "";
+    const base = toBaseQty(qty, unit);
+    return { ...i, computedQty: qty, computedCost: cost, stockOk, baseQty: base.qty, baseUnit: base.unit };
   });
-  const totalQty = rows.reduce((s, r) => s + r.computedQty, 0);
+  const totalsByDim = aggregateByDimension(
+    rows.map(r => ({ qty: r.computedQty, unit: r.raw_material?.unit || "" }))
+  );
+  const totalQtyText = totalsByDim.length ? formatAggregate(totalsByDim) : "0";
   const totalCost = rows.reduce((s, r) => s + r.computedCost, 0);
   const allStockOk = rows.every(r => r.stockOk);
 
@@ -91,7 +97,7 @@ const RecipeDetail = () => {
     const { error } = await supabase.from("feed_recipe_history").insert({
       recipe_id: recipe.id,
       batch_size: scale,
-      total_quantity: totalQty,
+      total_quantity: totalsByDim.find(t => t.dimension === "mass")?.qty ?? totalsByDim[0]?.qty ?? 0,
       total_cost: totalCost,
       snapshot,
       created_by: user?.id,
@@ -116,7 +122,7 @@ const RecipeDetail = () => {
 
         <div className="grid gap-4 md:grid-cols-4">
           <Card><CardHeader className="pb-2"><CardDescription>عدد البنود</CardDescription><CardTitle className="text-3xl">{rows.length}</CardTitle></CardHeader></Card>
-          <Card><CardHeader className="pb-2"><CardDescription>إجمالي الكمية</CardDescription><CardTitle className="text-3xl">{totalQty.toFixed(2)} {recipe.unit}</CardTitle></CardHeader></Card>
+          <Card><CardHeader className="pb-2"><CardDescription>إجمالي الكمية (مُحوَّل)</CardDescription><CardTitle className="text-xl">{totalQtyText}</CardTitle></CardHeader></Card>
           <Card><CardHeader className="pb-2"><CardDescription>إجمالي التكلفة</CardDescription><CardTitle className="text-3xl">{totalCost.toFixed(2)}</CardTitle></CardHeader></Card>
           <Card className={allStockOk ? "" : "border-destructive"}><CardHeader className="pb-2"><CardDescription>المخزون الحالي</CardDescription><CardTitle className={`text-2xl ${allStockOk ? "text-success" : "text-destructive"}`}>{allStockOk ? "كافٍ" : "غير كافٍ"}</CardTitle></CardHeader></Card>
         </div>
@@ -144,6 +150,7 @@ const RecipeDetail = () => {
                 <TableHead>الكمية الأصلية</TableHead>
                 <TableHead>الكمية المحسوبة</TableHead>
                 <TableHead>الوحدة</TableHead>
+                <TableHead>المعادل (وحدة أساسية)</TableHead>
                 <TableHead>سعر الوحدة</TableHead>
                 <TableHead>التكلفة</TableHead>
                 <TableHead>المتاح</TableHead>
@@ -155,17 +162,16 @@ const RecipeDetail = () => {
                     <TableCell>{r.quantity}</TableCell>
                     <TableCell className="font-bold">{r.computedQty.toFixed(2)}</TableCell>
                     <TableCell>{r.raw_material?.unit}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{r.baseQty.toFixed(2)} {r.baseUnit}</TableCell>
                     <TableCell>{r.raw_material?.unit_cost?.toFixed(2)}</TableCell>
                     <TableCell>{r.computedCost.toFixed(2)}</TableCell>
                     <TableCell className={r.stockOk ? "" : "text-destructive font-bold"}>{r.raw_material?.stock?.toFixed(2)}</TableCell>
                   </TableRow>
                 ))}
                 <TableRow className="font-bold bg-muted/40">
-                  <TableCell colSpan={2}>الإجمالي</TableCell>
-                  <TableCell>{totalQty.toFixed(2)}</TableCell>
-                  <TableCell>{recipe.unit}</TableCell>
-                  <TableCell>—</TableCell>
-                  <TableCell>{totalCost.toFixed(2)}</TableCell>
+                  <TableCell colSpan={4}>الإجمالي (مجمَّع حسب البُعد)</TableCell>
+                  <TableCell colSpan={2}>{totalQtyText}</TableCell>
+                  <TableCell colSpan={2}>{totalCost.toFixed(2)}</TableCell>
                   <TableCell>—</TableCell>
                 </TableRow>
               </TableBody>
