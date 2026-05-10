@@ -161,8 +161,19 @@ const Orders = () => {
     const matchesSearch =
       order.order_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.customer_name.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesStatus && matchesSearch;
+    const year = new Date(order.created_at).getFullYear();
+    const matchesYear =
+      yearGroup === "all" ||
+      (yearGroup === "2026" && year >= 2026) ||
+      (yearGroup === "pre2026" && year < 2026);
+    return matchesStatus && matchesSearch && matchesYear;
   });
+
+  const counts = {
+    all: orders.length,
+    "2026": orders.filter((o) => new Date(o.created_at).getFullYear() >= 2026).length,
+    pre2026: orders.filter((o) => new Date(o.created_at).getFullYear() < 2026).length,
+  };
 
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
     try {
