@@ -66,6 +66,13 @@ const roleLabels: Record<AppRole, string> = {
   sales_moderator: 'مودريتور مبيعات',
   accountant: 'محاسب',
   warehouse_supervisor: 'مشرف مخازن',
+  farm_manager: 'مدير المزرعة',
+  hatchery_manager: 'مدير المعمل',
+  brooding_manager: 'مدير التحضين',
+  slaughterhouse_manager: 'مدير المجزر',
+  meat_factory_manager: 'مدير مصنع اللحوم',
+  feed_factory_manager: 'مدير مصنع الأعلاف',
+  hr_manager: 'مدير الموارد البشرية',
 };
 
 const roleBadgeVariants: Record<AppRole, 'default' | 'secondary' | 'outline' | 'destructive'> = {
@@ -75,6 +82,13 @@ const roleBadgeVariants: Record<AppRole, 'default' | 'secondary' | 'outline' | '
   sales_moderator: 'secondary',
   accountant: 'outline',
   warehouse_supervisor: 'outline',
+  farm_manager: 'secondary',
+  hatchery_manager: 'secondary',
+  brooding_manager: 'secondary',
+  slaughterhouse_manager: 'secondary',
+  meat_factory_manager: 'secondary',
+  feed_factory_manager: 'secondary',
+  hr_manager: 'secondary',
 };
 
 const roleIcons: Record<AppRole, React.ElementType> = {
@@ -84,13 +98,20 @@ const roleIcons: Record<AppRole, React.ElementType> = {
   sales_moderator: ShoppingCart,
   accountant: Calculator,
   warehouse_supervisor: Warehouse,
+  farm_manager: Users,
+  hatchery_manager: Users,
+  brooding_manager: Users,
+  slaughterhouse_manager: Users,
+  meat_factory_manager: Users,
+  feed_factory_manager: Users,
+  hr_manager: Users,
 };
 
 const addEmployeeSchema = z.object({
   fullName: z.string().min(2, 'الاسم يجب أن يكون حرفين على الأقل').max(100),
   email: z.string().email('البريد الإلكتروني غير صالح').max(255),
   password: z.string().min(6, 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'),
-  role: z.enum(['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'accountant', 'warehouse_supervisor']),
+  role: z.enum(['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'accountant', 'warehouse_supervisor', 'farm_manager', 'hatchery_manager', 'brooding_manager', 'slaughterhouse_manager', 'meat_factory_manager', 'feed_factory_manager', 'hr_manager']),
 });
 
 const Employees = () => {

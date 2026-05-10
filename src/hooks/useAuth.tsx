@@ -2,7 +2,20 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
-export type AppRole = 'general_manager' | 'executive_manager' | 'sales_manager' | 'sales_moderator' | 'accountant' | 'warehouse_supervisor';
+export type AppRole =
+  | 'general_manager'
+  | 'executive_manager'
+  | 'sales_manager'
+  | 'sales_moderator'
+  | 'accountant'
+  | 'warehouse_supervisor'
+  | 'farm_manager'
+  | 'hatchery_manager'
+  | 'brooding_manager'
+  | 'slaughterhouse_manager'
+  | 'meat_factory_manager'
+  | 'feed_factory_manager'
+  | 'hr_manager';
 
 interface AuthContextType {
   user: User | null;
@@ -28,6 +41,15 @@ interface AuthContextType {
   canUpdatePaymentStatus: boolean;
   canUpdateOrderStatus: boolean;
   canUpdateOrderStatusForOrder: (orderCreatedBy: string | null) => boolean;
+  // Module permissions
+  canManageFeedFactory: boolean;
+  canManageWarehouses: boolean;
+  canManageFarm: boolean;
+  canManageHatchery: boolean;
+  canManageBrooding: boolean;
+  canManageSlaughterhouse: boolean;
+  canManageMeatFactory: boolean;
+  canManageHr: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -132,6 +154,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const isSalesModerator = role === 'sales_moderator';
   const isAccountant = role === 'accountant';
   const isWarehouseSupervisor = role === 'warehouse_supervisor';
+  const isFarmManager = role === 'farm_manager';
+  const isHatcheryManager = role === 'hatchery_manager';
+  const isBroodingManager = role === 'brooding_manager';
+  const isSlaughterhouseManager = role === 'slaughterhouse_manager';
+  const isMeatFactoryManager = role === 'meat_factory_manager';
+  const isFeedFactoryManager = role === 'feed_factory_manager';
+  const isHrManager = role === 'hr_manager';
+
+  // Module-level write permissions
+  const canManageFeedFactory = isGeneralManager || isExecutiveManager || isFeedFactoryManager;
+  const canManageWarehouses = isGeneralManager || isExecutiveManager || isWarehouseSupervisor;
+  const canManageFarm = isGeneralManager || isExecutiveManager || isFarmManager;
+  const canManageHatchery = isGeneralManager || isExecutiveManager || isHatcheryManager;
+  const canManageBrooding = isGeneralManager || isExecutiveManager || isBroodingManager;
+  const canManageSlaughterhouse = isGeneralManager || isExecutiveManager || isSlaughterhouseManager;
+  const canManageMeatFactory = isGeneralManager || isExecutiveManager || isMeatFactoryManager;
+  const canManageHr = isGeneralManager || isExecutiveManager || isHrManager;
 
   // Permission helpers based on requirements
   // Sales Manager has same permissions as Executive Manager
@@ -178,6 +217,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     canUpdatePaymentStatus,
     canUpdateOrderStatus,
     canUpdateOrderStatusForOrder,
+    canManageFeedFactory,
+    canManageWarehouses,
+    canManageFarm,
+    canManageHatchery,
+    canManageBrooding,
+    canManageSlaughterhouse,
+    canManageMeatFactory,
+    canManageHr,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
