@@ -636,21 +636,6 @@ export type Database = {
           },
         ]
       }
-      order_status_stage: {
-        Row: {
-          created_at: string | null
-          status: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          status?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          status?: string | null
-        }
-        Relationships: []
-      }
       orders: {
         Row: {
           created_at: string
