@@ -14,6 +14,21 @@ export type Database = {
   }
   public: {
     Tables: {
+      apr_stage: {
+        Row: {
+          status: string | null
+          ts: string | null
+        }
+        Insert: {
+          status?: string | null
+          ts?: string | null
+        }
+        Update: {
+          status?: string | null
+          ts?: string | null
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           address: string | null
