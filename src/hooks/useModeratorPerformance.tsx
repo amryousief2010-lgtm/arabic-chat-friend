@@ -105,7 +105,7 @@ export const useModeratorPerformance = (yearFilter: YearFilter = "all") => {
     }
 
     return { moderators, monthlyData, totalSales, totalOrders };
-  }, [ordersQuery.data]);
+  }, [ordersQuery.data, yearFilter]);
 
   return {
     ...analytics,
