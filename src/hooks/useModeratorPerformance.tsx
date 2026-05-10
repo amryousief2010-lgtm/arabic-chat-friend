@@ -20,7 +20,9 @@ export interface ModeratorMonthly {
   orders: number;
 }
 
-export const useModeratorPerformance = () => {
+export type YearFilter = "all" | "2026" | "pre2026";
+
+export const useModeratorPerformance = (yearFilter: YearFilter = "all") => {
   const ordersQuery = useQuery({
     queryKey: ["moderator-orders"],
     queryFn: async () => {
@@ -47,7 +49,12 @@ export const useModeratorPerformance = () => {
   });
 
   const analytics = useMemo(() => {
-    const orders = ordersQuery.data || [];
+    const all = ordersQuery.data || [];
+    const orders = all.filter((o) => {
+      if (yearFilter === "all") return true;
+      const y = new Date(o.created_at).getFullYear();
+      return yearFilter === "2026" ? y >= 2026 : y < 2026;
+    });
 
     // Overall totals
     const totalSales = orders.reduce((s, o) => s + Number(o.total), 0);
