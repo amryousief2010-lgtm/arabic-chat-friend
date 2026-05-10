@@ -227,6 +227,14 @@ const Orders = () => {
     <DashboardLayout>
       <OrdersAnalytics orders={orders} />
 
+      <Tabs value={yearGroup} onValueChange={(v) => setYearGroup(v as YearGroup)} className="mb-4">
+        <TabsList className="grid w-full max-w-xl grid-cols-3">
+          <TabsTrigger value="all">الكل ({counts.all.toLocaleString()})</TabsTrigger>
+          <TabsTrigger value="2026">مبيعات 2026 ({counts["2026"].toLocaleString()})</TabsTrigger>
+          <TabsTrigger value="pre2026">2025 وما قبله ({counts.pre2026.toLocaleString()})</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
       <Card className="glass-card">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2">
