@@ -29,8 +29,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
+type YearGroup = "all" | "2026" | "pre2026";
 
 type OrderStatus = 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
 
