@@ -154,6 +154,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const isSalesModerator = role === 'sales_moderator';
   const isAccountant = role === 'accountant';
   const isWarehouseSupervisor = role === 'warehouse_supervisor';
+  const isFarmManager = role === 'farm_manager';
+  const isHatcheryManager = role === 'hatchery_manager';
+  const isBroodingManager = role === 'brooding_manager';
+  const isSlaughterhouseManager = role === 'slaughterhouse_manager';
+  const isMeatFactoryManager = role === 'meat_factory_manager';
+  const isFeedFactoryManager = role === 'feed_factory_manager';
+  const isHrManager = role === 'hr_manager';
+
+  // Module-level write permissions
+  const canManageFeedFactory = isGeneralManager || isExecutiveManager || isFeedFactoryManager;
+  const canManageWarehouses = isGeneralManager || isExecutiveManager || isWarehouseSupervisor;
+  const canManageFarm = isGeneralManager || isExecutiveManager || isFarmManager;
+  const canManageHatchery = isGeneralManager || isExecutiveManager || isHatcheryManager;
+  const canManageBrooding = isGeneralManager || isExecutiveManager || isBroodingManager;
+  const canManageSlaughterhouse = isGeneralManager || isExecutiveManager || isSlaughterhouseManager;
+  const canManageMeatFactory = isGeneralManager || isExecutiveManager || isMeatFactoryManager;
+  const canManageHr = isGeneralManager || isExecutiveManager || isHrManager;
 
   // Permission helpers based on requirements
   // Sales Manager has same permissions as Executive Manager
@@ -200,6 +217,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     canUpdatePaymentStatus,
     canUpdateOrderStatus,
     canUpdateOrderStatusForOrder,
+    canManageFeedFactory,
+    canManageWarehouses,
+    canManageFarm,
+    canManageHatchery,
+    canManageBrooding,
+    canManageSlaughterhouse,
+    canManageMeatFactory,
+    canManageHr,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
