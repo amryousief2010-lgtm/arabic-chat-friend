@@ -469,6 +469,13 @@ export type Database = {
         | "accountant"
         | "warehouse_supervisor"
         | "sales_manager"
+        | "farm_manager"
+        | "hatchery_manager"
+        | "brooding_manager"
+        | "slaughterhouse_manager"
+        | "meat_factory_manager"
+        | "feed_factory_manager"
+        | "hr_manager"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -603,6 +610,13 @@ export const Constants = {
         "accountant",
         "warehouse_supervisor",
         "sales_manager",
+        "farm_manager",
+        "hatchery_manager",
+        "brooding_manager",
+        "slaughterhouse_manager",
+        "meat_factory_manager",
+        "feed_factory_manager",
+        "hr_manager",
       ],
     },
   },
