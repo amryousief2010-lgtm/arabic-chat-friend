@@ -104,11 +104,11 @@ const TeamPerformance = () => {
     try {
       setLoading(true);
 
-      // Get team assignments for current manager
-      const { data: assignments, error: assignError } = await supabase
-        .from('team_assignments')
-        .select('moderator_id')
-        .eq('manager_id', user.id);
+      // Get team assignments. General manager sees ALL teams; others see their own team.
+      const assignmentsQuery = supabase.from('team_assignments').select('moderator_id');
+      const { data: assignments, error: assignError } = isGeneralManager
+        ? await assignmentsQuery
+        : await assignmentsQuery.eq('manager_id', user.id);
 
       if (assignError) throw assignError;
 
