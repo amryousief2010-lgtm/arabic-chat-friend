@@ -32,7 +32,8 @@ import {
   GitCompareArrows,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useModeratorPerformance } from "@/hooks/useModeratorPerformance";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useModeratorPerformance, type YearFilter } from "@/hooks/useModeratorPerformance";
 import { exportModeratorPDF } from "@/utils/exportModeratorReport";
 import ModeratorComparison from "@/components/moderator/ModeratorComparison";
 
