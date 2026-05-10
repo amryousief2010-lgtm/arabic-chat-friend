@@ -101,6 +101,39 @@ export type Database = {
           },
         ]
       }
+      feed_batch_events: {
+        Row: {
+          batch_id: string
+          created_at: string
+          details: Json | null
+          event_type: string
+          from_status: string | null
+          id: string
+          performed_by: string | null
+          to_status: string | null
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          details?: Json | null
+          event_type: string
+          from_status?: string | null
+          id?: string
+          performed_by?: string | null
+          to_status?: string | null
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          details?: Json | null
+          event_type?: string
+          from_status?: string | null
+          id?: string
+          performed_by?: string | null
+          to_status?: string | null
+        }
+        Relationships: []
+      }
       feed_production_batches: {
         Row: {
           actual_quantity: number | null
@@ -196,6 +229,42 @@ export type Database = {
           unit?: string
           unit_cost?: number
           updated_at?: string
+        }
+        Relationships: []
+      }
+      feed_recipe_history: {
+        Row: {
+          batch_size: number
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          recipe_id: string
+          snapshot: Json
+          total_cost: number
+          total_quantity: number
+        }
+        Insert: {
+          batch_size: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          recipe_id: string
+          snapshot?: Json
+          total_cost?: number
+          total_quantity?: number
+        }
+        Update: {
+          batch_size?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          recipe_id?: string
+          snapshot?: Json
+          total_cost?: number
+          total_quantity?: number
         }
         Relationships: []
       }

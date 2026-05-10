@@ -31,6 +31,10 @@ import MeatFactory from "@/pages/modules/MeatFactory";
 import FeedFactory from "@/pages/modules/FeedFactory";
 import HumanResources from "@/pages/modules/HumanResources";
 import Warehouses from "@/pages/modules/Warehouses";
+import RecipeDetail from "@/pages/modules/feed/RecipeDetail";
+import BatchTracking from "@/pages/modules/feed/BatchTracking";
+import WarehouseDashboard from "@/pages/modules/warehouse/WarehouseDashboard";
+import InventoryImport from "@/pages/modules/warehouse/InventoryImport";
 
 const AnimatedRoutes = () => {
   const location = useLocation();
@@ -172,6 +176,26 @@ const AnimatedRoutes = () => {
         <Route path="/modules/warehouses" element={
           <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor']}>
             <PageTransition><Warehouses /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/modules/warehouses/dashboard" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor']}>
+            <PageTransition><WarehouseDashboard /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/modules/warehouses/import" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor']}>
+            <PageTransition><InventoryImport /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/modules/feed-factory/recipes/:id" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'feed_factory_manager']}>
+            <PageTransition><RecipeDetail /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/modules/feed-factory/batches/:id" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'feed_factory_manager']}>
+            <PageTransition><BatchTracking /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="*" element={
