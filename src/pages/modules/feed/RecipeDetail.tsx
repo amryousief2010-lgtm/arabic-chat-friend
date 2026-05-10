@@ -150,6 +150,7 @@ const RecipeDetail = () => {
                 <TableHead>الكمية الأصلية</TableHead>
                 <TableHead>الكمية المحسوبة</TableHead>
                 <TableHead>الوحدة</TableHead>
+                <TableHead>المعادل (وحدة أساسية)</TableHead>
                 <TableHead>سعر الوحدة</TableHead>
                 <TableHead>التكلفة</TableHead>
                 <TableHead>المتاح</TableHead>
@@ -161,17 +162,16 @@ const RecipeDetail = () => {
                     <TableCell>{r.quantity}</TableCell>
                     <TableCell className="font-bold">{r.computedQty.toFixed(2)}</TableCell>
                     <TableCell>{r.raw_material?.unit}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{r.baseQty.toFixed(2)} {r.baseUnit}</TableCell>
                     <TableCell>{r.raw_material?.unit_cost?.toFixed(2)}</TableCell>
                     <TableCell>{r.computedCost.toFixed(2)}</TableCell>
                     <TableCell className={r.stockOk ? "" : "text-destructive font-bold"}>{r.raw_material?.stock?.toFixed(2)}</TableCell>
                   </TableRow>
                 ))}
                 <TableRow className="font-bold bg-muted/40">
-                  <TableCell colSpan={2}>الإجمالي</TableCell>
-                  <TableCell>{totalQty.toFixed(2)}</TableCell>
-                  <TableCell>{recipe.unit}</TableCell>
-                  <TableCell>—</TableCell>
-                  <TableCell>{totalCost.toFixed(2)}</TableCell>
+                  <TableCell colSpan={4}>الإجمالي (مجمَّع حسب البُعد)</TableCell>
+                  <TableCell colSpan={2}>{totalQtyText}</TableCell>
+                  <TableCell colSpan={2}>{totalCost.toFixed(2)}</TableCell>
                   <TableCell>—</TableCell>
                 </TableRow>
               </TableBody>
