@@ -124,8 +124,8 @@ const MobileSidebarContent = ({ onClose }: MobileSidebarContentProps) => {
             <span className="text-sidebar-primary-foreground font-bold text-xl">ن</span>
           </div>
           <div>
-            <h1 className="font-bold text-lg">نعام العاصمة</h1>
-            <p className="text-xs text-sidebar-foreground/60">نظام المبيعات</p>
+            <h1 className="font-bold text-lg">شركة نعام العاصمة</h1>
+            <p className="text-xs text-sidebar-foreground/60">إدارة العمليات</p>
           </div>
         </div>
       </div>

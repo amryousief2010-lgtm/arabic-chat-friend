@@ -130,8 +130,8 @@ const Auth = () => {
           <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-primary shadow-lg mb-4">
             <span className="text-primary-foreground font-bold text-3xl">ن</span>
           </div>
-          <h1 className="text-2xl font-bold text-foreground">نعام العاصمة</h1>
-          <p className="text-muted-foreground mt-1">نظام إدارة المبيعات</p>
+          <h1 className="text-2xl font-bold text-foreground">شركة نعام العاصمة</h1>
+          <p className="text-muted-foreground mt-1">إدارة العمليات</p>
         </div>
 
         <Card className="border-border/50 shadow-xl">
@@ -292,7 +292,7 @@ const Auth = () => {
         </Card>
 
         <p className="text-center text-sm text-muted-foreground mt-6">
-          © 2024 نعام العاصمة - جميع الحقوق محفوظة
+          © 2024 شركة نعام العاصمة - جميع الحقوق محفوظة
         </p>
       </div>
     </div>

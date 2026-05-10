@@ -38,7 +38,7 @@ const Settings = () => {
             <div className="space-y-2">
               <Label>اسم الشركة</Label>
               <Input
-                defaultValue="نعام العاصمة"
+                defaultValue="شركة نعام العاصمة"
                 className="input-modern"
               />
             </div>
