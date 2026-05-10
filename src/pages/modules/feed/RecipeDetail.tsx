@@ -97,7 +97,7 @@ const RecipeDetail = () => {
     const { error } = await supabase.from("feed_recipe_history").insert({
       recipe_id: recipe.id,
       batch_size: scale,
-      total_quantity: totalQty,
+      total_quantity: totalsByDim.find(t => t.dimension === "mass")?.qty ?? totalsByDim[0]?.qty ?? 0,
       total_cost: totalCost,
       snapshot,
       created_by: user?.id,
