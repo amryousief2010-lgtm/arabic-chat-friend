@@ -122,7 +122,7 @@ const RecipeDetail = () => {
 
         <div className="grid gap-4 md:grid-cols-4">
           <Card><CardHeader className="pb-2"><CardDescription>عدد البنود</CardDescription><CardTitle className="text-3xl">{rows.length}</CardTitle></CardHeader></Card>
-          <Card><CardHeader className="pb-2"><CardDescription>إجمالي الكمية</CardDescription><CardTitle className="text-3xl">{totalQty.toFixed(2)} {recipe.unit}</CardTitle></CardHeader></Card>
+          <Card><CardHeader className="pb-2"><CardDescription>إجمالي الكمية (مُحوَّل)</CardDescription><CardTitle className="text-xl">{totalQtyText}</CardTitle></CardHeader></Card>
           <Card><CardHeader className="pb-2"><CardDescription>إجمالي التكلفة</CardDescription><CardTitle className="text-3xl">{totalCost.toFixed(2)}</CardTitle></CardHeader></Card>
           <Card className={allStockOk ? "" : "border-destructive"}><CardHeader className="pb-2"><CardDescription>المخزون الحالي</CardDescription><CardTitle className={`text-2xl ${allStockOk ? "text-success" : "text-destructive"}`}>{allStockOk ? "كافٍ" : "غير كافٍ"}</CardTitle></CardHeader></Card>
         </div>
