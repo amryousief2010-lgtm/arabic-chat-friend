@@ -23,6 +23,14 @@ import LowStock from "@/pages/LowStock";
 import NotFound from "@/pages/NotFound";
 import ImportSalesData from "@/pages/ImportSalesData";
 import ModeratorPerformance from "@/pages/ModeratorPerformance";
+import Farm from "@/pages/modules/Farm";
+import Hatchery from "@/pages/modules/Hatchery";
+import Brooding from "@/pages/modules/Brooding";
+import Slaughterhouse from "@/pages/modules/Slaughterhouse";
+import MeatFactory from "@/pages/modules/MeatFactory";
+import FeedFactory from "@/pages/modules/FeedFactory";
+import HumanResources from "@/pages/modules/HumanResources";
+import Warehouses from "@/pages/modules/Warehouses";
 
 const AnimatedRoutes = () => {
   const location = useLocation();
@@ -124,6 +132,46 @@ const AnimatedRoutes = () => {
         <Route path="/moderator-performance" element={
           <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager']}>
             <PageTransition><ModeratorPerformance /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/modules/farm" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager']}>
+            <PageTransition><Farm /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/modules/hatchery" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager']}>
+            <PageTransition><Hatchery /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/modules/brooding" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager']}>
+            <PageTransition><Brooding /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/modules/slaughterhouse" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager']}>
+            <PageTransition><Slaughterhouse /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/modules/meat-factory" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager']}>
+            <PageTransition><MeatFactory /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/modules/feed-factory" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager']}>
+            <PageTransition><FeedFactory /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/modules/hr" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager']}>
+            <PageTransition><HumanResources /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/modules/warehouses" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor']}>
+            <PageTransition><Warehouses /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="*" element={
