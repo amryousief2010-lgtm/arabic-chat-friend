@@ -95,6 +95,7 @@ const Orders = () => {
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [yearGroup, setYearGroup] = useState<YearGroup>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
