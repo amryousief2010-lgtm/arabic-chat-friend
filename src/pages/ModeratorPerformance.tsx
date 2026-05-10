@@ -32,7 +32,8 @@ import {
   GitCompareArrows,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useModeratorPerformance } from "@/hooks/useModeratorPerformance";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useModeratorPerformance, type YearFilter } from "@/hooks/useModeratorPerformance";
 import { exportModeratorPDF } from "@/utils/exportModeratorReport";
 import ModeratorComparison from "@/components/moderator/ModeratorComparison";
 
@@ -50,7 +51,8 @@ const ModeratorPerformance = () => {
   const [searchParams] = useSearchParams();
   const [selectedModerator, setSelectedModerator] = useState<string | null>(null);
   const [showComparison, setShowComparison] = useState(false);
-  const { moderators: moderatorPerformanceData, monthlyData: moderatorMonthlyData, totalSales, totalOrders, isLoading } = useModeratorPerformance();
+  const [yearFilter, setYearFilter] = useState<YearFilter>("all");
+  const { moderators: moderatorPerformanceData, monthlyData: moderatorMonthlyData, totalSales, totalOrders, isLoading } = useModeratorPerformance(yearFilter);
 
   useEffect(() => {
     if (searchParams.get("compare") === "1") {
@@ -229,9 +231,16 @@ const ModeratorPerformance = () => {
       <div className="flex items-center justify-between mb-2 flex-wrap gap-3">
         <Header
           title="أداء الموديراتور"
-          subtitle="تحليل تفصيلي لأداء كل موديراتور في 2025"
+          subtitle="فريق المبيعات: آية، سارة، نورا، منال"
         />
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Tabs value={yearFilter} onValueChange={(v) => setYearFilter(v as YearFilter)}>
+            <TabsList>
+              <TabsTrigger value="all">الكل</TabsTrigger>
+              <TabsTrigger value="2026">2026</TabsTrigger>
+              <TabsTrigger value="pre2026">2025 وما قبله</TabsTrigger>
+            </TabsList>
+          </Tabs>
           <Button
             variant={showComparison ? "default" : "outline"}
             size="sm"

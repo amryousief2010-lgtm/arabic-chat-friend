@@ -29,8 +29,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
+type YearGroup = "all" | "2026" | "pre2026";
 
 type OrderStatus = 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
 
@@ -92,6 +95,7 @@ const Orders = () => {
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [yearGroup, setYearGroup] = useState<YearGroup>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
@@ -157,8 +161,19 @@ const Orders = () => {
     const matchesSearch =
       order.order_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.customer_name.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesStatus && matchesSearch;
+    const year = new Date(order.created_at).getFullYear();
+    const matchesYear =
+      yearGroup === "all" ||
+      (yearGroup === "2026" && year >= 2026) ||
+      (yearGroup === "pre2026" && year < 2026);
+    return matchesStatus && matchesSearch && matchesYear;
   });
+
+  const counts = {
+    all: orders.length,
+    "2026": orders.filter((o) => new Date(o.created_at).getFullYear() >= 2026).length,
+    pre2026: orders.filter((o) => new Date(o.created_at).getFullYear() < 2026).length,
+  };
 
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
     try {
@@ -211,6 +226,14 @@ const Orders = () => {
   return (
     <DashboardLayout>
       <OrdersAnalytics orders={orders} />
+
+      <Tabs value={yearGroup} onValueChange={(v) => setYearGroup(v as YearGroup)} className="mb-4">
+        <TabsList className="grid w-full max-w-xl grid-cols-3">
+          <TabsTrigger value="all">الكل ({counts.all.toLocaleString()})</TabsTrigger>
+          <TabsTrigger value="2026">مبيعات 2026 ({counts["2026"].toLocaleString()})</TabsTrigger>
+          <TabsTrigger value="pre2026">2025 وما قبله ({counts.pre2026.toLocaleString()})</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       <Card className="glass-card">
         <CardHeader className="flex flex-row items-center justify-between">
