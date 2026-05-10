@@ -135,37 +135,37 @@ const AnimatedRoutes = () => {
           </ProtectedRoute>
         } />
         <Route path="/modules/farm" element={
-          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager']}>
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'farm_manager']}>
             <PageTransition><Farm /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/modules/hatchery" element={
-          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager']}>
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'hatchery_manager']}>
             <PageTransition><Hatchery /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/modules/brooding" element={
-          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager']}>
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'brooding_manager']}>
             <PageTransition><Brooding /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/modules/slaughterhouse" element={
-          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager']}>
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'slaughterhouse_manager']}>
             <PageTransition><Slaughterhouse /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/modules/meat-factory" element={
-          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager']}>
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'meat_factory_manager']}>
             <PageTransition><MeatFactory /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/modules/feed-factory" element={
-          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager']}>
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'feed_factory_manager']}>
             <PageTransition><FeedFactory /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/modules/hr" element={
-          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager']}>
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'hr_manager']}>
             <PageTransition><HumanResources /></PageTransition>
           </ProtectedRoute>
         } />
