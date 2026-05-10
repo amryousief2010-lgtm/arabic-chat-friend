@@ -231,9 +231,16 @@ const ModeratorPerformance = () => {
       <div className="flex items-center justify-between mb-2 flex-wrap gap-3">
         <Header
           title="أداء الموديراتور"
-          subtitle="تحليل تفصيلي لأداء كل موديراتور في 2025"
+          subtitle="فريق المبيعات: آية، سارة، نورا، منال"
         />
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Tabs value={yearFilter} onValueChange={(v) => setYearFilter(v as YearFilter)}>
+            <TabsList>
+              <TabsTrigger value="all">الكل</TabsTrigger>
+              <TabsTrigger value="2026">2026</TabsTrigger>
+              <TabsTrigger value="pre2026">2025 وما قبله</TabsTrigger>
+            </TabsList>
+          </Tabs>
           <Button
             variant={showComparison ? "default" : "outline"}
             size="sm"
