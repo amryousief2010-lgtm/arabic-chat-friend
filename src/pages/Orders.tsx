@@ -95,7 +95,18 @@ const Orders = () => {
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [yearGroup, setYearGroup] = useState<YearGroup>("all");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const yearParam = searchParams.get("year");
+  const yearGroup: YearGroup =
+    yearParam === "2026" || yearParam === "pre2026" || yearParam === "all"
+      ? (yearParam as YearGroup)
+      : "all";
+  const setYearGroup = (v: YearGroup) => {
+    const next = new URLSearchParams(searchParams);
+    if (v === "all") next.delete("year");
+    else next.set("year", v);
+    setSearchParams(next, { replace: true });
+  };
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
