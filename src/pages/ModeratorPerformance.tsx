@@ -51,7 +51,8 @@ const ModeratorPerformance = () => {
   const [searchParams] = useSearchParams();
   const [selectedModerator, setSelectedModerator] = useState<string | null>(null);
   const [showComparison, setShowComparison] = useState(false);
-  const { moderators: moderatorPerformanceData, monthlyData: moderatorMonthlyData, totalSales, totalOrders, isLoading } = useModeratorPerformance();
+  const [yearFilter, setYearFilter] = useState<YearFilter>("all");
+  const { moderators: moderatorPerformanceData, monthlyData: moderatorMonthlyData, totalSales, totalOrders, isLoading } = useModeratorPerformance(yearFilter);
 
   useEffect(() => {
     if (searchParams.get("compare") === "1") {
