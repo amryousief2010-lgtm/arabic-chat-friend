@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Wheat, Trash2, Edit, Play, CheckCircle2, XCircle, Package2 } from "lucide-react";
+import { Plus, Wheat, Trash2, Edit, Play, CheckCircle2, XCircle, Package2, Eye } from "lucide-react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -367,20 +368,23 @@ const FeedFactory = () => {
                         <TableCell><Badge variant={statusLabels[b.status]?.variant || "outline"}>{statusLabels[b.status]?.label || b.status}</Badge></TableCell>
                         <TableCell className="text-xs text-muted-foreground">{new Date(b.created_at).toLocaleDateString("ar-EG")}</TableCell>
                         <TableCell>
-                          {canManageFeedFactory && (
-                            <div className="flex gap-1">
-                              {b.status === "planned" && (
-                                <>
-                                  <Button size="sm" variant="ghost" onClick={() => startBatch(b)} title="بدء الإنتاج"><Play className="w-4 h-4" /></Button>
-                                  <Button size="sm" variant="ghost" onClick={() => cancelBatch(b)} title="إلغاء"><XCircle className="w-4 h-4" /></Button>
-                                </>
-                              )}
-                              {b.status === "in_progress" && (
-                                <Button size="sm" variant="ghost" onClick={() => completeBatch(b)} title="إكمال"><CheckCircle2 className="w-4 h-4 text-success" /></Button>
-                              )}
-                              <Button size="sm" variant="ghost" onClick={() => setDeleteTarget({ type: "batch", id: b.id, name: b.batch_number })}><Trash2 className="w-4 h-4 text-destructive" /></Button>
-                            </div>
-                          )}
+                          <div className="flex gap-1">
+                            <Link to={`/modules/feed-factory/batches/${b.id}`}><Button size="sm" variant="ghost" title="تفاصيل"><Eye className="w-4 h-4" /></Button></Link>
+                            {canManageFeedFactory && (
+                              <>
+                                {b.status === "planned" && (
+                                  <>
+                                    <Button size="sm" variant="ghost" onClick={() => startBatch(b)} title="بدء الإنتاج"><Play className="w-4 h-4" /></Button>
+                                    <Button size="sm" variant="ghost" onClick={() => cancelBatch(b)} title="إلغاء"><XCircle className="w-4 h-4" /></Button>
+                                  </>
+                                )}
+                                {b.status === "in_progress" && (
+                                  <Button size="sm" variant="ghost" onClick={() => completeBatch(b)} title="إكمال"><CheckCircle2 className="w-4 h-4 text-success" /></Button>
+                                )}
+                                <Button size="sm" variant="ghost" onClick={() => setDeleteTarget({ type: "batch", id: b.id, name: b.batch_number })}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                              </>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -408,12 +412,15 @@ const FeedFactory = () => {
                         <CardTitle className="text-lg">{r.name}</CardTitle>
                         <CardDescription>{r.feed_type} • دفعة {r.batch_size} {r.unit}</CardDescription>
                       </div>
-                      {canManageFeedFactory && (
-                        <div className="flex gap-1">
-                          <Button size="sm" variant="ghost" onClick={() => openRecipeDialog(r)}><Edit className="w-4 h-4" /></Button>
-                          <Button size="sm" variant="ghost" onClick={() => setDeleteTarget({ type: "recipe", id: r.id, name: r.name })}><Trash2 className="w-4 h-4 text-destructive" /></Button>
-                        </div>
-                      )}
+                      <div className="flex gap-1">
+                        <Link to={`/modules/feed-factory/recipes/${r.id}`}><Button size="sm" variant="ghost" title="عرض BOM"><Eye className="w-4 h-4" /></Button></Link>
+                        {canManageFeedFactory && (
+                          <>
+                            <Button size="sm" variant="ghost" onClick={() => openRecipeDialog(r)}><Edit className="w-4 h-4" /></Button>
+                            <Button size="sm" variant="ghost" onClick={() => setDeleteTarget({ type: "recipe", id: r.id, name: r.name })}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent>
