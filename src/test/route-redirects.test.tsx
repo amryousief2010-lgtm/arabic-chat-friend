@@ -62,9 +62,10 @@ describe("Short route redirects (share links)", () => {
   });
 
   it("does not 404 on the short routes", () => {
-    renderAt("/farm");
-    expect(screen.getByTestId("loc").textContent).not.toBe("404");
-    renderAt("/hatchery");
-    expect(screen.getByTestId("loc").textContent).not.toBe("404");
+    const { getByTestId, unmount } = renderAt("/farm");
+    expect(getByTestId("loc").textContent).not.toBe("404");
+    unmount();
+    const { getByTestId: getByTestId2 } = renderAt("/hatchery");
+    expect(getByTestId2("loc").textContent).not.toBe("404");
   });
 });
