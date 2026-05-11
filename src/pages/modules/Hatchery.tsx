@@ -724,7 +724,10 @@ const ChicksTab = ({ chicks, qc }: any) => {
                   <div><Label>نافق</Label><Input type="number" value={form.dead} onChange={(e) => setForm({ ...form, dead: +e.target.value })} /></div>
                   <div><Label>مباع</Label><Input type="number" value={form.sold} onChange={(e) => setForm({ ...form, sold: +e.target.value })} /></div>
                 </div>
-                <div><Label>سعر الوحدة</Label><Input type="number" value={form.unit_price} onChange={(e) => setForm({ ...form, unit_price: +e.target.value })} /></div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div><Label>سعر الوحدة (ج.م)</Label><Input type="number" value={form.unit_price} onChange={(e) => setForm({ ...form, unit_price: +e.target.value })} /></div>
+                  <div><Label>العمر عند البيع (يوم)</Label><Input type="number" value={form.age_days} onChange={(e) => setForm({ ...form, age_days: +e.target.value })} /></div>
+                </div>
                 <div><Label>ملاحظات</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
               </div>
               <DialogFooter><Button onClick={() => save.mutate()} disabled={save.isPending}>حفظ</Button></DialogFooter>
