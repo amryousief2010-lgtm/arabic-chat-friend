@@ -91,7 +91,18 @@ const Index = () => {
   const { data: stats, isLoading } = useDashboardStats();
   const { data: recentOrders, isLoading: ordersLoading } = useRecentOrders(5);
   const reportData = useReportsData("all");
-  const { data: prod, isLoading: prodLoading } = useProductionStats();
+  const [prodFrom, setProdFrom] = useState<string>("");
+  const [prodTo, setProdTo] = useState<string>("");
+  const { data: prod, isLoading: prodLoading } = useProductionStats(prodFrom, prodTo);
+
+  const setQuickRange = (kind: "today" | "month" | "year" | "clear") => {
+    const now = new Date();
+    const fmt = (d: Date) => d.toISOString().slice(0, 10);
+    if (kind === "today") { const t = fmt(now); setProdFrom(t); setProdTo(t); }
+    else if (kind === "month") { setProdFrom(fmt(new Date(now.getFullYear(), now.getMonth(), 1))); setProdTo(fmt(now)); }
+    else if (kind === "year") { setProdFrom(`${now.getFullYear()}-01-01`); setProdTo(fmt(now)); }
+    else { setProdFrom(""); setProdTo(""); }
+  };
 
   return (
     <DashboardLayout>
