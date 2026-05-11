@@ -461,6 +461,39 @@ const Orders = () => {
                         </SelectContent>
                       </Select>
                     </TableCell>
+                    <TableCell>
+                      {isAccountant ? (
+                        <Select
+                          value={order.collection_status}
+                          onValueChange={(v) => handleCollectionChange(order.id, v)}
+                        >
+                          <SelectTrigger className="w-36">
+                            <Badge
+                              className={
+                                order.collection_status === 'collected'
+                                  ? 'bg-success text-success-foreground'
+                                  : 'bg-warning text-warning-foreground'
+                              }
+                            >
+                              {order.collection_status === 'collected' ? 'تم التحصيل' : 'لم يتم التحصيل'}
+                            </Badge>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="collected">تم التحصيل</SelectItem>
+                            <SelectItem value="not_collected">لم يتم التحصيل</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Badge
+                          className={
+                            order.collection_status === 'collected'
+                              ? 'bg-success text-success-foreground'
+                              : 'bg-warning text-warning-foreground'
+                          }
+                        >
+                          {order.collection_status === 'collected' ? 'تم التحصيل' : 'لم يتم التحصيل'}
+                        </Badge>
+                      )}
                     <TableCell className="text-muted-foreground">
                       {new Date(order.created_at).toLocaleDateString('ar-EG')}
                     </TableCell>
