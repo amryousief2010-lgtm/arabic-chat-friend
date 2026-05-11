@@ -83,7 +83,7 @@ export const moduleSections: ModuleSection[] = [
     label: "2. مزرعة الأمهات والإنتاج",
     roles: ['general_manager', 'executive_manager', 'farm_manager', 'production_manager', 'quality_manager'],
     items: [
-      { icon: Egg, label: "إدارة المزرعة", path: "/modules/farm", roles: ['general_manager', 'executive_manager', 'farm_manager', 'production_manager', 'quality_manager'] },
+      { icon: Egg, label: "إدارة المزرعة", path: "/farm", roles: ['general_manager', 'executive_manager', 'farm_manager', 'production_manager', 'quality_manager'] },
     ],
   },
   {
@@ -92,7 +92,7 @@ export const moduleSections: ModuleSection[] = [
     label: "3. المعمل وتفريغ الكتاكيت",
     roles: ['general_manager', 'executive_manager', 'hatchery_manager', 'production_manager', 'quality_manager'],
     items: [
-      { icon: FlaskConical, label: "إدارة المعمل", path: "/modules/hatchery", roles: ['general_manager', 'executive_manager', 'hatchery_manager', 'production_manager', 'quality_manager'] },
+      { icon: FlaskConical, label: "إدارة المعمل", path: "/hatchery", roles: ['general_manager', 'executive_manager', 'hatchery_manager', 'production_manager', 'quality_manager'] },
       { icon: TrendingUp, label: "لوحة المزرعة والمعمل", path: "/modules/farm-hatchery-dashboard", roles: ['general_manager', 'executive_manager', 'farm_manager', 'hatchery_manager', 'production_manager', 'quality_manager'] },
     ],
   },
