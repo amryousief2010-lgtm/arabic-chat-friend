@@ -124,7 +124,10 @@ const OrderDetails = () => {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [editItemsOpen, setEditItemsOpen] = useState(false);
-  const canEditItems = isGeneralManager || isExecutiveManager || isSalesManager || isShippingCompany || isSalesModerator;
+  // Moderators (and shipping) can't edit orders that are already delivered or cancelled/returned
+  const isLockedForModerators = order ? (order.status === 'delivered' || order.status === 'cancelled') : false;
+  const canEditItems = (isGeneralManager || isExecutiveManager || isSalesManager)
+    || ((isShippingCompany || isSalesModerator) && !isLockedForModerators);
 
   useEffect(() => {
     if (id) {
