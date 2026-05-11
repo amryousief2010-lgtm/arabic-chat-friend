@@ -1,4 +1,4 @@
-import { Routes, Route, useLocation } from "react-router-dom";
+import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import PageTransition from "@/components/layout/PageTransition";
@@ -47,6 +47,8 @@ const AnimatedRoutes = () => {
         <Route path="/auth" element={
           <PageTransition><Auth /></PageTransition>
         } />
+        <Route path="/farm" element={<Navigate to="/modules/farm" replace />} />
+        <Route path="/hatchery" element={<Navigate to="/modules/hatchery" replace />} />
         <Route path="/" element={
           <ProtectedRoute>
             <PageTransition><Index /></PageTransition>
