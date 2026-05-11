@@ -227,6 +227,102 @@ const Index = () => {
         </Card>
       </div>
 
+      {/* Sales Trends — Monthly (current year) & Daily (current month) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <TrendingUp className="w-5 h-5 text-primary" />
+              المبيعات والطلبات الشهرية — {new Date().getFullYear()}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? <Skeleton className="h-[280px] w-full" /> : (
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={(stats?.monthlySeries || []).map((m: any) => ({
+                  month: ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"][parseInt(m.month.split("-")[1]) - 1],
+                  sales: Number(m.sales), orders: m.orders,
+                }))}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                  <YAxis yAxisId="l" stroke="hsl(var(--muted-foreground))" fontSize={10} tickFormatter={formatSales} />
+                  <YAxis yAxisId="r" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={10} />
+                  <Tooltip contentStyle={tooltipStyle} formatter={(v: number, n: string) => [n === "sales" ? `${Number(v).toLocaleString()} ج.م` : `${v} طلب`, n === "sales" ? "المبيعات" : "الطلبات"]} />
+                  <Legend formatter={(v) => v === "sales" ? "المبيعات (ج.م)" : "الطلبات"} />
+                  <Bar yAxisId="l" dataKey="sales" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
+                  <Bar yAxisId="r" dataKey="orders" fill="hsl(var(--secondary))" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <BarChart3 className="w-5 h-5 text-secondary" />
+              المبيعات والطلبات اليومية — {new Date().toLocaleDateString("ar-EG", { month: "long" })}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? <Skeleton className="h-[280px] w-full" /> : (
+              <ResponsiveContainer width="100%" height={280}>
+                <LineChart data={(stats?.dailySeries || []).map((d: any) => ({ ...d, day: d.date.slice(8, 10) }))}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="day" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                  <YAxis yAxisId="l" stroke="hsl(var(--muted-foreground))" fontSize={10} tickFormatter={formatSales} />
+                  <YAxis yAxisId="r" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={10} />
+                  <Tooltip contentStyle={tooltipStyle} formatter={(v: number, n: string) => [n === "sales" ? `${Number(v).toLocaleString()} ج.م` : `${v} طلب`, n === "sales" ? "المبيعات" : "الطلبات"]} />
+                  <Legend formatter={(v) => v === "sales" ? "المبيعات (ج.م)" : "الطلبات"} />
+                  <Line yAxisId="l" type="monotone" dataKey="sales" stroke="hsl(var(--primary))" strokeWidth={2.5} dot={{ r: 3 }} />
+                  <Line yAxisId="r" type="monotone" dataKey="orders" stroke="hsl(var(--secondary))" strokeWidth={2.5} dot={{ r: 3 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recent Orders Table */}
+      <Card className="glass-card mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <ShoppingCart className="w-5 h-5 text-primary" />
+            آخر الطلبات المسجّلة
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {ordersLoading ? <Skeleton className="h-40 w-full" /> : (recentOrders?.length === 0 ? (
+            <p className="text-center text-muted-foreground py-6 text-sm">لا توجد طلبات بعد</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-muted-foreground">
+                    <th className="text-right py-2 px-2 font-medium">رقم الطلب</th>
+                    <th className="text-right py-2 px-2 font-medium">العميل</th>
+                    <th className="text-right py-2 px-2 font-medium">التاريخ</th>
+                    <th className="text-right py-2 px-2 font-medium">الإجمالي</th>
+                    <th className="text-right py-2 px-2 font-medium">الحالة</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentOrders?.map((o: any) => (
+                    <tr key={o.id} className="border-b hover:bg-muted/40 transition-colors">
+                      <td className="py-2 px-2 font-mono text-xs">{o.order_number}</td>
+                      <td className="py-2 px-2">{(o.customers as any)?.name || "-"}</td>
+                      <td className="py-2 px-2 text-xs text-muted-foreground">{new Date(o.created_at).toLocaleDateString("ar-EG")}</td>
+                      <td className="py-2 px-2 font-bold">{Number(o.total).toLocaleString()} ج.م</td>
+                      <td className="py-2 px-2"><Badge className={statusColors[o.status] || ""}>{statusLabels[o.status] || o.status}</Badge></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
       {/* Production KPIs - Eggs & Chicks */}
       <Card className="glass-card mb-6">
         <CardHeader className="pb-3">
