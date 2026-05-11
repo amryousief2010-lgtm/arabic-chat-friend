@@ -236,10 +236,21 @@ const EggsTab = ({ eggs, families, qc }: any) => {
 
   const familyName = (id: string) => families.find((f: any) => f.id === id)?.family_number || "-";
 
+  const [fFamily, setFFamily] = useState("all");
+  const [fFrom, setFFrom] = useState("");
+  const [fTo, setFTo] = useState("");
+  const filtered = useMemo(() => eggs.filter((e: any) => {
+    if (fFamily !== "all" && e.family_id !== fFamily) return false;
+    if (fFrom && e.production_date < fFrom) return false;
+    if (fTo && e.production_date > fTo) return false;
+    return true;
+  }), [eggs, fFamily, fFrom, fTo]);
+  const total = filtered.reduce((s: number, e: any) => s + (e.egg_count || 0), 0);
+
   return (
     <Card className="p-4">
       <div className="flex justify-between mb-3">
-        <h3 className="font-bold">إنتاج البيض اليومي</h3>
+        <h3 className="font-bold">إنتاج البيض اليومي ({total.toLocaleString()} بيضة)</h3>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild><Button size="sm"><Plus className="w-4 h-4 ml-1" />تسجيل إنتاج</Button></DialogTrigger>
           <DialogContent dir="rtl">
@@ -261,11 +272,22 @@ const EggsTab = ({ eggs, families, qc }: any) => {
           </DialogContent>
         </Dialog>
       </div>
-      <div className="overflow-auto">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">
+        <Select value={fFamily} onValueChange={setFFamily}>
+          <SelectTrigger><SelectValue placeholder="كل الأسر" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">كل الأسر</SelectItem>
+            {families.map((f: any) => <SelectItem key={f.id} value={f.id}>{f.family_number}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Input type="date" value={fFrom} onChange={(e) => setFFrom(e.target.value)} placeholder="من" />
+        <Input type="date" value={fTo} onChange={(e) => setFTo(e.target.value)} placeholder="إلى" />
+      </div>
+      <div className="overflow-auto max-h-[600px]">
         <Table>
           <TableHeader><TableRow><TableHead>التاريخ</TableHead><TableHead>الأسرة</TableHead><TableHead>البيض</TableHead><TableHead>ملاحظات</TableHead><TableHead></TableHead></TableRow></TableHeader>
           <TableBody>
-            {eggs.map((e: any) => (
+            {filtered.slice(0, 500).map((e: any) => (
               <TableRow key={e.id}>
                 <TableCell>{e.production_date}</TableCell>
                 <TableCell>{familyName(e.family_id)}</TableCell>
@@ -274,9 +296,10 @@ const EggsTab = ({ eggs, families, qc }: any) => {
                 <TableCell><Button size="icon" variant="ghost" onClick={() => del.mutate(e.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button></TableCell>
               </TableRow>
             ))}
-            {eggs.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">لا يوجد إنتاج مسجل</TableCell></TableRow>}
+            {filtered.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">لا يوجد إنتاج مطابق</TableCell></TableRow>}
           </TableBody>
         </Table>
+        {filtered.length > 500 && <p className="text-xs text-center text-muted-foreground py-2">عرض أول 500 من {filtered.length}</p>}
       </div>
     </Card>
   );
