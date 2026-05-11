@@ -54,6 +54,7 @@ interface Order {
   status: OrderStatus;
   payment_method: string;
   payment_status: string;
+  collection_status: string;
   subtotal: number;
   discount: number;
   delivery_fee: number;
@@ -94,7 +95,7 @@ const paymentStatusLabels: Record<string, string> = {
 };
 
 const Orders = () => {
-  const { isShippingCompany, canUpdateOrderStatusForOrder } = useAuth();
+  const { isShippingCompany, isAccountant, canUpdateOrderStatusForOrder } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -178,6 +179,7 @@ const Orders = () => {
         status: order.status as OrderStatus,
         payment_method: order.payment_method,
         payment_status: order.payment_status,
+        collection_status: (order as any).collection_status || 'not_collected',
         subtotal: Number(order.subtotal),
         discount: Number(order.discount),
         delivery_fee: Number(order.delivery_fee),
@@ -261,6 +263,21 @@ const Orders = () => {
     } catch (error) {
       console.error('Error updating order status:', error);
       toast.error('حدث خطأ أثناء تحديث الحالة');
+    }
+  };
+
+  const handleCollectionChange = async (orderId: string, value: string) => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ collection_status: value } as any)
+        .eq('id', orderId);
+      if (error) throw error;
+      setOrders(orders.map(o => o.id === orderId ? { ...o, collection_status: value } : o));
+      toast.success(value === 'collected' ? 'تم تحديث حالة التحصيل: تم التحصيل' : 'تم تحديث حالة التحصيل: لم يتم التحصيل');
+    } catch (e) {
+      console.error(e);
+      toast.error('تعذّر تحديث حالة التحصيل');
     }
   };
 
@@ -371,6 +388,7 @@ const Orders = () => {
                 <TableHead className="text-right">طريقة الدفع</TableHead>
                 <TableHead className="text-right">حالة الدفع</TableHead>
                 <TableHead className="text-right">الحالة</TableHead>
+                <TableHead className="text-right">التحصيل</TableHead>
                 <TableHead className="text-right">التاريخ</TableHead>
                 <TableHead className="text-right">التوقيت</TableHead>
                 <TableHead className="text-right">الإجراءات</TableHead>
@@ -379,7 +397,7 @@ const Orders = () => {
             <TableBody>
               {filteredOrders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
                     لا توجد طلبات
                   </TableCell>
                 </TableRow>
@@ -442,6 +460,40 @@ const Orders = () => {
                             ))}
                         </SelectContent>
                       </Select>
+                    </TableCell>
+                    <TableCell>
+                      {isAccountant ? (
+                        <Select
+                          value={order.collection_status}
+                          onValueChange={(v) => handleCollectionChange(order.id, v)}
+                        >
+                          <SelectTrigger className="w-36">
+                            <Badge
+                              className={
+                                order.collection_status === 'collected'
+                                  ? 'bg-success text-success-foreground'
+                                  : 'bg-warning text-warning-foreground'
+                              }
+                            >
+                              {order.collection_status === 'collected' ? 'تم التحصيل' : 'لم يتم التحصيل'}
+                            </Badge>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="collected">تم التحصيل</SelectItem>
+                            <SelectItem value="not_collected">لم يتم التحصيل</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Badge
+                          className={
+                            order.collection_status === 'collected'
+                              ? 'bg-success text-success-foreground'
+                              : 'bg-warning text-warning-foreground'
+                          }
+                        >
+                          {order.collection_status === 'collected' ? 'تم التحصيل' : 'لم يتم التحصيل'}
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {new Date(order.created_at).toLocaleDateString('ar-EG')}
