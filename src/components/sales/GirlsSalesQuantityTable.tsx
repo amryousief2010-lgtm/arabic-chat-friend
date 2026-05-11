@@ -1,27 +1,30 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ClipboardList } from 'lucide-react';
 
 const GIRLS = ['اية', 'نورا', 'سارة', 'منال'];
 
-type FieldKey = 'meat_qty' | 'meat_price' | 'processed_qty' | 'processed_price';
-
 interface GirlData {
   meat_qty: number;
-  meat_price: number;
   processed_qty: number;
+}
+
+interface Prices {
+  meat_price: number;
   processed_price: number;
 }
 
+const STORAGE_KEY = 'girls-sales-quantity-table-v2';
+const PRICES_KEY = 'girls-sales-prices';
+
 const emptyData = (): Record<string, GirlData> =>
   GIRLS.reduce((acc, g) => {
-    acc[g] = { meat_qty: 0, meat_price: 390, processed_qty: 0, processed_price: 160 };
+    acc[g] = { meat_qty: 0, processed_qty: 0 };
     return acc;
   }, {} as Record<string, GirlData>);
-
-const STORAGE_KEY = 'girls-sales-quantity-table';
 
 const GirlsSalesQuantityTable = () => {
   const [data, setData] = useState<Record<string, GirlData>>(() => {
@@ -32,57 +35,46 @@ const GirlsSalesQuantityTable = () => {
     return emptyData();
   });
 
-  const update = (girl: string, field: FieldKey, value: number) => {
-    setData(prev => {
-      const next = { ...prev, [girl]: { ...prev[girl], [field]: value } };
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch {}
-      return next;
-    });
+  const [prices, setPrices] = useState<Prices>(() => {
+    try {
+      const saved = localStorage.getItem(PRICES_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return { meat_price: 390, processed_price: 160 };
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
+  }, [data]);
+
+  useEffect(() => {
+    try { localStorage.setItem(PRICES_KEY, JSON.stringify(prices)); } catch {}
+  }, [prices]);
+
+  const updateQty = (girl: string, field: keyof GirlData, value: number) => {
+    setData(prev => ({ ...prev, [girl]: { ...prev[girl], [field]: value } }));
   };
 
   const totals = useMemo(() => {
     return GIRLS.reduce((acc, g) => {
       const d = data[g];
       acc[g] = {
-        meat_total: d.meat_qty * d.meat_price,
-        processed_total: d.processed_qty * d.processed_price,
+        meat_total: d.meat_qty * prices.meat_price,
+        processed_total: d.processed_qty * prices.processed_price,
       };
       return acc;
     }, {} as Record<string, { meat_total: number; processed_total: number }>);
-  }, [data]);
+  }, [data, prices]);
 
-  const numInput = (girl: string, field: FieldKey) => (
+  const qtyInput = (girl: string, field: keyof GirlData) => (
     <Input
       type="number"
       min="0"
       value={data[girl][field] || ''}
-      onChange={(e) => update(girl, field, Number(e.target.value) || 0)}
-      className="w-24 text-center"
+      onChange={(e) => updateQty(girl, field, Number(e.target.value) || 0)}
+      className="w-24 text-center mx-auto"
     />
   );
-
-  const rows: { label: string; render: (g: string) => React.ReactNode }[] = [
-    { label: 'كمية مبيعات اللحوم (كجم)', render: (g) => numInput(g, 'meat_qty') },
-    { label: 'سعر كيلو اللحوم', render: (g) => numInput(g, 'meat_price') },
-    {
-      label: 'مبلغ اللحوم (ج.م)',
-      render: (g) => (
-        <span className="font-bold text-primary">
-          {totals[g].meat_total.toLocaleString()}
-        </span>
-      ),
-    },
-    { label: 'كمية المصنعات (كجم)', render: (g) => numInput(g, 'processed_qty') },
-    { label: 'سعر كيلو المصنعات', render: (g) => numInput(g, 'processed_price') },
-    {
-      label: 'مبلغ المصنعات (ج.م)',
-      render: (g) => (
-        <span className="font-bold text-primary">
-          {totals[g].processed_total.toLocaleString()}
-        </span>
-      ),
-    },
-  ];
 
   return (
     <Card>
@@ -92,30 +84,72 @@ const GirlsSalesQuantityTable = () => {
           جدول مبيعات المسوقات (اللحوم والمصنعات)
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
+        {/* Price controls */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-lg bg-muted/40 border">
+          <div className="space-y-2">
+            <Label>سعر كيلو اللحوم (ج.م)</Label>
+            <Input
+              type="number"
+              min="0"
+              value={prices.meat_price || ''}
+              onChange={(e) => setPrices(p => ({ ...p, meat_price: Number(e.target.value) || 0 }))}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>سعر كيلو المصنعات (ج.م)</Label>
+            <Input
+              type="number"
+              min="0"
+              value={prices.processed_price || ''}
+              onChange={(e) => setPrices(p => ({ ...p, processed_price: Number(e.target.value) || 0 }))}
+            />
+          </div>
+        </div>
+
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="text-right font-bold">البيان</TableHead>
                 {GIRLS.map((g) => (
-                  <TableHead key={g} className="text-center font-bold text-primary">
-                    {g}
-                  </TableHead>
+                  <TableHead key={g} className="text-center font-bold text-primary">{g}</TableHead>
                 ))}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((row) => (
-                <TableRow key={row.label}>
-                  <TableCell className="font-medium">{row.label}</TableCell>
-                  {GIRLS.map((g) => (
-                    <TableCell key={g} className="text-center">
-                      {row.render(g)}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
+              <TableRow>
+                <TableCell className="font-medium">كمية مبيعات اللحوم (كجم)</TableCell>
+                {GIRLS.map(g => <TableCell key={g} className="text-center">{qtyInput(g, 'meat_qty')}</TableCell>)}
+              </TableRow>
+              <TableRow>
+                <TableCell className="font-medium">سعر كيلو اللحوم</TableCell>
+                {GIRLS.map(g => <TableCell key={g} className="text-center">{prices.meat_price.toLocaleString()}</TableCell>)}
+              </TableRow>
+              <TableRow>
+                <TableCell className="font-medium">مبلغ اللحوم (ج.م)</TableCell>
+                {GIRLS.map(g => (
+                  <TableCell key={g} className="text-center font-bold text-primary">
+                    {totals[g].meat_total.toLocaleString()}
+                  </TableCell>
+                ))}
+              </TableRow>
+              <TableRow>
+                <TableCell className="font-medium">كمية المصنعات (كجم)</TableCell>
+                {GIRLS.map(g => <TableCell key={g} className="text-center">{qtyInput(g, 'processed_qty')}</TableCell>)}
+              </TableRow>
+              <TableRow>
+                <TableCell className="font-medium">سعر كيلو المصنعات</TableCell>
+                {GIRLS.map(g => <TableCell key={g} className="text-center">{prices.processed_price.toLocaleString()}</TableCell>)}
+              </TableRow>
+              <TableRow>
+                <TableCell className="font-medium">مبلغ المصنعات (ج.م)</TableCell>
+                {GIRLS.map(g => (
+                  <TableCell key={g} className="text-center font-bold text-primary">
+                    {totals[g].processed_total.toLocaleString()}
+                  </TableCell>
+                ))}
+              </TableRow>
             </TableBody>
           </Table>
         </div>
