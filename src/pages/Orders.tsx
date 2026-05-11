@@ -177,13 +177,26 @@ const Orders = () => {
     const matchesSearch =
       order.order_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.customer_name.toLowerCase().includes(searchQuery.toLowerCase());
-    const year = new Date(order.created_at).getFullYear();
-    const matchesYear =
+    const d = new Date(order.created_at);
+    const year = d.getFullYear();
+    const month = d.getMonth() + 1;
+    const matchesYearGroup =
       yearGroup === "all" ||
       (yearGroup === "2026" && year >= 2026) ||
       (yearGroup === "pre2026" && year < 2026);
-    return matchesStatus && matchesSearch && matchesYear;
+    const matchesMonth = filterMonth === "all" || String(month) === filterMonth;
+    const matchesYear = filterYear === "all" || String(year) === filterYear;
+    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear;
   });
+
+  const availableYears = Array.from(
+    new Set(orders.map((o) => new Date(o.created_at).getFullYear()))
+  ).sort((a, b) => b - a);
+
+  const monthNames = [
+    "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
+    "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
+  ];
 
   const counts = {
     all: orders.length,
