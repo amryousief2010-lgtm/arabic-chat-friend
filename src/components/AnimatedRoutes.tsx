@@ -130,7 +130,7 @@ const AnimatedRoutes = () => {
           </ProtectedRoute>
         } />
         <Route path="/low-stock" element={
-          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'warehouse_supervisor', 'marketing_sales_manager', 'production_manager', 'quality_manager']}>
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'warehouse_supervisor', 'marketing_sales_manager', 'production_manager', 'quality_manager', 'sales_moderator']}>
             <PageTransition><LowStock /></PageTransition>
           </ProtectedRoute>
         } />
@@ -193,12 +193,12 @@ const AnimatedRoutes = () => {
           </ProtectedRoute>
         } />
         <Route path="/modules/warehouses" element={
-          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager', 'quality_manager']}>
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager', 'quality_manager', 'sales_moderator']}>
             <PageTransition><Warehouses /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/modules/warehouses/dashboard" element={
-          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager', 'quality_manager']}>
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager', 'quality_manager', 'sales_moderator']}>
             <PageTransition><WarehouseDashboard /></PageTransition>
           </ProtectedRoute>
         } />
