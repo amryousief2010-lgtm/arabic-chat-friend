@@ -282,10 +282,10 @@ const GirlsSalesQuantityTable = () => {
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead className="text-right font-bold">البيان</TableHead>
+              <TableRow className="bg-[hsl(140_60%_85%)] hover:bg-[hsl(140_60%_80%)]">
+                <TableHead className="text-right font-bold text-[hsl(140_70%_25%)]">البيان</TableHead>
                 {GIRLS.map((g) => (
-                  <TableHead key={g} className="text-center font-bold text-primary">{g}</TableHead>
+                  <TableHead key={g} className="text-center font-bold text-[hsl(140_70%_25%)]">{g}</TableHead>
                 ))}
               </TableRow>
             </TableHeader>
