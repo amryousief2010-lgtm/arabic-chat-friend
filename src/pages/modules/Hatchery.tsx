@@ -14,11 +14,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import {
-  FlaskConical, Plus, Users, Wrench, Bird, Activity, TrendingUp, Trash2, Pencil, AlertTriangle,
+  FlaskConical, Plus, Users, Wrench, Bird, Activity, TrendingUp, Trash2, Pencil, AlertTriangle, BarChart3,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
 
 const today = () => format(new Date(), "yyyy-MM-dd");
 const monthStart = () => { const d = new Date(); d.setDate(1); return format(d, "yyyy-MM-dd"); };
@@ -113,9 +113,10 @@ const Hatchery = () => {
         </div>
 
         <Tabs defaultValue="batches" dir="rtl">
-          <TabsList className="grid grid-cols-2 md:grid-cols-6 w-full">
+          <TabsList className="grid grid-cols-2 md:grid-cols-7 w-full">
             <TabsTrigger value="batches"><FlaskConical className="w-4 h-4 ml-1" />الدفعات</TabsTrigger>
-            <TabsTrigger value="quality"><TrendingUp className="w-4 h-4 ml-1" />مقارنة الجودة</TabsTrigger>
+            <TabsTrigger value="charts"><BarChart3 className="w-4 h-4 ml-1" />تحليلات</TabsTrigger>
+            <TabsTrigger value="quality"><TrendingUp className="w-4 h-4 ml-1" />الجودة</TabsTrigger>
             <TabsTrigger value="customers"><Users className="w-4 h-4 ml-1" />العملاء</TabsTrigger>
             <TabsTrigger value="ops"><Activity className="w-4 h-4 ml-1" />التشغيل</TabsTrigger>
             <TabsTrigger value="maint"><Wrench className="w-4 h-4 ml-1" />الصيانة</TabsTrigger>
@@ -123,6 +124,7 @@ const Hatchery = () => {
           </TabsList>
 
           <TabsContent value="batches"><BatchesTab batches={batches} customers={customers} qc={qc} /></TabsContent>
+          <TabsContent value="charts"><BatchesChartsTab batches={batches} customers={customers} /></TabsContent>
           <TabsContent value="quality"><QualityTab stats={stats} /></TabsContent>
           <TabsContent value="customers"><CustomersTab customers={customers} qc={qc} /></TabsContent>
           <TabsContent value="ops"><OpsTab ops={ops} qc={qc} /></TabsContent>
