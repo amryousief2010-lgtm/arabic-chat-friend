@@ -266,6 +266,21 @@ const Orders = () => {
     }
   };
 
+  const handleCollectionChange = async (orderId: string, value: string) => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ collection_status: value } as any)
+        .eq('id', orderId);
+      if (error) throw error;
+      setOrders(orders.map(o => o.id === orderId ? { ...o, collection_status: value } : o));
+      toast.success(value === 'collected' ? 'تم تحديث حالة التحصيل: تم التحصيل' : 'تم تحديث حالة التحصيل: لم يتم التحصيل');
+    } catch (e) {
+      console.error(e);
+      toast.error('تعذّر تحديث حالة التحصيل');
+    }
+  };
+
   const getStatusIcon = (status: OrderStatus) => {
     switch (status) {
       case "pending":
