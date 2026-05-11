@@ -676,10 +676,10 @@ const MaintTab = ({ maint, qc }: any) => {
 // ============ CHICKS ============
 const ChicksTab = ({ chicks, qc }: any) => {
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState<any>({ movement_date: today(), source: "", incoming: 0, outgoing: 0, dead: 0, sold: 0, unit_price: 0, notes: "" });
+  const [form, setForm] = useState<any>({ movement_date: today(), source: "", incoming: 0, outgoing: 0, dead: 0, sold: 0, unit_price: 0, age_days: 0, notes: "" });
   const save = useMutation({
     mutationFn: async () => { const { error } = await supabase.from("chick_movements").insert(form); if (error) throw error; },
-    onSuccess: () => { toast.success("تم"); setOpen(false); setForm({ movement_date: today(), source: "", incoming: 0, outgoing: 0, dead: 0, sold: 0, unit_price: 0, notes: "" }); qc.invalidateQueries({ queryKey: ["chick_movements"] }); },
+    onSuccess: () => { toast.success("تم"); setOpen(false); setForm({ movement_date: today(), source: "", incoming: 0, outgoing: 0, dead: 0, sold: 0, unit_price: 0, age_days: 0, notes: "" }); qc.invalidateQueries({ queryKey: ["chick_movements"] }); qc.invalidateQueries({ queryKey: ["production-stats"] }); },
     onError: (e: any) => toast.error(e.message),
   });
   const del = useMutation({ mutationFn: async (id: string) => { const { error } = await supabase.from("chick_movements").delete().eq("id", id); if (error) throw error; }, onSuccess: () => qc.invalidateQueries({ queryKey: ["chick_movements"] }) });
