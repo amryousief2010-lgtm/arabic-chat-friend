@@ -62,6 +62,18 @@ const ModeratorOrdersBreakdown = () => {
     },
   });
 
+  useEffect(() => {
+    const channel = supabase
+      .channel('moderator-orders-breakdown')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['moderator-orders-breakdown'] });
+      })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
   return (
     <Card>
       <CardHeader>
