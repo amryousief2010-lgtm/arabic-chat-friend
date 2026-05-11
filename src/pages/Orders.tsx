@@ -61,6 +61,8 @@ interface Order {
   notes: string | null;
   delivery_address: string | null;
   created_at: string;
+  created_by: string | null;
+  moderator_name: string;
   items: OrderItem[];
 }
 
@@ -136,6 +138,20 @@ const Orders = () => {
 
       if (itemsError) throw itemsError;
 
+      const creatorIds = Array.from(
+        new Set((ordersData || []).map((o: any) => o.created_by).filter(Boolean))
+      );
+      let profilesMap: Record<string, string> = {};
+      if (creatorIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', creatorIds as string[]);
+        profilesMap = Object.fromEntries(
+          (profilesData || []).map((p: any) => [p.id, p.full_name])
+        );
+      }
+
       const formattedOrders: Order[] = (ordersData || []).map(order => ({
         id: order.id,
         order_number: order.order_number,
@@ -151,6 +167,11 @@ const Orders = () => {
         notes: order.notes,
         delivery_address: order.delivery_address,
         created_at: order.created_at,
+        created_by: order.created_by,
+        moderator_name:
+          (order.created_by && profilesMap[order.created_by]) ||
+          order.moderator ||
+          '-',
         items: (itemsData || [])
           .filter(item => item.order_id === order.id)
           .map(item => ({
@@ -326,6 +347,7 @@ const Orders = () => {
               <TableRow>
                 <TableHead className="text-right">رقم الطلب</TableHead>
                 <TableHead className="text-right">العميل</TableHead>
+                <TableHead className="text-right">الموديريتور</TableHead>
                 <TableHead className="text-right">المنتجات</TableHead>
                 <TableHead className="text-right">الإجمالي</TableHead>
                 <TableHead className="text-right">طريقة الدفع</TableHead>
@@ -338,7 +360,7 @@ const Orders = () => {
             <TableBody>
               {filteredOrders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                     لا توجد طلبات
                   </TableCell>
                 </TableRow>
@@ -349,6 +371,9 @@ const Orders = () => {
                       {order.order_number}
                     </TableCell>
                     <TableCell>{order.customer_name}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">{order.moderator_name}</Badge>
+                    </TableCell>
                     <TableCell>
                       <span className="text-muted-foreground">
                         {order.items.length} منتج
