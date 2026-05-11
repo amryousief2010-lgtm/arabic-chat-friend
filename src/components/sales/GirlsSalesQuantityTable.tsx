@@ -24,7 +24,9 @@ const validateNumber = (value: number, label: string): number | null => {
 const GIRLS = ['اية', 'نورا', 'سارة', 'منال'];
 
 // Keywords used to identify meat (boneless/cut) products
-const MEAT_KEYWORDS = ['قطع', 'استيك', 'موزة', 'فراشة', 'قطعية', 'دبوس', 'تربيانكو', 'اسكالوب', 'رول', 'كباب', 'طبق'];
+const MEAT_KEYWORDS = ['قطع', 'استيك', 'موزة', 'فراشة', 'قطعية', 'تربيانكو', 'اسكالوب', 'رول', 'كباب', 'طبق'];
+// Keywords used to identify bone-in meat products (دبوس 6 كيلو، فخدة نعام، نعامة صندوق)
+const BONE_MEAT_KEYWORDS = ['دبوس 6', 'فخده', 'فخذه', 'فخدة', 'نعامه صندوق', 'نعامة صندوق'];
 
 const months = [
   { value: 1, label: 'يناير' }, { value: 2, label: 'فبراير' }, { value: 3, label: 'مارس' },
@@ -94,11 +96,14 @@ const GirlsSalesQuantityTable = () => {
   }, [prices]);
 
   // Fetch delivered orders + items for the selected month
-  const { data: meatQtyByGirl = {} } = useQuery({
-    queryKey: ['girls-meat-qty', selectedMonth, selectedYear],
+  const { data: autoQtyByGirl = { meat: {}, bone: {} } } = useQuery({
+    queryKey: ['girls-auto-qty', selectedMonth, selectedYear],
     queryFn: async () => {
       const startDate = new Date(selectedYear, selectedMonth - 1, 1).toISOString();
       const endDate = new Date(selectedYear, selectedMonth, 0, 23, 59, 59).toISOString();
+
+      const empty = () => GIRLS.reduce((acc, g) => { acc[g] = 0; return acc; }, {} as Record<string, number>);
+      const result = { meat: empty(), bone: empty() };
 
       const { data: orders, error } = await supabase
         .from('orders')
@@ -107,12 +112,8 @@ const GirlsSalesQuantityTable = () => {
         .gte('created_at', startDate)
         .lte('created_at', endDate);
       if (error) throw error;
+      if (!orders || orders.length === 0) return result;
 
-      if (!orders || orders.length === 0) {
-        return GIRLS.reduce((acc, g) => { acc[g] = 0; return acc; }, {} as Record<string, number>);
-      }
-
-      // Fetch profile names for created_by
       const userIds = Array.from(new Set(orders.map(o => o.created_by).filter(Boolean))) as string[];
       let profileMap = new Map<string, string>();
       if (userIds.length > 0) {
@@ -120,7 +121,6 @@ const GirlsSalesQuantityTable = () => {
         profileMap = new Map((profiles || []).map(p => [p.id, p.full_name]));
       }
 
-      // Map order_id -> girl
       const orderToGirl = new Map<string, string>();
       orders.forEach(o => {
         const modName = o.moderator || '';
@@ -130,9 +130,7 @@ const GirlsSalesQuantityTable = () => {
       });
 
       const orderIds = Array.from(orderToGirl.keys());
-      if (orderIds.length === 0) {
-        return GIRLS.reduce((acc, g) => { acc[g] = 0; return acc; }, {} as Record<string, number>);
-      }
+      if (orderIds.length === 0) return result;
 
       const { data: items, error: itemsError } = await supabase
         .from('order_items')
@@ -140,30 +138,37 @@ const GirlsSalesQuantityTable = () => {
         .in('order_id', orderIds);
       if (itemsError) throw itemsError;
 
-      const result = GIRLS.reduce((acc, g) => { acc[g] = 0; return acc; }, {} as Record<string, number>);
       (items || []).forEach(item => {
         const girl = orderToGirl.get(item.order_id);
         if (!girl) return;
         const pname = normalize(item.product_name || '');
-        const isMeat = MEAT_KEYWORDS.some(k => pname.includes(normalize(k)));
-        if (isMeat) {
-          result[girl] += Number(item.quantity) || 0;
+        const qty = Number(item.quantity) || 0;
+        const isBone = BONE_MEAT_KEYWORDS.some(k => pname.includes(normalize(k)));
+        if (isBone) {
+          result.bone[girl] += qty;
+          return;
         }
+        const isMeat = MEAT_KEYWORDS.some(k => pname.includes(normalize(k)));
+        if (isMeat) result.meat[girl] += qty;
       });
       return result;
     },
     refetchInterval: 60000,
   });
 
+  const meatQtyByGirl = autoQtyByGirl.meat;
+  const boneMeatQtyByGirl = autoQtyByGirl.bone;
+
+
   // Realtime: refetch on order/items changes
   useEffect(() => {
     const channel = supabase
-      .channel('girls-meat-qty-realtime')
+      .channel('girls-auto-qty-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['girls-meat-qty'] });
+        queryClient.invalidateQueries({ queryKey: ['girls-auto-qty'] });
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['girls-meat-qty'] });
+        queryClient.invalidateQueries({ queryKey: ['girls-auto-qty'] });
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -184,16 +189,18 @@ const GirlsSalesQuantityTable = () => {
   const totals = useMemo(() => {
     return GIRLS.reduce((acc, g) => {
       const meatQty = meatQtyByGirl[g] || 0;
+      const boneQty = boneMeatQtyByGirl[g] || 0;
       const d = data[g];
       acc[g] = {
         meat_qty: meatQty,
         meat_total: meatQty * prices.meat_price,
-        bone_meat_total: d.bone_meat_qty * prices.bone_meat_price,
+        bone_meat_qty: boneQty,
+        bone_meat_total: boneQty * prices.bone_meat_price,
         processed_total: d.processed_qty * prices.processed_price,
       };
       return acc;
-    }, {} as Record<string, { meat_qty: number; meat_total: number; bone_meat_total: number; processed_total: number }>);
-  }, [data, prices, meatQtyByGirl]);
+    }, {} as Record<string, { meat_qty: number; meat_total: number; bone_meat_qty: number; bone_meat_total: number; processed_total: number }>);
+  }, [data, prices, meatQtyByGirl, boneMeatQtyByGirl]);
 
   const labelMap: Record<keyof GirlData, string> = {
     bone_meat_qty: 'كمية اللحوم بالعظم',
@@ -266,7 +273,7 @@ const GirlsSalesQuantityTable = () => {
         </div>
 
         <p className="text-xs text-muted-foreground">
-          كمية اللحوم تُحسب تلقائياً من الأوردرات المسلَّمة (قطع، استيك، موزة، فراشة، قطعية الدبوس، تربيانكو، اسكالوب، رول، كباب، طبق).
+          كمية اللحوم وكمية اللحوم بالعظم تُحسبان تلقائياً من الأوردرات المسلَّمة. (اللحوم: قطع، استيك، موزة، فراشة، قطعية الدبوس، تربيانكو، اسكالوب، رول، كباب، طبق — اللحوم بالعظم: دبوس 6 كيلو، فخدة نعام، نعامة صندوق).
         </p>
 
         <div className="overflow-x-auto">
@@ -302,7 +309,11 @@ const GirlsSalesQuantityTable = () => {
               </TableRow>
               <TableRow>
                 <TableCell className="font-medium">كمية اللحوم بالعظم (كجم)</TableCell>
-                {GIRLS.map(g => <TableCell key={g} className="text-center">{qtyInput(g, 'bone_meat_qty')}</TableCell>)}
+                {GIRLS.map(g => (
+                  <TableCell key={g} className="text-center font-bold">
+                    {totals[g].bone_meat_qty.toLocaleString()}
+                  </TableCell>
+                ))}
               </TableRow>
               <TableRow>
                 <TableCell className="font-medium">سعر كيلو اللحوم بالعظم</TableCell>
