@@ -388,6 +388,7 @@ const Orders = () => {
                 <TableHead className="text-right">طريقة الدفع</TableHead>
                 <TableHead className="text-right">حالة الدفع</TableHead>
                 <TableHead className="text-right">الحالة</TableHead>
+                <TableHead className="text-right">التحصيل</TableHead>
                 <TableHead className="text-right">التاريخ</TableHead>
                 <TableHead className="text-right">التوقيت</TableHead>
                 <TableHead className="text-right">الإجراءات</TableHead>
@@ -396,7 +397,7 @@ const Orders = () => {
             <TableBody>
               {filteredOrders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
                     لا توجد طلبات
                   </TableCell>
                 </TableRow>
