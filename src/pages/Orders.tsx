@@ -394,18 +394,9 @@ const Orders = () => {
                       <Badge variant="secondary">{order.moderator_name}</Badge>
                     </TableCell>
                     <TableCell>
-                      {order.items.length === 0 ? (
-                        <span className="text-muted-foreground text-xs">—</span>
-                      ) : (
-                        <ul className="flex flex-col gap-0.5 text-sm leading-tight">
-                          {order.items.map((it: any, idx: number) => (
-                            <li key={idx} className="text-foreground">
-                              {it.product_name}
-                              {Number(it.quantity) > 1 ? ` ×${Number(it.quantity)}` : ''}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
+                      <span className="text-muted-foreground">
+                        {order.items.length} منتج
+                      </span>
                     </TableCell>
                     <TableCell className="font-bold">{order.total.toLocaleString()} ج.م</TableCell>
                     <TableCell>
