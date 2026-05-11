@@ -354,13 +354,14 @@ const Orders = () => {
                 <TableHead className="text-right">حالة الدفع</TableHead>
                 <TableHead className="text-right">الحالة</TableHead>
                 <TableHead className="text-right">التاريخ</TableHead>
+                <TableHead className="text-right">التوقيت</TableHead>
                 <TableHead className="text-right">الإجراءات</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredOrders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                     لا توجد طلبات
                   </TableCell>
                 </TableRow>
@@ -426,6 +427,12 @@ const Orders = () => {
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {new Date(order.created_at).toLocaleDateString('ar-EG')}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground font-mono">
+                      {new Date(order.created_at).toLocaleTimeString('ar-EG', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
                     </TableCell>
                     <TableCell>
                       <Button
