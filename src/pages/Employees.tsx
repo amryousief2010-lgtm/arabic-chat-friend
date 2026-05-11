@@ -449,12 +449,24 @@ const Employees = () => {
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="max-h-72">
+                      <SelectItem value="general_manager">مدير عام</SelectItem>
+                      <SelectItem value="executive_manager">مدير تنفيذي</SelectItem>
+                      <SelectItem value="production_manager">مدير الإنتاج والتشغيل</SelectItem>
+                      <SelectItem value="marketing_sales_manager">مدير التسويق والمبيعات</SelectItem>
+                      <SelectItem value="financial_manager">المدير المالي</SelectItem>
+                      <SelectItem value="quality_manager">مدير الجودة</SelectItem>
+                      <SelectItem value="sales_manager">مدير مبيعات</SelectItem>
                       <SelectItem value="sales_moderator">مودريتور مبيعات</SelectItem>
                       <SelectItem value="accountant">محاسب</SelectItem>
                       <SelectItem value="warehouse_supervisor">مشرف مخازن</SelectItem>
-                      <SelectItem value="executive_manager">مدير تنفيذي</SelectItem>
-                      <SelectItem value="general_manager">مدير عام</SelectItem>
+                      <SelectItem value="farm_manager">مدير المزرعة</SelectItem>
+                      <SelectItem value="hatchery_manager">مدير المعمل</SelectItem>
+                      <SelectItem value="brooding_manager">مدير التحضين</SelectItem>
+                      <SelectItem value="slaughterhouse_manager">مدير المجزر</SelectItem>
+                      <SelectItem value="meat_factory_manager">مدير مصنع اللحوم</SelectItem>
+                      <SelectItem value="feed_factory_manager">مدير مصنع الأعلاف</SelectItem>
+                      <SelectItem value="hr_manager">مدير الموارد البشرية</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
