@@ -27,6 +27,8 @@ const GIRLS = ['اية', 'نورا', 'سارة', 'منال'];
 const MEAT_KEYWORDS = ['قطع', 'استيك', 'موزة', 'فراشة', 'قطعية', 'تربيانكو', 'اسكالوب', 'رول', 'كباب', 'طبق'];
 // Keywords used to identify bone-in meat products (دبوس 6 كيلو، فخدة نعام، نعامة صندوق)
 const BONE_MEAT_KEYWORDS = ['دبوس 6', 'فخده', 'فخذه', 'فخدة', 'نعامه صندوق', 'نعامة صندوق'];
+// Keywords used to identify processed products
+const PROCESSED_KEYWORDS = ['شاورما', 'شيش', 'كفته', 'كفتة', 'سجق', 'برجر', 'طرب', 'حواشي', 'حواشى', 'مفروم'];
 
 const months = [
   { value: 1, label: 'يناير' }, { value: 2, label: 'فبراير' }, { value: 3, label: 'مارس' },
