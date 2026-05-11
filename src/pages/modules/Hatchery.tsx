@@ -735,7 +735,7 @@ const ChicksTab = ({ chicks, qc }: any) => {
           </Dialog>
         </div>
         <Table>
-          <TableHeader><TableRow><TableHead>التاريخ</TableHead><TableHead>المصدر</TableHead><TableHead>وارد</TableHead><TableHead>منصرف</TableHead><TableHead>نافق</TableHead><TableHead>مباع</TableHead><TableHead>سعر</TableHead><TableHead>إجمالي بيع</TableHead><TableHead></TableHead></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead>التاريخ</TableHead><TableHead>المصدر</TableHead><TableHead>وارد</TableHead><TableHead>منصرف</TableHead><TableHead>نافق</TableHead><TableHead>مباع</TableHead><TableHead>العمر (يوم)</TableHead><TableHead>سعر</TableHead><TableHead>إجمالي بيع</TableHead><TableHead></TableHead></TableRow></TableHeader>
           <TableBody>
             {chicks.map((c: any) => (
               <TableRow key={c.id}>
@@ -745,12 +745,13 @@ const ChicksTab = ({ chicks, qc }: any) => {
                 <TableCell>{c.outgoing}</TableCell>
                 <TableCell className="text-destructive">{c.dead}</TableCell>
                 <TableCell className="text-emerald-600">{c.sold}</TableCell>
+                <TableCell>{c.age_days || "-"}</TableCell>
                 <TableCell>{c.unit_price}</TableCell>
-                <TableCell className="font-bold">{c.sold * c.unit_price}</TableCell>
+                <TableCell className="font-bold">{(c.sold * c.unit_price).toLocaleString()}</TableCell>
                 <TableCell><Button size="icon" variant="ghost" onClick={() => del.mutate(c.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button></TableCell>
               </TableRow>
             ))}
-            {chicks.length === 0 && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-6">لا توجد حركة</TableCell></TableRow>}
+            {chicks.length === 0 && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-6">لا توجد حركة</TableCell></TableRow>}
           </TableBody>
         </Table>
       </Card>
