@@ -372,6 +372,9 @@ const Orders = () => {
                     </TableCell>
                     <TableCell>{order.customer_name}</TableCell>
                     <TableCell>
+                      <Badge variant="secondary">{order.moderator_name}</Badge>
+                    </TableCell>
+                    <TableCell>
                       <span className="text-muted-foreground">
                         {order.items.length} منتج
                       </span>
