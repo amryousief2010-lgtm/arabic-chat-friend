@@ -184,6 +184,7 @@ const OrderDetails = () => {
         created_by_name: createdByName,
         items: (itemsData || []).map(item => ({
           id: item.id,
+          product_id: (item as any).product_id ?? null,
           product_name: item.product_name,
           quantity: Number(item.quantity),
           unit_price: Number(item.unit_price),
