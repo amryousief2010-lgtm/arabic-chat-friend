@@ -45,9 +45,9 @@ const GirlsSalesQuantityTable = () => {
   const [prices, setPrices] = useState<Prices>(() => {
     try {
       const saved = localStorage.getItem(PRICES_KEY);
-      if (saved) return { meat_price: 390, bone_meat_price: 0, processed_price: 160, ...JSON.parse(saved) };
+      if (saved) return { meat_price: 390, bone_meat_price: 350, processed_price: 160, ...JSON.parse(saved) };
     } catch {}
-    return { meat_price: 390, bone_meat_price: 0, processed_price: 160 };
+    return { meat_price: 390, bone_meat_price: 350, processed_price: 160 };
   });
 
   useEffect(() => {
