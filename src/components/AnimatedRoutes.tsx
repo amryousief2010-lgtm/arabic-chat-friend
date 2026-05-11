@@ -20,6 +20,7 @@ import OfferBoxes from "@/pages/OfferBoxes";
 import SeedUsers from "@/pages/SeedUsers";
 import Permissions from "@/pages/Permissions";
 import LowStock from "@/pages/LowStock";
+import OrgChart from "@/pages/OrgChart";
 import NotFound from "@/pages/NotFound";
 import ImportSalesData from "@/pages/ImportSalesData";
 import ModeratorPerformance from "@/pages/ModeratorPerformance";
@@ -88,6 +89,11 @@ const AnimatedRoutes = () => {
         <Route path="/employees" element={
           <ProtectedRoute allowedRoles={['general_manager']}>
             <PageTransition><Employees /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/org-chart" element={
+          <ProtectedRoute>
+            <PageTransition><OrgChart /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/settings" element={

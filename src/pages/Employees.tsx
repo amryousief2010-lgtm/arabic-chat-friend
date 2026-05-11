@@ -73,6 +73,10 @@ const roleLabels: Record<AppRole, string> = {
   meat_factory_manager: 'مدير مصنع اللحوم',
   feed_factory_manager: 'مدير مصنع الأعلاف',
   hr_manager: 'مدير الموارد البشرية',
+  production_manager: 'مدير الإنتاج والتشغيل',
+  marketing_sales_manager: 'مدير التسويق والمبيعات',
+  financial_manager: 'المدير المالي',
+  quality_manager: 'مدير الجودة',
 };
 
 const roleBadgeVariants: Record<AppRole, 'default' | 'secondary' | 'outline' | 'destructive'> = {
@@ -89,6 +93,10 @@ const roleBadgeVariants: Record<AppRole, 'default' | 'secondary' | 'outline' | '
   meat_factory_manager: 'secondary',
   feed_factory_manager: 'secondary',
   hr_manager: 'secondary',
+  production_manager: 'default',
+  marketing_sales_manager: 'default',
+  financial_manager: 'default',
+  quality_manager: 'default',
 };
 
 const roleIcons: Record<AppRole, React.ElementType> = {
@@ -105,13 +113,17 @@ const roleIcons: Record<AppRole, React.ElementType> = {
   meat_factory_manager: Users,
   feed_factory_manager: Users,
   hr_manager: Users,
+  production_manager: UserCheck,
+  marketing_sales_manager: Users,
+  financial_manager: Calculator,
+  quality_manager: Shield,
 };
 
 const addEmployeeSchema = z.object({
   fullName: z.string().min(2, 'الاسم يجب أن يكون حرفين على الأقل').max(100),
   email: z.string().email('البريد الإلكتروني غير صالح').max(255),
   password: z.string().min(6, 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'),
-  role: z.enum(['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'accountant', 'warehouse_supervisor', 'farm_manager', 'hatchery_manager', 'brooding_manager', 'slaughterhouse_manager', 'meat_factory_manager', 'feed_factory_manager', 'hr_manager']),
+  role: z.enum(['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'accountant', 'warehouse_supervisor', 'farm_manager', 'hatchery_manager', 'brooding_manager', 'slaughterhouse_manager', 'meat_factory_manager', 'feed_factory_manager', 'hr_manager', 'production_manager', 'marketing_sales_manager', 'financial_manager', 'quality_manager']),
 });
 
 const Employees = () => {

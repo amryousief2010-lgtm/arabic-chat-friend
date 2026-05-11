@@ -24,6 +24,7 @@ import {
   Warehouse,
   ChevronDown,
   Megaphone,
+  Network,
   LucideIcon,
 } from "lucide-react";
 import { useAuth, AppRole } from "@/hooks/useAuth";
@@ -54,6 +55,7 @@ export const moduleSections: ModuleSection[] = [
     roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'accountant', 'warehouse_supervisor'],
     items: [
       { icon: LayoutDashboard, label: "لوحة التحكم", path: "/", roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'accountant', 'warehouse_supervisor'] },
+      { icon: Network, label: "الهيكل التنظيمي", path: "/org-chart", roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'accountant', 'warehouse_supervisor'] },
       { icon: Bell, label: "الإشعارات", path: "/notifications", roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'accountant', 'warehouse_supervisor'] },
     ],
   },
