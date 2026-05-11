@@ -15,7 +15,11 @@ export type AppRole =
   | 'slaughterhouse_manager'
   | 'meat_factory_manager'
   | 'feed_factory_manager'
-  | 'hr_manager';
+  | 'hr_manager'
+  | 'production_manager'
+  | 'marketing_sales_manager'
+  | 'financial_manager'
+  | 'quality_manager';
 
 interface AuthContextType {
   user: User | null;
