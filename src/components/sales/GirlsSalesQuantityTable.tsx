@@ -98,14 +98,14 @@ const GirlsSalesQuantityTable = () => {
   }, [prices]);
 
   // Fetch delivered orders + items for the selected month
-  const { data: autoQtyByGirl = { meat: {}, bone: {} } } = useQuery({
+  const { data: autoQtyByGirl = { meat: {}, bone: {}, processed: {} } } = useQuery({
     queryKey: ['girls-auto-qty', selectedMonth, selectedYear],
     queryFn: async () => {
       const startDate = new Date(selectedYear, selectedMonth - 1, 1).toISOString();
       const endDate = new Date(selectedYear, selectedMonth, 0, 23, 59, 59).toISOString();
 
       const empty = () => GIRLS.reduce((acc, g) => { acc[g] = 0; return acc; }, {} as Record<string, number>);
-      const result = { meat: empty(), bone: empty() };
+      const result = { meat: empty(), bone: empty(), processed: empty() };
 
       const { data: orders, error } = await supabase
         .from('orders')
@@ -146,10 +146,9 @@ const GirlsSalesQuantityTable = () => {
         const pname = normalize(item.product_name || '');
         const qty = Number(item.quantity) || 0;
         const isBone = BONE_MEAT_KEYWORDS.some(k => pname.includes(normalize(k)));
-        if (isBone) {
-          result.bone[girl] += qty;
-          return;
-        }
+        if (isBone) { result.bone[girl] += qty; return; }
+        const isProcessed = PROCESSED_KEYWORDS.some(k => pname.includes(normalize(k)));
+        if (isProcessed) { result.processed[girl] += qty; return; }
         const isMeat = MEAT_KEYWORDS.some(k => pname.includes(normalize(k)));
         if (isMeat) result.meat[girl] += qty;
       });
@@ -160,6 +159,7 @@ const GirlsSalesQuantityTable = () => {
 
   const meatQtyByGirl = autoQtyByGirl.meat;
   const boneMeatQtyByGirl = autoQtyByGirl.bone;
+  const processedQtyByGirl = autoQtyByGirl.processed;
 
 
   // Realtime: refetch on order/items changes
