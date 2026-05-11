@@ -94,9 +94,9 @@ const MonthlyTargetTable = () => {
                       {fmt(c.flat)}
                     </TableCell>
                   ) : (
-                    <Fragment key={t}>
-                      <TableCell key={`${i}-s`} className="text-center border">{fmt(c.sales || 0)}</TableCell>
-                      <TableCell key={`${i}-b`} className="text-center border font-semibold text-primary">{c.bonus}</TableCell>
+                    <Fragment key={i}>
+                      <TableCell className="text-center border">{fmt(c.sales || 0)}</TableCell>
+                      <TableCell className="text-center border font-semibold text-primary">{c.bonus}</TableCell>
                     </Fragment>
                   )
                 )}
