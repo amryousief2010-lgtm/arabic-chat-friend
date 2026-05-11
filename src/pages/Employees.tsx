@@ -472,62 +472,57 @@ const Employees = () => {
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">الإجمالي</CardTitle>
-              <Users className="w-4 h-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.total}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">مدراء عام</CardTitle>
-              <Shield className="w-4 h-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-primary">{stats.generalManagers}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">مدراء تنفيذيين</CardTitle>
-              <UserCheck className="w-4 h-4 text-blue-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-500">{stats.executiveManagers}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">مودريتور مبيعات</CardTitle>
-              <ShoppingCart className="w-4 h-4 text-green-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-500">{stats.salesModerators}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">محاسبين</CardTitle>
-              <Calculator className="w-4 h-4 text-orange-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-orange-500">{stats.accountants}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">مشرفي مخازن</CardTitle>
-              <Warehouse className="w-4 h-4 text-purple-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-purple-500">{stats.warehouseSupervisors}</div>
-            </CardContent>
-          </Card>
+        {/* Total Card */}
+        <Card className="bg-gradient-to-l from-primary/10 to-secondary/10 border-primary/20">
+          <CardContent className="flex items-center justify-between p-6">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-primary/15 flex items-center justify-center">
+                <Building2 className="w-7 h-7 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">إجمالي موظفي شركة نعام العاصمة</p>
+                <h2 className="text-2xl font-bold text-foreground">{employees.length} موظف</h2>
+              </div>
+            </div>
+            <Badge variant="secondary" className="text-sm">
+              {departments.length} قسم
+            </Badge>
+          </CardContent>
+        </Card>
+
+        {/* Departments Grid */}
+        <div>
+          <h2 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-primary" />
+            أقسام الشركة
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {departments.map((dept) => {
+              const Icon = dept.icon;
+              const count = countByRoles(dept.roles);
+              return (
+                <Card
+                  key={dept.key}
+                  className="hover:shadow-md transition-all hover:-translate-y-0.5 cursor-default"
+                >
+                  <CardContent className="p-4 flex flex-col gap-3">
+                    <div className="flex items-center justify-between">
+                      <div className={`w-11 h-11 rounded-xl ${dept.bg} flex items-center justify-center`}>
+                        <Icon className={`w-5 h-5 ${dept.color}`} />
+                      </div>
+                      <div className="text-2xl font-bold text-foreground">{count}</div>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground leading-tight">{dept.name}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {count === 0 ? 'لا يوجد موظفون' : count === 1 ? 'موظف واحد' : `${count} موظفين`}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
         </div>
 
         {/* Search */}
