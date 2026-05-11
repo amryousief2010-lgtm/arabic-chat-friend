@@ -4,6 +4,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ClipboardList } from 'lucide-react';
+import { toast } from 'sonner';
+
+const validateNumber = (value: number, label: string): number | null => {
+  if (Number.isNaN(value)) {
+    toast.error(`قيمة غير صالحة لـ ${label}`);
+    return null;
+  }
+  if (value < 0) {
+    toast.error(`لا يمكن إدخال قيمة سالبة لـ ${label}`);
+    return null;
+  }
+  return value;
+};
 
 const GIRLS = ['اية', 'نورا', 'سارة', 'منال'];
 
@@ -58,8 +71,16 @@ const GirlsSalesQuantityTable = () => {
     try { localStorage.setItem(PRICES_KEY, JSON.stringify(prices)); } catch {}
   }, [prices]);
 
-  const updateQty = (girl: string, field: keyof GirlData, value: number) => {
-    setData(prev => ({ ...prev, [girl]: { ...prev[girl], [field]: value } }));
+  const updateQty = (girl: string, field: keyof GirlData, value: number, label: string) => {
+    const valid = validateNumber(value, label);
+    if (valid === null) return;
+    setData(prev => ({ ...prev, [girl]: { ...prev[girl], [field]: valid } }));
+  };
+
+  const updatePrice = (field: keyof Prices, value: number, label: string) => {
+    const valid = validateNumber(value, label);
+    if (valid === null) return;
+    setPrices(p => ({ ...p, [field]: valid }));
   };
 
   const totals = useMemo(() => {
