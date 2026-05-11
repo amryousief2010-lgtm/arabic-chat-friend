@@ -158,23 +158,19 @@ const Index = () => {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-4">
         <StatCard
           title="إجمالي المبيعات"
           value={isLoading ? "..." : `${formatSales(stats?.totalSales || 0)} ج.م`}
-          change={reportData.isLoading ? "" : `${reportData.totalOrders > 0 ? "+" : ""}${reportData.monthlySales.length > 1 ? reportData.monthlySales[reportData.monthlySales.length - 1]?.momPercent || 0 : 0}% آخر شهر`}
-          changeType={
-            reportData.monthlySales.length > 1 && (reportData.monthlySales[reportData.monthlySales.length - 1]?.momPercent || 0) >= 0
-              ? "positive"
-              : "negative"
-          }
+          change={isLoading ? "" : `اليوم: ${formatSales(stats?.salesToday || 0)} | الشهر: ${formatSales(stats?.salesMonth || 0)}`}
+          changeType="positive"
           icon={DollarSign}
           iconColor="bg-success"
         />
         <StatCard
           title="الطلبات"
           value={isLoading ? "..." : (stats?.totalOrders || 0).toLocaleString()}
-          change={`متوسط: ${reportData.avgOrderValue || 0} ج.م/طلب`}
+          change={isLoading ? "" : `اليوم: ${stats?.ordersToday || 0} | الشهر: ${stats?.ordersMonth || 0}`}
           changeType="positive"
           icon={ShoppingCart}
           iconColor="bg-primary"
@@ -182,7 +178,7 @@ const Index = () => {
         <StatCard
           title="العملاء"
           value={isLoading ? "..." : (stats?.totalCustomers || 0).toLocaleString()}
-          change="عملاء فريدين"
+          change={`متوسط: ${stats?.avgOrderValue || 0} ج.م/طلب`}
           changeType="positive"
           icon={Users}
           iconColor="bg-secondary"
@@ -195,6 +191,40 @@ const Index = () => {
           icon={Package}
           iconColor="bg-destructive"
         />
+      </div>
+
+      {/* Daily / Monthly / Yearly Sales Breakdown */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <Card className="glass-card">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-sm text-muted-foreground">مبيعات اليوم</p>
+              <Badge variant="outline" className="text-xs">{new Date().toLocaleDateString("ar-EG")}</Badge>
+            </div>
+            <p className="text-2xl font-bold text-success">{isLoading ? "..." : `${(stats?.salesToday || 0).toLocaleString()} ج.م`}</p>
+            <p className="text-xs text-muted-foreground mt-1">{stats?.ordersToday || 0} طلب اليوم</p>
+          </CardContent>
+        </Card>
+        <Card className="glass-card">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-sm text-muted-foreground">مبيعات الشهر</p>
+              <Badge variant="outline" className="text-xs">{new Date().toLocaleDateString("ar-EG", { month: "long" })}</Badge>
+            </div>
+            <p className="text-2xl font-bold text-primary">{isLoading ? "..." : `${(stats?.salesMonth || 0).toLocaleString()} ج.م`}</p>
+            <p className="text-xs text-muted-foreground mt-1">{stats?.ordersMonth || 0} طلب هذا الشهر</p>
+          </CardContent>
+        </Card>
+        <Card className="glass-card">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-sm text-muted-foreground">مبيعات السنة</p>
+              <Badge variant="outline" className="text-xs">{new Date().getFullYear()}</Badge>
+            </div>
+            <p className="text-2xl font-bold text-secondary">{isLoading ? "..." : `${(stats?.salesYear || 0).toLocaleString()} ج.م`}</p>
+            <p className="text-xs text-muted-foreground mt-1">{stats?.ordersYear || 0} طلب هذه السنة</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Production KPIs - Eggs & Chicks */}
