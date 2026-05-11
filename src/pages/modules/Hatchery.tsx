@@ -676,10 +676,10 @@ const MaintTab = ({ maint, qc }: any) => {
 // ============ CHICKS ============
 const ChicksTab = ({ chicks, qc }: any) => {
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState<any>({ movement_date: today(), source: "", incoming: 0, outgoing: 0, dead: 0, sold: 0, unit_price: 0, notes: "" });
+  const [form, setForm] = useState<any>({ movement_date: today(), source: "", incoming: 0, outgoing: 0, dead: 0, sold: 0, unit_price: 0, age_days: 0, notes: "" });
   const save = useMutation({
     mutationFn: async () => { const { error } = await supabase.from("chick_movements").insert(form); if (error) throw error; },
-    onSuccess: () => { toast.success("تم"); setOpen(false); setForm({ movement_date: today(), source: "", incoming: 0, outgoing: 0, dead: 0, sold: 0, unit_price: 0, notes: "" }); qc.invalidateQueries({ queryKey: ["chick_movements"] }); },
+    onSuccess: () => { toast.success("تم"); setOpen(false); setForm({ movement_date: today(), source: "", incoming: 0, outgoing: 0, dead: 0, sold: 0, unit_price: 0, age_days: 0, notes: "" }); qc.invalidateQueries({ queryKey: ["chick_movements"] }); qc.invalidateQueries({ queryKey: ["production-stats"] }); },
     onError: (e: any) => toast.error(e.message),
   });
   const del = useMutation({ mutationFn: async (id: string) => { const { error } = await supabase.from("chick_movements").delete().eq("id", id); if (error) throw error; }, onSuccess: () => qc.invalidateQueries({ queryKey: ["chick_movements"] }) });
@@ -724,7 +724,10 @@ const ChicksTab = ({ chicks, qc }: any) => {
                   <div><Label>نافق</Label><Input type="number" value={form.dead} onChange={(e) => setForm({ ...form, dead: +e.target.value })} /></div>
                   <div><Label>مباع</Label><Input type="number" value={form.sold} onChange={(e) => setForm({ ...form, sold: +e.target.value })} /></div>
                 </div>
-                <div><Label>سعر الوحدة</Label><Input type="number" value={form.unit_price} onChange={(e) => setForm({ ...form, unit_price: +e.target.value })} /></div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div><Label>سعر الوحدة (ج.م)</Label><Input type="number" value={form.unit_price} onChange={(e) => setForm({ ...form, unit_price: +e.target.value })} /></div>
+                  <div><Label>العمر عند البيع (يوم)</Label><Input type="number" value={form.age_days} onChange={(e) => setForm({ ...form, age_days: +e.target.value })} /></div>
+                </div>
                 <div><Label>ملاحظات</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
               </div>
               <DialogFooter><Button onClick={() => save.mutate()} disabled={save.isPending}>حفظ</Button></DialogFooter>
@@ -732,7 +735,7 @@ const ChicksTab = ({ chicks, qc }: any) => {
           </Dialog>
         </div>
         <Table>
-          <TableHeader><TableRow><TableHead>التاريخ</TableHead><TableHead>المصدر</TableHead><TableHead>وارد</TableHead><TableHead>منصرف</TableHead><TableHead>نافق</TableHead><TableHead>مباع</TableHead><TableHead>سعر</TableHead><TableHead>إجمالي بيع</TableHead><TableHead></TableHead></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead>التاريخ</TableHead><TableHead>المصدر</TableHead><TableHead>وارد</TableHead><TableHead>منصرف</TableHead><TableHead>نافق</TableHead><TableHead>مباع</TableHead><TableHead>العمر (يوم)</TableHead><TableHead>سعر</TableHead><TableHead>إجمالي بيع</TableHead><TableHead></TableHead></TableRow></TableHeader>
           <TableBody>
             {chicks.map((c: any) => (
               <TableRow key={c.id}>
@@ -742,12 +745,13 @@ const ChicksTab = ({ chicks, qc }: any) => {
                 <TableCell>{c.outgoing}</TableCell>
                 <TableCell className="text-destructive">{c.dead}</TableCell>
                 <TableCell className="text-emerald-600">{c.sold}</TableCell>
+                <TableCell>{c.age_days || "-"}</TableCell>
                 <TableCell>{c.unit_price}</TableCell>
-                <TableCell className="font-bold">{c.sold * c.unit_price}</TableCell>
+                <TableCell className="font-bold">{(c.sold * c.unit_price).toLocaleString()}</TableCell>
                 <TableCell><Button size="icon" variant="ghost" onClick={() => del.mutate(c.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button></TableCell>
               </TableRow>
             ))}
-            {chicks.length === 0 && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-6">لا توجد حركة</TableCell></TableRow>}
+            {chicks.length === 0 && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-6">لا توجد حركة</TableCell></TableRow>}
           </TableBody>
         </Table>
       </Card>
