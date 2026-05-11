@@ -37,7 +37,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { UserPlus, MoreHorizontal, Shield, Search, Users, UserCheck, Warehouse, Calculator, ShoppingCart, Trash2, UserMinus } from 'lucide-react';
+import { UserPlus, MoreHorizontal, Shield, Search, Users, UserCheck, Warehouse, Calculator, ShoppingCart, Trash2, UserMinus, Egg, FlaskConical, Drumstick, Beef, Factory, Wheat, Megaphone, Crown, Building2 } from 'lucide-react';
 import { z } from 'zod';
 import { useAuth, AppRole } from '@/hooks/useAuth';
 import {
@@ -303,14 +303,90 @@ const Employees = () => {
     emp.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const stats = {
-    total: employees.length,
-    generalManagers: employees.filter(e => e.role === 'general_manager').length,
-    executiveManagers: employees.filter(e => e.role === 'executive_manager').length,
-    salesModerators: employees.filter(e => e.role === 'sales_moderator').length,
-    accountants: employees.filter(e => e.role === 'accountant').length,
-    warehouseSupervisors: employees.filter(e => e.role === 'warehouse_supervisor').length,
-  };
+  const countByRoles = (roles: AppRole[]) =>
+    employees.filter((e) => roles.includes(e.role)).length;
+
+  const departments: {
+    key: string;
+    name: string;
+    icon: React.ElementType;
+    color: string;
+    bg: string;
+    roles: AppRole[];
+  }[] = [
+    {
+      key: 'leadership',
+      name: 'الإدارة العليا',
+      icon: Crown,
+      color: 'text-amber-600',
+      bg: 'bg-amber-500/10',
+      roles: ['general_manager', 'executive_manager', 'production_manager', 'financial_manager', 'quality_manager'],
+    },
+    {
+      key: 'sales',
+      name: 'التسويق والمبيعات',
+      icon: Megaphone,
+      color: 'text-primary',
+      bg: 'bg-primary/10',
+      roles: ['marketing_sales_manager', 'sales_manager', 'sales_moderator', 'accountant'],
+    },
+    {
+      key: 'farm',
+      name: 'مزرعة الأمهات والإنتاج',
+      icon: Egg,
+      color: 'text-orange-500',
+      bg: 'bg-orange-500/10',
+      roles: ['farm_manager'],
+    },
+    {
+      key: 'hatchery',
+      name: 'المعمل وتفريغ الكتاكيت',
+      icon: FlaskConical,
+      color: 'text-cyan-500',
+      bg: 'bg-cyan-500/10',
+      roles: ['hatchery_manager'],
+    },
+    {
+      key: 'brooding',
+      name: 'التحضين والتسمين',
+      icon: Drumstick,
+      color: 'text-yellow-600',
+      bg: 'bg-yellow-500/10',
+      roles: ['brooding_manager'],
+    },
+    {
+      key: 'slaughter',
+      name: 'المجزر وإنتاج اللحوم',
+      icon: Beef,
+      color: 'text-red-500',
+      bg: 'bg-red-500/10',
+      roles: ['slaughterhouse_manager'],
+    },
+    {
+      key: 'meat',
+      name: 'مصنع اللحوم',
+      icon: Factory,
+      color: 'text-rose-600',
+      bg: 'bg-rose-500/10',
+      roles: ['meat_factory_manager'],
+    },
+    {
+      key: 'feed_hr',
+      name: 'مصنع الأعلاف والموارد البشرية',
+      icon: Wheat,
+      color: 'text-green-600',
+      bg: 'bg-green-500/10',
+      roles: ['feed_factory_manager', 'hr_manager'],
+    },
+    {
+      key: 'warehouses',
+      name: 'المخازن',
+      icon: Warehouse,
+      color: 'text-purple-600',
+      bg: 'bg-purple-500/10',
+      roles: ['warehouse_supervisor'],
+    },
+  ];
 
   return (
     <DashboardLayout>
@@ -373,12 +449,24 @@ const Employees = () => {
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="max-h-72">
+                      <SelectItem value="general_manager">مدير عام</SelectItem>
+                      <SelectItem value="executive_manager">مدير تنفيذي</SelectItem>
+                      <SelectItem value="production_manager">مدير الإنتاج والتشغيل</SelectItem>
+                      <SelectItem value="marketing_sales_manager">مدير التسويق والمبيعات</SelectItem>
+                      <SelectItem value="financial_manager">المدير المالي</SelectItem>
+                      <SelectItem value="quality_manager">مدير الجودة</SelectItem>
+                      <SelectItem value="sales_manager">مدير مبيعات</SelectItem>
                       <SelectItem value="sales_moderator">مودريتور مبيعات</SelectItem>
                       <SelectItem value="accountant">محاسب</SelectItem>
                       <SelectItem value="warehouse_supervisor">مشرف مخازن</SelectItem>
-                      <SelectItem value="executive_manager">مدير تنفيذي</SelectItem>
-                      <SelectItem value="general_manager">مدير عام</SelectItem>
+                      <SelectItem value="farm_manager">مدير المزرعة</SelectItem>
+                      <SelectItem value="hatchery_manager">مدير المعمل</SelectItem>
+                      <SelectItem value="brooding_manager">مدير التحضين</SelectItem>
+                      <SelectItem value="slaughterhouse_manager">مدير المجزر</SelectItem>
+                      <SelectItem value="meat_factory_manager">مدير مصنع اللحوم</SelectItem>
+                      <SelectItem value="feed_factory_manager">مدير مصنع الأعلاف</SelectItem>
+                      <SelectItem value="hr_manager">مدير الموارد البشرية</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -396,62 +484,57 @@ const Employees = () => {
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">الإجمالي</CardTitle>
-              <Users className="w-4 h-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.total}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">مدراء عام</CardTitle>
-              <Shield className="w-4 h-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-primary">{stats.generalManagers}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">مدراء تنفيذيين</CardTitle>
-              <UserCheck className="w-4 h-4 text-blue-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-500">{stats.executiveManagers}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">مودريتور مبيعات</CardTitle>
-              <ShoppingCart className="w-4 h-4 text-green-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-500">{stats.salesModerators}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">محاسبين</CardTitle>
-              <Calculator className="w-4 h-4 text-orange-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-orange-500">{stats.accountants}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">مشرفي مخازن</CardTitle>
-              <Warehouse className="w-4 h-4 text-purple-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-purple-500">{stats.warehouseSupervisors}</div>
-            </CardContent>
-          </Card>
+        {/* Total Card */}
+        <Card className="bg-gradient-to-l from-primary/10 to-secondary/10 border-primary/20">
+          <CardContent className="flex items-center justify-between p-6">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-primary/15 flex items-center justify-center">
+                <Building2 className="w-7 h-7 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">إجمالي موظفي شركة نعام العاصمة</p>
+                <h2 className="text-2xl font-bold text-foreground">{employees.length} موظف</h2>
+              </div>
+            </div>
+            <Badge variant="secondary" className="text-sm">
+              {departments.length} قسم
+            </Badge>
+          </CardContent>
+        </Card>
+
+        {/* Departments Grid */}
+        <div>
+          <h2 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-primary" />
+            أقسام الشركة
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {departments.map((dept) => {
+              const Icon = dept.icon;
+              const count = countByRoles(dept.roles);
+              return (
+                <Card
+                  key={dept.key}
+                  className="hover:shadow-md transition-all hover:-translate-y-0.5 cursor-default"
+                >
+                  <CardContent className="p-4 flex flex-col gap-3">
+                    <div className="flex items-center justify-between">
+                      <div className={`w-11 h-11 rounded-xl ${dept.bg} flex items-center justify-center`}>
+                        <Icon className={`w-5 h-5 ${dept.color}`} />
+                      </div>
+                      <div className="text-2xl font-bold text-foreground">{count}</div>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground leading-tight">{dept.name}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {count === 0 ? 'لا يوجد موظفون' : count === 1 ? 'موظف واحد' : `${count} موظفين`}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
         </div>
 
         {/* Search */}
@@ -521,42 +604,20 @@ const Employees = () => {
                                 <MoreHorizontal className="w-4 h-4" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem 
-                                onClick={() => handleChangeRole(employee.id, 'general_manager')}
-                                disabled={employee.role === 'general_manager'}
-                              >
-                                <Shield className="w-4 h-4 ml-2" />
-                                مدير عام
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={() => handleChangeRole(employee.id, 'executive_manager')}
-                                disabled={employee.role === 'executive_manager'}
-                              >
-                                <UserCheck className="w-4 h-4 ml-2" />
-                                مدير تنفيذي
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={() => handleChangeRole(employee.id, 'sales_moderator')}
-                                disabled={employee.role === 'sales_moderator'}
-                              >
-                                <ShoppingCart className="w-4 h-4 ml-2" />
-                                مودريتور مبيعات
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={() => handleChangeRole(employee.id, 'accountant')}
-                                disabled={employee.role === 'accountant'}
-                              >
-                                <Calculator className="w-4 h-4 ml-2" />
-                                محاسب
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={() => handleChangeRole(employee.id, 'warehouse_supervisor')}
-                                disabled={employee.role === 'warehouse_supervisor'}
-                              >
-                                <Warehouse className="w-4 h-4 ml-2" />
-                                مشرف مخازن
-                              </DropdownMenuItem>
+                            <DropdownMenuContent align="end" className="max-h-80 overflow-y-auto">
+                              {(Object.keys(roleLabels) as AppRole[]).map((r) => {
+                                const Icon = roleIcons[r];
+                                return (
+                                  <DropdownMenuItem
+                                    key={r}
+                                    onClick={() => handleChangeRole(employee.id, r)}
+                                    disabled={employee.role === r}
+                                  >
+                                    <Icon className="w-4 h-4 ml-2" />
+                                    {roleLabels[r]}
+                                  </DropdownMenuItem>
+                                );
+                              })}
                               <div className="my-1 border-t border-border" />
                               <DropdownMenuItem 
                                 onClick={() => openDeleteDialog(employee)}
