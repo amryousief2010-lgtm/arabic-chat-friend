@@ -36,6 +36,7 @@ import { Target, Plus, TrendingUp, TrendingDown, Award, Users, BarChart3, FileDo
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import MonthlyTargetTable from '@/components/sales/MonthlyTargetTable';
 
 const months = [
   { value: 1, label: 'يناير' },
