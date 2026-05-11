@@ -91,6 +91,7 @@ const Index = () => {
   const { data: stats, isLoading } = useDashboardStats();
   const { data: recentOrders, isLoading: ordersLoading } = useRecentOrders(5);
   const reportData = useReportsData("all");
+  const { data: prod, isLoading: prodLoading } = useProductionStats();
 
   return (
     <DashboardLayout>
