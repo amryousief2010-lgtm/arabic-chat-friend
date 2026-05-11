@@ -9,29 +9,31 @@ export interface DashboardOverview {
   avg_order_value: number;
   customers: number;
   low_stock: number;
+  monthly: Array<{ month: string; sales: number; orders: number }>;
+  daily: Array<{ date: string; sales: number; orders: number }>;
 }
 
 export const useDashboardStats = () => {
   return useQuery({
-    queryKey: ["dashboard-stats-v2"],
+    queryKey: ["dashboard-stats-v3"],
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_dashboard_overview");
       if (error) throw error;
       const o = data as unknown as DashboardOverview;
       return {
-        // backward compat
         totalSales: Number(o.total.sales),
         totalOrders: o.total.orders,
         totalCustomers: o.customers,
         avgOrderValue: o.avg_order_value,
         lowStockProducts: o.low_stock,
-        // new daily/monthly/yearly
         salesToday: Number(o.today.sales),
         ordersToday: o.today.orders,
         salesMonth: Number(o.month.sales),
         ordersMonth: o.month.orders,
         salesYear: Number(o.year.sales),
         ordersYear: o.year.orders,
+        monthlySeries: o.monthly || [],
+        dailySeries: o.daily || [],
       };
     },
     staleTime: 60 * 1000,
