@@ -1,23 +1,492 @@
+import { useMemo, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import ModulePlaceholder from "@/components/ModulePlaceholder";
-import { Egg } from "lucide-react";
+import Header from "@/components/layout/Header";
+import { supabase } from "@/integrations/supabase/client";
+import { Card } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Egg, Plus, Truck, Wheat, Syringe, Users, Calendar, TrendingUp, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { format } from "date-fns";
 
-const Farm = () => (
-  <DashboardLayout>
-    <ModulePlaceholder
-      title="مزرعة الأمهات والإنتاج"
-      description="إدارة قطعان الأمهات وإنتاج البيض المخصب"
-      icon={Egg}
-      features={[
-        "تتبع القطعان (الأعمار، الأعداد، النفوق)",
-        "سجل الإنتاج اليومي للبيض",
-        "التحصينات والبرامج البيطرية",
-        "استهلاك العلف والمياه",
-        "تقارير معدل الإنتاج والخصوبة",
-        "إدارة العنابر والبيوت",
-      ]}
-    />
-  </DashboardLayout>
+const today = () => format(new Date(), "yyyy-MM-dd");
+const monthStart = () => { const d = new Date(); d.setDate(1); return format(d, "yyyy-MM-dd"); };
+const yearStart = () => format(new Date(new Date().getFullYear(), 0, 1), "yyyy-MM-dd");
+
+const Farm = () => {
+  const qc = useQueryClient();
+
+  const { data: families = [] } = useQuery({
+    queryKey: ["farm_families"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("farm_families").select("*").order("family_number");
+      if (error) throw error; return data || [];
+    },
+  });
+
+  const { data: eggs = [] } = useQuery({
+    queryKey: ["farm_egg_production"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("farm_egg_production")
+        .select("*").order("production_date", { ascending: false }).limit(1000);
+      if (error) throw error; return data || [];
+    },
+  });
+
+  const { data: transfers = [] } = useQuery({
+    queryKey: ["farm_transfers"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("farm_transfers")
+        .select("*").order("transfer_date", { ascending: false }).limit(1000);
+      if (error) throw error; return data || [];
+    },
+  });
+
+  const { data: feedLogs = [] } = useQuery({
+    queryKey: ["farm_feed_log"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("farm_feed_log")
+        .select("*").order("log_date", { ascending: false }).limit(500);
+      if (error) throw error; return data || [];
+    },
+  });
+
+  const { data: meds = [] } = useQuery({
+    queryKey: ["farm_medications"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("farm_medications")
+        .select("*").order("med_date", { ascending: false }).limit(500);
+      if (error) throw error; return data || [];
+    },
+  });
+
+  const stats = useMemo(() => {
+    const totalFemale = families.reduce((s, f: any) => s + (f.female_count || 0), 0);
+    const totalMale = families.reduce((s, f: any) => s + (f.male_count || 0), 0);
+    const ms = monthStart(), ys = yearStart();
+    const monthEggs = eggs.filter((e: any) => e.production_date >= ms).reduce((s, e: any) => s + e.egg_count, 0);
+    const ytdEggs = eggs.filter((e: any) => e.production_date >= ys).reduce((s, e: any) => s + e.egg_count, 0);
+    const monthTransfers = transfers.filter((t: any) => t.transfer_date >= ms).reduce((s, t: any) => s + t.quantity, 0);
+    const ytdTransfers = transfers.filter((t: any) => t.transfer_date >= ys).reduce((s, t: any) => s + t.quantity, 0);
+    const eggsPerFemale = totalFemale > 0 ? (monthEggs / totalFemale).toFixed(2) : "0";
+    return {
+      totalFamilies: families.length, totalFemale, totalMale,
+      monthEggs, ytdEggs, monthTransfers, ytdTransfers, eggsPerFemale,
+    };
+  }, [families, eggs, transfers]);
+
+  return (
+    <DashboardLayout>
+      <Header title="مزرعة الأمهات" subtitle="إدارة الأسر وإنتاج البيض ونقله للمعمل" />
+
+      <div className="p-4 space-y-4 max-w-7xl mx-auto">
+        {/* KPI Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <KPI icon={Users} label="إجمالي الأسر" value={stats.totalFamilies} color="from-purple-500 to-purple-700" />
+          <KPI icon={Users} label="الإناث" value={stats.totalFemale} sub={`الذكور: ${stats.totalMale}`} color="from-pink-500 to-pink-700" />
+          <KPI icon={Egg} label="بيض الشهر" value={stats.monthEggs} sub={`YTD: ${stats.ytdEggs}`} color="from-orange-500 to-orange-700" />
+          <KPI icon={TrendingUp} label="بيضة/أنثى (شهر)" value={stats.eggsPerFemale} sub={`منقول الشهر: ${stats.monthTransfers}`} color="from-emerald-500 to-emerald-700" />
+        </div>
+
+        <Tabs defaultValue="families" dir="rtl">
+          <TabsList className="grid grid-cols-2 md:grid-cols-5 w-full">
+            <TabsTrigger value="families"><Users className="w-4 h-4 ml-1" />الأسر</TabsTrigger>
+            <TabsTrigger value="eggs"><Egg className="w-4 h-4 ml-1" />الإنتاج اليومي</TabsTrigger>
+            <TabsTrigger value="transfers"><Truck className="w-4 h-4 ml-1" />نقل للمعمل</TabsTrigger>
+            <TabsTrigger value="feed"><Wheat className="w-4 h-4 ml-1" />العلف</TabsTrigger>
+            <TabsTrigger value="meds"><Syringe className="w-4 h-4 ml-1" />الأدوية</TabsTrigger>
+          </TabsList>
+
+          {/* === Families === */}
+          <TabsContent value="families">
+            <FamiliesTab families={families} qc={qc} />
+          </TabsContent>
+
+          {/* === Eggs === */}
+          <TabsContent value="eggs">
+            <EggsTab eggs={eggs} families={families} qc={qc} />
+          </TabsContent>
+
+          {/* === Transfers === */}
+          <TabsContent value="transfers">
+            <TransfersTab transfers={transfers} families={families} qc={qc} />
+          </TabsContent>
+
+          {/* === Feed === */}
+          <TabsContent value="feed">
+            <FeedTab logs={feedLogs} qc={qc} />
+          </TabsContent>
+
+          {/* === Meds === */}
+          <TabsContent value="meds">
+            <MedsTab meds={meds} families={families} qc={qc} />
+          </TabsContent>
+        </Tabs>
+      </div>
+    </DashboardLayout>
+  );
+};
+
+const KPI = ({ icon: Icon, label, value, sub, color }: any) => (
+  <Card className="relative overflow-hidden border-0 shadow-md">
+    <div className={`absolute inset-0 bg-gradient-to-br ${color} opacity-95`} />
+    <div className="relative p-4 text-white">
+      <div className="flex items-center gap-2 mb-2">
+        <Icon className="w-4 h-4" />
+        <span className="text-xs opacity-90">{label}</span>
+      </div>
+      <p className="text-2xl font-bold">{value}</p>
+      {sub && <p className="text-xs opacity-80 mt-1">{sub}</p>}
+    </div>
+  </Card>
 );
+
+// ============ FAMILIES ============
+const FamiliesTab = ({ families, qc }: any) => {
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState<any>({ family_number: "", pen: "", status: "active", female_count: 0, male_count: 0, start_date: today(), notes: "" });
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("farm_families").insert(form);
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("تم إضافة الأسرة"); setOpen(false); setForm({ family_number: "", pen: "", status: "active", female_count: 0, male_count: 0, start_date: today(), notes: "" }); qc.invalidateQueries({ queryKey: ["farm_families"] }); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const del = useMutation({
+    mutationFn: async (id: string) => { const { error } = await supabase.from("farm_families").delete().eq("id", id); if (error) throw error; },
+    onSuccess: () => { toast.success("حذف"); qc.invalidateQueries({ queryKey: ["farm_families"] }); },
+  });
+
+  return (
+    <Card className="p-4">
+      <div className="flex justify-between mb-3">
+        <h3 className="font-bold">قائمة الأسر</h3>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild><Button size="sm"><Plus className="w-4 h-4 ml-1" />إضافة أسرة</Button></DialogTrigger>
+          <DialogContent dir="rtl">
+            <DialogHeader><DialogTitle>إضافة أسرة جديدة</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div><Label>رقم الأسرة</Label><Input value={form.family_number} onChange={(e) => setForm({ ...form, family_number: e.target.value })} /></div>
+              <div className="grid grid-cols-2 gap-2">
+                <div><Label>الملعب</Label><Input value={form.pen} onChange={(e) => setForm({ ...form, pen: e.target.value })} /></div>
+                <div><Label>الحالة</Label>
+                  <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">نشطة</SelectItem>
+                      <SelectItem value="resting">راحة</SelectItem>
+                      <SelectItem value="inactive">معطلة</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div><Label>عدد الإناث</Label><Input type="number" value={form.female_count} onChange={(e) => setForm({ ...form, female_count: +e.target.value })} /></div>
+                <div><Label>عدد الذكور</Label><Input type="number" value={form.male_count} onChange={(e) => setForm({ ...form, male_count: +e.target.value })} /></div>
+              </div>
+              <div><Label>تاريخ البدء</Label><Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} /></div>
+              <div><Label>ملاحظات</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+            </div>
+            <DialogFooter><Button onClick={() => save.mutate()} disabled={save.isPending}>حفظ</Button></DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+      <div className="overflow-auto">
+        <Table>
+          <TableHeader>
+            <TableRow><TableHead>رقم</TableHead><TableHead>الملعب</TableHead><TableHead>الحالة</TableHead><TableHead>إناث</TableHead><TableHead>ذكور</TableHead><TableHead>بدء</TableHead><TableHead></TableHead></TableRow>
+          </TableHeader>
+          <TableBody>
+            {families.map((f: any) => (
+              <TableRow key={f.id}>
+                <TableCell className="font-bold">{f.family_number}</TableCell>
+                <TableCell>{f.pen || "-"}</TableCell>
+                <TableCell><Badge variant={f.status === "active" ? "default" : "secondary"}>{f.status === "active" ? "نشطة" : f.status === "resting" ? "راحة" : "معطلة"}</Badge></TableCell>
+                <TableCell>{f.female_count}</TableCell>
+                <TableCell>{f.male_count}</TableCell>
+                <TableCell>{f.start_date || "-"}</TableCell>
+                <TableCell><Button size="icon" variant="ghost" onClick={() => del.mutate(f.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button></TableCell>
+              </TableRow>
+            ))}
+            {families.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">لا توجد أسر بعد</TableCell></TableRow>}
+          </TableBody>
+        </Table>
+      </div>
+    </Card>
+  );
+};
+
+// ============ EGGS ============
+const EggsTab = ({ eggs, families, qc }: any) => {
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState<any>({ production_date: today(), family_id: "", egg_count: 0, notes: "" });
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("farm_egg_production").insert({ ...form, family_id: form.family_id || null });
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("تم تسجيل الإنتاج"); setOpen(false); setForm({ production_date: today(), family_id: "", egg_count: 0, notes: "" }); qc.invalidateQueries({ queryKey: ["farm_egg_production"] }); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const del = useMutation({
+    mutationFn: async (id: string) => { const { error } = await supabase.from("farm_egg_production").delete().eq("id", id); if (error) throw error; },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["farm_egg_production"] }),
+  });
+
+  const familyName = (id: string) => families.find((f: any) => f.id === id)?.family_number || "-";
+
+  return (
+    <Card className="p-4">
+      <div className="flex justify-between mb-3">
+        <h3 className="font-bold">إنتاج البيض اليومي</h3>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild><Button size="sm"><Plus className="w-4 h-4 ml-1" />تسجيل إنتاج</Button></DialogTrigger>
+          <DialogContent dir="rtl">
+            <DialogHeader><DialogTitle>إنتاج بيض جديد</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div><Label>التاريخ</Label><Input type="date" value={form.production_date} onChange={(e) => setForm({ ...form, production_date: e.target.value })} /></div>
+              <div><Label>الأسرة</Label>
+                <Select value={form.family_id} onValueChange={(v) => setForm({ ...form, family_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="اختر الأسرة" /></SelectTrigger>
+                  <SelectContent>
+                    {families.map((f: any) => <SelectItem key={f.id} value={f.id}>{f.family_number} {f.pen ? `- ${f.pen}` : ""}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div><Label>عدد البيض</Label><Input type="number" value={form.egg_count} onChange={(e) => setForm({ ...form, egg_count: +e.target.value })} /></div>
+              <div><Label>ملاحظات</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+            </div>
+            <DialogFooter><Button onClick={() => save.mutate()} disabled={save.isPending}>حفظ</Button></DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+      <div className="overflow-auto">
+        <Table>
+          <TableHeader><TableRow><TableHead>التاريخ</TableHead><TableHead>الأسرة</TableHead><TableHead>البيض</TableHead><TableHead>ملاحظات</TableHead><TableHead></TableHead></TableRow></TableHeader>
+          <TableBody>
+            {eggs.map((e: any) => (
+              <TableRow key={e.id}>
+                <TableCell>{e.production_date}</TableCell>
+                <TableCell>{familyName(e.family_id)}</TableCell>
+                <TableCell className="font-bold text-orange-600">{e.egg_count}</TableCell>
+                <TableCell className="text-xs text-muted-foreground">{e.notes || "-"}</TableCell>
+                <TableCell><Button size="icon" variant="ghost" onClick={() => del.mutate(e.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button></TableCell>
+              </TableRow>
+            ))}
+            {eggs.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">لا يوجد إنتاج مسجل</TableCell></TableRow>}
+          </TableBody>
+        </Table>
+      </div>
+    </Card>
+  );
+};
+
+// ============ TRANSFERS ============
+const TransfersTab = ({ transfers, families, qc }: any) => {
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState<any>({ transfer_date: today(), family_id: "", quantity: 0, damaged: 0, notes: "" });
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("farm_transfers").insert({ ...form, family_id: form.family_id || null });
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("تم تسجيل النقل"); setOpen(false); setForm({ transfer_date: today(), family_id: "", quantity: 0, damaged: 0, notes: "" }); qc.invalidateQueries({ queryKey: ["farm_transfers"] }); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const del = useMutation({
+    mutationFn: async (id: string) => { const { error } = await supabase.from("farm_transfers").delete().eq("id", id); if (error) throw error; },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["farm_transfers"] }),
+  });
+
+  const familyName = (id: string) => families.find((f: any) => f.id === id)?.family_number || "-";
+
+  return (
+    <Card className="p-4">
+      <div className="flex justify-between mb-3">
+        <h3 className="font-bold">نقل البيض للمعمل</h3>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild><Button size="sm"><Plus className="w-4 h-4 ml-1" />تسجيل نقل</Button></DialogTrigger>
+          <DialogContent dir="rtl">
+            <DialogHeader><DialogTitle>نقل بيض جديد</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div><Label>التاريخ</Label><Input type="date" value={form.transfer_date} onChange={(e) => setForm({ ...form, transfer_date: e.target.value })} /></div>
+              <div><Label>الأسرة (اختياري)</Label>
+                <Select value={form.family_id} onValueChange={(v) => setForm({ ...form, family_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="اختر" /></SelectTrigger>
+                  <SelectContent>
+                    {families.map((f: any) => <SelectItem key={f.id} value={f.id}>{f.family_number}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div><Label>الكمية</Label><Input type="number" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: +e.target.value })} /></div>
+                <div><Label>الهالك</Label><Input type="number" value={form.damaged} onChange={(e) => setForm({ ...form, damaged: +e.target.value })} /></div>
+              </div>
+              <div><Label>ملاحظات</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+            </div>
+            <DialogFooter><Button onClick={() => save.mutate()} disabled={save.isPending}>حفظ</Button></DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+      <div className="overflow-auto">
+        <Table>
+          <TableHeader><TableRow><TableHead>التاريخ</TableHead><TableHead>الأسرة</TableHead><TableHead>الكمية</TableHead><TableHead>الهالك</TableHead><TableHead>ملاحظات</TableHead><TableHead></TableHead></TableRow></TableHeader>
+          <TableBody>
+            {transfers.map((t: any) => (
+              <TableRow key={t.id}>
+                <TableCell>{t.transfer_date}</TableCell>
+                <TableCell>{familyName(t.family_id)}</TableCell>
+                <TableCell className="font-bold text-purple-600">{t.quantity}</TableCell>
+                <TableCell className="text-destructive">{t.damaged}</TableCell>
+                <TableCell className="text-xs">{t.notes || "-"}</TableCell>
+                <TableCell><Button size="icon" variant="ghost" onClick={() => del.mutate(t.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button></TableCell>
+              </TableRow>
+            ))}
+            {transfers.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">لا توجد عمليات نقل</TableCell></TableRow>}
+          </TableBody>
+        </Table>
+      </div>
+    </Card>
+  );
+};
+
+// ============ FEED ============
+const FeedTab = ({ logs, qc }: any) => {
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState<any>({ log_date: today(), feed_type: "", quantity: 0, unit: "كجم", notes: "" });
+
+  const save = useMutation({
+    mutationFn: async () => { const { error } = await supabase.from("farm_feed_log").insert(form); if (error) throw error; },
+    onSuccess: () => { toast.success("تم"); setOpen(false); setForm({ log_date: today(), feed_type: "", quantity: 0, unit: "كجم", notes: "" }); qc.invalidateQueries({ queryKey: ["farm_feed_log"] }); },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const del = useMutation({
+    mutationFn: async (id: string) => { const { error } = await supabase.from("farm_feed_log").delete().eq("id", id); if (error) throw error; },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["farm_feed_log"] }),
+  });
+
+  return (
+    <Card className="p-4">
+      <div className="flex justify-between mb-3">
+        <h3 className="font-bold">سجل العلف</h3>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild><Button size="sm"><Plus className="w-4 h-4 ml-1" />تسجيل صرف</Button></DialogTrigger>
+          <DialogContent dir="rtl">
+            <DialogHeader><DialogTitle>صرف علف</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div><Label>التاريخ</Label><Input type="date" value={form.log_date} onChange={(e) => setForm({ ...form, log_date: e.target.value })} /></div>
+              <div><Label>نوع العلف</Label><Input value={form.feed_type} onChange={(e) => setForm({ ...form, feed_type: e.target.value })} /></div>
+              <div className="grid grid-cols-2 gap-2">
+                <div><Label>الكمية</Label><Input type="number" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: +e.target.value })} /></div>
+                <div><Label>الوحدة</Label><Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} /></div>
+              </div>
+              <div><Label>ملاحظات</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+            </div>
+            <DialogFooter><Button onClick={() => save.mutate()} disabled={save.isPending}>حفظ</Button></DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+      <div className="overflow-auto">
+        <Table>
+          <TableHeader><TableRow><TableHead>التاريخ</TableHead><TableHead>النوع</TableHead><TableHead>الكمية</TableHead><TableHead>الوحدة</TableHead><TableHead>ملاحظات</TableHead><TableHead></TableHead></TableRow></TableHeader>
+          <TableBody>
+            {logs.map((l: any) => (
+              <TableRow key={l.id}>
+                <TableCell>{l.log_date}</TableCell>
+                <TableCell>{l.feed_type}</TableCell>
+                <TableCell className="font-bold">{l.quantity}</TableCell>
+                <TableCell>{l.unit}</TableCell>
+                <TableCell className="text-xs">{l.notes || "-"}</TableCell>
+                <TableCell><Button size="icon" variant="ghost" onClick={() => del.mutate(l.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button></TableCell>
+              </TableRow>
+            ))}
+            {logs.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">لا يوجد سجل علف</TableCell></TableRow>}
+          </TableBody>
+        </Table>
+      </div>
+    </Card>
+  );
+};
+
+// ============ MEDS ============
+const MedsTab = ({ meds, families, qc }: any) => {
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState<any>({ med_date: today(), name: "", dose: "", family_id: "", notes: "" });
+
+  const save = useMutation({
+    mutationFn: async () => { const { error } = await supabase.from("farm_medications").insert({ ...form, family_id: form.family_id || null }); if (error) throw error; },
+    onSuccess: () => { toast.success("تم"); setOpen(false); setForm({ med_date: today(), name: "", dose: "", family_id: "", notes: "" }); qc.invalidateQueries({ queryKey: ["farm_medications"] }); },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const del = useMutation({
+    mutationFn: async (id: string) => { const { error } = await supabase.from("farm_medications").delete().eq("id", id); if (error) throw error; },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["farm_medications"] }),
+  });
+  const familyName = (id: string) => families.find((f: any) => f.id === id)?.family_number || "-";
+
+  return (
+    <Card className="p-4">
+      <div className="flex justify-between mb-3">
+        <h3 className="font-bold">الأدوية واللقاحات</h3>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild><Button size="sm"><Plus className="w-4 h-4 ml-1" />تسجيل دواء</Button></DialogTrigger>
+          <DialogContent dir="rtl">
+            <DialogHeader><DialogTitle>دواء/لقاح</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div><Label>التاريخ</Label><Input type="date" value={form.med_date} onChange={(e) => setForm({ ...form, med_date: e.target.value })} /></div>
+              <div><Label>الاسم</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+              <div><Label>الجرعة</Label><Input value={form.dose} onChange={(e) => setForm({ ...form, dose: e.target.value })} /></div>
+              <div><Label>الأسرة (اختياري)</Label>
+                <Select value={form.family_id} onValueChange={(v) => setForm({ ...form, family_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="اختر" /></SelectTrigger>
+                  <SelectContent>{families.map((f: any) => <SelectItem key={f.id} value={f.id}>{f.family_number}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div><Label>ملاحظات</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+            </div>
+            <DialogFooter><Button onClick={() => save.mutate()} disabled={save.isPending}>حفظ</Button></DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+      <div className="overflow-auto">
+        <Table>
+          <TableHeader><TableRow><TableHead>التاريخ</TableHead><TableHead>الاسم</TableHead><TableHead>الجرعة</TableHead><TableHead>الأسرة</TableHead><TableHead>ملاحظات</TableHead><TableHead></TableHead></TableRow></TableHeader>
+          <TableBody>
+            {meds.map((m: any) => (
+              <TableRow key={m.id}>
+                <TableCell>{m.med_date}</TableCell>
+                <TableCell className="font-bold">{m.name}</TableCell>
+                <TableCell>{m.dose || "-"}</TableCell>
+                <TableCell>{familyName(m.family_id)}</TableCell>
+                <TableCell className="text-xs">{m.notes || "-"}</TableCell>
+                <TableCell><Button size="icon" variant="ghost" onClick={() => del.mutate(m.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button></TableCell>
+              </TableRow>
+            ))}
+            {meds.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">لا يوجد سجل أدوية</TableCell></TableRow>}
+          </TableBody>
+        </Table>
+      </div>
+    </Card>
+  );
+};
 
 export default Farm;

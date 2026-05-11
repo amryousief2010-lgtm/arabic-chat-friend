@@ -1,23 +1,612 @@
+import { useMemo, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import ModulePlaceholder from "@/components/ModulePlaceholder";
-import { FlaskConical } from "lucide-react";
+import Header from "@/components/layout/Header";
+import { supabase } from "@/integrations/supabase/client";
+import { Card } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import {
+  FlaskConical, Plus, Users, Wrench, Bird, Activity, TrendingUp, Trash2, Pencil, AlertTriangle,
+} from "lucide-react";
+import { toast } from "sonner";
+import { format } from "date-fns";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
 
-const Hatchery = () => (
-  <DashboardLayout>
-    <ModulePlaceholder
-      title="المعمل وتفريغ الكتاكيت"
-      description="إدارة عمليات التفقيس وإنتاج الكتاكيت"
-      icon={FlaskConical}
-      features={[
-        "إدخال دفعات البيض للمعمل",
-        "متابعة دورات التفقيس (التحضين والفقس)",
-        "تسجيل أعداد الكتاكيت الناتجة والفرز",
-        "نسبة الفقس ومؤشرات الجودة",
-        "جدولة عمليات التفريغ",
-        "تقارير الإنتاج اليومية والشهرية",
-      ]}
-    />
-  </DashboardLayout>
+const today = () => format(new Date(), "yyyy-MM-dd");
+const monthStart = () => { const d = new Date(); d.setDate(1); return format(d, "yyyy-MM-dd"); };
+
+const Hatchery = () => {
+  const qc = useQueryClient();
+
+  const { data: customers = [] } = useQuery({
+    queryKey: ["hatch_customers"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("hatch_customers").select("*").order("name");
+      if (error) throw error; return data || [];
+    },
+  });
+
+  const { data: batches = [] } = useQuery({
+    queryKey: ["hatch_batches"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("hatch_batches").select("*").order("receive_date", { ascending: false }).limit(1000);
+      if (error) throw error; return data || [];
+    },
+  });
+
+  const { data: ops = [] } = useQuery({
+    queryKey: ["hatch_daily_ops"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("hatch_daily_ops").select("*").order("op_date", { ascending: false }).limit(500);
+      if (error) throw error; return data || [];
+    },
+  });
+
+  const { data: maint = [] } = useQuery({
+    queryKey: ["hatch_maintenance"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("hatch_maintenance").select("*").order("maint_date", { ascending: false }).limit(500);
+      if (error) throw error; return data || [];
+    },
+  });
+
+  const { data: chicks = [] } = useQuery({
+    queryKey: ["chick_movements"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("chick_movements").select("*").order("movement_date", { ascending: false }).limit(500);
+      if (error) throw error; return data || [];
+    },
+  });
+
+  const stats = useMemo(() => {
+    const ms = monthStart();
+    const completed = batches.filter((b: any) => b.status === "completed");
+    const pending = batches.filter((b: any) => b.status !== "completed");
+
+    const internalIds = new Set(customers.filter((c: any) => c.customer_type === "internal").map((c: any) => c.id));
+    const internalDone = completed.filter((b: any) => internalIds.has(b.customer_id));
+    const externalDone = completed.filter((b: any) => !internalIds.has(b.customer_id));
+
+    const fertility = (arr: any[]) => {
+      const net = arr.reduce((s, b: any) => s + (b.net_eggs || 0), 0);
+      const fertile = arr.reduce((s, b: any) => s + (b.candle2_fertile || b.candle1_fertile || 0), 0);
+      return net > 0 ? ((fertile / net) * 100).toFixed(1) : "0";
+    };
+    const conversion = (arr: any[]) => {
+      const net = arr.reduce((s, b: any) => s + (b.net_eggs || 0), 0);
+      const chicks = arr.reduce((s, b: any) => s + (b.hatched_chicks || 0), 0);
+      return net > 0 ? ((chicks / net) * 100).toFixed(1) : "0";
+    };
+    const monthChicks = batches.filter((b: any) => b.exit_date && b.exit_date >= ms).reduce((s, b: any) => s + (b.hatched_chicks || 0), 0);
+    const monthHatcherDead = batches.filter((b: any) => b.exit_date && b.exit_date >= ms).reduce((s, b: any) => s + (b.hatcher_dead || 0), 0);
+
+    return {
+      activeBatches: pending.length,
+      completedBatches: completed.length,
+      internalFertility: fertility(internalDone),
+      externalFertility: fertility(externalDone),
+      internalConversion: conversion(internalDone),
+      externalConversion: conversion(externalDone),
+      monthChicks,
+      monthHatcherDead,
+    };
+  }, [batches, customers]);
+
+  return (
+    <DashboardLayout>
+      <Header title="معمل التفريخ" subtitle="إدارة الدفعات والكشف والفقس وحركة الكتاكيت" />
+
+      <div className="p-4 space-y-4 max-w-7xl mx-auto">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <KPI icon={FlaskConical} label="دفعات نشطة" value={stats.activeBatches} sub={`مكتملة: ${stats.completedBatches}`} color="from-cyan-500 to-cyan-700" />
+          <KPI icon={TrendingUp} label="خصوبة العاصمة" value={`${stats.internalFertility}%`} sub={`الآخرون: ${stats.externalFertility}%`} color="from-purple-500 to-purple-700" />
+          <KPI icon={Bird} label="كتاكيت الشهر" value={stats.monthChicks} sub={`تحول داخلي: ${stats.internalConversion}%`} color="from-orange-500 to-orange-700" />
+          <KPI icon={AlertTriangle} label="نافق هاتشر/شهر" value={stats.monthHatcherDead} color="from-red-500 to-red-700" />
+        </div>
+
+        <Tabs defaultValue="batches" dir="rtl">
+          <TabsList className="grid grid-cols-2 md:grid-cols-6 w-full">
+            <TabsTrigger value="batches"><FlaskConical className="w-4 h-4 ml-1" />الدفعات</TabsTrigger>
+            <TabsTrigger value="quality"><TrendingUp className="w-4 h-4 ml-1" />مقارنة الجودة</TabsTrigger>
+            <TabsTrigger value="customers"><Users className="w-4 h-4 ml-1" />العملاء</TabsTrigger>
+            <TabsTrigger value="ops"><Activity className="w-4 h-4 ml-1" />التشغيل</TabsTrigger>
+            <TabsTrigger value="maint"><Wrench className="w-4 h-4 ml-1" />الصيانة</TabsTrigger>
+            <TabsTrigger value="chicks"><Bird className="w-4 h-4 ml-1" />الكتاكيت</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="batches"><BatchesTab batches={batches} customers={customers} qc={qc} /></TabsContent>
+          <TabsContent value="quality"><QualityTab stats={stats} /></TabsContent>
+          <TabsContent value="customers"><CustomersTab customers={customers} qc={qc} /></TabsContent>
+          <TabsContent value="ops"><OpsTab ops={ops} qc={qc} /></TabsContent>
+          <TabsContent value="maint"><MaintTab maint={maint} qc={qc} /></TabsContent>
+          <TabsContent value="chicks"><ChicksTab chicks={chicks} qc={qc} /></TabsContent>
+        </Tabs>
+      </div>
+    </DashboardLayout>
+  );
+};
+
+const KPI = ({ icon: Icon, label, value, sub, color }: any) => (
+  <Card className="relative overflow-hidden border-0 shadow-md">
+    <div className={`absolute inset-0 bg-gradient-to-br ${color} opacity-95`} />
+    <div className="relative p-4 text-white">
+      <div className="flex items-center gap-2 mb-2"><Icon className="w-4 h-4" /><span className="text-xs opacity-90">{label}</span></div>
+      <p className="text-2xl font-bold">{value}</p>
+      {sub && <p className="text-xs opacity-80 mt-1">{sub}</p>}
+    </div>
+  </Card>
 );
+
+// ============ BATCHES ============
+const emptyBatch = () => ({
+  batch_number: `BATCH-${Date.now()}`, receive_date: today(), customer_id: "", machine: "",
+  received_eggs: 0, net_eggs: 0, entry_date: today(),
+  candle1_date: "", candle1_fertile: 0, candle1_infertile: 0,
+  candle2_date: "", candle2_fertile: 0, candle2_dead: 0,
+  exit_date: "", hatched_chicks: 0, hatcher_dead: 0, status: "pending", notes: "",
+});
+
+const BatchesTab = ({ batches, customers, qc }: any) => {
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
+  const [form, setForm] = useState<any>(emptyBatch());
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const payload = { ...form, customer_id: form.customer_id || null,
+        candle1_date: form.candle1_date || null, candle2_date: form.candle2_date || null, exit_date: form.exit_date || null };
+      if (editing) {
+        const { error } = await supabase.from("hatch_batches").update(payload).eq("id", editing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("hatch_batches").insert(payload);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => { toast.success("تم الحفظ"); setOpen(false); setEditing(null); setForm(emptyBatch()); qc.invalidateQueries({ queryKey: ["hatch_batches"] }); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const del = useMutation({
+    mutationFn: async (id: string) => { const { error } = await supabase.from("hatch_batches").delete().eq("id", id); if (error) throw error; },
+    onSuccess: () => { toast.success("حذف"); qc.invalidateQueries({ queryKey: ["hatch_batches"] }); },
+  });
+
+  const customerName = (id: string) => customers.find((c: any) => c.id === id)?.name || "-";
+
+  const openEdit = (b: any) => { setEditing(b); setForm({ ...b, candle1_date: b.candle1_date || "", candle2_date: b.candle2_date || "", exit_date: b.exit_date || "", customer_id: b.customer_id || "" }); setOpen(true); };
+  const openNew = () => { setEditing(null); setForm(emptyBatch()); setOpen(true); };
+
+  const fertility = (b: any) => b.net_eggs > 0 ? (((b.candle2_fertile || b.candle1_fertile || 0) / b.net_eggs) * 100).toFixed(1) + "%" : "-";
+  const conversion = (b: any) => b.net_eggs > 0 ? ((b.hatched_chicks / b.net_eggs) * 100).toFixed(1) + "%" : "-";
+
+  return (
+    <Card className="p-4">
+      <div className="flex justify-between mb-3">
+        <h3 className="font-bold">دفعات المعمل</h3>
+        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditing(null); setForm(emptyBatch()); } }}>
+          <DialogTrigger asChild><Button size="sm" onClick={openNew}><Plus className="w-4 h-4 ml-1" />دفعة جديدة</Button></DialogTrigger>
+          <DialogContent dir="rtl" className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader><DialogTitle>{editing ? "تحديث الدفعة" : "دفعة جديدة"}</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div><Label>رقم الدفعة</Label><Input value={form.batch_number} onChange={(e) => setForm({ ...form, batch_number: e.target.value })} /></div>
+                <div><Label>الماكينة</Label><Input value={form.machine} onChange={(e) => setForm({ ...form, machine: e.target.value })} /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div><Label>العميل</Label>
+                  <Select value={form.customer_id} onValueChange={(v) => setForm({ ...form, customer_id: v })}>
+                    <SelectTrigger><SelectValue placeholder="اختر" /></SelectTrigger>
+                    <SelectContent>{customers.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name} {c.customer_type === "internal" ? "(داخلي)" : ""}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div><Label>الحالة</Label>
+                  <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">قيد الانتظار</SelectItem>
+                      <SelectItem value="incubating">في التحضين</SelectItem>
+                      <SelectItem value="hatching">في الهاتشر</SelectItem>
+                      <SelectItem value="completed">مكتملة</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div><Label>تاريخ الوارد</Label><Input type="date" value={form.receive_date} onChange={(e) => setForm({ ...form, receive_date: e.target.value })} /></div>
+                <div><Label>تاريخ الدخول</Label><Input type="date" value={form.entry_date} onChange={(e) => setForm({ ...form, entry_date: e.target.value })} /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div><Label>وارد البيض</Label><Input type="number" value={form.received_eggs} onChange={(e) => setForm({ ...form, received_eggs: +e.target.value })} /></div>
+                <div><Label>الصافي</Label><Input type="number" value={form.net_eggs} onChange={(e) => setForm({ ...form, net_eggs: +e.target.value })} /></div>
+              </div>
+
+              <div className="border-t pt-3 mt-2">
+                <p className="font-semibold text-sm mb-2 text-cyan-700">الكشف الأول (18 يوم)</p>
+                <div className="grid grid-cols-3 gap-2">
+                  <div><Label>التاريخ</Label><Input type="date" value={form.candle1_date} onChange={(e) => setForm({ ...form, candle1_date: e.target.value })} /></div>
+                  <div><Label>مخصب</Label><Input type="number" value={form.candle1_fertile} onChange={(e) => setForm({ ...form, candle1_fertile: +e.target.value })} /></div>
+                  <div><Label>غير مخصب</Label><Input type="number" value={form.candle1_infertile} onChange={(e) => setForm({ ...form, candle1_infertile: +e.target.value })} /></div>
+                </div>
+              </div>
+
+              <div>
+                <p className="font-semibold text-sm mb-2 text-cyan-700">الكشف الثاني (30 يوم)</p>
+                <div className="grid grid-cols-3 gap-2">
+                  <div><Label>التاريخ</Label><Input type="date" value={form.candle2_date} onChange={(e) => setForm({ ...form, candle2_date: e.target.value })} /></div>
+                  <div><Label>مخصب</Label><Input type="number" value={form.candle2_fertile} onChange={(e) => setForm({ ...form, candle2_fertile: +e.target.value })} /></div>
+                  <div><Label>ميت</Label><Input type="number" value={form.candle2_dead} onChange={(e) => setForm({ ...form, candle2_dead: +e.target.value })} /></div>
+                </div>
+              </div>
+
+              <div>
+                <p className="font-semibold text-sm mb-2 text-cyan-700">الخروج / الفقس</p>
+                <div className="grid grid-cols-3 gap-2">
+                  <div><Label>تاريخ الخروج</Label><Input type="date" value={form.exit_date} onChange={(e) => setForm({ ...form, exit_date: e.target.value })} /></div>
+                  <div><Label>كتاكيت</Label><Input type="number" value={form.hatched_chicks} onChange={(e) => setForm({ ...form, hatched_chicks: +e.target.value })} /></div>
+                  <div><Label>نافق هاتشر</Label><Input type="number" value={form.hatcher_dead} onChange={(e) => setForm({ ...form, hatcher_dead: +e.target.value })} /></div>
+                </div>
+              </div>
+
+              <div><Label>ملاحظات</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+            </div>
+            <DialogFooter><Button onClick={() => save.mutate()} disabled={save.isPending}>حفظ</Button></DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="overflow-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>رقم</TableHead><TableHead>التاريخ</TableHead><TableHead>العميل</TableHead>
+              <TableHead>وارد</TableHead><TableHead>صافي</TableHead><TableHead>كتاكيت</TableHead>
+              <TableHead>خصوبة</TableHead><TableHead>تحول</TableHead><TableHead>الحالة</TableHead><TableHead></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {batches.map((b: any) => (
+              <TableRow key={b.id}>
+                <TableCell className="font-mono text-xs">{b.batch_number}</TableCell>
+                <TableCell>{b.receive_date}</TableCell>
+                <TableCell>{customerName(b.customer_id)}</TableCell>
+                <TableCell>{b.received_eggs}</TableCell>
+                <TableCell>{b.net_eggs}</TableCell>
+                <TableCell className="font-bold text-orange-600">{b.hatched_chicks || 0}</TableCell>
+                <TableCell className="text-emerald-600">{fertility(b)}</TableCell>
+                <TableCell className="text-purple-600">{conversion(b)}</TableCell>
+                <TableCell>
+                  <Badge variant={b.status === "completed" ? "default" : "secondary"}>
+                    {b.status === "completed" ? "مكتملة" : b.status === "incubating" ? "تحضين" : b.status === "hatching" ? "هاتشر" : "انتظار"}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <Button size="icon" variant="ghost" onClick={() => openEdit(b)}><Pencil className="w-4 h-4" /></Button>
+                  <Button size="icon" variant="ghost" onClick={() => del.mutate(b.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                </TableCell>
+              </TableRow>
+            ))}
+            {batches.length === 0 && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-6">لا توجد دفعات</TableCell></TableRow>}
+          </TableBody>
+        </Table>
+      </div>
+    </Card>
+  );
+};
+
+// ============ QUALITY ============
+const QualityTab = ({ stats }: any) => {
+  const data = [
+    { name: "الخصوبة", "العاصمة": +stats.internalFertility, "العملاء": +stats.externalFertility },
+    { name: "التحول للكتكوت", "العاصمة": +stats.internalConversion, "العملاء": +stats.externalConversion },
+  ];
+  const diffFert = (+stats.internalFertility - +stats.externalFertility).toFixed(1);
+  const diffConv = (+stats.internalConversion - +stats.externalConversion).toFixed(1);
+
+  return (
+    <Card className="p-4">
+      <h3 className="font-bold mb-4">مقارنة جودة العاصمة (داخلي) مقابل العملاء الآخرين</h3>
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <Card className="p-3">
+          <p className="text-xs text-muted-foreground">فرق الخصوبة</p>
+          <p className={`text-xl font-bold ${+diffFert >= 0 ? "text-emerald-600" : "text-destructive"}`}>{+diffFert >= 0 ? "+" : ""}{diffFert} نقطة</p>
+        </Card>
+        <Card className="p-3">
+          <p className="text-xs text-muted-foreground">فرق التحول</p>
+          <p className={`text-xl font-bold ${+diffConv >= 0 ? "text-emerald-600" : "text-destructive"}`}>{+diffConv >= 0 ? "+" : ""}{diffConv} نقطة</p>
+        </Card>
+      </div>
+      <div className="h-72">
+        <ResponsiveContainer>
+          <BarChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="name" />
+            <YAxis unit="%" />
+            <Tooltip />
+            <Legend />
+            <Bar dataKey="العاصمة" fill="hsl(var(--primary))" />
+            <Bar dataKey="العملاء" fill="hsl(var(--accent))" />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      <p className="text-xs text-muted-foreground mt-3">* الحسابات تعتمد على الدفعات المكتملة فقط حتى لا يتم ظلم الدفعات الجارية.</p>
+    </Card>
+  );
+};
+
+// ============ CUSTOMERS ============
+const CustomersTab = ({ customers, qc }: any) => {
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState<any>({ name: "", customer_type: "external", incubation_price: 150, infertile_price: 50, hatcher_price: 100, notes: "" });
+
+  const save = useMutation({
+    mutationFn: async () => { const { error } = await supabase.from("hatch_customers").insert(form); if (error) throw error; },
+    onSuccess: () => { toast.success("تم"); setOpen(false); setForm({ name: "", customer_type: "external", incubation_price: 150, infertile_price: 50, hatcher_price: 100, notes: "" }); qc.invalidateQueries({ queryKey: ["hatch_customers"] }); },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const del = useMutation({
+    mutationFn: async (id: string) => { const { error } = await supabase.from("hatch_customers").delete().eq("id", id); if (error) throw error; },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["hatch_customers"] }),
+  });
+
+  return (
+    <Card className="p-4">
+      <div className="flex justify-between mb-3">
+        <h3 className="font-bold">عملاء المعمل</h3>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild><Button size="sm"><Plus className="w-4 h-4 ml-1" />عميل جديد</Button></DialogTrigger>
+          <DialogContent dir="rtl">
+            <DialogHeader><DialogTitle>عميل جديد</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div><Label>الاسم</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+              <div><Label>النوع</Label>
+                <Select value={form.customer_type} onValueChange={(v) => setForm({ ...form, customer_type: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="internal">داخلي (العاصمة)</SelectItem>
+                    <SelectItem value="external">خارجي</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div><Label>تحضين</Label><Input type="number" value={form.incubation_price} onChange={(e) => setForm({ ...form, incubation_price: +e.target.value })} /></div>
+                <div><Label>غير مخصب</Label><Input type="number" value={form.infertile_price} onChange={(e) => setForm({ ...form, infertile_price: +e.target.value })} /></div>
+                <div><Label>هاتشر</Label><Input type="number" value={form.hatcher_price} onChange={(e) => setForm({ ...form, hatcher_price: +e.target.value })} /></div>
+              </div>
+              <div><Label>ملاحظات</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+            </div>
+            <DialogFooter><Button onClick={() => save.mutate()} disabled={save.isPending}>حفظ</Button></DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+      <div className="overflow-auto">
+        <Table>
+          <TableHeader><TableRow><TableHead>الاسم</TableHead><TableHead>النوع</TableHead><TableHead>تحضين</TableHead><TableHead>غير مخصب</TableHead><TableHead>هاتشر</TableHead><TableHead></TableHead></TableRow></TableHeader>
+          <TableBody>
+            {customers.map((c: any) => (
+              <TableRow key={c.id}>
+                <TableCell className="font-bold">{c.name}</TableCell>
+                <TableCell><Badge variant={c.customer_type === "internal" ? "default" : "outline"}>{c.customer_type === "internal" ? "داخلي" : "خارجي"}</Badge></TableCell>
+                <TableCell>{c.incubation_price}</TableCell>
+                <TableCell>{c.infertile_price}</TableCell>
+                <TableCell>{c.hatcher_price}</TableCell>
+                <TableCell><Button size="icon" variant="ghost" onClick={() => del.mutate(c.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button></TableCell>
+              </TableRow>
+            ))}
+            {customers.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">لا يوجد عملاء</TableCell></TableRow>}
+          </TableBody>
+        </Table>
+      </div>
+    </Card>
+  );
+};
+
+// ============ DAILY OPS ============
+const OpsTab = ({ ops, qc }: any) => {
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState<any>({ op_date: today(), status: "normal", capacity: 0, notes: "" });
+  const save = useMutation({
+    mutationFn: async () => { const { error } = await supabase.from("hatch_daily_ops").insert(form); if (error) throw error; },
+    onSuccess: () => { toast.success("تم"); setOpen(false); setForm({ op_date: today(), status: "normal", capacity: 0, notes: "" }); qc.invalidateQueries({ queryKey: ["hatch_daily_ops"] }); },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const del = useMutation({ mutationFn: async (id: string) => { const { error } = await supabase.from("hatch_daily_ops").delete().eq("id", id); if (error) throw error; }, onSuccess: () => qc.invalidateQueries({ queryKey: ["hatch_daily_ops"] }) });
+
+  return (
+    <Card className="p-4">
+      <div className="flex justify-between mb-3">
+        <h3 className="font-bold">التشغيل اليومي للمعمل</h3>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild><Button size="sm"><Plus className="w-4 h-4 ml-1" />تسجيل يوم</Button></DialogTrigger>
+          <DialogContent dir="rtl">
+            <DialogHeader><DialogTitle>تشغيل يومي</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div><Label>التاريخ</Label><Input type="date" value={form.op_date} onChange={(e) => setForm({ ...form, op_date: e.target.value })} /></div>
+              <div><Label>الحالة</Label>
+                <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="normal">عادي</SelectItem>
+                    <SelectItem value="alert">تنبيه</SelectItem>
+                    <SelectItem value="stopped">متوقف</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div><Label>الطاقة المستخدمة</Label><Input type="number" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: +e.target.value })} /></div>
+              <div><Label>ملاحظات</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+            </div>
+            <DialogFooter><Button onClick={() => save.mutate()} disabled={save.isPending}>حفظ</Button></DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+      <Table>
+        <TableHeader><TableRow><TableHead>التاريخ</TableHead><TableHead>الحالة</TableHead><TableHead>الطاقة</TableHead><TableHead>ملاحظات</TableHead><TableHead></TableHead></TableRow></TableHeader>
+        <TableBody>
+          {ops.map((o: any) => (
+            <TableRow key={o.id}>
+              <TableCell>{o.op_date}</TableCell>
+              <TableCell><Badge variant={o.status === "normal" ? "default" : "destructive"}>{o.status === "normal" ? "عادي" : o.status === "alert" ? "تنبيه" : "متوقف"}</Badge></TableCell>
+              <TableCell>{o.capacity}</TableCell>
+              <TableCell className="text-xs">{o.notes || "-"}</TableCell>
+              <TableCell><Button size="icon" variant="ghost" onClick={() => del.mutate(o.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button></TableCell>
+            </TableRow>
+          ))}
+          {ops.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">لا يوجد سجل</TableCell></TableRow>}
+        </TableBody>
+      </Table>
+    </Card>
+  );
+};
+
+// ============ MAINTENANCE ============
+const MaintTab = ({ maint, qc }: any) => {
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState<any>({ maint_date: today(), maint_type: "periodic", machine: "", action: "", cost: 0, notes: "" });
+  const save = useMutation({
+    mutationFn: async () => { const { error } = await supabase.from("hatch_maintenance").insert(form); if (error) throw error; },
+    onSuccess: () => { toast.success("تم"); setOpen(false); setForm({ maint_date: today(), maint_type: "periodic", machine: "", action: "", cost: 0, notes: "" }); qc.invalidateQueries({ queryKey: ["hatch_maintenance"] }); },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const del = useMutation({ mutationFn: async (id: string) => { const { error } = await supabase.from("hatch_maintenance").delete().eq("id", id); if (error) throw error; }, onSuccess: () => qc.invalidateQueries({ queryKey: ["hatch_maintenance"] }) });
+
+  return (
+    <Card className="p-4">
+      <div className="flex justify-between mb-3">
+        <h3 className="font-bold">صيانة المعمل</h3>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild><Button size="sm"><Plus className="w-4 h-4 ml-1" />تسجيل صيانة</Button></DialogTrigger>
+          <DialogContent dir="rtl">
+            <DialogHeader><DialogTitle>صيانة جديدة</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div><Label>التاريخ</Label><Input type="date" value={form.maint_date} onChange={(e) => setForm({ ...form, maint_date: e.target.value })} /></div>
+                <div><Label>النوع</Label>
+                  <Select value={form.maint_type} onValueChange={(v) => setForm({ ...form, maint_type: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="periodic">دورية</SelectItem>
+                      <SelectItem value="emergency">طارئة</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div><Label>الماكينة</Label><Input value={form.machine} onChange={(e) => setForm({ ...form, machine: e.target.value })} /></div>
+              <div><Label>الإجراء</Label><Textarea value={form.action} onChange={(e) => setForm({ ...form, action: e.target.value })} /></div>
+              <div><Label>التكلفة</Label><Input type="number" value={form.cost} onChange={(e) => setForm({ ...form, cost: +e.target.value })} /></div>
+              <div><Label>ملاحظات</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+            </div>
+            <DialogFooter><Button onClick={() => save.mutate()} disabled={save.isPending}>حفظ</Button></DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+      <Table>
+        <TableHeader><TableRow><TableHead>التاريخ</TableHead><TableHead>النوع</TableHead><TableHead>الماكينة</TableHead><TableHead>الإجراء</TableHead><TableHead>التكلفة</TableHead><TableHead></TableHead></TableRow></TableHeader>
+        <TableBody>
+          {maint.map((m: any) => (
+            <TableRow key={m.id}>
+              <TableCell>{m.maint_date}</TableCell>
+              <TableCell><Badge variant={m.maint_type === "emergency" ? "destructive" : "secondary"}>{m.maint_type === "emergency" ? "طارئة" : "دورية"}</Badge></TableCell>
+              <TableCell>{m.machine || "-"}</TableCell>
+              <TableCell className="text-xs">{m.action}</TableCell>
+              <TableCell className="font-bold">{m.cost}</TableCell>
+              <TableCell><Button size="icon" variant="ghost" onClick={() => del.mutate(m.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button></TableCell>
+            </TableRow>
+          ))}
+          {maint.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">لا يوجد سجل صيانة</TableCell></TableRow>}
+        </TableBody>
+      </Table>
+    </Card>
+  );
+};
+
+// ============ CHICKS ============
+const ChicksTab = ({ chicks, qc }: any) => {
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState<any>({ movement_date: today(), source: "", incoming: 0, outgoing: 0, dead: 0, sold: 0, unit_price: 0, notes: "" });
+  const save = useMutation({
+    mutationFn: async () => { const { error } = await supabase.from("chick_movements").insert(form); if (error) throw error; },
+    onSuccess: () => { toast.success("تم"); setOpen(false); setForm({ movement_date: today(), source: "", incoming: 0, outgoing: 0, dead: 0, sold: 0, unit_price: 0, notes: "" }); qc.invalidateQueries({ queryKey: ["chick_movements"] }); },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const del = useMutation({ mutationFn: async (id: string) => { const { error } = await supabase.from("chick_movements").delete().eq("id", id); if (error) throw error; }, onSuccess: () => qc.invalidateQueries({ queryKey: ["chick_movements"] }) });
+
+  const totals = useMemo(() => {
+    const t = chicks.reduce((acc: any, c: any) => {
+      acc.in += c.incoming; acc.out += c.outgoing; acc.dead += c.dead;
+      acc.sold += c.sold; acc.revenue += (c.sold * c.unit_price);
+      return acc;
+    }, { in: 0, out: 0, dead: 0, sold: 0, revenue: 0 });
+    t.balance = t.in - t.out - t.dead;
+    return t;
+  }, [chicks]);
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+        <Card className="p-3"><p className="text-xs text-muted-foreground">إجمالي وارد</p><p className="text-lg font-bold">{totals.in}</p></Card>
+        <Card className="p-3"><p className="text-xs text-muted-foreground">منصرف</p><p className="text-lg font-bold">{totals.out}</p></Card>
+        <Card className="p-3"><p className="text-xs text-muted-foreground">نافق</p><p className="text-lg font-bold text-destructive">{totals.dead}</p></Card>
+        <Card className="p-3"><p className="text-xs text-muted-foreground">مبيعات</p><p className="text-lg font-bold text-emerald-600">{totals.sold}</p></Card>
+        <Card className="p-3"><p className="text-xs text-muted-foreground">الرصيد</p><p className="text-lg font-bold text-purple-600">{totals.balance}</p></Card>
+      </div>
+
+      <Card className="p-4">
+        <div className="flex justify-between mb-3">
+          <h3 className="font-bold">حركة الكتاكيت</h3>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild><Button size="sm"><Plus className="w-4 h-4 ml-1" />حركة جديدة</Button></DialogTrigger>
+            <DialogContent dir="rtl">
+              <DialogHeader><DialogTitle>حركة كتاكيت</DialogTitle></DialogHeader>
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div><Label>التاريخ</Label><Input type="date" value={form.movement_date} onChange={(e) => setForm({ ...form, movement_date: e.target.value })} /></div>
+                  <div><Label>المصدر</Label><Input value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} placeholder="اسم الدفعة/العميل" /></div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div><Label>وارد</Label><Input type="number" value={form.incoming} onChange={(e) => setForm({ ...form, incoming: +e.target.value })} /></div>
+                  <div><Label>منصرف</Label><Input type="number" value={form.outgoing} onChange={(e) => setForm({ ...form, outgoing: +e.target.value })} /></div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div><Label>نافق</Label><Input type="number" value={form.dead} onChange={(e) => setForm({ ...form, dead: +e.target.value })} /></div>
+                  <div><Label>مباع</Label><Input type="number" value={form.sold} onChange={(e) => setForm({ ...form, sold: +e.target.value })} /></div>
+                </div>
+                <div><Label>سعر الوحدة</Label><Input type="number" value={form.unit_price} onChange={(e) => setForm({ ...form, unit_price: +e.target.value })} /></div>
+                <div><Label>ملاحظات</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+              </div>
+              <DialogFooter><Button onClick={() => save.mutate()} disabled={save.isPending}>حفظ</Button></DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+        <Table>
+          <TableHeader><TableRow><TableHead>التاريخ</TableHead><TableHead>المصدر</TableHead><TableHead>وارد</TableHead><TableHead>منصرف</TableHead><TableHead>نافق</TableHead><TableHead>مباع</TableHead><TableHead>سعر</TableHead><TableHead>إجمالي بيع</TableHead><TableHead></TableHead></TableRow></TableHeader>
+          <TableBody>
+            {chicks.map((c: any) => (
+              <TableRow key={c.id}>
+                <TableCell>{c.movement_date}</TableCell>
+                <TableCell>{c.source}</TableCell>
+                <TableCell>{c.incoming}</TableCell>
+                <TableCell>{c.outgoing}</TableCell>
+                <TableCell className="text-destructive">{c.dead}</TableCell>
+                <TableCell className="text-emerald-600">{c.sold}</TableCell>
+                <TableCell>{c.unit_price}</TableCell>
+                <TableCell className="font-bold">{c.sold * c.unit_price}</TableCell>
+                <TableCell><Button size="icon" variant="ghost" onClick={() => del.mutate(c.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button></TableCell>
+              </TableRow>
+            ))}
+            {chicks.length === 0 && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-6">لا توجد حركة</TableCell></TableRow>}
+          </TableBody>
+        </Table>
+      </Card>
+    </div>
+  );
+};
 
 export default Hatchery;

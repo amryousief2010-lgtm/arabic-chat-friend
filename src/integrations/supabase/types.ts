@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      chick_movements: {
+        Row: {
+          created_at: string
+          dead: number
+          id: string
+          incoming: number
+          movement_date: string
+          notes: string | null
+          outgoing: number
+          sold: number
+          source: string
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          dead?: number
+          id?: string
+          incoming?: number
+          movement_date: string
+          notes?: string | null
+          outgoing?: number
+          sold?: number
+          source: string
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string
+          dead?: number
+          id?: string
+          incoming?: number
+          movement_date?: string
+          notes?: string | null
+          outgoing?: number
+          sold?: number
+          source?: string
+          unit_price?: number
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           address: string | null
@@ -55,6 +94,192 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      farm_egg_production: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          egg_count: number
+          family_id: string | null
+          id: string
+          notes: string | null
+          production_date: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          egg_count?: number
+          family_id?: string | null
+          id?: string
+          notes?: string | null
+          production_date: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          egg_count?: number
+          family_id?: string | null
+          id?: string
+          notes?: string | null
+          production_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "farm_egg_production_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "farm_families"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      farm_families: {
+        Row: {
+          created_at: string
+          family_number: string
+          female_count: number
+          id: string
+          male_count: number
+          notes: string | null
+          pen: string | null
+          start_date: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          family_number: string
+          female_count?: number
+          id?: string
+          male_count?: number
+          notes?: string | null
+          pen?: string | null
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          family_number?: string
+          female_count?: number
+          id?: string
+          male_count?: number
+          notes?: string | null
+          pen?: string | null
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      farm_feed_log: {
+        Row: {
+          created_at: string
+          feed_type: string
+          id: string
+          log_date: string
+          notes: string | null
+          quantity: number
+          unit: string
+        }
+        Insert: {
+          created_at?: string
+          feed_type: string
+          id?: string
+          log_date: string
+          notes?: string | null
+          quantity?: number
+          unit?: string
+        }
+        Update: {
+          created_at?: string
+          feed_type?: string
+          id?: string
+          log_date?: string
+          notes?: string | null
+          quantity?: number
+          unit?: string
+        }
+        Relationships: []
+      }
+      farm_medications: {
+        Row: {
+          created_at: string
+          dose: string | null
+          family_id: string | null
+          id: string
+          med_date: string
+          name: string
+          notes: string | null
+        }
+        Insert: {
+          created_at?: string
+          dose?: string | null
+          family_id?: string | null
+          id?: string
+          med_date: string
+          name: string
+          notes?: string | null
+        }
+        Update: {
+          created_at?: string
+          dose?: string | null
+          family_id?: string | null
+          id?: string
+          med_date?: string
+          name?: string
+          notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "farm_medications_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "farm_families"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      farm_transfers: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          damaged: number
+          family_id: string | null
+          id: string
+          notes: string | null
+          quantity: number
+          transfer_date: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          damaged?: number
+          family_id?: string | null
+          id?: string
+          notes?: string | null
+          quantity?: number
+          transfer_date: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          damaged?: number
+          family_id?: string | null
+          id?: string
+          notes?: string | null
+          quantity?: number
+          transfer_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "farm_transfers_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "farm_families"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       feed_batch_consumption: {
         Row: {
@@ -343,6 +568,188 @@ export type Database = {
           name?: string
           unit?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      hatch_batches: {
+        Row: {
+          batch_number: string
+          candle1_date: string | null
+          candle1_fertile: number | null
+          candle1_infertile: number | null
+          candle2_date: string | null
+          candle2_dead: number | null
+          candle2_fertile: number | null
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          entry_date: string | null
+          exit_date: string | null
+          hatched_chicks: number | null
+          hatcher_dead: number | null
+          id: string
+          machine: string | null
+          net_eggs: number
+          notes: string | null
+          receive_date: string
+          received_eggs: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          batch_number: string
+          candle1_date?: string | null
+          candle1_fertile?: number | null
+          candle1_infertile?: number | null
+          candle2_date?: string | null
+          candle2_dead?: number | null
+          candle2_fertile?: number | null
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          entry_date?: string | null
+          exit_date?: string | null
+          hatched_chicks?: number | null
+          hatcher_dead?: number | null
+          id?: string
+          machine?: string | null
+          net_eggs?: number
+          notes?: string | null
+          receive_date: string
+          received_eggs?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          batch_number?: string
+          candle1_date?: string | null
+          candle1_fertile?: number | null
+          candle1_infertile?: number | null
+          candle2_date?: string | null
+          candle2_dead?: number | null
+          candle2_fertile?: number | null
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          entry_date?: string | null
+          exit_date?: string | null
+          hatched_chicks?: number | null
+          hatcher_dead?: number | null
+          id?: string
+          machine?: string | null
+          net_eggs?: number
+          notes?: string | null
+          receive_date?: string
+          received_eggs?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hatch_batches_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "hatch_customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hatch_customers: {
+        Row: {
+          created_at: string
+          customer_type: string
+          hatcher_price: number
+          id: string
+          incubation_price: number
+          infertile_price: number
+          is_active: boolean
+          name: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_type?: string
+          hatcher_price?: number
+          id?: string
+          incubation_price?: number
+          infertile_price?: number
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_type?: string
+          hatcher_price?: number
+          id?: string
+          incubation_price?: number
+          infertile_price?: number
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      hatch_daily_ops: {
+        Row: {
+          capacity: number | null
+          created_at: string
+          id: string
+          notes: string | null
+          op_date: string
+          status: string
+        }
+        Insert: {
+          capacity?: number | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          op_date: string
+          status?: string
+        }
+        Update: {
+          capacity?: number | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          op_date?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      hatch_maintenance: {
+        Row: {
+          action: string
+          cost: number
+          created_at: string
+          id: string
+          machine: string | null
+          maint_date: string
+          maint_type: string
+          notes: string | null
+        }
+        Insert: {
+          action: string
+          cost?: number
+          created_at?: string
+          id?: string
+          machine?: string | null
+          maint_date: string
+          maint_type?: string
+          notes?: string | null
+        }
+        Update: {
+          action?: string
+          cost?: number
+          created_at?: string
+          id?: string
+          machine?: string | null
+          maint_date?: string
+          maint_type?: string
+          notes?: string | null
         }
         Relationships: []
       }
