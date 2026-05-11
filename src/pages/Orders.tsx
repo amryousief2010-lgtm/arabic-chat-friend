@@ -77,7 +77,7 @@ const statusLabels: Record<OrderStatus, string> = {
   processing: "جاري التجهيز",
   shipped: "تم الشحن",
   delivered: "تم التوصيل",
-  cancelled: "ملغي",
+  cancelled: "مرتجع",
 };
 
 const paymentLabels: Record<string, string> = {
