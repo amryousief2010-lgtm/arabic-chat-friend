@@ -270,15 +270,37 @@ const Orders = () => {
             <ShoppingCart className="w-5 h-5 text-primary" />
             قائمة الطلبات ({filteredOrders.length})
           </CardTitle>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-3">
             <Input
               placeholder="بحث برقم الطلب أو اسم العميل..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-72 input-modern"
+              className="w-64 input-modern"
             />
+            <Select value={filterMonth} onValueChange={setFilterMonth}>
+              <SelectTrigger className="w-36 input-modern">
+                <SelectValue placeholder="الشهر" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">كل الشهور</SelectItem>
+                {monthNames.map((name, i) => (
+                  <SelectItem key={i + 1} value={String(i + 1)}>{name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterYear} onValueChange={setFilterYear}>
+              <SelectTrigger className="w-32 input-modern">
+                <SelectValue placeholder="السنة" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">كل السنوات</SelectItem>
+                {availableYears.map((y) => (
+                  <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-48 input-modern">
+              <SelectTrigger className="w-44 input-modern">
                 <SelectValue placeholder="فلترة حسب الحالة" />
               </SelectTrigger>
               <SelectContent>
