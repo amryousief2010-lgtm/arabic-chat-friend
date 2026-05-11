@@ -84,7 +84,7 @@ const Install = () => {
             <Smartphone className="w-10 h-10 text-primary" />
           </div>
           <CardTitle className="text-2xl">شركة نعام العاصمة</CardTitle>
-          <p className="text-muted-foreground">إدارة العمليات</p>
+          <p className="text-muted-foreground">إدارة المبيعات</p>
         </CardHeader>
         <CardContent className="space-y-4">
           {isIOS ? (

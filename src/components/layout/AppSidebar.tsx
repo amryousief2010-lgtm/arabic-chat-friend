@@ -15,7 +15,7 @@ const AppSidebar = () => {
           </div>
           <div>
             <h1 className="font-bold text-lg">شركة نعام العاصمة</h1>
-            <p className="text-xs text-sidebar-foreground/60">إدارة العمليات</p>
+            <p className="text-xs text-sidebar-foreground/60">إدارة المبيعات</p>
           </div>
         </div>
       </div>
