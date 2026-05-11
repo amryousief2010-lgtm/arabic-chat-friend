@@ -494,6 +494,7 @@ const Orders = () => {
                           {order.collection_status === 'collected' ? 'تم التحصيل' : 'لم يتم التحصيل'}
                         </Badge>
                       )}
+                    </TableCell>
                     <TableCell className="text-muted-foreground">
                       {new Date(order.created_at).toLocaleDateString('ar-EG')}
                     </TableCell>
