@@ -165,34 +165,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const isMeatFactoryManager = role === 'meat_factory_manager';
   const isFeedFactoryManager = role === 'feed_factory_manager';
   const isHrManager = role === 'hr_manager';
+  const isProductionManager = role === 'production_manager';
+  const isMarketingSalesManager = role === 'marketing_sales_manager';
+  const isFinancialManager = role === 'financial_manager';
+  const isQualityManager = role === 'quality_manager';
 
   // Module-level write permissions
-  const canManageFeedFactory = isGeneralManager || isExecutiveManager || isFeedFactoryManager;
-  const canManageWarehouses = isGeneralManager || isExecutiveManager || isWarehouseSupervisor;
-  const canManageFarm = isGeneralManager || isExecutiveManager || isFarmManager;
-  const canManageHatchery = isGeneralManager || isExecutiveManager || isHatcheryManager;
-  const canManageBrooding = isGeneralManager || isExecutiveManager || isBroodingManager;
-  const canManageSlaughterhouse = isGeneralManager || isExecutiveManager || isSlaughterhouseManager;
-  const canManageMeatFactory = isGeneralManager || isExecutiveManager || isMeatFactoryManager;
+  const canManageFeedFactory = isGeneralManager || isExecutiveManager || isFeedFactoryManager || isProductionManager;
+  const canManageWarehouses = isGeneralManager || isExecutiveManager || isWarehouseSupervisor || isProductionManager;
+  const canManageFarm = isGeneralManager || isExecutiveManager || isFarmManager || isProductionManager;
+  const canManageHatchery = isGeneralManager || isExecutiveManager || isHatcheryManager || isProductionManager;
+  const canManageBrooding = isGeneralManager || isExecutiveManager || isBroodingManager || isProductionManager;
+  const canManageSlaughterhouse = isGeneralManager || isExecutiveManager || isSlaughterhouseManager || isProductionManager;
+  const canManageMeatFactory = isGeneralManager || isExecutiveManager || isMeatFactoryManager || isProductionManager;
   const canManageHr = isGeneralManager || isExecutiveManager || isHrManager;
 
   // Permission helpers based on requirements
-  // Sales Manager has same permissions as Executive Manager
   const canManageEmployees = isGeneralManager;
-  const canManageProducts = isGeneralManager || isExecutiveManager || isSalesManager || isWarehouseSupervisor;
-  const canManageStock = isGeneralManager || isExecutiveManager || isWarehouseSupervisor;
-  const canManageOrders = isGeneralManager || isExecutiveManager || isSalesManager || isAccountant || isWarehouseSupervisor;
-  const canViewReports = isGeneralManager || isExecutiveManager || isSalesManager || isAccountant || isWarehouseSupervisor;
-  const canUpdatePaymentStatus = isGeneralManager || isExecutiveManager || isSalesManager || isAccountant;
-  const canUpdateOrderStatus = isGeneralManager || isExecutiveManager || isSalesManager || isWarehouseSupervisor;
+  const canManageProducts = isGeneralManager || isExecutiveManager || isSalesManager || isWarehouseSupervisor || isMarketingSalesManager;
+  const canManageStock = isGeneralManager || isExecutiveManager || isWarehouseSupervisor || isProductionManager;
+  const canManageOrders = isGeneralManager || isExecutiveManager || isSalesManager || isAccountant || isWarehouseSupervisor || isMarketingSalesManager || isFinancialManager;
+  const canViewReports = isGeneralManager || isExecutiveManager || isSalesManager || isAccountant || isWarehouseSupervisor || isMarketingSalesManager || isFinancialManager || isQualityManager || isProductionManager;
+  const canUpdatePaymentStatus = isGeneralManager || isExecutiveManager || isSalesManager || isAccountant || isMarketingSalesManager || isFinancialManager;
+  const canUpdateOrderStatus = isGeneralManager || isExecutiveManager || isSalesManager || isWarehouseSupervisor || isMarketingSalesManager;
   
-  // Function to check if user can update order status for a specific order
   const canUpdateOrderStatusForOrder = (orderCreatedBy: string | null) => {
-    // General Manager, Executive Manager, and Sales Manager can update any order
-    if (isGeneralManager || isExecutiveManager || isSalesManager) {
+    if (isGeneralManager || isExecutiveManager || isSalesManager || isMarketingSalesManager) {
       return true;
     }
-    // Sales moderator can only update their own orders
     if (isSalesModerator && user && orderCreatedBy === user.id) {
       return true;
     }

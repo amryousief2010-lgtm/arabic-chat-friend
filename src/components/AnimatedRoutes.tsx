@@ -52,7 +52,7 @@ const AnimatedRoutes = () => {
           </ProtectedRoute>
         } />
         <Route path="/products" element={
-          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'warehouse_supervisor']}>
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'warehouse_supervisor', 'marketing_sales_manager', 'quality_manager']}>
             <PageTransition><Products /></PageTransition>
           </ProtectedRoute>
         } />
@@ -62,7 +62,7 @@ const AnimatedRoutes = () => {
           </ProtectedRoute>
         } />
         <Route path="/orders/new" element={
-          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator']}>
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager']}>
             <PageTransition><NewOrder /></PageTransition>
           </ProtectedRoute>
         } />
@@ -72,7 +72,7 @@ const AnimatedRoutes = () => {
           </ProtectedRoute>
         } />
         <Route path="/customers" element={
-          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator']}>
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager']}>
             <PageTransition><Customers /></PageTransition>
           </ProtectedRoute>
         } />
@@ -82,7 +82,7 @@ const AnimatedRoutes = () => {
           </ProtectedRoute>
         } />
         <Route path="/reports" element={
-          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'accountant']}>
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'financial_manager', 'quality_manager']}>
             <PageTransition><Reports /></PageTransition>
           </ProtectedRoute>
         } />
@@ -102,17 +102,17 @@ const AnimatedRoutes = () => {
           </ProtectedRoute>
         } />
         <Route path="/team-performance" element={
-          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager']}>
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager']}>
             <PageTransition><TeamPerformance /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/sales-targets" element={
-          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager']}>
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager']}>
             <PageTransition><SalesTargets /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/offer-boxes" element={
-          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator']}>
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager']}>
             <PageTransition><OfferBoxes /></PageTransition>
           </ProtectedRoute>
         } />
@@ -122,7 +122,7 @@ const AnimatedRoutes = () => {
           </ProtectedRoute>
         } />
         <Route path="/low-stock" element={
-          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'warehouse_supervisor']}>
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'warehouse_supervisor', 'marketing_sales_manager', 'production_manager', 'quality_manager']}>
             <PageTransition><LowStock /></PageTransition>
           </ProtectedRoute>
         } />
@@ -140,37 +140,37 @@ const AnimatedRoutes = () => {
           </ProtectedRoute>
         } />
         <Route path="/moderator-performance" element={
-          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager']}>
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager']}>
             <PageTransition><ModeratorPerformance /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/modules/farm" element={
-          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'farm_manager']}>
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'farm_manager', 'production_manager', 'quality_manager']}>
             <PageTransition><Farm /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/modules/hatchery" element={
-          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'hatchery_manager']}>
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'hatchery_manager', 'production_manager', 'quality_manager']}>
             <PageTransition><Hatchery /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/modules/brooding" element={
-          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'brooding_manager']}>
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'brooding_manager', 'production_manager', 'quality_manager']}>
             <PageTransition><Brooding /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/modules/slaughterhouse" element={
-          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'slaughterhouse_manager']}>
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'slaughterhouse_manager', 'production_manager', 'quality_manager']}>
             <PageTransition><Slaughterhouse /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/modules/meat-factory" element={
-          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'meat_factory_manager']}>
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'quality_manager']}>
             <PageTransition><MeatFactory /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/modules/feed-factory" element={
-          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'feed_factory_manager']}>
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'feed_factory_manager', 'production_manager', 'quality_manager']}>
             <PageTransition><FeedFactory /></PageTransition>
           </ProtectedRoute>
         } />
@@ -180,27 +180,27 @@ const AnimatedRoutes = () => {
           </ProtectedRoute>
         } />
         <Route path="/modules/warehouses" element={
-          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor']}>
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager', 'quality_manager']}>
             <PageTransition><Warehouses /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/modules/warehouses/dashboard" element={
-          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor']}>
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager', 'quality_manager']}>
             <PageTransition><WarehouseDashboard /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/modules/warehouses/import" element={
-          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor']}>
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager', 'quality_manager']}>
             <PageTransition><InventoryImport /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/modules/feed-factory/recipes/:id" element={
-          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'feed_factory_manager']}>
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'feed_factory_manager', 'production_manager', 'quality_manager']}>
             <PageTransition><RecipeDetail /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/modules/feed-factory/batches/:id" element={
-          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'feed_factory_manager']}>
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'feed_factory_manager', 'production_manager', 'quality_manager']}>
             <PageTransition><BatchTracking /></PageTransition>
           </ProtectedRoute>
         } />
