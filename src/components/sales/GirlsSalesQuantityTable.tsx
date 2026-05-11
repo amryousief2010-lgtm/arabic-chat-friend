@@ -95,12 +95,18 @@ const GirlsSalesQuantityTable = () => {
     }, {} as Record<string, { meat_total: number; bone_meat_total: number; processed_total: number }>);
   }, [data, prices]);
 
+  const labelMap: Record<keyof GirlData, string> = {
+    meat_qty: 'كمية اللحوم',
+    bone_meat_qty: 'كمية اللحوم بالعظم',
+    processed_qty: 'كمية المصنعات',
+  };
+
   const qtyInput = (girl: string, field: keyof GirlData) => (
     <Input
       type="number"
       min="0"
       value={data[girl][field] || ''}
-      onChange={(e) => updateQty(girl, field, Number(e.target.value) || 0)}
+      onChange={(e) => updateQty(girl, field, Number(e.target.value), `${labelMap[field]} - ${girl}`)}
       className="w-24 text-center mx-auto"
     />
   );
@@ -122,7 +128,7 @@ const GirlsSalesQuantityTable = () => {
               type="number"
               min="0"
               value={prices.meat_price || ''}
-              onChange={(e) => setPrices(p => ({ ...p, meat_price: Number(e.target.value) || 0 }))}
+              onChange={(e) => updatePrice('meat_price', Number(e.target.value), 'سعر كيلو اللحوم')}
             />
           </div>
           <div className="space-y-2">
@@ -131,7 +137,7 @@ const GirlsSalesQuantityTable = () => {
               type="number"
               min="0"
               value={prices.bone_meat_price || ''}
-              onChange={(e) => setPrices(p => ({ ...p, bone_meat_price: Number(e.target.value) || 0 }))}
+              onChange={(e) => updatePrice('bone_meat_price', Number(e.target.value), 'سعر كيلو اللحوم بالعظم')}
             />
           </div>
           <div className="space-y-2">
@@ -140,7 +146,7 @@ const GirlsSalesQuantityTable = () => {
               type="number"
               min="0"
               value={prices.processed_price || ''}
-              onChange={(e) => setPrices(p => ({ ...p, processed_price: Number(e.target.value) || 0 }))}
+              onChange={(e) => updatePrice('processed_price', Number(e.target.value), 'سعر كيلو المصنعات')}
             />
           </div>
         </div>
