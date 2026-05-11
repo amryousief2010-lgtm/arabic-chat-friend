@@ -71,6 +71,7 @@ export const moduleSections: ModuleSection[] = [
       { icon: Users, label: "العملاء", path: "/customers", roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager'] },
       { icon: Gift, label: "صناديق العروض", path: "/offer-boxes", roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager'] },
       { icon: Target, label: "أهداف المبيعات", path: "/sales-targets", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager'] },
+      { icon: Target, label: "التارجت", path: "/sales-targets", roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager'] },
       { icon: UsersRound, label: "أداء الفريق", path: "/team-performance", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager'] },
       { icon: UserCheck, label: "أداء الموديراتور", path: "/moderator-performance", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager'] },
       { icon: BarChart3, label: "التقارير", path: "/reports", roles: ['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'financial_manager', 'quality_manager'] },
