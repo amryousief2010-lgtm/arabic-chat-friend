@@ -688,4 +688,14 @@ const Index = () => {
   );
 };
 
+const ProdCard = ({ label, value, color, icon: Icon }: any) => (
+  <Card className="relative overflow-hidden border-0 shadow">
+    <div className={`absolute inset-0 bg-gradient-to-br ${color} opacity-95`} />
+    <div className="relative p-3 text-white">
+      <div className="flex items-center gap-2 mb-1"><Icon className="w-4 h-4" /><span className="text-xs opacity-90">{label}</span></div>
+      <p className="text-xl font-bold">{value}</p>
+    </div>
+  </Card>
+);
+
 export default Index;
