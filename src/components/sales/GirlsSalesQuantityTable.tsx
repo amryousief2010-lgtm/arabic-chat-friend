@@ -17,7 +17,7 @@ interface GirlData {
 
 const emptyData = (): Record<string, GirlData> =>
   GIRLS.reduce((acc, g) => {
-    acc[g] = { meat_qty: 0, meat_price: 0, processed_qty: 0, processed_price: 0 };
+    acc[g] = { meat_qty: 0, meat_price: 390, processed_qty: 0, processed_price: 160 };
     return acc;
   }, {} as Record<string, GirlData>);
 
