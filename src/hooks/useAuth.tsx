@@ -190,16 +190,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const canManageOrders = isGeneralManager || isExecutiveManager || isSalesManager || isAccountant || isWarehouseSupervisor || isMarketingSalesManager || isFinancialManager;
   const canViewReports = isGeneralManager || isExecutiveManager || isSalesManager || isAccountant || isWarehouseSupervisor || isMarketingSalesManager || isFinancialManager || isQualityManager || isProductionManager;
   const canUpdatePaymentStatus = isGeneralManager || isExecutiveManager || isSalesManager || isAccountant || isMarketingSalesManager || isFinancialManager;
-  const canUpdateOrderStatus = isGeneralManager || isExecutiveManager || isSalesManager || isWarehouseSupervisor || isMarketingSalesManager || isShippingCompany;
+  const canUpdateOrderStatus = isGeneralManager || isExecutiveManager || isSalesManager || isWarehouseSupervisor || isMarketingSalesManager || isShippingCompany || isSalesModerator;
   
-  const canUpdateOrderStatusForOrder = (orderCreatedBy: string | null) => {
-    if (isGeneralManager || isExecutiveManager || isSalesManager || isMarketingSalesManager || isShippingCompany) {
-      return true;
-    }
-    if (isSalesModerator && user && orderCreatedBy === user.id) {
-      return true;
-    }
-    return false;
+  const canUpdateOrderStatusForOrder = (_orderCreatedBy: string | null) => {
+    return (
+      isGeneralManager ||
+      isExecutiveManager ||
+      isSalesManager ||
+      isMarketingSalesManager ||
+      isShippingCompany ||
+      isWarehouseSupervisor ||
+      isSalesModerator
+    );
   };
 
   const value: AuthContextType = {
