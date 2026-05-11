@@ -91,6 +91,11 @@ const AnimatedRoutes = () => {
             <PageTransition><Employees /></PageTransition>
           </ProtectedRoute>
         } />
+        <Route path="/org-chart" element={
+          <ProtectedRoute>
+            <PageTransition><OrgChart /></PageTransition>
+          </ProtectedRoute>
+        } />
         <Route path="/settings" element={
           <ProtectedRoute allowedRoles={['general_manager']}>
             <PageTransition><Settings /></PageTransition>
