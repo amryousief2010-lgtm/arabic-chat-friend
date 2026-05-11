@@ -1,0 +1,1 @@
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS collection_status text NOT NULL DEFAULT 'not_collected';

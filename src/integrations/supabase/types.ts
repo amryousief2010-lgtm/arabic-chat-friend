@@ -1048,6 +1048,7 @@ export type Database = {
       }
       orders: {
         Row: {
+          collection_status: string
           created_at: string
           created_by: string | null
           customer_id: string | null
@@ -1068,6 +1069,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          collection_status?: string
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
@@ -1088,6 +1090,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          collection_status?: string
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
