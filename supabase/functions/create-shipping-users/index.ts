@@ -26,11 +26,52 @@ Deno.serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    const results: Array<{ email: string; status: string; user_id?: string; error?: string }> = [];
+    const results: Array<{ email: string; status: string; error?: string }> = [];
 
     for (const u of USERS) {
-      // Check if already exists
       const { data: existing } = await supabaseAdmin
         .from("profiles")
         .select("id")
-        .eq("
+        .eq("email", u.email)
+        .maybeSingle();
+
+      let userId = existing?.id as string | undefined;
+
+      if (!userId) {
+        const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
+          email: u.email,
+          password: u.password,
+          email_confirm: true,
+          user_metadata: { full_name: u.full_name },
+        });
+        if (createErr || !created.user) {
+          results.push({ email: u.email, status: "error", error: createErr?.message ?? "unknown" });
+          continue;
+        }
+        userId = created.user.id;
+      }
+
+      // Upsert role to shipping_company
+      await supabaseAdmin.from("user_roles").delete().eq("user_id", userId);
+      const { error: roleErr } = await supabaseAdmin
+        .from("user_roles")
+        .insert({ user_id: userId, role: "shipping_company" });
+
+      if (roleErr) {
+        results.push({ email: u.email, status: "role_error", error: roleErr.message });
+        continue;
+      }
+
+      results.push({ email: u.email, status: existing ? "updated" : "created" });
+    }
+
+    return new Response(JSON.stringify({ ok: true, results }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (e) {
+    return new Response(JSON.stringify({ ok: false, error: (e as Error).message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
