@@ -24,9 +24,9 @@ const validateNumber = (value: number, label: string): number | null => {
 const GIRLS = ['اية', 'نورا', 'سارة', 'منال'];
 
 // Keywords used to identify meat (boneless/cut) products
-const MEAT_KEYWORDS = ['قطع', 'استيك', 'موزة', 'فراشة', 'قطعية', 'دبوس', 'تربيانكو', 'اسكالوب', 'رول', 'كباب', 'طبق'];
+const MEAT_KEYWORDS = ['قطع', 'استيك', 'موزة', 'فراشة', 'قطعية', 'تربيانكو', 'اسكالوب', 'رول', 'كباب', 'طبق'];
 // Keywords used to identify bone-in meat products (دبوس 6 كيلو، فخدة نعام، نعامة صندوق)
-const BONE_MEAT_KEYWORDS = ['دبوس 6', 'فخدة', 'نعامه صندوق', 'نعامة صندوق', 'صندوق'];
+const BONE_MEAT_KEYWORDS = ['دبوس 6', 'فخده', 'فخذه', 'فخدة', 'نعامه صندوق', 'نعامة صندوق'];
 
 const months = [
   { value: 1, label: 'يناير' }, { value: 2, label: 'فبراير' }, { value: 3, label: 'مارس' },
