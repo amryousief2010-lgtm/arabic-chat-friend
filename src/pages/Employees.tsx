@@ -303,14 +303,90 @@ const Employees = () => {
     emp.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const stats = {
-    total: employees.length,
-    generalManagers: employees.filter(e => e.role === 'general_manager').length,
-    executiveManagers: employees.filter(e => e.role === 'executive_manager').length,
-    salesModerators: employees.filter(e => e.role === 'sales_moderator').length,
-    accountants: employees.filter(e => e.role === 'accountant').length,
-    warehouseSupervisors: employees.filter(e => e.role === 'warehouse_supervisor').length,
-  };
+  const countByRoles = (roles: AppRole[]) =>
+    employees.filter((e) => roles.includes(e.role)).length;
+
+  const departments: {
+    key: string;
+    name: string;
+    icon: React.ElementType;
+    color: string;
+    bg: string;
+    roles: AppRole[];
+  }[] = [
+    {
+      key: 'leadership',
+      name: 'الإدارة العليا',
+      icon: Crown,
+      color: 'text-amber-600',
+      bg: 'bg-amber-500/10',
+      roles: ['general_manager', 'executive_manager', 'production_manager', 'financial_manager', 'quality_manager'],
+    },
+    {
+      key: 'sales',
+      name: 'التسويق والمبيعات',
+      icon: Megaphone,
+      color: 'text-primary',
+      bg: 'bg-primary/10',
+      roles: ['marketing_sales_manager', 'sales_manager', 'sales_moderator', 'accountant'],
+    },
+    {
+      key: 'farm',
+      name: 'مزرعة الأمهات والإنتاج',
+      icon: Egg,
+      color: 'text-orange-500',
+      bg: 'bg-orange-500/10',
+      roles: ['farm_manager'],
+    },
+    {
+      key: 'hatchery',
+      name: 'المعمل وتفريغ الكتاكيت',
+      icon: FlaskConical,
+      color: 'text-cyan-500',
+      bg: 'bg-cyan-500/10',
+      roles: ['hatchery_manager'],
+    },
+    {
+      key: 'brooding',
+      name: 'التحضين والتسمين',
+      icon: Drumstick,
+      color: 'text-yellow-600',
+      bg: 'bg-yellow-500/10',
+      roles: ['brooding_manager'],
+    },
+    {
+      key: 'slaughter',
+      name: 'المجزر وإنتاج اللحوم',
+      icon: Beef,
+      color: 'text-red-500',
+      bg: 'bg-red-500/10',
+      roles: ['slaughterhouse_manager'],
+    },
+    {
+      key: 'meat',
+      name: 'مصنع اللحوم',
+      icon: Factory,
+      color: 'text-rose-600',
+      bg: 'bg-rose-500/10',
+      roles: ['meat_factory_manager'],
+    },
+    {
+      key: 'feed_hr',
+      name: 'مصنع الأعلاف والموارد البشرية',
+      icon: Wheat,
+      color: 'text-green-600',
+      bg: 'bg-green-500/10',
+      roles: ['feed_factory_manager', 'hr_manager'],
+    },
+    {
+      key: 'warehouses',
+      name: 'المخازن',
+      icon: Warehouse,
+      color: 'text-purple-600',
+      bg: 'bg-purple-500/10',
+      roles: ['warehouse_supervisor'],
+    },
+  ];
 
   return (
     <DashboardLayout>
