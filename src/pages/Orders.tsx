@@ -138,6 +138,20 @@ const Orders = () => {
 
       if (itemsError) throw itemsError;
 
+      const creatorIds = Array.from(
+        new Set((ordersData || []).map((o: any) => o.created_by).filter(Boolean))
+      );
+      let profilesMap: Record<string, string> = {};
+      if (creatorIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', creatorIds as string[]);
+        profilesMap = Object.fromEntries(
+          (profilesData || []).map((p: any) => [p.id, p.full_name])
+        );
+      }
+
       const formattedOrders: Order[] = (ordersData || []).map(order => ({
         id: order.id,
         order_number: order.order_number,
@@ -153,6 +167,11 @@ const Orders = () => {
         notes: order.notes,
         delivery_address: order.delivery_address,
         created_at: order.created_at,
+        created_by: order.created_by,
+        moderator_name:
+          (order.created_by && profilesMap[order.created_by]) ||
+          order.moderator ||
+          '-',
         items: (itemsData || [])
           .filter(item => item.order_id === order.id)
           .map(item => ({
