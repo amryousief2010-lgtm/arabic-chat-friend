@@ -37,6 +37,7 @@ interface AuthContextType {
   isSalesModerator: boolean;
   isAccountant: boolean;
   isWarehouseSupervisor: boolean;
+  isShippingCompany: boolean;
   // Permission helpers
   canManageEmployees: boolean;
   canManageProducts: boolean;
@@ -170,6 +171,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const isMarketingSalesManager = role === 'marketing_sales_manager';
   const isFinancialManager = role === 'financial_manager';
   const isQualityManager = role === 'quality_manager';
+  const isShippingCompany = role === 'shipping_company';
 
   // Module-level write permissions
   const canManageFeedFactory = isGeneralManager || isExecutiveManager || isFeedFactoryManager || isProductionManager;
@@ -188,10 +190,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const canManageOrders = isGeneralManager || isExecutiveManager || isSalesManager || isAccountant || isWarehouseSupervisor || isMarketingSalesManager || isFinancialManager;
   const canViewReports = isGeneralManager || isExecutiveManager || isSalesManager || isAccountant || isWarehouseSupervisor || isMarketingSalesManager || isFinancialManager || isQualityManager || isProductionManager;
   const canUpdatePaymentStatus = isGeneralManager || isExecutiveManager || isSalesManager || isAccountant || isMarketingSalesManager || isFinancialManager;
-  const canUpdateOrderStatus = isGeneralManager || isExecutiveManager || isSalesManager || isWarehouseSupervisor || isMarketingSalesManager;
+  const canUpdateOrderStatus = isGeneralManager || isExecutiveManager || isSalesManager || isWarehouseSupervisor || isMarketingSalesManager || isShippingCompany;
   
   const canUpdateOrderStatusForOrder = (orderCreatedBy: string | null) => {
-    if (isGeneralManager || isExecutiveManager || isSalesManager || isMarketingSalesManager) {
+    if (isGeneralManager || isExecutiveManager || isSalesManager || isMarketingSalesManager || isShippingCompany) {
       return true;
     }
     if (isSalesModerator && user && orderCreatedBy === user.id) {
@@ -214,6 +216,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     isSalesModerator,
     isAccountant,
     isWarehouseSupervisor,
+    isShippingCompany,
     canManageEmployees,
     canManageProducts,
     canManageStock,
