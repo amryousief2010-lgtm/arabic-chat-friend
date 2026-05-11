@@ -130,7 +130,7 @@ const AnimatedRoutes = () => {
           </ProtectedRoute>
         } />
         <Route path="/low-stock" element={
-          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'warehouse_supervisor', 'marketing_sales_manager', 'production_manager', 'quality_manager']}>
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'warehouse_supervisor', 'marketing_sales_manager', 'production_manager', 'quality_manager', 'sales_moderator']}>
             <PageTransition><LowStock /></PageTransition>
           </ProtectedRoute>
         } />
