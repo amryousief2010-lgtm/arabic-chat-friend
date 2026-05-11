@@ -428,6 +428,12 @@ const Orders = () => {
                     <TableCell className="text-muted-foreground">
                       {new Date(order.created_at).toLocaleDateString('ar-EG')}
                     </TableCell>
+                    <TableCell className="text-muted-foreground font-mono">
+                      {new Date(order.created_at).toLocaleTimeString('ar-EG', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </TableCell>
                     <TableCell>
                       <Button
                         variant="ghost"
