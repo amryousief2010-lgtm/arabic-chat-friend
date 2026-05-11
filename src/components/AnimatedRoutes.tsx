@@ -26,6 +26,7 @@ import ImportSalesData from "@/pages/ImportSalesData";
 import ModeratorPerformance from "@/pages/ModeratorPerformance";
 import Farm from "@/pages/modules/Farm";
 import Hatchery from "@/pages/modules/Hatchery";
+import FarmHatcheryDashboard from "@/pages/modules/FarmHatcheryDashboard";
 import Brooding from "@/pages/modules/Brooding";
 import Slaughterhouse from "@/pages/modules/Slaughterhouse";
 import MeatFactory from "@/pages/modules/MeatFactory";
@@ -152,6 +153,11 @@ const AnimatedRoutes = () => {
         <Route path="/modules/hatchery" element={
           <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'hatchery_manager', 'production_manager', 'quality_manager']}>
             <PageTransition><Hatchery /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/modules/farm-hatchery-dashboard" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'farm_manager', 'hatchery_manager', 'production_manager', 'quality_manager']}>
+            <PageTransition><FarmHatcheryDashboard /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/modules/brooding" element={
