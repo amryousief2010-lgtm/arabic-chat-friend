@@ -349,11 +349,15 @@ const Orders = () => {
                           </Badge>
                         </SelectTrigger>
                         <SelectContent>
-                          {Object.entries(statusLabels).map(([value, label]) => (
-                            <SelectItem key={value} value={value}>
-                              {label}
-                            </SelectItem>
-                          ))}
+                          {Object.entries(statusLabels)
+                            .filter(([value]) =>
+                              !isShippingCompany || value === order.status || value === "delivered" || value === "cancelled"
+                            )
+                            .map(([value, label]) => (
+                              <SelectItem key={value} value={value}>
+                                {label}
+                              </SelectItem>
+                            ))}
                         </SelectContent>
                       </Select>
                     </TableCell>
