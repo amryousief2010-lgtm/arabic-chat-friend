@@ -330,6 +330,14 @@ const GirlsSalesQuantityTable = () => {
                   </TableCell>
                 ))}
               </TableRow>
+              <TableRow className="bg-muted/40">
+                <TableCell className="font-bold">مبلغ اللحوم الكلي (ج.م)</TableCell>
+                {GIRLS.map(g => (
+                  <TableCell key={g} className="text-center font-bold text-primary">
+                    {(totals[g].meat_total + totals[g].bone_meat_total).toLocaleString()}
+                  </TableCell>
+                ))}
+              </TableRow>
               <TableRow>
                 <TableCell className="font-medium">كمية المصنعات (كجم)</TableCell>
                 {GIRLS.map(g => (
