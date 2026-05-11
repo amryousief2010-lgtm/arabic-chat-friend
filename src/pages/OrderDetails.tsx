@@ -308,10 +308,23 @@ const OrderDetails = () => {
             {/* Products Card */}
             <Card className="glass-card">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Package className="w-5 h-5 text-primary" />
-                  المنتجات ({order.items.length})
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Package className="w-5 h-5 text-primary" />
+                    المنتجات ({order.items.length})
+                  </CardTitle>
+                  {canEditItems && order.status !== 'cancelled' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setEditItemsOpen(true)}
+                      className="gap-1"
+                    >
+                      <Pencil className="w-4 h-4" />
+                      تعديل المنتجات
+                    </Button>
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
