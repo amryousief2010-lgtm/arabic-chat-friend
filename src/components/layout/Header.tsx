@@ -1,4 +1,5 @@
 import { Bell, Search, LogOut, Shield, User } from "lucide-react";
+import companyLogo from "@/assets/company-logo.jpg";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
