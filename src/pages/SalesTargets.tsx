@@ -37,6 +37,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import MonthlyTargetTable from '@/components/sales/MonthlyTargetTable';
+import ModeratorOrdersBreakdown from '@/components/sales/ModeratorOrdersBreakdown';
 
 const months = [
   { value: 1, label: 'يناير' },
@@ -274,6 +275,7 @@ const SalesTargets = () => {
     <DashboardLayout>
       <div className="space-y-6">
         <MonthlyTargetTable />
+        <ModeratorOrdersBreakdown />
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
