@@ -9,20 +9,22 @@ const GIRLS = ['اية', 'نورا', 'سارة', 'منال'];
 
 interface GirlData {
   meat_qty: number;
+  bone_meat_qty: number;
   processed_qty: number;
 }
 
 interface Prices {
   meat_price: number;
+  bone_meat_price: number;
   processed_price: number;
 }
 
-const STORAGE_KEY = 'girls-sales-quantity-table-v2';
-const PRICES_KEY = 'girls-sales-prices';
+const STORAGE_KEY = 'girls-sales-quantity-table-v3';
+const PRICES_KEY = 'girls-sales-prices-v2';
 
 const emptyData = (): Record<string, GirlData> =>
   GIRLS.reduce((acc, g) => {
-    acc[g] = { meat_qty: 0, processed_qty: 0 };
+    acc[g] = { meat_qty: 0, bone_meat_qty: 0, processed_qty: 0 };
     return acc;
   }, {} as Record<string, GirlData>);
 
@@ -30,7 +32,12 @@ const GirlsSalesQuantityTable = () => {
   const [data, setData] = useState<Record<string, GirlData>>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) return { ...emptyData(), ...JSON.parse(saved) };
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const merged = emptyData();
+        GIRLS.forEach(g => { merged[g] = { ...merged[g], ...(parsed[g] || {}) }; });
+        return merged;
+      }
     } catch {}
     return emptyData();
   });
@@ -38,9 +45,9 @@ const GirlsSalesQuantityTable = () => {
   const [prices, setPrices] = useState<Prices>(() => {
     try {
       const saved = localStorage.getItem(PRICES_KEY);
-      if (saved) return JSON.parse(saved);
+      if (saved) return { meat_price: 390, bone_meat_price: 0, processed_price: 160, ...JSON.parse(saved) };
     } catch {}
-    return { meat_price: 390, processed_price: 160 };
+    return { meat_price: 390, bone_meat_price: 0, processed_price: 160 };
   });
 
   useEffect(() => {
@@ -60,10 +67,11 @@ const GirlsSalesQuantityTable = () => {
       const d = data[g];
       acc[g] = {
         meat_total: d.meat_qty * prices.meat_price,
+        bone_meat_total: d.bone_meat_qty * prices.bone_meat_price,
         processed_total: d.processed_qty * prices.processed_price,
       };
       return acc;
-    }, {} as Record<string, { meat_total: number; processed_total: number }>);
+    }, {} as Record<string, { meat_total: number; bone_meat_total: number; processed_total: number }>);
   }, [data, prices]);
 
   const qtyInput = (girl: string, field: keyof GirlData) => (
@@ -86,7 +94,7 @@ const GirlsSalesQuantityTable = () => {
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Price controls */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-lg bg-muted/40 border">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 rounded-lg bg-muted/40 border">
           <div className="space-y-2">
             <Label>سعر كيلو اللحوم (ج.م)</Label>
             <Input
@@ -94,6 +102,15 @@ const GirlsSalesQuantityTable = () => {
               min="0"
               value={prices.meat_price || ''}
               onChange={(e) => setPrices(p => ({ ...p, meat_price: Number(e.target.value) || 0 }))}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>سعر كيلو اللحوم بالعظم (ج.م)</Label>
+            <Input
+              type="number"
+              min="0"
+              value={prices.bone_meat_price || ''}
+              onChange={(e) => setPrices(p => ({ ...p, bone_meat_price: Number(e.target.value) || 0 }))}
             />
           </div>
           <div className="space-y-2">
@@ -131,6 +148,22 @@ const GirlsSalesQuantityTable = () => {
                 {GIRLS.map(g => (
                   <TableCell key={g} className="text-center font-bold text-primary">
                     {totals[g].meat_total.toLocaleString()}
+                  </TableCell>
+                ))}
+              </TableRow>
+              <TableRow>
+                <TableCell className="font-medium">كمية اللحوم بالعظم (كجم)</TableCell>
+                {GIRLS.map(g => <TableCell key={g} className="text-center">{qtyInput(g, 'bone_meat_qty')}</TableCell>)}
+              </TableRow>
+              <TableRow>
+                <TableCell className="font-medium">سعر كيلو اللحوم بالعظم</TableCell>
+                {GIRLS.map(g => <TableCell key={g} className="text-center">{prices.bone_meat_price.toLocaleString()}</TableCell>)}
+              </TableRow>
+              <TableRow>
+                <TableCell className="font-medium">مبلغ اللحوم بالعظم (ج.م)</TableCell>
+                {GIRLS.map(g => (
+                  <TableCell key={g} className="text-center font-bold text-primary">
+                    {totals[g].bone_meat_total.toLocaleString()}
                   </TableCell>
                 ))}
               </TableRow>
