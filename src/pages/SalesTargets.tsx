@@ -36,6 +36,7 @@ import { Target, Plus, TrendingUp, TrendingDown, Award, Users, BarChart3, FileDo
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import MonthlyTargetTable from '@/components/sales/MonthlyTargetTable';
 
 const months = [
   { value: 1, label: 'يناير' },
@@ -272,6 +273,7 @@ const SalesTargets = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        <MonthlyTargetTable />
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
