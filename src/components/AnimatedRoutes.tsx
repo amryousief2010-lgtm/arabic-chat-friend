@@ -38,6 +38,11 @@ import BatchTracking from "@/pages/modules/feed/BatchTracking";
 import WarehouseDashboard from "@/pages/modules/warehouse/WarehouseDashboard";
 import InventoryImport from "@/pages/modules/warehouse/InventoryImport";
 
+const RedirectWithQuery = ({ to }: { to: string }) => {
+  const location = useLocation();
+  return <Navigate to={{ pathname: to, search: location.search, hash: location.hash }} replace />;
+};
+
 const AnimatedRoutes = () => {
   const location = useLocation();
 
@@ -47,8 +52,8 @@ const AnimatedRoutes = () => {
         <Route path="/auth" element={
           <PageTransition><Auth /></PageTransition>
         } />
-        <Route path="/farm" element={<Navigate to="/modules/farm" replace />} />
-        <Route path="/hatchery" element={<Navigate to="/modules/hatchery" replace />} />
+        <Route path="/farm" element={<RedirectWithQuery to="/modules/farm" />} />
+        <Route path="/hatchery" element={<RedirectWithQuery to="/modules/hatchery" />} />
         <Route path="/" element={
           <ProtectedRoute>
             <PageTransition><Index /></PageTransition>
