@@ -96,11 +96,14 @@ const GirlsSalesQuantityTable = () => {
   }, [prices]);
 
   // Fetch delivered orders + items for the selected month
-  const { data: meatQtyByGirl = {} } = useQuery({
-    queryKey: ['girls-meat-qty', selectedMonth, selectedYear],
+  const { data: autoQtyByGirl = { meat: {}, bone: {} } } = useQuery({
+    queryKey: ['girls-auto-qty', selectedMonth, selectedYear],
     queryFn: async () => {
       const startDate = new Date(selectedYear, selectedMonth - 1, 1).toISOString();
       const endDate = new Date(selectedYear, selectedMonth, 0, 23, 59, 59).toISOString();
+
+      const empty = () => GIRLS.reduce((acc, g) => { acc[g] = 0; return acc; }, {} as Record<string, number>);
+      const result = { meat: empty(), bone: empty() };
 
       const { data: orders, error } = await supabase
         .from('orders')
@@ -109,12 +112,8 @@ const GirlsSalesQuantityTable = () => {
         .gte('created_at', startDate)
         .lte('created_at', endDate);
       if (error) throw error;
+      if (!orders || orders.length === 0) return result;
 
-      if (!orders || orders.length === 0) {
-        return GIRLS.reduce((acc, g) => { acc[g] = 0; return acc; }, {} as Record<string, number>);
-      }
-
-      // Fetch profile names for created_by
       const userIds = Array.from(new Set(orders.map(o => o.created_by).filter(Boolean))) as string[];
       let profileMap = new Map<string, string>();
       if (userIds.length > 0) {
@@ -122,7 +121,6 @@ const GirlsSalesQuantityTable = () => {
         profileMap = new Map((profiles || []).map(p => [p.id, p.full_name]));
       }
 
-      // Map order_id -> girl
       const orderToGirl = new Map<string, string>();
       orders.forEach(o => {
         const modName = o.moderator || '';
@@ -132,9 +130,7 @@ const GirlsSalesQuantityTable = () => {
       });
 
       const orderIds = Array.from(orderToGirl.keys());
-      if (orderIds.length === 0) {
-        return GIRLS.reduce((acc, g) => { acc[g] = 0; return acc; }, {} as Record<string, number>);
-      }
+      if (orderIds.length === 0) return result;
 
       const { data: items, error: itemsError } = await supabase
         .from('order_items')
@@ -142,20 +138,27 @@ const GirlsSalesQuantityTable = () => {
         .in('order_id', orderIds);
       if (itemsError) throw itemsError;
 
-      const result = GIRLS.reduce((acc, g) => { acc[g] = 0; return acc; }, {} as Record<string, number>);
       (items || []).forEach(item => {
         const girl = orderToGirl.get(item.order_id);
         if (!girl) return;
         const pname = normalize(item.product_name || '');
-        const isMeat = MEAT_KEYWORDS.some(k => pname.includes(normalize(k)));
-        if (isMeat) {
-          result[girl] += Number(item.quantity) || 0;
+        const qty = Number(item.quantity) || 0;
+        const isBone = BONE_MEAT_KEYWORDS.some(k => pname.includes(normalize(k)));
+        if (isBone) {
+          result.bone[girl] += qty;
+          return;
         }
+        const isMeat = MEAT_KEYWORDS.some(k => pname.includes(normalize(k)));
+        if (isMeat) result.meat[girl] += qty;
       });
       return result;
     },
     refetchInterval: 60000,
   });
+
+  const meatQtyByGirl = autoQtyByGirl.meat;
+  const boneMeatQtyByGirl = autoQtyByGirl.bone;
+
 
   // Realtime: refetch on order/items changes
   useEffect(() => {
