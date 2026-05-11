@@ -110,6 +110,9 @@ const Orders = () => {
     setSearchParams(next, { replace: true });
   };
   const [searchQuery, setSearchQuery] = useState("");
+  const now = new Date();
+  const [filterMonth, setFilterMonth] = useState<string>(String(now.getMonth() + 1));
+  const [filterYear, setFilterYear] = useState<string>(String(now.getFullYear()));
 
   useEffect(() => {
     fetchOrders();
@@ -174,13 +177,26 @@ const Orders = () => {
     const matchesSearch =
       order.order_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.customer_name.toLowerCase().includes(searchQuery.toLowerCase());
-    const year = new Date(order.created_at).getFullYear();
-    const matchesYear =
+    const d = new Date(order.created_at);
+    const year = d.getFullYear();
+    const month = d.getMonth() + 1;
+    const matchesYearGroup =
       yearGroup === "all" ||
       (yearGroup === "2026" && year >= 2026) ||
       (yearGroup === "pre2026" && year < 2026);
-    return matchesStatus && matchesSearch && matchesYear;
+    const matchesMonth = filterMonth === "all" || String(month) === filterMonth;
+    const matchesYear = filterYear === "all" || String(year) === filterYear;
+    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear;
   });
+
+  const availableYears = Array.from(
+    new Set(orders.map((o) => new Date(o.created_at).getFullYear()))
+  ).sort((a, b) => b - a);
+
+  const monthNames = [
+    "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
+    "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
+  ];
 
   const counts = {
     all: orders.length,
@@ -254,15 +270,37 @@ const Orders = () => {
             <ShoppingCart className="w-5 h-5 text-primary" />
             قائمة الطلبات ({filteredOrders.length})
           </CardTitle>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-3">
             <Input
               placeholder="بحث برقم الطلب أو اسم العميل..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-72 input-modern"
+              className="w-64 input-modern"
             />
+            <Select value={filterMonth} onValueChange={setFilterMonth}>
+              <SelectTrigger className="w-36 input-modern">
+                <SelectValue placeholder="الشهر" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">كل الشهور</SelectItem>
+                {monthNames.map((name, i) => (
+                  <SelectItem key={i + 1} value={String(i + 1)}>{name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterYear} onValueChange={setFilterYear}>
+              <SelectTrigger className="w-32 input-modern">
+                <SelectValue placeholder="السنة" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">كل السنوات</SelectItem>
+                {availableYears.map((y) => (
+                  <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-48 input-modern">
+              <SelectTrigger className="w-44 input-modern">
                 <SelectValue placeholder="فلترة حسب الحالة" />
               </SelectTrigger>
               <SelectContent>
