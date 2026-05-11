@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, Package, CheckCircle2, XCircle } from 'lucide-react';
@@ -25,8 +26,10 @@ const matches = (name: string, target: string) => {
 };
 
 const ModeratorOrdersBreakdown = () => {
+  const queryClient = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ['moderator-orders-breakdown'],
+    refetchInterval: 60000,
     queryFn: async () => {
       const { data: orders, error } = await supabase
         .from('orders')
@@ -58,6 +61,18 @@ const ModeratorOrdersBreakdown = () => {
       });
     },
   });
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('moderator-orders-breakdown')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['moderator-orders-breakdown'] });
+      })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   return (
     <Card>
