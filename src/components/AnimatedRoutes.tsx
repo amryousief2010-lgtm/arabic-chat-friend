@@ -38,6 +38,11 @@ import BatchTracking from "@/pages/modules/feed/BatchTracking";
 import WarehouseDashboard from "@/pages/modules/warehouse/WarehouseDashboard";
 import InventoryImport from "@/pages/modules/warehouse/InventoryImport";
 
+const RedirectWithQuery = ({ to }: { to: string }) => {
+  const location = useLocation();
+  return <Navigate to={{ pathname: to, search: location.search, hash: location.hash }} replace />;
+};
+
 const AnimatedRoutes = () => {
   const location = useLocation();
 
