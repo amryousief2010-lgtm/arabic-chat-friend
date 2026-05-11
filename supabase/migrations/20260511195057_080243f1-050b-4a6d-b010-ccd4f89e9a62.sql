@@ -1,0 +1,1 @@
+ALTER TABLE public.chick_movements ADD COLUMN IF NOT EXISTS age_days integer DEFAULT 0;

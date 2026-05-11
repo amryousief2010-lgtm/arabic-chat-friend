@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       chick_movements: {
         Row: {
+          age_days: number | null
           created_at: string
           dead: number
           id: string
@@ -28,6 +29,7 @@ export type Database = {
           unit_price: number
         }
         Insert: {
+          age_days?: number | null
           created_at?: string
           dead?: number
           id?: string
@@ -40,6 +42,7 @@ export type Database = {
           unit_price?: number
         }
         Update: {
+          age_days?: number | null
           created_at?: string
           dead?: number
           id?: string
