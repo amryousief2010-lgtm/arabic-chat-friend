@@ -134,15 +134,26 @@ const Orders = () => {
 
       const orderIds = (ordersData || []).map((o: any) => o.id);
       let itemsData: any[] = [];
-      // جلب الأصناف على دفعات من 1000 لتجنّب الحد الافتراضي للاستعلامات
-      for (let i = 0; i < orderIds.length; i += 500) {
-        const slice = orderIds.slice(i, i + 500);
-        const { data: chunk, error: itemsError } = await supabase
-          .from('order_items')
-          .select('*')
-          .in('order_id', slice);
-        if (itemsError) throw itemsError;
-        itemsData = itemsData.concat(chunk || []);
+      // جلب الأصناف على دفعات من 300 طلب مع ترقيم داخلي بـ1000 صف لتجاوز الحد الافتراضي
+      const PAGE = 1000;
+      for (let i = 0; i < orderIds.length; i += 300) {
+        const slice = orderIds.slice(i, i + 300);
+        let from = 0;
+        // نكرر حتى نستنفذ كل أصناف هذه الدفعة
+        // (الحد الأقصى الافتراضي لكل استعلام في Supabase هو 1000)
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          const { data: chunk, error: itemsError } = await supabase
+            .from('order_items')
+            .select('*')
+            .in('order_id', slice)
+            .range(from, from + PAGE - 1);
+          if (itemsError) throw itemsError;
+          if (!chunk || chunk.length === 0) break;
+          itemsData = itemsData.concat(chunk);
+          if (chunk.length < PAGE) break;
+          from += PAGE;
+        }
       }
 
       const creatorIds = Array.from(
