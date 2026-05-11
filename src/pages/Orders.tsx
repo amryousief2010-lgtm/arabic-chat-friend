@@ -132,11 +132,18 @@ const Orders = () => {
 
       if (ordersError) throw ordersError;
 
-      const { data: itemsData, error: itemsError } = await supabase
-        .from('order_items')
-        .select('*');
-
-      if (itemsError) throw itemsError;
+      const orderIds = (ordersData || []).map((o: any) => o.id);
+      let itemsData: any[] = [];
+      // جلب الأصناف على دفعات من 1000 لتجنّب الحد الافتراضي للاستعلامات
+      for (let i = 0; i < orderIds.length; i += 500) {
+        const slice = orderIds.slice(i, i + 500);
+        const { data: chunk, error: itemsError } = await supabase
+          .from('order_items')
+          .select('*')
+          .in('order_id', slice);
+        if (itemsError) throw itemsError;
+        itemsData = itemsData.concat(chunk || []);
+      }
 
       const creatorIds = Array.from(
         new Set((ordersData || []).map((o: any) => o.created_by).filter(Boolean))
