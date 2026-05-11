@@ -192,17 +192,18 @@ const GirlsSalesQuantityTable = () => {
     return GIRLS.reduce((acc, g) => {
       const meatQty = meatQtyByGirl[g] || 0;
       const boneQty = boneMeatQtyByGirl[g] || 0;
-      const d = data[g];
+      const procQty = processedQtyByGirl[g] || 0;
       acc[g] = {
         meat_qty: meatQty,
         meat_total: meatQty * prices.meat_price,
         bone_meat_qty: boneQty,
         bone_meat_total: boneQty * prices.bone_meat_price,
-        processed_total: d.processed_qty * prices.processed_price,
+        processed_qty: procQty,
+        processed_total: procQty * prices.processed_price,
       };
       return acc;
-    }, {} as Record<string, { meat_qty: number; meat_total: number; bone_meat_qty: number; bone_meat_total: number; processed_total: number }>);
-  }, [data, prices, meatQtyByGirl, boneMeatQtyByGirl]);
+    }, {} as Record<string, { meat_qty: number; meat_total: number; bone_meat_qty: number; bone_meat_total: number; processed_qty: number; processed_total: number }>);
+  }, [prices, meatQtyByGirl, boneMeatQtyByGirl, processedQtyByGirl]);
 
   const labelMap: Record<keyof GirlData, string> = {
     bone_meat_qty: 'كمية اللحوم بالعظم',
