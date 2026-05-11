@@ -1,6 +1,7 @@
 import { LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { SidebarMenuSections } from "./SidebarMenuSections";
+import companyLogo from "@/assets/company-logo.jpg";
 
 const AppSidebar = () => {
   const { signOut } = useAuth();
