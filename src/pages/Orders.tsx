@@ -179,6 +179,7 @@ const Orders = () => {
         status: order.status as OrderStatus,
         payment_method: order.payment_method,
         payment_status: order.payment_status,
+        collection_status: (order as any).collection_status || 'not_collected',
         subtotal: Number(order.subtotal),
         discount: Number(order.discount),
         delivery_fee: Number(order.delivery_fee),
