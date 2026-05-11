@@ -190,7 +190,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const canManageOrders = isGeneralManager || isExecutiveManager || isSalesManager || isAccountant || isWarehouseSupervisor || isMarketingSalesManager || isFinancialManager;
   const canViewReports = isGeneralManager || isExecutiveManager || isSalesManager || isAccountant || isWarehouseSupervisor || isMarketingSalesManager || isFinancialManager || isQualityManager || isProductionManager;
   const canUpdatePaymentStatus = isGeneralManager || isExecutiveManager || isSalesManager || isAccountant || isMarketingSalesManager || isFinancialManager;
-  const canUpdateOrderStatus = isGeneralManager || isExecutiveManager || isSalesManager || isWarehouseSupervisor || isMarketingSalesManager || isShippingCompany || isSalesModerator;
+  const canUpdateOrderStatus = isGeneralManager || isExecutiveManager || isSalesManager || isWarehouseSupervisor || isMarketingSalesManager || isShippingCompany;
   
   const canUpdateOrderStatusForOrder = (_orderCreatedBy: string | null) => {
     return (
@@ -199,8 +199,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       isSalesManager ||
       isMarketingSalesManager ||
       isShippingCompany ||
-      isWarehouseSupervisor ||
-      isSalesModerator
+      isWarehouseSupervisor
     );
   };
 
