@@ -95,7 +95,7 @@ const Index = () => {
       <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
         <Header
           title="لوحة التحكم"
-          subtitle="نظام إدارة عمليات شركة نعام العاصمة - تحليلات 2025"
+          subtitle="شركة نعام العاصمة إدارة العمليات - تحليلات 2025"
         />
         <div className="flex items-center gap-2">
           <Button
