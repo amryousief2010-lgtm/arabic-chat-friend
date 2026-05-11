@@ -108,7 +108,7 @@ const NewOrder = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'online'>('cash');
-  const [deliveryFee, setDeliveryFee] = useState(50);
+  const [deliveryFee, setDeliveryFee] = useState(110);
   const [discount, setDiscount] = useState(0);
   const [notes, setNotes] = useState('');
   const [deliveryAddress, setDeliveryAddress] = useState('');
