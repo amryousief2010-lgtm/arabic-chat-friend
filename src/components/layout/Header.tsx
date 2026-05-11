@@ -1,4 +1,5 @@
 import { Bell, Search, LogOut, Shield, User } from "lucide-react";
+import companyLogo from "@/assets/company-logo.jpg";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -56,11 +57,16 @@ const Header = ({ title, subtitle }: HeaderProps) => {
 
   return (
     <header className="flex items-center justify-between mb-8">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">{title}</h1>
-        {subtitle && (
-          <p className="text-muted-foreground mt-1">{subtitle}</p>
-        )}
+      <div className="flex items-center gap-4">
+        <div className="w-14 h-14 rounded-2xl bg-white dark:bg-white shadow-md ring-1 ring-border dark:ring-white/20 overflow-hidden flex items-center justify-center shrink-0">
+          <img src={companyLogo} alt="شركة نعام العاصمة" className="w-full h-full object-contain p-1" />
+        </div>
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">{title}</h1>
+          {subtitle && (
+            <p className="text-muted-foreground mt-1">{subtitle}</p>
+          )}
+        </div>
       </div>
 
       <div className="flex items-center gap-4">
