@@ -40,9 +40,19 @@ const Farm = () => {
   const { data: eggs = [] } = useQuery({
     queryKey: ["farm_egg_production"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("farm_egg_production")
-        .select("*").order("production_date", { ascending: false }).limit(1000);
-      if (error) throw error; return data || [];
+      const all: any[] = [];
+      let from = 0;
+      const size = 1000;
+      while (true) {
+        const { data, error } = await supabase.from("farm_egg_production")
+          .select("*").order("production_date", { ascending: false }).range(from, from + size - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        all.push(...data);
+        if (data.length < size) break;
+        from += size;
+      }
+      return all;
     },
   });
 
