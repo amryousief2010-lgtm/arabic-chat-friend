@@ -37,7 +37,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { UserPlus, MoreHorizontal, Shield, Search, Users, UserCheck, Warehouse, Calculator, ShoppingCart, Trash2, UserMinus, Egg, FlaskConical, Drumstick, Beef, Factory, Wheat, Megaphone, Crown, Building2 } from 'lucide-react';
+import { UserPlus, MoreHorizontal, Shield, Search, Users, UserCheck, Warehouse, Calculator, ShoppingCart, Trash2, UserMinus, Egg, FlaskConical, Drumstick, Beef, Factory, Wheat, Megaphone, Crown, Building2, Truck } from 'lucide-react';
 import { z } from 'zod';
 import { useAuth, AppRole } from '@/hooks/useAuth';
 import {
@@ -77,6 +77,7 @@ const roleLabels: Record<AppRole, string> = {
   marketing_sales_manager: 'مدير التسويق والمبيعات',
   financial_manager: 'المدير المالي',
   quality_manager: 'مدير الجودة',
+  shipping_company: 'شركة الشحن',
 };
 
 const roleBadgeVariants: Record<AppRole, 'default' | 'secondary' | 'outline' | 'destructive'> = {
@@ -97,6 +98,7 @@ const roleBadgeVariants: Record<AppRole, 'default' | 'secondary' | 'outline' | '
   marketing_sales_manager: 'default',
   financial_manager: 'default',
   quality_manager: 'default',
+  shipping_company: 'outline',
 };
 
 const roleIcons: Record<AppRole, React.ElementType> = {
@@ -117,13 +119,14 @@ const roleIcons: Record<AppRole, React.ElementType> = {
   marketing_sales_manager: Users,
   financial_manager: Calculator,
   quality_manager: Shield,
+  shipping_company: Truck,
 };
 
 const addEmployeeSchema = z.object({
   fullName: z.string().min(2, 'الاسم يجب أن يكون حرفين على الأقل').max(100),
   email: z.string().email('البريد الإلكتروني غير صالح').max(255),
   password: z.string().min(6, 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'),
-  role: z.enum(['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'accountant', 'warehouse_supervisor', 'farm_manager', 'hatchery_manager', 'brooding_manager', 'slaughterhouse_manager', 'meat_factory_manager', 'feed_factory_manager', 'hr_manager', 'production_manager', 'marketing_sales_manager', 'financial_manager', 'quality_manager']),
+  role: z.enum(['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'accountant', 'warehouse_supervisor', 'farm_manager', 'hatchery_manager', 'brooding_manager', 'slaughterhouse_manager', 'meat_factory_manager', 'feed_factory_manager', 'hr_manager', 'production_manager', 'marketing_sales_manager', 'financial_manager', 'quality_manager', 'shipping_company']),
 });
 
 const Employees = () => {
@@ -467,6 +470,7 @@ const Employees = () => {
                       <SelectItem value="meat_factory_manager">مدير مصنع اللحوم</SelectItem>
                       <SelectItem value="feed_factory_manager">مدير مصنع الأعلاف</SelectItem>
                       <SelectItem value="hr_manager">مدير الموارد البشرية</SelectItem>
+                      <SelectItem value="shipping_company">شركة الشحن</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

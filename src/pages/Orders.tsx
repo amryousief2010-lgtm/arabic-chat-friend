@@ -31,6 +31,7 @@ import {
 import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 type YearGroup = "all" | "2026" | "pre2026";
@@ -76,7 +77,7 @@ const statusLabels: Record<OrderStatus, string> = {
   processing: "جاري التجهيز",
   shipped: "تم الشحن",
   delivered: "تم التوصيل",
-  cancelled: "ملغي",
+  cancelled: "مرتجع",
 };
 
 const paymentLabels: Record<string, string> = {
@@ -91,6 +92,7 @@ const paymentStatusLabels: Record<string, string> = {
 };
 
 const Orders = () => {
+  const { isShippingCompany, canUpdateOrderStatusForOrder } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -347,11 +349,15 @@ const Orders = () => {
                           </Badge>
                         </SelectTrigger>
                         <SelectContent>
-                          {Object.entries(statusLabels).map(([value, label]) => (
-                            <SelectItem key={value} value={value}>
-                              {label}
-                            </SelectItem>
-                          ))}
+                          {Object.entries(statusLabels)
+                            .filter(([value]) =>
+                              !isShippingCompany || value === order.status || value === "delivered" || value === "cancelled"
+                            )
+                            .map(([value, label]) => (
+                              <SelectItem key={value} value={value}>
+                                {label}
+                              </SelectItem>
+                            ))}
                         </SelectContent>
                       </Select>
                     </TableCell>
