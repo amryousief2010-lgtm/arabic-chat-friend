@@ -163,12 +163,12 @@ const GirlsSalesQuantityTable = () => {
   // Realtime: refetch on order/items changes
   useEffect(() => {
     const channel = supabase
-      .channel('girls-meat-qty-realtime')
+      .channel('girls-auto-qty-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['girls-meat-qty'] });
+        queryClient.invalidateQueries({ queryKey: ['girls-auto-qty'] });
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['girls-meat-qty'] });
+        queryClient.invalidateQueries({ queryKey: ['girls-auto-qty'] });
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -189,16 +189,18 @@ const GirlsSalesQuantityTable = () => {
   const totals = useMemo(() => {
     return GIRLS.reduce((acc, g) => {
       const meatQty = meatQtyByGirl[g] || 0;
+      const boneQty = boneMeatQtyByGirl[g] || 0;
       const d = data[g];
       acc[g] = {
         meat_qty: meatQty,
         meat_total: meatQty * prices.meat_price,
-        bone_meat_total: d.bone_meat_qty * prices.bone_meat_price,
+        bone_meat_qty: boneQty,
+        bone_meat_total: boneQty * prices.bone_meat_price,
         processed_total: d.processed_qty * prices.processed_price,
       };
       return acc;
-    }, {} as Record<string, { meat_qty: number; meat_total: number; bone_meat_total: number; processed_total: number }>);
-  }, [data, prices, meatQtyByGirl]);
+    }, {} as Record<string, { meat_qty: number; meat_total: number; bone_meat_qty: number; bone_meat_total: number; processed_total: number }>);
+  }, [data, prices, meatQtyByGirl, boneMeatQtyByGirl]);
 
   const labelMap: Record<keyof GirlData, string> = {
     bone_meat_qty: 'كمية اللحوم بالعظم',
