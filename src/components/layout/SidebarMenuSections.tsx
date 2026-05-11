@@ -83,7 +83,7 @@ export const moduleSections: ModuleSection[] = [
     label: "2. مزرعة الأمهات والإنتاج",
     roles: ['general_manager', 'executive_manager', 'farm_manager', 'production_manager', 'quality_manager'],
     items: [
-      { icon: Egg, label: "إدارة المزرعة", path: "/modules/farm", roles: ['general_manager', 'executive_manager', 'farm_manager', 'production_manager', 'quality_manager'] },
+      { icon: Egg, label: "إدارة المزرعة", path: "/farm", roles: ['general_manager', 'executive_manager', 'farm_manager', 'production_manager', 'quality_manager'] },
     ],
   },
   {
