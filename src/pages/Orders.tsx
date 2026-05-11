@@ -347,6 +347,7 @@ const Orders = () => {
               <TableRow>
                 <TableHead className="text-right">رقم الطلب</TableHead>
                 <TableHead className="text-right">العميل</TableHead>
+                <TableHead className="text-right">الموديريتور</TableHead>
                 <TableHead className="text-right">المنتجات</TableHead>
                 <TableHead className="text-right">الإجمالي</TableHead>
                 <TableHead className="text-right">طريقة الدفع</TableHead>
