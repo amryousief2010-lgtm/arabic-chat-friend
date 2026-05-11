@@ -326,10 +326,21 @@ const TransfersTab = ({ transfers, families, qc }: any) => {
 
   const familyName = (id: string) => families.find((f: any) => f.id === id)?.family_number || "-";
 
+  const [fFamily, setFFamily] = useState("all");
+  const [fFrom, setFFrom] = useState("");
+  const [fTo, setFTo] = useState("");
+  const filtered = useMemo(() => transfers.filter((t: any) => {
+    if (fFamily !== "all" && t.family_id !== fFamily) return false;
+    if (fFrom && t.transfer_date < fFrom) return false;
+    if (fTo && t.transfer_date > fTo) return false;
+    return true;
+  }), [transfers, fFamily, fFrom, fTo]);
+  const totals = useMemo(() => filtered.reduce((a: any, t: any) => ({ q: a.q + (t.quantity || 0), d: a.d + (t.damaged || 0) }), { q: 0, d: 0 }), [filtered]);
+
   return (
     <Card className="p-4">
       <div className="flex justify-between mb-3">
-        <h3 className="font-bold">نقل البيض للمعمل</h3>
+        <h3 className="font-bold">نقل البيض للمعمل (المنقول: {totals.q.toLocaleString()} - هالك: {totals.d.toLocaleString()})</h3>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild><Button size="sm"><Plus className="w-4 h-4 ml-1" />تسجيل نقل</Button></DialogTrigger>
           <DialogContent dir="rtl">
@@ -339,9 +350,7 @@ const TransfersTab = ({ transfers, families, qc }: any) => {
               <div><Label>الأسرة (اختياري)</Label>
                 <Select value={form.family_id} onValueChange={(v) => setForm({ ...form, family_id: v })}>
                   <SelectTrigger><SelectValue placeholder="اختر" /></SelectTrigger>
-                  <SelectContent>
-                    {families.map((f: any) => <SelectItem key={f.id} value={f.id}>{f.family_number}</SelectItem>)}
-                  </SelectContent>
+                  <SelectContent>{families.map((f: any) => <SelectItem key={f.id} value={f.id}>{f.family_number}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -354,11 +363,22 @@ const TransfersTab = ({ transfers, families, qc }: any) => {
           </DialogContent>
         </Dialog>
       </div>
-      <div className="overflow-auto">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">
+        <Select value={fFamily} onValueChange={setFFamily}>
+          <SelectTrigger><SelectValue placeholder="كل الأسر" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">كل الأسر</SelectItem>
+            {families.map((f: any) => <SelectItem key={f.id} value={f.id}>{f.family_number}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Input type="date" value={fFrom} onChange={(e) => setFFrom(e.target.value)} />
+        <Input type="date" value={fTo} onChange={(e) => setFTo(e.target.value)} />
+      </div>
+      <div className="overflow-auto max-h-[600px]">
         <Table>
           <TableHeader><TableRow><TableHead>التاريخ</TableHead><TableHead>الأسرة</TableHead><TableHead>الكمية</TableHead><TableHead>الهالك</TableHead><TableHead>ملاحظات</TableHead><TableHead></TableHead></TableRow></TableHeader>
           <TableBody>
-            {transfers.map((t: any) => (
+            {filtered.slice(0, 500).map((t: any) => (
               <TableRow key={t.id}>
                 <TableCell>{t.transfer_date}</TableCell>
                 <TableCell>{familyName(t.family_id)}</TableCell>
@@ -368,7 +388,7 @@ const TransfersTab = ({ transfers, families, qc }: any) => {
                 <TableCell><Button size="icon" variant="ghost" onClick={() => del.mutate(t.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button></TableCell>
               </TableRow>
             ))}
-            {transfers.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">لا توجد عمليات نقل</TableCell></TableRow>}
+            {filtered.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">لا توجد عمليات نقل</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>
@@ -376,6 +396,84 @@ const TransfersTab = ({ transfers, families, qc }: any) => {
   );
 };
 
+// ============ CHARTS ============
+const ChartsTab = ({ eggs, transfers, families }: any) => {
+  const [year, setYear] = useState(2026);
+  const monthly = useMemo(() => {
+    const arr = Array.from({ length: 12 }, (_, i) => ({ name: `${i + 1}`, "إنتاج": 0, "نقل": 0 }));
+    eggs.forEach((e: any) => { const d = new Date(e.production_date); if (d.getFullYear() === year) arr[d.getMonth()]["إنتاج"] += e.egg_count || 0; });
+    transfers.forEach((t: any) => { const d = new Date(t.transfer_date); if (d.getFullYear() === year) arr[d.getMonth()]["نقل"] += t.quantity || 0; });
+    return arr;
+  }, [eggs, transfers, year]);
+
+  const byFamily = useMemo(() => {
+    const map: Record<string, number> = {};
+    eggs.forEach((e: any) => { const d = new Date(e.production_date); if (d.getFullYear() === year && e.family_id) map[e.family_id] = (map[e.family_id] || 0) + (e.egg_count || 0); });
+    return families.map((f: any) => ({ name: f.family_number, "إنتاج": map[f.id] || 0 })).filter((r: any) => r["إنتاج"] > 0).sort((a: any, b: any) => b["إنتاج"] - a["إنتاج"]).slice(0, 15);
+  }, [eggs, families, year]);
+
+  const last30 = useMemo(() => {
+    const map: Record<string, number> = {};
+    eggs.forEach((e: any) => { map[e.production_date] = (map[e.production_date] || 0) + (e.egg_count || 0); });
+    return Object.entries(map).sort(([a], [b]) => a.localeCompare(b)).slice(-30).map(([d, v]) => ({ name: d.slice(5), "إنتاج": v }));
+  }, [eggs]);
+
+  return (
+    <div className="space-y-4">
+      <Card className="p-4">
+        <div className="flex justify-between items-center mb-3">
+          <h3 className="font-bold">إنتاج شهري - الأسر</h3>
+          <Select value={String(year)} onValueChange={(v) => setYear(+v)}>
+            <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+            <SelectContent>{[2024, 2025, 2026, 2027].map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <div className="h-72">
+          <ResponsiveContainer>
+            <BarChart data={monthly}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip /><Legend />
+              <Bar dataKey="إنتاج" fill="hsl(var(--accent))" />
+              <Bar dataKey="نقل" fill="hsl(var(--primary))" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+
+      <Card className="p-4">
+        <h3 className="font-bold mb-3">آخر 30 يوم - إنتاج البيض اليومي</h3>
+        <div className="h-64">
+          <ResponsiveContainer>
+            <LineChart data={last30}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip />
+              <Line type="monotone" dataKey="إنتاج" stroke="hsl(var(--accent))" strokeWidth={2} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+
+      <Card className="p-4">
+        <h3 className="font-bold mb-3">أعلى 15 أسرة إنتاجاً ({year})</h3>
+        <div className="h-80">
+          <ResponsiveContainer>
+            <BarChart data={byFamily} layout="vertical" margin={{ left: 60 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis type="number" />
+              <YAxis type="category" dataKey="name" />
+              <Tooltip />
+              <Bar dataKey="إنتاج" fill="hsl(var(--primary))" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+    </div>
+  );
+};
 // ============ FEED ============
 const FeedTab = ({ logs, qc }: any) => {
   const [open, setOpen] = useState(false);
