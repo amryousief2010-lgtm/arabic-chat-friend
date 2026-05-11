@@ -775,6 +775,11 @@ const NewOrder = () => {
                       </div>
                     </div>
 
+                    {!selectedCustomer && (
+                      <p className="text-sm text-amber-600 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-md p-2 text-center">
+                        يرجى اختيار العميل أولاً لتفعيل زر تأكيد الطلب
+                      </p>
+                    )}
                     <Button
                       className="w-full gap-2"
                       size="lg"
