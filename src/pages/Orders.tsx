@@ -54,6 +54,7 @@ interface Order {
   status: OrderStatus;
   payment_method: string;
   payment_status: string;
+  collection_status: string;
   subtotal: number;
   discount: number;
   delivery_fee: number;
