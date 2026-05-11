@@ -309,7 +309,11 @@ const GirlsSalesQuantityTable = () => {
               </TableRow>
               <TableRow>
                 <TableCell className="font-medium">كمية اللحوم بالعظم (كجم)</TableCell>
-                {GIRLS.map(g => <TableCell key={g} className="text-center">{qtyInput(g, 'bone_meat_qty')}</TableCell>)}
+                {GIRLS.map(g => (
+                  <TableCell key={g} className="text-center font-bold">
+                    {totals[g].bone_meat_qty.toLocaleString()}
+                  </TableCell>
+                ))}
               </TableRow>
               <TableRow>
                 <TableCell className="font-medium">سعر كيلو اللحوم بالعظم</TableCell>
