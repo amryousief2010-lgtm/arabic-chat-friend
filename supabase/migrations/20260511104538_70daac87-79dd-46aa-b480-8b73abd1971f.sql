@@ -1,0 +1,1 @@
+DELETE FROM public.farm_egg_production WHERE production_date BETWEEN '2026-05-01' AND '2026-05-31' AND created_at < now() - interval '1 minute';
