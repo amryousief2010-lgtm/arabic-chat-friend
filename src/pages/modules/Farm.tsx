@@ -17,7 +17,8 @@ import {
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Egg, Plus, Truck, Wheat, Syringe, Users, Calendar, TrendingUp, Trash2, Search, BarChart3 } from "lucide-react";
+import { Egg, Plus, Truck, Wheat, Syringe, Users, Calendar, TrendingUp, Trash2, Search, BarChart3, Download } from "lucide-react";
+import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
@@ -257,30 +258,64 @@ const EggsTab = ({ eggs, families, qc }: any) => {
   }), [eggs, fFamily, fFrom, fTo]);
   const total = filtered.reduce((s: number, e: any) => s + (e.egg_count || 0), 0);
 
+  const exportReport = () => {
+    if (filtered.length === 0) { toast.error("لا توجد بيانات للتصدير"); return; }
+    // Group by family
+    const byFamily: Record<string, { name: string; total: number; days: number }> = {};
+    filtered.forEach((e: any) => {
+      const fname = familyName(e.family_id);
+      if (!byFamily[e.family_id]) byFamily[e.family_id] = { name: fname, total: 0, days: 0 };
+      byFamily[e.family_id].total += e.egg_count || 0;
+      byFamily[e.family_id].days += 1;
+    });
+    const summaryRows = Object.values(byFamily).map((f) => ({
+      "الأسرة": f.name, "إجمالي البيض": f.total, "عدد الأيام": f.days, "متوسط يومي": +(f.total / (f.days || 1)).toFixed(1),
+    }));
+    summaryRows.push({ "الأسرة": "الإجمالي", "إجمالي البيض": total, "عدد الأيام": filtered.length, "متوسط يومي": +(total / (filtered.length || 1)).toFixed(1) });
+
+    const detailRows = filtered.map((e: any) => ({
+      "التاريخ": e.production_date, "الأسرة": familyName(e.family_id), "عدد البيض": e.egg_count, "ملاحظات": e.notes || "",
+    }));
+
+    const wb = XLSX.utils.book_new();
+    const ws1 = XLSX.utils.json_to_sheet(summaryRows);
+    XLSX.utils.book_append_sheet(wb, ws1, "ملخص الأسر");
+    const ws2 = XLSX.utils.json_to_sheet(detailRows);
+    XLSX.utils.book_append_sheet(wb, ws2, "تفاصيل الإنتاج");
+    const period = `${fFrom || "بداية"}_${fTo || "نهاية"}`;
+    XLSX.writeFile(wb, `تقرير_إنتاج_البيض_${period}.xlsx`);
+    toast.success("تم تصدير التقرير بنجاح");
+  };
+
   return (
     <Card className="p-4">
       <div className="flex justify-between mb-3">
         <h3 className="font-bold">إنتاج البيض اليومي ({total.toLocaleString()} بيضة)</h3>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild><Button size="sm"><Plus className="w-4 h-4 ml-1" />تسجيل إنتاج</Button></DialogTrigger>
-          <DialogContent dir="rtl">
-            <DialogHeader><DialogTitle>إنتاج بيض جديد</DialogTitle></DialogHeader>
-            <div className="space-y-3">
-              <div><Label>التاريخ</Label><Input type="date" value={form.production_date} onChange={(e) => setForm({ ...form, production_date: e.target.value })} /></div>
-              <div><Label>الأسرة</Label>
-                <Select value={form.family_id} onValueChange={(v) => setForm({ ...form, family_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="اختر الأسرة" /></SelectTrigger>
-                  <SelectContent>
-                    {families.map((f: any) => <SelectItem key={f.id} value={f.id}>{f.family_number} {f.pen ? `- ${f.pen}` : ""}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={exportReport} className="gap-1">
+            <Download className="w-4 h-4" />تصدير تقرير
+          </Button>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild><Button size="sm"><Plus className="w-4 h-4 ml-1" />تسجيل إنتاج</Button></DialogTrigger>
+            <DialogContent dir="rtl">
+              <DialogHeader><DialogTitle>إنتاج بيض جديد</DialogTitle></DialogHeader>
+              <div className="space-y-3">
+                <div><Label>التاريخ</Label><Input type="date" value={form.production_date} onChange={(e) => setForm({ ...form, production_date: e.target.value })} /></div>
+                <div><Label>الأسرة</Label>
+                  <Select value={form.family_id} onValueChange={(v) => setForm({ ...form, family_id: v })}>
+                    <SelectTrigger><SelectValue placeholder="اختر الأسرة" /></SelectTrigger>
+                    <SelectContent>
+                      {families.map((f: any) => <SelectItem key={f.id} value={f.id}>{f.family_number} {f.pen ? `- ${f.pen}` : ""}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div><Label>عدد البيض</Label><Input type="number" value={form.egg_count} onChange={(e) => setForm({ ...form, egg_count: +e.target.value })} /></div>
+                <div><Label>ملاحظات</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
               </div>
-              <div><Label>عدد البيض</Label><Input type="number" value={form.egg_count} onChange={(e) => setForm({ ...form, egg_count: +e.target.value })} /></div>
-              <div><Label>ملاحظات</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
-            </div>
-            <DialogFooter><Button onClick={() => save.mutate()} disabled={save.isPending}>حفظ</Button></DialogFooter>
-          </DialogContent>
-        </Dialog>
+              <DialogFooter><Button onClick={() => save.mutate()} disabled={save.isPending}>حفظ</Button></DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">
         <Select value={fFamily} onValueChange={setFFamily}>
