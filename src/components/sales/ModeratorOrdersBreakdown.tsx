@@ -26,8 +26,10 @@ const matches = (name: string, target: string) => {
 };
 
 const ModeratorOrdersBreakdown = () => {
+  const queryClient = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ['moderator-orders-breakdown'],
+    refetchInterval: 60000,
     queryFn: async () => {
       const { data: orders, error } = await supabase
         .from('orders')
