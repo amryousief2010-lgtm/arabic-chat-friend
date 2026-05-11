@@ -1,6 +1,7 @@
 import { LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { SidebarMenuSections } from "./SidebarMenuSections";
+import companyLogo from "@/assets/company-logo.jpg";
 
 interface MobileSidebarContentProps {
   onClose: () => void;
@@ -19,8 +20,8 @@ const MobileSidebarContent = ({ onClose }: MobileSidebarContentProps) => {
       {/* Logo */}
       <div className="p-6 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-sidebar-primary flex items-center justify-center shadow-lg">
-            <span className="text-sidebar-primary-foreground font-bold text-xl">ن</span>
+          <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center shadow-lg overflow-hidden ring-1 ring-sidebar-border">
+            <img src={companyLogo} alt="شركة نعام العاصمة" className="w-full h-full object-contain p-1" />
           </div>
           <div>
             <h1 className="font-bold text-lg">شركة نعام العاصمة</h1>
