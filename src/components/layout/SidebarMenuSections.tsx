@@ -24,6 +24,7 @@ import {
   Warehouse,
   ChevronDown,
   Megaphone,
+  Network,
   LucideIcon,
 } from "lucide-react";
 import { useAuth, AppRole } from "@/hooks/useAuth";
