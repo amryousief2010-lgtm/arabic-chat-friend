@@ -26,16 +26,19 @@ import {
   Clock,
   ShoppingCart,
   FileText,
+  Pencil,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import EditOrderItemsDialog from "@/components/orders/EditOrderItemsDialog";
 
 type OrderStatus = 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
 type PaymentStatus = 'pending' | 'paid' | 'failed';
 
 interface OrderItem {
   id: string;
+  product_id: string | null;
   product_name: string;
   quantity: number;
   unit_price: number;
@@ -116,10 +119,12 @@ const getStatusIcon = (status: OrderStatus) => {
 const OrderDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { canUpdateOrderStatusForOrder, canUpdatePaymentStatus } = useAuth();
+  const { canUpdateOrderStatusForOrder, canUpdatePaymentStatus, isGeneralManager, isExecutiveManager, isSalesManager, isShippingCompany } = useAuth();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const [editItemsOpen, setEditItemsOpen] = useState(false);
+  const canEditItems = isGeneralManager || isExecutiveManager || isSalesManager || isShippingCompany;
 
   useEffect(() => {
     if (id) {
@@ -183,6 +188,7 @@ const OrderDetails = () => {
         created_by_name: createdByName,
         items: (itemsData || []).map(item => ({
           id: item.id,
+          product_id: (item as any).product_id ?? null,
           product_name: item.product_name,
           quantity: Number(item.quantity),
           unit_price: Number(item.unit_price),
@@ -302,10 +308,23 @@ const OrderDetails = () => {
             {/* Products Card */}
             <Card className="glass-card">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Package className="w-5 h-5 text-primary" />
-                  المنتجات ({order.items.length})
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Package className="w-5 h-5 text-primary" />
+                    المنتجات ({order.items.length})
+                  </CardTitle>
+                  {canEditItems && order.status !== 'cancelled' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setEditItemsOpen(true)}
+                      className="gap-1"
+                    >
+                      <Pencil className="w-4 h-4" />
+                      تعديل المنتجات
+                    </Button>
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
@@ -534,6 +553,22 @@ const OrderDetails = () => {
           </div>
         </div>
       </div>
+
+      {order && (
+        <EditOrderItemsDialog
+          open={editItemsOpen}
+          onOpenChange={setEditItemsOpen}
+          orderId={order.id}
+          initialItems={order.items.map(it => ({
+            id: it.id,
+            product_id: it.product_id,
+            product_name: it.product_name,
+            quantity: it.quantity,
+            unit_price: it.unit_price,
+          }))}
+          onSaved={() => id && fetchOrder(id)}
+        />
+      )}
     </DashboardLayout>
   );
 };
