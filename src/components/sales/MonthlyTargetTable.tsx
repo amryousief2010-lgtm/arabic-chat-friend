@@ -77,10 +77,10 @@ const MonthlyTargetTable = () => {
             </TableRow>
             <TableRow className="bg-muted/30">
               {tiers.map((t) => (
-                <>
+                <Fragment key={t}>
                   <TableHead key={`${t}-s`} className="text-center border text-xs">قيمة المبيعات</TableHead>
                   <TableHead key={`${t}-b`} className="text-center border text-xs">مبلغ البونص</TableHead>
-                </>
+                </Fragment>
               ))}
             </TableRow>
           </TableHeader>
@@ -94,10 +94,10 @@ const MonthlyTargetTable = () => {
                       {fmt(c.flat)}
                     </TableCell>
                   ) : (
-                    <>
+                    <Fragment key={t}>
                       <TableCell key={`${i}-s`} className="text-center border">{fmt(c.sales || 0)}</TableCell>
                       <TableCell key={`${i}-b`} className="text-center border font-semibold text-primary">{c.bonus}</TableCell>
-                    </>
+                    </Fragment>
                   )
                 )}
               </TableRow>
