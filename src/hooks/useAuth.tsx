@@ -19,7 +19,8 @@ export type AppRole =
   | 'production_manager'
   | 'marketing_sales_manager'
   | 'financial_manager'
-  | 'quality_manager';
+  | 'quality_manager'
+  | 'shipping_company';
 
 interface AuthContextType {
   user: User | null;
