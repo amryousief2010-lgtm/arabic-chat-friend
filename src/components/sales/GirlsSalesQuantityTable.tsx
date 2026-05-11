@@ -332,7 +332,11 @@ const GirlsSalesQuantityTable = () => {
               </TableRow>
               <TableRow>
                 <TableCell className="font-medium">كمية المصنعات (كجم)</TableCell>
-                {GIRLS.map(g => <TableCell key={g} className="text-center">{qtyInput(g, 'processed_qty')}</TableCell>)}
+                {GIRLS.map(g => (
+                  <TableCell key={g} className="text-center font-bold">
+                    {totals[g].processed_qty.toLocaleString()}
+                  </TableCell>
+                ))}
               </TableRow>
               <TableRow>
                 <TableCell className="font-medium">سعر كيلو المصنعات</TableCell>
