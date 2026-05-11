@@ -40,9 +40,19 @@ const Farm = () => {
   const { data: eggs = [] } = useQuery({
     queryKey: ["farm_egg_production"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("farm_egg_production")
-        .select("*").order("production_date", { ascending: false }).limit(1000);
-      if (error) throw error; return data || [];
+      const all: any[] = [];
+      let from = 0;
+      const size = 1000;
+      while (true) {
+        const { data, error } = await supabase.from("farm_egg_production")
+          .select("*").order("production_date", { ascending: false }).range(from, from + size - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        all.push(...data);
+        if (data.length < size) break;
+        from += size;
+      }
+      return all;
     },
   });
 
@@ -399,6 +409,8 @@ const TransfersTab = ({ transfers, families, qc }: any) => {
 // ============ CHARTS ============
 const ChartsTab = ({ eggs, transfers, families }: any) => {
   const [year, setYear] = useState(2026);
+  const [selFamily, setSelFamily] = useState<string>("all");
+
   const monthly = useMemo(() => {
     const arr = Array.from({ length: 12 }, (_, i) => ({ name: `${i + 1}`, "إنتاج": 0, "نقل": 0 }));
     eggs.forEach((e: any) => { const d = new Date(e.production_date); if (d.getFullYear() === year) arr[d.getMonth()]["إنتاج"] += e.egg_count || 0; });
@@ -409,8 +421,25 @@ const ChartsTab = ({ eggs, transfers, families }: any) => {
   const byFamily = useMemo(() => {
     const map: Record<string, number> = {};
     eggs.forEach((e: any) => { const d = new Date(e.production_date); if (d.getFullYear() === year && e.family_id) map[e.family_id] = (map[e.family_id] || 0) + (e.egg_count || 0); });
-    return families.map((f: any) => ({ name: f.family_number, "إنتاج": map[f.id] || 0 })).filter((r: any) => r["إنتاج"] > 0).sort((a: any, b: any) => b["إنتاج"] - a["إنتاج"]).slice(0, 15);
+    return families
+      .map((f: any) => ({ name: `أسرة ${f.family_number}`, "إنتاج": map[f.id] || 0 }))
+      .sort((a: any, b: any) => {
+        const na = parseInt(a.name.replace(/\D/g, ""));
+        const nb = parseInt(b.name.replace(/\D/g, ""));
+        return na - nb;
+      });
   }, [eggs, families, year]);
+
+  const familyMonthly = useMemo(() => {
+    const arr = Array.from({ length: 12 }, (_, i) => ({ name: `${i + 1}`, "إنتاج": 0 }));
+    eggs.forEach((e: any) => {
+      const d = new Date(e.production_date);
+      if (d.getFullYear() !== year) return;
+      if (selFamily !== "all" && e.family_id !== selFamily) return;
+      arr[d.getMonth()]["إنتاج"] += e.egg_count || 0;
+    });
+    return arr;
+  }, [eggs, year, selFamily]);
 
   const last30 = useMemo(() => {
     const map: Record<string, number> = {};
@@ -421,8 +450,8 @@ const ChartsTab = ({ eggs, transfers, families }: any) => {
   return (
     <div className="space-y-4">
       <Card className="p-4">
-        <div className="flex justify-between items-center mb-3">
-          <h3 className="font-bold">إنتاج شهري - الأسر</h3>
+        <div className="flex justify-between items-center mb-3 gap-2 flex-wrap">
+          <h3 className="font-bold">إنتاج وَنَقل شهري ({year})</h3>
           <Select value={String(year)} onValueChange={(v) => setYear(+v)}>
             <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
             <SelectContent>{[2024, 2025, 2026, 2027].map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
@@ -443,6 +472,45 @@ const ChartsTab = ({ eggs, transfers, families }: any) => {
       </Card>
 
       <Card className="p-4">
+        <div className="flex justify-between items-center mb-3 gap-2 flex-wrap">
+          <h3 className="font-bold">إنتاج شهري حسب الأسرة ({year})</h3>
+          <Select value={selFamily} onValueChange={setSelFamily}>
+            <SelectTrigger className="w-48"><SelectValue placeholder="اختر أسرة" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">كل الأسر</SelectItem>
+              {families.map((f: any) => <SelectItem key={f.id} value={f.id}>أسرة {f.family_number}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="h-64">
+          <ResponsiveContainer>
+            <LineChart data={familyMonthly}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip /><Legend />
+              <Line type="monotone" dataKey="إنتاج" stroke="hsl(var(--primary))" strokeWidth={2} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+
+      <Card className="p-4">
+        <h3 className="font-bold mb-3">إجمالي البيض لكل أسرة ({year})</h3>
+        <div style={{ height: Math.max(320, byFamily.length * 28) }}>
+          <ResponsiveContainer>
+            <BarChart data={byFamily} layout="vertical" margin={{ left: 60 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis type="number" />
+              <YAxis type="category" dataKey="name" width={80} />
+              <Tooltip />
+              <Bar dataKey="إنتاج" fill="hsl(var(--primary))" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+
+      <Card className="p-4">
         <h3 className="font-bold mb-3">آخر 30 يوم - إنتاج البيض اليومي</h3>
         <div className="h-64">
           <ResponsiveContainer>
@@ -453,21 +521,6 @@ const ChartsTab = ({ eggs, transfers, families }: any) => {
               <Tooltip />
               <Line type="monotone" dataKey="إنتاج" stroke="hsl(var(--accent))" strokeWidth={2} dot={false} />
             </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </Card>
-
-      <Card className="p-4">
-        <h3 className="font-bold mb-3">أعلى 15 أسرة إنتاجاً ({year})</h3>
-        <div className="h-80">
-          <ResponsiveContainer>
-            <BarChart data={byFamily} layout="vertical" margin={{ left: 60 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" />
-              <YAxis type="category" dataKey="name" />
-              <Tooltip />
-              <Bar dataKey="إنتاج" fill="hsl(var(--primary))" />
-            </BarChart>
           </ResponsiveContainer>
         </div>
       </Card>
