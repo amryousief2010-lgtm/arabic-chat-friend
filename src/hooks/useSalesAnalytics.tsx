@@ -1,34 +1,41 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
+export interface DashboardOverview {
+  today: { sales: number; orders: number };
+  month: { sales: number; orders: number };
+  year: { sales: number; orders: number };
+  total: { sales: number; orders: number };
+  avg_order_value: number;
+  customers: number;
+  low_stock: number;
+}
+
 export const useDashboardStats = () => {
   return useQuery({
-    queryKey: ["dashboard-stats"],
+    queryKey: ["dashboard-stats-v2"],
     queryFn: async () => {
-      const [ordersRes, customersRes, productsRes] = await Promise.all([
-        supabase.from("orders").select("total, created_at, status", { count: "exact" }),
-        supabase.from("customers").select("id", { count: "exact", head: true }),
-        supabase.from("products").select("id, name, stock, low_stock_threshold"),
-      ]);
-
-      const orders = ordersRes.data || [];
-      const totalOrders = ordersRes.count || orders.length;
-      const totalCustomers = customersRes.count || 0;
-      const totalSales = orders.reduce((s, o) => s + Number(o.total), 0);
-      const avgOrderValue = totalOrders > 0 ? Math.round(totalSales / totalOrders) : 0;
-      const lowStockProducts = (productsRes.data || []).filter(
-        (p) => p.stock <= p.low_stock_threshold
-      ).length;
-
+      const { data, error } = await supabase.rpc("get_dashboard_overview");
+      if (error) throw error;
+      const o = data as unknown as DashboardOverview;
       return {
-        totalSales,
-        totalOrders,
-        totalCustomers,
-        avgOrderValue,
-        lowStockProducts,
+        // backward compat
+        totalSales: Number(o.total.sales),
+        totalOrders: o.total.orders,
+        totalCustomers: o.customers,
+        avgOrderValue: o.avg_order_value,
+        lowStockProducts: o.low_stock,
+        // new daily/monthly/yearly
+        salesToday: Number(o.today.sales),
+        ordersToday: o.today.orders,
+        salesMonth: Number(o.month.sales),
+        ordersMonth: o.month.orders,
+        salesYear: Number(o.year.sales),
+        ordersYear: o.year.orders,
       };
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: 60 * 1000,
+    refetchInterval: 2 * 60 * 1000,
   });
 };
 
