@@ -186,7 +186,32 @@ const Index = () => {
         />
       </div>
 
-      {/* Interactive Charts Tabs */}
+      {/* Production KPIs - Eggs & Chicks */}
+      <Card className="glass-card mb-6">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Egg className="w-5 h-5 text-secondary" />
+            إنتاج البيض والكتاكيت
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <ProdCard label="بيض اليوم" value={prodLoading ? "..." : (prod?.eggsToday ?? 0).toLocaleString()} color="from-amber-500 to-orange-600" icon={Egg} />
+            <ProdCard label="بيض الشهر" value={prodLoading ? "..." : (prod?.eggsMonth ?? 0).toLocaleString()} color="from-orange-500 to-red-500" icon={Egg} />
+            <ProdCard label="بيض السنة" value={prodLoading ? "..." : (prod?.eggsYear ?? 0).toLocaleString()} color="from-red-500 to-pink-600" icon={Egg} />
+            <ProdCard label="كتاكيت اليوم" value={prodLoading ? "..." : (prod?.chicksToday ?? 0).toLocaleString()} color="from-cyan-500 to-blue-600" icon={Bird} />
+            <ProdCard label="كتاكيت الشهر" value={prodLoading ? "..." : (prod?.chicksMonth ?? 0).toLocaleString()} color="from-blue-500 to-indigo-600" icon={Bird} />
+            <ProdCard label="كتاكيت السنة" value={prodLoading ? "..." : (prod?.chicksYear ?? 0).toLocaleString()} color="from-indigo-500 to-purple-600" icon={Bird} />
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 pt-3 border-t">
+            <ProdCard label="مبيعات كتاكيت/اليوم" value={prodLoading ? "..." : (prod?.soldToday ?? 0).toLocaleString()} color="from-emerald-500 to-green-600" icon={Bird} />
+            <ProdCard label="مبيعات كتاكيت/الشهر" value={prodLoading ? "..." : (prod?.soldMonth ?? 0).toLocaleString()} color="from-green-500 to-teal-600" icon={Bird} />
+            <ProdCard label="إيراد الشهر" value={prodLoading ? "..." : `${formatSales(prod?.revenueMonth ?? 0)} ج.م`} color="from-teal-500 to-cyan-600" icon={DollarSign} />
+            <ProdCard label="إيراد السنة" value={prodLoading ? "..." : `${formatSales(prod?.revenueYear ?? 0)} ج.م`} color="from-purple-500 to-fuchsia-600" icon={DollarSign} />
+          </div>
+        </CardContent>
+      </Card>
+
       <Tabs defaultValue="overview" className="mb-8">
         <TabsList className="grid w-full grid-cols-4 mb-6">
           <TabsTrigger value="overview">نظرة عامة</TabsTrigger>
