@@ -14,11 +14,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import {
-  FlaskConical, Plus, Users, Wrench, Bird, Activity, TrendingUp, Trash2, Pencil, AlertTriangle,
+  FlaskConical, Plus, Users, Wrench, Bird, Activity, TrendingUp, Trash2, Pencil, AlertTriangle, BarChart3,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
 
 const today = () => format(new Date(), "yyyy-MM-dd");
 const monthStart = () => { const d = new Date(); d.setDate(1); return format(d, "yyyy-MM-dd"); };
@@ -113,9 +113,10 @@ const Hatchery = () => {
         </div>
 
         <Tabs defaultValue="batches" dir="rtl">
-          <TabsList className="grid grid-cols-2 md:grid-cols-6 w-full">
+          <TabsList className="grid grid-cols-2 md:grid-cols-7 w-full">
             <TabsTrigger value="batches"><FlaskConical className="w-4 h-4 ml-1" />الدفعات</TabsTrigger>
-            <TabsTrigger value="quality"><TrendingUp className="w-4 h-4 ml-1" />مقارنة الجودة</TabsTrigger>
+            <TabsTrigger value="charts"><BarChart3 className="w-4 h-4 ml-1" />تحليلات</TabsTrigger>
+            <TabsTrigger value="quality"><TrendingUp className="w-4 h-4 ml-1" />الجودة</TabsTrigger>
             <TabsTrigger value="customers"><Users className="w-4 h-4 ml-1" />العملاء</TabsTrigger>
             <TabsTrigger value="ops"><Activity className="w-4 h-4 ml-1" />التشغيل</TabsTrigger>
             <TabsTrigger value="maint"><Wrench className="w-4 h-4 ml-1" />الصيانة</TabsTrigger>
@@ -123,6 +124,7 @@ const Hatchery = () => {
           </TabsList>
 
           <TabsContent value="batches"><BatchesTab batches={batches} customers={customers} qc={qc} /></TabsContent>
+          <TabsContent value="charts"><BatchesChartsTab batches={batches} customers={customers} /></TabsContent>
           <TabsContent value="quality"><QualityTab stats={stats} /></TabsContent>
           <TabsContent value="customers"><CustomersTab customers={customers} qc={qc} /></TabsContent>
           <TabsContent value="ops"><OpsTab ops={ops} qc={qc} /></TabsContent>
@@ -187,6 +189,20 @@ const BatchesTab = ({ batches, customers, qc }: any) => {
 
   const fertility = (b: any) => b.net_eggs > 0 ? (((b.candle2_fertile || b.candle1_fertile || 0) / b.net_eggs) * 100).toFixed(1) + "%" : "-";
   const conversion = (b: any) => b.net_eggs > 0 ? ((b.hatched_chicks / b.net_eggs) * 100).toFixed(1) + "%" : "-";
+
+  const [search, setSearch] = useState("");
+  const [fCustomer, setFCustomer] = useState("all");
+  const [fStatus, setFStatus] = useState("all");
+  const [fFrom, setFFrom] = useState("");
+  const [fTo, setFTo] = useState("");
+  const filtered = useMemo(() => batches.filter((b: any) => {
+    if (search && !b.batch_number.toLowerCase().includes(search.toLowerCase())) return false;
+    if (fCustomer !== "all" && b.customer_id !== fCustomer) return false;
+    if (fStatus !== "all" && b.status !== fStatus) return false;
+    if (fFrom && b.receive_date < fFrom) return false;
+    if (fTo && b.receive_date > fTo) return false;
+    return true;
+  }), [batches, search, fCustomer, fStatus, fFrom, fTo]);
 
   return (
     <Card className="p-4">
@@ -263,7 +279,31 @@ const BatchesTab = ({ batches, customers, qc }: any) => {
         </Dialog>
       </div>
 
-      <div className="overflow-auto">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-2 mb-3">
+        <Input placeholder="بحث برقم الدفعة..." value={search} onChange={(e) => setSearch(e.target.value)} />
+        <Select value={fCustomer} onValueChange={setFCustomer}>
+          <SelectTrigger><SelectValue placeholder="كل العملاء" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">كل العملاء</SelectItem>
+            {customers.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={fStatus} onValueChange={setFStatus}>
+          <SelectTrigger><SelectValue placeholder="كل الحالات" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">كل الحالات</SelectItem>
+            <SelectItem value="pending">انتظار</SelectItem>
+            <SelectItem value="incubating">تحضين</SelectItem>
+            <SelectItem value="hatching">هاتشر</SelectItem>
+            <SelectItem value="completed">مكتملة</SelectItem>
+          </SelectContent>
+        </Select>
+        <Input type="date" value={fFrom} onChange={(e) => setFFrom(e.target.value)} />
+        <Input type="date" value={fTo} onChange={(e) => setFTo(e.target.value)} />
+      </div>
+      <p className="text-xs text-muted-foreground mb-2">عرض {Math.min(filtered.length, 500)} من {filtered.length} دفعة</p>
+
+      <div className="overflow-auto max-h-[600px]">
         <Table>
           <TableHeader>
             <TableRow>
@@ -273,7 +313,7 @@ const BatchesTab = ({ batches, customers, qc }: any) => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {batches.map((b: any) => (
+            {filtered.slice(0, 500).map((b: any) => (
               <TableRow key={b.id}>
                 <TableCell className="font-mono text-xs">{b.batch_number}</TableCell>
                 <TableCell>{b.receive_date}</TableCell>
@@ -294,11 +334,117 @@ const BatchesTab = ({ batches, customers, qc }: any) => {
                 </TableCell>
               </TableRow>
             ))}
-            {batches.length === 0 && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-6">لا توجد دفعات</TableCell></TableRow>}
+            {filtered.length === 0 && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-6">لا توجد دفعات مطابقة</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>
     </Card>
+  );
+};
+
+// ============ BATCHES CHARTS ============
+const BatchesChartsTab = ({ batches, customers }: any) => {
+  const [year, setYear] = useState(2026);
+  const internalIds = useMemo(() => new Set(customers.filter((c: any) => c.customer_type === "internal").map((c: any) => c.id)), [customers]);
+
+  const stages = useMemo(() => {
+    const yearBatches = batches.filter((b: any) => b.receive_date && new Date(b.receive_date).getFullYear() === year);
+    const sum = (k: string) => yearBatches.reduce((s: number, b: any) => s + (b[k] || 0), 0);
+    return [
+      { stage: "وارد", value: sum("received_eggs") },
+      { stage: "صافي", value: sum("net_eggs") },
+      { stage: "كشف 1 مخصب", value: sum("candle1_fertile") },
+      { stage: "كشف 2 مخصب", value: sum("candle2_fertile") },
+      { stage: "كتاكيت", value: sum("hatched_chicks") },
+    ];
+  }, [batches, year]);
+
+  const monthly = useMemo(() => {
+    const arr = Array.from({ length: 12 }, (_, i) => ({ name: `${i + 1}`, "وارد": 0, "صافي": 0, "كتاكيت": 0 }));
+    batches.forEach((b: any) => {
+      if (!b.receive_date) return;
+      const d = new Date(b.receive_date);
+      if (d.getFullYear() !== year) return;
+      arr[d.getMonth()]["وارد"] += b.received_eggs || 0;
+      arr[d.getMonth()]["صافي"] += b.net_eggs || 0;
+      arr[d.getMonth()]["كتاكيت"] += b.hatched_chicks || 0;
+    });
+    return arr;
+  }, [batches, year]);
+
+  const cmpInternal = useMemo(() => {
+    const groups = [
+      { name: "العاصمة", arr: batches.filter((b: any) => internalIds.has(b.customer_id) && b.status === "completed") },
+      { name: "الآخرون", arr: batches.filter((b: any) => !internalIds.has(b.customer_id) && b.status === "completed") },
+    ];
+    return groups.map((g) => {
+      const net = g.arr.reduce((s: number, b: any) => s + (b.net_eggs || 0), 0);
+      const fert = g.arr.reduce((s: number, b: any) => s + (b.candle2_fertile || b.candle1_fertile || 0), 0);
+      const ch = g.arr.reduce((s: number, b: any) => s + (b.hatched_chicks || 0), 0);
+      return {
+        name: g.name,
+        "خصوبة%": net > 0 ? +((fert / net) * 100).toFixed(1) : 0,
+        "تحول%": net > 0 ? +((ch / net) * 100).toFixed(1) : 0,
+      };
+    });
+  }, [batches, internalIds]);
+
+  return (
+    <div className="space-y-4">
+      <Card className="p-4">
+        <div className="flex justify-between items-center mb-3">
+          <h3 className="font-bold">قمع المراحل ({year})</h3>
+          <Select value={String(year)} onValueChange={(v) => setYear(+v)}>
+            <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+            <SelectContent>{[2024, 2025, 2026, 2027].map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <div className="h-72">
+          <ResponsiveContainer>
+            <BarChart data={stages} layout="vertical" margin={{ left: 80 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis type="number" />
+              <YAxis type="category" dataKey="stage" />
+              <Tooltip />
+              <Bar dataKey="value" fill="hsl(var(--primary))" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+
+      <Card className="p-4">
+        <h3 className="font-bold mb-3">تتبع شهري - المراحل</h3>
+        <div className="h-72">
+          <ResponsiveContainer>
+            <LineChart data={monthly}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip /><Legend />
+              <Line type="monotone" dataKey="وارد" stroke="hsl(var(--accent))" strokeWidth={2} />
+              <Line type="monotone" dataKey="صافي" stroke="hsl(var(--primary))" strokeWidth={2} />
+              <Line type="monotone" dataKey="كتاكيت" stroke="hsl(var(--destructive))" strokeWidth={2} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+
+      <Card className="p-4">
+        <h3 className="font-bold mb-3">العاصمة × الآخرون (دفعات مكتملة)</h3>
+        <div className="h-64">
+          <ResponsiveContainer>
+            <BarChart data={cmpInternal}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis unit="%" />
+              <Tooltip /><Legend />
+              <Bar dataKey="خصوبة%" fill="hsl(var(--primary))" />
+              <Bar dataKey="تحول%" fill="hsl(var(--accent))" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+    </div>
   );
 };
 
