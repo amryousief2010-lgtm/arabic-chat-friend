@@ -17,9 +17,10 @@ import {
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Egg, Plus, Truck, Wheat, Syringe, Users, Calendar, TrendingUp, Trash2 } from "lucide-react";
+import { Egg, Plus, Truck, Wheat, Syringe, Users, Calendar, TrendingUp, Trash2, Search, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
 
 const today = () => format(new Date(), "yyyy-MM-dd");
 const monthStart = () => { const d = new Date(); d.setDate(1); return format(d, "yyyy-MM-dd"); };
@@ -101,38 +102,21 @@ const Farm = () => {
         </div>
 
         <Tabs defaultValue="families" dir="rtl">
-          <TabsList className="grid grid-cols-2 md:grid-cols-5 w-full">
+          <TabsList className="grid grid-cols-2 md:grid-cols-6 w-full">
             <TabsTrigger value="families"><Users className="w-4 h-4 ml-1" />الأسر</TabsTrigger>
             <TabsTrigger value="eggs"><Egg className="w-4 h-4 ml-1" />الإنتاج اليومي</TabsTrigger>
             <TabsTrigger value="transfers"><Truck className="w-4 h-4 ml-1" />نقل للمعمل</TabsTrigger>
             <TabsTrigger value="feed"><Wheat className="w-4 h-4 ml-1" />العلف</TabsTrigger>
             <TabsTrigger value="meds"><Syringe className="w-4 h-4 ml-1" />الأدوية</TabsTrigger>
+            <TabsTrigger value="charts"><BarChart3 className="w-4 h-4 ml-1" />تحليلات</TabsTrigger>
           </TabsList>
 
-          {/* === Families === */}
-          <TabsContent value="families">
-            <FamiliesTab families={families} qc={qc} />
-          </TabsContent>
-
-          {/* === Eggs === */}
-          <TabsContent value="eggs">
-            <EggsTab eggs={eggs} families={families} qc={qc} />
-          </TabsContent>
-
-          {/* === Transfers === */}
-          <TabsContent value="transfers">
-            <TransfersTab transfers={transfers} families={families} qc={qc} />
-          </TabsContent>
-
-          {/* === Feed === */}
-          <TabsContent value="feed">
-            <FeedTab logs={feedLogs} qc={qc} />
-          </TabsContent>
-
-          {/* === Meds === */}
-          <TabsContent value="meds">
-            <MedsTab meds={meds} families={families} qc={qc} />
-          </TabsContent>
+          <TabsContent value="families"><FamiliesTab families={families} qc={qc} /></TabsContent>
+          <TabsContent value="eggs"><EggsTab eggs={eggs} families={families} qc={qc} /></TabsContent>
+          <TabsContent value="transfers"><TransfersTab transfers={transfers} families={families} qc={qc} /></TabsContent>
+          <TabsContent value="feed"><FeedTab logs={feedLogs} qc={qc} /></TabsContent>
+          <TabsContent value="meds"><MedsTab meds={meds} families={families} qc={qc} /></TabsContent>
+          <TabsContent value="charts"><ChartsTab eggs={eggs} transfers={transfers} families={families} /></TabsContent>
         </Tabs>
       </div>
     </DashboardLayout>
