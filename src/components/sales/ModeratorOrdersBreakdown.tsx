@@ -1,10 +1,29 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Users, Package, CheckCircle2, XCircle } from 'lucide-react';
 
 const GIRLS = ['اية', 'نورا', 'سارة', 'منال'];
+
+const months = [
+  { value: 1, label: 'يناير' },
+  { value: 2, label: 'فبراير' },
+  { value: 3, label: 'مارس' },
+  { value: 4, label: 'أبريل' },
+  { value: 5, label: 'مايو' },
+  { value: 6, label: 'يونيو' },
+  { value: 7, label: 'يوليو' },
+  { value: 8, label: 'أغسطس' },
+  { value: 9, label: 'سبتمبر' },
+  { value: 10, label: 'أكتوبر' },
+  { value: 11, label: 'نوفمبر' },
+  { value: 12, label: 'ديسمبر' },
+];
+
+const currentYear = new Date().getFullYear();
+const currentMonth = new Date().getMonth() + 1;
 
 interface OrderRow {
   status: string;
@@ -19,21 +38,27 @@ interface ProfileRow {
 
 const matches = (name: string, target: string) => {
   if (!name) return false;
-  const n = name.trim();
-  // normalize alef variants
   const normalize = (s: string) => s.replace(/[إأآا]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه');
-  return normalize(n).includes(normalize(target));
+  return normalize(name.trim()).includes(normalize(target));
 };
 
 const ModeratorOrdersBreakdown = () => {
   const queryClient = useQueryClient();
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+
   const { data, isLoading } = useQuery({
-    queryKey: ['moderator-orders-breakdown'],
+    queryKey: ['moderator-orders-breakdown', selectedMonth, selectedYear],
     refetchInterval: 60000,
     queryFn: async () => {
+      const startDate = new Date(selectedYear, selectedMonth - 1, 1).toISOString();
+      const endDate = new Date(selectedYear, selectedMonth, 0, 23, 59, 59).toISOString();
+
       const { data: orders, error } = await supabase
         .from('orders')
-        .select('status, moderator, created_by');
+        .select('status, moderator, created_by')
+        .gte('created_at', startDate)
+        .lte('created_at', endDate);
       if (error) throw error;
 
       const userIds = Array.from(new Set((orders || []).map(o => o.created_by).filter(Boolean))) as string[];
@@ -77,10 +102,30 @@ const ModeratorOrdersBreakdown = () => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Users className="h-5 w-5 text-primary" />
-          تقسيم مبيعات المسوقات
-        </CardTitle>
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5 text-primary" />
+            تقسيم مبيعات المسوقات - {months.find(m => m.value === selectedMonth)?.label} {selectedYear}
+          </CardTitle>
+          <div className="flex items-center gap-2">
+            <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(Number(v))}>
+              <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {months.map(m => (
+                  <SelectItem key={m.value} value={m.value.toString()}>{m.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
+              <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {[currentYear - 1, currentYear, currentYear + 1].map(y => (
+                  <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         {isLoading ? (
