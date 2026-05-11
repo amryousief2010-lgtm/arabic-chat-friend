@@ -1313,6 +1313,10 @@ export type Database = {
       check_offer_expiry: { Args: never; Returns: boolean }
       deactivate_expired_offers: { Args: never; Returns: undefined }
       generate_order_number: { Args: never; Returns: string }
+      get_production_dashboard: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: Json
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]

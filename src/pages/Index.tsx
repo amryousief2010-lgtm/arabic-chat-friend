@@ -91,7 +91,18 @@ const Index = () => {
   const { data: stats, isLoading } = useDashboardStats();
   const { data: recentOrders, isLoading: ordersLoading } = useRecentOrders(5);
   const reportData = useReportsData("all");
-  const { data: prod, isLoading: prodLoading } = useProductionStats();
+  const [prodFrom, setProdFrom] = useState<string>("");
+  const [prodTo, setProdTo] = useState<string>("");
+  const { data: prod, isLoading: prodLoading } = useProductionStats(prodFrom, prodTo);
+
+  const setQuickRange = (kind: "today" | "month" | "year" | "clear") => {
+    const now = new Date();
+    const fmt = (d: Date) => d.toISOString().slice(0, 10);
+    if (kind === "today") { const t = fmt(now); setProdFrom(t); setProdTo(t); }
+    else if (kind === "month") { setProdFrom(fmt(new Date(now.getFullYear(), now.getMonth(), 1))); setProdTo(fmt(now)); }
+    else if (kind === "year") { setProdFrom(`${now.getFullYear()}-01-01`); setProdTo(fmt(now)); }
+    else { setProdFrom(""); setProdTo(""); }
+  };
 
   return (
     <DashboardLayout>
@@ -189,25 +200,83 @@ const Index = () => {
       {/* Production KPIs - Eggs & Chicks */}
       <Card className="glass-card mb-6">
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Egg className="w-5 h-5 text-secondary" />
-            إنتاج البيض والكتاكيت
-          </CardTitle>
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Egg className="w-5 h-5 text-secondary" />
+              إنتاج البيض والكتاكيت
+            </CardTitle>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button size="sm" variant={prodFrom && prodFrom === prodTo ? "default" : "outline"} onClick={() => setQuickRange("today")}>اليوم</Button>
+              <Button size="sm" variant="outline" onClick={() => setQuickRange("month")}>الشهر</Button>
+              <Button size="sm" variant="outline" onClick={() => setQuickRange("year")}>السنة</Button>
+              <input type="date" value={prodFrom} onChange={(e) => setProdFrom(e.target.value)} className="h-9 px-2 text-xs border rounded-md bg-background" />
+              <input type="date" value={prodTo} onChange={(e) => setProdTo(e.target.value)} className="h-9 px-2 text-xs border rounded-md bg-background" />
+              {(prodFrom || prodTo) && <Button size="sm" variant="ghost" onClick={() => setQuickRange("clear")}>مسح</Button>}
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
+          {prodFrom && prodTo && (
+            <div className="mb-3 p-2 rounded-lg bg-muted/40 text-xs text-muted-foreground">
+              النطاق المختار: {prodFrom} → {prodTo} | بيض: <b>{(prod?.eggs.range ?? 0).toLocaleString()}</b> | كتاكيت: <b>{(prod?.chicks.range ?? 0).toLocaleString()}</b> | مبيعات: <b>{(prod?.sales.sold_range ?? 0).toLocaleString()}</b> | إيراد: <b>{formatSales(prod?.sales.revenue_range ?? 0)} ج.م</b>
+            </div>
+          )}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-            <ProdCard label="بيض اليوم" value={prodLoading ? "..." : (prod?.eggsToday ?? 0).toLocaleString()} color="from-amber-500 to-orange-600" icon={Egg} />
-            <ProdCard label="بيض الشهر" value={prodLoading ? "..." : (prod?.eggsMonth ?? 0).toLocaleString()} color="from-orange-500 to-red-500" icon={Egg} />
-            <ProdCard label="بيض السنة" value={prodLoading ? "..." : (prod?.eggsYear ?? 0).toLocaleString()} color="from-red-500 to-pink-600" icon={Egg} />
-            <ProdCard label="كتاكيت اليوم" value={prodLoading ? "..." : (prod?.chicksToday ?? 0).toLocaleString()} color="from-cyan-500 to-blue-600" icon={Bird} />
-            <ProdCard label="كتاكيت الشهر" value={prodLoading ? "..." : (prod?.chicksMonth ?? 0).toLocaleString()} color="from-blue-500 to-indigo-600" icon={Bird} />
-            <ProdCard label="كتاكيت السنة" value={prodLoading ? "..." : (prod?.chicksYear ?? 0).toLocaleString()} color="from-indigo-500 to-purple-600" icon={Bird} />
+            <ProdCard label="بيض اليوم" value={prodLoading ? "..." : (prod?.eggs.today ?? 0).toLocaleString()} color="from-amber-500 to-orange-600" icon={Egg} />
+            <ProdCard label="بيض الشهر" value={prodLoading ? "..." : (prod?.eggs.month ?? 0).toLocaleString()} color="from-orange-500 to-red-500" icon={Egg} />
+            <ProdCard label="بيض السنة" value={prodLoading ? "..." : (prod?.eggs.year ?? 0).toLocaleString()} color="from-red-500 to-pink-600" icon={Egg} />
+            <ProdCard label="كتاكيت اليوم" value={prodLoading ? "..." : (prod?.chicks.today ?? 0).toLocaleString()} color="from-cyan-500 to-blue-600" icon={Bird} />
+            <ProdCard label="كتاكيت الشهر" value={prodLoading ? "..." : (prod?.chicks.month ?? 0).toLocaleString()} color="from-blue-500 to-indigo-600" icon={Bird} />
+            <ProdCard label="كتاكيت السنة" value={prodLoading ? "..." : (prod?.chicks.year ?? 0).toLocaleString()} color="from-indigo-500 to-purple-600" icon={Bird} />
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 pt-3 border-t">
-            <ProdCard label="مبيعات كتاكيت/اليوم" value={prodLoading ? "..." : (prod?.soldToday ?? 0).toLocaleString()} color="from-emerald-500 to-green-600" icon={Bird} />
-            <ProdCard label="مبيعات كتاكيت/الشهر" value={prodLoading ? "..." : (prod?.soldMonth ?? 0).toLocaleString()} color="from-green-500 to-teal-600" icon={Bird} />
-            <ProdCard label="إيراد الشهر" value={prodLoading ? "..." : `${formatSales(prod?.revenueMonth ?? 0)} ج.م`} color="from-teal-500 to-cyan-600" icon={DollarSign} />
-            <ProdCard label="إيراد السنة" value={prodLoading ? "..." : `${formatSales(prod?.revenueYear ?? 0)} ج.م`} color="from-purple-500 to-fuchsia-600" icon={DollarSign} />
+            <ProdCard label="مبيعات كتاكيت/اليوم" value={prodLoading ? "..." : (prod?.sales.sold_today ?? 0).toLocaleString()} color="from-emerald-500 to-green-600" icon={Bird} />
+            <ProdCard label="مبيعات كتاكيت/الشهر" value={prodLoading ? "..." : (prod?.sales.sold_month ?? 0).toLocaleString()} color="from-green-500 to-teal-600" icon={Bird} />
+            <ProdCard label="إيراد الشهر" value={prodLoading ? "..." : `${formatSales(prod?.sales.revenue_month ?? 0)} ج.م`} color="from-teal-500 to-cyan-600" icon={DollarSign} />
+            <ProdCard label="إيراد السنة" value={prodLoading ? "..." : `${formatSales(prod?.sales.revenue_year ?? 0)} ج.م`} color="from-purple-500 to-fuchsia-600" icon={DollarSign} />
+          </div>
+
+          {/* Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-6">
+            <div>
+              <p className="text-sm font-semibold mb-2 text-muted-foreground">إنتاج ومبيعات الكتاكيت — الشهر الحالي</p>
+              {prodLoading ? <Skeleton className="h-[260px] w-full" /> : (
+                <ResponsiveContainer width="100%" height={260}>
+                  <BarChart data={prod?.daily ?? []}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={10} tickFormatter={(d) => d.slice(8, 10)} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} />
+                    <Tooltip contentStyle={tooltipStyle} formatter={(v: number, n: string) => [v.toLocaleString(), n === "chicks" ? "كتاكيت منتجة" : n === "sold" ? "مباع" : "إيراد"]} />
+                    <Legend formatter={(v) => v === "chicks" ? "كتاكيت منتجة" : v === "sold" ? "مباع" : "إيراد (ج.م)"} />
+                    <Bar dataKey="chicks" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="sold" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="revenue" fill="hsl(var(--secondary))" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+            <div>
+              <p className="text-sm font-semibold mb-2 text-muted-foreground">إنتاج البيض — اليوم / الشهر / السنة</p>
+              {prodLoading ? <Skeleton className="h-[260px] w-full" /> : (
+                <ResponsiveContainer width="100%" height={260}>
+                  <BarChart data={[
+                    { period: "اليوم", eggs: prod?.eggs.today ?? 0 },
+                    { period: "الشهر", eggs: prod?.eggs.month ?? 0 },
+                    { period: "السنة", eggs: prod?.eggs.year ?? 0 },
+                  ]}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="period" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickFormatter={formatSales} />
+                    <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [v.toLocaleString() + " بيضة", "العدد"]} />
+                    <Bar dataKey="eggs" radius={[8, 8, 0, 0]}>
+                      <Cell fill="hsl(var(--chart-4))" />
+                      <Cell fill="hsl(var(--secondary))" />
+                      <Cell fill="hsl(var(--destructive))" />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
