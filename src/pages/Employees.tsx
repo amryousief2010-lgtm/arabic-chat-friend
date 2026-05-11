@@ -604,42 +604,20 @@ const Employees = () => {
                                 <MoreHorizontal className="w-4 h-4" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem 
-                                onClick={() => handleChangeRole(employee.id, 'general_manager')}
-                                disabled={employee.role === 'general_manager'}
-                              >
-                                <Shield className="w-4 h-4 ml-2" />
-                                مدير عام
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={() => handleChangeRole(employee.id, 'executive_manager')}
-                                disabled={employee.role === 'executive_manager'}
-                              >
-                                <UserCheck className="w-4 h-4 ml-2" />
-                                مدير تنفيذي
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={() => handleChangeRole(employee.id, 'sales_moderator')}
-                                disabled={employee.role === 'sales_moderator'}
-                              >
-                                <ShoppingCart className="w-4 h-4 ml-2" />
-                                مودريتور مبيعات
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={() => handleChangeRole(employee.id, 'accountant')}
-                                disabled={employee.role === 'accountant'}
-                              >
-                                <Calculator className="w-4 h-4 ml-2" />
-                                محاسب
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={() => handleChangeRole(employee.id, 'warehouse_supervisor')}
-                                disabled={employee.role === 'warehouse_supervisor'}
-                              >
-                                <Warehouse className="w-4 h-4 ml-2" />
-                                مشرف مخازن
-                              </DropdownMenuItem>
+                            <DropdownMenuContent align="end" className="max-h-80 overflow-y-auto">
+                              {(Object.keys(roleLabels) as AppRole[]).map((r) => {
+                                const Icon = roleIcons[r];
+                                return (
+                                  <DropdownMenuItem
+                                    key={r}
+                                    onClick={() => handleChangeRole(employee.id, r)}
+                                    disabled={employee.role === r}
+                                  >
+                                    <Icon className="w-4 h-4 ml-2" />
+                                    {roleLabels[r]}
+                                  </DropdownMenuItem>
+                                );
+                              })}
                               <div className="my-1 border-t border-border" />
                               <DropdownMenuItem 
                                 onClick={() => openDeleteDialog(employee)}
