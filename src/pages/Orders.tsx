@@ -110,6 +110,9 @@ const Orders = () => {
     setSearchParams(next, { replace: true });
   };
   const [searchQuery, setSearchQuery] = useState("");
+  const now = new Date();
+  const [filterMonth, setFilterMonth] = useState<string>(String(now.getMonth() + 1));
+  const [filterYear, setFilterYear] = useState<string>(String(now.getFullYear()));
 
   useEffect(() => {
     fetchOrders();
