@@ -38,6 +38,7 @@ import BatchTracking from "@/pages/modules/feed/BatchTracking";
 import WarehouseDashboard from "@/pages/modules/warehouse/WarehouseDashboard";
 import InventoryImport from "@/pages/modules/warehouse/InventoryImport";
 import Debug from "@/pages/Debug";
+import ExecutiveDashboards from "@/pages/ExecutiveDashboards";
 
 const RedirectWithQuery = ({ to }: { to: string }) => {
   const location = useLocation();
