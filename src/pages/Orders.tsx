@@ -51,10 +51,12 @@ type OrderStatus = 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancell
 
 interface OrderItem {
   id: string;
+  product_id: string | null;
   product_name: string;
   quantity: number;
   unit_price: number;
   total_price: number;
+  unit?: string;
 }
 
 interface Order {
