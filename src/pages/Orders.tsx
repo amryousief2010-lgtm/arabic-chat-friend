@@ -261,7 +261,10 @@ const Orders = () => {
   });
 
   const availableYears = Array.from(
-    new Set(orders.map((o) => new Date(o.created_at).getFullYear()))
+    new Set([
+      now.getFullYear(),
+      ...orders.map((o) => new Date(o.created_at).getFullYear()),
+    ])
   ).sort((a, b) => b - a);
 
   const monthNames = [
@@ -269,11 +272,22 @@ const Orders = () => {
     "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
   ];
 
-  const counts = {
-    all: orders.length,
-    "2026": orders.filter((o) => new Date(o.created_at).getFullYear() >= 2026).length,
-    pre2026: orders.filter((o) => new Date(o.created_at).getFullYear() < 2026).length,
-  };
+  const [counts, setCounts] = useState({ all: 0, "2026": 0, pre2026: 0 });
+  useEffect(() => {
+    (async () => {
+      const cutoff = new Date(Date.UTC(2026, 0, 1)).toISOString();
+      const [allRes, y2026Res, preRes] = await Promise.all([
+        supabase.from('orders').select('id', { count: 'exact', head: true }),
+        supabase.from('orders').select('id', { count: 'exact', head: true }).gte('created_at', cutoff),
+        supabase.from('orders').select('id', { count: 'exact', head: true }).lt('created_at', cutoff),
+      ]);
+      setCounts({
+        all: allRes.count || 0,
+        "2026": y2026Res.count || 0,
+        pre2026: preRes.count || 0,
+      });
+    })();
+  }, []);
 
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
     try {
