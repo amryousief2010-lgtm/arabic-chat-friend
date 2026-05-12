@@ -834,6 +834,70 @@ const Orders = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!collectionMismatch} onOpenChange={(open) => { if (!open) setCollectionMismatch(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive flex items-center gap-2">
+              ⚠️ اختلاف في قيمة التحصيل
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-right">
+                <p>
+                  تم اكتشاف فرق بين قيمة الأوردر وقت التسليم وقيمته الحالية عند التحصيل
+                  للطلب رقم <span className="font-bold">{collectionMismatch?.orderNumber}</span>.
+                </p>
+                {collectionMismatch && (() => {
+                  const diff = collectionMismatch.currentTotal - collectionMismatch.deliveredTotal;
+                  return (
+                    <div className="rounded-lg border bg-muted/40 p-3 space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">قيمة التسليم:</span>
+                        <span className="font-semibold">{collectionMismatch.deliveredTotal.toFixed(2)} ر.س</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">قيمة التحصيل الحالية:</span>
+                        <span className="font-semibold">{collectionMismatch.currentTotal.toFixed(2)} ر.س</span>
+                      </div>
+                      <div className="flex justify-between border-t pt-2">
+                        <span className="text-muted-foreground">الفرق:</span>
+                        <span className={`font-bold ${diff > 0 ? 'text-success' : 'text-destructive'}`}>
+                          {diff > 0 ? '+' : ''}{diff.toFixed(2)} ر.س
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
+                <p className="text-xs text-muted-foreground">
+                  سيتم إرسال تنبيه للمحاسب بهذا الفرق عند المتابعة.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!collectionMismatch) return;
+                const m = collectionMismatch;
+                setCollectionMismatch(null);
+                try {
+                  await applyCollectionUpdate(m.orderId, 'collected', {
+                    orderNumber: m.orderNumber,
+                    deliveredTotal: m.deliveredTotal,
+                    currentTotal: m.currentTotal,
+                  });
+                } catch (e) {
+                  console.error(e);
+                  toast.error('تعذّر تحديث حالة التحصيل');
+                }
+              }}
+            >
+              متابعة وتأكيد التحصيل
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 };
