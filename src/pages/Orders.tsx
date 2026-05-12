@@ -581,6 +581,27 @@ const Orders = () => {
                         minute: '2-digit',
                       })}
                     </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {order.delivered_at
+                        ? new Date(order.delivered_at).toLocaleDateString('ar-EG')
+                        : '-'}
+                    </TableCell>
+                    <TableCell>
+                      {order.delivered_at ? (
+                        <Badge variant="secondary">
+                          {Math.max(
+                            0,
+                            Math.ceil(
+                              (new Date(order.delivered_at).getTime() - new Date(order.created_at).getTime()) /
+                                (1000 * 60 * 60 * 24)
+                            )
+                          )}{' '}
+                          يوم
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
                         <Button
