@@ -106,6 +106,9 @@ const Customers = () => {
     onError: (e: any) => {
       toast({ title: "خطأ", description: e?.message || "تعذّر حذف العميل (قد يكون لديه طلبات مرتبطة)", variant: "destructive" });
     },
+  });
+
+  const handleSubmit = () => {
     if (!formData.name || !formData.phone) {
       toast({ title: "خطأ", description: "يرجى ملء الاسم ورقم الهاتف", variant: "destructive" });
       return;
