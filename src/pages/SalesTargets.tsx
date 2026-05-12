@@ -39,6 +39,7 @@ import autoTable from 'jspdf-autotable';
 import MonthlyTargetTable from '@/components/sales/MonthlyTargetTable';
 import ModeratorOrdersBreakdown from '@/components/sales/ModeratorOrdersBreakdown';
 import GirlsSalesQuantityTable from '@/components/sales/GirlsSalesQuantityTable';
+import ModeratorPayrollTable from '@/components/sales/ModeratorPayrollTable';
 
 const months = [
   { value: 1, label: 'يناير' },
