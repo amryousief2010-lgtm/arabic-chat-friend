@@ -736,6 +736,42 @@ const Employees = () => {
           </CardContent>
         </Card>
 
+        {/* Custom Password Reset Dialog */}
+        <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+          <DialogContent className="sm:max-w-md" dir="rtl">
+            <DialogHeader>
+              <DialogTitle>تعيين كلمة مرور مخصصة</DialogTitle>
+              <DialogDescription>
+                {resetTarget && (
+                  <>أدخل كلمة المرور الجديدة للموظف <span className="font-semibold">{resetTarget.full_name}</span> ({resetTarget.email})</>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2 py-4">
+              <Label htmlFor="customPwd">كلمة المرور الجديدة</Label>
+              <Input
+                id="customPwd"
+                type="text"
+                placeholder="8 أحرف على الأقل"
+                value={customPassword}
+                onChange={(e) => setCustomPassword(e.target.value)}
+                autoFocus
+              />
+              <p className="text-xs text-muted-foreground">
+                ستتم إعادة التعيين فوراً ونسخ البريد + كلمة المرور إلى الحافظة.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsResetDialogOpen(false)} disabled={isResetLoading}>
+                إلغاء
+              </Button>
+              <Button onClick={handleCustomReset} disabled={isResetLoading || customPassword.length < 8}>
+                {isResetLoading ? 'جاري الحفظ...' : 'تعيين ونسخ'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* Delete Confirmation Dialog */}
         <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
           <AlertDialogContent dir="rtl">
