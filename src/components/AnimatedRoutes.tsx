@@ -17,7 +17,7 @@ import Auth from "@/pages/Auth";
 import TeamPerformance from "@/pages/TeamPerformance";
 import SalesTargets from "@/pages/SalesTargets";
 import OfferBoxes from "@/pages/OfferBoxes";
-import SeedUsers from "@/pages/SeedUsers";
+
 import Permissions from "@/pages/Permissions";
 import LowStock from "@/pages/LowStock";
 import OrgChart from "@/pages/OrgChart";
@@ -137,11 +137,6 @@ const AnimatedRoutes = () => {
         <Route path="/install" element={
           <PageTransition><Install /></PageTransition>
         } />
-        {import.meta.env.DEV && (
-          <Route path="/seed-users" element={
-            <PageTransition><SeedUsers /></PageTransition>
-          } />
-        )}
         <Route path="/import-sales" element={
           <ProtectedRoute allowedRoles={['general_manager']}>
             <PageTransition><ImportSalesData /></PageTransition>
