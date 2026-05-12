@@ -123,15 +123,22 @@ const Orders = () => {
 
   const fetchOrders = async () => {
     try {
-      const { data: ordersData, error: ordersError } = await supabase
-        .from('orders')
-        .select(`
-          *,
-          customers (name)
-        `)
-        .order('created_at', { ascending: false });
-
-      if (ordersError) throw ordersError;
+      // جلب جميع الطلبات على دفعات 1000 لتجاوز الحد الافتراضي في Supabase
+      let ordersData: any[] = [];
+      const ORDERS_PAGE = 1000;
+      let oPage = 0;
+      while (true) {
+        const { data, error: ordersError } = await supabase
+          .from('orders')
+          .select(`*, customers (name)`)
+          .order('created_at', { ascending: false })
+          .range(oPage * ORDERS_PAGE, (oPage + 1) * ORDERS_PAGE - 1);
+        if (ordersError) throw ordersError;
+        if (!data || data.length === 0) break;
+        ordersData = ordersData.concat(data);
+        if (data.length < ORDERS_PAGE) break;
+        oPage++;
+      }
 
       const orderIds = (ordersData || []).map((o: any) => o.id);
       let itemsData: any[] = [];
