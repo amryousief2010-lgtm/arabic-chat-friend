@@ -37,7 +37,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { UserPlus, MoreHorizontal, Shield, Search, Users, UserCheck, Warehouse, Calculator, ShoppingCart, Trash2, UserMinus, Egg, FlaskConical, Drumstick, Beef, Factory, Wheat, Megaphone, Crown, Building2, Truck } from 'lucide-react';
+import { UserPlus, MoreHorizontal, Shield, Search, Users, UserCheck, Warehouse, Calculator, ShoppingCart, Trash2, UserMinus, Egg, FlaskConical, Drumstick, Beef, Factory, Wheat, Megaphone, Crown, Building2, Truck, KeyRound, Copy } from 'lucide-react';
 import { z } from 'zod';
 import { useAuth, AppRole } from '@/hooks/useAuth';
 import {
