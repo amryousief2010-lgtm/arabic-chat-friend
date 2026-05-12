@@ -543,7 +543,10 @@ const Orders = () => {
                         {order.items.length === 0
                           ? '-'
                           : order.items
-                              .map((it) => `${formatItemQty(it.quantity, it.unit)} ${it.product_name}`)
+                              .map((it) => {
+                                const cleanName = it.product_name.replace(/\s*نعام\s*/g, ' ').replace(/\s+/g, ' ').trim();
+                                return `${formatItemQty(it.quantity, it.unit)} ${cleanName}`;
+                              })
                               .join(' + ')}
                       </span>
                     </TableCell>
