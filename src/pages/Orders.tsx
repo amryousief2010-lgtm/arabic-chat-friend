@@ -229,6 +229,7 @@ const Orders = () => {
         notes: order.notes,
         delivery_address: order.delivery_address,
         created_at: order.created_at,
+        delivered_at: (order as any).delivered_at ?? null,
         created_by: order.created_by,
         moderator_name:
           (order.created_by && profilesMap[order.created_by]) ||
