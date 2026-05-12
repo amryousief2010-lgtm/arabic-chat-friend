@@ -383,16 +383,38 @@ const Orders = () => {
     }
   };
 
+  const applyCollectionUpdate = async (
+    orderId: string,
+    value: string,
+    mismatch?: { orderNumber: string; deliveredTotal: number; currentTotal: number }
+  ) => {
+    const { error } = await supabase
+      .from('orders')
+      .update({ collection_status: value } as any)
+      .eq('id', orderId);
+    if (error) throw error;
+    setOrders(orders.map(o => o.id === orderId ? { ...o, collection_status: value } : o));
+
+    if (mismatch) {
+      const diff = mismatch.currentTotal - mismatch.deliveredTotal;
+      const diffLabel = `${diff > 0 ? '+' : ''}${diff.toFixed(2)}`;
+      const title = '⚠️ اختلاف في قيمة التحصيل — تنبيه للمحاسب';
+      const description = `الطلب ${mismatch.orderNumber}: قيمة التسليم ${mismatch.deliveredTotal.toFixed(2)} ر.س — قيمة التحصيل ${mismatch.currentTotal.toFixed(2)} ر.س — الفرق ${diffLabel} ر.س`;
+      toast.warning(title, { description, duration: 10000 });
+      await supabase.from('notifications').insert({
+        title,
+        description,
+        type: 'collection_mismatch',
+        order_id: orderId,
+      });
+    } else {
+      toast.success(value === 'collected' ? 'تم تحديث حالة التحصيل: تم التحصيل' : 'تم تحديث حالة التحصيل: لم يتم التحصيل');
+    }
+  };
+
   const handleCollectionChange = async (orderId: string, value: string) => {
     try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ collection_status: value } as any)
-        .eq('id', orderId);
-      if (error) throw error;
-      setOrders(orders.map(o => o.id === orderId ? { ...o, collection_status: value } : o));
-
-      // عند التحويل إلى "تم التحصيل" قارن قيمة الأوردر عند التسليم بقيمته الحالية
+      // عند التحويل إلى "تم التحصيل" قارن قيمة التسليم بقيمة التحصيل الحالية أولاً
       if (value === 'collected') {
         const { data: orderRow } = await supabase
           .from('orders')
@@ -404,25 +426,17 @@ const Orders = () => {
         const deliveredTotal = orderRow?.total_at_delivery != null ? Number(orderRow.total_at_delivery) : null;
 
         if (deliveredTotal != null && Math.abs(currentTotal - deliveredTotal) > 0.001) {
-          const diff = currentTotal - deliveredTotal;
-          const diffLabel = `${diff > 0 ? '+' : ''}${diff.toFixed(2)}`;
-          const title = '⚠️ تنبيه للمحاسب: اختلاف في قيمة التحصيل';
-          const description = `الطلب ${orderRow.order_number}: قيمة التسليم ${deliveredTotal.toFixed(2)} ر.س — قيمة التحصيل ${currentTotal.toFixed(2)} ر.س — الفرق ${diffLabel} ر.س`;
-
-          toast.warning(title, { description, duration: 10000 });
-
-          await supabase.from('notifications').insert({
-            title,
-            description,
-            type: 'collection_mismatch',
-            order_id: orderId,
+          setCollectionMismatch({
+            orderId,
+            orderNumber: orderRow?.order_number ?? '',
+            deliveredTotal,
+            currentTotal,
           });
-        } else {
-          toast.success('تم تحديث حالة التحصيل: تم التحصيل');
+          return; // انتظر تأكيد المستخدم من داخل التنبيه
         }
-      } else {
-        toast.success('تم تحديث حالة التحصيل: لم يتم التحصيل');
       }
+
+      await applyCollectionUpdate(orderId, value);
     } catch (e) {
       console.error(e);
       toast.error('تعذّر تحديث حالة التحصيل');
