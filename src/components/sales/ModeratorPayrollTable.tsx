@@ -163,7 +163,7 @@ const ModeratorPayrollTable = () => {
       const procTier = findTier(procSales, PROCESSED_TIERS);
       const meatTier = findTier(meatSales, MEAT_TIERS);
       const procBonus = procTier ? procTier.bonus * procKg : 0;
-      const meatBonus = (meatTier ? meatTier.bonus * meatKg : 0) + BONE_BONUS_PER_KG * boneKg;
+      const meatBonus = meatTier ? (meatTier.bonus * meatKg + BONE_BONUS_PER_KG * boneKg) : 0;
       const base = BASE_SALARY[g];
       return {
         girl: g, base, meatKg, boneKg, procKg,
