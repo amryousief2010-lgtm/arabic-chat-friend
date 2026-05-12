@@ -139,6 +139,12 @@ const Employees = () => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
   const [isDeleteLoading, setIsDeleteLoading] = useState(false);
+
+  // Custom password reset dialog
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+  const [resetTarget, setResetTarget] = useState<Employee | null>(null);
+  const [customPassword, setCustomPassword] = useState('');
+  const [isResetLoading, setIsResetLoading] = useState(false);
   
   // Add employee form
   const [newFullName, setNewFullName] = useState('');
@@ -313,12 +319,7 @@ const Employees = () => {
     return pwd.split('').sort(() => Math.random() - 0.5).join('');
   };
 
-  const handleResetAndCopy = async (employee: Employee) => {
-    if (!isGeneralManager) {
-      toast.error('هذا الإجراء متاح للمدير العام فقط');
-      return;
-    }
-    const newPwd = generateStrongPassword();
+  const performReset = async (employee: Employee, newPwd: string) => {
     const tId = toast.loading(`جاري إعادة تعيين كلمة مرور ${employee.full_name}...`);
     try {
       const { error } = await supabase.functions.invoke('reset-password', {
@@ -337,9 +338,45 @@ const Employees = () => {
           duration: 30000,
         });
       }
+      return true;
     } catch (err: any) {
       console.error('reset-password error', err);
       toast.error(err?.message || 'فشل إعادة تعيين كلمة المرور', { id: tId });
+      return false;
+    }
+  };
+
+  const handleResetAndCopy = async (employee: Employee) => {
+    if (!isGeneralManager) {
+      toast.error('هذا الإجراء متاح للمدير العام فقط');
+      return;
+    }
+    await performReset(employee, generateStrongPassword());
+  };
+
+  const openCustomResetDialog = (employee: Employee) => {
+    if (!isGeneralManager) {
+      toast.error('هذا الإجراء متاح للمدير العام فقط');
+      return;
+    }
+    setResetTarget(employee);
+    setCustomPassword('');
+    setIsResetDialogOpen(true);
+  };
+
+  const handleCustomReset = async () => {
+    if (!resetTarget) return;
+    if (customPassword.length < 8) {
+      toast.error('كلمة المرور يجب أن تكون 8 أحرف على الأقل');
+      return;
+    }
+    setIsResetLoading(true);
+    const ok = await performReset(resetTarget, customPassword);
+    setIsResetLoading(false);
+    if (ok) {
+      setIsResetDialogOpen(false);
+      setResetTarget(null);
+      setCustomPassword('');
     }
   };
 
@@ -672,6 +709,13 @@ const Employees = () => {
                                 <KeyRound className="w-4 h-4 ml-2" />
                                 إعادة تعيين ونسخ بيانات الدخول
                               </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => openCustomResetDialog(employee)}
+                                disabled={!isGeneralManager}
+                              >
+                                <KeyRound className="w-4 h-4 ml-2" />
+                                تعيين كلمة مرور مخصصة
+                              </DropdownMenuItem>
                               <DropdownMenuItem 
                                 onClick={() => openDeleteDialog(employee)}
                                 className="text-destructive focus:text-destructive"
@@ -691,6 +735,42 @@ const Employees = () => {
             </Table>
           </CardContent>
         </Card>
+
+        {/* Custom Password Reset Dialog */}
+        <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+          <DialogContent className="sm:max-w-md" dir="rtl">
+            <DialogHeader>
+              <DialogTitle>تعيين كلمة مرور مخصصة</DialogTitle>
+              <DialogDescription>
+                {resetTarget && (
+                  <>أدخل كلمة المرور الجديدة للموظف <span className="font-semibold">{resetTarget.full_name}</span> ({resetTarget.email})</>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2 py-4">
+              <Label htmlFor="customPwd">كلمة المرور الجديدة</Label>
+              <Input
+                id="customPwd"
+                type="text"
+                placeholder="8 أحرف على الأقل"
+                value={customPassword}
+                onChange={(e) => setCustomPassword(e.target.value)}
+                autoFocus
+              />
+              <p className="text-xs text-muted-foreground">
+                ستتم إعادة التعيين فوراً ونسخ البريد + كلمة المرور إلى الحافظة.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsResetDialogOpen(false)} disabled={isResetLoading}>
+                إلغاء
+              </Button>
+              <Button onClick={handleCustomReset} disabled={isResetLoading || customPassword.length < 8}>
+                {isResetLoading ? 'جاري الحفظ...' : 'تعيين ونسخ'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Delete Confirmation Dialog */}
         <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
