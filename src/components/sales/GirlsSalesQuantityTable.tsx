@@ -63,10 +63,20 @@ const emptyData = (): Record<string, GirlData> =>
     return acc;
   }, {} as Record<string, GirlData>);
 
-const GirlsSalesQuantityTable = () => {
+interface Props {
+  month?: number;
+  year?: number;
+}
+
+const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
   const queryClient = useQueryClient();
-  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
-  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [internalMonth, setInternalMonth] = useState(currentMonth);
+  const [internalYear, setInternalYear] = useState(currentYear);
+  const isControlled = month !== undefined && year !== undefined;
+  const selectedMonth = isControlled ? (month as number) : internalMonth;
+  const selectedYear = isControlled ? (year as number) : internalYear;
+  const setSelectedMonth = setInternalMonth;
+  const setSelectedYear = setInternalYear;
 
   const [data, setData] = useState<Record<string, GirlData>>(() => {
     try {
