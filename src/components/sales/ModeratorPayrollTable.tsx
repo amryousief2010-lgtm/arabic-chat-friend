@@ -31,6 +31,9 @@ const MEAT_TIERS: Array<{ sales: number; bonus: number; label: string }> = [
   { sales: 125000, bonus: 5, label: 'الثاني' },
   { sales: 200000, bonus: 5, label: 'الثالث' },
   { sales: 300000, bonus: 7, label: 'الرابع' },
+  { sales: 400000, bonus: 7, label: 'الخامس' },
+  { sales: 500000, bonus: 7, label: 'السادس' },
+  { sales: 600000, bonus: 7, label: 'السابع' },
 ];
 const BONE_BONUS_PER_KG = 3.5;
 
