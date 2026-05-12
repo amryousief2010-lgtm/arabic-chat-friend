@@ -108,7 +108,39 @@ const paymentStatusLabels: Record<string, string> = {
   failed: "فشل",
 };
 
-const Orders = () => {
+const isMassUnit = (u?: string) => {
+  const n = (u || '').trim().toLowerCase();
+  return ['كجم', 'كيلو', 'كيلوجرام', 'kg', 'جم', 'جرام', 'g'].includes(n);
+};
+
+const formatItemQty = (qty: number, unit?: string): string => {
+  const mass = isMassUnit(unit);
+  let q = qty;
+  let suffix = unit || '';
+  if (mass) {
+    suffix = 'ك';
+    if (unit === 'جم' || unit === 'جرام' || unit === 'g') q = qty / 1000;
+  }
+  const fractions: Record<string, string> = {
+    '0.25': 'ربع',
+    '0.5': 'نص',
+    '0.75': '٣/٤',
+  };
+  const whole = Math.floor(q);
+  const frac = +(q - whole).toFixed(2);
+  const fracLabel = fractions[String(frac)];
+
+  let qtyStr: string;
+  if (whole === 0 && fracLabel) qtyStr = fracLabel;
+  else if (whole > 0 && fracLabel) qtyStr = `${whole} و${fracLabel}`;
+  else if (whole === 1 && frac === 0) qtyStr = '';
+  else qtyStr = q % 1 === 0 ? String(whole) : String(q);
+
+  if (!suffix) return qtyStr || String(q);
+  return qtyStr ? `${qtyStr} ${suffix}` : suffix;
+};
+
+
   const { isShippingCompany, isAccountant, canUpdateOrderStatusForOrder, canDeleteOrders } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
