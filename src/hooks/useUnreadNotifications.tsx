@@ -20,7 +20,7 @@ export const useUnreadNotifications = () => {
 
     // Subscribe to realtime changes
     const channel = supabase
-      .channel(`unread-notifications-${Math.random().toString(36).slice(2)}`)
+      .channel('unread-notifications')
       .on(
         'postgres_changes',
         {
