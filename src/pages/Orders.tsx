@@ -119,20 +119,43 @@ const Orders = () => {
 
   useEffect(() => {
     fetchOrders();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterMonth, filterYear, yearGroup]);
 
   const fetchOrders = async () => {
+    setLoading(true);
     try {
-      // جلب جميع الطلبات على دفعات 1000 لتجاوز الحد الافتراضي في Supabase
+      // حساب نطاق التواريخ على الخادم لتقليل البيانات (افتراضياً الشهر/السنة الحاليان)
+      let startDate: string | null = null;
+      let endDate: string | null = null;
+      if (filterYear !== 'all') {
+        const y = Number(filterYear);
+        if (filterMonth !== 'all') {
+          const m = Number(filterMonth);
+          startDate = new Date(Date.UTC(y, m - 1, 1)).toISOString();
+          endDate = new Date(Date.UTC(y, m, 1)).toISOString();
+        } else {
+          startDate = new Date(Date.UTC(y, 0, 1)).toISOString();
+          endDate = new Date(Date.UTC(y + 1, 0, 1)).toISOString();
+        }
+      } else if (yearGroup === '2026') {
+        startDate = new Date(Date.UTC(2026, 0, 1)).toISOString();
+      } else if (yearGroup === 'pre2026') {
+        endDate = new Date(Date.UTC(2026, 0, 1)).toISOString();
+      }
+
       let ordersData: any[] = [];
       const ORDERS_PAGE = 1000;
       let oPage = 0;
       while (true) {
-        const { data, error: ordersError } = await supabase
+        let q = supabase
           .from('orders')
           .select(`*, customers (name)`)
           .order('created_at', { ascending: false })
           .range(oPage * ORDERS_PAGE, (oPage + 1) * ORDERS_PAGE - 1);
+        if (startDate) q = q.gte('created_at', startDate);
+        if (endDate) q = q.lt('created_at', endDate);
+        const { data, error: ordersError } = await q;
         if (ordersError) throw ordersError;
         if (!data || data.length === 0) break;
         ordersData = ordersData.concat(data);
@@ -238,7 +261,10 @@ const Orders = () => {
   });
 
   const availableYears = Array.from(
-    new Set(orders.map((o) => new Date(o.created_at).getFullYear()))
+    new Set([
+      now.getFullYear(),
+      ...orders.map((o) => new Date(o.created_at).getFullYear()),
+    ])
   ).sort((a, b) => b - a);
 
   const monthNames = [
@@ -246,11 +272,22 @@ const Orders = () => {
     "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
   ];
 
-  const counts = {
-    all: orders.length,
-    "2026": orders.filter((o) => new Date(o.created_at).getFullYear() >= 2026).length,
-    pre2026: orders.filter((o) => new Date(o.created_at).getFullYear() < 2026).length,
-  };
+  const [counts, setCounts] = useState({ all: 0, "2026": 0, pre2026: 0 });
+  useEffect(() => {
+    (async () => {
+      const cutoff = new Date(Date.UTC(2026, 0, 1)).toISOString();
+      const [allRes, y2026Res, preRes] = await Promise.all([
+        supabase.from('orders').select('id', { count: 'exact', head: true }),
+        supabase.from('orders').select('id', { count: 'exact', head: true }).gte('created_at', cutoff),
+        supabase.from('orders').select('id', { count: 'exact', head: true }).lt('created_at', cutoff),
+      ]);
+      setCounts({
+        all: allRes.count || 0,
+        "2026": y2026Res.count || 0,
+        pre2026: preRes.count || 0,
+      });
+    })();
+  }, []);
 
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
     try {
