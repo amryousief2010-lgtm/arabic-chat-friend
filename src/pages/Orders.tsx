@@ -312,9 +312,13 @@ const Orders = () => {
       if (error) throw error;
 
       setOrders(
-        orders.map((order) =>
-          order.id === orderId ? { ...order, status: newStatus } : order
-        )
+        orders.map((order) => {
+          if (order.id !== orderId) return order;
+          let delivered_at = order.delivered_at;
+          if (newStatus === 'delivered' && !delivered_at) delivered_at = new Date().toISOString();
+          else if (newStatus !== 'delivered' && order.status === 'delivered') delivered_at = null;
+          return { ...order, status: newStatus, delivered_at };
+        })
       );
       toast.success(`تم تحديث حالة الطلب إلى "${statusLabels[newStatus]}"`);
     } catch (error) {
