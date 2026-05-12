@@ -230,6 +230,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     canUpdatePaymentStatus,
     canUpdateOrderStatus,
     canUpdateOrderStatusForOrder,
+    canDeleteOrders,
+    canDeleteCustomers,
     canManageFeedFactory,
     canManageWarehouses,
     canManageFarm,
