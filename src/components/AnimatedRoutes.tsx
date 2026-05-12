@@ -37,6 +37,7 @@ import RecipeDetail from "@/pages/modules/feed/RecipeDetail";
 import BatchTracking from "@/pages/modules/feed/BatchTracking";
 import WarehouseDashboard from "@/pages/modules/warehouse/WarehouseDashboard";
 import InventoryImport from "@/pages/modules/warehouse/InventoryImport";
+import Debug from "@/pages/Debug";
 
 const RedirectWithQuery = ({ to }: { to: string }) => {
   const location = useLocation();
@@ -51,6 +52,9 @@ const AnimatedRoutes = () => {
       <Routes location={location} key={location.pathname}>
         <Route path="/auth" element={
           <PageTransition><Auth /></PageTransition>
+        } />
+        <Route path="/debug" element={
+          <PageTransition><Debug /></PageTransition>
         } />
         <Route path="/farm" element={<RedirectWithQuery to="/modules/farm" />} />
         <Route path="/hatchery" element={<RedirectWithQuery to="/modules/hatchery" />} />
