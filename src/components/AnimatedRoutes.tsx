@@ -217,6 +217,11 @@ const AnimatedRoutes = () => {
             <PageTransition><BatchTracking /></PageTransition>
           </ProtectedRoute>
         } />
+        <Route path="/executive-dashboards" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager', 'financial_manager', 'accountant']}>
+            <PageTransition><ExecutiveDashboards /></PageTransition>
+          </ProtectedRoute>
+        } />
         <Route path="*" element={
           <PageTransition><NotFound /></PageTransition>
         } />
