@@ -665,6 +665,13 @@ const Employees = () => {
                                 );
                               })}
                               <div className="my-1 border-t border-border" />
+                              <DropdownMenuItem
+                                onClick={() => handleResetAndCopy(employee)}
+                                disabled={!isGeneralManager}
+                              >
+                                <KeyRound className="w-4 h-4 ml-2" />
+                                إعادة تعيين ونسخ بيانات الدخول
+                              </DropdownMenuItem>
                               <DropdownMenuItem 
                                 onClick={() => openDeleteDialog(employee)}
                                 className="text-destructive focus:text-destructive"
