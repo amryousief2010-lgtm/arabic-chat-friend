@@ -544,7 +544,11 @@ const Orders = () => {
                           ? '-'
                           : order.items
                               .map((it) => {
-                                const cleanName = it.product_name.replace(/\s*نعام\s*/g, ' ').replace(/\s+/g, ' ').trim();
+                                const cleaned = it.product_name
+                                  .replace(/(^|\s)نعام(?=\s|$)/g, '$1')
+                                  .replace(/\s+/g, ' ')
+                                  .trim();
+                                const cleanName = cleaned || it.product_name;
                                 return `${formatItemQty(it.quantity, it.unit)} ${cleanName}`;
                               })
                               .join(' + ')}
