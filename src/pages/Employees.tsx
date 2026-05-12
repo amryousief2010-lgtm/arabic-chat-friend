@@ -709,6 +709,13 @@ const Employees = () => {
                                 <KeyRound className="w-4 h-4 ml-2" />
                                 إعادة تعيين ونسخ بيانات الدخول
                               </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => openCustomResetDialog(employee)}
+                                disabled={!isGeneralManager}
+                              >
+                                <KeyRound className="w-4 h-4 ml-2" />
+                                تعيين كلمة مرور مخصصة
+                              </DropdownMenuItem>
                               <DropdownMenuItem 
                                 onClick={() => openDeleteDialog(employee)}
                                 className="text-destructive focus:text-destructive"
