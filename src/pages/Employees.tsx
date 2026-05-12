@@ -322,21 +322,36 @@ const Employees = () => {
   const performReset = async (employee: Employee, newPwd: string) => {
     const tId = toast.loading(`جاري إعادة تعيين كلمة مرور ${employee.full_name}...`);
     try {
-      const { error } = await supabase.functions.invoke('reset-password', {
+      const { data, error } = await supabase.functions.invoke('reset-password', {
         body: { userId: employee.id, newPassword: newPwd },
       });
-      if (error) throw error;
+
+      // Surface real backend error (e.g. weak/leaked password)
+      let backendMsg: string | null = null;
+      if (error && (error as any).context?.json) {
+        try {
+          const j = await (error as any).context.json();
+          backendMsg = j?.error || null;
+        } catch { /* ignore */ }
+      } else if (data && (data as any).error) {
+        backendMsg = (data as any).error;
+      }
+
+      if (error || backendMsg) {
+        const msg = backendMsg || error?.message || 'فشل إعادة تعيين كلمة المرور';
+        const friendly = /weak|known|pwned|guess/i.test(msg)
+          ? 'كلمة المرور ضعيفة أو مسرّبة. اختر كلمة أقوى (أحرف كبيرة + صغيرة + أرقام + رموز، ولا تكن شائعة).'
+          : msg;
+        toast.error(friendly, { id: tId });
+        return false;
+      }
 
       const credentials = `بيانات الدخول - ${employee.full_name}\nالوظيفة: ${roleLabels[employee.role]}\nالبريد: ${employee.email}\nكلمة المرور: ${newPwd}`;
       try {
         await navigator.clipboard.writeText(credentials);
         toast.success('تم إعادة التعيين ونسخ البيانات إلى الحافظة', { id: tId });
       } catch {
-        toast.success('تم إعادة التعيين بنجاح', {
-          id: tId,
-          description: credentials,
-          duration: 30000,
-        });
+        toast.success('تم إعادة التعيين بنجاح', { id: tId, description: credentials, duration: 30000 });
       }
       return true;
     } catch (err: any) {
