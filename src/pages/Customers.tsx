@@ -13,9 +13,14 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
-import { Users, Plus, Edit, Phone, Mail, MapPin } from "lucide-react";
+import { Users, Plus, Edit, Phone, Mail, MapPin, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import CustomersAnalytics from "@/components/dashboard/CustomersAnalytics";
 
 const Customers = () => {
@@ -24,6 +29,7 @@ const Customers = () => {
   const [editingCustomer, setEditingCustomer] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
+  const { canDeleteCustomers } = useAuth();
 
   const [formData, setFormData] = useState({
     name: "", phone: "", email: "", address: "", city: "",
@@ -86,6 +92,20 @@ const Customers = () => {
       setIsDialogOpen(false);
     },
     onError: () => { toast({ title: "خطأ", variant: "destructive" }); },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('customers').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      toast({ title: "تم الحذف", description: "تم حذف العميل بنجاح" });
+    },
+    onError: (e: any) => {
+      toast({ title: "خطأ", description: e?.message || "تعذّر حذف العميل (قد يكون لديه طلبات مرتبطة)", variant: "destructive" });
+    },
   });
 
   const handleSubmit = () => {
@@ -216,9 +236,34 @@ const Customers = () => {
                       {new Date(customer.created_at).toLocaleDateString('ar-EG')}
                     </TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(customer)}>
-                        <Edit className="w-4 h-4" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(customer)}>
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        {canDeleteCustomers && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>حذف العميل {customer.name}؟</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  لا يمكن التراجع عن هذا الإجراء. إذا كان للعميل طلبات مرتبطة فلن يتم الحذف.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => deleteMutation.mutate(customer.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                  حذف
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

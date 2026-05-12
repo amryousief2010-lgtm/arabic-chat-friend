@@ -28,7 +28,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus } from "lucide-react";
+import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -95,7 +106,7 @@ const paymentStatusLabels: Record<string, string> = {
 };
 
 const Orders = () => {
-  const { isShippingCompany, isAccountant, canUpdateOrderStatusForOrder } = useAuth();
+  const { isShippingCompany, isAccountant, canUpdateOrderStatusForOrder, canDeleteOrders } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -325,6 +336,20 @@ const Orders = () => {
     }
   };
 
+  const handleDeleteOrder = async (orderId: string) => {
+    try {
+      const { error: itemsErr } = await supabase.from('order_items').delete().eq('order_id', orderId);
+      if (itemsErr) throw itemsErr;
+      const { error } = await supabase.from('orders').delete().eq('id', orderId);
+      if (error) throw error;
+      setOrders(orders.filter(o => o.id !== orderId));
+      toast.success('تم حذف الطلب بنجاح');
+    } catch (e) {
+      console.error(e);
+      toast.error('تعذّر حذف الطلب');
+    }
+  };
+
   const getStatusIcon = (status: OrderStatus) => {
     switch (status) {
       case "pending":
@@ -549,15 +574,40 @@ const Orders = () => {
                       })}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        asChild
-                      >
-                        <Link to={`/orders/${order.id}`}>
-                          <Eye className="w-4 h-4" />
-                        </Link>
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          asChild
+                        >
+                          <Link to={`/orders/${order.id}`}>
+                            <Eye className="w-4 h-4" />
+                          </Link>
+                        </Button>
+                        {canDeleteOrders && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>حذف الطلب {order.order_number}؟</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  سيتم حذف الطلب وجميع أصنافه نهائيًا. لا يمكن التراجع عن هذا الإجراء.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDeleteOrder(order.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                  حذف
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))

@@ -47,6 +47,8 @@ interface AuthContextType {
   canUpdatePaymentStatus: boolean;
   canUpdateOrderStatus: boolean;
   canUpdateOrderStatusForOrder: (orderCreatedBy: string | null) => boolean;
+  canDeleteOrders: boolean;
+  canDeleteCustomers: boolean;
   // Module permissions
   canManageFeedFactory: boolean;
   canManageWarehouses: boolean;
@@ -191,6 +193,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const canViewReports = isGeneralManager || isExecutiveManager || isSalesManager || isAccountant || isWarehouseSupervisor || isMarketingSalesManager || isFinancialManager || isQualityManager || isProductionManager;
   const canUpdatePaymentStatus = isGeneralManager || isExecutiveManager || isSalesManager || isAccountant || isMarketingSalesManager || isFinancialManager;
   const canUpdateOrderStatus = isGeneralManager || isExecutiveManager || isSalesManager || isWarehouseSupervisor || isMarketingSalesManager || isShippingCompany;
+  const canDeleteOrders = isGeneralManager || isExecutiveManager || isMarketingSalesManager;
+  const canDeleteCustomers = isGeneralManager || isExecutiveManager || isMarketingSalesManager;
   
   const canUpdateOrderStatusForOrder = (_orderCreatedBy: string | null) => {
     return (
@@ -226,6 +230,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     canUpdatePaymentStatus,
     canUpdateOrderStatus,
     canUpdateOrderStatusForOrder,
+    canDeleteOrders,
+    canDeleteCustomers,
     canManageFeedFactory,
     canManageWarehouses,
     canManageFarm,
