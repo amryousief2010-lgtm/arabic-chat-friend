@@ -47,6 +47,8 @@ interface AuthContextType {
   canUpdatePaymentStatus: boolean;
   canUpdateOrderStatus: boolean;
   canUpdateOrderStatusForOrder: (orderCreatedBy: string | null) => boolean;
+  canDeleteOrders: boolean;
+  canDeleteCustomers: boolean;
   // Module permissions
   canManageFeedFactory: boolean;
   canManageWarehouses: boolean;
