@@ -301,6 +301,48 @@ const Employees = () => {
     setIsDeleteDialogOpen(true);
   };
 
+  const generateStrongPassword = () => {
+    const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+    const lower = 'abcdefghijkmnpqrstuvwxyz';
+    const digits = '23456789';
+    const symbols = '!@#$%&*';
+    const all = upper + lower + digits + symbols;
+    const pick = (s: string) => s[Math.floor(Math.random() * s.length)];
+    let pwd = pick(upper) + pick(lower) + pick(digits) + pick(symbols);
+    for (let i = 0; i < 8; i++) pwd += pick(all);
+    return pwd.split('').sort(() => Math.random() - 0.5).join('');
+  };
+
+  const handleResetAndCopy = async (employee: Employee) => {
+    if (!isGeneralManager) {
+      toast.error('هذا الإجراء متاح للمدير العام فقط');
+      return;
+    }
+    const newPwd = generateStrongPassword();
+    const tId = toast.loading(`جاري إعادة تعيين كلمة مرور ${employee.full_name}...`);
+    try {
+      const { error } = await supabase.functions.invoke('reset-password', {
+        body: { userId: employee.id, newPassword: newPwd },
+      });
+      if (error) throw error;
+
+      const credentials = `بيانات الدخول - ${employee.full_name}\nالوظيفة: ${roleLabels[employee.role]}\nالبريد: ${employee.email}\nكلمة المرور: ${newPwd}`;
+      try {
+        await navigator.clipboard.writeText(credentials);
+        toast.success('تم إعادة التعيين ونسخ البيانات إلى الحافظة', { id: tId });
+      } catch {
+        toast.success('تم إعادة التعيين بنجاح', {
+          id: tId,
+          description: credentials,
+          duration: 30000,
+        });
+      }
+    } catch (err: any) {
+      console.error('reset-password error', err);
+      toast.error(err?.message || 'فشل إعادة تعيين كلمة المرور', { id: tId });
+    }
+  };
+
   const filteredEmployees = employees.filter(emp =>
     emp.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     emp.email.toLowerCase().includes(searchTerm.toLowerCase())
