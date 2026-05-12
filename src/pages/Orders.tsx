@@ -215,6 +215,20 @@ const Orders = () => {
         );
       }
 
+      const productIds = Array.from(
+        new Set((itemsData || []).map((it: any) => it.product_id).filter(Boolean))
+      );
+      let productsMap: Record<string, string> = {};
+      if (productIds.length > 0) {
+        const { data: productsData } = await supabase
+          .from('products')
+          .select('id, unit')
+          .in('id', productIds as string[]);
+        productsMap = Object.fromEntries(
+          (productsData || []).map((p: any) => [p.id, p.unit])
+        );
+      }
+
       const formattedOrders: Order[] = (ordersData || []).map(order => ({
         id: order.id,
         order_number: order.order_number,
@@ -241,10 +255,12 @@ const Orders = () => {
           .filter(item => item.order_id === order.id)
           .map(item => ({
             id: item.id,
+            product_id: item.product_id ?? null,
             product_name: item.product_name,
             quantity: Number(item.quantity),
             unit_price: Number(item.unit_price),
             total_price: Number(item.total_price),
+            unit: (item.product_id && productsMap[item.product_id]) || 'كجم',
           })),
       }));
 
