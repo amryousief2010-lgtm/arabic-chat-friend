@@ -94,7 +94,18 @@ const Customers = () => {
     onError: () => { toast({ title: "خطأ", variant: "destructive" }); },
   });
 
-  const handleSubmit = () => {
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('customers').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      toast({ title: "تم الحذف", description: "تم حذف العميل بنجاح" });
+    },
+    onError: (e: any) => {
+      toast({ title: "خطأ", description: e?.message || "تعذّر حذف العميل (قد يكون لديه طلبات مرتبطة)", variant: "destructive" });
+    },
     if (!formData.name || !formData.phone) {
       toast({ title: "خطأ", description: "يرجى ملء الاسم ورقم الهاتف", variant: "destructive" });
       return;
