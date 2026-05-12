@@ -73,6 +73,7 @@ interface Order {
   notes: string | null;
   delivery_address: string | null;
   created_at: string;
+  delivered_at: string | null;
   created_by: string | null;
   moderator_name: string;
   items: OrderItem[];
