@@ -63,10 +63,20 @@ const emptyData = (): Record<string, GirlData> =>
     return acc;
   }, {} as Record<string, GirlData>);
 
-const GirlsSalesQuantityTable = () => {
+interface Props {
+  month?: number;
+  year?: number;
+}
+
+const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
   const queryClient = useQueryClient();
-  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
-  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [internalMonth, setInternalMonth] = useState(currentMonth);
+  const [internalYear, setInternalYear] = useState(currentYear);
+  const isControlled = month !== undefined && year !== undefined;
+  const selectedMonth = isControlled ? (month as number) : internalMonth;
+  const selectedYear = isControlled ? (year as number) : internalYear;
+  const setSelectedMonth = setInternalMonth;
+  const setSelectedYear = setInternalYear;
 
   const [data, setData] = useState<Record<string, GirlData>>(() => {
     try {
@@ -228,22 +238,24 @@ const GirlsSalesQuantityTable = () => {
             <ClipboardList className="h-5 w-5 text-primary" />
             جدول مبيعات المسوقات - {months.find(m => m.value === selectedMonth)?.label} {selectedYear}
           </CardTitle>
-          <div className="flex items-center gap-2">
-            <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(Number(v))}>
-              <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {months.map(m => <SelectItem key={m.value} value={m.value.toString()}>{m.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
-              <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {[currentYear - 1, currentYear, currentYear + 1].map(y => (
-                  <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {!isControlled && (
+            <div className="flex items-center gap-2">
+              <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(Number(v))}>
+                <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {months.map(m => <SelectItem key={m.value} value={m.value.toString()}>{m.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
+                <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {[currentYear - 1, currentYear, currentYear + 1].map(y => (
+                    <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
