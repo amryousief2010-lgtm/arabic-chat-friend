@@ -319,12 +319,7 @@ const Employees = () => {
     return pwd.split('').sort(() => Math.random() - 0.5).join('');
   };
 
-  const handleResetAndCopy = async (employee: Employee) => {
-    if (!isGeneralManager) {
-      toast.error('هذا الإجراء متاح للمدير العام فقط');
-      return;
-    }
-    const newPwd = generateStrongPassword();
+  const performReset = async (employee: Employee, newPwd: string) => {
     const tId = toast.loading(`جاري إعادة تعيين كلمة مرور ${employee.full_name}...`);
     try {
       const { error } = await supabase.functions.invoke('reset-password', {
@@ -343,9 +338,45 @@ const Employees = () => {
           duration: 30000,
         });
       }
+      return true;
     } catch (err: any) {
       console.error('reset-password error', err);
       toast.error(err?.message || 'فشل إعادة تعيين كلمة المرور', { id: tId });
+      return false;
+    }
+  };
+
+  const handleResetAndCopy = async (employee: Employee) => {
+    if (!isGeneralManager) {
+      toast.error('هذا الإجراء متاح للمدير العام فقط');
+      return;
+    }
+    await performReset(employee, generateStrongPassword());
+  };
+
+  const openCustomResetDialog = (employee: Employee) => {
+    if (!isGeneralManager) {
+      toast.error('هذا الإجراء متاح للمدير العام فقط');
+      return;
+    }
+    setResetTarget(employee);
+    setCustomPassword('');
+    setIsResetDialogOpen(true);
+  };
+
+  const handleCustomReset = async () => {
+    if (!resetTarget) return;
+    if (customPassword.length < 8) {
+      toast.error('كلمة المرور يجب أن تكون 8 أحرف على الأقل');
+      return;
+    }
+    setIsResetLoading(true);
+    const ok = await performReset(resetTarget, customPassword);
+    setIsResetLoading(false);
+    if (ok) {
+      setIsResetDialogOpen(false);
+      setResetTarget(null);
+      setCustomPassword('');
     }
   };
 
