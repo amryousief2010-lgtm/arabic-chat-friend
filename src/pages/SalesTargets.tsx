@@ -39,6 +39,7 @@ import autoTable from 'jspdf-autotable';
 import MonthlyTargetTable from '@/components/sales/MonthlyTargetTable';
 import ModeratorOrdersBreakdown from '@/components/sales/ModeratorOrdersBreakdown';
 import GirlsSalesQuantityTable from '@/components/sales/GirlsSalesQuantityTable';
+import ModeratorPayrollTable from '@/components/sales/ModeratorPayrollTable';
 
 const months = [
   { value: 1, label: 'يناير' },
@@ -278,6 +279,7 @@ const SalesTargets = () => {
         <MonthlyTargetTable />
         <ModeratorOrdersBreakdown />
         <GirlsSalesQuantityTable month={selectedMonth} year={selectedYear} />
+        <ModeratorPayrollTable />
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
