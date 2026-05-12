@@ -139,6 +139,12 @@ const Employees = () => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
   const [isDeleteLoading, setIsDeleteLoading] = useState(false);
+
+  // Custom password reset dialog
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+  const [resetTarget, setResetTarget] = useState<Employee | null>(null);
+  const [customPassword, setCustomPassword] = useState('');
+  const [isResetLoading, setIsResetLoading] = useState(false);
   
   // Add employee form
   const [newFullName, setNewFullName] = useState('');
