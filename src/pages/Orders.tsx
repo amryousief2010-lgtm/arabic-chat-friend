@@ -162,6 +162,12 @@ const Orders = () => {
   const now = new Date();
   const [filterMonth, setFilterMonth] = useState<string>(String(now.getMonth() + 1));
   const [filterYear, setFilterYear] = useState<string>(String(now.getFullYear()));
+  const [collectionMismatch, setCollectionMismatch] = useState<{
+    orderId: string;
+    orderNumber: string;
+    deliveredTotal: number;
+    currentTotal: number;
+  } | null>(null);
 
   useEffect(() => {
     fetchOrders();
