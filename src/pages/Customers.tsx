@@ -236,9 +236,34 @@ const Customers = () => {
                       {new Date(customer.created_at).toLocaleDateString('ar-EG')}
                     </TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(customer)}>
-                        <Edit className="w-4 h-4" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(customer)}>
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        {canDeleteCustomers && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>حذف العميل {customer.name}؟</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  لا يمكن التراجع عن هذا الإجراء. إذا كان للعميل طلبات مرتبطة فلن يتم الحذف.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => deleteMutation.mutate(customer.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                  حذف
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
