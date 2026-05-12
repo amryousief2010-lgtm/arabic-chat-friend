@@ -29,6 +29,7 @@ const Customers = () => {
   const [editingCustomer, setEditingCustomer] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
+  const { canDeleteCustomers } = useAuth();
 
   const [formData, setFormData] = useState({
     name: "", phone: "", email: "", address: "", city: "",
