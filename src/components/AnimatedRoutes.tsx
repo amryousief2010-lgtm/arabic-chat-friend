@@ -38,6 +38,7 @@ import BatchTracking from "@/pages/modules/feed/BatchTracking";
 import WarehouseDashboard from "@/pages/modules/warehouse/WarehouseDashboard";
 import InventoryImport from "@/pages/modules/warehouse/InventoryImport";
 import Debug from "@/pages/Debug";
+import ExecutiveDashboards from "@/pages/ExecutiveDashboards";
 
 const RedirectWithQuery = ({ to }: { to: string }) => {
   const location = useLocation();
@@ -214,6 +215,11 @@ const AnimatedRoutes = () => {
         <Route path="/modules/feed-factory/batches/:id" element={
           <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'feed_factory_manager', 'production_manager', 'quality_manager']}>
             <PageTransition><BatchTracking /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/executive-dashboards" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager', 'financial_manager', 'accountant']}>
+            <PageTransition><ExecutiveDashboards /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="*" element={
