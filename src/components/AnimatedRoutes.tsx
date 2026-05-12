@@ -53,6 +53,9 @@ const AnimatedRoutes = () => {
         <Route path="/auth" element={
           <PageTransition><Auth /></PageTransition>
         } />
+        <Route path="/debug" element={
+          <PageTransition><Debug /></PageTransition>
+        } />
         <Route path="/farm" element={<RedirectWithQuery to="/modules/farm" />} />
         <Route path="/hatchery" element={<RedirectWithQuery to="/modules/hatchery" />} />
         <Route path="/" element={
