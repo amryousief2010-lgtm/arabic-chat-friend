@@ -538,9 +538,13 @@ const Orders = () => {
                     <TableCell>
                       <Badge variant="secondary">{order.moderator_name}</Badge>
                     </TableCell>
-                    <TableCell>
-                      <span className="text-muted-foreground">
-                        {order.items.length} منتج
+                    <TableCell className="max-w-xs">
+                      <span className="text-sm whitespace-normal break-words">
+                        {order.items.length === 0
+                          ? '-'
+                          : order.items
+                              .map((it) => `${formatItemQty(it.quantity, it.unit)} ${it.product_name}`)
+                              .join(' + ')}
                       </span>
                     </TableCell>
                     <TableCell className="font-bold">{order.total.toLocaleString()} ج.م</TableCell>
