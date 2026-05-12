@@ -106,7 +106,7 @@ const paymentStatusLabels: Record<string, string> = {
 };
 
 const Orders = () => {
-  const { isShippingCompany, isAccountant, canUpdateOrderStatusForOrder } = useAuth();
+  const { isShippingCompany, isAccountant, canUpdateOrderStatusForOrder, canDeleteOrders } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
