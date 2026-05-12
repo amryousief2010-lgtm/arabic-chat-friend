@@ -51,10 +51,12 @@ type OrderStatus = 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancell
 
 interface OrderItem {
   id: string;
+  product_id: string | null;
   product_name: string;
   quantity: number;
   unit_price: number;
   total_price: number;
+  unit?: string;
 }
 
 interface Order {
@@ -104,6 +106,38 @@ const paymentStatusLabels: Record<string, string> = {
   pending: "قيد الانتظار",
   paid: "مدفوع",
   failed: "فشل",
+};
+
+const isMassUnit = (u?: string) => {
+  const n = (u || '').trim().toLowerCase();
+  return ['كجم', 'كيلو', 'كيلوجرام', 'kg', 'جم', 'جرام', 'g'].includes(n);
+};
+
+const formatItemQty = (qty: number, unit?: string): string => {
+  const mass = isMassUnit(unit);
+  let q = qty;
+  let suffix = unit || '';
+  if (mass) {
+    suffix = 'ك';
+    if (unit === 'جم' || unit === 'جرام' || unit === 'g') q = qty / 1000;
+  }
+  const fractions: Record<string, string> = {
+    '0.25': 'ربع',
+    '0.5': 'نص',
+    '0.75': '٣/٤',
+  };
+  const whole = Math.floor(q);
+  const frac = +(q - whole).toFixed(2);
+  const fracLabel = fractions[String(frac)];
+
+  let qtyStr: string;
+  if (whole === 0 && fracLabel) qtyStr = fracLabel;
+  else if (whole > 0 && fracLabel) qtyStr = `${whole} و${fracLabel}`;
+  else if (whole === 1 && frac === 0) qtyStr = '';
+  else qtyStr = q % 1 === 0 ? String(whole) : String(q);
+
+  if (!suffix) return qtyStr || String(q);
+  return qtyStr ? `${qtyStr} ${suffix}` : suffix;
 };
 
 const Orders = () => {
@@ -213,6 +247,20 @@ const Orders = () => {
         );
       }
 
+      const productIds = Array.from(
+        new Set((itemsData || []).map((it: any) => it.product_id).filter(Boolean))
+      );
+      let productsMap: Record<string, string> = {};
+      if (productIds.length > 0) {
+        const { data: productsData } = await supabase
+          .from('products')
+          .select('id, unit')
+          .in('id', productIds as string[]);
+        productsMap = Object.fromEntries(
+          (productsData || []).map((p: any) => [p.id, p.unit])
+        );
+      }
+
       const formattedOrders: Order[] = (ordersData || []).map(order => ({
         id: order.id,
         order_number: order.order_number,
@@ -239,10 +287,12 @@ const Orders = () => {
           .filter(item => item.order_id === order.id)
           .map(item => ({
             id: item.id,
+            product_id: item.product_id ?? null,
             product_name: item.product_name,
             quantity: Number(item.quantity),
             unit_price: Number(item.unit_price),
             total_price: Number(item.total_price),
+            unit: (item.product_id && productsMap[item.product_id]) || 'كجم',
           })),
       }));
 
@@ -488,9 +538,13 @@ const Orders = () => {
                     <TableCell>
                       <Badge variant="secondary">{order.moderator_name}</Badge>
                     </TableCell>
-                    <TableCell>
-                      <span className="text-muted-foreground">
-                        {order.items.length} منتج
+                    <TableCell className="max-w-xs">
+                      <span className="text-sm whitespace-normal break-words">
+                        {order.items.length === 0
+                          ? '-'
+                          : order.items
+                              .map((it) => `${formatItemQty(it.quantity, it.unit)} ${it.product_name}`)
+                              .join(' + ')}
                       </span>
                     </TableCell>
                     <TableCell className="font-bold">{order.total.toLocaleString()} ج.م</TableCell>
