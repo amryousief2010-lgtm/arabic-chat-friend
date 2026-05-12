@@ -73,6 +73,7 @@ interface Order {
   notes: string | null;
   delivery_address: string | null;
   created_at: string;
+  delivered_at: string | null;
   created_by: string | null;
   moderator_name: string;
   items: OrderItem[];
@@ -228,6 +229,7 @@ const Orders = () => {
         notes: order.notes,
         delivery_address: order.delivery_address,
         created_at: order.created_at,
+        delivered_at: (order as any).delivered_at ?? null,
         created_by: order.created_by,
         moderator_name:
           (order.created_by && profilesMap[order.created_by]) ||
@@ -310,9 +312,13 @@ const Orders = () => {
       if (error) throw error;
 
       setOrders(
-        orders.map((order) =>
-          order.id === orderId ? { ...order, status: newStatus } : order
-        )
+        orders.map((order) => {
+          if (order.id !== orderId) return order;
+          let delivered_at = order.delivered_at;
+          if (newStatus === 'delivered' && !delivered_at) delivered_at = new Date().toISOString();
+          else if (newStatus !== 'delivered' && order.status === 'delivered') delivered_at = null;
+          return { ...order, status: newStatus, delivered_at };
+        })
       );
       toast.success(`تم تحديث حالة الطلب إلى "${statusLabels[newStatus]}"`);
     } catch (error) {
@@ -460,13 +466,15 @@ const Orders = () => {
                 <TableHead className="text-right">التحصيل</TableHead>
                 <TableHead className="text-right">التاريخ</TableHead>
                 <TableHead className="text-right">التوقيت</TableHead>
+                <TableHead className="text-right">تاريخ التسليم</TableHead>
+                <TableHead className="text-right">مدة التسليم</TableHead>
                 <TableHead className="text-right">الإجراءات</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredOrders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={14} className="text-center py-8 text-muted-foreground">
                     لا توجد طلبات
                   </TableCell>
                 </TableRow>
@@ -572,6 +580,27 @@ const Orders = () => {
                         hour: '2-digit',
                         minute: '2-digit',
                       })}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {order.delivered_at
+                        ? new Date(order.delivered_at).toLocaleDateString('ar-EG')
+                        : '-'}
+                    </TableCell>
+                    <TableCell>
+                      {order.delivered_at ? (
+                        <Badge variant="secondary">
+                          {Math.max(
+                            0,
+                            Math.ceil(
+                              (new Date(order.delivered_at).getTime() - new Date(order.created_at).getTime()) /
+                                (1000 * 60 * 60 * 24)
+                            )
+                          )}{' '}
+                          يوم
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
