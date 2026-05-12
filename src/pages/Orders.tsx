@@ -466,6 +466,8 @@ const Orders = () => {
                 <TableHead className="text-right">التحصيل</TableHead>
                 <TableHead className="text-right">التاريخ</TableHead>
                 <TableHead className="text-right">التوقيت</TableHead>
+                <TableHead className="text-right">تاريخ التسليم</TableHead>
+                <TableHead className="text-right">مدة التسليم</TableHead>
                 <TableHead className="text-right">الإجراءات</TableHead>
               </TableRow>
             </TableHeader>
