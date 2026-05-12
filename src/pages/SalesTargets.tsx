@@ -279,6 +279,7 @@ const SalesTargets = () => {
         <MonthlyTargetTable />
         <ModeratorOrdersBreakdown />
         <GirlsSalesQuantityTable month={selectedMonth} year={selectedYear} />
+        <ModeratorPayrollTable />
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
