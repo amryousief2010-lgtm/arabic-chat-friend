@@ -504,7 +504,7 @@ const Orders = () => {
         <CardContent>
           <Table>
             <TableHeader>
-              <TableRow>
+              <TableRow className="bg-green-100 hover:bg-green-100 dark:bg-green-900/30 dark:hover:bg-green-900/30">
                 <TableHead className="text-right">رقم الطلب</TableHead>
                 <TableHead className="text-right">العميل</TableHead>
                 <TableHead className="text-right">الموديريتور</TableHead>
