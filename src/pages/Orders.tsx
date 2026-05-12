@@ -336,6 +336,20 @@ const Orders = () => {
     }
   };
 
+  const handleDeleteOrder = async (orderId: string) => {
+    try {
+      const { error: itemsErr } = await supabase.from('order_items').delete().eq('order_id', orderId);
+      if (itemsErr) throw itemsErr;
+      const { error } = await supabase.from('orders').delete().eq('id', orderId);
+      if (error) throw error;
+      setOrders(orders.filter(o => o.id !== orderId));
+      toast.success('تم حذف الطلب بنجاح');
+    } catch (e) {
+      console.error(e);
+      toast.error('تعذّر حذف الطلب');
+    }
+  };
+
   const getStatusIcon = (status: OrderStatus) => {
     switch (status) {
       case "pending":
