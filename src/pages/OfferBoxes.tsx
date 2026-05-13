@@ -509,9 +509,22 @@ const OfferBoxes = () => {
                   )}
                 </CardHeader>
                 <CardContent>
+                  {(() => {
+                    const itemCount = boxItemCounts[box.id] || 0;
+                    return itemCount === 0 ? (
+                      <div className="mb-3 p-2 rounded-md bg-destructive/10 border border-destructive/30 text-xs text-destructive flex items-center gap-2">
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                        <span>هذا العرض لا يحتوي على منتجات بعد. اضغط "إدارة المنتجات" لإضافتها.</span>
+                      </div>
+                    ) : (
+                      <div className="mb-3 text-xs text-muted-foreground">
+                        عدد المنتجات داخل العرض: <span className="font-bold text-foreground">{itemCount}</span>
+                      </div>
+                    );
+                  })()}
                   <div className="flex items-center gap-2">
                     <Button
-                      variant="outline"
+                      variant={(boxItemCounts[box.id] || 0) === 0 ? 'default' : 'outline'}
                       size="sm"
                       className="flex-1"
                       onClick={() => {
