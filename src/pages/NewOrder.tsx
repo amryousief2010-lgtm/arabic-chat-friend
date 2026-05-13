@@ -254,11 +254,6 @@ const NewOrder = () => {
       if (item.product.id === productId && item.customPrice === customPrice && item.isOfferItem === isOfferItem && item.isHalfKg === isHalfKg) {
         const newQuantity = item.quantity + delta;
         if (newQuantity <= 0) return item;
-        const maxStock = isHalfKg ? item.product.stock * 2 : item.product.stock;
-        if (newQuantity > maxStock) {
-          toast.error('الكمية المطلوبة أكبر من المتاحة');
-          return item;
-        }
         return { ...item, quantity: newQuantity };
       }
       return item;
