@@ -164,6 +164,11 @@ const NewOrder = () => {
   const [newCustomerPhone, setNewCustomerPhone] = useState('');
   const [newCustomerAddress, setNewCustomerAddress] = useState('');
   const [newCustomerCity, setNewCustomerCity] = useState('');
+  const [newCustomerGovernorate, setNewCustomerGovernorate] = useState('');
+  const [newCustomerSource, setNewCustomerSource] = useState('');
+  const [newCustomerSourceCustom, setNewCustomerSourceCustom] = useState('');
+  const [newCustomerShipping, setNewCustomerShipping] = useState('');
+  const [newCustomerShippingCustom, setNewCustomerShippingCustom] = useState('');
 
   useEffect(() => {
     fetchData();
