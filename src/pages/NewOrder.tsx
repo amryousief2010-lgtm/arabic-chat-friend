@@ -680,35 +680,36 @@ const NewOrder = () => {
                 ) : (
                   <>
                     <div className="space-y-3 max-h-64 overflow-auto">
-                      {cart.map((item, index) => (
+                      {cart.map((item, index) => {
+                        const basePrice = item.customPrice ?? item.product.price;
+                        const unitPrice = item.isHalfKg ? basePrice / 2 : basePrice;
+                        const kgEquivalent = item.isHalfKg ? item.quantity / 2 : null;
+                        return (
                         <div
-                          key={`${item.product.id}-${item.customPrice}-${index}`}
+                          key={`${item.product.id}-${item.customPrice}-${item.isHalfKg ? 'h' : 'f'}-${index}`}
                           className={`flex items-center justify-between p-3 rounded-lg ${
                             item.isOfferItem ? 'bg-green-50 dark:bg-green-950/20 border border-green-200' : 'bg-muted/50'
                           }`}
                         >
                           <div className="flex-1">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <p className="font-medium text-sm">{item.product.name}</p>
                               {item.isOfferItem && (
                                 <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
                                   عرض
                                 </Badge>
                               )}
+                              {item.isHalfKg && (
+                                <Badge variant="secondary" className="text-xs">
+                                  نصف كيلو
+                                </Badge>
+                              )}
                             </div>
                             <p className="text-sm text-muted-foreground">
-                              {item.isOfferItem && item.customPrice ? (
-                                <>
-                                  <span className="line-through text-muted-foreground/60 mr-1">
-                                    {item.product.price.toLocaleString()}
-                                  </span>
-                                  <span className="text-green-600 font-medium">
-                                    {item.customPrice.toLocaleString()}
-                                  </span>
-                                </>
-                              ) : (
-                                item.product.price.toLocaleString()
-                              )} × {item.quantity}
+                              {unitPrice.toLocaleString()} × {item.quantity}
+                              {kgEquivalent !== null && (
+                                <span className="mr-2 text-primary">= {kgEquivalent} كجم</span>
+                              )}
                             </p>
                           </div>
                           <div className="flex items-center gap-2">
@@ -716,7 +717,7 @@ const NewOrder = () => {
                               variant="outline"
                               size="icon"
                               className="h-7 w-7"
-                              onClick={() => updateQuantity(item.product.id, -1, item.customPrice, item.isOfferItem)}
+                              onClick={() => updateQuantity(item.product.id, -1, item.customPrice, item.isOfferItem, item.isHalfKg)}
                             >
                               <Minus className="w-3 h-3" />
                             </Button>
@@ -727,7 +728,7 @@ const NewOrder = () => {
                               variant="outline"
                               size="icon"
                               className="h-7 w-7"
-                              onClick={() => updateQuantity(item.product.id, 1, item.customPrice, item.isOfferItem)}
+                              onClick={() => updateQuantity(item.product.id, 1, item.customPrice, item.isOfferItem, item.isHalfKg)}
                             >
                               <Plus className="w-3 h-3" />
                             </Button>
@@ -735,13 +736,14 @@ const NewOrder = () => {
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7 text-destructive"
-                              onClick={() => removeFromCart(item.product.id, item.customPrice, item.isOfferItem)}
+                              onClick={() => removeFromCart(item.product.id, item.customPrice, item.isOfferItem, item.isHalfKg)}
                             >
                               <Trash2 className="w-3 h-3" />
                             </Button>
                           </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
 
                     {/* Delivery Address */}
