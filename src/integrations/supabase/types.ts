@@ -972,6 +972,33 @@ export type Database = {
           },
         ]
       }
+      manufacturing_status: {
+        Row: {
+          created_at: string
+          product_id: string
+          status: string
+          updated_at: string
+          updated_by: string | null
+          updated_by_name: string | null
+        }
+        Insert: {
+          created_at?: string
+          product_id: string
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_name?: string | null
+        }
+        Update: {
+          created_at?: string
+          product_id?: string
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_name?: string | null
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string
@@ -1375,6 +1402,8 @@ export type Database = {
           product_id: string
           product_name: string
           quantity_added: number
+          supplier_reference: string | null
+          unit_price: number
         }
         Insert: {
           created_at?: string
@@ -1387,6 +1416,8 @@ export type Database = {
           product_id: string
           product_name: string
           quantity_added: number
+          supplier_reference?: string | null
+          unit_price?: number
         }
         Update: {
           created_at?: string
@@ -1399,6 +1430,8 @@ export type Database = {
           product_id?: string
           product_name?: string
           quantity_added?: number
+          supplier_reference?: string | null
+          unit_price?: number
         }
         Relationships: []
       }
