@@ -62,10 +62,13 @@ export type Database = {
           city: string | null
           created_at: string
           email: string | null
+          governorate: string | null
           id: string
           name: string
           notes: string | null
           phone: string
+          shipping_company: string | null
+          source: string | null
           total_orders: number
           total_spent: number
           updated_at: string
@@ -75,10 +78,13 @@ export type Database = {
           city?: string | null
           created_at?: string
           email?: string | null
+          governorate?: string | null
           id?: string
           name: string
           notes?: string | null
           phone: string
+          shipping_company?: string | null
+          source?: string | null
           total_orders?: number
           total_spent?: number
           updated_at?: string
@@ -88,10 +94,13 @@ export type Database = {
           city?: string | null
           created_at?: string
           email?: string | null
+          governorate?: string | null
           id?: string
           name?: string
           notes?: string | null
           phone?: string
+          shipping_company?: string | null
+          source?: string | null
           total_orders?: number
           total_spent?: number
           updated_at?: string
