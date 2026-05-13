@@ -538,6 +538,14 @@ const OfferBoxes = () => {
                       </Badge>
                     </div>
                   )}
+                  {box.shipping_cost != null && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs gap-1">
+                        <Truck className="h-3 w-3" />
+                        الشحن: {Math.round(Number(box.shipping_cost)).toLocaleString('ar-EG')} ج.م
+                      </Badge>
+                    </div>
+                  )}
                 </CardHeader>
                 <CardContent>
                   {(() => {
