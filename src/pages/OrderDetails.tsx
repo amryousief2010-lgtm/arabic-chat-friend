@@ -356,7 +356,9 @@ const OrderDetails = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {order.items.map((item) => (
+                  {order.items.map((item) => {
+                    const kg = itemKg(item);
+                    return (
                     <div
                       key={item.id}
                       className="flex items-center justify-between p-4 rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors"
@@ -366,9 +368,17 @@ const OrderDetails = () => {
                           <ShoppingCart className="w-6 h-6 text-primary" />
                         </div>
                         <div>
-                          <p className="font-semibold">{item.product_name}</p>
+                          <p className="font-semibold">
+                            {item.product_name}
+                            {item.is_half_kg && (
+                              <span className="mr-2 text-xs px-2 py-0.5 rounded bg-secondary text-secondary-foreground">نصف كيلو</span>
+                            )}
+                          </p>
                           <p className="text-sm text-muted-foreground">
                             {item.unit_price.toLocaleString()} ج.م × {item.quantity}
+                            {kg !== null && (
+                              <span className="mr-2 text-primary font-medium">= {kg} كجم</span>
+                            )}
                           </p>
                         </div>
                       </div>
@@ -376,7 +386,8 @@ const OrderDetails = () => {
                         {item.total_price.toLocaleString()} ج.م
                       </p>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 <Separator className="my-4" />
@@ -387,6 +398,15 @@ const OrderDetails = () => {
                     <span className="text-muted-foreground">المجموع الفرعي</span>
                     <span>{order.subtotal.toLocaleString()} ج.م</span>
                   </div>
+                  {(() => {
+                    const totalKg = order.items.reduce((s, it) => s + (itemKg(it) ?? 0), 0);
+                    return totalKg > 0 ? (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">إجمالي الوزن</span>
+                        <span className="font-medium text-primary">{totalKg.toLocaleString()} كجم</span>
+                      </div>
+                    ) : null;
+                  })()}
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">رسوم التوصيل</span>
                     <span>{order.delivery_fee.toLocaleString()} ج.م</span>
