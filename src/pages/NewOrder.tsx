@@ -361,14 +361,19 @@ const NewOrder = () => {
       if (orderError) throw orderError;
 
       // Create order items
-      const orderItems = cart.map(item => ({
-        order_id: order.id,
-        product_id: item.product.id,
-        product_name: item.isOfferItem ? `${item.product.name} (عرض)` : item.product.name,
-        quantity: item.quantity,
-        unit_price: item.customPrice ?? item.product.price,
-        total_price: (item.customPrice ?? item.product.price) * item.quantity,
-      }));
+      const orderItems = cart.map(item => {
+        const basePrice = item.customPrice ?? item.product.price;
+        const unitPrice = item.isHalfKg ? basePrice / 2 : basePrice;
+        const nameSuffix = item.isHalfKg ? ' (نصف كيلو)' : '';
+        return {
+          order_id: order.id,
+          product_id: item.product.id,
+          product_name: (item.isOfferItem ? `${item.product.name} (عرض)` : item.product.name) + nameSuffix,
+          quantity: item.quantity,
+          unit_price: unitPrice,
+          total_price: unitPrice * item.quantity,
+        };
+      });
 
       const { error: itemsError } = await supabase
         .from('order_items')
