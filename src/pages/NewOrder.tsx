@@ -180,25 +180,27 @@ const NewOrder = () => {
     }
   };
 
-  const addToCart = (product: Product, customPrice?: number, isOfferItem?: boolean) => {
-    const existingItem = cart.find(item => 
-      item.product.id === product.id && 
-      item.customPrice === customPrice && 
-      item.isOfferItem === isOfferItem
+  const addToCart = (product: Product, customPrice?: number, isOfferItem?: boolean, isHalfKg?: boolean) => {
+    const maxStock = isHalfKg ? product.stock * 2 : product.stock;
+    const existingItem = cart.find(item =>
+      item.product.id === product.id &&
+      item.customPrice === customPrice &&
+      item.isOfferItem === isOfferItem &&
+      item.isHalfKg === isHalfKg
     );
-    
+
     if (existingItem) {
-      if (existingItem.quantity >= product.stock) {
+      if (existingItem.quantity >= maxStock) {
         toast.error('الكمية المطلوبة أكبر من المتاحة');
         return;
       }
       setCart(cart.map(item =>
-        item.product.id === product.id && item.customPrice === customPrice && item.isOfferItem === isOfferItem
+        item.product.id === product.id && item.customPrice === customPrice && item.isOfferItem === isOfferItem && item.isHalfKg === isHalfKg
           ? { ...item, quantity: item.quantity + 1 }
           : item
       ));
     } else {
-      setCart([...cart, { product, quantity: 1, customPrice, isOfferItem }]);
+      setCart([...cart, { product, quantity: 1, customPrice, isOfferItem, isHalfKg }]);
     }
   };
 
@@ -249,12 +251,13 @@ const NewOrder = () => {
     }
   };
 
-  const updateQuantity = (productId: string, delta: number, customPrice?: number, isOfferItem?: boolean) => {
+  const updateQuantity = (productId: string, delta: number, customPrice?: number, isOfferItem?: boolean, isHalfKg?: boolean) => {
     setCart(cart.map(item => {
-      if (item.product.id === productId && item.customPrice === customPrice && item.isOfferItem === isOfferItem) {
+      if (item.product.id === productId && item.customPrice === customPrice && item.isOfferItem === isOfferItem && item.isHalfKg === isHalfKg) {
         const newQuantity = item.quantity + delta;
         if (newQuantity <= 0) return item;
-        if (newQuantity > item.product.stock) {
+        const maxStock = isHalfKg ? item.product.stock * 2 : item.product.stock;
+        if (newQuantity > maxStock) {
           toast.error('الكمية المطلوبة أكبر من المتاحة');
           return item;
         }
@@ -264,9 +267,9 @@ const NewOrder = () => {
     }));
   };
 
-  const removeFromCart = (productId: string, customPrice?: number, isOfferItem?: boolean) => {
-    setCart(cart.filter(item => 
-      !(item.product.id === productId && item.customPrice === customPrice && item.isOfferItem === isOfferItem)
+  const removeFromCart = (productId: string, customPrice?: number, isOfferItem?: boolean, isHalfKg?: boolean) => {
+    setCart(cart.filter(item =>
+      !(item.product.id === productId && item.customPrice === customPrice && item.isOfferItem === isOfferItem && item.isHalfKg === isHalfKg)
     ));
   };
 
