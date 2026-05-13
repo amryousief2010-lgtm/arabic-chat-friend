@@ -226,11 +226,11 @@ const NewOrder = () => {
 
       if (productError) throw productError;
 
-      // Add each item to cart with custom price
+      // Add each item to cart with custom price (no stock check)
       let addedCount = 0;
       for (const item of items) {
         const product = productData?.find(p => p.id === item.product_id);
-        if (product && product.stock > 0) {
+        if (product) {
           for (let i = 0; i < item.quantity; i++) {
             addToCart(product as Product, item.custom_price, true);
           }
