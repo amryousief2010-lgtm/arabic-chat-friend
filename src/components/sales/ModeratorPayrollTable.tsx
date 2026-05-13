@@ -163,6 +163,38 @@ const ModeratorPayrollTable = () => {
     return () => { supabase.removeChannel(channel); };
   }, [queryClient]);
 
+  const { data: overrides = [] } = useQuery({
+    queryKey: ['payroll-overrides', selectedMonth, selectedYear],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('payroll_bonus_overrides')
+        .select('*')
+        .eq('month', selectedMonth)
+        .eq('year', selectedYear);
+      if (error) throw error;
+      return data as Array<{ moderator_name: string; processed_bonus: number | null; meat_bonus: number | null }>;
+    },
+  });
+
+  const overrideMutation = useMutation({
+    mutationFn: async ({ girl, field, value }: { girl: Girl; field: 'processed_bonus' | 'meat_bonus'; value: number | null }) => {
+      const payload: any = {
+        moderator_name: girl,
+        month: selectedMonth,
+        year: selectedYear,
+        [field]: value,
+      };
+      const { error } = await supabase
+        .from('payroll_bonus_overrides')
+        .upsert(payload, { onConflict: 'moderator_name,month,year' });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payroll-overrides', selectedMonth, selectedYear] });
+    },
+    onError: (e: any) => toast({ title: 'تعذر الحفظ', description: e.message, variant: 'destructive' }),
+  });
+
   const rows = useMemo(() => {
     return GIRLS.map(g => {
       const meatKg = qty.meat[g] || 0;
@@ -172,17 +204,57 @@ const ModeratorPayrollTable = () => {
       const procSales = procKg * prices.processed_price;
       const procTier = findTier(procSales, PROCESSED_TIERS);
       const meatTier = findTier(meatSales, MEAT_TIERS);
-      const procBonus = procTier ? procTier.bonus * procKg : 0;
-      const meatBonus = meatTier ? (meatTier.bonus * meatKg + BONE_BONUS_PER_KG * boneKg) : 0;
+      const calcProcBonus = procTier ? procTier.bonus * procKg : 0;
+      const calcMeatBonus = meatTier ? (meatTier.bonus * meatKg + BONE_BONUS_PER_KG * boneKg) : 0;
+      const ov = overrides.find(o => o.moderator_name === g);
+      const procBonus = ov?.processed_bonus != null ? Number(ov.processed_bonus) : calcProcBonus;
+      const meatBonus = ov?.meat_bonus != null ? Number(ov.meat_bonus) : calcMeatBonus;
+      const procOverridden = ov?.processed_bonus != null;
+      const meatOverridden = ov?.meat_bonus != null;
       const base = BASE_SALARY[g];
       return {
         girl: g, base, meatKg, boneKg, procKg,
         meatSales, procSales, procTier, meatTier,
-        procBonus, meatBonus,
+        procBonus, meatBonus, procOverridden, meatOverridden,
         total: base + procBonus + meatBonus,
       };
     });
-  }, [qty, prices]);
+  }, [qty, prices, overrides]);
+
+  const renderBonusCell = (girl: Girl, value: number, field: 'processed_bonus' | 'meat_bonus', overridden: boolean) => {
+    if (!canEdit) {
+      return <span className="font-bold text-primary">{fmt(value)}</span>;
+    }
+    return (
+      <div className="flex items-center justify-center gap-1">
+        <Input
+          type="number"
+          defaultValue={Math.round(value)}
+          key={`${girl}-${field}-${selectedMonth}-${selectedYear}-${value}`}
+          className="h-8 text-center w-24"
+          onBlur={(e) => {
+            const v = Number(e.target.value);
+            if (v !== Math.round(value)) {
+              overrideMutation.mutate({ girl, field, value: v });
+            }
+          }}
+        />
+        {overridden && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            title="إعادة للقيمة المحسوبة تلقائياً"
+            onClick={() => overrideMutation.mutate({ girl, field, value: null })}
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+          </Button>
+        )}
+      </div>
+    );
+  };
+
 
   return (
     <Card className="glass-card">
