@@ -96,7 +96,10 @@ interface CartItem {
   isHalfKg?: boolean; // نصف كيلو: السعر = price/2 ، الكمية 2 = 1 كيلو
 }
 
-const isKgUnit = (unit: string) => /كجم|كيلو|kg/i.test(unit || '');
+const isKgUnit = (unit: string) => {
+  const u = (unit || '').trim().toLowerCase().replace(/\s+/g, '');
+  return /^(كجم|كيلو|كيلوجرام|كيلوغرام|كغم|كغ|kg|kgs|kilogram|kilogramme|kilo)$/i.test(u);
+};
 
 const NewOrder = () => {
   const navigate = useNavigate();
@@ -278,6 +281,11 @@ const NewOrder = () => {
     const unitPrice = item.isHalfKg ? basePrice / 2 : basePrice;
     return sum + (unitPrice * item.quantity);
   }, 0);
+  const totalKg = cart.reduce((sum, item) => {
+    if (!isKgUnit(item.product.unit)) return sum;
+    const kg = item.isHalfKg ? item.quantity / 2 : item.quantity;
+    return sum + kg;
+  }, 0);
   const total = subtotal - discount + deliveryFee;
 
   const handleAddCustomer = async () => {
@@ -364,14 +372,14 @@ const NewOrder = () => {
       const orderItems = cart.map(item => {
         const basePrice = item.customPrice ?? item.product.price;
         const unitPrice = item.isHalfKg ? basePrice / 2 : basePrice;
-        const nameSuffix = item.isHalfKg ? ' (نصف كيلو)' : '';
         return {
           order_id: order.id,
           product_id: item.product.id,
-          product_name: (item.isOfferItem ? `${item.product.name} (عرض)` : item.product.name) + nameSuffix,
+          product_name: item.isOfferItem ? `${item.product.name} (عرض)` : item.product.name,
           quantity: item.quantity,
           unit_price: unitPrice,
           total_price: unitPrice * item.quantity,
+          is_half_kg: !!item.isHalfKg,
         };
       });
 
@@ -683,7 +691,9 @@ const NewOrder = () => {
                       {cart.map((item, index) => {
                         const basePrice = item.customPrice ?? item.product.price;
                         const unitPrice = item.isHalfKg ? basePrice / 2 : basePrice;
-                        const kgEquivalent = item.isHalfKg ? item.quantity / 2 : null;
+                        const kgEquivalent = isKgUnit(item.product.unit)
+                          ? (item.isHalfKg ? item.quantity / 2 : item.quantity)
+                          : null;
                         return (
                         <div
                           key={`${item.product.id}-${item.customPrice}-${item.isHalfKg ? 'h' : 'f'}-${index}`}
@@ -823,6 +833,12 @@ const NewOrder = () => {
                         <span className="text-muted-foreground">رسوم التوصيل</span>
                         <span>{deliveryFee.toLocaleString()} ج.م</span>
                       </div>
+                      {totalKg > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">إجمالي الوزن</span>
+                          <span className="font-medium text-primary">{totalKg.toLocaleString()} كجم</span>
+                        </div>
+                      )}
                       {discount > 0 && (
                         <div className="flex justify-between text-sm text-green-600">
                           <span>الخصم</span>
