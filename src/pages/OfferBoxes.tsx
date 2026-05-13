@@ -262,6 +262,26 @@ const OfferBoxes = () => {
     },
   });
 
+  // Update shipping cost
+  const updateShippingMutation = useMutation({
+    mutationFn: async ({ id, shipping_cost }: { id: string; shipping_cost: number | null }) => {
+      const { error } = await supabase
+        .from('offer_boxes')
+        .update({ shipping_cost })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['offer-boxes'] });
+      toast({ title: 'تم تحديث تكلفة الشحن' });
+      setShippingBox(null);
+      setShippingValue('');
+    },
+    onError: (e: any) => {
+      toast({ title: 'فشل تحديث الشحن', description: e?.message, variant: 'destructive' });
+    },
+  });
+
   // Add item to box
   const addItemMutation = useMutation({
     mutationFn: async (data: { offer_box_id: string; product_id: string; custom_price: number; quantity: number }) => {
