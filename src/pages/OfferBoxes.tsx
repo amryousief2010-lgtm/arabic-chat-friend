@@ -677,13 +677,46 @@ const OfferBoxes = () => {
         <Dialog open={isItemsDialogOpen} onOpenChange={setIsItemsDialogOpen}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Gift className="h-5 w-5" />
                 منتجات العرض: {selectedBox?.name}
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
-              {/* Add Item Form */}
+              {/* Shipping Cost inside offer */}
+              {isManager && selectedBox && (
+                <div className="p-4 bg-muted/50 rounded-lg space-y-2">
+                  <Label className="text-sm font-medium flex items-center gap-2">
+                    <Truck className="h-4 w-4" />
+                    تكلفة الشحن داخل العرض (تُضاف إلى سعر العرض)
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      min="0"
+                      placeholder="مثال: 50"
+                      value={shippingBox?.id === selectedBox.id
+                        ? shippingValue
+                        : (selectedBox.shipping_cost != null ? String(selectedBox.shipping_cost) : '')}
+                      onChange={(e) => {
+                        setShippingBox(selectedBox);
+                        setShippingValue(e.target.value);
+                      }}
+                    />
+                    <Button
+                      onClick={() => updateShippingMutation.mutate({
+                        id: selectedBox.id,
+                        shipping_cost: shippingValue === '' ? null : Number(shippingValue),
+                      })}
+                      disabled={updateShippingMutation.isPending || shippingBox?.id !== selectedBox.id}
+                    >
+                      حفظ
+                    </Button>
+                  </div>
+                </div>
+              )}
               {isManager && (
                 <div className="p-4 bg-muted/50 rounded-lg space-y-3">
                   <Label className="text-sm font-medium">إضافة منتج</Label>
