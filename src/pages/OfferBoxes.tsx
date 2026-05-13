@@ -416,6 +416,7 @@ const OfferBoxes = () => {
           ) : (
             offerBoxes.map((box) => {
               const expired = isExpired(box.expires_at);
+              const scheduled = isScheduled(box.starts_at);
               return (
               <Card key={box.id} className={`${!box.is_active || expired ? 'opacity-60' : ''}`}>
                 <CardHeader className="pb-3">
@@ -431,13 +432,28 @@ const OfferBoxes = () => {
                           منتهي
                         </Badge>
                       )}
-                      <Badge variant={box.is_active && !expired ? 'default' : 'secondary'}>
-                        {box.is_active && !expired ? 'نشط' : 'معطل'}
+                      {scheduled && !expired && (
+                        <Badge variant="outline" className="gap-1">
+                          <CalendarDays className="h-3 w-3" />
+                          مجدول
+                        </Badge>
+                      )}
+                      <Badge variant={box.is_active && !expired && !scheduled ? 'default' : 'secondary'}>
+                        {box.is_active && !expired && !scheduled ? 'نشط' : expired ? 'منتهي' : scheduled ? 'لم يبدأ' : 'معطل'}
                       </Badge>
                     </div>
                   </div>
                   {box.description && (
                     <p className="text-sm text-muted-foreground">{box.description}</p>
+                  )}
+                  {box.starts_at && (
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                      <CalendarDays className="h-3 w-3" />
+                      <span>
+                        {scheduled ? 'يبدأ في: ' : 'بدأ في: '}
+                        {format(parseISO(box.starts_at), 'dd MMM yyyy - hh:mm a', { locale: ar })}
+                      </span>
+                    </div>
                   )}
                   {box.expires_at && (
                     <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
@@ -465,17 +481,38 @@ const OfferBoxes = () => {
                     </Button>
                     {isManager && (
                       <>
-                        <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(box)}>
+                        <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(box)} title="تعديل">
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-destructive"
-                          onClick={() => deleteBoxMutation.mutate(box.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              title="حذف العرض"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>حذف العرض "{box.name}"؟</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                سيتم حذف العرض وجميع المنتجات المرتبطة به نهائياً. لا يمكن التراجع عن هذا الإجراء.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                              <AlertDialogAction
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                onClick={() => deleteBoxMutation.mutate(box.id)}
+                              >
+                                حذف
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </>
                     )}
                   </div>
