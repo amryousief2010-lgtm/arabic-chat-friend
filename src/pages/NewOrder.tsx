@@ -89,11 +89,22 @@ interface OfferBoxItem {
 }
 
 interface CartItem {
+  cartItemId: string; // unique line id
   product: Product;
   quantity: number;
   customPrice?: number; // For offer box items
   isOfferItem?: boolean;
   isHalfKg?: boolean; // نصف كيلو: السعر = price/2 ، الكمية 2 = 1 كيلو
+  offerBoxId?: string;
+  offerBoxName?: string;
+}
+
+interface OfferPreviewItem {
+  id: string;
+  product_id: string;
+  product: Product | null;
+  custom_price: number;
+  quantity: number;
 }
 
 const isKgUnit = (unit: string) => {
