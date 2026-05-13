@@ -154,6 +154,21 @@ const AnimatedRoutes = () => {
             <PageTransition><LowStock /></PageTransition>
           </ProtectedRoute>
         } />
+        <Route path="/manufacturing-queue" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'warehouse_supervisor', 'production_manager', 'quality_manager']}>
+            <PageTransition><ManufacturingQueue /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/stock-replenishment-log" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'warehouse_supervisor', 'production_manager', 'accountant']}>
+            <PageTransition><StockReplenishmentLog /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/reports/order-half-kg" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'warehouse_supervisor', 'marketing_sales_manager']}>
+            <PageTransition><OrderHalfKgReport /></PageTransition>
+          </ProtectedRoute>
+        } />
         <Route path="/install" element={
           <PageTransition><Install /></PageTransition>
         } />
