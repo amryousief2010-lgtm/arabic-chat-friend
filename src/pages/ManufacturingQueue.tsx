@@ -21,7 +21,9 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import html2canvas from "html2canvas";
+import * as XLSX from "xlsx";
+import companyLogo from "@/assets/company-logo.jpg";
 
 type MfgStatus = "pending" | "in_progress" | "completed";
 
