@@ -170,6 +170,7 @@ const Index = () => {
           changeType="positive"
           icon={DollarSign}
           iconColor="bg-success"
+          to="/reports"
         />
         <StatCard
           title="الطلبات"
@@ -178,6 +179,7 @@ const Index = () => {
           changeType="positive"
           icon={ShoppingCart}
           iconColor="bg-primary"
+          to="/orders"
         />
         <StatCard
           title="العملاء"
@@ -186,6 +188,7 @@ const Index = () => {
           changeType="positive"
           icon={Users}
           iconColor="bg-secondary"
+          to="/customers"
         />
         <StatCard
           title="منتجات قليلة المخزون"
@@ -194,6 +197,7 @@ const Index = () => {
           changeType="negative"
           icon={Package}
           iconColor="bg-destructive"
+          to="/low-stock"
         />
       </div>
 
