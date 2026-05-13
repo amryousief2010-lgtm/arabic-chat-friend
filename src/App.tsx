@@ -6,6 +6,7 @@ import { BrowserRouter } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { NotificationSettingsProvider } from "@/hooks/useNotificationSettings";
 import AnimatedRoutes from "@/components/AnimatedRoutes";
+import PWAUpdatePrompt from "@/components/PWAUpdatePrompt";
 
 const queryClient = new QueryClient();
 
@@ -14,6 +15,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <PWAUpdatePrompt />
       <BrowserRouter>
         <AuthProvider>
           <NotificationSettingsProvider>
