@@ -320,7 +320,7 @@ const Index = () => {
                 </thead>
                 <tbody>
                   {recentOrders?.map((o: any) => (
-                    <tr key={o.id} className="border-b hover:bg-muted/40 transition-colors">
+                    <tr key={o.id} className="border-b hover:bg-muted/40 transition-colors cursor-pointer" onClick={() => navigate(`/orders/${o.id}`)} role="button" tabIndex={0}>
                       <td className="py-2 px-2 font-mono text-xs">{o.order_number}</td>
                       <td className="py-2 px-2">{(o.customers as any)?.name || "-"}</td>
                       <td className="py-2 px-2 text-xs text-muted-foreground">{new Date(o.created_at).toLocaleDateString("ar-EG")}</td>
