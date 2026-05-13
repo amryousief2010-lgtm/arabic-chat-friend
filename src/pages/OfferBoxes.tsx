@@ -283,6 +283,7 @@ const OfferBoxes = () => {
       toast({ title: 'يرجى إدخال اسم العرض', variant: 'destructive' });
       return;
     }
+    // Dates are optional. Only validate ordering when both are provided.
     if (formData.starts_at && formData.expires_at && new Date(formData.starts_at) >= new Date(formData.expires_at)) {
       toast({ title: 'تاريخ البداية يجب أن يسبق تاريخ الانتهاء', variant: 'destructive' });
       return;
