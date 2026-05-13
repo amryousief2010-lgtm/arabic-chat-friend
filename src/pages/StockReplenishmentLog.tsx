@@ -193,14 +193,17 @@ const StockReplenishmentLog = () => {
 
   const exportCsv = () => {
     if (filtered.length === 0) { toast.error("لا توجد بيانات"); return; }
-    const header = ["التاريخ","الصنف","قبل","الكمية المضافة","بعد","سعر الوحدة","الإجمالي","مرجع التوريد","بواسطة","ملاحظات"];
+    const header = ["التاريخ","الصنف","قبل","أكياس ½ كيلو","أكياس كيلو","الكمية المضافة","بعد","سعر الوحدة","الإجمالي","مرجع التوريد","بواسطة","ملاحظات"];
     const lines = [header.join(",")];
     filtered.forEach(r => {
       const cost = Number(r.quantity_added || 0) * Number(r.unit_price || 0);
       lines.push([
         new Date(r.created_at).toLocaleString("ar-EG"),
         `"${r.product_name}"`,
-        r.previous_stock, r.quantity_added, r.new_stock,
+        r.previous_stock,
+        r.half_kg_bags ?? 0,
+        r.kg_bags ?? 0,
+        r.quantity_added, r.new_stock,
         r.unit_price ?? 0, cost,
         `"${r.supplier_reference || ""}"`,
         `"${r.performed_by_name || ""}"`,
