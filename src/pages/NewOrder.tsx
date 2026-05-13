@@ -346,6 +346,7 @@ const NewOrder = () => {
           notes: notes.trim() || null,
           delivery_address: deliveryAddress.trim() || selectedCustomer.address,
           created_by: user?.id,
+          moderator: moderatorName,
         })
         .select()
         .single();
