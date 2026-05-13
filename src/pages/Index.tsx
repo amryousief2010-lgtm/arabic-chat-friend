@@ -47,6 +47,7 @@ import { useDashboardStats, useRecentOrders } from "@/hooks/useSalesAnalytics";
 import { useReportsData } from "@/hooks/useReportsData";
 import { useProductionStats } from "@/hooks/useProductionStats";
 import { Egg, Bird } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 const statusColors: Record<string, string> = {
   pending: "bg-warning text-warning-foreground",
