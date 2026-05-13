@@ -402,12 +402,14 @@ const Products = () => {
                     <TableCell>
                       <Badge variant="outline">{product.category}</Badge>
                     </TableCell>
-                    <TableCell className="font-semibold">
-                      {product.price} ج.م / {product.unit}
-                    </TableCell>
+                    {canViewFinancials && (
+                      <TableCell className="font-semibold">
+                        {product.price} ج.م / {product.unit}
+                      </TableCell>
+                    )}
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <span className="font-medium">{product.stock}</span>
+                        <span className="font-medium">{product.stock} {product.unit}</span>
                         {canManageStock && (
                           <Popover>
                             <PopoverTrigger asChild>
