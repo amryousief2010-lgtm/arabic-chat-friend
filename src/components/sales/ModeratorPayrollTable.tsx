@@ -345,7 +345,7 @@ const ModeratorPayrollTable = () => {
             </TableRow>
             <TableRow>
               <TableCell className="font-bold border bg-primary/10">بونص اللحوم (ج.م)</TableCell>
-              {rows.map(r => <TableCell key={r.girl} className="text-center border font-bold text-primary">{fmt(r.meatBonus)}</TableCell>)}
+              {rows.map(r => <TableCell key={r.girl} className="text-center border">{renderBonusCell(r.girl, r.meatBonus, 'meat_bonus', r.meatOverridden)}</TableCell>)}
             </TableRow>
 
             <TableRow className="bg-accent/20">
