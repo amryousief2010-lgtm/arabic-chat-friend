@@ -98,7 +98,26 @@ interface CartItem {
 const NewOrder = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  
+  const [searchParams] = useSearchParams();
+
+  // Determine the moderator name to attribute this new order to.
+  // Priority: ?moderator=<slug> query param → fallback to detecting from
+  // the logged-in user's profile full_name.
+  const [moderatorName, setModeratorName] = useState<string | null>(null);
+  useEffect(() => {
+    const slug = searchParams.get('moderator');
+    if (slug) {
+      const m = findModeratorBySlug(slug);
+      if (m) { setModeratorName(m.canonicalModerator); return; }
+    }
+    (async () => {
+      if (!user) return;
+      const { data } = await supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle();
+      const m = findModeratorByName(data?.full_name);
+      if (m) setModeratorName(m.canonicalModerator);
+    })();
+  }, [user, searchParams]);
+
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [offerBoxes, setOfferBoxes] = useState<OfferBox[]>([]);
