@@ -220,12 +220,13 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
             <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
               <div className="mt-1 mr-3 space-y-1 border-r-2 border-sidebar-border pr-3">
                 {section.items.map((item) => {
-                  const isActive = location.pathname === item.path;
+                  const targetPath = ordersPathOverride && item.path === "/orders" ? ordersPathOverride : item.path;
+                  const isActive = location.pathname === targetPath;
                   const showBadge = item.path === "/notifications" && unreadCount > 0;
                   return (
                     <Link
                       key={item.path}
-                      to={item.path}
+                      to={targetPath}
                       onClick={onItemClick}
                       className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
                         isActive
