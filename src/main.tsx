@@ -15,3 +15,28 @@ console.log("🔍 [ENV CHECK] Environment Variables Status:", {
 });
 
 createRoot(document.getElementById("root")!).render(<App />);
+
+// PWA Update detection: trigger vite-pwa events on registration
+// @ts-expect-error
+if ('serviceWorker' in navigator && window.__vitePWA__) {
+  // Auto-check for updates every time the page becomes visible (mobile focus)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      console.log('[PWA] Page visible, checking for update...');
+      // @ts-expect-error
+      if (window.__vitePWA__?.updateServiceWorker) {
+        // @ts-expect-error
+        window.__vitePWA__.updateServiceWorker(true);
+      }
+    }
+  });
+
+  // Also check immediately on load after a short delay
+  setTimeout(() => {
+    // @ts-expect-error
+    if (window.__vitePWA__?.updateServiceWorker) {
+      // @ts-expect-error
+      window.__vitePWA__.updateServiceWorker(true);
+    }
+  }, 3000);
+}
