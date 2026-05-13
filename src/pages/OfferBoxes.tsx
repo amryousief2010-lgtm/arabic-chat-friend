@@ -827,21 +827,41 @@ const OfferBoxes = () => {
               )}
 
               {/* Summary */}
-              {boxItems.length > 0 && (
-                <div className="p-4 bg-primary/5 rounded-lg flex justify-between items-center">
-                  <div>
-                    <p className="text-sm text-muted-foreground">السعر الأصلي</p>
-                    <p className="line-through">{originalPrice.toLocaleString()} ج.م</p>
+              {boxItems.length > 0 && (() => {
+                const shipping = Number(selectedBox?.shipping_cost || 0);
+                const totalWithShipping = totalBoxPrice + shipping;
+                return (
+                  <div className="p-4 bg-primary/5 rounded-lg space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">السعر الأصلي</span>
+                      <span className="line-through">{originalPrice.toLocaleString()} ج.م</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">إجمالي المنتجات</span>
+                      <span>{totalBoxPrice.toLocaleString()} ج.م</span>
+                    </div>
+                    {shipping > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground flex items-center gap-1">
+                          <Truck className="h-3 w-3" /> الشحن
+                        </span>
+                        <span>{shipping.toLocaleString()} ج.م</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center pt-2 border-t">
+                      <span className="text-sm text-muted-foreground">سعر العرض شامل الشحن</span>
+                      <span className="text-2xl font-bold text-primary">{totalWithShipping.toLocaleString()} ج.م</span>
+                    </div>
+                    {originalPrice > 0 && (
+                      <div className="flex justify-end">
+                        <Badge className="bg-green-500 text-white text-sm px-3 py-1">
+                          توفير {((originalPrice - totalWithShipping) / originalPrice * 100).toFixed(0)}%
+                        </Badge>
+                      </div>
+                    )}
                   </div>
-                  <div className="text-left">
-                    <p className="text-sm text-muted-foreground">سعر العرض</p>
-                    <p className="text-2xl font-bold text-primary">{totalBoxPrice.toLocaleString()} ج.م</p>
-                  </div>
-                  <Badge className="bg-green-500 text-white text-lg px-3 py-1">
-                    توفير {((originalPrice - totalBoxPrice) / originalPrice * 100).toFixed(0)}%
-                  </Badge>
-                </div>
-              )}
+                );
+              })()}
             </div>
           </DialogContent>
         </Dialog>
