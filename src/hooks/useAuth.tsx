@@ -22,10 +22,17 @@ export type AppRole =
   | 'quality_manager'
   | 'shipping_company';
 
+interface UserProfile {
+  id: string;
+  full_name: string;
+  email: string;
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   role: AppRole | null;
+  profile: UserProfile | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
@@ -66,7 +73,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .eq('id', userId)
+        .maybeSingle();
+      if (error) return null;
+      return data as UserProfile | null;
+    } catch {
+      return null;
+    }
+  };
 
   const fetchUserRole = async (userId: string) => {
     try {
@@ -99,9 +121,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (session?.user) {
           setTimeout(() => {
             fetchUserRole(session.user.id).then(setRole);
+            fetchUserProfile(session.user.id).then(setProfile);
           }, 0);
         } else {
           setRole(null);
+          setProfile(null);
         }
       }
     );
@@ -112,10 +136,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        fetchUserRole(session.user.id).then(userRole => {
-          setRole(userRole);
-          setLoading(false);
-        });
+        Promise.all([
+          fetchUserRole(session.user.id).then(setRole),
+          fetchUserProfile(session.user.id).then(setProfile),
+        ]).finally(() => setLoading(false));
       } else {
         setLoading(false);
       }
@@ -153,6 +177,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(null);
     setSession(null);
     setRole(null);
+    setProfile(null);
   };
 
   // Role checks
@@ -211,6 +236,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     user,
     session,
     role,
+    profile,
     loading,
     signIn,
     signUp,
