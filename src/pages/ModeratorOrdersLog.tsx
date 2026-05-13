@@ -84,13 +84,25 @@ const ModeratorOrdersLog = () => {
     },
   });
 
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return (data || []).filter((o: any) => {
+      if (statusFilter !== "all" && o.status !== statusFilter) return false;
+      if (!q) return true;
+      return (
+        (o.order_number || "").toLowerCase().includes(q) ||
+        (o.customers?.name || "").toLowerCase().includes(q)
+      );
+    });
+  }, [data, search, statusFilter]);
+
   const stats = useMemo(() => {
-    const list = data || [];
+    const list = visible;
     const total = list.reduce((s: number, o: any) => s + Number(o.total || 0), 0);
     const delivered = list.filter((o: any) => o.status === "delivered").length;
     const cancelled = list.filter((o: any) => o.status === "cancelled").length;
     return { count: list.length, total, delivered, cancelled };
-  }, [data]);
+  }, [visible]);
 
   const dailyBreakdown = useMemo(() => {
     const map = new Map<string, { date: string; count: number; total: number }>();
