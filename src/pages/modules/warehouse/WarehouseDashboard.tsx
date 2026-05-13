@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ArrowRight, AlertTriangle, ArrowDown, ArrowUp, ArrowLeftRight, Settings2, Warehouse, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 const warehouseTypes: Record<string, string> = {
   raw_materials: "مواد خام", finished_goods: "منتج نهائي", feed: "أعلاف",
