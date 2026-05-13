@@ -173,10 +173,12 @@ const NewOrder = () => {
       setProducts(productsRes.data || []);
       setCustomers(customersRes.data || []);
       
-      // Filter out expired offers
-      const activeOffers = (offersRes.data || []).filter(offer => {
-        if (!offer.expires_at) return true;
-        return new Date(offer.expires_at) > new Date();
+      // Filter out expired offers and not-yet-started offers
+      const now = new Date();
+      const activeOffers = (offersRes.data || []).filter((offer: any) => {
+        if (offer.expires_at && new Date(offer.expires_at) <= now) return false;
+        if (offer.starts_at && new Date(offer.starts_at) > now) return false;
+        return true;
       });
       setOfferBoxes(activeOffers);
     } catch (error) {

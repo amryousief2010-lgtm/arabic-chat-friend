@@ -32,10 +32,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Gift, Plus, Edit, Trash2, Package, X, Clock, AlertTriangle, Bell } from 'lucide-react';
-import { format, isPast, parseISO, differenceInHours, addDays } from 'date-fns';
+import { Gift, Plus, Edit, Trash2, Package, X, Clock, AlertTriangle, Bell, CalendarDays } from 'lucide-react';
+import { format, isPast, isFuture, parseISO, differenceInHours } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 interface OfferBox {
   id: string;
@@ -43,6 +54,7 @@ interface OfferBox {
   description: string | null;
   is_active: boolean;
   created_at: string;
+  starts_at: string | null;
   expires_at: string | null;
 }
 
@@ -75,7 +87,7 @@ const OfferBoxes = () => {
   const [isItemsDialogOpen, setIsItemsDialogOpen] = useState(false);
   const [editingBox, setEditingBox] = useState<OfferBox | null>(null);
   const [selectedBox, setSelectedBox] = useState<OfferBox | null>(null);
-  const [formData, setFormData] = useState({ name: '', description: '', expires_at: '' });
+  const [formData, setFormData] = useState({ name: '', description: '', starts_at: '', expires_at: '' });
   const [newItem, setNewItem] = useState({ product_id: '', custom_price: '', quantity: '1' });
 
   // Check and deactivate expired offers on load
@@ -87,6 +99,12 @@ const OfferBoxes = () => {
   const isExpired = (expiresAt: string | null) => {
     if (!expiresAt) return false;
     return isPast(parseISO(expiresAt));
+  };
+
+  // Helper to check if offer hasn't started yet
+  const isScheduled = (startsAt: string | null) => {
+    if (!startsAt) return false;
+    return isFuture(parseISO(startsAt));
   };
 
   // Helper to check if offer expires within 24 hours
@@ -159,10 +177,11 @@ const OfferBoxes = () => {
 
   // Create box
   const createBoxMutation = useMutation({
-    mutationFn: async (data: { name: string; description: string; expires_at: string }) => {
+    mutationFn: async (data: { name: string; description: string; starts_at: string; expires_at: string }) => {
       const { error } = await supabase.from('offer_boxes').insert({
         name: data.name,
         description: data.description || null,
+        starts_at: data.starts_at || null,
         expires_at: data.expires_at || null,
         created_by: user?.id,
       });
@@ -172,7 +191,7 @@ const OfferBoxes = () => {
       queryClient.invalidateQueries({ queryKey: ['offer-boxes'] });
       toast({ title: 'تم إنشاء صندوق العرض بنجاح' });
       setIsDialogOpen(false);
-      setFormData({ name: '', description: '', expires_at: '' });
+      setFormData({ name: '', description: '', starts_at: '', expires_at: '' });
     },
     onError: () => {
       toast({ title: 'حدث خطأ', variant: 'destructive' });
@@ -181,13 +200,14 @@ const OfferBoxes = () => {
 
   // Update box
   const updateBoxMutation = useMutation({
-    mutationFn: async (data: { id: string; name: string; description: string; is_active: boolean; expires_at: string | null }) => {
+    mutationFn: async (data: { id: string; name: string; description: string; is_active: boolean; starts_at: string | null; expires_at: string | null }) => {
       const { error } = await supabase
         .from('offer_boxes')
         .update({ 
           name: data.name, 
           description: data.description, 
           is_active: data.is_active,
+          starts_at: data.starts_at || null,
           expires_at: data.expires_at || null
         })
         .eq('id', data.id);
@@ -198,7 +218,7 @@ const OfferBoxes = () => {
       toast({ title: 'تم تحديث صندوق العرض' });
       setIsDialogOpen(false);
       setEditingBox(null);
-      setFormData({ name: '', description: '', expires_at: '' });
+      setFormData({ name: '', description: '', starts_at: '', expires_at: '' });
     },
   });
 
@@ -211,6 +231,9 @@ const OfferBoxes = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['offer-boxes'] });
       toast({ title: 'تم حذف صندوق العرض' });
+    },
+    onError: (err: any) => {
+      toast({ title: 'تعذّر حذف العرض', description: err?.message || 'تحقق من الصلاحيات', variant: 'destructive' });
     },
   });
 
@@ -245,11 +268,12 @@ const OfferBoxes = () => {
       setFormData({ 
         name: box.name, 
         description: box.description || '',
+        starts_at: box.starts_at ? box.starts_at.slice(0, 16) : '',
         expires_at: box.expires_at ? box.expires_at.slice(0, 16) : ''
       });
     } else {
       setEditingBox(null);
-      setFormData({ name: '', description: '', expires_at: '' });
+      setFormData({ name: '', description: '', starts_at: '', expires_at: '' });
     }
     setIsDialogOpen(true);
   };
@@ -259,8 +283,17 @@ const OfferBoxes = () => {
       toast({ title: 'يرجى إدخال اسم العرض', variant: 'destructive' });
       return;
     }
+    if (formData.starts_at && formData.expires_at && new Date(formData.starts_at) >= new Date(formData.expires_at)) {
+      toast({ title: 'تاريخ البداية يجب أن يسبق تاريخ الانتهاء', variant: 'destructive' });
+      return;
+    }
     if (editingBox) {
-      updateBoxMutation.mutate({ ...editingBox, ...formData, expires_at: formData.expires_at || null });
+      updateBoxMutation.mutate({
+        ...editingBox,
+        ...formData,
+        starts_at: formData.starts_at || null,
+        expires_at: formData.expires_at || null,
+      });
     } else {
       createBoxMutation.mutate(formData);
     }
@@ -341,17 +374,27 @@ const OfferBoxes = () => {
                       placeholder="وصف العرض"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label>تاريخ انتهاء العرض (اختياري)</Label>
-                    <Input
-                      type="datetime-local"
-                      value={formData.expires_at}
-                      onChange={(e) => setFormData({ ...formData, expires_at: e.target.value })}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      سيتم إيقاف العرض تلقائياً عند انتهاء هذا التاريخ
-                    </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label>تاريخ بداية العرض (اختياري)</Label>
+                      <Input
+                        type="datetime-local"
+                        value={formData.starts_at}
+                        onChange={(e) => setFormData({ ...formData, starts_at: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>تاريخ انتهاء العرض (اختياري)</Label>
+                      <Input
+                        type="datetime-local"
+                        value={formData.expires_at}
+                        onChange={(e) => setFormData({ ...formData, expires_at: e.target.value })}
+                      />
+                    </div>
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    اترك تاريخ البداية فارغاً ليعمل العرض فوراً. سيتم إيقاف العرض تلقائياً عند انتهاء التاريخ.
+                  </p>
                   <Button className="w-full" onClick={handleSubmit}>
                     {editingBox ? 'حفظ التعديلات' : 'إنشاء العرض'}
                   </Button>
@@ -373,6 +416,7 @@ const OfferBoxes = () => {
           ) : (
             offerBoxes.map((box) => {
               const expired = isExpired(box.expires_at);
+              const scheduled = isScheduled(box.starts_at);
               return (
               <Card key={box.id} className={`${!box.is_active || expired ? 'opacity-60' : ''}`}>
                 <CardHeader className="pb-3">
@@ -388,13 +432,28 @@ const OfferBoxes = () => {
                           منتهي
                         </Badge>
                       )}
-                      <Badge variant={box.is_active && !expired ? 'default' : 'secondary'}>
-                        {box.is_active && !expired ? 'نشط' : 'معطل'}
+                      {scheduled && !expired && (
+                        <Badge variant="outline" className="gap-1">
+                          <CalendarDays className="h-3 w-3" />
+                          مجدول
+                        </Badge>
+                      )}
+                      <Badge variant={box.is_active && !expired && !scheduled ? 'default' : 'secondary'}>
+                        {box.is_active && !expired && !scheduled ? 'نشط' : expired ? 'منتهي' : scheduled ? 'لم يبدأ' : 'معطل'}
                       </Badge>
                     </div>
                   </div>
                   {box.description && (
                     <p className="text-sm text-muted-foreground">{box.description}</p>
+                  )}
+                  {box.starts_at && (
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                      <CalendarDays className="h-3 w-3" />
+                      <span>
+                        {scheduled ? 'يبدأ في: ' : 'بدأ في: '}
+                        {format(parseISO(box.starts_at), 'dd MMM yyyy - hh:mm a', { locale: ar })}
+                      </span>
+                    </div>
                   )}
                   {box.expires_at && (
                     <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
@@ -422,17 +481,38 @@ const OfferBoxes = () => {
                     </Button>
                     {isManager && (
                       <>
-                        <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(box)}>
+                        <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(box)} title="تعديل">
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-destructive"
-                          onClick={() => deleteBoxMutation.mutate(box.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              title="حذف العرض"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>حذف العرض "{box.name}"؟</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                سيتم حذف العرض وجميع المنتجات المرتبطة به نهائياً. لا يمكن التراجع عن هذا الإجراء.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                              <AlertDialogAction
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                onClick={() => deleteBoxMutation.mutate(box.id)}
+                              >
+                                حذف
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </>
                     )}
                   </div>
