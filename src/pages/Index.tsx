@@ -204,7 +204,7 @@ const Index = () => {
       {/* Daily / Monthly / Yearly Sales Breakdown - Hidden for sales moderators */}
       {!isModerator && (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <Card className="glass-card">
+        <Card className="glass-card cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all" onClick={() => window.location.assign('/reports')} role="button" tabIndex={0}>
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-1">
               <p className="text-sm text-muted-foreground">مبيعات اليوم</p>
@@ -214,7 +214,7 @@ const Index = () => {
             <p className="text-xs text-muted-foreground mt-1">{stats?.ordersToday || 0} طلب اليوم</p>
           </CardContent>
         </Card>
-        <Card className="glass-card">
+        <Card className="glass-card cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all" onClick={() => window.location.assign('/reports')} role="button" tabIndex={0}>
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-1">
               <p className="text-sm text-muted-foreground">مبيعات الشهر</p>
@@ -224,7 +224,7 @@ const Index = () => {
             <p className="text-xs text-muted-foreground mt-1">{stats?.ordersMonth || 0} طلب هذا الشهر</p>
           </CardContent>
         </Card>
-        <Card className="glass-card">
+        <Card className="glass-card cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all" onClick={() => window.location.assign('/reports')} role="button" tabIndex={0}>
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-1">
               <p className="text-sm text-muted-foreground">مبيعات السنة</p>
