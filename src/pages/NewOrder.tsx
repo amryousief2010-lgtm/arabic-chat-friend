@@ -274,8 +274,9 @@ const NewOrder = () => {
   };
 
   const subtotal = cart.reduce((sum, item) => {
-    const price = item.customPrice ?? item.product.price;
-    return sum + (price * item.quantity);
+    const basePrice = item.customPrice ?? item.product.price;
+    const unitPrice = item.isHalfKg ? basePrice / 2 : basePrice;
+    return sum + (unitPrice * item.quantity);
   }, 0);
   const total = subtotal - discount + deliveryFee;
 
