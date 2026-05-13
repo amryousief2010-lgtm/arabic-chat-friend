@@ -441,8 +441,8 @@ const ManufacturingQueue = () => {
                   الأصناف المطلوب تصنيعها
                 </CardTitle>
                 <div className="flex gap-2 flex-wrap">
-                  <Button variant="outline" size="sm" onClick={exportCsv} className="gap-2">
-                    <FileDown className="w-4 h-4" /> CSV
+                  <Button variant="outline" size="sm" onClick={exportXlsx} className="gap-2">
+                    <FileDown className="w-4 h-4" /> Excel
                   </Button>
                   <Button variant="outline" size="sm" onClick={exportPdf} className="gap-2">
                     <FileText className="w-4 h-4" /> PDF
