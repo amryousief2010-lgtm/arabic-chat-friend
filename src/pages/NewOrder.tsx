@@ -200,75 +200,109 @@ const NewOrder = () => {
     }
   };
 
-  const addToCart = (product: Product, customPrice?: number, isOfferItem?: boolean, isHalfKg?: boolean) => {
-    const existingItem = cart.find(item =>
-      item.product.id === product.id &&
-      item.customPrice === customPrice &&
-      item.isOfferItem === isOfferItem &&
-      item.isHalfKg === isHalfKg
-    );
+  const genCartId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-    if (existingItem) {
-      setCart(cart.map(item =>
-        item.product.id === product.id && item.customPrice === customPrice && item.isOfferItem === isOfferItem && item.isHalfKg === isHalfKg
-          ? { ...item, quantity: item.quantity + 1 }
-          : item
-      ));
-    } else {
-      setCart([...cart, { product, quantity: 1, customPrice, isOfferItem, isHalfKg }]);
+  const addToCart = (product: Product, customPrice?: number, isOfferItem?: boolean, isHalfKg?: boolean, offerBoxId?: string, offerBoxName?: string) => {
+    // For non-offer items, merge identical lines
+    if (!isOfferItem) {
+      const existingItem = cart.find(item =>
+        !item.isOfferItem &&
+        item.product.id === product.id &&
+        item.customPrice === customPrice &&
+        item.isHalfKg === isHalfKg
+      );
+      if (existingItem) {
+        setCart(cart.map(item =>
+          item.cartItemId === existingItem.cartItemId
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        ));
+        return;
+      }
     }
+    setCart(prev => [...prev, {
+      cartItemId: genCartId(),
+      product,
+      quantity: 1,
+      customPrice,
+      isOfferItem,
+      isHalfKg,
+      offerBoxId,
+      offerBoxName,
+    }]);
   };
 
-  const addOfferBoxToCart = async (offerBox: OfferBox) => {
+  // Offer preview dialog state
+  const [offerPreview, setOfferPreview] = useState<{ box: OfferBox; items: OfferPreviewItem[] } | null>(null);
+
+  const openOfferPreview = async (offerBox: OfferBox) => {
     try {
-      // Fetch offer box items with product details
       const { data: items, error } = await supabase
         .from('offer_box_items')
         .select('*')
         .eq('offer_box_id', offerBox.id);
-
       if (error) throw error;
-
       if (!items || items.length === 0) {
         toast.error('هذا العرض لا يحتوي على منتجات');
         return;
       }
-
-      // Get product details for each item
-      const productIds = items.map(item => item.product_id);
-      const { data: productData, error: productError } = await supabase
+      const productIds = items.map(i => i.product_id);
+      const { data: productData } = await supabase
         .from('products')
         .select('*')
         .in('id', productIds);
 
-      if (productError) throw productError;
-
-      // Add each item to cart with custom price (no stock check)
-      let addedCount = 0;
-      for (const item of items) {
-        const product = productData?.find(p => p.id === item.product_id);
-        if (product) {
-          for (let i = 0; i < item.quantity; i++) {
-            addToCart(product as Product, item.custom_price, true);
-          }
-          addedCount++;
-        }
-      }
-
-      if (addedCount > 0) {
-        toast.success(`تم إضافة ${addedCount} منتج من عرض "${offerBox.name}" للسلة`);
-      } else {
-        toast.error('المنتجات في هذا العرض غير متاحة حالياً');
-      }
-    } catch (error) {
-      console.error('Error adding offer box:', error);
-      toast.error('حدث خطأ أثناء إضافة العرض');
+      const previewItems: OfferPreviewItem[] = items.map(it => ({
+        id: it.id,
+        product_id: it.product_id,
+        product: (productData?.find(p => p.id === it.product_id) as Product) || null,
+        custom_price: Number(it.custom_price),
+        quantity: Number(it.quantity),
+      }));
+      setOfferPreview({ box: offerBox, items: previewItems });
+    } catch (e) {
+      console.error(e);
+      toast.error('حدث خطأ أثناء جلب تفاصيل العرض');
     }
   };
 
-  const updateQuantity = (productId: string, delta: number, customPrice?: number, isOfferItem?: boolean, isHalfKg?: boolean) => {
+  const updateOfferPreviewItem = (id: string, patch: Partial<OfferPreviewItem>) => {
+    if (!offerPreview) return;
+    setOfferPreview({
+      ...offerPreview,
+      items: offerPreview.items.map(it => it.id === id ? { ...it, ...patch } : it),
+    });
+  };
+
+  const swapOfferPreviewProduct = (id: string, newProductId: string) => {
+    const newProduct = products.find(p => p.id === newProductId);
+    if (!newProduct) return;
+    updateOfferPreviewItem(id, { product_id: newProductId, product: newProduct });
+  };
+
+  const confirmAddOfferToCart = () => {
+    if (!offerPreview) return;
+    let added = 0;
+    for (const it of offerPreview.items) {
+      if (!it.product) continue;
+      setCart(prev => [...prev, {
+        cartItemId: genCartId(),
+        product: it.product!,
+        quantity: it.quantity,
+        customPrice: it.custom_price,
+        isOfferItem: true,
+        offerBoxId: offerPreview.box.id,
+        offerBoxName: offerPreview.box.name,
+      }]);
+      added++;
+    }
+    if (added > 0) toast.success(`تم إضافة عرض "${offerPreview.box.name}" للسلة`);
+    setOfferPreview(null);
+  };
+
+  const updateQuantityById = (cartItemId: string, delta: number) => {
     setCart(cart.map(item => {
-      if (item.product.id === productId && item.customPrice === customPrice && item.isOfferItem === isOfferItem && item.isHalfKg === isHalfKg) {
+      if (item.cartItemId === cartItemId) {
         const newQuantity = item.quantity + delta;
         if (newQuantity <= 0) return item;
         return { ...item, quantity: newQuantity };
@@ -277,10 +311,18 @@ const NewOrder = () => {
     }));
   };
 
-  const removeFromCart = (productId: string, customPrice?: number, isOfferItem?: boolean, isHalfKg?: boolean) => {
-    setCart(cart.filter(item =>
-      !(item.product.id === productId && item.customPrice === customPrice && item.isOfferItem === isOfferItem && item.isHalfKg === isHalfKg)
-    ));
+  const removeFromCartById = (cartItemId: string) => {
+    setCart(cart.filter(item => item.cartItemId !== cartItemId));
+  };
+
+  const updateCartItem = (cartItemId: string, patch: Partial<CartItem>) => {
+    setCart(cart.map(item => item.cartItemId === cartItemId ? { ...item, ...patch } : item));
+  };
+
+  const swapCartProduct = (cartItemId: string, newProductId: string) => {
+    const newProduct = products.find(p => p.id === newProductId);
+    if (!newProduct) return;
+    updateCartItem(cartItemId, { product: newProduct });
   };
 
   const subtotal = cart.reduce((sum, item) => {
