@@ -164,8 +164,12 @@ interface SidebarMenuProps {
 
 export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
   const location = useLocation();
-  const { role } = useAuth();
+  const { role, profile } = useAuth();
   const { unreadCount } = useUnreadNotifications();
+  const moderatorSlug = role === 'sales_moderator'
+    ? findModeratorByName(profile?.full_name)?.slug
+    : undefined;
+  const ordersPathOverride = moderatorSlug ? `/orders/moderator/${moderatorSlug}` : null;
 
   const activeSectionId = moduleSections.find((s) =>
     s.items.some((i) => i.path === location.pathname)
