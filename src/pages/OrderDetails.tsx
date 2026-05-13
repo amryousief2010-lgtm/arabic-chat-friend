@@ -172,6 +172,17 @@ const OrderDetails = () => {
 
       if (itemsError) throw itemsError;
 
+      // Fetch product units for kg detection
+      const productIds = Array.from(new Set((itemsData || []).map((i: any) => i.product_id).filter(Boolean)));
+      const unitMap = new Map<string, string>();
+      if (productIds.length) {
+        const { data: prodData } = await supabase
+          .from('products')
+          .select('id, unit')
+          .in('id', productIds as string[]);
+        (prodData || []).forEach((p: any) => unitMap.set(p.id, p.unit));
+      }
+
       // Fetch creator's name if created_by exists
       let createdByName: string | null = null;
       if (orderData.created_by) {
@@ -201,13 +212,15 @@ const OrderDetails = () => {
         created_at: orderData.created_at,
         created_by: orderData.created_by,
         created_by_name: createdByName,
-        items: (itemsData || []).map(item => ({
+        items: (itemsData || []).map((item: any) => ({
           id: item.id,
-          product_id: (item as any).product_id ?? null,
+          product_id: item.product_id ?? null,
           product_name: item.product_name,
           quantity: Number(item.quantity),
           unit_price: Number(item.unit_price),
           total_price: Number(item.total_price),
+          is_half_kg: !!item.is_half_kg,
+          product_unit: item.product_id ? unitMap.get(item.product_id) ?? null : null,
         })),
       };
 
