@@ -20,6 +20,8 @@ import {
   Bird,
   Beef,
   Factory,
+  ClipboardList,
+  History,
   Wheat,
   Warehouse,
   ChevronDown,
