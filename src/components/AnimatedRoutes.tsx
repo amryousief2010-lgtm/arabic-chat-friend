@@ -24,6 +24,7 @@ import OrgChart from "@/pages/OrgChart";
 import NotFound from "@/pages/NotFound";
 import ImportSalesData from "@/pages/ImportSalesData";
 import ModeratorPerformance from "@/pages/ModeratorPerformance";
+import ModeratorOrdersLog from "@/pages/ModeratorOrdersLog";
 import Farm from "@/pages/modules/Farm";
 import Hatchery from "@/pages/modules/Hatchery";
 import FarmHatcheryDashboard from "@/pages/modules/FarmHatcheryDashboard";
@@ -77,6 +78,11 @@ const AnimatedRoutes = () => {
         <Route path="/orders/new" element={
           <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager']}>
             <PageTransition><NewOrder /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/orders/moderator/:slug" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager']}>
+            <PageTransition><ModeratorOrdersLog /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/orders/:id" element={

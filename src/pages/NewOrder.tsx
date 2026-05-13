@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { findModeratorBySlug, findModeratorByName } from '@/constants/moderators';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -97,7 +98,26 @@ interface CartItem {
 const NewOrder = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  
+  const [searchParams] = useSearchParams();
+
+  // Determine the moderator name to attribute this new order to.
+  // Priority: ?moderator=<slug> query param → fallback to detecting from
+  // the logged-in user's profile full_name.
+  const [moderatorName, setModeratorName] = useState<string | null>(null);
+  useEffect(() => {
+    const slug = searchParams.get('moderator');
+    if (slug) {
+      const m = findModeratorBySlug(slug);
+      if (m) { setModeratorName(m.canonicalModerator); return; }
+    }
+    (async () => {
+      if (!user) return;
+      const { data } = await supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle();
+      const m = findModeratorByName(data?.full_name);
+      if (m) setModeratorName(m.canonicalModerator);
+    })();
+  }, [user, searchParams]);
+
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [offerBoxes, setOfferBoxes] = useState<OfferBox[]>([]);
@@ -326,6 +346,7 @@ const NewOrder = () => {
           notes: notes.trim() || null,
           delivery_address: deliveryAddress.trim() || selectedCustomer.address,
           created_by: user?.id,
+          moderator: moderatorName,
         })
         .select()
         .single();
