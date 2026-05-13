@@ -87,6 +87,8 @@ const OfferBoxes = () => {
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isItemsDialogOpen, setIsItemsDialogOpen] = useState(false);
+  const [shippingBox, setShippingBox] = useState<OfferBox | null>(null);
+  const [shippingValue, setShippingValue] = useState('');
   const [editingBox, setEditingBox] = useState<OfferBox | null>(null);
   const [selectedBox, setSelectedBox] = useState<OfferBox | null>(null);
   const [formData, setFormData] = useState({ name: '', description: '', starts_at: '', expires_at: '', offer_price: '' });
