@@ -379,6 +379,18 @@ const OfferBoxes = () => {
                       placeholder="وصف العرض"
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label>سعر العرض الإجمالي (اختياري)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={formData.offer_price}
+                      onChange={(e) => setFormData({ ...formData, offer_price: e.target.value })}
+                      placeholder="مثال: 500"
+                    />
+                    <p className="text-xs text-muted-foreground">سعر إجمالي ثابت للعرض. اتركه فارغًا لاحتساب السعر تلقائيًا من المنتجات.</p>
+                  </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
                       <Label>تاريخ بداية العرض (اختياري)</Label>
