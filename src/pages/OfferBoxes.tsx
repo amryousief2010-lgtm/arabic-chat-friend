@@ -101,6 +101,12 @@ const OfferBoxes = () => {
     return isPast(parseISO(expiresAt));
   };
 
+  // Helper to check if offer hasn't started yet
+  const isScheduled = (startsAt: string | null) => {
+    if (!startsAt) return false;
+    return isFuture(parseISO(startsAt));
+  };
+
   // Helper to check if offer expires within 24 hours
   const isExpiringSoon = (expiresAt: string | null) => {
     if (!expiresAt) return false;
