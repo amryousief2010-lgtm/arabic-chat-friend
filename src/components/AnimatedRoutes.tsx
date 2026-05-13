@@ -106,6 +106,11 @@ const AnimatedRoutes = () => {
             <PageTransition><Reports /></PageTransition>
           </ProtectedRoute>
         } />
+        <Route path="/reports/customer-weight" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'financial_manager', 'warehouse_supervisor']}>
+            <PageTransition><CustomerWeightReport /></PageTransition>
+          </ProtectedRoute>
+        } />
         <Route path="/employees" element={
           <ProtectedRoute allowedRoles={['general_manager']}>
             <PageTransition><Employees /></PageTransition>
