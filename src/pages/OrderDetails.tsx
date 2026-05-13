@@ -233,6 +233,7 @@ const OrderDetails = () => {
           total_price: Number(item.total_price),
           is_half_kg: !!item.is_half_kg,
           product_unit: item.product_id ? unitMap.get(item.product_id) ?? null : null,
+          production_status: (item.production_status || 'pending') as 'pending' | 'in_progress' | 'completed',
         })),
       };
 
