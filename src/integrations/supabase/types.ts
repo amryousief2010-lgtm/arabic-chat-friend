@@ -1093,6 +1093,7 @@ export type Database = {
           order_id: string
           product_id: string | null
           product_name: string
+          production_status: string
           quantity: number
           total_price: number
           unit_price: number
@@ -1104,6 +1105,7 @@ export type Database = {
           order_id: string
           product_id?: string | null
           product_name: string
+          production_status?: string
           quantity: number
           total_price: number
           unit_price: number
@@ -1115,6 +1117,7 @@ export type Database = {
           order_id?: string
           product_id?: string | null
           product_name?: string
+          production_status?: string
           quantity?: number
           total_price?: number
           unit_price?: number
@@ -1357,6 +1360,45 @@ export type Database = {
           updated_at?: string
           user_id?: string
           year?: number
+        }
+        Relationships: []
+      }
+      stock_replenishment_log: {
+        Row: {
+          created_at: string
+          id: string
+          new_stock: number
+          notes: string | null
+          performed_by: string | null
+          performed_by_name: string | null
+          previous_stock: number
+          product_id: string
+          product_name: string
+          quantity_added: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          new_stock: number
+          notes?: string | null
+          performed_by?: string | null
+          performed_by_name?: string | null
+          previous_stock?: number
+          product_id: string
+          product_name: string
+          quantity_added: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          new_stock?: number
+          notes?: string | null
+          performed_by?: string | null
+          performed_by_name?: string | null
+          previous_stock?: number
+          product_id?: string
+          product_name?: string
+          quantity_added?: number
         }
         Relationships: []
       }
