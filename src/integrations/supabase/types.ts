@@ -1088,6 +1088,7 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          offer_price: number | null
           starts_at: string | null
           updated_at: string
         }
@@ -1099,6 +1100,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
+          offer_price?: number | null
           starts_at?: string | null
           updated_at?: string
         }
@@ -1110,6 +1112,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+          offer_price?: number | null
           starts_at?: string | null
           updated_at?: string
         }
