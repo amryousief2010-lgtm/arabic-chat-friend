@@ -1393,7 +1393,9 @@ export type Database = {
       stock_replenishment_log: {
         Row: {
           created_at: string
+          half_kg_bags: number
           id: string
+          kg_bags: number
           new_stock: number
           notes: string | null
           performed_by: string | null
@@ -1407,7 +1409,9 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          half_kg_bags?: number
           id?: string
+          kg_bags?: number
           new_stock: number
           notes?: string | null
           performed_by?: string | null
@@ -1421,7 +1425,9 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          half_kg_bags?: number
           id?: string
+          kg_bags?: number
           new_stock?: number
           notes?: string | null
           performed_by?: string | null

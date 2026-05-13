@@ -34,6 +34,8 @@ interface LogRow {
   supplier_reference: string | null;
   performed_by_name: string | null;
   notes: string | null;
+  half_kg_bags: number | null;
+  kg_bags: number | null;
   created_at: string;
 }
 
@@ -75,7 +77,7 @@ const StockReplenishmentLog = () => {
       const [logRes, prodRes] = await Promise.all([
         (supabase as any)
           .from("stock_replenishment_log")
-          .select("id, product_name, previous_stock, quantity_added, new_stock, unit_price, supplier_reference, performed_by_name, notes, created_at")
+          .select("id, product_name, previous_stock, quantity_added, new_stock, unit_price, supplier_reference, performed_by_name, notes, half_kg_bags, kg_bags, created_at")
           .order("created_at", { ascending: false })
           .limit(1000),
         supabase
@@ -171,6 +173,8 @@ const StockReplenishmentLog = () => {
         supplier_reference: supplierRef || null,
         performed_by: profile?.id ?? null,
         performed_by_name: profile?.full_name ?? null,
+        half_kg_bags: isKg ? Number(halfKgBags || 0) : 0,
+        kg_bags: isKg ? Number(kgBags || 0) : 0,
         notes: finalNotes || null,
       });
       if (logErr) throw logErr;
@@ -189,14 +193,17 @@ const StockReplenishmentLog = () => {
 
   const exportCsv = () => {
     if (filtered.length === 0) { toast.error("لا توجد بيانات"); return; }
-    const header = ["التاريخ","الصنف","قبل","الكمية المضافة","بعد","سعر الوحدة","الإجمالي","مرجع التوريد","بواسطة","ملاحظات"];
+    const header = ["التاريخ","الصنف","قبل","أكياس ½ كيلو","أكياس كيلو","الكمية المضافة","بعد","سعر الوحدة","الإجمالي","مرجع التوريد","بواسطة","ملاحظات"];
     const lines = [header.join(",")];
     filtered.forEach(r => {
       const cost = Number(r.quantity_added || 0) * Number(r.unit_price || 0);
       lines.push([
         new Date(r.created_at).toLocaleString("ar-EG"),
         `"${r.product_name}"`,
-        r.previous_stock, r.quantity_added, r.new_stock,
+        r.previous_stock,
+        r.half_kg_bags ?? 0,
+        r.kg_bags ?? 0,
+        r.quantity_added, r.new_stock,
         r.unit_price ?? 0, cost,
         `"${r.supplier_reference || ""}"`,
         `"${r.performed_by_name || ""}"`,
@@ -219,10 +226,12 @@ const StockReplenishmentLog = () => {
     doc.text(`Stock Replenishment Log${range}`, 14, 14);
     autoTable(doc, {
       startY: 20,
-      head: [["Date","Product","Before","Added","After","Unit Price","Total","Supplier Ref","By","Notes"]],
+      head: [["Date","Product","Before","½kg Bags","kg Bags","Added","After","Unit Price","Total","Supplier Ref","By","Notes"]],
       body: filtered.map(r => [
         new Date(r.created_at).toLocaleDateString("en-GB"),
-        r.product_name, r.previous_stock, r.quantity_added, r.new_stock,
+        r.product_name, r.previous_stock,
+        r.half_kg_bags ?? 0, r.kg_bags ?? 0,
+        r.quantity_added, r.new_stock,
         r.unit_price ?? 0,
         (Number(r.quantity_added || 0) * Number(r.unit_price || 0)).toFixed(2),
         r.supplier_reference || "-",
@@ -316,6 +325,8 @@ const StockReplenishmentLog = () => {
                       <TableHead className="text-right">التاريخ</TableHead>
                       <TableHead className="text-right">الصنف</TableHead>
                       <TableHead className="text-center">قبل</TableHead>
+                      <TableHead className="text-center">½ كيلو</TableHead>
+                      <TableHead className="text-center">كيلو</TableHead>
                       <TableHead className="text-center">المضاف</TableHead>
                       <TableHead className="text-center">بعد</TableHead>
                       <TableHead className="text-center">سعر الوحدة</TableHead>
@@ -333,6 +344,8 @@ const StockReplenishmentLog = () => {
                           <TableCell className="text-xs">{new Date(r.created_at).toLocaleString("ar-EG")}</TableCell>
                           <TableCell className="font-medium">{r.product_name}</TableCell>
                           <TableCell className="text-center">{r.previous_stock}</TableCell>
+                          <TableCell className="text-center">{r.half_kg_bags ? <Badge variant="secondary">{r.half_kg_bags}</Badge> : "—"}</TableCell>
+                          <TableCell className="text-center">{r.kg_bags ? <Badge variant="secondary">{r.kg_bags}</Badge> : "—"}</TableCell>
                           <TableCell className="text-center font-bold text-success">+{r.quantity_added}</TableCell>
                           <TableCell className="text-center">{r.new_stock}</TableCell>
                           <TableCell className="text-center">{r.unit_price ? Number(r.unit_price).toFixed(2) : "—"}</TableCell>
