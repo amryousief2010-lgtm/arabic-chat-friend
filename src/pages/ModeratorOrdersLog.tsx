@@ -8,7 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, ArrowRight, ShoppingCart, TrendingUp, CalendarDays, Trash2 } from "lucide-react";
+import { Plus, ArrowRight, ShoppingCart, TrendingUp, CalendarDays, Trash2, Search, ShieldCheck } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { findModeratorBySlug, isOrderForModerator } from "@/constants/moderators";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -35,6 +37,8 @@ const ModeratorOrdersLog = () => {
   const { canDeleteOrders } = useAuth();
   const moderator = findModeratorBySlug(slug);
   const [period, setPeriod] = useState<"today" | "month" | "year">("month");
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   if (!moderator) return <Navigate to="/orders" replace />;
 
@@ -80,13 +84,25 @@ const ModeratorOrdersLog = () => {
     },
   });
 
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return (data || []).filter((o: any) => {
+      if (statusFilter !== "all" && o.status !== statusFilter) return false;
+      if (!q) return true;
+      return (
+        (o.order_number || "").toLowerCase().includes(q) ||
+        (o.customers?.name || "").toLowerCase().includes(q)
+      );
+    });
+  }, [data, search, statusFilter]);
+
   const stats = useMemo(() => {
-    const list = data || [];
+    const list = visible;
     const total = list.reduce((s: number, o: any) => s + Number(o.total || 0), 0);
     const delivered = list.filter((o: any) => o.status === "delivered").length;
     const cancelled = list.filter((o: any) => o.status === "cancelled").length;
     return { count: list.length, total, delivered, cancelled };
-  }, [data]);
+  }, [visible]);
 
   const dailyBreakdown = useMemo(() => {
     const map = new Map<string, { date: string; count: number; total: number }>();
@@ -181,18 +197,54 @@ const ModeratorOrdersLog = () => {
         </CardContent>
       </Card>
 
+      {/* Privacy banner */}
+      <div className="mb-3 flex items-center gap-2 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-xs text-success">
+        <ShieldCheck className="w-4 h-4" />
+        <span>
+          هذا السجل يعرض طلباتكِ فقط — تم تأمينه بسياسات RLS على مستوى قاعدة البيانات بحيث لا يمكن لأي زميلة الاطّلاع على بياناتكِ ولا يمكنكِ الاطّلاع على بياناتها.
+        </span>
+      </div>
+
       {/* Orders list */}
       <Card className="glass-card">
-        <CardHeader>
-          <CardTitle className="text-base">تفاصيل الطلبات</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-3">
+          <CardTitle className="text-base">تفاصيل الطلبات ({visible.length})</CardTitle>
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="relative">
+              <Search className="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="بحث برقم الطلب أو اسم العميل..."
+                className="pr-8 h-9 w-64"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="h-9 w-36"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">كل الحالات</SelectItem>
+                <SelectItem value="pending">قيد الانتظار</SelectItem>
+                <SelectItem value="processing">جاري التجهيز</SelectItem>
+                <SelectItem value="shipped">تم الشحن</SelectItem>
+                <SelectItem value="delivered">تم التوصيل</SelectItem>
+                <SelectItem value="cancelled">ملغي</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
         <CardContent>
-          {isLoading ? <Skeleton className="h-64 w-full" /> : (data || []).length === 0 ? (
+          {isLoading ? <Skeleton className="h-64 w-full" /> : visible.length === 0 ? (
             <div className="text-center py-10">
-              <p className="text-muted-foreground mb-3">لا توجد طلبات بعد في هذه الفترة</p>
-              <Button onClick={() => navigate(`/orders/new?moderator=${moderator.slug}`)}>
-                <Plus className="w-4 h-4 ml-1" /> سجّلي أول طلب
-              </Button>
+              <p className="text-muted-foreground mb-3">
+                {(data || []).length === 0
+                  ? "لا توجد طلبات بعد في هذه الفترة"
+                  : "لا توجد نتائج مطابقة للبحث/الفلتر داخل سجلكِ"}
+              </p>
+              {(data || []).length === 0 && (
+                <Button onClick={() => navigate(`/orders/new?moderator=${moderator.slug}`)}>
+                  <Plus className="w-4 h-4 ml-1" /> سجّلي أول طلب
+                </Button>
+              )}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -208,7 +260,7 @@ const ModeratorOrdersLog = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {(data || []).map((o: any) => (
+                  {visible.map((o: any) => (
                     <tr key={o.id} className="border-b hover:bg-muted/40 transition-colors">
                       <td className="py-2 px-2 font-mono text-xs">{o.order_number}</td>
                       <td className="py-2 px-2">{o.customers?.name || "-"}</td>

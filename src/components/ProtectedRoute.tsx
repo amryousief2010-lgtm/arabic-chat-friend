@@ -14,14 +14,24 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
   const location = useLocation();
 
   const isDenied = !!(allowedRoles && (!role || !allowedRoles.includes(role)));
+  const moderatorTarget = role === 'sales_moderator'
+    ? (() => {
+        const m = findModeratorByName(profile?.full_name);
+        return m ? `/orders/moderator/${m.slug}` : '/orders';
+      })()
+    : '/';
 
   useEffect(() => {
     if (!loading && user && isDenied) {
-      toast.error('لا تملكين صلاحية الدخول لهذه الصفحة', {
-        description: 'تم تحويلك للصفحة الخاصة بكِ.',
+      const isDashboardAttempt = location.pathname === '/' || location.pathname.startsWith('/dashboard');
+      toast.error('🚫 لا تملكين صلاحية الدخول لهذه الصفحة', {
+        description: role === 'sales_moderator'
+          ? `${isDashboardAttempt ? 'لوحة التحكم العمومية مخصّصة للإدارة فقط. ' : ''}تم تحويلك تلقائياً إلى سجل طلباتك الخاص: ${moderatorTarget}`
+          : 'تم تحويلك للصفحة الرئيسية.',
+        duration: 6000,
       });
     }
-  }, [loading, user, isDenied]);
+  }, [loading, user, isDenied, location.pathname, role, moderatorTarget]);
 
   if (loading) {
     return (
@@ -36,10 +46,8 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
   }
 
   if (isDenied) {
-    // Sales moderators: send to their own log page rather than the global dashboard.
     if (role === 'sales_moderator') {
-      const mod = findModeratorByName(profile?.full_name);
-      return <Navigate to={mod ? `/orders/moderator/${mod.slug}` : '/orders'} replace />;
+      return <Navigate to={moderatorTarget} replace />;
     }
     return <Navigate to="/" replace />;
   }
