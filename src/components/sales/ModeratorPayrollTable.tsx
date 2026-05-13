@@ -172,12 +172,12 @@ const ModeratorPayrollTable = () => {
         .eq('month', selectedMonth)
         .eq('year', selectedYear);
       if (error) throw error;
-      return data as Array<{ moderator_name: string; processed_bonus: number | null; meat_bonus: number | null }>;
+      return data as Array<{ moderator_name: string; processed_bonus: number | null; meat_bonus: number | null; bone_bonus: number | null }>;
     },
   });
 
   const overrideMutation = useMutation({
-    mutationFn: async ({ girl, field, value }: { girl: Girl; field: 'processed_bonus' | 'meat_bonus'; value: number | null }) => {
+    mutationFn: async ({ girl, field, value }: { girl: Girl; field: 'processed_bonus' | 'meat_bonus' | 'bone_bonus'; value: number | null }) => {
       const payload: any = {
         moderator_name: girl,
         month: selectedMonth,
@@ -205,18 +205,22 @@ const ModeratorPayrollTable = () => {
       const procTier = findTier(procSales, PROCESSED_TIERS);
       const meatTier = findTier(meatSales, MEAT_TIERS);
       const calcProcBonus = procTier ? procTier.bonus * procKg : 0;
-      const calcMeatBonus = meatTier ? (meatTier.bonus * meatKg + BONE_BONUS_PER_KG * boneKg) : 0;
+      const calcMeatBonus = meatTier ? meatTier.bonus * meatKg : 0;
+      const calcBoneBonus = BONE_BONUS_PER_KG * boneKg;
       const ov = overrides.find(o => o.moderator_name === g);
       const procBonus = ov?.processed_bonus != null ? Number(ov.processed_bonus) : calcProcBonus;
       const meatBonus = ov?.meat_bonus != null ? Number(ov.meat_bonus) : calcMeatBonus;
+      const boneBonus = ov?.bone_bonus != null ? Number(ov.bone_bonus) : calcBoneBonus;
       const procOverridden = ov?.processed_bonus != null;
       const meatOverridden = ov?.meat_bonus != null;
+      const boneOverridden = ov?.bone_bonus != null;
       const base = BASE_SALARY[g];
       return {
         girl: g, base, meatKg, boneKg, procKg,
         meatSales, procSales, procTier, meatTier,
-        procBonus, meatBonus, procOverridden, meatOverridden,
-        total: base + procBonus + meatBonus,
+        procBonus, meatBonus, boneBonus,
+        procOverridden, meatOverridden, boneOverridden,
+        total: base + procBonus + meatBonus + boneBonus,
       };
     });
   }, [qty, prices, overrides]);
