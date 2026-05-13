@@ -699,7 +699,7 @@ const NewOrder = () => {
                         {offerBoxes.map((offer) => (
                           <button
                             key={offer.id}
-                            onClick={() => addOfferBoxToCart(offer)}
+                            onClick={() => openOfferPreview(offer)}
                             className="p-4 border rounded-lg text-right hover:border-primary hover:bg-primary/5 transition-all group"
                           >
                             <div className="flex items-center gap-2 mb-2">
@@ -710,7 +710,7 @@ const NewOrder = () => {
                               <p className="text-sm text-muted-foreground line-clamp-2">{offer.description}</p>
                             )}
                             <Badge className="mt-2 bg-green-100 text-green-700 hover:bg-green-100">
-                              أسعار مخفضة
+                              عرض ضع تفاصيله
                             </Badge>
                           </button>
                         ))}
