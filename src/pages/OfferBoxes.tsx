@@ -177,10 +177,11 @@ const OfferBoxes = () => {
 
   // Create box
   const createBoxMutation = useMutation({
-    mutationFn: async (data: { name: string; description: string; expires_at: string }) => {
+    mutationFn: async (data: { name: string; description: string; starts_at: string; expires_at: string }) => {
       const { error } = await supabase.from('offer_boxes').insert({
         name: data.name,
         description: data.description || null,
+        starts_at: data.starts_at || null,
         expires_at: data.expires_at || null,
         created_by: user?.id,
       });
@@ -190,7 +191,7 @@ const OfferBoxes = () => {
       queryClient.invalidateQueries({ queryKey: ['offer-boxes'] });
       toast({ title: 'تم إنشاء صندوق العرض بنجاح' });
       setIsDialogOpen(false);
-      setFormData({ name: '', description: '', expires_at: '' });
+      setFormData({ name: '', description: '', starts_at: '', expires_at: '' });
     },
     onError: () => {
       toast({ title: 'حدث خطأ', variant: 'destructive' });
@@ -199,13 +200,14 @@ const OfferBoxes = () => {
 
   // Update box
   const updateBoxMutation = useMutation({
-    mutationFn: async (data: { id: string; name: string; description: string; is_active: boolean; expires_at: string | null }) => {
+    mutationFn: async (data: { id: string; name: string; description: string; is_active: boolean; starts_at: string | null; expires_at: string | null }) => {
       const { error } = await supabase
         .from('offer_boxes')
         .update({ 
           name: data.name, 
           description: data.description, 
           is_active: data.is_active,
+          starts_at: data.starts_at || null,
           expires_at: data.expires_at || null
         })
         .eq('id', data.id);
@@ -216,7 +218,7 @@ const OfferBoxes = () => {
       toast({ title: 'تم تحديث صندوق العرض' });
       setIsDialogOpen(false);
       setEditingBox(null);
-      setFormData({ name: '', description: '', expires_at: '' });
+      setFormData({ name: '', description: '', starts_at: '', expires_at: '' });
     },
   });
 
@@ -229,6 +231,9 @@ const OfferBoxes = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['offer-boxes'] });
       toast({ title: 'تم حذف صندوق العرض' });
+    },
+    onError: (err: any) => {
+      toast({ title: 'تعذّر حذف العرض', description: err?.message || 'تحقق من الصلاحيات', variant: 'destructive' });
     },
   });
 
