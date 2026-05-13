@@ -1,8 +1,5 @@
 project_id = "ssznmzijopyxkwpctcxw"
 
-[functions.seed-manal]
-verify_jwt = false
-
 [functions.auth-email-hook]
 verify_jwt = false
 
