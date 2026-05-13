@@ -103,9 +103,12 @@ const Index = () => {
     );
   }
 
-  // Sales moderators land on the org chart first, never the global dashboard.
-  if (isModerator) {
-    return <Navigate to="/org-chart" replace />;
+  // Per-role landing: only roles whose landing IS "/" actually see the dashboard.
+  // Everyone else gets bounced to the page that fits their job (moderator → org chart,
+  // accountant → reports, warehouse → inventory, etc.).
+  const landing = getLandingForRole(role);
+  if (landing !== "/") {
+    return <Navigate to={landing} replace />;
   }
 
   return <DashboardContent />;
