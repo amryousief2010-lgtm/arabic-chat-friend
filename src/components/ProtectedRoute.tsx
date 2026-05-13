@@ -25,7 +25,7 @@ const isPathAllowedForModerator = (pathname: string) =>
   MODERATOR_ALLOWED_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'));
 
 const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
-  const { user, role, profile, loading } = useAuth();
+  const { user, role, loading } = useAuth();
   const location = useLocation();
 
   // Sales moderators land on the org chart first, then navigate from there.
