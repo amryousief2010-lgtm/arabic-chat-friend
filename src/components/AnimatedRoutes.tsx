@@ -41,6 +41,9 @@ import InventoryImport from "@/pages/modules/warehouse/InventoryImport";
 import Debug from "@/pages/Debug";
 import ExecutiveDashboards from "@/pages/ExecutiveDashboards";
 import CustomerWeightReport from "@/pages/CustomerWeightReport";
+import ManufacturingQueue from "@/pages/ManufacturingQueue";
+import StockReplenishmentLog from "@/pages/StockReplenishmentLog";
+import OrderHalfKgReport from "@/pages/OrderHalfKgReport";
 
 const RedirectWithQuery = ({ to }: { to: string }) => {
   const location = useLocation();
@@ -149,6 +152,21 @@ const AnimatedRoutes = () => {
         <Route path="/low-stock" element={
           <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'warehouse_supervisor', 'marketing_sales_manager', 'production_manager', 'quality_manager', 'sales_moderator']}>
             <PageTransition><LowStock /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/manufacturing-queue" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'warehouse_supervisor', 'production_manager', 'quality_manager']}>
+            <PageTransition><ManufacturingQueue /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/stock-replenishment-log" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'warehouse_supervisor', 'production_manager', 'accountant']}>
+            <PageTransition><StockReplenishmentLog /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/reports/order-half-kg" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'warehouse_supervisor', 'marketing_sales_manager']}>
+            <PageTransition><OrderHalfKgReport /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/install" element={

@@ -45,7 +45,19 @@ interface OrderItem {
   total_price: number;
   is_half_kg?: boolean;
   product_unit?: string | null;
+  production_status?: 'pending' | 'in_progress' | 'completed';
 }
+
+const productionStatusLabels: Record<string, string> = {
+  pending: 'بانتظار التصنيع',
+  in_progress: 'جارٍ التصنيع',
+  completed: 'مكتمل',
+};
+const productionStatusColors: Record<string, string> = {
+  pending: 'bg-warning/15 text-warning border-warning/30',
+  in_progress: 'bg-primary/15 text-primary border-primary/30',
+  completed: 'bg-success/15 text-success border-success/30',
+};
 
 const isKgUnit = (unit?: string | null) => {
   const u = (unit || '').trim().toLowerCase().replace(/\s+/g, '');
@@ -131,7 +143,7 @@ const getStatusIcon = (status: OrderStatus) => {
 const OrderDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { canUpdateOrderStatusForOrder, canUpdatePaymentStatus, isGeneralManager, isExecutiveManager, isSalesManager, isShippingCompany, isSalesModerator } = useAuth();
+  const { canUpdateOrderStatusForOrder, canUpdatePaymentStatus, isGeneralManager, isExecutiveManager, isSalesManager, isShippingCompany, isSalesModerator, canManageStock } = useAuth();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
@@ -221,6 +233,7 @@ const OrderDetails = () => {
           total_price: Number(item.total_price),
           is_half_kg: !!item.is_half_kg,
           product_unit: item.product_id ? unitMap.get(item.product_id) ?? null : null,
+          production_status: (item.production_status || 'pending') as 'pending' | 'in_progress' | 'completed',
         })),
       };
 
@@ -361,7 +374,7 @@ const OrderDetails = () => {
                     return (
                     <div
                       key={item.id}
-                      className="flex items-center justify-between p-4 rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors"
+                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors"
                     >
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -380,6 +393,32 @@ const OrderDetails = () => {
                               <span className="mr-2 text-primary font-medium">= {kg} كجم</span>
                             )}
                           </p>
+                          <div className="mt-2 flex items-center gap-2">
+                            {canManageStock ? (
+                              <select
+                                className={`text-xs px-2 py-1 rounded-md border ${productionStatusColors[item.production_status || 'pending']}`}
+                                value={item.production_status || 'pending'}
+                                onChange={async (e) => {
+                                  const newStatus = e.target.value as 'pending' | 'in_progress' | 'completed';
+                                  const { error } = await supabase
+                                    .from('order_items')
+                                    .update({ production_status: newStatus })
+                                    .eq('id', item.id);
+                                  if (error) { toast.error('تعذر تحديث حالة التصنيع'); return; }
+                                  setOrder(prev => prev ? { ...prev, items: prev.items.map(i => i.id === item.id ? { ...i, production_status: newStatus } : i) } : prev);
+                                  toast.success('تم تحديث حالة التصنيع');
+                                }}
+                              >
+                                <option value="pending">بانتظار التصنيع</option>
+                                <option value="in_progress">جارٍ التصنيع</option>
+                                <option value="completed">مكتمل</option>
+                              </select>
+                            ) : (
+                              <span className={`text-xs px-2 py-1 rounded-md border ${productionStatusColors[item.production_status || 'pending']}`}>
+                                {productionStatusLabels[item.production_status || 'pending']}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <p className="font-bold text-lg">
