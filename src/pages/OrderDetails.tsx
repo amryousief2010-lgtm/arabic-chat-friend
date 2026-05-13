@@ -45,7 +45,19 @@ interface OrderItem {
   total_price: number;
   is_half_kg?: boolean;
   product_unit?: string | null;
+  production_status?: 'pending' | 'in_progress' | 'completed';
 }
+
+const productionStatusLabels: Record<string, string> = {
+  pending: 'بانتظار التصنيع',
+  in_progress: 'جارٍ التصنيع',
+  completed: 'مكتمل',
+};
+const productionStatusColors: Record<string, string> = {
+  pending: 'bg-warning/15 text-warning border-warning/30',
+  in_progress: 'bg-primary/15 text-primary border-primary/30',
+  completed: 'bg-success/15 text-success border-success/30',
+};
 
 const isKgUnit = (unit?: string | null) => {
   const u = (unit || '').trim().toLowerCase().replace(/\s+/g, '');
