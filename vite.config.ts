@@ -86,6 +86,7 @@ export default defineConfig(({ mode }) => ({
         ],
       },
     }),
+    emitVersionJson(),
   ].filter(Boolean),
   resolve: {
     alias: {
