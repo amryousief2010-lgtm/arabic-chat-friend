@@ -1213,6 +1213,39 @@ export type Database = {
           },
         ]
       }
+      payroll_bonus_overrides: {
+        Row: {
+          created_at: string
+          id: string
+          meat_bonus: number | null
+          moderator_name: string
+          month: number
+          processed_bonus: number | null
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          meat_bonus?: number | null
+          moderator_name: string
+          month: number
+          processed_bonus?: number | null
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          meat_bonus?: number | null
+          moderator_name?: string
+          month?: number
+          processed_bonus?: number | null
+          updated_at?: string
+          year?: number
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           category: string | null
