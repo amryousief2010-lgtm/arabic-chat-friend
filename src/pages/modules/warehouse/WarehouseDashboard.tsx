@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ArrowRight, AlertTriangle, ArrowDown, ArrowUp, ArrowLeftRight, Settings2, Warehouse, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 const warehouseTypes: Record<string, string> = {
   raw_materials: "مواد خام", finished_goods: "منتج نهائي", feed: "أعلاف",
@@ -16,6 +17,7 @@ const moveIcons: Record<string, any> = { in: ArrowDown, out: ArrowUp, transfer: 
 const moveLabels: Record<string, string> = { in: "إضافة", out: "صرف", transfer: "تحويل", adjustment: "تسوية" };
 
 const WarehouseDashboard = () => {
+  const { canManageWarehouses } = useAuth();
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [items, setItems] = useState<any[]>([]);
   const [movements, setMovements] = useState<any[]>([]);
@@ -74,7 +76,11 @@ const WarehouseDashboard = () => {
               <p className="text-sm text-muted-foreground">تنبيهات المخزون وإحصائيات الحركات (آخر 7 أيام)</p>
             </div>
           </div>
-          <Link to="/modules/warehouses/import"><Button variant="outline"><Upload className="w-4 h-4 ml-2" />استيراد CSV</Button></Link>
+          {canManageWarehouses ? (
+            <Link to="/modules/warehouses/import"><Button variant="outline"><Upload className="w-4 h-4 ml-2" />استيراد CSV</Button></Link>
+          ) : (
+            <Badge variant="outline">عرض فقط</Badge>
+          )}
         </div>
 
         <div className="grid gap-4 md:grid-cols-4">
