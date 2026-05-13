@@ -47,6 +47,7 @@ import { useDashboardStats, useRecentOrders } from "@/hooks/useSalesAnalytics";
 import { useReportsData } from "@/hooks/useReportsData";
 import { useProductionStats } from "@/hooks/useProductionStats";
 import { Egg, Bird } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 const statusColors: Record<string, string> = {
   pending: "bg-warning text-warning-foreground",
@@ -88,6 +89,9 @@ const formatSales = (v: number) => {
 };
 
 const Index = () => {
+  const { role } = useAuth();
+  const isModerator = role === 'sales_moderator';
+
   const { data: stats, isLoading } = useDashboardStats();
   const { data: recentOrders, isLoading: ordersLoading } = useRecentOrders(5);
   const reportData = useReportsData("all");
@@ -323,7 +327,8 @@ const Index = () => {
         </CardContent>
       </Card>
 
-      {/* Production KPIs - Eggs & Chicks */}
+      {/* Production KPIs - Eggs & Chicks - Hidden for sales moderators */}
+      {!isModerator && (
       <Card className="glass-card mb-6">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between flex-wrap gap-3">
@@ -406,6 +411,7 @@ const Index = () => {
           </div>
         </CardContent>
       </Card>
+      )}
 
       <Tabs defaultValue="overview" className="mb-8">
         <TabsList className="grid w-full grid-cols-4 mb-6">
