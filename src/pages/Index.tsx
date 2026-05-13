@@ -91,7 +91,7 @@ const formatSales = (v: number) => {
 };
 
 const Index = () => {
-  const { role, profile, loading: authLoading } = useAuth();
+  const { role, loading: authLoading } = useAuth();
   const isModerator = role === 'sales_moderator';
 
   // Gate: while auth is loading, show only a loader — never the dashboard shell/data.
@@ -103,10 +103,9 @@ const Index = () => {
     );
   }
 
-  // Sales moderators must never see the global dashboard — redirect immediately.
+  // Sales moderators land on the org chart first, never the global dashboard.
   if (isModerator) {
-    const mod = findModeratorByName(profile?.full_name);
-    return <Navigate to={mod ? `/orders/moderator/${mod.slug}` : "/orders"} replace />;
+    return <Navigate to="/org-chart" replace />;
   }
 
   return <DashboardContent />;
