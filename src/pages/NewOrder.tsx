@@ -138,6 +138,10 @@ const NewOrder = () => {
   const [discount, setDiscount] = useState(0);
   const [notes, setNotes] = useState('');
   const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [source, setSource] = useState<string>('');
+  const [sourceCustom, setSourceCustom] = useState('');
+  const [shippingCompany, setShippingCompany] = useState<string>('');
+  const [shippingCustom, setShippingCustom] = useState('');
   
   // Search
   const [productSearch, setProductSearch] = useState('');
@@ -352,6 +356,8 @@ const NewOrder = () => {
           delivery_address: deliveryAddress.trim() || selectedCustomer.address,
           created_by: user?.id,
           moderator: moderatorName,
+          source: (source === 'أخرى' ? sourceCustom.trim() : source) || null,
+          shipping_company: (shippingCompany === 'أخرى' ? shippingCustom.trim() : shippingCompany) || null,
         })
         .select()
         .single();
@@ -803,6 +809,38 @@ const NewOrder = () => {
                           onChange={(e) => setDiscount(Number(e.target.value))}
                         />
                       </div>
+                    </div>
+
+                    {/* Source */}
+                    <div className="space-y-2">
+                      <Label>مصدر العميل</Label>
+                      <Select value={source} onValueChange={setSource}>
+                        <SelectTrigger><SelectValue placeholder="اختر المصدر" /></SelectTrigger>
+                        <SelectContent>
+                          {['فيسبوك','انستجرام','تيك توك','واتساب','تلجرام','ويب سايت','إعلان','تسويق','مكالمة','شركة الشحن','استلام من المقر','أخرى'].map(s => (
+                            <SelectItem key={s} value={s}>{s}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {source === 'أخرى' && (
+                        <Input placeholder="أدخل المصدر" value={sourceCustom} onChange={(e) => setSourceCustom(e.target.value)} />
+                      )}
+                    </div>
+
+                    {/* Shipping Company */}
+                    <div className="space-y-2">
+                      <Label>شركة الشحن</Label>
+                      <Select value={shippingCompany} onValueChange={setShippingCompany}>
+                        <SelectTrigger><SelectValue placeholder="اختر شركة الشحن" /></SelectTrigger>
+                        <SelectContent>
+                          {['مندوب من المزرعة','استلام من المزرعة','منفذ قويسنا','زودكس','العاصمة','مندوب خاص','أرامكس','بوسطة','أخرى'].map(s => (
+                            <SelectItem key={s} value={s}>{s}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {shippingCompany === 'أخرى' && (
+                        <Input placeholder="أدخل اسم شركة الشحن" value={shippingCustom} onChange={(e) => setShippingCustom(e.target.value)} />
+                      )}
                     </div>
 
                     {/* Notes */}
