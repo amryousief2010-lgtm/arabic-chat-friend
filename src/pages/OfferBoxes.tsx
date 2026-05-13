@@ -675,8 +675,6 @@ const OfferBoxes = () => {
 
         {/* Items Dialog */}
         <Dialog open={isItemsDialogOpen} onOpenChange={setIsItemsDialogOpen}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
