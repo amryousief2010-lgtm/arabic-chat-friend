@@ -691,7 +691,9 @@ const NewOrder = () => {
                       {cart.map((item, index) => {
                         const basePrice = item.customPrice ?? item.product.price;
                         const unitPrice = item.isHalfKg ? basePrice / 2 : basePrice;
-                        const kgEquivalent = item.isHalfKg ? item.quantity / 2 : null;
+                        const kgEquivalent = isKgUnit(item.product.unit)
+                          ? (item.isHalfKg ? item.quantity / 2 : item.quantity)
+                          : null;
                         return (
                         <div
                           key={`${item.product.id}-${item.customPrice}-${item.isHalfKg ? 'h' : 'f'}-${index}`}
