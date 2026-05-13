@@ -93,7 +93,10 @@ interface CartItem {
   quantity: number;
   customPrice?: number; // For offer box items
   isOfferItem?: boolean;
+  isHalfKg?: boolean; // نصف كيلو: السعر = price/2 ، الكمية 2 = 1 كيلو
 }
+
+const isKgUnit = (unit: string) => /كجم|كيلو|kg/i.test(unit || '');
 
 const NewOrder = () => {
   const navigate = useNavigate();
@@ -177,25 +180,27 @@ const NewOrder = () => {
     }
   };
 
-  const addToCart = (product: Product, customPrice?: number, isOfferItem?: boolean) => {
-    const existingItem = cart.find(item => 
-      item.product.id === product.id && 
-      item.customPrice === customPrice && 
-      item.isOfferItem === isOfferItem
+  const addToCart = (product: Product, customPrice?: number, isOfferItem?: boolean, isHalfKg?: boolean) => {
+    const maxStock = isHalfKg ? product.stock * 2 : product.stock;
+    const existingItem = cart.find(item =>
+      item.product.id === product.id &&
+      item.customPrice === customPrice &&
+      item.isOfferItem === isOfferItem &&
+      item.isHalfKg === isHalfKg
     );
-    
+
     if (existingItem) {
-      if (existingItem.quantity >= product.stock) {
+      if (existingItem.quantity >= maxStock) {
         toast.error('الكمية المطلوبة أكبر من المتاحة');
         return;
       }
       setCart(cart.map(item =>
-        item.product.id === product.id && item.customPrice === customPrice && item.isOfferItem === isOfferItem
+        item.product.id === product.id && item.customPrice === customPrice && item.isOfferItem === isOfferItem && item.isHalfKg === isHalfKg
           ? { ...item, quantity: item.quantity + 1 }
           : item
       ));
     } else {
-      setCart([...cart, { product, quantity: 1, customPrice, isOfferItem }]);
+      setCart([...cart, { product, quantity: 1, customPrice, isOfferItem, isHalfKg }]);
     }
   };
 
@@ -246,12 +251,13 @@ const NewOrder = () => {
     }
   };
 
-  const updateQuantity = (productId: string, delta: number, customPrice?: number, isOfferItem?: boolean) => {
+  const updateQuantity = (productId: string, delta: number, customPrice?: number, isOfferItem?: boolean, isHalfKg?: boolean) => {
     setCart(cart.map(item => {
-      if (item.product.id === productId && item.customPrice === customPrice && item.isOfferItem === isOfferItem) {
+      if (item.product.id === productId && item.customPrice === customPrice && item.isOfferItem === isOfferItem && item.isHalfKg === isHalfKg) {
         const newQuantity = item.quantity + delta;
         if (newQuantity <= 0) return item;
-        if (newQuantity > item.product.stock) {
+        const maxStock = isHalfKg ? item.product.stock * 2 : item.product.stock;
+        if (newQuantity > maxStock) {
           toast.error('الكمية المطلوبة أكبر من المتاحة');
           return item;
         }
@@ -261,15 +267,16 @@ const NewOrder = () => {
     }));
   };
 
-  const removeFromCart = (productId: string, customPrice?: number, isOfferItem?: boolean) => {
-    setCart(cart.filter(item => 
-      !(item.product.id === productId && item.customPrice === customPrice && item.isOfferItem === isOfferItem)
+  const removeFromCart = (productId: string, customPrice?: number, isOfferItem?: boolean, isHalfKg?: boolean) => {
+    setCart(cart.filter(item =>
+      !(item.product.id === productId && item.customPrice === customPrice && item.isOfferItem === isOfferItem && item.isHalfKg === isHalfKg)
     ));
   };
 
   const subtotal = cart.reduce((sum, item) => {
-    const price = item.customPrice ?? item.product.price;
-    return sum + (price * item.quantity);
+    const basePrice = item.customPrice ?? item.product.price;
+    const unitPrice = item.isHalfKg ? basePrice / 2 : basePrice;
+    return sum + (unitPrice * item.quantity);
   }, 0);
   const total = subtotal - discount + deliveryFee;
 
@@ -354,14 +361,19 @@ const NewOrder = () => {
       if (orderError) throw orderError;
 
       // Create order items
-      const orderItems = cart.map(item => ({
-        order_id: order.id,
-        product_id: item.product.id,
-        product_name: item.isOfferItem ? `${item.product.name} (عرض)` : item.product.name,
-        quantity: item.quantity,
-        unit_price: item.customPrice ?? item.product.price,
-        total_price: (item.customPrice ?? item.product.price) * item.quantity,
-      }));
+      const orderItems = cart.map(item => {
+        const basePrice = item.customPrice ?? item.product.price;
+        const unitPrice = item.isHalfKg ? basePrice / 2 : basePrice;
+        const nameSuffix = item.isHalfKg ? ' (نصف كيلو)' : '';
+        return {
+          order_id: order.id,
+          product_id: item.product.id,
+          product_name: (item.isOfferItem ? `${item.product.name} (عرض)` : item.product.name) + nameSuffix,
+          quantity: item.quantity,
+          unit_price: unitPrice,
+          total_price: unitPrice * item.quantity,
+        };
+      });
 
       const { error: itemsError } = await supabase
         .from('order_items')
@@ -571,21 +583,46 @@ const NewOrder = () => {
                     </div>
 
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                      {filteredProducts.map((product) => (
-                        <button
-                          key={product.id}
-                          onClick={() => addToCart(product)}
-                          className="p-4 border rounded-lg text-right hover:border-primary hover:bg-primary/5 transition-all"
-                        >
-                          <p className="font-medium text-sm line-clamp-1">{product.name}</p>
-                          <p className="text-primary font-bold mt-1">
-                            {product.price.toLocaleString()} ج.م / {product.unit}
-                          </p>
-                          <Badge variant="outline" className="mt-2 text-xs">
-                            متاح: {product.stock}
-                          </Badge>
-                        </button>
-                      ))}
+                      {filteredProducts.map((product) => {
+                        const kg = isKgUnit(product.unit);
+                        return (
+                          <div
+                            key={product.id}
+                            className="p-3 border rounded-lg text-right hover:border-primary transition-all flex flex-col"
+                          >
+                            <p className="font-medium text-sm line-clamp-1">{product.name}</p>
+                            <p className="text-primary font-bold mt-1 text-sm">
+                              {product.price.toLocaleString()} ج.م / {product.unit}
+                            </p>
+                            <Badge variant="outline" className="mt-2 text-xs self-start">
+                              متاح: {product.stock}
+                            </Badge>
+                            <div className={`mt-2 grid ${kg ? 'grid-cols-2' : 'grid-cols-1'} gap-1.5`}>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 text-xs"
+                                onClick={() => addToCart(product)}
+                              >
+                                <Plus className="w-3 h-3 ml-1" />
+                                {kg ? 'كيلو' : 'إضافة'}
+                              </Button>
+                              {kg && (
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  className="h-8 text-xs"
+                                  onClick={() => addToCart(product, undefined, false, true)}
+                                  title="2 = 1 كيلو"
+                                >
+                                  <Plus className="w-3 h-3 ml-1" />
+                                  ½ كيلو
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </TabsContent>
 
@@ -643,35 +680,36 @@ const NewOrder = () => {
                 ) : (
                   <>
                     <div className="space-y-3 max-h-64 overflow-auto">
-                      {cart.map((item, index) => (
+                      {cart.map((item, index) => {
+                        const basePrice = item.customPrice ?? item.product.price;
+                        const unitPrice = item.isHalfKg ? basePrice / 2 : basePrice;
+                        const kgEquivalent = item.isHalfKg ? item.quantity / 2 : null;
+                        return (
                         <div
-                          key={`${item.product.id}-${item.customPrice}-${index}`}
+                          key={`${item.product.id}-${item.customPrice}-${item.isHalfKg ? 'h' : 'f'}-${index}`}
                           className={`flex items-center justify-between p-3 rounded-lg ${
                             item.isOfferItem ? 'bg-green-50 dark:bg-green-950/20 border border-green-200' : 'bg-muted/50'
                           }`}
                         >
                           <div className="flex-1">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <p className="font-medium text-sm">{item.product.name}</p>
                               {item.isOfferItem && (
                                 <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
                                   عرض
                                 </Badge>
                               )}
+                              {item.isHalfKg && (
+                                <Badge variant="secondary" className="text-xs">
+                                  نصف كيلو
+                                </Badge>
+                              )}
                             </div>
                             <p className="text-sm text-muted-foreground">
-                              {item.isOfferItem && item.customPrice ? (
-                                <>
-                                  <span className="line-through text-muted-foreground/60 mr-1">
-                                    {item.product.price.toLocaleString()}
-                                  </span>
-                                  <span className="text-green-600 font-medium">
-                                    {item.customPrice.toLocaleString()}
-                                  </span>
-                                </>
-                              ) : (
-                                item.product.price.toLocaleString()
-                              )} × {item.quantity}
+                              {unitPrice.toLocaleString()} × {item.quantity}
+                              {kgEquivalent !== null && (
+                                <span className="mr-2 text-primary">= {kgEquivalent} كجم</span>
+                              )}
                             </p>
                           </div>
                           <div className="flex items-center gap-2">
@@ -679,7 +717,7 @@ const NewOrder = () => {
                               variant="outline"
                               size="icon"
                               className="h-7 w-7"
-                              onClick={() => updateQuantity(item.product.id, -1, item.customPrice, item.isOfferItem)}
+                              onClick={() => updateQuantity(item.product.id, -1, item.customPrice, item.isOfferItem, item.isHalfKg)}
                             >
                               <Minus className="w-3 h-3" />
                             </Button>
@@ -690,7 +728,7 @@ const NewOrder = () => {
                               variant="outline"
                               size="icon"
                               className="h-7 w-7"
-                              onClick={() => updateQuantity(item.product.id, 1, item.customPrice, item.isOfferItem)}
+                              onClick={() => updateQuantity(item.product.id, 1, item.customPrice, item.isOfferItem, item.isHalfKg)}
                             >
                               <Plus className="w-3 h-3" />
                             </Button>
@@ -698,13 +736,14 @@ const NewOrder = () => {
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7 text-destructive"
-                              onClick={() => removeFromCart(item.product.id, item.customPrice, item.isOfferItem)}
+                              onClick={() => removeFromCart(item.product.id, item.customPrice, item.isOfferItem, item.isHalfKg)}
                             >
                               <Trash2 className="w-3 h-3" />
                             </Button>
                           </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
 
                     {/* Delivery Address */}
