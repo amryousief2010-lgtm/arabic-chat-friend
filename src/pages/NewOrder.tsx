@@ -445,12 +445,13 @@ const NewOrder = () => {
         return {
           order_id: order.id,
           product_id: item.product.id,
-          product_name: item.isOfferItem ? `${item.product.name} (عرض)` : item.product.name,
+          product_name: item.product.name,
           quantity: item.quantity,
           unit_price: unitPrice,
           total_price: unitPrice * item.quantity,
           is_half_kg: !!item.isHalfKg,
-        };
+          offer_name: item.isOfferItem ? (item.offerBoxName || 'عرض') : null,
+        } as any;
       });
 
       const { error: itemsError } = await supabase
