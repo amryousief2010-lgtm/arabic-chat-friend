@@ -103,14 +103,24 @@ const ModeratorPayrollTable = () => {
       const empty = () => GIRLS.reduce((acc, g) => { acc[g] = 0; return acc; }, {} as Record<string, number>);
       const result = { meat: empty(), bone: empty(), processed: empty() };
 
-      const { data: orders, error } = await supabase
-        .from('orders')
-        .select('id, moderator, created_by')
-        .eq('status', 'delivered')
-        .gte('created_at', startDate)
-        .lte('created_at', endDate);
-      if (error) throw error;
-      if (!orders || orders.length === 0) return result;
+      const PAGE_ORDERS = 1000;
+      const orders: Array<{ id: string; moderator: string | null; created_by: string | null }> = [];
+      let offset = 0;
+      while (true) {
+        const { data: chunk, error } = await supabase
+          .from('orders')
+          .select('id, moderator, created_by')
+          .eq('status', 'delivered')
+          .gte('created_at', startDate)
+          .lte('created_at', endDate)
+          .range(offset, offset + PAGE_ORDERS - 1);
+        if (error) throw error;
+        if (!chunk || chunk.length === 0) break;
+        orders.push(...chunk);
+        if (chunk.length < PAGE_ORDERS) break;
+        offset += PAGE_ORDERS;
+      }
+      if (orders.length === 0) return result;
 
       const userIds = Array.from(new Set(orders.map(o => o.created_by).filter(Boolean))) as string[];
       let profileMap = new Map<string, string>();
@@ -130,13 +140,28 @@ const ModeratorPayrollTable = () => {
       const orderIds = Array.from(orderToGirl.keys());
       if (orderIds.length === 0) return result;
 
-      const { data: items, error: itemsError } = await supabase
-        .from('order_items')
-        .select('order_id, product_name, quantity')
-        .in('order_id', orderIds);
-      if (itemsError) throw itemsError;
+      // Fetch order_items in chunks (orderIds chunk + paginated rows) to avoid 1000 row limit
+      const ID_CHUNK = 200;
+      const PAGE = 1000;
+      const allItems: Array<{ order_id: string; product_name: string | null; quantity: number | null }> = [];
+      for (let i = 0; i < orderIds.length; i += ID_CHUNK) {
+        const chunk = orderIds.slice(i, i + ID_CHUNK);
+        let from = 0;
+        while (true) {
+          const { data: items, error: itemsError } = await supabase
+            .from('order_items')
+            .select('order_id, product_name, quantity')
+            .in('order_id', chunk)
+            .range(from, from + PAGE - 1);
+          if (itemsError) throw itemsError;
+          if (!items || items.length === 0) break;
+          allItems.push(...items);
+          if (items.length < PAGE) break;
+          from += PAGE;
+        }
+      }
 
-      (items || []).forEach(item => {
+      allItems.forEach(item => {
         const girl = orderToGirl.get(item.order_id);
         if (!girl) return;
         const pname = normalize(item.product_name || '');
