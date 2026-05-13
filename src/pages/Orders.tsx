@@ -58,6 +58,7 @@ interface OrderItem {
   unit_price: number;
   total_price: number;
   unit?: string;
+  offer_name?: string | null;
 }
 
 interface Order {
@@ -300,6 +301,7 @@ const Orders = () => {
             unit_price: Number(item.unit_price),
             total_price: Number(item.total_price),
             unit: (item.product_id && productsMap[item.product_id]) || 'كجم',
+            offer_name: (item as any).offer_name ?? null,
           })),
       }));
 
@@ -561,6 +563,7 @@ const Orders = () => {
                 <TableHead className="text-right">العميل</TableHead>
                 <TableHead className="text-right">الموديريتور</TableHead>
                 <TableHead className="text-right">المنتجات</TableHead>
+                <TableHead className="text-right">العرض</TableHead>
                 <TableHead className="text-right">الإجمالي</TableHead>
                 <TableHead className="text-right">طريقة الدفع</TableHead>
                 <TableHead className="text-right">حالة الدفع</TableHead>
@@ -576,7 +579,7 @@ const Orders = () => {
             <TableBody>
               {filteredOrders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={14} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={15} className="text-center py-8 text-muted-foreground">
                     لا توجد طلبات
                   </TableCell>
                 </TableRow>
@@ -597,6 +600,7 @@ const Orders = () => {
                           : order.items
                               .map((it) => {
                                 const cleaned = it.product_name
+                                  .replace(/\s*\(عرض\)\s*/g, ' ')
                                   .replace(/(^|\s)نعام(?=\s|$)/g, '$1')
                                   .replace(/\s+/g, ' ')
                                   .trim();
@@ -605,6 +609,31 @@ const Orders = () => {
                               })
                               .join(' + ')}
                       </span>
+                    </TableCell>
+                    <TableCell className="max-w-[160px]">
+                      {(() => {
+                        const offers = Array.from(
+                          new Set(
+                            order.items
+                              .map((it) =>
+                                it.offer_name ||
+                                (/(عرض)/.test(it.product_name) ? 'عرض' : null)
+                              )
+                              .filter(Boolean) as string[]
+                          )
+                        );
+                        return offers.length === 0 ? (
+                          <span className="text-muted-foreground">-</span>
+                        ) : (
+                          <div className="flex flex-wrap gap-1">
+                            {offers.map((name) => (
+                              <Badge key={name} variant="secondary" className="text-xs">
+                                {name}
+                              </Badge>
+                            ))}
+                          </div>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell className="font-bold">{order.total.toLocaleString()} ج.م</TableCell>
                     <TableCell>
