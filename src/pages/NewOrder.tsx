@@ -811,6 +811,38 @@ const NewOrder = () => {
                       </div>
                     </div>
 
+                    {/* Source */}
+                    <div className="space-y-2">
+                      <Label>مصدر العميل</Label>
+                      <Select value={source} onValueChange={setSource}>
+                        <SelectTrigger><SelectValue placeholder="اختر المصدر" /></SelectTrigger>
+                        <SelectContent>
+                          {['فيسبوك','انستجرام','تيك توك','واتساب','تلجرام','ويب سايت','إعلان','تسويق','مكالمة','شركة الشحن','استلام من المقر','أخرى'].map(s => (
+                            <SelectItem key={s} value={s}>{s}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {source === 'أخرى' && (
+                        <Input placeholder="أدخل المصدر" value={sourceCustom} onChange={(e) => setSourceCustom(e.target.value)} />
+                      )}
+                    </div>
+
+                    {/* Shipping Company */}
+                    <div className="space-y-2">
+                      <Label>شركة الشحن</Label>
+                      <Select value={shippingCompany} onValueChange={setShippingCompany}>
+                        <SelectTrigger><SelectValue placeholder="اختر شركة الشحن" /></SelectTrigger>
+                        <SelectContent>
+                          {['مندوب من المزرعة','استلام من المزرعة','منفذ قويسنا','زودكس','العاصمة','مندوب خاص','أرامكس','بوسطة','أخرى'].map(s => (
+                            <SelectItem key={s} value={s}>{s}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {shippingCompany === 'أخرى' && (
+                        <Input placeholder="أدخل اسم شركة الشحن" value={shippingCustom} onChange={(e) => setShippingCustom(e.target.value)} />
+                      )}
+                    </div>
+
                     {/* Notes */}
                     <div className="space-y-2">
                       <Label>ملاحظات</Label>
