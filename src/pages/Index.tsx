@@ -91,15 +91,9 @@ const formatSales = (v: number) => {
 };
 
 const Index = () => {
-  const { role, profile } = useAuth();
+  const { role, profile, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const isModerator = role === 'sales_moderator';
-
-  // Sales moderators don't see the global dashboard — redirect to their own log.
-  if (isModerator) {
-    const mod = findModeratorByName(profile?.full_name);
-    return <Navigate to={mod ? `/orders/moderator/${mod.slug}` : "/orders"} replace />;
-  }
 
   const { data: stats, isLoading } = useDashboardStats();
   const { data: recentOrders, isLoading: ordersLoading } = useRecentOrders(5);
@@ -116,6 +110,12 @@ const Index = () => {
     else if (kind === "year") { setProdFrom(`${now.getFullYear()}-01-01`); setProdTo(fmt(now)); }
     else { setProdFrom(""); setProdTo(""); }
   };
+
+  // Sales moderators don't see the global dashboard — redirect to their own log.
+  if (!authLoading && isModerator) {
+    const mod = findModeratorByName(profile?.full_name);
+    return <Navigate to={mod ? `/orders/moderator/${mod.slug}` : "/orders"} replace />;
+  }
 
   return (
     <DashboardLayout>
