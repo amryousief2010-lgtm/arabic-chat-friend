@@ -429,7 +429,7 @@ const ManufacturingQueue = () => {
                   </TableHeader>
                   <TableBody>
                     {filtered.map(r => (
-                      <>
+                      <Fragment key={r.product_id}>
                         <TableRow key={r.product_id} className="hover:bg-muted/50">
                           <TableCell className="font-medium">{r.product_name}</TableCell>
                           <TableCell className="text-center">
