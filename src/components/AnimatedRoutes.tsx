@@ -41,6 +41,9 @@ import InventoryImport from "@/pages/modules/warehouse/InventoryImport";
 import Debug from "@/pages/Debug";
 import ExecutiveDashboards from "@/pages/ExecutiveDashboards";
 import CustomerWeightReport from "@/pages/CustomerWeightReport";
+import ManufacturingQueue from "@/pages/ManufacturingQueue";
+import StockReplenishmentLog from "@/pages/StockReplenishmentLog";
+import OrderHalfKgReport from "@/pages/OrderHalfKgReport";
 
 const RedirectWithQuery = ({ to }: { to: string }) => {
   const location = useLocation();
