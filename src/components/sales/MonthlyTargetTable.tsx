@@ -18,7 +18,7 @@ const tiers = [
   "التارجت السابع",
 ];
 
-const categories = ["مصنعات", "لحوم", "لحوم بالعظم"] as const;
+const categories = ["مصنعات", "لحوم"] as const;
 type Category = typeof categories[number];
 
 interface BonusRow {
