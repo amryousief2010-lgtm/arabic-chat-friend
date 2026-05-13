@@ -157,7 +157,7 @@ const NewOrder = () => {
   const fetchData = async () => {
     try {
       const [productsRes, customersRes, offersRes] = await Promise.all([
-        supabase.from('products').select('*').eq('is_active', true).gt('stock', 0),
+        supabase.from('products').select('*').eq('is_active', true),
         supabase.from('customers').select('*').order('name'),
         supabase.from('offer_boxes').select('*').eq('is_active', true),
       ]);
