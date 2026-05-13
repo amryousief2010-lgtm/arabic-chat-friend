@@ -831,6 +831,12 @@ const NewOrder = () => {
                         <span className="text-muted-foreground">رسوم التوصيل</span>
                         <span>{deliveryFee.toLocaleString()} ج.م</span>
                       </div>
+                      {totalKg > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">إجمالي الوزن</span>
+                          <span className="font-medium text-primary">{totalKg.toLocaleString()} كجم</span>
+                        </div>
+                      )}
                       {discount > 0 && (
                         <div className="flex justify-between text-sm text-green-600">
                           <span>الخصم</span>
