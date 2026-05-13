@@ -46,10 +46,8 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
   }
 
   if (isDenied) {
-    // Sales moderators: send to their own log page rather than the global dashboard.
     if (role === 'sales_moderator') {
-      const mod = findModeratorByName(profile?.full_name);
-      return <Navigate to={mod ? `/orders/moderator/${mod.slug}` : '/orders'} replace />;
+      return <Navigate to={moderatorTarget} replace />;
     }
     return <Navigate to="/" replace />;
   }
