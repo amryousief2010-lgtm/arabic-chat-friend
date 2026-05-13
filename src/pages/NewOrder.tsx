@@ -356,6 +356,8 @@ const NewOrder = () => {
           delivery_address: deliveryAddress.trim() || selectedCustomer.address,
           created_by: user?.id,
           moderator: moderatorName,
+          source: (source === 'أخرى' ? sourceCustom.trim() : source) || null,
+          shipping_company: (shippingCompany === 'أخرى' ? shippingCustom.trim() : shippingCompany) || null,
         })
         .select()
         .single();
