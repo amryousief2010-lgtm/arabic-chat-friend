@@ -58,6 +58,7 @@ interface OrderItem {
   unit_price: number;
   total_price: number;
   unit?: string;
+  offer_name?: string | null;
 }
 
 interface Order {
