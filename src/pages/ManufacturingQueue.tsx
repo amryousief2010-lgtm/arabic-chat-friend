@@ -352,99 +352,111 @@ const ManufacturingQueue = () => {
     if (filtered.length === 0) { toast.error("لا توجد بيانات"); return; }
     toast.info("جاري إنشاء ملف PDF...");
 
-    // Build offscreen container so Arabic text renders correctly via the browser
-    const container = document.createElement("div");
-    container.dir = "rtl";
-    container.style.cssText = `
-      position: fixed; top: -10000px; left: 0; width: 1200px;
-      background: #ffffff; color: #111; padding: 24px;
-      font-family: "Tajawal","Cairo","Segoe UI","Arial",sans-serif;
-    `;
-    const today = new Date().toLocaleDateString("ar-EG");
-    const rowsHtml = filtered.map(r => `
-      <tr>
-        <td style="padding:8px;border:1px solid #e5e7eb;">${r.product_name}</td>
-        <td style="padding:8px;border:1px solid #e5e7eb;text-align:center;">${r.unit}</td>
-        <td style="padding:8px;border:1px solid #e5e7eb;text-align:center;">${r.current_stock}</td>
-        <td style="padding:8px;border:1px solid #e5e7eb;text-align:center;">${r.pending_quantity}</td>
-        <td style="padding:8px;border:1px solid #e5e7eb;text-align:center;color:${r.shortage>0?'#dc2626':'#111'};font-weight:${r.shortage>0?'700':'400'};">${r.shortage}</td>
-        <td style="padding:8px;border:1px solid #e5e7eb;text-align:center;">${r.affected_orders.length}</td>
-        <td style="padding:8px;border:1px solid #e5e7eb;text-align:center;font-size:11px;">${r.oldest_order_at ? new Date(r.oldest_order_at).toLocaleDateString("ar-EG") : "-"}</td>
-        <td style="padding:8px;border:1px solid #e5e7eb;text-align:center;">${priorityLabel[r.priority] || r.priority}</td>
-        <td style="padding:8px;border:1px solid #e5e7eb;text-align:center;">${statusLabel[r.mfg_status]}</td>
-      </tr>
-    `).join("");
+    await ensureArabicFonts();
 
-    container.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #7c3aed;padding-bottom:16px;margin-bottom:20px;">
+    const today = new Date().toLocaleDateString("ar-EG");
+    const ROWS_PER_PAGE = 18;
+    const totalPages = Math.max(1, Math.ceil(filtered.length / ROWS_PER_PAGE));
+    const pdf = new jsPDF("p", "mm", "a4");
+    const pageWidth = 210;
+    const pageHeight = 297;
+
+    const fontStack = `"Tajawal","Cairo","Segoe UI","Arial",sans-serif`;
+
+    const headerHtml = (pageIdx: number) => `
+      <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #7c3aed;padding-bottom:14px;margin-bottom:16px;">
         <div style="text-align:right;">
-          <h1 style="margin:0;font-size:24px;color:#7c3aed;">قائمة التصنيع المطلوبة</h1>
-          <p style="margin:4px 0 0;font-size:13px;color:#555;">شركة نعام العاصمة - Capital Ostrich Company</p>
-          <p style="margin:4px 0 0;font-size:12px;color:#777;">تاريخ التصدير: ${today}</p>
+          <h1 style="margin:0;font-size:22px;color:#7c3aed;font-family:${fontStack};font-weight:700;">قائمة التصنيع المطلوبة</h1>
+          <p style="margin:4px 0 0;font-size:13px;color:#555;font-family:${fontStack};">شركة نعام العاصمة - Capital Ostrich Company</p>
+          <p style="margin:4px 0 0;font-size:12px;color:#777;font-family:${fontStack};">تاريخ التصدير: ${today} — صفحة ${pageIdx + 1} من ${totalPages}</p>
         </div>
-        <img src="${companyLogo}" alt="logo" style="height:90px;width:auto;" crossorigin="anonymous" />
-      </div>
-      <div style="display:flex;gap:12px;margin-bottom:16px;font-size:12px;">
-        <div style="flex:1;border:1px solid #e5e7eb;border-radius:8px;padding:10px;text-align:center;">
+        <img src="${companyLogo}" alt="logo" style="height:80px;width:auto;" crossorigin="anonymous" />
+      </div>`;
+
+    const statsHtml = `
+      <div style="display:flex;gap:10px;margin-bottom:14px;font-size:12px;font-family:${fontStack};">
+        <div style="flex:1;border:1px solid #e5e7eb;border-radius:8px;padding:8px;text-align:center;">
           <div style="color:#666;">حرجة جدًا</div><div style="font-size:18px;font-weight:700;color:#dc2626;">${stats.critical}</div>
         </div>
-        <div style="flex:1;border:1px solid #e5e7eb;border-radius:8px;padding:10px;text-align:center;">
+        <div style="flex:1;border:1px solid #e5e7eb;border-radius:8px;padding:8px;text-align:center;">
           <div style="color:#666;">عجز للطلبات</div><div style="font-size:18px;font-weight:700;">${stats.high}</div>
         </div>
-        <div style="flex:1;border:1px solid #e5e7eb;border-radius:8px;padding:10px;text-align:center;">
+        <div style="flex:1;border:1px solid #e5e7eb;border-radius:8px;padding:8px;text-align:center;">
           <div style="color:#666;">منخفضة</div><div style="font-size:18px;font-weight:700;color:#f59e0b;">${stats.medium}</div>
         </div>
-        <div style="flex:1;border:1px solid #e5e7eb;border-radius:8px;padding:10px;text-align:center;">
+        <div style="flex:1;border:1px solid #e5e7eb;border-radius:8px;padding:8px;text-align:center;">
           <div style="color:#666;">إجمالي العجز</div><div style="font-size:18px;font-weight:700;color:#7c3aed;">${stats.totalShortage}</div>
         </div>
-      </div>
-      <table style="width:100%;border-collapse:collapse;font-size:12px;">
-        <thead>
-          <tr style="background:#7c3aed;color:#fff;">
-            <th style="padding:10px;border:1px solid #6d28d9;text-align:right;">الصنف</th>
-            <th style="padding:10px;border:1px solid #6d28d9;">الوحدة</th>
-            <th style="padding:10px;border:1px solid #6d28d9;">المخزون</th>
-            <th style="padding:10px;border:1px solid #6d28d9;">المطلوب</th>
-            <th style="padding:10px;border:1px solid #6d28d9;">العجز</th>
-            <th style="padding:10px;border:1px solid #6d28d9;">الطلبات</th>
-            <th style="padding:10px;border:1px solid #6d28d9;">أقدم طلب</th>
-            <th style="padding:10px;border:1px solid #6d28d9;">الأولوية</th>
-            <th style="padding:10px;border:1px solid #6d28d9;">الحالة</th>
-          </tr>
-        </thead>
-        <tbody>${rowsHtml}</tbody>
-      </table>
-      <p style="margin-top:24px;font-size:11px;color:#777;text-align:center;">
-        عدد الأصناف: ${filtered.length} — تم الإنشاء بواسطة نظام شركة نعام العاصمة
-      </p>
-    `;
-    document.body.appendChild(container);
+      </div>`;
+
+    const tableHeader = `
+      <thead>
+        <tr style="background:#7c3aed;color:#fff;">
+          <th style="padding:9px;border:1px solid #6d28d9;text-align:right;">الصنف</th>
+          <th style="padding:9px;border:1px solid #6d28d9;">الوحدة</th>
+          <th style="padding:9px;border:1px solid #6d28d9;">المخزون</th>
+          <th style="padding:9px;border:1px solid #6d28d9;">المطلوب</th>
+          <th style="padding:9px;border:1px solid #6d28d9;">العجز</th>
+          <th style="padding:9px;border:1px solid #6d28d9;">الطلبات</th>
+          <th style="padding:9px;border:1px solid #6d28d9;">أقدم طلب</th>
+          <th style="padding:9px;border:1px solid #6d28d9;">الأولوية</th>
+          <th style="padding:9px;border:1px solid #6d28d9;">الحالة</th>
+        </tr>
+      </thead>`;
 
     try {
-      const canvas = await html2canvas(container, { scale: 2, useCORS: true, backgroundColor: "#ffffff", logging: false });
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF("p", "mm", "a4");
-      const pageWidth = 210;
-      const pageHeight = 297;
-      const imgWidth = pageWidth;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
-      let position = 0;
-      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
+      for (let p = 0; p < totalPages; p++) {
+        const slice = filtered.slice(p * ROWS_PER_PAGE, (p + 1) * ROWS_PER_PAGE);
+        const rowsHtml = slice.map(r => `
+          <tr>
+            <td style="padding:7px;border:1px solid #e5e7eb;text-align:right;">${r.product_name}</td>
+            <td style="padding:7px;border:1px solid #e5e7eb;text-align:center;">${r.unit}</td>
+            <td style="padding:7px;border:1px solid #e5e7eb;text-align:center;">${r.current_stock}</td>
+            <td style="padding:7px;border:1px solid #e5e7eb;text-align:center;">${r.pending_quantity}</td>
+            <td style="padding:7px;border:1px solid #e5e7eb;text-align:center;color:${r.shortage>0?'#dc2626':'#111'};font-weight:${r.shortage>0?'700':'400'};">${r.shortage}</td>
+            <td style="padding:7px;border:1px solid #e5e7eb;text-align:center;">${r.affected_orders.length}</td>
+            <td style="padding:7px;border:1px solid #e5e7eb;text-align:center;font-size:11px;">${r.oldest_order_at ? new Date(r.oldest_order_at).toLocaleDateString("ar-EG") : "-"}</td>
+            <td style="padding:7px;border:1px solid #e5e7eb;text-align:center;">${priorityLabel[r.priority] || r.priority}</td>
+            <td style="padding:7px;border:1px solid #e5e7eb;text-align:center;">${statusLabel[r.mfg_status]}</td>
+          </tr>
+        `).join("");
+
+        const container = document.createElement("div");
+        container.dir = "rtl";
+        container.style.cssText = `
+          position: fixed; top: -10000px; left: 0; width: 1100px;
+          background: #ffffff; color: #111; padding: 24px;
+          font-family: ${fontStack};
+        `;
+        container.innerHTML = `
+          ${headerHtml(p)}
+          ${p === 0 ? statsHtml : ""}
+          <table style="width:100%;border-collapse:collapse;font-size:12px;font-family:${fontStack};">
+            ${tableHeader}
+            <tbody>${rowsHtml}</tbody>
+          </table>
+          <p style="margin-top:18px;font-size:11px;color:#777;text-align:center;font-family:${fontStack};">
+            عدد الأصناف الكلي: ${filtered.length} — تم الإنشاء بواسطة نظام شركة نعام العاصمة
+          </p>
+        `;
+        document.body.appendChild(container);
+
+        try {
+          const canvas = await html2canvas(container, { scale: 2, useCORS: true, backgroundColor: "#ffffff", logging: false });
+          const imgData = canvas.toDataURL("image/png");
+          const imgWidth = pageWidth;
+          const imgHeight = Math.min((canvas.height * imgWidth) / canvas.width, pageHeight);
+          if (p > 0) pdf.addPage();
+          pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
+        } finally {
+          document.body.removeChild(container);
+        }
       }
       pdf.save(`قائمة-التصنيع-${new Date().toISOString().split("T")[0]}.pdf`);
       toast.success("تم تصدير PDF");
     } catch (e: any) {
       console.error(e);
       toast.error("فشل تصدير PDF");
-    } finally {
-      document.body.removeChild(container);
     }
   };
 
