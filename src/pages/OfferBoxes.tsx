@@ -192,7 +192,7 @@ const OfferBoxes = () => {
       queryClient.invalidateQueries({ queryKey: ['offer-boxes'] });
       toast({ title: 'تم إنشاء صندوق العرض بنجاح' });
       setIsDialogOpen(false);
-      setFormData({ name: '', description: '', starts_at: '', expires_at: '' });
+      setFormData({ name: '', description: '', starts_at: '', expires_at: '', offer_price: '' });
     },
     onError: () => {
       toast({ title: 'حدث خطأ', variant: 'destructive' });
@@ -219,7 +219,7 @@ const OfferBoxes = () => {
       toast({ title: 'تم تحديث صندوق العرض' });
       setIsDialogOpen(false);
       setEditingBox(null);
-      setFormData({ name: '', description: '', starts_at: '', expires_at: '' });
+      setFormData({ name: '', description: '', starts_at: '', expires_at: '', offer_price: '' });
     },
   });
 
@@ -274,7 +274,7 @@ const OfferBoxes = () => {
       });
     } else {
       setEditingBox(null);
-      setFormData({ name: '', description: '', starts_at: '', expires_at: '' });
+      setFormData({ name: '', description: '', starts_at: '', expires_at: '', offer_price: '' });
     }
     setIsDialogOpen(true);
   };
