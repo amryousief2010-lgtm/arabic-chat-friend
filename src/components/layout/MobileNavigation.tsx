@@ -5,9 +5,12 @@ import {
   ShoppingCart,
   Bell,
   Menu,
+  Target,
+  Warehouse,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
+import { findModeratorByName } from "@/constants/moderators";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -15,21 +18,30 @@ import MobileSidebarContent from "./MobileSidebarContent";
 
 const MobileNavigation = () => {
   const location = useLocation();
-  const { role } = useAuth();
+  const { role, profile } = useAuth();
   const { unreadCount } = useUnreadNotifications();
   const [open, setOpen] = useState(false);
 
-  const quickNavItems = [
-    { icon: LayoutDashboard, label: "الرئيسية", path: "/" },
-    { icon: Package, label: "المنتجات", path: "/products" },
-    { icon: ShoppingCart, label: "الطلبات", path: "/orders" },
-    { icon: Bell, label: "الإشعارات", path: "/notifications", badge: unreadCount },
-  ];
+  const isModerator = role === 'sales_moderator';
+  const modSlug = isModerator ? findModeratorByName(profile?.full_name)?.slug : undefined;
+
+  const quickNavItems = isModerator
+    ? [
+        { icon: ShoppingCart, label: "طلباتي", path: modSlug ? `/orders/moderator/${modSlug}` : "/orders" },
+        { icon: Target, label: "التارجت", path: "/sales-targets" },
+        { icon: Warehouse, label: "المخزون", path: "/modules/warehouses" },
+      ]
+    : [
+        { icon: LayoutDashboard, label: "الرئيسية", path: "/" },
+        { icon: Package, label: "المنتجات", path: "/products" },
+        { icon: ShoppingCart, label: "الطلبات", path: "/orders" },
+        { icon: Bell, label: "الإشعارات", path: "/notifications", badge: unreadCount },
+      ];
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-sidebar border-t-2 border-sidebar-border z-50 md:hidden shadow-[0_-4px_20px_rgba(0,0,0,0.15)]" style={{ paddingBottom: 'env(safe-area-inset-bottom, 16px)' }}>
       <nav className="flex items-center justify-around h-18 min-h-[72px] px-2">
-        {quickNavItems.map((item) => {
+        {quickNavItems.map((item: any) => {
           const isActive = location.pathname === item.path;
           return (
             <Link

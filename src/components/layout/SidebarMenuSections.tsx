@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { useAuth, AppRole } from "@/hooks/useAuth";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
+import { findModeratorByName } from "@/constants/moderators";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
@@ -67,10 +68,10 @@ export const moduleSections: ModuleSection[] = [
     label: "1. التسويق والمبيعات",
     roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'accountant', 'warehouse_supervisor', 'marketing_sales_manager', 'financial_manager', 'quality_manager'],
     items: [
-      { icon: Package, label: "المنتجات", path: "/products", roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'warehouse_supervisor', 'marketing_sales_manager', 'quality_manager'] },
+      { icon: Package, label: "المنتجات", path: "/products", roles: ['general_manager', 'executive_manager', 'sales_manager', 'warehouse_supervisor', 'marketing_sales_manager', 'quality_manager'] },
       { icon: ShoppingCart, label: "الطلبات", path: "/orders", roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'accountant', 'warehouse_supervisor', 'marketing_sales_manager', 'financial_manager', 'quality_manager'] },
-      { icon: Users, label: "العملاء", path: "/customers", roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager'] },
-      { icon: Gift, label: "صناديق العروض", path: "/offer-boxes", roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager'] },
+      { icon: Users, label: "العملاء", path: "/customers", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager'] },
+      { icon: Gift, label: "صناديق العروض", path: "/offer-boxes", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager'] },
       { icon: Target, label: "أهداف المبيعات", path: "/sales-targets", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager'] },
       { icon: Target, label: "التارجت", path: "/sales-targets", roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager'] },
       { icon: UsersRound, label: "أداء الفريق", path: "/team-performance", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager'] },
@@ -143,7 +144,7 @@ export const moduleSections: ModuleSection[] = [
     roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager', 'quality_manager', 'sales_manager', 'marketing_sales_manager', 'sales_moderator'],
     items: [
       { icon: Warehouse, label: "إدارة المخازن", path: "/modules/warehouses", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager', 'quality_manager', 'sales_moderator'] },
-      { icon: AlertTriangle, label: "مخزون منخفض", path: "/low-stock", roles: ['general_manager', 'executive_manager', 'sales_manager', 'warehouse_supervisor', 'production_manager', 'marketing_sales_manager', 'quality_manager', 'sales_moderator'] },
+      { icon: AlertTriangle, label: "مخزون منخفض", path: "/low-stock", roles: ['general_manager', 'executive_manager', 'sales_manager', 'warehouse_supervisor', 'production_manager', 'marketing_sales_manager', 'quality_manager'] },
     ],
   },
   {
@@ -163,8 +164,12 @@ interface SidebarMenuProps {
 
 export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
   const location = useLocation();
-  const { role } = useAuth();
+  const { role, profile } = useAuth();
   const { unreadCount } = useUnreadNotifications();
+  const moderatorSlug = role === 'sales_moderator'
+    ? findModeratorByName(profile?.full_name)?.slug
+    : undefined;
+  const ordersPathOverride = moderatorSlug ? `/orders/moderator/${moderatorSlug}` : null;
 
   const activeSectionId = moduleSections.find((s) =>
     s.items.some((i) => i.path === location.pathname)
@@ -215,12 +220,13 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
             <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
               <div className="mt-1 mr-3 space-y-1 border-r-2 border-sidebar-border pr-3">
                 {section.items.map((item) => {
-                  const isActive = location.pathname === item.path;
+                  const targetPath = ordersPathOverride && item.path === "/orders" ? ordersPathOverride : item.path;
+                  const isActive = location.pathname === targetPath;
                   const showBadge = item.path === "/notifications" && unreadCount > 0;
                   return (
                     <Link
                       key={item.path}
-                      to={item.path}
+                      to={targetPath}
                       onClick={onItemClick}
                       className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
                         isActive
