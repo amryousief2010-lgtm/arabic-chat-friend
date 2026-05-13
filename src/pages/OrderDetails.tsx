@@ -43,7 +43,19 @@ interface OrderItem {
   quantity: number;
   unit_price: number;
   total_price: number;
+  is_half_kg?: boolean;
+  product_unit?: string | null;
 }
+
+const isKgUnit = (unit?: string | null) => {
+  const u = (unit || '').trim().toLowerCase().replace(/\s+/g, '');
+  return /^(كجم|كيلو|كيلوجرام|كيلوغرام|كغم|كغ|kg|kgs|kilogram|kilogramme|kilo)$/i.test(u);
+};
+const itemKg = (it: { is_half_kg?: boolean; quantity: number; product_unit?: string | null }) => {
+  if (it.is_half_kg) return it.quantity / 2;
+  if (isKgUnit(it.product_unit)) return it.quantity;
+  return null;
+};
 
 interface Order {
   id: string;
