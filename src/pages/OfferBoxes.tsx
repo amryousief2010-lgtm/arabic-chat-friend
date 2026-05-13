@@ -32,10 +32,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Gift, Plus, Edit, Trash2, Package, X, Clock, AlertTriangle, Bell } from 'lucide-react';
-import { format, isPast, parseISO, differenceInHours, addDays } from 'date-fns';
+import { Gift, Plus, Edit, Trash2, Package, X, Clock, AlertTriangle, Bell, CalendarDays } from 'lucide-react';
+import { format, isPast, isFuture, parseISO, differenceInHours } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 interface OfferBox {
   id: string;
@@ -43,6 +54,7 @@ interface OfferBox {
   description: string | null;
   is_active: boolean;
   created_at: string;
+  starts_at: string | null;
   expires_at: string | null;
 }
 
