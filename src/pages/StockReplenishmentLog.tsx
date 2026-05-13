@@ -34,6 +34,8 @@ interface LogRow {
   supplier_reference: string | null;
   performed_by_name: string | null;
   notes: string | null;
+  half_kg_bags: number | null;
+  kg_bags: number | null;
   created_at: string;
 }
 
