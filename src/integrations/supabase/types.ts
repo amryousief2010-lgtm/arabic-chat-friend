@@ -1098,6 +1098,7 @@ export type Database = {
           is_active: boolean
           name: string
           offer_price: number | null
+          shipping_cost: number | null
           starts_at: string | null
           updated_at: string
         }
@@ -1110,6 +1111,7 @@ export type Database = {
           is_active?: boolean
           name: string
           offer_price?: number | null
+          shipping_cost?: number | null
           starts_at?: string | null
           updated_at?: string
         }
@@ -1122,6 +1124,7 @@ export type Database = {
           is_active?: boolean
           name?: string
           offer_price?: number | null
+          shipping_cost?: number | null
           starts_at?: string | null
           updated_at?: string
         }
