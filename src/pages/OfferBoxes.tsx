@@ -791,15 +791,19 @@ const OfferBoxes = () => {
                   <TableBody>
                     {boxItems.map((item) => {
                       const originalItemPrice = item.product?.price || 0;
-                      const savings = ((originalItemPrice - item.custom_price) / originalItemPrice) * 100;
+                      const lineOriginal = originalItemPrice * item.quantity;
+                      const lineCustom = item.custom_price * item.quantity;
+                      const savings = originalItemPrice > 0
+                        ? ((originalItemPrice - item.custom_price) / originalItemPrice) * 100
+                        : 0;
                       return (
                         <TableRow key={item.id}>
                           <TableCell className="font-medium">{item.product?.name}</TableCell>
                           <TableCell className="line-through text-muted-foreground">
-                            {originalItemPrice} ج.م
+                            {lineOriginal.toLocaleString()} ج.م
                           </TableCell>
                           <TableCell className="text-green-600 font-semibold">
-                            {item.custom_price} ج.م
+                            {lineCustom.toLocaleString()} ج.م
                           </TableCell>
                           <TableCell>{item.quantity}</TableCell>
                           <TableCell>
