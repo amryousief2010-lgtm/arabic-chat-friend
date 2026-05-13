@@ -75,6 +75,8 @@ const Products = () => {
   const canAddProducts = role === 'general_manager' || role === 'executive_manager' || role === 'sales_manager' || role === 'warehouse_supervisor';
   const canEditPrice = role === 'general_manager' || role === 'executive_manager' || role === 'sales_manager' || role === 'accountant';
   const canManageProducts = role === 'general_manager' || role === 'executive_manager' || role === 'sales_manager' || role === 'warehouse_supervisor';
+  const isModerator = role === 'sales_moderator';
+  const canViewFinancials = !isModerator;
 
   // Fetch products from Supabase
   const { data: products = [], isLoading } = useQuery({
@@ -233,7 +235,7 @@ const Products = () => {
     <DashboardLayout>
       <Header title="المنتجات" subtitle="إدارة منتجات لحوم النعام" />
       
-      <ProductsAnalytics products={filteredProducts} />
+      {canViewFinancials && <ProductsAnalytics products={filteredProducts} />}
 
       <Card className="glass-card">
         <CardHeader className="flex flex-row items-center justify-between">
@@ -376,7 +378,7 @@ const Products = () => {
                 <TableRow>
                   <TableHead className="text-right">المنتج</TableHead>
                   <TableHead className="text-right">التصنيف</TableHead>
-                  <TableHead className="text-right">السعر</TableHead>
+                  {canViewFinancials && <TableHead className="text-right">السعر</TableHead>}
                   <TableHead className="text-right">المخزون</TableHead>
                   <TableHead className="text-right">الحالة</TableHead>
                   {canManageProducts && <TableHead className="text-right">الإجراءات</TableHead>}
@@ -400,12 +402,14 @@ const Products = () => {
                     <TableCell>
                       <Badge variant="outline">{product.category}</Badge>
                     </TableCell>
-                    <TableCell className="font-semibold">
-                      {product.price} ج.م / {product.unit}
-                    </TableCell>
+                    {canViewFinancials && (
+                      <TableCell className="font-semibold">
+                        {product.price} ج.م / {product.unit}
+                      </TableCell>
+                    )}
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <span className="font-medium">{product.stock}</span>
+                        <span className="font-medium">{product.stock} {product.unit}</span>
                         {canManageStock && (
                           <Popover>
                             <PopoverTrigger asChild>
