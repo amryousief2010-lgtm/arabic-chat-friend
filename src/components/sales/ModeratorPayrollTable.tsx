@@ -130,13 +130,28 @@ const ModeratorPayrollTable = () => {
       const orderIds = Array.from(orderToGirl.keys());
       if (orderIds.length === 0) return result;
 
-      const { data: items, error: itemsError } = await supabase
-        .from('order_items')
-        .select('order_id, product_name, quantity')
-        .in('order_id', orderIds);
-      if (itemsError) throw itemsError;
+      // Fetch order_items in chunks (orderIds chunk + paginated rows) to avoid 1000 row limit
+      const ID_CHUNK = 200;
+      const PAGE = 1000;
+      const allItems: Array<{ order_id: string; product_name: string | null; quantity: number | null }> = [];
+      for (let i = 0; i < orderIds.length; i += ID_CHUNK) {
+        const chunk = orderIds.slice(i, i + ID_CHUNK);
+        let from = 0;
+        while (true) {
+          const { data: items, error: itemsError } = await supabase
+            .from('order_items')
+            .select('order_id, product_name, quantity')
+            .in('order_id', chunk)
+            .range(from, from + PAGE - 1);
+          if (itemsError) throw itemsError;
+          if (!items || items.length === 0) break;
+          allItems.push(...items);
+          if (items.length < PAGE) break;
+          from += PAGE;
+        }
+      }
 
-      (items || []).forEach(item => {
+      allItems.forEach(item => {
         const girl = orderToGirl.get(item.order_id);
         if (!girl) return;
         const pname = normalize(item.product_name || '');
