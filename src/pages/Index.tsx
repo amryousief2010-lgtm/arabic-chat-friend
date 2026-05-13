@@ -327,7 +327,8 @@ const Index = () => {
         </CardContent>
       </Card>
 
-      {/* Production KPIs - Eggs & Chicks */}
+      {/* Production KPIs - Eggs & Chicks - Hidden for sales moderators */}
+      {!isModerator && (
       <Card className="glass-card mb-6">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between flex-wrap gap-3">
@@ -410,6 +411,7 @@ const Index = () => {
           </div>
         </CardContent>
       </Card>
+      )}
 
       <Tabs defaultValue="overview" className="mb-8">
         <TabsList className="grid w-full grid-cols-4 mb-6">
