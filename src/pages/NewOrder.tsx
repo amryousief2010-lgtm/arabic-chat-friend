@@ -575,6 +575,42 @@ const NewOrder = () => {
                             onChange={(e) => setNewCustomerCity(e.target.value)}
                           />
                         </div>
+                        <div className="space-y-2">
+                          <Label>المحافظة</Label>
+                          <Input
+                            placeholder="المحافظة"
+                            value={newCustomerGovernorate}
+                            onChange={(e) => setNewCustomerGovernorate(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>مصدر العميل</Label>
+                          <Select value={newCustomerSource} onValueChange={setNewCustomerSource}>
+                            <SelectTrigger><SelectValue placeholder="اختر المصدر" /></SelectTrigger>
+                            <SelectContent>
+                              {['فيسبوك','انستجرام','تيك توك','واتساب','تلجرام','ويب سايت','إعلان','تسويق','مكالمة','شركة الشحن','استلام من المقر','أخرى'].map(s => (
+                                <SelectItem key={s} value={s}>{s}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {newCustomerSource === 'أخرى' && (
+                            <Input placeholder="أدخل المصدر" value={newCustomerSourceCustom} onChange={(e) => setNewCustomerSourceCustom(e.target.value)} />
+                          )}
+                        </div>
+                        <div className="space-y-2">
+                          <Label>شركة الشحن</Label>
+                          <Select value={newCustomerShipping} onValueChange={setNewCustomerShipping}>
+                            <SelectTrigger><SelectValue placeholder="اختر شركة الشحن" /></SelectTrigger>
+                            <SelectContent>
+                              {['مندوب من المزرعة','استلام من المزرعة','منفذ قويسنا','زودكس','العاصمة','مندوب خاص','أرامكس','بوسطة','أخرى'].map(s => (
+                                <SelectItem key={s} value={s}>{s}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {newCustomerShipping === 'أخرى' && (
+                            <Input placeholder="أدخل اسم شركة الشحن" value={newCustomerShippingCustom} onChange={(e) => setNewCustomerShippingCustom(e.target.value)} />
+                          )}
+                        </div>
                       </div>
                       <DialogFooter>
                         <Button variant="outline" onClick={() => setIsNewCustomerOpen(false)}>
