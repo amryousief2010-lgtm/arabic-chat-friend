@@ -537,7 +537,7 @@ const NewOrder = () => {
                         عميل جديد
                       </Button>
                     </DialogTrigger>
-                    <DialogContent dir="rtl">
+                    <DialogContent dir="rtl" className="max-h-[90vh] overflow-y-auto">
                       <DialogHeader>
                         <DialogTitle>إضافة عميل جديد</DialogTitle>
                         <DialogDescription>أدخل بيانات العميل الجديد</DialogDescription>
