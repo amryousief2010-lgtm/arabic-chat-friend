@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { exportToPDF, exportToExcel } from "@/utils/exportReports";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -90,6 +91,7 @@ const formatSales = (v: number) => {
 
 const Index = () => {
   const { role } = useAuth();
+  const navigate = useNavigate();
   const isModerator = role === 'sales_moderator';
 
   const { data: stats, isLoading } = useDashboardStats();
@@ -170,6 +172,7 @@ const Index = () => {
           changeType="positive"
           icon={DollarSign}
           iconColor="bg-success"
+          to="/reports"
         />
         <StatCard
           title="الطلبات"
@@ -178,6 +181,7 @@ const Index = () => {
           changeType="positive"
           icon={ShoppingCart}
           iconColor="bg-primary"
+          to="/orders"
         />
         <StatCard
           title="العملاء"
@@ -186,6 +190,7 @@ const Index = () => {
           changeType="positive"
           icon={Users}
           iconColor="bg-secondary"
+          to="/customers"
         />
         <StatCard
           title="منتجات قليلة المخزون"
@@ -194,13 +199,14 @@ const Index = () => {
           changeType="negative"
           icon={Package}
           iconColor="bg-destructive"
+          to="/low-stock"
         />
       </div>
 
       {/* Daily / Monthly / Yearly Sales Breakdown - Hidden for sales moderators */}
       {!isModerator && (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <Card className="glass-card">
+        <Card className="glass-card cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all" onClick={() => navigate('/reports')} role="button" tabIndex={0}>
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-1">
               <p className="text-sm text-muted-foreground">مبيعات اليوم</p>
@@ -210,7 +216,7 @@ const Index = () => {
             <p className="text-xs text-muted-foreground mt-1">{stats?.ordersToday || 0} طلب اليوم</p>
           </CardContent>
         </Card>
-        <Card className="glass-card">
+        <Card className="glass-card cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all" onClick={() => navigate('/reports')} role="button" tabIndex={0}>
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-1">
               <p className="text-sm text-muted-foreground">مبيعات الشهر</p>
@@ -220,7 +226,7 @@ const Index = () => {
             <p className="text-xs text-muted-foreground mt-1">{stats?.ordersMonth || 0} طلب هذا الشهر</p>
           </CardContent>
         </Card>
-        <Card className="glass-card">
+        <Card className="glass-card cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all" onClick={() => navigate('/reports')} role="button" tabIndex={0}>
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-1">
               <p className="text-sm text-muted-foreground">مبيعات السنة</p>
@@ -314,7 +320,7 @@ const Index = () => {
                 </thead>
                 <tbody>
                   {recentOrders?.map((o: any) => (
-                    <tr key={o.id} className="border-b hover:bg-muted/40 transition-colors">
+                    <tr key={o.id} className="border-b hover:bg-muted/40 transition-colors cursor-pointer" onClick={() => navigate(`/orders/${o.id}`)} role="button" tabIndex={0}>
                       <td className="py-2 px-2 font-mono text-xs">{o.order_number}</td>
                       <td className="py-2 px-2">{(o.customers as any)?.name || "-"}</td>
                       <td className="py-2 px-2 text-xs text-muted-foreground">{new Date(o.created_at).toLocaleDateString("ar-EG")}</td>
