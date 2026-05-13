@@ -80,11 +80,20 @@ const Header = ({ title, subtitle }: HeaderProps) => {
           />
         </div>
 
-        <Button variant="outline" size="icon" className="relative">
+        <Button
+          variant="outline"
+          size="icon"
+          className="relative"
+          onClick={() => navigate('/notifications')}
+          aria-label="الإشعارات"
+          title="الإشعارات"
+        >
           <Bell className="w-5 h-5" />
-          <span className="absolute -top-1 -left-1 w-4 h-4 bg-secondary text-secondary-foreground text-xs rounded-full flex items-center justify-center">
-            3
-          </span>
+          {unreadCount > 0 && (
+            <span className="absolute -top-1 -left-1 min-w-4 h-4 px-1 bg-secondary text-secondary-foreground text-xs rounded-full flex items-center justify-center">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
         </Button>
 
         <DropdownMenu>
