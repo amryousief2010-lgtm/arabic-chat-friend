@@ -289,12 +289,63 @@ const ManufacturingQueue = () => {
       "الحالة": statusLabel[r.mfg_status],
     }));
     const ws = XLSX.utils.json_to_sheet(data);
-    ws["!cols"] = [{ wch: 28 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 12 }];
+    ws["!cols"] = [
+      { wch: 32 }, { wch: 10 }, { wch: 12 }, { wch: 12 },
+      { wch: 12 }, { wch: 14 }, { wch: 16 }, { wch: 14 }, { wch: 14 },
+    ];
+    // Sheet-level RTL view + alignment per cell
     (ws as any)["!RTL"] = true;
+    (ws as any)["!views"] = [{ RTL: true }];
+    const range = XLSX.utils.decode_range(ws["!ref"] || "A1");
+    for (let R = range.s.r; R <= range.e.r; R++) {
+      for (let C = range.s.c; C <= range.e.c; C++) {
+        const addr = XLSX.utils.encode_cell({ r: R, c: C });
+        const cell = (ws as any)[addr];
+        if (!cell) continue;
+        const isHeader = R === 0;
+        const isText = C === 0 || C === 1 || C === 6 || C === 7 || C === 8;
+        cell.s = {
+          alignment: {
+            horizontal: isHeader ? "center" : (isText ? "right" : "center"),
+            vertical: "center",
+            readingOrder: 2, // RTL
+            wrapText: true,
+          },
+          font: { name: "Tajawal", sz: isHeader ? 12 : 11, bold: isHeader },
+          ...(isHeader ? { fill: { fgColor: { rgb: "7C3AED" } } } : {}),
+        };
+      }
+    }
     const wb = XLSX.utils.book_new();
+    (wb as any).Workbook = { Views: [{ RTL: true }] };
     XLSX.utils.book_append_sheet(wb, ws, "قائمة التصنيع");
-    XLSX.writeFile(wb, `قائمة-التصنيع-${new Date().toISOString().split("T")[0]}.xlsx`);
+    XLSX.writeFile(wb, `قائمة-التصنيع-${new Date().toISOString().split("T")[0]}.xlsx`, { cellStyles: true });
     toast.success("تم تصدير Excel");
+  };
+
+  // Ensure Arabic web fonts are loaded before html2canvas snapshots the DOM
+  const ensureArabicFonts = async () => {
+    const id = "arabic-pdf-fonts";
+    if (!document.getElementById(id)) {
+      const link = document.createElement("link");
+      link.id = id;
+      link.rel = "stylesheet";
+      link.href = "https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Tajawal:wght@400;500;700&display=swap";
+      document.head.appendChild(link);
+    }
+    try {
+      // @ts-ignore
+      if (document.fonts?.load) {
+        await Promise.all([
+          (document as any).fonts.load('700 16px "Tajawal"'),
+          (document as any).fonts.load('400 14px "Tajawal"'),
+          (document as any).fonts.load('700 16px "Cairo"'),
+        ]);
+        await (document as any).fonts.ready;
+      } else {
+        await new Promise(res => setTimeout(res, 800));
+      }
+    } catch { /* ignore */ }
   };
 
   const exportPdf = async () => {
