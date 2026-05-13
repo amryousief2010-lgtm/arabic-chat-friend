@@ -583,21 +583,46 @@ const NewOrder = () => {
                     </div>
 
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                      {filteredProducts.map((product) => (
-                        <button
-                          key={product.id}
-                          onClick={() => addToCart(product)}
-                          className="p-4 border rounded-lg text-right hover:border-primary hover:bg-primary/5 transition-all"
-                        >
-                          <p className="font-medium text-sm line-clamp-1">{product.name}</p>
-                          <p className="text-primary font-bold mt-1">
-                            {product.price.toLocaleString()} ج.م / {product.unit}
-                          </p>
-                          <Badge variant="outline" className="mt-2 text-xs">
-                            متاح: {product.stock}
-                          </Badge>
-                        </button>
-                      ))}
+                      {filteredProducts.map((product) => {
+                        const kg = isKgUnit(product.unit);
+                        return (
+                          <div
+                            key={product.id}
+                            className="p-3 border rounded-lg text-right hover:border-primary transition-all flex flex-col"
+                          >
+                            <p className="font-medium text-sm line-clamp-1">{product.name}</p>
+                            <p className="text-primary font-bold mt-1 text-sm">
+                              {product.price.toLocaleString()} ج.م / {product.unit}
+                            </p>
+                            <Badge variant="outline" className="mt-2 text-xs self-start">
+                              متاح: {product.stock}
+                            </Badge>
+                            <div className={`mt-2 grid ${kg ? 'grid-cols-2' : 'grid-cols-1'} gap-1.5`}>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 text-xs"
+                                onClick={() => addToCart(product)}
+                              >
+                                <Plus className="w-3 h-3 ml-1" />
+                                {kg ? 'كيلو' : 'إضافة'}
+                              </Button>
+                              {kg && (
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  className="h-8 text-xs"
+                                  onClick={() => addToCart(product, undefined, false, true)}
+                                  title="2 = 1 كيلو"
+                                >
+                                  <Plus className="w-3 h-3 ml-1" />
+                                  ½ كيلو
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </TabsContent>
 
