@@ -77,7 +77,7 @@ const StockReplenishmentLog = () => {
       const [logRes, prodRes] = await Promise.all([
         (supabase as any)
           .from("stock_replenishment_log")
-          .select("id, product_name, previous_stock, quantity_added, new_stock, unit_price, supplier_reference, performed_by_name, notes, created_at")
+          .select("id, product_name, previous_stock, quantity_added, new_stock, unit_price, supplier_reference, performed_by_name, notes, half_kg_bags, kg_bags, created_at")
           .order("created_at", { ascending: false })
           .limit(1000),
         supabase
