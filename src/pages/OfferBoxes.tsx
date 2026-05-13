@@ -150,6 +150,25 @@ const OfferBoxes = () => {
     },
   });
 
+  // Fetch item counts for all boxes
+  const { data: boxItemCounts = {} } = useQuery({
+    queryKey: ['offer-box-item-counts', offerBoxes.map(b => b.id).join(',')],
+    queryFn: async () => {
+      if (offerBoxes.length === 0) return {} as Record<string, number>;
+      const { data, error } = await supabase
+        .from('offer_box_items')
+        .select('offer_box_id')
+        .in('offer_box_id', offerBoxes.map(b => b.id));
+      if (error) throw error;
+      const counts: Record<string, number> = {};
+      (data || []).forEach((row: any) => {
+        counts[row.offer_box_id] = (counts[row.offer_box_id] || 0) + 1;
+      });
+      return counts;
+    },
+    enabled: offerBoxes.length > 0,
+  });
+
   // Fetch items for selected box
   const { data: boxItems = [] } = useQuery({
     queryKey: ['offer-box-items', selectedBox?.id],
@@ -248,8 +267,12 @@ const OfferBoxes = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['offer-box-items'] });
+      queryClient.invalidateQueries({ queryKey: ['offer-box-item-counts'] });
       toast({ title: 'تم إضافة المنتج' });
       setNewItem({ product_id: '', custom_price: '', quantity: '1' });
+    },
+    onError: (e: any) => {
+      toast({ title: 'فشل إضافة المنتج', description: e?.message || 'خطأ غير معروف', variant: 'destructive' });
     },
   });
 
@@ -261,7 +284,11 @@ const OfferBoxes = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['offer-box-items'] });
+      queryClient.invalidateQueries({ queryKey: ['offer-box-item-counts'] });
       toast({ title: 'تم حذف المنتج' });
+    },
+    onError: (e: any) => {
+      toast({ title: 'فشل الحذف', description: e?.message || 'خطأ غير معروف', variant: 'destructive' });
     },
   });
 
@@ -490,9 +517,22 @@ const OfferBoxes = () => {
                   )}
                 </CardHeader>
                 <CardContent>
+                  {(() => {
+                    const itemCount = boxItemCounts[box.id] || 0;
+                    return itemCount === 0 ? (
+                      <div className="mb-3 p-2 rounded-md bg-destructive/10 border border-destructive/30 text-xs text-destructive flex items-center gap-2">
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                        <span>هذا العرض لا يحتوي على منتجات بعد. اضغط "إدارة المنتجات" لإضافتها.</span>
+                      </div>
+                    ) : (
+                      <div className="mb-3 text-xs text-muted-foreground">
+                        عدد المنتجات داخل العرض: <span className="font-bold text-foreground">{itemCount}</span>
+                      </div>
+                    );
+                  })()}
                   <div className="flex items-center gap-2">
                     <Button
-                      variant="outline"
+                      variant={(boxItemCounts[box.id] || 0) === 0 ? 'default' : 'outline'}
                       size="sm"
                       className="flex-1"
                       onClick={() => {
