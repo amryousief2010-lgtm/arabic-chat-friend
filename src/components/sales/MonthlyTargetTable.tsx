@@ -54,9 +54,10 @@ const MonthlyTargetTable = () => {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, field, value }: { id: string; field: "sales_amount" | "bonus_amount"; value: number }) => {
+      const payload: any = { [field]: value };
       const { error } = await supabase
         .from("target_bonus_settings")
-        .update({ [field]: value })
+        .update(payload)
         .eq("id", id);
       if (error) throw error;
     },
