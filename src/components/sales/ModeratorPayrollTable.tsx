@@ -269,6 +269,15 @@ const ModeratorPayrollTable = () => {
               {rows.map(r => <TableCell key={r.girl} className="text-center border font-bold text-primary">{fmt(r.meatBonus)}</TableCell>)}
             </TableRow>
 
+            <TableRow className="bg-accent/20">
+              <TableCell className="font-bold border text-accent-foreground">إجمالي البونص (ج.م)</TableCell>
+              {rows.map(r => (
+                <TableCell key={r.girl} className="text-center border font-bold text-primary">
+                  {fmt(r.procBonus + r.meatBonus)}
+                </TableCell>
+              ))}
+            </TableRow>
+
             <TableRow className="bg-primary/15">
               <TableCell className="font-bold border text-primary">إجمالي القبض (ج.م)</TableCell>
               {rows.map(r => (
