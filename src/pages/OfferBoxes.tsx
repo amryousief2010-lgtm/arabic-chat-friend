@@ -178,12 +178,13 @@ const OfferBoxes = () => {
 
   // Create box
   const createBoxMutation = useMutation({
-    mutationFn: async (data: { name: string; description: string; starts_at: string; expires_at: string }) => {
+    mutationFn: async (data: { name: string; description: string; starts_at: string; expires_at: string; offer_price: string }) => {
       const { error } = await supabase.from('offer_boxes').insert({
         name: data.name,
         description: data.description || null,
         starts_at: data.starts_at || null,
         expires_at: data.expires_at || null,
+        offer_price: data.offer_price ? Number(data.offer_price) : null,
         created_by: user?.id,
       });
       if (error) throw error;
@@ -201,7 +202,7 @@ const OfferBoxes = () => {
 
   // Update box
   const updateBoxMutation = useMutation({
-    mutationFn: async (data: { id: string; name: string; description: string; is_active: boolean; starts_at: string | null; expires_at: string | null }) => {
+    mutationFn: async (data: { id: string; name: string; description: string; is_active: boolean; starts_at: string | null; expires_at: string | null; offer_price: string | null }) => {
       const { error } = await supabase
         .from('offer_boxes')
         .update({ 
@@ -209,7 +210,8 @@ const OfferBoxes = () => {
           description: data.description, 
           is_active: data.is_active,
           starts_at: data.starts_at || null,
-          expires_at: data.expires_at || null
+          expires_at: data.expires_at || null,
+          offer_price: data.offer_price ? Number(data.offer_price) : null,
         })
         .eq('id', data.id);
       if (error) throw error;
