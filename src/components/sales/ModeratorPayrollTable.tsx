@@ -344,8 +344,12 @@ const ModeratorPayrollTable = () => {
               ))}
             </TableRow>
             <TableRow>
-              <TableCell className="font-bold border bg-muted/30">كمية اللحوم (كجم) / بالعظم (كجم)</TableCell>
-              {rows.map(r => <TableCell key={r.girl} className="text-center border">{fmt(r.meatKg)} / {fmt(r.boneKg)}</TableCell>)}
+              <TableCell className="font-bold border bg-muted/30">كمية اللحوم (كجم)</TableCell>
+              {rows.map(r => <TableCell key={r.girl} className="text-center border">{fmt(r.meatKg)}</TableCell>)}
+            </TableRow>
+            <TableRow>
+              <TableCell className="font-bold border bg-muted/30">كمية اللحوم بالعظم (كجم)</TableCell>
+              {rows.map(r => <TableCell key={r.girl} className="text-center border">{fmt(r.boneKg)}</TableCell>)}
             </TableRow>
             <TableRow>
               <TableCell className="font-bold border bg-primary/10">بونص اللحوم (ج.م)</TableCell>
