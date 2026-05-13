@@ -29,12 +29,8 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
   const { user, role, profile, loading } = useAuth();
   const location = useLocation();
 
-  const moderatorTarget = role === 'sales_moderator'
-    ? (() => {
-        const m = findModeratorByName(profile?.full_name);
-        return m ? `/orders/moderator/${m.slug}` : '/orders';
-      })()
-    : '/';
+  // Sales moderators land on the org chart first, then navigate from there.
+  const moderatorTarget = role === 'sales_moderator' ? '/org-chart' : '/';
 
   // 1) Hard moderator allowlist — even if a route forgot to set allowedRoles
   const isModeratorBlocked =
