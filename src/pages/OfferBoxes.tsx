@@ -32,7 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Gift, Plus, Edit, Trash2, Package, X, Clock, AlertTriangle, Bell, CalendarDays } from 'lucide-react';
+import { Gift, Plus, Edit, Trash2, Package, X, Clock, AlertTriangle, Bell, CalendarDays, Truck } from 'lucide-react';
 import { format, isPast, isFuture, parseISO, differenceInHours } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
