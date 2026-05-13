@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
-import { findModeratorByName } from "@/constants/moderators";
+import { getLandingForRole } from "@/constants/roleLandings";
 import { Button } from "@/components/ui/button";
 import { exportToPDF, exportToExcel } from "@/utils/exportReports";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -92,7 +92,6 @@ const formatSales = (v: number) => {
 
 const Index = () => {
   const { role, loading: authLoading } = useAuth();
-  const isModerator = role === 'sales_moderator';
 
   // Gate: while auth is loading, show only a loader — never the dashboard shell/data.
   if (authLoading) {
@@ -103,9 +102,12 @@ const Index = () => {
     );
   }
 
-  // Sales moderators land on the org chart first, never the global dashboard.
-  if (isModerator) {
-    return <Navigate to="/org-chart" replace />;
+  // Per-role landing: only roles whose landing IS "/" actually see the dashboard.
+  // Everyone else gets bounced to the page that fits their job (moderator → org chart,
+  // accountant → reports, warehouse → inventory, etc.).
+  const landing = getLandingForRole(role);
+  if (landing !== "/") {
+    return <Navigate to={landing} replace />;
   }
 
   return <DashboardContent />;

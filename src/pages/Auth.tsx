@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { getLandingForRole } from '@/constants/roleLandings';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,7 +28,7 @@ const signupSchema = z.object({
 
 const Auth = () => {
   const navigate = useNavigate();
-  const { user, signIn, signUp, loading: authLoading } = useAuth();
+  const { user, role, signIn, signUp, loading: authLoading } = useAuth();
   
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -44,10 +45,12 @@ const Auth = () => {
   const [signupConfirmPassword, setSignupConfirmPassword] = useState('');
 
   useEffect(() => {
-    if (user && !authLoading) {
-      navigate('/', { replace: true });
+    // Wait until role is resolved so we can land on the correct page per role
+    // (e.g. moderator → org chart, accountant → reports, etc.)
+    if (user && !authLoading && role !== null) {
+      navigate(getLandingForRole(role), { replace: true });
     }
-  }, [user, authLoading, navigate]);
+  }, [user, role, authLoading, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
