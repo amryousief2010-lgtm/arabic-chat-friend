@@ -349,6 +349,8 @@ const NewOrder = () => {
     }
 
     try {
+      const finalSource = (newCustomerSource === 'أخرى' ? newCustomerSourceCustom.trim() : newCustomerSource) || null;
+      const finalShipping = (newCustomerShipping === 'أخرى' ? newCustomerShippingCustom.trim() : newCustomerShipping) || null;
       const { data, error } = await supabase
         .from('customers')
         .insert({
@@ -356,6 +358,9 @@ const NewOrder = () => {
           phone: newCustomerPhone.trim(),
           address: newCustomerAddress.trim() || null,
           city: newCustomerCity.trim() || null,
+          governorate: newCustomerGovernorate.trim() || null,
+          source: finalSource,
+          shipping_company: finalShipping,
         })
         .select()
         .single();
@@ -365,6 +370,10 @@ const NewOrder = () => {
       setCustomers([...customers, data]);
       setSelectedCustomer(data);
       setDeliveryAddress(data.address || '');
+      if (finalSource) setSource(finalSource === newCustomerSourceCustom.trim() ? 'أخرى' : finalSource);
+      if (newCustomerSource === 'أخرى') setSourceCustom(newCustomerSourceCustom);
+      if (finalShipping) setShippingCompany(finalShipping === newCustomerShippingCustom.trim() ? 'أخرى' : finalShipping);
+      if (newCustomerShipping === 'أخرى') setShippingCustom(newCustomerShippingCustom);
       setIsNewCustomerOpen(false);
       resetCustomerForm();
       toast.success('تم إضافة العميل بنجاح');
@@ -379,6 +388,11 @@ const NewOrder = () => {
     setNewCustomerPhone('');
     setNewCustomerAddress('');
     setNewCustomerCity('');
+    setNewCustomerGovernorate('');
+    setNewCustomerSource('');
+    setNewCustomerSourceCustom('');
+    setNewCustomerShipping('');
+    setNewCustomerShippingCustom('');
   };
 
   const handleSubmitOrder = async () => {
