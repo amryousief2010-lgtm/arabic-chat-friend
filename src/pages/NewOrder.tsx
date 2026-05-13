@@ -184,7 +184,6 @@ const NewOrder = () => {
   };
 
   const addToCart = (product: Product, customPrice?: number, isOfferItem?: boolean, isHalfKg?: boolean) => {
-    const maxStock = isHalfKg ? product.stock * 2 : product.stock;
     const existingItem = cart.find(item =>
       item.product.id === product.id &&
       item.customPrice === customPrice &&
@@ -193,10 +192,6 @@ const NewOrder = () => {
     );
 
     if (existingItem) {
-      if (existingItem.quantity >= maxStock) {
-        toast.error('الكمية المطلوبة أكبر من المتاحة');
-        return;
-      }
       setCart(cart.map(item =>
         item.product.id === product.id && item.customPrice === customPrice && item.isOfferItem === isOfferItem && item.isHalfKg === isHalfKg
           ? { ...item, quantity: item.quantity + 1 }
