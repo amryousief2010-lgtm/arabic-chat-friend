@@ -37,6 +37,8 @@ const ModeratorOrdersLog = () => {
   const { canDeleteOrders } = useAuth();
   const moderator = findModeratorBySlug(slug);
   const [period, setPeriod] = useState<"today" | "month" | "year">("month");
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   if (!moderator) return <Navigate to="/orders" replace />;
 
