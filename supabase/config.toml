@@ -1,11 +1,7 @@
 project_id = "ssznmzijopyxkwpctcxw"
 
-[functions]
-  [functions.auth-email-hook]
-    verify_jwt = false
-  [functions.delete-user]
-    verify_jwt = false
-  [functions.import-sales]
-    verify_jwt = false
-  [functions.process-email-queue]
-    verify_jwt = true
+[functions.auth-email-hook]
+verify_jwt = false
+
+[functions.process-email-queue]
+verify_jwt = false
