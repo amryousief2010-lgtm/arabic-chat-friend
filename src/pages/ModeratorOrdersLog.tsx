@@ -197,18 +197,54 @@ const ModeratorOrdersLog = () => {
         </CardContent>
       </Card>
 
+      {/* Privacy banner */}
+      <div className="mb-3 flex items-center gap-2 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-xs text-success">
+        <ShieldCheck className="w-4 h-4" />
+        <span>
+          هذا السجل يعرض طلباتكِ فقط — تم تأمينه بسياسات RLS على مستوى قاعدة البيانات بحيث لا يمكن لأي زميلة الاطّلاع على بياناتكِ ولا يمكنكِ الاطّلاع على بياناتها.
+        </span>
+      </div>
+
       {/* Orders list */}
       <Card className="glass-card">
-        <CardHeader>
-          <CardTitle className="text-base">تفاصيل الطلبات</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-3">
+          <CardTitle className="text-base">تفاصيل الطلبات ({visible.length})</CardTitle>
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="relative">
+              <Search className="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="بحث برقم الطلب أو اسم العميل..."
+                className="pr-8 h-9 w-64"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="h-9 w-36"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">كل الحالات</SelectItem>
+                <SelectItem value="pending">قيد الانتظار</SelectItem>
+                <SelectItem value="processing">جاري التجهيز</SelectItem>
+                <SelectItem value="shipped">تم الشحن</SelectItem>
+                <SelectItem value="delivered">تم التوصيل</SelectItem>
+                <SelectItem value="cancelled">ملغي</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
         <CardContent>
-          {isLoading ? <Skeleton className="h-64 w-full" /> : (data || []).length === 0 ? (
+          {isLoading ? <Skeleton className="h-64 w-full" /> : visible.length === 0 ? (
             <div className="text-center py-10">
-              <p className="text-muted-foreground mb-3">لا توجد طلبات بعد في هذه الفترة</p>
-              <Button onClick={() => navigate(`/orders/new?moderator=${moderator.slug}`)}>
-                <Plus className="w-4 h-4 ml-1" /> سجّلي أول طلب
-              </Button>
+              <p className="text-muted-foreground mb-3">
+                {(data || []).length === 0
+                  ? "لا توجد طلبات بعد في هذه الفترة"
+                  : "لا توجد نتائج مطابقة للبحث/الفلتر داخل سجلكِ"}
+              </p>
+              {(data || []).length === 0 && (
+                <Button onClick={() => navigate(`/orders/new?moderator=${moderator.slug}`)}>
+                  <Plus className="w-4 h-4 ml-1" /> سجّلي أول طلب
+                </Button>
+              )}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -224,7 +260,7 @@ const ModeratorOrdersLog = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {(data || []).map((o: any) => (
+                  {visible.map((o: any) => (
                     <tr key={o.id} className="border-b hover:bg-muted/40 transition-colors">
                       <td className="py-2 px-2 font-mono text-xs">{o.order_number}</td>
                       <td className="py-2 px-2">{o.customers?.name || "-"}</td>
