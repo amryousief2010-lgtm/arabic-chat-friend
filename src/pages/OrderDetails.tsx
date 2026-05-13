@@ -143,7 +143,7 @@ const getStatusIcon = (status: OrderStatus) => {
 const OrderDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { canUpdateOrderStatusForOrder, canUpdatePaymentStatus, isGeneralManager, isExecutiveManager, isSalesManager, isShippingCompany, isSalesModerator } = useAuth();
+  const { canUpdateOrderStatusForOrder, canUpdatePaymentStatus, isGeneralManager, isExecutiveManager, isSalesManager, isShippingCompany, isSalesModerator, canManageStock } = useAuth();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
