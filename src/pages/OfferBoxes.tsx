@@ -267,8 +267,12 @@ const OfferBoxes = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['offer-box-items'] });
+      queryClient.invalidateQueries({ queryKey: ['offer-box-item-counts'] });
       toast({ title: 'تم إضافة المنتج' });
       setNewItem({ product_id: '', custom_price: '', quantity: '1' });
+    },
+    onError: (e: any) => {
+      toast({ title: 'فشل إضافة المنتج', description: e?.message || 'خطأ غير معروف', variant: 'destructive' });
     },
   });
 
@@ -280,7 +284,11 @@ const OfferBoxes = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['offer-box-items'] });
+      queryClient.invalidateQueries({ queryKey: ['offer-box-item-counts'] });
       toast({ title: 'تم حذف المنتج' });
+    },
+    onError: (e: any) => {
+      toast({ title: 'فشل الحذف', description: e?.message || 'خطأ غير معروف', variant: 'destructive' });
     },
   });
 
