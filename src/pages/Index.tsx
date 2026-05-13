@@ -91,6 +91,7 @@ const formatSales = (v: number) => {
 
 const Index = () => {
   const { role } = useAuth();
+  const navigate = useNavigate();
   const isModerator = role === 'sales_moderator';
 
   const { data: stats, isLoading } = useDashboardStats();
