@@ -325,6 +325,8 @@ const StockReplenishmentLog = () => {
                       <TableHead className="text-right">التاريخ</TableHead>
                       <TableHead className="text-right">الصنف</TableHead>
                       <TableHead className="text-center">قبل</TableHead>
+                      <TableHead className="text-center">½ كيلو</TableHead>
+                      <TableHead className="text-center">كيلو</TableHead>
                       <TableHead className="text-center">المضاف</TableHead>
                       <TableHead className="text-center">بعد</TableHead>
                       <TableHead className="text-center">سعر الوحدة</TableHead>
@@ -342,6 +344,8 @@ const StockReplenishmentLog = () => {
                           <TableCell className="text-xs">{new Date(r.created_at).toLocaleString("ar-EG")}</TableCell>
                           <TableCell className="font-medium">{r.product_name}</TableCell>
                           <TableCell className="text-center">{r.previous_stock}</TableCell>
+                          <TableCell className="text-center">{r.half_kg_bags ? <Badge variant="secondary">{r.half_kg_bags}</Badge> : "—"}</TableCell>
+                          <TableCell className="text-center">{r.kg_bags ? <Badge variant="secondary">{r.kg_bags}</Badge> : "—"}</TableCell>
                           <TableCell className="text-center font-bold text-success">+{r.quantity_added}</TableCell>
                           <TableCell className="text-center">{r.new_stock}</TableCell>
                           <TableCell className="text-center">{r.unit_price ? Number(r.unit_price).toFixed(2) : "—"}</TableCell>
