@@ -126,7 +126,7 @@ const AnimatedRoutes = () => {
           </ProtectedRoute>
         } />
         <Route path="/sales-targets" element={
-          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager']}>
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager']}>
             <PageTransition><SalesTargets /></PageTransition>
           </ProtectedRoute>
         } />

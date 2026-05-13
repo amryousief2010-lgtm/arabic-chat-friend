@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
+import { findModeratorByName } from "@/constants/moderators";
 import { Button } from "@/components/ui/button";
 import { exportToPDF, exportToExcel } from "@/utils/exportReports";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -90,9 +91,15 @@ const formatSales = (v: number) => {
 };
 
 const Index = () => {
-  const { role } = useAuth();
+  const { role, profile } = useAuth();
   const navigate = useNavigate();
   const isModerator = role === 'sales_moderator';
+
+  // Sales moderators don't see the global dashboard — redirect to their own log.
+  if (isModerator) {
+    const mod = findModeratorByName(profile?.full_name);
+    return <Navigate to={mod ? `/orders/moderator/${mod.slug}` : "/orders"} replace />;
+  }
 
   const { data: stats, isLoading } = useDashboardStats();
   const { data: recentOrders, isLoading: ordersLoading } = useRecentOrders(5);

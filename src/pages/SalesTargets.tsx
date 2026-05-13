@@ -90,6 +90,7 @@ const SalesTargets = () => {
   });
 
   const isManager = role === 'general_manager' || role === 'executive_manager' || role === 'sales_manager';
+  const isModerator = role === 'sales_moderator';
 
   // Fetch employees (sales moderators)
   const { data: employees = [] } = useQuery({
@@ -276,10 +277,10 @@ const SalesTargets = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <MonthlyTargetTable />
-        <ModeratorOrdersBreakdown />
-        <GirlsSalesQuantityTable />
-        <ModeratorPayrollTable />
+        {!isModerator && <MonthlyTargetTable />}
+        {!isModerator && <ModeratorOrdersBreakdown />}
+        {!isModerator && <GirlsSalesQuantityTable />}
+        {!isModerator && <ModeratorPayrollTable />}
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
