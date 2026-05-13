@@ -43,7 +43,19 @@ interface OrderItem {
   quantity: number;
   unit_price: number;
   total_price: number;
+  is_half_kg?: boolean;
+  product_unit?: string | null;
 }
+
+const isKgUnit = (unit?: string | null) => {
+  const u = (unit || '').trim().toLowerCase().replace(/\s+/g, '');
+  return /^(كجم|كيلو|كيلوجرام|كيلوغرام|كغم|كغ|kg|kgs|kilogram|kilogramme|kilo)$/i.test(u);
+};
+const itemKg = (it: { is_half_kg?: boolean; quantity: number; product_unit?: string | null }) => {
+  if (it.is_half_kg) return it.quantity / 2;
+  if (isKgUnit(it.product_unit)) return it.quantity;
+  return null;
+};
 
 interface Order {
   id: string;
@@ -160,6 +172,17 @@ const OrderDetails = () => {
 
       if (itemsError) throw itemsError;
 
+      // Fetch product units for kg detection
+      const productIds = Array.from(new Set((itemsData || []).map((i: any) => i.product_id).filter(Boolean)));
+      const unitMap = new Map<string, string>();
+      if (productIds.length) {
+        const { data: prodData } = await supabase
+          .from('products')
+          .select('id, unit')
+          .in('id', productIds as string[]);
+        (prodData || []).forEach((p: any) => unitMap.set(p.id, p.unit));
+      }
+
       // Fetch creator's name if created_by exists
       let createdByName: string | null = null;
       if (orderData.created_by) {
@@ -189,13 +212,15 @@ const OrderDetails = () => {
         created_at: orderData.created_at,
         created_by: orderData.created_by,
         created_by_name: createdByName,
-        items: (itemsData || []).map(item => ({
+        items: (itemsData || []).map((item: any) => ({
           id: item.id,
-          product_id: (item as any).product_id ?? null,
+          product_id: item.product_id ?? null,
           product_name: item.product_name,
           quantity: Number(item.quantity),
           unit_price: Number(item.unit_price),
           total_price: Number(item.total_price),
+          is_half_kg: !!item.is_half_kg,
+          product_unit: item.product_id ? unitMap.get(item.product_id) ?? null : null,
         })),
       };
 
@@ -331,7 +356,9 @@ const OrderDetails = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {order.items.map((item) => (
+                  {order.items.map((item) => {
+                    const kg = itemKg(item);
+                    return (
                     <div
                       key={item.id}
                       className="flex items-center justify-between p-4 rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors"
@@ -341,9 +368,17 @@ const OrderDetails = () => {
                           <ShoppingCart className="w-6 h-6 text-primary" />
                         </div>
                         <div>
-                          <p className="font-semibold">{item.product_name}</p>
+                          <p className="font-semibold">
+                            {item.product_name}
+                            {item.is_half_kg && (
+                              <span className="mr-2 text-xs px-2 py-0.5 rounded bg-secondary text-secondary-foreground">نصف كيلو</span>
+                            )}
+                          </p>
                           <p className="text-sm text-muted-foreground">
                             {item.unit_price.toLocaleString()} ج.م × {item.quantity}
+                            {kg !== null && (
+                              <span className="mr-2 text-primary font-medium">= {kg} كجم</span>
+                            )}
                           </p>
                         </div>
                       </div>
@@ -351,7 +386,8 @@ const OrderDetails = () => {
                         {item.total_price.toLocaleString()} ج.م
                       </p>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 <Separator className="my-4" />
@@ -362,6 +398,15 @@ const OrderDetails = () => {
                     <span className="text-muted-foreground">المجموع الفرعي</span>
                     <span>{order.subtotal.toLocaleString()} ج.م</span>
                   </div>
+                  {(() => {
+                    const totalKg = order.items.reduce((s, it) => s + (itemKg(it) ?? 0), 0);
+                    return totalKg > 0 ? (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">إجمالي الوزن</span>
+                        <span className="font-medium text-primary">{totalKg.toLocaleString()} كجم</span>
+                      </div>
+                    ) : null;
+                  })()}
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">رسوم التوصيل</span>
                     <span>{order.delivery_fee.toLocaleString()} ج.م</span>

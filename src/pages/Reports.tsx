@@ -114,6 +114,13 @@ const Reports = () => {
             <FileDown className="w-4 h-4 ml-1" />
             Excel
           </Button>
+          <Button
+            variant="default"
+            size="sm"
+            asChild
+          >
+            <a href="/reports/customer-weight">⚖️ تقرير وزن العملاء (كجم)</a>
+          </Button>
         </div>
         <div className="flex items-center gap-3">
           <Calendar className="w-4 h-4 text-muted-foreground" />
