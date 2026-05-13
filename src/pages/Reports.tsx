@@ -114,12 +114,17 @@ const Reports = () => {
             <FileDown className="w-4 h-4 ml-1" />
             Excel
           </Button>
-          <Button
-            variant="default"
-            size="sm"
-            asChild
-          >
+          <Button variant="default" size="sm" asChild>
             <a href="/reports/customer-weight">⚖️ تقرير وزن العملاء (كجم)</a>
+          </Button>
+          <Button variant="default" size="sm" asChild>
+            <a href="/reports/order-half-kg">½ تقرير تحويل نصف كيلو</a>
+          </Button>
+          <Button variant="default" size="sm" asChild>
+            <a href="/manufacturing-queue">🏭 قائمة التصنيع</a>
+          </Button>
+          <Button variant="outline" size="sm" asChild>
+            <a href="/stock-replenishment-log">📋 سجل تزويد المخزون</a>
           </Button>
         </div>
         <div className="flex items-center gap-3">
