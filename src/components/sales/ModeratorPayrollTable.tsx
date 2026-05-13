@@ -225,7 +225,7 @@ const ModeratorPayrollTable = () => {
     });
   }, [qty, prices, overrides]);
 
-  const renderBonusCell = (girl: Girl, value: number, field: 'processed_bonus' | 'meat_bonus', overridden: boolean) => {
+  const renderBonusCell = (girl: Girl, value: number, field: 'processed_bonus' | 'meat_bonus' | 'bone_bonus', overridden: boolean) => {
     if (!canEdit) {
       return <span className="font-bold text-primary">{fmt(value)}</span>;
     }
