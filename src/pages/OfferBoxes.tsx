@@ -374,17 +374,27 @@ const OfferBoxes = () => {
                       placeholder="وصف العرض"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label>تاريخ انتهاء العرض (اختياري)</Label>
-                    <Input
-                      type="datetime-local"
-                      value={formData.expires_at}
-                      onChange={(e) => setFormData({ ...formData, expires_at: e.target.value })}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      سيتم إيقاف العرض تلقائياً عند انتهاء هذا التاريخ
-                    </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label>تاريخ بداية العرض (اختياري)</Label>
+                      <Input
+                        type="datetime-local"
+                        value={formData.starts_at}
+                        onChange={(e) => setFormData({ ...formData, starts_at: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>تاريخ انتهاء العرض (اختياري)</Label>
+                      <Input
+                        type="datetime-local"
+                        value={formData.expires_at}
+                        onChange={(e) => setFormData({ ...formData, expires_at: e.target.value })}
+                      />
+                    </div>
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    اترك تاريخ البداية فارغاً ليعمل العرض فوراً. سيتم إيقاف العرض تلقائياً عند انتهاء التاريخ.
+                  </p>
                   <Button className="w-full" onClick={handleSubmit}>
                     {editingBox ? 'حفظ التعديلات' : 'إنشاء العرض'}
                   </Button>
