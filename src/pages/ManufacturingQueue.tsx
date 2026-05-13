@@ -511,7 +511,7 @@ const ManufacturingQueue = () => {
                             </TableCell>
                           </TableRow>
                         )}
-                      </>
+                      </Fragment>
                     ))}
                   </TableBody>
                 </Table>
