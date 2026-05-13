@@ -173,6 +173,8 @@ const StockReplenishmentLog = () => {
         supplier_reference: supplierRef || null,
         performed_by: profile?.id ?? null,
         performed_by_name: profile?.full_name ?? null,
+        half_kg_bags: isKg ? Number(halfKgBags || 0) : 0,
+        kg_bags: isKg ? Number(kgBags || 0) : 0,
         notes: finalNotes || null,
       });
       if (logErr) throw logErr;
