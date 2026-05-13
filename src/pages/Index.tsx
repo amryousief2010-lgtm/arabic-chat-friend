@@ -92,7 +92,6 @@ const formatSales = (v: number) => {
 
 const Index = () => {
   const { role, loading: authLoading } = useAuth();
-  const isModerator = role === 'sales_moderator';
 
   // Gate: while auth is loading, show only a loader — never the dashboard shell/data.
   if (authLoading) {
