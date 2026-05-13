@@ -41,7 +41,7 @@ const MobileNavigation = () => {
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-sidebar border-t-2 border-sidebar-border z-50 md:hidden shadow-[0_-4px_20px_rgba(0,0,0,0.15)]" style={{ paddingBottom: 'env(safe-area-inset-bottom, 16px)' }}>
       <nav className="flex items-center justify-around h-18 min-h-[72px] px-2">
-        {quickNavItems.map((item) => {
+        {quickNavItems.map((item: any) => {
           const isActive = location.pathname === item.path;
           return (
             <Link
