@@ -45,10 +45,12 @@ const Auth = () => {
   const [signupConfirmPassword, setSignupConfirmPassword] = useState('');
 
   useEffect(() => {
-    if (user && !authLoading) {
-      navigate('/', { replace: true });
+    // Wait until role is resolved so we can land on the correct page per role
+    // (e.g. moderator → org chart, accountant → reports, etc.)
+    if (user && !authLoading && role !== null) {
+      navigate(getLandingForRole(role), { replace: true });
     }
-  }, [user, authLoading, navigate]);
+  }, [user, role, authLoading, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
