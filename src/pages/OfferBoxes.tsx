@@ -481,6 +481,13 @@ const OfferBoxes = () => {
                       </span>
                     </div>
                   )}
+                  {box.offer_price != null && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <Badge variant="secondary" className="text-sm font-bold">
+                        سعر العرض: {Number(box.offer_price).toFixed(2)} ج.م
+                      </Badge>
+                    </div>
+                  )}
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center gap-2">
