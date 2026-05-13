@@ -1345,6 +1345,36 @@ export type Database = {
         }
         Relationships: []
       }
+      target_bonus_settings: {
+        Row: {
+          bonus_amount: number
+          category: string
+          created_at: string
+          id: string
+          sales_amount: number
+          tier: number
+          updated_at: string
+        }
+        Insert: {
+          bonus_amount?: number
+          category: string
+          created_at?: string
+          id?: string
+          sales_amount?: number
+          tier: number
+          updated_at?: string
+        }
+        Update: {
+          bonus_amount?: number
+          category?: string
+          created_at?: string
+          id?: string
+          sales_amount?: number
+          tier?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       team_assignments: {
         Row: {
           created_at: string
