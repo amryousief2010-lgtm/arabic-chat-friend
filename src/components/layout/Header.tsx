@@ -41,6 +41,7 @@ const roleBadgeVariants: Record<string, 'default' | 'secondary' | 'outline' | 'd
 const Header = ({ title, subtitle }: HeaderProps) => {
   const { user, role, signOut } = useAuth();
   const navigate = useNavigate();
+  const { unreadCount } = useUnreadNotifications();
 
   const getUserInitial = () => {
     if (user?.user_metadata?.full_name) {
