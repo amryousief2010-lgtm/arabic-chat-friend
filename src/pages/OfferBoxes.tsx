@@ -268,11 +268,12 @@ const OfferBoxes = () => {
       setFormData({ 
         name: box.name, 
         description: box.description || '',
+        starts_at: box.starts_at ? box.starts_at.slice(0, 16) : '',
         expires_at: box.expires_at ? box.expires_at.slice(0, 16) : ''
       });
     } else {
       setEditingBox(null);
-      setFormData({ name: '', description: '', expires_at: '' });
+      setFormData({ name: '', description: '', starts_at: '', expires_at: '' });
     }
     setIsDialogOpen(true);
   };
@@ -282,8 +283,17 @@ const OfferBoxes = () => {
       toast({ title: 'يرجى إدخال اسم العرض', variant: 'destructive' });
       return;
     }
+    if (formData.starts_at && formData.expires_at && new Date(formData.starts_at) >= new Date(formData.expires_at)) {
+      toast({ title: 'تاريخ البداية يجب أن يسبق تاريخ الانتهاء', variant: 'destructive' });
+      return;
+    }
     if (editingBox) {
-      updateBoxMutation.mutate({ ...editingBox, ...formData, expires_at: formData.expires_at || null });
+      updateBoxMutation.mutate({
+        ...editingBox,
+        ...formData,
+        starts_at: formData.starts_at || null,
+        expires_at: formData.expires_at || null,
+      });
     } else {
       createBoxMutation.mutate(formData);
     }
