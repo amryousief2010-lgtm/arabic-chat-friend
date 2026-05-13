@@ -56,6 +56,7 @@ interface OfferBox {
   created_at: string;
   starts_at: string | null;
   expires_at: string | null;
+  offer_price: number | null;
 }
 
 interface OfferBoxItem {
@@ -87,7 +88,7 @@ const OfferBoxes = () => {
   const [isItemsDialogOpen, setIsItemsDialogOpen] = useState(false);
   const [editingBox, setEditingBox] = useState<OfferBox | null>(null);
   const [selectedBox, setSelectedBox] = useState<OfferBox | null>(null);
-  const [formData, setFormData] = useState({ name: '', description: '', starts_at: '', expires_at: '' });
+  const [formData, setFormData] = useState({ name: '', description: '', starts_at: '', expires_at: '', offer_price: '' });
   const [newItem, setNewItem] = useState({ product_id: '', custom_price: '', quantity: '1' });
 
   // Check and deactivate expired offers on load
@@ -177,12 +178,13 @@ const OfferBoxes = () => {
 
   // Create box
   const createBoxMutation = useMutation({
-    mutationFn: async (data: { name: string; description: string; starts_at: string; expires_at: string }) => {
+    mutationFn: async (data: { name: string; description: string; starts_at: string; expires_at: string; offer_price: string }) => {
       const { error } = await supabase.from('offer_boxes').insert({
         name: data.name,
         description: data.description || null,
         starts_at: data.starts_at || null,
         expires_at: data.expires_at || null,
+        offer_price: data.offer_price ? Number(data.offer_price) : null,
         created_by: user?.id,
       });
       if (error) throw error;
@@ -191,7 +193,7 @@ const OfferBoxes = () => {
       queryClient.invalidateQueries({ queryKey: ['offer-boxes'] });
       toast({ title: 'تم إنشاء صندوق العرض بنجاح' });
       setIsDialogOpen(false);
-      setFormData({ name: '', description: '', starts_at: '', expires_at: '' });
+      setFormData({ name: '', description: '', starts_at: '', expires_at: '', offer_price: '' });
     },
     onError: () => {
       toast({ title: 'حدث خطأ', variant: 'destructive' });
@@ -200,7 +202,7 @@ const OfferBoxes = () => {
 
   // Update box
   const updateBoxMutation = useMutation({
-    mutationFn: async (data: { id: string; name: string; description: string; is_active: boolean; starts_at: string | null; expires_at: string | null }) => {
+    mutationFn: async (data: { id: string; name: string; description: string; is_active: boolean; starts_at: string | null; expires_at: string | null; offer_price: string | null }) => {
       const { error } = await supabase
         .from('offer_boxes')
         .update({ 
@@ -208,7 +210,8 @@ const OfferBoxes = () => {
           description: data.description, 
           is_active: data.is_active,
           starts_at: data.starts_at || null,
-          expires_at: data.expires_at || null
+          expires_at: data.expires_at || null,
+          offer_price: data.offer_price ? Number(data.offer_price) : null,
         })
         .eq('id', data.id);
       if (error) throw error;
@@ -218,7 +221,7 @@ const OfferBoxes = () => {
       toast({ title: 'تم تحديث صندوق العرض' });
       setIsDialogOpen(false);
       setEditingBox(null);
-      setFormData({ name: '', description: '', starts_at: '', expires_at: '' });
+      setFormData({ name: '', description: '', starts_at: '', expires_at: '', offer_price: '' });
     },
   });
 
@@ -269,11 +272,12 @@ const OfferBoxes = () => {
         name: box.name, 
         description: box.description || '',
         starts_at: box.starts_at ? box.starts_at.slice(0, 16) : '',
-        expires_at: box.expires_at ? box.expires_at.slice(0, 16) : ''
+        expires_at: box.expires_at ? box.expires_at.slice(0, 16) : '',
+        offer_price: box.offer_price != null ? String(box.offer_price) : '',
       });
     } else {
       setEditingBox(null);
-      setFormData({ name: '', description: '', starts_at: '', expires_at: '' });
+      setFormData({ name: '', description: '', starts_at: '', expires_at: '', offer_price: '' });
     }
     setIsDialogOpen(true);
   };
@@ -375,6 +379,18 @@ const OfferBoxes = () => {
                       placeholder="وصف العرض"
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label>سعر العرض الإجمالي (اختياري)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={formData.offer_price}
+                      onChange={(e) => setFormData({ ...formData, offer_price: e.target.value })}
+                      placeholder="مثال: 500"
+                    />
+                    <p className="text-xs text-muted-foreground">سعر إجمالي ثابت للعرض. اتركه فارغًا لاحتساب السعر تلقائيًا من المنتجات.</p>
+                  </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
                       <Label>تاريخ بداية العرض (اختياري)</Label>
@@ -463,6 +479,13 @@ const OfferBoxes = () => {
                         {expired ? 'انتهى في: ' : 'ينتهي في: '}
                         {format(parseISO(box.expires_at), 'dd MMM yyyy - hh:mm a', { locale: ar })}
                       </span>
+                    </div>
+                  )}
+                  {box.offer_price != null && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <Badge variant="secondary" className="text-sm font-bold">
+                        سعر العرض: {Number(box.offer_price).toFixed(2)} ج.م
+                      </Badge>
                     </div>
                   )}
                 </CardHeader>

@@ -1,0 +1,1 @@
+ALTER TABLE public.offer_boxes ADD COLUMN IF NOT EXISTS offer_price numeric;
