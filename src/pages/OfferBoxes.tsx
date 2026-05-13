@@ -576,6 +576,17 @@ const OfferBoxes = () => {
                     </Button>
                     {isManager && (
                       <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setShippingBox(box);
+                            setShippingValue(box.shipping_cost != null ? String(box.shipping_cost) : '');
+                          }}
+                          title="تكلفة الشحن"
+                        >
+                          <Truck className="h-4 w-4" />
+                        </Button>
                         <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(box)} title="تعديل">
                           <Edit className="h-4 w-4" />
                         </Button>
