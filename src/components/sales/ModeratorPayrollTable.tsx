@@ -103,14 +103,24 @@ const ModeratorPayrollTable = () => {
       const empty = () => GIRLS.reduce((acc, g) => { acc[g] = 0; return acc; }, {} as Record<string, number>);
       const result = { meat: empty(), bone: empty(), processed: empty() };
 
-      const { data: orders, error } = await supabase
-        .from('orders')
-        .select('id, moderator, created_by')
-        .eq('status', 'delivered')
-        .gte('created_at', startDate)
-        .lte('created_at', endDate);
-      if (error) throw error;
-      if (!orders || orders.length === 0) return result;
+      const PAGE_ORDERS = 1000;
+      const orders: Array<{ id: string; moderator: string | null; created_by: string | null }> = [];
+      let offset = 0;
+      while (true) {
+        const { data: chunk, error } = await supabase
+          .from('orders')
+          .select('id, moderator, created_by')
+          .eq('status', 'delivered')
+          .gte('created_at', startDate)
+          .lte('created_at', endDate)
+          .range(offset, offset + PAGE_ORDERS - 1);
+        if (error) throw error;
+        if (!chunk || chunk.length === 0) break;
+        orders.push(...chunk);
+        if (chunk.length < PAGE_ORDERS) break;
+        offset += PAGE_ORDERS;
+      }
+      if (orders.length === 0) return result;
 
       const userIds = Array.from(new Set(orders.map(o => o.created_by).filter(Boolean))) as string[];
       let profileMap = new Map<string, string>();
