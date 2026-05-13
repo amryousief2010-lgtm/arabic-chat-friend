@@ -164,6 +164,11 @@ const NewOrder = () => {
   const [newCustomerPhone, setNewCustomerPhone] = useState('');
   const [newCustomerAddress, setNewCustomerAddress] = useState('');
   const [newCustomerCity, setNewCustomerCity] = useState('');
+  const [newCustomerGovernorate, setNewCustomerGovernorate] = useState('');
+  const [newCustomerSource, setNewCustomerSource] = useState('');
+  const [newCustomerSourceCustom, setNewCustomerSourceCustom] = useState('');
+  const [newCustomerShipping, setNewCustomerShipping] = useState('');
+  const [newCustomerShippingCustom, setNewCustomerShippingCustom] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -344,6 +349,8 @@ const NewOrder = () => {
     }
 
     try {
+      const finalSource = (newCustomerSource === 'أخرى' ? newCustomerSourceCustom.trim() : newCustomerSource) || null;
+      const finalShipping = (newCustomerShipping === 'أخرى' ? newCustomerShippingCustom.trim() : newCustomerShipping) || null;
       const { data, error } = await supabase
         .from('customers')
         .insert({
@@ -351,6 +358,9 @@ const NewOrder = () => {
           phone: newCustomerPhone.trim(),
           address: newCustomerAddress.trim() || null,
           city: newCustomerCity.trim() || null,
+          governorate: newCustomerGovernorate.trim() || null,
+          source: finalSource,
+          shipping_company: finalShipping,
         })
         .select()
         .single();
@@ -360,6 +370,10 @@ const NewOrder = () => {
       setCustomers([...customers, data]);
       setSelectedCustomer(data);
       setDeliveryAddress(data.address || '');
+      if (finalSource) setSource(finalSource === newCustomerSourceCustom.trim() ? 'أخرى' : finalSource);
+      if (newCustomerSource === 'أخرى') setSourceCustom(newCustomerSourceCustom);
+      if (finalShipping) setShippingCompany(finalShipping === newCustomerShippingCustom.trim() ? 'أخرى' : finalShipping);
+      if (newCustomerShipping === 'أخرى') setShippingCustom(newCustomerShippingCustom);
       setIsNewCustomerOpen(false);
       resetCustomerForm();
       toast.success('تم إضافة العميل بنجاح');
@@ -374,6 +388,11 @@ const NewOrder = () => {
     setNewCustomerPhone('');
     setNewCustomerAddress('');
     setNewCustomerCity('');
+    setNewCustomerGovernorate('');
+    setNewCustomerSource('');
+    setNewCustomerSourceCustom('');
+    setNewCustomerShipping('');
+    setNewCustomerShippingCustom('');
   };
 
   const handleSubmitOrder = async () => {
@@ -518,7 +537,7 @@ const NewOrder = () => {
                         عميل جديد
                       </Button>
                     </DialogTrigger>
-                    <DialogContent dir="rtl">
+                    <DialogContent dir="rtl" className="max-h-[90vh] overflow-y-auto">
                       <DialogHeader>
                         <DialogTitle>إضافة عميل جديد</DialogTitle>
                         <DialogDescription>أدخل بيانات العميل الجديد</DialogDescription>
@@ -555,6 +574,42 @@ const NewOrder = () => {
                             value={newCustomerCity}
                             onChange={(e) => setNewCustomerCity(e.target.value)}
                           />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>المحافظة</Label>
+                          <Input
+                            placeholder="المحافظة"
+                            value={newCustomerGovernorate}
+                            onChange={(e) => setNewCustomerGovernorate(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>مصدر العميل</Label>
+                          <Select value={newCustomerSource} onValueChange={setNewCustomerSource}>
+                            <SelectTrigger><SelectValue placeholder="اختر المصدر" /></SelectTrigger>
+                            <SelectContent>
+                              {['فيسبوك','انستجرام','تيك توك','واتساب','تلجرام','ويب سايت','إعلان','تسويق','مكالمة','شركة الشحن','استلام من المقر','أخرى'].map(s => (
+                                <SelectItem key={s} value={s}>{s}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {newCustomerSource === 'أخرى' && (
+                            <Input placeholder="أدخل المصدر" value={newCustomerSourceCustom} onChange={(e) => setNewCustomerSourceCustom(e.target.value)} />
+                          )}
+                        </div>
+                        <div className="space-y-2">
+                          <Label>شركة الشحن</Label>
+                          <Select value={newCustomerShipping} onValueChange={setNewCustomerShipping}>
+                            <SelectTrigger><SelectValue placeholder="اختر شركة الشحن" /></SelectTrigger>
+                            <SelectContent>
+                              {['مندوب من المزرعة','استلام من المزرعة','منفذ قويسنا','زودكس','العاصمة','مندوب خاص','أرامكس','بوسطة','أخرى'].map(s => (
+                                <SelectItem key={s} value={s}>{s}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {newCustomerShipping === 'أخرى' && (
+                            <Input placeholder="أدخل اسم شركة الشحن" value={newCustomerShippingCustom} onChange={(e) => setNewCustomerShippingCustom(e.target.value)} />
+                          )}
                         </div>
                       </div>
                       <DialogFooter>
