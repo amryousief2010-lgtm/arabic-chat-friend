@@ -1,9 +1,13 @@
-import { Fragment } from "react";
+import { Fragment, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
 import { Target } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 
-// التارجت الشهري لموديريتور نعام العاصمة
 const tiers = [
   "التارجت الأول",
   "التارجت الثاني",
@@ -14,52 +18,100 @@ const tiers = [
   "التارجت السابع",
 ];
 
-type Row = {
-  label: string;
-  // For مصنعات/لحوم: [sales, bonus] per tier. For أساسي: single value per tier.
-  cells: Array<{ sales?: number; bonus?: number; flat?: number }>;
-};
+const categories = ["مصنعات", "لحوم", "لحوم بالعظم"] as const;
+type Category = typeof categories[number];
 
-const rows: Row[] = [
-  {
-    label: "مصنعات",
-    cells: [
-      { sales: 50000, bonus: 5 },
-      { sales: 60000, bonus: 6 },
-      { sales: 80000, bonus: 8 },
-      { sales: 100000, bonus: 10 },
-      { sales: 125000, bonus: 12 },
-      { sales: 150000, bonus: 15 },
-      { sales: 185000, bonus: 18 },
-    ],
-  },
-  {
-    label: "لحوم",
-    cells: [
-      { sales: 100000, bonus: 5 },
-      { sales: 125000, bonus: 5 },
-      { sales: 200000, bonus: 5 },
-      { sales: 300000, bonus: 7 },
-      { sales: 300000, bonus: 7 },
-      { sales: 300000, bonus: 7 },
-      { sales: 300000, bonus: 7 },
-    ],
-  },
-  {
-    label: "أساسي",
-    cells: Array.from({ length: 7 }, () => ({ flat: 2500 })),
-  },
-];
+interface BonusRow {
+  id: string;
+  category: string;
+  tier: number;
+  sales_amount: number;
+  bonus_amount: number;
+}
 
-const fmt = (n: number) => n.toLocaleString("en-US");
+const fmt = (n: number) => Number(n || 0).toLocaleString("en-US");
 
 const MonthlyTargetTable = () => {
+  const { role, isGeneralManager, isExecutiveManager, isSalesManager } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const canEdit =
+    isGeneralManager || isExecutiveManager || isSalesManager || role === "marketing_sales_manager";
+
+  const { data: rows = [] } = useQuery({
+    queryKey: ["target_bonus_settings"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("target_bonus_settings")
+        .select("*")
+        .order("category")
+        .order("tier");
+      if (error) throw error;
+      return data as BonusRow[];
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, field, value }: { id: string; field: "sales_amount" | "bonus_amount"; value: number }) => {
+      const { error } = await supabase
+        .from("target_bonus_settings")
+        .update({ [field]: value })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["target_bonus_settings"] });
+    },
+    onError: (e: any) => {
+      toast({ title: "تعذر الحفظ", description: e.message, variant: "destructive" });
+    },
+  });
+
+  const grouped = useMemo(() => {
+    const map: Record<Category, BonusRow[]> = {
+      "مصنعات": [],
+      "لحوم": [],
+      "لحوم بالعظم": [],
+    };
+    rows.forEach((r) => {
+      if (map[r.category as Category]) map[r.category as Category].push(r);
+    });
+    Object.values(map).forEach((arr) => arr.sort((a, b) => a.tier - b.tier));
+    return map;
+  }, [rows]);
+
+  const renderCell = (row: BonusRow | undefined, field: "sales_amount" | "bonus_amount") => {
+    if (!row) return <span>-</span>;
+    if (canEdit) {
+      return (
+        <Input
+          type="number"
+          defaultValue={row[field]}
+          className="h-8 text-center w-24 mx-auto"
+          onBlur={(e) => {
+            const v = Number(e.target.value);
+            if (v !== Number(row[field])) {
+              updateMutation.mutate({ id: row.id, field, value: v });
+            }
+          }}
+        />
+      );
+    }
+    return <span className={field === "bonus_amount" ? "font-semibold text-primary" : ""}>{fmt(row[field])}</span>;
+  };
+
   return (
     <Card className="glass-card mb-6">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Target className="w-5 h-5 text-primary" />
           جدول التارجت — التارجت الشهري لموديريتور نعام العاصمة
+          {canEdit && (
+            <span className="text-xs font-normal text-muted-foreground mr-2">
+              (يمكنك تعديل القيم بالنقر على الخانة)
+            </span>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="overflow-x-auto">
@@ -85,23 +137,28 @@ const MonthlyTargetTable = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row.label}>
-                <TableCell className="text-center font-bold border bg-muted/30">{row.label}</TableCell>
-                {row.cells.map((c, i) =>
-                  c.flat !== undefined ? (
-                    <TableCell key={i} colSpan={2} className="text-center border font-semibold">
-                      {fmt(c.flat)}
-                    </TableCell>
-                  ) : (
+            {categories.map((cat) => (
+              <TableRow key={cat}>
+                <TableCell className="text-center font-bold border bg-muted/30">{cat}</TableCell>
+                {Array.from({ length: 7 }).map((_, i) => {
+                  const row = grouped[cat].find((r) => r.tier === i + 1);
+                  return (
                     <Fragment key={i}>
-                      <TableCell className="text-center border">{fmt(c.sales || 0)}</TableCell>
-                      <TableCell className="text-center border font-semibold text-primary">{c.bonus}</TableCell>
+                      <TableCell className="text-center border">{renderCell(row, "sales_amount")}</TableCell>
+                      <TableCell className="text-center border">{renderCell(row, "bonus_amount")}</TableCell>
                     </Fragment>
-                  )
-                )}
+                  );
+                })}
               </TableRow>
             ))}
+            <TableRow>
+              <TableCell className="text-center font-bold border bg-muted/30">أساسي</TableCell>
+              {tiers.map((t) => (
+                <TableCell key={t} colSpan={2} className="text-center border font-semibold">
+                  2,500
+                </TableCell>
+              ))}
+            </TableRow>
           </TableBody>
         </Table>
         <p className="text-xs text-muted-foreground mt-3">
