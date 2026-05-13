@@ -235,7 +235,7 @@ const Products = () => {
     <DashboardLayout>
       <Header title="المنتجات" subtitle="إدارة منتجات لحوم النعام" />
       
-      <ProductsAnalytics products={filteredProducts} />
+      {canViewFinancials && <ProductsAnalytics products={filteredProducts} />}
 
       <Card className="glass-card">
         <CardHeader className="flex flex-row items-center justify-between">
