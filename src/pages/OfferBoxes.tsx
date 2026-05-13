@@ -150,6 +150,25 @@ const OfferBoxes = () => {
     },
   });
 
+  // Fetch item counts for all boxes
+  const { data: boxItemCounts = {} } = useQuery({
+    queryKey: ['offer-box-item-counts', offerBoxes.map(b => b.id).join(',')],
+    queryFn: async () => {
+      if (offerBoxes.length === 0) return {} as Record<string, number>;
+      const { data, error } = await supabase
+        .from('offer_box_items')
+        .select('offer_box_id')
+        .in('offer_box_id', offerBoxes.map(b => b.id));
+      if (error) throw error;
+      const counts: Record<string, number> = {};
+      (data || []).forEach((row: any) => {
+        counts[row.offer_box_id] = (counts[row.offer_box_id] || 0) + 1;
+      });
+      return counts;
+    },
+    enabled: offerBoxes.length > 0,
+  });
+
   // Fetch items for selected box
   const { data: boxItems = [] } = useQuery({
     queryKey: ['offer-box-items', selectedBox?.id],
