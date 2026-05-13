@@ -73,6 +73,9 @@ const findTier = (sales: number, tiers: typeof PROCESSED_TIERS) => {
 
 const ModeratorPayrollTable = () => {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { isGeneralManager, isExecutiveManager, isSalesManager, role } = useAuth();
+  const canEdit = isGeneralManager || isExecutiveManager || isSalesManager || role === 'marketing_sales_manager';
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [selectedYear, setSelectedYear] = useState(currentYear);
 
