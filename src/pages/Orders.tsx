@@ -142,7 +142,7 @@ const formatItemQty = (qty: number, unit?: string): string => {
 };
 
 const Orders = () => {
-  const { isShippingCompany, isAccountant, canUpdateOrderStatusForOrder, canDeleteOrders } = useAuth();
+  const { isShippingCompany, isAccountant, isSalesModerator, canUpdateOrderStatusForOrder, canDeleteOrders } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
