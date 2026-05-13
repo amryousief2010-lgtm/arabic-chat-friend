@@ -374,7 +374,7 @@ const OrderDetails = () => {
                     return (
                     <div
                       key={item.id}
-                      className="flex items-center justify-between p-4 rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors"
+                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors"
                     >
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -393,6 +393,32 @@ const OrderDetails = () => {
                               <span className="mr-2 text-primary font-medium">= {kg} كجم</span>
                             )}
                           </p>
+                          <div className="mt-2 flex items-center gap-2">
+                            {canManageStock ? (
+                              <select
+                                className={`text-xs px-2 py-1 rounded-md border ${productionStatusColors[item.production_status || 'pending']}`}
+                                value={item.production_status || 'pending'}
+                                onChange={async (e) => {
+                                  const newStatus = e.target.value as 'pending' | 'in_progress' | 'completed';
+                                  const { error } = await supabase
+                                    .from('order_items')
+                                    .update({ production_status: newStatus })
+                                    .eq('id', item.id);
+                                  if (error) { toast.error('تعذر تحديث حالة التصنيع'); return; }
+                                  setOrder(prev => prev ? { ...prev, items: prev.items.map(i => i.id === item.id ? { ...i, production_status: newStatus } : i) } : prev);
+                                  toast.success('تم تحديث حالة التصنيع');
+                                }}
+                              >
+                                <option value="pending">بانتظار التصنيع</option>
+                                <option value="in_progress">جارٍ التصنيع</option>
+                                <option value="completed">مكتمل</option>
+                              </select>
+                            ) : (
+                              <span className={`text-xs px-2 py-1 rounded-md border ${productionStatusColors[item.production_status || 'pending']}`}>
+                                {productionStatusLabels[item.production_status || 'pending']}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <p className="font-bold text-lg">
