@@ -57,6 +57,7 @@ interface OfferBox {
   starts_at: string | null;
   expires_at: string | null;
   offer_price: number | null;
+  shipping_cost: number | null;
 }
 
 interface OfferBoxItem {
