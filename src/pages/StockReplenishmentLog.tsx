@@ -226,10 +226,12 @@ const StockReplenishmentLog = () => {
     doc.text(`Stock Replenishment Log${range}`, 14, 14);
     autoTable(doc, {
       startY: 20,
-      head: [["Date","Product","Before","Added","After","Unit Price","Total","Supplier Ref","By","Notes"]],
+      head: [["Date","Product","Before","½kg Bags","kg Bags","Added","After","Unit Price","Total","Supplier Ref","By","Notes"]],
       body: filtered.map(r => [
         new Date(r.created_at).toLocaleDateString("en-GB"),
-        r.product_name, r.previous_stock, r.quantity_added, r.new_stock,
+        r.product_name, r.previous_stock,
+        r.half_kg_bags ?? 0, r.kg_bags ?? 0,
+        r.quantity_added, r.new_stock,
         r.unit_price ?? 0,
         (Number(r.quantity_added || 0) * Number(r.unit_price || 0)).toFixed(2),
         r.supplier_reference || "-",
