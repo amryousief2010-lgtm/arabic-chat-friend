@@ -281,6 +281,11 @@ const NewOrder = () => {
     const unitPrice = item.isHalfKg ? basePrice / 2 : basePrice;
     return sum + (unitPrice * item.quantity);
   }, 0);
+  const totalKg = cart.reduce((sum, item) => {
+    if (!isKgUnit(item.product.unit)) return sum;
+    const kg = item.isHalfKg ? item.quantity / 2 : item.quantity;
+    return sum + kg;
+  }, 0);
   const total = subtotal - discount + deliveryFee;
 
   const handleAddCustomer = async () => {
