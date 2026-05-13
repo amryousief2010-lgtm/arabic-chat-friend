@@ -96,7 +96,10 @@ interface CartItem {
   isHalfKg?: boolean; // نصف كيلو: السعر = price/2 ، الكمية 2 = 1 كيلو
 }
 
-const isKgUnit = (unit: string) => /كجم|كيلو|kg/i.test(unit || '');
+const isKgUnit = (unit: string) => {
+  const u = (unit || '').trim().toLowerCase().replace(/\s+/g, '');
+  return /^(كجم|كيلو|كيلوجرام|كيلوغرام|كغم|كغ|kg|kgs|kilogram|kilogramme|kilo)$/i.test(u);
+};
 
 const NewOrder = () => {
   const navigate = useNavigate();
