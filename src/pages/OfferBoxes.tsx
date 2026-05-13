@@ -272,7 +272,8 @@ const OfferBoxes = () => {
         name: box.name, 
         description: box.description || '',
         starts_at: box.starts_at ? box.starts_at.slice(0, 16) : '',
-        expires_at: box.expires_at ? box.expires_at.slice(0, 16) : ''
+        expires_at: box.expires_at ? box.expires_at.slice(0, 16) : '',
+        offer_price: box.offer_price != null ? String(box.offer_price) : '',
       });
     } else {
       setEditingBox(null);
