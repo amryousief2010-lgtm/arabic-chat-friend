@@ -900,8 +900,8 @@ const Orders = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Per-moderator quick access section */}
-      <ModeratorQuickAccessCards />
+      {/* Per-moderator quick access section — hidden from moderators themselves for privacy */}
+      {!isSalesModerator && <ModeratorQuickAccessCards />}
     </DashboardLayout>
   );
 };
