@@ -592,8 +592,11 @@ const NewOrder = () => {
                             <p className="text-primary font-bold mt-1 text-sm">
                               {product.price.toLocaleString()} ج.م / {product.unit}
                             </p>
-                            <Badge variant="outline" className="mt-2 text-xs self-start">
-                              متاح: {product.stock}
+                            <Badge
+                              variant={product.stock <= 0 ? 'destructive' : 'outline'}
+                              className="mt-2 text-xs self-start"
+                            >
+                              {product.stock <= 0 ? 'بانتظار التصنيع' : `متاح: ${product.stock}`}
                             </Badge>
                             <div className={`mt-2 grid ${kg ? 'grid-cols-2' : 'grid-cols-1'} gap-1.5`}>
                               <Button
