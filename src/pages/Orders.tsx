@@ -301,6 +301,7 @@ const Orders = () => {
             unit_price: Number(item.unit_price),
             total_price: Number(item.total_price),
             unit: (item.product_id && productsMap[item.product_id]) || 'كجم',
+            offer_name: (item as any).offer_name ?? null,
           })),
       }));
 
