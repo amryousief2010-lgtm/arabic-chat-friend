@@ -5,14 +5,24 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { History, RefreshCw, Search, FileDown, FileText } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
+} from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { History, RefreshCw, Search, FileDown, FileText, Plus, Check, ChevronsUpDown, Package } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { cn } from "@/lib/utils";
 
 interface LogRow {
   id: string;
@@ -27,32 +37,75 @@ interface LogRow {
   created_at: string;
 }
 
+interface Product {
+  id: string;
+  name: string;
+  unit: string;
+  stock: number;
+  category: string | null;
+}
+
+const isKgUnit = (u: string) =>
+  /^(كجم|كيلو|كيلوجرام|كيلوغرام|كغم|كغ|kg|kgs|kilogram|kilogramme|kilo)$/i.test((u || "").trim());
+
 const StockReplenishmentLog = () => {
+  const { canManageStock, profile } = useAuth();
   const [rows, setRows] = useState<LogRow[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
 
+  // Add dialog state
+  const [open, setOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [halfKgBags, setHalfKgBags] = useState<string>("0");
+  const [kgBags, setKgBags] = useState<string>("0");
+  const [genericQty, setGenericQty] = useState<string>("");
+  const [unitPrice, setUnitPrice] = useState<string>("");
+  const [supplierRef, setSupplierRef] = useState<string>("");
+  const [notes, setNotes] = useState<string>("");
+  const [submitting, setSubmitting] = useState(false);
+
   const load = async () => {
     setLoading(true);
     try {
-      const { data, error } = await (supabase as any)
-        .from("stock_replenishment_log")
-        .select("id, product_name, previous_stock, quantity_added, new_stock, unit_price, supplier_reference, performed_by_name, notes, created_at")
-        .order("created_at", { ascending: false })
-        .limit(1000);
-      if (error) throw error;
-      setRows((data || []) as LogRow[]);
+      const [logRes, prodRes] = await Promise.all([
+        (supabase as any)
+          .from("stock_replenishment_log")
+          .select("id, product_name, previous_stock, quantity_added, new_stock, unit_price, supplier_reference, performed_by_name, notes, created_at")
+          .order("created_at", { ascending: false })
+          .limit(1000),
+        supabase
+          .from("products")
+          .select("id, name, unit, stock, category")
+          .eq("is_active", true)
+          .order("name"),
+      ]);
+      if (logRes.error) throw logRes.error;
+      if (prodRes.error) throw prodRes.error;
+      setRows((logRes.data || []) as LogRow[]);
+      setProducts((prodRes.data || []) as Product[]);
     } catch (e: any) {
       console.error(e);
-      toast.error(e.message || "تعذر تحميل السجل");
+      toast.error(e.message || "تعذر تحميل البيانات");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => { load(); }, []);
+
+  const productsByCategory = useMemo(() => {
+    const groups: Record<string, Product[]> = {};
+    products.forEach(p => {
+      const k = p.category || "بدون تصنيف";
+      (groups[k] ||= []).push(p);
+    });
+    return groups;
+  }, [products]);
 
   const filtered = useMemo(() => {
     return rows.filter(r => {
@@ -72,6 +125,67 @@ const StockReplenishmentLog = () => {
     qty: filtered.reduce((s, r) => s + Number(r.quantity_added || 0), 0),
     cost: filtered.reduce((s, r) => s + Number(r.quantity_added || 0) * Number(r.unit_price || 0), 0),
   }), [filtered]);
+
+  const isKg = selectedProduct ? isKgUnit(selectedProduct.unit) : false;
+  const totalBags = isKg
+    ? (Number(halfKgBags || 0) + Number(kgBags || 0))
+    : Number(genericQty || 0);
+  const totalKgEquivalent = isKg
+    ? Number(halfKgBags || 0) * 0.5 + Number(kgBags || 0) * 1
+    : 0;
+
+  const resetForm = () => {
+    setSelectedProduct(null);
+    setHalfKgBags("0"); setKgBags("0"); setGenericQty("");
+    setUnitPrice(""); setSupplierRef(""); setNotes("");
+  };
+
+  const submit = async () => {
+    if (!selectedProduct) { toast.error("اختر الصنف"); return; }
+    if (totalBags <= 0) { toast.error("أدخل الكمية"); return; }
+    setSubmitting(true);
+    try {
+      const newStock = selectedProduct.stock + totalBags;
+      const { error: upErr } = await supabase
+        .from("products")
+        .update({ stock: newStock })
+        .eq("id", selectedProduct.id);
+      if (upErr) throw upErr;
+
+      let breakdown = "";
+      if (isKg) {
+        const parts: string[] = [];
+        if (Number(halfKgBags) > 0) parts.push(`${halfKgBags} كيس نصف كيلو`);
+        if (Number(kgBags) > 0) parts.push(`${kgBags} كيس كيلو`);
+        breakdown = parts.join(" + ") + ` (≈ ${totalKgEquivalent} كجم)`;
+      }
+      const finalNotes = [breakdown, notes].filter(Boolean).join(" | ");
+
+      const { error: logErr } = await (supabase as any).from("stock_replenishment_log").insert({
+        product_id: selectedProduct.id,
+        product_name: selectedProduct.name,
+        previous_stock: selectedProduct.stock,
+        quantity_added: totalBags,
+        new_stock: newStock,
+        unit_price: Number(unitPrice || 0),
+        supplier_reference: supplierRef || null,
+        performed_by: profile?.id ?? null,
+        performed_by_name: profile?.full_name ?? null,
+        notes: finalNotes || null,
+      });
+      if (logErr) throw logErr;
+
+      toast.success(`تم تزويد ${selectedProduct.name} بـ ${totalBags} كيس`);
+      setOpen(false);
+      resetForm();
+      await load();
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e.message || "فشل تسجيل التزويد");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const exportCsv = () => {
     if (filtered.length === 0) { toast.error("لا توجد بيانات"); return; }
@@ -150,6 +264,11 @@ const StockReplenishmentLog = () => {
                   السجل الكامل
                 </CardTitle>
                 <div className="flex gap-2 flex-wrap">
+                  {canManageStock && (
+                    <Button onClick={() => setOpen(true)} className="gap-2">
+                      <Plus className="w-4 h-4" /> تسجيل تزويد جديد
+                    </Button>
+                  )}
                   <Button variant="outline" size="sm" onClick={exportCsv} className="gap-2">
                     <FileDown className="w-4 h-4" /> CSV
                   </Button>
@@ -231,6 +350,121 @@ const StockReplenishmentLog = () => {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Package className="w-5 h-5 text-primary" /> تسجيل تزويد جديد
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Product picker */}
+            <div>
+              <Label>الصنف *</Label>
+              <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" role="combobox" className="w-full justify-between">
+                    {selectedProduct ? (
+                      <span className="flex items-center gap-2">
+                        <span>{selectedProduct.name}</span>
+                        <Badge variant="secondary" className="text-xs">{selectedProduct.unit}</Badge>
+                        <span className="text-xs text-muted-foreground">المخزون: {selectedProduct.stock}</span>
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">اختر الصنف من قاعدة المنتجات...</span>
+                    )}
+                    <ChevronsUpDown className="w-4 h-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[480px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="ابحث بالاسم أو التصنيف..." />
+                    <CommandList>
+                      <CommandEmpty>لا توجد منتجات</CommandEmpty>
+                      {Object.entries(productsByCategory).map(([cat, list]) => (
+                        <CommandGroup key={cat} heading={cat}>
+                          {list.map(p => (
+                            <CommandItem
+                              key={p.id}
+                              value={`${p.name} ${p.category || ""} ${p.unit}`}
+                              onSelect={() => {
+                                setSelectedProduct(p);
+                                setPickerOpen(false);
+                                setHalfKgBags("0"); setKgBags("0"); setGenericQty("");
+                              }}
+                            >
+                              <Check className={cn("w-4 h-4 ml-2", selectedProduct?.id === p.id ? "opacity-100" : "opacity-0")} />
+                              <div className="flex-1 flex items-center justify-between gap-2">
+                                <span>{p.name}</span>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline" className="text-xs">{p.unit}</Badge>
+                                  <span className="text-xs text-muted-foreground">المخزون: {p.stock}</span>
+                                </div>
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      ))}
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Quantity inputs */}
+            {selectedProduct && (
+              <>
+                {isKg ? (
+                  <div className="space-y-3 rounded-lg border p-3 bg-muted/30">
+                    <div className="text-sm font-medium">الكميات حسب نوع الكيس</div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs">عدد أكياس نصف كيلو</Label>
+                        <Input type="number" min={0} value={halfKgBags} onChange={e => setHalfKgBags(e.target.value)} />
+                      </div>
+                      <div>
+                        <Label className="text-xs">عدد أكياس كيلو</Label>
+                        <Input type="number" min={0} value={kgBags} onChange={e => setKgBags(e.target.value)} />
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-3 text-xs pt-1 border-t">
+                      <span>إجمالي الأكياس: <strong className="text-primary">{totalBags}</strong></span>
+                      <span>إجمالي الوزن: <strong className="text-success">{totalKgEquivalent} كجم</strong></span>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <Label>الكمية المضافة ({selectedProduct.unit}) *</Label>
+                    <Input type="number" min={1} value={genericQty} onChange={e => setGenericQty(e.target.value)} />
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>سعر الوحدة (اختياري)</Label>
+                    <Input type="number" min={0} step="0.01" value={unitPrice} onChange={e => setUnitPrice(e.target.value)} placeholder="0.00" />
+                  </div>
+                  <div>
+                    <Label>مرجع التوريد</Label>
+                    <Input value={supplierRef} onChange={e => setSupplierRef(e.target.value)} placeholder="رقم الفاتورة / المورد" />
+                  </div>
+                </div>
+                <div>
+                  <Label>ملاحظات</Label>
+                  <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="ملاحظات إضافية..." />
+                </div>
+              </>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
+            <Button onClick={submit} disabled={submitting || !selectedProduct || totalBags <= 0}>
+              {submitting ? "جاري التسجيل..." : "تأكيد التزويد"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };
