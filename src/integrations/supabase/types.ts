@@ -1135,6 +1135,7 @@ export type Database = {
           created_at: string
           id: string
           is_half_kg: boolean
+          offer_name: string | null
           order_id: string
           product_id: string | null
           product_name: string
@@ -1147,6 +1148,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_half_kg?: boolean
+          offer_name?: string | null
           order_id: string
           product_id?: string | null
           product_name: string
@@ -1159,6 +1161,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_half_kg?: boolean
+          offer_name?: string | null
           order_id?: string
           product_id?: string | null
           product_name?: string
