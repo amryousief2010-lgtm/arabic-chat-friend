@@ -92,15 +92,35 @@ const formatSales = (v: number) => {
 
 const Index = () => {
   const { role, profile, loading: authLoading } = useAuth();
-  const navigate = useNavigate();
   const isModerator = role === 'sales_moderator';
 
+  // Gate: while auth is loading, show only a loader — never the dashboard shell/data.
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // Sales moderators must never see the global dashboard — redirect immediately.
+  if (isModerator) {
+    const mod = findModeratorByName(profile?.full_name);
+    return <Navigate to={mod ? `/orders/moderator/${mod.slug}` : "/orders"} replace />;
+  }
+
+  return <DashboardContent />;
+};
+
+const DashboardContent = () => {
+  const navigate = useNavigate();
   const { data: stats, isLoading } = useDashboardStats();
   const { data: recentOrders, isLoading: ordersLoading } = useRecentOrders(5);
   const reportData = useReportsData("all");
   const [prodFrom, setProdFrom] = useState<string>("");
   const [prodTo, setProdTo] = useState<string>("");
   const { data: prod, isLoading: prodLoading } = useProductionStats(prodFrom, prodTo);
+  const isModerator = false;
 
   const setQuickRange = (kind: "today" | "month" | "year" | "clear") => {
     const now = new Date();
@@ -110,12 +130,6 @@ const Index = () => {
     else if (kind === "year") { setProdFrom(`${now.getFullYear()}-01-01`); setProdTo(fmt(now)); }
     else { setProdFrom(""); setProdTo(""); }
   };
-
-  // Sales moderators don't see the global dashboard — redirect to their own log.
-  if (!authLoading && isModerator) {
-    const mod = findModeratorByName(profile?.full_name);
-    return <Navigate to={mod ? `/orders/moderator/${mod.slug}` : "/orders"} replace />;
-  }
 
   return (
     <DashboardLayout>

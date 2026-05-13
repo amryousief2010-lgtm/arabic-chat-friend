@@ -61,7 +61,7 @@ const AnimatedRoutes = () => {
         <Route path="/farm" element={<RedirectWithQuery to="/modules/farm" />} />
         <Route path="/hatchery" element={<RedirectWithQuery to="/modules/hatchery" />} />
         <Route path="/" element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'warehouse_supervisor', 'production_manager', 'marketing_sales_manager', 'financial_manager', 'quality_manager', 'farm_manager', 'hatchery_manager', 'brooding_manager', 'slaughterhouse_manager', 'meat_factory_manager', 'feed_factory_manager', 'hr_manager', 'shipping_company']}>
             <PageTransition><Index /></PageTransition>
           </ProtectedRoute>
         } />
