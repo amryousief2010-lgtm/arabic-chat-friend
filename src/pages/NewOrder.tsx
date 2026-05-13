@@ -138,6 +138,10 @@ const NewOrder = () => {
   const [discount, setDiscount] = useState(0);
   const [notes, setNotes] = useState('');
   const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [source, setSource] = useState<string>('');
+  const [sourceCustom, setSourceCustom] = useState('');
+  const [shippingCompany, setShippingCompany] = useState<string>('');
+  const [shippingCustom, setShippingCustom] = useState('');
   
   // Search
   const [productSearch, setProductSearch] = useState('');
