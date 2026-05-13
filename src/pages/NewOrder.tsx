@@ -157,7 +157,7 @@ const NewOrder = () => {
   const fetchData = async () => {
     try {
       const [productsRes, customersRes, offersRes] = await Promise.all([
-        supabase.from('products').select('*').eq('is_active', true).gt('stock', 0),
+        supabase.from('products').select('*').eq('is_active', true),
         supabase.from('customers').select('*').order('name'),
         supabase.from('offer_boxes').select('*').eq('is_active', true),
       ]);
@@ -184,7 +184,6 @@ const NewOrder = () => {
   };
 
   const addToCart = (product: Product, customPrice?: number, isOfferItem?: boolean, isHalfKg?: boolean) => {
-    const maxStock = isHalfKg ? product.stock * 2 : product.stock;
     const existingItem = cart.find(item =>
       item.product.id === product.id &&
       item.customPrice === customPrice &&
@@ -193,10 +192,6 @@ const NewOrder = () => {
     );
 
     if (existingItem) {
-      if (existingItem.quantity >= maxStock) {
-        toast.error('الكمية المطلوبة أكبر من المتاحة');
-        return;
-      }
       setCart(cart.map(item =>
         item.product.id === product.id && item.customPrice === customPrice && item.isOfferItem === isOfferItem && item.isHalfKg === isHalfKg
           ? { ...item, quantity: item.quantity + 1 }
@@ -231,11 +226,11 @@ const NewOrder = () => {
 
       if (productError) throw productError;
 
-      // Add each item to cart with custom price
+      // Add each item to cart with custom price (no stock check)
       let addedCount = 0;
       for (const item of items) {
         const product = productData?.find(p => p.id === item.product_id);
-        if (product && product.stock > 0) {
+        if (product) {
           for (let i = 0; i < item.quantity; i++) {
             addToCart(product as Product, item.custom_price, true);
           }
@@ -259,11 +254,6 @@ const NewOrder = () => {
       if (item.product.id === productId && item.customPrice === customPrice && item.isOfferItem === isOfferItem && item.isHalfKg === isHalfKg) {
         const newQuantity = item.quantity + delta;
         if (newQuantity <= 0) return item;
-        const maxStock = isHalfKg ? item.product.stock * 2 : item.product.stock;
-        if (newQuantity > maxStock) {
-          toast.error('الكمية المطلوبة أكبر من المتاحة');
-          return item;
-        }
         return { ...item, quantity: newQuantity };
       }
       return item;
@@ -602,8 +592,11 @@ const NewOrder = () => {
                             <p className="text-primary font-bold mt-1 text-sm">
                               {product.price.toLocaleString()} ج.م / {product.unit}
                             </p>
-                            <Badge variant="outline" className="mt-2 text-xs self-start">
-                              متاح: {product.stock}
+                            <Badge
+                              variant={product.stock <= 0 ? 'destructive' : 'outline'}
+                              className="mt-2 text-xs self-start"
+                            >
+                              {product.stock <= 0 ? 'بانتظار التصنيع' : `متاح: ${product.stock}`}
                             </Badge>
                             <div className={`mt-2 grid ${kg ? 'grid-cols-2' : 'grid-cols-1'} gap-1.5`}>
                               <Button
