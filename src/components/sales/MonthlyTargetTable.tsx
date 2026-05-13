@@ -18,7 +18,7 @@ const tiers = [
   "التارجت السابع",
 ];
 
-const categories = ["مصنعات", "لحوم", "لحوم بالعظم"] as const;
+const categories = ["مصنعات", "لحوم"] as const;
 type Category = typeof categories[number];
 
 interface BonusRow {
@@ -73,7 +73,6 @@ const MonthlyTargetTable = () => {
     const map: Record<Category, BonusRow[]> = {
       "مصنعات": [],
       "لحوم": [],
-      "لحوم بالعظم": [],
     };
     rows.forEach((r) => {
       if (map[r.category as Category]) map[r.category as Category].push(r);
