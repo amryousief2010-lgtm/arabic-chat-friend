@@ -76,7 +76,11 @@ const WarehouseDashboard = () => {
               <p className="text-sm text-muted-foreground">تنبيهات المخزون وإحصائيات الحركات (آخر 7 أيام)</p>
             </div>
           </div>
-          <Link to="/modules/warehouses/import"><Button variant="outline"><Upload className="w-4 h-4 ml-2" />استيراد CSV</Button></Link>
+          {canManageWarehouses ? (
+            <Link to="/modules/warehouses/import"><Button variant="outline"><Upload className="w-4 h-4 ml-2" />استيراد CSV</Button></Link>
+          ) : (
+            <Badge variant="outline">عرض فقط</Badge>
+          )}
         </div>
 
         <div className="grid gap-4 md:grid-cols-4">
