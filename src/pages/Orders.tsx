@@ -899,6 +899,9 @@ const Orders = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Per-moderator quick access section */}
+      <ModeratorQuickAccessCards />
     </DashboardLayout>
   );
 };
