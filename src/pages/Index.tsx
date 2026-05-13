@@ -111,6 +111,12 @@ const Index = () => {
     else { setProdFrom(""); setProdTo(""); }
   };
 
+  // Sales moderators don't see the global dashboard — redirect to their own log.
+  if (!authLoading && isModerator) {
+    const mod = findModeratorByName(profile?.full_name);
+    return <Navigate to={mod ? `/orders/moderator/${mod.slug}` : "/orders"} replace />;
+  }
+
   return (
     <DashboardLayout>
       <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
