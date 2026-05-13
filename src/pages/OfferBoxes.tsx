@@ -32,7 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Gift, Plus, Edit, Trash2, Package, X, Clock, AlertTriangle, Bell, CalendarDays } from 'lucide-react';
+import { Gift, Plus, Edit, Trash2, Package, X, Clock, AlertTriangle, Bell, CalendarDays, Truck } from 'lucide-react';
 import { format, isPast, isFuture, parseISO, differenceInHours } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -57,6 +57,7 @@ interface OfferBox {
   starts_at: string | null;
   expires_at: string | null;
   offer_price: number | null;
+  shipping_cost: number | null;
 }
 
 interface OfferBoxItem {
@@ -86,6 +87,8 @@ const OfferBoxes = () => {
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isItemsDialogOpen, setIsItemsDialogOpen] = useState(false);
+  const [shippingBox, setShippingBox] = useState<OfferBox | null>(null);
+  const [shippingValue, setShippingValue] = useState('');
   const [editingBox, setEditingBox] = useState<OfferBox | null>(null);
   const [selectedBox, setSelectedBox] = useState<OfferBox | null>(null);
   const [formData, setFormData] = useState({ name: '', description: '', starts_at: '', expires_at: '', offer_price: '' });
@@ -256,6 +259,26 @@ const OfferBoxes = () => {
     },
     onError: (err: any) => {
       toast({ title: 'تعذّر حذف العرض', description: err?.message || 'تحقق من الصلاحيات', variant: 'destructive' });
+    },
+  });
+
+  // Update shipping cost
+  const updateShippingMutation = useMutation({
+    mutationFn: async ({ id, shipping_cost }: { id: string; shipping_cost: number | null }) => {
+      const { error } = await supabase
+        .from('offer_boxes')
+        .update({ shipping_cost })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['offer-boxes'] });
+      toast({ title: 'تم تحديث تكلفة الشحن' });
+      setShippingBox(null);
+      setShippingValue('');
+    },
+    onError: (e: any) => {
+      toast({ title: 'فشل تحديث الشحن', description: e?.message, variant: 'destructive' });
     },
   });
 
@@ -515,6 +538,14 @@ const OfferBoxes = () => {
                       </Badge>
                     </div>
                   )}
+                  {box.shipping_cost != null && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs gap-1">
+                        <Truck className="h-3 w-3" />
+                        الشحن: {Math.round(Number(box.shipping_cost)).toLocaleString('ar-EG')} ج.م
+                      </Badge>
+                    </div>
+                  )}
                 </CardHeader>
                 <CardContent>
                   {(() => {
@@ -545,6 +576,17 @@ const OfferBoxes = () => {
                     </Button>
                     {isManager && (
                       <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setShippingBox(box);
+                            setShippingValue(box.shipping_cost != null ? String(box.shipping_cost) : '');
+                          }}
+                          title="تكلفة الشحن"
+                        >
+                          <Truck className="h-4 w-4" />
+                        </Button>
                         <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(box)} title="تعديل">
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -585,6 +627,51 @@ const OfferBoxes = () => {
             );})
           )}
         </div>
+
+        {/* Shipping Cost Dialog */}
+        <Dialog open={!!shippingBox} onOpenChange={(o) => { if (!o) { setShippingBox(null); setShippingValue(''); } }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Truck className="h-5 w-5" />
+                تكلفة الشحن داخل العرض: {shippingBox?.name}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-2">
+              <div className="space-y-2">
+                <Label>قيمة الشحن (ج.م)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={shippingValue}
+                  onChange={(e) => setShippingValue(e.target.value)}
+                  placeholder="مثال: 50"
+                />
+                <p className="text-xs text-muted-foreground">
+                  اتركها فارغة لإزالة قيمة الشحن من العرض.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  className="flex-1"
+                  onClick={() => shippingBox && updateShippingMutation.mutate({
+                    id: shippingBox.id,
+                    shipping_cost: shippingValue === '' ? null : Number(shippingValue),
+                  })}
+                  disabled={updateShippingMutation.isPending}
+                >
+                  حفظ
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => { setShippingBox(null); setShippingValue(''); }}
+                >
+                  إلغاء
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Items Dialog */}
         <Dialog open={isItemsDialogOpen} onOpenChange={setIsItemsDialogOpen}>
