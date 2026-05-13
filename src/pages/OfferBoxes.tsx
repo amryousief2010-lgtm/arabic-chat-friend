@@ -628,6 +628,51 @@ const OfferBoxes = () => {
           )}
         </div>
 
+        {/* Shipping Cost Dialog */}
+        <Dialog open={!!shippingBox} onOpenChange={(o) => { if (!o) { setShippingBox(null); setShippingValue(''); } }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Truck className="h-5 w-5" />
+                تكلفة الشحن داخل العرض: {shippingBox?.name}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-2">
+              <div className="space-y-2">
+                <Label>قيمة الشحن (ج.م)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={shippingValue}
+                  onChange={(e) => setShippingValue(e.target.value)}
+                  placeholder="مثال: 50"
+                />
+                <p className="text-xs text-muted-foreground">
+                  اتركها فارغة لإزالة قيمة الشحن من العرض.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  className="flex-1"
+                  onClick={() => shippingBox && updateShippingMutation.mutate({
+                    id: shippingBox.id,
+                    shipping_cost: shippingValue === '' ? null : Number(shippingValue),
+                  })}
+                  disabled={updateShippingMutation.isPending}
+                >
+                  حفظ
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => { setShippingBox(null); setShippingValue(''); }}
+                >
+                  إلغاء
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         {/* Items Dialog */}
         <Dialog open={isItemsDialogOpen} onOpenChange={setIsItemsDialogOpen}>
           <DialogContent className="max-w-2xl">
