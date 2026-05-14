@@ -34,7 +34,12 @@ const statusColors: Record<string, string> = {
 const ModeratorOrdersLog = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const { canDeleteOrders } = useAuth();
+  const { canDeleteOrders, isSalesModerator } = useAuth();
+  const moderator = findModeratorBySlug(slug);
+
+  // Moderators now use the same detailed /orders view as managers (with
+  // status & collection columns rendered read-only). Bounce them there.
+  if (isSalesModerator) return <Navigate to="/orders" replace />;
   const moderator = findModeratorBySlug(slug);
   const [period, setPeriod] = useState<"today" | "month" | "year">("month");
   const [search, setSearch] = useState("");
