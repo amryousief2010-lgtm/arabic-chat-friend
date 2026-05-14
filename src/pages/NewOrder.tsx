@@ -69,8 +69,14 @@ interface Customer {
   id: string;
   name: string;
   phone: string;
+  phone2?: string | null;
   address: string | null;
   city: string | null;
+  governorate?: string | null;
+  source?: string | null;
+  shipping_company?: string | null;
+  total_orders?: number | null;
+  total_spent?: number | null;
 }
 
 interface OfferBox {
@@ -141,6 +147,7 @@ const NewOrder = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [offerBoxes, setOfferBoxes] = useState<OfferBox[]>([]);
+  const [offerContentsById, setOfferContentsById] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   
@@ -202,6 +209,38 @@ const NewOrder = () => {
         return true;
       });
       setOfferBoxes(activeOffers);
+
+      if (activeOffers.length > 0) {
+        const { data: offerItemsRes, error: offerItemsError } = await supabase
+          .from('offer_box_items')
+          .select('offer_box_id, product_id, quantity')
+          .in('offer_box_id', activeOffers.map((offer) => offer.id));
+
+        if (offerItemsError) throw offerItemsError;
+
+        const productIds = Array.from(new Set((offerItemsRes || []).map((item) => item.product_id).filter(Boolean)));
+        const { data: offerProductsRes, error: offerProductsError } = productIds.length === 0
+          ? { data: [], error: null }
+          : await supabase
+              .from('products')
+              .select('id, name')
+              .in('id', productIds);
+
+        if (offerProductsError) throw offerProductsError;
+
+        const productNameById = new Map((offerProductsRes || []).map((product: any) => [product.id, product.name]));
+        const nextContents = (offerItemsRes || []).reduce((acc, item: any) => {
+          const productName = productNameById.get(item.product_id);
+          if (!productName) return acc;
+          const line = `${Number(item.quantity || 0).toLocaleString()} × ${productName}`;
+          acc[item.offer_box_id] = [...(acc[item.offer_box_id] || []), line];
+          return acc;
+        }, {} as Record<string, string[]>);
+
+        setOfferContentsById(nextContents);
+      } else {
+        setOfferContentsById({});
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('حدث خطأ أثناء جلب البيانات');
