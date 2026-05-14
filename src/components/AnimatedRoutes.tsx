@@ -253,7 +253,9 @@ const AnimatedRoutes = () => {
           </ProtectedRoute>
         } />
         <Route path="*" element={
-          <PageTransition><NotFound /></PageTransition>
+          <ProtectedRoute>
+            <PageTransition><NotFound /></PageTransition>
+          </ProtectedRoute>
         } />
       </Routes>
     </AnimatePresence>
