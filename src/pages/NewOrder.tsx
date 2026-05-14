@@ -1041,11 +1041,27 @@ const NewOrder = () => {
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-2">
                         <Label>رسوم التوصيل</Label>
-                        <Input
-                          type="number"
-                          value={deliveryFee}
-                          onChange={(e) => setDeliveryFee(Number(e.target.value))}
-                        />
+                        <div className="flex gap-2">
+                          <Input
+                            type="number"
+                            value={deliveryFee}
+                            onChange={(e) => setDeliveryFee(Number(e.target.value))}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            title="مسح رسوم الشحن"
+                            onClick={() => setDeliveryFee(0)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                        {hasOfferInCart && (
+                          <p className="text-xs text-muted-foreground">
+                            العرض يشمل رسوم الشحن — يمكنك تعديل الرسوم يدويًا إن لزم الأمر.
+                          </p>
+                        )}
                       </div>
                       <div className="space-y-2">
                         <Label>الخصم</Label>
