@@ -388,6 +388,7 @@ const NewOrder = () => {
       const payload = {
         name: newCustomerName.trim(),
         phone: newCustomerPhone.trim(),
+        phone2: newCustomerPhone2.trim() || null,
         address: newCustomerAddress.trim() || null,
         city: newCustomerCity.trim() || null,
         governorate: newCustomerGovernorate.trim() || null,
