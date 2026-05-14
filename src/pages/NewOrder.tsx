@@ -383,23 +383,38 @@ const NewOrder = () => {
     try {
       const finalSource = (newCustomerSource === 'أخرى' ? newCustomerSourceCustom.trim() : newCustomerSource) || null;
       const finalShipping = (newCustomerShipping === 'أخرى' ? newCustomerShippingCustom.trim() : newCustomerShipping) || null;
-      const { data, error } = await supabase
-        .from('customers')
-        .insert({
-          name: newCustomerName.trim(),
-          phone: newCustomerPhone.trim(),
-          address: newCustomerAddress.trim() || null,
-          city: newCustomerCity.trim() || null,
-          governorate: newCustomerGovernorate.trim() || null,
-          source: finalSource,
-          shipping_company: finalShipping,
-        })
-        .select()
-        .single();
+      const payload = {
+        name: newCustomerName.trim(),
+        phone: newCustomerPhone.trim(),
+        address: newCustomerAddress.trim() || null,
+        city: newCustomerCity.trim() || null,
+        governorate: newCustomerGovernorate.trim() || null,
+        source: finalSource,
+        shipping_company: finalShipping,
+      };
 
-      if (error) throw error;
+      let data: Customer;
+      if (editingCustomerId) {
+        const res = await supabase
+          .from('customers')
+          .update(payload)
+          .eq('id', editingCustomerId)
+          .select()
+          .single();
+        if (res.error) throw res.error;
+        data = res.data as Customer;
+        setCustomers(customers.map(c => c.id === data.id ? data : c));
+      } else {
+        const res = await supabase
+          .from('customers')
+          .insert(payload)
+          .select()
+          .single();
+        if (res.error) throw res.error;
+        data = res.data as Customer;
+        setCustomers([...customers, data]);
+      }
 
-      setCustomers([...customers, data]);
       setSelectedCustomer(data);
       setDeliveryAddress(data.address || '');
       if (finalSource) setSource(finalSource === newCustomerSourceCustom.trim() ? 'أخرى' : finalSource);
@@ -408,14 +423,43 @@ const NewOrder = () => {
       if (newCustomerShipping === 'أخرى') setShippingCustom(newCustomerShippingCustom);
       setIsNewCustomerOpen(false);
       resetCustomerForm();
-      toast.success('تم إضافة العميل بنجاح');
+      toast.success(editingCustomerId ? 'تم تحديث بيانات العميل' : 'تم إضافة العميل بنجاح');
     } catch (error) {
-      console.error('Error adding customer:', error);
-      toast.error('حدث خطأ أثناء إضافة العميل');
+      console.error('Error saving customer:', error);
+      toast.error(editingCustomerId ? 'حدث خطأ أثناء تحديث بيانات العميل' : 'حدث خطأ أثناء إضافة العميل');
     }
   };
 
+  const openEditCustomer = (c: Customer) => {
+    setEditingCustomerId(c.id);
+    setNewCustomerName(c.name || '');
+    setNewCustomerPhone(c.phone || '');
+    setNewCustomerAddress((c as any).address || '');
+    setNewCustomerCity((c as any).city || '');
+    setNewCustomerGovernorate((c as any).governorate || '');
+    const knownSources = ['فيسبوك','حملات فيسبوك','انستجرام','تيك توك','واتساب','حملات واتساب','تلجرام','ويب سايت','إعلان','تسويق','مكالمة','شركة الشحن','استلام من المقر'];
+    const src = (c as any).source || '';
+    if (src && !knownSources.includes(src)) {
+      setNewCustomerSource('أخرى');
+      setNewCustomerSourceCustom(src);
+    } else {
+      setNewCustomerSource(src);
+      setNewCustomerSourceCustom('');
+    }
+    const knownShip = ['مندوب من المزرعة','استلام من المزرعة','العاصمة','مندوب خاص'];
+    const ship = (c as any).shipping_company || '';
+    if (ship && !knownShip.includes(ship)) {
+      setNewCustomerShipping('أخرى');
+      setNewCustomerShippingCustom(ship);
+    } else {
+      setNewCustomerShipping(ship);
+      setNewCustomerShippingCustom('');
+    }
+    setIsNewCustomerOpen(true);
+  };
+
   const resetCustomerForm = () => {
+    setEditingCustomerId(null);
     setNewCustomerName('');
     setNewCustomerPhone('');
     setNewCustomerAddress('');
