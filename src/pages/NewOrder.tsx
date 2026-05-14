@@ -899,19 +899,24 @@ const NewOrder = () => {
                         return (
                           <div
                             key={product.id}
-                            className="p-3 border rounded-lg text-right hover:border-primary transition-all flex flex-col"
+                            className="p-3 border rounded-lg text-right hover:border-primary hover:shadow-sm transition-all flex flex-col gap-2 min-h-[170px]"
                           >
-                            <p className="font-medium text-sm line-clamp-1">{product.name}</p>
-                            <p className="text-primary font-bold mt-1 text-sm">
+                            <h4
+                              className="font-bold text-base leading-snug text-foreground break-words"
+                              title={product.name}
+                            >
+                              {product.name}
+                            </h4>
+                            <p className="text-primary font-bold text-sm">
                               {product.price.toLocaleString()} ج.م / {product.unit}
                             </p>
                             <Badge
                               variant={product.stock <= 0 ? 'destructive' : 'outline'}
-                              className="mt-2 text-xs self-start"
+                              className="text-xs self-start"
                             >
                               {product.stock <= 0 ? 'بانتظار التصنيع' : `متاح: ${product.stock}`}
                             </Badge>
-                            <div className={`mt-2 grid ${kg ? 'grid-cols-2' : 'grid-cols-1'} gap-1.5`}>
+                            <div className={`mt-auto grid ${kg ? 'grid-cols-2' : 'grid-cols-1'} gap-1.5`}>
                               <Button
                                 size="sm"
                                 variant="outline"
