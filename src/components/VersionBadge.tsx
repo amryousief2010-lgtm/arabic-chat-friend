@@ -86,6 +86,25 @@ const VersionBadge = () => {
           {state?.error && (
             <div style={{ color: "#fca5a5", fontSize: 10 }}>خطأ: {state.error}</div>
           )}
+          {stale && state?.remote && (
+            <button
+              onClick={() => void triggerReload("manual", state.remote!)}
+              style={{
+                marginTop: 8,
+                width: "100%",
+                padding: "6px 10px",
+                borderRadius: 8,
+                background: "#f97316",
+                color: "#0f172a",
+                border: "none",
+                fontWeight: 700,
+                cursor: "pointer",
+                fontSize: 12,
+              }}
+            >
+              تحديث الآن إلى v{state.remote}
+            </button>
+          )}
         </div>
       )}
     </div>
