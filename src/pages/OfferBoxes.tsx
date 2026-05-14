@@ -93,7 +93,7 @@ const OfferBoxes = () => {
   const [editingBox, setEditingBox] = useState<OfferBox | null>(null);
   const [selectedBox, setSelectedBox] = useState<OfferBox | null>(null);
   const [formData, setFormData] = useState({ name: '', description: '', starts_at: '', expires_at: '', offer_price: '' });
-  const [newItem, setNewItem] = useState({ product_id: '', custom_price: '', quantity: '1' });
+  const [newItem, setNewItem] = useState({ product_id: '', custom_price: '', quantity: '1', is_gift: false });
 
   // Check and deactivate expired offers on load
   const checkExpiredOffers = async () => {
