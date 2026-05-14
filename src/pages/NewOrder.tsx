@@ -466,6 +466,7 @@ const NewOrder = () => {
     setEditingCustomerId(null);
     setNewCustomerName('');
     setNewCustomerPhone('');
+    setNewCustomerPhone2('');
     setNewCustomerAddress('');
     setNewCustomerCity('');
     setNewCustomerGovernorate('');
