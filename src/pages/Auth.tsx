@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { Eye, EyeOff, LogIn, ShieldCheck } from 'lucide-react';
 import { z } from 'zod';
 import { checkAndReloadIfStale } from '@/lib/updateChecker';
+import cocLogo from '@/assets/coc-logo.jpg';
 
 const loginSchema = z.object({
   email: z.string().email('البريد الإلكتروني غير صالح'),
