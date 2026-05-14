@@ -285,7 +285,7 @@ const OfferBoxes = () => {
 
   // Add item to box
   const addItemMutation = useMutation({
-    mutationFn: async (data: { offer_box_id: string; product_id: string; custom_price: number; quantity: number }) => {
+    mutationFn: async (data: { offer_box_id: string; product_id: string; custom_price: number; quantity: number; is_gift: boolean }) => {
       const { error } = await supabase.from('offer_box_items').insert(data);
       if (error) throw error;
     },
@@ -293,7 +293,7 @@ const OfferBoxes = () => {
       queryClient.invalidateQueries({ queryKey: ['offer-box-items'] });
       queryClient.invalidateQueries({ queryKey: ['offer-box-item-counts'] });
       toast({ title: 'تم إضافة المنتج' });
-      setNewItem({ product_id: '', custom_price: '', quantity: '1' });
+      setNewItem({ product_id: '', custom_price: '', quantity: '1', is_gift: false });
     },
     onError: (e: any) => {
       toast({ title: 'فشل إضافة المنتج', description: e?.message || 'خطأ غير معروف', variant: 'destructive' });
