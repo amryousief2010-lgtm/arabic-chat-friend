@@ -9,6 +9,8 @@ import { Separator } from "@/components/ui/separator";
 import { Settings as SettingsIcon, Building2, Bell, CreditCard, Shield, Volume2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNotificationSettings } from "@/hooks/useNotificationSettings";
+import UpdateLogPanel from "@/components/UpdateLogPanel";
+import { useAuth } from "@/hooks/useAuth";
 
 const Settings = () => {
   const { toast } = useToast();
