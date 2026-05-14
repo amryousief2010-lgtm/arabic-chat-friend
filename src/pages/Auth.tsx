@@ -6,9 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Eye, EyeOff, LogIn, UserPlus } from 'lucide-react';
+import { Eye, EyeOff, LogIn, ShieldCheck } from 'lucide-react';
 import { z } from 'zod';
 import { checkAndReloadIfStale } from '@/lib/updateChecker';
 
@@ -29,21 +28,14 @@ const signupSchema = z.object({
 
 const Auth = () => {
   const navigate = useNavigate();
-  const { user, role, signIn, signUp, loading: authLoading } = useAuth();
-  
+  const { user, role, signIn, loading: authLoading } = useAuth();
+
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  
+
   // Login form
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
-  
-  // Signup form
-  const [signupFullName, setSignupFullName] = useState('');
-  const [signupEmail, setSignupEmail] = useState('');
-  const [signupPassword, setSignupPassword] = useState('');
-  const [signupConfirmPassword, setSignupConfirmPassword] = useState('');
 
   useEffect(() => {
     // Wait until role is resolved so we can land on the correct page per role
