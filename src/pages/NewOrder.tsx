@@ -1051,9 +1051,16 @@ const NewOrder = () => {
                 يمكنك تعديل المنتج أو السعر أو الكمية قبل إضافة العرض للسلة.
               </p>
               {offerPreview.items.map(it => (
-                <div key={it.id} className="grid grid-cols-12 gap-2 items-end p-3 border rounded-lg bg-muted/30">
+                <div key={it.id} className={`grid grid-cols-12 gap-2 items-end p-3 border rounded-lg ${it.is_gift ? 'bg-primary/5 border-primary/30' : 'bg-muted/30'}`}>
                   <div className="col-span-5">
-                    <Label className="text-xs">المنتج</Label>
+                    <Label className="text-xs flex items-center gap-1">
+                      المنتج
+                      {it.is_gift && (
+                        <span className="inline-flex items-center gap-1 text-primary text-[10px] px-1.5 py-0.5 rounded bg-primary/10 border border-primary/30">
+                          <Gift className="w-3 h-3" /> هدية مجانية
+                        </span>
+                      )}
+                    </Label>
                     <Select value={it.product_id} onValueChange={(v) => swapOfferPreviewProduct(it.id, v)}>
                       <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -1065,7 +1072,8 @@ const NewOrder = () => {
                   </div>
                   <div className="col-span-3">
                     <Label className="text-xs">السعر</Label>
-                    <Input type="number" className="h-9" value={it.custom_price}
+                    <Input type="number" className="h-9" value={it.is_gift ? 0 : it.custom_price}
+                      disabled={it.is_gift}
                       onChange={(e) => updateOfferPreviewItem(it.id, { custom_price: Number(e.target.value) })} />
                   </div>
                   <div className="col-span-3">
@@ -1074,13 +1082,13 @@ const NewOrder = () => {
                       onChange={(e) => updateOfferPreviewItem(it.id, { quantity: Math.max(1, Number(e.target.value)) })} />
                   </div>
                   <div className="col-span-1 text-xs text-muted-foreground text-center">
-                    {(it.custom_price * it.quantity).toLocaleString()}
+                    {it.is_gift ? 'مجاني' : (it.custom_price * it.quantity).toLocaleString()}
                   </div>
                 </div>
               ))}
               <div className="flex items-center justify-between p-3 bg-primary/10 rounded-lg font-semibold">
                 <span>إجمالي العرض</span>
-                <span>{offerPreview.items.reduce((s, i) => s + i.custom_price * i.quantity, 0).toLocaleString()} ج.م</span>
+                <span>{offerPreview.items.reduce((s, i) => s + (i.is_gift ? 0 : i.custom_price * i.quantity), 0).toLocaleString()} ج.م</span>
               </div>
             </div>
           )}
