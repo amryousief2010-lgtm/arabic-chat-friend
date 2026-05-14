@@ -374,6 +374,16 @@ const NewOrder = () => {
     const kg = item.isHalfKg ? item.quantity / 2 : item.quantity;
     return sum + kg;
   }, 0);
+  const hasOfferInCart = cart.some(item => item.isOfferItem);
+
+  // Auto-zero delivery fee when an offer is added (offers include shipping).
+  // Restore default 110 when all offers removed and fee was previously zeroed.
+  useEffect(() => {
+    if (hasOfferInCart && deliveryFee !== 0) {
+      setDeliveryFee(0);
+    }
+  }, [hasOfferInCart]);
+
   const total = subtotal - discount + deliveryFee;
 
   const handleAddCustomer = async () => {
