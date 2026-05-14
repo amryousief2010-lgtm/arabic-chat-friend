@@ -764,6 +764,19 @@ const Orders = () => {
                             <Eye className="w-4 h-4" />
                           </Link>
                         </Button>
+                        {isSalesModerator &&
+                          order.status !== 'delivered' &&
+                          order.status !== 'cancelled' &&
+                          order.collection_status !== 'collected' && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setEditingOrder(order)}
+                              title="تعديل الطلب"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                          )}
                         {canDeleteOrders && (
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
