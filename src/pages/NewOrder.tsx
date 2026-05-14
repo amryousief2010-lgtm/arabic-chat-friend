@@ -51,7 +51,8 @@ import {
   UserPlus,
   Search,
   Package,
-  Gift
+  Gift,
+  Pencil
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
