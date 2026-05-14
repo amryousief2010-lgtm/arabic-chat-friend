@@ -566,7 +566,8 @@ const NewOrder = () => {
 
   const filteredCustomers = customers.filter(c =>
     c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
-    c.phone.includes(customerSearch)
+    c.phone.includes(customerSearch) ||
+    ((c as any).phone2 || '').includes(customerSearch)
   );
 
   if (loading) {
