@@ -334,10 +334,6 @@ const NewOrder = () => {
     updateOfferPreviewItem(id, patch);
   };
 
-  const _unused_removed = () => {
-    updateOfferPreviewItem(id, patch);
-  };
-
   const removeOfferPreviewItem = (id: string) => {
     if (!offerPreview) return;
     setOfferPreview({
