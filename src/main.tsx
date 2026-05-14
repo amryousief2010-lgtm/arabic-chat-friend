@@ -2,49 +2,59 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
-// 🔍 Vercel Env Variables Check (يمكن حذفه بعد التأكد)
-console.log("🔍 [ENV CHECK] Environment Variables Status:", {
-  VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL ? "✅ Loaded" : "❌ MISSING",
-  VITE_SUPABASE_PUBLISHABLE_KEY: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ? "✅ Loaded" : "❌ MISSING",
-  VITE_SUPABASE_PROJECT_ID: import.meta.env.VITE_SUPABASE_PROJECT_ID ? "✅ Loaded" : "❌ MISSING",
-  MODE: import.meta.env.MODE,
-  PROD: import.meta.env.PROD,
-  // إظهار جزء صغير من القيمة فقط للتأكد (آمن لأن المفتاح publishable)
-  URL_preview: import.meta.env.VITE_SUPABASE_URL?.substring(0, 30) + "...",
-  PROJECT_ID: import.meta.env.VITE_SUPABASE_PROJECT_ID,
-});
+const CURRENT_VERSION = typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "dev";
+const BOOT_RELOAD_KEY = "boot-version-reloaded";
 
-createRoot(document.getElementById("root")!).render(<App />);
-
-const LEGACY_SW_RELOAD_KEY = "legacy-sw-cleanup-reloaded";
-
-const cleanupLegacyServiceWorkers = async () => {
-  if (!("serviceWorker" in navigator)) return;
-
+const clearAllCachesAndSW = async () => {
   try {
-    const registrations = await navigator.serviceWorker.getRegistrations();
-    if (!registrations.length) {
-      sessionStorage.removeItem(LEGACY_SW_RELOAD_KEY);
-      return;
-    }
-
     if ("caches" in window) {
-      const cacheKeys = await caches.keys();
-      await Promise.all(cacheKeys.map((key) => caches.delete(key)));
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
     }
-
-    await Promise.all(registrations.map((registration) => registration.unregister()));
-
-    if (
-      navigator.serviceWorker.controller &&
-      sessionStorage.getItem(LEGACY_SW_RELOAD_KEY) !== "1"
-    ) {
-      sessionStorage.setItem(LEGACY_SW_RELOAD_KEY, "1");
-      window.location.reload();
+    if ("serviceWorker" in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister()));
     }
-  } catch (error) {
-    console.warn("[SW cleanup] Failed to remove legacy service workers", error);
+  } catch {
+    // ignore
   }
 };
 
-void cleanupLegacyServiceWorkers();
+// 🚦 افحص الإصدار قبل عرض التطبيق — إن كان قديماً امسح الكاش وأعد التحميل فوراً
+const checkVersionBeforeBoot = async (): Promise<boolean> => {
+  // حماية من حلقة إعادة التحميل
+  if (sessionStorage.getItem(BOOT_RELOAD_KEY) === "1") {
+    sessionStorage.removeItem(BOOT_RELOAD_KEY);
+    return false;
+  }
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 2500);
+    const res = await fetch(`/version.json?t=${Date.now()}`, {
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    if (!res.ok) return false;
+    const data = (await res.json()) as { version?: string };
+    const remote = data?.version;
+    if (!remote || remote === CURRENT_VERSION) return false;
+
+    await clearAllCachesAndSW();
+    sessionStorage.setItem(BOOT_RELOAD_KEY, "1");
+    window.location.reload();
+    return true; // سيتم التحميل من جديد
+  } catch {
+    return false;
+  }
+};
+
+(async () => {
+  const willReload = await checkVersionBeforeBoot();
+  if (willReload) return;
+
+  // تنظيف أي Service Worker قديم (احتياط)
+  void clearAllCachesAndSW();
+
+  createRoot(document.getElementById("root")!).render(<App />);
+})();
