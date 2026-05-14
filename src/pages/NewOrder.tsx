@@ -591,7 +591,7 @@ const NewOrder = () => {
                           <Select value={newCustomerSource} onValueChange={setNewCustomerSource}>
                             <SelectTrigger><SelectValue placeholder="اختر المصدر" /></SelectTrigger>
                             <SelectContent>
-                              {['فيسبوك','انستجرام','تيك توك','واتساب','تلجرام','ويب سايت','إعلان','تسويق','مكالمة','شركة الشحن','استلام من المقر','أخرى'].map(s => (
+                              {['فيسبوك','حملات فيسبوك','انستجرام','تيك توك','واتساب','حملات واتساب','تلجرام','ويب سايت','إعلان','تسويق','مكالمة','شركة الشحن','استلام من المقر','أخرى'].map(s => (
                                 <SelectItem key={s} value={s}>{s}</SelectItem>
                               ))}
                             </SelectContent>
@@ -940,7 +940,7 @@ const NewOrder = () => {
                       <Select value={source} onValueChange={setSource}>
                         <SelectTrigger><SelectValue placeholder="اختر المصدر" /></SelectTrigger>
                         <SelectContent>
-                          {['فيسبوك','انستجرام','تيك توك','واتساب','تلجرام','ويب سايت','إعلان','تسويق','مكالمة','شركة الشحن','استلام من المقر','أخرى'].map(s => (
+                          {['فيسبوك','حملات فيسبوك','انستجرام','تيك توك','واتساب','حملات واتساب','تلجرام','ويب سايت','إعلان','تسويق','مكالمة','شركة الشحن','استلام من المقر','أخرى'].map(s => (
                             <SelectItem key={s} value={s}>{s}</SelectItem>
                           ))}
                         </SelectContent>
