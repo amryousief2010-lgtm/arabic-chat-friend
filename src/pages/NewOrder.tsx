@@ -956,7 +956,7 @@ const NewOrder = () => {
                       <Select value={shippingCompany} onValueChange={setShippingCompany}>
                         <SelectTrigger><SelectValue placeholder="اختر شركة الشحن" /></SelectTrigger>
                         <SelectContent>
-                          {['مندوب من المزرعة','استلام من المزرعة','منفذ قويسنا','زودكس','العاصمة','مندوب خاص','أرامكس','بوسطة','أخرى'].map(s => (
+                          {['مندوب من المزرعة','استلام من المزرعة','العاصمة','مندوب خاص','أخرى'].map(s => (
                             <SelectItem key={s} value={s}>{s}</SelectItem>
                           ))}
                         </SelectContent>
