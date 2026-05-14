@@ -608,17 +608,23 @@ const NewOrder = () => {
                       onChange={(e) => setCustomerSearch(e.target.value)}
                     />
                   </div>
-                  <Dialog open={isNewCustomerOpen} onOpenChange={setIsNewCustomerOpen}>
+                  <Dialog
+                    open={isNewCustomerOpen}
+                    onOpenChange={(open) => {
+                      setIsNewCustomerOpen(open);
+                      if (!open) resetCustomerForm();
+                    }}
+                  >
                     <DialogTrigger asChild>
-                      <Button variant="outline" className="gap-2">
+                      <Button variant="outline" className="gap-2" onClick={() => resetCustomerForm()}>
                         <Plus className="w-4 h-4" />
                         عميل جديد
                       </Button>
                     </DialogTrigger>
                     <DialogContent dir="rtl" className="max-h-[90vh] overflow-y-auto">
                       <DialogHeader>
-                        <DialogTitle>إضافة عميل جديد</DialogTitle>
-                        <DialogDescription>أدخل بيانات العميل الجديد</DialogDescription>
+                        <DialogTitle>{editingCustomerId ? 'تعديل بيانات العميل' : 'إضافة عميل جديد'}</DialogTitle>
+                        <DialogDescription>{editingCustomerId ? 'قم بتحديث أي من بيانات العميل' : 'أدخل بيانات العميل الجديد'}</DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4 py-4">
                         <div className="space-y-2">
