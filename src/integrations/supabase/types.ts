@@ -1051,6 +1051,7 @@ export type Database = {
           created_at: string
           custom_price: number
           id: string
+          is_gift: boolean
           offer_box_id: string
           product_id: string
           quantity: number
@@ -1059,6 +1060,7 @@ export type Database = {
           created_at?: string
           custom_price: number
           id?: string
+          is_gift?: boolean
           offer_box_id: string
           product_id: string
           quantity?: number
@@ -1067,6 +1069,7 @@ export type Database = {
           created_at?: string
           custom_price?: number
           id?: string
+          is_gift?: boolean
           offer_box_id?: string
           product_id?: string
           quantity?: number

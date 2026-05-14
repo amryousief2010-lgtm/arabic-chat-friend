@@ -66,6 +66,7 @@ interface OfferBoxItem {
   product_id: string;
   custom_price: number;
   quantity: number;
+  is_gift: boolean;
   product?: {
     id: string;
     name: string;
@@ -92,7 +93,7 @@ const OfferBoxes = () => {
   const [editingBox, setEditingBox] = useState<OfferBox | null>(null);
   const [selectedBox, setSelectedBox] = useState<OfferBox | null>(null);
   const [formData, setFormData] = useState({ name: '', description: '', starts_at: '', expires_at: '', offer_price: '' });
-  const [newItem, setNewItem] = useState({ product_id: '', custom_price: '', quantity: '1' });
+  const [newItem, setNewItem] = useState({ product_id: '', custom_price: '', quantity: '1', is_gift: false });
 
   // Check and deactivate expired offers on load
   const checkExpiredOffers = async () => {
@@ -284,7 +285,7 @@ const OfferBoxes = () => {
 
   // Add item to box
   const addItemMutation = useMutation({
-    mutationFn: async (data: { offer_box_id: string; product_id: string; custom_price: number; quantity: number }) => {
+    mutationFn: async (data: { offer_box_id: string; product_id: string; custom_price: number; quantity: number; is_gift: boolean }) => {
       const { error } = await supabase.from('offer_box_items').insert(data);
       if (error) throw error;
     },
@@ -292,7 +293,7 @@ const OfferBoxes = () => {
       queryClient.invalidateQueries({ queryKey: ['offer-box-items'] });
       queryClient.invalidateQueries({ queryKey: ['offer-box-item-counts'] });
       toast({ title: 'تم إضافة المنتج' });
-      setNewItem({ product_id: '', custom_price: '', quantity: '1' });
+      setNewItem({ product_id: '', custom_price: '', quantity: '1', is_gift: false });
     },
     onError: (e: any) => {
       toast({ title: 'فشل إضافة المنتج', description: e?.message || 'خطأ غير معروف', variant: 'destructive' });
@@ -355,18 +356,20 @@ const OfferBoxes = () => {
   };
 
   const handleAddItem = () => {
-    if (!newItem.product_id || !newItem.custom_price || !selectedBox) return;
+    if (!newItem.product_id || !selectedBox) return;
+    if (!newItem.is_gift && !newItem.custom_price) return;
     addItemMutation.mutate({
       offer_box_id: selectedBox.id,
       product_id: newItem.product_id,
-      custom_price: Number(newItem.custom_price),
+      custom_price: newItem.is_gift ? 0 : Number(newItem.custom_price),
       quantity: Number(newItem.quantity),
+      is_gift: newItem.is_gift,
     });
   };
 
   const selectedProduct = products.find(p => p.id === newItem.product_id);
-  const totalBoxPrice = boxItems.reduce((sum, item) => sum + item.custom_price * item.quantity, 0);
-  const originalPrice = boxItems.reduce((sum, item) => sum + (item.product?.price || 0) * item.quantity, 0);
+  const totalBoxPrice = boxItems.reduce((sum, item) => sum + (item.is_gift ? 0 : item.custom_price * item.quantity), 0);
+  const originalPrice = boxItems.reduce((sum, item) => sum + (item.is_gift ? 0 : (item.product?.price || 0) * item.quantity), 0);
 
   return (
     <DashboardLayout>
@@ -723,10 +726,10 @@ const OfferBoxes = () => {
                       value={newItem.product_id}
                       onValueChange={(v) => {
                         const product = products.find(p => p.id === v);
-                        setNewItem({ 
-                          ...newItem, 
-                          product_id: v, 
-                          custom_price: product?.price.toString() || '' 
+                        setNewItem({
+                          ...newItem,
+                          product_id: v,
+                          custom_price: newItem.is_gift ? '0' : (product?.price.toString() || '')
                         });
                       }}
                     >
@@ -744,7 +747,8 @@ const OfferBoxes = () => {
                     <Input
                       type="number"
                       placeholder="السعر المخفض"
-                      value={newItem.custom_price}
+                      value={newItem.is_gift ? '0' : newItem.custom_price}
+                      disabled={newItem.is_gift}
                       onChange={(e) => setNewItem({ ...newItem, custom_price: e.target.value })}
                     />
                     <Input
@@ -753,11 +757,25 @@ const OfferBoxes = () => {
                       value={newItem.quantity}
                       onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
                     />
-                    <Button onClick={handleAddItem} disabled={!newItem.product_id || !newItem.custom_price}>
+                    <Button onClick={handleAddItem} disabled={!newItem.product_id || (!newItem.is_gift && !newItem.custom_price)}>
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
-                  {selectedProduct && (
+                  <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-primary"
+                      checked={newItem.is_gift}
+                      onChange={(e) => setNewItem({
+                        ...newItem,
+                        is_gift: e.target.checked,
+                        custom_price: e.target.checked ? '0' : newItem.custom_price,
+                      })}
+                    />
+                    <Gift className="h-4 w-4 text-primary" />
+                    <span>إضافة هذا المنتج كهدية مجانية (لن يُحسب سعره ضمن العرض)</span>
+                  </label>
+                  {selectedProduct && !newItem.is_gift && (
                     <p className="text-xs text-muted-foreground">
                       السعر الأصلي: {selectedProduct.price} ج.م
                       {newItem.custom_price && (
@@ -798,17 +816,26 @@ const OfferBoxes = () => {
                         : 0;
                       return (
                         <TableRow key={item.id}>
-                          <TableCell className="font-medium">{item.product?.name}</TableCell>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              {item.product?.name}
+                              {item.is_gift && (
+                                <Badge className="bg-primary/10 text-primary gap-1 border border-primary/30">
+                                  <Gift className="h-3 w-3" /> هدية
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell className="line-through text-muted-foreground">
                             {lineOriginal.toLocaleString()} ج.م
                           </TableCell>
-                          <TableCell className="text-green-600 font-semibold">
-                            {lineCustom.toLocaleString()} ج.م
+                          <TableCell className={item.is_gift ? 'text-primary font-semibold' : 'text-green-600 font-semibold'}>
+                            {item.is_gift ? 'مجاني' : `${lineCustom.toLocaleString()} ج.م`}
                           </TableCell>
                           <TableCell>{item.quantity}</TableCell>
                           <TableCell>
-                            <Badge variant="secondary" className="bg-green-100 text-green-700">
-                              {savings.toFixed(0)}%
+                            <Badge variant="secondary" className={item.is_gift ? 'bg-primary/10 text-primary' : 'bg-green-100 text-green-700'}>
+                              {item.is_gift ? '100%' : `${savings.toFixed(0)}%`}
                             </Badge>
                           </TableCell>
                           {isManager && (
