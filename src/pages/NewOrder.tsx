@@ -105,6 +105,7 @@ interface OfferPreviewItem {
   product: Product | null;
   custom_price: number;
   quantity: number;
+  is_gift?: boolean;
 }
 
 const isKgUnit = (unit: string) => {
