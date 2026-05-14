@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { findModeratorBySlug, findModeratorByName } from '@/constants/moderators';
 import DashboardLayout from '@/components/layout/DashboardLayout';
