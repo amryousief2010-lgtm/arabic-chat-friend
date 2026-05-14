@@ -51,8 +51,9 @@ const ModeratorOrdersBreakdown = () => {
     queryKey: ['moderator-orders-breakdown', selectedMonth, selectedYear],
     refetchInterval: 60000,
     queryFn: async () => {
-      const startDate = new Date(selectedYear, selectedMonth - 1, 1).toISOString();
-      const endDate = new Date(selectedYear, selectedMonth, 0, 23, 59, 59).toISOString();
+      // حدود الشهر بـ UTC لتطابق طريقة تخزين created_at للأوردرات المستوردة
+      const startDate = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1, 0, 0, 0)).toISOString();
+      const endDate = new Date(Date.UTC(selectedYear, selectedMonth, 0, 23, 59, 59)).toISOString();
 
       const { data: orders, error } = await supabase
         .from('orders')

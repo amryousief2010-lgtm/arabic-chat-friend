@@ -98,8 +98,9 @@ const ModeratorPayrollTable = () => {
   const { data: qty = { meat: {}, bone: {}, processed: {} } as { meat: Record<string, number>; bone: Record<string, number>; processed: Record<string, number> } } = useQuery({
     queryKey: ['girls-auto-qty', selectedMonth, selectedYear],
     queryFn: async () => {
-      const startDate = new Date(selectedYear, selectedMonth - 1, 1).toISOString();
-      const endDate = new Date(selectedYear, selectedMonth, 0, 23, 59, 59).toISOString();
+      // حدود الشهر بـ UTC لتطابق created_at المخزّن
+      const startDate = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1, 0, 0, 0)).toISOString();
+      const endDate = new Date(Date.UTC(selectedYear, selectedMonth, 0, 23, 59, 59)).toISOString();
       const empty = () => GIRLS.reduce((acc, g) => { acc[g] = 0; return acc; }, {} as Record<string, number>);
       const result = { meat: empty(), bone: empty(), processed: empty() };
 
