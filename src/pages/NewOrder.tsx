@@ -69,8 +69,14 @@ interface Customer {
   id: string;
   name: string;
   phone: string;
+  phone2?: string | null;
   address: string | null;
   city: string | null;
+  governorate?: string | null;
+  source?: string | null;
+  shipping_company?: string | null;
+  total_orders?: number | null;
+  total_spent?: number | null;
 }
 
 interface OfferBox {
@@ -141,6 +147,7 @@ const NewOrder = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [offerBoxes, setOfferBoxes] = useState<OfferBox[]>([]);
+  const [offerContentsById, setOfferContentsById] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   
@@ -202,6 +209,38 @@ const NewOrder = () => {
         return true;
       });
       setOfferBoxes(activeOffers);
+
+      if (activeOffers.length > 0) {
+        const { data: offerItemsRes, error: offerItemsError } = await supabase
+          .from('offer_box_items')
+          .select('offer_box_id, product_id, quantity')
+          .in('offer_box_id', activeOffers.map((offer) => offer.id));
+
+        if (offerItemsError) throw offerItemsError;
+
+        const productIds = Array.from(new Set((offerItemsRes || []).map((item) => item.product_id).filter(Boolean)));
+        const { data: offerProductsRes, error: offerProductsError } = productIds.length === 0
+          ? { data: [], error: null }
+          : await supabase
+              .from('products')
+              .select('id, name')
+              .in('id', productIds);
+
+        if (offerProductsError) throw offerProductsError;
+
+        const productNameById = new Map((offerProductsRes || []).map((product: any) => [product.id, product.name]));
+        const nextContents = (offerItemsRes || []).reduce((acc, item: any) => {
+          const productName = productNameById.get(item.product_id);
+          if (!productName) return acc;
+          const line = `${Number(item.quantity || 0).toLocaleString()} × ${productName}`;
+          acc[item.offer_box_id] = [...(acc[item.offer_box_id] || []), line];
+          return acc;
+        }, {} as Record<string, string[]>);
+
+        setOfferContentsById(nextContents);
+      } else {
+        setOfferContentsById({});
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('حدث خطأ أثناء جلب البيانات');
@@ -662,61 +701,62 @@ const NewOrder = () => {
                         عميل جديد
                       </Button>
                     </DialogTrigger>
-                    <DialogContent dir="rtl" className="max-h-[90vh] overflow-y-auto">
+                    <DialogContent dir="rtl" className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
                       <DialogHeader>
                         <DialogTitle>{editingCustomerId ? 'تعديل بيانات العميل' : 'إضافة عميل جديد'}</DialogTitle>
                         <DialogDescription>{editingCustomerId ? 'قم بتحديث أي من بيانات العميل' : 'أدخل بيانات العميل الجديد'}</DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4 py-4">
-                        <div className="space-y-2">
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div className="space-y-2 md:col-span-2">
                           <Label>الاسم *</Label>
                           <Input
                             placeholder="اسم العميل"
                             value={newCustomerName}
                             onChange={(e) => setNewCustomerName(e.target.value)}
                           />
-                        </div>
-                        <div className="space-y-2">
+                          </div>
+                          <div className="space-y-2">
                           <Label>رقم الهاتف *</Label>
                           <Input
                             placeholder="01xxxxxxxxx"
                             value={newCustomerPhone}
                             onChange={(e) => setNewCustomerPhone(e.target.value)}
                           />
-                        </div>
-                        <div className="space-y-2">
+                          </div>
+                          <div className="space-y-2">
                           <Label>رقم هاتف آخر (اختياري)</Label>
                           <Input
                             placeholder="01xxxxxxxxx"
                             value={newCustomerPhone2}
                             onChange={(e) => setNewCustomerPhone2(e.target.value)}
                           />
-                        </div>
-                        <div className="space-y-2">
+                          </div>
+                          <div className="space-y-2 md:col-span-2">
                           <Label>العنوان</Label>
                           <Input
                             placeholder="عنوان التوصيل"
                             value={newCustomerAddress}
                             onChange={(e) => setNewCustomerAddress(e.target.value)}
                           />
-                        </div>
-                        <div className="space-y-2">
+                          </div>
+                          <div className="space-y-2">
                           <Label>المدينة</Label>
                           <Input
                             placeholder="المدينة"
                             value={newCustomerCity}
                             onChange={(e) => setNewCustomerCity(e.target.value)}
                           />
-                        </div>
-                        <div className="space-y-2">
+                          </div>
+                          <div className="space-y-2">
                           <Label>المحافظة</Label>
                           <Input
                             placeholder="المحافظة"
                             value={newCustomerGovernorate}
                             onChange={(e) => setNewCustomerGovernorate(e.target.value)}
                           />
-                        </div>
-                        <div className="space-y-2">
+                          </div>
+                          <div className="space-y-2">
                           <Label>مصدر العميل</Label>
                           <Select value={newCustomerSource} onValueChange={setNewCustomerSource}>
                             <SelectTrigger><SelectValue placeholder="اختر المصدر" /></SelectTrigger>
@@ -729,8 +769,8 @@ const NewOrder = () => {
                           {newCustomerSource === 'أخرى' && (
                             <Input placeholder="أدخل المصدر" value={newCustomerSourceCustom} onChange={(e) => setNewCustomerSourceCustom(e.target.value)} />
                           )}
-                        </div>
-                        <div className="space-y-2">
+                          </div>
+                          <div className="space-y-2">
                           <Label>شركة الشحن</Label>
                           <Select value={newCustomerShipping} onValueChange={setNewCustomerShipping}>
                             <SelectTrigger><SelectValue placeholder="اختر شركة الشحن" /></SelectTrigger>
@@ -743,6 +783,7 @@ const NewOrder = () => {
                           {newCustomerShipping === 'أخرى' && (
                             <Input placeholder="أدخل اسم شركة الشحن" value={newCustomerShippingCustom} onChange={(e) => setNewCustomerShippingCustom(e.target.value)} />
                           )}
+                          </div>
                         </div>
                       </div>
                       <DialogFooter>
@@ -916,8 +957,13 @@ const NewOrder = () => {
                             {offer.description && (
                               <p className="text-sm text-muted-foreground line-clamp-2">{offer.description}</p>
                             )}
+                            {offerContentsById[offer.id]?.length ? (
+                              <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
+                                {offerContentsById[offer.id].join(' + ')}
+                              </p>
+                            ) : null}
                             <Badge className="mt-2 bg-green-100 text-green-700 hover:bg-green-100">
-                              عرض ضع تفاصيله
+                              اضغط لعرض التفاصيل
                             </Badge>
                           </button>
                         ))}
@@ -981,6 +1027,11 @@ const NewOrder = () => {
                                   <span className="mr-2 text-primary">= {kgEquivalent} كجم</span>
                                 )}
                               </p>
+                              {item.isOfferItem && item.offerBoxId && offerContentsById[item.offerBoxId]?.length ? (
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                  {offerContentsById[item.offerBoxId].join(' + ')}
+                                </p>
+                              ) : null}
                             </div>
                             <div className="flex items-center gap-1">
                               <Button variant="outline" size="icon" className="h-7 w-7"
