@@ -16,27 +16,35 @@ console.log("🔍 [ENV CHECK] Environment Variables Status:", {
 
 createRoot(document.getElementById("root")!).render(<App />);
 
-// PWA Update detection: trigger vite-pwa events on registration
-// @ts-expect-error
-if ('serviceWorker' in navigator && window.__vitePWA__) {
-  // Auto-check for updates every time the page becomes visible (mobile focus)
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') {
-      console.log('[PWA] Page visible, checking for update...');
-      // @ts-expect-error
-      if (window.__vitePWA__?.updateServiceWorker) {
-        // @ts-expect-error
-        window.__vitePWA__.updateServiceWorker(true);
-      }
-    }
-  });
+const LEGACY_SW_RELOAD_KEY = "legacy-sw-cleanup-reloaded";
 
-  // Also check immediately on load after a short delay
-  setTimeout(() => {
-    // @ts-expect-error
-    if (window.__vitePWA__?.updateServiceWorker) {
-      // @ts-expect-error
-      window.__vitePWA__.updateServiceWorker(true);
+const cleanupLegacyServiceWorkers = async () => {
+  if (!("serviceWorker" in navigator)) return;
+
+  try {
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    if (!registrations.length) {
+      sessionStorage.removeItem(LEGACY_SW_RELOAD_KEY);
+      return;
     }
-  }, 3000);
-}
+
+    if ("caches" in window) {
+      const cacheKeys = await caches.keys();
+      await Promise.all(cacheKeys.map((key) => caches.delete(key)));
+    }
+
+    await Promise.all(registrations.map((registration) => registration.unregister()));
+
+    if (
+      navigator.serviceWorker.controller &&
+      sessionStorage.getItem(LEGACY_SW_RELOAD_KEY) !== "1"
+    ) {
+      sessionStorage.setItem(LEGACY_SW_RELOAD_KEY, "1");
+      window.location.reload();
+    }
+  } catch (error) {
+    console.warn("[SW cleanup] Failed to remove legacy service workers", error);
+  }
+};
+
+void cleanupLegacyServiceWorkers();
