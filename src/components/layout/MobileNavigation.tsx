@@ -27,7 +27,7 @@ const MobileNavigation = () => {
 
   const quickNavItems = isModerator
     ? [
-        { icon: ShoppingCart, label: "طلباتي", path: modSlug ? `/orders/moderator/${modSlug}` : "/orders" },
+        { icon: ShoppingCart, label: "طلباتي", path: "/orders" },
         { icon: Target, label: "التارجت", path: "/sales-targets" },
         { icon: Warehouse, label: "المخزون", path: "/modules/warehouses" },
       ]
