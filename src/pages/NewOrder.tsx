@@ -1275,9 +1275,7 @@ const NewOrder = () => {
                 يمكنك تعديل المنتج أو السعر أو الكمية قبل إضافة العرض للسلة.
               </p>
               {offerPreview.items.map(it => {
-                const kg = !!it.product && isKgUnit(it.product.unit);
-                const lineUnitPrice = it.is_half_kg ? it.custom_price / 2 : it.custom_price;
-                const lineTotal = it.is_gift ? 0 : lineUnitPrice * it.quantity;
+                const lineTotal = it.is_gift ? 0 : it.custom_price * it.quantity;
                 return (
                 <div key={it.id} className={`grid grid-cols-12 gap-2 items-end p-3 border rounded-lg ${it.is_gift ? 'bg-primary/5 border-primary/30' : 'bg-muted/30'}`}>
                   <div className="col-span-4">
@@ -1286,11 +1284,6 @@ const NewOrder = () => {
                       {it.is_gift && (
                         <span className="inline-flex items-center gap-1 text-primary text-[10px] px-1.5 py-0.5 rounded bg-primary/10 border border-primary/30">
                           <Gift className="w-3 h-3" /> هدية مجانية
-                        </span>
-                      )}
-                      {it.is_half_kg && (
-                        <span className="inline-flex items-center text-secondary-foreground text-[10px] px-1.5 py-0.5 rounded bg-secondary border">
-                          ½ كيلو
                         </span>
                       )}
                     </Label>
@@ -1302,17 +1295,6 @@ const NewOrder = () => {
                         ))}
                       </SelectContent>
                     </Select>
-                    {kg && !it.is_gift && (
-                      <label className="mt-1.5 flex items-center gap-1.5 text-[11px] cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          className="h-3.5 w-3.5 accent-primary"
-                          checked={!!it.is_half_kg}
-                          onChange={(e) => updateOfferPreviewItem(it.id, { is_half_kg: e.target.checked })}
-                        />
-                        نص كيلو (السعر ÷ 2)
-                      </label>
-                    )}
                   </div>
                   <div className="col-span-3">
                     <Label className="text-xs">السعر</Label>
@@ -1322,8 +1304,17 @@ const NewOrder = () => {
                   </div>
                   <div className="col-span-2">
                     <Label className="text-xs">الكمية</Label>
-                    <Input type="number" min={1} className="h-9" value={it.quantity}
-                      onChange={(e) => updateOfferPreviewItem(it.id, { quantity: Math.max(1, Number(e.target.value)) })} />
+                    <Input
+                      type="number"
+                      min={0.25}
+                      step={0.25}
+                      className="h-9"
+                      value={it.quantity}
+                      onChange={(e) => {
+                        const v = Number(e.target.value);
+                        updateOfferPreviewItem(it.id, { quantity: isNaN(v) || v <= 0 ? 0.5 : v });
+                      }}
+                    />
                   </div>
                   <div className="col-span-2 text-xs text-muted-foreground text-center pb-2">
                     {it.is_gift ? 'مجاني' : lineTotal.toLocaleString()}
