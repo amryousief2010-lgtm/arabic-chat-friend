@@ -15,6 +15,8 @@ import { useAuth } from "@/hooks/useAuth";
 const Settings = () => {
   const { toast } = useToast();
   const { settings, updateSettings } = useNotificationSettings();
+  const { isGeneralManager, isExecutiveManager } = useAuth();
+  const isAdmin = isGeneralManager || isExecutiveManager;
 
   const handleSave = () => {
     toast({
