@@ -114,7 +114,6 @@ interface OfferPreviewItem {
   custom_price: number;
   quantity: number;
   is_gift?: boolean;
-  is_half_kg?: boolean;
 }
 
 const isKgUnit = (unit: string) => {
