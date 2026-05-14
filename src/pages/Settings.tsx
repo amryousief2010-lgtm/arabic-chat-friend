@@ -228,6 +228,12 @@ const Settings = () => {
           </CardContent>
         </Card>
       </div>
+
+      {isAdmin && (
+        <div className="mt-6">
+          <UpdateLogPanel />
+        </div>
+      )}
     </DashboardLayout>
   );
 };
