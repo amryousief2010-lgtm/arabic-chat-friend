@@ -287,6 +287,35 @@ const NewOrder = () => {
     updateOfferPreviewItem(id, { product_id: newProductId, product: newProduct });
   };
 
+  const removeOfferPreviewItem = (id: string) => {
+    if (!offerPreview) return;
+    setOfferPreview({
+      ...offerPreview,
+      items: offerPreview.items.filter(it => it.id !== id),
+    });
+  };
+
+  const addOfferPreviewItem = () => {
+    if (!offerPreview) return;
+    const firstProduct = products[0];
+    if (!firstProduct) {
+      toast.error('لا توجد منتجات متاحة للإضافة');
+      return;
+    }
+    const newItem: OfferPreviewItem = {
+      id: `new-${genCartId()}`,
+      product_id: firstProduct.id,
+      product: firstProduct,
+      custom_price: Number(firstProduct.price) || 0,
+      quantity: 1,
+      is_gift: false,
+    };
+    setOfferPreview({
+      ...offerPreview,
+      items: [...offerPreview.items, newItem],
+    });
+  };
+
   const confirmAddOfferToCart = () => {
     if (!offerPreview) return;
     let added = 0;
@@ -1052,7 +1081,7 @@ const NewOrder = () => {
               </p>
               {offerPreview.items.map(it => (
                 <div key={it.id} className={`grid grid-cols-12 gap-2 items-end p-3 border rounded-lg ${it.is_gift ? 'bg-primary/5 border-primary/30' : 'bg-muted/30'}`}>
-                  <div className="col-span-5">
+                  <div className="col-span-4">
                     <Label className="text-xs flex items-center gap-1">
                       المنتج
                       {it.is_gift && (
@@ -1076,16 +1105,37 @@ const NewOrder = () => {
                       disabled={it.is_gift}
                       onChange={(e) => updateOfferPreviewItem(it.id, { custom_price: Number(e.target.value) })} />
                   </div>
-                  <div className="col-span-3">
+                  <div className="col-span-2">
                     <Label className="text-xs">الكمية</Label>
                     <Input type="number" min={1} className="h-9" value={it.quantity}
                       onChange={(e) => updateOfferPreviewItem(it.id, { quantity: Math.max(1, Number(e.target.value)) })} />
                   </div>
-                  <div className="col-span-1 text-xs text-muted-foreground text-center">
+                  <div className="col-span-2 text-xs text-muted-foreground text-center pb-2">
                     {it.is_gift ? 'مجاني' : (it.custom_price * it.quantity).toLocaleString()}
+                  </div>
+                  <div className="col-span-1 flex justify-center pb-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => removeOfferPreviewItem(it.id)}
+                      title="حذف المنتج من العرض"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
                 </div>
               ))}
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full gap-2 border-dashed"
+                onClick={addOfferPreviewItem}
+              >
+                <Plus className="w-4 h-4" />
+                إضافة منتج للعرض
+              </Button>
               <div className="flex items-center justify-between p-3 bg-primary/10 rounded-lg font-semibold">
                 <span>إجمالي العرض</span>
                 <span>{offerPreview.items.reduce((s, i) => s + (i.is_gift ? 0 : i.custom_price * i.quantity), 0).toLocaleString()} ج.م</span>
