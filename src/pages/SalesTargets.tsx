@@ -149,8 +149,9 @@ const SalesTargets = () => {
   const { data: achievedData = [] } = useQuery({
     queryKey: ['achieved-sales', selectedMonth, selectedYear],
     queryFn: async () => {
-      const startDate = new Date(selectedYear, selectedMonth - 1, 1);
-      const endDate = new Date(selectedYear, selectedMonth, 0, 23, 59, 59);
+      // حدود الشهر بـ UTC لتطابق created_at المخزّن للأوردرات
+      const startDate = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1, 0, 0, 0));
+      const endDate = new Date(Date.UTC(selectedYear, selectedMonth, 0, 23, 59, 59));
 
       const { data, error } = await supabase
         .from('orders')
