@@ -742,7 +742,10 @@ const NewOrder = () => {
                   <div className="mt-3 p-3 bg-muted/50 rounded-lg flex items-center justify-between gap-2 flex-wrap">
                     <div className="min-w-0">
                       <p className="font-medium">{selectedCustomer.name}</p>
-                      <p className="text-sm text-muted-foreground">{selectedCustomer.phone}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {selectedCustomer.phone}
+                        {(selectedCustomer as any).phone2 ? ` / ${(selectedCustomer as any).phone2}` : ''}
+                      </p>
                       {((selectedCustomer as any).address || (selectedCustomer as any).governorate) && (
                         <p className="text-xs text-muted-foreground mt-1">
                           {[(selectedCustomer as any).governorate, (selectedCustomer as any).city, (selectedCustomer as any).address].filter(Boolean).join(' - ')}
