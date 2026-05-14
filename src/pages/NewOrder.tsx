@@ -957,8 +957,13 @@ const NewOrder = () => {
                             {offer.description && (
                               <p className="text-sm text-muted-foreground line-clamp-2">{offer.description}</p>
                             )}
+                            {offerContentsById[offer.id]?.length ? (
+                              <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
+                                {offerContentsById[offer.id].join(' + ')}
+                              </p>
+                            ) : null}
                             <Badge className="mt-2 bg-green-100 text-green-700 hover:bg-green-100">
-                              عرض ضع تفاصيله
+                              اضغط لعرض التفاصيل
                             </Badge>
                           </button>
                         ))}
@@ -1022,6 +1027,11 @@ const NewOrder = () => {
                                   <span className="mr-2 text-primary">= {kgEquivalent} كجم</span>
                                 )}
                               </p>
+                              {item.isOfferItem && item.offerBoxId && offerContentsById[item.offerBoxId]?.length ? (
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                  {offerContentsById[item.offerBoxId].join(' + ')}
+                                </p>
+                              ) : null}
                             </div>
                             <div className="flex items-center gap-1">
                               <Button variant="outline" size="icon" className="h-7 w-7"
