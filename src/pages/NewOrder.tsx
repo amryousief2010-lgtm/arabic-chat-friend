@@ -1239,12 +1239,22 @@ const NewOrder = () => {
                   <div className="col-span-2 text-xs text-muted-foreground text-center pb-2">
                     {it.is_gift ? 'مجاني' : (it.custom_price * it.quantity).toLocaleString()}
                   </div>
-                  <div className="col-span-1 flex justify-center pb-1">
+                  <div className="col-span-1 flex flex-col items-center gap-1 pb-1">
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      className={`h-7 w-7 ${it.is_gift ? 'text-primary bg-primary/10' : 'text-muted-foreground'}`}
+                      onClick={() => toggleOfferPreviewGift(it.id)}
+                      title={it.is_gift ? 'إلغاء كهدية' : 'تعيين كهدية مجانية'}
+                    >
+                      <Gift className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
                       onClick={() => removeOfferPreviewItem(it.id)}
                       title="حذف المنتج من العرض"
                     >
@@ -1253,15 +1263,26 @@ const NewOrder = () => {
                   </div>
                 </div>
               ))}
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full gap-2 border-dashed"
-                onClick={addOfferPreviewItem}
-              >
-                <Plus className="w-4 h-4" />
-                إضافة منتج للعرض
-              </Button>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-2 border-dashed"
+                  onClick={() => addOfferPreviewItem(false)}
+                >
+                  <Plus className="w-4 h-4" />
+                  إضافة منتج للعرض
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-2 border-dashed text-primary border-primary/40 hover:bg-primary/5"
+                  onClick={() => addOfferPreviewItem(true)}
+                >
+                  <Gift className="w-4 h-4" />
+                  إضافة هدية مجانية
+                </Button>
+              </div>
               <div className="flex items-center justify-between p-3 bg-primary/10 rounded-lg font-semibold">
                 <span>إجمالي العرض</span>
                 <span>{offerPreview.items.reduce((s, i) => s + (i.is_gift ? 0 : i.custom_price * i.quantity), 0).toLocaleString()} ج.م</span>
