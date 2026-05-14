@@ -726,18 +726,34 @@ const NewOrder = () => {
                 )}
 
                 {selectedCustomer && (
-                  <div className="mt-3 p-3 bg-muted/50 rounded-lg flex items-center justify-between">
-                    <div>
+                  <div className="mt-3 p-3 bg-muted/50 rounded-lg flex items-center justify-between gap-2 flex-wrap">
+                    <div className="min-w-0">
                       <p className="font-medium">{selectedCustomer.name}</p>
                       <p className="text-sm text-muted-foreground">{selectedCustomer.phone}</p>
+                      {((selectedCustomer as any).address || (selectedCustomer as any).governorate) && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {[(selectedCustomer as any).governorate, (selectedCustomer as any).city, (selectedCustomer as any).address].filter(Boolean).join(' - ')}
+                        </p>
+                      )}
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSelectedCustomer(null)}
-                    >
-                      تغيير
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1"
+                        onClick={() => openEditCustomer(selectedCustomer)}
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                        تعديل
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedCustomer(null)}
+                      >
+                        تغيير
+                      </Button>
+                    </div>
                   </div>
                 )}
               </CardContent>
