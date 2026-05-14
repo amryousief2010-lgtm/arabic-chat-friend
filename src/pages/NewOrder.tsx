@@ -328,7 +328,13 @@ const NewOrder = () => {
   const swapOfferPreviewProduct = (id: string, newProductId: string) => {
     const newProduct = products.find(p => p.id === newProductId);
     if (!newProduct) return;
-    updateOfferPreviewItem(id, { product_id: newProductId, product: newProduct });
+    const cur = offerPreview?.items.find(i => i.id === id);
+    const patch: Partial<OfferPreviewItem> = { product_id: newProductId, product: newProduct };
+    // Auto-fill price from the newly selected product (skip if it's a gift)
+    if (!cur?.is_gift) patch.custom_price = Number(newProduct.price) || 0;
+    // Reset half-kg flag if the new product is not sold by kg
+    if (!isKgUnit(newProduct.unit)) patch.is_half_kg = false;
+    updateOfferPreviewItem(id, patch);
   };
 
   const removeOfferPreviewItem = (id: string) => {
