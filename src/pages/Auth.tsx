@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { Eye, EyeOff, LogIn, UserPlus } from 'lucide-react';
 import { z } from 'zod';
+import { checkAndReloadIfStale } from '@/lib/updateChecker';
 
 const loginSchema = z.object({
   email: z.string().email('البريد الإلكتروني غير صالح'),
@@ -78,6 +79,12 @@ const Auth = () => {
       }
     } else {
       toast.success('تم تسجيل الدخول بنجاح');
+      // فحص نسخة جديدة قبل عرض صفحة المستخدم
+      const willReload = await checkAndReloadIfStale('post-login');
+      if (willReload) {
+        toast.info('يوجد تحديث جديد — جارٍ إعادة التحميل...');
+        return;
+      }
     }
     
     setIsLoading(false);
