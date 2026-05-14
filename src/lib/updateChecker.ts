@@ -24,6 +24,7 @@ export type ReloadReason =
   | "interval"
   | "focus"
   | "visibility"
+  | "pageshow"
   | "post-login"
   | "manual";
 
