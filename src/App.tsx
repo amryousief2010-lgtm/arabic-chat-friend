@@ -7,6 +7,8 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { NotificationSettingsProvider } from "@/hooks/useNotificationSettings";
 import AnimatedRoutes from "@/components/AnimatedRoutes";
 import PWAUpdatePrompt from "@/components/PWAUpdatePrompt";
+import VersionBadge from "@/components/VersionBadge";
+import RouteVersionGuard from "@/components/RouteVersionGuard";
 
 const queryClient = new QueryClient();
 
@@ -16,7 +18,9 @@ const App = () => (
       <Toaster />
       <Sonner />
       <PWAUpdatePrompt />
+      <VersionBadge />
       <BrowserRouter>
+        <RouteVersionGuard />
         <AuthProvider>
           <NotificationSettingsProvider>
             <AnimatedRoutes />

@@ -127,6 +127,21 @@ export const triggerReload = async (
   window.location.reload();
 };
 
+/** آخر نتيجة فحص — لعرضها في واجهة الـ badge */
+export interface LastCheckState {
+  at: string;
+  remote: string | null;
+  upToDate: boolean;
+  error?: string;
+}
+let lastCheck: LastCheckState | null = null;
+const listeners = new Set<(s: LastCheckState) => void>();
+export const getLastCheck = () => lastCheck;
+export const subscribeToChecks = (fn: (s: LastCheckState) => void) => {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+};
+
 /** فحص + إعادة تحميل إن لزم. يُرجع true لو سيُعاد التحميل. */
 export const checkAndReloadIfStale = async (
   reason: ReloadReason,
@@ -137,7 +152,18 @@ export const checkAndReloadIfStale = async (
     return false;
   }
   const result = await fetchRemoteVersion();
+  lastCheck = {
+    at: new Date().toISOString(),
+    remote: result.remote,
+    upToDate: result.upToDate,
+    error: result.error,
+  };
+  listeners.forEach((fn) => fn(lastCheck!));
+  console.info(
+    `[update] check (${reason}): current=${CURRENT_VERSION} remote=${result.remote ?? "?"} upToDate=${result.upToDate}`,
+  );
   if (result.upToDate || !result.remote) return false;
   await triggerReload(reason, result.remote);
   return true;
 };
+
