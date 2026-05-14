@@ -76,14 +76,27 @@ const Auth = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-muted/30 to-background p-4" dir="rtl">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-muted/30 to-background p-4 relative overflow-hidden" dir="rtl">
+      {/* decorative background blobs */}
+      <div className="pointer-events-none absolute -top-32 -right-32 w-96 h-96 rounded-full bg-primary/10 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-orange-500/10 blur-3xl" />
+
+      <div className="w-full max-w-md relative z-10">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-primary shadow-lg mb-4">
-            <span className="text-primary-foreground font-bold text-3xl">ن</span>
+          <div className="relative inline-flex items-center justify-center mb-5">
+            <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-primary/30 to-orange-500/30 blur-2xl scale-110" />
+            <div className="relative w-32 h-32 rounded-3xl bg-white shadow-2xl ring-1 ring-border/40 p-3 flex items-center justify-center">
+              <img
+                src={cocLogo}
+                alt="شعار شركة نعام العاصمة - Capital Ostrich Company"
+                className="w-full h-full object-contain"
+                draggable={false}
+              />
+            </div>
           </div>
-          <h1 className="text-2xl font-bold text-foreground">شركة نعام العاصمة</h1>
-          <p className="text-muted-foreground mt-1">نظام داخلي — الدخول مقيد للموظفين فقط</p>
+          <h1 className="text-3xl font-bold text-foreground tracking-tight">شركة نعام العاصمة</h1>
+          <p className="text-sm text-muted-foreground mt-1.5">Capital Ostrich Company</p>
+          <p className="text-xs text-muted-foreground/80 mt-2">نظام داخلي — الدخول مقيد للموظفين فقط</p>
         </div>
 
         <Card className="border-border/50 shadow-xl">
