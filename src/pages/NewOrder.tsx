@@ -1283,10 +1283,29 @@ const NewOrder = () => {
                   إضافة هدية مجانية
                 </Button>
               </div>
-              <div className="flex items-center justify-between p-3 bg-primary/10 rounded-lg font-semibold">
-                <span>إجمالي العرض</span>
-                <span>{offerPreview.items.reduce((s, i) => s + (i.is_gift ? 0 : i.custom_price * i.quantity), 0).toLocaleString()} ج.م</span>
-              </div>
+              {(() => {
+                const itemsTotal = offerPreview.items.reduce((s, i) => s + (i.is_gift ? 0 : i.custom_price * i.quantity), 0);
+                const shipping = Number(offerPreview.box.shipping_cost || 0);
+                const grand = itemsTotal + shipping;
+                return (
+                  <div className="p-3 bg-primary/10 rounded-lg space-y-1 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">إجمالي المنتجات</span>
+                      <span>{itemsTotal.toLocaleString()} ج.م</span>
+                    </div>
+                    {shipping > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">الشحن (مضمّن في العرض)</span>
+                        <span>{shipping.toLocaleString()} ج.م</span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between pt-2 border-t font-semibold text-base">
+                      <span>إجمالي العرض</span>
+                      <span>{grand.toLocaleString()} ج.م</span>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
           <DialogFooter>
