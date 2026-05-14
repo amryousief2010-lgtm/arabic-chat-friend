@@ -655,30 +655,37 @@ const Orders = () => {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Select
-                        value={order.status}
-                        onValueChange={(value: OrderStatus) =>
-                          handleStatusChange(order.id, value)
-                        }
-                      >
-                        <SelectTrigger className="w-36">
-                          <Badge className={`${statusColors[order.status]} flex items-center gap-1`}>
-                            {getStatusIcon(order.status)}
-                            {statusLabels[order.status]}
-                          </Badge>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Object.entries(statusLabels)
-                            .filter(([value]) =>
-                              !isShippingCompany || value === order.status || value === "delivered" || value === "cancelled"
-                            )
-                            .map(([value, label]) => (
-                              <SelectItem key={value} value={value}>
-                                {label}
-                              </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
+                      {isSalesModerator ? (
+                        <Badge className={`${statusColors[order.status]} flex items-center gap-1 w-fit`}>
+                          {getStatusIcon(order.status)}
+                          {statusLabels[order.status]}
+                        </Badge>
+                      ) : (
+                        <Select
+                          value={order.status}
+                          onValueChange={(value: OrderStatus) =>
+                            handleStatusChange(order.id, value)
+                          }
+                        >
+                          <SelectTrigger className="w-36">
+                            <Badge className={`${statusColors[order.status]} flex items-center gap-1`}>
+                              {getStatusIcon(order.status)}
+                              {statusLabels[order.status]}
+                            </Badge>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(statusLabels)
+                              .filter(([value]) =>
+                                !isShippingCompany || value === order.status || value === "delivered" || value === "cancelled"
+                              )
+                              .map(([value, label]) => (
+                                <SelectItem key={value} value={value}>
+                                  {label}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                     </TableCell>
                     <TableCell>
                       {isAccountant ? (
