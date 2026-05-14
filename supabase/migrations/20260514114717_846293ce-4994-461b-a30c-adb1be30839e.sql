@@ -1,0 +1,1 @@
+ALTER TABLE public.offer_box_items ADD COLUMN IF NOT EXISTS is_gift boolean NOT NULL DEFAULT false;
