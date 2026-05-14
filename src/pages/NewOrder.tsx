@@ -893,55 +893,70 @@ const NewOrder = () => {
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                      {filteredProducts.map((product) => {
-                        const kg = isKgUnit(product.unit);
-                        return (
-                          <div
-                            key={product.id}
-                            className="p-3 border rounded-lg text-right hover:border-primary hover:shadow-sm transition-all flex flex-col gap-2 min-h-[170px]"
-                          >
-                            <h4
-                              className="font-bold text-base leading-snug text-foreground break-words"
-                              title={product.name}
-                            >
-                              {product.name}
-                            </h4>
-                            <p className="text-primary font-bold text-sm">
-                              {product.price.toLocaleString()} ج.م / {product.unit}
-                            </p>
-                            <Badge
-                              variant={product.stock <= 0 ? 'destructive' : 'outline'}
-                              className="text-xs self-start"
-                            >
-                              {product.stock <= 0 ? 'بانتظار التصنيع' : `متاح: ${product.stock}`}
-                            </Badge>
-                            <div className={`mt-auto grid ${kg ? 'grid-cols-2' : 'grid-cols-1'} gap-1.5`}>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-8 text-xs"
-                                onClick={() => addToCart(product)}
-                              >
-                                <Plus className="w-3 h-3 ml-1" />
-                                {kg ? 'كيلو' : 'إضافة'}
-                              </Button>
-                              {kg && (
-                                <Button
-                                  size="sm"
-                                  variant="secondary"
-                                  className="h-8 text-xs"
-                                  onClick={() => addToCart(product, undefined, false, true)}
-                                  title="2 = 1 كيلو"
-                                >
-                                  <Plus className="w-3 h-3 ml-1" />
-                                  ½ كيلو
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
+                    <div className="border rounded-lg overflow-hidden">
+                      <table className="w-full text-right text-sm">
+                        <thead className="bg-muted/60 text-xs">
+                          <tr>
+                            <th className="p-2 font-semibold">المنتج</th>
+                            <th className="p-2 font-semibold whitespace-nowrap">السعر</th>
+                            <th className="p-2 font-semibold whitespace-nowrap">المتاح</th>
+                            <th className="p-2 font-semibold w-[180px]">إضافة</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredProducts.map((product) => {
+                            const kg = isKgUnit(product.unit);
+                            return (
+                              <tr key={product.id} className="border-t hover:bg-muted/30 transition-colors">
+                                <td className="p-2 align-middle">
+                                  <span
+                                    className="font-bold text-base text-green-600 dark:text-green-400 break-words"
+                                    title={product.name}
+                                  >
+                                    {product.name}
+                                  </span>
+                                </td>
+                                <td className="p-2 align-middle whitespace-nowrap text-primary font-bold">
+                                  {product.price.toLocaleString()} ج.م / {product.unit}
+                                </td>
+                                <td className="p-2 align-middle">
+                                  <Badge
+                                    variant={product.stock <= 0 ? 'destructive' : 'outline'}
+                                    className="text-xs whitespace-nowrap"
+                                  >
+                                    {product.stock <= 0 ? 'بانتظار التصنيع' : `متاح: ${product.stock}`}
+                                  </Badge>
+                                </td>
+                                <td className="p-2 align-middle">
+                                  <div className={`grid ${kg ? 'grid-cols-2' : 'grid-cols-1'} gap-1.5`}>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-8 text-xs"
+                                      onClick={() => addToCart(product)}
+                                    >
+                                      <Plus className="w-3 h-3 ml-1" />
+                                      {kg ? 'كيلو' : 'إضافة'}
+                                    </Button>
+                                    {kg && (
+                                      <Button
+                                        size="sm"
+                                        variant="secondary"
+                                        className="h-8 text-xs"
+                                        onClick={() => addToCart(product, undefined, false, true)}
+                                        title="2 = 1 كيلو"
+                                      >
+                                        <Plus className="w-3 h-3 ml-1" />
+                                        ½ كيلو
+                                      </Button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
                     </div>
                   </TabsContent>
 
