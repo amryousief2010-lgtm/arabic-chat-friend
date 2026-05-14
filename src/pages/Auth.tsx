@@ -82,21 +82,23 @@ const Auth = () => {
       <div className="pointer-events-none absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-orange-500/10 blur-3xl" />
 
       <div className="w-full max-w-md relative z-10">
-        <div className="text-center mb-8">
-          <div className="relative inline-flex items-center justify-center mb-5">
-            <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-primary/30 to-orange-500/30 blur-2xl scale-110" />
-            <div className="relative w-32 h-32 rounded-3xl bg-white shadow-2xl ring-1 ring-border/40 p-3 flex items-center justify-center">
+        <div className="text-center mb-6 sm:mb-8">
+          <div className="relative inline-flex items-center justify-center mb-4 sm:mb-5">
+            <div className="absolute inset-0 rounded-[2rem] bg-gradient-to-br from-primary/30 to-orange-500/30 blur-2xl scale-110" aria-hidden="true" />
+            <div className="relative w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-3xl bg-white shadow-2xl ring-1 ring-border/40 p-3 sm:p-4 flex items-center justify-center">
               <img
                 src={cocLogo}
                 alt="شعار شركة نعام العاصمة - Capital Ostrich Company"
-                className="w-full h-full object-contain"
+                className="w-full h-full object-contain select-none"
                 draggable={false}
+                loading="eager"
+                decoding="async"
               />
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-foreground tracking-tight">شركة نعام العاصمة</h1>
-          <p className="text-sm text-muted-foreground mt-1.5">Capital Ostrich Company</p>
-          <p className="text-xs text-muted-foreground/80 mt-2">نظام داخلي — الدخول مقيد للموظفين فقط</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">شركة نعام العاصمة</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 tracking-wide">Capital Ostrich Company</p>
+          <p className="text-[11px] sm:text-xs text-muted-foreground/80 mt-2">نظام داخلي — الدخول مقيد للموظفين فقط</p>
         </div>
 
         <Card className="border-border/50 shadow-xl">
