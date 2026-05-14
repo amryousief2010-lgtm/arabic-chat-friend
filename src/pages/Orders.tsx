@@ -29,7 +29,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus, Trash2 } from "lucide-react";
+import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus, Trash2, Pencil } from "lucide-react";
+import EditOrderItemsDialog from "@/components/orders/EditOrderItemsDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -147,6 +148,7 @@ const Orders = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [searchParams, setSearchParams] = useSearchParams();
   const yearParam = searchParams.get("year");
@@ -762,6 +764,19 @@ const Orders = () => {
                             <Eye className="w-4 h-4" />
                           </Link>
                         </Button>
+                        {isSalesModerator &&
+                          order.status !== 'delivered' &&
+                          order.status !== 'cancelled' &&
+                          order.collection_status !== 'collected' && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setEditingOrder(order)}
+                              title="تعديل الطلب"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                          )}
                         {canDeleteOrders && (
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
@@ -935,6 +950,25 @@ const Orders = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {editingOrder && (
+        <EditOrderItemsDialog
+          open={!!editingOrder}
+          onOpenChange={(o) => !o && setEditingOrder(null)}
+          orderId={editingOrder.id}
+          initialItems={editingOrder.items.map((it) => ({
+            id: it.id,
+            product_id: it.product_id,
+            product_name: it.product_name,
+            quantity: it.quantity,
+            unit_price: it.unit_price,
+          }))}
+          onSaved={() => {
+            setEditingOrder(null);
+            fetchOrders();
+          }}
+        />
+      )}
 
       {/* Per-moderator quick access section — hidden from moderators themselves for privacy */}
       {!isSalesModerator && <ModeratorQuickAccessCards />}
