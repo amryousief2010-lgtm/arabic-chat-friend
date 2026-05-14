@@ -170,10 +170,10 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
   const location = useLocation();
   const { role, profile } = useAuth();
   const { unreadCount } = useUnreadNotifications();
-  const moderatorSlug = role === 'sales_moderator'
-    ? findModeratorByName(profile?.full_name)?.slug
-    : undefined;
-  const ordersPathOverride = moderatorSlug ? `/orders/moderator/${moderatorSlug}` : null;
+  // Sales moderators now use the same /orders page as managers (RLS scopes
+  // them to their own rows). The previous override sent them to a stripped-
+  // down log view, which the user explicitly asked to remove.
+  const ordersPathOverride: string | null = null;
 
   const activeSectionId = moduleSections.find((s) =>
     s.items.some((i) => i.path === location.pathname)
