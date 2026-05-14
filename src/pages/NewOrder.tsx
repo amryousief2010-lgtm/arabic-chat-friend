@@ -331,8 +331,10 @@ const NewOrder = () => {
     const patch: Partial<OfferPreviewItem> = { product_id: newProductId, product: newProduct };
     // Auto-fill price from the newly selected product (skip if it's a gift)
     if (!cur?.is_gift) patch.custom_price = Number(newProduct.price) || 0;
-    // Reset half-kg flag if the new product is not sold by kg
-    if (!isKgUnit(newProduct.unit)) patch.is_half_kg = false;
+    updateOfferPreviewItem(id, patch);
+  };
+
+  const _unused_removed = () => {
     updateOfferPreviewItem(id, patch);
   };
 
