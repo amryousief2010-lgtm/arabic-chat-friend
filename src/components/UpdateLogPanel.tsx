@@ -20,6 +20,7 @@ const reasonLabel: Record<ReloadLogEntry["reason"], string> = {
   interval: "فحص دوري",
   focus: "عند التركيز",
   visibility: "عند الظهور",
+  pageshow: "عند الرجوع للصفحة",
   "post-login": "بعد تسجيل الدخول",
   manual: "يدوي",
 };

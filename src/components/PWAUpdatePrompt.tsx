@@ -27,16 +27,27 @@ const PWAUpdatePrompt = () => {
       if (document.visibilityState === "visible") void run("visibility");
     };
     const onFocus = () => void run("focus");
+    const onPageShow = (event: PageTransitionEvent) => {
+      const navigationEntry = performance
+        .getEntriesByType("navigation")
+        .at(0) as PerformanceNavigationTiming | undefined;
+
+      if (event.persisted || navigationEntry?.type === "back_forward") {
+        void run("pageshow");
+      }
+    };
 
     if (CHECK_ON_FOCUS) {
       document.addEventListener("visibilitychange", onVisible);
       window.addEventListener("focus", onFocus);
+      window.addEventListener("pageshow", onPageShow);
     }
     return () => {
       clearInterval(interval);
       if (CHECK_ON_FOCUS) {
         document.removeEventListener("visibilitychange", onVisible);
         window.removeEventListener("focus", onFocus);
+        window.removeEventListener("pageshow", onPageShow);
       }
     };
   }, [run]);
