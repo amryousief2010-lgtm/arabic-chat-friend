@@ -67,6 +67,7 @@ export type Database = {
           name: string
           notes: string | null
           phone: string
+          phone2: string | null
           shipping_company: string | null
           source: string | null
           total_orders: number
@@ -83,6 +84,7 @@ export type Database = {
           name: string
           notes?: string | null
           phone: string
+          phone2?: string | null
           shipping_company?: string | null
           source?: string | null
           total_orders?: number
@@ -99,6 +101,7 @@ export type Database = {
           name?: string
           notes?: string | null
           phone?: string
+          phone2?: string | null
           shipping_company?: string | null
           source?: string | null
           total_orders?: number

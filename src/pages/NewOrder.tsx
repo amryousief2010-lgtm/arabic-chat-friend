@@ -165,6 +165,7 @@ const NewOrder = () => {
   const [editingCustomerId, setEditingCustomerId] = useState<string | null>(null);
   const [newCustomerName, setNewCustomerName] = useState('');
   const [newCustomerPhone, setNewCustomerPhone] = useState('');
+  const [newCustomerPhone2, setNewCustomerPhone2] = useState('');
   const [newCustomerAddress, setNewCustomerAddress] = useState('');
   const [newCustomerCity, setNewCustomerCity] = useState('');
   const [newCustomerGovernorate, setNewCustomerGovernorate] = useState('');
@@ -387,6 +388,7 @@ const NewOrder = () => {
       const payload = {
         name: newCustomerName.trim(),
         phone: newCustomerPhone.trim(),
+        phone2: newCustomerPhone2.trim() || null,
         address: newCustomerAddress.trim() || null,
         city: newCustomerCity.trim() || null,
         governorate: newCustomerGovernorate.trim() || null,
@@ -435,6 +437,7 @@ const NewOrder = () => {
     setEditingCustomerId(c.id);
     setNewCustomerName(c.name || '');
     setNewCustomerPhone(c.phone || '');
+    setNewCustomerPhone2((c as any).phone2 || '');
     setNewCustomerAddress((c as any).address || '');
     setNewCustomerCity((c as any).city || '');
     setNewCustomerGovernorate((c as any).governorate || '');
@@ -463,6 +466,7 @@ const NewOrder = () => {
     setEditingCustomerId(null);
     setNewCustomerName('');
     setNewCustomerPhone('');
+    setNewCustomerPhone2('');
     setNewCustomerAddress('');
     setNewCustomerCity('');
     setNewCustomerGovernorate('');
@@ -562,7 +566,8 @@ const NewOrder = () => {
 
   const filteredCustomers = customers.filter(c =>
     c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
-    c.phone.includes(customerSearch)
+    c.phone.includes(customerSearch) ||
+    ((c as any).phone2 || '').includes(customerSearch)
   );
 
   if (loading) {
@@ -641,6 +646,14 @@ const NewOrder = () => {
                             placeholder="01xxxxxxxxx"
                             value={newCustomerPhone}
                             onChange={(e) => setNewCustomerPhone(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>رقم هاتف آخر (اختياري)</Label>
+                          <Input
+                            placeholder="01xxxxxxxxx"
+                            value={newCustomerPhone2}
+                            onChange={(e) => setNewCustomerPhone2(e.target.value)}
                           />
                         </div>
                         <div className="space-y-2">
@@ -729,7 +742,10 @@ const NewOrder = () => {
                   <div className="mt-3 p-3 bg-muted/50 rounded-lg flex items-center justify-between gap-2 flex-wrap">
                     <div className="min-w-0">
                       <p className="font-medium">{selectedCustomer.name}</p>
-                      <p className="text-sm text-muted-foreground">{selectedCustomer.phone}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {selectedCustomer.phone}
+                        {(selectedCustomer as any).phone2 ? ` / ${(selectedCustomer as any).phone2}` : ''}
+                      </p>
                       {((selectedCustomer as any).address || (selectedCustomer as any).governorate) && (
                         <p className="text-xs text-muted-foreground mt-1">
                           {[(selectedCustomer as any).governorate, (selectedCustomer as any).city, (selectedCustomer as any).address].filter(Boolean).join(' - ')}
