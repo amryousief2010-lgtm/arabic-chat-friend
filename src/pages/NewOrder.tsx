@@ -261,8 +261,9 @@ const NewOrder = () => {
         id: it.id,
         product_id: it.product_id,
         product: (productData?.find(p => p.id === it.product_id) as Product) || null,
-        custom_price: Number(it.custom_price),
+        custom_price: (it as any).is_gift ? 0 : Number(it.custom_price),
         quantity: Number(it.quantity),
+        is_gift: !!(it as any).is_gift,
       }));
       setOfferPreview({ box: offerBox, items: previewItems });
     } catch (e) {
