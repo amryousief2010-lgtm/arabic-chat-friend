@@ -29,7 +29,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus, Trash2 } from "lucide-react";
+import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus, Trash2, Pencil } from "lucide-react";
+import EditOrderItemsDialog from "@/components/orders/EditOrderItemsDialog";
 import {
   AlertDialog,
   AlertDialogAction,
