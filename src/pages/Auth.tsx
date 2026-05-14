@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { Eye, EyeOff, LogIn, UserPlus } from 'lucide-react';
 import { z } from 'zod';
+import { checkAndReloadIfStale } from '@/lib/updateChecker';
 
 const loginSchema = z.object({
   email: z.string().email('البريد الإلكتروني غير صالح'),
