@@ -648,6 +648,14 @@ const NewOrder = () => {
                           />
                         </div>
                         <div className="space-y-2">
+                          <Label>رقم هاتف آخر (اختياري)</Label>
+                          <Input
+                            placeholder="01xxxxxxxxx"
+                            value={newCustomerPhone2}
+                            onChange={(e) => setNewCustomerPhone2(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
                           <Label>العنوان</Label>
                           <Input
                             placeholder="عنوان التوصيل"
