@@ -51,7 +51,8 @@ import {
   UserPlus,
   Search,
   Package,
-  Gift
+  Gift,
+  Pencil
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -159,8 +160,9 @@ const NewOrder = () => {
   const [productSearch, setProductSearch] = useState('');
   const [customerSearch, setCustomerSearch] = useState('');
   
-  // New customer dialog
+  // New/Edit customer dialog
   const [isNewCustomerOpen, setIsNewCustomerOpen] = useState(false);
+  const [editingCustomerId, setEditingCustomerId] = useState<string | null>(null);
   const [newCustomerName, setNewCustomerName] = useState('');
   const [newCustomerPhone, setNewCustomerPhone] = useState('');
   const [newCustomerAddress, setNewCustomerAddress] = useState('');
@@ -382,23 +384,38 @@ const NewOrder = () => {
     try {
       const finalSource = (newCustomerSource === 'أخرى' ? newCustomerSourceCustom.trim() : newCustomerSource) || null;
       const finalShipping = (newCustomerShipping === 'أخرى' ? newCustomerShippingCustom.trim() : newCustomerShipping) || null;
-      const { data, error } = await supabase
-        .from('customers')
-        .insert({
-          name: newCustomerName.trim(),
-          phone: newCustomerPhone.trim(),
-          address: newCustomerAddress.trim() || null,
-          city: newCustomerCity.trim() || null,
-          governorate: newCustomerGovernorate.trim() || null,
-          source: finalSource,
-          shipping_company: finalShipping,
-        })
-        .select()
-        .single();
+      const payload = {
+        name: newCustomerName.trim(),
+        phone: newCustomerPhone.trim(),
+        address: newCustomerAddress.trim() || null,
+        city: newCustomerCity.trim() || null,
+        governorate: newCustomerGovernorate.trim() || null,
+        source: finalSource,
+        shipping_company: finalShipping,
+      };
 
-      if (error) throw error;
+      let data: Customer;
+      if (editingCustomerId) {
+        const res = await supabase
+          .from('customers')
+          .update(payload)
+          .eq('id', editingCustomerId)
+          .select()
+          .single();
+        if (res.error) throw res.error;
+        data = res.data as Customer;
+        setCustomers(customers.map(c => c.id === data.id ? data : c));
+      } else {
+        const res = await supabase
+          .from('customers')
+          .insert(payload)
+          .select()
+          .single();
+        if (res.error) throw res.error;
+        data = res.data as Customer;
+        setCustomers([...customers, data]);
+      }
 
-      setCustomers([...customers, data]);
       setSelectedCustomer(data);
       setDeliveryAddress(data.address || '');
       if (finalSource) setSource(finalSource === newCustomerSourceCustom.trim() ? 'أخرى' : finalSource);
@@ -407,14 +424,43 @@ const NewOrder = () => {
       if (newCustomerShipping === 'أخرى') setShippingCustom(newCustomerShippingCustom);
       setIsNewCustomerOpen(false);
       resetCustomerForm();
-      toast.success('تم إضافة العميل بنجاح');
+      toast.success(editingCustomerId ? 'تم تحديث بيانات العميل' : 'تم إضافة العميل بنجاح');
     } catch (error) {
-      console.error('Error adding customer:', error);
-      toast.error('حدث خطأ أثناء إضافة العميل');
+      console.error('Error saving customer:', error);
+      toast.error(editingCustomerId ? 'حدث خطأ أثناء تحديث بيانات العميل' : 'حدث خطأ أثناء إضافة العميل');
     }
   };
 
+  const openEditCustomer = (c: Customer) => {
+    setEditingCustomerId(c.id);
+    setNewCustomerName(c.name || '');
+    setNewCustomerPhone(c.phone || '');
+    setNewCustomerAddress((c as any).address || '');
+    setNewCustomerCity((c as any).city || '');
+    setNewCustomerGovernorate((c as any).governorate || '');
+    const knownSources = ['فيسبوك','حملات فيسبوك','انستجرام','تيك توك','واتساب','حملات واتساب','تلجرام','ويب سايت','إعلان','تسويق','مكالمة','شركة الشحن','استلام من المقر'];
+    const src = (c as any).source || '';
+    if (src && !knownSources.includes(src)) {
+      setNewCustomerSource('أخرى');
+      setNewCustomerSourceCustom(src);
+    } else {
+      setNewCustomerSource(src);
+      setNewCustomerSourceCustom('');
+    }
+    const knownShip = ['مندوب من المزرعة','استلام من المزرعة','العاصمة','مندوب خاص'];
+    const ship = (c as any).shipping_company || '';
+    if (ship && !knownShip.includes(ship)) {
+      setNewCustomerShipping('أخرى');
+      setNewCustomerShippingCustom(ship);
+    } else {
+      setNewCustomerShipping(ship);
+      setNewCustomerShippingCustom('');
+    }
+    setIsNewCustomerOpen(true);
+  };
+
   const resetCustomerForm = () => {
+    setEditingCustomerId(null);
     setNewCustomerName('');
     setNewCustomerPhone('');
     setNewCustomerAddress('');
@@ -562,17 +608,23 @@ const NewOrder = () => {
                       onChange={(e) => setCustomerSearch(e.target.value)}
                     />
                   </div>
-                  <Dialog open={isNewCustomerOpen} onOpenChange={setIsNewCustomerOpen}>
+                  <Dialog
+                    open={isNewCustomerOpen}
+                    onOpenChange={(open) => {
+                      setIsNewCustomerOpen(open);
+                      if (!open) resetCustomerForm();
+                    }}
+                  >
                     <DialogTrigger asChild>
-                      <Button variant="outline" className="gap-2">
+                      <Button variant="outline" className="gap-2" onClick={() => resetCustomerForm()}>
                         <Plus className="w-4 h-4" />
                         عميل جديد
                       </Button>
                     </DialogTrigger>
                     <DialogContent dir="rtl" className="max-h-[90vh] overflow-y-auto">
                       <DialogHeader>
-                        <DialogTitle>إضافة عميل جديد</DialogTitle>
-                        <DialogDescription>أدخل بيانات العميل الجديد</DialogDescription>
+                        <DialogTitle>{editingCustomerId ? 'تعديل بيانات العميل' : 'إضافة عميل جديد'}</DialogTitle>
+                        <DialogDescription>{editingCustomerId ? 'قم بتحديث أي من بيانات العميل' : 'أدخل بيانات العميل الجديد'}</DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4 py-4">
                         <div className="space-y-2">
@@ -645,10 +697,10 @@ const NewOrder = () => {
                         </div>
                       </div>
                       <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsNewCustomerOpen(false)}>
+                        <Button variant="outline" onClick={() => { setIsNewCustomerOpen(false); resetCustomerForm(); }}>
                           إلغاء
                         </Button>
-                        <Button onClick={handleAddCustomer}>إضافة</Button>
+                        <Button onClick={handleAddCustomer}>{editingCustomerId ? 'حفظ التعديلات' : 'إضافة'}</Button>
                       </DialogFooter>
                     </DialogContent>
                   </Dialog>
@@ -674,18 +726,34 @@ const NewOrder = () => {
                 )}
 
                 {selectedCustomer && (
-                  <div className="mt-3 p-3 bg-muted/50 rounded-lg flex items-center justify-between">
-                    <div>
+                  <div className="mt-3 p-3 bg-muted/50 rounded-lg flex items-center justify-between gap-2 flex-wrap">
+                    <div className="min-w-0">
                       <p className="font-medium">{selectedCustomer.name}</p>
                       <p className="text-sm text-muted-foreground">{selectedCustomer.phone}</p>
+                      {((selectedCustomer as any).address || (selectedCustomer as any).governorate) && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {[(selectedCustomer as any).governorate, (selectedCustomer as any).city, (selectedCustomer as any).address].filter(Boolean).join(' - ')}
+                        </p>
+                      )}
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSelectedCustomer(null)}
-                    >
-                      تغيير
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1"
+                        onClick={() => openEditCustomer(selectedCustomer)}
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                        تعديل
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedCustomer(null)}
+                      >
+                        تغيير
+                      </Button>
+                    </div>
                   </div>
                 )}
               </CardContent>
