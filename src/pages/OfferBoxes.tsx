@@ -816,17 +816,26 @@ const OfferBoxes = () => {
                         : 0;
                       return (
                         <TableRow key={item.id}>
-                          <TableCell className="font-medium">{item.product?.name}</TableCell>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              {item.product?.name}
+                              {item.is_gift && (
+                                <Badge className="bg-primary/10 text-primary gap-1 border border-primary/30">
+                                  <Gift className="h-3 w-3" /> هدية
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell className="line-through text-muted-foreground">
                             {lineOriginal.toLocaleString()} ج.م
                           </TableCell>
-                          <TableCell className="text-green-600 font-semibold">
-                            {lineCustom.toLocaleString()} ج.م
+                          <TableCell className={item.is_gift ? 'text-primary font-semibold' : 'text-green-600 font-semibold'}>
+                            {item.is_gift ? 'مجاني' : `${lineCustom.toLocaleString()} ج.م`}
                           </TableCell>
                           <TableCell>{item.quantity}</TableCell>
                           <TableCell>
-                            <Badge variant="secondary" className="bg-green-100 text-green-700">
-                              {savings.toFixed(0)}%
+                            <Badge variant="secondary" className={item.is_gift ? 'bg-primary/10 text-primary' : 'bg-green-100 text-green-700'}>
+                              {item.is_gift ? '100%' : `${savings.toFixed(0)}%`}
                             </Badge>
                           </TableCell>
                           {isManager && (
