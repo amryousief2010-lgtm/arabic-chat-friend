@@ -52,12 +52,19 @@ const PWAUpdatePrompt = () => {
     setShowPrompt(false);
     localStorage.removeItem(DISMISSED_KEY);
     localStorage.removeItem(SNOOZE_UNTIL_KEY);
+
     try {
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((key) => caches.delete(key)));
+      }
+
       const regs = await navigator.serviceWorker?.getRegistrations?.();
-      await Promise.all((regs || []).map((r) => r.update()));
+      await Promise.all((regs || []).map((r) => r.unregister()));
     } catch {
       // ignore
     }
+
     setTimeout(() => window.location.reload(), 300);
   };
 
