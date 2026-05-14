@@ -298,7 +298,7 @@ const NewOrder = () => {
     });
   };
 
-  const addOfferPreviewItem = () => {
+  const addOfferPreviewItem = (asGift: boolean = false) => {
     if (!offerPreview) return;
     const firstProduct = products[0];
     if (!firstProduct) {
@@ -309,13 +309,29 @@ const NewOrder = () => {
       id: `new-${genCartId()}`,
       product_id: firstProduct.id,
       product: firstProduct,
-      custom_price: Number(firstProduct.price) || 0,
+      custom_price: asGift ? 0 : (Number(firstProduct.price) || 0),
       quantity: 1,
-      is_gift: false,
+      is_gift: asGift,
     };
     setOfferPreview({
       ...offerPreview,
       items: [...offerPreview.items, newItem],
+    });
+  };
+
+  const toggleOfferPreviewGift = (id: string) => {
+    if (!offerPreview) return;
+    setOfferPreview({
+      ...offerPreview,
+      items: offerPreview.items.map(it => {
+        if (it.id !== id) return it;
+        const becomingGift = !it.is_gift;
+        return {
+          ...it,
+          is_gift: becomingGift,
+          custom_price: becomingGift ? 0 : (Number(it.product?.price) || it.custom_price || 0),
+        };
+      }),
     });
   };
 
@@ -1223,12 +1239,22 @@ const NewOrder = () => {
                   <div className="col-span-2 text-xs text-muted-foreground text-center pb-2">
                     {it.is_gift ? 'مجاني' : (it.custom_price * it.quantity).toLocaleString()}
                   </div>
-                  <div className="col-span-1 flex justify-center pb-1">
+                  <div className="col-span-1 flex flex-col items-center gap-1 pb-1">
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      className={`h-7 w-7 ${it.is_gift ? 'text-primary bg-primary/10' : 'text-muted-foreground'}`}
+                      onClick={() => toggleOfferPreviewGift(it.id)}
+                      title={it.is_gift ? 'إلغاء كهدية' : 'تعيين كهدية مجانية'}
+                    >
+                      <Gift className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
                       onClick={() => removeOfferPreviewItem(it.id)}
                       title="حذف المنتج من العرض"
                     >
@@ -1237,15 +1263,26 @@ const NewOrder = () => {
                   </div>
                 </div>
               ))}
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full gap-2 border-dashed"
-                onClick={addOfferPreviewItem}
-              >
-                <Plus className="w-4 h-4" />
-                إضافة منتج للعرض
-              </Button>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-2 border-dashed"
+                  onClick={() => addOfferPreviewItem(false)}
+                >
+                  <Plus className="w-4 h-4" />
+                  إضافة منتج للعرض
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-2 border-dashed text-primary border-primary/40 hover:bg-primary/5"
+                  onClick={() => addOfferPreviewItem(true)}
+                >
+                  <Gift className="w-4 h-4" />
+                  إضافة هدية مجانية
+                </Button>
+              </div>
               <div className="flex items-center justify-between p-3 bg-primary/10 rounded-lg font-semibold">
                 <span>إجمالي العرض</span>
                 <span>{offerPreview.items.reduce((s, i) => s + (i.is_gift ? 0 : i.custom_price * i.quantity), 0).toLocaleString()} ج.م</span>
