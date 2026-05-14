@@ -79,6 +79,12 @@ const Auth = () => {
       }
     } else {
       toast.success('تم تسجيل الدخول بنجاح');
+      // فحص نسخة جديدة قبل عرض صفحة المستخدم
+      const willReload = await checkAndReloadIfStale('post-login');
+      if (willReload) {
+        toast.info('يوجد تحديث جديد — جارٍ إعادة التحميل...');
+        return;
+      }
     }
     
     setIsLoading(false);
