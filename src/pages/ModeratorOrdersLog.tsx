@@ -46,16 +46,19 @@ const ModeratorOrdersLog = () => {
 
   if (!moderator) return <Navigate to="/orders" replace />;
 
+  // NOTE: حدود الشهر/السنة تُحسب بتوقيت UTC لتطابق طريقة تخزين
+  // الأوردرات المستوردة (created_at بـ UTC). بدون ذلك، أوردر سُجّل
+  // مساء 30 إبريل UTC يظهر خطأً ضمن مايو بتوقيت القاهرة.
   const range = useMemo(() => {
     const now = new Date();
     if (period === "today") {
-      const s = new Date(now); s.setHours(0, 0, 0, 0);
+      const s = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0));
       return { from: s, to: now };
     }
     if (period === "year") {
-      return { from: new Date(now.getFullYear(), 0, 1), to: now };
+      return { from: new Date(Date.UTC(now.getUTCFullYear(), 0, 1)), to: now };
     }
-    return { from: new Date(now.getFullYear(), now.getMonth(), 1), to: now };
+    return { from: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)), to: now };
   }, [period]);
 
   const { data, isLoading, refetch } = useQuery({
