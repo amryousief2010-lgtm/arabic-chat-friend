@@ -5,7 +5,7 @@ import { getLandingForRole } from '@/constants/roleLandings';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { Eye, EyeOff, LogIn, ShieldCheck } from 'lucide-react';
 import { z } from 'zod';
@@ -16,22 +16,16 @@ const loginSchema = z.object({
   password: z.string().min(6, 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'),
 });
 
-// إنشاء الحسابات يتم عبر الإدارة فقط — لا يوجد تسجيل عام.
-
 const Auth = () => {
   const navigate = useNavigate();
   const { user, role, signIn, loading: authLoading } = useAuth();
 
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-
-  // Login form
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
 
   useEffect(() => {
-    // Wait until role is resolved so we can land on the correct page per role
-    // (e.g. moderator → org chart, accountant → reports, etc.)
     if (user && !authLoading && role !== null) {
       navigate(getLandingForRole(role), { replace: true });
     }
@@ -39,7 +33,7 @@ const Auth = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
       loginSchema.parse({ email: loginEmail, password: loginPassword });
     } catch (error) {
@@ -48,11 +42,10 @@ const Auth = () => {
         return;
       }
     }
-    
+
     setIsLoading(true);
-    
     const { error } = await signIn(loginEmail, loginPassword);
-    
+
     if (error) {
       if (error.message.includes('Invalid login credentials')) {
         toast.error('بيانات تسجيل الدخول غير صحيحة');
@@ -63,48 +56,13 @@ const Auth = () => {
       }
     } else {
       toast.success('تم تسجيل الدخول بنجاح');
-      // فحص نسخة جديدة قبل عرض صفحة المستخدم
       const willReload = await checkAndReloadIfStale('post-login');
       if (willReload) {
         toast.info('يوجد تحديث جديد — جارٍ إعادة التحميل...');
         return;
       }
     }
-    
-    setIsLoading(false);
-  };
 
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      signupSchema.parse({
-        fullName: signupFullName,
-        email: signupEmail,
-        password: signupPassword,
-        confirmPassword: signupConfirmPassword,
-      });
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        toast.error(error.errors[0].message);
-        return;
-      }
-    }
-    
-    setIsLoading(true);
-    
-    const { error } = await signUp(signupEmail, signupPassword, signupFullName);
-    
-    if (error) {
-      if (error.message.includes('User already registered')) {
-        toast.error('هذا البريد الإلكتروني مسجل بالفعل');
-      } else {
-        toast.error('حدث خطأ أثناء إنشاء الحساب');
-      }
-    } else {
-      toast.success('تم إنشاء الحساب بنجاح');
-    }
-    
     setIsLoading(false);
   };
 
@@ -119,170 +77,76 @@ const Auth = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-muted/30 to-background p-4" dir="rtl">
       <div className="w-full max-w-md">
-        {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-primary shadow-lg mb-4">
             <span className="text-primary-foreground font-bold text-3xl">ن</span>
           </div>
           <h1 className="text-2xl font-bold text-foreground">شركة نعام العاصمة</h1>
-          <p className="text-muted-foreground mt-1">إدارة العمليات</p>
+          <p className="text-muted-foreground mt-1">نظام داخلي — الدخول مقيد للموظفين فقط</p>
         </div>
 
         <Card className="border-border/50 shadow-xl">
-          <Tabs defaultValue="login" className="w-full">
-            <CardHeader className="pb-0">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="login" className="gap-2">
-                  <LogIn className="w-4 h-4" />
-                  تسجيل الدخول
-                </TabsTrigger>
-                <TabsTrigger value="signup" className="gap-2">
-                  <UserPlus className="w-4 h-4" />
-                  حساب جديد
-                </TabsTrigger>
-              </TabsList>
-            </CardHeader>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <ShieldCheck className="w-4 h-4 text-primary" />
+              <span>تسجيل دخول آمن</span>
+            </div>
+          </CardHeader>
 
-            <CardContent className="pt-6">
-              <TabsContent value="login" className="mt-0">
-                <form onSubmit={handleLogin} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="login-email">البريد الإلكتروني</Label>
-                    <Input
-                      id="login-email"
-                      type="email"
-                      placeholder="example@company.com"
-                      value={loginEmail}
-                      onChange={(e) => setLoginEmail(e.target.value)}
-                      required
-                      disabled={isLoading}
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="login-password">كلمة المرور</Label>
-                    <div className="relative">
-                      <Input
-                        id="login-password"
-                        type={showPassword ? 'text' : 'password'}
-                        placeholder="••••••••"
-                        value={loginPassword}
-                        onChange={(e) => setLoginPassword(e.target.value)}
-                        required
-                        disabled={isLoading}
-                        className="pl-10"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
+          <CardContent className="pt-4">
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="login-email">البريد الإلكتروني</Label>
+                <Input
+                  id="login-email"
+                  type="email"
+                  placeholder="example@company.com"
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                  required
+                  disabled={isLoading}
+                />
+              </div>
 
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-primary-foreground"></div>
-                    ) : (
-                      <>
-                        <LogIn className="w-4 h-4 ml-2" />
-                        تسجيل الدخول
-                      </>
-                    )}
-                  </Button>
-                </form>
-              </TabsContent>
+              <div className="space-y-2">
+                <Label htmlFor="login-password">كلمة المرور</Label>
+                <div className="relative">
+                  <Input
+                    id="login-password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    required
+                    disabled={isLoading}
+                    className="pl-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
 
-              <TabsContent value="signup" className="mt-0">
-                <form onSubmit={handleSignup} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-name">الاسم الكامل</Label>
-                    <Input
-                      id="signup-name"
-                      type="text"
-                      placeholder="محمد أحمد"
-                      value={signupFullName}
-                      onChange={(e) => setSignupFullName(e.target.value)}
-                      required
-                      disabled={isLoading}
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-email">البريد الإلكتروني</Label>
-                    <Input
-                      id="signup-email"
-                      type="email"
-                      placeholder="example@company.com"
-                      value={signupEmail}
-                      onChange={(e) => setSignupEmail(e.target.value)}
-                      required
-                      disabled={isLoading}
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-password">كلمة المرور</Label>
-                    <div className="relative">
-                      <Input
-                        id="signup-password"
-                        type={showPassword ? 'text' : 'password'}
-                        placeholder="••••••••"
-                        value={signupPassword}
-                        onChange={(e) => setSignupPassword(e.target.value)}
-                        required
-                        disabled={isLoading}
-                        className="pl-10"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-primary-foreground"></div>
+                ) : (
+                  <>
+                    <LogIn className="w-4 h-4 ml-2" />
+                    تسجيل الدخول
+                  </>
+                )}
+              </Button>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-confirm-password">تأكيد كلمة المرور</Label>
-                    <div className="relative">
-                      <Input
-                        id="signup-confirm-password"
-                        type={showConfirmPassword ? 'text' : 'password'}
-                        placeholder="••••••••"
-                        value={signupConfirmPassword}
-                        onChange={(e) => setSignupConfirmPassword(e.target.value)}
-                        required
-                        disabled={isLoading}
-                        className="pl-10"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-primary-foreground"></div>
-                    ) : (
-                      <>
-                        <UserPlus className="w-4 h-4 ml-2" />
-                        إنشاء حساب
-                      </>
-                    )}
-                  </Button>
-                </form>
-              </TabsContent>
-            </CardContent>
-          </Tabs>
+              <p className="text-xs text-center text-muted-foreground pt-2">
+                إنشاء الحسابات الجديدة يتم عبر الإدارة فقط.
+              </p>
+            </form>
+          </CardContent>
         </Card>
 
         <p className="text-center text-sm text-muted-foreground mt-6">
