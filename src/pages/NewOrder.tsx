@@ -393,13 +393,22 @@ const NewOrder = () => {
   }, 0);
   const hasOfferInCart = cart.some(item => item.isOfferItem);
 
-  // Auto-zero delivery fee when an offer is added (offers include shipping).
-  // Restore default 110 when all offers removed and fee was previously zeroed.
+  // When offers are present, the delivery fee equals the sum of the offers' bundled shipping
+  // (shipping_cost stored on offer_boxes). This avoids charging shipping twice and keeps the
+  // box at its advertised price (e.g., 1485 = items 1375 + 110 bundled shipping).
+  const offerShippingTotal = useMemo(() => {
+    const offerIds = Array.from(new Set(cart.filter(i => i.isOfferItem && i.offerBoxId).map(i => i.offerBoxId as string)));
+    return offerIds.reduce((sum, id) => {
+      const box = offerBoxes.find(b => b.id === id);
+      return sum + Number(box?.shipping_cost || 0);
+    }, 0);
+  }, [cart, offerBoxes]);
+
   useEffect(() => {
-    if (hasOfferInCart && deliveryFee !== 0) {
-      setDeliveryFee(0);
+    if (hasOfferInCart) {
+      setDeliveryFee(offerShippingTotal);
     }
-  }, [hasOfferInCart]);
+  }, [hasOfferInCart, offerShippingTotal]);
 
   const total = subtotal - discount + deliveryFee;
 
