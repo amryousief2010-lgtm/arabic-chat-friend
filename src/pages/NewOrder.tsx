@@ -298,7 +298,7 @@ const NewOrder = () => {
     });
   };
 
-  const addOfferPreviewItem = () => {
+  const addOfferPreviewItem = (asGift: boolean = false) => {
     if (!offerPreview) return;
     const firstProduct = products[0];
     if (!firstProduct) {
@@ -309,13 +309,29 @@ const NewOrder = () => {
       id: `new-${genCartId()}`,
       product_id: firstProduct.id,
       product: firstProduct,
-      custom_price: Number(firstProduct.price) || 0,
+      custom_price: asGift ? 0 : (Number(firstProduct.price) || 0),
       quantity: 1,
-      is_gift: false,
+      is_gift: asGift,
     };
     setOfferPreview({
       ...offerPreview,
       items: [...offerPreview.items, newItem],
+    });
+  };
+
+  const toggleOfferPreviewGift = (id: string) => {
+    if (!offerPreview) return;
+    setOfferPreview({
+      ...offerPreview,
+      items: offerPreview.items.map(it => {
+        if (it.id !== id) return it;
+        const becomingGift = !it.is_gift;
+        return {
+          ...it,
+          is_gift: becomingGift,
+          custom_price: becomingGift ? 0 : (Number(it.product?.price) || it.custom_price || 0),
+        };
+      }),
     });
   };
 
