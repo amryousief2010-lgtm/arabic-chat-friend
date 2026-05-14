@@ -42,7 +42,7 @@ const MEAT_TIERS: Array<{ sales: number; bonus: number; label: string }> = [
 const BONE_BONUS_PER_KG = 3.5;
 
 const MEAT_KEYWORDS = ['قطع', 'استيك', 'ستيك', 'موزة', 'فراشة', 'قطعية', 'تربيانكو', 'اسكالوب', 'رول', 'كباب', 'طبق', 'لحم نعام طازج', 'لحم طازج'];
-const BONE_MEAT_KEYWORDS = ['دبوس 6', 'فخده', 'فخذه', 'فخدة', 'نعامه صندوق', 'نعامة صندوق'];
+const BONE_MEAT_KEYWORDS = ['دبوس بالعظم', 'دبوس 6', 'دبوس 7', 'فخده', 'فخذه', 'فخدة', 'نعامه صندوق', 'نعامة صندوق'];
 const PROCESSED_KEYWORDS = ['شاورما', 'شيش', 'كفته', 'كفتة', 'سجق', 'برجر', 'طرب', 'حواشي', 'حواشى', 'مفروم'];
 
 const months = [
