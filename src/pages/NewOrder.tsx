@@ -1244,16 +1244,6 @@ const NewOrder = () => {
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className={`h-7 w-7 ${it.is_gift ? 'text-primary bg-primary/10' : 'text-muted-foreground'}`}
-                      onClick={() => toggleOfferPreviewGift(it.id)}
-                      title={it.is_gift ? 'إلغاء كهدية' : 'تعيين كهدية مجانية'}
-                    >
-                      <Gift className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
                       className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
                       onClick={() => removeOfferPreviewItem(it.id)}
                       title="حذف المنتج من العرض"
