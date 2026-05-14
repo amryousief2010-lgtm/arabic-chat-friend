@@ -697,10 +697,10 @@ const NewOrder = () => {
                         </div>
                       </div>
                       <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsNewCustomerOpen(false)}>
+                        <Button variant="outline" onClick={() => { setIsNewCustomerOpen(false); resetCustomerForm(); }}>
                           إلغاء
                         </Button>
-                        <Button onClick={handleAddCustomer}>إضافة</Button>
+                        <Button onClick={handleAddCustomer}>{editingCustomerId ? 'حفظ التعديلات' : 'إضافة'}</Button>
                       </DialogFooter>
                     </DialogContent>
                   </Dialog>
