@@ -726,10 +726,10 @@ const OfferBoxes = () => {
                       value={newItem.product_id}
                       onValueChange={(v) => {
                         const product = products.find(p => p.id === v);
-                        setNewItem({ 
-                          ...newItem, 
-                          product_id: v, 
-                          custom_price: product?.price.toString() || '' 
+                        setNewItem({
+                          ...newItem,
+                          product_id: v,
+                          custom_price: newItem.is_gift ? '0' : (product?.price.toString() || '')
                         });
                       }}
                     >
@@ -747,7 +747,8 @@ const OfferBoxes = () => {
                     <Input
                       type="number"
                       placeholder="السعر المخفض"
-                      value={newItem.custom_price}
+                      value={newItem.is_gift ? '0' : newItem.custom_price}
+                      disabled={newItem.is_gift}
                       onChange={(e) => setNewItem({ ...newItem, custom_price: e.target.value })}
                     />
                     <Input
@@ -756,11 +757,25 @@ const OfferBoxes = () => {
                       value={newItem.quantity}
                       onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
                     />
-                    <Button onClick={handleAddItem} disabled={!newItem.product_id || !newItem.custom_price}>
+                    <Button onClick={handleAddItem} disabled={!newItem.product_id || (!newItem.is_gift && !newItem.custom_price)}>
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
-                  {selectedProduct && (
+                  <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-primary"
+                      checked={newItem.is_gift}
+                      onChange={(e) => setNewItem({
+                        ...newItem,
+                        is_gift: e.target.checked,
+                        custom_price: e.target.checked ? '0' : newItem.custom_price,
+                      })}
+                    />
+                    <Gift className="h-4 w-4 text-primary" />
+                    <span>إضافة هذا المنتج كهدية مجانية (لن يُحسب سعره ضمن العرض)</span>
+                  </label>
+                  {selectedProduct && !newItem.is_gift && (
                     <p className="text-xs text-muted-foreground">
                       السعر الأصلي: {selectedProduct.price} ج.م
                       {newItem.custom_price && (
