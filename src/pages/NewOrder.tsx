@@ -701,61 +701,62 @@ const NewOrder = () => {
                         عميل جديد
                       </Button>
                     </DialogTrigger>
-                    <DialogContent dir="rtl" className="max-h-[90vh] overflow-y-auto">
+                    <DialogContent dir="rtl" className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
                       <DialogHeader>
                         <DialogTitle>{editingCustomerId ? 'تعديل بيانات العميل' : 'إضافة عميل جديد'}</DialogTitle>
                         <DialogDescription>{editingCustomerId ? 'قم بتحديث أي من بيانات العميل' : 'أدخل بيانات العميل الجديد'}</DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4 py-4">
-                        <div className="space-y-2">
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div className="space-y-2 md:col-span-2">
                           <Label>الاسم *</Label>
                           <Input
                             placeholder="اسم العميل"
                             value={newCustomerName}
                             onChange={(e) => setNewCustomerName(e.target.value)}
                           />
-                        </div>
-                        <div className="space-y-2">
+                          </div>
+                          <div className="space-y-2">
                           <Label>رقم الهاتف *</Label>
                           <Input
                             placeholder="01xxxxxxxxx"
                             value={newCustomerPhone}
                             onChange={(e) => setNewCustomerPhone(e.target.value)}
                           />
-                        </div>
-                        <div className="space-y-2">
+                          </div>
+                          <div className="space-y-2">
                           <Label>رقم هاتف آخر (اختياري)</Label>
                           <Input
                             placeholder="01xxxxxxxxx"
                             value={newCustomerPhone2}
                             onChange={(e) => setNewCustomerPhone2(e.target.value)}
                           />
-                        </div>
-                        <div className="space-y-2">
+                          </div>
+                          <div className="space-y-2 md:col-span-2">
                           <Label>العنوان</Label>
                           <Input
                             placeholder="عنوان التوصيل"
                             value={newCustomerAddress}
                             onChange={(e) => setNewCustomerAddress(e.target.value)}
                           />
-                        </div>
-                        <div className="space-y-2">
+                          </div>
+                          <div className="space-y-2">
                           <Label>المدينة</Label>
                           <Input
                             placeholder="المدينة"
                             value={newCustomerCity}
                             onChange={(e) => setNewCustomerCity(e.target.value)}
                           />
-                        </div>
-                        <div className="space-y-2">
+                          </div>
+                          <div className="space-y-2">
                           <Label>المحافظة</Label>
                           <Input
                             placeholder="المحافظة"
                             value={newCustomerGovernorate}
                             onChange={(e) => setNewCustomerGovernorate(e.target.value)}
                           />
-                        </div>
-                        <div className="space-y-2">
+                          </div>
+                          <div className="space-y-2">
                           <Label>مصدر العميل</Label>
                           <Select value={newCustomerSource} onValueChange={setNewCustomerSource}>
                             <SelectTrigger><SelectValue placeholder="اختر المصدر" /></SelectTrigger>
@@ -768,8 +769,8 @@ const NewOrder = () => {
                           {newCustomerSource === 'أخرى' && (
                             <Input placeholder="أدخل المصدر" value={newCustomerSourceCustom} onChange={(e) => setNewCustomerSourceCustom(e.target.value)} />
                           )}
-                        </div>
-                        <div className="space-y-2">
+                          </div>
+                          <div className="space-y-2">
                           <Label>شركة الشحن</Label>
                           <Select value={newCustomerShipping} onValueChange={setNewCustomerShipping}>
                             <SelectTrigger><SelectValue placeholder="اختر شركة الشحن" /></SelectTrigger>
@@ -782,6 +783,7 @@ const NewOrder = () => {
                           {newCustomerShipping === 'أخرى' && (
                             <Input placeholder="أدخل اسم شركة الشحن" value={newCustomerShippingCustom} onChange={(e) => setNewCustomerShippingCustom(e.target.value)} />
                           )}
+                          </div>
                         </div>
                       </div>
                       <DialogFooter>
