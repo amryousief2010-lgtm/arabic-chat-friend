@@ -1364,7 +1364,7 @@ const NewOrder = () => {
                 </Button>
               </div>
               {(() => {
-                const itemsTotal = offerPreview.items.reduce((s, i) => s + (i.is_gift ? 0 : i.custom_price * i.quantity), 0);
+                const itemsTotal = offerPreview.items.reduce((s, i) => s + (i.is_gift ? 0 : (i.is_half_kg ? i.custom_price / 2 : i.custom_price) * i.quantity), 0);
                 const shipping = Number(offerPreview.box.shipping_cost || 0);
                 const grand = itemsTotal + shipping;
                 return (
