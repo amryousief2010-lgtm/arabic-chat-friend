@@ -165,6 +165,7 @@ const NewOrder = () => {
   const [editingCustomerId, setEditingCustomerId] = useState<string | null>(null);
   const [newCustomerName, setNewCustomerName] = useState('');
   const [newCustomerPhone, setNewCustomerPhone] = useState('');
+  const [newCustomerPhone2, setNewCustomerPhone2] = useState('');
   const [newCustomerAddress, setNewCustomerAddress] = useState('');
   const [newCustomerCity, setNewCustomerCity] = useState('');
   const [newCustomerGovernorate, setNewCustomerGovernorate] = useState('');
