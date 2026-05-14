@@ -14,6 +14,682 @@ export type Database = {
   }
   public: {
     Tables: {
+      catering_customers: {
+        Row: {
+          address: string | null
+          city: string | null
+          created_at: string
+          created_by: string | null
+          customer_type: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          payment_terms: string | null
+          phone: string
+          phone2: string | null
+          tax_number: string | null
+          total_orders: number
+          total_spent: number
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_type?: string
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          payment_terms?: string | null
+          phone: string
+          phone2?: string | null
+          tax_number?: string | null
+          total_orders?: number
+          total_spent?: number
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_type?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          payment_terms?: string | null
+          phone?: string
+          phone2?: string | null
+          tax_number?: string | null
+          total_orders?: number
+          total_spent?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      catering_inventory_movements: {
+        Row: {
+          created_at: string
+          id: string
+          movement_type: string
+          notes: string | null
+          performed_by: string | null
+          quantity: number
+          raw_material_id: string
+          reference: string | null
+          related_order_id: string | null
+          related_po_id: string | null
+          unit_cost: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          movement_type: string
+          notes?: string | null
+          performed_by?: string | null
+          quantity: number
+          raw_material_id: string
+          reference?: string | null
+          related_order_id?: string | null
+          related_po_id?: string | null
+          unit_cost?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          movement_type?: string
+          notes?: string | null
+          performed_by?: string | null
+          quantity?: number
+          raw_material_id?: string
+          reference?: string | null
+          related_order_id?: string | null
+          related_po_id?: string | null
+          unit_cost?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catering_inventory_movements_raw_material_id_fkey"
+            columns: ["raw_material_id"]
+            isOneToOne: false
+            referencedRelation: "catering_raw_materials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catering_inventory_movements_related_order_id_fkey"
+            columns: ["related_order_id"]
+            isOneToOne: false
+            referencedRelation: "catering_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catering_inventory_movements_related_po_id_fkey"
+            columns: ["related_po_id"]
+            isOneToOne: false
+            referencedRelation: "catering_purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catering_manufacturing_invoices: {
+        Row: {
+          batch_quantity: number
+          created_at: string
+          created_by: string | null
+          id: string
+          invoice_number: string
+          labor_cost: number
+          materials_cost: number
+          notes: string | null
+          overhead_cost: number
+          product_id: string
+          total_cost: number
+          unit_cost: number
+        }
+        Insert: {
+          batch_quantity?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invoice_number: string
+          labor_cost?: number
+          materials_cost?: number
+          notes?: string | null
+          overhead_cost?: number
+          product_id: string
+          total_cost?: number
+          unit_cost?: number
+        }
+        Update: {
+          batch_quantity?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invoice_number?: string
+          labor_cost?: number
+          materials_cost?: number
+          notes?: string | null
+          overhead_cost?: number
+          product_id?: string
+          total_cost?: number
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catering_manufacturing_invoices_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "catering_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catering_order_items: {
+        Row: {
+          created_at: string
+          id: string
+          kitchen_section: string
+          notes: string | null
+          order_id: string
+          prep_status: string
+          product_id: string | null
+          product_image: string | null
+          product_name: string
+          quantity: number
+          total_price: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kitchen_section?: string
+          notes?: string | null
+          order_id: string
+          prep_status?: string
+          product_id?: string | null
+          product_image?: string | null
+          product_name: string
+          quantity?: number
+          total_price?: number
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kitchen_section?: string
+          notes?: string | null
+          order_id?: string
+          prep_status?: string
+          product_id?: string | null
+          product_image?: string | null
+          product_name?: string
+          quantity?: number
+          total_price?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catering_order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "catering_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catering_order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "catering_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catering_orders: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          customer_name_snapshot: string
+          customer_notes: string | null
+          delivery_address: string | null
+          delivery_date: string | null
+          delivery_fee: number
+          delivery_time: string | null
+          discount: number
+          id: string
+          internal_notes: string | null
+          kitchen_out_time: string | null
+          order_number: string
+          payment_method: string
+          payment_status: string
+          sales_team: string
+          serving_time: string | null
+          status: string
+          subtotal: number
+          tax: number
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          customer_name_snapshot: string
+          customer_notes?: string | null
+          delivery_address?: string | null
+          delivery_date?: string | null
+          delivery_fee?: number
+          delivery_time?: string | null
+          discount?: number
+          id?: string
+          internal_notes?: string | null
+          kitchen_out_time?: string | null
+          order_number: string
+          payment_method?: string
+          payment_status?: string
+          sales_team?: string
+          serving_time?: string | null
+          status?: string
+          subtotal?: number
+          tax?: number
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          customer_name_snapshot?: string
+          customer_notes?: string | null
+          delivery_address?: string | null
+          delivery_date?: string | null
+          delivery_fee?: number
+          delivery_time?: string | null
+          discount?: number
+          id?: string
+          internal_notes?: string | null
+          kitchen_out_time?: string | null
+          order_number?: string
+          payment_method?: string
+          payment_status?: string
+          sales_team?: string
+          serving_time?: string | null
+          status?: string
+          subtotal?: number
+          tax?: number
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catering_orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "catering_customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catering_product_recipe_items: {
+        Row: {
+          created_at: string
+          id: string
+          product_id: string
+          quantity: number
+          raw_material_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          product_id: string
+          quantity?: number
+          raw_material_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          product_id?: string
+          quantity?: number
+          raw_material_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catering_product_recipe_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "catering_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catering_product_recipe_items_raw_material_id_fkey"
+            columns: ["raw_material_id"]
+            isOneToOne: false
+            referencedRelation: "catering_raw_materials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catering_products: {
+        Row: {
+          ai_reasoning: string | null
+          ai_suggested_price: number | null
+          category: string | null
+          computed_cost: number
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean
+          kitchen_section: string
+          market_price_avg: number | null
+          market_price_high: number | null
+          market_price_low: number | null
+          name: string
+          sale_price: number
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          ai_reasoning?: string | null
+          ai_suggested_price?: number | null
+          category?: string | null
+          computed_cost?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          kitchen_section?: string
+          market_price_avg?: number | null
+          market_price_high?: number | null
+          market_price_low?: number | null
+          name: string
+          sale_price?: number
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          ai_reasoning?: string | null
+          ai_suggested_price?: number | null
+          category?: string | null
+          computed_cost?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          kitchen_section?: string
+          market_price_avg?: number | null
+          market_price_high?: number | null
+          market_price_low?: number | null
+          name?: string
+          sale_price?: number
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      catering_purchase_order_items: {
+        Row: {
+          created_at: string
+          id: string
+          po_id: string
+          quantity: number
+          raw_material_id: string
+          received_qty: number
+          total_cost: number
+          unit_cost: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          po_id: string
+          quantity?: number
+          raw_material_id: string
+          received_qty?: number
+          total_cost?: number
+          unit_cost?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          po_id?: string
+          quantity?: number
+          raw_material_id?: string
+          received_qty?: number
+          total_cost?: number
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catering_purchase_order_items_po_id_fkey"
+            columns: ["po_id"]
+            isOneToOne: false
+            referencedRelation: "catering_purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catering_purchase_order_items_raw_material_id_fkey"
+            columns: ["raw_material_id"]
+            isOneToOne: false
+            referencedRelation: "catering_raw_materials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catering_purchase_orders: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          delivery_to: string
+          id: string
+          notes: string | null
+          po_number: string
+          related_order_id: string | null
+          status: string
+          supplier_id: string | null
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          delivery_to?: string
+          id?: string
+          notes?: string | null
+          po_number: string
+          related_order_id?: string | null
+          status?: string
+          supplier_id?: string | null
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          delivery_to?: string
+          id?: string
+          notes?: string | null
+          po_number?: string
+          related_order_id?: string | null
+          status?: string
+          supplier_id?: string | null
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catering_purchase_orders_related_order_id_fkey"
+            columns: ["related_order_id"]
+            isOneToOne: false
+            referencedRelation: "catering_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catering_purchase_orders_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "catering_suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catering_raw_materials: {
+        Row: {
+          category: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          low_stock_threshold: number
+          name: string
+          notes: string | null
+          stock: number
+          supplier_id: string | null
+          unit: string
+          unit_cost: number
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          low_stock_threshold?: number
+          name: string
+          notes?: string | null
+          stock?: number
+          supplier_id?: string | null
+          unit?: string
+          unit_cost?: number
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          low_stock_threshold?: number
+          name?: string
+          notes?: string | null
+          stock?: number
+          supplier_id?: string | null
+          unit?: string
+          unit_cost?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catering_raw_materials_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "catering_suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catering_sales_invoices: {
+        Row: {
+          created_at: string
+          customer_id: string | null
+          due_date: string | null
+          id: string
+          invoice_number: string
+          order_id: string
+          paid_amount: number
+          payment_method: string
+          payment_status: string
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id?: string | null
+          due_date?: string | null
+          id?: string
+          invoice_number: string
+          order_id: string
+          paid_amount?: number
+          payment_method?: string
+          payment_status?: string
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string | null
+          due_date?: string | null
+          id?: string
+          invoice_number?: string
+          order_id?: string
+          paid_amount?: number
+          payment_method?: string
+          payment_status?: string
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catering_sales_invoices_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "catering_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catering_sales_invoices_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "catering_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catering_suppliers: {
+        Row: {
+          address: string | null
+          contact_person: string | null
+          created_at: string
+          email: string | null
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          payment_terms: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          contact_person?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          payment_terms?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          contact_person?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          payment_terms?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       chick_movements: {
         Row: {
           age_days: number | null
@@ -1679,6 +2355,15 @@ export type Database = {
         | "financial_manager"
         | "quality_manager"
         | "shipping_company"
+        | "catering_sales_b2c"
+        | "catering_sales_b2b"
+        | "kitchen_manager"
+        | "pastry_chef"
+        | "dessert_chef"
+        | "hot_food_chef"
+        | "salad_chef"
+        | "procurement_manager"
+        | "cost_accountant"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1825,6 +2510,15 @@ export const Constants = {
         "financial_manager",
         "quality_manager",
         "shipping_company",
+        "catering_sales_b2c",
+        "catering_sales_b2b",
+        "kitchen_manager",
+        "pastry_chef",
+        "dessert_chef",
+        "hot_food_chef",
+        "salad_chef",
+        "procurement_manager",
+        "cost_accountant",
       ],
     },
   },

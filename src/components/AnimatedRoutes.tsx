@@ -44,6 +44,16 @@ import CustomerWeightReport from "@/pages/CustomerWeightReport";
 import ManufacturingQueue from "@/pages/ManufacturingQueue";
 import StockReplenishmentLog from "@/pages/StockReplenishmentLog";
 import OrderHalfKgReport from "@/pages/OrderHalfKgReport";
+import CateringDashboard from "@/pages/catering/CateringDashboard";
+import CateringCustomers from "@/pages/catering/CateringCustomers";
+import CateringSuppliers from "@/pages/catering/CateringSuppliers";
+import CateringRawMaterials from "@/pages/catering/CateringRawMaterials";
+import CateringProducts from "@/pages/catering/CateringProducts";
+import CateringOrders from "@/pages/catering/CateringOrders";
+import NewCateringOrder from "@/pages/catering/NewCateringOrder";
+import CateringKitchen from "@/pages/catering/CateringKitchen";
+import CateringPurchases from "@/pages/catering/CateringPurchases";
+import CateringInvoices from "@/pages/catering/CateringInvoices";
 
 const RedirectWithQuery = ({ to }: { to: string }) => {
   const location = useLocation();
