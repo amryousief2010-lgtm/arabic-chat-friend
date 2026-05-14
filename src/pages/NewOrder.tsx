@@ -437,6 +437,7 @@ const NewOrder = () => {
     setEditingCustomerId(c.id);
     setNewCustomerName(c.name || '');
     setNewCustomerPhone(c.phone || '');
+    setNewCustomerPhone2((c as any).phone2 || '');
     setNewCustomerAddress((c as any).address || '');
     setNewCustomerCity((c as any).city || '');
     setNewCustomerGovernorate((c as any).governorate || '');
