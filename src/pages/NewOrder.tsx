@@ -287,6 +287,35 @@ const NewOrder = () => {
     updateOfferPreviewItem(id, { product_id: newProductId, product: newProduct });
   };
 
+  const removeOfferPreviewItem = (id: string) => {
+    if (!offerPreview) return;
+    setOfferPreview({
+      ...offerPreview,
+      items: offerPreview.items.filter(it => it.id !== id),
+    });
+  };
+
+  const addOfferPreviewItem = () => {
+    if (!offerPreview) return;
+    const firstProduct = products[0];
+    if (!firstProduct) {
+      toast.error('لا توجد منتجات متاحة للإضافة');
+      return;
+    }
+    const newItem: OfferPreviewItem = {
+      id: `new-${genCartId()}`,
+      product_id: firstProduct.id,
+      product: firstProduct,
+      custom_price: Number(firstProduct.price) || 0,
+      quantity: 1,
+      is_gift: false,
+    };
+    setOfferPreview({
+      ...offerPreview,
+      items: [...offerPreview.items, newItem],
+    });
+  };
+
   const confirmAddOfferToCart = () => {
     if (!offerPreview) return;
     let added = 0;
