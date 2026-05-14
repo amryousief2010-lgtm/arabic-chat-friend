@@ -374,6 +374,16 @@ const NewOrder = () => {
     const kg = item.isHalfKg ? item.quantity / 2 : item.quantity;
     return sum + kg;
   }, 0);
+  const hasOfferInCart = cart.some(item => item.isOfferItem);
+
+  // Auto-zero delivery fee when an offer is added (offers include shipping).
+  // Restore default 110 when all offers removed and fee was previously zeroed.
+  useEffect(() => {
+    if (hasOfferInCart && deliveryFee !== 0) {
+      setDeliveryFee(0);
+    }
+  }, [hasOfferInCart]);
+
   const total = subtotal - discount + deliveryFee;
 
   const handleAddCustomer = async () => {
@@ -1031,11 +1041,27 @@ const NewOrder = () => {
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-2">
                         <Label>رسوم التوصيل</Label>
-                        <Input
-                          type="number"
-                          value={deliveryFee}
-                          onChange={(e) => setDeliveryFee(Number(e.target.value))}
-                        />
+                        <div className="flex gap-2">
+                          <Input
+                            type="number"
+                            value={deliveryFee}
+                            onChange={(e) => setDeliveryFee(Number(e.target.value))}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            title="مسح رسوم الشحن"
+                            onClick={() => setDeliveryFee(0)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                        {hasOfferInCart && (
+                          <p className="text-xs text-muted-foreground">
+                            العرض يشمل رسوم الشحن — يمكنك تعديل الرسوم يدويًا إن لزم الأمر.
+                          </p>
+                        )}
                       </div>
                       <div className="space-y-2">
                         <Label>الخصم</Label>
