@@ -10,7 +10,12 @@ const VersionBadge = () => {
   const [state, setState] = useState<LastCheckState | null>(getLastCheck());
   const [open, setOpen] = useState(false);
 
-  useEffect(() => subscribeToChecks(setState), []);
+  useEffect(() => {
+    const unsub = subscribeToChecks(setState);
+    return () => {
+      unsub();
+    };
+  }, []);
 
   const stale = state?.remote && state.remote !== CURRENT_VERSION;
   const dot = stale ? "#ef4444" : state?.upToDate ? "#10b981" : "#94a3b8";
