@@ -3,6 +3,7 @@ import {
   CURRENT_VERSION,
   getLastCheck,
   subscribeToChecks,
+  triggerReload,
   type LastCheckState,
 } from "@/lib/updateChecker";
 
