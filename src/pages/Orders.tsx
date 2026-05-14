@@ -951,6 +951,25 @@ const Orders = () => {
         </AlertDialogContent>
       </AlertDialog>
 
+      {editingOrder && (
+        <EditOrderItemsDialog
+          open={!!editingOrder}
+          onOpenChange={(o) => !o && setEditingOrder(null)}
+          orderId={editingOrder.id}
+          initialItems={editingOrder.items.map((it) => ({
+            id: it.id,
+            product_id: it.product_id,
+            product_name: it.product_name,
+            quantity: it.quantity,
+            unit_price: it.unit_price,
+          }))}
+          onSaved={() => {
+            setEditingOrder(null);
+            fetchOrders();
+          }}
+        />
+      )}
+
       {/* Per-moderator quick access section — hidden from moderators themselves for privacy */}
       {!isSalesModerator && <ModeratorQuickAccessCards />}
     </DashboardLayout>
