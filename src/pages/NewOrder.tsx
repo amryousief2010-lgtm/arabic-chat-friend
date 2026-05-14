@@ -390,7 +390,6 @@ const NewOrder = () => {
         quantity: it.quantity,
         customPrice: it.custom_price,
         isOfferItem: true,
-        isHalfKg: !!it.is_half_kg,
         offerBoxId: offerPreview.box.id,
         offerBoxName: offerPreview.box.name,
       }]);
