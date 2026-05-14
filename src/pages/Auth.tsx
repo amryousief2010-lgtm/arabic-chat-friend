@@ -16,15 +16,7 @@ const loginSchema = z.object({
   password: z.string().min(6, 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'),
 });
 
-const signupSchema = z.object({
-  fullName: z.string().min(2, 'الاسم يجب أن يكون حرفين على الأقل'),
-  email: z.string().email('البريد الإلكتروني غير صالح'),
-  password: z.string().min(6, 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'),
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: 'كلمات المرور غير متطابقة',
-  path: ['confirmPassword'],
-});
+// إنشاء الحسابات يتم عبر الإدارة فقط — لا يوجد تسجيل عام.
 
 const Auth = () => {
   const navigate = useNavigate();
