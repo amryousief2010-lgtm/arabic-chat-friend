@@ -282,6 +282,19 @@ const NewOrder = () => {
     }]);
   };
 
+  const addCustomKgToCart = (product: Product, qty: number) => {
+    if (!qty || qty <= 0 || !isFinite(qty)) return;
+    const existing = cart.find(
+      i => !i.isOfferItem && i.product.id === product.id && !i.isHalfKg && i.customPrice === undefined
+    );
+    if (existing) {
+      setCart(cart.map(i => i.cartItemId === existing.cartItemId ? { ...i, quantity: i.quantity + qty } : i));
+    } else {
+      setCart(prev => [...prev, { cartItemId: genCartId(), product, quantity: qty }]);
+    }
+    setCustomQty(s => ({ ...s, [product.id]: '' }));
+  };
+
   // Offer preview dialog state
   const [offerPreview, setOfferPreview] = useState<{ box: OfferBox; items: OfferPreviewItem[] } | null>(null);
 
