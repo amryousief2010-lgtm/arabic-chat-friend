@@ -203,12 +203,38 @@ const ModeratorPayrollTable = () => {
         .eq('month', selectedMonth)
         .eq('year', selectedYear);
       if (error) throw error;
-      return data as Array<{ moderator_name: string; processed_bonus: number | null; meat_bonus: number | null; bone_bonus: number | null }>;
+      return data as Array<{ moderator_name: string; processed_bonus: number | null; meat_bonus: number | null; bone_bonus: number | null; processed_rate: number | null }>;
     },
   });
 
+  // Tiers loaded from target_bonus_settings so editing the targets table reflects here automatically.
+  const { data: tierSettings = [] } = useQuery({
+    queryKey: ['target_bonus_settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('target_bonus_settings')
+        .select('*')
+        .order('tier');
+      if (error) throw error;
+      return data as Array<{ category: string; tier: number; sales_amount: number; bonus_amount: number }>;
+    },
+    refetchInterval: 30000,
+  });
+
+  const PROCESSED_TIERS = useMemo(() => {
+    const r = tierSettings.filter(t => t.category === 'مصنعات').sort((a, b) => a.tier - b.tier);
+    if (r.length === 0) return DEFAULT_PROCESSED_TIERS;
+    return r.map(x => ({ sales: Number(x.sales_amount), bonus: Number(x.bonus_amount), label: TIER_LABELS[x.tier - 1] || String(x.tier) }));
+  }, [tierSettings]);
+
+  const MEAT_TIERS = useMemo(() => {
+    const r = tierSettings.filter(t => t.category === 'لحوم').sort((a, b) => a.tier - b.tier);
+    if (r.length === 0) return DEFAULT_MEAT_TIERS;
+    return r.map(x => ({ sales: Number(x.sales_amount), bonus: Number(x.bonus_amount), label: TIER_LABELS[x.tier - 1] || String(x.tier) }));
+  }, [tierSettings]);
+
   const overrideMutation = useMutation({
-    mutationFn: async ({ girl, field, value }: { girl: Girl; field: 'processed_bonus' | 'meat_bonus' | 'bone_bonus'; value: number | null }) => {
+    mutationFn: async ({ girl, field, value }: { girl: Girl; field: 'processed_bonus' | 'meat_bonus' | 'bone_bonus' | 'processed_rate'; value: number | null }) => {
       const payload: any = {
         moderator_name: girl,
         month: selectedMonth,
@@ -235,10 +261,13 @@ const ModeratorPayrollTable = () => {
       const procSales = procKg * prices.processed_price;
       const procTier = findTier(procSales, PROCESSED_TIERS);
       const meatTier = findTier(meatSales, MEAT_TIERS);
-      const calcProcBonus = procTier ? procTier.bonus * procKg : 0;
+      const ov = overrides.find(o => o.moderator_name === g);
+      const tierProcRate = procTier ? procTier.bonus : 0;
+      const procRate = ov?.processed_rate != null ? Number(ov.processed_rate) : tierProcRate;
+      const procRateOverridden = ov?.processed_rate != null;
+      const calcProcBonus = procRate * procKg;
       const calcMeatBonus = meatTier ? meatTier.bonus * meatKg : 0;
       const calcBoneBonus = BONE_BONUS_PER_KG * boneKg;
-      const ov = overrides.find(o => o.moderator_name === g);
       const procBonus = ov?.processed_bonus != null ? Number(ov.processed_bonus) : calcProcBonus;
       const meatBonus = ov?.meat_bonus != null ? Number(ov.meat_bonus) : calcMeatBonus;
       const boneBonus = ov?.bone_bonus != null ? Number(ov.bone_bonus) : calcBoneBonus;
@@ -249,12 +278,13 @@ const ModeratorPayrollTable = () => {
       return {
         girl: g, base, meatKg, boneKg, procKg,
         meatSales, procSales, procTier, meatTier,
+        procRate, procRateOverridden,
         procBonus, meatBonus, boneBonus,
         procOverridden, meatOverridden, boneOverridden,
         total: base + procBonus + meatBonus + boneBonus,
       };
     });
-  }, [qty, prices, overrides]);
+  }, [qty, prices, overrides, PROCESSED_TIERS, MEAT_TIERS]);
 
   const renderBonusCell = (girl: Girl, value: number, field: 'processed_bonus' | 'meat_bonus' | 'bone_bonus', overridden: boolean) => {
     if (!canEdit) {
