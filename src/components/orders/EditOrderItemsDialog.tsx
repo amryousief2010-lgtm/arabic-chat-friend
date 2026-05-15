@@ -47,12 +47,16 @@ interface Props {
     quantity: number;
     unit_price: number;
   }>;
+  initialDiscount?: number;
+  initialDeliveryFee?: number;
   onSaved: () => void;
 }
 
-const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, onSaved }: Props) => {
+const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initialDiscount = 0, initialDeliveryFee = 0, onSaved }: Props) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [items, setItems] = useState<EditableItem[]>([]);
+  const [discount, setDiscount] = useState<number>(0);
+  const [originalDiscount, setOriginalDiscount] = useState<number>(0);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -71,8 +75,10 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, onSav
         },
       }))
     );
+    setDiscount(Number(initialDiscount) || 0);
+    setOriginalDiscount(Number(initialDiscount) || 0);
     fetchProducts();
-  }, [open, initialItems]);
+  }, [open, initialItems, initialDiscount]);
 
   const fetchProducts = async () => {
     const { data, error } = await supabase
@@ -182,6 +188,23 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, onSav
         if (error) throw error;
       }
 
+      // Update discount on order if changed (and recompute total)
+      if (Number(discount) !== Number(originalDiscount)) {
+        // Fetch current subtotal & delivery_fee to recompute total
+        const { data: ord, error: oerr } = await supabase
+          .from("orders")
+          .select("subtotal, delivery_fee")
+          .eq("id", orderId)
+          .single();
+        if (oerr) throw oerr;
+        const newTotal = Number(ord.subtotal || 0) + Number(ord.delivery_fee || 0) - Number(discount || 0);
+        const { error: uerr } = await supabase
+          .from("orders")
+          .update({ discount: Number(discount) || 0, total: newTotal })
+          .eq("id", orderId);
+        if (uerr) throw uerr;
+      }
+
       toast.success("تم تحديث منتجات الطلب وإعادة حساب المجموع");
       onOpenChange(false);
       onSaved();
@@ -198,6 +221,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, onSav
     (sum, it) => sum + Number(it.quantity) * Number(it.unit_price),
     0
   );
+  const newTotalPreview = newSubtotal + Number(initialDeliveryFee || 0) - Number(discount || 0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -272,11 +296,48 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, onSav
             إضافة منتج
           </Button>
 
-          <div className="flex justify-between items-center pt-2 border-t">
-            <span className="text-muted-foreground">المجموع الفرعي الجديد</span>
-            <span className="text-lg font-bold text-primary">
-              {newSubtotal.toLocaleString()} ج.م
-            </span>
+          <div className="pt-2 border-t space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">المجموع الفرعي الجديد</span>
+              <span className="text-lg font-bold">
+                {newSubtotal.toLocaleString()} ج.م
+              </span>
+            </div>
+
+            <div className="flex justify-between items-center gap-3">
+              <label className="text-muted-foreground whitespace-nowrap">
+                الخصم (يُخصم من الإجمالي)
+              </label>
+              <Input
+                type="number"
+                min={0}
+                value={discount}
+                onChange={(e) => setDiscount(Number(e.target.value))}
+                className="max-w-[160px] text-end"
+                placeholder="0"
+              />
+            </div>
+
+            {Number(initialDeliveryFee) > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">رسوم التوصيل</span>
+                <span>{Number(initialDeliveryFee).toLocaleString()} ج.م</span>
+              </div>
+            )}
+
+            {Number(discount) > 0 && (
+              <div className="flex justify-between text-sm text-green-600">
+                <span>الخصم</span>
+                <span>- {Number(discount).toLocaleString()} ج.م</span>
+              </div>
+            )}
+
+            <div className="flex justify-between items-center pt-2 border-t">
+              <span className="font-semibold">الإجمالي بعد الخصم</span>
+              <span className="text-xl font-bold text-primary">
+                {newTotalPreview.toLocaleString()} ج.م
+              </span>
+            </div>
           </div>
         </div>
 

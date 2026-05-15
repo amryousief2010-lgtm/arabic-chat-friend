@@ -963,6 +963,8 @@ const Orders = () => {
             quantity: it.quantity,
             unit_price: it.unit_price,
           }))}
+          initialDiscount={editingOrder.discount}
+          initialDeliveryFee={editingOrder.delivery_fee}
           onSaved={() => {
             setEditingOrder(null);
             fetchOrders();

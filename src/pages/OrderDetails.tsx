@@ -653,6 +653,8 @@ const OrderDetails = () => {
             quantity: it.quantity,
             unit_price: it.unit_price,
           }))}
+          initialDiscount={order.discount}
+          initialDeliveryFee={order.delivery_fee}
           onSaved={() => id && fetchOrder(id)}
         />
       )}
