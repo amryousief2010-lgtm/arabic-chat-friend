@@ -156,10 +156,10 @@ export const moduleSections: ModuleSection[] = [
     id: "private-delivery",
     icon: Truck,
     label: "9. شحن المندوب الخاص",
-    roles: ['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'private_delivery_rep'],
+    roles: ['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'private_delivery_rep', 'sales_moderator'],
     items: [
       { icon: ShoppingCart, label: "طلباتي", path: "/orders", roles: ['private_delivery_rep'] },
-      { icon: Truck, label: "أسعار المناطق", path: "/private-delivery-pricing", roles: ['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'private_delivery_rep'] },
+      { icon: Truck, label: "أسعار شحن المندوب الخاص", path: "/private-delivery-pricing", roles: ['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'private_delivery_rep', 'sales_moderator'] },
       { icon: Bell, label: "الإشعارات", path: "/notifications", roles: ['private_delivery_rep'] },
     ],
   },
