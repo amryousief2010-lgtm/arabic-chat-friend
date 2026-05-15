@@ -382,9 +382,10 @@ const ModeratorPayrollTable = () => {
             <TableRow>
               <TableCell className="font-bold border bg-muted/30">كمية المصنعات (كجم)</TableCell>
               {rows.map(r => <TableCell key={r.girl} className="text-center border">{fmt(r.procKg)}</TableCell>)}
-            </TableRow>
             <TableRow>
-              <TableCell className="font-bold border bg-primary/10">بونص المصنعات (ج.م)</TableCell>
+              <TableCell className="font-bold border bg-muted/30">بونص المصنعات لكل كجم (ج)</TableCell>
+              {rows.map(r => <TableCell key={r.girl} className="text-center border">{renderBonusCell(r.girl, r.procRate, 'processed_rate', r.procRateOverridden)}</TableCell>)}
+            </TableRow>
               {rows.map(r => <TableCell key={r.girl} className="text-center border">{renderBonusCell(r.girl, r.procBonus, 'processed_bonus', r.procOverridden)}</TableCell>)}
             </TableRow>
 
