@@ -152,10 +152,51 @@ const OrderDetails = () => {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [editItemsOpen, setEditItemsOpen] = useState(false);
+  const [editCustomerOpen, setEditCustomerOpen] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editAddress, setEditAddress] = useState("");
+  const [savingCustomer, setSavingCustomer] = useState(false);
   // Moderators (and shipping) can't edit orders that are already delivered or cancelled/returned
   const isLockedForModerators = order ? (order.status === 'delivered' || order.status === 'cancelled') : false;
   const canEditItems = (isGeneralManager || isExecutiveManager || isSalesManager)
     || ((isShippingCompany || isSalesModerator) && !isLockedForModerators);
+  const canEditCustomerInfo = (isGeneralManager || isExecutiveManager || isSalesManager)
+    || (isSalesModerator && !isLockedForModerators);
+
+  const openEditCustomer = () => {
+    if (!order) return;
+    setEditName(order.customer_name || "");
+    setEditPhone(order.customer_phone || "");
+    setEditAddress(order.delivery_address || "");
+    setEditCustomerOpen(true);
+  };
+
+  const saveCustomerInfo = async () => {
+    if (!order) return;
+    setSavingCustomer(true);
+    try {
+      if (order.customer_id) {
+        const { error: cErr } = await supabase
+          .from('customers')
+          .update({ name: editName.trim(), phone: editPhone.trim() })
+          .eq('id', order.customer_id);
+        if (cErr) throw cErr;
+      }
+      const { error: oErr } = await supabase
+        .from('orders')
+        .update({ delivery_address: editAddress.trim() || null })
+        .eq('id', order.id);
+      if (oErr) throw oErr;
+      toast.success('تم تحديث بيانات العميل');
+      setEditCustomerOpen(false);
+      fetchOrder(order.id);
+    } catch (e: any) {
+      toast.error(e.message || 'فشل تحديث البيانات');
+    } finally {
+      setSavingCustomer(false);
+    }
+  };
 
   useEffect(() => {
     if (id) {
