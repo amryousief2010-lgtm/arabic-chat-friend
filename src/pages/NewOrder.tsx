@@ -166,6 +166,7 @@ const NewOrder = () => {
   
   // Search
   const [productSearch, setProductSearch] = useState('');
+  const [customQty, setCustomQty] = useState<Record<string, string>>({});
   const [customerSearch, setCustomerSearch] = useState('');
   
   // New/Edit customer dialog
@@ -279,6 +280,19 @@ const NewOrder = () => {
       offerBoxId,
       offerBoxName,
     }]);
+  };
+
+  const addCustomKgToCart = (product: Product, qty: number) => {
+    if (!qty || qty <= 0 || !isFinite(qty)) return;
+    const existing = cart.find(
+      i => !i.isOfferItem && i.product.id === product.id && !i.isHalfKg && i.customPrice === undefined
+    );
+    if (existing) {
+      setCart(cart.map(i => i.cartItemId === existing.cartItemId ? { ...i, quantity: i.quantity + qty } : i));
+    } else {
+      setCart(prev => [...prev, { cartItemId: genCartId(), product, quantity: qty }]);
+    }
+    setCustomQty(s => ({ ...s, [product.id]: '' }));
   };
 
   // Offer preview dialog state
@@ -639,9 +653,34 @@ const NewOrder = () => {
     }
   };
 
-  const filteredProducts = products.filter(p =>
-    p.name.toLowerCase().includes(productSearch.toLowerCase())
-  );
+  // Custom display order grouped by category (exact DB names)
+  const PRODUCT_ORDER = [
+    // أولاً: اللحوم
+    "لحم قطع", "موزة", "استيك", "قطعية الدبوس", "رول", "فراشة", "تربيانكو", "اسكالوب", "قطع كباب",
+    // ثانياً: المصنعات
+    "كفتة", "برجر", "سجق", "مفروم", "برجر جبنة", "حواوشي", "شاورما", "شيش", "كفتة الرز", "طرب", "ممبار",
+    // ثالثاً: القطع الجانبية
+    "كبدة", "رقاب", "قلب", "قوانص", "نخاع", "دهن",
+    // رابعاً: اللحوم بالعظم
+    "دبوس بالعظم 6 كيلو", "فخدة  بالعظم", "نعامة صندوق بالعظم",
+  ];
+  const HIDDEN_PRODUCTS = ["فرم نعام", "شغت نعام", "طرب تصنيع"];
+  const normalizeName = (s: string) => (s || "").replace(/\s+/g, " ").trim();
+  const orderIndexOf = (name: string) => {
+    const n = normalizeName(name);
+    const idx = PRODUCT_ORDER.findIndex((p) => normalizeName(p) === n);
+    return idx === -1 ? 999 : idx;
+  };
+
+  const filteredProducts = products
+    .filter(p => !HIDDEN_PRODUCTS.includes(normalizeName(p.name)))
+    .filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()))
+    .sort((a, b) => {
+      const ai = orderIndexOf(a.name);
+      const bi = orderIndexOf(b.name);
+      if (ai !== bi) return ai - bi;
+      return a.name.localeCompare(b.name, "ar");
+    });
 
   const filteredCustomers = customers.filter(c =>
     c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
@@ -928,29 +967,68 @@ const NewOrder = () => {
                                   </Badge>
                                 </td>
                                 <td className="p-2 align-middle">
-                                  <div className={`grid ${kg ? 'grid-cols-2' : 'grid-cols-1'} gap-1.5`}>
+                                  {kg ? (
+                                    <div className="flex flex-col gap-1.5">
+                                      <div className="grid grid-cols-2 gap-1.5">
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-8 text-xs"
+                                          onClick={() => addToCart(product)}
+                                        >
+                                          <Plus className="w-3 h-3 ml-1" />
+                                          كيلو
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="secondary"
+                                          className="h-8 text-xs"
+                                          onClick={() => addToCart(product, undefined, false, true)}
+                                          title="2 = 1 كيلو"
+                                        >
+                                          <Plus className="w-3 h-3 ml-1" />
+                                          ½ كيلو
+                                        </Button>
+                                      </div>
+                                      <div className="flex gap-1.5">
+                                        <Input
+                                          type="number"
+                                          min="0"
+                                          step="0.5"
+                                          inputMode="decimal"
+                                          placeholder="عدد الكيلو"
+                                          className="h-8 text-xs flex-1"
+                                          value={customQty[product.id] ?? ''}
+                                          onChange={(e) => setCustomQty(s => ({ ...s, [product.id]: e.target.value }))}
+                                          onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                              e.preventDefault();
+                                              addCustomKgToCart(product, parseFloat(customQty[product.id] || '0'));
+                                            }
+                                          }}
+                                        />
+                                        <Button
+                                          size="sm"
+                                          variant="default"
+                                          className="h-8 text-xs px-2"
+                                          onClick={() => addCustomKgToCart(product, parseFloat(customQty[product.id] || '0'))}
+                                          title="إضافة كمية مخصصة"
+                                        >
+                                          <Plus className="w-3 h-3" />
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  ) : (
                                     <Button
                                       size="sm"
                                       variant="outline"
-                                      className="h-8 text-xs"
+                                      className="h-8 text-xs w-full"
                                       onClick={() => addToCart(product)}
                                     >
                                       <Plus className="w-3 h-3 ml-1" />
-                                      {kg ? 'كيلو' : 'إضافة'}
+                                      إضافة
                                     </Button>
-                                    {kg && (
-                                      <Button
-                                        size="sm"
-                                        variant="secondary"
-                                        className="h-8 text-xs"
-                                        onClick={() => addToCart(product, undefined, false, true)}
-                                        title="2 = 1 كيلو"
-                                      >
-                                        <Plus className="w-3 h-3 ml-1" />
-                                        ½ كيلو
-                                      </Button>
-                                    )}
-                                  </div>
+                                  )}
                                 </td>
                               </tr>
                             );
