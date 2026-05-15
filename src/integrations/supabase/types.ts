@@ -1952,6 +1952,7 @@ export type Database = {
       payroll_bonus_overrides: {
         Row: {
           bone_bonus: number | null
+          bone_rate: number | null
           created_at: string
           id: string
           meat_bonus: number | null
@@ -1965,6 +1966,7 @@ export type Database = {
         }
         Insert: {
           bone_bonus?: number | null
+          bone_rate?: number | null
           created_at?: string
           id?: string
           meat_bonus?: number | null
@@ -1978,6 +1980,7 @@ export type Database = {
         }
         Update: {
           bone_bonus?: number | null
+          bone_rate?: number | null
           created_at?: string
           id?: string
           meat_bonus?: number | null

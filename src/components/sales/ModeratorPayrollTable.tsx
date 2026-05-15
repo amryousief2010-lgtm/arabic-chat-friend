@@ -203,7 +203,7 @@ const ModeratorPayrollTable = () => {
         .eq('month', selectedMonth)
         .eq('year', selectedYear);
       if (error) throw error;
-      return data as Array<{ moderator_name: string; processed_bonus: number | null; meat_bonus: number | null; bone_bonus: number | null; processed_rate: number | null; meat_rate: number | null }>;
+      return data as Array<{ moderator_name: string; processed_bonus: number | null; meat_bonus: number | null; bone_bonus: number | null; processed_rate: number | null; meat_rate: number | null; bone_rate: number | null }>;
     },
   });
 
@@ -234,7 +234,7 @@ const ModeratorPayrollTable = () => {
   }, [tierSettings]);
 
   const overrideMutation = useMutation({
-    mutationFn: async ({ girl, field, value }: { girl: Girl; field: 'processed_bonus' | 'meat_bonus' | 'bone_bonus' | 'processed_rate' | 'meat_rate'; value: number | null }) => {
+    mutationFn: async ({ girl, field, value }: { girl: Girl; field: 'processed_bonus' | 'meat_bonus' | 'bone_bonus' | 'processed_rate' | 'meat_rate' | 'bone_rate'; value: number | null }) => {
       const payload: any = {
         moderator_name: girl,
         month: selectedMonth,
@@ -266,11 +266,13 @@ const ModeratorPayrollTable = () => {
       const tierMeatRate = meatTier ? meatTier.bonus : 0;
       const procRate = ov?.processed_rate != null ? Number(ov.processed_rate) : tierProcRate;
       const meatRate = ov?.meat_rate != null ? Number(ov.meat_rate) : tierMeatRate;
+      const boneRate = ov?.bone_rate != null ? Number(ov.bone_rate) : (meatTier ? BONE_BONUS_PER_KG : 0);
       const procRateOverridden = ov?.processed_rate != null;
       const meatRateOverridden = ov?.meat_rate != null;
+      const boneRateOverridden = ov?.bone_rate != null;
       const calcProcBonus = procRate * procKg;
       const calcMeatBonus = meatRate * meatKg;
-      const calcBoneBonus = BONE_BONUS_PER_KG * boneKg;
+      const calcBoneBonus = boneRate * boneKg;
       const procBonus = ov?.processed_bonus != null ? Number(ov.processed_bonus) : calcProcBonus;
       const meatBonus = ov?.meat_bonus != null ? Number(ov.meat_bonus) : calcMeatBonus;
       const boneBonus = ov?.bone_bonus != null ? Number(ov.bone_bonus) : calcBoneBonus;
@@ -283,6 +285,7 @@ const ModeratorPayrollTable = () => {
         meatSales, procSales, procTier, meatTier,
         procRate, procRateOverridden,
         meatRate, meatRateOverridden,
+        boneRate, boneRateOverridden,
         procBonus, meatBonus, boneBonus,
         procOverridden, meatOverridden, boneOverridden,
         total: base + procBonus + meatBonus + boneBonus,
@@ -290,7 +293,7 @@ const ModeratorPayrollTable = () => {
     });
   }, [qty, prices, overrides, PROCESSED_TIERS, MEAT_TIERS]);
 
-  const renderBonusCell = (girl: Girl, value: number, field: 'processed_bonus' | 'meat_bonus' | 'bone_bonus' | 'processed_rate' | 'meat_rate', overridden: boolean) => {
+  const renderBonusCell = (girl: Girl, value: number, field: 'processed_bonus' | 'meat_bonus' | 'bone_bonus' | 'processed_rate' | 'meat_rate' | 'bone_rate', overridden: boolean) => {
     if (!canEdit) {
       return <span className="font-bold text-primary">{fmt(value)}</span>;
     }
@@ -419,6 +422,10 @@ const ModeratorPayrollTable = () => {
             <TableRow>
               <TableCell className="font-bold border bg-muted/30">كمية اللحوم بالعظم (كجم)</TableCell>
               {rows.map(r => <TableCell key={r.girl} className="text-center border">{fmt(r.boneKg)}</TableCell>)}
+            </TableRow>
+            <TableRow>
+              <TableCell className="font-bold border bg-muted/30">بونص اللحوم بالعظم لكل كجم (ج)</TableCell>
+              {rows.map(r => <TableCell key={r.girl} className="text-center border">{renderBonusCell(r.girl, r.boneRate, 'bone_rate', r.boneRateOverridden)}</TableCell>)}
             </TableRow>
             <TableRow>
               <TableCell className="font-bold border bg-muted/30">بونص اللحوم لكل كجم (ج)</TableCell>
