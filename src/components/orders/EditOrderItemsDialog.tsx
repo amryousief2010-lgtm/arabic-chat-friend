@@ -46,6 +46,7 @@ interface Props {
     product_name: string;
     quantity: number;
     unit_price: number;
+    offer_name?: string | null;
   }>;
   initialDiscount?: number;
   initialDeliveryFee?: number;
