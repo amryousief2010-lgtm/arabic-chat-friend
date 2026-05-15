@@ -189,15 +189,20 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
         if (error) throw error;
       }
 
-      // Update discount on order if changed (and recompute total — shipping not included)
+      // Update discount on order if changed (and recompute total).
+      // For orders containing offer items, shipping stays inside total.
       if (Number(discount) !== Number(originalDiscount)) {
         const { data: ord, error: oerr } = await supabase
           .from("orders")
-          .select("subtotal")
+          .select("subtotal, delivery_fee")
           .eq("id", orderId)
           .single();
         if (oerr) throw oerr;
-        const newTotal = Number(ord.subtotal || 0) - Number(discount || 0);
+        const hasOffer = initialItems.some((it) => it.offer_name);
+        const newTotal =
+          Number(ord.subtotal || 0) -
+          Number(discount || 0) +
+          (hasOffer ? Number(ord.delivery_fee || 0) : 0);
         const { error: uerr } = await supabase
           .from("orders")
           .update({ discount: Number(discount) || 0, total: newTotal })
