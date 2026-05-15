@@ -264,7 +264,7 @@ const AnimatedRoutes = () => {
           </ProtectedRoute>
         } />
         <Route path="/private-delivery-pricing" element={
-          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'private_delivery_rep']}>
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'private_delivery_rep', 'sales_moderator']}>
             <PageTransition><PrivateDeliveryPricing /></PageTransition>
           </ProtectedRoute>
         } />
