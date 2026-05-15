@@ -24,6 +24,7 @@ import {
   History,
   Wheat,
   Warehouse,
+  Truck,
   ChevronDown,
   Megaphone,
   Network,
@@ -149,6 +150,17 @@ export const moduleSections: ModuleSection[] = [
       { icon: AlertTriangle, label: "مخزون منخفض", path: "/low-stock", roles: ['general_manager', 'executive_manager', 'sales_manager', 'warehouse_supervisor', 'production_manager', 'marketing_sales_manager', 'quality_manager'] },
       { icon: ClipboardList, label: "قائمة التصنيع", path: "/manufacturing-queue", roles: ['general_manager', 'executive_manager', 'sales_manager', 'warehouse_supervisor', 'production_manager', 'quality_manager'] },
       { icon: History, label: "سجل تزويد المخزون", path: "/stock-replenishment-log", roles: ['general_manager', 'executive_manager', 'sales_manager', 'warehouse_supervisor', 'production_manager', 'accountant'] },
+    ],
+  },
+  {
+    id: "private-delivery",
+    icon: Truck,
+    label: "9. شحن المندوب الخاص",
+    roles: ['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'private_delivery_rep'],
+    items: [
+      { icon: ShoppingCart, label: "طلباتي", path: "/orders", roles: ['private_delivery_rep'] },
+      { icon: Truck, label: "أسعار المناطق", path: "/private-delivery-pricing", roles: ['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'private_delivery_rep'] },
+      { icon: Bell, label: "الإشعارات", path: "/notifications", roles: ['private_delivery_rep'] },
     ],
   },
   {
