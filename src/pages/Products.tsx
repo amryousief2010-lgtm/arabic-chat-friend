@@ -91,19 +91,23 @@ const Products = () => {
     },
   });
 
-  // Custom display order grouped by category
+  // Custom display order grouped by category (exact DB names)
   const PRODUCT_ORDER = [
     // أولاً: اللحوم
-    "لحم قطع", "موزة", "استيك", "قطعية الدبوس", "رول", "فراشة", "تربيانكو", "اسكالوب", "كباب",
+    "لحم قطع", "موزة", "استيك", "قطعية الدبوس", "رول", "فراشة", "تربيانكو", "اسكالوب", "قطع كباب",
     // ثانياً: المصنعات
-    "كفتة", "برجر", "سجق", "مفروم", "برجر جبنة", "حواوشي", "شاورما", "شيش", "كفتة رز", "طرب", "ممبار",
+    "كفتة", "برجر", "سجق", "مفروم", "برجر جبنة", "حواوشي", "شاورما", "شيش", "كفتة الرز", "طرب", "ممبار",
     // ثالثاً: القطع الجانبية
     "كبدة", "رقاب", "قلب", "قوانص", "نخاع", "دهن",
     // رابعاً: خامات التصنيع
     "فرم نعام", "شغت نعام", "طرب تصنيع",
+    // خامساً: اللحوم بالعظم
+    "دبوس بالعظم 6 كيلو", "فخدة  بالعظم", "نعامة صندوق بالعظم",
   ];
+  const normalize = (s: string) => s.replace(/\s+/g, " ").trim();
   const orderIndex = (name: string) => {
-    const idx = PRODUCT_ORDER.findIndex((n) => name.trim() === n || name.trim().includes(n));
+    const n = normalize(name);
+    const idx = PRODUCT_ORDER.findIndex((p) => normalize(p) === n);
     return idx === -1 ? 999 : idx;
   };
 
