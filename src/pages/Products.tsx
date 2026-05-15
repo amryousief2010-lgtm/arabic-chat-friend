@@ -91,11 +91,34 @@ const Products = () => {
     },
   });
 
-  const filteredProducts = products.filter(
-    (product) =>
-      product.name.includes(searchQuery) ||
-      (product.category && product.category.includes(searchQuery))
-  );
+  // Custom display order grouped by category
+  const PRODUCT_ORDER = [
+    // أولاً: اللحوم
+    "لحم قطع", "موزة", "استيك", "قطعية الدبوس", "رول", "فراشة", "تربيانكو", "اسكالوب", "كباب",
+    // ثانياً: المصنعات
+    "كفتة", "برجر", "سجق", "مفروم", "برجر جبنة", "حواوشي", "شاورما", "شيش", "كفتة رز", "طرب", "ممبار",
+    // ثالثاً: القطع الجانبية
+    "كبدة", "رقاب", "قلب", "قوانص", "نخاع", "دهن",
+    // رابعاً: خامات التصنيع
+    "فرم نعام", "شغت نعام", "طرب تصنيع",
+  ];
+  const orderIndex = (name: string) => {
+    const idx = PRODUCT_ORDER.findIndex((n) => name.trim() === n || name.trim().includes(n));
+    return idx === -1 ? 999 : idx;
+  };
+
+  const filteredProducts = products
+    .filter(
+      (product) =>
+        product.name.includes(searchQuery) ||
+        (product.category && product.category.includes(searchQuery))
+    )
+    .sort((a, b) => {
+      const ai = orderIndex(a.name);
+      const bi = orderIndex(b.name);
+      if (ai !== bi) return ai - bi;
+      return a.name.localeCompare(b.name, "ar");
+    });
 
   const handleOpenDialog = (product?: Product) => {
     if (product) {
