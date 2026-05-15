@@ -188,6 +188,23 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
         if (error) throw error;
       }
 
+      // Update discount on order if changed (and recompute total)
+      if (Number(discount) !== Number(originalDiscount)) {
+        // Fetch current subtotal & delivery_fee to recompute total
+        const { data: ord, error: oerr } = await supabase
+          .from("orders")
+          .select("subtotal, delivery_fee")
+          .eq("id", orderId)
+          .single();
+        if (oerr) throw oerr;
+        const newTotal = Number(ord.subtotal || 0) + Number(ord.delivery_fee || 0) - Number(discount || 0);
+        const { error: uerr } = await supabase
+          .from("orders")
+          .update({ discount: Number(discount) || 0, total: newTotal })
+          .eq("id", orderId);
+        if (uerr) throw uerr;
+      }
+
       toast.success("تم تحديث منتجات الطلب وإعادة حساب المجموع");
       onOpenChange(false);
       onSaved();
@@ -204,6 +221,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
     (sum, it) => sum + Number(it.quantity) * Number(it.unit_price),
     0
   );
+  const newTotalPreview = newSubtotal + Number(initialDeliveryFee || 0) - Number(discount || 0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
