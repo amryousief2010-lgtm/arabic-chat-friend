@@ -273,8 +273,8 @@ const ModeratorPayrollTable = () => {
       const meatRateOverridden = ov?.meat_rate != null;
       const boneRateOverridden = ov?.bone_rate != null;
       const calcProcBonus = procRate * procKg;
-      const calcMeatBonus = meatRate * meatKg;
-      const calcBoneBonus = boneRate * boneKg;
+      const calcMeatBonus = meatEligible ? meatRate * meatKg : 0;
+      const calcBoneBonus = meatEligible ? boneRate * boneKg : 0;
       const procBonus = ov?.processed_bonus != null ? Number(ov.processed_bonus) : calcProcBonus;
       const meatBonus = ov?.meat_bonus != null ? Number(ov.meat_bonus) : calcMeatBonus;
       const boneBonus = ov?.bone_bonus != null ? Number(ov.bone_bonus) : calcBoneBonus;
