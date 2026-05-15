@@ -13,6 +13,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   ArrowRight,
   Package,
@@ -148,10 +152,51 @@ const OrderDetails = () => {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [editItemsOpen, setEditItemsOpen] = useState(false);
+  const [editCustomerOpen, setEditCustomerOpen] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editAddress, setEditAddress] = useState("");
+  const [savingCustomer, setSavingCustomer] = useState(false);
   // Moderators (and shipping) can't edit orders that are already delivered or cancelled/returned
   const isLockedForModerators = order ? (order.status === 'delivered' || order.status === 'cancelled') : false;
   const canEditItems = (isGeneralManager || isExecutiveManager || isSalesManager)
     || ((isShippingCompany || isSalesModerator) && !isLockedForModerators);
+  const canEditCustomerInfo = (isGeneralManager || isExecutiveManager || isSalesManager)
+    || (isSalesModerator && !isLockedForModerators);
+
+  const openEditCustomer = () => {
+    if (!order) return;
+    setEditName(order.customer_name || "");
+    setEditPhone(order.customer_phone || "");
+    setEditAddress(order.delivery_address || "");
+    setEditCustomerOpen(true);
+  };
+
+  const saveCustomerInfo = async () => {
+    if (!order) return;
+    setSavingCustomer(true);
+    try {
+      if (order.customer_id) {
+        const { error: cErr } = await supabase
+          .from('customers')
+          .update({ name: editName.trim(), phone: editPhone.trim() })
+          .eq('id', order.customer_id);
+        if (cErr) throw cErr;
+      }
+      const { error: oErr } = await supabase
+        .from('orders')
+        .update({ delivery_address: editAddress.trim() || null })
+        .eq('id', order.id);
+      if (oErr) throw oErr;
+      toast.success('تم تحديث بيانات العميل');
+      setEditCustomerOpen(false);
+      fetchOrder(order.id);
+    } catch (e: any) {
+      toast.error(e.message || 'فشل تحديث البيانات');
+    } finally {
+      setSavingCustomer(false);
+    }
+  };
 
   useEffect(() => {
     if (id) {
@@ -488,9 +533,16 @@ const OrderDetails = () => {
             {/* Customer Info */}
             <Card className="glass-card">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="w-5 h-5 text-primary" />
-                  معلومات العميل
+                <CardTitle className="flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-2">
+                    <User className="w-5 h-5 text-primary" />
+                    معلومات العميل
+                  </span>
+                  {canEditCustomerInfo && (
+                    <Button size="sm" variant="ghost" onClick={openEditCustomer} className="gap-1">
+                      <Pencil className="w-4 h-4" /> تعديل
+                    </Button>
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -658,6 +710,37 @@ const OrderDetails = () => {
           onSaved={() => id && fetchOrder(id)}
         />
       )}
+
+      <Dialog open={editCustomerOpen} onOpenChange={setEditCustomerOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>تعديل بيانات العميل</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>اسم العميل</Label>
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} disabled={!order?.customer_id} />
+              {!order?.customer_id && (
+                <p className="text-xs text-muted-foreground mt-1">لا يوجد عميل مرتبط بهذا الطلب</p>
+              )}
+            </div>
+            <div>
+              <Label>رقم الهاتف</Label>
+              <Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} dir="ltr" disabled={!order?.customer_id} />
+            </div>
+            <div>
+              <Label>عنوان التوصيل</Label>
+              <Textarea value={editAddress} onChange={(e) => setEditAddress(e.target.value)} rows={3} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditCustomerOpen(false)}>إلغاء</Button>
+            <Button onClick={saveCustomerInfo} disabled={savingCustomer}>
+              {savingCustomer ? 'جارِ الحفظ...' : 'حفظ'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };
