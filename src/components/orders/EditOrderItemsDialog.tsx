@@ -296,11 +296,48 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
             إضافة منتج
           </Button>
 
-          <div className="flex justify-between items-center pt-2 border-t">
-            <span className="text-muted-foreground">المجموع الفرعي الجديد</span>
-            <span className="text-lg font-bold text-primary">
-              {newSubtotal.toLocaleString()} ج.م
-            </span>
+          <div className="pt-2 border-t space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">المجموع الفرعي الجديد</span>
+              <span className="text-lg font-bold">
+                {newSubtotal.toLocaleString()} ج.م
+              </span>
+            </div>
+
+            <div className="flex justify-between items-center gap-3">
+              <label className="text-muted-foreground whitespace-nowrap">
+                الخصم (يُخصم من الإجمالي)
+              </label>
+              <Input
+                type="number"
+                min={0}
+                value={discount}
+                onChange={(e) => setDiscount(Number(e.target.value))}
+                className="max-w-[160px] text-end"
+                placeholder="0"
+              />
+            </div>
+
+            {Number(initialDeliveryFee) > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">رسوم التوصيل</span>
+                <span>{Number(initialDeliveryFee).toLocaleString()} ج.م</span>
+              </div>
+            )}
+
+            {Number(discount) > 0 && (
+              <div className="flex justify-between text-sm text-green-600">
+                <span>الخصم</span>
+                <span>- {Number(discount).toLocaleString()} ج.م</span>
+              </div>
+            )}
+
+            <div className="flex justify-between items-center pt-2 border-t">
+              <span className="font-semibold">الإجمالي بعد الخصم</span>
+              <span className="text-xl font-bold text-primary">
+                {newTotalPreview.toLocaleString()} ج.م
+              </span>
+            </div>
           </div>
         </div>
 
