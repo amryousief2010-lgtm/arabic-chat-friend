@@ -68,8 +68,8 @@ const defaultPrices = { meat_price: 390, bone_meat_price: 350, processed_price: 
 
 const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
 
-const findTier = (sales: number, tiers: typeof PROCESSED_TIERS) => {
-  let achieved: typeof tiers[number] | null = null;
+const findTier = (sales: number, tiers: Array<{ sales: number; bonus: number; label: string }>) => {
+  let achieved: { sales: number; bonus: number; label: string } | null = null;
   for (const t of tiers) {
     if (sales >= t.sales) achieved = t;
   }
