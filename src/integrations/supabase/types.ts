@@ -1994,6 +1994,36 @@ export type Database = {
         }
         Relationships: []
       }
+      private_delivery_pricing: {
+        Row: {
+          created_at: string
+          governorate: string | null
+          id: string
+          location: string
+          notes: string | null
+          price: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          governorate?: string | null
+          id?: string
+          location: string
+          notes?: string | null
+          price?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          governorate?: string | null
+          id?: string
+          location?: string
+          notes?: string | null
+          price?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           category: string | null
