@@ -1,7 +1,4 @@
 project_id = "ssznmzijopyxkwpctcxw"
 
-[functions.auth-email-hook]
-verify_jwt = false
-
-[functions.process-email-queue]
+[functions.bootstrap-private-rep]
 verify_jwt = false
