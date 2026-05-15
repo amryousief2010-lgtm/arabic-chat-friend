@@ -166,6 +166,7 @@ const NewOrder = () => {
   
   // Search
   const [productSearch, setProductSearch] = useState('');
+  const [customQty, setCustomQty] = useState<Record<string, string>>({});
   const [customerSearch, setCustomerSearch] = useState('');
   
   // New/Edit customer dialog
