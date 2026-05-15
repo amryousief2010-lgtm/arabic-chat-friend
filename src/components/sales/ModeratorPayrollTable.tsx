@@ -234,7 +234,7 @@ const ModeratorPayrollTable = () => {
   }, [tierSettings]);
 
   const overrideMutation = useMutation({
-    mutationFn: async ({ girl, field, value }: { girl: Girl; field: 'processed_bonus' | 'meat_bonus' | 'bone_bonus' | 'processed_rate' | 'meat_rate'; value: number | null }) => {
+    mutationFn: async ({ girl, field, value }: { girl: Girl; field: 'processed_bonus' | 'meat_bonus' | 'bone_bonus' | 'processed_rate' | 'meat_rate' | 'bone_rate'; value: number | null }) => {
       const payload: any = {
         moderator_name: girl,
         month: selectedMonth,
