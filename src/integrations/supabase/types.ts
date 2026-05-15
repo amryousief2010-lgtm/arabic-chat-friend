@@ -1955,6 +1955,7 @@ export type Database = {
           created_at: string
           id: string
           meat_bonus: number | null
+          meat_rate: number | null
           moderator_name: string
           month: number
           processed_bonus: number | null
@@ -1967,6 +1968,7 @@ export type Database = {
           created_at?: string
           id?: string
           meat_bonus?: number | null
+          meat_rate?: number | null
           moderator_name: string
           month: number
           processed_bonus?: number | null
@@ -1979,6 +1981,7 @@ export type Database = {
           created_at?: string
           id?: string
           meat_bonus?: number | null
+          meat_rate?: number | null
           moderator_name?: string
           month?: number
           processed_bonus?: number | null
