@@ -612,8 +612,21 @@ const NewOrder = () => {
 
       if (orderError) throw orderError;
 
-      // Create order items
-      const orderItems = cart.map(item => {
+      // Build raw rows (preserving offer/non-offer pricing), then merge same-product lines
+      // so an offer-box item + an extra outside-the-box item of the same product appear as
+      // a single combined line in the order (e.g. نص استيك + نص استيك = 1 كجم استيك)
+      type RawRow = {
+        order_id: string;
+        product_id: string;
+        product_name: string;
+        quantity: number;
+        unit_price: number;
+        total_price: number;
+        is_half_kg: boolean;
+        offer_name: string | null;
+        _isKg: boolean;
+      };
+      const rawRows: RawRow[] = cart.map(item => {
         const basePrice = item.customPrice ?? item.product.price;
         const unitPrice = item.isHalfKg ? basePrice / 2 : basePrice;
         return {
@@ -625,6 +638,41 @@ const NewOrder = () => {
           total_price: unitPrice * item.quantity,
           is_half_kg: !!item.isHalfKg,
           offer_name: item.isOfferItem ? (item.offerBoxName || 'عرض') : null,
+          _isKg: isKgUnit(item.product.unit || ''),
+        };
+      });
+
+      const grouped = new Map<string, RawRow[]>();
+      for (const r of rawRows) {
+        const arr = grouped.get(r.product_id) || [];
+        arr.push(r);
+        grouped.set(r.product_id, arr);
+      }
+
+      const orderItems = Array.from(grouped.values()).map(arr => {
+        if (arr.length === 1) {
+          const { _isKg, ...rest } = arr[0];
+          return rest as any;
+        }
+        const isKg = arr[0]._isKg;
+        let totalQty = 0;
+        let totalPrice = 0;
+        let offerName: string | null = null;
+        for (const r of arr) {
+          const qty = isKg && r.is_half_kg ? r.quantity * 0.5 : r.quantity;
+          totalQty += qty;
+          totalPrice += r.total_price;
+          if (!offerName && r.offer_name) offerName = r.offer_name;
+        }
+        return {
+          order_id: order.id,
+          product_id: arr[0].product_id,
+          product_name: arr[0].product_name,
+          quantity: totalQty,
+          unit_price: totalQty > 0 ? totalPrice / totalQty : 0,
+          total_price: totalPrice,
+          is_half_kg: isKg ? false : arr[0].is_half_kg,
+          offer_name: offerName,
         } as any;
       });
 
