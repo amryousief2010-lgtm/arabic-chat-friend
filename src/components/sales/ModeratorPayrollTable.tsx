@@ -20,8 +20,9 @@ const BASE_SALARY: Record<Girl, number> = {
   منال: 2500,
 };
 
-// Tier ladders (sales threshold -> bonus per kg)
-const PROCESSED_TIERS: Array<{ sales: number; bonus: number; label: string }> = [
+// Default tier ladders (used as fallback if target_bonus_settings is empty).
+const TIER_LABELS = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس', 'السادس', 'السابع'];
+const DEFAULT_PROCESSED_TIERS: Array<{ sales: number; bonus: number; label: string }> = [
   { sales: 50000, bonus: 5, label: 'الأول' },
   { sales: 60000, bonus: 6, label: 'الثاني' },
   { sales: 80000, bonus: 8, label: 'الثالث' },
@@ -30,7 +31,7 @@ const PROCESSED_TIERS: Array<{ sales: number; bonus: number; label: string }> = 
   { sales: 150000, bonus: 15, label: 'السادس' },
   { sales: 185000, bonus: 18, label: 'السابع' },
 ];
-const MEAT_TIERS: Array<{ sales: number; bonus: number; label: string }> = [
+const DEFAULT_MEAT_TIERS: Array<{ sales: number; bonus: number; label: string }> = [
   { sales: 100000, bonus: 5, label: 'الأول' },
   { sales: 125000, bonus: 5, label: 'الثاني' },
   { sales: 200000, bonus: 5, label: 'الثالث' },
@@ -67,8 +68,8 @@ const defaultPrices = { meat_price: 390, bone_meat_price: 350, processed_price: 
 
 const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
 
-const findTier = (sales: number, tiers: typeof PROCESSED_TIERS) => {
-  let achieved: typeof tiers[number] | null = null;
+const findTier = (sales: number, tiers: Array<{ sales: number; bonus: number; label: string }>) => {
+  let achieved: { sales: number; bonus: number; label: string } | null = null;
   for (const t of tiers) {
     if (sales >= t.sales) achieved = t;
   }
@@ -202,12 +203,38 @@ const ModeratorPayrollTable = () => {
         .eq('month', selectedMonth)
         .eq('year', selectedYear);
       if (error) throw error;
-      return data as Array<{ moderator_name: string; processed_bonus: number | null; meat_bonus: number | null; bone_bonus: number | null }>;
+      return data as Array<{ moderator_name: string; processed_bonus: number | null; meat_bonus: number | null; bone_bonus: number | null; processed_rate: number | null }>;
     },
   });
 
+  // Tiers loaded from target_bonus_settings so editing the targets table reflects here automatically.
+  const { data: tierSettings = [] } = useQuery({
+    queryKey: ['target_bonus_settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('target_bonus_settings')
+        .select('*')
+        .order('tier');
+      if (error) throw error;
+      return data as Array<{ category: string; tier: number; sales_amount: number; bonus_amount: number }>;
+    },
+    refetchInterval: 30000,
+  });
+
+  const PROCESSED_TIERS = useMemo(() => {
+    const r = tierSettings.filter(t => t.category === 'مصنعات').sort((a, b) => a.tier - b.tier);
+    if (r.length === 0) return DEFAULT_PROCESSED_TIERS;
+    return r.map(x => ({ sales: Number(x.sales_amount), bonus: Number(x.bonus_amount), label: TIER_LABELS[x.tier - 1] || String(x.tier) }));
+  }, [tierSettings]);
+
+  const MEAT_TIERS = useMemo(() => {
+    const r = tierSettings.filter(t => t.category === 'لحوم').sort((a, b) => a.tier - b.tier);
+    if (r.length === 0) return DEFAULT_MEAT_TIERS;
+    return r.map(x => ({ sales: Number(x.sales_amount), bonus: Number(x.bonus_amount), label: TIER_LABELS[x.tier - 1] || String(x.tier) }));
+  }, [tierSettings]);
+
   const overrideMutation = useMutation({
-    mutationFn: async ({ girl, field, value }: { girl: Girl; field: 'processed_bonus' | 'meat_bonus' | 'bone_bonus'; value: number | null }) => {
+    mutationFn: async ({ girl, field, value }: { girl: Girl; field: 'processed_bonus' | 'meat_bonus' | 'bone_bonus' | 'processed_rate'; value: number | null }) => {
       const payload: any = {
         moderator_name: girl,
         month: selectedMonth,
@@ -234,10 +261,13 @@ const ModeratorPayrollTable = () => {
       const procSales = procKg * prices.processed_price;
       const procTier = findTier(procSales, PROCESSED_TIERS);
       const meatTier = findTier(meatSales, MEAT_TIERS);
-      const calcProcBonus = procTier ? procTier.bonus * procKg : 0;
+      const ov = overrides.find(o => o.moderator_name === g);
+      const tierProcRate = procTier ? procTier.bonus : 0;
+      const procRate = ov?.processed_rate != null ? Number(ov.processed_rate) : tierProcRate;
+      const procRateOverridden = ov?.processed_rate != null;
+      const calcProcBonus = procRate * procKg;
       const calcMeatBonus = meatTier ? meatTier.bonus * meatKg : 0;
       const calcBoneBonus = BONE_BONUS_PER_KG * boneKg;
-      const ov = overrides.find(o => o.moderator_name === g);
       const procBonus = ov?.processed_bonus != null ? Number(ov.processed_bonus) : calcProcBonus;
       const meatBonus = ov?.meat_bonus != null ? Number(ov.meat_bonus) : calcMeatBonus;
       const boneBonus = ov?.bone_bonus != null ? Number(ov.bone_bonus) : calcBoneBonus;
@@ -248,14 +278,15 @@ const ModeratorPayrollTable = () => {
       return {
         girl: g, base, meatKg, boneKg, procKg,
         meatSales, procSales, procTier, meatTier,
+        procRate, procRateOverridden,
         procBonus, meatBonus, boneBonus,
         procOverridden, meatOverridden, boneOverridden,
         total: base + procBonus + meatBonus + boneBonus,
       };
     });
-  }, [qty, prices, overrides]);
+  }, [qty, prices, overrides, PROCESSED_TIERS, MEAT_TIERS]);
 
-  const renderBonusCell = (girl: Girl, value: number, field: 'processed_bonus' | 'meat_bonus' | 'bone_bonus', overridden: boolean) => {
+  const renderBonusCell = (girl: Girl, value: number, field: 'processed_bonus' | 'meat_bonus' | 'bone_bonus' | 'processed_rate', overridden: boolean) => {
     if (!canEdit) {
       return <span className="font-bold text-primary">{fmt(value)}</span>;
     }
@@ -351,6 +382,10 @@ const ModeratorPayrollTable = () => {
             <TableRow>
               <TableCell className="font-bold border bg-muted/30">كمية المصنعات (كجم)</TableCell>
               {rows.map(r => <TableCell key={r.girl} className="text-center border">{fmt(r.procKg)}</TableCell>)}
+            </TableRow>
+            <TableRow>
+              <TableCell className="font-bold border bg-muted/30">بونص المصنعات لكل كجم (ج)</TableCell>
+              {rows.map(r => <TableCell key={r.girl} className="text-center border">{renderBonusCell(r.girl, r.procRate, 'processed_rate', r.procRateOverridden)}</TableCell>)}
             </TableRow>
             <TableRow>
               <TableCell className="font-bold border bg-primary/10">بونص المصنعات (ج.م)</TableCell>

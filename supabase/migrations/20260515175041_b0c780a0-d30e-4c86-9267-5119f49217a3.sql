@@ -1,0 +1,1 @@
+ALTER TABLE public.payroll_bonus_overrides ADD COLUMN IF NOT EXISTS processed_rate numeric;
