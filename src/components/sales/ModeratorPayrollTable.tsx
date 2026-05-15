@@ -20,8 +20,9 @@ const BASE_SALARY: Record<Girl, number> = {
   منال: 2500,
 };
 
-// Tier ladders (sales threshold -> bonus per kg)
-const PROCESSED_TIERS: Array<{ sales: number; bonus: number; label: string }> = [
+// Default tier ladders (used as fallback if target_bonus_settings is empty).
+const TIER_LABELS = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس', 'السادس', 'السابع'];
+const DEFAULT_PROCESSED_TIERS: Array<{ sales: number; bonus: number; label: string }> = [
   { sales: 50000, bonus: 5, label: 'الأول' },
   { sales: 60000, bonus: 6, label: 'الثاني' },
   { sales: 80000, bonus: 8, label: 'الثالث' },
@@ -30,7 +31,7 @@ const PROCESSED_TIERS: Array<{ sales: number; bonus: number; label: string }> = 
   { sales: 150000, bonus: 15, label: 'السادس' },
   { sales: 185000, bonus: 18, label: 'السابع' },
 ];
-const MEAT_TIERS: Array<{ sales: number; bonus: number; label: string }> = [
+const DEFAULT_MEAT_TIERS: Array<{ sales: number; bonus: number; label: string }> = [
   { sales: 100000, bonus: 5, label: 'الأول' },
   { sales: 125000, bonus: 5, label: 'الثاني' },
   { sales: 200000, bonus: 5, label: 'الثالث' },
