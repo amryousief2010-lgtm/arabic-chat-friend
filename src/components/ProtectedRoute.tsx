@@ -11,9 +11,9 @@ interface ProtectedRouteProps {
 // Routes a sales_moderator is permitted to visit. Anything else gets
 // hard-redirected to her own orders log with a clear toast.
 const MODERATOR_ALLOWED_PREFIXES = [
-  '/orders',                  // covers /orders, /orders/new, /orders/:id, /orders/moderator/:slug
+  '/orders',
   '/sales-targets',
-  '/modules/warehouses',      // read-only — write actions are gated in UI + DB
+  '/modules/warehouses',
   '/notifications',
   '/permissions',
   '/org-chart',
@@ -21,19 +21,33 @@ const MODERATOR_ALLOWED_PREFIXES = [
   '/install',
 ];
 
+const PRIVATE_REP_ALLOWED_PREFIXES = [
+  '/orders',
+  '/private-delivery-pricing',
+  '/notifications',
+  '/permissions',
+  '/auth',
+  '/install',
+];
+
 const isPathAllowedForModerator = (pathname: string) =>
   MODERATOR_ALLOWED_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'));
+
+const isPathAllowedForPrivateRep = (pathname: string) =>
+  PRIVATE_REP_ALLOWED_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'));
 
 const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
   const { user, role, loading } = useAuth();
   const location = useLocation();
 
   // Sales moderators land on the org chart first, then navigate from there.
-  const moderatorTarget = role === 'sales_moderator' ? '/org-chart' : '/';
+  const moderatorTarget =
+    role === 'sales_moderator' ? '/org-chart' :
+    role === 'private_delivery_rep' ? '/orders' : '/';
 
-  // 1) Hard moderator allowlist — even if a route forgot to set allowedRoles
   const isModeratorBlocked =
-    role === 'sales_moderator' && !isPathAllowedForModerator(location.pathname);
+    (role === 'sales_moderator' && !isPathAllowedForModerator(location.pathname)) ||
+    (role === 'private_delivery_rep' && !isPathAllowedForPrivateRep(location.pathname));
   // 2) Standard role check
   const isRoleDenied = !!(allowedRoles && (!role || !allowedRoles.includes(role)));
   const isDenied = isModeratorBlocked || isRoleDenied;
@@ -64,7 +78,7 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
   }
 
   if (isDenied) {
-    if (role === 'sales_moderator') {
+    if (role === 'sales_moderator' || role === 'private_delivery_rep') {
       return <Navigate to={moderatorTarget} replace />;
     }
     return <Navigate to="/" replace />;
