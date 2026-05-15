@@ -710,6 +710,37 @@ const OrderDetails = () => {
           onSaved={() => id && fetchOrder(id)}
         />
       )}
+
+      <Dialog open={editCustomerOpen} onOpenChange={setEditCustomerOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>تعديل بيانات العميل</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>اسم العميل</Label>
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} disabled={!order?.customer_id} />
+              {!order?.customer_id && (
+                <p className="text-xs text-muted-foreground mt-1">لا يوجد عميل مرتبط بهذا الطلب</p>
+              )}
+            </div>
+            <div>
+              <Label>رقم الهاتف</Label>
+              <Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} dir="ltr" disabled={!order?.customer_id} />
+            </div>
+            <div>
+              <Label>عنوان التوصيل</Label>
+              <Textarea value={editAddress} onChange={(e) => setEditAddress(e.target.value)} rows={3} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditCustomerOpen(false)}>إلغاء</Button>
+            <Button onClick={saveCustomerInfo} disabled={savingCustomer}>
+              {savingCustomer ? 'جارِ الحفظ...' : 'حفظ'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };
