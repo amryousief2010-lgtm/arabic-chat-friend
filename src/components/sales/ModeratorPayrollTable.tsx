@@ -263,16 +263,18 @@ const ModeratorPayrollTable = () => {
       const meatTier = findTier(meatSales, MEAT_TIERS);
       const ov = overrides.find(o => o.moderator_name === g);
       const tierProcRate = procTier ? procTier.bonus : 0;
-      const tierMeatRate = meatTier ? meatTier.bonus : 0;
+      // شرط: لا يُحتسب أي بونص لحوم/لحوم بالعظم إلا إذا تحقق تارجت مصنعات (procTier موجود)
+      const meatEligible = !!procTier;
+      const tierMeatRate = meatTier && meatEligible ? meatTier.bonus : 0;
       const procRate = ov?.processed_rate != null ? Number(ov.processed_rate) : tierProcRate;
       const meatRate = ov?.meat_rate != null ? Number(ov.meat_rate) : tierMeatRate;
-      const boneRate = ov?.bone_rate != null ? Number(ov.bone_rate) : (meatTier ? BONE_BONUS_PER_KG : 0);
+      const boneRate = ov?.bone_rate != null ? Number(ov.bone_rate) : (meatTier && meatEligible ? BONE_BONUS_PER_KG : 0);
       const procRateOverridden = ov?.processed_rate != null;
       const meatRateOverridden = ov?.meat_rate != null;
       const boneRateOverridden = ov?.bone_rate != null;
       const calcProcBonus = procRate * procKg;
-      const calcMeatBonus = meatRate * meatKg;
-      const calcBoneBonus = boneRate * boneKg;
+      const calcMeatBonus = meatEligible ? meatRate * meatKg : 0;
+      const calcBoneBonus = meatEligible ? boneRate * boneKg : 0;
       const procBonus = ov?.processed_bonus != null ? Number(ov.processed_bonus) : calcProcBonus;
       const meatBonus = ov?.meat_bonus != null ? Number(ov.meat_bonus) : calcMeatBonus;
       const boneBonus = ov?.bone_bonus != null ? Number(ov.bone_bonus) : calcBoneBonus;
