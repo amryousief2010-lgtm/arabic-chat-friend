@@ -467,7 +467,9 @@ const NewOrder = () => {
     }
   }, [hasOfferInCart, offerShippingTotal]);
 
-  const total = subtotal - discount;
+  // For offer orders, the offer's bundled shipping stays inside the total.
+  // For regular orders, shipping is tracked separately and not added to the total.
+  const total = subtotal - discount + (hasOfferInCart ? Number(deliveryFee || 0) : 0);
 
   const handleAddCustomer = async () => {
     if (!newCustomerName.trim() || !newCustomerPhone.trim()) {
