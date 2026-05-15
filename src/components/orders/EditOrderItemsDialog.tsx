@@ -47,12 +47,16 @@ interface Props {
     quantity: number;
     unit_price: number;
   }>;
+  initialDiscount?: number;
+  initialDeliveryFee?: number;
   onSaved: () => void;
 }
 
-const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, onSaved }: Props) => {
+const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initialDiscount = 0, initialDeliveryFee = 0, onSaved }: Props) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [items, setItems] = useState<EditableItem[]>([]);
+  const [discount, setDiscount] = useState<number>(0);
+  const [originalDiscount, setOriginalDiscount] = useState<number>(0);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -71,8 +75,10 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, onSav
         },
       }))
     );
+    setDiscount(Number(initialDiscount) || 0);
+    setOriginalDiscount(Number(initialDiscount) || 0);
     fetchProducts();
-  }, [open, initialItems]);
+  }, [open, initialItems, initialDiscount]);
 
   const fetchProducts = async () => {
     const { data, error } = await supabase
