@@ -20,7 +20,8 @@ export type AppRole =
   | 'marketing_sales_manager'
   | 'financial_manager'
   | 'quality_manager'
-  | 'shipping_company';
+  | 'shipping_company'
+  | 'private_delivery_rep';
 
 interface UserProfile {
   id: string;
@@ -45,6 +46,7 @@ interface AuthContextType {
   isAccountant: boolean;
   isWarehouseSupervisor: boolean;
   isShippingCompany: boolean;
+  isPrivateDeliveryRep: boolean;
   // Permission helpers
   canManageEmployees: boolean;
   canManageProducts: boolean;
@@ -199,6 +201,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const isFinancialManager = role === 'financial_manager';
   const isQualityManager = role === 'quality_manager';
   const isShippingCompany = role === 'shipping_company';
+  const isPrivateDeliveryRep = role === 'private_delivery_rep';
 
   // Module-level write permissions
   const canManageFeedFactory = isGeneralManager || isExecutiveManager || isFeedFactoryManager || isProductionManager;
@@ -217,7 +220,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const canManageOrders = isGeneralManager || isExecutiveManager || isSalesManager || isAccountant || isWarehouseSupervisor || isMarketingSalesManager || isFinancialManager;
   const canViewReports = isGeneralManager || isExecutiveManager || isSalesManager || isAccountant || isWarehouseSupervisor || isMarketingSalesManager || isFinancialManager || isQualityManager || isProductionManager;
   const canUpdatePaymentStatus = isGeneralManager || isExecutiveManager || isSalesManager || isAccountant || isMarketingSalesManager || isFinancialManager;
-  const canUpdateOrderStatus = isGeneralManager || isExecutiveManager || isSalesManager || isWarehouseSupervisor || isMarketingSalesManager || isShippingCompany;
+  const canUpdateOrderStatus = isGeneralManager || isExecutiveManager || isSalesManager || isWarehouseSupervisor || isMarketingSalesManager || isShippingCompany || isPrivateDeliveryRep;
   const canDeleteOrders = isGeneralManager || isExecutiveManager || isSalesManager || isMarketingSalesManager;
   const canDeleteCustomers = isGeneralManager || isExecutiveManager || isMarketingSalesManager;
   
@@ -228,7 +231,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       isSalesManager ||
       isMarketingSalesManager ||
       isShippingCompany ||
-      isWarehouseSupervisor
+      isWarehouseSupervisor ||
+      isPrivateDeliveryRep
     );
   };
 
@@ -248,6 +252,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     isAccountant,
     isWarehouseSupervisor,
     isShippingCompany,
+    isPrivateDeliveryRep,
     canManageEmployees,
     canManageProducts,
     canManageStock,
