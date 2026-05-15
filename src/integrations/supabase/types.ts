@@ -1958,6 +1958,7 @@ export type Database = {
           moderator_name: string
           month: number
           processed_bonus: number | null
+          processed_rate: number | null
           updated_at: string
           year: number
         }
@@ -1969,6 +1970,7 @@ export type Database = {
           moderator_name: string
           month: number
           processed_bonus?: number | null
+          processed_rate?: number | null
           updated_at?: string
           year: number
         }
@@ -1980,6 +1982,7 @@ export type Database = {
           moderator_name?: string
           month?: number
           processed_bonus?: number | null
+          processed_rate?: number | null
           updated_at?: string
           year?: number
         }
