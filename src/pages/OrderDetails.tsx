@@ -533,9 +533,16 @@ const OrderDetails = () => {
             {/* Customer Info */}
             <Card className="glass-card">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="w-5 h-5 text-primary" />
-                  معلومات العميل
+                <CardTitle className="flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-2">
+                    <User className="w-5 h-5 text-primary" />
+                    معلومات العميل
+                  </span>
+                  {canEditCustomerInfo && (
+                    <Button size="sm" variant="ghost" onClick={openEditCustomer} className="gap-1">
+                      <Pencil className="w-4 h-4" /> تعديل
+                    </Button>
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
