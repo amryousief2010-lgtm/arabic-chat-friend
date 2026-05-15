@@ -967,29 +967,68 @@ const NewOrder = () => {
                                   </Badge>
                                 </td>
                                 <td className="p-2 align-middle">
-                                  <div className={`grid ${kg ? 'grid-cols-2' : 'grid-cols-1'} gap-1.5`}>
+                                  {kg ? (
+                                    <div className="flex flex-col gap-1.5">
+                                      <div className="grid grid-cols-2 gap-1.5">
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-8 text-xs"
+                                          onClick={() => addToCart(product)}
+                                        >
+                                          <Plus className="w-3 h-3 ml-1" />
+                                          كيلو
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="secondary"
+                                          className="h-8 text-xs"
+                                          onClick={() => addToCart(product, undefined, false, true)}
+                                          title="2 = 1 كيلو"
+                                        >
+                                          <Plus className="w-3 h-3 ml-1" />
+                                          ½ كيلو
+                                        </Button>
+                                      </div>
+                                      <div className="flex gap-1.5">
+                                        <Input
+                                          type="number"
+                                          min="0"
+                                          step="0.5"
+                                          inputMode="decimal"
+                                          placeholder="عدد الكيلو"
+                                          className="h-8 text-xs flex-1"
+                                          value={customQty[product.id] ?? ''}
+                                          onChange={(e) => setCustomQty(s => ({ ...s, [product.id]: e.target.value }))}
+                                          onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                              e.preventDefault();
+                                              addCustomKgToCart(product, parseFloat(customQty[product.id] || '0'));
+                                            }
+                                          }}
+                                        />
+                                        <Button
+                                          size="sm"
+                                          variant="default"
+                                          className="h-8 text-xs px-2"
+                                          onClick={() => addCustomKgToCart(product, parseFloat(customQty[product.id] || '0'))}
+                                          title="إضافة كمية مخصصة"
+                                        >
+                                          <Plus className="w-3 h-3" />
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  ) : (
                                     <Button
                                       size="sm"
                                       variant="outline"
-                                      className="h-8 text-xs"
+                                      className="h-8 text-xs w-full"
                                       onClick={() => addToCart(product)}
                                     >
                                       <Plus className="w-3 h-3 ml-1" />
-                                      {kg ? 'كيلو' : 'إضافة'}
+                                      إضافة
                                     </Button>
-                                    {kg && (
-                                      <Button
-                                        size="sm"
-                                        variant="secondary"
-                                        className="h-8 text-xs"
-                                        onClick={() => addToCart(product, undefined, false, true)}
-                                        title="2 = 1 كيلو"
-                                      >
-                                        <Plus className="w-3 h-3 ml-1" />
-                                        ½ كيلو
-                                      </Button>
-                                    )}
-                                  </div>
+                                  )}
                                 </td>
                               </tr>
                             );
