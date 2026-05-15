@@ -396,8 +396,8 @@ const ModeratorPayrollTable = () => {
               <TableCell className="font-bold border bg-muted/30">بونص المصنعات لكل كجم (ج)</TableCell>
               {rows.map(r => <TableCell key={r.girl} className="text-center border">{renderBonusCell(r.girl, r.procRate, 'processed_rate', r.procRateOverridden)}</TableCell>)}
             </TableRow>
-            <TableRow>
-              <TableCell className="font-bold border bg-primary/10">بونص المصنعات (ج.م)</TableCell>
+            <TableRow className="bg-yellow-100 dark:bg-yellow-900/30">
+              <TableCell className="font-bold border">بونص المصنعات (ج.م)</TableCell>
               {rows.map(r => <TableCell key={r.girl} className="text-center border">{renderBonusCell(r.girl, r.procBonus, 'processed_bonus', r.procOverridden)}</TableCell>)}
             </TableRow>
 
@@ -422,6 +422,14 @@ const ModeratorPayrollTable = () => {
               {rows.map(r => <TableCell key={r.girl} className="text-center border">{fmt(r.meatKg)}</TableCell>)}
             </TableRow>
             <TableRow>
+              <TableCell className="font-bold border bg-muted/30">بونص اللحوم لكل كجم (ج)</TableCell>
+              {rows.map(r => <TableCell key={r.girl} className="text-center border">{renderBonusCell(r.girl, r.meatRate, 'meat_rate', r.meatRateOverridden)}</TableCell>)}
+            </TableRow>
+            <TableRow className="bg-yellow-100 dark:bg-yellow-900/30">
+              <TableCell className="font-bold border">بونص اللحوم (ج.م)</TableCell>
+              {rows.map(r => <TableCell key={r.girl} className="text-center border">{renderBonusCell(r.girl, r.meatBonus, 'meat_bonus', r.meatOverridden)}</TableCell>)}
+            </TableRow>
+            <TableRow>
               <TableCell className="font-bold border bg-muted/30">كمية اللحوم بالعظم (كجم)</TableCell>
               {rows.map(r => <TableCell key={r.girl} className="text-center border">{fmt(r.boneKg)}</TableCell>)}
             </TableRow>
@@ -429,16 +437,8 @@ const ModeratorPayrollTable = () => {
               <TableCell className="font-bold border bg-muted/30">بونص اللحوم بالعظم لكل كجم (ج)</TableCell>
               {rows.map(r => <TableCell key={r.girl} className="text-center border">{renderBonusCell(r.girl, r.boneRate, 'bone_rate', r.boneRateOverridden)}</TableCell>)}
             </TableRow>
-            <TableRow>
-              <TableCell className="font-bold border bg-muted/30">بونص اللحوم لكل كجم (ج)</TableCell>
-              {rows.map(r => <TableCell key={r.girl} className="text-center border">{renderBonusCell(r.girl, r.meatRate, 'meat_rate', r.meatRateOverridden)}</TableCell>)}
-            </TableRow>
-            <TableRow>
-              <TableCell className="font-bold border bg-primary/10">بونص اللحوم (ج.م)</TableCell>
-              {rows.map(r => <TableCell key={r.girl} className="text-center border">{renderBonusCell(r.girl, r.meatBonus, 'meat_bonus', r.meatOverridden)}</TableCell>)}
-            </TableRow>
-            <TableRow>
-              <TableCell className="font-bold border bg-primary/10">بونص اللحوم بالعظم (ج.م)</TableCell>
+            <TableRow className="bg-yellow-100 dark:bg-yellow-900/30">
+              <TableCell className="font-bold border">بونص اللحوم بالعظم (ج.م)</TableCell>
               {rows.map(r => <TableCell key={r.girl} className="text-center border">{renderBonusCell(r.girl, r.boneBonus, 'bone_bonus', r.boneOverridden)}</TableCell>)}
             </TableRow>
 
