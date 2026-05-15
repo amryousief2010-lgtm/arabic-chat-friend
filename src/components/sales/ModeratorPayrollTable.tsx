@@ -266,11 +266,13 @@ const ModeratorPayrollTable = () => {
       const tierMeatRate = meatTier ? meatTier.bonus : 0;
       const procRate = ov?.processed_rate != null ? Number(ov.processed_rate) : tierProcRate;
       const meatRate = ov?.meat_rate != null ? Number(ov.meat_rate) : tierMeatRate;
+      const boneRate = ov?.bone_rate != null ? Number(ov.bone_rate) : (meatTier ? BONE_BONUS_PER_KG : 0);
       const procRateOverridden = ov?.processed_rate != null;
       const meatRateOverridden = ov?.meat_rate != null;
+      const boneRateOverridden = ov?.bone_rate != null;
       const calcProcBonus = procRate * procKg;
       const calcMeatBonus = meatRate * meatKg;
-      const calcBoneBonus = BONE_BONUS_PER_KG * boneKg;
+      const calcBoneBonus = boneRate * boneKg;
       const procBonus = ov?.processed_bonus != null ? Number(ov.processed_bonus) : calcProcBonus;
       const meatBonus = ov?.meat_bonus != null ? Number(ov.meat_bonus) : calcMeatBonus;
       const boneBonus = ov?.bone_bonus != null ? Number(ov.bone_bonus) : calcBoneBonus;
@@ -283,6 +285,7 @@ const ModeratorPayrollTable = () => {
         meatSales, procSales, procTier, meatTier,
         procRate, procRateOverridden,
         meatRate, meatRateOverridden,
+        boneRate, boneRateOverridden,
         procBonus, meatBonus, boneBonus,
         procOverridden, meatOverridden, boneOverridden,
         total: base + procBonus + meatBonus + boneBonus,
