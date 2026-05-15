@@ -639,9 +639,34 @@ const NewOrder = () => {
     }
   };
 
-  const filteredProducts = products.filter(p =>
-    p.name.toLowerCase().includes(productSearch.toLowerCase())
-  );
+  // Custom display order grouped by category (exact DB names)
+  const PRODUCT_ORDER = [
+    // أولاً: اللحوم
+    "لحم قطع", "موزة", "استيك", "قطعية الدبوس", "رول", "فراشة", "تربيانكو", "اسكالوب", "قطع كباب",
+    // ثانياً: المصنعات
+    "كفتة", "برجر", "سجق", "مفروم", "برجر جبنة", "حواوشي", "شاورما", "شيش", "كفتة الرز", "طرب", "ممبار",
+    // ثالثاً: القطع الجانبية
+    "كبدة", "رقاب", "قلب", "قوانص", "نخاع", "دهن",
+    // رابعاً: اللحوم بالعظم
+    "دبوس بالعظم 6 كيلو", "فخدة  بالعظم", "نعامة صندوق بالعظم",
+  ];
+  const HIDDEN_PRODUCTS = ["فرم نعام", "شغت نعام", "طرب تصنيع"];
+  const normalizeName = (s: string) => (s || "").replace(/\s+/g, " ").trim();
+  const orderIndexOf = (name: string) => {
+    const n = normalizeName(name);
+    const idx = PRODUCT_ORDER.findIndex((p) => normalizeName(p) === n);
+    return idx === -1 ? 999 : idx;
+  };
+
+  const filteredProducts = products
+    .filter(p => !HIDDEN_PRODUCTS.includes(normalizeName(p.name)))
+    .filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()))
+    .sort((a, b) => {
+      const ai = orderIndexOf(a.name);
+      const bi = orderIndexOf(b.name);
+      if (ai !== bi) return ai - bi;
+      return a.name.localeCompare(b.name, "ar");
+    });
 
   const filteredCustomers = customers.filter(c =>
     c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
