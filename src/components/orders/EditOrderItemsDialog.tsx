@@ -220,7 +220,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
     (sum, it) => sum + Number(it.quantity) * Number(it.unit_price),
     0
   );
-  const newTotalPreview = newSubtotal + Number(initialDeliveryFee || 0) - Number(discount || 0);
+  const newTotalPreview = newSubtotal - Number(discount || 0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
