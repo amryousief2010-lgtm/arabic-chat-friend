@@ -54,6 +54,7 @@ import NewCateringOrder from "@/pages/catering/NewCateringOrder";
 import CateringKitchen from "@/pages/catering/CateringKitchen";
 import CateringPurchases from "@/pages/catering/CateringPurchases";
 import CateringInvoices from "@/pages/catering/CateringInvoices";
+import PrivateDeliveryPricing from "@/pages/PrivateDeliveryPricing";
 
 const RedirectWithQuery = ({ to }: { to: string }) => {
   const location = useLocation();
@@ -260,6 +261,11 @@ const AnimatedRoutes = () => {
         <Route path="/executive-dashboards" element={
           <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager', 'financial_manager', 'accountant']}>
             <PageTransition><ExecutiveDashboards /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/private-delivery-pricing" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'private_delivery_rep']}>
+            <PageTransition><PrivateDeliveryPricing /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="*" element={
