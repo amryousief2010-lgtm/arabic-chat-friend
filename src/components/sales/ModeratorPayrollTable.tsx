@@ -203,7 +203,7 @@ const ModeratorPayrollTable = () => {
         .eq('month', selectedMonth)
         .eq('year', selectedYear);
       if (error) throw error;
-      return data as Array<{ moderator_name: string; processed_bonus: number | null; meat_bonus: number | null; bone_bonus: number | null; processed_rate: number | null }>;
+      return data as Array<{ moderator_name: string; processed_bonus: number | null; meat_bonus: number | null; bone_bonus: number | null; processed_rate: number | null; meat_rate: number | null }>;
     },
   });
 
