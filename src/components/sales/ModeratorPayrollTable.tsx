@@ -424,6 +424,10 @@ const ModeratorPayrollTable = () => {
               {rows.map(r => <TableCell key={r.girl} className="text-center border">{fmt(r.boneKg)}</TableCell>)}
             </TableRow>
             <TableRow>
+              <TableCell className="font-bold border bg-muted/30">بونص اللحوم بالعظم لكل كجم (ج)</TableCell>
+              {rows.map(r => <TableCell key={r.girl} className="text-center border">{renderBonusCell(r.girl, r.boneRate, 'bone_rate', r.boneRateOverridden)}</TableCell>)}
+            </TableRow>
+            <TableRow>
               <TableCell className="font-bold border bg-muted/30">بونص اللحوم لكل كجم (ج)</TableCell>
               {rows.map(r => <TableCell key={r.girl} className="text-center border">{renderBonusCell(r.girl, r.meatRate, 'meat_rate', r.meatRateOverridden)}</TableCell>)}
             </TableRow>
