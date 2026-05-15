@@ -467,7 +467,7 @@ const NewOrder = () => {
     }
   }, [hasOfferInCart, offerShippingTotal]);
 
-  const total = subtotal - discount + deliveryFee;
+  const total = subtotal - discount;
 
   const handleAddCustomer = async () => {
     if (!newCustomerName.trim() || !newCustomerPhone.trim()) {
