@@ -89,7 +89,7 @@ const MeatFactory = () => {
 
   const fetchAll = async () => {
     setLoading(true);
-    const [p, m, i, r, b, c, q] = await Promise.all([
+    const [p, m, i, r, b, c, q, a, prof] = await Promise.all([
       supabase.from("meat_factory_products" as any).select("*").order("name_ar"),
       supabase.from("meat_factory_raw_materials" as any).select("*").order("category").order("name_ar"),
       supabase.from("meat_factory_invoices" as any).select("*").order("invoice_date", { ascending: false }),
@@ -97,6 +97,8 @@ const MeatFactory = () => {
       supabase.from("meat_factory_batches" as any).select("*").order("production_date", { ascending: false }),
       supabase.from("meat_factory_batch_consumption" as any).select("*").order("created_at", { ascending: false }),
       supabase.from("meat_factory_quality_log" as any).select("*").order("changed_at", { ascending: false }),
+      supabase.from("meat_factory_approval_audit" as any).select("*").order("attempted_at", { ascending: false }).limit(500),
+      supabase.from("profiles").select("id, full_name"),
     ]);
     setProducts((p.data as any) || []);
     setMaterials((m.data as any) || []);
@@ -105,6 +107,10 @@ const MeatFactory = () => {
     setBatches((b.data as any) || []);
     setConsumption((c.data as any) || []);
     setQualityLogs((q.data as any) || []);
+    setAuditLog((a.data as any) || []);
+    const map: Record<string, string> = {};
+    ((prof.data as any) || []).forEach((u: any) => { map[u.id] = u.full_name || ""; });
+    setProfilesMap(map);
     setLoading(false);
   };
 
