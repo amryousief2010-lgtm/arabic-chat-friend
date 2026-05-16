@@ -611,6 +611,7 @@ const Products = () => {
                         aria-label={`تحديد ${product.name}`}
                       />
                     </TableCell>
+                    <TableCell>
                       <div className="flex items-center gap-3">
                         {product.image_url && (
                           <img
