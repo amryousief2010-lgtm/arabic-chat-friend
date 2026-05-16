@@ -140,19 +140,21 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false }: Props) => {
               </div>
 
               <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="flex-1 h-8 text-xs"
-                  onClick={() => navigate(`/orders/new?moderator=${row.slug}`)}
-                >
-                  <Plus className="w-3.5 h-3.5 ml-1" /> طلب جديد
-                </Button>
+                {!privateDeliveryOnly && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="flex-1 h-8 text-xs"
+                    onClick={() => navigate(`/orders/new?moderator=${row.slug}`)}
+                  >
+                    <Plus className="w-3.5 h-3.5 ml-1" /> طلب جديد
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   variant="outline"
                   className="flex-1 h-8 text-xs bg-white/10 border-white/30 text-primary-foreground hover:bg-white/20"
-                  onClick={() => navigate(`/orders/moderator/${row.slug}`)}
+                  onClick={() => navigate(`/orders/moderator/${row.slug}${privateDeliveryOnly ? '?shipping=private' : ''}`)}
                 >
                   <FileText className="w-3.5 h-3.5 ml-1" /> السجل
                 </Button>
