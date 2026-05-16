@@ -122,6 +122,7 @@ const Notifications = () => {
   const urgentUnreadCount = notifications.filter(n => !n.is_read && requiresImmediateReply(n)).length;
 
   const [showUrgentOnly, setShowUrgentOnly] = useState(false);
+  const [pendingUrgent, setPendingUrgent] = useState<Notification | null>(null);
   const visibleNotifications = useMemo(() => {
     const filtered = showUrgentOnly
       ? notifications.filter(requiresImmediateReply)
