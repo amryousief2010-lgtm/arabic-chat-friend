@@ -189,18 +189,22 @@ const Notifications = () => {
               <div className="text-center py-8 text-muted-foreground">
                 جاري التحميل...
               </div>
-            ) : notifications.length === 0 ? (
+            ) : visibleNotifications.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Bell className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>لا توجد إشعارات</p>
+                <p>{showUrgentOnly ? 'لا توجد إشعارات تتطلب رداً فورياً' : 'لا توجد إشعارات'}</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {notifications.map((notification) => {
+                {visibleNotifications.map((notification) => {
                   const hasOrder = !!notification.order_id;
+                  const urgent = requiresImmediateReply(notification) && !notification.is_read;
                   return (
                   <div
                     key={notification.id}
+                    data-testid="notification-item"
+                    data-order-id={notification.order_id ?? ''}
+                    data-urgent={urgent ? 'true' : 'false'}
                     onClick={() => {
                       if (hasOrder) {
                         if (!notification.is_read) {
@@ -214,24 +218,28 @@ const Notifications = () => {
                     className={`p-4 rounded-lg border transition-colors ${
                       notification.is_read
                         ? 'bg-background/50 border-border/50'
-                        : 'bg-primary/5 border-primary/20'
+                        : urgent
+                          ? 'bg-destructive/5 border-destructive/40 ring-1 ring-destructive/30'
+                          : 'bg-primary/5 border-primary/20'
                     } ${hasOrder ? 'cursor-pointer hover:border-primary/50' : ''}`}
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex items-start gap-3 flex-1">
                         <div className={`p-2 rounded-full ${
-                          notification.type === 'new_order' 
-                            ? 'bg-success/10 text-success' 
-                            : 'bg-secondary/10 text-secondary'
+                          urgent
+                            ? 'bg-destructive/10 text-destructive'
+                            : notification.type === 'new_order'
+                              ? 'bg-success/10 text-success'
+                              : 'bg-secondary/10 text-secondary'
                         }`}>
-                          <Package className="w-4 h-4" />
+                          {urgent ? <AlertCircle className="w-4 h-4" /> : <Package className="w-4 h-4" />}
                         </div>
                         <div className="flex-1">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <h4 className="font-medium">{notification.title}</h4>
                             {!notification.is_read && (
-                              <Badge variant="default" className="text-xs">
-                                جديد
+                              <Badge variant={urgent ? 'destructive' : 'default'} className="text-xs">
+                                {urgent ? 'يتطلب رد فوري' : 'جديد'}
                               </Badge>
                             )}
                             {hasOrder && (
