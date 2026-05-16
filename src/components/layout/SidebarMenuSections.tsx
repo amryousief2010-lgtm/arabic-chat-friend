@@ -132,10 +132,18 @@ export const moduleSections: ModuleSection[] = [
   {
     id: "feed-factory",
     icon: Wheat,
-    label: "7. مصنع الأعلاف والموارد البشرية",
-    roles: ['general_manager', 'executive_manager', 'feed_factory_manager', 'hr_manager', 'production_manager', 'quality_manager'],
+    label: "7. مصنع الأعلاف",
+    roles: ['general_manager', 'executive_manager', 'feed_factory_manager', 'production_manager', 'quality_manager'],
     items: [
       { icon: Wheat, label: "تصنيع الأعلاف", path: "/modules/feed-factory", roles: ['general_manager', 'executive_manager', 'feed_factory_manager', 'production_manager', 'quality_manager'] },
+    ],
+  },
+  {
+    id: "hr",
+    icon: UsersRound,
+    label: "8. الموارد البشرية",
+    roles: ['general_manager', 'executive_manager', 'hr_manager'],
+    items: [
       { icon: UsersRound, label: "الموارد البشرية", path: "/modules/hr", roles: ['general_manager', 'executive_manager', 'hr_manager'] },
       { icon: Users, label: "الموظفين (نظام)", path: "/employees", roles: ['general_manager'] },
     ],
@@ -143,7 +151,7 @@ export const moduleSections: ModuleSection[] = [
   {
     id: "warehouses",
     icon: Warehouse,
-    label: "8. المخازن",
+    label: "9. المخازن",
     roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager', 'quality_manager', 'sales_manager', 'marketing_sales_manager', 'sales_moderator'],
     items: [
       { icon: Warehouse, label: "إدارة المخازن", path: "/modules/warehouses", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager', 'quality_manager', 'sales_moderator'] },
