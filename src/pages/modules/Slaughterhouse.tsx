@@ -14,12 +14,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import {
   Beef, TrendingUp, Package, Scale, Plus, AlertTriangle, CheckCircle2,
   Users, ClipboardCheck, Bird, FileSpreadsheet, FileText, Truck, Trash2,
+  Settings as SettingsIcon, History, Save,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import {
+  BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip as RTooltip,
+  ResponsiveContainer, CartesianGrid, Legend,
+} from "recharts";
 
 type Receipt = { id: string; receipt_number: string; receipt_date: string; source_type: string; source_name: string | null; bird_count: number; total_weight_kg: number; avg_weight_kg: number; price_per_kg: number; total_cost: number; dead_on_arrival: number; status: string; };
 type Batch = { id: string; batch_number: string; slaughter_date: string; shift: string; live_receipt_id: string | null; birds_slaughtered: number; total_live_weight_kg: number; total_meat_kg: number; actual_yield_pct: number; cost_per_kg_meat: number; status: string; pre_slaughter_dead: number; rejected_birds: number; };
