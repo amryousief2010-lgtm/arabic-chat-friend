@@ -179,6 +179,20 @@ const BarcodeImportDialog = ({ open, onOpenChange, products, onDone }: Props) =>
           </DialogDescription>
         </DialogHeader>
 
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => downloadTemplate("xlsx")}>
+            <Download className="w-4 h-4 ml-2" />
+            تحميل قالب Excel
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => downloadTemplate("csv")}>
+            <Download className="w-4 h-4 ml-2" />
+            تحميل قالب CSV
+          </Button>
+          <span className="text-xs text-muted-foreground mr-auto">
+            الأعمدة المطلوبة: <span className="font-semibold">اسم المنتج</span> ، <span className="font-semibold">الباركود</span>
+          </span>
+        </div>
+
         {!rows.length ? (
           <label className="flex flex-col items-center justify-center gap-3 border-2 border-dashed rounded-lg p-10 cursor-pointer hover:bg-muted/40">
             <FileSpreadsheet className="w-10 h-10 text-muted-foreground" />
@@ -196,14 +210,22 @@ const BarcodeImportDialog = ({ open, onOpenChange, products, onDone }: Props) =>
         ) : (
           <div className="space-y-3">
             <div className="flex flex-wrap gap-2 text-sm">
-              <Badge variant="default">سيتم تحديث: {stats.match}</Badge>
+              <Badge variant="default" className="gap-1">
+                <CheckCircle2 className="w-3 h-3" /> سيتم تحديث: {stats.match}
+              </Badge>
               <Badge variant="secondary">بدون تغيير: {stats.unchanged}</Badge>
               <Badge variant="destructive">غير مطابق: {stats.nomatch}</Badge>
+              {stats.invalid > 0 && (
+                <Badge variant="destructive" className="gap-1">
+                  <AlertTriangle className="w-3 h-3" /> باركود غير صالح: {stats.invalid}
+                </Badge>
+              )}
             </div>
             <div className="max-h-[400px] overflow-auto border rounded-lg">
               <table className="w-full text-sm">
                 <thead className="bg-muted sticky top-0">
                   <tr>
+                    <th className="p-2 text-right">#</th>
                     <th className="p-2 text-right">اسم الملف</th>
                     <th className="p-2 text-right">الباركود</th>
                     <th className="p-2 text-right">المطابق في النظام</th>
@@ -212,14 +234,34 @@ const BarcodeImportDialog = ({ open, onOpenChange, products, onDone }: Props) =>
                 </thead>
                 <tbody>
                   {rows.map((r, i) => (
-                    <tr key={i} className="border-t">
-                      <td className="p-2">{r.name}</td>
-                      <td className="p-2 font-mono text-xs" dir="ltr">{r.barcode}</td>
+                    <tr
+                      key={i}
+                      className={`border-t ${
+                        r.status === "invalid"
+                          ? "bg-destructive/5"
+                          : r.status === "no-match"
+                          ? "bg-warning/5"
+                          : r.status === "match"
+                          ? "bg-success/5"
+                          : ""
+                      }`}
+                    >
+                      <td className="p-2 text-muted-foreground">{i + 1}</td>
+                      <td className="p-2">{r.name || <span className="text-muted-foreground">—</span>}</td>
+                      <td className="p-2 font-mono text-xs" dir="ltr">{r.barcode || "—"}</td>
                       <td className="p-2 text-muted-foreground">{r.matchedName || "—"}</td>
                       <td className="p-2">
                         {r.status === "match" && <Badge>سيُحدّث</Badge>}
                         {r.status === "unchanged" && <Badge variant="secondary">بدون تغيير</Badge>}
                         {r.status === "no-match" && <Badge variant="destructive">غير مطابق</Badge>}
+                        {r.status === "invalid" && (
+                          <Badge variant="destructive" title={r.invalidReason}>
+                            باركود غير صالح
+                          </Badge>
+                        )}
+                        {r.status === "invalid" && r.invalidReason && (
+                          <div className="text-[11px] text-destructive mt-1">{r.invalidReason}</div>
+                        )}
                       </td>
                     </tr>
                   ))}
