@@ -165,8 +165,8 @@ const Orders = () => {
   };
   const [searchQuery, setSearchQuery] = useState("");
   const now = new Date();
-  const [filterMonth, setFilterMonth] = useState<string>(String(now.getMonth() + 1));
-  const [filterYear, setFilterYear] = useState<string>(String(now.getFullYear()));
+  const [filterMonth, setFilterMonth] = useState<string>(String(now.getUTCMonth() + 1));
+  const [filterYear, setFilterYear] = useState<string>(String(now.getUTCFullYear()));
   const [collectionMismatch, setCollectionMismatch] = useState<{
     orderId: string;
     orderNumber: string;
