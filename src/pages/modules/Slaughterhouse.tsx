@@ -953,16 +953,21 @@ const TransfersTab = ({ transfers, branches, batches, onStatus }: {
 };
 
 // ===================== Daily Report Tab (Excel-style + export) =====================
-const DailyReportTab = ({ reportDate, setReportDate, receipts, birds, batches, outputs, branches }: {
+const DailyReportTab = ({ reportDate, setReportDate, receipts, birds, batches, outputs, branches, settings }: {
   reportDate: string; setReportDate: (d: string) => void;
   receipts: Receipt[]; birds: LiveBird[]; batches: Batch[]; outputs: Output[]; branches: Branch[];
+  settings: Settings | null;
 }) => {
+  const [branchFilter, setBranchFilter] = useState<string>("");
+  const lowThr = Number(settings?.low_yield_threshold ?? 40);
+  const warnThr = Number(settings?.warning_yield_threshold ?? 45);
+
   const dayReceipts = receipts.filter(r => r.receipt_date === reportDate);
   const dayBatches = batches.filter(b => b.slaughter_date === reportDate);
   const dayReceiptIds = dayReceipts.map(r => r.id);
   const dayBatchIds = dayBatches.map(b => b.id);
   const dayBirds = birds.filter(b => dayReceiptIds.includes(b.receipt_id)).sort((a, b) => a.bird_index - b.bird_index);
-  const dayOutputs = outputs.filter(o => dayBatchIds.includes(o.batch_id));
+  const dayOutputs = outputs.filter(o => dayBatchIds.includes(o.batch_id) && (!branchFilter || o.branch_id === branchFilter));
 
   const totals = {
     live: dayBirds.reduce((s, b) => s + Number(b.live_weight_kg || 0), 0),
