@@ -57,7 +57,19 @@ const Notifications = () => {
         .eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    // Optimistic update so the UI flips instantly without waiting for a refetch.
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: ['notifications'] });
+      const previous = queryClient.getQueryData<Notification[]>(['notifications']);
+      queryClient.setQueryData<Notification[]>(['notifications'], (old) =>
+        (old || []).map((n) => (n.id === id ? { ...n, is_read: true } : n)),
+      );
+      return { previous };
+    },
+    onError: (_err, _id, ctx) => {
+      if (ctx?.previous) queryClient.setQueryData(['notifications'], ctx.previous);
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
   });
@@ -97,9 +109,19 @@ const Notifications = () => {
   });
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
+  const urgentUnreadCount = notifications.filter(n => !n.is_read && requiresImmediateReply(n)).length;
 
-  return (
-    <DashboardLayout>
+  const [showUrgentOnly, setShowUrgentOnly] = useState(false);
+  const visibleNotifications = useMemo(() => {
+    const filtered = showUrgentOnly
+      ? notifications.filter(requiresImmediateReply)
+      : notifications;
+    // Already ordered by created_at desc from the query, but re-sort defensively
+    // so the urgent filter never accidentally re-orders.
+    return [...filtered].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+  }, [notifications, showUrgentOnly]);
       <Header title="سجل الإشعارات" subtitle="جميع الإشعارات السابقة" />
 
       <div className="space-y-4">
