@@ -55,6 +55,12 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
 
   useEffect(() => {
     if (!loading && user && isDenied) {
+      // Silent redirect for private delivery rep and for moderators landing on root —
+      // these are expected automatic landings, not real permission errors.
+      const isSilentLanding =
+        (role === 'private_delivery_rep') ||
+        (role === 'sales_moderator' && (location.pathname === '/' || location.pathname.startsWith('/dashboard')));
+      if (isSilentLanding) return;
       const isDashboardAttempt =
         location.pathname === '/' || location.pathname.startsWith('/dashboard');
       toast.error('🚫 لا تملكين صلاحية الدخول لهذه الصفحة', {
