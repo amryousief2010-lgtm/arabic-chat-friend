@@ -52,15 +52,20 @@ const ModeratorsAggregateSummary = () => {
     queryKey: ["moderators-aggregate-summary"],
     refetchInterval: 60_000,
     queryFn: async () => {
-      const startOfMonth = new Date();
-      startOfMonth.setDate(1);
-      startOfMonth.setHours(0, 0, 0, 0);
+      const now = new Date();
+      const startOfMonth = new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0),
+      );
+      const startOfNextMonth = new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0, 0),
+      );
 
-      // 1) Orders for this month
+      // 1) Orders for this month (UTC boundaries — created_at is UTC)
       const { data: orders, error } = await supabase
         .from("orders")
         .select("id, total, moderator, created_by, created_at")
-        .gte("created_at", startOfMonth.toISOString());
+        .gte("created_at", startOfMonth.toISOString())
+        .lt("created_at", startOfNextMonth.toISOString());
       if (error) throw error;
 
       // 2) Resolve creator profile names to attribute orders to the 4 girls
