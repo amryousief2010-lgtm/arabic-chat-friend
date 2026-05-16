@@ -35,7 +35,7 @@ const MobileNavigation = () => {
         { icon: LayoutDashboard, label: "الرئيسية", path: "/" },
         { icon: Package, label: "المنتجات", path: "/products" },
         { icon: ShoppingCart, label: "الطلبات", path: "/orders" },
-        { icon: Bell, label: "الإشعارات", path: "/notifications", badge: unreadCount },
+        { icon: Bell, label: "الإشعارات", path: "/notifications", badge: unreadCount, urgent: urgentUnreadCount > 0 },
       ];
 
   return (
