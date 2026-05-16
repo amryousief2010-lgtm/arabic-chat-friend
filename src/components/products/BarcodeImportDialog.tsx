@@ -13,7 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Upload, FileSpreadsheet } from "lucide-react";
+import { Upload, FileSpreadsheet, Download, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { validateBarcode } from "@/lib/printProductLabel";
 
 interface Product {
   id: string;
@@ -26,7 +27,8 @@ interface Row {
   barcode: string;
   matchedId?: string;
   matchedName?: string;
-  status: "match" | "no-match" | "unchanged";
+  status: "match" | "no-match" | "unchanged" | "invalid";
+  invalidReason?: string;
 }
 
 interface Props {
