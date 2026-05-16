@@ -478,6 +478,34 @@ const Products = () => {
           </div>
         </CardHeader>
         <CardContent>
+          {scanMode && (
+            <div className="mb-4 p-3 rounded-lg border-2 border-primary/40 bg-primary/5">
+              <div className="flex items-center gap-2 mb-2">
+                <ScanLine className="w-4 h-4 text-primary" />
+                <span className="text-sm font-semibold">وضع مسح الباركود مفعّل</span>
+                <span className="text-xs text-muted-foreground mr-auto">امسح الكود أو اكتبه واضغط Enter</span>
+                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setScanMode(false)}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              <Input
+                ref={scanInputRef}
+                value={scanValue}
+                onChange={(e) => setScanValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleScanSubmit(scanValue);
+                  }
+                }}
+                placeholder="امسح الباركود هنا..."
+                className="font-mono text-lg"
+                dir="ltr"
+                autoFocus
+                inputMode="numeric"
+              />
+            </div>
+          )}
           {isLoading ? (
             <div className="text-center py-8 text-muted-foreground">جاري التحميل...</div>
           ) : (
