@@ -134,7 +134,7 @@ const Products = () => {
 
   // Permission checks
   const canAddProducts = role === 'general_manager' || role === 'executive_manager' || role === 'sales_manager' || role === 'warehouse_supervisor';
-  const canEditPrice = role === 'general_manager' || role === 'executive_manager' || role === 'sales_manager' || role === 'accountant';
+  const canEditPrice = role === 'general_manager' || role === 'executive_manager' || role === 'sales_manager' || role === 'accountant' || role === 'warehouse_supervisor';
   const canManageProducts = role === 'general_manager' || role === 'executive_manager' || role === 'sales_manager' || role === 'warehouse_supervisor';
   const isModerator = role === 'sales_moderator';
   const canViewFinancials = !isModerator;
