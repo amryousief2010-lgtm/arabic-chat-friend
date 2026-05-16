@@ -2026,6 +2026,7 @@ export type Database = {
       }
       products: {
         Row: {
+          barcode: string | null
           category: string | null
           cost_price: number
           created_at: string
@@ -2042,6 +2043,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          barcode?: string | null
           category?: string | null
           cost_price?: number
           created_at?: string
@@ -2058,6 +2060,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          barcode?: string | null
           category?: string | null
           cost_price?: number
           created_at?: string
