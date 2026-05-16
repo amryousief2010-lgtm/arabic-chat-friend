@@ -39,8 +39,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { printProductLabel } from "@/lib/printProductLabel";
+import { printProductLabel, printProductLabels, validateBarcode } from "@/lib/printProductLabel";
 import BarcodeImportDialog from "@/components/products/BarcodeImportDialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { toast as sonnerToast } from "sonner";
 
 
 const categories = ["لحوم طازجة", "لحوم مصنعة", "منتجات أخرى"];
