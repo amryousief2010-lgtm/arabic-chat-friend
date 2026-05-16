@@ -1046,17 +1046,45 @@ const DailyReportTab = ({ reportDate, setReportDate, receipts, birds, batches, o
     toast.success("تم تصدير PDF");
   };
 
+  // Per-batch chart data
+  const batchChart = dayBatches.map(b => ({
+    name: b.batch_number.slice(-6),
+    live: Number(b.total_live_weight_kg || 0),
+    meat: Number(b.total_meat_kg || 0),
+    yield: Number(b.actual_yield_pct || 0),
+    cost: Number(b.cost_per_kg_meat || 0),
+  }));
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
-        <CardTitle>تفريغة الذبح اليومي</CardTitle>
-        <div className="flex items-center gap-2">
+        <CardTitle>التقرير اليومي للذبح</CardTitle>
+        <div className="flex items-center gap-2 flex-wrap">
           <Input type="date" value={reportDate} onChange={e => setReportDate(e.target.value)} className="w-44" />
+          <Select value={branchFilter || "all"} onValueChange={v => setBranchFilter(v === "all" ? "" : v)}>
+            <SelectTrigger className="w-40"><SelectValue placeholder="كل الفروع" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">كل الفروع</SelectItem>
+              {branches.map(b => <SelectItem key={b.id} value={b.id}>{b.name_ar}</SelectItem>)}
+            </SelectContent>
+          </Select>
           <Button variant="outline" onClick={exportExcel}><FileSpreadsheet className="w-4 h-4 ml-1" />Excel</Button>
           <Button variant="outline" onClick={exportPDF}><FileText className="w-4 h-4 ml-1" />PDF</Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
+        {/* Yield alert */}
+        {yieldPct > 0 && yieldPct < warnThr && (
+          <div className={`p-3 rounded border flex items-center gap-2 ${yieldPct < lowThr ? "bg-red-500/10 border-red-500/40 text-red-700" : "bg-amber-500/10 border-amber-500/40 text-amber-700"}`}>
+            <AlertTriangle className="w-4 h-4" />
+            <span className="text-sm font-medium">
+              {yieldPct < lowThr
+                ? `تنبيه: التصافي ${yieldPct.toFixed(1)}% أقل من الحد الأدنى (${lowThr}%)`
+                : `تحذير: التصافي ${yieldPct.toFixed(1)}% قريب من الحد الأدنى (${lowThr}%)`}
+            </span>
+          </div>
+        )}
+
         {/* Top stats */}
         <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-sm">
           <div className="p-2 bg-muted/40 rounded">طيور: <b>{dayBirds.length}</b></div>
@@ -1064,8 +1092,43 @@ const DailyReportTab = ({ reportDate, setReportDate, receipts, birds, batches, o
           <div className="p-2 bg-muted/40 rounded">لحم: <b>{totals.meat.toFixed(1)}</b></div>
           <div className="p-2 bg-muted/40 rounded">تكلفة الشراء: <b>{totals.purchase.toFixed(0)}</b></div>
           <div className="p-2 bg-muted/40 rounded">قيمة البيع: <b>{totals.value.toFixed(0)}</b></div>
-          <div className={`p-2 rounded ${yieldPct < 40 ? "bg-red-500/20" : "bg-emerald-500/20"}`}>التصافي: <b>{yieldPct.toFixed(1)}%</b></div>
+          <div className={`p-2 rounded ${yieldPct < lowThr ? "bg-red-500/20" : yieldPct < warnThr ? "bg-amber-500/20" : "bg-emerald-500/20"}`}>التصافي: <b>{yieldPct.toFixed(1)}%</b></div>
         </div>
+
+        {/* Charts */}
+        {batchChart.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-muted/20 p-3 rounded">
+              <p className="text-xs text-muted-foreground mb-2">الوزن الحي vs اللحم (كجم)</p>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={batchChart}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                  <XAxis dataKey="name" fontSize={10} />
+                  <YAxis fontSize={10} />
+                  <RTooltip />
+                  <Legend />
+                  <Bar dataKey="live" fill="hsl(var(--primary))" name="حي" />
+                  <Bar dataKey="meat" fill="hsl(var(--accent))" name="لحم" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="bg-muted/20 p-3 rounded">
+              <p className="text-xs text-muted-foreground mb-2">التصافي % والتكلفة/كجم</p>
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={batchChart}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                  <XAxis dataKey="name" fontSize={10} />
+                  <YAxis yAxisId="l" fontSize={10} />
+                  <YAxis yAxisId="r" orientation="right" fontSize={10} />
+                  <RTooltip />
+                  <Legend />
+                  <Line yAxisId="l" type="monotone" dataKey="yield" stroke="hsl(var(--primary))" name="تصافي %" />
+                  <Line yAxisId="r" type="monotone" dataKey="cost" stroke="hsl(var(--accent))" name="تكلفة/كجم" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
 
         {/* Section 1: Birds */}
         <div>
