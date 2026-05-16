@@ -64,6 +64,12 @@ const Products = () => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [stockAdjustment, setStockAdjustment] = useState<{ [key: string]: number }>({});
+  const [importOpen, setImportOpen] = useState(false);
+  const [scanMode, setScanMode] = useState(false);
+  const [scanValue, setScanValue] = useState("");
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const scanInputRef = useRef<HTMLInputElement>(null);
+  const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
