@@ -2,20 +2,23 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, waitFor } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 
-const toastErrorMock = vi.fn();
 vi.mock("sonner", () => ({
-  toast: { error: toastErrorMock },
+  toast: { error: vi.fn(), success: vi.fn(), info: vi.fn() },
 }));
 
-const useAuthMock = vi.fn();
 vi.mock("@/hooks/useAuth", async () => {
   const actual = await vi.importActual<typeof import("@/hooks/useAuth")>(
     "@/hooks/useAuth"
   );
-  return { ...actual, useAuth: () => useAuthMock() };
+  return { ...actual, useAuth: vi.fn() };
 });
 
+import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 import ProtectedRoute from "@/components/ProtectedRoute";
+
+const toastErrorMock = toast.error as ReturnType<typeof vi.fn>;
+const useAuthMock = useAuth as unknown as ReturnType<typeof vi.fn>;
 
 const renderAt = (path: string) =>
   render(
