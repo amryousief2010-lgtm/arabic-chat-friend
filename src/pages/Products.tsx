@@ -136,6 +136,7 @@ const Products = () => {
         stock: product.stock.toString(),
         unit: product.unit,
         image_url: product.image_url || "",
+        barcode: product.barcode || "",
       });
     } else {
       setEditingProduct(null);
@@ -146,6 +147,7 @@ const Products = () => {
         stock: "",
         unit: "كيلو",
         image_url: "",
+        barcode: "",
       });
     }
     setIsDialogOpen(true);
