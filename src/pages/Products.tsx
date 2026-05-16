@@ -518,7 +518,7 @@ const Products = () => {
                   {canViewFinancials && <TableHead className="text-right">السعر</TableHead>}
                   <TableHead className="text-right">المخزون</TableHead>
                   <TableHead className="text-right">الحالة</TableHead>
-                  {canManageProducts && <TableHead className="text-right">الإجراءات</TableHead>}
+                  <TableHead className="text-right">الإجراءات</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
