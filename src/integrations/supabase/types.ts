@@ -1095,6 +1095,42 @@ export type Database = {
           },
         ]
       }
+      feed_audit_log: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          new_value: Json | null
+          notes: string | null
+          old_value: Json | null
+          performed_by: string | null
+          row_id: string | null
+          table_name: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          new_value?: Json | null
+          notes?: string | null
+          old_value?: Json | null
+          performed_by?: string | null
+          row_id?: string | null
+          table_name: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          new_value?: Json | null
+          notes?: string | null
+          old_value?: Json | null
+          performed_by?: string | null
+          row_id?: string | null
+          table_name?: string
+        }
+        Relationships: []
+      }
       feed_batch_consumption: {
         Row: {
           batch_id: string
@@ -1173,6 +1209,233 @@ export type Database = {
         }
         Relationships: []
       }
+      feed_cost_reviews: {
+        Row: {
+          batch_id: string
+          decision: string
+          id: string
+          notes: string | null
+          reviewed_at: string
+          reviewed_by: string | null
+        }
+        Insert: {
+          batch_id: string
+          decision: string
+          id?: string
+          notes?: string | null
+          reviewed_at?: string
+          reviewed_by?: string | null
+        }
+        Update: {
+          batch_id?: string
+          decision?: string
+          id?: string
+          notes?: string | null
+          reviewed_at?: string
+          reviewed_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_cost_reviews_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "feed_invoice_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feed_finished_goods_moves: {
+        Row: {
+          batch_id: string
+          created_at: string
+          destination: string | null
+          feed_product_id: string
+          id: string
+          movement_type: string
+          notes: string | null
+          performed_by: string | null
+          qty_kg: number
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          destination?: string | null
+          feed_product_id: string
+          id?: string
+          movement_type: string
+          notes?: string | null
+          performed_by?: string | null
+          qty_kg: number
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          destination?: string | null
+          feed_product_id?: string
+          id?: string
+          movement_type?: string
+          notes?: string | null
+          performed_by?: string | null
+          qty_kg?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_finished_goods_moves_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "feed_invoice_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feed_finished_goods_moves_feed_product_id_fkey"
+            columns: ["feed_product_id"]
+            isOneToOne: false
+            referencedRelation: "feed_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feed_invoice_batches: {
+        Row: {
+          batch_no: string
+          cost_diff: number | null
+          created_at: string
+          feed_product_id: string
+          id: string
+          input_cost: number
+          input_qty_invoice: number | null
+          input_qty_weight_kg: number | null
+          invoice_date: string | null
+          invoice_no: string | null
+          invoice_output_total: number | null
+          notes: string | null
+          operating_cost: number
+          order_id: string | null
+          output_qty_kg: number
+          qty_variance_kg: number | null
+          qty_variance_pct: number | null
+          source_file: string | null
+          status: Database["public"]["Enums"]["feed_order_status"]
+          unit_cost_calc: number | null
+          updated_at: string
+          warehouse_name: string | null
+        }
+        Insert: {
+          batch_no: string
+          cost_diff?: number | null
+          created_at?: string
+          feed_product_id: string
+          id?: string
+          input_cost?: number
+          input_qty_invoice?: number | null
+          input_qty_weight_kg?: number | null
+          invoice_date?: string | null
+          invoice_no?: string | null
+          invoice_output_total?: number | null
+          notes?: string | null
+          operating_cost?: number
+          order_id?: string | null
+          output_qty_kg?: number
+          qty_variance_kg?: number | null
+          qty_variance_pct?: number | null
+          source_file?: string | null
+          status?: Database["public"]["Enums"]["feed_order_status"]
+          unit_cost_calc?: number | null
+          updated_at?: string
+          warehouse_name?: string | null
+        }
+        Update: {
+          batch_no?: string
+          cost_diff?: number | null
+          created_at?: string
+          feed_product_id?: string
+          id?: string
+          input_cost?: number
+          input_qty_invoice?: number | null
+          input_qty_weight_kg?: number | null
+          invoice_date?: string | null
+          invoice_no?: string | null
+          invoice_output_total?: number | null
+          notes?: string | null
+          operating_cost?: number
+          order_id?: string | null
+          output_qty_kg?: number
+          qty_variance_kg?: number | null
+          qty_variance_pct?: number | null
+          source_file?: string | null
+          status?: Database["public"]["Enums"]["feed_order_status"]
+          unit_cost_calc?: number | null
+          updated_at?: string
+          warehouse_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_invoice_batches_feed_product_id_fkey"
+            columns: ["feed_product_id"]
+            isOneToOne: false
+            referencedRelation: "feed_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feed_invoice_batches_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "feed_production_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feed_material_issues: {
+        Row: {
+          id: string
+          issued_at: string
+          issued_by: string | null
+          order_id: string
+          qty: number
+          raw_material_id: string
+          total_cost: number | null
+          unit: string
+          unit_cost: number
+        }
+        Insert: {
+          id?: string
+          issued_at?: string
+          issued_by?: string | null
+          order_id: string
+          qty: number
+          raw_material_id: string
+          total_cost?: number | null
+          unit?: string
+          unit_cost?: number
+        }
+        Update: {
+          id?: string
+          issued_at?: string
+          issued_by?: string | null
+          order_id?: string
+          qty?: number
+          raw_material_id?: string
+          total_cost?: number | null
+          unit?: string
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_material_issues_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "feed_production_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feed_material_issues_raw_material_id_fkey"
+            columns: ["raw_material_id"]
+            isOneToOne: false
+            referencedRelation: "feed_raw_materials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feed_production_batches: {
         Row: {
           actual_quantity: number | null
@@ -1229,11 +1492,160 @@ export type Database = {
           },
         ]
       }
+      feed_production_orders: {
+        Row: {
+          approved_by: string | null
+          created_at: string
+          created_by: string | null
+          feed_product_id: string
+          id: string
+          notes: string | null
+          order_no: string
+          recipe_id: string | null
+          status: Database["public"]["Enums"]["feed_order_status"]
+          target_output_kg: number
+          updated_at: string
+        }
+        Insert: {
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          feed_product_id: string
+          id?: string
+          notes?: string | null
+          order_no: string
+          recipe_id?: string | null
+          status?: Database["public"]["Enums"]["feed_order_status"]
+          target_output_kg: number
+          updated_at?: string
+        }
+        Update: {
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          feed_product_id?: string
+          id?: string
+          notes?: string | null
+          order_no?: string
+          recipe_id?: string | null
+          status?: Database["public"]["Enums"]["feed_order_status"]
+          target_output_kg?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_production_orders_feed_product_id_fkey"
+            columns: ["feed_product_id"]
+            isOneToOne: false
+            referencedRelation: "feed_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feed_production_orders_recipe_id_fkey"
+            columns: ["recipe_id"]
+            isOneToOne: false
+            referencedRelation: "feed_recipes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feed_products: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          current_stock: number
+          default_bag_kg: number
+          feed_code: string
+          id: string
+          latest_unit_cost: number
+          name: string
+          notes: string | null
+          recipe_status: string
+          stage: string | null
+          standard_batch_kg: number
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          current_stock?: number
+          default_bag_kg?: number
+          feed_code: string
+          id?: string
+          latest_unit_cost?: number
+          name: string
+          notes?: string | null
+          recipe_status?: string
+          stage?: string | null
+          standard_batch_kg?: number
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          current_stock?: number
+          default_bag_kg?: number
+          feed_code?: string
+          id?: string
+          latest_unit_cost?: number
+          name?: string
+          notes?: string | null
+          recipe_status?: string
+          stage?: string | null
+          standard_batch_kg?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      feed_qc_checks: {
+        Row: {
+          batch_id: string
+          checked_by: string | null
+          decided_at: string
+          id: string
+          notes: string | null
+          result: Database["public"]["Enums"]["feed_qc_result"]
+          variance_reason: string | null
+        }
+        Insert: {
+          batch_id: string
+          checked_by?: string | null
+          decided_at?: string
+          id?: string
+          notes?: string | null
+          result: Database["public"]["Enums"]["feed_qc_result"]
+          variance_reason?: string | null
+        }
+        Update: {
+          batch_id?: string
+          checked_by?: string | null
+          decided_at?: string
+          id?: string
+          notes?: string | null
+          result?: Database["public"]["Enums"]["feed_qc_result"]
+          variance_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_qc_checks_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "feed_invoice_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feed_raw_materials: {
         Row: {
+          category: string | null
+          cost_high: number | null
+          cost_low: number | null
           created_at: string
+          criticality: string | null
           id: string
           is_active: boolean
+          is_packaging: boolean
+          item_code: string | null
           low_stock_threshold: number
           name: string
           notes: string | null
@@ -1242,11 +1654,18 @@ export type Database = {
           unit: string
           unit_cost: number
           updated_at: string
+          warehouse_name: string | null
         }
         Insert: {
+          category?: string | null
+          cost_high?: number | null
+          cost_low?: number | null
           created_at?: string
+          criticality?: string | null
           id?: string
           is_active?: boolean
+          is_packaging?: boolean
+          item_code?: string | null
           low_stock_threshold?: number
           name: string
           notes?: string | null
@@ -1255,11 +1674,18 @@ export type Database = {
           unit?: string
           unit_cost?: number
           updated_at?: string
+          warehouse_name?: string | null
         }
         Update: {
+          category?: string | null
+          cost_high?: number | null
+          cost_low?: number | null
           created_at?: string
+          criticality?: string | null
           id?: string
           is_active?: boolean
+          is_packaging?: boolean
+          item_code?: string | null
           low_stock_threshold?: number
           name?: string
           notes?: string | null
@@ -1268,6 +1694,7 @@ export type Database = {
           unit?: string
           unit_cost?: number
           updated_at?: string
+          warehouse_name?: string | null
         }
         Relationships: []
       }
@@ -1311,23 +1738,35 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          inclusion_rate_pct: number | null
+          is_packaging: boolean
           quantity: number
           raw_material_id: string
           recipe_id: string
+          unit: string | null
+          unit_cost: number | null
         }
         Insert: {
           created_at?: string
           id?: string
+          inclusion_rate_pct?: number | null
+          is_packaging?: boolean
           quantity: number
           raw_material_id: string
           recipe_id: string
+          unit?: string | null
+          unit_cost?: number | null
         }
         Update: {
           created_at?: string
           id?: string
+          inclusion_rate_pct?: number | null
+          is_packaging?: boolean
           quantity?: number
           raw_material_id?: string
           recipe_id?: string
+          unit?: string | null
+          unit_cost?: number | null
         }
         Relationships: [
           {
@@ -1352,38 +1791,58 @@ export type Database = {
           created_at: string
           created_by: string | null
           description: string | null
+          feed_product_id: string | null
           feed_type: string
           id: string
           is_active: boolean
           name: string
+          recipe_status: string
+          source_invoice: string | null
           unit: string
           updated_at: string
+          version: number
         }
         Insert: {
           batch_size?: number
           created_at?: string
           created_by?: string | null
           description?: string | null
+          feed_product_id?: string | null
           feed_type: string
           id?: string
           is_active?: boolean
           name: string
+          recipe_status?: string
+          source_invoice?: string | null
           unit?: string
           updated_at?: string
+          version?: number
         }
         Update: {
           batch_size?: number
           created_at?: string
           created_by?: string | null
           description?: string | null
+          feed_product_id?: string | null
           feed_type?: string
           id?: string
           is_active?: boolean
           name?: string
+          recipe_status?: string
+          source_invoice?: string | null
           unit?: string
           updated_at?: string
+          version?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "feed_recipes_product_fk"
+            columns: ["feed_product_id"]
+            isOneToOne: false
+            referencedRelation: "feed_products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       hatch_batches: {
         Row: {
@@ -3453,7 +3912,11 @@ export type Database = {
         Returns: Json
       }
       can_add_products: { Args: { _user_id: string }; Returns: boolean }
+      can_approve_feed_cost: { Args: { _user_id: string }; Returns: boolean }
+      can_approve_feed_qc: { Args: { _user_id: string }; Returns: boolean }
       can_edit_product_price: { Args: { _user_id: string }; Returns: boolean }
+      can_issue_feed_materials: { Args: { _user_id: string }; Returns: boolean }
+      can_manage_feed_recipes: { Args: { _user_id: string }; Returns: boolean }
       check_offer_expiry: { Args: never; Returns: boolean }
       deactivate_expired_offers: { Args: never; Returns: undefined }
       delete_email: {
@@ -3489,6 +3952,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_feed_team: { Args: { _user_id: string }; Returns: boolean }
       move_to_dlq: {
         Args: {
           dlq_name: string
@@ -3542,6 +4006,17 @@ export type Database = {
         | "procurement_manager"
         | "cost_accountant"
         | "private_delivery_rep"
+      feed_order_status:
+        | "draft"
+        | "issued"
+        | "mixing"
+        | "packed"
+        | "qc_pending"
+        | "approved"
+        | "needs_review"
+        | "rejected"
+        | "posted"
+      feed_qc_result: "pass" | "fail" | "needs_review"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3699,6 +4174,18 @@ export const Constants = {
         "cost_accountant",
         "private_delivery_rep",
       ],
+      feed_order_status: [
+        "draft",
+        "issued",
+        "mixing",
+        "packed",
+        "qc_pending",
+        "approved",
+        "needs_review",
+        "rejected",
+        "posted",
+      ],
+      feed_qc_result: ["pass", "fail", "needs_review"],
     },
   },
 } as const
