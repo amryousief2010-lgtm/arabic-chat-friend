@@ -217,14 +217,18 @@ const Notifications = () => {
                     data-order-id={notification.order_id ?? ''}
                     data-urgent={urgent ? 'true' : 'false'}
                     onClick={() => {
-                      if (hasOrder) {
-                        if (!notification.is_read) {
-                          markAsReadMutation.mutate(notification.id);
-                        }
-                        // Navigate directly to the order so the user can read the
-                        // attached note and respond to it immediately.
-                        navigate(`/orders/${notification.order_id}`);
+                      if (!hasOrder) return;
+                      // For urgent unread notifications, confirm before leaving
+                      // so the user doesn't accidentally navigate away from
+                      // their current order context.
+                      if (urgent) {
+                        setPendingUrgent(notification);
+                        return;
                       }
+                      if (!notification.is_read) {
+                        markAsReadMutation.mutate(notification.id);
+                      }
+                      navigate(`/orders/${notification.order_id}`);
                     }}
                     className={`p-4 rounded-lg border transition-colors ${
                       notification.is_read
