@@ -72,7 +72,55 @@ const Products = () => {
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const scanInputRef = useRef<HTMLInputElement>(null);
   const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const { toast } = useToast();
+
+  const toggleSelect = (id: string) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+  const handlePrintSingle = (product: Product) => {
+    const reason = validateBarcode(product.barcode);
+    if (reason) {
+      sonnerToast.error("لا يمكن طباعة الملصق", {
+        description: reason,
+        action: { label: "تعديل المنتج", onClick: () => handleOpenDialog(product) },
+      });
+      return;
+    }
+    printProductLabel({
+      name: product.name,
+      barcode: product.barcode!,
+      unit: product.unit,
+      price: canViewFinancials ? product.price : null,
+    });
+  };
+
+  const handleBulkPrint = () => {
+    const selected = products.filter((p) => selectedIds.has(p.id));
+    const valid = selected.filter((p) => !validateBarcode(p.barcode));
+    const invalid = selected.length - valid.length;
+    if (!valid.length) {
+      sonnerToast.error("لا يوجد منتج صالح للطباعة", {
+        description: "كل المنتجات المحددة بدون باركود أو بأكواد غير صالحة.",
+      });
+      return;
+    }
+    if (invalid > 0) {
+      sonnerToast.warning(`تم تخطّي ${invalid} منتج بدون باركود صالح`);
+    }
+    printProductLabels(
+      valid.map((p) => ({
+        name: p.name,
+        barcode: p.barcode!,
+        unit: p.unit,
+        price: canViewFinancials ? p.price : null,
+      }))
+    );
+  };
 
   const [formData, setFormData] = useState({
     name: "",
