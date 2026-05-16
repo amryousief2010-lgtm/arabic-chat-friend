@@ -315,6 +315,26 @@ const Products = () => {
     },
   });
 
+  // Update price mutation (inline edit from the table)
+  const updatePriceMutation = useMutation({
+    mutationFn: async (data: { id: string; newPrice: number }) => {
+      const { error } = await supabase
+        .from('products')
+        .update({ price: data.newPrice })
+        .eq('id', data.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      toast({ title: 'تم تحديث السعر بنجاح' });
+    },
+    onError: () => {
+      toast({ title: 'حدث خطأ في تحديث السعر', variant: 'destructive' });
+    },
+  });
+
+  const [priceAdjustment, setPriceAdjustment] = useState<Record<string, string>>({});
+
   const handleStockAdjust = (productId: string, currentStock: number, adjustment: number) => {
     const newStock = Math.max(0, currentStock + adjustment);
     updateStockMutation.mutate({ id: productId, newStock });
@@ -635,7 +655,50 @@ const Products = () => {
                     </TableCell>
                     {canViewFinancials && (
                       <TableCell className="font-semibold">
-                        {product.price} ج.م / {product.unit}
+                        <div className="flex items-center gap-2">
+                          <span>{product.price} ج.م / {product.unit}</span>
+                          {canEditPrice && (
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button variant="outline" size="sm" className="h-7 px-2">
+                                  تعديل
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-64" align="start">
+                                <div className="space-y-3">
+                                  <div className="text-sm font-medium">تعديل سعر {product.name}</div>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    placeholder="السعر الجديد"
+                                    value={priceAdjustment[product.id] ?? String(product.price)}
+                                    onChange={(e) => setPriceAdjustment({
+                                      ...priceAdjustment,
+                                      [product.id]: e.target.value,
+                                    })}
+                                  />
+                                  <Button
+                                    size="sm"
+                                    className="w-full"
+                                    onClick={() => {
+                                      const v = parseFloat(priceAdjustment[product.id] ?? String(product.price));
+                                      if (isNaN(v) || v < 0) {
+                                        toast({ title: 'سعر غير صالح', variant: 'destructive' });
+                                        return;
+                                      }
+                                      updatePriceMutation.mutate({ id: product.id, newPrice: v });
+                                    }}
+                                  >
+                                    حفظ السعر
+                                  </Button>
+                                  <div className="text-xs text-muted-foreground">
+                                    السعر الحالي: {product.price} ج.م
+                                  </div>
+                                </div>
+                              </PopoverContent>
+                            </Popover>
+                          )}
+                        </div>
                       </TableCell>
                     )}
                     <TableCell>
