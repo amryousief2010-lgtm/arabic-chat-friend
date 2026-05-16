@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Bell, Search, LogOut, Shield, User } from "lucide-react";
 import companyLogo from "@/assets/company-logo.jpg";
 import { Input } from "@/components/ui/input";
