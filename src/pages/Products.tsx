@@ -573,6 +573,19 @@ const Products = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox
+                      checked={
+                        filteredProducts.length > 0 &&
+                        filteredProducts.every((p) => selectedIds.has(p.id))
+                      }
+                      onCheckedChange={(v) => {
+                        if (v) setSelectedIds(new Set(filteredProducts.map((p) => p.id)));
+                        else setSelectedIds(new Set());
+                      }}
+                      aria-label="تحديد الكل"
+                    />
+                  </TableHead>
                   <TableHead className="text-right">المنتج</TableHead>
                   <TableHead className="text-right">الباركود</TableHead>
                   <TableHead className="text-right">التصنيف</TableHead>
@@ -589,9 +602,15 @@ const Products = () => {
                     ref={(el) => (rowRefs.current[product.id] = el)}
                     className={`table-row-hover transition-colors ${
                       highlightId === product.id ? "bg-primary/15 ring-2 ring-primary" : ""
-                    }`}
+                    } ${selectedIds.has(product.id) ? "bg-primary/5" : ""}`}
                   >
                     <TableCell>
+                      <Checkbox
+                        checked={selectedIds.has(product.id)}
+                        onCheckedChange={() => toggleSelect(product.id)}
+                        aria-label={`تحديد ${product.name}`}
+                      />
+                    </TableCell>
                       <div className="flex items-center gap-3">
                         {product.image_url && (
                           <img
