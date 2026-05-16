@@ -235,6 +235,21 @@ const AnimatedRoutes = () => {
             <PageTransition><FeedDashboard /></PageTransition>
           </ProtectedRoute>
         } />
+        <Route path="/modules/feed-factory/recipes" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'feed_factory_manager', 'production_manager', 'quality_manager']}>
+            <PageTransition><FeedRecipes /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/modules/feed-factory/orders" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'feed_factory_manager', 'production_manager', 'quality_manager']}>
+            <PageTransition><FeedOrders /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/modules/feed-factory/issues" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'feed_factory_manager', 'production_manager', 'quality_manager', 'warehouse_supervisor']}>
+            <PageTransition><FeedIssues /></PageTransition>
+          </ProtectedRoute>
+        } />
         <Route path="/modules/hr" element={
           <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'hr_manager']}>
             <PageTransition><HumanResources /></PageTransition>
