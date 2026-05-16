@@ -1687,6 +1687,297 @@ export type Database = {
         }
         Relationships: []
       }
+      meat_factory_batches: {
+        Row: {
+          actual_qty: number | null
+          batch_number: string
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          expiry_date: string | null
+          id: string
+          labor_cost: number
+          materials_cost: number
+          notes: string | null
+          planned_qty: number
+          product_code: string
+          product_name_ar: string | null
+          production_date: string
+          started_at: string | null
+          status: string
+          total_cost: number
+          unit: string
+          unit_cost: number | null
+          updated_at: string
+        }
+        Insert: {
+          actual_qty?: number | null
+          batch_number: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          expiry_date?: string | null
+          id?: string
+          labor_cost?: number
+          materials_cost?: number
+          notes?: string | null
+          planned_qty?: number
+          product_code: string
+          product_name_ar?: string | null
+          production_date?: string
+          started_at?: string | null
+          status?: string
+          total_cost?: number
+          unit?: string
+          unit_cost?: number | null
+          updated_at?: string
+        }
+        Update: {
+          actual_qty?: number | null
+          batch_number?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          expiry_date?: string | null
+          id?: string
+          labor_cost?: number
+          materials_cost?: number
+          notes?: string | null
+          planned_qty?: number
+          product_code?: string
+          product_name_ar?: string | null
+          production_date?: string
+          started_at?: string | null
+          status?: string
+          total_cost?: number
+          unit?: string
+          unit_cost?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      meat_factory_invoices: {
+        Row: {
+          created_at: string
+          id: string
+          input_total: number | null
+          invoice_date: string | null
+          invoice_no: number
+          labor_total: number | null
+          notes: string | null
+          output_qty: number | null
+          output_total: number | null
+          output_unit: string | null
+          product_code: string | null
+          product_name_ar: string | null
+          source_document: string | null
+          unit_cost: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          input_total?: number | null
+          invoice_date?: string | null
+          invoice_no: number
+          labor_total?: number | null
+          notes?: string | null
+          output_qty?: number | null
+          output_total?: number | null
+          output_unit?: string | null
+          product_code?: string | null
+          product_name_ar?: string | null
+          source_document?: string | null
+          unit_cost?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          input_total?: number | null
+          invoice_date?: string | null
+          invoice_no?: number
+          labor_total?: number | null
+          notes?: string | null
+          output_qty?: number | null
+          output_total?: number | null
+          output_unit?: string | null
+          product_code?: string | null
+          product_name_ar?: string | null
+          source_document?: string | null
+          unit_cost?: number | null
+        }
+        Relationships: []
+      }
+      meat_factory_products: {
+        Row: {
+          barcode: string | null
+          base_cost_unit: string | null
+          cost_per_base_unit: number | null
+          cost_price: number | null
+          cost_status: string | null
+          created_at: string
+          functional_name_ar: string | null
+          functional_name_en: string | null
+          id: string
+          is_active: boolean
+          name_ar: string
+          name_en: string | null
+          notes: string | null
+          package_qty: number
+          package_unit: string
+          product_code: string | null
+          sale_price: number | null
+          source_date: string | null
+          source_document: string | null
+          source_document_no: number | null
+          updated_at: string
+        }
+        Insert: {
+          barcode?: string | null
+          base_cost_unit?: string | null
+          cost_per_base_unit?: number | null
+          cost_price?: number | null
+          cost_status?: string | null
+          created_at?: string
+          functional_name_ar?: string | null
+          functional_name_en?: string | null
+          id?: string
+          is_active?: boolean
+          name_ar: string
+          name_en?: string | null
+          notes?: string | null
+          package_qty?: number
+          package_unit?: string
+          product_code?: string | null
+          sale_price?: number | null
+          source_date?: string | null
+          source_document?: string | null
+          source_document_no?: number | null
+          updated_at?: string
+        }
+        Update: {
+          barcode?: string | null
+          base_cost_unit?: string | null
+          cost_per_base_unit?: number | null
+          cost_price?: number | null
+          cost_status?: string | null
+          created_at?: string
+          functional_name_ar?: string | null
+          functional_name_en?: string | null
+          id?: string
+          is_active?: boolean
+          name_ar?: string
+          name_en?: string | null
+          notes?: string | null
+          package_qty?: number
+          package_unit?: string
+          product_code?: string | null
+          sale_price?: number | null
+          source_date?: string | null
+          source_document?: string | null
+          source_document_no?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      meat_factory_raw_materials: {
+        Row: {
+          avg_unit_cost: number
+          category: string
+          created_at: string
+          default_unit: string
+          id: string
+          is_active: boolean
+          material_code: string
+          name_ar: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          avg_unit_cost?: number
+          category?: string
+          created_at?: string
+          default_unit?: string
+          id?: string
+          is_active?: boolean
+          material_code: string
+          name_ar: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          avg_unit_cost?: number
+          category?: string
+          created_at?: string
+          default_unit?: string
+          id?: string
+          is_active?: boolean
+          material_code?: string
+          name_ar?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      meat_factory_recipes: {
+        Row: {
+          created_at: string
+          id: string
+          invoice_date: string | null
+          invoice_no: number | null
+          labor_total_if_output: number | null
+          line_total: number | null
+          line_type: string
+          material_code: string | null
+          material_name_ar: string | null
+          notes: string | null
+          product_code: string
+          product_name_ar: string | null
+          quantity: number
+          source_document: string | null
+          unit: string
+          unit_cost: number | null
+          warehouse: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invoice_date?: string | null
+          invoice_no?: number | null
+          labor_total_if_output?: number | null
+          line_total?: number | null
+          line_type?: string
+          material_code?: string | null
+          material_name_ar?: string | null
+          notes?: string | null
+          product_code: string
+          product_name_ar?: string | null
+          quantity: number
+          source_document?: string | null
+          unit: string
+          unit_cost?: number | null
+          warehouse?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invoice_date?: string | null
+          invoice_no?: number | null
+          labor_total_if_output?: number | null
+          line_total?: number | null
+          line_type?: string
+          material_code?: string | null
+          material_name_ar?: string | null
+          notes?: string | null
+          product_code?: string
+          product_name_ar?: string | null
+          quantity?: number
+          source_document?: string | null
+          unit?: string
+          unit_cost?: number | null
+          warehouse?: string | null
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string
@@ -2528,8 +2819,10 @@ export type Database = {
           display_order: number
           id: string
           is_active: boolean
+          material_code: string | null
           notes: string | null
           package_size_kg: number | null
+          price_per_kg: number | null
           product_id: string | null
           standard_yield_pct: number
           updated_at: string
@@ -2543,8 +2836,10 @@ export type Database = {
           display_order?: number
           id?: string
           is_active?: boolean
+          material_code?: string | null
           notes?: string | null
           package_size_kg?: number | null
+          price_per_kg?: number | null
           product_id?: string | null
           standard_yield_pct?: number
           updated_at?: string
@@ -2558,8 +2853,10 @@ export type Database = {
           display_order?: number
           id?: string
           is_active?: boolean
+          material_code?: string | null
           notes?: string | null
           package_size_kg?: number | null
+          price_per_kg?: number | null
           product_id?: string | null
           standard_yield_pct?: number
           updated_at?: string
