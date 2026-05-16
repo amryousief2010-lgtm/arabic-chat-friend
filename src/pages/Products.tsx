@@ -163,6 +163,7 @@ const Products = () => {
         stock: parseInt(data.stock) || 0,
         unit: data.unit,
         image_url: data.image_url || null,
+        barcode: data.barcode?.trim() || null,
       });
       if (error) throw error;
     },
