@@ -2824,6 +2824,8 @@ export type Database = {
           delivery_address: string | null
           delivery_fee: number
           discount: number
+          extra_charge: number
+          extra_charge_reason: string | null
           id: string
           moderator: string | null
           notes: string | null
@@ -2847,6 +2849,8 @@ export type Database = {
           delivery_address?: string | null
           delivery_fee?: number
           discount?: number
+          extra_charge?: number
+          extra_charge_reason?: string | null
           id?: string
           moderator?: string | null
           notes?: string | null
@@ -2870,6 +2874,8 @@ export type Database = {
           delivery_address?: string | null
           delivery_fee?: number
           discount?: number
+          extra_charge?: number
+          extra_charge_reason?: string | null
           id?: string
           moderator?: string | null
           notes?: string | null

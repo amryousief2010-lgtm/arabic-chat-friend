@@ -157,6 +157,8 @@ const NewOrder = () => {
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'online'>('cash');
   const [deliveryFee, setDeliveryFee] = useState(110);
   const [discount, setDiscount] = useState(0);
+  const [extraCharge, setExtraCharge] = useState(0);
+  const [extraChargeReason, setExtraChargeReason] = useState('');
   const [notes, setNotes] = useState('');
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [source, setSource] = useState<string>('');
@@ -469,7 +471,7 @@ const NewOrder = () => {
 
   // For offer orders, the offer's bundled shipping stays inside the total.
   // For regular orders, shipping is tracked separately and not added to the total.
-  const total = subtotal - discount + (hasOfferInCart ? Number(deliveryFee || 0) : 0);
+  const total = subtotal - discount + Number(extraCharge || 0) + (hasOfferInCart ? Number(deliveryFee || 0) : 0);
 
   const handleAddCustomer = async () => {
     if (!newCustomerName.trim() || !newCustomerPhone.trim()) {
@@ -608,6 +610,8 @@ const NewOrder = () => {
           moderator: moderatorName,
           source: (source === 'أخرى' ? sourceCustom.trim() : source) || null,
           shipping_company: (shippingCompany === 'أخرى' ? shippingCustom.trim() : shippingCompany) || null,
+          extra_charge: Number(extraCharge) || 0,
+          extra_charge_reason: extraChargeReason.trim() || null,
         })
         .select()
         .single();
@@ -1299,7 +1303,35 @@ const NewOrder = () => {
                           value={discount}
                           onChange={(e) => setDiscount(Number(e.target.value))}
                         />
+                    </div>
+
+                    {/* Extra charge */}
+                    <div className="space-y-2 rounded-lg border border-dashed border-amber-300 dark:border-amber-800 bg-amber-50/40 dark:bg-amber-950/20 p-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label>سعر إضافي</Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            placeholder="0"
+                            value={extraCharge}
+                            onChange={(e) => setExtraCharge(Number(e.target.value))}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>سبب السعر الإضافي</Label>
+                          <Input
+                            placeholder="مثال: تشفيه الدبوس"
+                            value={extraChargeReason}
+                            onChange={(e) => setExtraChargeReason(e.target.value)}
+                          />
+                        </div>
                       </div>
+                      <p className="text-xs text-muted-foreground">
+                        يُضاف هذا المبلغ إلى إجمالي الطلب مع توضيح السبب.
+                      </p>
+                    </div>
                     </div>
 
                     {/* Source */}
@@ -1365,6 +1397,12 @@ const NewOrder = () => {
                         <div className="flex justify-between text-sm text-green-600">
                           <span>الخصم</span>
                           <span>- {discount.toLocaleString()} ج.م</span>
+                        </div>
+                      )}
+                      {Number(extraCharge) > 0 && (
+                        <div className="flex justify-between text-sm text-amber-700 dark:text-amber-400">
+                          <span>سعر إضافي{extraChargeReason ? ` (${extraChargeReason})` : ''}</span>
+                          <span>+ {Number(extraCharge).toLocaleString()} ج.م</span>
                         </div>
                       )}
                       <div className="flex justify-between font-bold text-lg border-t pt-2">
