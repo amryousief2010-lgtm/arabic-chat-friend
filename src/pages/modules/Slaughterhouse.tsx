@@ -1203,4 +1203,100 @@ const DailyReportTab = ({ reportDate, setReportDate, receipts, birds, batches, o
   );
 };
 
+// ===================== Settings Tab =====================
+const SettingsTab = ({ settings, onSave }: { settings: Settings | null; onSave: (next: Partial<Settings>) => void }) => {
+  const [low, setLow] = useState(settings?.low_yield_threshold ?? 40);
+  const [warn, setWarn] = useState(settings?.warning_yield_threshold ?? 45);
+  const [notify, setNotify] = useState(settings?.notify_on_low_yield ?? true);
+  useEffect(() => {
+    if (settings) { setLow(settings.low_yield_threshold); setWarn(settings.warning_yield_threshold); setNotify(settings.notify_on_low_yield); }
+  }, [settings]);
+  if (!settings) return <Card><CardContent className="p-6 text-center text-muted-foreground">جاري التحميل...</CardContent></Card>;
+  return (
+    <Card>
+      <CardHeader><CardTitle className="flex items-center gap-2"><SettingsIcon className="w-5 h-5" />إعدادات حدود التصافي والتنبيهات</CardTitle></CardHeader>
+      <CardContent className="space-y-4 max-w-xl">
+        <div>
+          <Label>الحد الأدنى للتصافي (%) — أقل من هذا = تنبيه أحمر</Label>
+          <Input type="number" step="0.5" value={low} onChange={e => setLow(+e.target.value)} />
+        </div>
+        <div>
+          <Label>حد التحذير للتصافي (%) — أقل من هذا = تحذير برتقالي</Label>
+          <Input type="number" step="0.5" value={warn} onChange={e => setWarn(+e.target.value)} />
+        </div>
+        <div className="flex items-center gap-2 pt-2">
+          <input id="notify" type="checkbox" checked={notify} onChange={e => setNotify(e.target.checked)} className="w-4 h-4" />
+          <Label htmlFor="notify" className="cursor-pointer">إرسال تنبيه عند انخفاض التصافي عند إنهاء دفعة</Label>
+        </div>
+        <div className="text-xs text-muted-foreground bg-muted/40 p-3 rounded">
+          💡 عند الانتهاء من دفعة ذبح، سيقارن النظام نسبة التصافي بهذين الحدّين ويعرض تنبيهًا فوريًا، كما سيتم تسجيل العملية في سجل التدقيق وإنشاء إشعار للمدراء.
+        </div>
+        <Button onClick={() => onSave({ low_yield_threshold: low, warning_yield_threshold: warn, notify_on_low_yield: notify })}
+          className="bg-gradient-to-r from-primary to-accent">
+          <Save className="w-4 h-4 ml-1" />حفظ الإعدادات
+        </Button>
+      </CardContent>
+    </Card>
+  );
+};
+
+// ===================== Audit Log Tab =====================
+const AuditLogTab = ({ audit, profiles, batches, branches }: {
+  audit: AuditEntry[]; profiles: Record<string, string>; batches: Batch[]; branches: Branch[];
+}) => {
+  const [actionFilter, setActionFilter] = useState<string>("");
+  const filtered = actionFilter ? audit.filter(a => a.action === actionFilter) : audit;
+  const actionLabel = (a: string) => ({ finalize_batch: "إنهاء دفعة", transfer_status_change: "تحديث تحويل فرع" } as any)[a] || a;
+  const summarize = (entry: AuditEntry) => {
+    if (entry.action === "finalize_batch") {
+      const nv = entry.new_value || {}; const ov = entry.old_value || {};
+      return `تصافي: ${Number(ov.actual_yield_pct||0).toFixed(1)}% → ${Number(nv.actual_yield_pct||0).toFixed(1)}% | لحم: ${Number(nv.total_meat_kg||0).toFixed(1)} كجم | تحويلات: ${nv.transfers_created||0}`;
+    }
+    if (entry.action === "transfer_status_change") {
+      const nv = entry.new_value || {}; const ov = entry.old_value || {};
+      const br = branches.find(b => b.id === nv.branch_id)?.name_ar || "-";
+      return `${nv.cut_name_ar} → ${br}: ${ov.status} → ${nv.status} (${Number(nv.weight_kg||0).toFixed(1)} كجم)`;
+    }
+    return entry.notes || "";
+  };
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
+        <CardTitle className="flex items-center gap-2"><History className="w-5 h-5" />سجل التدقيق</CardTitle>
+        <Select value={actionFilter || "all"} onValueChange={v => setActionFilter(v === "all" ? "" : v)}>
+          <SelectTrigger className="w-48"><SelectValue placeholder="كل العمليات" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">كل العمليات</SelectItem>
+            <SelectItem value="finalize_batch">إنهاء دفعة</SelectItem>
+            <SelectItem value="transfer_status_change">تحديث تحويل فرع</SelectItem>
+          </SelectContent>
+        </Select>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader><TableRow>
+            <TableHead>الوقت</TableHead><TableHead>العملية</TableHead><TableHead>المستخدم</TableHead>
+            <TableHead>الدفعة</TableHead><TableHead>التفاصيل</TableHead>
+          </TableRow></TableHeader>
+          <TableBody>
+            {filtered.map(e => {
+              const bt = batches.find(b => b.id === e.batch_id);
+              return (
+                <TableRow key={e.id}>
+                  <TableCell className="text-xs">{new Date(e.performed_at).toLocaleString("ar-EG")}</TableCell>
+                  <TableCell><Badge variant="outline">{actionLabel(e.action)}</Badge></TableCell>
+                  <TableCell className="text-sm">{e.performed_by ? (profiles[e.performed_by] || e.performed_by.slice(0, 8)) : "—"}</TableCell>
+                  <TableCell className="font-mono text-xs">{bt?.batch_number || "—"}</TableCell>
+                  <TableCell className="text-sm">{summarize(e)}</TableCell>
+                </TableRow>
+              );
+            })}
+            {!filtered.length && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">لا توجد عمليات مسجلة</TableCell></TableRow>}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+};
+
 export default Slaughterhouse;
