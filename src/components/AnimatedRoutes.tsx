@@ -22,6 +22,7 @@ import Permissions from "@/pages/Permissions";
 import LowStock from "@/pages/LowStock";
 import OrgChart from "@/pages/OrgChart";
 import NotFound from "@/pages/NotFound";
+import Unauthorized from "@/pages/Unauthorized";
 import ImportSalesData from "@/pages/ImportSalesData";
 import ModeratorPerformance from "@/pages/ModeratorPerformance";
 import ModeratorOrdersLog from "@/pages/ModeratorOrdersLog";
@@ -265,10 +266,11 @@ const AnimatedRoutes = () => {
             <PageTransition><PrivateDeliveryPricing /></PageTransition>
           </ProtectedRoute>
         } />
+        <Route path="/unauthorized" element={
+          <PageTransition><Unauthorized /></PageTransition>
+        } />
         <Route path="*" element={
-          <ProtectedRoute>
-            <PageTransition><NotFound /></PageTransition>
-          </ProtectedRoute>
+          <PageTransition><NotFound /></PageTransition>
         } />
       </Routes>
     </AnimatePresence>
