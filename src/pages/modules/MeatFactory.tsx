@@ -815,26 +815,64 @@ const MeatFactory = () => {
                   </AlertDescription>
                 </Alert>
               )}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                <div className="p-2 border rounded"><div className="text-xs text-muted-foreground">عدد المواد</div><div className="font-bold">{previewData.items.length}</div></div>
+                <div className="p-2 border rounded"><div className="text-xs text-muted-foreground">معامل التكبير</div><div className="font-bold">×{fmt(previewData.scale, 3)}</div></div>
+                <div className="p-2 border rounded"><div className="text-xs text-muted-foreground">تكلفة المواد</div><div className="font-bold text-primary">{fmt(previewData.materials_cost, 2)} ج</div></div>
+                <div className={`p-2 border rounded ${previewData.shortages.length ? "bg-red-500/10 border-red-300" : "bg-green-500/10 border-green-300"}`}>
+                  <div className="text-xs text-muted-foreground">مواد ناقصة</div>
+                  <div className={`font-bold ${previewData.shortages.length ? "text-red-600" : "text-green-600"}`}>{previewData.shortages.length}</div>
+                </div>
+              </div>
+
+              {previewData.shortages.length > 0 && (
+                <div className="border border-red-300 bg-red-500/5 rounded p-3 space-y-1">
+                  <div className="font-semibold text-red-700 flex items-center gap-1"><AlertTriangle className="w-4 h-4" />المواد الناقصة:</div>
+                  {previewData.shortages.map((s: any, i: number) => (
+                    <div key={i} className="text-sm flex justify-between">
+                      <span className="font-medium">{s.material_name_ar} <span className="font-mono text-xs text-muted-foreground">({s.material_code})</span></span>
+                      <span className="text-red-600">عجز <strong>{fmt(s.short_by, 3)}</strong> {s.unit} (مطلوب {fmt(s.required, 3)} — متاح {fmt(s.available, 2)})</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="text-xs text-muted-foreground border-t pt-2">تفاصيل الأثر على المخزون لكل مادة:</div>
               <Table>
                 <TableHeader><TableRow>
                   <TableHead>كود</TableHead><TableHead>المادة</TableHead>
-                  <TableHead>المطلوب</TableHead><TableHead>المتاح</TableHead><TableHead>العجز</TableHead>
+                  <TableHead>المطلوب</TableHead><TableHead>المتاح</TableHead>
+                  <TableHead>بعد الخصم</TableHead><TableHead>العجز</TableHead>
                   <TableHead>تكلفة الوحدة</TableHead><TableHead>الإجمالي</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
-                  {previewData.items.map((it, idx) => (
-                    <TableRow key={idx} className={!it.sufficient ? "bg-red-500/10" : ""}>
-                      <TableCell className="font-mono text-xs">{it.material_code}</TableCell>
-                      <TableCell className="font-medium">{it.material_name_ar}</TableCell>
-                      <TableCell>{fmt(it.required_qty, 3)} {it.unit}</TableCell>
-                      <TableCell className={!it.sufficient ? "text-red-600 font-bold" : ""}>{fmt(it.stock, 2)}</TableCell>
-                      <TableCell className="text-red-600 font-semibold">{it.shortage > 0 ? fmt(it.shortage, 3) : "—"}</TableCell>
-                      <TableCell>{fmt(it.unit_cost)}</TableCell>
-                      <TableCell className="font-semibold">{fmt(it.line_total, 2)}</TableCell>
-                    </TableRow>
-                  ))}
+                  {previewData.items.map((it, idx) => {
+                    const after = it.stock - it.required_qty;
+                    return (
+                      <TableRow key={idx} className={!it.sufficient ? "bg-red-500/10" : ""}>
+                        <TableCell className="font-mono text-xs">{it.material_code}</TableCell>
+                        <TableCell className="font-medium">{it.material_name_ar}</TableCell>
+                        <TableCell>{fmt(it.required_qty, 3)} {it.unit}</TableCell>
+                        <TableCell className={!it.sufficient ? "text-red-600 font-bold" : ""}>{fmt(it.stock, 2)}</TableCell>
+                        <TableCell className={after < 0 ? "text-red-600 font-bold" : "text-green-700 font-semibold"}>{fmt(after, 2)}</TableCell>
+                        <TableCell className="text-red-600 font-semibold">{it.shortage > 0 ? fmt(it.shortage, 3) : "—"}</TableCell>
+                        <TableCell>{fmt(it.unit_cost)}</TableCell>
+                        <TableCell className="font-semibold">{fmt(it.line_total, 2)}</TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
+
+              {previewData.can_approve && (
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>تأكيد التنفيذ</AlertTitle>
+                  <AlertDescription>
+                    عند الاعتماد سيتم خصم المواد أعلاه من المخزون فوراً، وتسجيل استهلاكها، وتحويل حالة الدفعة إلى «قيد التنفيذ». هذا الإجراء لا يمكن التراجع عنه تلقائياً.
+                  </AlertDescription>
+                </Alert>
+              )}
             </div>
           )}
           <DialogFooter>
