@@ -1932,6 +1932,47 @@ export type Database = {
         }
         Relationships: []
       }
+      meat_factory_quality_log: {
+        Row: {
+          actual_qty: number | null
+          batch_id: string
+          changed_at: string
+          changed_by: string | null
+          from_status: string | null
+          id: string
+          notes: string | null
+          to_status: string
+        }
+        Insert: {
+          actual_qty?: number | null
+          batch_id: string
+          changed_at?: string
+          changed_by?: string | null
+          from_status?: string | null
+          id?: string
+          notes?: string | null
+          to_status: string
+        }
+        Update: {
+          actual_qty?: number | null
+          batch_id?: string
+          changed_at?: string
+          changed_by?: string | null
+          from_status?: string | null
+          id?: string
+          notes?: string | null
+          to_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meat_factory_quality_log_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "meat_factory_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meat_factory_raw_materials: {
         Row: {
           avg_unit_cost: number
@@ -3158,6 +3199,10 @@ export type Database = {
           source_queue: string
         }
         Returns: number
+      }
+      preview_meat_factory_batch_requirements: {
+        Args: { p_batch_id: string }
+        Returns: Json
       }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
