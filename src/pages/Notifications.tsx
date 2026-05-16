@@ -122,17 +122,36 @@ const Notifications = () => {
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
     );
   }, [notifications, showUrgentOnly]);
+
+  return (
+    <DashboardLayout>
       <Header title="سجل الإشعارات" subtitle="جميع الإشعارات السابقة" />
 
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-2 flex-wrap">
             <Badge variant="secondary" className="text-sm">
               {unreadCount} غير مقروء
             </Badge>
+            {urgentUnreadCount > 0 && (
+              <Badge variant="destructive" className="text-sm gap-1 animate-pulse">
+                <AlertCircle className="w-3 h-3" />
+                {urgentUnreadCount} يتطلب رداً فورياً
+              </Badge>
+            )}
             <Badge variant="outline" className="text-sm">
               {notifications.length} إجمالي
             </Badge>
+            <div className="flex items-center gap-2 pr-2 border-r border-border/50 ms-2">
+              <Switch
+                id="urgent-only"
+                checked={showUrgentOnly}
+                onCheckedChange={setShowUrgentOnly}
+              />
+              <Label htmlFor="urgent-only" className="text-xs cursor-pointer">
+                يتطلب رد فقط
+              </Label>
+            </div>
           </div>
           <div className="flex gap-2">
             <Button
