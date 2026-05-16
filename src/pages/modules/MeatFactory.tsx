@@ -430,11 +430,20 @@ const MeatFactory = () => {
     setApproving(false);
     if (error) {
       const msg = error.message || "";
-      if (msg.includes("INSUFFICIENT_STOCK")) {
-        toast.error("مخزون غير كافٍ — راجع المواد المظللة بالأحمر");
+      // Parse: INSUFFICIENT_STOCK::<count>::<jsonArray>
+      const match = msg.match(/INSUFFICIENT_STOCK::(\d+)::(\[.*\])/s);
+      if (match) {
+        try {
+          const shortages = JSON.parse(match[2]);
+          setFailureDetails({ batch: previewBatch, shortages });
+          setPreviewOpen(false);
+        } catch {
+          toast.error("مخزون غير كافٍ");
+        }
       } else {
         toast.error("فشل الاعتماد: " + msg);
       }
+      fetchAll();
       return;
     }
     toast.success(`تم اعتماد الدفعة. تكلفة المواد: ${fmt((data as any)?.materials_cost, 0)} ج`);
