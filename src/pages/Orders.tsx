@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import OrdersAnalytics from "@/components/dashboard/OrdersAnalytics";
 import ModeratorQuickAccessCards from "@/components/sales/ModeratorQuickAccessCards";
+import ModeratorsAggregateSummary from "@/components/sales/ModeratorsAggregateSummary";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import Header from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -975,7 +976,10 @@ const Orders = () => {
       {/* Per-moderator quick access section — hidden from moderators themselves for privacy.
           For the private delivery rep it's filtered to "مندوب خاص" shipping orders only. */}
       {!isSalesModerator && (
-        <ModeratorQuickAccessCards privateDeliveryOnly={isPrivateDeliveryRep} />
+        <>
+          <ModeratorQuickAccessCards privateDeliveryOnly={isPrivateDeliveryRep} />
+          {!isPrivateDeliveryRep && <ModeratorsAggregateSummary />}
+        </>
       )}
     </DashboardLayout>
   );
