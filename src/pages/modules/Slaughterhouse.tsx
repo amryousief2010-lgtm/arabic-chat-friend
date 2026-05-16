@@ -281,6 +281,7 @@ const Slaughterhouse = () => {
             batches={batches}
             outputs={outputs}
             branches={branches}
+            settings={settings}
           />
         </TabsContent>
 
