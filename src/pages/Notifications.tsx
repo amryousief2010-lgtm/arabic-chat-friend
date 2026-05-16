@@ -9,6 +9,16 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Bell, Check, CheckCheck, Trash2, Package, RefreshCw, ExternalLink, AlertCircle } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -112,6 +122,7 @@ const Notifications = () => {
   const urgentUnreadCount = notifications.filter(n => !n.is_read && requiresImmediateReply(n)).length;
 
   const [showUrgentOnly, setShowUrgentOnly] = useState(false);
+  const [pendingUrgent, setPendingUrgent] = useState<Notification | null>(null);
   const visibleNotifications = useMemo(() => {
     const filtered = showUrgentOnly
       ? notifications.filter(requiresImmediateReply)
@@ -206,14 +217,18 @@ const Notifications = () => {
                     data-order-id={notification.order_id ?? ''}
                     data-urgent={urgent ? 'true' : 'false'}
                     onClick={() => {
-                      if (hasOrder) {
-                        if (!notification.is_read) {
-                          markAsReadMutation.mutate(notification.id);
-                        }
-                        // Navigate directly to the order so the user can read the
-                        // attached note and respond to it immediately.
-                        navigate(`/orders/${notification.order_id}`);
+                      if (!hasOrder) return;
+                      // For urgent unread notifications, confirm before leaving
+                      // so the user doesn't accidentally navigate away from
+                      // their current order context.
+                      if (urgent) {
+                        setPendingUrgent(notification);
+                        return;
                       }
+                      if (!notification.is_read) {
+                        markAsReadMutation.mutate(notification.id);
+                      }
+                      navigate(`/orders/${notification.order_id}`);
                     }}
                     className={`p-4 rounded-lg border transition-colors ${
                       notification.is_read
@@ -290,6 +305,43 @@ const Notifications = () => {
           </CardContent>
         </Card>
       </div>
+
+      <AlertDialog
+        open={!!pendingUrgent}
+        onOpenChange={(open) => { if (!open) setPendingUrgent(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-destructive" />
+              تأكيد الانتقال لإشعار عاجل
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <span className="block font-medium text-foreground">
+                {pendingUrgent?.title}
+              </span>
+              <span className="block">{pendingUrgent?.description}</span>
+              <span className="block text-xs">
+                هل تريد الانتقال إلى تفاصيل هذا الطلب الآن وتحديد الإشعار كمقروء؟
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (!pendingUrgent) return;
+                const n = pendingUrgent;
+                if (!n.is_read) markAsReadMutation.mutate(n.id);
+                setPendingUrgent(null);
+                navigate(`/orders/${n.order_id}`);
+              }}
+            >
+              نعم، انتقل
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 };
