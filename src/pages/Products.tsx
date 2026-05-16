@@ -39,8 +39,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { printProductLabel } from "@/lib/printProductLabel";
+import { printProductLabel, printProductLabels, validateBarcode } from "@/lib/printProductLabel";
 import BarcodeImportDialog from "@/components/products/BarcodeImportDialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { toast as sonnerToast } from "sonner";
 
 
 const categories = ["لحوم طازجة", "لحوم مصنعة", "منتجات أخرى"];
@@ -70,7 +72,55 @@ const Products = () => {
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const scanInputRef = useRef<HTMLInputElement>(null);
   const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const { toast } = useToast();
+
+  const toggleSelect = (id: string) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+  const handlePrintSingle = (product: Product) => {
+    const reason = validateBarcode(product.barcode);
+    if (reason) {
+      sonnerToast.error("لا يمكن طباعة الملصق", {
+        description: reason,
+        action: { label: "تعديل المنتج", onClick: () => handleOpenDialog(product) },
+      });
+      return;
+    }
+    printProductLabel({
+      name: product.name,
+      barcode: product.barcode!,
+      unit: product.unit,
+      price: canViewFinancials ? product.price : null,
+    });
+  };
+
+  const handleBulkPrint = () => {
+    const selected = products.filter((p) => selectedIds.has(p.id));
+    const valid = selected.filter((p) => !validateBarcode(p.barcode));
+    const invalid = selected.length - valid.length;
+    if (!valid.length) {
+      sonnerToast.error("لا يوجد منتج صالح للطباعة", {
+        description: "كل المنتجات المحددة بدون باركود أو بأكواد غير صالحة.",
+      });
+      return;
+    }
+    if (invalid > 0) {
+      sonnerToast.warning(`تم تخطّي ${invalid} منتج بدون باركود صالح`);
+    }
+    printProductLabels(
+      valid.map((p) => ({
+        name: p.name,
+        barcode: p.barcode!,
+        unit: p.unit,
+        price: canViewFinancials ? p.price : null,
+      }))
+    );
+  };
 
   const [formData, setFormData] = useState({
     name: "",
@@ -342,6 +392,17 @@ const Products = () => {
                 استيراد باركودات
               </Button>
             )}
+            {selectedIds.size > 0 && (
+              <>
+                <Button type="button" variant="default" onClick={handleBulkPrint}>
+                  <Printer className="w-4 h-4 ml-2" />
+                  طباعة {selectedIds.size} ملصق
+                </Button>
+                <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
+                  إلغاء التحديد
+                </Button>
+              </>
+            )}
             {canAddProducts && (
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
@@ -512,6 +573,19 @@ const Products = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox
+                      checked={
+                        filteredProducts.length > 0 &&
+                        filteredProducts.every((p) => selectedIds.has(p.id))
+                      }
+                      onCheckedChange={(v) => {
+                        if (v) setSelectedIds(new Set(filteredProducts.map((p) => p.id)));
+                        else setSelectedIds(new Set());
+                      }}
+                      aria-label="تحديد الكل"
+                    />
+                  </TableHead>
                   <TableHead className="text-right">المنتج</TableHead>
                   <TableHead className="text-right">الباركود</TableHead>
                   <TableHead className="text-right">التصنيف</TableHead>
@@ -528,8 +602,15 @@ const Products = () => {
                     ref={(el) => (rowRefs.current[product.id] = el)}
                     className={`table-row-hover transition-colors ${
                       highlightId === product.id ? "bg-primary/15 ring-2 ring-primary" : ""
-                    }`}
+                    } ${selectedIds.has(product.id) ? "bg-primary/5" : ""}`}
                   >
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedIds.has(product.id)}
+                        onCheckedChange={() => toggleSelect(product.id)}
+                        aria-label={`تحديد ${product.name}`}
+                      />
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         {product.image_url && (
@@ -638,17 +719,9 @@ const Products = () => {
                         <Button
                           variant="ghost"
                           size="icon"
-                          disabled={!product.barcode}
-                          title={product.barcode ? "طباعة ملصق المنتج" : "أضف الباركود أولاً"}
-                          onClick={() =>
-                            product.barcode &&
-                            printProductLabel({
-                              name: product.name,
-                              barcode: product.barcode,
-                              unit: product.unit,
-                              price: canViewFinancials ? product.price : null,
-                            })
-                          }
+                          title="طباعة ملصق المنتج"
+                          onClick={() => handlePrintSingle(product)}
+                          className={!product.barcode ? "text-muted-foreground" : ""}
                         >
                           <Printer className="w-4 h-4" />
                         </Button>
