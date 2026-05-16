@@ -2135,6 +2135,437 @@ export type Database = {
         }
         Relationships: []
       }
+      slaughter_batch_outputs: {
+        Row: {
+          actual_weight_kg: number
+          barcode: string | null
+          batch_id: string
+          created_at: string
+          cut_name_ar: string
+          destination: string
+          expiry_date: string | null
+          id: string
+          notes: string | null
+          package_count: number
+          product_id: string | null
+          standard_weight_kg: number
+          total_cost: number | null
+          unit_cost: number
+          variance_kg: number | null
+          variance_pct: number | null
+          yield_standard_id: string | null
+        }
+        Insert: {
+          actual_weight_kg?: number
+          barcode?: string | null
+          batch_id: string
+          created_at?: string
+          cut_name_ar: string
+          destination?: string
+          expiry_date?: string | null
+          id?: string
+          notes?: string | null
+          package_count?: number
+          product_id?: string | null
+          standard_weight_kg?: number
+          total_cost?: number | null
+          unit_cost?: number
+          variance_kg?: number | null
+          variance_pct?: number | null
+          yield_standard_id?: string | null
+        }
+        Update: {
+          actual_weight_kg?: number
+          barcode?: string | null
+          batch_id?: string
+          created_at?: string
+          cut_name_ar?: string
+          destination?: string
+          expiry_date?: string | null
+          id?: string
+          notes?: string | null
+          package_count?: number
+          product_id?: string | null
+          standard_weight_kg?: number
+          total_cost?: number | null
+          unit_cost?: number
+          variance_kg?: number | null
+          variance_pct?: number | null
+          yield_standard_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slaughter_batch_outputs_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "slaughter_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slaughter_batch_outputs_yield_standard_id_fkey"
+            columns: ["yield_standard_id"]
+            isOneToOne: false
+            referencedRelation: "slaughter_yield_standards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      slaughter_batches: {
+        Row: {
+          actual_yield_pct: number | null
+          batch_number: string
+          birds_slaughtered: number
+          cost_per_kg_meat: number
+          created_at: string
+          created_by: string | null
+          end_time: string | null
+          id: string
+          live_receipt_id: string | null
+          notes: string | null
+          pre_slaughter_dead: number
+          rejected_birds: number
+          shift: string
+          slaughter_date: string
+          start_time: string | null
+          status: string
+          total_live_weight_kg: number
+          total_meat_kg: number
+          total_waste_kg: number
+          updated_at: string
+        }
+        Insert: {
+          actual_yield_pct?: number | null
+          batch_number: string
+          birds_slaughtered?: number
+          cost_per_kg_meat?: number
+          created_at?: string
+          created_by?: string | null
+          end_time?: string | null
+          id?: string
+          live_receipt_id?: string | null
+          notes?: string | null
+          pre_slaughter_dead?: number
+          rejected_birds?: number
+          shift?: string
+          slaughter_date?: string
+          start_time?: string | null
+          status?: string
+          total_live_weight_kg?: number
+          total_meat_kg?: number
+          total_waste_kg?: number
+          updated_at?: string
+        }
+        Update: {
+          actual_yield_pct?: number | null
+          batch_number?: string
+          birds_slaughtered?: number
+          cost_per_kg_meat?: number
+          created_at?: string
+          created_by?: string | null
+          end_time?: string | null
+          id?: string
+          live_receipt_id?: string | null
+          notes?: string | null
+          pre_slaughter_dead?: number
+          rejected_birds?: number
+          shift?: string
+          slaughter_date?: string
+          start_time?: string | null
+          status?: string
+          total_live_weight_kg?: number
+          total_meat_kg?: number
+          total_waste_kg?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slaughter_batches_live_receipt_id_fkey"
+            columns: ["live_receipt_id"]
+            isOneToOne: false
+            referencedRelation: "slaughter_live_receipts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      slaughter_live_receipts: {
+        Row: {
+          avg_age_days: number | null
+          avg_weight_kg: number | null
+          bird_count: number
+          created_at: string
+          created_by: string | null
+          dead_on_arrival: number
+          farm_transfer_id: string | null
+          id: string
+          notes: string | null
+          price_per_kg: number
+          receipt_date: string
+          receipt_number: string
+          source_name: string | null
+          source_type: string
+          status: string
+          total_cost: number | null
+          total_weight_kg: number
+          updated_at: string
+          vet_check_passed: boolean
+          vet_notes: string | null
+        }
+        Insert: {
+          avg_age_days?: number | null
+          avg_weight_kg?: number | null
+          bird_count?: number
+          created_at?: string
+          created_by?: string | null
+          dead_on_arrival?: number
+          farm_transfer_id?: string | null
+          id?: string
+          notes?: string | null
+          price_per_kg?: number
+          receipt_date?: string
+          receipt_number: string
+          source_name?: string | null
+          source_type?: string
+          status?: string
+          total_cost?: number | null
+          total_weight_kg?: number
+          updated_at?: string
+          vet_check_passed?: boolean
+          vet_notes?: string | null
+        }
+        Update: {
+          avg_age_days?: number | null
+          avg_weight_kg?: number | null
+          bird_count?: number
+          created_at?: string
+          created_by?: string | null
+          dead_on_arrival?: number
+          farm_transfer_id?: string | null
+          id?: string
+          notes?: string | null
+          price_per_kg?: number
+          receipt_date?: string
+          receipt_number?: string
+          source_name?: string | null
+          source_type?: string
+          status?: string
+          total_cost?: number | null
+          total_weight_kg?: number
+          updated_at?: string
+          vet_check_passed?: boolean
+          vet_notes?: string | null
+        }
+        Relationships: []
+      }
+      slaughter_quality_checks: {
+        Row: {
+          check_date: string
+          check_type: string
+          corrective_action: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          inspector_name: string
+          microbiological_result: string | null
+          notes: string | null
+          ph_level: number | null
+          related_batch_id: string | null
+          related_receipt_id: string | null
+          result: string
+          temperature_c: number | null
+          visual_inspection: string | null
+        }
+        Insert: {
+          check_date?: string
+          check_type?: string
+          corrective_action?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          inspector_name: string
+          microbiological_result?: string | null
+          notes?: string | null
+          ph_level?: number | null
+          related_batch_id?: string | null
+          related_receipt_id?: string | null
+          result?: string
+          temperature_c?: number | null
+          visual_inspection?: string | null
+        }
+        Update: {
+          check_date?: string
+          check_type?: string
+          corrective_action?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          inspector_name?: string
+          microbiological_result?: string | null
+          notes?: string | null
+          ph_level?: number | null
+          related_batch_id?: string | null
+          related_receipt_id?: string | null
+          result?: string
+          temperature_c?: number | null
+          visual_inspection?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slaughter_quality_checks_related_batch_id_fkey"
+            columns: ["related_batch_id"]
+            isOneToOne: false
+            referencedRelation: "slaughter_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slaughter_quality_checks_related_receipt_id_fkey"
+            columns: ["related_receipt_id"]
+            isOneToOne: false
+            referencedRelation: "slaughter_live_receipts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      slaughter_worker_logs: {
+        Row: {
+          batch_id: string | null
+          birds_processed: number
+          created_at: string
+          hours_worked: number
+          id: string
+          log_date: string
+          notes: string | null
+          performance_rating: number | null
+          worker_id: string
+        }
+        Insert: {
+          batch_id?: string | null
+          birds_processed?: number
+          created_at?: string
+          hours_worked?: number
+          id?: string
+          log_date?: string
+          notes?: string | null
+          performance_rating?: number | null
+          worker_id: string
+        }
+        Update: {
+          batch_id?: string | null
+          birds_processed?: number
+          created_at?: string
+          hours_worked?: number
+          id?: string
+          log_date?: string
+          notes?: string | null
+          performance_rating?: number | null
+          worker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slaughter_worker_logs_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "slaughter_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slaughter_worker_logs_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "slaughter_workers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      slaughter_workers: {
+        Row: {
+          created_at: string
+          daily_wage: number
+          full_name: string
+          hire_date: string | null
+          id: string
+          is_active: boolean
+          national_id: string | null
+          notes: string | null
+          phone: string | null
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          daily_wage?: number
+          full_name: string
+          hire_date?: string | null
+          id?: string
+          is_active?: boolean
+          national_id?: string | null
+          notes?: string | null
+          phone?: string | null
+          role?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          daily_wage?: number
+          full_name?: string
+          hire_date?: string | null
+          id?: string
+          is_active?: boolean
+          national_id?: string | null
+          notes?: string | null
+          phone?: string | null
+          role?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      slaughter_yield_standards: {
+        Row: {
+          barcode: string | null
+          category: string | null
+          created_at: string
+          cut_name_ar: string
+          cut_name_en: string | null
+          display_order: number
+          id: string
+          is_active: boolean
+          notes: string | null
+          package_size_kg: number | null
+          product_id: string | null
+          standard_yield_pct: number
+          updated_at: string
+        }
+        Insert: {
+          barcode?: string | null
+          category?: string | null
+          created_at?: string
+          cut_name_ar: string
+          cut_name_en?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          package_size_kg?: number | null
+          product_id?: string | null
+          standard_yield_pct?: number
+          updated_at?: string
+        }
+        Update: {
+          barcode?: string | null
+          category?: string | null
+          created_at?: string
+          cut_name_ar?: string
+          cut_name_en?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          package_size_kg?: number | null
+          product_id?: string | null
+          standard_yield_pct?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       stock_replenishment_log: {
         Row: {
           created_at: string
