@@ -2621,6 +2621,48 @@ export type Database = {
         }
         Relationships: []
       }
+      slaughter_audit_log: {
+        Row: {
+          action: string
+          batch_id: string | null
+          id: string
+          new_value: Json | null
+          notes: string | null
+          old_value: Json | null
+          performed_at: string
+          performed_by: string | null
+          target_id: string | null
+          target_type: string
+          transfer_id: string | null
+        }
+        Insert: {
+          action: string
+          batch_id?: string | null
+          id?: string
+          new_value?: Json | null
+          notes?: string | null
+          old_value?: Json | null
+          performed_at?: string
+          performed_by?: string | null
+          target_id?: string | null
+          target_type: string
+          transfer_id?: string | null
+        }
+        Update: {
+          action?: string
+          batch_id?: string | null
+          id?: string
+          new_value?: Json | null
+          notes?: string | null
+          old_value?: Json | null
+          performed_at?: string
+          performed_by?: string | null
+          target_id?: string | null
+          target_type?: string
+          transfer_id?: string | null
+        }
+        Relationships: []
+      }
       slaughter_batch_outputs: {
         Row: {
           actual_weight_kg: number
@@ -3040,6 +3082,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      slaughter_settings: {
+        Row: {
+          created_at: string
+          id: string
+          low_yield_threshold: number
+          notify_on_low_yield: boolean
+          updated_at: string
+          updated_by: string | null
+          warning_yield_threshold: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          low_yield_threshold?: number
+          notify_on_low_yield?: boolean
+          updated_at?: string
+          updated_by?: string | null
+          warning_yield_threshold?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          low_yield_threshold?: number
+          notify_on_low_yield?: boolean
+          updated_at?: string
+          updated_by?: string | null
+          warning_yield_threshold?: number
+        }
+        Relationships: []
       }
       slaughter_worker_logs: {
         Row: {

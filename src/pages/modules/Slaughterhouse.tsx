@@ -14,12 +14,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import {
   Beef, TrendingUp, Package, Scale, Plus, AlertTriangle, CheckCircle2,
   Users, ClipboardCheck, Bird, FileSpreadsheet, FileText, Truck, Trash2,
+  Settings as SettingsIcon, History, Save,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import {
+  BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip as RTooltip,
+  ResponsiveContainer, CartesianGrid, Legend,
+} from "recharts";
 
 type Receipt = { id: string; receipt_number: string; receipt_date: string; source_type: string; source_name: string | null; bird_count: number; total_weight_kg: number; avg_weight_kg: number; price_per_kg: number; total_cost: number; dead_on_arrival: number; status: string; };
 type Batch = { id: string; batch_number: string; slaughter_date: string; shift: string; live_receipt_id: string | null; birds_slaughtered: number; total_live_weight_kg: number; total_meat_kg: number; actual_yield_pct: number; cost_per_kg_meat: number; status: string; pre_slaughter_dead: number; rejected_birds: number; };
@@ -30,6 +35,8 @@ type QC = { id: string; check_type: string; check_date: string; inspector_name: 
 type Branch = { id: string; code: string; name_ar: string; is_active: boolean };
 type LiveBird = { id: string; receipt_id: string; bird_index: number; live_weight_kg: number; slaughter_weight_kg: number; purchase_cost: number; purchase_time: string | null; feed_cost: number; notes: string | null };
 type Transfer = { id: string; batch_id: string; output_id: string | null; branch_id: string; cut_name_ar: string; weight_kg: number; unit_price: number; total_value: number; status: string; transferred_at: string };
+type Settings = { id: string; low_yield_threshold: number; warning_yield_threshold: number; notify_on_low_yield: boolean };
+type AuditEntry = { id: string; action: string; target_type: string; target_id: string | null; batch_id: string | null; transfer_id: string | null; performed_by: string | null; performed_at: string; old_value: any; new_value: any; notes: string | null };
 
 const Slaughterhouse = () => {
   const [receipts, setReceipts] = useState<Receipt[]>([]);
@@ -41,6 +48,9 @@ const Slaughterhouse = () => {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [birds, setBirds] = useState<LiveBird[]>([]);
   const [transfers, setTransfers] = useState<Transfer[]>([]);
+  const [settings, setSettings] = useState<Settings | null>(null);
+  const [audit, setAudit] = useState<AuditEntry[]>([]);
+  const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
   // Dialogs
@@ -62,7 +72,7 @@ const Slaughterhouse = () => {
 
   const fetchAll = async () => {
     setLoading(true);
-    const [r, b, y, o, w, q, br, bd, tr] = await Promise.all([
+    const [r, b, y, o, w, q, br, bd, tr, st, au, pr] = await Promise.all([
       supabase.from("slaughter_live_receipts" as any).select("*").order("receipt_date", { ascending: false }).limit(500),
       supabase.from("slaughter_batches" as any).select("*").order("slaughter_date", { ascending: false }).limit(500),
       supabase.from("slaughter_yield_standards" as any).select("*").order("display_order"),
@@ -72,6 +82,9 @@ const Slaughterhouse = () => {
       supabase.from("branches" as any).select("*").order("name_ar"),
       supabase.from("slaughter_live_birds" as any).select("*").order("bird_index"),
       supabase.from("slaughter_branch_transfers" as any).select("*").order("transferred_at", { ascending: false }).limit(1000),
+      supabase.from("slaughter_settings" as any).select("*").limit(1).maybeSingle(),
+      supabase.from("slaughter_audit_log" as any).select("*").order("performed_at", { ascending: false }).limit(500),
+      supabase.from("profiles" as any).select("id, full_name").limit(1000),
     ]);
     setReceipts((r.data as any) || []);
     setBatches((b.data as any) || []);
@@ -82,6 +95,11 @@ const Slaughterhouse = () => {
     setBranches((br.data as any) || []);
     setBirds((bd.data as any) || []);
     setTransfers((tr.data as any) || []);
+    setSettings((st.data as any) || null);
+    setAudit((au.data as any) || []);
+    const pm: Record<string, string> = {};
+    ((pr.data as any) || []).forEach((p: any) => { pm[p.id] = p.full_name; });
+    setProfiles(pm);
     setLoading(false);
   };
 
@@ -163,7 +181,27 @@ const Slaughterhouse = () => {
     const { data, error } = await supabase.rpc("finalize_slaughter_batch" as any, { p_batch_id: batch.id });
     if (error) { toast.error(error.message); return; }
     const d: any = data;
-    toast.success(`اكتملت الدفعة — ${Number(d?.total_meat_kg || 0).toFixed(1)} كجم — تكلفة ${Number(d?.cost_per_kg_meat || 0).toFixed(0)} ر.س/كجم — ${d?.transfers_created || 0} تحويل للفروع`);
+    const yieldPct = Number(d?.actual_yield_pct || 0);
+    const low = Number(settings?.low_yield_threshold ?? 40);
+    const warn = Number(settings?.warning_yield_threshold ?? 45);
+    if (yieldPct > 0 && yieldPct < low) {
+      toast.error(`⚠️ تصافي منخفض ${yieldPct.toFixed(1)}% (أقل من الحد ${low}%)`, { duration: 8000 });
+    } else if (yieldPct > 0 && yieldPct < warn) {
+      toast.warning(`⚠️ التصافي ${yieldPct.toFixed(1)}% قريب من الحد الأدنى ${low}%`, { duration: 6000 });
+    } else {
+      toast.success(`اكتملت الدفعة — ${Number(d?.total_meat_kg || 0).toFixed(1)} كجم — تصافي ${yieldPct.toFixed(1)}% — ${d?.transfers_created || 0} تحويل`);
+    }
+    fetchAll();
+  };
+
+  const saveSettings = async (next: Partial<Settings>) => {
+    if (!settings) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase.from("slaughter_settings" as any)
+      .update({ ...next, updated_by: user?.id })
+      .eq("id", settings.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("تم حفظ الإعدادات");
     fetchAll();
   };
 
@@ -221,14 +259,16 @@ const Slaughterhouse = () => {
       </div>
 
       <Tabs defaultValue="daily" dir="rtl">
-        <TabsList className="grid grid-cols-4 md:grid-cols-7 w-full">
-          <TabsTrigger value="daily">تفريغة اليوم</TabsTrigger>
+        <TabsList className="grid grid-cols-3 md:grid-cols-9 w-full">
+          <TabsTrigger value="daily">التقرير اليومي</TabsTrigger>
           <TabsTrigger value="batches">دفعات الذبح</TabsTrigger>
           <TabsTrigger value="receipts">استلام حي</TabsTrigger>
           <TabsTrigger value="transfers">توزيع الفروع</TabsTrigger>
           <TabsTrigger value="yields">المعيار القياسي</TabsTrigger>
           <TabsTrigger value="workers">العمال</TabsTrigger>
           <TabsTrigger value="quality">الجودة</TabsTrigger>
+          <TabsTrigger value="audit"><History className="w-3 h-3 ml-1" />التدقيق</TabsTrigger>
+          <TabsTrigger value="settings"><SettingsIcon className="w-3 h-3 ml-1" />الإعدادات</TabsTrigger>
         </TabsList>
 
         {/* ========== DAILY REPORT (Excel-style) ========== */}
@@ -241,6 +281,7 @@ const Slaughterhouse = () => {
             batches={batches}
             outputs={outputs}
             branches={branches}
+            settings={settings}
           />
         </TabsContent>
 
@@ -572,6 +613,16 @@ const Slaughterhouse = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* ========== AUDIT ========== */}
+        <TabsContent value="audit">
+          <AuditLogTab audit={audit} profiles={profiles} batches={batches} branches={branches} />
+        </TabsContent>
+
+        {/* ========== SETTINGS ========== */}
+        <TabsContent value="settings">
+          <SettingsTab settings={settings} onSave={saveSettings} />
+        </TabsContent>
       </Tabs>
     </DashboardLayout>
   );
@@ -902,16 +953,21 @@ const TransfersTab = ({ transfers, branches, batches, onStatus }: {
 };
 
 // ===================== Daily Report Tab (Excel-style + export) =====================
-const DailyReportTab = ({ reportDate, setReportDate, receipts, birds, batches, outputs, branches }: {
+const DailyReportTab = ({ reportDate, setReportDate, receipts, birds, batches, outputs, branches, settings }: {
   reportDate: string; setReportDate: (d: string) => void;
   receipts: Receipt[]; birds: LiveBird[]; batches: Batch[]; outputs: Output[]; branches: Branch[];
+  settings: Settings | null;
 }) => {
+  const [branchFilter, setBranchFilter] = useState<string>("");
+  const lowThr = Number(settings?.low_yield_threshold ?? 40);
+  const warnThr = Number(settings?.warning_yield_threshold ?? 45);
+
   const dayReceipts = receipts.filter(r => r.receipt_date === reportDate);
   const dayBatches = batches.filter(b => b.slaughter_date === reportDate);
   const dayReceiptIds = dayReceipts.map(r => r.id);
   const dayBatchIds = dayBatches.map(b => b.id);
   const dayBirds = birds.filter(b => dayReceiptIds.includes(b.receipt_id)).sort((a, b) => a.bird_index - b.bird_index);
-  const dayOutputs = outputs.filter(o => dayBatchIds.includes(o.batch_id));
+  const dayOutputs = outputs.filter(o => dayBatchIds.includes(o.batch_id) && (!branchFilter || o.branch_id === branchFilter));
 
   const totals = {
     live: dayBirds.reduce((s, b) => s + Number(b.live_weight_kg || 0), 0),
@@ -990,17 +1046,45 @@ const DailyReportTab = ({ reportDate, setReportDate, receipts, birds, batches, o
     toast.success("تم تصدير PDF");
   };
 
+  // Per-batch chart data
+  const batchChart = dayBatches.map(b => ({
+    name: b.batch_number.slice(-6),
+    live: Number(b.total_live_weight_kg || 0),
+    meat: Number(b.total_meat_kg || 0),
+    yield: Number(b.actual_yield_pct || 0),
+    cost: Number(b.cost_per_kg_meat || 0),
+  }));
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
-        <CardTitle>تفريغة الذبح اليومي</CardTitle>
-        <div className="flex items-center gap-2">
+        <CardTitle>التقرير اليومي للذبح</CardTitle>
+        <div className="flex items-center gap-2 flex-wrap">
           <Input type="date" value={reportDate} onChange={e => setReportDate(e.target.value)} className="w-44" />
+          <Select value={branchFilter || "all"} onValueChange={v => setBranchFilter(v === "all" ? "" : v)}>
+            <SelectTrigger className="w-40"><SelectValue placeholder="كل الفروع" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">كل الفروع</SelectItem>
+              {branches.map(b => <SelectItem key={b.id} value={b.id}>{b.name_ar}</SelectItem>)}
+            </SelectContent>
+          </Select>
           <Button variant="outline" onClick={exportExcel}><FileSpreadsheet className="w-4 h-4 ml-1" />Excel</Button>
           <Button variant="outline" onClick={exportPDF}><FileText className="w-4 h-4 ml-1" />PDF</Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
+        {/* Yield alert */}
+        {yieldPct > 0 && yieldPct < warnThr && (
+          <div className={`p-3 rounded border flex items-center gap-2 ${yieldPct < lowThr ? "bg-red-500/10 border-red-500/40 text-red-700" : "bg-amber-500/10 border-amber-500/40 text-amber-700"}`}>
+            <AlertTriangle className="w-4 h-4" />
+            <span className="text-sm font-medium">
+              {yieldPct < lowThr
+                ? `تنبيه: التصافي ${yieldPct.toFixed(1)}% أقل من الحد الأدنى (${lowThr}%)`
+                : `تحذير: التصافي ${yieldPct.toFixed(1)}% قريب من الحد الأدنى (${lowThr}%)`}
+            </span>
+          </div>
+        )}
+
         {/* Top stats */}
         <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-sm">
           <div className="p-2 bg-muted/40 rounded">طيور: <b>{dayBirds.length}</b></div>
@@ -1008,8 +1092,43 @@ const DailyReportTab = ({ reportDate, setReportDate, receipts, birds, batches, o
           <div className="p-2 bg-muted/40 rounded">لحم: <b>{totals.meat.toFixed(1)}</b></div>
           <div className="p-2 bg-muted/40 rounded">تكلفة الشراء: <b>{totals.purchase.toFixed(0)}</b></div>
           <div className="p-2 bg-muted/40 rounded">قيمة البيع: <b>{totals.value.toFixed(0)}</b></div>
-          <div className={`p-2 rounded ${yieldPct < 40 ? "bg-red-500/20" : "bg-emerald-500/20"}`}>التصافي: <b>{yieldPct.toFixed(1)}%</b></div>
+          <div className={`p-2 rounded ${yieldPct < lowThr ? "bg-red-500/20" : yieldPct < warnThr ? "bg-amber-500/20" : "bg-emerald-500/20"}`}>التصافي: <b>{yieldPct.toFixed(1)}%</b></div>
         </div>
+
+        {/* Charts */}
+        {batchChart.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-muted/20 p-3 rounded">
+              <p className="text-xs text-muted-foreground mb-2">الوزن الحي vs اللحم (كجم)</p>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={batchChart}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                  <XAxis dataKey="name" fontSize={10} />
+                  <YAxis fontSize={10} />
+                  <RTooltip />
+                  <Legend />
+                  <Bar dataKey="live" fill="hsl(var(--primary))" name="حي" />
+                  <Bar dataKey="meat" fill="hsl(var(--accent))" name="لحم" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="bg-muted/20 p-3 rounded">
+              <p className="text-xs text-muted-foreground mb-2">التصافي % والتكلفة/كجم</p>
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={batchChart}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                  <XAxis dataKey="name" fontSize={10} />
+                  <YAxis yAxisId="l" fontSize={10} />
+                  <YAxis yAxisId="r" orientation="right" fontSize={10} />
+                  <RTooltip />
+                  <Legend />
+                  <Line yAxisId="l" type="monotone" dataKey="yield" stroke="hsl(var(--primary))" name="تصافي %" />
+                  <Line yAxisId="r" type="monotone" dataKey="cost" stroke="hsl(var(--accent))" name="تكلفة/كجم" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
 
         {/* Section 1: Birds */}
         <div>
@@ -1079,6 +1198,102 @@ const DailyReportTab = ({ reportDate, setReportDate, receipts, birds, batches, o
         <div className="text-sm text-muted-foreground border-t pt-3">
           نسبة التصافي = اللحم المقطع / الوزن القائم = <b className={yieldPct < 40 ? "text-red-600" : "text-emerald-600"}>{yieldPct.toFixed(1)}%</b>
         </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+// ===================== Settings Tab =====================
+const SettingsTab = ({ settings, onSave }: { settings: Settings | null; onSave: (next: Partial<Settings>) => void }) => {
+  const [low, setLow] = useState(settings?.low_yield_threshold ?? 40);
+  const [warn, setWarn] = useState(settings?.warning_yield_threshold ?? 45);
+  const [notify, setNotify] = useState(settings?.notify_on_low_yield ?? true);
+  useEffect(() => {
+    if (settings) { setLow(settings.low_yield_threshold); setWarn(settings.warning_yield_threshold); setNotify(settings.notify_on_low_yield); }
+  }, [settings]);
+  if (!settings) return <Card><CardContent className="p-6 text-center text-muted-foreground">جاري التحميل...</CardContent></Card>;
+  return (
+    <Card>
+      <CardHeader><CardTitle className="flex items-center gap-2"><SettingsIcon className="w-5 h-5" />إعدادات حدود التصافي والتنبيهات</CardTitle></CardHeader>
+      <CardContent className="space-y-4 max-w-xl">
+        <div>
+          <Label>الحد الأدنى للتصافي (%) — أقل من هذا = تنبيه أحمر</Label>
+          <Input type="number" step="0.5" value={low} onChange={e => setLow(+e.target.value)} />
+        </div>
+        <div>
+          <Label>حد التحذير للتصافي (%) — أقل من هذا = تحذير برتقالي</Label>
+          <Input type="number" step="0.5" value={warn} onChange={e => setWarn(+e.target.value)} />
+        </div>
+        <div className="flex items-center gap-2 pt-2">
+          <input id="notify" type="checkbox" checked={notify} onChange={e => setNotify(e.target.checked)} className="w-4 h-4" />
+          <Label htmlFor="notify" className="cursor-pointer">إرسال تنبيه عند انخفاض التصافي عند إنهاء دفعة</Label>
+        </div>
+        <div className="text-xs text-muted-foreground bg-muted/40 p-3 rounded">
+          💡 عند الانتهاء من دفعة ذبح، سيقارن النظام نسبة التصافي بهذين الحدّين ويعرض تنبيهًا فوريًا، كما سيتم تسجيل العملية في سجل التدقيق وإنشاء إشعار للمدراء.
+        </div>
+        <Button onClick={() => onSave({ low_yield_threshold: low, warning_yield_threshold: warn, notify_on_low_yield: notify })}
+          className="bg-gradient-to-r from-primary to-accent">
+          <Save className="w-4 h-4 ml-1" />حفظ الإعدادات
+        </Button>
+      </CardContent>
+    </Card>
+  );
+};
+
+// ===================== Audit Log Tab =====================
+const AuditLogTab = ({ audit, profiles, batches, branches }: {
+  audit: AuditEntry[]; profiles: Record<string, string>; batches: Batch[]; branches: Branch[];
+}) => {
+  const [actionFilter, setActionFilter] = useState<string>("");
+  const filtered = actionFilter ? audit.filter(a => a.action === actionFilter) : audit;
+  const actionLabel = (a: string) => ({ finalize_batch: "إنهاء دفعة", transfer_status_change: "تحديث تحويل فرع" } as any)[a] || a;
+  const summarize = (entry: AuditEntry) => {
+    if (entry.action === "finalize_batch") {
+      const nv = entry.new_value || {}; const ov = entry.old_value || {};
+      return `تصافي: ${Number(ov.actual_yield_pct||0).toFixed(1)}% → ${Number(nv.actual_yield_pct||0).toFixed(1)}% | لحم: ${Number(nv.total_meat_kg||0).toFixed(1)} كجم | تحويلات: ${nv.transfers_created||0}`;
+    }
+    if (entry.action === "transfer_status_change") {
+      const nv = entry.new_value || {}; const ov = entry.old_value || {};
+      const br = branches.find(b => b.id === nv.branch_id)?.name_ar || "-";
+      return `${nv.cut_name_ar} → ${br}: ${ov.status} → ${nv.status} (${Number(nv.weight_kg||0).toFixed(1)} كجم)`;
+    }
+    return entry.notes || "";
+  };
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
+        <CardTitle className="flex items-center gap-2"><History className="w-5 h-5" />سجل التدقيق</CardTitle>
+        <Select value={actionFilter || "all"} onValueChange={v => setActionFilter(v === "all" ? "" : v)}>
+          <SelectTrigger className="w-48"><SelectValue placeholder="كل العمليات" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">كل العمليات</SelectItem>
+            <SelectItem value="finalize_batch">إنهاء دفعة</SelectItem>
+            <SelectItem value="transfer_status_change">تحديث تحويل فرع</SelectItem>
+          </SelectContent>
+        </Select>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader><TableRow>
+            <TableHead>الوقت</TableHead><TableHead>العملية</TableHead><TableHead>المستخدم</TableHead>
+            <TableHead>الدفعة</TableHead><TableHead>التفاصيل</TableHead>
+          </TableRow></TableHeader>
+          <TableBody>
+            {filtered.map(e => {
+              const bt = batches.find(b => b.id === e.batch_id);
+              return (
+                <TableRow key={e.id}>
+                  <TableCell className="text-xs">{new Date(e.performed_at).toLocaleString("ar-EG")}</TableCell>
+                  <TableCell><Badge variant="outline">{actionLabel(e.action)}</Badge></TableCell>
+                  <TableCell className="text-sm">{e.performed_by ? (profiles[e.performed_by] || e.performed_by.slice(0, 8)) : "—"}</TableCell>
+                  <TableCell className="font-mono text-xs">{bt?.batch_number || "—"}</TableCell>
+                  <TableCell className="text-sm">{summarize(e)}</TableCell>
+                </TableRow>
+              );
+            })}
+            {!filtered.length && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">لا توجد عمليات مسجلة</TableCell></TableRow>}
+          </TableBody>
+        </Table>
       </CardContent>
     </Card>
   );
