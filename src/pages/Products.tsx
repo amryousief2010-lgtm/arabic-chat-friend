@@ -315,13 +315,33 @@ const Products = () => {
             <Package className="w-5 h-5 text-primary" />
             قائمة المنتجات ({filteredProducts.length})
           </CardTitle>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-2">
             <Input
-              placeholder="بحث عن منتج..."
+              placeholder="بحث بالاسم أو الباركود..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-64 input-modern"
             />
+            <Button
+              type="button"
+              variant={scanMode ? "default" : "outline"}
+              onClick={() => setScanMode((v) => !v)}
+              title="وضع مسح الباركود"
+            >
+              <ScanLine className="w-4 h-4 ml-2" />
+              {scanMode ? "إيقاف المسح" : "وضع المسح"}
+            </Button>
+            {canManageProducts && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setImportOpen(true)}
+                title="استيراد باركودات بالجملة"
+              >
+                <Upload className="w-4 h-4 ml-2" />
+                استيراد باركودات
+              </Button>
+            )}
             {canAddProducts && (
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
