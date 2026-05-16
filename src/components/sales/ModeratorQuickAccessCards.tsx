@@ -15,24 +15,36 @@ interface OrderRow {
   moderator: string | null;
   created_by: string | null;
   created_at: string;
+  shipping_company: string | null;
 }
 
-const ModeratorQuickAccessCards = () => {
+interface Props {
+  /**
+   * When true, only count orders whose shipping_company is "مندوب خاص".
+   * Used by the private delivery rep view so he sees how many of his
+   * delivery orders belong to each marketing employee.
+   */
+  privateDeliveryOnly?: boolean;
+}
+
+const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false }: Props) => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
   const { data, isLoading } = useQuery({
-    queryKey: ["moderator-quick-access"],
+    queryKey: ["moderator-quick-access", privateDeliveryOnly],
     refetchInterval: 60_000,
     queryFn: async () => {
       const startOfMonth = new Date();
       startOfMonth.setDate(1);
       startOfMonth.setHours(0, 0, 0, 0);
 
-      const { data: orders, error } = await supabase
+      let q = supabase
         .from("orders")
-        .select("id, total, status, moderator, created_by, created_at")
+        .select("id, total, status, moderator, created_by, created_at, shipping_company")
         .gte("created_at", startOfMonth.toISOString());
+      if (privateDeliveryOnly) q = q.eq("shipping_company", "مندوب خاص");
+      const { data: orders, error } = await q;
       if (error) throw error;
 
       const userIds = Array.from(
@@ -77,13 +89,17 @@ const ModeratorQuickAccessCards = () => {
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <UserRound className="w-5 h-5 text-primary" />
-            <h3 className="text-base md:text-lg font-bold">سجلات المسوقات</h3>
+            <h3 className="text-base md:text-lg font-bold">
+              {privateDeliveryOnly ? "طلبات المسوقات المخصصة للمندوب الخاص" : "سجلات المسوقات"}
+            </h3>
             <Badge variant="outline" className="text-[10px]">
               {new Date().toLocaleDateString("ar-EG", { month: "long", year: "numeric" })}
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground">
-            كل بنت تسجّل طلبها هنا، ويتم تجميع كل الطلبات تلقائياً في الجدول العام بالأعلى.
+            {privateDeliveryOnly
+              ? "عدد الطلبات المسجلة لكل مسوقة والمخصصة للمندوب الخاص — اضغط «السجل» لمعرفة بيانات العميل والتواصل مع المسوقة عند الحاجة."
+              : "كل بنت تسجّل طلبها هنا، ويتم تجميع كل الطلبات تلقائياً في الجدول العام بالأعلى."}
           </p>
         </div>
 
@@ -124,19 +140,21 @@ const ModeratorQuickAccessCards = () => {
               </div>
 
               <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="flex-1 h-8 text-xs"
-                  onClick={() => navigate(`/orders/new?moderator=${row.slug}`)}
-                >
-                  <Plus className="w-3.5 h-3.5 ml-1" /> طلب جديد
-                </Button>
+                {!privateDeliveryOnly && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="flex-1 h-8 text-xs"
+                    onClick={() => navigate(`/orders/new?moderator=${row.slug}`)}
+                  >
+                    <Plus className="w-3.5 h-3.5 ml-1" /> طلب جديد
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   variant="outline"
                   className="flex-1 h-8 text-xs bg-white/10 border-white/30 text-primary-foreground hover:bg-white/20"
-                  onClick={() => navigate(`/orders/moderator/${row.slug}`)}
+                  onClick={() => navigate(`/orders/moderator/${row.slug}${privateDeliveryOnly ? '?shipping=private' : ''}`)}
                 >
                   <FileText className="w-3.5 h-3.5 ml-1" /> السجل
                 </Button>

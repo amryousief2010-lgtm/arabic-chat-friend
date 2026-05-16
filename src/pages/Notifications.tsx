@@ -153,11 +153,12 @@ const Notifications = () => {
                     key={notification.id}
                     onClick={() => {
                       if (hasOrder) {
-                        // Mark as read when navigating
                         if (!notification.is_read) {
                           markAsReadMutation.mutate(notification.id);
                         }
-                        navigate(`/orders?highlight=${notification.order_id}`);
+                        // Navigate directly to the order so the user can read the
+                        // attached note and respond to it immediately.
+                        navigate(`/orders/${notification.order_id}`);
                       }
                     }}
                     className={`p-4 rounded-lg border transition-colors ${

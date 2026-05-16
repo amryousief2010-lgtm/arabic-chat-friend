@@ -972,8 +972,11 @@ const Orders = () => {
         />
       )}
 
-      {/* Per-moderator quick access section — hidden from moderators themselves for privacy */}
-      {!isSalesModerator && <ModeratorQuickAccessCards />}
+      {/* Per-moderator quick access section — hidden from moderators themselves for privacy.
+          For the private delivery rep it's filtered to "مندوب خاص" shipping orders only. */}
+      {!isSalesModerator && (
+        <ModeratorQuickAccessCards privateDeliveryOnly={isPrivateDeliveryRep} />
+      )}
     </DashboardLayout>
   );
 };
