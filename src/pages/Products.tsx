@@ -315,6 +315,26 @@ const Products = () => {
     },
   });
 
+  // Update price mutation (inline edit from the table)
+  const updatePriceMutation = useMutation({
+    mutationFn: async (data: { id: string; newPrice: number }) => {
+      const { error } = await supabase
+        .from('products')
+        .update({ price: data.newPrice })
+        .eq('id', data.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      toast({ title: 'تم تحديث السعر بنجاح' });
+    },
+    onError: () => {
+      toast({ title: 'حدث خطأ في تحديث السعر', variant: 'destructive' });
+    },
+  });
+
+  const [priceAdjustment, setPriceAdjustment] = useState<Record<string, string>>({});
+
   const handleStockAdjust = (productId: string, currentStock: number, adjustment: number) => {
     const newStock = Math.max(0, currentStock + adjustment);
     updateStockMutation.mutate({ id: productId, newStock });
