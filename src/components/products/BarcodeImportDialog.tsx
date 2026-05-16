@@ -68,15 +68,25 @@ const BarcodeImportDialog = ({ open, onOpenChange, products, onDone }: Props) =>
       const parsed: Row[] = json
         .map((r) => {
           const name = String(r[nameKey] ?? "").trim();
-          const barcode = String(r[barcodeKey] ?? "").replace(/\D/g, "");
-          if (!name || !barcode) return null;
+          const barcodeRaw = String(r[barcodeKey] ?? "").trim();
+          const barcode = barcodeRaw.replace(/\D/g, "");
+          if (!name && !barcode) return null;
 
-          const target = products.find(
-            (p) => normalize(p.name) === normalize(name) || normalize(p.name).includes(normalize(name)) || normalize(name).includes(normalize(p.name))
-          );
+          const target = name
+            ? products.find(
+                (p) =>
+                  normalize(p.name) === normalize(name) ||
+                  normalize(p.name).includes(normalize(name)) ||
+                  normalize(name).includes(normalize(p.name))
+              )
+            : undefined;
 
-          let status: Row["status"] = "no-match";
-          if (target) status = target.barcode === barcode ? "unchanged" : "match";
+          const invalidReason = validateBarcode(barcode);
+          let status: Row["status"];
+          if (invalidReason) status = "invalid";
+          else if (!target) status = "no-match";
+          else if (target.barcode === barcode) status = "unchanged";
+          else status = "match";
 
           return {
             name,
@@ -84,6 +94,7 @@ const BarcodeImportDialog = ({ open, onOpenChange, products, onDone }: Props) =>
             matchedId: target?.id,
             matchedName: target?.name,
             status,
+            invalidReason: invalidReason || undefined,
           } as Row;
         })
         .filter(Boolean) as Row[];
@@ -94,6 +105,30 @@ const BarcodeImportDialog = ({ open, onOpenChange, products, onDone }: Props) =>
       console.error(e);
       toast.error("تعذّر قراءة الملف");
     }
+  };
+
+  const downloadTemplate = (format: "csv" | "xlsx") => {
+    const headers = ["اسم المنتج", "الباركود"];
+    const sample = [
+      ["استيك", "6224003208018"],
+      ["كبدة", "6224003208087"],
+    ];
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...sample]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Barcodes");
+    if (format === "csv") {
+      const csv = XLSX.utils.sheet_to_csv(ws);
+      const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "barcode-template.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    } else {
+      XLSX.writeFile(wb, "barcode-template.xlsx");
+    }
+    toast.success("تم تحميل القالب");
   };
 
   const handleSave = async () => {
@@ -125,6 +160,7 @@ const BarcodeImportDialog = ({ open, onOpenChange, products, onDone }: Props) =>
     match: rows.filter((r) => r.status === "match").length,
     unchanged: rows.filter((r) => r.status === "unchanged").length,
     nomatch: rows.filter((r) => r.status === "no-match").length,
+    invalid: rows.filter((r) => r.status === "invalid").length,
   };
 
   return (
