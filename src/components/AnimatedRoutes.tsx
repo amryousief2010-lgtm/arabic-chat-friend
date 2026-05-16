@@ -55,6 +55,7 @@ import CateringKitchen from "@/pages/catering/CateringKitchen";
 import CateringPurchases from "@/pages/catering/CateringPurchases";
 import CateringInvoices from "@/pages/catering/CateringInvoices";
 import PrivateDeliveryPricing from "@/pages/PrivateDeliveryPricing";
+import RoleLanding from "@/components/RoleLanding";
 
 const RedirectWithQuery = ({ to }: { to: string }) => {
   const location = useLocation();
@@ -75,11 +76,7 @@ const AnimatedRoutes = () => {
         } />
         <Route path="/farm" element={<RedirectWithQuery to="/modules/farm" />} />
         <Route path="/hatchery" element={<RedirectWithQuery to="/modules/hatchery" />} />
-        <Route path="/" element={
-          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'warehouse_supervisor', 'production_manager', 'marketing_sales_manager', 'financial_manager', 'quality_manager', 'farm_manager', 'hatchery_manager', 'brooding_manager', 'slaughterhouse_manager', 'meat_factory_manager', 'feed_factory_manager', 'hr_manager', 'shipping_company']}>
-            <PageTransition><Index /></PageTransition>
-          </ProtectedRoute>
-        } />
+        <Route path="/" element={<RoleLanding />} />
         <Route path="/products" element={
           <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'warehouse_supervisor', 'marketing_sales_manager', 'quality_manager']}>
             <PageTransition><Products /></PageTransition>
