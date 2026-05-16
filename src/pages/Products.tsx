@@ -138,6 +138,33 @@ const Products = () => {
       return a.name.localeCompare(b.name, "ar");
     });
 
+  useEffect(() => {
+    if (scanMode) {
+      const t = setTimeout(() => scanInputRef.current?.focus(), 50);
+      return () => clearTimeout(t);
+    }
+  }, [scanMode]);
+
+  const handleScanSubmit = (raw: string) => {
+    const code = raw.trim().replace(/\D/g, "");
+    if (!code) return;
+    const match = products.find((p) => p.barcode === code);
+    if (!match) {
+      toast({ title: "لم يتم العثور على المنتج", description: `الباركود: ${code}`, variant: "destructive" });
+      setScanValue("");
+      return;
+    }
+    setHighlightId(match.id);
+    setSearchQuery("");
+    setScanValue("");
+    toast({ title: "تم تحديد المنتج", description: match.name });
+    setTimeout(() => {
+      rowRefs.current[match.id]?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 50);
+    setTimeout(() => setHighlightId((id) => (id === match.id ? null : id)), 4000);
+    setTimeout(() => scanInputRef.current?.focus(), 100);
+  };
+
   const handleOpenDialog = (product?: Product) => {
     if (product) {
       setEditingProduct(product);
