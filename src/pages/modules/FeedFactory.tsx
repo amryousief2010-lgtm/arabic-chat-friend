@@ -303,10 +303,11 @@ const FeedFactory = () => {
               <p className="text-muted-foreground mt-1">إدارة الوصفات ودفعات الإنتاج والمواد الخام</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Link to="/modules/feed-factory/dashboard">
-              <Button variant="outline" size="sm">لوحة الملخص</Button>
-            </Link>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Link to="/modules/feed-factory/dashboard"><Button variant="outline" size="sm">لوحة الملخص</Button></Link>
+            <Link to="/modules/feed-factory/orders"><Button variant="outline" size="sm">أوامر الإنتاج</Button></Link>
+            <Link to="/modules/feed-factory/issues"><Button variant="outline" size="sm">صرف الخامات</Button></Link>
+            <Link to="/modules/feed-factory/recipes"><Button variant="outline" size="sm">الوصفات</Button></Link>
             {!canManageFeedFactory && (
               <Badge variant="outline">عرض فقط — لا تملك صلاحية الإدارة</Badge>
             )}
