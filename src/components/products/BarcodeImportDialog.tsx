@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Upload, FileSpreadsheet, Download, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { validateBarcode } from "@/lib/printProductLabel";
+import { safeParseExcel, SafeExcelError, MAX_EXCEL_FILE_BYTES } from "@/lib/safeExcel";
 
 interface Product {
   id: string;
