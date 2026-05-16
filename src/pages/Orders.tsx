@@ -324,8 +324,8 @@ const Orders = () => {
       order.order_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.customer_name.toLowerCase().includes(searchQuery.toLowerCase());
     const d = new Date(order.created_at);
-    const year = d.getFullYear();
-    const month = d.getMonth() + 1;
+    const year = d.getUTCFullYear();
+    const month = d.getUTCMonth() + 1;
     const matchesYearGroup =
       yearGroup === "all" ||
       (yearGroup === "2026" && year >= 2026) ||
@@ -338,7 +338,7 @@ const Orders = () => {
   const availableYears = Array.from(
     new Set([
       now.getFullYear(),
-      ...orders.map((o) => new Date(o.created_at).getFullYear()),
+      ...orders.map((o) => new Date(o.created_at).getUTCFullYear()),
     ])
   ).sort((a, b) => b - a);
 
