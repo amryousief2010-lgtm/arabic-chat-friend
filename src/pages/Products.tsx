@@ -392,6 +392,17 @@ const Products = () => {
                 استيراد باركودات
               </Button>
             )}
+            {selectedIds.size > 0 && (
+              <>
+                <Button type="button" variant="default" onClick={handleBulkPrint}>
+                  <Printer className="w-4 h-4 ml-2" />
+                  طباعة {selectedIds.size} ملصق
+                </Button>
+                <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
+                  إلغاء التحديد
+                </Button>
+              </>
+            )}
             {canAddProducts && (
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
