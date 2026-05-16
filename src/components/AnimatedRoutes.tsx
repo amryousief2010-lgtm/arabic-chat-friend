@@ -37,6 +37,7 @@ import HumanResources from "@/pages/modules/HumanResources";
 import Warehouses from "@/pages/modules/Warehouses";
 import RecipeDetail from "@/pages/modules/feed/RecipeDetail";
 import BatchTracking from "@/pages/modules/feed/BatchTracking";
+import FeedDashboard from "@/pages/modules/feed/FeedDashboard";
 import WarehouseDashboard from "@/pages/modules/warehouse/WarehouseDashboard";
 import InventoryImport from "@/pages/modules/warehouse/InventoryImport";
 import Debug from "@/pages/Debug";
