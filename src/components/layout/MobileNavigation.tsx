@@ -19,7 +19,7 @@ import MobileSidebarContent from "./MobileSidebarContent";
 const MobileNavigation = () => {
   const location = useLocation();
   const { role, profile } = useAuth();
-  const { unreadCount } = useUnreadNotifications();
+  const { unreadCount, urgentUnreadCount } = useUnreadNotifications();
   const [open, setOpen] = useState(false);
 
   const isModerator = role === 'sales_moderator';
