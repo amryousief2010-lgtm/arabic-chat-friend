@@ -122,11 +122,14 @@ const Products = () => {
     return idx === -1 ? 999 : idx;
   };
 
+  const q = searchQuery.trim();
   const filteredProducts = products
     .filter(
       (product) =>
-        product.name.includes(searchQuery) ||
-        (product.category && product.category.includes(searchQuery))
+        !q ||
+        product.name.includes(q) ||
+        (product.category && product.category.includes(q)) ||
+        (product.barcode && product.barcode.includes(q.replace(/\D/g, "")))
     )
     .sort((a, b) => {
       const ai = orderIndex(a.name);
