@@ -426,6 +426,7 @@ const Products = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead className="text-right">المنتج</TableHead>
+                  <TableHead className="text-right">الباركود</TableHead>
                   <TableHead className="text-right">التصنيف</TableHead>
                   {canViewFinancials && <TableHead className="text-right">السعر</TableHead>}
                   <TableHead className="text-right">المخزون</TableHead>
@@ -447,6 +448,13 @@ const Products = () => {
                         )}
                         <span className="font-medium">{product.name}</span>
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      {product.barcode ? (
+                        <span className="font-mono text-xs" dir="ltr">{product.barcode}</span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">{product.category}</Badge>
