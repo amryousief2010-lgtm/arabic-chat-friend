@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import ProductsAnalytics from "@/components/dashboard/ProductsAnalytics";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,7 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Edit, Trash2, Package, Minus } from "lucide-react";
+import { Plus, Edit, Trash2, Package, Minus, Printer, ScanLine, Upload, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -39,6 +39,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { printProductLabel } from "@/lib/printProductLabel";
+import BarcodeImportDialog from "@/components/products/BarcodeImportDialog";
+
 
 const categories = ["لحوم طازجة", "لحوم مصنعة", "منتجات أخرى"];
 
@@ -61,6 +64,12 @@ const Products = () => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [stockAdjustment, setStockAdjustment] = useState<{ [key: string]: number }>({});
+  const [importOpen, setImportOpen] = useState(false);
+  const [scanMode, setScanMode] = useState(false);
+  const [scanValue, setScanValue] = useState("");
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const scanInputRef = useRef<HTMLInputElement>(null);
+  const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -113,11 +122,14 @@ const Products = () => {
     return idx === -1 ? 999 : idx;
   };
 
+  const q = searchQuery.trim();
   const filteredProducts = products
     .filter(
       (product) =>
-        product.name.includes(searchQuery) ||
-        (product.category && product.category.includes(searchQuery))
+        !q ||
+        product.name.includes(q) ||
+        (product.category && product.category.includes(q)) ||
+        (product.barcode && product.barcode.includes(q.replace(/\D/g, "")))
     )
     .sort((a, b) => {
       const ai = orderIndex(a.name);
@@ -125,6 +137,33 @@ const Products = () => {
       if (ai !== bi) return ai - bi;
       return a.name.localeCompare(b.name, "ar");
     });
+
+  useEffect(() => {
+    if (scanMode) {
+      const t = setTimeout(() => scanInputRef.current?.focus(), 50);
+      return () => clearTimeout(t);
+    }
+  }, [scanMode]);
+
+  const handleScanSubmit = (raw: string) => {
+    const code = raw.trim().replace(/\D/g, "");
+    if (!code) return;
+    const match = products.find((p) => p.barcode === code);
+    if (!match) {
+      toast({ title: "لم يتم العثور على المنتج", description: `الباركود: ${code}`, variant: "destructive" });
+      setScanValue("");
+      return;
+    }
+    setHighlightId(match.id);
+    setSearchQuery("");
+    setScanValue("");
+    toast({ title: "تم تحديد المنتج", description: match.name });
+    setTimeout(() => {
+      rowRefs.current[match.id]?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 50);
+    setTimeout(() => setHighlightId((id) => (id === match.id ? null : id)), 4000);
+    setTimeout(() => scanInputRef.current?.focus(), 100);
+  };
 
   const handleOpenDialog = (product?: Product) => {
     if (product) {
@@ -276,13 +315,33 @@ const Products = () => {
             <Package className="w-5 h-5 text-primary" />
             قائمة المنتجات ({filteredProducts.length})
           </CardTitle>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-2">
             <Input
-              placeholder="بحث عن منتج..."
+              placeholder="بحث بالاسم أو الباركود..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-64 input-modern"
             />
+            <Button
+              type="button"
+              variant={scanMode ? "default" : "outline"}
+              onClick={() => setScanMode((v) => !v)}
+              title="وضع مسح الباركود"
+            >
+              <ScanLine className="w-4 h-4 ml-2" />
+              {scanMode ? "إيقاف المسح" : "وضع المسح"}
+            </Button>
+            {canManageProducts && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setImportOpen(true)}
+                title="استيراد باركودات بالجملة"
+              >
+                <Upload className="w-4 h-4 ml-2" />
+                استيراد باركودات
+              </Button>
+            )}
             {canAddProducts && (
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
@@ -419,6 +478,34 @@ const Products = () => {
           </div>
         </CardHeader>
         <CardContent>
+          {scanMode && (
+            <div className="mb-4 p-3 rounded-lg border-2 border-primary/40 bg-primary/5">
+              <div className="flex items-center gap-2 mb-2">
+                <ScanLine className="w-4 h-4 text-primary" />
+                <span className="text-sm font-semibold">وضع مسح الباركود مفعّل</span>
+                <span className="text-xs text-muted-foreground mr-auto">امسح الكود أو اكتبه واضغط Enter</span>
+                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setScanMode(false)}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              <Input
+                ref={scanInputRef}
+                value={scanValue}
+                onChange={(e) => setScanValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleScanSubmit(scanValue);
+                  }
+                }}
+                placeholder="امسح الباركود هنا..."
+                className="font-mono text-lg"
+                dir="ltr"
+                autoFocus
+                inputMode="numeric"
+              />
+            </div>
+          )}
           {isLoading ? (
             <div className="text-center py-8 text-muted-foreground">جاري التحميل...</div>
           ) : (
@@ -431,12 +518,18 @@ const Products = () => {
                   {canViewFinancials && <TableHead className="text-right">السعر</TableHead>}
                   <TableHead className="text-right">المخزون</TableHead>
                   <TableHead className="text-right">الحالة</TableHead>
-                  {canManageProducts && <TableHead className="text-right">الإجراءات</TableHead>}
+                  <TableHead className="text-right">الإجراءات</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredProducts.map((product) => (
-                  <TableRow key={product.id} className="table-row-hover">
+                  <TableRow
+                    key={product.id}
+                    ref={(el) => (rowRefs.current[product.id] = el)}
+                    className={`table-row-hover transition-colors ${
+                      highlightId === product.id ? "bg-primary/15 ring-2 ring-primary" : ""
+                    }`}
+                  >
                     <TableCell>
                       <div className="flex items-center gap-3">
                         {product.image_url && (
@@ -540,27 +633,46 @@ const Products = () => {
                           : "متوفر"}
                       </Badge>
                     </TableCell>
-                    {canManageProducts && (
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleOpenDialog(product)}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => handleDelete(product.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    )}
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          disabled={!product.barcode}
+                          title={product.barcode ? "طباعة ملصق المنتج" : "أضف الباركود أولاً"}
+                          onClick={() =>
+                            product.barcode &&
+                            printProductLabel({
+                              name: product.name,
+                              barcode: product.barcode,
+                              unit: product.unit,
+                              price: canViewFinancials ? product.price : null,
+                            })
+                          }
+                        >
+                          <Printer className="w-4 h-4" />
+                        </Button>
+                        {canManageProducts && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleOpenDialog(product)}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => handleDelete(product.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -568,6 +680,13 @@ const Products = () => {
           )}
         </CardContent>
       </Card>
+
+      <BarcodeImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        products={products as any}
+        onDone={() => queryClient.invalidateQueries({ queryKey: ["products"] })}
+      />
     </DashboardLayout>
   );
 };
