@@ -35,14 +35,19 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false }: Props) => {
     queryKey: ["moderator-quick-access", privateDeliveryOnly],
     refetchInterval: 60_000,
     queryFn: async () => {
-      const startOfMonth = new Date();
-      startOfMonth.setDate(1);
-      startOfMonth.setHours(0, 0, 0, 0);
+      const now = new Date();
+      const startOfMonth = new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0),
+      );
+      const startOfNextMonth = new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0, 0),
+      );
 
       let q = supabase
         .from("orders")
         .select("id, total, status, moderator, created_by, created_at, shipping_company")
-        .gte("created_at", startOfMonth.toISOString());
+        .gte("created_at", startOfMonth.toISOString())
+        .lt("created_at", startOfNextMonth.toISOString());
       if (privateDeliveryOnly) q = q.eq("shipping_company", "مندوب خاص");
       const { data: orders, error } = await q;
       if (error) throw error;
