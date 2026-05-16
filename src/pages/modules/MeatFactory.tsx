@@ -1010,6 +1010,44 @@ const MeatFactory = () => {
         </DialogContent>
       </Dialog>
 
+      {/* FAILURE DETAILS DIALOG */}
+      <Dialog open={!!failureDetails} onOpenChange={(o) => !o && setFailureDetails(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-red-700 flex items-center gap-2"><AlertTriangle className="w-5 h-5" />تعذر اعتماد الدفعة {failureDetails?.batch?.batch_number}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Alert variant="destructive">
+              <AlertTitle>سبب الفشل: مخزون غير كافٍ</AlertTitle>
+              <AlertDescription>
+                لم يتم خصم أي مواد. {failureDetails?.shortages.length} مادة بمخزون أقل من المطلوب. سُجّلت هذه المحاولة في سجل التدقيق.
+              </AlertDescription>
+            </Alert>
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>كود</TableHead><TableHead>المادة</TableHead>
+                <TableHead>المطلوب</TableHead><TableHead>المتاح</TableHead><TableHead>العجز</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {failureDetails?.shortages.map((s: any, i: number) => (
+                  <TableRow key={i} className="bg-red-500/5">
+                    <TableCell className="font-mono text-xs">{s.material_code}</TableCell>
+                    <TableCell className="font-medium">{s.material_name_ar}</TableCell>
+                    <TableCell>{fmt(s.required, 3)} {s.unit}</TableCell>
+                    <TableCell className="text-red-600 font-bold">{fmt(s.available, 2)}</TableCell>
+                    <TableCell className="text-red-600 font-bold">{fmt(s.short_by, 3)} {s.unit}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            <div className="text-xs text-muted-foreground">قم بإعادة تعبئة المواد الناقصة من تبويب «المواد الخام» أو من خلال أمر شراء، ثم أعد محاولة الاعتماد.</div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setFailureDetails(null)}>إغلاق</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* INVOICE DETAILS DIALOG */}
       <Dialog open={!!selectedInvoice} onOpenChange={(o) => !o && setSelectedInvoice(null)}>
         <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
