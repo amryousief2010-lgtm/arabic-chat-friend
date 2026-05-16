@@ -98,10 +98,13 @@ export default function FeedDashboard() {
               <p className="text-muted-foreground mt-1">ملخص الإنتاج والخامات والجودة والتكلفة</p>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button variant="outline" size="sm" onClick={fetchAll} disabled={loading}>
               <RefreshCw className={`w-4 h-4 ml-2 ${loading ? "animate-spin" : ""}`} />تحديث
             </Button>
+            <Link to="/modules/feed-factory/orders"><Button size="sm" variant="outline">الأوامر</Button></Link>
+            <Link to="/modules/feed-factory/issues"><Button size="sm" variant="outline">الصرف</Button></Link>
+            <Link to="/modules/feed-factory/recipes"><Button size="sm" variant="outline">الوصفات</Button></Link>
             <Link to="/modules/feed-factory">
               <Button size="sm"><ArrowLeft className="w-4 h-4 ml-2" />إدارة المصنع</Button>
             </Link>
