@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Upload, FileSpreadsheet, Download, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { validateBarcode } from "@/lib/printProductLabel";
+import { safeParseExcel, SafeExcelError, MAX_EXCEL_FILE_BYTES } from "@/lib/safeExcel";
 
 interface Product {
   id: string;
@@ -48,10 +49,17 @@ const BarcodeImportDialog = ({ open, onOpenChange, products, onDone }: Props) =>
 
   const handleFile = async (file: File) => {
     try {
-      const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf, { type: "array" });
-      const sheet = wb.Sheets[wb.SheetNames[0]];
-      const json: Record<string, any>[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+      let json: Record<string, any>[];
+      try {
+        const parsed = await safeParseExcel(file);
+        json = parsed.rows;
+      } catch (e) {
+        if (e instanceof SafeExcelError) {
+          toast.error(e.message);
+          return;
+        }
+        throw e;
+      }
       if (!json.length) {
         toast.error("الملف فارغ");
         return;

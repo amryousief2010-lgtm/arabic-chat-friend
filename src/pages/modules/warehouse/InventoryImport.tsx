@@ -14,6 +14,7 @@ import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { safeParseExcel, SafeExcelError } from "@/lib/safeExcel";
 
 type Mode = "items" | "movements";
 interface ParsedRow { row: number; data: any; errors: string[]; }
@@ -72,10 +73,18 @@ const InventoryImport = () => {
 
   const handleFile = async (file: File) => {
     setFileName(file.name);
-    const buf = await file.arrayBuffer();
-    const wb = XLSX.read(buf, { type: "array" });
-    const sheet = wb.Sheets[wb.SheetNames[0]];
-    const rows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+    let rows: any[];
+    try {
+      const parsed = await safeParseExcel(file);
+      rows = parsed.rows;
+    } catch (e) {
+      if (e instanceof SafeExcelError) {
+        toast({ title: "تعذر قراءة الملف", description: e.message, variant: "destructive" });
+        setParsed([]);
+        return;
+      }
+      throw e;
+    }
     const validator = mode === "items" ? validateItem : validateMovement;
     const result: ParsedRow[] = rows.map((data, idx) => ({
       row: idx + 2,
