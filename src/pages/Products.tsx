@@ -633,27 +633,46 @@ const Products = () => {
                           : "متوفر"}
                       </Badge>
                     </TableCell>
-                    {canManageProducts && (
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleOpenDialog(product)}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => handleDelete(product.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    )}
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          disabled={!product.barcode}
+                          title={product.barcode ? "طباعة ملصق المنتج" : "أضف الباركود أولاً"}
+                          onClick={() =>
+                            product.barcode &&
+                            printProductLabel({
+                              name: product.name,
+                              barcode: product.barcode,
+                              unit: product.unit,
+                              price: canViewFinancials ? product.price : null,
+                            })
+                          }
+                        >
+                          <Printer className="w-4 h-4" />
+                        </Button>
+                        {canManageProducts && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleOpenDialog(product)}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => handleDelete(product.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
