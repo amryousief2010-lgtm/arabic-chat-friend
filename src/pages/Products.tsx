@@ -680,6 +680,13 @@ const Products = () => {
           )}
         </CardContent>
       </Card>
+
+      <BarcodeImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        products={products as any}
+        onDone={() => queryClient.invalidateQueries({ queryKey: ["products"] })}
+      />
     </DashboardLayout>
   );
 };
