@@ -109,9 +109,6 @@ const Products = () => {
       });
       return;
     }
-    if (invalid > 0) {
-      sonnerToast.warning(`تم تخطّي ${invalid} منتج بدون باركود صالح`);
-    }
     printProductLabels(
       valid.map((p) => ({
         name: p.name,
@@ -119,6 +116,9 @@ const Products = () => {
         unit: p.unit,
         price: canViewFinancials ? p.price : null,
       }))
+    );
+    sonnerToast.success(
+      `تم طباعة ${valid.length} ملصق — تم تخطّي ${invalid} منتج بدون باركود صالح`
     );
   };
 
