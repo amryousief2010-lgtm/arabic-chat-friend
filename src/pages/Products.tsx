@@ -248,6 +248,7 @@ const Products = () => {
         stock: parseInt(formData.stock) || 0,
         unit: formData.unit,
         image_url: formData.image_url || null,
+        barcode: formData.barcode?.trim() || null,
       };
       // Only include price if user can edit it
       if (canEditPrice) {
