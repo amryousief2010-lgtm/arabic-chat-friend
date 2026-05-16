@@ -72,7 +72,7 @@ const Slaughterhouse = () => {
 
   const fetchAll = async () => {
     setLoading(true);
-    const [r, b, y, o, w, q, br, bd, tr] = await Promise.all([
+    const [r, b, y, o, w, q, br, bd, tr, st, au, pr] = await Promise.all([
       supabase.from("slaughter_live_receipts" as any).select("*").order("receipt_date", { ascending: false }).limit(500),
       supabase.from("slaughter_batches" as any).select("*").order("slaughter_date", { ascending: false }).limit(500),
       supabase.from("slaughter_yield_standards" as any).select("*").order("display_order"),
@@ -82,6 +82,9 @@ const Slaughterhouse = () => {
       supabase.from("branches" as any).select("*").order("name_ar"),
       supabase.from("slaughter_live_birds" as any).select("*").order("bird_index"),
       supabase.from("slaughter_branch_transfers" as any).select("*").order("transferred_at", { ascending: false }).limit(1000),
+      supabase.from("slaughter_settings" as any).select("*").limit(1).maybeSingle(),
+      supabase.from("slaughter_audit_log" as any).select("*").order("performed_at", { ascending: false }).limit(500),
+      supabase.from("profiles" as any).select("id, full_name").limit(1000),
     ]);
     setReceipts((r.data as any) || []);
     setBatches((b.data as any) || []);
@@ -92,6 +95,11 @@ const Slaughterhouse = () => {
     setBranches((br.data as any) || []);
     setBirds((bd.data as any) || []);
     setTransfers((tr.data as any) || []);
+    setSettings((st.data as any) || null);
+    setAudit((au.data as any) || []);
+    const pm: Record<string, string> = {};
+    ((pr.data as any) || []).forEach((p: any) => { pm[p.id] = p.full_name; });
+    setProfiles(pm);
     setLoading(false);
   };
 
