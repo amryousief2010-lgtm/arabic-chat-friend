@@ -48,6 +48,9 @@ const Slaughterhouse = () => {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [birds, setBirds] = useState<LiveBird[]>([]);
   const [transfers, setTransfers] = useState<Transfer[]>([]);
+  const [settings, setSettings] = useState<Settings | null>(null);
+  const [audit, setAudit] = useState<AuditEntry[]>([]);
+  const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
   // Dialogs
