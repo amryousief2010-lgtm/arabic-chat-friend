@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import ProductsAnalytics from "@/components/dashboard/ProductsAnalytics";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,7 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Edit, Trash2, Package, Minus } from "lucide-react";
+import { Plus, Edit, Trash2, Package, Minus, Printer, ScanLine, Upload, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -39,6 +39,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { printProductLabel } from "@/lib/printProductLabel";
+import BarcodeImportDialog from "@/components/products/BarcodeImportDialog";
+
 
 const categories = ["لحوم طازجة", "لحوم مصنعة", "منتجات أخرى"];
 
