@@ -719,17 +719,9 @@ const Products = () => {
                         <Button
                           variant="ghost"
                           size="icon"
-                          disabled={!product.barcode}
-                          title={product.barcode ? "طباعة ملصق المنتج" : "أضف الباركود أولاً"}
-                          onClick={() =>
-                            product.barcode &&
-                            printProductLabel({
-                              name: product.name,
-                              barcode: product.barcode,
-                              unit: product.unit,
-                              price: canViewFinancials ? product.price : null,
-                            })
-                          }
+                          title="طباعة ملصق المنتج"
+                          onClick={() => handlePrintSingle(product)}
+                          className={!product.barcode ? "text-muted-foreground" : ""}
                         >
                           <Printer className="w-4 h-4" />
                         </Button>
