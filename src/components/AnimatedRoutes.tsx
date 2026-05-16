@@ -227,6 +227,11 @@ const AnimatedRoutes = () => {
             <PageTransition><FeedFactory /></PageTransition>
           </ProtectedRoute>
         } />
+        <Route path="/modules/feed-factory/dashboard" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'feed_factory_manager', 'production_manager', 'quality_manager']}>
+            <PageTransition><FeedDashboard /></PageTransition>
+          </ProtectedRoute>
+        } />
         <Route path="/modules/hr" element={
           <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'hr_manager']}>
             <PageTransition><HumanResources /></PageTransition>
