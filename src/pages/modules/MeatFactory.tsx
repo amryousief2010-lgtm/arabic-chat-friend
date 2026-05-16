@@ -55,6 +55,9 @@ const MeatFactory = () => {
   const [batches, setBatches] = useState<Batch[]>([]);
   const [consumption, setConsumption] = useState<Consumption[]>([]);
   const [qualityLogs, setQualityLogs] = useState<QualityLog[]>([]);
+  const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
+  const [profilesMap, setProfilesMap] = useState<Record<string, string>>({});
+  const [failureDetails, setFailureDetails] = useState<{ batch?: Batch; shortages: any[] } | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [productSearch, setProductSearch] = useState("");
