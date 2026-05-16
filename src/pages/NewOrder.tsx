@@ -1307,7 +1307,7 @@ const NewOrder = () => {
 
                     {/* Extra charge */}
                     <div className="space-y-2 rounded-lg border border-dashed border-amber-300 dark:border-amber-800 bg-amber-50/40 dark:bg-amber-950/20 p-3">
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-3">
                         <div className="space-y-2">
                           <Label>سعر إضافي</Label>
                           <Input
@@ -1317,14 +1317,17 @@ const NewOrder = () => {
                             placeholder="0"
                             value={extraCharge}
                             onChange={(e) => setExtraCharge(Number(e.target.value))}
+                            className="w-full text-base h-11"
                           />
                         </div>
                         <div className="space-y-2">
                           <Label>سبب السعر الإضافي</Label>
-                          <Input
+                          <Textarea
                             placeholder="مثال: تشفيه الدبوس"
                             value={extraChargeReason}
                             onChange={(e) => setExtraChargeReason(e.target.value)}
+                            rows={3}
+                            className="w-full text-base"
                           />
                         </div>
                       </div>
