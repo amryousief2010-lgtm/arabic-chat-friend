@@ -503,9 +503,10 @@ const MeatFactory = () => {
         </div>
 
         <Tabs defaultValue="batches" className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="batches"><Factory className="w-4 h-4 ml-1" />الدفعات</TabsTrigger>
             <TabsTrigger value="consumption"><History className="w-4 h-4 ml-1" />الاستهلاك</TabsTrigger>
+            <TabsTrigger value="audit"><ClipboardList className="w-4 h-4 ml-1" />سجل الاعتمادات</TabsTrigger>
             <TabsTrigger value="products"><Package className="w-4 h-4 ml-1" />المنتجات</TabsTrigger>
             <TabsTrigger value="materials"><Boxes className="w-4 h-4 ml-1" />المواد الخام</TabsTrigger>
             <TabsTrigger value="invoices"><ClipboardList className="w-4 h-4 ml-1" />الفواتير</TabsTrigger>
