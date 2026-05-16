@@ -259,14 +259,16 @@ const Slaughterhouse = () => {
       </div>
 
       <Tabs defaultValue="daily" dir="rtl">
-        <TabsList className="grid grid-cols-4 md:grid-cols-7 w-full">
-          <TabsTrigger value="daily">تفريغة اليوم</TabsTrigger>
+        <TabsList className="grid grid-cols-3 md:grid-cols-9 w-full">
+          <TabsTrigger value="daily">التقرير اليومي</TabsTrigger>
           <TabsTrigger value="batches">دفعات الذبح</TabsTrigger>
           <TabsTrigger value="receipts">استلام حي</TabsTrigger>
           <TabsTrigger value="transfers">توزيع الفروع</TabsTrigger>
           <TabsTrigger value="yields">المعيار القياسي</TabsTrigger>
           <TabsTrigger value="workers">العمال</TabsTrigger>
           <TabsTrigger value="quality">الجودة</TabsTrigger>
+          <TabsTrigger value="audit"><History className="w-3 h-3 ml-1" />التدقيق</TabsTrigger>
+          <TabsTrigger value="settings"><SettingsIcon className="w-3 h-3 ml-1" />الإعدادات</TabsTrigger>
         </TabsList>
 
         {/* ========== DAILY REPORT (Excel-style) ========== */}
