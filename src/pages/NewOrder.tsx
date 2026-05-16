@@ -1303,7 +1303,35 @@ const NewOrder = () => {
                           value={discount}
                           onChange={(e) => setDiscount(Number(e.target.value))}
                         />
+                    </div>
+
+                    {/* Extra charge */}
+                    <div className="space-y-2 rounded-lg border border-dashed border-amber-300 dark:border-amber-800 bg-amber-50/40 dark:bg-amber-950/20 p-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label>سعر إضافي</Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            placeholder="0"
+                            value={extraCharge}
+                            onChange={(e) => setExtraCharge(Number(e.target.value))}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>سبب السعر الإضافي</Label>
+                          <Input
+                            placeholder="مثال: تشفيه الدبوس"
+                            value={extraChargeReason}
+                            onChange={(e) => setExtraChargeReason(e.target.value)}
+                          />
+                        </div>
                       </div>
+                      <p className="text-xs text-muted-foreground">
+                        يُضاف هذا المبلغ إلى إجمالي الطلب مع توضيح السبب.
+                      </p>
+                    </div>
                     </div>
 
                     {/* Source */}
