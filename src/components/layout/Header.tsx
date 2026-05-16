@@ -92,14 +92,20 @@ const Header = ({ title, subtitle }: HeaderProps) => {
         <Button
           variant="outline"
           size="icon"
-          className="relative"
+          className={`relative ${flash || urgentUnreadCount > 0 ? 'ring-2 ring-destructive animate-pulse' : ''}`}
           onClick={() => navigate('/notifications')}
           aria-label="الإشعارات"
-          title="الإشعارات"
+          title={urgentUnreadCount > 0 ? `${urgentUnreadCount} إشعار عاجل` : 'الإشعارات'}
         >
-          <Bell className="w-5 h-5" />
+          <Bell className={`w-5 h-5 ${flash ? 'text-destructive' : ''}`} />
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -left-1 min-w-4 h-4 px-1 bg-secondary text-secondary-foreground text-xs rounded-full flex items-center justify-center">
+            <span
+              className={`absolute -top-1 -left-1 min-w-4 h-4 px-1 text-xs rounded-full flex items-center justify-center ${
+                urgentUnreadCount > 0
+                  ? 'bg-destructive text-destructive-foreground animate-pulse'
+                  : 'bg-secondary text-secondary-foreground'
+              }`}
+            >
               {unreadCount > 99 ? '99+' : unreadCount}
             </span>
           )}
