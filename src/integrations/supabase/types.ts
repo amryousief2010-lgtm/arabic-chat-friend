@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      branches: {
+        Row: {
+          address: string | null
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          manager_id: string | null
+          name_ar: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          manager_id?: string | null
+          name_ar: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          manager_id?: string | null
+          name_ar?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       catering_customers: {
         Row: {
           address: string | null
@@ -2590,6 +2626,7 @@ export type Database = {
           actual_weight_kg: number
           barcode: string | null
           batch_id: string
+          branch_id: string | null
           created_at: string
           cut_name_ar: string
           destination: string
@@ -2601,6 +2638,7 @@ export type Database = {
           standard_weight_kg: number
           total_cost: number | null
           unit_cost: number
+          unit_price: number
           variance_kg: number | null
           variance_pct: number | null
           yield_standard_id: string | null
@@ -2609,6 +2647,7 @@ export type Database = {
           actual_weight_kg?: number
           barcode?: string | null
           batch_id: string
+          branch_id?: string | null
           created_at?: string
           cut_name_ar: string
           destination?: string
@@ -2620,6 +2659,7 @@ export type Database = {
           standard_weight_kg?: number
           total_cost?: number | null
           unit_cost?: number
+          unit_price?: number
           variance_kg?: number | null
           variance_pct?: number | null
           yield_standard_id?: string | null
@@ -2628,6 +2668,7 @@ export type Database = {
           actual_weight_kg?: number
           barcode?: string | null
           batch_id?: string
+          branch_id?: string | null
           created_at?: string
           cut_name_ar?: string
           destination?: string
@@ -2639,6 +2680,7 @@ export type Database = {
           standard_weight_kg?: number
           total_cost?: number | null
           unit_cost?: number
+          unit_price?: number
           variance_kg?: number | null
           variance_pct?: number | null
           yield_standard_id?: string | null
@@ -2649,6 +2691,13 @@ export type Database = {
             columns: ["batch_id"]
             isOneToOne: false
             referencedRelation: "slaughter_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slaughter_batch_outputs_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
             referencedColumns: ["id"]
           },
           {
@@ -2731,6 +2780,123 @@ export type Database = {
           {
             foreignKeyName: "slaughter_batches_live_receipt_id_fkey"
             columns: ["live_receipt_id"]
+            isOneToOne: false
+            referencedRelation: "slaughter_live_receipts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      slaughter_branch_transfers: {
+        Row: {
+          batch_id: string
+          branch_id: string
+          created_at: string
+          cut_name_ar: string
+          id: string
+          notes: string | null
+          output_id: string | null
+          received_by: string | null
+          status: string
+          total_value: number | null
+          transferred_at: string
+          unit_price: number
+          weight_kg: number
+        }
+        Insert: {
+          batch_id: string
+          branch_id: string
+          created_at?: string
+          cut_name_ar: string
+          id?: string
+          notes?: string | null
+          output_id?: string | null
+          received_by?: string | null
+          status?: string
+          total_value?: number | null
+          transferred_at?: string
+          unit_price?: number
+          weight_kg?: number
+        }
+        Update: {
+          batch_id?: string
+          branch_id?: string
+          created_at?: string
+          cut_name_ar?: string
+          id?: string
+          notes?: string | null
+          output_id?: string | null
+          received_by?: string | null
+          status?: string
+          total_value?: number | null
+          transferred_at?: string
+          unit_price?: number
+          weight_kg?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slaughter_branch_transfers_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "slaughter_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slaughter_branch_transfers_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slaughter_branch_transfers_output_id_fkey"
+            columns: ["output_id"]
+            isOneToOne: false
+            referencedRelation: "slaughter_batch_outputs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      slaughter_live_birds: {
+        Row: {
+          bird_index: number
+          created_at: string
+          feed_cost: number
+          id: string
+          live_weight_kg: number
+          notes: string | null
+          purchase_cost: number
+          purchase_time: string | null
+          receipt_id: string
+          slaughter_weight_kg: number
+        }
+        Insert: {
+          bird_index: number
+          created_at?: string
+          feed_cost?: number
+          id?: string
+          live_weight_kg?: number
+          notes?: string | null
+          purchase_cost?: number
+          purchase_time?: string | null
+          receipt_id: string
+          slaughter_weight_kg?: number
+        }
+        Update: {
+          bird_index?: number
+          created_at?: string
+          feed_cost?: number
+          id?: string
+          live_weight_kg?: number
+          notes?: string | null
+          purchase_cost?: number
+          purchase_time?: string | null
+          receipt_id?: string
+          slaughter_weight_kg?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slaughter_live_birds_receipt_id_fkey"
+            columns: ["receipt_id"]
             isOneToOne: false
             referencedRelation: "slaughter_live_receipts"
             referencedColumns: ["id"]
@@ -3226,6 +3392,7 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      finalize_slaughter_batch: { Args: { p_batch_id: string }; Returns: Json }
       generate_order_number: { Args: never; Returns: string }
       get_dashboard_overview: { Args: never; Returns: Json }
       get_production_dashboard: {
@@ -3271,6 +3438,7 @@ export type Database = {
           read_ct: number
         }[]
       }
+      slaughter_daily_summary: { Args: { p_date: string }; Returns: Json }
     }
     Enums: {
       app_role:
