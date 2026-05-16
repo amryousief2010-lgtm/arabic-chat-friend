@@ -70,6 +70,7 @@ const Products = () => {
     stock: "",
     unit: "كيلو",
     image_url: "",
+    barcode: "",
   });
 
   // Permission checks
