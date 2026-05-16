@@ -28,6 +28,7 @@ type Consumption = { id: string; batch_id: string; material_code: string | null;
 type QualityLog = { id: string; batch_id: string; from_status: string | null; to_status: string; actual_qty: number | null; notes: string | null; changed_at: string; };
 type PreviewItem = { material_code: string; material_name_ar: string; required_qty: number; unit: string; stock: number; shortage: number; unit_cost: number; line_total: number; sufficient: boolean; };
 type PreviewData = { scale: number; materials_cost: number; items: PreviewItem[]; shortages: any[]; can_approve: boolean; };
+type AuditEntry = { id: string; batch_id: string; batch_number: string | null; product_name_ar: string | null; planned_qty: number | null; scale: number | null; attempted_by: string | null; attempted_at: string; outcome: string; error_message: string | null; materials_cost: number | null; shortages: any; impact: any; };
 
 const fmt = (v: number | null | undefined, digits = 2) =>
   v == null ? "—" : Number(v).toLocaleString("ar-EG", { minimumFractionDigits: digits, maximumFractionDigits: digits });
