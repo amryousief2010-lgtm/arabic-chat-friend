@@ -1399,6 +1399,12 @@ const NewOrder = () => {
                           <span>- {discount.toLocaleString()} ج.م</span>
                         </div>
                       )}
+                      {Number(extraCharge) > 0 && (
+                        <div className="flex justify-between text-sm text-amber-700 dark:text-amber-400">
+                          <span>سعر إضافي{extraChargeReason ? ` (${extraChargeReason})` : ''}</span>
+                          <span>+ {Number(extraCharge).toLocaleString()} ج.م</span>
+                        </div>
+                      )}
                       <div className="flex justify-between font-bold text-lg border-t pt-2">
                         <span>الإجمالي</span>
                         <span className="text-primary">{total.toLocaleString()} ج.م</span>
