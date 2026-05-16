@@ -14,6 +14,7 @@ import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { safeParseExcel, SafeExcelError } from "@/lib/safeExcel";
 
 type Mode = "items" | "movements";
 interface ParsedRow { row: number; data: any; errors: string[]; }
