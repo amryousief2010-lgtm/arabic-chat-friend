@@ -113,7 +113,13 @@ const ImportSalesData = () => {
     try {
       const response = await fetch('/data/sales-2025-full.xlsx');
       const arrayBuffer = await response.arrayBuffer();
-      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+      const workbook = XLSX.read(arrayBuffer, {
+        type: 'array',
+        cellFormula: false,
+        cellHTML: false,
+        cellStyles: false,
+        bookVBA: false,
+      });
 
       // Find the sheet with raw order data (the one with most rows, typically named with order data)
       let bestSheet: any = null;
