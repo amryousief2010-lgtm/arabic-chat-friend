@@ -181,7 +181,27 @@ const Slaughterhouse = () => {
     const { data, error } = await supabase.rpc("finalize_slaughter_batch" as any, { p_batch_id: batch.id });
     if (error) { toast.error(error.message); return; }
     const d: any = data;
-    toast.success(`اكتملت الدفعة — ${Number(d?.total_meat_kg || 0).toFixed(1)} كجم — تكلفة ${Number(d?.cost_per_kg_meat || 0).toFixed(0)} ر.س/كجم — ${d?.transfers_created || 0} تحويل للفروع`);
+    const yieldPct = Number(d?.actual_yield_pct || 0);
+    const low = Number(settings?.low_yield_threshold ?? 40);
+    const warn = Number(settings?.warning_yield_threshold ?? 45);
+    if (yieldPct > 0 && yieldPct < low) {
+      toast.error(`⚠️ تصافي منخفض ${yieldPct.toFixed(1)}% (أقل من الحد ${low}%)`, { duration: 8000 });
+    } else if (yieldPct > 0 && yieldPct < warn) {
+      toast.warning(`⚠️ التصافي ${yieldPct.toFixed(1)}% قريب من الحد الأدنى ${low}%`, { duration: 6000 });
+    } else {
+      toast.success(`اكتملت الدفعة — ${Number(d?.total_meat_kg || 0).toFixed(1)} كجم — تصافي ${yieldPct.toFixed(1)}% — ${d?.transfers_created || 0} تحويل`);
+    }
+    fetchAll();
+  };
+
+  const saveSettings = async (next: Partial<Settings>) => {
+    if (!settings) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase.from("slaughter_settings" as any)
+      .update({ ...next, updated_by: user?.id })
+      .eq("id", settings.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("تم حفظ الإعدادات");
     fetchAll();
   };
 
