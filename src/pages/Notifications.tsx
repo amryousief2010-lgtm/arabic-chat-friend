@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -6,7 +6,9 @@ import Header from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Check, CheckCheck, Trash2, Package, RefreshCw, ExternalLink } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Bell, Check, CheckCheck, Trash2, Package, RefreshCw, ExternalLink, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -21,6 +23,13 @@ interface Notification {
   order_id: string | null;
   created_at: string;
 }
+
+// System-generated types that are informational only — anything else attached
+// to an order is treated as a manual note that requires an immediate reply.
+const INFORMATIONAL_TYPES = new Set(["low_stock", "production_needed"]);
+
+export const requiresImmediateReply = (n: Pick<Notification, "type" | "order_id">) =>
+  !!n.order_id && !INFORMATIONAL_TYPES.has(n.type);
 
 const Notifications = () => {
   const { toast } = useToast();
