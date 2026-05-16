@@ -393,6 +393,22 @@ const Products = () => {
                         className="input-modern"
                       />
                     </div>
+                    <div className="space-y-2">
+                      <Label>الباركود الرسمي (GS1)</Label>
+                      <Input
+                        value={formData.barcode}
+                        onChange={(e) =>
+                          setFormData({ ...formData, barcode: e.target.value })
+                        }
+                        placeholder="6224003208XXX"
+                        className="input-modern font-mono ltr"
+                        dir="ltr"
+                        inputMode="numeric"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        الكود المعتمد المطبوع على استيكر المنتج
+                      </p>
+                    </div>
                     <Button onClick={handleSubmit} className="w-full btn-primary">
                       {editingProduct ? "حفظ التعديلات" : "إضافة المنتج"}
                     </Button>
