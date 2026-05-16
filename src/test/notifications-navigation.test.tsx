@@ -106,12 +106,16 @@ describe("Notifications → /orders/:id integration", () => {
     fakeNotifications.forEach((n) => (n.is_read = false));
   });
 
-  it("clicking a notification navigates to /orders/:id with the matching note shown ONLY for that order", async () => {
+  it("clicking an urgent notification confirms then navigates to /orders/:id with the matching note shown ONLY for that order", async () => {
     renderApp();
 
     // Wait for the urgent notification to render.
     const item = await screen.findByText("ملاحظة من آية");
     fireEvent.click(item);
+
+    // A confirmation dialog appears first for urgent unread notifications.
+    const confirmBtn = await screen.findByRole("button", { name: "نعم، انتقل" });
+    fireEvent.click(confirmBtn);
 
     // Navigated to the right order detail.
     await waitFor(() => {
