@@ -644,6 +644,66 @@ const MeatFactory = () => {
             </Card>
           </TabsContent>
 
+          {/* AUDIT */}
+          <TabsContent value="audit">
+            <Card>
+              <CardHeader><CardTitle className="text-base flex items-center gap-2"><ClipboardList className="w-4 h-4" />سجل تدقيق اعتماد الدفعات ({auditLog.length})</CardTitle></CardHeader>
+              <CardContent className="overflow-x-auto">
+                <Table>
+                  <TableHeader><TableRow>
+                    <TableHead>الوقت</TableHead><TableHead>الدفعة</TableHead><TableHead>المنتج</TableHead>
+                    <TableHead>الكمية</TableHead><TableHead>المستخدم</TableHead><TableHead>النتيجة</TableHead>
+                    <TableHead>تكلفة المواد</TableHead><TableHead>أثر المخزون / السبب</TableHead>
+                  </TableRow></TableHeader>
+                  <TableBody>
+                    {auditLog.map(a => {
+                      const ok = a.outcome === "success";
+                      const impactArr = Array.isArray(a.impact) ? a.impact : [];
+                      const shortArr = Array.isArray(a.shortages) ? a.shortages : [];
+                      return (
+                        <TableRow key={a.id} className={ok ? "" : "bg-red-500/5"}>
+                          <TableCell className="text-xs whitespace-nowrap">{new Date(a.attempted_at).toLocaleString("ar-EG")}</TableCell>
+                          <TableCell className="font-mono text-xs">{a.batch_number}</TableCell>
+                          <TableCell className="text-sm">{a.product_name_ar}</TableCell>
+                          <TableCell>{fmt(a.planned_qty, 1)}</TableCell>
+                          <TableCell className="text-xs">{a.attempted_by ? (profilesMap[a.attempted_by] || a.attempted_by.slice(0, 8)) : "—"}</TableCell>
+                          <TableCell>
+                            {ok ? <Badge className="bg-green-500/10 text-green-700 border-green-300">نجح</Badge>
+                              : <Badge className="bg-red-500/10 text-red-700 border-red-300">{a.outcome === 'insufficient_stock' ? 'مخزون ناقص' : 'فشل'}</Badge>}
+                          </TableCell>
+                          <TableCell>{a.materials_cost != null ? `${fmt(a.materials_cost, 0)} ج` : "—"}</TableCell>
+                          <TableCell className="text-xs max-w-md">
+                            {ok && impactArr.length > 0 && (
+                              <div className="space-y-0.5">
+                                {impactArr.slice(0, 3).map((it: any, idx: number) => (
+                                  <div key={idx}>
+                                    <span className="font-medium">{it.material_name_ar}</span>: {fmt(it.stock_before, 2)} → <span className="text-orange-600">{fmt(it.stock_after, 2)}</span> (خصم {fmt(it.required, 3)} {it.unit})
+                                  </div>
+                                ))}
+                                {impactArr.length > 3 && <div className="text-muted-foreground">+ {impactArr.length - 3} مادة أخرى…</div>}
+                              </div>
+                            )}
+                            {!ok && shortArr.length > 0 && (
+                              <div className="space-y-0.5">
+                                {shortArr.map((s: any, idx: number) => (
+                                  <div key={idx} className="text-red-700">
+                                    <span className="font-medium">{s.material_name_ar}</span>: عجز <strong>{fmt(s.short_by, 3)}</strong> {s.unit} (مطلوب {fmt(s.required, 3)}، متاح {fmt(s.available, 2)})
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {!ok && shortArr.length === 0 && (a.error_message || "—")}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {!auditLog.length && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-6">لا توجد عمليات اعتماد بعد.</TableCell></TableRow>}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* PRODUCTS */}
           <TabsContent value="products">
             <Card>
