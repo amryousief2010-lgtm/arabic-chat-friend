@@ -51,6 +51,7 @@ interface Product {
   unit: string;
   image_url: string | null;
   is_active: boolean;
+  barcode: string | null;
 }
 
 const Products = () => {
@@ -69,6 +70,7 @@ const Products = () => {
     stock: "",
     unit: "كيلو",
     image_url: "",
+    barcode: "",
   });
 
   // Permission checks
@@ -134,6 +136,7 @@ const Products = () => {
         stock: product.stock.toString(),
         unit: product.unit,
         image_url: product.image_url || "",
+        barcode: product.barcode || "",
       });
     } else {
       setEditingProduct(null);
@@ -144,6 +147,7 @@ const Products = () => {
         stock: "",
         unit: "كيلو",
         image_url: "",
+        barcode: "",
       });
     }
     setIsDialogOpen(true);
@@ -159,6 +163,7 @@ const Products = () => {
         stock: parseInt(data.stock) || 0,
         unit: data.unit,
         image_url: data.image_url || null,
+        barcode: data.barcode?.trim() || null,
       });
       if (error) throw error;
     },
@@ -243,6 +248,7 @@ const Products = () => {
         stock: parseInt(formData.stock) || 0,
         unit: formData.unit,
         image_url: formData.image_url || null,
+        barcode: formData.barcode?.trim() || null,
       };
       // Only include price if user can edit it
       if (canEditPrice) {
@@ -387,6 +393,22 @@ const Products = () => {
                         className="input-modern"
                       />
                     </div>
+                    <div className="space-y-2">
+                      <Label>الباركود الرسمي (GS1)</Label>
+                      <Input
+                        value={formData.barcode}
+                        onChange={(e) =>
+                          setFormData({ ...formData, barcode: e.target.value })
+                        }
+                        placeholder="6224003208XXX"
+                        className="input-modern font-mono ltr"
+                        dir="ltr"
+                        inputMode="numeric"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        الكود المعتمد المطبوع على استيكر المنتج
+                      </p>
+                    </div>
                     <Button onClick={handleSubmit} className="w-full btn-primary">
                       {editingProduct ? "حفظ التعديلات" : "إضافة المنتج"}
                     </Button>
@@ -404,6 +426,7 @@ const Products = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead className="text-right">المنتج</TableHead>
+                  <TableHead className="text-right">الباركود</TableHead>
                   <TableHead className="text-right">التصنيف</TableHead>
                   {canViewFinancials && <TableHead className="text-right">السعر</TableHead>}
                   <TableHead className="text-right">المخزون</TableHead>
@@ -425,6 +448,13 @@ const Products = () => {
                         )}
                         <span className="font-medium">{product.name}</span>
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      {product.barcode ? (
+                        <span className="font-mono text-xs" dir="ltr">{product.barcode}</span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">{product.category}</Badge>
