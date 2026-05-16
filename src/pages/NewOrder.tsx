@@ -610,6 +610,8 @@ const NewOrder = () => {
           moderator: moderatorName,
           source: (source === 'أخرى' ? sourceCustom.trim() : source) || null,
           shipping_company: (shippingCompany === 'أخرى' ? shippingCustom.trim() : shippingCompany) || null,
+          extra_charge: Number(extraCharge) || 0,
+          extra_charge_reason: extraChargeReason.trim() || null,
         })
         .select()
         .single();
