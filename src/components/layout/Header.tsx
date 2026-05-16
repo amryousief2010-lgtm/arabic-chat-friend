@@ -42,7 +42,15 @@ const roleBadgeVariants: Record<string, 'default' | 'secondary' | 'outline' | 'd
 const Header = ({ title, subtitle }: HeaderProps) => {
   const { user, role, signOut } = useAuth();
   const navigate = useNavigate();
-  const { unreadCount } = useUnreadNotifications();
+  const { unreadCount, urgentUnreadCount, lastUrgentAt } = useUnreadNotifications();
+  const [flash, setFlash] = useState(false);
+
+  useEffect(() => {
+    if (!lastUrgentAt) return;
+    setFlash(true);
+    const t = setTimeout(() => setFlash(false), 4000);
+    return () => clearTimeout(t);
+  }, [lastUrgentAt]);
 
   const getUserInitial = () => {
     if (user?.user_metadata?.full_name) {
