@@ -305,6 +305,43 @@ const Notifications = () => {
           </CardContent>
         </Card>
       </div>
+
+      <AlertDialog
+        open={!!pendingUrgent}
+        onOpenChange={(open) => { if (!open) setPendingUrgent(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-destructive" />
+              تأكيد الانتقال لإشعار عاجل
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <span className="block font-medium text-foreground">
+                {pendingUrgent?.title}
+              </span>
+              <span className="block">{pendingUrgent?.description}</span>
+              <span className="block text-xs">
+                هل تريد الانتقال إلى تفاصيل هذا الطلب الآن وتحديد الإشعار كمقروء؟
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (!pendingUrgent) return;
+                const n = pendingUrgent;
+                if (!n.is_read) markAsReadMutation.mutate(n.id);
+                setPendingUrgent(null);
+                navigate(`/orders/${n.order_id}`);
+              }}
+            >
+              نعم، انتقل
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 };
