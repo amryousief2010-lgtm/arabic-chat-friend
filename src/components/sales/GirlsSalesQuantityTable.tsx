@@ -113,8 +113,8 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
     queryKey: ['girls-auto-qty', selectedMonth, selectedYear],
     queryFn: async () => {
       // حدود الشهر بـ UTC لتطابق created_at المخزّن
-      const startDate = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1, 0, 0, 0)).toISOString();
-      const endDate = new Date(Date.UTC(selectedYear, selectedMonth, 0, 23, 59, 59)).toISOString();
+      const startDate = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1, 0, 0, 0, 0)).toISOString();
+      const endDate = new Date(Date.UTC(selectedYear, selectedMonth, 1, 0, 0, 0, 0)).toISOString();
 
       const empty = () => GIRLS.reduce((acc, g) => { acc[g] = 0; return acc; }, {} as Record<string, number>);
       const result = { meat: empty(), bone: empty(), processed: empty() };
@@ -128,7 +128,7 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
           .select('id, moderator, created_by')
           .eq('status', 'delivered')
           .gte('created_at', startDate)
-          .lte('created_at', endDate)
+          .lt('created_at', endDate)
           .range(offset, offset + PAGE - 1);
         if (error) throw error;
         if (!chunk || chunk.length === 0) break;

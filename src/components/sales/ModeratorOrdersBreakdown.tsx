@@ -52,14 +52,14 @@ const ModeratorOrdersBreakdown = () => {
     refetchInterval: 60000,
     queryFn: async () => {
       // حدود الشهر بـ UTC لتطابق طريقة تخزين created_at للأوردرات المستوردة
-      const startDate = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1, 0, 0, 0)).toISOString();
-      const endDate = new Date(Date.UTC(selectedYear, selectedMonth, 0, 23, 59, 59)).toISOString();
+      const startDate = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1, 0, 0, 0, 0)).toISOString();
+      const endDate = new Date(Date.UTC(selectedYear, selectedMonth, 1, 0, 0, 0, 0)).toISOString();
 
       const { data: orders, error } = await supabase
         .from('orders')
         .select('status, moderator, created_by')
         .gte('created_at', startDate)
-        .lte('created_at', endDate);
+        .lt('created_at', endDate);
       if (error) throw error;
 
       const userIds = Array.from(new Set((orders || []).map(o => o.created_by).filter(Boolean))) as string[];
