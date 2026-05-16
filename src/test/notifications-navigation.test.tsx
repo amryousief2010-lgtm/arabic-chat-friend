@@ -154,21 +154,23 @@ describe("Notifications → /orders/:id integration", () => {
   it("inline mark-as-read button flips the badge optimistically without a reload", async () => {
     renderApp();
 
-    const item = (await screen.findByText("ملاحظة من آية")).closest(
+    const initialItem = (await screen.findByText("ملاحظة من آية")).closest(
       '[data-testid="notification-item"]',
     ) as HTMLElement;
-    expect(item).toBeTruthy();
-    // Initially shows the urgent badge.
-    expect(item.textContent).toMatch(/يتطلب رد فوري/);
+    expect(initialItem).toBeTruthy();
+    expect(initialItem.textContent).toMatch(/يتطلب رد فوري/);
 
-    const btn = item.querySelector('button[title="تحديد كمقروء"]') as HTMLButtonElement;
+    const btn = initialItem.querySelector('button[title="تحديد كمقروء"]') as HTMLButtonElement;
     expect(btn).toBeTruthy();
     fireEvent.click(btn);
 
+    // Re-query after re-render — the badge should be gone.
     await waitFor(() => {
-      // Badge disappears optimistically.
-      expect(item.textContent).not.toMatch(/يتطلب رد فوري/);
-      expect(item.getAttribute("data-urgent")).toBe("false");
+      const refreshed = screen.getByText("ملاحظة من آية").closest(
+        '[data-testid="notification-item"]',
+      ) as HTMLElement;
+      expect(refreshed.getAttribute("data-urgent")).toBe("false");
+      expect(refreshed.textContent).not.toMatch(/يتطلب رد فوري/);
     });
     expect(updateEq).toHaveBeenCalledWith("id", "n1");
   });
