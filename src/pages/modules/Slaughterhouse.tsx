@@ -613,6 +613,16 @@ const Slaughterhouse = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* ========== AUDIT ========== */}
+        <TabsContent value="audit">
+          <AuditLogTab audit={audit} profiles={profiles} batches={batches} branches={branches} />
+        </TabsContent>
+
+        {/* ========== SETTINGS ========== */}
+        <TabsContent value="settings">
+          <SettingsTab settings={settings} onSave={saveSettings} />
+        </TabsContent>
       </Tabs>
     </DashboardLayout>
   );
