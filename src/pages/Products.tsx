@@ -523,7 +523,13 @@ const Products = () => {
               </TableHeader>
               <TableBody>
                 {filteredProducts.map((product) => (
-                  <TableRow key={product.id} className="table-row-hover">
+                  <TableRow
+                    key={product.id}
+                    ref={(el) => (rowRefs.current[product.id] = el)}
+                    className={`table-row-hover transition-colors ${
+                      highlightId === product.id ? "bg-primary/15 ring-2 ring-primary" : ""
+                    }`}
+                  >
                     <TableCell>
                       <div className="flex items-center gap-3">
                         {product.image_url && (
