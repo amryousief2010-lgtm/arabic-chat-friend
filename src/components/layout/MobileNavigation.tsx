@@ -56,9 +56,9 @@ const MobileNavigation = () => {
               <item.icon className={`w-5 h-5 ${isActive ? "scale-110" : ""} transition-transform`} />
               <span className="text-[10px] font-medium">{item.label}</span>
               {item.badge && item.badge > 0 && (
-                <Badge 
-                  variant="destructive" 
-                  className="absolute -top-1 -right-1 h-4 min-w-4 px-1 text-[10px]"
+                <Badge
+                  variant="destructive"
+                  className={`absolute -top-1 -right-1 h-4 min-w-4 px-1 text-[10px] ${item.urgent ? 'animate-pulse ring-2 ring-destructive/60' : ''}`}
                 >
                   {item.badge > 99 ? '99+' : item.badge}
                 </Badge>
