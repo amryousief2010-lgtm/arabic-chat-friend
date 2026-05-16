@@ -38,6 +38,9 @@ import Warehouses from "@/pages/modules/Warehouses";
 import RecipeDetail from "@/pages/modules/feed/RecipeDetail";
 import BatchTracking from "@/pages/modules/feed/BatchTracking";
 import FeedDashboard from "@/pages/modules/feed/FeedDashboard";
+import FeedRecipes from "@/pages/modules/feed/Recipes";
+import FeedOrders from "@/pages/modules/feed/Orders";
+import FeedIssues from "@/pages/modules/feed/Issues";
 import WarehouseDashboard from "@/pages/modules/warehouse/WarehouseDashboard";
 import InventoryImport from "@/pages/modules/warehouse/InventoryImport";
 import Debug from "@/pages/Debug";
@@ -230,6 +233,21 @@ const AnimatedRoutes = () => {
         <Route path="/modules/feed-factory/dashboard" element={
           <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'feed_factory_manager', 'production_manager', 'quality_manager']}>
             <PageTransition><FeedDashboard /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/modules/feed-factory/recipes" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'feed_factory_manager', 'production_manager', 'quality_manager']}>
+            <PageTransition><FeedRecipes /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/modules/feed-factory/orders" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'feed_factory_manager', 'production_manager', 'quality_manager']}>
+            <PageTransition><FeedOrders /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/modules/feed-factory/issues" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'feed_factory_manager', 'production_manager', 'quality_manager', 'warehouse_supervisor']}>
+            <PageTransition><FeedIssues /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/modules/hr" element={
