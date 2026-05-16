@@ -51,6 +51,7 @@ interface Product {
   unit: string;
   image_url: string | null;
   is_active: boolean;
+  barcode: string | null;
 }
 
 const Products = () => {
