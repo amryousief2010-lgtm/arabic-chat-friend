@@ -1687,6 +1687,50 @@ export type Database = {
         }
         Relationships: []
       }
+      meat_factory_batch_consumption: {
+        Row: {
+          batch_id: string
+          created_at: string
+          id: string
+          line_total: number
+          material_code: string
+          material_name_ar: string | null
+          quantity: number
+          unit: string
+          unit_cost: number
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          id?: string
+          line_total?: number
+          material_code: string
+          material_name_ar?: string | null
+          quantity: number
+          unit: string
+          unit_cost?: number
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          id?: string
+          line_total?: number
+          material_code?: string
+          material_name_ar?: string | null
+          quantity?: number
+          unit?: string
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meat_factory_batch_consumption_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "meat_factory_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meat_factory_batches: {
         Row: {
           actual_qty: number | null
@@ -1703,6 +1747,9 @@ export type Database = {
           product_code: string
           product_name_ar: string | null
           production_date: string
+          quality_notes: string | null
+          quality_status: string
+          source_invoice_no: number | null
           started_at: string | null
           status: string
           total_cost: number
@@ -1725,6 +1772,9 @@ export type Database = {
           product_code: string
           product_name_ar?: string | null
           production_date?: string
+          quality_notes?: string | null
+          quality_status?: string
+          source_invoice_no?: number | null
           started_at?: string | null
           status?: string
           total_cost?: number
@@ -1747,6 +1797,9 @@ export type Database = {
           product_code?: string
           product_name_ar?: string | null
           production_date?: string
+          quality_notes?: string | null
+          quality_status?: string
+          source_invoice_no?: number | null
           started_at?: string | null
           status?: string
           total_cost?: number
@@ -1887,9 +1940,11 @@ export type Database = {
           default_unit: string
           id: string
           is_active: boolean
+          low_stock_threshold: number
           material_code: string
           name_ar: string
           notes: string | null
+          stock: number
           updated_at: string
         }
         Insert: {
@@ -1899,9 +1954,11 @@ export type Database = {
           default_unit?: string
           id?: string
           is_active?: boolean
+          low_stock_threshold?: number
           material_code: string
           name_ar: string
           notes?: string | null
+          stock?: number
           updated_at?: string
         }
         Update: {
@@ -1911,9 +1968,11 @@ export type Database = {
           default_unit?: string
           id?: string
           is_active?: boolean
+          low_stock_threshold?: number
           material_code?: string
           name_ar?: string
           notes?: string | null
+          stock?: number
           updated_at?: string
         }
         Relationships: []
@@ -3051,6 +3110,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      approve_meat_factory_batch: {
+        Args: { p_batch_id: string }
+        Returns: Json
+      }
       can_add_products: { Args: { _user_id: string }; Returns: boolean }
       can_edit_product_price: { Args: { _user_id: string }; Returns: boolean }
       check_offer_expiry: { Args: never; Returns: boolean }
