@@ -88,7 +88,7 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
     if (role === 'sales_moderator' || role === 'private_delivery_rep') {
       return <Navigate to={moderatorTarget} replace />;
     }
-    return <Navigate to="/" replace />;
+    return <Navigate to="/unauthorized" state={{ from: location.pathname }} replace />;
   }
 
   return <>{children}</>;

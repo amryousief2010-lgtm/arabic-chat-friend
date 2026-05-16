@@ -266,10 +266,11 @@ const AnimatedRoutes = () => {
             <PageTransition><PrivateDeliveryPricing /></PageTransition>
           </ProtectedRoute>
         } />
+        <Route path="/unauthorized" element={
+          <PageTransition><Unauthorized /></PageTransition>
+        } />
         <Route path="*" element={
-          <ProtectedRoute>
-            <PageTransition><NotFound /></PageTransition>
-          </ProtectedRoute>
+          <PageTransition><NotFound /></PageTransition>
         } />
       </Routes>
     </AnimatePresence>
