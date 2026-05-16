@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -6,7 +6,9 @@ import Header from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Check, CheckCheck, Trash2, Package, RefreshCw, ExternalLink } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Bell, Check, CheckCheck, Trash2, Package, RefreshCw, ExternalLink, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -21,6 +23,13 @@ interface Notification {
   order_id: string | null;
   created_at: string;
 }
+
+// System-generated types that are informational only — anything else attached
+// to an order is treated as a manual note that requires an immediate reply.
+const INFORMATIONAL_TYPES = new Set(["low_stock", "production_needed"]);
+
+export const requiresImmediateReply = (n: Pick<Notification, "type" | "order_id">) =>
+  !!n.order_id && !INFORMATIONAL_TYPES.has(n.type);
 
 const Notifications = () => {
   const { toast } = useToast();
@@ -48,7 +57,19 @@ const Notifications = () => {
         .eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    // Optimistic update so the UI flips instantly without waiting for a refetch.
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: ['notifications'] });
+      const previous = queryClient.getQueryData<Notification[]>(['notifications']);
+      queryClient.setQueryData<Notification[]>(['notifications'], (old) =>
+        (old || []).map((n) => (n.id === id ? { ...n, is_read: true } : n)),
+      );
+      return { previous };
+    },
+    onError: (_err, _id, ctx) => {
+      if (ctx?.previous) queryClient.setQueryData(['notifications'], ctx.previous);
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
   });
@@ -88,20 +109,49 @@ const Notifications = () => {
   });
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
+  const urgentUnreadCount = notifications.filter(n => !n.is_read && requiresImmediateReply(n)).length;
+
+  const [showUrgentOnly, setShowUrgentOnly] = useState(false);
+  const visibleNotifications = useMemo(() => {
+    const filtered = showUrgentOnly
+      ? notifications.filter(requiresImmediateReply)
+      : notifications;
+    // Already ordered by created_at desc from the query, but re-sort defensively
+    // so the urgent filter never accidentally re-orders.
+    return [...filtered].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+  }, [notifications, showUrgentOnly]);
 
   return (
     <DashboardLayout>
       <Header title="سجل الإشعارات" subtitle="جميع الإشعارات السابقة" />
 
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-2 flex-wrap">
             <Badge variant="secondary" className="text-sm">
               {unreadCount} غير مقروء
             </Badge>
+            {urgentUnreadCount > 0 && (
+              <Badge variant="destructive" className="text-sm gap-1 animate-pulse">
+                <AlertCircle className="w-3 h-3" />
+                {urgentUnreadCount} يتطلب رداً فورياً
+              </Badge>
+            )}
             <Badge variant="outline" className="text-sm">
               {notifications.length} إجمالي
             </Badge>
+            <div className="flex items-center gap-2 pr-2 border-r border-border/50 ms-2">
+              <Switch
+                id="urgent-only"
+                checked={showUrgentOnly}
+                onCheckedChange={setShowUrgentOnly}
+              />
+              <Label htmlFor="urgent-only" className="text-xs cursor-pointer">
+                يتطلب رد فقط
+              </Label>
+            </div>
           </div>
           <div className="flex gap-2">
             <Button
@@ -139,18 +189,22 @@ const Notifications = () => {
               <div className="text-center py-8 text-muted-foreground">
                 جاري التحميل...
               </div>
-            ) : notifications.length === 0 ? (
+            ) : visibleNotifications.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Bell className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>لا توجد إشعارات</p>
+                <p>{showUrgentOnly ? 'لا توجد إشعارات تتطلب رداً فورياً' : 'لا توجد إشعارات'}</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {notifications.map((notification) => {
+                {visibleNotifications.map((notification) => {
                   const hasOrder = !!notification.order_id;
+                  const urgent = requiresImmediateReply(notification) && !notification.is_read;
                   return (
                   <div
                     key={notification.id}
+                    data-testid="notification-item"
+                    data-order-id={notification.order_id ?? ''}
+                    data-urgent={urgent ? 'true' : 'false'}
                     onClick={() => {
                       if (hasOrder) {
                         if (!notification.is_read) {
@@ -164,24 +218,28 @@ const Notifications = () => {
                     className={`p-4 rounded-lg border transition-colors ${
                       notification.is_read
                         ? 'bg-background/50 border-border/50'
-                        : 'bg-primary/5 border-primary/20'
+                        : urgent
+                          ? 'bg-destructive/5 border-destructive/40 ring-1 ring-destructive/30'
+                          : 'bg-primary/5 border-primary/20'
                     } ${hasOrder ? 'cursor-pointer hover:border-primary/50' : ''}`}
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex items-start gap-3 flex-1">
                         <div className={`p-2 rounded-full ${
-                          notification.type === 'new_order' 
-                            ? 'bg-success/10 text-success' 
-                            : 'bg-secondary/10 text-secondary'
+                          urgent
+                            ? 'bg-destructive/10 text-destructive'
+                            : notification.type === 'new_order'
+                              ? 'bg-success/10 text-success'
+                              : 'bg-secondary/10 text-secondary'
                         }`}>
-                          <Package className="w-4 h-4" />
+                          {urgent ? <AlertCircle className="w-4 h-4" /> : <Package className="w-4 h-4" />}
                         </div>
                         <div className="flex-1">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <h4 className="font-medium">{notification.title}</h4>
                             {!notification.is_read && (
-                              <Badge variant="default" className="text-xs">
-                                جديد
+                              <Badge variant={urgent ? 'destructive' : 'default'} className="text-xs">
+                                {urgent ? 'يتطلب رد فوري' : 'جديد'}
                               </Badge>
                             )}
                             {hasOrder && (
