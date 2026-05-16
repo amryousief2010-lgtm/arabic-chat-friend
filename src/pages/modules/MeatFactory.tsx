@@ -28,6 +28,7 @@ type Consumption = { id: string; batch_id: string; material_code: string | null;
 type QualityLog = { id: string; batch_id: string; from_status: string | null; to_status: string; actual_qty: number | null; notes: string | null; changed_at: string; };
 type PreviewItem = { material_code: string; material_name_ar: string; required_qty: number; unit: string; stock: number; shortage: number; unit_cost: number; line_total: number; sufficient: boolean; };
 type PreviewData = { scale: number; materials_cost: number; items: PreviewItem[]; shortages: any[]; can_approve: boolean; };
+type AuditEntry = { id: string; batch_id: string; batch_number: string | null; product_name_ar: string | null; planned_qty: number | null; scale: number | null; attempted_by: string | null; attempted_at: string; outcome: string; error_message: string | null; materials_cost: number | null; shortages: any; impact: any; };
 
 const fmt = (v: number | null | undefined, digits = 2) =>
   v == null ? "—" : Number(v).toLocaleString("ar-EG", { minimumFractionDigits: digits, maximumFractionDigits: digits });
@@ -54,6 +55,9 @@ const MeatFactory = () => {
   const [batches, setBatches] = useState<Batch[]>([]);
   const [consumption, setConsumption] = useState<Consumption[]>([]);
   const [qualityLogs, setQualityLogs] = useState<QualityLog[]>([]);
+  const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
+  const [profilesMap, setProfilesMap] = useState<Record<string, string>>({});
+  const [failureDetails, setFailureDetails] = useState<{ batch?: Batch; shortages: any[] } | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [productSearch, setProductSearch] = useState("");
@@ -85,7 +89,7 @@ const MeatFactory = () => {
 
   const fetchAll = async () => {
     setLoading(true);
-    const [p, m, i, r, b, c, q] = await Promise.all([
+    const [p, m, i, r, b, c, q, a, prof] = await Promise.all([
       supabase.from("meat_factory_products" as any).select("*").order("name_ar"),
       supabase.from("meat_factory_raw_materials" as any).select("*").order("category").order("name_ar"),
       supabase.from("meat_factory_invoices" as any).select("*").order("invoice_date", { ascending: false }),
@@ -93,6 +97,8 @@ const MeatFactory = () => {
       supabase.from("meat_factory_batches" as any).select("*").order("production_date", { ascending: false }),
       supabase.from("meat_factory_batch_consumption" as any).select("*").order("created_at", { ascending: false }),
       supabase.from("meat_factory_quality_log" as any).select("*").order("changed_at", { ascending: false }),
+      supabase.from("meat_factory_approval_audit" as any).select("*").order("attempted_at", { ascending: false }).limit(500),
+      supabase.from("profiles").select("id, full_name"),
     ]);
     setProducts((p.data as any) || []);
     setMaterials((m.data as any) || []);
@@ -101,6 +107,10 @@ const MeatFactory = () => {
     setBatches((b.data as any) || []);
     setConsumption((c.data as any) || []);
     setQualityLogs((q.data as any) || []);
+    setAuditLog((a.data as any) || []);
+    const map: Record<string, string> = {};
+    ((prof.data as any) || []).forEach((u: any) => { map[u.id] = u.full_name || ""; });
+    setProfilesMap(map);
     setLoading(false);
   };
 
@@ -420,11 +430,20 @@ const MeatFactory = () => {
     setApproving(false);
     if (error) {
       const msg = error.message || "";
-      if (msg.includes("INSUFFICIENT_STOCK")) {
-        toast.error("مخزون غير كافٍ — راجع المواد المظللة بالأحمر");
+      // Parse: INSUFFICIENT_STOCK::<count>::<jsonArray>
+      const match = msg.match(/INSUFFICIENT_STOCK::(\d+)::(\[.*\])/s);
+      if (match) {
+        try {
+          const shortages = JSON.parse(match[2]);
+          setFailureDetails({ batch: previewBatch, shortages });
+          setPreviewOpen(false);
+        } catch {
+          toast.error("مخزون غير كافٍ");
+        }
       } else {
         toast.error("فشل الاعتماد: " + msg);
       }
+      fetchAll();
       return;
     }
     toast.success(`تم اعتماد الدفعة. تكلفة المواد: ${fmt((data as any)?.materials_cost, 0)} ج`);
@@ -484,9 +503,10 @@ const MeatFactory = () => {
         </div>
 
         <Tabs defaultValue="batches" className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="batches"><Factory className="w-4 h-4 ml-1" />الدفعات</TabsTrigger>
             <TabsTrigger value="consumption"><History className="w-4 h-4 ml-1" />الاستهلاك</TabsTrigger>
+            <TabsTrigger value="audit"><ClipboardList className="w-4 h-4 ml-1" />سجل الاعتمادات</TabsTrigger>
             <TabsTrigger value="products"><Package className="w-4 h-4 ml-1" />المنتجات</TabsTrigger>
             <TabsTrigger value="materials"><Boxes className="w-4 h-4 ml-1" />المواد الخام</TabsTrigger>
             <TabsTrigger value="invoices"><ClipboardList className="w-4 h-4 ml-1" />الفواتير</TabsTrigger>
@@ -618,6 +638,66 @@ const MeatFactory = () => {
                       );
                     })}
                     {!filteredConsumption.length && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-6">لا توجد سجلات استهلاك.</TableCell></TableRow>}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* AUDIT */}
+          <TabsContent value="audit">
+            <Card>
+              <CardHeader><CardTitle className="text-base flex items-center gap-2"><ClipboardList className="w-4 h-4" />سجل تدقيق اعتماد الدفعات ({auditLog.length})</CardTitle></CardHeader>
+              <CardContent className="overflow-x-auto">
+                <Table>
+                  <TableHeader><TableRow>
+                    <TableHead>الوقت</TableHead><TableHead>الدفعة</TableHead><TableHead>المنتج</TableHead>
+                    <TableHead>الكمية</TableHead><TableHead>المستخدم</TableHead><TableHead>النتيجة</TableHead>
+                    <TableHead>تكلفة المواد</TableHead><TableHead>أثر المخزون / السبب</TableHead>
+                  </TableRow></TableHeader>
+                  <TableBody>
+                    {auditLog.map(a => {
+                      const ok = a.outcome === "success";
+                      const impactArr = Array.isArray(a.impact) ? a.impact : [];
+                      const shortArr = Array.isArray(a.shortages) ? a.shortages : [];
+                      return (
+                        <TableRow key={a.id} className={ok ? "" : "bg-red-500/5"}>
+                          <TableCell className="text-xs whitespace-nowrap">{new Date(a.attempted_at).toLocaleString("ar-EG")}</TableCell>
+                          <TableCell className="font-mono text-xs">{a.batch_number}</TableCell>
+                          <TableCell className="text-sm">{a.product_name_ar}</TableCell>
+                          <TableCell>{fmt(a.planned_qty, 1)}</TableCell>
+                          <TableCell className="text-xs">{a.attempted_by ? (profilesMap[a.attempted_by] || a.attempted_by.slice(0, 8)) : "—"}</TableCell>
+                          <TableCell>
+                            {ok ? <Badge className="bg-green-500/10 text-green-700 border-green-300">نجح</Badge>
+                              : <Badge className="bg-red-500/10 text-red-700 border-red-300">{a.outcome === 'insufficient_stock' ? 'مخزون ناقص' : 'فشل'}</Badge>}
+                          </TableCell>
+                          <TableCell>{a.materials_cost != null ? `${fmt(a.materials_cost, 0)} ج` : "—"}</TableCell>
+                          <TableCell className="text-xs max-w-md">
+                            {ok && impactArr.length > 0 && (
+                              <div className="space-y-0.5">
+                                {impactArr.slice(0, 3).map((it: any, idx: number) => (
+                                  <div key={idx}>
+                                    <span className="font-medium">{it.material_name_ar}</span>: {fmt(it.stock_before, 2)} → <span className="text-orange-600">{fmt(it.stock_after, 2)}</span> (خصم {fmt(it.required, 3)} {it.unit})
+                                  </div>
+                                ))}
+                                {impactArr.length > 3 && <div className="text-muted-foreground">+ {impactArr.length - 3} مادة أخرى…</div>}
+                              </div>
+                            )}
+                            {!ok && shortArr.length > 0 && (
+                              <div className="space-y-0.5">
+                                {shortArr.map((s: any, idx: number) => (
+                                  <div key={idx} className="text-red-700">
+                                    <span className="font-medium">{s.material_name_ar}</span>: عجز <strong>{fmt(s.short_by, 3)}</strong> {s.unit} (مطلوب {fmt(s.required, 3)}، متاح {fmt(s.available, 2)})
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {!ok && shortArr.length === 0 && (a.error_message || "—")}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {!auditLog.length && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-6">لا توجد عمليات اعتماد بعد.</TableCell></TableRow>}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -926,6 +1006,44 @@ const MeatFactory = () => {
             <Button onClick={saveQc}>
               {qcForm.quality_status === "failed" ? <><XCircle className="w-4 h-4 ml-1" />رفض وإلغاء</> : <><CheckCircle2 className="w-4 h-4 ml-1" />اعتماد وإغلاق</>}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* FAILURE DETAILS DIALOG */}
+      <Dialog open={!!failureDetails} onOpenChange={(o) => !o && setFailureDetails(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-red-700 flex items-center gap-2"><AlertTriangle className="w-5 h-5" />تعذر اعتماد الدفعة {failureDetails?.batch?.batch_number}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Alert variant="destructive">
+              <AlertTitle>سبب الفشل: مخزون غير كافٍ</AlertTitle>
+              <AlertDescription>
+                لم يتم خصم أي مواد. {failureDetails?.shortages.length} مادة بمخزون أقل من المطلوب. سُجّلت هذه المحاولة في سجل التدقيق.
+              </AlertDescription>
+            </Alert>
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>كود</TableHead><TableHead>المادة</TableHead>
+                <TableHead>المطلوب</TableHead><TableHead>المتاح</TableHead><TableHead>العجز</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {failureDetails?.shortages.map((s: any, i: number) => (
+                  <TableRow key={i} className="bg-red-500/5">
+                    <TableCell className="font-mono text-xs">{s.material_code}</TableCell>
+                    <TableCell className="font-medium">{s.material_name_ar}</TableCell>
+                    <TableCell>{fmt(s.required, 3)} {s.unit}</TableCell>
+                    <TableCell className="text-red-600 font-bold">{fmt(s.available, 2)}</TableCell>
+                    <TableCell className="text-red-600 font-bold">{fmt(s.short_by, 3)} {s.unit}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            <div className="text-xs text-muted-foreground">قم بإعادة تعبئة المواد الناقصة من تبويب «المواد الخام» أو من خلال أمر شراء، ثم أعد محاولة الاعتماد.</div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setFailureDetails(null)}>إغلاق</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
