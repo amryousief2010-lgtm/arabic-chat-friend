@@ -43,7 +43,13 @@ const fakeNotifications = [
   },
 ];
 
-const updateEq = vi.fn().mockResolvedValue({ error: null });
+const updateEq = vi.fn((col: string, value: string) => {
+  // Reflect the update server-side so refetches don't undo the optimistic
+  // flip in the UI.
+  const n = fakeNotifications.find((x) => (x as any)[col] === value);
+  if (n) n.is_read = true;
+  return Promise.resolve({ error: null });
+});
 
 vi.mock("@/integrations/supabase/client", () => {
   return {
@@ -53,7 +59,7 @@ vi.mock("@/integrations/supabase/client", () => {
           order: () => Promise.resolve({ data: fakeNotifications, error: null }),
         }),
         update: () => ({
-          eq: (...args: unknown[]) => updateEq(...args),
+          eq: (col: string, value: string) => updateEq(col, value),
         }),
         delete: () => ({ eq: () => Promise.resolve({ error: null }) }),
       }),
@@ -96,6 +102,8 @@ const renderApp = () => {
 describe("Notifications → /orders/:id integration", () => {
   beforeEach(() => {
     updateEq.mockClear();
+    // Reset is_read state between tests.
+    fakeNotifications.forEach((n) => (n.is_read = false));
   });
 
   it("clicking a notification navigates to /orders/:id with the matching note shown ONLY for that order", async () => {
