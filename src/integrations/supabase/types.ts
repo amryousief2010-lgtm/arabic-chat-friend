@@ -1687,6 +1687,65 @@ export type Database = {
         }
         Relationships: []
       }
+      meat_factory_approval_audit: {
+        Row: {
+          attempted_at: string
+          attempted_by: string | null
+          batch_id: string
+          batch_number: string | null
+          error_message: string | null
+          id: string
+          impact: Json | null
+          materials_cost: number | null
+          outcome: string
+          planned_qty: number | null
+          product_code: string | null
+          product_name_ar: string | null
+          scale: number | null
+          shortages: Json | null
+        }
+        Insert: {
+          attempted_at?: string
+          attempted_by?: string | null
+          batch_id: string
+          batch_number?: string | null
+          error_message?: string | null
+          id?: string
+          impact?: Json | null
+          materials_cost?: number | null
+          outcome: string
+          planned_qty?: number | null
+          product_code?: string | null
+          product_name_ar?: string | null
+          scale?: number | null
+          shortages?: Json | null
+        }
+        Update: {
+          attempted_at?: string
+          attempted_by?: string | null
+          batch_id?: string
+          batch_number?: string | null
+          error_message?: string | null
+          id?: string
+          impact?: Json | null
+          materials_cost?: number | null
+          outcome?: string
+          planned_qty?: number | null
+          product_code?: string | null
+          product_name_ar?: string | null
+          scale?: number | null
+          shortages?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meat_factory_approval_audit_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "meat_factory_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meat_factory_batch_consumption: {
         Row: {
           batch_id: string
