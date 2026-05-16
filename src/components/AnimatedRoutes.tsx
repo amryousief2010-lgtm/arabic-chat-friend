@@ -22,6 +22,7 @@ import Permissions from "@/pages/Permissions";
 import LowStock from "@/pages/LowStock";
 import OrgChart from "@/pages/OrgChart";
 import NotFound from "@/pages/NotFound";
+import Unauthorized from "@/pages/Unauthorized";
 import ImportSalesData from "@/pages/ImportSalesData";
 import ModeratorPerformance from "@/pages/ModeratorPerformance";
 import ModeratorOrdersLog from "@/pages/ModeratorOrdersLog";
