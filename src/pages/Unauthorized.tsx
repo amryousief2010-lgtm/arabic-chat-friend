@@ -1,7 +1,9 @@
-import { useLocation, Link } from "react-router-dom";
-import { ShieldAlert, Home, ArrowRight } from "lucide-react";
+import { useLocation, Link, useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { ShieldAlert, Home, ArrowRight, Copy, Check, UserCog } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 const ROLE_LABELS: Record<string, string> = {
   general_manager: "المدير العام",
@@ -22,8 +24,36 @@ const ROLE_LABELS: Record<string, string> = {
 
 const Unauthorized = () => {
   const location = useLocation();
-  const { role } = useAuth();
-  const attempted = (location.state as { from?: string })?.from || location.pathname;
+  const navigate = useNavigate();
+  const { role, user } = useAuth();
+  const [copied, setCopied] = useState(false);
+
+  const attempted = (location.state as { from?: string })?.from || "/";
+  const reason = !user
+    ? "لم يتم تسجيل الدخول أو انتهت الجلسة"
+    : !role
+      ? "لم يتم تعيين دور لحسابك بعد"
+      : "دورك الحالي لا يملك صلاحية الوصول لهذه الصفحة";
+
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate("/", { replace: true });
+    }
+  };
+
+  const handleCopy = async () => {
+    const debugInfo = `Route: ${attempted}\nRole: ${role ?? "none"}\nReason: ${reason}`;
+    try {
+      await navigator.clipboard.writeText(debugInfo);
+      setCopied(true);
+      toast.success("تم نسخ تفاصيل الخطأ");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("تعذّر النسخ");
+    }
+  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-destructive/5 to-background p-4" dir="rtl">
@@ -34,36 +64,51 @@ const Unauthorized = () => {
           </div>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-3">
           <h1 className="text-3xl font-bold text-foreground">غير مصرّح بالدخول</h1>
-          <p className="text-muted-foreground">
-            ليس لديك الصلاحية لعرض هذه الصفحة.
-          </p>
-          {role && (
-            <p className="text-sm text-muted-foreground">
-              دورك الحالي: <span className="font-semibold text-foreground">{ROLE_LABELS[role] ?? role}</span>
-            </p>
-          )}
-          <p className="text-xs text-muted-foreground/70 font-mono bg-muted/50 inline-block px-3 py-1 rounded">
-            {attempted}
-          </p>
+          <p className="text-muted-foreground">{reason}</p>
+
+          <div className="bg-muted/50 rounded-lg p-4 text-right space-y-2 text-sm">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-muted-foreground">المسار المطلوب:</span>
+              <code className="font-mono text-foreground/90 text-xs bg-background/60 px-2 py-1 rounded" dir="ltr">
+                {attempted}
+              </code>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-muted-foreground">الدور الحالي:</span>
+              <span className="inline-flex items-center gap-1 font-semibold text-foreground">
+                <UserCog className="h-3.5 w-3.5" />
+                {role ? (ROLE_LABELS[role] ?? role) : "—"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-muted-foreground">سبب الرفض:</span>
+              <span className="text-destructive font-medium text-xs">{reason}</span>
+            </div>
+          </div>
+
+          <Button variant="ghost" size="sm" onClick={handleCopy} className="gap-2">
+            {copied ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
+            نسخ تفاصيل الخطأ
+          </Button>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
+        <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
           <Button asChild size="lg" className="gap-2">
             <Link to="/">
               <Home className="h-4 w-4" />
               العودة للرئيسية
             </Link>
           </Button>
-          <Button variant="outline" size="lg" className="gap-2" onClick={() => window.history.back()}>
+          <Button variant="outline" size="lg" className="gap-2" onClick={handleBack}>
             <ArrowRight className="h-4 w-4 rotate-180" />
             الرجوع للخلف
           </Button>
         </div>
 
         <p className="text-xs text-muted-foreground pt-6">
-          إذا كنت تحتاج للوصول لهذه الصفحة، تواصل مع المدير العام لطلب الصلاحية المناسبة.
+          إذا كنت تحتاج للوصول لهذه الصفحة، انسخ التفاصيل أعلاه وتواصل مع المدير العام.
         </p>
       </div>
     </div>
