@@ -211,7 +211,7 @@ const Slaughterhouse = () => {
   };
 
   const saveWorker = async () => {
-
+    if (!workerForm.full_name) { toast.error("أدخل اسم العامل"); return; }
     const { error } = await supabase.from("slaughter_workers" as any).insert(workerForm);
     if (error) { toast.error(error.message); return; }
     toast.success("تمت إضافة العامل");
