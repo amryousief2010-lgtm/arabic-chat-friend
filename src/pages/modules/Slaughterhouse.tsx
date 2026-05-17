@@ -844,54 +844,96 @@ const BirdsDialog = ({ receiptId, receipt, birds, onClose, onUpdate }: {
 const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCutNames, onClose, onUpdate }: {
   batchId: string; batch: Batch; yields: Yield[]; outputs: Output[]; branches: Branch[]; yieldCutNames: string[]; onClose: () => void; onUpdate: () => void;
 }) => {
-  // Start with existing outputs; if none, start empty and let user add dynamically.
-  const initial = outputs.length
-    ? outputs.map(o => ({
-        yield_standard_id: yields.find(y => y.cut_name_ar === o.cut_name_ar)?.id || null,
-        cut_name_ar: o.cut_name_ar,
-        barcode: o.barcode || "",
-        actual_weight_kg: Number(o.actual_weight_kg),
-        damaged_weight_kg: Number(o.damaged_weight_kg || 0),
-        quarantined_weight_kg: Number(o.quarantined_weight_kg || 0),
-        package_count: o.package_count,
-        standard_weight_kg: Number(o.standard_weight_kg),
-        unit_cost: Number(o.unit_cost),
-        unit_price: Number(o.unit_price || 0),
-        destination: o.destination,
-        branch_id: o.branch_id || "",
-      }))
-    : [];
+  // Reconstruct merged rows by (cut_name_ar, branch_id) from split outputs (by quality_status).
+  const initial = (() => {
+    if (!outputs.length) return [] as any[];
+    const map = new Map<string, any>();
+    for (const o of outputs) {
+      const key = `${o.cut_name_ar}__${o.branch_id || ""}`;
+      const y = yields.find(y => y.cut_name_ar === o.cut_name_ar);
+      let r = map.get(key);
+      if (!r) {
+        r = {
+          yield_standard_id: y?.id || null,
+          cut_name_ar: o.cut_name_ar,
+          barcode: o.barcode || y?.barcode || "",
+          produced_weight_kg: 0,
+          actual_weight_kg: 0,         // accepted (derived)
+          damaged_weight_kg: 0,
+          quarantined_weight_kg: 0,
+          package_count: Number(o.package_count) || 0,
+          standard_weight_kg: Number(o.standard_weight_kg) || 0,
+          unit_cost: Number(o.unit_cost) || 0,
+          unit_price: Number(o.unit_price) || 0,
+          destination: o.destination,
+          branch_id: o.branch_id || "",
+        };
+        map.set(key, r);
+      }
+      const w = Number(o.actual_weight_kg) || 0;
+      const q = (o.quality_status || "accepted").toLowerCase();
+      if (q === "rejected") r.damaged_weight_kg += w;
+      else if (q === "quarantine") r.quarantined_weight_kg += w;
+      else r.actual_weight_kg += w;
+      // legacy: outputs may also carry damaged/quarantined fields on a single accepted row
+      r.damaged_weight_kg += Number(o.damaged_weight_kg || 0);
+      r.quarantined_weight_kg += Number(o.quarantined_weight_kg || 0);
+      r.produced_weight_kg = r.actual_weight_kg + r.damaged_weight_kg + r.quarantined_weight_kg;
+      if (Number(o.unit_price) > 0) r.unit_price = Number(o.unit_price);
+    }
+    return Array.from(map.values());
+  })();
   const [rows, setRows] = useState(initial);
   const [pickCut, setPickCut] = useState<string>("");
+  const [searchCut, setSearchCut] = useState<string>("");
+  const [pendingConfirm, setPendingConfirm] = useState<null | { mismatchRows: { name: string; produced: number; sum: number }[] }>(null);
 
-  // Auto-recompute on any change to rows / yieldCutNames using useMemo
+  // Helper: accepted (available) = produced - damaged - quarantined, clamped ≥ 0
+  const acceptedOf = (r: any) =>
+    Math.max(0, (Number(r.produced_weight_kg) || 0) - (Number(r.damaged_weight_kg) || 0) - (Number(r.quarantined_weight_kg) || 0));
+
+  // Keep actual_weight_kg in sync with derived accepted on every render of rows
+  useEffect(() => {
+    setRows(prev => prev.map(r => ({ ...r, actual_weight_kg: acceptedOf(r) })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const yieldSet = useMemo(() => new Set((yieldCutNames || DEFAULT_YIELD_CUTS).map(normalizeCutName)), [yieldCutNames]);
-  const { totalActual, totalValue, yieldWeight, yieldPct, totalDamaged, totalQuarantined, includedBreakdown, excludedBreakdown } = useMemo(() => {
-    let totalActual = 0, totalValue = 0, yieldWeight = 0, totalDamaged = 0, totalQuarantined = 0;
+  const { totalActual, totalProduced, totalValue, yieldWeight, yieldPct, totalDamaged, totalQuarantined, includedBreakdown, excludedBreakdown } = useMemo(() => {
+    let totalActual = 0, totalProduced = 0, totalValue = 0, yieldWeight = 0, totalDamaged = 0, totalQuarantined = 0;
     const incMap = new Map<string, number>();
     const excMap = new Map<string, number>();
     for (const r of rows) {
-      const w = Number(r.actual_weight_kg) || 0;
-      totalActual += w;
+      const accepted = acceptedOf(r);
+      totalProduced += Number(r.produced_weight_kg) || 0;
+      totalActual += accepted;
       totalDamaged += Number(r.damaged_weight_kg) || 0;
       totalQuarantined += Number(r.quarantined_weight_kg) || 0;
-      totalValue += w * Number(r.unit_price || 0);
+      totalValue += accepted * Number(r.unit_price || 0);
       const norm = normalizeCutName(r.cut_name_ar);
       if (yieldSet.has(norm)) {
-        yieldWeight += w;
-        incMap.set(r.cut_name_ar, (incMap.get(r.cut_name_ar) || 0) + w);
-      } else if (w > 0) {
-        excMap.set(r.cut_name_ar, (excMap.get(r.cut_name_ar) || 0) + w);
+        yieldWeight += accepted;
+        incMap.set(r.cut_name_ar, (incMap.get(r.cut_name_ar) || 0) + accepted);
+      } else if (accepted > 0) {
+        excMap.set(r.cut_name_ar, (excMap.get(r.cut_name_ar) || 0) + accepted);
       }
     }
     const live = Number(batch.total_live_weight_kg);
     return {
-      totalActual, totalValue, yieldWeight, totalDamaged, totalQuarantined,
+      totalActual, totalProduced, totalValue, yieldWeight, totalDamaged, totalQuarantined,
       yieldPct: live > 0 ? (yieldWeight / live) * 100 : 0,
       includedBreakdown: Array.from(incMap.entries()).sort((a, b) => b[1] - a[1]),
       excludedBreakdown: Array.from(excMap.entries()).sort((a, b) => b[1] - a[1]),
     };
   }, [rows, yieldSet, batch.total_live_weight_kg]);
+
+  const updateRow = (i: number, patch: Partial<any>) => {
+    setRows(prev => {
+      const v = [...prev];
+      v[i] = { ...v[i], ...patch };
+      return v;
+    });
+  };
 
   const addRow = (cutName: string) => {
     const y = yields.find(y => y.cut_name_ar === cutName);
@@ -899,43 +941,115 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
       yield_standard_id: y?.id || null,
       cut_name_ar: cutName,
       barcode: y?.barcode || "",
-      actual_weight_kg: 0, damaged_weight_kg: 0, quarantined_weight_kg: 0, package_count: 0,
+      produced_weight_kg: 0,
+      actual_weight_kg: 0,
+      damaged_weight_kg: 0,
+      quarantined_weight_kg: 0,
+      package_count: 0,
       standard_weight_kg: y ? (Number(batch.total_live_weight_kg) * Number(y.standard_yield_pct)) / 100 : 0,
       unit_cost: 0, unit_price: 0, destination: "branch", branch_id: "",
     }]);
   };
 
-  const save = async () => {
-    const toUpsert = rows
-      .filter(r => Number(r.actual_weight_kg) > 0 || Number(r.damaged_weight_kg) > 0 || Number(r.quarantined_weight_kg) > 0)
-      .map(r => ({
+  // Persist: split each user row into 1-3 outputs by quality_status so warehouse receipt sees them correctly.
+  const persist = async () => {
+    const toUpsert: any[] = [];
+    for (const r of rows) {
+      const accepted = acceptedOf(r);
+      const damaged = Number(r.damaged_weight_kg) || 0;
+      const quarantined = Number(r.quarantined_weight_kg) || 0;
+      if (accepted <= 0 && damaged <= 0 && quarantined <= 0) continue;
+
+      const base = {
         batch_id: batchId,
         yield_standard_id: r.yield_standard_id,
         cut_name_ar: r.cut_name_ar,
         barcode: r.barcode || null,
-        actual_weight_kg: Number(r.actual_weight_kg) || 0,
-        damaged_weight_kg: Number(r.damaged_weight_kg) || 0,
-        quarantined_weight_kg: Number(r.quarantined_weight_kg) || 0,
-        package_count: Number(r.package_count) || 0,
         standard_weight_kg: Number(r.standard_weight_kg) || 0,
         unit_cost: Number(r.unit_cost) || 0,
         unit_price: Number(r.unit_price) || 0,
         destination: r.destination,
         branch_id: r.branch_id || null,
-      }));
+      };
+
+      if (accepted > 0) {
+        toUpsert.push({
+          ...base,
+          actual_weight_kg: accepted,
+          damaged_weight_kg: 0,
+          quarantined_weight_kg: 0,
+          package_count: Number(r.package_count) || 0,
+          quality_status: "accepted",
+        });
+      }
+      if (damaged > 0) {
+        toUpsert.push({
+          ...base,
+          actual_weight_kg: damaged,
+          damaged_weight_kg: damaged,
+          quarantined_weight_kg: 0,
+          package_count: 0,
+          quality_status: "rejected",
+        });
+      }
+      if (quarantined > 0) {
+        toUpsert.push({
+          ...base,
+          actual_weight_kg: quarantined,
+          damaged_weight_kg: 0,
+          quarantined_weight_kg: quarantined,
+          package_count: 0,
+          quality_status: "quarantine",
+        });
+      }
+    }
+
     await supabase.from("slaughter_batch_outputs" as any).delete().eq("batch_id", batchId);
     if (toUpsert.length) {
       const { error } = await supabase.from("slaughter_batch_outputs" as any).insert(toUpsert);
       if (error) { toast.error(error.message); return; }
     }
-    toast.success(`تم حفظ ${toUpsert.length} صف من التقسيمة`);
+    toast.success(`تم حفظ ${toUpsert.length} صف من التقسيمة (مقسّمة حسب حالة الجودة)`);
     onClose();
     onUpdate();
   };
 
-  // Available yields not yet added (allow duplicates only via "+ فرع")
+  const save = () => {
+    // Check mismatch: damaged + quarantined > produced (would yield clamped accepted)
+    const mismatch: { name: string; produced: number; sum: number }[] = [];
+    for (const r of rows) {
+      const produced = Number(r.produced_weight_kg) || 0;
+      const damaged = Number(r.damaged_weight_kg) || 0;
+      const quarantined = Number(r.quarantined_weight_kg) || 0;
+      const accepted = acceptedOf(r);
+      const sum = accepted + damaged + quarantined;
+      if (produced > 0 && Math.abs(sum - produced) > 0.01) {
+        mismatch.push({ name: r.cut_name_ar, produced, sum });
+      }
+      if (produced === 0 && (damaged > 0 || quarantined > 0)) {
+        mismatch.push({ name: r.cut_name_ar, produced, sum: damaged + quarantined });
+      }
+    }
+    if (mismatch.length > 0) {
+      setPendingConfirm({ mismatchRows: mismatch });
+      return;
+    }
+    persist();
+  };
+
+  // Available yields not yet added (allow duplicates only via "+ فرع") + search filter
   const usedCuts = new Set(rows.map(r => r.cut_name_ar));
-  const availableYields = yields.filter(y => y.is_active !== false && !usedCuts.has(y.cut_name_ar));
+  const availableYields = yields
+    .filter(y => y.is_active !== false && !usedCuts.has(y.cut_name_ar))
+    .filter(y => {
+      const q = searchCut.trim().toLowerCase();
+      if (!q) return true;
+      return (
+        y.cut_name_ar.toLowerCase().includes(q) ||
+        (y.cut_name_en || "").toLowerCase().includes(q) ||
+        (y.barcode || "").toLowerCase().includes(q)
+      );
+    });
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -943,8 +1057,8 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
         <DialogHeader><DialogTitle>تقسيمة الدفعة {batch.batch_number}</DialogTitle></DialogHeader>
         <div className="grid grid-cols-2 md:grid-cols-6 gap-2 mb-3 text-sm">
           <div className="p-2 bg-muted/40 rounded">الوزن الحي: <b>{Number(batch.total_live_weight_kg).toFixed(1)} كجم</b></div>
-          <div className="p-2 bg-muted/40 rounded">إجمالي المقطّع: <b>{totalActual.toFixed(1)} كجم</b></div>
-          <div className="p-2 bg-emerald-500/10 rounded">وزن أصناف التصافي: <b>{yieldWeight.toFixed(1)} كجم</b></div>
+          <div className="p-2 bg-muted/40 rounded">إجمالي المُنتَج: <b>{totalProduced.toFixed(1)} كجم</b></div>
+          <div className="p-2 bg-emerald-500/10 rounded">المتاح (مقبول): <b>{totalActual.toFixed(1)} كجم</b></div>
           <div className="p-2 bg-red-500/10 rounded">تالف: <b className="text-red-600">{totalDamaged.toFixed(1)} كجم</b></div>
           <div className="p-2 bg-amber-500/10 rounded">محجور: <b className="text-amber-600">{totalQuarantined.toFixed(1)} كجم</b></div>
           <div className="p-2 bg-muted/40 rounded">التصافي: <b className={yieldPct < 40 ? "text-red-600" : "text-emerald-600"}>{yieldPct.toFixed(1)}%</b></div>
@@ -983,52 +1097,66 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
             </div>
           )}
           <div className="text-muted-foreground pt-1 border-t border-border/50">
-            💡 يمكنك تعديل قائمة أصناف التصافي من <b>الإعدادات → قائمة أصناف اللحوم</b>. المطابقة تتجاهل المسافات وحالة الأحرف وتختلافات ة/ه و ى/ي.
+            💡 يمكنك تعديل قائمة أصناف التصافي من <b>الإعدادات → قائمة أصناف اللحوم</b>. يُحتسب من <b>الكمية المقبولة (المتاح)</b> فقط، باستثناء التالف والمحجور.
           </div>
         </div>
 
-        {/* Dynamic add cut */}
-        <div className="flex flex-wrap items-end gap-2 mb-3 p-3 border rounded bg-muted/20">
-          <div className="flex-1 min-w-[220px]">
-            <Label className="text-xs text-muted-foreground mb-1 block">إضافة صنف للتقسيمة</Label>
-            <Select value={pickCut} onValueChange={setPickCut}>
-              <SelectTrigger><SelectValue placeholder="اختر صنفًا من قائمة المنتجات..." /></SelectTrigger>
-              <SelectContent className="z-[100] max-h-72">
-                {availableYields.length === 0 ? (
-                  <div className="text-xs text-muted-foreground p-3 text-center">جميع الأصناف مُضافة</div>
-                ) : availableYields.map(y => (
-                  <SelectItem key={y.id} value={y.cut_name_ar}>
-                    <span className="flex items-center gap-2">
-                      <span className="font-semibold">{y.cut_name_ar}</span>
-                      {y.barcode && <span className="text-xs text-muted-foreground font-mono">#{y.barcode}</span>}
-                      <span className="text-xs text-muted-foreground">({Number(y.standard_yield_pct).toFixed(1)}%)</span>
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        {/* Dynamic add cut with search */}
+        <div className="mb-3 p-3 border rounded bg-muted/20 space-y-2">
+          <Label className="text-xs text-muted-foreground block">إضافة صنف للتقسيمة</Label>
+          <div className="relative">
+            <Search className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <Input
+              value={searchCut}
+              onChange={e => setSearchCut(e.target.value)}
+              placeholder="ابحث بالاسم أو رقم الكود/الباركود..."
+              className="pr-8"
+            />
           </div>
-          <Button
-            type="button"
-            onClick={() => { if (pickCut) { addRow(pickCut); setPickCut(""); } }}
-            disabled={!pickCut}
-            className="bg-gradient-to-r from-primary to-accent"
-          >
-            <Plus className="w-4 h-4 ml-1" /> إضافة
-          </Button>
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="flex-1 min-w-[220px]">
+              <Select value={pickCut} onValueChange={setPickCut}>
+                <SelectTrigger><SelectValue placeholder={availableYields.length === 0 ? "لا توجد نتائج" : "اختر صنفًا من قائمة المنتجات..."} /></SelectTrigger>
+                <SelectContent className="z-[100] max-h-72">
+                  {availableYields.length === 0 ? (
+                    <div className="text-xs text-muted-foreground p-3 text-center">
+                      {searchCut ? "لا توجد نتائج مطابقة للبحث" : "جميع الأصناف مُضافة"}
+                    </div>
+                  ) : availableYields.map(y => (
+                    <SelectItem key={y.id} value={y.cut_name_ar}>
+                      <span className="flex items-center gap-2">
+                        <span className="font-semibold">{y.cut_name_ar}</span>
+                        {y.barcode && <span className="text-xs text-muted-foreground font-mono">#{y.barcode}</span>}
+                        <span className="text-xs text-muted-foreground">({Number(y.standard_yield_pct).toFixed(1)}%)</span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              type="button"
+              onClick={() => { if (pickCut) { addRow(pickCut); setPickCut(""); setSearchCut(""); } }}
+              disabled={!pickCut}
+              className="bg-gradient-to-r from-primary to-accent"
+            >
+              <Plus className="w-4 h-4 ml-1" /> إضافة
+            </Button>
+          </div>
         </div>
 
         <div className="text-xs text-muted-foreground mb-2">
-          💡 لتوزيع نفس القطعة على أكثر من فرع، اضغط زر "+ فرع" بجانب القطعة لإضافة صف جديد بنفس الصنف وفرع مختلف.
+          💡 المتاح يُحسب تلقائيًا = الكمية المنتجة − التالف − المحجور. لتوزيع نفس القطعة على أكثر من فرع، اضغط زر "+ فرع".
         </div>
         <div className="overflow-x-auto">
           <Table>
             <TableHeader><TableRow>
               <TableHead>الصنف / الكود</TableHead>
               <TableHead>القياسي</TableHead>
-              <TableHead>الكمية (كجم)</TableHead>
+              <TableHead>المُنتَج (كجم)</TableHead>
               <TableHead className="text-red-600">تالف (كجم)</TableHead>
               <TableHead className="text-amber-600">محجور (كجم)</TableHead>
+              <TableHead className="text-emerald-600">المتاح (كجم)</TableHead>
               <TableHead>السعر/كجم</TableHead>
               <TableHead>الإجمالي</TableHead>
               <TableHead>الفرع</TableHead>
@@ -1038,42 +1166,94 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
             <TableBody>
               {rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center text-muted-foreground py-6">
-                    لم يتم إضافة أي صنف بعد. اختر صنفًا من القائمة أعلاه لبدء التقسيمة.
+                  <TableCell colSpan={11} className="text-center text-muted-foreground py-6">
+                    لم يتم إضافة أي صنف بعد. ابحث واختر صنفًا من القائمة أعلاه لبدء التقسيمة.
                   </TableCell>
                 </TableRow>
               )}
-              {rows.map((r, i) => (
-                <TableRow key={i}>
-                  <TableCell>
-                    <div className="font-semibold">{r.cut_name_ar}</div>
-                    {r.barcode && <div className="text-[10px] text-muted-foreground font-mono">#{r.barcode}</div>}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{r.standard_weight_kg.toFixed(1)}</TableCell>
-                  <TableCell><Input className="w-20" type="number" step="0.1" value={r.actual_weight_kg || ""} onChange={e => { const v = [...rows]; v[i].actual_weight_kg = +e.target.value; setRows(v); }} /></TableCell>
-                  <TableCell><Input className="w-20 border-red-200" type="number" step="0.1" value={r.damaged_weight_kg || ""} onChange={e => { const v = [...rows]; v[i].damaged_weight_kg = +e.target.value; setRows(v); }} /></TableCell>
-                  <TableCell><Input className="w-20 border-amber-200" type="number" step="0.1" value={r.quarantined_weight_kg || ""} onChange={e => { const v = [...rows]; v[i].quarantined_weight_kg = +e.target.value; setRows(v); }} /></TableCell>
-                  <TableCell><Input className="w-20" type="number" step="0.01" value={r.unit_price || ""} onChange={e => { const v = [...rows]; v[i].unit_price = +e.target.value; setRows(v); }} /></TableCell>
-                  <TableCell className="font-semibold">{(Number(r.actual_weight_kg) * Number(r.unit_price || 0)).toFixed(0)}</TableCell>
-                  <TableCell>
-                    <Select value={r.branch_id} onValueChange={v => { const a = [...rows]; a[i].branch_id = v; setRows(a); }}>
-                      <SelectTrigger className="w-32"><SelectValue placeholder="—" /></SelectTrigger>
-                      <SelectContent>
-                        {branches.map(b => <SelectItem key={b.id} value={b.id}>{b.name_ar}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell><Input className="w-16" type="number" value={r.package_count || ""} onChange={e => { const v = [...rows]; v[i].package_count = +e.target.value; setRows(v); }} /></TableCell>
-                  <TableCell className="flex gap-1">
-                    <Button size="icon" variant="ghost" onClick={() => addRow(r.cut_name_ar)} title="إضافة فرع آخر لنفس الصنف"><Plus className="w-4 h-4 text-emerald-600" /></Button>
-                    <Button size="icon" variant="ghost" onClick={() => setRows(rows.filter((_, idx) => idx !== i))}><Trash2 className="w-4 h-4 text-red-500" /></Button>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {rows.map((r, i) => {
+                const accepted = acceptedOf(r);
+                const produced = Number(r.produced_weight_kg) || 0;
+                const overAlloc = (Number(r.damaged_weight_kg) || 0) + (Number(r.quarantined_weight_kg) || 0) > produced && produced > 0;
+                return (
+                  <TableRow key={i}>
+                    <TableCell>
+                      <div className="font-semibold">{r.cut_name_ar}</div>
+                      {r.barcode && <div className="text-[10px] text-muted-foreground font-mono">#{r.barcode}</div>}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{r.standard_weight_kg.toFixed(1)}</TableCell>
+                    <TableCell>
+                      <Input className="w-20" type="number" step="0.1" value={r.produced_weight_kg || ""}
+                        onChange={e => updateRow(i, { produced_weight_kg: +e.target.value })} />
+                    </TableCell>
+                    <TableCell>
+                      <Input className="w-20 border-red-200" type="number" step="0.1" value={r.damaged_weight_kg || ""}
+                        onChange={e => updateRow(i, { damaged_weight_kg: +e.target.value })} />
+                    </TableCell>
+                    <TableCell>
+                      <Input className="w-20 border-amber-200" type="number" step="0.1" value={r.quarantined_weight_kg || ""}
+                        onChange={e => updateRow(i, { quarantined_weight_kg: +e.target.value })} />
+                    </TableCell>
+                    <TableCell>
+                      <div className={"font-bold " + (overAlloc ? "text-red-600" : "text-emerald-700")}>
+                        {accepted.toFixed(1)}
+                      </div>
+                      {overAlloc && <div className="text-[10px] text-red-600">تجاوز المُنتَج!</div>}
+                    </TableCell>
+                    <TableCell><Input className="w-20" type="number" step="0.01" value={r.unit_price || ""}
+                      onChange={e => updateRow(i, { unit_price: +e.target.value })} /></TableCell>
+                    <TableCell className="font-semibold">{(accepted * Number(r.unit_price || 0)).toFixed(0)}</TableCell>
+                    <TableCell>
+                      <Select value={r.branch_id} onValueChange={v => updateRow(i, { branch_id: v })}>
+                        <SelectTrigger className="w-32"><SelectValue placeholder="—" /></SelectTrigger>
+                        <SelectContent>
+                          {branches.map(b => <SelectItem key={b.id} value={b.id}>{b.name_ar}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell><Input className="w-16" type="number" value={r.package_count || ""}
+                      onChange={e => updateRow(i, { package_count: +e.target.value })} /></TableCell>
+                    <TableCell className="flex gap-1">
+                      <Button size="icon" variant="ghost" onClick={() => addRow(r.cut_name_ar)} title="إضافة فرع آخر لنفس الصنف"><Plus className="w-4 h-4 text-emerald-600" /></Button>
+                      <Button size="icon" variant="ghost" onClick={() => setRows(rows.filter((_, idx) => idx !== i))}><Trash2 className="w-4 h-4 text-red-500" /></Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
         <DialogFooter><Button onClick={save} className="bg-gradient-to-r from-primary to-accent">حفظ التقسيمة</Button></DialogFooter>
+
+        <AlertDialog open={!!pendingConfirm} onOpenChange={(o) => !o && setPendingConfirm(null)}>
+          <AlertDialogContent dir="rtl">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-amber-500" /> عدم تطابق الكميات
+              </AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-2 text-sm">
+                  <div>هناك أصناف لا يتساوى فيها مجموع (المقبول + التالف + المحجور) مع الكمية المُنتجة:</div>
+                  <ul className="list-disc pr-5 space-y-1 text-xs">
+                    {pendingConfirm?.mismatchRows.map((m, idx) => (
+                      <li key={idx}>
+                        <b>{m.name}</b>: المُنتَج {m.produced.toFixed(1)} كجم — المجموع {m.sum.toFixed(1)} كجم
+                        (فرق {(m.sum - m.produced).toFixed(1)} كجم)
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="text-muted-foreground">هل تريد المتابعة وحفظ التقسيمة كما هي؟</div>
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-row-reverse gap-2">
+              <AlertDialogCancel>مراجعة الأرقام</AlertDialogCancel>
+              <AlertDialogAction onClick={() => { setPendingConfirm(null); persist(); }}>
+                تأكيد والحفظ
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </DialogContent>
     </Dialog>
   );
