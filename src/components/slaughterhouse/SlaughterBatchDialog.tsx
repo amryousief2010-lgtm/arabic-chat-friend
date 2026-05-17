@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -52,6 +56,12 @@ export const SlaughterBatchDialog = ({ open, onOpenChange, receipts, onSave }: P
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [step, setStep] = useState("step1");
   const [saving, setSaving] = useState(false);
+  const [confirmCloseOpen, setConfirmCloseOpen] = useState(false);
+
+  const isDirty = useMemo(
+    () => JSON.stringify(form) !== JSON.stringify(defaultDraft),
+    [form]
+  );
 
   // Persist draft on every change
   useEffect(() => {
@@ -128,14 +138,34 @@ export const SlaughterBatchDialog = ({ open, onOpenChange, receipts, onSave }: P
 
   const hasDraft = !!localStorage.getItem(DRAFT_KEY);
 
+  const goNext = () => {
+    if (step === "step1") {
+      setTouched((p) => ({ ...p, shift: true }));
+      if (!step1Valid) return;
+      setStep("step2");
+    } else if (step === "step2") {
+      setTouched((p) => ({ ...p, birds_slaughtered: true, total_live_weight_kg: true, pre_slaughter_dead: true, rejected_birds: true }));
+      if (!step2Valid) return;
+      setStep("step3");
+    }
+  };
+
+  const handleOpenChange = (next: boolean) => {
+    if (!next && isDirty) {
+      setConfirmCloseOpen(true);
+      return;
+    }
+    onOpenChange(next);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button className="bg-gradient-to-r from-primary to-accent">
           <Plus className="w-4 h-4 ml-1" />دفعة جديدة
         </Button>
       </DialogTrigger>
-      <DialogContent dir="rtl" className="max-w-2xl max-h-[92vh] overflow-y-auto p-4 sm:p-6">
+      <DialogContent dir="rtl" className="max-w-2xl max-h-[92vh] overflow-y-auto p-4 sm:p-6" onEscapeKeyDown={(e) => { if (isDirty) { e.preventDefault(); setConfirmCloseOpen(true); } }} onPointerDownOutside={(e) => { if (isDirty) { e.preventDefault(); setConfirmCloseOpen(true); } }}>
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between gap-2">
             <span>دفعة ذبح جديدة</span>
@@ -276,7 +306,12 @@ export const SlaughterBatchDialog = ({ open, onOpenChange, receipts, onSave }: P
               </Button>
             )}
             {step !== "step3" && (
-              <Button type="button" variant="outline" size="sm" onClick={() => setStep(step === "step1" ? "step2" : "step3")}>
+              <Button
+                type="button" variant="outline" size="sm"
+                onClick={goNext}
+                disabled={(step === "step1" && !step1Valid) || (step === "step2" && !step2Valid)}
+                title={(step === "step1" && !step1Valid) || (step === "step2" && !step2Valid) ? "أكمل الحقول المطلوبة أولاً" : undefined}
+              >
                 التالي<ChevronLeft className="w-4 h-4 mr-1" />
               </Button>
             )}
@@ -286,6 +321,26 @@ export const SlaughterBatchDialog = ({ open, onOpenChange, receipts, onSave }: P
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <AlertDialog open={confirmCloseOpen} onOpenChange={setConfirmCloseOpen}>
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>هل تريد إغلاق النموذج؟</AlertDialogTitle>
+            <AlertDialogDescription>
+              لديك مسودة غير محفوظة. سيتم الاحتفاظ ببياناتك تلقائياً وسترجع لها عند فتح النموذج مرة أخرى. اختر "تجاهل" لمسح المسودة نهائياً.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row-reverse gap-2">
+            <AlertDialogCancel>متابعة التعديل</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setConfirmCloseOpen(false); onOpenChange(false); }}>
+              إغلاق مع الاحتفاظ بالمسودة
+            </AlertDialogAction>
+            <Button variant="destructive" onClick={() => { clearDraft(); setConfirmCloseOpen(false); onOpenChange(false); }}>
+              <Trash2 className="w-4 h-4 ml-1" />تجاهل ومسح
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 };
