@@ -260,6 +260,32 @@ const Warehouses = () => {
 
   const filteredItems = warehouseFilter === "all" ? items : items.filter(i => i.warehouse_id === warehouseFilter);
   const lowStockItems = items.filter(i => i.stock <= i.low_stock_threshold);
+  const pendingSlaughter = slaughterOutputs.filter(o => o.received_status !== 'received');
+  const receivedSlaughter = slaughterOutputs.filter(o => o.received_status === 'received');
+
+  const openReceiveDialog = (output: any) => {
+    setReceiveTarget(output);
+    const meatWh = warehouses.find(w => w.type === 'finished_goods') || warehouses[0];
+    setReceiveWarehouseId(meatWh?.id || "");
+  };
+
+  const confirmReceive = async () => {
+    if (!receiveTarget || !receiveWarehouseId) {
+      toast({ title: "خطأ", description: "اختر المخزن", variant: "destructive" });
+      return;
+    }
+    const { error } = await supabase.rpc('receive_slaughter_output', {
+      p_output_id: receiveTarget.id,
+      p_warehouse_id: receiveWarehouseId,
+    });
+    if (error) {
+      toast({ title: "خطأ", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "تم الاستلام", description: `أُضيف ${receiveTarget.actual_weight_kg} كجم من ${receiveTarget.cut_name_ar} إلى المخزون` });
+    setReceiveTarget(null);
+    fetchAll();
+  };
 
   return (
     <DashboardLayout>
