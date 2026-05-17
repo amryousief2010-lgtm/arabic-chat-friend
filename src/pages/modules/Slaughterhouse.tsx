@@ -259,17 +259,19 @@ const Slaughterhouse = () => {
       </div>
 
       <Tabs defaultValue="daily" dir="rtl">
-        <TabsList className="grid grid-cols-3 md:grid-cols-9 w-full">
-          <TabsTrigger value="daily">التقرير اليومي</TabsTrigger>
-          <TabsTrigger value="batches">دفعات الذبح</TabsTrigger>
-          <TabsTrigger value="receipts">استلام حي</TabsTrigger>
-          <TabsTrigger value="transfers">توزيع الفروع</TabsTrigger>
-          <TabsTrigger value="yields">المعيار القياسي</TabsTrigger>
-          <TabsTrigger value="workers">العمال</TabsTrigger>
-          <TabsTrigger value="quality">الجودة</TabsTrigger>
-          <TabsTrigger value="audit"><History className="w-3 h-3 ml-1" />التدقيق</TabsTrigger>
-          <TabsTrigger value="settings"><SettingsIcon className="w-3 h-3 ml-1" />الإعدادات</TabsTrigger>
-        </TabsList>
+        <div className="w-full overflow-x-auto -mx-1 px-1 mb-2">
+          <TabsList className="inline-flex w-max min-w-full gap-1 h-auto flex-wrap md:flex-nowrap">
+            <TabsTrigger value="daily" className="text-xs md:text-sm whitespace-nowrap">التقرير اليومي</TabsTrigger>
+            <TabsTrigger value="batches" className="text-xs md:text-sm whitespace-nowrap">دفعات الذبح</TabsTrigger>
+            <TabsTrigger value="receipts" className="text-xs md:text-sm whitespace-nowrap">استلام حي</TabsTrigger>
+            <TabsTrigger value="transfers" className="text-xs md:text-sm whitespace-nowrap">توزيع الفروع</TabsTrigger>
+            <TabsTrigger value="yields" className="text-xs md:text-sm whitespace-nowrap">المعيار القياسي</TabsTrigger>
+            <TabsTrigger value="workers" className="text-xs md:text-sm whitespace-nowrap">العمال</TabsTrigger>
+            <TabsTrigger value="quality" className="text-xs md:text-sm whitespace-nowrap">الجودة</TabsTrigger>
+            <TabsTrigger value="audit" className="text-xs md:text-sm whitespace-nowrap gap-1"><History className="w-3 h-3" />التدقيق</TabsTrigger>
+            <TabsTrigger value="settings" className="text-xs md:text-sm whitespace-nowrap gap-1"><SettingsIcon className="w-3 h-3" />الإعدادات</TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* ========== DAILY REPORT (Excel-style) ========== */}
         <TabsContent value="daily">
