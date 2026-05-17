@@ -407,6 +407,45 @@ const Slaughterhouse = () => {
               onUpdate={fetchAll}
             />
           )}
+
+          {editBatch && (
+            <Dialog open onOpenChange={(o) => !o && setEditBatch(null)}>
+              <DialogContent dir="rtl" className="max-w-lg">
+                <DialogHeader><DialogTitle>تعديل الدفعة {editBatch.batch_number}</DialogTitle></DialogHeader>
+                <div className="grid grid-cols-2 gap-3 mt-2">
+                  <div><Label>تاريخ الذبح</Label><Input type="date" max={todayStr} value={editBatch.slaughter_date} onChange={e => setEditBatch({ ...editBatch, slaughter_date: e.target.value })} /></div>
+                  <div><Label>الشيفت</Label>
+                    <Select value={editBatch.shift} onValueChange={v => setEditBatch({ ...editBatch, shift: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent className="z-[100]">
+                        <SelectItem value="morning">صباحي</SelectItem>
+                        <SelectItem value="evening">مسائي</SelectItem>
+                        <SelectItem value="night">ليلي</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div><Label>عدد الطيور</Label><Input type="number" value={editBatch.birds_slaughtered || ""} onChange={e => setEditBatch({ ...editBatch, birds_slaughtered: +e.target.value })} /></div>
+                  <div><Label>الوزن الحي (كجم)</Label><Input type="number" step="0.1" value={editBatch.total_live_weight_kg || ""} onChange={e => setEditBatch({ ...editBatch, total_live_weight_kg: +e.target.value })} /></div>
+                  <div><Label>نافق قبل الذبح</Label><Input type="number" value={editBatch.pre_slaughter_dead || ""} onChange={e => setEditBatch({ ...editBatch, pre_slaughter_dead: +e.target.value })} /></div>
+                  <div><Label>مرفوض صحياً</Label><Input type="number" value={editBatch.rejected_birds || ""} onChange={e => setEditBatch({ ...editBatch, rejected_birds: +e.target.value })} /></div>
+                  <div className="col-span-2"><Label>الحالة</Label>
+                    <Select value={editBatch.status} onValueChange={v => setEditBatch({ ...editBatch, status: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent className="z-[100]">
+                        <SelectItem value="in_progress">قيد الذبح</SelectItem>
+                        <SelectItem value="completed">مكتملة</SelectItem>
+                        <SelectItem value="cancelled">ملغاة</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <DialogFooter className="mt-3">
+                  <Button variant="outline" onClick={() => setEditBatch(null)}>إلغاء</Button>
+                  <Button onClick={() => updateBatch(editBatch)} className="bg-gradient-to-r from-primary to-accent"><Save className="w-4 h-4 ml-1" />حفظ التعديل</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
         </TabsContent>
 
         {/* ========== RECEIPTS ========== */}
