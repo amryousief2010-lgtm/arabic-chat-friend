@@ -25,6 +25,7 @@ import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip as RTooltip,
   ResponsiveContainer, CartesianGrid, Legend,
 } from "recharts";
+import { SlaughterBatchDialog } from "@/components/slaughterhouse/SlaughterBatchDialog";
 
 type Receipt = { id: string; receipt_number: string; receipt_date: string; source_type: string; source_name: string | null; bird_count: number; total_weight_kg: number; avg_weight_kg: number; price_per_kg: number; total_cost: number; dead_on_arrival: number; status: string; };
 type Batch = { id: string; batch_number: string; slaughter_date: string; shift: string; live_receipt_id: string | null; birds_slaughtered: number; total_live_weight_kg: number; total_meat_kg: number; actual_yield_pct: number; cost_per_kg_meat: number; status: string; pre_slaughter_dead: number; rejected_birds: number; };
@@ -135,19 +136,21 @@ const Slaughterhouse = () => {
     fetchAll();
   };
 
-  const saveBatch = async () => {
-    if (!batchForm.birds_slaughtered || !batchForm.total_live_weight_kg) { toast.error("أدخل عدد الطيور المذبوحة والوزن الحي"); return; }
+  const saveBatch = async (formData?: typeof batchForm): Promise<boolean> => {
+    const data = formData || batchForm;
+    if (!data.birds_slaughtered || !data.total_live_weight_kg) { toast.error("أدخل عدد الطيور المذبوحة والوزن الحي"); return false; }
     const batch_number = `SB-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(Math.random() * 9999).toString().padStart(4, "0")}`;
     const { data: { user } } = await supabase.auth.getUser();
-    const payload: any = { ...batchForm, batch_number, created_by: user?.id };
+    const payload: any = { ...data, batch_number, created_by: user?.id };
     if (!payload.live_receipt_id) delete payload.live_receipt_id;
     if (!payload.start_time) delete payload.start_time;
     const { error } = await supabase.from("slaughter_batches" as any).insert(payload);
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error(error.message); return false; }
     toast.success("تم إنشاء دفعة الذبح");
     setBatchOpen(false);
     setBatchForm({ live_receipt_id: "", shift: "morning", birds_slaughtered: 0, total_live_weight_kg: 0, pre_slaughter_dead: 0, rejected_birds: 0, start_time: "", notes: "" });
     fetchAll();
+    return true;
   };
 
   const saveWorker = async () => {
@@ -292,42 +295,12 @@ const Slaughterhouse = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>دفعات الذبح</CardTitle>
-              <Dialog open={batchOpen} onOpenChange={setBatchOpen}>
-                <DialogTrigger asChild><Button className="bg-gradient-to-r from-primary to-accent"><Plus className="w-4 h-4 ml-1" />دفعة جديدة</Button></DialogTrigger>
-                <DialogContent dir="rtl" className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader><DialogTitle>دفعة ذبح جديدة</DialogTitle></DialogHeader>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div><Label>استلام حي مرتبط</Label>
-                      <Select value={batchForm.live_receipt_id} onValueChange={v => {
-                        const r = receipts.find(x => x.id === v);
-                        setBatchForm({ ...batchForm, live_receipt_id: v, birds_slaughtered: r?.bird_count || 0, total_live_weight_kg: Number(r?.total_weight_kg || 0) });
-                      }}>
-                        <SelectTrigger><SelectValue placeholder="اختر استلام..." /></SelectTrigger>
-                        <SelectContent>{receipts.filter(r => r.status !== "processed").map(r => (
-                          <SelectItem key={r.id} value={r.id}>{r.receipt_number} ({r.bird_count} طائر — {Number(r.total_weight_kg).toFixed(1)} كجم)</SelectItem>
-                        ))}</SelectContent>
-                      </Select>
-                    </div>
-                    <div><Label>الشيفت</Label>
-                      <Select value={batchForm.shift} onValueChange={v => setBatchForm({ ...batchForm, shift: v })}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="morning">صباحي</SelectItem>
-                          <SelectItem value="evening">مسائي</SelectItem>
-                          <SelectItem value="night">ليلي</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div><Label>عدد الطيور المذبوحة</Label><Input type="number" value={batchForm.birds_slaughtered || ""} onChange={e => setBatchForm({ ...batchForm, birds_slaughtered: +e.target.value })} /></div>
-                    <div><Label>الوزن الحي الإجمالي (كجم)</Label><Input type="number" step="0.1" value={batchForm.total_live_weight_kg || ""} onChange={e => setBatchForm({ ...batchForm, total_live_weight_kg: +e.target.value })} /></div>
-                    <div><Label>نافق قبل الذبح</Label><Input type="number" value={batchForm.pre_slaughter_dead || ""} onChange={e => setBatchForm({ ...batchForm, pre_slaughter_dead: +e.target.value })} /></div>
-                    <div><Label>مرفوض صحياً</Label><Input type="number" value={batchForm.rejected_birds || ""} onChange={e => setBatchForm({ ...batchForm, rejected_birds: +e.target.value })} /></div>
-                    <div><Label>وقت البدء</Label><Input type="time" value={batchForm.start_time} onChange={e => setBatchForm({ ...batchForm, start_time: e.target.value })} /></div>
-                    <div className="sm:col-span-2"><Label>ملاحظات</Label><Textarea value={batchForm.notes} onChange={e => setBatchForm({ ...batchForm, notes: e.target.value })} /></div>
-                  </div>
-                  <DialogFooter><Button onClick={saveBatch}>حفظ</Button></DialogFooter>
-                </DialogContent>
-              </Dialog>
+              <SlaughterBatchDialog
+                open={batchOpen}
+                onOpenChange={setBatchOpen}
+                receipts={receipts}
+                onSave={async (draft) => saveBatch(draft as any)}
+              />
             </CardHeader>
             <CardContent>
               <Table>
