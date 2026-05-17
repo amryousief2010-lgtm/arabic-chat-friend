@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Users, Package, CheckCircle2, XCircle } from 'lucide-react';
+import { Users, Package, CheckCircle2, XCircle, Truck } from 'lucide-react';
 
 const GIRLS = ['اية', 'نورا', 'سارة', 'منال'];
 
@@ -83,7 +83,8 @@ const ModeratorOrdersBreakdown = () => {
         const total = filtered.length;
         const delivered = filtered.filter(o => o.status === 'delivered').length;
         const cancelled = filtered.filter(o => o.status === 'cancelled').length;
-        return { name: girl, total, delivered, cancelled };
+        const pending = total - delivered - cancelled;
+        return { name: girl, total, delivered, cancelled, pending };
       });
     },
   });
@@ -152,6 +153,13 @@ const ModeratorOrdersBreakdown = () => {
                       <span className="text-sm">تم التسليم</span>
                     </div>
                     <span className="font-bold text-lg text-green-600">{item.delivered}</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-amber-500/10">
+                    <div className="flex items-center gap-2">
+                      <Truck className="h-4 w-4 text-amber-600" />
+                      <span className="text-sm">قيد التوصيل</span>
+                    </div>
+                    <span className="font-bold text-lg text-amber-600">{item.pending}</span>
                   </div>
                   <div className="flex items-center justify-between p-2 rounded-lg bg-red-500/10">
                     <div className="flex items-center gap-2">
