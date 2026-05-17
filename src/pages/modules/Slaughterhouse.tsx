@@ -43,6 +43,8 @@ type AuditEntry = { id: string; action: string; target_type: string; target_id: 
 const Slaughterhouse = () => {
   const { role } = useAuth();
   const canEditReceiptDate = role === "slaughterhouse_manager" || role === "general_manager" || role === "executive_manager";
+  const canManageBatch = canEditReceiptDate;
+  const [editBatch, setEditBatch] = useState<Batch | null>(null);
   const todayStr = new Date().toISOString().slice(0, 10);
   const [receiptDateFrom, setReceiptDateFrom] = useState<string>("");
   const [receiptDateTo, setReceiptDateTo] = useState<string>("");
@@ -176,6 +178,36 @@ const Slaughterhouse = () => {
     setBatchForm({ live_receipt_id: "", shift: "morning", birds_slaughtered: 0, total_live_weight_kg: 0, pre_slaughter_dead: 0, rejected_birds: 0, start_time: "", notes: "" });
     fetchAll();
     return true;
+  };
+
+  const updateBatch = async (b: Batch) => {
+    if (!canManageBatch) { toast.error("غير مصرح لك بتعديل الدفعات"); return; }
+    const { id, ...rest } = b;
+    const payload: any = {
+      slaughter_date: rest.slaughter_date,
+      shift: rest.shift,
+      birds_slaughtered: Number(rest.birds_slaughtered) || 0,
+      total_live_weight_kg: Number(rest.total_live_weight_kg) || 0,
+      pre_slaughter_dead: Number(rest.pre_slaughter_dead) || 0,
+      rejected_birds: Number(rest.rejected_birds) || 0,
+      status: rest.status,
+    };
+    const { error } = await supabase.from("slaughter_batches" as any).update(payload).eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("تم تحديث بيانات الدفعة");
+    setEditBatch(null);
+    fetchAll();
+  };
+
+  const deleteBatch = async (b: Batch) => {
+    if (!canManageBatch) { toast.error("غير مصرح لك بحذف الدفعات"); return; }
+    if (!window.confirm(`هل تريد حذف الدفعة ${b.batch_number}؟ سيتم حذف التقسيمة والتحويلات المرتبطة بها.`)) return;
+    await supabase.from("slaughter_branch_transfers" as any).delete().eq("batch_id", b.id);
+    await supabase.from("slaughter_batch_outputs" as any).delete().eq("batch_id", b.id);
+    const { error } = await supabase.from("slaughter_batches" as any).delete().eq("id", b.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("تم حذف الدفعة");
+    fetchAll();
   };
 
   const saveWorker = async () => {
@@ -346,9 +378,15 @@ const Slaughterhouse = () => {
                       <TableCell><span className={Number(b.actual_yield_pct) < 40 && Number(b.actual_yield_pct) > 0 ? "text-red-600 font-bold" : ""}>{Number(b.actual_yield_pct || 0).toFixed(1)}%</span></TableCell>
                       <TableCell>{Number(b.cost_per_kg_meat || 0).toFixed(0)}</TableCell>
                       <TableCell>{statusBadge(b.status)}</TableCell>
-                      <TableCell className="flex gap-2">
+                      <TableCell className="flex gap-2 flex-wrap">
                         <Button size="sm" variant="outline" onClick={() => setOutputBatchId(b.id)}>التقسيمة</Button>
                         {b.status === "in_progress" && <Button size="sm" onClick={() => finalizeBatch(b)} title="إنهاء واحتساب التكلفة وتوزيع الفروع"><CheckCircle2 className="w-4 h-4" /></Button>}
+                        {canManageBatch && (
+                          <>
+                            <Button size="sm" variant="outline" onClick={() => setEditBatch(b)} title="تعديل بيانات الدفعة"><SettingsIcon className="w-4 h-4" /></Button>
+                            <Button size="sm" variant="destructive" onClick={() => deleteBatch(b)} title="حذف الدفعة"><Trash2 className="w-4 h-4" /></Button>
+                          </>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -368,6 +406,45 @@ const Slaughterhouse = () => {
               onClose={() => setOutputBatchId(null)}
               onUpdate={fetchAll}
             />
+          )}
+
+          {editBatch && (
+            <Dialog open onOpenChange={(o) => !o && setEditBatch(null)}>
+              <DialogContent dir="rtl" className="max-w-lg">
+                <DialogHeader><DialogTitle>تعديل الدفعة {editBatch.batch_number}</DialogTitle></DialogHeader>
+                <div className="grid grid-cols-2 gap-3 mt-2">
+                  <div><Label>تاريخ الذبح</Label><Input type="date" max={todayStr} value={editBatch.slaughter_date} onChange={e => setEditBatch({ ...editBatch, slaughter_date: e.target.value })} /></div>
+                  <div><Label>الشيفت</Label>
+                    <Select value={editBatch.shift} onValueChange={v => setEditBatch({ ...editBatch, shift: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent className="z-[100]">
+                        <SelectItem value="morning">صباحي</SelectItem>
+                        <SelectItem value="evening">مسائي</SelectItem>
+                        <SelectItem value="night">ليلي</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div><Label>عدد الطيور</Label><Input type="number" value={editBatch.birds_slaughtered || ""} onChange={e => setEditBatch({ ...editBatch, birds_slaughtered: +e.target.value })} /></div>
+                  <div><Label>الوزن الحي (كجم)</Label><Input type="number" step="0.1" value={editBatch.total_live_weight_kg || ""} onChange={e => setEditBatch({ ...editBatch, total_live_weight_kg: +e.target.value })} /></div>
+                  <div><Label>نافق قبل الذبح</Label><Input type="number" value={editBatch.pre_slaughter_dead || ""} onChange={e => setEditBatch({ ...editBatch, pre_slaughter_dead: +e.target.value })} /></div>
+                  <div><Label>مرفوض صحياً</Label><Input type="number" value={editBatch.rejected_birds || ""} onChange={e => setEditBatch({ ...editBatch, rejected_birds: +e.target.value })} /></div>
+                  <div className="col-span-2"><Label>الحالة</Label>
+                    <Select value={editBatch.status} onValueChange={v => setEditBatch({ ...editBatch, status: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent className="z-[100]">
+                        <SelectItem value="in_progress">قيد الذبح</SelectItem>
+                        <SelectItem value="completed">مكتملة</SelectItem>
+                        <SelectItem value="cancelled">ملغاة</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <DialogFooter className="mt-3">
+                  <Button variant="outline" onClick={() => setEditBatch(null)}>إلغاء</Button>
+                  <Button onClick={() => updateBatch(editBatch)} className="bg-gradient-to-r from-primary to-accent"><Save className="w-4 h-4 ml-1" />حفظ التعديل</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           )}
         </TabsContent>
 
