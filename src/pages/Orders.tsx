@@ -147,6 +147,14 @@ const formatItemQty = (qty: number, unit?: string): string => {
 const Orders = () => {
   const { isShippingCompany, isAccountant, isSalesModerator, isPrivateDeliveryRep, canUpdateOrderStatusForOrder, canDeleteOrders } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const toggleExpanded = (id: string) => {
+    setExpandedItems(prev => {
+      const n = new Set(prev);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+  };
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
