@@ -180,7 +180,37 @@ const Slaughterhouse = () => {
     return true;
   };
 
-  const saveWorker = async () => {
+  const updateBatch = async (b: Batch) => {
+    if (!canManageBatch) { toast.error("غير مصرح لك بتعديل الدفعات"); return; }
+    const { id, ...rest } = b;
+    const payload: any = {
+      slaughter_date: rest.slaughter_date,
+      shift: rest.shift,
+      birds_slaughtered: Number(rest.birds_slaughtered) || 0,
+      total_live_weight_kg: Number(rest.total_live_weight_kg) || 0,
+      pre_slaughter_dead: Number(rest.pre_slaughter_dead) || 0,
+      rejected_birds: Number(rest.rejected_birds) || 0,
+      status: rest.status,
+    };
+    const { error } = await supabase.from("slaughter_batches" as any).update(payload).eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("تم تحديث بيانات الدفعة");
+    setEditBatch(null);
+    fetchAll();
+  };
+
+  const deleteBatch = async (b: Batch) => {
+    if (!canManageBatch) { toast.error("غير مصرح لك بحذف الدفعات"); return; }
+    if (!window.confirm(`هل تريد حذف الدفعة ${b.batch_number}؟ سيتم حذف التقسيمة والتحويلات المرتبطة بها.`)) return;
+    await supabase.from("slaughter_branch_transfers" as any).delete().eq("batch_id", b.id);
+    await supabase.from("slaughter_batch_outputs" as any).delete().eq("batch_id", b.id);
+    const { error } = await supabase.from("slaughter_batches" as any).delete().eq("id", b.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("تم حذف الدفعة");
+    fetchAll();
+  };
+
+
     if (!workerForm.full_name) { toast.error("أدخل اسم العامل"); return; }
     const { error } = await supabase.from("slaughter_workers" as any).insert(workerForm);
     if (error) { toast.error(error.message); return; }
