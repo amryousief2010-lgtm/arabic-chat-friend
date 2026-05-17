@@ -119,3 +119,115 @@ describe("dateFormat — ambiguity guards", () => {
     expect(dmyToISO("04/03/2026")).toBe("2026-03-04");
   });
 });
+
+describe("dateFormat — calendar edge cases (no silent rollover)", () => {
+  it("accepts 29/02 in a leap year (2024)", () => {
+    expect(dmyToISO("29/02/2024")).toBe("2024-02-29");
+    expect(formatDate("2024-02-29")).toBe("29/02/2024");
+  });
+
+  it("rejects 29/02 in a non-leap year (2023, 2025, 2026)", () => {
+    expect(dmyToISO("29/02/2023")).toBe("");
+    expect(dmyToISO("29/02/2025")).toBe("");
+    expect(dmyToISO("29/02/2026")).toBe("");
+  });
+
+  it("rejects 30/02 every year", () => {
+    expect(dmyToISO("30/02/2024")).toBe(""); // even in a leap year
+    expect(dmyToISO("30/02/2026")).toBe("");
+  });
+
+  it("rejects 31/04, 31/06, 31/09, 31/11 (30-day months)", () => {
+    expect(dmyToISO("31/04/2026")).toBe("");
+    expect(dmyToISO("31/06/2026")).toBe("");
+    expect(dmyToISO("31/09/2026")).toBe("");
+    expect(dmyToISO("31/11/2026")).toBe("");
+  });
+
+  it("accepts 30/04 and 31/05 (valid 30 & 31-day boundaries)", () => {
+    expect(dmyToISO("30/04/2026")).toBe("2026-04-30");
+    expect(dmyToISO("31/05/2026")).toBe("2026-05-31");
+  });
+
+  it("accepts 28/02 in any year", () => {
+    expect(dmyToISO("28/02/2023")).toBe("2023-02-28");
+    expect(dmyToISO("28/02/2024")).toBe("2024-02-28");
+  });
+
+  it("rejects 00 as day or month", () => {
+    expect(dmyToISO("00/01/2026")).toBe("");
+    expect(dmyToISO("01/00/2026")).toBe("");
+  });
+
+  it("rejects 32 as day and 13 as month", () => {
+    expect(dmyToISO("32/01/2026")).toBe("");
+    expect(dmyToISO("01/13/2026")).toBe("");
+  });
+});
+
+describe("dateFormat — round-trip: UI ↔ DB ↔ UI", () => {
+  // Simulates the full lifecycle: user picks date → save via toISODate →
+  // DB stores YYYY-MM-DD → fetch → display via formatDate.
+  // Asserts the displayed value matches the originally-entered value.
+
+  const fakeDB = new Map<string, string>();
+  const save = (id: string, userInput: string) => fakeDB.set(id, toISODate(userInput));
+  const load = (id: string) => fakeDB.get(id) ?? "";
+
+  it("DD/MM/YYYY input round-trips identically through DB (ambiguous date)", () => {
+    save("a", "03/04/2026"); // 3 April 2026
+    expect(load("a")).toBe("2026-04-03");
+    expect(formatDate(load("a"))).toBe("03/04/2026");
+  });
+
+  it("31/12/2026 round-trips", () => {
+    save("b", "31/12/2026");
+    expect(load("b")).toBe("2026-12-31");
+    expect(formatDate(load("b"))).toBe("31/12/2026");
+  });
+
+  it("01/01/2026 round-trips", () => {
+    save("c", "01/01/2026");
+    expect(load("c")).toBe("2026-01-01");
+    expect(formatDate(load("c"))).toBe("01/01/2026");
+  });
+
+  it("29/02/2024 (leap day) round-trips", () => {
+    save("d", "29/02/2024");
+    expect(load("d")).toBe("2024-02-29");
+    expect(formatDate(load("d"))).toBe("29/02/2024");
+  });
+
+  it("ISO from <input type='date'> round-trips without swap", () => {
+    // <input type="date"> always emits YYYY-MM-DD regardless of UI locale
+    const fromHtmlInput = "2026-04-03";
+    save("e", fromHtmlInput);
+    expect(load("e")).toBe("2026-04-03");
+    expect(formatDate(load("e"))).toBe("03/04/2026");
+  });
+
+  it("never silently swaps day/month for a hostile DMY input", () => {
+    // 04/03/2026 → DMY = 4 March, MDY = 3 April. We must always get 4 March.
+    save("f", "04/03/2026");
+    expect(load("f")).toBe("2026-03-04");
+    expect(formatDate(load("f"))).toBe("04/03/2026");
+  });
+});
+
+describe("dateFormat — codebase guard", () => {
+  // Static guard: no source file should display dates via .toLocaleDateString()
+  // with no formatting options. All such calls must go through formatDate().
+  it("no bare .toLocaleDateString('xx-XX') calls remain in src/", async () => {
+    const { execSync } = await import("child_process");
+    let matches = "";
+    try {
+      matches = execSync(
+        `rg -n "\\.toLocaleDateString\\([\\"'][a-zA-Z-]+[\\"']\\)" src -g '*.{ts,tsx}' || true`,
+        { cwd: process.cwd() }
+      ).toString();
+    } catch {
+      matches = "";
+    }
+    expect(matches.trim()).toBe("");
+  });
+});
