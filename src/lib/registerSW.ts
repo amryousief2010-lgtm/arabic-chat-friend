@@ -66,3 +66,58 @@ export const registerServiceWorker = () => {
       });
   });
 };
+
+/** فحص يدوي لوجود SW جديد. يُعيد تحميل الصفحة تلقائياً عند التفعيل. */
+export const checkForServiceWorkerUpdate = async (): Promise<
+  "updated" | "current" | "unsupported"
+> => {
+  if (!("serviceWorker" in navigator) || isPreviewHost || isInIframe) {
+    return "unsupported";
+  }
+  const reg = await navigator.serviceWorker.getRegistration("/");
+  if (!reg) return "unsupported";
+
+  await reg.update();
+
+  if (reg.waiting) {
+    reg.waiting.postMessage({ type: "SKIP_WAITING" });
+    await new Promise<void>((resolve) => {
+      const t = setTimeout(resolve, 3000);
+      navigator.serviceWorker.addEventListener(
+        "controllerchange",
+        () => {
+          clearTimeout(t);
+          resolve();
+        },
+        { once: true },
+      );
+    });
+    window.location.reload();
+    return "updated";
+  }
+
+  if (reg.installing) {
+    const installing = reg.installing;
+    const result = await new Promise<"updated" | "current">((resolve) => {
+      const t = setTimeout(() => resolve("current"), 8000);
+      installing.addEventListener("statechange", () => {
+        if (installing.state === "installed" && reg.waiting) {
+          clearTimeout(t);
+          reg.waiting!.postMessage({ type: "SKIP_WAITING" });
+          navigator.serviceWorker.addEventListener(
+            "controllerchange",
+            () => resolve("updated"),
+            { once: true },
+          );
+        } else if (installing.state === "activated") {
+          clearTimeout(t);
+          resolve("updated");
+        }
+      });
+    });
+    if (result === "updated") window.location.reload();
+    return result;
+  }
+
+  return "current";
+};
