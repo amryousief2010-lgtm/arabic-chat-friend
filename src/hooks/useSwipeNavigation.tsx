@@ -47,6 +47,25 @@ export const useSwipeNavigation = ({
   const isDragging = useRef(false);
   const hasTriggeredFeedback = useRef(false);
 
+  // Detect if the touch started inside an element that scrolls horizontally
+  // (e.g. tables, carousels). If yes, we must NOT hijack the gesture.
+  const startedInsideHScroll = (target: EventTarget | null): boolean => {
+    let el = target as HTMLElement | null;
+    while (el && el !== document.body) {
+      if (el.scrollWidth > el.clientWidth + 1) {
+        const style = window.getComputedStyle(el);
+        const ox = style.overflowX;
+        if (ox === 'auto' || ox === 'scroll') return true;
+      }
+      // Native scrollable controls
+      const tag = el.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+      if (el.getAttribute('data-no-swipe-nav') !== null) return true;
+      el = el.parentElement;
+    }
+    return false;
+  };
+
   const getCurrentIndex = useCallback(() => {
     return navigationOrder.indexOf(location.pathname);
   }, [location.pathname]);
