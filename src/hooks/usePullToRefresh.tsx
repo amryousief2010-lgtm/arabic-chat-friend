@@ -18,10 +18,15 @@ export const usePullToRefresh = ({
 
   const handleTouchStart = useCallback((e: TouchEvent) => {
     if (!isEnabled || isRefreshing) return;
-    
+    if (e.touches.length > 1) {
+      startY.current = 0;
+      return;
+    }
     const container = containerRef.current;
-    if (!container || container.scrollTop > 0) return;
-    
+    if (!container || container.scrollTop > 0) {
+      startY.current = 0;
+      return;
+    }
     startY.current = e.touches[0].clientY;
   }, [isEnabled, isRefreshing]);
 
@@ -38,7 +43,9 @@ export const usePullToRefresh = ({
     const currentY = e.touches[0].clientY;
     const diff = currentY - startY.current;
     
-    if (diff > 0) {
+    // Only engage pull when user clearly pulls down past a small dead zone.
+    // This avoids hijacking normal vertical scrolls and keeps the listener cheap.
+    if (diff > 12) {
       e.preventDefault();
       setPullDistance(Math.min(diff * 0.5, threshold * 1.5));
     }
