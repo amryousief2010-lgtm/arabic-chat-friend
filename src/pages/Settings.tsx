@@ -10,6 +10,7 @@ import { Settings as SettingsIcon, Building2, Bell, CreditCard, Shield, Volume2 
 import { useToast } from "@/hooks/use-toast";
 import { useNotificationSettings } from "@/hooks/useNotificationSettings";
 import UpdateLogPanel from "@/components/UpdateLogPanel";
+import ServiceWorkerStatusCard from "@/components/ServiceWorkerStatusCard";
 import { useAuth } from "@/hooks/useAuth";
 
 const Settings = () => {
