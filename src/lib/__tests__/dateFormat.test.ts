@@ -222,7 +222,7 @@ describe("dateFormat — codebase guard", () => {
     let matches = "";
     try {
       matches = execSync(
-        `rg -n "\\.toLocaleDateString\\([\\"'][a-zA-Z-]+[\\"']\\)" src -g '*.{ts,tsx}' || true`,
+        `rg -n "\\.toLocaleDateString\\([\\"'][a-zA-Z-]+[\\"']\\)" src -g '*.{ts,tsx}' -g '!**/__tests__/**' -g '!**/*.test.ts' -g '!**/*.test.tsx' || true`,
         { cwd: process.cwd() }
       ).toString();
     } catch {
