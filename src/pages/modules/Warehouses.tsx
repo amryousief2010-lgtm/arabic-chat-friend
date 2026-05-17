@@ -676,6 +676,7 @@ const Warehouses = () => {
         </DialogContent>
       </Dialog>
 
+      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
