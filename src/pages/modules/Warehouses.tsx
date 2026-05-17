@@ -102,14 +102,20 @@ const Warehouses = () => {
 
   const fetchAll = async () => {
     setLoading(true);
-    const [w, i, m] = await Promise.all([
+    const [w, i, m, s] = await Promise.all([
       supabase.from("warehouses").select("*").order("name"),
       supabase.from("inventory_items").select("*, warehouse:warehouses(name)").order("name"),
       supabase.from("inventory_movements").select("*, item:inventory_items(name, unit), warehouse:warehouses!inventory_movements_warehouse_id_fkey(name), destination:warehouses!inventory_movements_destination_warehouse_id_fkey(name)").order("performed_at", { ascending: false }).limit(200),
+      supabase.from("slaughter_batch_outputs")
+        .select("id, cut_name_ar, actual_weight_kg, unit_cost, received_status, received_at, received_warehouse_id, batch:slaughter_batches(batch_number, slaughter_date)")
+        .eq("destination", "warehouse")
+        .order("created_at", { ascending: false })
+        .limit(300),
     ]);
     if (w.data) setWarehouses(w.data as WarehouseRow[]);
     if (i.data) setItems(i.data as InventoryItem[]);
     if (m.data) setMovements(m.data as Movement[]);
+    if (s.data) setSlaughterOutputs(s.data as any[]);
     setLoading(false);
   };
 
