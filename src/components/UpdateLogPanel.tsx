@@ -2,7 +2,8 @@ import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Trash2, Download } from "lucide-react";
+import { RefreshCw, Trash2, Download, Cog } from "lucide-react";
+import { checkForServiceWorkerUpdate } from "@/lib/registerSW";
 import {
   CURRENT_VERSION,
   CHECK_INTERVAL_MS,
@@ -30,6 +31,7 @@ const UpdateLogPanel = () => {
   const [log, setLog] = useState<ReloadLogEntry[]>([]);
   const [remote, setRemote] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
+  const [checkingSW, setCheckingSW] = useState(false);
 
   const refresh = useCallback(async () => {
     setLog(getReloadLog());
@@ -55,6 +57,28 @@ const UpdateLogPanel = () => {
     clearReloadLog();
     setLog([]);
     toast.success("تم مسح السجل");
+  };
+
+  const handleCheckSW = async () => {
+    setCheckingSW(true);
+    try {
+      const res = await checkForServiceWorkerUpdate();
+      if (res === "updated") {
+        toast.success("تم تفعيل نسخة جديدة — جارٍ إعادة التحميل...");
+      } else if (res === "current") {
+        toast.success("Service Worker على آخر إصدار");
+      } else {
+        toast("Service Worker غير مفعّل في هذه البيئة", {
+          description: "يعمل فقط في النسخة المنشورة خارج المعاينة",
+        });
+      }
+    } catch (e) {
+      toast.error("فشل فحص Service Worker", {
+        description: (e as Error)?.message,
+      });
+    } finally {
+      setCheckingSW(false);
+    }
   };
 
   return (
@@ -96,10 +120,19 @@ const UpdateLogPanel = () => {
           <code className="font-mono">VITE_UPDATE_CHECK_ON_FOCUS</code>.
         </p>
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button onClick={handleForceCheck} disabled={checking} size="sm">
             <RefreshCw className={`w-4 h-4 ml-2 ${checking ? "animate-spin" : ""}`} />
             فحص الآن
+          </Button>
+          <Button
+            onClick={handleCheckSW}
+            disabled={checkingSW}
+            size="sm"
+            variant="secondary"
+          >
+            <Cog className={`w-4 h-4 ml-2 ${checkingSW ? "animate-spin" : ""}`} />
+            فحص Service Worker
           </Button>
           <Button onClick={handleClear} variant="outline" size="sm" disabled={!log.length}>
             <Trash2 className="w-4 h-4 ml-2" />
