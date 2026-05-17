@@ -321,6 +321,26 @@ export const SlaughterBatchDialog = ({ open, onOpenChange, receipts, onSave }: P
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <AlertDialog open={confirmCloseOpen} onOpenChange={setConfirmCloseOpen}>
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>هل تريد إغلاق النموذج؟</AlertDialogTitle>
+            <AlertDialogDescription>
+              لديك مسودة غير محفوظة. سيتم الاحتفاظ ببياناتك تلقائياً وسترجع لها عند فتح النموذج مرة أخرى. اختر "تجاهل" لمسح المسودة نهائياً.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row-reverse gap-2">
+            <AlertDialogCancel>متابعة التعديل</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setConfirmCloseOpen(false); onOpenChange(false); }}>
+              إغلاق مع الاحتفاظ بالمسودة
+            </AlertDialogAction>
+            <Button variant="destructive" onClick={() => { clearDraft(); setConfirmCloseOpen(false); onOpenChange(false); }}>
+              <Trash2 className="w-4 h-4 ml-1" />تجاهل ومسح
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 };
