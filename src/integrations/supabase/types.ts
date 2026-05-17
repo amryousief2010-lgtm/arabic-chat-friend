@@ -3142,6 +3142,11 @@ export type Database = {
           notes: string | null
           package_count: number
           product_id: string | null
+          received_at: string | null
+          received_by: string | null
+          received_inventory_item_id: string | null
+          received_status: string
+          received_warehouse_id: string | null
           standard_weight_kg: number
           total_cost: number | null
           unit_cost: number
@@ -3163,6 +3168,11 @@ export type Database = {
           notes?: string | null
           package_count?: number
           product_id?: string | null
+          received_at?: string | null
+          received_by?: string | null
+          received_inventory_item_id?: string | null
+          received_status?: string
+          received_warehouse_id?: string | null
           standard_weight_kg?: number
           total_cost?: number | null
           unit_cost?: number
@@ -3184,6 +3194,11 @@ export type Database = {
           notes?: string | null
           package_count?: number
           product_id?: string | null
+          received_at?: string | null
+          received_by?: string | null
+          received_inventory_item_id?: string | null
+          received_status?: string
+          received_warehouse_id?: string | null
           standard_weight_kg?: number
           total_cost?: number | null
           unit_cost?: number
@@ -3205,6 +3220,20 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slaughter_batch_outputs_received_inventory_item_id_fkey"
+            columns: ["received_inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slaughter_batch_outputs_received_warehouse_id_fkey"
+            columns: ["received_warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
             referencedColumns: ["id"]
           },
           {
@@ -3982,6 +4011,10 @@ export type Database = {
           msg_id: number
           read_ct: number
         }[]
+      }
+      receive_slaughter_output: {
+        Args: { p_output_id: string; p_warehouse_id: string }
+        Returns: Json
       }
       slaughter_daily_summary: { Args: { p_date: string }; Returns: Json }
     }
