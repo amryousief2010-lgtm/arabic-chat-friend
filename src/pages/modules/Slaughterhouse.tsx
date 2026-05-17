@@ -417,6 +417,7 @@ const Slaughterhouse = () => {
               yields={yields}
               outputs={outputs.filter(o => o.batch_id === outputBatchId)}
               branches={branches}
+              yieldCutNames={settings?.yield_cut_names || DEFAULT_YIELD_CUTS}
               onClose={() => setOutputBatchId(null)}
               onUpdate={fetchAll}
             />
