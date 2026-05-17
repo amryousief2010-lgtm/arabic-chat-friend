@@ -43,6 +43,8 @@ type AuditEntry = { id: string; action: string; target_type: string; target_id: 
 const Slaughterhouse = () => {
   const { role } = useAuth();
   const canEditReceiptDate = role === "slaughterhouse_manager" || role === "general_manager" || role === "executive_manager";
+  const canManageBatch = canEditReceiptDate;
+  const [editBatch, setEditBatch] = useState<Batch | null>(null);
   const todayStr = new Date().toISOString().slice(0, 10);
   const [receiptDateFrom, setReceiptDateFrom] = useState<string>("");
   const [receiptDateTo, setReceiptDateTo] = useState<string>("");
