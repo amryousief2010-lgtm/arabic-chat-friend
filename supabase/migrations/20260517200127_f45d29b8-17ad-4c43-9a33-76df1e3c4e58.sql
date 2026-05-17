@@ -1,0 +1,2 @@
+ALTER TABLE public.slaughter_batch_outputs DROP CONSTRAINT IF EXISTS slaughter_batch_outputs_destination_check;
+ALTER TABLE public.slaughter_batch_outputs ADD CONSTRAINT slaughter_batch_outputs_destination_check CHECK (destination = ANY (ARRAY['warehouse'::text, 'meat_factory'::text, 'direct_sale'::text, 'waste'::text, 'branch'::text]));
