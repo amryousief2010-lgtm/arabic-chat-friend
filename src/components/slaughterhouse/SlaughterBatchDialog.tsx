@@ -56,6 +56,12 @@ export const SlaughterBatchDialog = ({ open, onOpenChange, receipts, onSave }: P
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [step, setStep] = useState("step1");
   const [saving, setSaving] = useState(false);
+  const [confirmCloseOpen, setConfirmCloseOpen] = useState(false);
+
+  const isDirty = useMemo(
+    () => JSON.stringify(form) !== JSON.stringify(defaultDraft),
+    [form]
+  );
 
   // Persist draft on every change
   useEffect(() => {
