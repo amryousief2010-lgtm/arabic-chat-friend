@@ -262,30 +262,57 @@ const Warehouses = () => {
   const filteredItems = warehouseFilter === "all" ? items : items.filter(i => i.warehouse_id === warehouseFilter);
   const lowStockItems = items.filter(i => i.stock <= i.low_stock_threshold);
   const pendingSlaughter = slaughterOutputs.filter(o => o.received_status !== 'received');
-  const receivedSlaughter = slaughterOutputs.filter(o => o.received_status === 'received');
 
-  const openReceiveDialog = (output: any) => {
-    setReceiveTarget(output);
+  // group pending outputs by batch
+  const pendingBatches = Object.values(
+    pendingSlaughter.reduce((acc: Record<string, any>, o: any) => {
+      const key = o.batch_id;
+      if (!acc[key]) acc[key] = {
+        batch_id: o.batch_id,
+        batch_number: o.batch?.batch_number || '—',
+        slaughter_date: o.batch?.slaughter_date,
+        status: o.batch?.status,
+        outputs: [],
+      };
+      acc[key].outputs.push(o);
+      return acc;
+    }, {})
+  ) as any[];
+
+  const openReceiveBatch = (batch: any) => {
+    setReceiveBatch(batch);
     const meatWh = warehouses.find(w => w.type === 'finished_goods') || warehouses[0];
     setReceiveWarehouseId(meatWh?.id || "");
   };
 
-  const confirmReceive = async () => {
-    if (!receiveTarget || !receiveWarehouseId) {
+  const confirmReceiveBatch = async () => {
+    if (!receiveBatch || !receiveWarehouseId) {
       toast({ title: "خطأ", description: "اختر المخزن", variant: "destructive" });
       return;
     }
-    const { error } = await supabase.rpc('receive_slaughter_output', {
-      p_output_id: receiveTarget.id,
+    setReceiving(true);
+    const { data, error } = await supabase.rpc('receive_slaughter_batch', {
+      p_batch_id: receiveBatch.batch_id,
       p_warehouse_id: receiveWarehouseId,
     });
+    setReceiving(false);
     if (error) {
       toast({ title: "خطأ", description: error.message, variant: "destructive" });
       return;
     }
-    toast({ title: "تم الاستلام", description: `أُضيف ${receiveTarget.actual_weight_kg} كجم من ${receiveTarget.cut_name_ar} إلى المخزون` });
-    setReceiveTarget(null);
+    const r: any = data || {};
+    toast({
+      title: "تم الاستلام",
+      description: `تم استلام ${r.received_count || 0} صنف (مضاف للمخزون: ${r.added_to_stock || 0}) بإجمالي ${Number(r.total_kg || 0).toFixed(2)} كجم`,
+    });
+    setReceiveBatch(null);
     fetchAll();
+  };
+
+  const qualityLabels: Record<string, { label: string; variant: any }> = {
+    accepted: { label: 'مقبول', variant: 'default' },
+    rejected: { label: 'مرفوض', variant: 'destructive' },
+    quarantine: { label: 'حجر صحي', variant: 'secondary' },
   };
 
   return (
