@@ -130,24 +130,34 @@ const Slaughterhouse = () => {
     return recent.reduce((s, b) => s + Number(b.cost_per_kg_meat), 0) / recent.length;
   })();
 
+  const validateReceiptDate = (d: string): string | null => {
+    if (!d) return "تاريخ التوريد مطلوب";
+    if (d > todayStr) return "لا يمكن استخدام تاريخ في المستقبل";
+    return null;
+  };
+
   const saveReceipt = async () => {
+    const dateErr = validateReceiptDate(receiptForm.receipt_date);
+    if (dateErr) { toast.error(dateErr); return; }
     if (!receiptForm.bird_count || !receiptForm.total_weight_kg) { toast.error("أدخل عدد الطيور والوزن الإجمالي"); return; }
-    const dateForNumber = (receiptForm.receipt_date || new Date().toISOString().slice(0, 10)).replace(/-/g, "");
+    const dateForNumber = receiptForm.receipt_date.replace(/-/g, "");
     const receipt_number = `LR-${dateForNumber}-${Math.floor(Math.random() * 9999).toString().padStart(4, "0")}`;
     const { data: { user } } = await supabase.auth.getUser();
     const { error } = await supabase.from("slaughter_live_receipts" as any).insert({ ...receiptForm, receipt_number, created_by: user?.id });
     if (error) { toast.error(error.message); return; }
     toast.success("تم تسجيل الاستلام — أضف وزن كل طائر منفصلًا الآن");
     setReceiptOpen(false);
-    setReceiptForm({ source_type: "internal_farm", source_name: "", bird_count: 0, total_weight_kg: 0, avg_age_days: 0, price_per_kg: 0, dead_on_arrival: 0, notes: "", receipt_date: new Date().toISOString().slice(0, 10) });
+    setReceiptForm({ source_type: "internal_farm", source_name: "", bird_count: 0, total_weight_kg: 0, avg_age_days: 0, price_per_kg: 0, dead_on_arrival: 0, notes: "", receipt_date: todayStr });
     fetchAll();
   };
 
   const updateReceiptDate = async (id: string, newDate: string) => {
-    if (!newDate) return;
+    if (!canEditReceiptDate) { toast.error("غير مصرح لك بتعديل تاريخ التوريد"); return; }
+    const dateErr = validateReceiptDate(newDate);
+    if (dateErr) { toast.error(dateErr); return; }
     const { error } = await supabase.from("slaughter_live_receipts" as any).update({ receipt_date: newDate }).eq("id", id);
     if (error) { toast.error(error.message); return; }
-    toast.success("تم تحديث تاريخ التوريد");
+    toast.success("تم تحديث تاريخ التوريد وتم تسجيله في سجل التدقيق");
     fetchAll();
   };
 
