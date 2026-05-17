@@ -26,7 +26,8 @@ export type ReloadReason =
   | "visibility"
   | "pageshow"
   | "post-login"
-  | "manual";
+  | "manual"
+  | "sw-activated";
 
 export interface ReloadLogEntry {
   at: string; // ISO timestamp
@@ -44,7 +45,7 @@ export const getReloadLog = (): ReloadLogEntry[] => {
   }
 };
 
-const pushLog = (entry: ReloadLogEntry) => {
+export const pushLog = (entry: ReloadLogEntry) => {
   try {
     const list = getReloadLog();
     list.unshift(entry);
