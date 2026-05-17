@@ -423,7 +423,7 @@ const Slaughterhouse = () => {
                   <TableHead>تكلفة (إجمالي)</TableHead><TableHead>نافق</TableHead><TableHead>الحالة</TableHead><TableHead>الطيور</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
-                  {receipts.map(r => {
+                  {receipts.filter(r => (!receiptDateFrom || r.receipt_date >= receiptDateFrom) && (!receiptDateTo || r.receipt_date <= receiptDateTo)).map(r => {
                     const recBirds = birds.filter(b => b.receipt_id === r.id);
                     const totalCost = recBirds.reduce((s, b) => s + Number(b.purchase_cost || 0) + Number(b.feed_cost || 0), 0) || Number(r.total_cost || 0);
                     return (
