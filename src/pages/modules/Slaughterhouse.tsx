@@ -935,12 +935,51 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
     <Dialog open onOpenChange={onClose}>
       <DialogContent dir="rtl" className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader><DialogTitle>تقسيمة الدفعة {batch.batch_number}</DialogTitle></DialogHeader>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3 text-sm">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-3 text-sm">
           <div className="p-2 bg-muted/40 rounded">الوزن الحي: <b>{Number(batch.total_live_weight_kg).toFixed(1)} كجم</b></div>
           <div className="p-2 bg-muted/40 rounded">إجمالي المقطّع: <b>{totalActual.toFixed(1)} كجم</b></div>
+          <div className="p-2 bg-emerald-500/10 rounded">وزن أصناف التصافي: <b>{yieldWeight.toFixed(1)} كجم</b></div>
           <div className="p-2 bg-muted/40 rounded">قيمة البيع: <b>{totalValue.toFixed(0)} ر.س</b></div>
           <div className="p-2 bg-muted/40 rounded">التصافي: <b className={yieldPct < 40 ? "text-red-600" : "text-emerald-600"}>{yieldPct.toFixed(1)}%</b></div>
         </div>
+
+        {/* Yield breakdown panel */}
+        <div className="mb-3 border rounded p-3 bg-muted/20 text-xs space-y-2">
+          <div className="font-semibold text-sm flex items-center gap-2">
+            📊 تفاصيل احتساب نسبة التصافي
+            <span className="text-muted-foreground font-normal">({yieldWeight.toFixed(1)} كجم ÷ {Number(batch.total_live_weight_kg).toFixed(1)} كجم وزن حي = {yieldPct.toFixed(1)}%)</span>
+          </div>
+          {includedBreakdown.length > 0 ? (
+            <div>
+              <div className="text-emerald-700 dark:text-emerald-400 font-semibold mb-1">✅ الأصناف المُحتسبة ({includedBreakdown.length}):</div>
+              <div className="flex flex-wrap gap-1">
+                {includedBreakdown.map(([name, w]) => (
+                  <span key={name} className="bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 px-2 py-0.5 rounded">
+                    {name}: <b>{w.toFixed(1)} كجم</b>
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="text-muted-foreground">لم يُسجّل أي وزن لأصناف اللحوم بعد.</div>
+          )}
+          {excludedBreakdown.length > 0 && (
+            <div>
+              <div className="text-amber-700 dark:text-amber-400 font-semibold mb-1">⛔ مستبعد من التصافي (يُسجَّل ولا يُحتسب):</div>
+              <div className="flex flex-wrap gap-1">
+                {excludedBreakdown.map(([name, w]) => (
+                  <span key={name} className="bg-amber-500/15 text-amber-800 dark:text-amber-300 px-2 py-0.5 rounded">
+                    {name}: {w.toFixed(1)} كجم
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="text-muted-foreground pt-1 border-t border-border/50">
+            💡 يمكنك تعديل قائمة أصناف التصافي من <b>الإعدادات → قائمة أصناف اللحوم</b>. المطابقة تتجاهل المسافات وحالة الأحرف وتختلافات ة/ه و ى/ي.
+          </div>
+        </div>
+
         <div className="text-xs text-muted-foreground mb-2">
           💡 لتوزيع نفس القطعة على أكثر من فرع، اضغط زر "+ فرع" بجانب القطعة لإضافة صف جديد بنفس الصنف وفرع مختلف.
         </div>
