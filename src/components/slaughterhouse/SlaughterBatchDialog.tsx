@@ -306,7 +306,12 @@ export const SlaughterBatchDialog = ({ open, onOpenChange, receipts, onSave }: P
               </Button>
             )}
             {step !== "step3" && (
-              <Button type="button" variant="outline" size="sm" onClick={() => setStep(step === "step1" ? "step2" : "step3")}>
+              <Button
+                type="button" variant="outline" size="sm"
+                onClick={goNext}
+                disabled={(step === "step1" && !step1Valid) || (step === "step2" && !step2Valid)}
+                title={(step === "step1" && !step1Valid) || (step === "step2" && !step2Valid) ? "أكمل الحقول المطلوبة أولاً" : undefined}
+              >
                 التالي<ChevronLeft className="w-4 h-4 mr-1" />
               </Button>
             )}
