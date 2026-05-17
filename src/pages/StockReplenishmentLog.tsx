@@ -23,6 +23,7 @@ import { useAuth } from "@/hooks/useAuth";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { cn } from "@/lib/utils";
+import { formatDate, formatDateTime } from "@/lib/dateFormat";
 
 interface LogRow {
   id: string;
@@ -198,7 +199,7 @@ const StockReplenishmentLog = () => {
     filtered.forEach(r => {
       const cost = Number(r.quantity_added || 0) * Number(r.unit_price || 0);
       lines.push([
-        new Date(r.created_at).toLocaleString("en-GB"),
+        formatDateTime(r.created_at),
         `"${r.product_name}"`,
         r.previous_stock,
         r.half_kg_bags ?? 0,
@@ -228,7 +229,7 @@ const StockReplenishmentLog = () => {
       startY: 20,
       head: [["Date","Product","Before","½kg Bags","kg Bags","Added","After","Unit Price","Total","Supplier Ref","By","Notes"]],
       body: filtered.map(r => [
-        new Date(r.created_at).toLocaleDateString("en-GB"),
+        formatDate(r.created_at),
         r.product_name, r.previous_stock,
         r.half_kg_bags ?? 0, r.kg_bags ?? 0,
         r.quantity_added, r.new_stock,
@@ -341,7 +342,7 @@ const StockReplenishmentLog = () => {
                       const cost = Number(r.quantity_added || 0) * Number(r.unit_price || 0);
                       return (
                         <TableRow key={r.id}>
-                          <TableCell className="text-xs">{new Date(r.created_at).toLocaleString("en-GB")}</TableCell>
+                          <TableCell className="text-xs">{formatDateTime(r.created_at)}</TableCell>
                           <TableCell className="font-medium">{r.product_name}</TableCell>
                           <TableCell className="text-center">{r.previous_stock}</TableCell>
                           <TableCell className="text-center">{r.half_kg_bags ? <Badge variant="secondary">{r.half_kg_bags}</Badge> : "—"}</TableCell>

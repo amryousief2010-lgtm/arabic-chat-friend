@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ArrowRight, AlertTriangle, ArrowDown, ArrowUp, ArrowLeftRight, Settings2, Warehouse, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { formatDateTime } from "@/lib/dateFormat";
 
 const warehouseTypes: Record<string, string> = {
   raw_materials: "مواد خام", finished_goods: "منتج نهائي", feed: "أعلاف",
@@ -159,7 +160,7 @@ const WarehouseDashboard = () => {
               <TableBody>
                 {movements.slice(0, 15).map(m => (
                   <TableRow key={m.id}>
-                    <TableCell className="text-xs">{new Date(m.performed_at).toLocaleString("en-GB")}</TableCell>
+                    <TableCell className="text-xs">{formatDateTime(m.performed_at)}</TableCell>
                     <TableCell><Badge variant="outline">{moveLabels[m.movement_type]}</Badge></TableCell>
                     <TableCell>{m.item?.name}</TableCell>
                     <TableCell>{m.warehouse?.name}</TableCell>

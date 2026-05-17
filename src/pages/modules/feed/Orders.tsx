@@ -14,6 +14,7 @@ import { ClipboardList, Plus, ArrowLeft, RefreshCw, PackageOpen, CheckCircle2, X
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { formatDate } from "@/lib/dateFormat";
 
 const statusFlow: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive"; next?: string }> = {
   draft: { label: "مسودة", variant: "secondary", next: "issued" },
@@ -176,7 +177,7 @@ export default function Orders() {
                       <TableCell className="text-sm text-muted-foreground">{o.recipe?.name || "—"}</TableCell>
                       <TableCell>{fmt(Number(o.target_output_kg))}</TableCell>
                       <TableCell><Badge variant={s?.variant || "outline"}>{s?.label || o.status}</Badge></TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{new Date(o.created_at).toLocaleDateString("en-GB")}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{formatDate(o.created_at)}</TableCell>
                       <TableCell>
                         <div className="flex gap-1 justify-start flex-wrap">
                           {o.status === "draft" && (

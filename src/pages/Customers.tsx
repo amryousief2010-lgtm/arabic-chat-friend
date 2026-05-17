@@ -22,6 +22,7 @@ import { Users, Plus, Edit, Phone, Mail, MapPin, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import CustomersAnalytics from "@/components/dashboard/CustomersAnalytics";
+import { formatDate } from "@/lib/dateFormat";
 
 const Customers = () => {
   const queryClient = useQueryClient();
@@ -233,7 +234,7 @@ const Customers = () => {
                       {customer.total_spent.toLocaleString()} ج.م
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {new Date(customer.created_at).toLocaleDateString('en-GB')}
+                      {formatDate(customer.created_at)}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">

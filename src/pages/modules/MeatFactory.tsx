@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { formatDate, formatDateTime } from "@/lib/dateFormat";
 
 type Product = { id: string; product_code: string | null; barcode: string | null; name_ar: string; functional_name_ar: string | null; package_qty: number; package_unit: string; base_cost_unit: string | null; cost_per_base_unit: number | null; cost_price: number | null; sale_price: number | null; cost_status: string | null; source_document: string | null; source_date: string | null; notes: string | null; is_active: boolean; };
 type RawMaterial = { id: string; material_code: string; name_ar: string; default_unit: string; avg_unit_cost: number; category: string; is_active: boolean; stock: number; low_stock_threshold: number; };
@@ -342,7 +343,7 @@ const MeatFactory = () => {
         startY: yAfter3 + 4,
         head: [["When", "From", "To", "Actual Qty", "Notes"]],
         body: logs.map(l => [
-          new Date(l.changed_at).toLocaleString("en-GB"),
+          formatDateTime(l.changed_at),
           l.from_status || "—", l.to_status,
           l.actual_qty != null ? fmt(l.actual_qty, 2) : "—",
           l.notes || "",
@@ -585,7 +586,7 @@ const MeatFactory = () => {
                             <TableCell><Badge variant="outline" className={qualityLabels[l.to_status]?.cls}>{qualityLabels[l.to_status]?.label || l.to_status}</Badge></TableCell>
                             <TableCell>{l.actual_qty != null ? fmt(l.actual_qty, 2) : "—"}</TableCell>
                             <TableCell className="max-w-xs truncate">{l.notes || "—"}</TableCell>
-                            <TableCell className="text-xs">{new Date(l.changed_at).toLocaleString("en-GB")}</TableCell>
+                            <TableCell className="text-xs">{formatDateTime(l.changed_at)}</TableCell>
                           </TableRow>
                         );
                       })}
@@ -633,7 +634,7 @@ const MeatFactory = () => {
                           <TableCell>{c.unit}</TableCell>
                           <TableCell>{fmt(c.unit_cost)}</TableCell>
                           <TableCell className="font-semibold">{fmt(c.line_total, 2)} ج</TableCell>
-                          <TableCell className="text-xs">{new Date(c.created_at).toLocaleDateString("en-GB")}</TableCell>
+                          <TableCell className="text-xs">{formatDate(c.created_at)}</TableCell>
                         </TableRow>
                       );
                     })}
@@ -662,7 +663,7 @@ const MeatFactory = () => {
                       const shortArr = Array.isArray(a.shortages) ? a.shortages : [];
                       return (
                         <TableRow key={a.id} className={ok ? "" : "bg-red-500/5"}>
-                          <TableCell className="text-xs whitespace-nowrap">{new Date(a.attempted_at).toLocaleString("en-GB")}</TableCell>
+                          <TableCell className="text-xs whitespace-nowrap">{formatDateTime(a.attempted_at)}</TableCell>
                           <TableCell className="font-mono text-xs">{a.batch_number}</TableCell>
                           <TableCell className="text-sm">{a.product_name_ar}</TableCell>
                           <TableCell>{fmt(a.planned_qty, 1)}</TableCell>
@@ -994,7 +995,7 @@ const MeatFactory = () => {
                   {batchLogs(qcBatch.id).map(l => (
                     <div key={l.id} className="flex justify-between gap-2 p-1 border rounded">
                       <span>{qualityLabels[l.from_status||"pending"]?.label} → <strong>{qualityLabels[l.to_status]?.label}</strong></span>
-                      <span className="text-muted-foreground">{new Date(l.changed_at).toLocaleString("en-GB")}</span>
+                      <span className="text-muted-foreground">{formatDateTime(l.changed_at)}</span>
                     </div>
                   ))}
                 </div>

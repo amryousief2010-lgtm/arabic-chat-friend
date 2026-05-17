@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
+import { formatDate } from "@/lib/dateFormat";
 
 interface SalesRecord {
   timestamp: string;
@@ -357,7 +358,7 @@ const ImportSalesData = () => {
                       <TableRow key={index}>
                         <TableCell className="font-medium">{index + 1}</TableCell>
                         <TableCell className="text-xs">
-                          {new Date(record.timestamp).toLocaleDateString('en-GB')}
+                          {formatDate(record.timestamp)}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">{record.moderator}</Badge>

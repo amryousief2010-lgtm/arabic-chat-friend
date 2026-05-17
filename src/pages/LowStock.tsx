@@ -24,6 +24,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import * as XLSX from "xlsx";
+import { formatDate } from "@/lib/dateFormat";
 
 interface LowStockProduct {
   id: string;
@@ -110,7 +111,7 @@ const LowStock = () => {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "منتجات منخفضة المخزون");
 
-    const today = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
+    const today = formatDate(new Date()).replace(/\//g, '-');
     XLSX.writeFile(workbook, `منتجات-منخفضة-المخزون-${today}.xlsx`);
     toast.success("تم تصدير الملف بنجاح");
   };

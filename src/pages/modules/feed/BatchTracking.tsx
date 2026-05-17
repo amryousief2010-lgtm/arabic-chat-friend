@@ -9,6 +9,7 @@ import { ArrowRight, Play, CheckCircle2, XCircle, Activity, Package2 } from "luc
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { formatDateTime } from "@/lib/dateFormat";
 
 const statusLabels: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
   planned: { label: "مخططة", variant: "secondary" },
@@ -170,7 +171,7 @@ const BatchTracking = () => {
                       {ev.from_status && <Badge variant="outline">{statusLabels[ev.from_status]?.label || ev.from_status}</Badge>}
                       <span className="text-xs">←</span>
                       {ev.to_status && <Badge variant={statusLabels[ev.to_status]?.variant}>{statusLabels[ev.to_status]?.label || ev.to_status}</Badge>}
-                      <span className="text-xs text-muted-foreground mr-auto">{new Date(ev.created_at).toLocaleString("en-GB")}</span>
+                      <span className="text-xs text-muted-foreground mr-auto">{formatDateTime(ev.created_at)}</span>
                     </div>
                     {ev.details && Object.keys(ev.details).length > 0 && (
                       <pre className="text-xs bg-muted/40 rounded p-2 mt-1 whitespace-pre-wrap">{JSON.stringify(ev.details, null, 2)}</pre>

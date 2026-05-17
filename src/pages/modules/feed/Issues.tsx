@@ -13,6 +13,7 @@ import { PackageOpen, Plus, ArrowLeft, RefreshCw, Trash2, FileText, Wand2 } from
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { formatDate, formatDateTime } from "@/lib/dateFormat";
 
 const fmt = (n: number, d = 2) => (Number.isFinite(n) ? n : 0).toLocaleString("en-GB", { maximumFractionDigits: d });
 
@@ -295,7 +296,7 @@ export default function Issues() {
                     <TableRow key={b.id}>
                       <TableCell className="font-mono text-xs">{b.batch_no}</TableCell>
                       <TableCell className="text-sm">{b.invoice_no || "—"}</TableCell>
-                      <TableCell className="text-xs">{b.invoice_date ? new Date(b.invoice_date).toLocaleDateString("en-GB") : "—"}</TableCell>
+                      <TableCell className="text-xs">{b.invoice_date ? formatDate(b.invoice_date) : "—"}</TableCell>
                       <TableCell className="text-xs">{b.warehouse_name || "—"}</TableCell>
                       <TableCell>{fmt(Number(b.input_qty_weight_kg || 0), 1)}</TableCell>
                       <TableCell>{fmt(Number(b.output_qty_kg), 1)}</TableCell>
@@ -334,7 +335,7 @@ export default function Issues() {
                   <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">لا توجد عمليات صرف</TableCell></TableRow>
                 ) : visible.map(i => (
                   <TableRow key={i.id}>
-                    <TableCell className="text-xs">{new Date(i.issued_at).toLocaleString("en-GB")}</TableCell>
+                    <TableCell className="text-xs">{formatDateTime(i.issued_at)}</TableCell>
                     <TableCell className="font-mono text-xs">{i.order?.order_no || "—"}</TableCell>
                     <TableCell className="text-sm">
                       <div>{i.raw_material?.name || "—"}</div>
