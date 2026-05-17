@@ -230,6 +230,10 @@ const Settings = () => {
         </Card>
       </div>
 
+      <div className="mt-6">
+        <ServiceWorkerStatusCard />
+      </div>
+
       {isAdmin && (
         <div className="mt-6">
           <UpdateLogPanel />
