@@ -138,14 +138,34 @@ export const SlaughterBatchDialog = ({ open, onOpenChange, receipts, onSave }: P
 
   const hasDraft = !!localStorage.getItem(DRAFT_KEY);
 
+  const goNext = () => {
+    if (step === "step1") {
+      setTouched((p) => ({ ...p, shift: true }));
+      if (!step1Valid) return;
+      setStep("step2");
+    } else if (step === "step2") {
+      setTouched((p) => ({ ...p, birds_slaughtered: true, total_live_weight_kg: true, pre_slaughter_dead: true, rejected_birds: true }));
+      if (!step2Valid) return;
+      setStep("step3");
+    }
+  };
+
+  const handleOpenChange = (next: boolean) => {
+    if (!next && isDirty) {
+      setConfirmCloseOpen(true);
+      return;
+    }
+    onOpenChange(next);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button className="bg-gradient-to-r from-primary to-accent">
           <Plus className="w-4 h-4 ml-1" />دفعة جديدة
         </Button>
       </DialogTrigger>
-      <DialogContent dir="rtl" className="max-w-2xl max-h-[92vh] overflow-y-auto p-4 sm:p-6">
+      <DialogContent dir="rtl" className="max-w-2xl max-h-[92vh] overflow-y-auto p-4 sm:p-6" onEscapeKeyDown={(e) => { if (isDirty) { e.preventDefault(); setConfirmCloseOpen(true); } }} onPointerDownOutside={(e) => { if (isDirty) { e.preventDefault(); setConfirmCloseOpen(true); } }}>
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between gap-2">
             <span>دفعة ذبح جديدة</span>
