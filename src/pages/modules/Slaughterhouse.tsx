@@ -31,7 +31,7 @@ import { SlaughterBatchDialog } from "@/components/slaughterhouse/SlaughterBatch
 type Receipt = { id: string; receipt_number: string; receipt_date: string; source_type: string; source_name: string | null; bird_count: number; total_weight_kg: number; avg_weight_kg: number; price_per_kg: number; total_cost: number; dead_on_arrival: number; status: string; };
 type Batch = { id: string; batch_number: string; slaughter_date: string; shift: string; live_receipt_id: string | null; birds_slaughtered: number; total_live_weight_kg: number; total_meat_kg: number; actual_yield_pct: number; cost_per_kg_meat: number; status: string; pre_slaughter_dead: number; rejected_birds: number; };
 type Yield = { id: string; cut_name_ar: string; cut_name_en: string | null; barcode: string | null; standard_yield_pct: number; package_size_kg: number | null; category: string; display_order: number; is_active: boolean; };
-type Output = { id: string; batch_id: string; cut_name_ar: string; barcode: string | null; actual_weight_kg: number; package_count: number; standard_weight_kg: number; variance_pct: number; unit_cost: number; unit_price: number; total_cost: number; destination: string; branch_id: string | null; };
+type Output = { id: string; batch_id: string; cut_name_ar: string; barcode: string | null; actual_weight_kg: number; damaged_weight_kg: number; quarantined_weight_kg: number; package_count: number; standard_weight_kg: number; variance_pct: number; unit_cost: number; unit_price: number; total_cost: number; destination: string; branch_id: string | null; };
 type Worker = { id: string; full_name: string; role: string; phone: string | null; daily_wage: number; is_active: boolean; };
 type QC = { id: string; check_type: string; check_date: string; inspector_name: string; result: string; temperature_c: number | null; ph_level: number | null; notes: string | null; };
 type Branch = { id: string; code: string; name_ar: string; is_active: boolean };
@@ -840,13 +840,15 @@ const BirdsDialog = ({ receiptId, receipt, birds, onClose, onUpdate }: {
 const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCutNames, onClose, onUpdate }: {
   batchId: string; batch: Batch; yields: Yield[]; outputs: Output[]; branches: Branch[]; yieldCutNames: string[]; onClose: () => void; onUpdate: () => void;
 }) => {
-  // Allow multiple rows per cut (one per branch). Pre-fill with one row per yield if no existing.
+  // Start with existing outputs; if none, start empty and let user add dynamically.
   const initial = outputs.length
     ? outputs.map(o => ({
         yield_standard_id: yields.find(y => y.cut_name_ar === o.cut_name_ar)?.id || null,
         cut_name_ar: o.cut_name_ar,
         barcode: o.barcode || "",
         actual_weight_kg: Number(o.actual_weight_kg),
+        damaged_weight_kg: Number(o.damaged_weight_kg || 0),
+        quarantined_weight_kg: Number(o.quarantined_weight_kg || 0),
         package_count: o.package_count,
         standard_weight_kg: Number(o.standard_weight_kg),
         unit_cost: Number(o.unit_cost),
@@ -854,29 +856,21 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
         destination: o.destination,
         branch_id: o.branch_id || "",
       }))
-    : yields.map(y => ({
-        yield_standard_id: y.id,
-        cut_name_ar: y.cut_name_ar,
-        barcode: y.barcode || "",
-        actual_weight_kg: 0,
-        package_count: 0,
-        standard_weight_kg: (Number(batch.total_live_weight_kg) * Number(y.standard_yield_pct)) / 100,
-        unit_cost: 0,
-        unit_price: 0,
-        destination: "branch",
-        branch_id: "",
-      }));
+    : [];
   const [rows, setRows] = useState(initial);
+  const [pickCut, setPickCut] = useState<string>("");
 
   // Auto-recompute on any change to rows / yieldCutNames using useMemo
   const yieldSet = useMemo(() => new Set((yieldCutNames || DEFAULT_YIELD_CUTS).map(normalizeCutName)), [yieldCutNames]);
-  const { totalActual, totalValue, yieldWeight, yieldPct, includedBreakdown, excludedBreakdown } = useMemo(() => {
-    let totalActual = 0, totalValue = 0, yieldWeight = 0;
+  const { totalActual, totalValue, yieldWeight, yieldPct, totalDamaged, totalQuarantined, includedBreakdown, excludedBreakdown } = useMemo(() => {
+    let totalActual = 0, totalValue = 0, yieldWeight = 0, totalDamaged = 0, totalQuarantined = 0;
     const incMap = new Map<string, number>();
     const excMap = new Map<string, number>();
     for (const r of rows) {
       const w = Number(r.actual_weight_kg) || 0;
       totalActual += w;
+      totalDamaged += Number(r.damaged_weight_kg) || 0;
+      totalQuarantined += Number(r.quarantined_weight_kg) || 0;
       totalValue += w * Number(r.unit_price || 0);
       const norm = normalizeCutName(r.cut_name_ar);
       if (yieldSet.has(norm)) {
@@ -888,7 +882,7 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
     }
     const live = Number(batch.total_live_weight_kg);
     return {
-      totalActual, totalValue, yieldWeight,
+      totalActual, totalValue, yieldWeight, totalDamaged, totalQuarantined,
       yieldPct: live > 0 ? (yieldWeight / live) * 100 : 0,
       includedBreakdown: Array.from(incMap.entries()).sort((a, b) => b[1] - a[1]),
       excludedBreakdown: Array.from(excMap.entries()).sort((a, b) => b[1] - a[1]),
@@ -897,30 +891,34 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
 
   const addRow = (cutName: string) => {
     const y = yields.find(y => y.cut_name_ar === cutName);
-    setRows([...rows, {
+    setRows(prev => [...prev, {
       yield_standard_id: y?.id || null,
       cut_name_ar: cutName,
       barcode: y?.barcode || "",
-      actual_weight_kg: 0, package_count: 0,
+      actual_weight_kg: 0, damaged_weight_kg: 0, quarantined_weight_kg: 0, package_count: 0,
       standard_weight_kg: y ? (Number(batch.total_live_weight_kg) * Number(y.standard_yield_pct)) / 100 : 0,
       unit_cost: 0, unit_price: 0, destination: "branch", branch_id: "",
     }]);
   };
 
   const save = async () => {
-    const toUpsert = rows.filter(r => Number(r.actual_weight_kg) > 0).map(r => ({
-      batch_id: batchId,
-      yield_standard_id: r.yield_standard_id,
-      cut_name_ar: r.cut_name_ar,
-      barcode: r.barcode || null,
-      actual_weight_kg: Number(r.actual_weight_kg),
-      package_count: Number(r.package_count) || 0,
-      standard_weight_kg: Number(r.standard_weight_kg) || 0,
-      unit_cost: Number(r.unit_cost) || 0,
-      unit_price: Number(r.unit_price) || 0,
-      destination: r.destination,
-      branch_id: r.branch_id || null,
-    }));
+    const toUpsert = rows
+      .filter(r => Number(r.actual_weight_kg) > 0 || Number(r.damaged_weight_kg) > 0 || Number(r.quarantined_weight_kg) > 0)
+      .map(r => ({
+        batch_id: batchId,
+        yield_standard_id: r.yield_standard_id,
+        cut_name_ar: r.cut_name_ar,
+        barcode: r.barcode || null,
+        actual_weight_kg: Number(r.actual_weight_kg) || 0,
+        damaged_weight_kg: Number(r.damaged_weight_kg) || 0,
+        quarantined_weight_kg: Number(r.quarantined_weight_kg) || 0,
+        package_count: Number(r.package_count) || 0,
+        standard_weight_kg: Number(r.standard_weight_kg) || 0,
+        unit_cost: Number(r.unit_cost) || 0,
+        unit_price: Number(r.unit_price) || 0,
+        destination: r.destination,
+        branch_id: r.branch_id || null,
+      }));
     await supabase.from("slaughter_batch_outputs" as any).delete().eq("batch_id", batchId);
     if (toUpsert.length) {
       const { error } = await supabase.from("slaughter_batch_outputs" as any).insert(toUpsert);
@@ -931,15 +929,20 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
     onUpdate();
   };
 
+  // Available yields not yet added (allow duplicates only via "+ فرع")
+  const usedCuts = new Set(rows.map(r => r.cut_name_ar));
+  const availableYields = yields.filter(y => y.is_active !== false && !usedCuts.has(y.cut_name_ar));
+
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent dir="rtl" className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader><DialogTitle>تقسيمة الدفعة {batch.batch_number}</DialogTitle></DialogHeader>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-3 text-sm">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-2 mb-3 text-sm">
           <div className="p-2 bg-muted/40 rounded">الوزن الحي: <b>{Number(batch.total_live_weight_kg).toFixed(1)} كجم</b></div>
           <div className="p-2 bg-muted/40 rounded">إجمالي المقطّع: <b>{totalActual.toFixed(1)} كجم</b></div>
           <div className="p-2 bg-emerald-500/10 rounded">وزن أصناف التصافي: <b>{yieldWeight.toFixed(1)} كجم</b></div>
-          <div className="p-2 bg-muted/40 rounded">قيمة البيع: <b>{totalValue.toFixed(0)} ر.س</b></div>
+          <div className="p-2 bg-red-500/10 rounded">تالف: <b className="text-red-600">{totalDamaged.toFixed(1)} كجم</b></div>
+          <div className="p-2 bg-amber-500/10 rounded">محجور: <b className="text-amber-600">{totalQuarantined.toFixed(1)} كجم</b></div>
           <div className="p-2 bg-muted/40 rounded">التصافي: <b className={yieldPct < 40 ? "text-red-600" : "text-emerald-600"}>{yieldPct.toFixed(1)}%</b></div>
         </div>
 
@@ -980,15 +983,48 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
           </div>
         </div>
 
+        {/* Dynamic add cut */}
+        <div className="flex flex-wrap items-end gap-2 mb-3 p-3 border rounded bg-muted/20">
+          <div className="flex-1 min-w-[220px]">
+            <Label className="text-xs text-muted-foreground mb-1 block">إضافة صنف للتقسيمة</Label>
+            <Select value={pickCut} onValueChange={setPickCut}>
+              <SelectTrigger><SelectValue placeholder="اختر صنفًا من قائمة المنتجات..." /></SelectTrigger>
+              <SelectContent className="z-[100] max-h-72">
+                {availableYields.length === 0 ? (
+                  <div className="text-xs text-muted-foreground p-3 text-center">جميع الأصناف مُضافة</div>
+                ) : availableYields.map(y => (
+                  <SelectItem key={y.id} value={y.cut_name_ar}>
+                    <span className="flex items-center gap-2">
+                      <span className="font-semibold">{y.cut_name_ar}</span>
+                      {y.barcode && <span className="text-xs text-muted-foreground font-mono">#{y.barcode}</span>}
+                      <span className="text-xs text-muted-foreground">({Number(y.standard_yield_pct).toFixed(1)}%)</span>
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button
+            type="button"
+            onClick={() => { if (pickCut) { addRow(pickCut); setPickCut(""); } }}
+            disabled={!pickCut}
+            className="bg-gradient-to-r from-primary to-accent"
+          >
+            <Plus className="w-4 h-4 ml-1" /> إضافة
+          </Button>
+        </div>
+
         <div className="text-xs text-muted-foreground mb-2">
           💡 لتوزيع نفس القطعة على أكثر من فرع، اضغط زر "+ فرع" بجانب القطعة لإضافة صف جديد بنفس الصنف وفرع مختلف.
         </div>
         <div className="overflow-x-auto">
           <Table>
             <TableHeader><TableRow>
-              <TableHead>الصنف</TableHead>
+              <TableHead>الصنف / الكود</TableHead>
               <TableHead>القياسي</TableHead>
               <TableHead>الكمية (كجم)</TableHead>
+              <TableHead className="text-red-600">تالف (كجم)</TableHead>
+              <TableHead className="text-amber-600">محجور (كجم)</TableHead>
               <TableHead>السعر/كجم</TableHead>
               <TableHead>الإجمالي</TableHead>
               <TableHead>الفرع</TableHead>
@@ -996,11 +1032,23 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
               <TableHead></TableHead>
             </TableRow></TableHeader>
             <TableBody>
+              {rows.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={10} className="text-center text-muted-foreground py-6">
+                    لم يتم إضافة أي صنف بعد. اختر صنفًا من القائمة أعلاه لبدء التقسيمة.
+                  </TableCell>
+                </TableRow>
+              )}
               {rows.map((r, i) => (
                 <TableRow key={i}>
-                  <TableCell className="font-semibold">{r.cut_name_ar}</TableCell>
+                  <TableCell>
+                    <div className="font-semibold">{r.cut_name_ar}</div>
+                    {r.barcode && <div className="text-[10px] text-muted-foreground font-mono">#{r.barcode}</div>}
+                  </TableCell>
                   <TableCell className="text-muted-foreground">{r.standard_weight_kg.toFixed(1)}</TableCell>
                   <TableCell><Input className="w-20" type="number" step="0.1" value={r.actual_weight_kg || ""} onChange={e => { const v = [...rows]; v[i].actual_weight_kg = +e.target.value; setRows(v); }} /></TableCell>
+                  <TableCell><Input className="w-20 border-red-200" type="number" step="0.1" value={r.damaged_weight_kg || ""} onChange={e => { const v = [...rows]; v[i].damaged_weight_kg = +e.target.value; setRows(v); }} /></TableCell>
+                  <TableCell><Input className="w-20 border-amber-200" type="number" step="0.1" value={r.quarantined_weight_kg || ""} onChange={e => { const v = [...rows]; v[i].quarantined_weight_kg = +e.target.value; setRows(v); }} /></TableCell>
                   <TableCell><Input className="w-20" type="number" step="0.01" value={r.unit_price || ""} onChange={e => { const v = [...rows]; v[i].unit_price = +e.target.value; setRows(v); }} /></TableCell>
                   <TableCell className="font-semibold">{(Number(r.actual_weight_kg) * Number(r.unit_price || 0)).toFixed(0)}</TableCell>
                   <TableCell>

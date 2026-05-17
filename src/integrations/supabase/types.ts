@@ -3136,6 +3136,7 @@ export type Database = {
           branch_id: string | null
           created_at: string
           cut_name_ar: string
+          damaged_weight_kg: number
           destination: string
           expiry_date: string | null
           id: string
@@ -3143,6 +3144,7 @@ export type Database = {
           package_count: number
           product_id: string | null
           quality_status: string
+          quarantined_weight_kg: number
           received_at: string | null
           received_by: string | null
           received_inventory_item_id: string | null
@@ -3163,6 +3165,7 @@ export type Database = {
           branch_id?: string | null
           created_at?: string
           cut_name_ar: string
+          damaged_weight_kg?: number
           destination?: string
           expiry_date?: string | null
           id?: string
@@ -3170,6 +3173,7 @@ export type Database = {
           package_count?: number
           product_id?: string | null
           quality_status?: string
+          quarantined_weight_kg?: number
           received_at?: string | null
           received_by?: string | null
           received_inventory_item_id?: string | null
@@ -3190,6 +3194,7 @@ export type Database = {
           branch_id?: string | null
           created_at?: string
           cut_name_ar?: string
+          damaged_weight_kg?: number
           destination?: string
           expiry_date?: string | null
           id?: string
@@ -3197,6 +3202,7 @@ export type Database = {
           package_count?: number
           product_id?: string | null
           quality_status?: string
+          quarantined_weight_kg?: number
           received_at?: string | null
           received_by?: string | null
           received_inventory_item_id?: string | null
