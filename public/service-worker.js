@@ -1,24 +1,23 @@
-self.addEventListener("install", (event) => {
-  event.waitUntil(self.skipWaiting());
-});
-
-self.addEventListener("activate", (event) => {
-  event.waitUntil(
+// 🧹 Kill-switch SW (legacy path) — يلغي نفسه ويوجّه العملاء لتسجيل sw.js الجديد
+self.addEventListener("install", (e) => e.waitUntil(self.skipWaiting()));
+self.addEventListener("activate", (e) =>
+  e.waitUntil(
     (async () => {
       await self.clients.claim();
-      const cacheNames = await caches.keys();
-      await Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName)));
-
-      const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      const names = await caches.keys();
+      await Promise.all(names.map((n) => caches.delete(n)));
+      const clients = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
       await Promise.all(
-        clients.map((client) => {
-          const url = new URL(client.url);
+        clients.map((c) => {
+          const url = new URL(c.url);
           url.searchParams.set("sw-cleanup", Date.now().toString());
-          return client.navigate(url.toString());
+          return c.navigate(url.toString());
         }),
       );
-
       await self.registration.unregister();
     })(),
-  );
-});
+  ),
+);
