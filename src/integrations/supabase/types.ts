@@ -4019,6 +4019,10 @@ export type Database = {
         Args: { p_batch_id: string; p_warehouse_id: string }
         Returns: Json
       }
+      receive_slaughter_batch_verified: {
+        Args: { p_batch_id: string; p_items: Json; p_warehouse_id: string }
+        Returns: Json
+      }
       receive_slaughter_output: {
         Args: { p_output_id: string; p_warehouse_id: string }
         Returns: Json
