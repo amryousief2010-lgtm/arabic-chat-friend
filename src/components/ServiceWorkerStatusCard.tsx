@@ -64,7 +64,7 @@ const ServiceWorkerStatusCard = () => {
   useEffect(() => {
     void refreshState();
     const unsub = subscribeToChecks(() => setLastCheck(getLastCheck()));
-    return () => unsub();
+    return () => { unsub(); };
   }, [refreshState]);
 
   const handleCheck = async () => {
