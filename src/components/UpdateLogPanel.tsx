@@ -23,6 +23,7 @@ const reasonLabel: Record<ReloadLogEntry["reason"], string> = {
   pageshow: "عند الرجوع للصفحة",
   "post-login": "بعد تسجيل الدخول",
   manual: "يدوي",
+  "sw-activated": "تفعيل SW جديد",
 };
 
 const UpdateLogPanel = () => {
