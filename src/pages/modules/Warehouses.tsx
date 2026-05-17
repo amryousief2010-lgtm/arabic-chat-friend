@@ -80,6 +80,9 @@ const Warehouses = () => {
   const [warehouses, setWarehouses] = useState<WarehouseRow[]>([]);
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [movements, setMovements] = useState<Movement[]>([]);
+  const [slaughterOutputs, setSlaughterOutputs] = useState<any[]>([]);
+  const [receiveTarget, setReceiveTarget] = useState<any | null>(null);
+  const [receiveWarehouseId, setReceiveWarehouseId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [warehouseFilter, setWarehouseFilter] = useState<string>("all");
 
