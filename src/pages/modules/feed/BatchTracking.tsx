@@ -170,7 +170,7 @@ const BatchTracking = () => {
                       {ev.from_status && <Badge variant="outline">{statusLabels[ev.from_status]?.label || ev.from_status}</Badge>}
                       <span className="text-xs">←</span>
                       {ev.to_status && <Badge variant={statusLabels[ev.to_status]?.variant}>{statusLabels[ev.to_status]?.label || ev.to_status}</Badge>}
-                      <span className="text-xs text-muted-foreground mr-auto">{new Date(ev.created_at).toLocaleString("ar-EG")}</span>
+                      <span className="text-xs text-muted-foreground mr-auto">{new Date(ev.created_at).toLocaleString("en-GB")}</span>
                     </div>
                     {ev.details && Object.keys(ev.details).length > 0 && (
                       <pre className="text-xs bg-muted/40 rounded p-2 mt-1 whitespace-pre-wrap">{JSON.stringify(ev.details, null, 2)}</pre>

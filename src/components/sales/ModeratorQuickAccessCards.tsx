@@ -98,7 +98,7 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false }: Props) => {
               {privateDeliveryOnly ? "طلبات المسوقات المخصصة للمندوب الخاص" : "سجلات المسوقات"}
             </h3>
             <Badge variant="outline" className="text-[10px]">
-              {new Date().toLocaleDateString("ar-EG", { month: "long", year: "numeric" })}
+              {new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" })}
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground">

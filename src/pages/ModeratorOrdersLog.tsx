@@ -194,7 +194,7 @@ const ModeratorOrdersLog = () => {
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
               {dailyBreakdown.map((d) => (
                 <div key={d.date} className="rounded-lg border border-border p-2 text-center bg-muted/30">
-                  <p className="text-[10px] text-muted-foreground">{new Date(d.date).toLocaleDateString("ar-EG", { weekday: "short", day: "numeric", month: "short" })}</p>
+                  <p className="text-[10px] text-muted-foreground">{new Date(d.date).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}</p>
                   <p className="text-lg font-bold">{d.count}</p>
                   <p className="text-[10px] text-success">{d.total.toLocaleString()} ج.م</p>
                 </div>
@@ -272,7 +272,7 @@ const ModeratorOrdersLog = () => {
                       <td className="py-2 px-2 font-mono text-xs">{o.order_number}</td>
                       <td className="py-2 px-2">{o.customers?.name || "-"}</td>
                       <td className="py-2 px-2 text-xs text-muted-foreground">
-                        {new Date(o.created_at).toLocaleString("ar-EG", { dateStyle: "short", timeStyle: "short" })}
+                        {new Date(o.created_at).toLocaleString("en-GB", { dateStyle: "short", timeStyle: "short" })}
                       </td>
                       <td className="py-2 px-2 font-bold">{Number(o.total).toLocaleString()} ج.م</td>
                       <td className="py-2 px-2"><Badge className={statusColors[o.status] || ""}>{statusLabels[o.status] || o.status}</Badge></td>

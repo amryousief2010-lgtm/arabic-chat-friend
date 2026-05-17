@@ -371,7 +371,7 @@ const OrderDetails = () => {
             </Button>
             <Header 
               title={`طلب ${order.order_number}`} 
-              subtitle={`تم الإنشاء في ${new Date(order.created_at).toLocaleDateString('ar-EG', { 
+              subtitle={`تم الإنشاء في ${new Date(order.created_at).toLocaleDateString('en-GB', { 
                 year: 'numeric', 
                 month: 'long', 
                 day: 'numeric',
@@ -674,7 +674,7 @@ const OrderDetails = () => {
               </CardHeader>
               <CardContent>
                 <p className="font-semibold">
-                  {new Date(order.created_at).toLocaleDateString('ar-EG', {
+                  {new Date(order.created_at).toLocaleDateString('en-GB', {
                     weekday: 'long',
                     year: 'numeric',
                     month: 'long',

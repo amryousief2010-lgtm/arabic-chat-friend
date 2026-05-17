@@ -73,7 +73,7 @@ const CustomersAnalytics = ({ customers }: CustomersAnalyticsProps) => {
     const monthMap: Record<string, number> = {};
     customers.forEach(c => {
       const d = new Date(c.created_at);
-      const key = d.toLocaleDateString("ar-EG", { month: "short", year: "numeric" });
+      const key = d.toLocaleDateString("en-GB", { month: "short", year: "numeric" });
       monthMap[key] = (monthMap[key] || 0) + 1;
     });
     const registrationTrend = Object.entries(monthMap).map(([month, count]) => ({ month, count }));

@@ -533,7 +533,7 @@ const Warehouses = () => {
                           <TableCell>{o.cut_name_ar}</TableCell>
                           <TableCell>{Number(o.actual_weight_kg).toFixed(2)} كجم</TableCell>
                           <TableCell><Badge variant={q.variant}>{q.label}</Badge></TableCell>
-                          <TableCell className="text-xs text-muted-foreground">{o.received_at ? new Date(o.received_at).toLocaleString("ar-EG") : '—'}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{o.received_at ? new Date(o.received_at).toLocaleString("en-GB") : '—'}</TableCell>
                         </TableRow>
                       );
                     })}
@@ -566,7 +566,7 @@ const Warehouses = () => {
                     const Icon = cfg?.icon || ArrowDown;
                     return (
                       <TableRow key={m.id}>
-                        <TableCell className="text-xs">{new Date(m.performed_at).toLocaleString("ar-EG")}</TableCell>
+                        <TableCell className="text-xs">{new Date(m.performed_at).toLocaleString("en-GB")}</TableCell>
                         <TableCell><Badge variant={cfg?.variant || "outline"} className="gap-1"><Icon className="w-3 h-3" />{cfg?.label || m.movement_type}</Badge></TableCell>
                         <TableCell>{m.item?.name || "—"}</TableCell>
                         <TableCell>{m.warehouse?.name || "—"}</TableCell>

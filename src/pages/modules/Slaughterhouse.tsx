@@ -1321,7 +1321,7 @@ const TransfersTab = ({ transfers, branches, batches, onStatus }: {
                 const br = branches.find(b => b.id === t.branch_id);
                 return (
                   <TableRow key={t.id}>
-                    <TableCell>{new Date(t.transferred_at).toLocaleDateString("ar-EG")}</TableCell>
+                    <TableCell>{new Date(t.transferred_at).toLocaleDateString("en-GB")}</TableCell>
                     <TableCell className="font-mono text-xs">{bt?.batch_number || "-"}</TableCell>
                     <TableCell><Badge className="bg-primary/10">{br?.name_ar}</Badge></TableCell>
                     <TableCell>{t.cut_name_ar}</TableCell>
@@ -1710,7 +1710,7 @@ const AuditLogTab = ({ audit, profiles, batches, branches }: {
               const bt = batches.find(b => b.id === e.batch_id);
               return (
                 <TableRow key={e.id}>
-                  <TableCell className="text-xs">{new Date(e.performed_at).toLocaleString("ar-EG")}</TableCell>
+                  <TableCell className="text-xs">{new Date(e.performed_at).toLocaleString("en-GB")}</TableCell>
                   <TableCell><Badge variant="outline">{actionLabel(e.action)}</Badge></TableCell>
                   <TableCell className="text-sm">{e.performed_by ? (profiles[e.performed_by] || e.performed_by.slice(0, 8)) : "—"}</TableCell>
                   <TableCell className="font-mono text-xs">{bt?.batch_number || "—"}</TableCell>

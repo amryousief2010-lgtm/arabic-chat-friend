@@ -537,7 +537,7 @@ const OfferBoxes = () => {
                   {box.offer_price != null && (
                     <div className="mt-2 flex items-center gap-2">
                       <Badge variant="secondary" className="text-sm font-bold">
-                        سعر العرض: {Math.round(Number(box.offer_price)).toLocaleString('ar-EG')} ج.م
+                        سعر العرض: {Math.round(Number(box.offer_price)).toLocaleString('en-GB')} ج.م
                       </Badge>
                     </div>
                   )}
@@ -545,7 +545,7 @@ const OfferBoxes = () => {
                     <div className="mt-2 flex items-center gap-2">
                       <Badge variant="outline" className="text-xs gap-1">
                         <Truck className="h-3 w-3" />
-                        الشحن: {Math.round(Number(box.shipping_cost)).toLocaleString('ar-EG')} ج.م
+                        الشحن: {Math.round(Number(box.shipping_cost)).toLocaleString('en-GB')} ج.م
                       </Badge>
                     </div>
                   )}

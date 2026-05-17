@@ -38,7 +38,7 @@ interface Order {
   recipe?: { name: string; batch_size: number };
 }
 
-const fmt = (n: number, d = 0) => (Number.isFinite(n) ? n : 0).toLocaleString("ar-EG", { maximumFractionDigits: d });
+const fmt = (n: number, d = 0) => (Number.isFinite(n) ? n : 0).toLocaleString("en-GB", { maximumFractionDigits: d });
 
 export default function Orders() {
   const { canManageFeedFactory, user } = useAuth();
@@ -176,7 +176,7 @@ export default function Orders() {
                       <TableCell className="text-sm text-muted-foreground">{o.recipe?.name || "—"}</TableCell>
                       <TableCell>{fmt(Number(o.target_output_kg))}</TableCell>
                       <TableCell><Badge variant={s?.variant || "outline"}>{s?.label || o.status}</Badge></TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{new Date(o.created_at).toLocaleDateString("ar-EG")}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{new Date(o.created_at).toLocaleDateString("en-GB")}</TableCell>
                       <TableCell>
                         <div className="flex gap-1 justify-start flex-wrap">
                           {o.status === "draft" && (

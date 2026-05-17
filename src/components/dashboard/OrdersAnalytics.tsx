@@ -82,7 +82,7 @@ const OrdersAnalytics = ({ orders }: OrdersAnalyticsProps) => {
     orders.forEach(o => {
       const d = new Date(o.created_at);
       if (d >= last30) {
-        const key = d.toLocaleDateString("ar-EG", { month: "short", day: "numeric" });
+        const key = d.toLocaleDateString("en-GB", { month: "short", day: "numeric" });
         if (!dailyMap[key]) dailyMap[key] = { orders: 0, revenue: 0 };
         dailyMap[key].orders++;
         dailyMap[key].revenue += o.total;
@@ -94,7 +94,7 @@ const OrdersAnalytics = ({ orders }: OrdersAnalyticsProps) => {
     const monthlyMap: Record<string, { orders: number; revenue: number }> = {};
     orders.forEach(o => {
       const d = new Date(o.created_at);
-      const key = d.toLocaleDateString("ar-EG", { month: "short", year: "numeric" });
+      const key = d.toLocaleDateString("en-GB", { month: "short", year: "numeric" });
       if (!monthlyMap[key]) monthlyMap[key] = { orders: 0, revenue: 0 };
       monthlyMap[key].orders++;
       monthlyMap[key].revenue += o.total;

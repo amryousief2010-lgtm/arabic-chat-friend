@@ -31,7 +31,7 @@ const qcLabels: Record<string, { label: string; cls: string }> = {
 };
 
 const fmt = (n: number, d = 2) =>
-  (Number.isFinite(n) ? n : 0).toLocaleString("ar-EG", { maximumFractionDigits: d });
+  (Number.isFinite(n) ? n : 0).toLocaleString("en-GB", { maximumFractionDigits: d });
 
 export default function FeedDashboard() {
   const { toast } = useToast();

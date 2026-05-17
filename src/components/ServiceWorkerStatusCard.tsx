@@ -87,7 +87,7 @@ const ServiceWorkerStatusCard = () => {
   };
 
   const lastCheckText = lastCheck
-    ? new Date(lastCheck.at).toLocaleString("ar-EG")
+    ? new Date(lastCheck.at).toLocaleString("en-GB")
     : "—";
 
   return (

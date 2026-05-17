@@ -315,7 +315,7 @@ const TeamPerformance = () => {
     
     doc.setFontSize(12);
     doc.text(`Period: ${periodLabels[period]}`, 105, 30, { align: 'center' });
-    doc.text(`Generated: ${new Date().toLocaleDateString('en-US')}`, 105, 38, { align: 'center' });
+    doc.text(`Generated: ${new Date().toLocaleDateString('en-GB')}`, 105, 38, { align: 'center' });
     
     // Summary stats
     doc.setFontSize(14);
@@ -352,7 +352,7 @@ const TeamPerformance = () => {
     const worksheetData = [
       ['تقرير أداء الفريق'],
       [`الفترة: ${periodLabels[period]}`],
-      [`تاريخ التقرير: ${new Date().toLocaleDateString('ar-EG')}`],
+      [`تاريخ التقرير: ${new Date().toLocaleDateString('en-GB')}`],
       [],
       ['ملخص'],
       [`عدد أعضاء الفريق: ${teamMembers.length}`],

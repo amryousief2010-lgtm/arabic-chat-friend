@@ -195,7 +195,7 @@ const RecipeDetail = () => {
                   <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">لا يوجد تاريخ بعد</TableCell></TableRow>
                 ) : history.map(h => (
                   <TableRow key={h.id}>
-                    <TableCell className="text-xs">{new Date(h.created_at).toLocaleString("ar-EG")}</TableCell>
+                    <TableCell className="text-xs">{new Date(h.created_at).toLocaleString("en-GB")}</TableCell>
                     <TableCell>{h.batch_size}</TableCell>
                     <TableCell>{Number(h.total_quantity).toFixed(2)}</TableCell>
                     <TableCell>{Number(h.total_cost).toFixed(2)}</TableCell>
