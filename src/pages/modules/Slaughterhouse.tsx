@@ -294,9 +294,9 @@ const Slaughterhouse = () => {
               <CardTitle>دفعات الذبح</CardTitle>
               <Dialog open={batchOpen} onOpenChange={setBatchOpen}>
                 <DialogTrigger asChild><Button className="bg-gradient-to-r from-primary to-accent"><Plus className="w-4 h-4 ml-1" />دفعة جديدة</Button></DialogTrigger>
-                <DialogContent dir="rtl" className="max-w-2xl">
+                <DialogContent dir="rtl" className="max-w-2xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader><DialogTitle>دفعة ذبح جديدة</DialogTitle></DialogHeader>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div><Label>استلام حي مرتبط</Label>
                       <Select value={batchForm.live_receipt_id} onValueChange={v => {
                         const r = receipts.find(x => x.id === v);
@@ -380,9 +380,9 @@ const Slaughterhouse = () => {
               <CardTitle>استلام الطيور الحية</CardTitle>
               <Dialog open={receiptOpen} onOpenChange={setReceiptOpen}>
                 <DialogTrigger asChild><Button className="bg-gradient-to-r from-primary to-accent"><Plus className="w-4 h-4 ml-1" />استلام جديد</Button></DialogTrigger>
-                <DialogContent dir="rtl" className="max-w-2xl">
+                <DialogContent dir="rtl" className="max-w-2xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader><DialogTitle>تسجيل استلام طيور</DialogTitle></DialogHeader>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div><Label>المصدر</Label>
                       <Select value={receiptForm.source_type} onValueChange={v => setReceiptForm({ ...receiptForm, source_type: v })}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
@@ -552,9 +552,9 @@ const Slaughterhouse = () => {
               <CardTitle>فحوصات الجودة</CardTitle>
               <Dialog open={qcOpen} onOpenChange={setQcOpen}>
                 <DialogTrigger asChild><Button className="bg-gradient-to-r from-primary to-accent"><Plus className="w-4 h-4 ml-1" />فحص جديد</Button></DialogTrigger>
-                <DialogContent dir="rtl" className="max-w-2xl">
+                <DialogContent dir="rtl" className="max-w-2xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader><DialogTitle>تسجيل فحص جودة</DialogTitle></DialogHeader>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div><Label>نوع الفحص</Label>
                       <Select value={qcForm.check_type} onValueChange={v => setQcForm({ ...qcForm, check_type: v })}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
