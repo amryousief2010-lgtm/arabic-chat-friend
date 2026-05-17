@@ -259,17 +259,19 @@ const Slaughterhouse = () => {
       </div>
 
       <Tabs defaultValue="daily" dir="rtl">
-        <TabsList className="grid grid-cols-3 md:grid-cols-9 w-full">
-          <TabsTrigger value="daily">التقرير اليومي</TabsTrigger>
-          <TabsTrigger value="batches">دفعات الذبح</TabsTrigger>
-          <TabsTrigger value="receipts">استلام حي</TabsTrigger>
-          <TabsTrigger value="transfers">توزيع الفروع</TabsTrigger>
-          <TabsTrigger value="yields">المعيار القياسي</TabsTrigger>
-          <TabsTrigger value="workers">العمال</TabsTrigger>
-          <TabsTrigger value="quality">الجودة</TabsTrigger>
-          <TabsTrigger value="audit"><History className="w-3 h-3 ml-1" />التدقيق</TabsTrigger>
-          <TabsTrigger value="settings"><SettingsIcon className="w-3 h-3 ml-1" />الإعدادات</TabsTrigger>
-        </TabsList>
+        <div className="w-full overflow-x-auto -mx-1 px-1 mb-2">
+          <TabsList className="inline-flex w-max min-w-full gap-1 h-auto flex-wrap md:flex-nowrap">
+            <TabsTrigger value="daily" className="text-xs md:text-sm whitespace-nowrap">التقرير اليومي</TabsTrigger>
+            <TabsTrigger value="batches" className="text-xs md:text-sm whitespace-nowrap">دفعات الذبح</TabsTrigger>
+            <TabsTrigger value="receipts" className="text-xs md:text-sm whitespace-nowrap">استلام حي</TabsTrigger>
+            <TabsTrigger value="transfers" className="text-xs md:text-sm whitespace-nowrap">توزيع الفروع</TabsTrigger>
+            <TabsTrigger value="yields" className="text-xs md:text-sm whitespace-nowrap">المعيار القياسي</TabsTrigger>
+            <TabsTrigger value="workers" className="text-xs md:text-sm whitespace-nowrap">العمال</TabsTrigger>
+            <TabsTrigger value="quality" className="text-xs md:text-sm whitespace-nowrap">الجودة</TabsTrigger>
+            <TabsTrigger value="audit" className="text-xs md:text-sm whitespace-nowrap gap-1"><History className="w-3 h-3" />التدقيق</TabsTrigger>
+            <TabsTrigger value="settings" className="text-xs md:text-sm whitespace-nowrap gap-1"><SettingsIcon className="w-3 h-3" />الإعدادات</TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* ========== DAILY REPORT (Excel-style) ========== */}
         <TabsContent value="daily">
@@ -292,9 +294,9 @@ const Slaughterhouse = () => {
               <CardTitle>دفعات الذبح</CardTitle>
               <Dialog open={batchOpen} onOpenChange={setBatchOpen}>
                 <DialogTrigger asChild><Button className="bg-gradient-to-r from-primary to-accent"><Plus className="w-4 h-4 ml-1" />دفعة جديدة</Button></DialogTrigger>
-                <DialogContent dir="rtl" className="max-w-2xl">
+                <DialogContent dir="rtl" className="max-w-2xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader><DialogTitle>دفعة ذبح جديدة</DialogTitle></DialogHeader>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div><Label>استلام حي مرتبط</Label>
                       <Select value={batchForm.live_receipt_id} onValueChange={v => {
                         const r = receipts.find(x => x.id === v);
@@ -321,7 +323,7 @@ const Slaughterhouse = () => {
                     <div><Label>نافق قبل الذبح</Label><Input type="number" value={batchForm.pre_slaughter_dead || ""} onChange={e => setBatchForm({ ...batchForm, pre_slaughter_dead: +e.target.value })} /></div>
                     <div><Label>مرفوض صحياً</Label><Input type="number" value={batchForm.rejected_birds || ""} onChange={e => setBatchForm({ ...batchForm, rejected_birds: +e.target.value })} /></div>
                     <div><Label>وقت البدء</Label><Input type="time" value={batchForm.start_time} onChange={e => setBatchForm({ ...batchForm, start_time: e.target.value })} /></div>
-                    <div className="col-span-2"><Label>ملاحظات</Label><Textarea value={batchForm.notes} onChange={e => setBatchForm({ ...batchForm, notes: e.target.value })} /></div>
+                    <div className="sm:col-span-2"><Label>ملاحظات</Label><Textarea value={batchForm.notes} onChange={e => setBatchForm({ ...batchForm, notes: e.target.value })} /></div>
                   </div>
                   <DialogFooter><Button onClick={saveBatch}>حفظ</Button></DialogFooter>
                 </DialogContent>
@@ -378,9 +380,9 @@ const Slaughterhouse = () => {
               <CardTitle>استلام الطيور الحية</CardTitle>
               <Dialog open={receiptOpen} onOpenChange={setReceiptOpen}>
                 <DialogTrigger asChild><Button className="bg-gradient-to-r from-primary to-accent"><Plus className="w-4 h-4 ml-1" />استلام جديد</Button></DialogTrigger>
-                <DialogContent dir="rtl" className="max-w-2xl">
+                <DialogContent dir="rtl" className="max-w-2xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader><DialogTitle>تسجيل استلام طيور</DialogTitle></DialogHeader>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div><Label>المصدر</Label>
                       <Select value={receiptForm.source_type} onValueChange={v => setReceiptForm({ ...receiptForm, source_type: v })}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
@@ -396,8 +398,8 @@ const Slaughterhouse = () => {
                     <div><Label>متوسط العمر (أيام)</Label><Input type="number" value={receiptForm.avg_age_days || ""} onChange={e => setReceiptForm({ ...receiptForm, avg_age_days: +e.target.value })} /></div>
                     <div><Label>السعر/كجم (ر.س)</Label><Input type="number" step="0.01" value={receiptForm.price_per_kg || ""} onChange={e => setReceiptForm({ ...receiptForm, price_per_kg: +e.target.value })} /></div>
                     <div><Label>نافق عند الوصول</Label><Input type="number" value={receiptForm.dead_on_arrival || ""} onChange={e => setReceiptForm({ ...receiptForm, dead_on_arrival: +e.target.value })} /></div>
-                    <div className="col-span-2"><Label>ملاحظات</Label><Textarea value={receiptForm.notes} onChange={e => setReceiptForm({ ...receiptForm, notes: e.target.value })} /></div>
-                    <div className="col-span-2 text-xs text-muted-foreground bg-muted/40 p-2 rounded">
+                    <div className="sm:col-span-2"><Label>ملاحظات</Label><Textarea value={receiptForm.notes} onChange={e => setReceiptForm({ ...receiptForm, notes: e.target.value })} /></div>
+                    <div className="sm:col-span-2 text-xs text-muted-foreground bg-muted/40 p-2 rounded">
                       💡 بعد الحفظ ستتمكن من إدخال وزن وتكلفة كل طائر منفصلًا (مطابق لتفريغة Excel) وسيتم تحديث الإجماليات تلقائيًا.
                     </div>
                   </div>
@@ -550,9 +552,9 @@ const Slaughterhouse = () => {
               <CardTitle>فحوصات الجودة</CardTitle>
               <Dialog open={qcOpen} onOpenChange={setQcOpen}>
                 <DialogTrigger asChild><Button className="bg-gradient-to-r from-primary to-accent"><Plus className="w-4 h-4 ml-1" />فحص جديد</Button></DialogTrigger>
-                <DialogContent dir="rtl" className="max-w-2xl">
+                <DialogContent dir="rtl" className="max-w-2xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader><DialogTitle>تسجيل فحص جودة</DialogTitle></DialogHeader>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div><Label>نوع الفحص</Label>
                       <Select value={qcForm.check_type} onValueChange={v => setQcForm({ ...qcForm, check_type: v })}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
@@ -583,7 +585,7 @@ const Slaughterhouse = () => {
                     </div>
                     <div><Label>درجة الحرارة (°م)</Label><Input type="number" step="0.1" value={qcForm.temperature_c} onChange={e => setQcForm({ ...qcForm, temperature_c: e.target.value })} /></div>
                     <div><Label>درجة الـ pH</Label><Input type="number" step="0.01" value={qcForm.ph_level} onChange={e => setQcForm({ ...qcForm, ph_level: e.target.value })} /></div>
-                    <div className="col-span-2"><Label>ملاحظات</Label><Textarea value={qcForm.notes} onChange={e => setQcForm({ ...qcForm, notes: e.target.value })} /></div>
+                    <div className="sm:col-span-2"><Label>ملاحظات</Label><Textarea value={qcForm.notes} onChange={e => setQcForm({ ...qcForm, notes: e.target.value })} /></div>
                   </div>
                   <DialogFooter><Button onClick={saveQC}>حفظ</Button></DialogFooter>
                 </DialogContent>
