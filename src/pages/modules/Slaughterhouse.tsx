@@ -429,7 +429,11 @@ const Slaughterhouse = () => {
                     return (
                       <TableRow key={r.id}>
                         <TableCell className="font-mono text-xs">{r.receipt_number}</TableCell>
-                        <TableCell><Input type="date" value={r.receipt_date} onChange={e => updateReceiptDate(r.id, e.target.value)} className="h-8 w-36 text-xs" /></TableCell>
+                        <TableCell>{canEditReceiptDate ? (
+                          <Input type="date" max={todayStr} value={r.receipt_date} onChange={e => updateReceiptDate(r.id, e.target.value)} className="h-8 w-36 text-xs" title="تعديل تاريخ التوريد (يُسجَّل في سجل التدقيق)" />
+                        ) : (
+                          <span className="text-xs">{r.receipt_date}</span>
+                        )}</TableCell>
                         <TableCell>{r.source_type === "internal_farm" ? "🏡 داخلي" : "🚚 خارجي"} {r.source_name ? `— ${r.source_name}` : ""}</TableCell>
                         <TableCell>{r.bird_count}</TableCell>
                         <TableCell>{Number(r.total_weight_kg).toFixed(1)}</TableCell>
