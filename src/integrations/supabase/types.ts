@@ -3142,6 +3142,7 @@ export type Database = {
           notes: string | null
           package_count: number
           product_id: string | null
+          quality_status: string
           received_at: string | null
           received_by: string | null
           received_inventory_item_id: string | null
@@ -3168,6 +3169,7 @@ export type Database = {
           notes?: string | null
           package_count?: number
           product_id?: string | null
+          quality_status?: string
           received_at?: string | null
           received_by?: string | null
           received_inventory_item_id?: string | null
@@ -3194,6 +3196,7 @@ export type Database = {
           notes?: string | null
           package_count?: number
           product_id?: string | null
+          quality_status?: string
           received_at?: string | null
           received_by?: string | null
           received_inventory_item_id?: string | null
@@ -4011,6 +4014,10 @@ export type Database = {
           msg_id: number
           read_ct: number
         }[]
+      }
+      receive_slaughter_batch: {
+        Args: { p_batch_id: string; p_warehouse_id: string }
+        Returns: Json
       }
       receive_slaughter_output: {
         Args: { p_output_id: string; p_warehouse_id: string }

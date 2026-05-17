@@ -81,8 +81,9 @@ const Warehouses = () => {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [movements, setMovements] = useState<Movement[]>([]);
   const [slaughterOutputs, setSlaughterOutputs] = useState<any[]>([]);
-  const [receiveTarget, setReceiveTarget] = useState<any | null>(null);
+  const [receiveBatch, setReceiveBatch] = useState<{ batch_id: string; batch_number: string; slaughter_date?: string; status?: string; outputs: any[] } | null>(null);
   const [receiveWarehouseId, setReceiveWarehouseId] = useState<string>("");
+  const [receiving, setReceiving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [warehouseFilter, setWarehouseFilter] = useState<string>("all");
 
@@ -107,7 +108,7 @@ const Warehouses = () => {
       supabase.from("inventory_items").select("*, warehouse:warehouses(name)").order("name"),
       supabase.from("inventory_movements").select("*, item:inventory_items(name, unit), warehouse:warehouses!inventory_movements_warehouse_id_fkey(name), destination:warehouses!inventory_movements_destination_warehouse_id_fkey(name)").order("performed_at", { ascending: false }).limit(200),
       supabase.from("slaughter_batch_outputs")
-        .select("id, cut_name_ar, actual_weight_kg, unit_cost, received_status, received_at, received_warehouse_id, batch:slaughter_batches(batch_number, slaughter_date)")
+        .select("id, batch_id, cut_name_ar, actual_weight_kg, unit_cost, quality_status, received_status, received_at, received_warehouse_id, batch:slaughter_batches(batch_number, slaughter_date, status)")
         .eq("destination", "warehouse")
         .order("created_at", { ascending: false })
         .limit(300),
@@ -261,30 +262,57 @@ const Warehouses = () => {
   const filteredItems = warehouseFilter === "all" ? items : items.filter(i => i.warehouse_id === warehouseFilter);
   const lowStockItems = items.filter(i => i.stock <= i.low_stock_threshold);
   const pendingSlaughter = slaughterOutputs.filter(o => o.received_status !== 'received');
-  const receivedSlaughter = slaughterOutputs.filter(o => o.received_status === 'received');
 
-  const openReceiveDialog = (output: any) => {
-    setReceiveTarget(output);
+  // group pending outputs by batch
+  const pendingBatches = Object.values(
+    pendingSlaughter.reduce((acc: Record<string, any>, o: any) => {
+      const key = o.batch_id;
+      if (!acc[key]) acc[key] = {
+        batch_id: o.batch_id,
+        batch_number: o.batch?.batch_number || '—',
+        slaughter_date: o.batch?.slaughter_date,
+        status: o.batch?.status,
+        outputs: [],
+      };
+      acc[key].outputs.push(o);
+      return acc;
+    }, {})
+  ) as any[];
+
+  const openReceiveBatch = (batch: any) => {
+    setReceiveBatch(batch);
     const meatWh = warehouses.find(w => w.type === 'finished_goods') || warehouses[0];
     setReceiveWarehouseId(meatWh?.id || "");
   };
 
-  const confirmReceive = async () => {
-    if (!receiveTarget || !receiveWarehouseId) {
+  const confirmReceiveBatch = async () => {
+    if (!receiveBatch || !receiveWarehouseId) {
       toast({ title: "خطأ", description: "اختر المخزن", variant: "destructive" });
       return;
     }
-    const { error } = await supabase.rpc('receive_slaughter_output', {
-      p_output_id: receiveTarget.id,
+    setReceiving(true);
+    const { data, error } = await supabase.rpc('receive_slaughter_batch', {
+      p_batch_id: receiveBatch.batch_id,
       p_warehouse_id: receiveWarehouseId,
     });
+    setReceiving(false);
     if (error) {
       toast({ title: "خطأ", description: error.message, variant: "destructive" });
       return;
     }
-    toast({ title: "تم الاستلام", description: `أُضيف ${receiveTarget.actual_weight_kg} كجم من ${receiveTarget.cut_name_ar} إلى المخزون` });
-    setReceiveTarget(null);
+    const r: any = data || {};
+    toast({
+      title: "تم الاستلام",
+      description: `تم استلام ${r.received_count || 0} صنف (مضاف للمخزون: ${r.added_to_stock || 0}) بإجمالي ${Number(r.total_kg || 0).toFixed(2)} كجم`,
+    });
+    setReceiveBatch(null);
     fetchAll();
+  };
+
+  const qualityLabels: Record<string, { label: string; variant: any }> = {
+    accepted: { label: 'مقبول', variant: 'default' },
+    rejected: { label: 'مرفوض', variant: 'destructive' },
+    quarantine: { label: 'حجر صحي', variant: 'secondary' },
   };
 
   return (
@@ -393,51 +421,100 @@ const Warehouses = () => {
 
           {/* SLAUGHTER RECEIPTS */}
           <TabsContent value="slaughter" className="space-y-4">
+            {/* Pending batches grouped */}
+            {pendingBatches.length === 0 ? (
+              <Card><CardContent className="py-10 text-center text-muted-foreground">لا توجد دفعات بانتظار الاستلام من المجزر</CardContent></Card>
+            ) : (
+              <div className="space-y-3">
+                {pendingBatches.map((b: any) => {
+                  const totalKg = b.outputs.reduce((s: number, o: any) => s + Number(o.actual_weight_kg || 0), 0);
+                  const accepted = b.outputs.filter((o: any) => o.quality_status === 'accepted').length;
+                  const rejected = b.outputs.filter((o: any) => o.quality_status === 'rejected').length;
+                  return (
+                    <Card key={b.batch_id} className="border-primary/30">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between gap-3 flex-wrap">
+                          <div>
+                            <CardTitle className="flex items-center gap-2 text-base">
+                              <Beef className="w-5 h-5 text-primary" /> الدفعة {b.batch_number}
+                              {b.status && <Badge variant="outline">{b.status === 'completed' ? 'مكتملة' : b.status === 'in_progress' ? 'جارية' : b.status}</Badge>}
+                            </CardTitle>
+                            <CardDescription>
+                              تاريخ الذبح: {b.slaughter_date || '—'} • {b.outputs.length} صنف • إجمالي {totalKg.toFixed(2)} كجم
+                              {accepted > 0 && <> • مقبول: {accepted}</>}
+                              {rejected > 0 && <> • مرفوض: {rejected}</>}
+                            </CardDescription>
+                          </div>
+                          {canManageWarehouses && (
+                            <Button onClick={() => openReceiveBatch(b)}>
+                              <ArrowDown className="w-4 h-4 ml-1" /> استلام الدفعة
+                            </Button>
+                          )}
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>الصنف</TableHead>
+                              <TableHead>الكمية (كجم)</TableHead>
+                              <TableHead>التكلفة/كجم</TableHead>
+                              <TableHead>الجودة</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {b.outputs.map((o: any) => {
+                              const q = qualityLabels[o.quality_status] || qualityLabels.accepted;
+                              return (
+                                <TableRow key={o.id}>
+                                  <TableCell className="font-medium">{o.cut_name_ar}</TableCell>
+                                  <TableCell>{Number(o.actual_weight_kg).toFixed(2)}</TableCell>
+                                  <TableCell>{Number(o.unit_cost || 0).toFixed(2)}</TableCell>
+                                  <TableCell><Badge variant={q.variant}>{q.label}</Badge></TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Received history */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Beef className="w-5 h-5 text-primary" /> أصناف بانتظار الاستلام من المجزر</CardTitle>
-                <CardDescription>الأصناف الموجهة للمخزن بعد تقسيمة الذبح. اضغط "استلام" لإضافتها تلقائيًا للمخزون الرئيسي.</CardDescription>
+                <CardTitle className="text-base">سجل المستلم</CardTitle>
+                <CardDescription>آخر عمليات الاستلام من المجزر</CardDescription>
               </CardHeader>
               <CardContent className="p-0">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>الدفعة</TableHead>
-                      <TableHead>تاريخ الذبح</TableHead>
                       <TableHead>الصنف</TableHead>
-                      <TableHead>الكمية (كجم)</TableHead>
-                      <TableHead>التكلفة/كجم</TableHead>
-                      <TableHead>الحالة</TableHead>
-                      <TableHead>إجراء</TableHead>
+                      <TableHead>الكمية</TableHead>
+                      <TableHead>الجودة</TableHead>
+                      <TableHead>وقت الاستلام</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {slaughterOutputs.length === 0 ? (
-                      <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">لا توجد مخرجات ذبح موجهة للمخزن</TableCell></TableRow>
-                    ) : slaughterOutputs.map((o: any) => (
-                      <TableRow key={o.id} className={o.received_status === 'received' ? 'bg-muted/30' : ''}>
-                        <TableCell className="font-mono text-xs">{o.batch?.batch_number || '—'}</TableCell>
-                        <TableCell className="text-xs">{o.batch?.slaughter_date || '—'}</TableCell>
-                        <TableCell className="font-medium">{o.cut_name_ar}</TableCell>
-                        <TableCell>{Number(o.actual_weight_kg).toFixed(2)}</TableCell>
-                        <TableCell>{Number(o.unit_cost || 0).toFixed(2)}</TableCell>
-                        <TableCell>
-                          {o.received_status === 'received'
-                            ? <Badge variant="default" className="gap-1"><CheckCircle2 className="w-3 h-3" /> مستلم</Badge>
-                            : <Badge variant="secondary">بانتظار الاستلام</Badge>}
-                        </TableCell>
-                        <TableCell>
-                          {o.received_status !== 'received' && canManageWarehouses && (
-                            <Button size="sm" onClick={() => openReceiveDialog(o)}>
-                              <ArrowDown className="w-4 h-4 ml-1" /> استلام
-                            </Button>
-                          )}
-                          {o.received_status === 'received' && (
-                            <span className="text-xs text-muted-foreground">{o.received_at ? new Date(o.received_at).toLocaleString("ar-EG") : ''}</span>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {slaughterOutputs.filter(o => o.received_status === 'received').length === 0 ? (
+                      <TableRow><TableCell colSpan={5} className="text-center py-6 text-muted-foreground">لا يوجد</TableCell></TableRow>
+                    ) : slaughterOutputs.filter(o => o.received_status === 'received').map((o: any) => {
+                      const q = qualityLabels[o.quality_status] || qualityLabels.accepted;
+                      return (
+                        <TableRow key={o.id}>
+                          <TableCell className="font-mono text-xs">{o.batch?.batch_number}</TableCell>
+                          <TableCell>{o.cut_name_ar}</TableCell>
+                          <TableCell>{Number(o.actual_weight_kg).toFixed(2)} كجم</TableCell>
+                          <TableCell><Badge variant={q.variant}>{q.label}</Badge></TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{o.received_at ? new Date(o.received_at).toLocaleString("ar-EG") : '—'}</TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -648,30 +725,85 @@ const Warehouses = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Receive slaughter output dialog */}
-      <Dialog open={!!receiveTarget} onOpenChange={(o) => !o && setReceiveTarget(null)}>
-        <DialogContent>
+      {/* Batch receipt summary & confirmation dialog */}
+      <Dialog open={!!receiveBatch} onOpenChange={(o) => !o && !receiving && setReceiveBatch(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Beef className="w-5 h-5 text-primary" /> استلام من المجزر</DialogTitle>
+            <DialogTitle className="flex items-center gap-2"><Beef className="w-5 h-5 text-primary" /> ملخص استلام من المجزر</DialogTitle>
             <DialogDescription>
-              استلام {receiveTarget?.cut_name_ar} ({Number(receiveTarget?.actual_weight_kg || 0).toFixed(2)} كجم) من الدفعة {receiveTarget?.batch?.batch_number}
+              راجع الأصناف والكميات وحالات الجودة كما هي في تقسيمة الذبح قبل التأكيد النهائي.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <Label>المخزن المستلم</Label>
-              <Select value={receiveWarehouseId} onValueChange={setReceiveWarehouseId}>
-                <SelectTrigger><SelectValue placeholder="اختر مخزناً" /></SelectTrigger>
-                <SelectContent>
-                  {warehouses.map(w => <SelectItem key={w.id} value={w.id}>{w.name} — {warehouseTypes[w.type] || w.type}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground mt-2">سيُضاف الصنف للمخزون تلقائيًا، وإن لم يكن موجوداً سيُنشأ صنف جديد.</p>
-            </div>
-          </div>
+          {receiveBatch && (() => {
+            const totalKg = receiveBatch.outputs.reduce((s: number, o: any) => s + Number(o.actual_weight_kg || 0), 0);
+            const acceptedKg = receiveBatch.outputs.filter((o: any) => o.quality_status === 'accepted').reduce((s: number, o: any) => s + Number(o.actual_weight_kg || 0), 0);
+            const rejectedKg = receiveBatch.outputs.filter((o: any) => o.quality_status === 'rejected').reduce((s: number, o: any) => s + Number(o.actual_weight_kg || 0), 0);
+            const totalCost = receiveBatch.outputs.reduce((s: number, o: any) => s + Number(o.actual_weight_kg || 0) * Number(o.unit_cost || 0), 0);
+            return (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                  <div className="rounded-md border p-2"><div className="text-muted-foreground text-xs">الدفعة</div><div className="font-mono">{receiveBatch.batch_number}</div></div>
+                  <div className="rounded-md border p-2"><div className="text-muted-foreground text-xs">عدد الأصناف</div><div>{receiveBatch.outputs.length}</div></div>
+                  <div className="rounded-md border p-2"><div className="text-muted-foreground text-xs">إجمالي الوزن</div><div>{totalKg.toFixed(2)} كجم</div></div>
+                  <div className="rounded-md border p-2"><div className="text-muted-foreground text-xs">إجمالي التكلفة</div><div>{totalCost.toFixed(2)}</div></div>
+                </div>
+
+                <div>
+                  <Label>المخزن المستلم</Label>
+                  <Select value={receiveWarehouseId} onValueChange={setReceiveWarehouseId}>
+                    <SelectTrigger><SelectValue placeholder="اختر مخزناً" /></SelectTrigger>
+                    <SelectContent>
+                      {warehouses.map(w => <SelectItem key={w.id} value={w.id}>{w.name} — {warehouseTypes[w.type] || w.type}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>الصنف</TableHead>
+                        <TableHead>الكمية</TableHead>
+                        <TableHead>التكلفة/كجم</TableHead>
+                        <TableHead>الجودة</TableHead>
+                        <TableHead>سيُضاف للمخزون؟</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {receiveBatch.outputs.map((o: any) => {
+                        const q = qualityLabels[o.quality_status] || qualityLabels.accepted;
+                        return (
+                          <TableRow key={o.id}>
+                            <TableCell className="font-medium">{o.cut_name_ar}</TableCell>
+                            <TableCell>{Number(o.actual_weight_kg).toFixed(2)} كجم</TableCell>
+                            <TableCell>{Number(o.unit_cost || 0).toFixed(2)}</TableCell>
+                            <TableCell><Badge variant={q.variant}>{q.label}</Badge></TableCell>
+                            <TableCell className="text-xs">
+                              {o.quality_status === 'accepted'
+                                ? <span className="text-emerald-600">نعم</span>
+                                : <span className="text-muted-foreground">لا — يُسجل فقط</span>}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <div>• الأصناف المقبولة تُضاف لرصيد الصنف الموجود بنفس الاسم (دون إنشاء سجل جديد)، وإن لم يكن موجودًا يُنشأ.</div>
+                  <div>• تُسجَّل حركة إدخال في الحركات بمرجع رقم الدفعة ومنفّذ العملية وتاريخ ووقت الاستلام.</div>
+                  <div>• المرفوض/الحجر يُعلَّم كمستلم في سجل التدقيق لكنه لا يُضاف للمخزون.</div>
+                  <div>• الإجمالي المضاف للمخزون: <b>{acceptedKg.toFixed(2)} كجم</b>{rejectedKg > 0 && <> — المستبعد: {rejectedKg.toFixed(2)} كجم</>}</div>
+                </div>
+              </div>
+            );
+          })()}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setReceiveTarget(null)}>إلغاء</Button>
-            <Button onClick={confirmReceive}><CheckCircle2 className="w-4 h-4 ml-1" /> تأكيد الاستلام</Button>
+            <Button variant="outline" onClick={() => setReceiveBatch(null)} disabled={receiving}>إلغاء</Button>
+            <Button onClick={confirmReceiveBatch} disabled={receiving || !receiveWarehouseId}>
+              <CheckCircle2 className="w-4 h-4 ml-1" /> {receiving ? 'جارٍ الاستلام...' : 'تأكيد نهائي للاستلام'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
