@@ -374,37 +374,46 @@ const Slaughterhouse = () => {
         {/* ========== RECEIPTS ========== */}
         <TabsContent value="receipts">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>استلام الطيور الحية</CardTitle>
-              <Dialog open={receiptOpen} onOpenChange={setReceiptOpen}>
-                <DialogTrigger asChild><Button className="bg-gradient-to-r from-primary to-accent"><Plus className="w-4 h-4 ml-1" />استلام جديد</Button></DialogTrigger>
-                <DialogContent dir="rtl" className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader><DialogTitle>تسجيل استلام طيور</DialogTitle></DialogHeader>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div><Label>تاريخ التوريد *</Label><Input type="date" max={todayStr} value={receiptForm.receipt_date} onChange={e => setReceiptForm({ ...receiptForm, receipt_date: e.target.value })} /></div>
-                    <div><Label>المصدر</Label>
-                      <Select value={receiptForm.source_type} onValueChange={v => setReceiptForm({ ...receiptForm, source_type: v })}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="internal_farm">المزرعة الداخلية</SelectItem>
-                          <SelectItem value="external_supplier">مورد خارجي</SelectItem>
-                        </SelectContent>
-                      </Select>
+            <CardHeader className="flex flex-col gap-3">
+              <div className="flex flex-row items-center justify-between gap-2 flex-wrap">
+                <CardTitle>استلام الطيور الحية</CardTitle>
+                <Dialog open={receiptOpen} onOpenChange={setReceiptOpen}>
+                  <DialogTrigger asChild><Button className="bg-gradient-to-r from-primary to-accent"><Plus className="w-4 h-4 ml-1" />استلام جديد</Button></DialogTrigger>
+                  <DialogContent dir="rtl" className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader><DialogTitle>تسجيل استلام طيور</DialogTitle></DialogHeader>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div><Label>تاريخ التوريد *</Label><Input type="date" max={todayStr} value={receiptForm.receipt_date} onChange={e => setReceiptForm({ ...receiptForm, receipt_date: e.target.value })} /></div>
+                      <div><Label>المصدر</Label>
+                        <Select value={receiptForm.source_type} onValueChange={v => setReceiptForm({ ...receiptForm, source_type: v })}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="internal_farm">المزرعة الداخلية</SelectItem>
+                            <SelectItem value="external_supplier">مورد خارجي</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div><Label>اسم المصدر / المورد</Label><Input value={receiptForm.source_name} onChange={e => setReceiptForm({ ...receiptForm, source_name: e.target.value })} /></div>
+                      <div><Label>عدد الطيور (مبدئي)</Label><Input type="number" value={receiptForm.bird_count || ""} onChange={e => setReceiptForm({ ...receiptForm, bird_count: +e.target.value })} /></div>
+                      <div><Label>الوزن الإجمالي (مبدئي)</Label><Input type="number" step="0.1" value={receiptForm.total_weight_kg || ""} onChange={e => setReceiptForm({ ...receiptForm, total_weight_kg: +e.target.value })} /></div>
+                      <div><Label>متوسط العمر (أيام)</Label><Input type="number" value={receiptForm.avg_age_days || ""} onChange={e => setReceiptForm({ ...receiptForm, avg_age_days: +e.target.value })} /></div>
+                      <div><Label>السعر/كجم (ر.س)</Label><Input type="number" step="0.01" value={receiptForm.price_per_kg || ""} onChange={e => setReceiptForm({ ...receiptForm, price_per_kg: +e.target.value })} /></div>
+                      <div><Label>نافق عند الوصول</Label><Input type="number" value={receiptForm.dead_on_arrival || ""} onChange={e => setReceiptForm({ ...receiptForm, dead_on_arrival: +e.target.value })} /></div>
+                      <div className="sm:col-span-2"><Label>ملاحظات</Label><Textarea value={receiptForm.notes} onChange={e => setReceiptForm({ ...receiptForm, notes: e.target.value })} /></div>
+                      <div className="sm:col-span-2 text-xs text-muted-foreground bg-muted/40 p-2 rounded">
+                        💡 بعد الحفظ ستتمكن من إدخال وزن وتكلفة كل طائر منفصلًا (مطابق لتفريغة Excel) وسيتم تحديث الإجماليات تلقائيًا.
+                      </div>
                     </div>
-                    <div><Label>اسم المصدر / المورد</Label><Input value={receiptForm.source_name} onChange={e => setReceiptForm({ ...receiptForm, source_name: e.target.value })} /></div>
-                    <div><Label>عدد الطيور (مبدئي)</Label><Input type="number" value={receiptForm.bird_count || ""} onChange={e => setReceiptForm({ ...receiptForm, bird_count: +e.target.value })} /></div>
-                    <div><Label>الوزن الإجمالي (مبدئي)</Label><Input type="number" step="0.1" value={receiptForm.total_weight_kg || ""} onChange={e => setReceiptForm({ ...receiptForm, total_weight_kg: +e.target.value })} /></div>
-                    <div><Label>متوسط العمر (أيام)</Label><Input type="number" value={receiptForm.avg_age_days || ""} onChange={e => setReceiptForm({ ...receiptForm, avg_age_days: +e.target.value })} /></div>
-                    <div><Label>السعر/كجم (ر.س)</Label><Input type="number" step="0.01" value={receiptForm.price_per_kg || ""} onChange={e => setReceiptForm({ ...receiptForm, price_per_kg: +e.target.value })} /></div>
-                    <div><Label>نافق عند الوصول</Label><Input type="number" value={receiptForm.dead_on_arrival || ""} onChange={e => setReceiptForm({ ...receiptForm, dead_on_arrival: +e.target.value })} /></div>
-                    <div className="sm:col-span-2"><Label>ملاحظات</Label><Textarea value={receiptForm.notes} onChange={e => setReceiptForm({ ...receiptForm, notes: e.target.value })} /></div>
-                    <div className="sm:col-span-2 text-xs text-muted-foreground bg-muted/40 p-2 rounded">
-                      💡 بعد الحفظ ستتمكن من إدخال وزن وتكلفة كل طائر منفصلًا (مطابق لتفريغة Excel) وسيتم تحديث الإجماليات تلقائيًا.
-                    </div>
-                  </div>
-                  <DialogFooter><Button onClick={saveReceipt}>حفظ</Button></DialogFooter>
-                </DialogContent>
-              </Dialog>
+                    <DialogFooter><Button onClick={saveReceipt}>حفظ</Button></DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+              <div className="flex flex-wrap items-end gap-2">
+                <div><Label className="text-xs">من تاريخ</Label><Input type="date" value={receiptDateFrom} onChange={e => setReceiptDateFrom(e.target.value)} className="h-9 w-40" /></div>
+                <div><Label className="text-xs">إلى تاريخ</Label><Input type="date" value={receiptDateTo} onChange={e => setReceiptDateTo(e.target.value)} className="h-9 w-40" /></div>
+                {(receiptDateFrom || receiptDateTo) && (
+                  <Button variant="ghost" size="sm" onClick={() => { setReceiptDateFrom(""); setReceiptDateTo(""); }}>مسح الفلتر</Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               <Table>
