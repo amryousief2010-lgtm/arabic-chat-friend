@@ -94,7 +94,16 @@ export const useSwipeNavigation = ({
 
   const handleTouchStart = useCallback((e: TouchEvent) => {
     if (!isEnabled || !isMobile) return;
-    
+    // Ignore multi-touch (pinch/zoom)
+    if (e.touches.length > 1) {
+      isDragging.current = false;
+      return;
+    }
+    // Skip if the gesture starts inside a horizontally scrollable area
+    if (startedInsideHScroll(e.target)) {
+      isDragging.current = false;
+      return;
+    }
     startX.current = e.touches[0].clientX;
     startY.current = e.touches[0].clientY;
     isDragging.current = true;
@@ -108,6 +117,12 @@ export const useSwipeNavigation = ({
     const currentY = e.touches[0].clientY;
     const diffX = currentX - startX.current;
     const diffY = currentY - startY.current;
+
+    // If vertical movement dominates, this is a scroll — abort swipe nav
+    if (Math.abs(diffY) > 10 && Math.abs(diffY) > Math.abs(diffX)) {
+      isDragging.current = false;
+      return;
+    }
     
     // Light haptic when reaching threshold (only once per swipe)
     if (hapticFeedback && !hasTriggeredFeedback.current && 
@@ -126,14 +141,12 @@ export const useSwipeNavigation = ({
     const diffX = endX - startX.current;
     const diffY = endY - startY.current;
     
-    // Only trigger if horizontal swipe is dominant
-    if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > threshold) {
+    // Require a clearly dominant horizontal swipe (2x vertical) to navigate
+    if (Math.abs(diffX) > threshold && Math.abs(diffX) > Math.abs(diffY) * 2) {
       // RTL layout: directions are reversed
       if (diffX > 0) {
-        // Swipe right in RTL = go to previous page
         navigateTo('prev');
       } else {
-        // Swipe left in RTL = go to next page
         navigateTo('next');
       }
     }
