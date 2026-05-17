@@ -63,7 +63,7 @@ const Slaughterhouse = () => {
   const [qcOpen, setQcOpen] = useState(false);
 
   // Forms
-  const [receiptForm, setReceiptForm] = useState({ source_type: "internal_farm", source_name: "", bird_count: 0, total_weight_kg: 0, avg_age_days: 0, price_per_kg: 0, dead_on_arrival: 0, notes: "" });
+  const [receiptForm, setReceiptForm] = useState({ source_type: "internal_farm", source_name: "", bird_count: 0, total_weight_kg: 0, avg_age_days: 0, price_per_kg: 0, dead_on_arrival: 0, notes: "", receipt_date: new Date().toISOString().slice(0, 10) });
   const [batchForm, setBatchForm] = useState({ live_receipt_id: "", shift: "morning", birds_slaughtered: 0, total_live_weight_kg: 0, pre_slaughter_dead: 0, rejected_birds: 0, start_time: "", notes: "" });
   const [workerForm, setWorkerForm] = useState({ full_name: "", role: "slaughterer", phone: "", daily_wage: 0 });
   const [qcForm, setQcForm] = useState({ check_type: "post_slaughter", related_batch_id: "", inspector_name: "", result: "pass", temperature_c: "", ph_level: "", notes: "" });
