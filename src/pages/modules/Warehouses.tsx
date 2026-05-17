@@ -81,8 +81,9 @@ const Warehouses = () => {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [movements, setMovements] = useState<Movement[]>([]);
   const [slaughterOutputs, setSlaughterOutputs] = useState<any[]>([]);
-  const [receiveTarget, setReceiveTarget] = useState<any | null>(null);
+  const [receiveBatch, setReceiveBatch] = useState<{ batch_id: string; batch_number: string; slaughter_date?: string; status?: string; outputs: any[] } | null>(null);
   const [receiveWarehouseId, setReceiveWarehouseId] = useState<string>("");
+  const [receiving, setReceiving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [warehouseFilter, setWarehouseFilter] = useState<string>("all");
 
