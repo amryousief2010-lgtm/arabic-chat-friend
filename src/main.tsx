@@ -3,6 +3,7 @@ import { createElement } from "react";
 import App from "./App.tsx";
 import BootSplash from "./components/BootSplash.tsx";
 import { checkAndReloadIfStale, CURRENT_VERSION } from "./lib/updateChecker.ts";
+import { registerServiceWorker } from "./lib/registerSW.ts";
 import "./index.css";
 
 const rootEl = document.getElementById("root")!;
@@ -23,4 +24,7 @@ root.render(createElement(BootSplash, { status: "جارٍ التحقق من ال
 
   // 2) عرض التطبيق
   root.render(createElement(App));
+
+  // 3) تسجيل Service Worker (يتجاهل preview/iframe تلقائياً)
+  registerServiceWorker();
 })();
