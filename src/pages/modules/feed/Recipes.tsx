@@ -24,7 +24,7 @@ interface Recipe {
 }
 interface Product { id: string; name: string; feed_code: string; }
 
-const fmt = (n: number, d = 2) => (Number.isFinite(n) ? n : 0).toLocaleString("ar-EG", { maximumFractionDigits: d });
+const fmt = (n: number, d = 2) => (Number.isFinite(n) ? n : 0).toLocaleString("en-GB", { maximumFractionDigits: d });
 
 export default function Recipes() {
   const { canManageFeedFactory, user } = useAuth();

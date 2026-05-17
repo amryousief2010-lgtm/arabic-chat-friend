@@ -697,7 +697,7 @@ const Employees = () => {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-muted-foreground">
-                          {new Date(employee.created_at).toLocaleDateString('ar-EG')}
+                          {new Date(employee.created_at).toLocaleDateString('en-GB')}
                         </TableCell>
                         <TableCell>
                           <DropdownMenu>

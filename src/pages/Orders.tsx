@@ -623,7 +623,7 @@ const Orders = () => {
                       </div>
                     </div>
                     <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                      <span>{new Date(order.created_at).toLocaleDateString('ar-EG')} — {new Date(order.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</span>
+                      <span>{new Date(order.created_at).toLocaleDateString('en-GB')} — {new Date(order.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</span>
                       <Badge className={`text-xs ${order.collection_status === 'collected' ? 'bg-success text-success-foreground' : 'bg-warning text-warning-foreground'}`}>
                         {order.collection_status === 'collected' ? 'تم التحصيل' : 'لم يتم التحصيل'}
                       </Badge>
@@ -850,7 +850,7 @@ const Orders = () => {
                       )}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {new Date(order.created_at).toLocaleDateString('ar-EG')}
+                      {new Date(order.created_at).toLocaleDateString('en-GB')}
                     </TableCell>
                     <TableCell className="text-muted-foreground font-mono">
                       {new Date(order.created_at).toLocaleTimeString('ar-EG', {
@@ -860,7 +860,7 @@ const Orders = () => {
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {order.delivered_at
-                        ? new Date(order.delivered_at).toLocaleDateString('ar-EG')
+                        ? new Date(order.delivered_at).toLocaleDateString('en-GB')
                         : '-'}
                     </TableCell>
                     <TableCell>
@@ -956,7 +956,7 @@ const Orders = () => {
                 <div>
                   <p className="text-sm text-muted-foreground">التاريخ</p>
                   <p className="font-semibold">
-                    {new Date(selectedOrder.created_at).toLocaleDateString('ar-EG')}
+                    {new Date(selectedOrder.created_at).toLocaleDateString('en-GB')}
                   </p>
                 </div>
                 <div className="col-span-2">

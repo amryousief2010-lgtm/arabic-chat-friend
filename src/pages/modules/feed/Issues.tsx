@@ -14,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 
-const fmt = (n: number, d = 2) => (Number.isFinite(n) ? n : 0).toLocaleString("ar-EG", { maximumFractionDigits: d });
+const fmt = (n: number, d = 2) => (Number.isFinite(n) ? n : 0).toLocaleString("en-GB", { maximumFractionDigits: d });
 
 interface Material {
   id: string; name: string; unit: string; unit_cost: number; stock: number;
@@ -295,7 +295,7 @@ export default function Issues() {
                     <TableRow key={b.id}>
                       <TableCell className="font-mono text-xs">{b.batch_no}</TableCell>
                       <TableCell className="text-sm">{b.invoice_no || "—"}</TableCell>
-                      <TableCell className="text-xs">{b.invoice_date ? new Date(b.invoice_date).toLocaleDateString("ar-EG") : "—"}</TableCell>
+                      <TableCell className="text-xs">{b.invoice_date ? new Date(b.invoice_date).toLocaleDateString("en-GB") : "—"}</TableCell>
                       <TableCell className="text-xs">{b.warehouse_name || "—"}</TableCell>
                       <TableCell>{fmt(Number(b.input_qty_weight_kg || 0), 1)}</TableCell>
                       <TableCell>{fmt(Number(b.output_qty_kg), 1)}</TableCell>
@@ -334,7 +334,7 @@ export default function Issues() {
                   <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">لا توجد عمليات صرف</TableCell></TableRow>
                 ) : visible.map(i => (
                   <TableRow key={i.id}>
-                    <TableCell className="text-xs">{new Date(i.issued_at).toLocaleString("ar-EG")}</TableCell>
+                    <TableCell className="text-xs">{new Date(i.issued_at).toLocaleString("en-GB")}</TableCell>
                     <TableCell className="font-mono text-xs">{i.order?.order_no || "—"}</TableCell>
                     <TableCell className="text-sm">
                       <div>{i.raw_material?.name || "—"}</div>

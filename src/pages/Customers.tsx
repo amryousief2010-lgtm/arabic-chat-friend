@@ -233,7 +233,7 @@ const Customers = () => {
                       {customer.total_spent.toLocaleString()} ج.م
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {new Date(customer.created_at).toLocaleDateString('ar-EG')}
+                      {new Date(customer.created_at).toLocaleDateString('en-GB')}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">

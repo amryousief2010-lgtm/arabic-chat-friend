@@ -110,7 +110,7 @@ const LowStock = () => {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "منتجات منخفضة المخزون");
 
-    const today = new Date().toLocaleDateString('ar-EG').replace(/\//g, '-');
+    const today = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
     XLSX.writeFile(workbook, `منتجات-منخفضة-المخزون-${today}.xlsx`);
     toast.success("تم تصدير الملف بنجاح");
   };

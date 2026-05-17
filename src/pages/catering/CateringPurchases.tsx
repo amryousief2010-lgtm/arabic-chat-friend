@@ -30,7 +30,7 @@ const CateringPurchases = () => {
                   <TableCell><Badge variant="secondary">{p.status}</Badge></TableCell>
                   <TableCell>{p.delivery_to === "kitchen" ? "مطبخ" : "مخزن"}</TableCell>
                   <TableCell className="font-bold">{Number(p.total).toLocaleString()} ر.س</TableCell>
-                  <TableCell>{new Date(p.created_at).toLocaleDateString("ar-EG")}</TableCell>
+                  <TableCell>{new Date(p.created_at).toLocaleDateString("en-GB")}</TableCell>
                 </TableRow>
               ))}
           </TableBody>

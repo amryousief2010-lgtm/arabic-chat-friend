@@ -357,7 +357,7 @@ const ImportSalesData = () => {
                       <TableRow key={index}>
                         <TableCell className="font-medium">{index + 1}</TableCell>
                         <TableCell className="text-xs">
-                          {new Date(record.timestamp).toLocaleDateString('ar-EG')}
+                          {new Date(record.timestamp).toLocaleDateString('en-GB')}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">{record.moderator}</Badge>

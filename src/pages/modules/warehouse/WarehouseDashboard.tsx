@@ -159,7 +159,7 @@ const WarehouseDashboard = () => {
               <TableBody>
                 {movements.slice(0, 15).map(m => (
                   <TableRow key={m.id}>
-                    <TableCell className="text-xs">{new Date(m.performed_at).toLocaleString("ar-EG")}</TableCell>
+                    <TableCell className="text-xs">{new Date(m.performed_at).toLocaleString("en-GB")}</TableCell>
                     <TableCell><Badge variant="outline">{moveLabels[m.movement_type]}</Badge></TableCell>
                     <TableCell>{m.item?.name}</TableCell>
                     <TableCell>{m.warehouse?.name}</TableCell>

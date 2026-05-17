@@ -37,7 +37,7 @@ const CateringInvoices = () => {
                       <TableCell className="font-mono">{i.invoice_number}</TableCell>
                       <TableCell className="font-bold">{Number(i.total).toLocaleString()} ر.س</TableCell>
                       <TableCell><Badge variant={i.payment_status === "paid" ? "default" : "secondary"}>{i.payment_status}</Badge></TableCell>
-                      <TableCell>{new Date(i.created_at).toLocaleDateString("ar-EG")}</TableCell>
+                      <TableCell>{new Date(i.created_at).toLocaleDateString("en-GB")}</TableCell>
                     </TableRow>
                   ))}
               </TableBody>
@@ -54,7 +54,7 @@ const CateringInvoices = () => {
                     <TableRow key={i.id}>
                       <TableCell className="font-mono">{i.invoice_number}</TableCell>
                       <TableCell className="font-bold">{Number(i.total_cost).toLocaleString()} ر.س</TableCell>
-                      <TableCell>{new Date(i.created_at).toLocaleDateString("ar-EG")}</TableCell>
+                      <TableCell>{new Date(i.created_at).toLocaleDateString("en-GB")}</TableCell>
                     </TableRow>
                   ))}
               </TableBody>

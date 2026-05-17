@@ -31,7 +31,7 @@ type PreviewData = { scale: number; materials_cost: number; items: PreviewItem[]
 type AuditEntry = { id: string; batch_id: string; batch_number: string | null; product_name_ar: string | null; planned_qty: number | null; scale: number | null; attempted_by: string | null; attempted_at: string; outcome: string; error_message: string | null; materials_cost: number | null; shortages: any; impact: any; };
 
 const fmt = (v: number | null | undefined, digits = 2) =>
-  v == null ? "—" : Number(v).toLocaleString("ar-EG", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  v == null ? "—" : Number(v).toLocaleString("en-GB", { minimumFractionDigits: digits, maximumFractionDigits: digits });
 
 const categoryLabels: Record<string, string> = { spice: "بهارات", meat: "لحوم", feed: "أعلاف", packaging: "تعبئة", other: "أخرى" };
 
@@ -585,7 +585,7 @@ const MeatFactory = () => {
                             <TableCell><Badge variant="outline" className={qualityLabels[l.to_status]?.cls}>{qualityLabels[l.to_status]?.label || l.to_status}</Badge></TableCell>
                             <TableCell>{l.actual_qty != null ? fmt(l.actual_qty, 2) : "—"}</TableCell>
                             <TableCell className="max-w-xs truncate">{l.notes || "—"}</TableCell>
-                            <TableCell className="text-xs">{new Date(l.changed_at).toLocaleString("ar-EG")}</TableCell>
+                            <TableCell className="text-xs">{new Date(l.changed_at).toLocaleString("en-GB")}</TableCell>
                           </TableRow>
                         );
                       })}
@@ -633,7 +633,7 @@ const MeatFactory = () => {
                           <TableCell>{c.unit}</TableCell>
                           <TableCell>{fmt(c.unit_cost)}</TableCell>
                           <TableCell className="font-semibold">{fmt(c.line_total, 2)} ج</TableCell>
-                          <TableCell className="text-xs">{new Date(c.created_at).toLocaleDateString("ar-EG")}</TableCell>
+                          <TableCell className="text-xs">{new Date(c.created_at).toLocaleDateString("en-GB")}</TableCell>
                         </TableRow>
                       );
                     })}
@@ -662,7 +662,7 @@ const MeatFactory = () => {
                       const shortArr = Array.isArray(a.shortages) ? a.shortages : [];
                       return (
                         <TableRow key={a.id} className={ok ? "" : "bg-red-500/5"}>
-                          <TableCell className="text-xs whitespace-nowrap">{new Date(a.attempted_at).toLocaleString("ar-EG")}</TableCell>
+                          <TableCell className="text-xs whitespace-nowrap">{new Date(a.attempted_at).toLocaleString("en-GB")}</TableCell>
                           <TableCell className="font-mono text-xs">{a.batch_number}</TableCell>
                           <TableCell className="text-sm">{a.product_name_ar}</TableCell>
                           <TableCell>{fmt(a.planned_qty, 1)}</TableCell>
@@ -994,7 +994,7 @@ const MeatFactory = () => {
                   {batchLogs(qcBatch.id).map(l => (
                     <div key={l.id} className="flex justify-between gap-2 p-1 border rounded">
                       <span>{qualityLabels[l.from_status||"pending"]?.label} → <strong>{qualityLabels[l.to_status]?.label}</strong></span>
-                      <span className="text-muted-foreground">{new Date(l.changed_at).toLocaleString("ar-EG")}</span>
+                      <span className="text-muted-foreground">{new Date(l.changed_at).toLocaleString("en-GB")}</span>
                     </div>
                   ))}
                 </div>

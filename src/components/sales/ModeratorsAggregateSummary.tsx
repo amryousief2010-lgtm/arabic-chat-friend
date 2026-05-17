@@ -181,7 +181,7 @@ const ModeratorsAggregateSummary = () => {
               إجمالي مبيعات البنات الأربع (آية، نورا، سارة، منال)
             </h3>
             <Badge variant="outline" className="text-[10px]">
-              {new Date().toLocaleDateString("ar-EG", {
+              {new Date().toLocaleDateString("en-GB", {
                 month: "long",
                 year: "numeric",
               })}

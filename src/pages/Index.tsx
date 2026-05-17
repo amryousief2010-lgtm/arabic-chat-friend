@@ -232,7 +232,7 @@ const DashboardContent = () => {
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-1">
               <p className="text-sm text-muted-foreground">مبيعات اليوم</p>
-              <Badge variant="outline" className="text-xs">{new Date().toLocaleDateString("ar-EG")}</Badge>
+              <Badge variant="outline" className="text-xs">{new Date().toLocaleDateString("en-GB")}</Badge>
             </div>
             <p className="text-2xl font-bold text-success">{isLoading ? "..." : `${(stats?.salesToday || 0).toLocaleString()} ج.م`}</p>
             <p className="text-xs text-muted-foreground mt-1">{stats?.ordersToday || 0} طلب اليوم</p>
@@ -242,7 +242,7 @@ const DashboardContent = () => {
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-1">
               <p className="text-sm text-muted-foreground">مبيعات الشهر</p>
-              <Badge variant="outline" className="text-xs">{new Date().toLocaleDateString("ar-EG", { month: "long" })}</Badge>
+              <Badge variant="outline" className="text-xs">{new Date().toLocaleDateString("en-GB", { month: "long" })}</Badge>
             </div>
             <p className="text-2xl font-bold text-primary">{isLoading ? "..." : `${(stats?.salesMonth || 0).toLocaleString()} ج.م`}</p>
             <p className="text-xs text-muted-foreground mt-1">{stats?.ordersMonth || 0} طلب هذا الشهر</p>
@@ -295,7 +295,7 @@ const DashboardContent = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <BarChart3 className="w-5 h-5 text-secondary" />
-              المبيعات والطلبات اليومية — {new Date().toLocaleDateString("ar-EG", { month: "long" })}
+              المبيعات والطلبات اليومية — {new Date().toLocaleDateString("en-GB", { month: "long" })}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -345,7 +345,7 @@ const DashboardContent = () => {
                     <tr key={o.id} className="border-b hover:bg-muted/40 transition-colors cursor-pointer" onClick={() => navigate(`/orders/${o.id}`)} role="button" tabIndex={0}>
                       <td className="py-2 px-2 font-mono text-xs">{o.order_number}</td>
                       <td className="py-2 px-2">{(o.customers as any)?.name || "-"}</td>
-                      <td className="py-2 px-2 text-xs text-muted-foreground">{new Date(o.created_at).toLocaleDateString("ar-EG")}</td>
+                      <td className="py-2 px-2 text-xs text-muted-foreground">{new Date(o.created_at).toLocaleDateString("en-GB")}</td>
                       <td className="py-2 px-2 font-bold">{Number(o.total).toLocaleString()} ج.م</td>
                       <td className="py-2 px-2"><Badge className={statusColors[o.status] || ""}>{statusLabels[o.status] || o.status}</Badge></td>
                     </tr>
@@ -899,7 +899,7 @@ const DashboardContent = () => {
                     <div>
                       <p className="font-semibold">{order.customers?.name || "عميل"}</p>
                       <p className="text-sm text-muted-foreground">
-                        {order.order_number} • {new Date(order.created_at).toLocaleDateString("ar-EG")}
+                        {order.order_number} • {new Date(order.created_at).toLocaleDateString("en-GB")}
                       </p>
                     </div>
                   </div>

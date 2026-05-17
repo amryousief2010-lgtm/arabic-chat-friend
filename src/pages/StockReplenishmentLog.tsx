@@ -198,7 +198,7 @@ const StockReplenishmentLog = () => {
     filtered.forEach(r => {
       const cost = Number(r.quantity_added || 0) * Number(r.unit_price || 0);
       lines.push([
-        new Date(r.created_at).toLocaleString("ar-EG"),
+        new Date(r.created_at).toLocaleString("en-GB"),
         `"${r.product_name}"`,
         r.previous_stock,
         r.half_kg_bags ?? 0,
@@ -341,7 +341,7 @@ const StockReplenishmentLog = () => {
                       const cost = Number(r.quantity_added || 0) * Number(r.unit_price || 0);
                       return (
                         <TableRow key={r.id}>
-                          <TableCell className="text-xs">{new Date(r.created_at).toLocaleString("ar-EG")}</TableCell>
+                          <TableCell className="text-xs">{new Date(r.created_at).toLocaleString("en-GB")}</TableCell>
                           <TableCell className="font-medium">{r.product_name}</TableCell>
                           <TableCell className="text-center">{r.previous_stock}</TableCell>
                           <TableCell className="text-center">{r.half_kg_bags ? <Badge variant="secondary">{r.half_kg_bags}</Badge> : "—"}</TableCell>

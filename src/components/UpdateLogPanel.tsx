@@ -156,7 +156,7 @@ const UpdateLogPanel = () => {
                   {e.oldVersion} <span className="text-muted-foreground">→</span> {e.newVersion}
                 </div>
                 <div className="text-muted-foreground">
-                  {new Date(e.at).toLocaleString("ar-EG")}
+                  {new Date(e.at).toLocaleString("en-GB")}
                 </div>
               </div>
             ))
