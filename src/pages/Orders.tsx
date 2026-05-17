@@ -559,6 +559,106 @@ const Orders = () => {
           </div>
         </CardHeader>
         <CardContent>
+          {/* Mobile card view */}
+          <div className="md:hidden space-y-3">
+            {filteredOrders.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">لا توجد طلبات</div>
+            ) : (
+              filteredOrders.map((order) => {
+                const productsText = order.items.length === 0
+                  ? '-'
+                  : order.items.map((it) => {
+                      const cleaned = it.product_name
+                        .replace(/\s*\(عرض\)\s*/g, ' ')
+                        .replace(/(^|\s)نعام(?=\s|$)/g, '$1')
+                        .replace(/\s+/g, ' ').trim();
+                      return `${formatItemQty(it.quantity, it.unit)} ${cleaned || it.product_name}`;
+                    }).join(' + ');
+                return (
+                  <div key={order.id} className="rounded-lg border bg-card p-3 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono font-semibold text-sm">{order.order_number}</span>
+                      <Badge className={`${statusColors[order.status]} flex items-center gap-1 text-xs`}>
+                        {getStatusIcon(order.status)}
+                        {statusLabels[order.status]}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 text-sm">
+                      <span className="font-semibold truncate">{order.customer_name}</span>
+                      <Badge variant="secondary" className="text-xs shrink-0">{order.moderator_name}</Badge>
+                    </div>
+                    <div className="text-sm text-foreground/90 break-words">{productsText}</div>
+                    <div className="flex items-center justify-between gap-2 pt-1 border-t">
+                      <span className="font-bold text-primary">{order.total.toLocaleString()} ج.م</span>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Badge variant="outline" className="text-xs">{paymentLabels[order.payment_method] || order.payment_method}</Badge>
+                        <Badge className={`text-xs ${order.payment_status === 'paid' ? 'bg-success text-success-foreground' : order.payment_status === 'failed' ? 'bg-destructive text-destructive-foreground' : 'bg-warning text-warning-foreground'}`}>
+                          {paymentStatusLabels[order.payment_status] || order.payment_status}
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                      <span>{new Date(order.created_at).toLocaleDateString('ar-EG')} — {new Date(order.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</span>
+                      <Badge className={`text-xs ${order.collection_status === 'collected' ? 'bg-success text-success-foreground' : 'bg-warning text-warning-foreground'}`}>
+                        {order.collection_status === 'collected' ? 'تم التحصيل' : 'لم يتم التحصيل'}
+                      </Badge>
+                    </div>
+                    {!isSalesModerator && (
+                      <Select value={order.status} onValueChange={(v: OrderStatus) => handleStatusChange(order.id, v)}>
+                        <SelectTrigger className="w-full h-9 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(statusLabels)
+                            .filter(([value]) => !(isShippingCompany || isPrivateDeliveryRep) || value === order.status || value === "delivered" || value === "cancelled" || value === "shipped" || value === "pending")
+                            .map(([value, label]) => (<SelectItem key={value} value={value}>{label}</SelectItem>))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                    {isAccountant && (
+                      <Select value={order.collection_status} onValueChange={(v) => handleCollectionChange(order.id, v)}>
+                        <SelectTrigger className="w-full h-9 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="collected">تم التحصيل</SelectItem>
+                          <SelectItem value="not_collected">لم يتم التحصيل</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                    <div className="flex items-center justify-end gap-1 pt-1">
+                      <Button variant="ghost" size="icon" asChild className="h-8 w-8">
+                        <Link to={`/orders/${order.id}`}><Eye className="w-4 h-4" /></Link>
+                      </Button>
+                      {isSalesModerator && order.status !== 'delivered' && order.status !== 'cancelled' && order.collection_status !== 'collected' && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingOrder(order)} title="تعديل الطلب">
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                      )}
+                      {canDeleteOrders && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>حذف الطلب {order.order_number}؟</AlertDialogTitle>
+                              <AlertDialogDescription>سيتم حذف الطلب وجميع أصنافه نهائيًا. لا يمكن التراجع عن هذا الإجراء.</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeleteOrder(order.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">حذف</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Desktop table view */}
+          <div className="hidden md:block overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="bg-green-100 hover:bg-green-100 dark:bg-green-800/40 dark:hover:bg-green-800/40 [&_th]:text-green-900 dark:[&_th]:text-green-100 [&_th]:font-semibold">
@@ -808,6 +908,7 @@ const Orders = () => {
               )}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
 
