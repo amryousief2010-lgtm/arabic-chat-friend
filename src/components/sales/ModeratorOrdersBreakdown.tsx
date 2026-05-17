@@ -83,7 +83,8 @@ const ModeratorOrdersBreakdown = () => {
         const total = filtered.length;
         const delivered = filtered.filter(o => o.status === 'delivered').length;
         const cancelled = filtered.filter(o => o.status === 'cancelled').length;
-        return { name: girl, total, delivered, cancelled };
+        const pending = total - delivered - cancelled;
+        return { name: girl, total, delivered, cancelled, pending };
       });
     },
   });
