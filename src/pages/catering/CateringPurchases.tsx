@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
+import { formatDate } from "@/lib/dateFormat";
 
 interface PO { id: string; po_number: string; status: string; total: number; delivery_to: string; created_at: string; }
 
@@ -30,7 +31,7 @@ const CateringPurchases = () => {
                   <TableCell><Badge variant="secondary">{p.status}</Badge></TableCell>
                   <TableCell>{p.delivery_to === "kitchen" ? "مطبخ" : "مخزن"}</TableCell>
                   <TableCell className="font-bold">{Number(p.total).toLocaleString()} ر.س</TableCell>
-                  <TableCell>{new Date(p.created_at).toLocaleDateString("en-GB")}</TableCell>
+                  <TableCell>{formatDate(p.created_at)}</TableCell>
                 </TableRow>
               ))}
           </TableBody>

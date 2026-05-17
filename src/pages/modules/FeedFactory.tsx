@@ -16,6 +16,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { formatDate } from "@/lib/dateFormat";
 
 interface RawMaterial {
   id: string;
@@ -372,7 +373,7 @@ const FeedFactory = () => {
                         <TableCell>{b.actual_quantity || "—"}</TableCell>
                         <TableCell>{b.total_cost > 0 ? b.total_cost.toFixed(2) : "—"}</TableCell>
                         <TableCell><Badge variant={statusLabels[b.status]?.variant || "outline"}>{statusLabels[b.status]?.label || b.status}</Badge></TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{new Date(b.created_at).toLocaleDateString("en-GB")}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{formatDate(b.created_at)}</TableCell>
                         <TableCell>
                           <div className="flex gap-1">
                             <Link to={`/modules/feed-factory/batches/${b.id}`}><Button size="sm" variant="ghost" title="تفاصيل"><Eye className="w-4 h-4" /></Button></Link>

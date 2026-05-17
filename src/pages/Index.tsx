@@ -50,6 +50,7 @@ import { useReportsData } from "@/hooks/useReportsData";
 import { useProductionStats } from "@/hooks/useProductionStats";
 import { Egg, Bird } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { formatDate } from "@/lib/dateFormat";
 
 const statusColors: Record<string, string> = {
   pending: "bg-warning text-warning-foreground",
@@ -232,7 +233,7 @@ const DashboardContent = () => {
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-1">
               <p className="text-sm text-muted-foreground">مبيعات اليوم</p>
-              <Badge variant="outline" className="text-xs">{new Date().toLocaleDateString("en-GB")}</Badge>
+              <Badge variant="outline" className="text-xs">{formatDate(new Date())}</Badge>
             </div>
             <p className="text-2xl font-bold text-success">{isLoading ? "..." : `${(stats?.salesToday || 0).toLocaleString()} ج.م`}</p>
             <p className="text-xs text-muted-foreground mt-1">{stats?.ordersToday || 0} طلب اليوم</p>
@@ -345,7 +346,7 @@ const DashboardContent = () => {
                     <tr key={o.id} className="border-b hover:bg-muted/40 transition-colors cursor-pointer" onClick={() => navigate(`/orders/${o.id}`)} role="button" tabIndex={0}>
                       <td className="py-2 px-2 font-mono text-xs">{o.order_number}</td>
                       <td className="py-2 px-2">{(o.customers as any)?.name || "-"}</td>
-                      <td className="py-2 px-2 text-xs text-muted-foreground">{new Date(o.created_at).toLocaleDateString("en-GB")}</td>
+                      <td className="py-2 px-2 text-xs text-muted-foreground">{formatDate(o.created_at)}</td>
                       <td className="py-2 px-2 font-bold">{Number(o.total).toLocaleString()} ج.م</td>
                       <td className="py-2 px-2"><Badge className={statusColors[o.status] || ""}>{statusLabels[o.status] || o.status}</Badge></td>
                     </tr>
@@ -899,7 +900,7 @@ const DashboardContent = () => {
                     <div>
                       <p className="font-semibold">{order.customers?.name || "عميل"}</p>
                       <p className="text-sm text-muted-foreground">
-                        {order.order_number} • {new Date(order.created_at).toLocaleDateString("en-GB")}
+                        {order.order_number} • {formatDate(order.created_at)}
                       </p>
                     </div>
                   </div>

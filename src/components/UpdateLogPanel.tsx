@@ -15,6 +15,7 @@ import {
   type ReloadLogEntry,
 } from "@/lib/updateChecker";
 import { toast } from "sonner";
+import { formatDateTime } from "@/lib/dateFormat";
 
 const reasonLabel: Record<ReloadLogEntry["reason"], string> = {
   boot: "عند الإقلاع",
@@ -156,7 +157,7 @@ const UpdateLogPanel = () => {
                   {e.oldVersion} <span className="text-muted-foreground">→</span> {e.newVersion}
                 </div>
                 <div className="text-muted-foreground">
-                  {new Date(e.at).toLocaleString("en-GB")}
+                  {formatDateTime(e.at)}
                 </div>
               </div>
             ))

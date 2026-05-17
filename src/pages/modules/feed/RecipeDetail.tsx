@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { aggregateByDimension, formatAggregate, toBaseQty, getBaseUnit } from "@/lib/unitConversion";
+import { formatDateTime } from "@/lib/dateFormat";
 
 interface Item {
   id: string;
@@ -195,7 +196,7 @@ const RecipeDetail = () => {
                   <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">لا يوجد تاريخ بعد</TableCell></TableRow>
                 ) : history.map(h => (
                   <TableRow key={h.id}>
-                    <TableCell className="text-xs">{new Date(h.created_at).toLocaleString("en-GB")}</TableCell>
+                    <TableCell className="text-xs">{formatDateTime(h.created_at)}</TableCell>
                     <TableCell>{h.batch_size}</TableCell>
                     <TableCell>{Number(h.total_quantity).toFixed(2)}</TableCell>
                     <TableCell>{Number(h.total_cost).toFixed(2)}</TableCell>

@@ -24,6 +24,7 @@ import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import * as XLSX from "xlsx";
 import companyLogo from "@/assets/company-logo.jpg";
+import { formatDate } from "@/lib/dateFormat";
 
 type MfgStatus = "pending" | "in_progress" | "completed";
 
@@ -284,7 +285,7 @@ const ManufacturingQueue = () => {
       "المطلوب": r.pending_quantity,
       "العجز": r.shortage,
       "عدد الطلبات": r.affected_orders.length,
-      "أقدم طلب": r.oldest_order_at ? new Date(r.oldest_order_at).toLocaleDateString("en-GB") : "-",
+      "أقدم طلب": r.oldest_order_at ? formatDate(r.oldest_order_at) : "-",
       "الأولوية": priorityLabel[r.priority] || r.priority,
       "الحالة": statusLabel[r.mfg_status],
     }));
@@ -354,7 +355,7 @@ const ManufacturingQueue = () => {
 
     await ensureArabicFonts();
 
-    const today = new Date().toLocaleDateString("en-GB");
+    const today = formatDate(new Date());
     const ROWS_PER_PAGE = 18;
     const totalPages = Math.max(1, Math.ceil(filtered.length / ROWS_PER_PAGE));
     const pdf = new jsPDF("p", "mm", "a4");
@@ -415,7 +416,7 @@ const ManufacturingQueue = () => {
             <td style="padding:7px;border:1px solid #e5e7eb;text-align:center;">${r.pending_quantity}</td>
             <td style="padding:7px;border:1px solid #e5e7eb;text-align:center;color:${r.shortage>0?'#dc2626':'#111'};font-weight:${r.shortage>0?'700':'400'};">${r.shortage}</td>
             <td style="padding:7px;border:1px solid #e5e7eb;text-align:center;">${r.affected_orders.length}</td>
-            <td style="padding:7px;border:1px solid #e5e7eb;text-align:center;font-size:11px;">${r.oldest_order_at ? new Date(r.oldest_order_at).toLocaleDateString("en-GB") : "-"}</td>
+            <td style="padding:7px;border:1px solid #e5e7eb;text-align:center;font-size:11px;">${r.oldest_order_at ? formatDate(r.oldest_order_at) : "-"}</td>
             <td style="padding:7px;border:1px solid #e5e7eb;text-align:center;">${priorityLabel[r.priority] || r.priority}</td>
             <td style="padding:7px;border:1px solid #e5e7eb;text-align:center;">${statusLabel[r.mfg_status]}</td>
           </tr>
@@ -593,7 +594,7 @@ const ManufacturingQueue = () => {
                             {r.shortage > 0 ? `${r.shortage} ${r.unit}` : "—"}
                           </TableCell>
                           <TableCell className="text-center text-xs">
-                            {r.oldest_order_at ? new Date(r.oldest_order_at).toLocaleDateString("en-GB") : "—"}
+                            {r.oldest_order_at ? formatDate(r.oldest_order_at) : "—"}
                           </TableCell>
                           <TableCell className="text-center">
                             {r.affected_orders.length > 0 ? (
@@ -651,7 +652,7 @@ const ManufacturingQueue = () => {
                                         <div className="flex flex-col">
                                           <span className="font-mono font-semibold">{o.order_number}</span>
                                           <span className="text-muted-foreground">
-                                            {new Date(o.created_at).toLocaleDateString("en-GB")} · {o.status}
+                                            {formatDate(o.created_at)} · {o.status}
                                           </span>
                                         </div>
                                         <Badge variant="secondary">{o.qty} {r.unit}</Badge>

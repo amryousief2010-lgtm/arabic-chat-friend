@@ -6,6 +6,7 @@ import { Activity, RefreshCw } from "lucide-react";
 import { getLastCheck, subscribeToChecks } from "@/lib/updateChecker";
 import { checkForServiceWorkerUpdate } from "@/lib/registerSW";
 import { toast } from "sonner";
+import { formatDateTime } from "@/lib/dateFormat";
 
 type SWState =
   | "active"
@@ -87,7 +88,7 @@ const ServiceWorkerStatusCard = () => {
   };
 
   const lastCheckText = lastCheck
-    ? new Date(lastCheck.at).toLocaleString("en-GB")
+    ? formatDateTime(lastCheck.at)
     : "—";
 
   return (

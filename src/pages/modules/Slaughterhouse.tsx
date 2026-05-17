@@ -31,6 +31,7 @@ import {
   ResponsiveContainer, CartesianGrid, Legend,
 } from "recharts";
 import { SlaughterBatchDialog } from "@/components/slaughterhouse/SlaughterBatchDialog";
+import { formatDate, formatDateTime } from "@/lib/dateFormat";
 
 type Receipt = { id: string; receipt_number: string; receipt_date: string; source_type: string; source_name: string | null; bird_count: number; total_weight_kg: number; avg_weight_kg: number; price_per_kg: number; total_cost: number; dead_on_arrival: number; status: string; };
 type Batch = { id: string; batch_number: string; slaughter_date: string; shift: string; live_receipt_id: string | null; birds_slaughtered: number; total_live_weight_kg: number; total_meat_kg: number; actual_yield_pct: number; cost_per_kg_meat: number; status: string; pre_slaughter_dead: number; rejected_birds: number; };
@@ -1321,7 +1322,7 @@ const TransfersTab = ({ transfers, branches, batches, onStatus }: {
                 const br = branches.find(b => b.id === t.branch_id);
                 return (
                   <TableRow key={t.id}>
-                    <TableCell>{new Date(t.transferred_at).toLocaleDateString("en-GB")}</TableCell>
+                    <TableCell>{formatDate(t.transferred_at)}</TableCell>
                     <TableCell className="font-mono text-xs">{bt?.batch_number || "-"}</TableCell>
                     <TableCell><Badge className="bg-primary/10">{br?.name_ar}</Badge></TableCell>
                     <TableCell>{t.cut_name_ar}</TableCell>
@@ -1710,7 +1711,7 @@ const AuditLogTab = ({ audit, profiles, batches, branches }: {
               const bt = batches.find(b => b.id === e.batch_id);
               return (
                 <TableRow key={e.id}>
-                  <TableCell className="text-xs">{new Date(e.performed_at).toLocaleString("en-GB")}</TableCell>
+                  <TableCell className="text-xs">{formatDateTime(e.performed_at)}</TableCell>
                   <TableCell><Badge variant="outline">{actionLabel(e.action)}</Badge></TableCell>
                   <TableCell className="text-sm">{e.performed_by ? (profiles[e.performed_by] || e.performed_by.slice(0, 8)) : "—"}</TableCell>
                   <TableCell className="font-mono text-xs">{bt?.batch_number || "—"}</TableCell>

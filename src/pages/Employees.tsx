@@ -40,6 +40,7 @@ import { toast } from 'sonner';
 import { UserPlus, MoreHorizontal, Shield, Search, Users, UserCheck, Warehouse, Calculator, ShoppingCart, Trash2, UserMinus, Egg, FlaskConical, Drumstick, Beef, Factory, Wheat, Megaphone, Crown, Building2, Truck, KeyRound, Copy } from 'lucide-react';
 import { z } from 'zod';
 import { useAuth, AppRole } from '@/hooks/useAuth';
+import { formatDate } from "@/lib/dateFormat";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -697,7 +698,7 @@ const Employees = () => {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-muted-foreground">
-                          {new Date(employee.created_at).toLocaleDateString('en-GB')}
+                          {formatDate(employee.created_at)}
                         </TableCell>
                         <TableCell>
                           <DropdownMenu>
