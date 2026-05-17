@@ -365,6 +365,7 @@ const Slaughterhouse = () => {
                 <DialogContent dir="rtl" className="max-w-2xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader><DialogTitle>تسجيل استلام طيور</DialogTitle></DialogHeader>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div><Label>تاريخ التوريد</Label><Input type="date" value={receiptForm.receipt_date} onChange={e => setReceiptForm({ ...receiptForm, receipt_date: e.target.value })} /></div>
                     <div><Label>المصدر</Label>
                       <Select value={receiptForm.source_type} onValueChange={v => setReceiptForm({ ...receiptForm, source_type: v })}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
