@@ -323,7 +323,7 @@ const Slaughterhouse = () => {
                     <div><Label>نافق قبل الذبح</Label><Input type="number" value={batchForm.pre_slaughter_dead || ""} onChange={e => setBatchForm({ ...batchForm, pre_slaughter_dead: +e.target.value })} /></div>
                     <div><Label>مرفوض صحياً</Label><Input type="number" value={batchForm.rejected_birds || ""} onChange={e => setBatchForm({ ...batchForm, rejected_birds: +e.target.value })} /></div>
                     <div><Label>وقت البدء</Label><Input type="time" value={batchForm.start_time} onChange={e => setBatchForm({ ...batchForm, start_time: e.target.value })} /></div>
-                    <div className="col-span-2"><Label>ملاحظات</Label><Textarea value={batchForm.notes} onChange={e => setBatchForm({ ...batchForm, notes: e.target.value })} /></div>
+                    <div className="sm:col-span-2"><Label>ملاحظات</Label><Textarea value={batchForm.notes} onChange={e => setBatchForm({ ...batchForm, notes: e.target.value })} /></div>
                   </div>
                   <DialogFooter><Button onClick={saveBatch}>حفظ</Button></DialogFooter>
                 </DialogContent>
@@ -398,8 +398,8 @@ const Slaughterhouse = () => {
                     <div><Label>متوسط العمر (أيام)</Label><Input type="number" value={receiptForm.avg_age_days || ""} onChange={e => setReceiptForm({ ...receiptForm, avg_age_days: +e.target.value })} /></div>
                     <div><Label>السعر/كجم (ر.س)</Label><Input type="number" step="0.01" value={receiptForm.price_per_kg || ""} onChange={e => setReceiptForm({ ...receiptForm, price_per_kg: +e.target.value })} /></div>
                     <div><Label>نافق عند الوصول</Label><Input type="number" value={receiptForm.dead_on_arrival || ""} onChange={e => setReceiptForm({ ...receiptForm, dead_on_arrival: +e.target.value })} /></div>
-                    <div className="col-span-2"><Label>ملاحظات</Label><Textarea value={receiptForm.notes} onChange={e => setReceiptForm({ ...receiptForm, notes: e.target.value })} /></div>
-                    <div className="col-span-2 text-xs text-muted-foreground bg-muted/40 p-2 rounded">
+                    <div className="sm:col-span-2"><Label>ملاحظات</Label><Textarea value={receiptForm.notes} onChange={e => setReceiptForm({ ...receiptForm, notes: e.target.value })} /></div>
+                    <div className="sm:col-span-2 text-xs text-muted-foreground bg-muted/40 p-2 rounded">
                       💡 بعد الحفظ ستتمكن من إدخال وزن وتكلفة كل طائر منفصلًا (مطابق لتفريغة Excel) وسيتم تحديث الإجماليات تلقائيًا.
                     </div>
                   </div>
@@ -585,7 +585,7 @@ const Slaughterhouse = () => {
                     </div>
                     <div><Label>درجة الحرارة (°م)</Label><Input type="number" step="0.1" value={qcForm.temperature_c} onChange={e => setQcForm({ ...qcForm, temperature_c: e.target.value })} /></div>
                     <div><Label>درجة الـ pH</Label><Input type="number" step="0.01" value={qcForm.ph_level} onChange={e => setQcForm({ ...qcForm, ph_level: e.target.value })} /></div>
-                    <div className="col-span-2"><Label>ملاحظات</Label><Textarea value={qcForm.notes} onChange={e => setQcForm({ ...qcForm, notes: e.target.value })} /></div>
+                    <div className="sm:col-span-2"><Label>ملاحظات</Label><Textarea value={qcForm.notes} onChange={e => setQcForm({ ...qcForm, notes: e.target.value })} /></div>
                   </div>
                   <DialogFooter><Button onClick={saveQC}>حفظ</Button></DialogFooter>
                 </DialogContent>
