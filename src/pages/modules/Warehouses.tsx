@@ -749,25 +749,35 @@ const Warehouses = () => {
 
       {/* Batch receipt summary & confirmation dialog */}
       <Dialog open={!!receiveBatch} onOpenChange={(o) => !o && !receiving && setReceiveBatch(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Beef className="w-5 h-5 text-primary" /> ملخص استلام من المجزر</DialogTitle>
+            <DialogTitle className="flex items-center gap-2"><Beef className="w-5 h-5 text-primary" /> تحقق واستلام من المجزر</DialogTitle>
             <DialogDescription>
-              راجع الأصناف والكميات وحالات الجودة كما هي في تقسيمة الذبح قبل التأكيد النهائي.
+              راجع وعدّل الكميات الفعلية المستلمة وحالة الجودة لكل صنف قبل التأكيد النهائي. سيتم تسجيل أي اختلاف عن تقسيمة الذبح في سجل التدقيق.
             </DialogDescription>
           </DialogHeader>
           {receiveBatch && (() => {
-            const totalKg = receiveBatch.outputs.reduce((s: number, o: any) => s + Number(o.actual_weight_kg || 0), 0);
-            const acceptedKg = receiveBatch.outputs.filter((o: any) => o.quality_status === 'accepted').reduce((s: number, o: any) => s + Number(o.actual_weight_kg || 0), 0);
-            const rejectedKg = receiveBatch.outputs.filter((o: any) => o.quality_status === 'rejected').reduce((s: number, o: any) => s + Number(o.actual_weight_kg || 0), 0);
-            const totalCost = receiveBatch.outputs.reduce((s: number, o: any) => s + Number(o.actual_weight_kg || 0) * Number(o.unit_cost || 0), 0);
+            const origKg = receiveBatch.outputs.reduce((s: number, o: any) => s + Number(o.actual_weight_kg || 0), 0);
+            const verifiedKg = receiveBatch.outputs.reduce((s: number, o: any) => s + Number(verifyMap[o.id]?.received_weight_kg ?? o.actual_weight_kg ?? 0), 0);
+            const acceptedKg = receiveBatch.outputs.reduce((s: number, o: any) => {
+              const v = verifyMap[o.id]; const q = v?.quality_status ?? o.quality_status;
+              return q === 'accepted' ? s + Number(v?.received_weight_kg ?? o.actual_weight_kg ?? 0) : s;
+            }, 0);
+            const rejectedKg = verifiedKg - acceptedKg;
+            const variance = verifiedKg - origKg;
             return (
               <div className="space-y-3">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm">
                   <div className="rounded-md border p-2"><div className="text-muted-foreground text-xs">الدفعة</div><div className="font-mono">{receiveBatch.batch_number}</div></div>
                   <div className="rounded-md border p-2"><div className="text-muted-foreground text-xs">عدد الأصناف</div><div>{receiveBatch.outputs.length}</div></div>
-                  <div className="rounded-md border p-2"><div className="text-muted-foreground text-xs">إجمالي الوزن</div><div>{totalKg.toFixed(2)} كجم</div></div>
-                  <div className="rounded-md border p-2"><div className="text-muted-foreground text-xs">إجمالي التكلفة</div><div>{totalCost.toFixed(2)}</div></div>
+                  <div className="rounded-md border p-2"><div className="text-muted-foreground text-xs">وزن التقسيمة</div><div>{origKg.toFixed(2)} كجم</div></div>
+                  <div className="rounded-md border p-2"><div className="text-muted-foreground text-xs">المستلم فعليًا</div><div className="font-bold">{verifiedKg.toFixed(2)} كجم</div></div>
+                  <div className={`rounded-md border p-2 ${Math.abs(variance) > 0.001 ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/30' : ''}`}>
+                    <div className="text-muted-foreground text-xs">الفرق</div>
+                    <div className={variance < 0 ? 'text-destructive font-bold' : variance > 0 ? 'text-emerald-600 font-bold' : ''}>
+                      {variance > 0 ? '+' : ''}{variance.toFixed(2)} كجم
+                    </div>
+                  </div>
                 </div>
 
                 <div>
@@ -780,30 +790,62 @@ const Warehouses = () => {
                   </Select>
                 </div>
 
-                <div className="rounded-md border">
+                <div className="rounded-md border overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>الصنف</TableHead>
-                        <TableHead>الكمية</TableHead>
-                        <TableHead>التكلفة/كجم</TableHead>
-                        <TableHead>الجودة</TableHead>
-                        <TableHead>سيُضاف للمخزون؟</TableHead>
+                        <TableHead>وزن التقسيمة</TableHead>
+                        <TableHead>الوزن المستلم فعليًا</TableHead>
+                        <TableHead>الفرق</TableHead>
+                        <TableHead>حالة الجودة</TableHead>
+                        <TableHead>ملاحظات</TableHead>
+                        <TableHead>للمخزون؟</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {receiveBatch.outputs.map((o: any) => {
-                        const q = qualityLabels[o.quality_status] || qualityLabels.accepted;
+                        const v = verifyMap[o.id] || { received_weight_kg: Number(o.actual_weight_kg || 0), quality_status: o.quality_status || 'accepted', notes: '' };
+                        const diff = Number(v.received_weight_kg) - Number(o.actual_weight_kg || 0);
                         return (
                           <TableRow key={o.id}>
-                            <TableCell className="font-medium">{o.cut_name_ar}</TableCell>
-                            <TableCell>{Number(o.actual_weight_kg).toFixed(2)} كجم</TableCell>
-                            <TableCell>{Number(o.unit_cost || 0).toFixed(2)}</TableCell>
-                            <TableCell><Badge variant={q.variant}>{q.label}</Badge></TableCell>
+                            <TableCell className="font-medium whitespace-nowrap">{o.cut_name_ar}</TableCell>
+                            <TableCell className="text-muted-foreground">{Number(o.actual_weight_kg).toFixed(2)}</TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                className="w-24 h-8"
+                                value={v.received_weight_kg}
+                                onChange={(e) => setVerifyMap(m => ({ ...m, [o.id]: { ...v, received_weight_kg: parseFloat(e.target.value) || 0 } }))}
+                              />
+                            </TableCell>
+                            <TableCell className={`text-xs ${Math.abs(diff) > 0.001 ? (diff < 0 ? 'text-destructive' : 'text-emerald-600') + ' font-bold' : 'text-muted-foreground'}`}>
+                              {diff > 0 ? '+' : ''}{diff.toFixed(2)}
+                            </TableCell>
+                            <TableCell>
+                              <Select value={v.quality_status} onValueChange={(val) => setVerifyMap(m => ({ ...m, [o.id]: { ...v, quality_status: val } }))}>
+                                <SelectTrigger className="w-32 h-8"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="accepted">مقبول</SelectItem>
+                                  <SelectItem value="rejected">مرفوض</SelectItem>
+                                  <SelectItem value="quarantine">حجر صحي</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                className="w-40 h-8"
+                                placeholder="سبب الفرق/الرفض..."
+                                value={v.notes}
+                                onChange={(e) => setVerifyMap(m => ({ ...m, [o.id]: { ...v, notes: e.target.value } }))}
+                              />
+                            </TableCell>
                             <TableCell className="text-xs">
-                              {o.quality_status === 'accepted'
+                              {v.quality_status === 'accepted' && Number(v.received_weight_kg) > 0
                                 ? <span className="text-emerald-600">نعم</span>
-                                : <span className="text-muted-foreground">لا — يُسجل فقط</span>}
+                                : <span className="text-muted-foreground">لا</span>}
                             </TableCell>
                           </TableRow>
                         );
@@ -813,10 +855,10 @@ const Warehouses = () => {
                 </div>
 
                 <div className="text-xs text-muted-foreground space-y-1">
-                  <div>• الأصناف المقبولة تُضاف لرصيد الصنف الموجود بنفس الاسم (دون إنشاء سجل جديد)، وإن لم يكن موجودًا يُنشأ.</div>
-                  <div>• تُسجَّل حركة إدخال في الحركات بمرجع رقم الدفعة ومنفّذ العملية وتاريخ ووقت الاستلام.</div>
-                  <div>• المرفوض/الحجر يُعلَّم كمستلم في سجل التدقيق لكنه لا يُضاف للمخزون.</div>
-                  <div>• الإجمالي المضاف للمخزون: <b>{acceptedKg.toFixed(2)} كجم</b>{rejectedKg > 0 && <> — المستبعد: {rejectedKg.toFixed(2)} كجم</>}</div>
+                  <div>• عدّل الوزن المستلم فعليًا إذا اختلف عن تقسيمة الذبح، وسيتم توثيق الفرق في سجل التدقيق.</div>
+                  <div>• غيّر حالة الجودة لأي صنف (مرفوض / حجر صحي) لاستبعاده من الإضافة للمخزون.</div>
+                  <div>• الأصناف المقبولة تُضاف لرصيد الصنف الموجود بنفس الاسم، وإلا يُنشأ صنف جديد.</div>
+                  <div>• الإجمالي المضاف للمخزون: <b className="text-emerald-700">{acceptedKg.toFixed(2)} كجم</b>{rejectedKg > 0 && <> — المستبعد: <b className="text-destructive">{rejectedKg.toFixed(2)} كجم</b></>}</div>
                 </div>
               </div>
             );
