@@ -227,9 +227,11 @@ const SlaughterPermit = () => {
           .permit-print { max-width: 800px; margin-top: 1rem; box-shadow: 0 4px 16px rgba(0,0,0,.08); border-radius: .5rem; padding: 1rem; }
         }
         @media print {
-          @page { size: A4; margin: 12mm; }
-          body { background: white !important; }
-          .permit-print { width: 100%; }
+          @page { size: A4; margin: 10mm; }
+          html, body { background: white !important; }
+          body * { visibility: hidden !important; }
+          .permit-print, .permit-print * { visibility: visible !important; }
+          .permit-print { position: absolute; inset: 0; width: 100%; box-shadow: none !important; padding: 0 !important; margin: 0 !important; }
         }
       `}</style>
     </DashboardLayout>
