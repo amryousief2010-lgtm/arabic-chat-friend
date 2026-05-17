@@ -17,6 +17,7 @@ import {
   Settings as SettingsIcon, History, Save,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
@@ -40,6 +41,11 @@ type Settings = { id: string; low_yield_threshold: number; warning_yield_thresho
 type AuditEntry = { id: string; action: string; target_type: string; target_id: string | null; batch_id: string | null; transfer_id: string | null; performed_by: string | null; performed_at: string; old_value: any; new_value: any; notes: string | null };
 
 const Slaughterhouse = () => {
+  const { role } = useAuth();
+  const canEditReceiptDate = role === "slaughterhouse_manager" || role === "general_manager" || role === "executive_manager";
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const [receiptDateFrom, setReceiptDateFrom] = useState<string>("");
+  const [receiptDateTo, setReceiptDateTo] = useState<string>("");
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
   const [yields, setYields] = useState<Yield[]>([]);
@@ -124,24 +130,34 @@ const Slaughterhouse = () => {
     return recent.reduce((s, b) => s + Number(b.cost_per_kg_meat), 0) / recent.length;
   })();
 
+  const validateReceiptDate = (d: string): string | null => {
+    if (!d) return "تاريخ التوريد مطلوب";
+    if (d > todayStr) return "لا يمكن استخدام تاريخ في المستقبل";
+    return null;
+  };
+
   const saveReceipt = async () => {
+    const dateErr = validateReceiptDate(receiptForm.receipt_date);
+    if (dateErr) { toast.error(dateErr); return; }
     if (!receiptForm.bird_count || !receiptForm.total_weight_kg) { toast.error("أدخل عدد الطيور والوزن الإجمالي"); return; }
-    const dateForNumber = (receiptForm.receipt_date || new Date().toISOString().slice(0, 10)).replace(/-/g, "");
+    const dateForNumber = receiptForm.receipt_date.replace(/-/g, "");
     const receipt_number = `LR-${dateForNumber}-${Math.floor(Math.random() * 9999).toString().padStart(4, "0")}`;
     const { data: { user } } = await supabase.auth.getUser();
     const { error } = await supabase.from("slaughter_live_receipts" as any).insert({ ...receiptForm, receipt_number, created_by: user?.id });
     if (error) { toast.error(error.message); return; }
     toast.success("تم تسجيل الاستلام — أضف وزن كل طائر منفصلًا الآن");
     setReceiptOpen(false);
-    setReceiptForm({ source_type: "internal_farm", source_name: "", bird_count: 0, total_weight_kg: 0, avg_age_days: 0, price_per_kg: 0, dead_on_arrival: 0, notes: "", receipt_date: new Date().toISOString().slice(0, 10) });
+    setReceiptForm({ source_type: "internal_farm", source_name: "", bird_count: 0, total_weight_kg: 0, avg_age_days: 0, price_per_kg: 0, dead_on_arrival: 0, notes: "", receipt_date: todayStr });
     fetchAll();
   };
 
   const updateReceiptDate = async (id: string, newDate: string) => {
-    if (!newDate) return;
+    if (!canEditReceiptDate) { toast.error("غير مصرح لك بتعديل تاريخ التوريد"); return; }
+    const dateErr = validateReceiptDate(newDate);
+    if (dateErr) { toast.error(dateErr); return; }
     const { error } = await supabase.from("slaughter_live_receipts" as any).update({ receipt_date: newDate }).eq("id", id);
     if (error) { toast.error(error.message); return; }
-    toast.success("تم تحديث تاريخ التوريد");
+    toast.success("تم تحديث تاريخ التوريد وتم تسجيله في سجل التدقيق");
     fetchAll();
   };
 
@@ -358,37 +374,46 @@ const Slaughterhouse = () => {
         {/* ========== RECEIPTS ========== */}
         <TabsContent value="receipts">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>استلام الطيور الحية</CardTitle>
-              <Dialog open={receiptOpen} onOpenChange={setReceiptOpen}>
-                <DialogTrigger asChild><Button className="bg-gradient-to-r from-primary to-accent"><Plus className="w-4 h-4 ml-1" />استلام جديد</Button></DialogTrigger>
-                <DialogContent dir="rtl" className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader><DialogTitle>تسجيل استلام طيور</DialogTitle></DialogHeader>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div><Label>تاريخ التوريد</Label><Input type="date" value={receiptForm.receipt_date} onChange={e => setReceiptForm({ ...receiptForm, receipt_date: e.target.value })} /></div>
-                    <div><Label>المصدر</Label>
-                      <Select value={receiptForm.source_type} onValueChange={v => setReceiptForm({ ...receiptForm, source_type: v })}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="internal_farm">المزرعة الداخلية</SelectItem>
-                          <SelectItem value="external_supplier">مورد خارجي</SelectItem>
-                        </SelectContent>
-                      </Select>
+            <CardHeader className="flex flex-col gap-3">
+              <div className="flex flex-row items-center justify-between gap-2 flex-wrap">
+                <CardTitle>استلام الطيور الحية</CardTitle>
+                <Dialog open={receiptOpen} onOpenChange={setReceiptOpen}>
+                  <DialogTrigger asChild><Button className="bg-gradient-to-r from-primary to-accent"><Plus className="w-4 h-4 ml-1" />استلام جديد</Button></DialogTrigger>
+                  <DialogContent dir="rtl" className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader><DialogTitle>تسجيل استلام طيور</DialogTitle></DialogHeader>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div><Label>تاريخ التوريد *</Label><Input type="date" max={todayStr} value={receiptForm.receipt_date} onChange={e => setReceiptForm({ ...receiptForm, receipt_date: e.target.value })} /></div>
+                      <div><Label>المصدر</Label>
+                        <Select value={receiptForm.source_type} onValueChange={v => setReceiptForm({ ...receiptForm, source_type: v })}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="internal_farm">المزرعة الداخلية</SelectItem>
+                            <SelectItem value="external_supplier">مورد خارجي</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div><Label>اسم المصدر / المورد</Label><Input value={receiptForm.source_name} onChange={e => setReceiptForm({ ...receiptForm, source_name: e.target.value })} /></div>
+                      <div><Label>عدد الطيور (مبدئي)</Label><Input type="number" value={receiptForm.bird_count || ""} onChange={e => setReceiptForm({ ...receiptForm, bird_count: +e.target.value })} /></div>
+                      <div><Label>الوزن الإجمالي (مبدئي)</Label><Input type="number" step="0.1" value={receiptForm.total_weight_kg || ""} onChange={e => setReceiptForm({ ...receiptForm, total_weight_kg: +e.target.value })} /></div>
+                      <div><Label>متوسط العمر (أيام)</Label><Input type="number" value={receiptForm.avg_age_days || ""} onChange={e => setReceiptForm({ ...receiptForm, avg_age_days: +e.target.value })} /></div>
+                      <div><Label>السعر/كجم (ر.س)</Label><Input type="number" step="0.01" value={receiptForm.price_per_kg || ""} onChange={e => setReceiptForm({ ...receiptForm, price_per_kg: +e.target.value })} /></div>
+                      <div><Label>نافق عند الوصول</Label><Input type="number" value={receiptForm.dead_on_arrival || ""} onChange={e => setReceiptForm({ ...receiptForm, dead_on_arrival: +e.target.value })} /></div>
+                      <div className="sm:col-span-2"><Label>ملاحظات</Label><Textarea value={receiptForm.notes} onChange={e => setReceiptForm({ ...receiptForm, notes: e.target.value })} /></div>
+                      <div className="sm:col-span-2 text-xs text-muted-foreground bg-muted/40 p-2 rounded">
+                        💡 بعد الحفظ ستتمكن من إدخال وزن وتكلفة كل طائر منفصلًا (مطابق لتفريغة Excel) وسيتم تحديث الإجماليات تلقائيًا.
+                      </div>
                     </div>
-                    <div><Label>اسم المصدر / المورد</Label><Input value={receiptForm.source_name} onChange={e => setReceiptForm({ ...receiptForm, source_name: e.target.value })} /></div>
-                    <div><Label>عدد الطيور (مبدئي)</Label><Input type="number" value={receiptForm.bird_count || ""} onChange={e => setReceiptForm({ ...receiptForm, bird_count: +e.target.value })} /></div>
-                    <div><Label>الوزن الإجمالي (مبدئي)</Label><Input type="number" step="0.1" value={receiptForm.total_weight_kg || ""} onChange={e => setReceiptForm({ ...receiptForm, total_weight_kg: +e.target.value })} /></div>
-                    <div><Label>متوسط العمر (أيام)</Label><Input type="number" value={receiptForm.avg_age_days || ""} onChange={e => setReceiptForm({ ...receiptForm, avg_age_days: +e.target.value })} /></div>
-                    <div><Label>السعر/كجم (ر.س)</Label><Input type="number" step="0.01" value={receiptForm.price_per_kg || ""} onChange={e => setReceiptForm({ ...receiptForm, price_per_kg: +e.target.value })} /></div>
-                    <div><Label>نافق عند الوصول</Label><Input type="number" value={receiptForm.dead_on_arrival || ""} onChange={e => setReceiptForm({ ...receiptForm, dead_on_arrival: +e.target.value })} /></div>
-                    <div className="sm:col-span-2"><Label>ملاحظات</Label><Textarea value={receiptForm.notes} onChange={e => setReceiptForm({ ...receiptForm, notes: e.target.value })} /></div>
-                    <div className="sm:col-span-2 text-xs text-muted-foreground bg-muted/40 p-2 rounded">
-                      💡 بعد الحفظ ستتمكن من إدخال وزن وتكلفة كل طائر منفصلًا (مطابق لتفريغة Excel) وسيتم تحديث الإجماليات تلقائيًا.
-                    </div>
-                  </div>
-                  <DialogFooter><Button onClick={saveReceipt}>حفظ</Button></DialogFooter>
-                </DialogContent>
-              </Dialog>
+                    <DialogFooter><Button onClick={saveReceipt}>حفظ</Button></DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+              <div className="flex flex-wrap items-end gap-2">
+                <div><Label className="text-xs">من تاريخ</Label><Input type="date" value={receiptDateFrom} onChange={e => setReceiptDateFrom(e.target.value)} className="h-9 w-40" /></div>
+                <div><Label className="text-xs">إلى تاريخ</Label><Input type="date" value={receiptDateTo} onChange={e => setReceiptDateTo(e.target.value)} className="h-9 w-40" /></div>
+                {(receiptDateFrom || receiptDateTo) && (
+                  <Button variant="ghost" size="sm" onClick={() => { setReceiptDateFrom(""); setReceiptDateTo(""); }}>مسح الفلتر</Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               <Table>
@@ -398,13 +423,17 @@ const Slaughterhouse = () => {
                   <TableHead>تكلفة (إجمالي)</TableHead><TableHead>نافق</TableHead><TableHead>الحالة</TableHead><TableHead>الطيور</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
-                  {receipts.map(r => {
+                  {receipts.filter(r => (!receiptDateFrom || r.receipt_date >= receiptDateFrom) && (!receiptDateTo || r.receipt_date <= receiptDateTo)).map(r => {
                     const recBirds = birds.filter(b => b.receipt_id === r.id);
                     const totalCost = recBirds.reduce((s, b) => s + Number(b.purchase_cost || 0) + Number(b.feed_cost || 0), 0) || Number(r.total_cost || 0);
                     return (
                       <TableRow key={r.id}>
                         <TableCell className="font-mono text-xs">{r.receipt_number}</TableCell>
-                        <TableCell><Input type="date" value={r.receipt_date} onChange={e => updateReceiptDate(r.id, e.target.value)} className="h-8 w-36 text-xs" /></TableCell>
+                        <TableCell>{canEditReceiptDate ? (
+                          <Input type="date" max={todayStr} value={r.receipt_date} onChange={e => updateReceiptDate(r.id, e.target.value)} className="h-8 w-36 text-xs" title="تعديل تاريخ التوريد (يُسجَّل في سجل التدقيق)" />
+                        ) : (
+                          <span className="text-xs">{r.receipt_date}</span>
+                        )}</TableCell>
                         <TableCell>{r.source_type === "internal_farm" ? "🏡 داخلي" : "🚚 خارجي"} {r.source_name ? `— ${r.source_name}` : ""}</TableCell>
                         <TableCell>{r.bird_count}</TableCell>
                         <TableCell>{Number(r.total_weight_kg).toFixed(1)}</TableCell>
