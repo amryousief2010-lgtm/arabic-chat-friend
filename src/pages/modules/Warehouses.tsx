@@ -648,7 +648,34 @@ const Warehouses = () => {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+      {/* Receive slaughter output dialog */}
+      <Dialog open={!!receiveTarget} onOpenChange={(o) => !o && setReceiveTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Beef className="w-5 h-5 text-primary" /> استلام من المجزر</DialogTitle>
+            <DialogDescription>
+              استلام {receiveTarget?.cut_name_ar} ({Number(receiveTarget?.actual_weight_kg || 0).toFixed(2)} كجم) من الدفعة {receiveTarget?.batch?.batch_number}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>المخزن المستلم</Label>
+              <Select value={receiveWarehouseId} onValueChange={setReceiveWarehouseId}>
+                <SelectTrigger><SelectValue placeholder="اختر مخزناً" /></SelectTrigger>
+                <SelectContent>
+                  {warehouses.map(w => <SelectItem key={w.id} value={w.id}>{w.name} — {warehouseTypes[w.type] || w.type}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-2">سيُضاف الصنف للمخزون تلقائيًا، وإن لم يكن موجوداً سيُنشأ صنف جديد.</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReceiveTarget(null)}>إلغاء</Button>
+            <Button onClick={confirmReceive}><CheckCircle2 className="w-4 h-4 ml-1" /> تأكيد الاستلام</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
