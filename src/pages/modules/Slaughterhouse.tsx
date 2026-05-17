@@ -778,7 +778,12 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, onClose
 
   const totalActual = rows.reduce((s, r) => s + (Number(r.actual_weight_kg) || 0), 0);
   const totalValue = rows.reduce((s, r) => s + (Number(r.actual_weight_kg) * Number(r.unit_price || 0)), 0);
-  const yieldPct = Number(batch.total_live_weight_kg) > 0 ? (totalActual / Number(batch.total_live_weight_kg)) * 100 : 0;
+  // التصافي يُحسب فقط على أصناف اللحوم القابلة للبيع كلحم، باستثناء بنود مثل "ريش" (ريش نعام يُعبأ منفردًا للبيع وليس صنف لحم)
+  const YIELD_CUTS = ["لحمة","لحمه","استيك","موزة","موزه","فراشة","فراشه","قطعية دبوس","قطعيه دبوس","دبوس بالعظم","فخذة","فخذه","صندوق","تربيانكو","اسكالوب","رول نعام","فرم"];
+  const normalize = (s: string) => (s || "").trim().replace(/\s+/g, " ");
+  const yieldSet = new Set(YIELD_CUTS.map(normalize));
+  const yieldWeight = rows.reduce((s, r) => yieldSet.has(normalize(r.cut_name_ar)) ? s + (Number(r.actual_weight_kg) || 0) : s, 0);
+  const yieldPct = Number(batch.total_live_weight_kg) > 0 ? (yieldWeight / Number(batch.total_live_weight_kg)) * 100 : 0;
 
   const addRow = (cutName: string) => {
     const y = yields.find(y => y.cut_name_ar === cutName);
