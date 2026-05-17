@@ -2,7 +2,8 @@ import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Trash2, Download } from "lucide-react";
+import { RefreshCw, Trash2, Download, Cog } from "lucide-react";
+import { checkForServiceWorkerUpdate } from "@/lib/registerSW";
 import {
   CURRENT_VERSION,
   CHECK_INTERVAL_MS,
@@ -30,6 +31,7 @@ const UpdateLogPanel = () => {
   const [log, setLog] = useState<ReloadLogEntry[]>([]);
   const [remote, setRemote] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
+  const [checkingSW, setCheckingSW] = useState(false);
 
   const refresh = useCallback(async () => {
     setLog(getReloadLog());
@@ -55,6 +57,28 @@ const UpdateLogPanel = () => {
     clearReloadLog();
     setLog([]);
     toast.success("تم مسح السجل");
+  };
+
+  const handleCheckSW = async () => {
+    setCheckingSW(true);
+    try {
+      const res = await checkForServiceWorkerUpdate();
+      if (res === "updated") {
+        toast.success("تم تفعيل نسخة جديدة — جارٍ إعادة التحميل...");
+      } else if (res === "current") {
+        toast.success("Service Worker على آخر إصدار");
+      } else {
+        toast("Service Worker غير مفعّل في هذه البيئة", {
+          description: "يعمل فقط في النسخة المنشورة خارج المعاينة",
+        });
+      }
+    } catch (e) {
+      toast.error("فشل فحص Service Worker", {
+        description: (e as Error)?.message,
+      });
+    } finally {
+      setCheckingSW(false);
+    }
   };
 
   return (
