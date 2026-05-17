@@ -120,10 +120,19 @@ const UpdateLogPanel = () => {
           <code className="font-mono">VITE_UPDATE_CHECK_ON_FOCUS</code>.
         </p>
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button onClick={handleForceCheck} disabled={checking} size="sm">
             <RefreshCw className={`w-4 h-4 ml-2 ${checking ? "animate-spin" : ""}`} />
             فحص الآن
+          </Button>
+          <Button
+            onClick={handleCheckSW}
+            disabled={checkingSW}
+            size="sm"
+            variant="secondary"
+          >
+            <Cog className={`w-4 h-4 ml-2 ${checkingSW ? "animate-spin" : ""}`} />
+            فحص Service Worker
           </Button>
           <Button onClick={handleClear} variant="outline" size="sm" disabled={!log.length}>
             <Trash2 className="w-4 h-4 ml-2" />
