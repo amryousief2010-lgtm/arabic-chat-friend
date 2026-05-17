@@ -135,19 +135,21 @@ const Slaughterhouse = () => {
     fetchAll();
   };
 
-  const saveBatch = async () => {
-    if (!batchForm.birds_slaughtered || !batchForm.total_live_weight_kg) { toast.error("أدخل عدد الطيور المذبوحة والوزن الحي"); return; }
+  const saveBatch = async (formData?: typeof batchForm): Promise<boolean> => {
+    const data = formData || batchForm;
+    if (!data.birds_slaughtered || !data.total_live_weight_kg) { toast.error("أدخل عدد الطيور المذبوحة والوزن الحي"); return false; }
     const batch_number = `SB-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(Math.random() * 9999).toString().padStart(4, "0")}`;
     const { data: { user } } = await supabase.auth.getUser();
-    const payload: any = { ...batchForm, batch_number, created_by: user?.id };
+    const payload: any = { ...data, batch_number, created_by: user?.id };
     if (!payload.live_receipt_id) delete payload.live_receipt_id;
     if (!payload.start_time) delete payload.start_time;
     const { error } = await supabase.from("slaughter_batches" as any).insert(payload);
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error(error.message); return false; }
     toast.success("تم إنشاء دفعة الذبح");
     setBatchOpen(false);
     setBatchForm({ live_receipt_id: "", shift: "morning", birds_slaughtered: 0, total_live_weight_kg: 0, pre_slaughter_dead: 0, rejected_birds: 0, start_time: "", notes: "" });
     fetchAll();
+    return true;
   };
 
   const saveWorker = async () => {
