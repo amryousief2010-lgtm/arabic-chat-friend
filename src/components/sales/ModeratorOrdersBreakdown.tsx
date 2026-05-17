@@ -154,6 +154,13 @@ const ModeratorOrdersBreakdown = () => {
                     </div>
                     <span className="font-bold text-lg text-green-600">{item.delivered}</span>
                   </div>
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-amber-500/10">
+                    <div className="flex items-center gap-2">
+                      <Truck className="h-4 w-4 text-amber-600" />
+                      <span className="text-sm">قيد التوصيل</span>
+                    </div>
+                    <span className="font-bold text-lg text-amber-600">{item.pending}</span>
+                  </div>
                   <div className="flex items-center justify-between p-2 rounded-lg bg-red-500/10">
                     <div className="flex items-center gap-2">
                       <XCircle className="h-4 w-4 text-red-600" />
