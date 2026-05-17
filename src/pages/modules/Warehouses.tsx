@@ -284,6 +284,15 @@ const Warehouses = () => {
     setReceiveBatch(batch);
     const meatWh = warehouses.find(w => w.type === 'finished_goods') || warehouses[0];
     setReceiveWarehouseId(meatWh?.id || "");
+    const map: Record<string, { received_weight_kg: number; quality_status: string; notes: string }> = {};
+    batch.outputs.forEach((o: any) => {
+      map[o.id] = {
+        received_weight_kg: Number(o.actual_weight_kg || 0),
+        quality_status: o.quality_status || 'accepted',
+        notes: '',
+      };
+    });
+    setVerifyMap(map);
   };
 
   const confirmReceiveBatch = async () => {
@@ -291,10 +300,22 @@ const Warehouses = () => {
       toast({ title: "خطأ", description: "اختر المخزن", variant: "destructive" });
       return;
     }
+    const items = receiveBatch.outputs.map((o: any) => ({
+      id: o.id,
+      received_weight_kg: verifyMap[o.id]?.received_weight_kg ?? Number(o.actual_weight_kg || 0),
+      quality_status: verifyMap[o.id]?.quality_status ?? (o.quality_status || 'accepted'),
+      notes: verifyMap[o.id]?.notes || null,
+    }));
+    const invalid = items.find(i => !isFinite(i.received_weight_kg) || i.received_weight_kg < 0);
+    if (invalid) {
+      toast({ title: "كمية غير صحيحة", description: "تحقق من الكميات المستلمة", variant: "destructive" });
+      return;
+    }
     setReceiving(true);
-    const { data, error } = await supabase.rpc('receive_slaughter_batch', {
+    const { data, error } = await supabase.rpc('receive_slaughter_batch_verified', {
       p_batch_id: receiveBatch.batch_id,
       p_warehouse_id: receiveWarehouseId,
+      p_items: items as any,
     });
     setReceiving(false);
     if (error) {
@@ -303,7 +324,7 @@ const Warehouses = () => {
     }
     const r: any = data || {};
     toast({
-      title: "تم الاستلام",
+      title: "تم الاستلام بعد التحقق",
       description: `تم استلام ${r.received_count || 0} صنف (مضاف للمخزون: ${r.added_to_stock || 0}) بإجمالي ${Number(r.total_kg || 0).toFixed(2)} كجم`,
     });
     setReceiveBatch(null);
