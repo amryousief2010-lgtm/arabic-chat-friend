@@ -12,9 +12,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Beef, TrendingUp, Package, Scale, Plus, AlertTriangle, CheckCircle2,
   Users, ClipboardCheck, Bird, FileSpreadsheet, FileText, Truck, Trash2,
-  Settings as SettingsIcon, History, Save,
+  Settings as SettingsIcon, History, Save, Search,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
