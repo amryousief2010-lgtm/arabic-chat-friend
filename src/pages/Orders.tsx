@@ -573,15 +573,16 @@ const Orders = () => {
               <div className="text-center py-8 text-muted-foreground">لا توجد طلبات</div>
             ) : (
               filteredOrders.map((order) => {
-                const productsText = order.items.length === 0
-                  ? '-'
-                  : order.items.map((it) => {
-                      const cleaned = it.product_name
-                        .replace(/\s*\(عرض\)\s*/g, ' ')
-                        .replace(/(^|\s)نعام(?=\s|$)/g, '$1')
-                        .replace(/\s+/g, ' ').trim();
-                      return `${formatItemQty(it.quantity, it.unit)} ${cleaned || it.product_name}`;
-                    }).join(' + ');
+                const itemLines = order.items.map((it) => {
+                  const cleaned = it.product_name
+                    .replace(/\s*\(عرض\)\s*/g, ' ')
+                    .replace(/(^|\s)نعام(?=\s|$)/g, '$1')
+                    .replace(/\s+/g, ' ').trim();
+                  return `${formatItemQty(it.quantity, it.unit)} ${cleaned || it.product_name}`;
+                });
+                const isExpanded = expandedItems.has(order.id);
+                const hasMore = itemLines.length > 1;
+                const shownLines = isExpanded || !hasMore ? itemLines : [itemLines[0]];
                 return (
                   <div key={order.id} className="rounded-lg border bg-card p-3 space-y-2">
                     <div className="flex items-center justify-between gap-2">
@@ -595,7 +596,23 @@ const Orders = () => {
                       <span className="font-semibold truncate">{order.customer_name}</span>
                       <Badge variant="secondary" className="text-xs shrink-0">{order.moderator_name}</Badge>
                     </div>
-                    <div className="text-sm text-foreground/90 break-words">{productsText}</div>
+                    <div className="text-sm text-foreground/90 break-words">
+                      {itemLines.length === 0 ? '-' : (
+                        <ul className="space-y-0.5 list-disc pr-4">
+                          {shownLines.map((l, i) => <li key={i}>{l}</li>)}
+                        </ul>
+                      )}
+                      {hasMore && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 mt-1 text-xs gap-1 text-primary hover:text-primary"
+                          onClick={() => toggleExpanded(order.id)}
+                        >
+                          {isExpanded ? <><ChevronUp className="w-3 h-3" /> إخفاء التفاصيل</> : <><ChevronDown className="w-3 h-3" /> عرض كل المنتجات ({itemLines.length})</>}
+                        </Button>
+                      )}
+                    </div>
                     <div className="flex items-center justify-between gap-2 pt-1 border-t">
                       <span className="font-bold text-primary">{order.total.toLocaleString()} ج.م</span>
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
