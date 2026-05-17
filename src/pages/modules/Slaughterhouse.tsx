@@ -41,6 +41,11 @@ type Settings = { id: string; low_yield_threshold: number; warning_yield_thresho
 type AuditEntry = { id: string; action: string; target_type: string; target_id: string | null; batch_id: string | null; transfer_id: string | null; performed_by: string | null; performed_at: string; old_value: any; new_value: any; notes: string | null };
 
 const Slaughterhouse = () => {
+  const { role } = useAuth();
+  const canEditReceiptDate = role === "slaughterhouse_manager" || role === "general_manager" || role === "executive_manager";
+  const today = new Date().toISOString().slice(0, 10);
+  const [receiptDateFrom, setReceiptDateFrom] = useState<string>("");
+  const [receiptDateTo, setReceiptDateTo] = useState<string>("");
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
   const [yields, setYields] = useState<Yield[]>([]);
