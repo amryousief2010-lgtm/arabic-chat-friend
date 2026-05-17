@@ -908,6 +908,7 @@ const Orders = () => {
               )}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
 
