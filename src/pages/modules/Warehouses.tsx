@@ -83,6 +83,7 @@ const Warehouses = () => {
   const [slaughterOutputs, setSlaughterOutputs] = useState<any[]>([]);
   const [receiveBatch, setReceiveBatch] = useState<{ batch_id: string; batch_number: string; slaughter_date?: string; status?: string; outputs: any[] } | null>(null);
   const [receiveWarehouseId, setReceiveWarehouseId] = useState<string>("");
+  const [verifyMap, setVerifyMap] = useState<Record<string, { received_weight_kg: number; quality_status: string; notes: string }>>({});
   const [receiving, setReceiving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [warehouseFilter, setWarehouseFilter] = useState<string>("all");
