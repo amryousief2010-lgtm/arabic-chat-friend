@@ -27,15 +27,17 @@ export function toDate(value: DateLike): Date | null {
   const dmy = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
   if (dmy) {
     const [, dd, mm, yyyy, hh, mi, ss] = dmy;
-    const d = new Date(
-      Number(yyyy),
-      Number(mm) - 1,
-      Number(dd),
-      Number(hh ?? 0),
-      Number(mi ?? 0),
-      Number(ss ?? 0)
-    );
-    return isNaN(d.getTime()) ? null : d;
+    const day = Number(dd);
+    const month = Number(mm);
+    const year = Number(yyyy);
+    // Reject out-of-range components so we never silently roll over
+    // (e.g. day=32 → next month, month=13 → next year).
+    if (day < 1 || day > 31 || month < 1 || month > 12) return null;
+    const d = new Date(year, month - 1, day, Number(hh ?? 0), Number(mi ?? 0), Number(ss ?? 0));
+    if (isNaN(d.getTime())) return null;
+    // Final sanity: components must round-trip (catches 31/02/...).
+    if (d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) return null;
+    return d;
   }
   // Otherwise fall back to native parser (handles ISO and RFC strings)
   const d = new Date(s);
