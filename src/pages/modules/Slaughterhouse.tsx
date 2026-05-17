@@ -1376,14 +1376,23 @@ const SettingsTab = ({ settings, onSave }: { settings: Settings | null; onSave: 
   const [low, setLow] = useState(settings?.low_yield_threshold ?? 40);
   const [warn, setWarn] = useState(settings?.warning_yield_threshold ?? 45);
   const [notify, setNotify] = useState(settings?.notify_on_low_yield ?? true);
+  const [cutsText, setCutsText] = useState((settings?.yield_cut_names ?? DEFAULT_YIELD_CUTS).join("، "));
   useEffect(() => {
-    if (settings) { setLow(settings.low_yield_threshold); setWarn(settings.warning_yield_threshold); setNotify(settings.notify_on_low_yield); }
+    if (settings) {
+      setLow(settings.low_yield_threshold);
+      setWarn(settings.warning_yield_threshold);
+      setNotify(settings.notify_on_low_yield);
+      setCutsText((settings.yield_cut_names ?? DEFAULT_YIELD_CUTS).join("، "));
+    }
   }, [settings]);
   if (!settings) return <Card><CardContent className="p-6 text-center text-muted-foreground">جاري التحميل...</CardContent></Card>;
+
+  const parsedCuts = cutsText.split(/[،,\n]/).map(s => s.trim()).filter(Boolean);
+
   return (
     <Card>
       <CardHeader><CardTitle className="flex items-center gap-2"><SettingsIcon className="w-5 h-5" />إعدادات حدود التصافي والتنبيهات</CardTitle></CardHeader>
-      <CardContent className="space-y-4 max-w-xl">
+      <CardContent className="space-y-4 max-w-2xl">
         <div>
           <Label>الحد الأدنى للتصافي (%) — أقل من هذا = تنبيه أحمر</Label>
           <Input type="number" step="0.5" value={low} onChange={e => setLow(+e.target.value)} />
@@ -1396,10 +1405,28 @@ const SettingsTab = ({ settings, onSave }: { settings: Settings | null; onSave: 
           <input id="notify" type="checkbox" checked={notify} onChange={e => setNotify(e.target.checked)} className="w-4 h-4" />
           <Label htmlFor="notify" className="cursor-pointer">إرسال تنبيه عند انخفاض التصافي عند إنهاء دفعة</Label>
         </div>
+
+        <div className="pt-2 border-t">
+          <Label className="text-base font-semibold">قائمة أصناف اللحوم المُحتسبة في نسبة التصافي</Label>
+          <p className="text-xs text-muted-foreground mt-1 mb-2">
+            افصل بين الأصناف بفاصلة عربية «،» أو إنجليزية أو سطر جديد. أي صنف غير مدرج هنا (مثل «ريش») لن يُضاف إلى نسبة التصافي.
+            المطابقة ذكية: تتجاهل المسافات الزائدة وحالة الأحرف واختلافات ة/ه و ى/ي و أ/إ/آ.
+          </p>
+          <Textarea rows={4} value={cutsText} onChange={e => setCutsText(e.target.value)} placeholder="لحمة، استيك، موزة، ..." />
+          <div className="text-xs text-muted-foreground mt-2">
+            عدد الأصناف الحالية: <b>{parsedCuts.length}</b>
+            {parsedCuts.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1">
+                {parsedCuts.map((c, i) => <span key={i} className="bg-primary/10 px-2 py-0.5 rounded">{c}</span>)}
+              </div>
+            )}
+          </div>
+        </div>
+
         <div className="text-xs text-muted-foreground bg-muted/40 p-3 rounded">
           💡 عند الانتهاء من دفعة ذبح، سيقارن النظام نسبة التصافي بهذين الحدّين ويعرض تنبيهًا فوريًا، كما سيتم تسجيل العملية في سجل التدقيق وإنشاء إشعار للمدراء.
         </div>
-        <Button onClick={() => onSave({ low_yield_threshold: low, warning_yield_threshold: warn, notify_on_low_yield: notify })}
+        <Button onClick={() => onSave({ low_yield_threshold: low, warning_yield_threshold: warn, notify_on_low_yield: notify, yield_cut_names: parsedCuts })}
           className="bg-gradient-to-r from-primary to-accent">
           <Save className="w-4 h-4 ml-1" />حفظ الإعدادات
         </Button>
