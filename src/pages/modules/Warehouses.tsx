@@ -725,30 +725,85 @@ const Warehouses = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Receive slaughter output dialog */}
-      <Dialog open={!!receiveTarget} onOpenChange={(o) => !o && setReceiveTarget(null)}>
-        <DialogContent>
+      {/* Batch receipt summary & confirmation dialog */}
+      <Dialog open={!!receiveBatch} onOpenChange={(o) => !o && !receiving && setReceiveBatch(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Beef className="w-5 h-5 text-primary" /> استلام من المجزر</DialogTitle>
+            <DialogTitle className="flex items-center gap-2"><Beef className="w-5 h-5 text-primary" /> ملخص استلام من المجزر</DialogTitle>
             <DialogDescription>
-              استلام {receiveTarget?.cut_name_ar} ({Number(receiveTarget?.actual_weight_kg || 0).toFixed(2)} كجم) من الدفعة {receiveTarget?.batch?.batch_number}
+              راجع الأصناف والكميات وحالات الجودة كما هي في تقسيمة الذبح قبل التأكيد النهائي.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <Label>المخزن المستلم</Label>
-              <Select value={receiveWarehouseId} onValueChange={setReceiveWarehouseId}>
-                <SelectTrigger><SelectValue placeholder="اختر مخزناً" /></SelectTrigger>
-                <SelectContent>
-                  {warehouses.map(w => <SelectItem key={w.id} value={w.id}>{w.name} — {warehouseTypes[w.type] || w.type}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground mt-2">سيُضاف الصنف للمخزون تلقائيًا، وإن لم يكن موجوداً سيُنشأ صنف جديد.</p>
-            </div>
-          </div>
+          {receiveBatch && (() => {
+            const totalKg = receiveBatch.outputs.reduce((s: number, o: any) => s + Number(o.actual_weight_kg || 0), 0);
+            const acceptedKg = receiveBatch.outputs.filter((o: any) => o.quality_status === 'accepted').reduce((s: number, o: any) => s + Number(o.actual_weight_kg || 0), 0);
+            const rejectedKg = receiveBatch.outputs.filter((o: any) => o.quality_status === 'rejected').reduce((s: number, o: any) => s + Number(o.actual_weight_kg || 0), 0);
+            const totalCost = receiveBatch.outputs.reduce((s: number, o: any) => s + Number(o.actual_weight_kg || 0) * Number(o.unit_cost || 0), 0);
+            return (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                  <div className="rounded-md border p-2"><div className="text-muted-foreground text-xs">الدفعة</div><div className="font-mono">{receiveBatch.batch_number}</div></div>
+                  <div className="rounded-md border p-2"><div className="text-muted-foreground text-xs">عدد الأصناف</div><div>{receiveBatch.outputs.length}</div></div>
+                  <div className="rounded-md border p-2"><div className="text-muted-foreground text-xs">إجمالي الوزن</div><div>{totalKg.toFixed(2)} كجم</div></div>
+                  <div className="rounded-md border p-2"><div className="text-muted-foreground text-xs">إجمالي التكلفة</div><div>{totalCost.toFixed(2)}</div></div>
+                </div>
+
+                <div>
+                  <Label>المخزن المستلم</Label>
+                  <Select value={receiveWarehouseId} onValueChange={setReceiveWarehouseId}>
+                    <SelectTrigger><SelectValue placeholder="اختر مخزناً" /></SelectTrigger>
+                    <SelectContent>
+                      {warehouses.map(w => <SelectItem key={w.id} value={w.id}>{w.name} — {warehouseTypes[w.type] || w.type}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>الصنف</TableHead>
+                        <TableHead>الكمية</TableHead>
+                        <TableHead>التكلفة/كجم</TableHead>
+                        <TableHead>الجودة</TableHead>
+                        <TableHead>سيُضاف للمخزون؟</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {receiveBatch.outputs.map((o: any) => {
+                        const q = qualityLabels[o.quality_status] || qualityLabels.accepted;
+                        return (
+                          <TableRow key={o.id}>
+                            <TableCell className="font-medium">{o.cut_name_ar}</TableCell>
+                            <TableCell>{Number(o.actual_weight_kg).toFixed(2)} كجم</TableCell>
+                            <TableCell>{Number(o.unit_cost || 0).toFixed(2)}</TableCell>
+                            <TableCell><Badge variant={q.variant}>{q.label}</Badge></TableCell>
+                            <TableCell className="text-xs">
+                              {o.quality_status === 'accepted'
+                                ? <span className="text-emerald-600">نعم</span>
+                                : <span className="text-muted-foreground">لا — يُسجل فقط</span>}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <div>• الأصناف المقبولة تُضاف لرصيد الصنف الموجود بنفس الاسم (دون إنشاء سجل جديد)، وإن لم يكن موجودًا يُنشأ.</div>
+                  <div>• تُسجَّل حركة إدخال في الحركات بمرجع رقم الدفعة ومنفّذ العملية وتاريخ ووقت الاستلام.</div>
+                  <div>• المرفوض/الحجر يُعلَّم كمستلم في سجل التدقيق لكنه لا يُضاف للمخزون.</div>
+                  <div>• الإجمالي المضاف للمخزون: <b>{acceptedKg.toFixed(2)} كجم</b>{rejectedKg > 0 && <> — المستبعد: {rejectedKg.toFixed(2)} كجم</>}</div>
+                </div>
+              </div>
+            );
+          })()}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setReceiveTarget(null)}>إلغاء</Button>
-            <Button onClick={confirmReceive}><CheckCircle2 className="w-4 h-4 ml-1" /> تأكيد الاستلام</Button>
+            <Button variant="outline" onClick={() => setReceiveBatch(null)} disabled={receiving}>إلغاء</Button>
+            <Button onClick={confirmReceiveBatch} disabled={receiving || !receiveWarehouseId}>
+              <CheckCircle2 className="w-4 h-4 ml-1" /> {receiving ? 'جارٍ الاستلام...' : 'تأكيد نهائي للاستلام'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
