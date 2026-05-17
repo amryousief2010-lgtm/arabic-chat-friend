@@ -421,51 +421,100 @@ const Warehouses = () => {
 
           {/* SLAUGHTER RECEIPTS */}
           <TabsContent value="slaughter" className="space-y-4">
+            {/* Pending batches grouped */}
+            {pendingBatches.length === 0 ? (
+              <Card><CardContent className="py-10 text-center text-muted-foreground">لا توجد دفعات بانتظار الاستلام من المجزر</CardContent></Card>
+            ) : (
+              <div className="space-y-3">
+                {pendingBatches.map((b: any) => {
+                  const totalKg = b.outputs.reduce((s: number, o: any) => s + Number(o.actual_weight_kg || 0), 0);
+                  const accepted = b.outputs.filter((o: any) => o.quality_status === 'accepted').length;
+                  const rejected = b.outputs.filter((o: any) => o.quality_status === 'rejected').length;
+                  return (
+                    <Card key={b.batch_id} className="border-primary/30">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between gap-3 flex-wrap">
+                          <div>
+                            <CardTitle className="flex items-center gap-2 text-base">
+                              <Beef className="w-5 h-5 text-primary" /> الدفعة {b.batch_number}
+                              {b.status && <Badge variant="outline">{b.status === 'completed' ? 'مكتملة' : b.status === 'in_progress' ? 'جارية' : b.status}</Badge>}
+                            </CardTitle>
+                            <CardDescription>
+                              تاريخ الذبح: {b.slaughter_date || '—'} • {b.outputs.length} صنف • إجمالي {totalKg.toFixed(2)} كجم
+                              {accepted > 0 && <> • مقبول: {accepted}</>}
+                              {rejected > 0 && <> • مرفوض: {rejected}</>}
+                            </CardDescription>
+                          </div>
+                          {canManageWarehouses && (
+                            <Button onClick={() => openReceiveBatch(b)}>
+                              <ArrowDown className="w-4 h-4 ml-1" /> استلام الدفعة
+                            </Button>
+                          )}
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>الصنف</TableHead>
+                              <TableHead>الكمية (كجم)</TableHead>
+                              <TableHead>التكلفة/كجم</TableHead>
+                              <TableHead>الجودة</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {b.outputs.map((o: any) => {
+                              const q = qualityLabels[o.quality_status] || qualityLabels.accepted;
+                              return (
+                                <TableRow key={o.id}>
+                                  <TableCell className="font-medium">{o.cut_name_ar}</TableCell>
+                                  <TableCell>{Number(o.actual_weight_kg).toFixed(2)}</TableCell>
+                                  <TableCell>{Number(o.unit_cost || 0).toFixed(2)}</TableCell>
+                                  <TableCell><Badge variant={q.variant}>{q.label}</Badge></TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Received history */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Beef className="w-5 h-5 text-primary" /> أصناف بانتظار الاستلام من المجزر</CardTitle>
-                <CardDescription>الأصناف الموجهة للمخزن بعد تقسيمة الذبح. اضغط "استلام" لإضافتها تلقائيًا للمخزون الرئيسي.</CardDescription>
+                <CardTitle className="text-base">سجل المستلم</CardTitle>
+                <CardDescription>آخر عمليات الاستلام من المجزر</CardDescription>
               </CardHeader>
               <CardContent className="p-0">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>الدفعة</TableHead>
-                      <TableHead>تاريخ الذبح</TableHead>
                       <TableHead>الصنف</TableHead>
-                      <TableHead>الكمية (كجم)</TableHead>
-                      <TableHead>التكلفة/كجم</TableHead>
-                      <TableHead>الحالة</TableHead>
-                      <TableHead>إجراء</TableHead>
+                      <TableHead>الكمية</TableHead>
+                      <TableHead>الجودة</TableHead>
+                      <TableHead>وقت الاستلام</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {slaughterOutputs.length === 0 ? (
-                      <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">لا توجد مخرجات ذبح موجهة للمخزن</TableCell></TableRow>
-                    ) : slaughterOutputs.map((o: any) => (
-                      <TableRow key={o.id} className={o.received_status === 'received' ? 'bg-muted/30' : ''}>
-                        <TableCell className="font-mono text-xs">{o.batch?.batch_number || '—'}</TableCell>
-                        <TableCell className="text-xs">{o.batch?.slaughter_date || '—'}</TableCell>
-                        <TableCell className="font-medium">{o.cut_name_ar}</TableCell>
-                        <TableCell>{Number(o.actual_weight_kg).toFixed(2)}</TableCell>
-                        <TableCell>{Number(o.unit_cost || 0).toFixed(2)}</TableCell>
-                        <TableCell>
-                          {o.received_status === 'received'
-                            ? <Badge variant="default" className="gap-1"><CheckCircle2 className="w-3 h-3" /> مستلم</Badge>
-                            : <Badge variant="secondary">بانتظار الاستلام</Badge>}
-                        </TableCell>
-                        <TableCell>
-                          {o.received_status !== 'received' && canManageWarehouses && (
-                            <Button size="sm" onClick={() => openReceiveDialog(o)}>
-                              <ArrowDown className="w-4 h-4 ml-1" /> استلام
-                            </Button>
-                          )}
-                          {o.received_status === 'received' && (
-                            <span className="text-xs text-muted-foreground">{o.received_at ? new Date(o.received_at).toLocaleString("ar-EG") : ''}</span>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {slaughterOutputs.filter(o => o.received_status === 'received').length === 0 ? (
+                      <TableRow><TableCell colSpan={5} className="text-center py-6 text-muted-foreground">لا يوجد</TableCell></TableRow>
+                    ) : slaughterOutputs.filter(o => o.received_status === 'received').map((o: any) => {
+                      const q = qualityLabels[o.quality_status] || qualityLabels.accepted;
+                      return (
+                        <TableRow key={o.id}>
+                          <TableCell className="font-mono text-xs">{o.batch?.batch_number}</TableCell>
+                          <TableCell>{o.cut_name_ar}</TableCell>
+                          <TableCell>{Number(o.actual_weight_kg).toFixed(2)} كجم</TableCell>
+                          <TableCell><Badge variant={q.variant}>{q.label}</Badge></TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{o.received_at ? new Date(o.received_at).toLocaleString("ar-EG") : '—'}</TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </CardContent>
