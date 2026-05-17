@@ -836,8 +836,8 @@ const BirdsDialog = ({ receiptId, receipt, birds, onClose, onUpdate }: {
 };
 
 // ===================== Batch Outputs Dialog (with branch + unit_price) =====================
-const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, onClose, onUpdate }: {
-  batchId: string; batch: Batch; yields: Yield[]; outputs: Output[]; branches: Branch[]; onClose: () => void; onUpdate: () => void;
+const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCutNames, onClose, onUpdate }: {
+  batchId: string; batch: Batch; yields: Yield[]; outputs: Output[]; branches: Branch[]; yieldCutNames: string[]; onClose: () => void; onUpdate: () => void;
 }) => {
   // Allow multiple rows per cut (one per branch). Pre-fill with one row per yield if no existing.
   const initial = outputs.length
@@ -867,14 +867,32 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, onClose
       }));
   const [rows, setRows] = useState(initial);
 
-  const totalActual = rows.reduce((s, r) => s + (Number(r.actual_weight_kg) || 0), 0);
-  const totalValue = rows.reduce((s, r) => s + (Number(r.actual_weight_kg) * Number(r.unit_price || 0)), 0);
-  // التصافي يُحسب فقط على أصناف اللحوم القابلة للبيع كلحم، باستثناء بنود مثل "ريش" (ريش نعام يُعبأ منفردًا للبيع وليس صنف لحم)
-  const YIELD_CUTS = ["لحمة","لحمه","استيك","موزة","موزه","فراشة","فراشه","قطعية دبوس","قطعيه دبوس","دبوس بالعظم","فخذة","فخذه","صندوق","تربيانكو","اسكالوب","رول نعام","فرم"];
-  const normalize = (s: string) => (s || "").trim().replace(/\s+/g, " ");
-  const yieldSet = new Set(YIELD_CUTS.map(normalize));
-  const yieldWeight = rows.reduce((s, r) => yieldSet.has(normalize(r.cut_name_ar)) ? s + (Number(r.actual_weight_kg) || 0) : s, 0);
-  const yieldPct = Number(batch.total_live_weight_kg) > 0 ? (yieldWeight / Number(batch.total_live_weight_kg)) * 100 : 0;
+  // Auto-recompute on any change to rows / yieldCutNames using useMemo
+  const yieldSet = useMemo(() => new Set((yieldCutNames || DEFAULT_YIELD_CUTS).map(normalizeCutName)), [yieldCutNames]);
+  const { totalActual, totalValue, yieldWeight, yieldPct, includedBreakdown, excludedBreakdown } = useMemo(() => {
+    let totalActual = 0, totalValue = 0, yieldWeight = 0;
+    const incMap = new Map<string, number>();
+    const excMap = new Map<string, number>();
+    for (const r of rows) {
+      const w = Number(r.actual_weight_kg) || 0;
+      totalActual += w;
+      totalValue += w * Number(r.unit_price || 0);
+      const norm = normalizeCutName(r.cut_name_ar);
+      if (yieldSet.has(norm)) {
+        yieldWeight += w;
+        incMap.set(r.cut_name_ar, (incMap.get(r.cut_name_ar) || 0) + w);
+      } else if (w > 0) {
+        excMap.set(r.cut_name_ar, (excMap.get(r.cut_name_ar) || 0) + w);
+      }
+    }
+    const live = Number(batch.total_live_weight_kg);
+    return {
+      totalActual, totalValue, yieldWeight,
+      yieldPct: live > 0 ? (yieldWeight / live) * 100 : 0,
+      includedBreakdown: Array.from(incMap.entries()).sort((a, b) => b[1] - a[1]),
+      excludedBreakdown: Array.from(excMap.entries()).sort((a, b) => b[1] - a[1]),
+    };
+  }, [rows, yieldSet, batch.total_live_weight_kg]);
 
   const addRow = (cutName: string) => {
     const y = yields.find(y => y.cut_name_ar === cutName);
