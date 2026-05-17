@@ -391,6 +391,59 @@ const Warehouses = () => {
             </CardContent></Card>
           </TabsContent>
 
+          {/* SLAUGHTER RECEIPTS */}
+          <TabsContent value="slaughter" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Beef className="w-5 h-5 text-primary" /> أصناف بانتظار الاستلام من المجزر</CardTitle>
+                <CardDescription>الأصناف الموجهة للمخزن بعد تقسيمة الذبح. اضغط "استلام" لإضافتها تلقائيًا للمخزون الرئيسي.</CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>الدفعة</TableHead>
+                      <TableHead>تاريخ الذبح</TableHead>
+                      <TableHead>الصنف</TableHead>
+                      <TableHead>الكمية (كجم)</TableHead>
+                      <TableHead>التكلفة/كجم</TableHead>
+                      <TableHead>الحالة</TableHead>
+                      <TableHead>إجراء</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {slaughterOutputs.length === 0 ? (
+                      <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">لا توجد مخرجات ذبح موجهة للمخزن</TableCell></TableRow>
+                    ) : slaughterOutputs.map((o: any) => (
+                      <TableRow key={o.id} className={o.received_status === 'received' ? 'bg-muted/30' : ''}>
+                        <TableCell className="font-mono text-xs">{o.batch?.batch_number || '—'}</TableCell>
+                        <TableCell className="text-xs">{o.batch?.slaughter_date || '—'}</TableCell>
+                        <TableCell className="font-medium">{o.cut_name_ar}</TableCell>
+                        <TableCell>{Number(o.actual_weight_kg).toFixed(2)}</TableCell>
+                        <TableCell>{Number(o.unit_cost || 0).toFixed(2)}</TableCell>
+                        <TableCell>
+                          {o.received_status === 'received'
+                            ? <Badge variant="default" className="gap-1"><CheckCircle2 className="w-3 h-3" /> مستلم</Badge>
+                            : <Badge variant="secondary">بانتظار الاستلام</Badge>}
+                        </TableCell>
+                        <TableCell>
+                          {o.received_status !== 'received' && canManageWarehouses && (
+                            <Button size="sm" onClick={() => openReceiveDialog(o)}>
+                              <ArrowDown className="w-4 h-4 ml-1" /> استلام
+                            </Button>
+                          )}
+                          {o.received_status === 'received' && (
+                            <span className="text-xs text-muted-foreground">{o.received_at ? new Date(o.received_at).toLocaleString("ar-EG") : ''}</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* MOVEMENTS */}
           <TabsContent value="movements" className="space-y-4">
             <Card><CardContent className="p-0">
