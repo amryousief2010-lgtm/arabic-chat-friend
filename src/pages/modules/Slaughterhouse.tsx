@@ -378,9 +378,15 @@ const Slaughterhouse = () => {
                       <TableCell><span className={Number(b.actual_yield_pct) < 40 && Number(b.actual_yield_pct) > 0 ? "text-red-600 font-bold" : ""}>{Number(b.actual_yield_pct || 0).toFixed(1)}%</span></TableCell>
                       <TableCell>{Number(b.cost_per_kg_meat || 0).toFixed(0)}</TableCell>
                       <TableCell>{statusBadge(b.status)}</TableCell>
-                      <TableCell className="flex gap-2">
+                      <TableCell className="flex gap-2 flex-wrap">
                         <Button size="sm" variant="outline" onClick={() => setOutputBatchId(b.id)}>التقسيمة</Button>
                         {b.status === "in_progress" && <Button size="sm" onClick={() => finalizeBatch(b)} title="إنهاء واحتساب التكلفة وتوزيع الفروع"><CheckCircle2 className="w-4 h-4" /></Button>}
+                        {canManageBatch && (
+                          <>
+                            <Button size="sm" variant="outline" onClick={() => setEditBatch(b)} title="تعديل بيانات الدفعة"><SettingsIcon className="w-4 h-4" /></Button>
+                            <Button size="sm" variant="destructive" onClick={() => deleteBatch(b)} title="حذف الدفعة"><Trash2 className="w-4 h-4" /></Button>
+                          </>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
