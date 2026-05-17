@@ -1,0 +1,1 @@
+ALTER TABLE public.slaughter_settings ADD COLUMN IF NOT EXISTS yield_cut_names text[] NOT NULL DEFAULT ARRAY['لحمة','استيك','موزة','فراشة','قطعية دبوس','دبوس بالعظم','فخذة','صندوق','تربيانكو','اسكالوب','رول نعام','فرم']::text[];

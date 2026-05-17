@@ -3557,6 +3557,7 @@ export type Database = {
           updated_at: string
           updated_by: string | null
           warning_yield_threshold: number
+          yield_cut_names: string[]
         }
         Insert: {
           created_at?: string
@@ -3566,6 +3567,7 @@ export type Database = {
           updated_at?: string
           updated_by?: string | null
           warning_yield_threshold?: number
+          yield_cut_names?: string[]
         }
         Update: {
           created_at?: string
@@ -3575,6 +3577,7 @@ export type Database = {
           updated_at?: string
           updated_by?: string | null
           warning_yield_threshold?: number
+          yield_cut_names?: string[]
         }
         Relationships: []
       }

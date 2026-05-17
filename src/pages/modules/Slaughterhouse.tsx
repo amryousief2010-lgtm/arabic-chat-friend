@@ -37,7 +37,21 @@ type QC = { id: string; check_type: string; check_date: string; inspector_name: 
 type Branch = { id: string; code: string; name_ar: string; is_active: boolean };
 type LiveBird = { id: string; receipt_id: string; bird_index: number; live_weight_kg: number; slaughter_weight_kg: number; purchase_cost: number; purchase_time: string | null; feed_cost: number; notes: string | null };
 type Transfer = { id: string; batch_id: string; output_id: string | null; branch_id: string; cut_name_ar: string; weight_kg: number; unit_price: number; total_value: number; status: string; transferred_at: string };
-type Settings = { id: string; low_yield_threshold: number; warning_yield_threshold: number; notify_on_low_yield: boolean };
+type Settings = { id: string; low_yield_threshold: number; warning_yield_threshold: number; notify_on_low_yield: boolean; yield_cut_names: string[] };
+
+// Smart normalization for Arabic cut names: lowercase, collapse whitespace, strip tatweel/diacritics, unify ة↔ه, ى↔ي, أإآ↔ا
+export const normalizeCutName = (s: string): string =>
+  (s || "")
+    .toString()
+    .toLowerCase()
+    .replace(/[\u064B-\u065F\u0670\u0640]/g, "")
+    .replace(/[إأآا]/g, "ا")
+    .replace(/ى/g, "ي")
+    .replace(/ة/g, "ه")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const DEFAULT_YIELD_CUTS = ["لحمة","استيك","موزة","فراشة","قطعية دبوس","دبوس بالعظم","فخذة","صندوق","تربيانكو","اسكالوب","رول نعام","فرم"];
 type AuditEntry = { id: string; action: string; target_type: string; target_id: string | null; batch_id: string | null; transfer_id: string | null; performed_by: string | null; performed_at: string; old_value: any; new_value: any; notes: string | null };
 
 const Slaughterhouse = () => {
@@ -403,6 +417,7 @@ const Slaughterhouse = () => {
               yields={yields}
               outputs={outputs.filter(o => o.batch_id === outputBatchId)}
               branches={branches}
+              yieldCutNames={settings?.yield_cut_names || DEFAULT_YIELD_CUTS}
               onClose={() => setOutputBatchId(null)}
               onUpdate={fetchAll}
             />
@@ -822,8 +837,8 @@ const BirdsDialog = ({ receiptId, receipt, birds, onClose, onUpdate }: {
 };
 
 // ===================== Batch Outputs Dialog (with branch + unit_price) =====================
-const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, onClose, onUpdate }: {
-  batchId: string; batch: Batch; yields: Yield[]; outputs: Output[]; branches: Branch[]; onClose: () => void; onUpdate: () => void;
+const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCutNames, onClose, onUpdate }: {
+  batchId: string; batch: Batch; yields: Yield[]; outputs: Output[]; branches: Branch[]; yieldCutNames: string[]; onClose: () => void; onUpdate: () => void;
 }) => {
   // Allow multiple rows per cut (one per branch). Pre-fill with one row per yield if no existing.
   const initial = outputs.length
@@ -853,14 +868,32 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, onClose
       }));
   const [rows, setRows] = useState(initial);
 
-  const totalActual = rows.reduce((s, r) => s + (Number(r.actual_weight_kg) || 0), 0);
-  const totalValue = rows.reduce((s, r) => s + (Number(r.actual_weight_kg) * Number(r.unit_price || 0)), 0);
-  // التصافي يُحسب فقط على أصناف اللحوم القابلة للبيع كلحم، باستثناء بنود مثل "ريش" (ريش نعام يُعبأ منفردًا للبيع وليس صنف لحم)
-  const YIELD_CUTS = ["لحمة","لحمه","استيك","موزة","موزه","فراشة","فراشه","قطعية دبوس","قطعيه دبوس","دبوس بالعظم","فخذة","فخذه","صندوق","تربيانكو","اسكالوب","رول نعام","فرم"];
-  const normalize = (s: string) => (s || "").trim().replace(/\s+/g, " ");
-  const yieldSet = new Set(YIELD_CUTS.map(normalize));
-  const yieldWeight = rows.reduce((s, r) => yieldSet.has(normalize(r.cut_name_ar)) ? s + (Number(r.actual_weight_kg) || 0) : s, 0);
-  const yieldPct = Number(batch.total_live_weight_kg) > 0 ? (yieldWeight / Number(batch.total_live_weight_kg)) * 100 : 0;
+  // Auto-recompute on any change to rows / yieldCutNames using useMemo
+  const yieldSet = useMemo(() => new Set((yieldCutNames || DEFAULT_YIELD_CUTS).map(normalizeCutName)), [yieldCutNames]);
+  const { totalActual, totalValue, yieldWeight, yieldPct, includedBreakdown, excludedBreakdown } = useMemo(() => {
+    let totalActual = 0, totalValue = 0, yieldWeight = 0;
+    const incMap = new Map<string, number>();
+    const excMap = new Map<string, number>();
+    for (const r of rows) {
+      const w = Number(r.actual_weight_kg) || 0;
+      totalActual += w;
+      totalValue += w * Number(r.unit_price || 0);
+      const norm = normalizeCutName(r.cut_name_ar);
+      if (yieldSet.has(norm)) {
+        yieldWeight += w;
+        incMap.set(r.cut_name_ar, (incMap.get(r.cut_name_ar) || 0) + w);
+      } else if (w > 0) {
+        excMap.set(r.cut_name_ar, (excMap.get(r.cut_name_ar) || 0) + w);
+      }
+    }
+    const live = Number(batch.total_live_weight_kg);
+    return {
+      totalActual, totalValue, yieldWeight,
+      yieldPct: live > 0 ? (yieldWeight / live) * 100 : 0,
+      includedBreakdown: Array.from(incMap.entries()).sort((a, b) => b[1] - a[1]),
+      excludedBreakdown: Array.from(excMap.entries()).sort((a, b) => b[1] - a[1]),
+    };
+  }, [rows, yieldSet, batch.total_live_weight_kg]);
 
   const addRow = (cutName: string) => {
     const y = yields.find(y => y.cut_name_ar === cutName);
@@ -902,12 +935,51 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, onClose
     <Dialog open onOpenChange={onClose}>
       <DialogContent dir="rtl" className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader><DialogTitle>تقسيمة الدفعة {batch.batch_number}</DialogTitle></DialogHeader>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3 text-sm">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-3 text-sm">
           <div className="p-2 bg-muted/40 rounded">الوزن الحي: <b>{Number(batch.total_live_weight_kg).toFixed(1)} كجم</b></div>
           <div className="p-2 bg-muted/40 rounded">إجمالي المقطّع: <b>{totalActual.toFixed(1)} كجم</b></div>
+          <div className="p-2 bg-emerald-500/10 rounded">وزن أصناف التصافي: <b>{yieldWeight.toFixed(1)} كجم</b></div>
           <div className="p-2 bg-muted/40 rounded">قيمة البيع: <b>{totalValue.toFixed(0)} ر.س</b></div>
           <div className="p-2 bg-muted/40 rounded">التصافي: <b className={yieldPct < 40 ? "text-red-600" : "text-emerald-600"}>{yieldPct.toFixed(1)}%</b></div>
         </div>
+
+        {/* Yield breakdown panel */}
+        <div className="mb-3 border rounded p-3 bg-muted/20 text-xs space-y-2">
+          <div className="font-semibold text-sm flex items-center gap-2">
+            📊 تفاصيل احتساب نسبة التصافي
+            <span className="text-muted-foreground font-normal">({yieldWeight.toFixed(1)} كجم ÷ {Number(batch.total_live_weight_kg).toFixed(1)} كجم وزن حي = {yieldPct.toFixed(1)}%)</span>
+          </div>
+          {includedBreakdown.length > 0 ? (
+            <div>
+              <div className="text-emerald-700 dark:text-emerald-400 font-semibold mb-1">✅ الأصناف المُحتسبة ({includedBreakdown.length}):</div>
+              <div className="flex flex-wrap gap-1">
+                {includedBreakdown.map(([name, w]) => (
+                  <span key={name} className="bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 px-2 py-0.5 rounded">
+                    {name}: <b>{w.toFixed(1)} كجم</b>
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="text-muted-foreground">لم يُسجّل أي وزن لأصناف اللحوم بعد.</div>
+          )}
+          {excludedBreakdown.length > 0 && (
+            <div>
+              <div className="text-amber-700 dark:text-amber-400 font-semibold mb-1">⛔ مستبعد من التصافي (يُسجَّل ولا يُحتسب):</div>
+              <div className="flex flex-wrap gap-1">
+                {excludedBreakdown.map(([name, w]) => (
+                  <span key={name} className="bg-amber-500/15 text-amber-800 dark:text-amber-300 px-2 py-0.5 rounded">
+                    {name}: {w.toFixed(1)} كجم
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="text-muted-foreground pt-1 border-t border-border/50">
+            💡 يمكنك تعديل قائمة أصناف التصافي من <b>الإعدادات → قائمة أصناف اللحوم</b>. المطابقة تتجاهل المسافات وحالة الأحرف وتختلافات ة/ه و ى/ي.
+          </div>
+        </div>
+
         <div className="text-xs text-muted-foreground mb-2">
           💡 لتوزيع نفس القطعة على أكثر من فرع، اضغط زر "+ فرع" بجانب القطعة لإضافة صف جديد بنفس الصنف وفرع مختلف.
         </div>
@@ -1304,14 +1376,23 @@ const SettingsTab = ({ settings, onSave }: { settings: Settings | null; onSave: 
   const [low, setLow] = useState(settings?.low_yield_threshold ?? 40);
   const [warn, setWarn] = useState(settings?.warning_yield_threshold ?? 45);
   const [notify, setNotify] = useState(settings?.notify_on_low_yield ?? true);
+  const [cutsText, setCutsText] = useState((settings?.yield_cut_names ?? DEFAULT_YIELD_CUTS).join("، "));
   useEffect(() => {
-    if (settings) { setLow(settings.low_yield_threshold); setWarn(settings.warning_yield_threshold); setNotify(settings.notify_on_low_yield); }
+    if (settings) {
+      setLow(settings.low_yield_threshold);
+      setWarn(settings.warning_yield_threshold);
+      setNotify(settings.notify_on_low_yield);
+      setCutsText((settings.yield_cut_names ?? DEFAULT_YIELD_CUTS).join("، "));
+    }
   }, [settings]);
   if (!settings) return <Card><CardContent className="p-6 text-center text-muted-foreground">جاري التحميل...</CardContent></Card>;
+
+  const parsedCuts = cutsText.split(/[،,\n]/).map(s => s.trim()).filter(Boolean);
+
   return (
     <Card>
       <CardHeader><CardTitle className="flex items-center gap-2"><SettingsIcon className="w-5 h-5" />إعدادات حدود التصافي والتنبيهات</CardTitle></CardHeader>
-      <CardContent className="space-y-4 max-w-xl">
+      <CardContent className="space-y-4 max-w-2xl">
         <div>
           <Label>الحد الأدنى للتصافي (%) — أقل من هذا = تنبيه أحمر</Label>
           <Input type="number" step="0.5" value={low} onChange={e => setLow(+e.target.value)} />
@@ -1324,10 +1405,28 @@ const SettingsTab = ({ settings, onSave }: { settings: Settings | null; onSave: 
           <input id="notify" type="checkbox" checked={notify} onChange={e => setNotify(e.target.checked)} className="w-4 h-4" />
           <Label htmlFor="notify" className="cursor-pointer">إرسال تنبيه عند انخفاض التصافي عند إنهاء دفعة</Label>
         </div>
+
+        <div className="pt-2 border-t">
+          <Label className="text-base font-semibold">قائمة أصناف اللحوم المُحتسبة في نسبة التصافي</Label>
+          <p className="text-xs text-muted-foreground mt-1 mb-2">
+            افصل بين الأصناف بفاصلة عربية «،» أو إنجليزية أو سطر جديد. أي صنف غير مدرج هنا (مثل «ريش») لن يُضاف إلى نسبة التصافي.
+            المطابقة ذكية: تتجاهل المسافات الزائدة وحالة الأحرف واختلافات ة/ه و ى/ي و أ/إ/آ.
+          </p>
+          <Textarea rows={4} value={cutsText} onChange={e => setCutsText(e.target.value)} placeholder="لحمة، استيك، موزة، ..." />
+          <div className="text-xs text-muted-foreground mt-2">
+            عدد الأصناف الحالية: <b>{parsedCuts.length}</b>
+            {parsedCuts.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1">
+                {parsedCuts.map((c, i) => <span key={i} className="bg-primary/10 px-2 py-0.5 rounded">{c}</span>)}
+              </div>
+            )}
+          </div>
+        </div>
+
         <div className="text-xs text-muted-foreground bg-muted/40 p-3 rounded">
           💡 عند الانتهاء من دفعة ذبح، سيقارن النظام نسبة التصافي بهذين الحدّين ويعرض تنبيهًا فوريًا، كما سيتم تسجيل العملية في سجل التدقيق وإنشاء إشعار للمدراء.
         </div>
-        <Button onClick={() => onSave({ low_yield_threshold: low, warning_yield_threshold: warn, notify_on_low_yield: notify })}
+        <Button onClick={() => onSave({ low_yield_threshold: low, warning_yield_threshold: warn, notify_on_low_yield: notify, yield_cut_names: parsedCuts })}
           className="bg-gradient-to-r from-primary to-accent">
           <Save className="w-4 h-4 ml-1" />حفظ الإعدادات
         </Button>
