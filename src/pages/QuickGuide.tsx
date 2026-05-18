@@ -1,10 +1,13 @@
+import { useRef, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth, AppRole } from "@/hooks/useAuth";
+import { toast } from "sonner";
 import {
   BookOpen,
   ShoppingCart,
@@ -34,6 +37,9 @@ import {
   LucideIcon,
   ArrowLeft,
   Sparkles,
+  Search,
+  Printer,
+  Download,
 } from "lucide-react";
 
 type GuideLink = { label: string; path: string; icon: LucideIcon; desc: string };
