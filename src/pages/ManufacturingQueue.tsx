@@ -283,6 +283,90 @@ const ManufacturingQueue = () => {
     critical: "حرجة جدًا", high: "عالية", medium: "متوسطة", low: "منخفضة",
   };
 
+  const dispatchOne = async (row: Row, destination: ProductionDestination, qty: number, notes?: string) => {
+    if (destination === "none") { toast.error("الصنف لا يخص المجزر أو المصنع"); return false; }
+    if (!qty || qty <= 0) { toast.error("كمية غير صحيحة"); return false; }
+    // Check if there's an open order for the same product+destination → update qty instead
+    const { data: existing } = await (supabase as any)
+      .from("production_dispatch_orders")
+      .select("id, required_qty")
+      .eq("product_id", row.product_id)
+      .eq("destination", destination)
+      .in("status", ["new", "accepted", "in_progress"])
+      .maybeSingle();
+    if (existing) {
+      const { error } = await (supabase as any)
+        .from("production_dispatch_orders")
+        .update({
+          required_qty: Math.max(Number(existing.required_qty), qty),
+          pending_qty: row.pending_quantity,
+          current_stock: row.current_stock,
+          priority: row.priority,
+          affected_orders: row.affected_orders,
+          notes: notes || null,
+        })
+        .eq("id", existing.id);
+      if (error) { toast.error(error.message); return false; }
+      return true;
+    }
+    const { error } = await (supabase as any).from("production_dispatch_orders").insert({
+      product_id: row.product_id,
+      product_name: row.product_name,
+      unit: row.unit,
+      required_qty: qty,
+      current_stock: row.current_stock,
+      pending_qty: row.pending_quantity,
+      destination,
+      priority: row.priority,
+      affected_orders: row.affected_orders,
+      notes: notes || null,
+      created_by: profile?.id ?? null,
+      created_by_name: profile?.full_name ?? null,
+    });
+    if (error) { toast.error(error.message); return false; }
+    // Best-effort notification
+    await (supabase as any).from("notifications").insert({
+      title: `أمر إنتاج جديد — ${destinationLabel(destination)}`,
+      description: `${row.product_name} — مطلوب ${qty} ${row.unit} (عجز عن ${row.affected_orders.length} طلب)`,
+      type: "production_dispatch",
+    });
+    return true;
+  };
+
+  const openBulkDispatch = () => {
+    const shortageRows = rows.filter(r => r.shortage > 0);
+    if (shortageRows.length === 0) { toast.info("لا يوجد عجز للإرسال"); return; }
+    setDispatchReview(
+      shortageRows.map(r => ({
+        row: r,
+        destination: classifyProductDestination(r.product_name),
+        qty: r.shortage,
+      }))
+    );
+  };
+
+  const submitBulkDispatch = async () => {
+    if (!dispatchReview) return;
+    setDispatching(true);
+    let ok = 0; let skipped = 0;
+    for (const it of dispatchReview) {
+      if (it.destination === "none") { skipped++; continue; }
+      const success = await dispatchOne(it.row, it.destination, it.qty);
+      if (success) ok++;
+    }
+    setDispatching(false);
+    setDispatchReview(null);
+    toast.success(`تم إرسال ${ok} أمر إنتاج${skipped ? ` · تم تخطي ${skipped}` : ""}`);
+    await load();
+  };
+
+  const quickDispatch = async (row: Row, destination: ProductionDestination) => {
+    const qty = row.shortage > 0 ? row.shortage : row.pending_quantity;
+    const ok = await dispatchOne(row, destination, qty);
+    if (ok) { toast.success(`تم إرسال ${row.product_name} إلى ${destinationLabel(destination)}`); await load(); }
+  };
+
+
   const exportXlsx = () => {
     if (filtered.length === 0) { toast.error("لا توجد بيانات"); return; }
     const data = filtered.map(r => ({
