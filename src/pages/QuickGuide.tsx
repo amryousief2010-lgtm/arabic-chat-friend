@@ -125,7 +125,7 @@ export default function QuickGuide() {
     [myGuide, completed, rawToggle, prefs.toastOnToggle],
   );
 
-
+  const normalized = query.trim().toLowerCase();
   const filteredLinks = useMemo(() => {
     if (!myGuide) return [];
     if (!normalized) return myGuide.links;
