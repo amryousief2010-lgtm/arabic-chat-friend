@@ -1,0 +1,264 @@
+import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Inbox, RefreshCw, CheckCircle2, X } from "lucide-react";
+import { toast } from "sonner";
+import { formatDate } from "@/lib/dateFormat";
+import { useAuth } from "@/hooks/useAuth";
+
+interface Shipment {
+  id: string;
+  production_id: string | null;
+  family_id: string | null;
+  family_number: string | null;
+  production_date: string;
+  egg_count: number;
+  status: "pending" | "received" | "partial" | "rejected";
+  received_egg_count: number | null;
+  damaged_count: number | null;
+  received_at: string | null;
+  receipt_notes: string | null;
+  hatch_batch_id: string | null;
+  created_at: string;
+}
+
+const statusBadge = (s: Shipment["status"]) => {
+  const map: Record<string, { label: string; variant: any }> = {
+    pending: { label: "بانتظار الاستلام", variant: "warning" },
+    received: { label: "مستلم بالكامل", variant: "default" },
+    partial: { label: "مستلم جزئياً", variant: "secondary" },
+    rejected: { label: "مرفوض", variant: "destructive" },
+  };
+  return <Badge variant={map[s].variant}>{map[s].label}</Badge>;
+};
+
+const FarmShipmentsInbox = () => {
+  const { profile } = useAuth();
+  const qc = useQueryClient();
+  const [showAll, setShowAll] = useState(false);
+  const [editing, setEditing] = useState<Shipment | null>(null);
+  const [form, setForm] = useState({
+    received: 0, damaged: 0, notes: "", hatch_batch_id: "", status: "received" as Shipment["status"],
+  });
+
+  const { data: rows = [], isLoading, refetch } = useQuery({
+    queryKey: ["farm-to-hatchery-shipments", showAll],
+    queryFn: async () => {
+      let q = (supabase as any)
+        .from("farm_to_hatchery_shipments")
+        .select("*")
+        .order("production_date", { ascending: false })
+        .limit(500);
+      if (!showAll) q = q.eq("status", "pending");
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data || []) as Shipment[];
+    },
+  });
+
+  const { data: batches = [] } = useQuery({
+    queryKey: ["hatch_batches_for_link"],
+    queryFn: async () => {
+      const { data } = await supabase.from("hatch_batches")
+        .select("id, batch_number, receive_date, status")
+        .neq("status", "completed")
+        .order("receive_date", { ascending: false }).limit(100);
+      return data || [];
+    },
+  });
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("farm-shipments-inbox")
+      .on("postgres_changes", { event: "*", schema: "public", table: "farm_to_hatchery_shipments" }, () => {
+        qc.invalidateQueries({ queryKey: ["farm-to-hatchery-shipments"] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [qc]);
+
+  const pendingCount = rows.filter(r => r.status === "pending").length;
+
+  const openReceive = (r: Shipment) => {
+    setEditing(r);
+    setForm({
+      received: r.egg_count,
+      damaged: 0,
+      notes: "",
+      hatch_batch_id: r.hatch_batch_id || "",
+      status: "received",
+    });
+  };
+
+  const confirmReceive = async () => {
+    if (!editing) return;
+    const received = Number(form.received) || 0;
+    const damaged = Number(form.damaged) || 0;
+    let status: Shipment["status"] = form.status;
+    if (status === "received" && received < editing.egg_count) status = "partial";
+
+    const { error } = await (supabase as any)
+      .from("farm_to_hatchery_shipments")
+      .update({
+        status,
+        received_egg_count: received,
+        damaged_count: damaged,
+        received_at: new Date().toISOString(),
+        received_by: profile?.id ?? null,
+        receipt_notes: form.notes || null,
+        hatch_batch_id: form.hatch_batch_id || null,
+      })
+      .eq("id", editing.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("تم تأكيد الاستلام");
+    setEditing(null);
+    refetch();
+  };
+
+  const reject = async (r: Shipment) => {
+    if (!confirm("هل تريد رفض هذه الشحنة؟")) return;
+    const { error } = await (supabase as any)
+      .from("farm_to_hatchery_shipments")
+      .update({
+        status: "rejected",
+        received_at: new Date().toISOString(),
+        received_by: profile?.id ?? null,
+      })
+      .eq("id", r.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("تم رفض الشحنة");
+    refetch();
+  };
+
+  return (
+    <Card className="border-primary/30">
+      <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
+        <CardTitle className="flex items-center gap-2">
+          <Inbox className="w-5 h-5 text-primary" />
+          وارد البيض من المزرعة
+          {pendingCount > 0 && <Badge variant="destructive">{pendingCount}</Badge>}
+        </CardTitle>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowAll(s => !s)}>
+            {showAll ? "عرض المعلق فقط" : "عرض الكل"}
+          </Button>
+          <Button variant="outline" size="icon" onClick={() => refetch()} disabled={isLoading}>
+            <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <p className="text-center text-sm text-muted-foreground py-6">جاري التحميل...</p>
+        ) : rows.length === 0 ? (
+          <p className="text-center text-sm text-muted-foreground py-6">
+            {showAll ? "لا توجد شحنات" : "لا توجد شحنات معلقة 🎉"}
+          </p>
+        ) : (
+          <div className="overflow-auto max-h-[600px]">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>تاريخ الإنتاج</TableHead>
+                  <TableHead>الأسرة</TableHead>
+                  <TableHead>عدد البيض</TableHead>
+                  <TableHead>الحالة</TableHead>
+                  <TableHead>المستلم</TableHead>
+                  <TableHead>التالف</TableHead>
+                  <TableHead>وقت الاستلام</TableHead>
+                  <TableHead>إجراء</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map(r => (
+                  <TableRow key={r.id}>
+                    <TableCell>{r.production_date}</TableCell>
+                    <TableCell className="font-semibold">{r.family_number || "-"}</TableCell>
+                    <TableCell>{r.egg_count}</TableCell>
+                    <TableCell>{statusBadge(r.status)}</TableCell>
+                    <TableCell>{r.received_egg_count ?? "-"}</TableCell>
+                    <TableCell>{r.damaged_count ?? "-"}</TableCell>
+                    <TableCell className="text-xs">
+                      {r.received_at ? formatDate(r.received_at) : "-"}
+                    </TableCell>
+                    <TableCell>
+                      {r.status === "pending" ? (
+                        <div className="flex gap-1">
+                          <Button size="sm" onClick={() => openReceive(r)}>
+                            <CheckCircle2 className="w-4 h-4 ml-1" /> استلام
+                          </Button>
+                          <Button size="sm" variant="ghost" className="text-destructive" onClick={() => reject(r)}>
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">{r.receipt_notes || "—"}</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+
+      <Dialog open={!!editing} onOpenChange={(v) => !v && setEditing(null)}>
+        <DialogContent dir="rtl" className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>تأكيد استلام البيض</DialogTitle>
+          </DialogHeader>
+          {editing && (
+            <div className="space-y-3">
+              <div className="text-sm bg-muted p-2 rounded">
+                أسرة <strong>{editing.family_number}</strong> · تاريخ {editing.production_date} · مرسل: {editing.egg_count} بيضة
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label>المستلم فعلياً</Label>
+                  <Input type="number" min={0} value={form.received}
+                    onChange={(e) => setForm({ ...form, received: +e.target.value })} />
+                </div>
+                <div>
+                  <Label>تالف / مكسور</Label>
+                  <Input type="number" min={0} value={form.damaged}
+                    onChange={(e) => setForm({ ...form, damaged: +e.target.value })} />
+                </div>
+              </div>
+              <div>
+                <Label>ربط بدفعة معمل (اختياري)</Label>
+                <Select value={form.hatch_batch_id || "none"} onValueChange={(v) => setForm({ ...form, hatch_batch_id: v === "none" ? "" : v })}>
+                  <SelectTrigger><SelectValue placeholder="بدون ربط" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">بدون ربط</SelectItem>
+                    {batches.map((b: any) => (
+                      <SelectItem key={b.id} value={b.id}>{b.batch_number} — {b.receive_date}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>ملاحظات</Label>
+                <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={confirmReceive}>تأكيد الاستلام</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+};
+
+export default FarmShipmentsInbox;
