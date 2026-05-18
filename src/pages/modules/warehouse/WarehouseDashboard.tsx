@@ -18,8 +18,7 @@ const moveIcons: Record<string, any> = { in: ArrowDown, out: ArrowUp, transfer: 
 const moveLabels: Record<string, string> = { in: "إضافة", out: "صرف", transfer: "تحويل", adjustment: "تسوية" };
 
 const WarehouseDashboard = () => {
-  const { canManageWarehouses, userRole } = useAuth();
-  const isGM = userRole === 'general_manager';
+  const { canManageWarehouses, isGeneralManager } = useAuth();
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [items, setItems] = useState<any[]>([]);
   const [movements, setMovements] = useState<any[]>([]);
