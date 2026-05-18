@@ -90,7 +90,7 @@ export const moduleSections: ModuleSection[] = [
     roles: ['general_manager', 'executive_manager', 'farm_manager', 'production_manager', 'quality_manager'],
     items: [
       { icon: Egg, label: "إدارة المزرعة", path: "/farm", roles: ['general_manager', 'executive_manager', 'farm_manager', 'production_manager', 'quality_manager'] },
-      { icon: Upload, label: "استيراد سجل الإنتاج (Excel)", path: "/farm-production-import", roles: ['general_manager', 'executive_manager', 'farm_manager', 'production_manager'] },
+      { icon: Upload, label: "استيراد سجل الإنتاج (Excel)", path: "/farm-production-import", roles: ['general_manager'] },
     ],
   },
   {
