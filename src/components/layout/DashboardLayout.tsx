@@ -16,9 +16,10 @@ interface DashboardLayoutProps {
 }
 
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
-  // Enable real-time order notifications
+  // Enable real-time order notifications + daily/weekly role reminders
   useOrderNotifications();
-  
+  useDailyReminders();
+
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
 
