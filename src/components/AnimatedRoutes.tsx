@@ -86,6 +86,9 @@ const AnimatedRoutes = () => {
         <Route path="/farm" element={<RedirectWithQuery to="/modules/farm" />} />
         <Route path="/hatchery" element={<RedirectWithQuery to="/modules/hatchery" />} />
         <Route path="/" element={<RoleLanding />} />
+        <Route path="/quick-guide" element={
+          <ProtectedRoute><PageTransition><QuickGuide /></PageTransition></ProtectedRoute>
+        } />
         <Route path="/products" element={
           <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'warehouse_supervisor', 'marketing_sales_manager', 'quality_manager']}>
             <PageTransition><Products /></PageTransition>
