@@ -490,6 +490,7 @@ const MeatFactory = () => {
       <Header title="مصنع اللحوم" subtitle="تصنيع المنتجات المصنعة من النعام" />
 
       <div className="p-4 space-y-4">
+        <ProductionDispatchInbox destination="meat_factory" />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <KPI icon={Package} label="إجمالي المنتجات" value={totalProducts} hint={`${pricedProducts} لها تكلفة معتمدة`} color="bg-primary/10 text-primary" />
           <KPI icon={Boxes} label="المواد الخام" value={totalMaterials} hint={`${lowStockCount} مادة منخفضة المخزون`} color="bg-orange-500/10 text-orange-600" />
