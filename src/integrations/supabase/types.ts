@@ -1054,6 +1054,82 @@ export type Database = {
           },
         ]
       }
+      farm_to_hatchery_shipments: {
+        Row: {
+          created_at: string
+          damaged_count: number | null
+          egg_count: number
+          family_id: string | null
+          family_number: string | null
+          hatch_batch_id: string | null
+          id: string
+          production_date: string
+          production_id: string | null
+          receipt_notes: string | null
+          received_at: string | null
+          received_by: string | null
+          received_egg_count: number | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          damaged_count?: number | null
+          egg_count?: number
+          family_id?: string | null
+          family_number?: string | null
+          hatch_batch_id?: string | null
+          id?: string
+          production_date: string
+          production_id?: string | null
+          receipt_notes?: string | null
+          received_at?: string | null
+          received_by?: string | null
+          received_egg_count?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          damaged_count?: number | null
+          egg_count?: number
+          family_id?: string | null
+          family_number?: string | null
+          hatch_batch_id?: string | null
+          id?: string
+          production_date?: string
+          production_id?: string | null
+          receipt_notes?: string | null
+          received_at?: string | null
+          received_by?: string | null
+          received_egg_count?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "farm_to_hatchery_shipments_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "farm_families"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "farm_to_hatchery_shipments_hatch_batch_id_fkey"
+            columns: ["hatch_batch_id"]
+            isOneToOne: false
+            referencedRelation: "hatch_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "farm_to_hatchery_shipments_production_id_fkey"
+            columns: ["production_id"]
+            isOneToOne: false
+            referencedRelation: "farm_egg_production"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       farm_transfers: {
         Row: {
           created_at: string
