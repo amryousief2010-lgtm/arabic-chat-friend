@@ -90,7 +90,42 @@ export default function QuickGuide() {
     };
   }, [myGuide, completed, dailyLinks, weeklyLinks]);
 
-  const normalized = query.trim().toLowerCase();
+  // Persist a daily snapshot for the history view whenever progress changes.
+  useEffect(() => {
+    if (!user?.id || !myGuide) return;
+    writeTodaySnapshot(user.id, {
+      dailyDone: stats.dailyDone,
+      dailyTotal: stats.dailyTotal,
+      weeklyDone: stats.weeklyDone,
+      weeklyTotal: stats.weeklyTotal,
+    });
+    setHistoryToken((t) => t + 1);
+  }, [user?.id, myGuide, stats.dailyDone, stats.dailyTotal, stats.weeklyDone, stats.weeklyTotal]);
+
+  // Toggle wrapper: also surfaces an in-app toast on every change.
+  const toggle = useCallback(
+    (path: string) => {
+      const link = myGuide?.links.find((l) => l.path === path);
+      const wasDone = !!completed[path];
+      rawToggle(path);
+      if (prefs.toastOnToggle && link) {
+        if (!wasDone) {
+          toast.success(`تم إكمال: ${link.label}`, {
+            description: link.cadence === "weekly" ? "ضمن مهامك الأسبوعية" : "ضمن مهامك اليومية",
+            duration: 3000,
+          });
+        } else {
+          toast(`تم إلغاء الإكمال: ${link.label}`, {
+            description: "أعيدت المهمة إلى قائمة المتبقّي.",
+            duration: 3000,
+          });
+        }
+      }
+    },
+    [myGuide, completed, rawToggle, prefs.toastOnToggle],
+  );
+
+
   const filteredLinks = useMemo(() => {
     if (!myGuide) return [];
     if (!normalized) return myGuide.links;
