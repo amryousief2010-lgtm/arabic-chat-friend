@@ -21,6 +21,7 @@ import {
   Beef,
   Factory,
   ClipboardList,
+  BookOpen,
   History,
   Wheat,
   Warehouse,
