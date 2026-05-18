@@ -2975,6 +2975,75 @@ export type Database = {
         }
         Relationships: []
       }
+      production_dispatch_orders: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          affected_orders: Json
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          current_stock: number
+          destination: string
+          id: string
+          notes: string | null
+          pending_qty: number
+          priority: string
+          product_id: string | null
+          product_name: string
+          required_qty: number
+          status: string
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          affected_orders?: Json
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          current_stock?: number
+          destination: string
+          id?: string
+          notes?: string | null
+          pending_qty?: number
+          priority?: string
+          product_id?: string | null
+          product_name: string
+          required_qty: number
+          status?: string
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          affected_orders?: Json
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          current_stock?: number
+          destination?: string
+          id?: string
+          notes?: string | null
+          pending_qty?: number
+          priority?: string
+          product_id?: string | null
+          product_name?: string
+          required_qty?: number
+          status?: string
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           barcode: string | null
