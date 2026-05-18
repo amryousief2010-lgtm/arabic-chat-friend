@@ -596,6 +596,11 @@ const ManufacturingQueue = () => {
                   الأصناف المطلوب تصنيعها
                 </CardTitle>
                 <div className="flex gap-2 flex-wrap">
+                  {canManageStock && (
+                    <Button variant="default" size="sm" onClick={openBulkDispatch} className="gap-2">
+                      <Send className="w-4 h-4" /> إرسال كل العجز للإنتاج
+                    </Button>
+                  )}
                   <Button variant="outline" size="sm" onClick={exportXlsx} className="gap-2">
                     <FileDown className="w-4 h-4" /> Excel
                   </Button>
