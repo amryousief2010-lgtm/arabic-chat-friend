@@ -100,6 +100,7 @@ export const moduleSections: ModuleSection[] = [
     items: [
       { icon: FlaskConical, label: "إدارة المعمل", path: "/hatchery", roles: ['general_manager', 'executive_manager', 'hatchery_manager', 'production_manager', 'quality_manager'] },
       { icon: TrendingUp, label: "لوحة المزرعة والمعمل", path: "/modules/farm-hatchery-dashboard", roles: ['general_manager', 'executive_manager', 'farm_manager', 'hatchery_manager', 'production_manager', 'quality_manager'] },
+      { icon: TrendingUp, label: "سجل وارد المزرعة", path: "/farm-shipments-log", roles: ['general_manager', 'executive_manager', 'farm_manager', 'hatchery_manager', 'production_manager', 'quality_manager'] },
     ],
   },
   {

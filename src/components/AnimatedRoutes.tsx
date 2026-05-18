@@ -61,6 +61,7 @@ import CateringKitchen from "@/pages/catering/CateringKitchen";
 import CateringPurchases from "@/pages/catering/CateringPurchases";
 import CateringInvoices from "@/pages/catering/CateringInvoices";
 import PrivateDeliveryPricing from "@/pages/PrivateDeliveryPricing";
+import FarmShipmentsLog from "@/pages/FarmShipmentsLog";
 import RoleLanding from "@/components/RoleLanding";
 
 const RedirectWithQuery = ({ to }: { to: string }) => {
@@ -209,6 +210,11 @@ const AnimatedRoutes = () => {
         <Route path="/modules/farm-hatchery-dashboard" element={
           <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'farm_manager', 'hatchery_manager', 'production_manager', 'quality_manager']}>
             <PageTransition><FarmHatcheryDashboard /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/farm-shipments-log" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'farm_manager', 'hatchery_manager', 'production_manager', 'quality_manager']}>
+            <PageTransition><FarmShipmentsLog /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/modules/brooding" element={

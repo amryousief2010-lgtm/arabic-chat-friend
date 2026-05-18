@@ -3,8 +3,10 @@ import { supabase } from '@/integrations/supabase/client';
 
 // Keep in sync with src/pages/Notifications.tsx requiresImmediateReply().
 const INFORMATIONAL_TYPES = new Set(['low_stock', 'production_needed']);
+const ALWAYS_URGENT_TYPES = new Set(['farm_shipment', 'farm_shipment_receipt']);
 const isUrgent = (n: { type?: string | null; order_id?: string | null }) =>
-  !!n.order_id && !INFORMATIONAL_TYPES.has(n.type ?? '');
+  ALWAYS_URGENT_TYPES.has(n.type ?? '') ||
+  (!!n.order_id && !INFORMATIONAL_TYPES.has(n.type ?? ''));
 
 interface UnreadState {
   unreadCount: number;
