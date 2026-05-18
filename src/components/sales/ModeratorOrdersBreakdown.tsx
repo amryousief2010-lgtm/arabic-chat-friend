@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Users, Package, CheckCircle2, XCircle, Truck } from 'lucide-react';
+import { Users, Package, CheckCircle2, XCircle, Truck, RefreshCw } from 'lucide-react';
 
 const GIRLS = ['اية', 'نورا', 'سارة', 'منال'];
 
@@ -46,6 +46,10 @@ const ModeratorOrdersBreakdown = () => {
   const queryClient = useQueryClient();
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [selectedYear, setSelectedYear] = useState(currentYear);
+
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['moderator-orders-breakdown'] });
+  };
 
   const { data, isLoading } = useQuery({
     queryKey: ['moderator-orders-breakdown', selectedMonth, selectedYear],
@@ -126,6 +130,13 @@ const ModeratorOrdersBreakdown = () => {
                 ))}
               </SelectContent>
             </Select>
+            <button
+              onClick={handleRefresh}
+              className="inline-flex items-center justify-center h-10 w-10 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
+              title="تحديث"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </button>
           </div>
         </div>
       </CardHeader>
