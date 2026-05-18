@@ -1,4 +1,4 @@
-import { useRef, useState, useMemo } from "react";
+import { useRef, useState, useMemo, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +21,8 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useTaskProgress, todayKey, weekKey } from "@/hooks/useTaskProgress";
 import { useReminderPrefs } from "@/hooks/useReminderPrefs";
+import { useTaskHistory, writeTodaySnapshot } from "@/hooks/useTaskHistory";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ROLE_GUIDES, type RoleGuide, type GuideLink } from "@/data/roleGuides";
 import { toast } from "sonner";
 import {
@@ -42,6 +44,9 @@ import {
   ChevronDown,
   CircleDashed,
   ListChecks,
+  History as HistoryIcon,
+  Settings,
+  XCircle,
 } from "lucide-react";
 
 
@@ -51,8 +56,10 @@ export default function QuickGuide() {
   const [query, setQuery] = useState("");
   const [refQuery, setRefQuery] = useState("");
   const [downloading, setDownloading] = useState(false);
-  const { completed, toggle, setMany } = useTaskProgress(user?.id);
+  const { completed, toggle: rawToggle, setMany } = useTaskProgress(user?.id);
   const { prefs, update: updatePrefs } = useReminderPrefs(user?.id);
+  const [historyToken, setHistoryToken] = useState(0);
+  const { entries: history, weekly: weeklyHistory } = useTaskHistory(user?.id, historyToken);
 
   const myGuide = ROLE_GUIDES.find((g) => g.role === role);
   const otherGuides = ROLE_GUIDES.filter((g) => g.role !== role);
