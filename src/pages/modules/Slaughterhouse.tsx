@@ -313,6 +313,10 @@ const Slaughterhouse = () => {
     <DashboardLayout>
       <Header title="إدارة المجزر" subtitle="استلام النعام، تفريغة الذبح اليومي، التقسيمة والتوزيع على الفروع" />
 
+      <div className="mb-6">
+        <ProductionDispatchInbox destination="slaughterhouse" />
+      </div>
+
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
         <Card><CardContent className="p-4 flex items-center justify-between">
