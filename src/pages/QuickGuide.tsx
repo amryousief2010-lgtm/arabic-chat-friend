@@ -46,7 +46,6 @@ import {
   ListChecks,
   History as HistoryIcon,
   Settings,
-  XCircle,
 } from "lucide-react";
 
 
