@@ -138,13 +138,21 @@ export default function QuickGuide() {
             </div>
           </div>
           {myGuide && (
-            <div className="flex gap-2 no-print">
+            <div className="flex flex-wrap gap-2 no-print">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setMany(myGuide.links.map((l) => l.path), false)}
+                className="gap-2"
+              >
+                <RotateCcw className="w-4 h-4" /> إعادة ضبط اليوم
+              </Button>
               <Button variant="outline" size="sm" onClick={handlePrint} className="gap-2">
                 <Printer className="w-4 h-4" /> طباعة
               </Button>
               <Button size="sm" onClick={handleDownloadPdf} disabled={downloading} className="gap-2">
                 <Download className="w-4 h-4" />
-                {downloading ? "جارٍ التحميل..." : "تحميل PDF"}
+                {downloading ? "جارٍ التحميل..." : "تصدير ملخص دوري PDF"}
               </Button>
             </div>
           )}
