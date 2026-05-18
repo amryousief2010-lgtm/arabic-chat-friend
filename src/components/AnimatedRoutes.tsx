@@ -63,6 +63,7 @@ import CateringInvoices from "@/pages/catering/CateringInvoices";
 import PrivateDeliveryPricing from "@/pages/PrivateDeliveryPricing";
 import FarmShipmentsLog from "@/pages/FarmShipmentsLog";
 import FarmProductionImport from "@/pages/FarmProductionImport";
+import QuickGuide from "@/pages/QuickGuide";
 import RoleLanding from "@/components/RoleLanding";
 
 const RedirectWithQuery = ({ to }: { to: string }) => {
