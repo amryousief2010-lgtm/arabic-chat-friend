@@ -3,7 +3,9 @@ import AppSidebar from "./AppSidebar";
 import MobileNavigation from "./MobileNavigation";
 import PullToRefreshIndicator from "./PullToRefresh";
 import SwipeIndicator from "./SwipeIndicator";
+import StartOfDayDialog from "@/components/StartOfDayDialog";
 import { useOrderNotifications } from "@/hooks/useOrderNotifications";
+import { useDailyReminders } from "@/hooks/useDailyReminders";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
 import { useQueryClient } from "@tanstack/react-query";
@@ -14,9 +16,10 @@ interface DashboardLayoutProps {
 }
 
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
-  // Enable real-time order notifications
+  // Enable real-time order notifications + daily/weekly role reminders
   useOrderNotifications();
-  
+  useDailyReminders();
+
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
 
@@ -39,6 +42,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
   return (
     <div className="min-h-screen bg-background">
+      <StartOfDayDialog />
       {/* Desktop Sidebar */}
       <div className="hidden md:block">
         <AppSidebar />
