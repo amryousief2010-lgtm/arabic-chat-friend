@@ -11,7 +11,8 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { AlertTriangle, RefreshCw, Factory, Search, ArrowLeft, Plus, FileDown, FileText } from "lucide-react";
+import { AlertTriangle, RefreshCw, Factory, Search, ArrowLeft, Plus, FileDown, FileText, Send, Beef } from "lucide-react";
+import { classifyProductDestination, destinationLabel, type ProductionDestination } from "@/constants/productRouting";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
