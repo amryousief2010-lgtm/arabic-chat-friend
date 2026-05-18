@@ -1069,7 +1069,9 @@ export type Database = {
           received_at: string | null
           received_by: string | null
           received_egg_count: number | null
+          rejection_reason: string | null
           status: string
+          suggested_batch_id: string | null
           updated_at: string
         }
         Insert: {
@@ -1086,7 +1088,9 @@ export type Database = {
           received_at?: string | null
           received_by?: string | null
           received_egg_count?: number | null
+          rejection_reason?: string | null
           status?: string
+          suggested_batch_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -1103,7 +1107,9 @@ export type Database = {
           received_at?: string | null
           received_by?: string | null
           received_egg_count?: number | null
+          rejection_reason?: string | null
           status?: string
+          suggested_batch_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -1126,6 +1132,13 @@ export type Database = {
             columns: ["production_id"]
             isOneToOne: false
             referencedRelation: "farm_egg_production"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "farm_to_hatchery_shipments_suggested_batch_id_fkey"
+            columns: ["suggested_batch_id"]
+            isOneToOne: false
+            referencedRelation: "hatch_batches"
             referencedColumns: ["id"]
           },
         ]
@@ -4179,6 +4192,10 @@ export type Database = {
         Returns: Json
       }
       slaughter_daily_summary: { Args: { p_date: string }; Returns: Json }
+      suggest_hatch_batch_for_shipment: {
+        Args: { p_shipment_id: string }
+        Returns: string
+      }
     }
     Enums: {
       app_role:
