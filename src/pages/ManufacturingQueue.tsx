@@ -835,6 +835,66 @@ const ManufacturingQueue = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!dispatchReview} onOpenChange={(o) => !o && setDispatchReview(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>مراجعة أوامر الإنتاج قبل الإرسال</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              راجع وجهة كل صنف والكمية المطلوب إنتاجها. الأصناف غير المرتبطة (مثل البيض) ستُتخطّى تلقائيًا.
+            </p>
+            {dispatchReview?.map((it, idx) => (
+              <div key={it.row.product_id} className="border rounded p-3 grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                <div className="sm:col-span-5">
+                  <div className="font-semibold">{it.row.product_name}</div>
+                  <div className="text-xs text-muted-foreground">
+                    مخزون: {it.row.current_stock} · مطلوب: {it.row.pending_quantity} · عجز: <strong className="text-destructive">{it.row.shortage}</strong> {it.row.unit}
+                  </div>
+                </div>
+                <div className="sm:col-span-4">
+                  <Label className="text-xs">الوجهة</Label>
+                  <Select
+                    value={it.destination}
+                    onValueChange={(v) => {
+                      const next = [...(dispatchReview || [])];
+                      next[idx] = { ...next[idx], destination: v as ProductionDestination };
+                      setDispatchReview(next);
+                    }}
+                  >
+                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="slaughterhouse">المجزر</SelectItem>
+                      <SelectItem value="meat_factory">مصنع اللحوم</SelectItem>
+                      <SelectItem value="none">تخطي</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="sm:col-span-3">
+                  <Label className="text-xs">الكمية ({it.row.unit})</Label>
+                  <Input
+                    type="number" min={0} step="0.5" value={it.qty}
+                    onChange={(e) => {
+                      const next = [...(dispatchReview || [])];
+                      next[idx] = { ...next[idx], qty: Number(e.target.value) };
+                      setDispatchReview(next);
+                    }}
+                    className="h-9"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDispatchReview(null)}>إلغاء</Button>
+            <Button onClick={submitBulkDispatch} disabled={dispatching} className="gap-2">
+              <Send className="w-4 h-4" />
+              {dispatching ? "جاري الإرسال..." : "تأكيد الإرسال"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };
