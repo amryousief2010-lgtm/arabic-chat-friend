@@ -66,6 +66,12 @@ const ManufacturingQueue = () => {
   const [replenishNotes, setReplenishNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [dispatching, setDispatching] = useState(false);
+  const [dispatchReview, setDispatchReview] = useState<null | Array<{
+    row: Row;
+    destination: ProductionDestination;
+    qty: number;
+  }>>(null);
 
   const load = async () => {
     setLoading(true);
