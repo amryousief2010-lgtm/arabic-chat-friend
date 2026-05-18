@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { getGuideForRole } from "@/data/roleGuides";
 import { todayKey, weekKey } from "@/hooks/useTaskProgress";
+import { getReminderPrefs } from "@/hooks/useReminderPrefs";
 
 /**
  * In-app reminders for each user's role-specific tasks.
@@ -23,8 +24,9 @@ export function useDailyReminders() {
 
     // Defer so it doesn't fight initial render
     const t = setTimeout(() => {
+      const prefs = getReminderPrefs(user.id);
       try {
-        if (!localStorage.getItem(dailyFlag)) {
+        if (prefs.daily && !localStorage.getItem(dailyFlag)) {
           const dailyTasks = guide.links.filter((l) => (l.cadence ?? "daily") === "daily");
           if (dailyTasks.length) {
             toast(`تذكير يومي — ${guide.title}`, {
@@ -36,7 +38,8 @@ export function useDailyReminders() {
           localStorage.setItem(dailyFlag, "1");
         }
 
-        if (!localStorage.getItem(weeklyFlag)) {
+
+        if (prefs.weekly && !localStorage.getItem(weeklyFlag)) {
           const weeklyTasks = guide.links.filter((l) => l.cadence === "weekly");
           if (weeklyTasks.length) {
             toast(`تذكير أسبوعي — ${guide.title}`, {
