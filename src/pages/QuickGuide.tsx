@@ -32,11 +32,12 @@ import {
 
 
 export default function QuickGuide() {
-  const { role, profile, isGeneralManager } = useAuth();
+  const { user, role, profile, isGeneralManager } = useAuth();
   const printRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
   const [refQuery, setRefQuery] = useState("");
   const [downloading, setDownloading] = useState(false);
+  const { completed, toggle, setMany } = useTaskProgress(user?.id);
 
   const myGuide = ROLE_GUIDES.find((g) => g.role === role);
   const otherGuides = ROLE_GUIDES.filter((g) => g.role !== role);
