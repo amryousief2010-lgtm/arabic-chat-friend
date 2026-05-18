@@ -80,7 +80,7 @@ export const moduleSections: ModuleSection[] = [
       { icon: UsersRound, label: "أداء الفريق", path: "/team-performance", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager'] },
       { icon: UserCheck, label: "أداء الموديراتور", path: "/moderator-performance", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager'] },
       { icon: BarChart3, label: "التقارير", path: "/reports", roles: ['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'financial_manager', 'quality_manager'] },
-      { icon: Upload, label: "استيراد البيانات", path: "/import-sales", roles: ['general_manager', 'executive_manager'] },
+      { icon: Upload, label: "استيراد البيانات", path: "/import-sales", roles: ['general_manager'] },
     ],
   },
   {
