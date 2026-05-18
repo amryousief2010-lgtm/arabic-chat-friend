@@ -47,6 +47,10 @@ const ModeratorOrdersBreakdown = () => {
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [selectedYear, setSelectedYear] = useState(currentYear);
 
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['moderator-orders-breakdown'] });
+  };
+
   const { data, isLoading } = useQuery({
     queryKey: ['moderator-orders-breakdown', selectedMonth, selectedYear],
     refetchInterval: 60000,
