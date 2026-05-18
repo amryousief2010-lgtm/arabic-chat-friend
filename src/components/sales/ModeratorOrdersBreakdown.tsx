@@ -130,6 +130,13 @@ const ModeratorOrdersBreakdown = () => {
                 ))}
               </SelectContent>
             </Select>
+            <button
+              onClick={handleRefresh}
+              className="inline-flex items-center justify-center h-10 w-10 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
+              title="تحديث"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </button>
           </div>
         </div>
       </CardHeader>
