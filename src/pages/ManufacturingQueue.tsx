@@ -718,17 +718,37 @@ const ManufacturingQueue = () => {
                             )}
                           </TableCell>
                           <TableCell className="text-center">
-                            {canManageStock && (
-                              <Button
-                                size="sm" variant="outline"
-                                onClick={() => {
-                                  setReplenishProduct(r);
-                                  setReplenishQty(String(r.shortage > 0 ? r.shortage : r.low_stock_threshold));
-                                }}
-                              >
-                                <Plus className="w-4 h-4" /> تزويد
-                              </Button>
-                            )}
+                            <div className="flex gap-1 flex-wrap justify-center">
+                              {canManageStock && (
+                                <Button
+                                  size="sm" variant="outline"
+                                  onClick={() => {
+                                    setReplenishProduct(r);
+                                    setReplenishQty(String(r.shortage > 0 ? r.shortage : r.low_stock_threshold));
+                                  }}
+                                >
+                                  <Plus className="w-4 h-4" /> تزويد
+                                </Button>
+                              )}
+                              {canManageStock && r.shortage > 0 && (
+                                <>
+                                  <Button
+                                    size="sm" variant="secondary"
+                                    title="إرسال للمجزر"
+                                    onClick={() => quickDispatch(r, "slaughterhouse")}
+                                  >
+                                    <Beef className="w-4 h-4" /> مجزر
+                                  </Button>
+                                  <Button
+                                    size="sm" variant="secondary"
+                                    title="إرسال لمصنع اللحوم"
+                                    onClick={() => quickDispatch(r, "meat_factory")}
+                                  >
+                                    <Factory className="w-4 h-4" /> مصنع
+                                  </Button>
+                                </>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                         {expanded[r.product_id] && r.affected_orders.length > 0 && (
