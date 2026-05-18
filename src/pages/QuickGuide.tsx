@@ -1,4 +1,4 @@
-import { useRef, useState, useMemo } from "react";
+import { useRef, useState, useMemo, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +21,8 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useTaskProgress, todayKey, weekKey } from "@/hooks/useTaskProgress";
 import { useReminderPrefs } from "@/hooks/useReminderPrefs";
+import { useTaskHistory, writeTodaySnapshot } from "@/hooks/useTaskHistory";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ROLE_GUIDES, type RoleGuide, type GuideLink } from "@/data/roleGuides";
 import { toast } from "sonner";
 import {
@@ -42,6 +44,8 @@ import {
   ChevronDown,
   CircleDashed,
   ListChecks,
+  History as HistoryIcon,
+  Settings,
 } from "lucide-react";
 
 
@@ -51,8 +55,10 @@ export default function QuickGuide() {
   const [query, setQuery] = useState("");
   const [refQuery, setRefQuery] = useState("");
   const [downloading, setDownloading] = useState(false);
-  const { completed, toggle, setMany } = useTaskProgress(user?.id);
+  const { completed, toggle: rawToggle, setMany } = useTaskProgress(user?.id);
   const { prefs, update: updatePrefs } = useReminderPrefs(user?.id);
+  const [historyToken, setHistoryToken] = useState(0);
+  const { entries: history, weekly: weeklyHistory } = useTaskHistory(user?.id, historyToken);
 
   const myGuide = ROLE_GUIDES.find((g) => g.role === role);
   const otherGuides = ROLE_GUIDES.filter((g) => g.role !== role);
@@ -82,6 +88,41 @@ export default function QuickGuide() {
       weeklyTotal: weeklyLinks.length,
     };
   }, [myGuide, completed, dailyLinks, weeklyLinks]);
+
+  // Persist a daily snapshot for the history view whenever progress changes.
+  useEffect(() => {
+    if (!user?.id || !myGuide) return;
+    writeTodaySnapshot(user.id, {
+      dailyDone: stats.dailyDone,
+      dailyTotal: stats.dailyTotal,
+      weeklyDone: stats.weeklyDone,
+      weeklyTotal: stats.weeklyTotal,
+    });
+    setHistoryToken((t) => t + 1);
+  }, [user?.id, myGuide, stats.dailyDone, stats.dailyTotal, stats.weeklyDone, stats.weeklyTotal]);
+
+  // Toggle wrapper: also surfaces an in-app toast on every change.
+  const toggle = useCallback(
+    (path: string) => {
+      const link = myGuide?.links.find((l) => l.path === path);
+      const wasDone = !!completed[path];
+      rawToggle(path);
+      if (prefs.toastOnToggle && link) {
+        if (!wasDone) {
+          toast.success(`تم إكمال: ${link.label}`, {
+            description: link.cadence === "weekly" ? "ضمن مهامك الأسبوعية" : "ضمن مهامك اليومية",
+            duration: 3000,
+          });
+        } else {
+          toast(`تم إلغاء الإكمال: ${link.label}`, {
+            description: "أعيدت المهمة إلى قائمة المتبقّي.",
+            duration: 3000,
+          });
+        }
+      }
+    },
+    [myGuide, completed, rawToggle, prefs.toastOnToggle],
+  );
 
   const normalized = query.trim().toLowerCase();
   const filteredLinks = useMemo(() => {
@@ -382,10 +423,143 @@ export default function QuickGuide() {
                     onCheckedChange={(v) => updatePrefs({ weekly: v })}
                   />
                 </div>
+                <div className="flex items-center justify-between pt-1 border-t">
+                  <Label htmlFor="rem-toast" className="text-xs cursor-pointer">تنبيه فوري عند الإكمال</Label>
+                  <Switch
+                    id="rem-toast"
+                    checked={prefs.toastOnToggle}
+                    onCheckedChange={(v) => updatePrefs({ toastOnToggle: v })}
+                  />
+                </div>
               </CardContent>
             </Card>
           </div>
         )}
+
+        {myGuide && (
+          <Card className="no-print">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Settings className="w-4 h-4" />
+                إعدادات التذكيرات المتقدمة
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid sm:grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="daily-time" className="text-xs">وقت التذكير اليومي</Label>
+                  <Input
+                    id="daily-time"
+                    type="time"
+                    value={prefs.dailyTime}
+                    onChange={(e) => updatePrefs({ dailyTime: e.target.value })}
+                    disabled={!prefs.daily}
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    يصلك التنبيه عند هذا الوقت أو بعده (مرة واحدة يوميًا).
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="weekly-time" className="text-xs">وقت التذكير الأسبوعي</Label>
+                  <Input
+                    id="weekly-time"
+                    type="time"
+                    value={prefs.weeklyTime}
+                    onChange={(e) => updatePrefs({ weeklyTime: e.target.value })}
+                    disabled={!prefs.weekly}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="weekly-day" className="text-xs">يوم التذكير الأسبوعي</Label>
+                  <select
+                    id="weekly-day"
+                    className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm disabled:opacity-50"
+                    value={prefs.weeklyDay}
+                    onChange={(e) => updatePrefs({ weeklyDay: Number(e.target.value) })}
+                    disabled={!prefs.weekly}
+                  >
+                    {["الأحد","الإثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"].map((d, i) => (
+                      <option key={i} value={i}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-3">
+                نصيحة: اضبط الوقت قبل بداية الدوام لتذكير الفريق بمهام اليوم، أو بعد الدوام لمراجعة ما لم يُكتمل.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {myGuide && history.length > 0 && (
+          <Card className="no-print">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <HistoryIcon className="w-4 h-4" />
+                سجل إنجازي
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Tabs defaultValue="daily">
+                <TabsList>
+                  <TabsTrigger value="daily" className="gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> يومي
+                  </TabsTrigger>
+                  <TabsTrigger value="weekly" className="gap-1.5">
+                    <CalendarClock className="w-3.5 h-3.5" /> أسبوعي
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="daily" className="mt-4">
+                  <div className="space-y-2 max-h-80 overflow-auto">
+                    {history.slice(0, 30).map((e) => {
+                      const total = e.dailyTotal + e.weeklyTotal;
+                      const done = e.dailyDone + e.weeklyDone;
+                      const pct = total ? Math.round((done / total) * 100) : 0;
+                      return (
+                        <div key={e.date} className="flex items-center gap-3 p-2 rounded-md border">
+                          <div className="text-xs font-mono text-muted-foreground w-24 shrink-0">{e.date}</div>
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-muted-foreground">
+                                يومي {e.dailyDone}/{e.dailyTotal} · أسبوعي {e.weeklyDone}/{e.weeklyTotal}
+                              </span>
+                              <span className="font-semibold">{pct}%</span>
+                            </div>
+                            <Progress value={pct} className="h-1.5" />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </TabsContent>
+                <TabsContent value="weekly" className="mt-4">
+                  <div className="space-y-2 max-h-80 overflow-auto">
+                    {weeklyHistory.slice(0, 20).map((w) => {
+                      const total = w.dailyTotal + w.weeklyTotal;
+                      const done = w.dailyDone + w.weeklyDone;
+                      const pct = total ? Math.round((done / total) * 100) : 0;
+                      return (
+                        <div key={w.week} className="flex items-center gap-3 p-2 rounded-md border">
+                          <div className="text-xs font-mono text-muted-foreground w-24 shrink-0">{w.week}</div>
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-muted-foreground">
+                                {w.days} أيام · يومي {w.dailyDone}/{w.dailyTotal} · أسبوعي {w.weeklyDone}/{w.weeklyTotal}
+                              </span>
+                              <span className="font-semibold">{pct}%</span>
+                            </div>
+                            <Progress value={pct} className="h-1.5" />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+        )}
+
 
         <div ref={printRef} className="space-y-6 bg-background">
           {myGuide && (

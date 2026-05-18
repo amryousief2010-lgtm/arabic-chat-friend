@@ -5,11 +5,16 @@ import { getGuideForRole } from "@/data/roleGuides";
 import { todayKey, weekKey } from "@/hooks/useTaskProgress";
 import { getReminderPrefs } from "@/hooks/useReminderPrefs";
 
+/** HH:MM string → minutes since midnight. */
+const toMin = (hhmm: string) => {
+  const [h, m] = hhmm.split(":").map(Number);
+  return (h || 0) * 60 + (m || 0);
+};
+
 /**
- * In-app reminders for each user's role-specific tasks.
- * - Daily: one toast per day on first authenticated mount.
- * - Weekly: one toast per ISO week, mentioning weekly-cadence tasks.
- * Tracked in localStorage per-user to avoid spamming on every navigation.
+ * Time-aware in-app reminders.
+ * Checks every 60s and fires daily/weekly toasts when the configured time has passed,
+ * once per day / per ISO week, respecting enable toggles in reminder prefs.
  */
 export function useDailyReminders() {
   const { user, role } = useAuth();
@@ -19,14 +24,15 @@ export function useDailyReminders() {
     const guide = getGuideForRole(role);
     if (!guide) return;
 
-    const dailyFlag = `reminder-daily:${user.id}:${todayKey()}`;
-    const weeklyFlag = `reminder-weekly:${user.id}:${weekKey()}`;
-
-    // Defer so it doesn't fight initial render
-    const t = setTimeout(() => {
-      const prefs = getReminderPrefs(user.id);
+    const check = () => {
       try {
-        if (prefs.daily && !localStorage.getItem(dailyFlag)) {
+        const prefs = getReminderPrefs(user.id);
+        const now = new Date();
+        const nowMin = now.getHours() * 60 + now.getMinutes();
+        const dailyFlag = `reminder-daily:${user.id}:${todayKey()}`;
+        const weeklyFlag = `reminder-weekly:${user.id}:${weekKey()}`;
+
+        if (prefs.daily && nowMin >= toMin(prefs.dailyTime) && !localStorage.getItem(dailyFlag)) {
           const dailyTasks = guide.links.filter((l) => (l.cadence ?? "daily") === "daily");
           if (dailyTasks.length) {
             toast(`تذكير يومي — ${guide.title}`, {
@@ -38,8 +44,12 @@ export function useDailyReminders() {
           localStorage.setItem(dailyFlag, "1");
         }
 
-
-        if (prefs.weekly && !localStorage.getItem(weeklyFlag)) {
+        if (
+          prefs.weekly &&
+          now.getDay() === (prefs.weeklyDay ?? 0) &&
+          nowMin >= toMin(prefs.weeklyTime) &&
+          !localStorage.getItem(weeklyFlag)
+        ) {
           const weeklyTasks = guide.links.filter((l) => l.cadence === "weekly");
           if (weeklyTasks.length) {
             toast(`تذكير أسبوعي — ${guide.title}`, {
@@ -53,8 +63,13 @@ export function useDailyReminders() {
       } catch {
         /* ignore */
       }
-    }, 1500);
+    };
 
-    return () => clearTimeout(t);
+    const initial = setTimeout(check, 1500);
+    const id = setInterval(check, 60_000);
+    return () => {
+      clearTimeout(initial);
+      clearInterval(id);
+    };
   }, [user, role]);
 }
