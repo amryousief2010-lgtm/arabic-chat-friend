@@ -424,10 +424,143 @@ export default function QuickGuide() {
                     onCheckedChange={(v) => updatePrefs({ weekly: v })}
                   />
                 </div>
+                <div className="flex items-center justify-between pt-1 border-t">
+                  <Label htmlFor="rem-toast" className="text-xs cursor-pointer">تنبيه فوري عند الإكمال</Label>
+                  <Switch
+                    id="rem-toast"
+                    checked={prefs.toastOnToggle}
+                    onCheckedChange={(v) => updatePrefs({ toastOnToggle: v })}
+                  />
+                </div>
               </CardContent>
             </Card>
           </div>
         )}
+
+        {myGuide && (
+          <Card className="no-print">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Settings className="w-4 h-4" />
+                إعدادات التذكيرات المتقدمة
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid sm:grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="daily-time" className="text-xs">وقت التذكير اليومي</Label>
+                  <Input
+                    id="daily-time"
+                    type="time"
+                    value={prefs.dailyTime}
+                    onChange={(e) => updatePrefs({ dailyTime: e.target.value })}
+                    disabled={!prefs.daily}
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    يصلك التنبيه عند هذا الوقت أو بعده (مرة واحدة يوميًا).
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="weekly-time" className="text-xs">وقت التذكير الأسبوعي</Label>
+                  <Input
+                    id="weekly-time"
+                    type="time"
+                    value={prefs.weeklyTime}
+                    onChange={(e) => updatePrefs({ weeklyTime: e.target.value })}
+                    disabled={!prefs.weekly}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="weekly-day" className="text-xs">يوم التذكير الأسبوعي</Label>
+                  <select
+                    id="weekly-day"
+                    className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm disabled:opacity-50"
+                    value={prefs.weeklyDay}
+                    onChange={(e) => updatePrefs({ weeklyDay: Number(e.target.value) })}
+                    disabled={!prefs.weekly}
+                  >
+                    {["الأحد","الإثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"].map((d, i) => (
+                      <option key={i} value={i}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-3">
+                نصيحة: اضبط الوقت قبل بداية الدوام لتذكير الفريق بمهام اليوم، أو بعد الدوام لمراجعة ما لم يُكتمل.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {myGuide && history.length > 0 && (
+          <Card className="no-print">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <HistoryIcon className="w-4 h-4" />
+                سجل إنجازي
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Tabs defaultValue="daily">
+                <TabsList>
+                  <TabsTrigger value="daily" className="gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> يومي
+                  </TabsTrigger>
+                  <TabsTrigger value="weekly" className="gap-1.5">
+                    <CalendarClock className="w-3.5 h-3.5" /> أسبوعي
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="daily" className="mt-4">
+                  <div className="space-y-2 max-h-80 overflow-auto">
+                    {history.slice(0, 30).map((e) => {
+                      const total = e.dailyTotal + e.weeklyTotal;
+                      const done = e.dailyDone + e.weeklyDone;
+                      const pct = total ? Math.round((done / total) * 100) : 0;
+                      return (
+                        <div key={e.date} className="flex items-center gap-3 p-2 rounded-md border">
+                          <div className="text-xs font-mono text-muted-foreground w-24 shrink-0">{e.date}</div>
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-muted-foreground">
+                                يومي {e.dailyDone}/{e.dailyTotal} · أسبوعي {e.weeklyDone}/{e.weeklyTotal}
+                              </span>
+                              <span className="font-semibold">{pct}%</span>
+                            </div>
+                            <Progress value={pct} className="h-1.5" />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </TabsContent>
+                <TabsContent value="weekly" className="mt-4">
+                  <div className="space-y-2 max-h-80 overflow-auto">
+                    {weeklyHistory.slice(0, 20).map((w) => {
+                      const total = w.dailyTotal + w.weeklyTotal;
+                      const done = w.dailyDone + w.weeklyDone;
+                      const pct = total ? Math.round((done / total) * 100) : 0;
+                      return (
+                        <div key={w.week} className="flex items-center gap-3 p-2 rounded-md border">
+                          <div className="text-xs font-mono text-muted-foreground w-24 shrink-0">{w.week}</div>
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-muted-foreground">
+                                {w.days} أيام · يومي {w.dailyDone}/{w.dailyTotal} · أسبوعي {w.weeklyDone}/{w.weeklyTotal}
+                              </span>
+                              <span className="font-semibold">{pct}%</span>
+                            </div>
+                            <Progress value={pct} className="h-1.5" />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+        )}
+
 
         <div ref={printRef} className="space-y-6 bg-background">
           {myGuide && (
