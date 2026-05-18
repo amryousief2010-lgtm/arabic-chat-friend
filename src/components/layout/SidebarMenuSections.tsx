@@ -21,6 +21,7 @@ import {
   Beef,
   Factory,
   ClipboardList,
+  BookOpen,
   History,
   Wheat,
   Warehouse,
@@ -59,6 +60,7 @@ export const moduleSections: ModuleSection[] = [
     label: "الرئيسية",
     roles: ['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'warehouse_supervisor', 'production_manager', 'marketing_sales_manager', 'financial_manager', 'quality_manager', 'farm_manager', 'hatchery_manager', 'brooding_manager', 'slaughterhouse_manager', 'meat_factory_manager', 'feed_factory_manager', 'hr_manager'],
     items: [
+      { icon: BookOpen, label: "دليل الموظف السريع", path: "/quick-guide", roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'accountant', 'warehouse_supervisor', 'production_manager', 'marketing_sales_manager', 'financial_manager', 'quality_manager', 'farm_manager', 'hatchery_manager', 'brooding_manager', 'slaughterhouse_manager', 'meat_factory_manager', 'feed_factory_manager', 'hr_manager', 'shipping_company', 'private_delivery_rep'] },
       { icon: LayoutDashboard, label: "لوحة التحكم", path: "/", roles: ['general_manager', 'executive_manager', 'marketing_sales_manager', 'financial_manager', 'production_manager'] },
       { icon: TrendingUp, label: "اللوحات التنفيذية", path: "/executive-dashboards", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager', 'financial_manager', 'accountant'] },
       { icon: Network, label: "الهيكل التنظيمي", path: "/org-chart", roles: ['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'warehouse_supervisor', 'production_manager', 'marketing_sales_manager', 'financial_manager', 'quality_manager', 'farm_manager', 'hatchery_manager', 'brooding_manager', 'slaughterhouse_manager', 'meat_factory_manager', 'feed_factory_manager', 'hr_manager'] },
