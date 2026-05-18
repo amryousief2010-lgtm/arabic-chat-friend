@@ -11,7 +11,8 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { AlertTriangle, RefreshCw, Factory, Search, ArrowLeft, Plus, FileDown, FileText } from "lucide-react";
+import { AlertTriangle, RefreshCw, Factory, Search, ArrowLeft, Plus, FileDown, FileText, Send, Beef } from "lucide-react";
+import { classifyProductDestination, destinationLabel, type ProductionDestination } from "@/constants/productRouting";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
@@ -65,6 +66,12 @@ const ManufacturingQueue = () => {
   const [replenishNotes, setReplenishNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [dispatching, setDispatching] = useState(false);
+  const [dispatchReview, setDispatchReview] = useState<null | Array<{
+    row: Row;
+    destination: ProductionDestination;
+    qty: number;
+  }>>(null);
 
   const load = async () => {
     setLoading(true);
@@ -275,6 +282,90 @@ const ManufacturingQueue = () => {
   const priorityLabel: Record<string, string> = {
     critical: "حرجة جدًا", high: "عالية", medium: "متوسطة", low: "منخفضة",
   };
+
+  const dispatchOne = async (row: Row, destination: ProductionDestination, qty: number, notes?: string) => {
+    if (destination === "none") { toast.error("الصنف لا يخص المجزر أو المصنع"); return false; }
+    if (!qty || qty <= 0) { toast.error("كمية غير صحيحة"); return false; }
+    // Check if there's an open order for the same product+destination → update qty instead
+    const { data: existing } = await (supabase as any)
+      .from("production_dispatch_orders")
+      .select("id, required_qty")
+      .eq("product_id", row.product_id)
+      .eq("destination", destination)
+      .in("status", ["new", "accepted", "in_progress"])
+      .maybeSingle();
+    if (existing) {
+      const { error } = await (supabase as any)
+        .from("production_dispatch_orders")
+        .update({
+          required_qty: Math.max(Number(existing.required_qty), qty),
+          pending_qty: row.pending_quantity,
+          current_stock: row.current_stock,
+          priority: row.priority,
+          affected_orders: row.affected_orders,
+          notes: notes || null,
+        })
+        .eq("id", existing.id);
+      if (error) { toast.error(error.message); return false; }
+      return true;
+    }
+    const { error } = await (supabase as any).from("production_dispatch_orders").insert({
+      product_id: row.product_id,
+      product_name: row.product_name,
+      unit: row.unit,
+      required_qty: qty,
+      current_stock: row.current_stock,
+      pending_qty: row.pending_quantity,
+      destination,
+      priority: row.priority,
+      affected_orders: row.affected_orders,
+      notes: notes || null,
+      created_by: profile?.id ?? null,
+      created_by_name: profile?.full_name ?? null,
+    });
+    if (error) { toast.error(error.message); return false; }
+    // Best-effort notification
+    await (supabase as any).from("notifications").insert({
+      title: `أمر إنتاج جديد — ${destinationLabel(destination)}`,
+      description: `${row.product_name} — مطلوب ${qty} ${row.unit} (عجز عن ${row.affected_orders.length} طلب)`,
+      type: "production_dispatch",
+    });
+    return true;
+  };
+
+  const openBulkDispatch = () => {
+    const shortageRows = rows.filter(r => r.shortage > 0);
+    if (shortageRows.length === 0) { toast.info("لا يوجد عجز للإرسال"); return; }
+    setDispatchReview(
+      shortageRows.map(r => ({
+        row: r,
+        destination: classifyProductDestination(r.product_name),
+        qty: r.shortage,
+      }))
+    );
+  };
+
+  const submitBulkDispatch = async () => {
+    if (!dispatchReview) return;
+    setDispatching(true);
+    let ok = 0; let skipped = 0;
+    for (const it of dispatchReview) {
+      if (it.destination === "none") { skipped++; continue; }
+      const success = await dispatchOne(it.row, it.destination, it.qty);
+      if (success) ok++;
+    }
+    setDispatching(false);
+    setDispatchReview(null);
+    toast.success(`تم إرسال ${ok} أمر إنتاج${skipped ? ` · تم تخطي ${skipped}` : ""}`);
+    await load();
+  };
+
+  const quickDispatch = async (row: Row, destination: ProductionDestination) => {
+    const qty = row.shortage > 0 ? row.shortage : row.pending_quantity;
+    const ok = await dispatchOne(row, destination, qty);
+    if (ok) { toast.success(`تم إرسال ${row.product_name} إلى ${destinationLabel(destination)}`); await load(); }
+  };
+
 
   const exportXlsx = () => {
     if (filtered.length === 0) { toast.error("لا توجد بيانات"); return; }
@@ -505,6 +596,11 @@ const ManufacturingQueue = () => {
                   الأصناف المطلوب تصنيعها
                 </CardTitle>
                 <div className="flex gap-2 flex-wrap">
+                  {canManageStock && (
+                    <Button variant="default" size="sm" onClick={openBulkDispatch} className="gap-2">
+                      <Send className="w-4 h-4" /> إرسال كل العجز للإنتاج
+                    </Button>
+                  )}
                   <Button variant="outline" size="sm" onClick={exportXlsx} className="gap-2">
                     <FileDown className="w-4 h-4" /> Excel
                   </Button>
@@ -622,17 +718,37 @@ const ManufacturingQueue = () => {
                             )}
                           </TableCell>
                           <TableCell className="text-center">
-                            {canManageStock && (
-                              <Button
-                                size="sm" variant="outline"
-                                onClick={() => {
-                                  setReplenishProduct(r);
-                                  setReplenishQty(String(r.shortage > 0 ? r.shortage : r.low_stock_threshold));
-                                }}
-                              >
-                                <Plus className="w-4 h-4" /> تزويد
-                              </Button>
-                            )}
+                            <div className="flex gap-1 flex-wrap justify-center">
+                              {canManageStock && (
+                                <Button
+                                  size="sm" variant="outline"
+                                  onClick={() => {
+                                    setReplenishProduct(r);
+                                    setReplenishQty(String(r.shortage > 0 ? r.shortage : r.low_stock_threshold));
+                                  }}
+                                >
+                                  <Plus className="w-4 h-4" /> تزويد
+                                </Button>
+                              )}
+                              {canManageStock && r.shortage > 0 && (
+                                <>
+                                  <Button
+                                    size="sm" variant="secondary"
+                                    title="إرسال للمجزر"
+                                    onClick={() => quickDispatch(r, "slaughterhouse")}
+                                  >
+                                    <Beef className="w-4 h-4" /> مجزر
+                                  </Button>
+                                  <Button
+                                    size="sm" variant="secondary"
+                                    title="إرسال لمصنع اللحوم"
+                                    onClick={() => quickDispatch(r, "meat_factory")}
+                                  >
+                                    <Factory className="w-4 h-4" /> مصنع
+                                  </Button>
+                                </>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                         {expanded[r.product_id] && r.affected_orders.length > 0 && (
@@ -715,6 +831,66 @@ const ManufacturingQueue = () => {
             <Button variant="outline" onClick={() => setReplenishProduct(null)}>إلغاء</Button>
             <Button onClick={submitReplenish} disabled={submitting}>
               {submitting ? "جاري التزويد..." : "تأكيد التزويد"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!dispatchReview} onOpenChange={(o) => !o && setDispatchReview(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>مراجعة أوامر الإنتاج قبل الإرسال</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              راجع وجهة كل صنف والكمية المطلوب إنتاجها. الأصناف غير المرتبطة (مثل البيض) ستُتخطّى تلقائيًا.
+            </p>
+            {dispatchReview?.map((it, idx) => (
+              <div key={it.row.product_id} className="border rounded p-3 grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                <div className="sm:col-span-5">
+                  <div className="font-semibold">{it.row.product_name}</div>
+                  <div className="text-xs text-muted-foreground">
+                    مخزون: {it.row.current_stock} · مطلوب: {it.row.pending_quantity} · عجز: <strong className="text-destructive">{it.row.shortage}</strong> {it.row.unit}
+                  </div>
+                </div>
+                <div className="sm:col-span-4">
+                  <Label className="text-xs">الوجهة</Label>
+                  <Select
+                    value={it.destination}
+                    onValueChange={(v) => {
+                      const next = [...(dispatchReview || [])];
+                      next[idx] = { ...next[idx], destination: v as ProductionDestination };
+                      setDispatchReview(next);
+                    }}
+                  >
+                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="slaughterhouse">المجزر</SelectItem>
+                      <SelectItem value="meat_factory">مصنع اللحوم</SelectItem>
+                      <SelectItem value="none">تخطي</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="sm:col-span-3">
+                  <Label className="text-xs">الكمية ({it.row.unit})</Label>
+                  <Input
+                    type="number" min={0} step="0.5" value={it.qty}
+                    onChange={(e) => {
+                      const next = [...(dispatchReview || [])];
+                      next[idx] = { ...next[idx], qty: Number(e.target.value) };
+                      setDispatchReview(next);
+                    }}
+                    className="h-9"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDispatchReview(null)}>إلغاء</Button>
+            <Button onClick={submitBulkDispatch} disabled={dispatching} className="gap-2">
+              <Send className="w-4 h-4" />
+              {dispatching ? "جاري الإرسال..." : "تأكيد الإرسال"}
             </Button>
           </DialogFooter>
         </DialogContent>

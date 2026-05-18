@@ -19,6 +19,7 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
+import { ProductionDispatchInbox } from "@/components/production/ProductionDispatchInbox";
 
 type Product = { id: string; product_code: string | null; barcode: string | null; name_ar: string; functional_name_ar: string | null; package_qty: number; package_unit: string; base_cost_unit: string | null; cost_per_base_unit: number | null; cost_price: number | null; sale_price: number | null; cost_status: string | null; source_document: string | null; source_date: string | null; notes: string | null; is_active: boolean; };
 type RawMaterial = { id: string; material_code: string; name_ar: string; default_unit: string; avg_unit_cost: number; category: string; is_active: boolean; stock: number; low_stock_threshold: number; };
@@ -490,6 +491,7 @@ const MeatFactory = () => {
       <Header title="مصنع اللحوم" subtitle="تصنيع المنتجات المصنعة من النعام" />
 
       <div className="p-4 space-y-4">
+        <ProductionDispatchInbox destination="meat_factory" />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <KPI icon={Package} label="إجمالي المنتجات" value={totalProducts} hint={`${pricedProducts} لها تكلفة معتمدة`} color="bg-primary/10 text-primary" />
           <KPI icon={Boxes} label="المواد الخام" value={totalMaterials} hint={`${lowStockCount} مادة منخفضة المخزون`} color="bg-orange-500/10 text-orange-600" />
