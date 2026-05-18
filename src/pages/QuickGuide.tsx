@@ -5,51 +5,31 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { useAuth, AppRole } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuth";
+import { useTaskProgress } from "@/hooks/useTaskProgress";
+import { ROLE_GUIDES, type RoleGuide } from "@/data/roleGuides";
 import { toast } from "sonner";
 import {
   BookOpen,
-  ShoppingCart,
   Package,
-  Users,
   Bell,
-  Target,
-  Gift,
-  BarChart3,
-  Egg,
-  Bird,
-  FlaskConical,
-  Beef,
-  Wheat,
-  Warehouse,
-  Factory,
-  UsersRound,
   ClipboardList,
-  AlertTriangle,
-  LayoutDashboard,
-  History,
-  TrendingUp,
+  UsersRound,
   UserCheck,
-  Truck,
-  Settings,
   Network,
-  LucideIcon,
   ArrowLeft,
   Sparkles,
   Search,
   Printer,
   Download,
+  CheckCircle2,
+  RotateCcw,
+  CalendarClock,
 } from "lucide-react";
 
-type GuideLink = { label: string; path: string; icon: LucideIcon; desc: string };
-type RoleGuide = {
-  role: AppRole;
-  title: string;
-  summary: string;
-  color: string;
-  links: GuideLink[];
-};
 
 const ROLE_GUIDES: RoleGuide[] = [
   {
