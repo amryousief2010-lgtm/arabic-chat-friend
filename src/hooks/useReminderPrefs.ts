@@ -3,10 +3,25 @@ import { useCallback, useEffect, useState } from "react";
 export type ReminderPrefs = {
   daily: boolean;
   weekly: boolean;
+  /** HH:MM 24h, local time. Reminder fires at/after this time once per day. */
+  dailyTime: string;
+  /** HH:MM 24h, local time. Reminder fires at/after this on weeklyDay. */
+  weeklyTime: string;
+  /** 0=Sunday … 6=Saturday */
+  weeklyDay: number;
+  /** Toast on every task completion toggle */
+  toastOnToggle: boolean;
 };
 
 const KEY = (userId: string) => `reminder-prefs:${userId}`;
-const DEFAULTS: ReminderPrefs = { daily: true, weekly: true };
+const DEFAULTS: ReminderPrefs = {
+  daily: true,
+  weekly: true,
+  dailyTime: "08:00",
+  weeklyTime: "09:00",
+  weeklyDay: 0, // Sunday — start of Egyptian work week
+  toastOnToggle: true,
+};
 
 export function getReminderPrefs(userId: string): ReminderPrefs {
   try {
