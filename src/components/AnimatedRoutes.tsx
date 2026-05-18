@@ -219,7 +219,7 @@ const AnimatedRoutes = () => {
           </ProtectedRoute>
         } />
         <Route path="/farm-production-import" element={
-          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'farm_manager', 'production_manager']}>
+          <ProtectedRoute allowedRoles={['general_manager']}>
             <PageTransition><FarmProductionImport /></PageTransition>
           </ProtectedRoute>
         } />
@@ -284,7 +284,7 @@ const AnimatedRoutes = () => {
           </ProtectedRoute>
         } />
         <Route path="/modules/warehouses/import" element={
-          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager', 'quality_manager']}>
+          <ProtectedRoute allowedRoles={['general_manager']}>
             <PageTransition><InventoryImport /></PageTransition>
           </ProtectedRoute>
         } />
