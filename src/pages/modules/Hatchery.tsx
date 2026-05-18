@@ -113,8 +113,9 @@ const Hatchery = () => {
           <KPI icon={AlertTriangle} label="نافق هاتشر/شهر" value={stats.monthHatcherDead} color="from-red-500 to-red-700" />
         </div>
 
-        <Tabs defaultValue="batches" dir="rtl">
-          <TabsList className="grid grid-cols-2 md:grid-cols-7 w-full">
+        <Tabs defaultValue="incoming" dir="rtl">
+          <TabsList className="grid grid-cols-2 md:grid-cols-8 w-full">
+            <TabsTrigger value="incoming"><Inbox className="w-4 h-4 ml-1" />وارد المزرعة</TabsTrigger>
             <TabsTrigger value="batches"><FlaskConical className="w-4 h-4 ml-1" />الدفعات</TabsTrigger>
             <TabsTrigger value="charts"><BarChart3 className="w-4 h-4 ml-1" />تحليلات</TabsTrigger>
             <TabsTrigger value="quality"><TrendingUp className="w-4 h-4 ml-1" />الجودة</TabsTrigger>
@@ -124,6 +125,7 @@ const Hatchery = () => {
             <TabsTrigger value="chicks"><Bird className="w-4 h-4 ml-1" />الكتاكيت</TabsTrigger>
           </TabsList>
 
+          <TabsContent value="incoming"><FarmShipmentsInbox /></TabsContent>
           <TabsContent value="batches"><BatchesTab batches={batches} customers={customers} qc={qc} /></TabsContent>
           <TabsContent value="charts"><BatchesChartsTab batches={batches} customers={customers} /></TabsContent>
           <TabsContent value="quality"><QualityTab stats={stats} /></TabsContent>
