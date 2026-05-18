@@ -77,11 +77,11 @@ const WarehouseDashboard = () => {
               <p className="text-sm text-muted-foreground">تنبيهات المخزون وإحصائيات الحركات (آخر 7 أيام)</p>
             </div>
           </div>
-          {canManageWarehouses ? (
+          {isGeneralManager ? (
             <Link to="/modules/warehouses/import"><Button variant="outline"><Upload className="w-4 h-4 ml-2" />استيراد CSV</Button></Link>
-          ) : (
+          ) : !canManageWarehouses ? (
             <Badge variant="outline">عرض فقط</Badge>
-          )}
+          ) : null}
         </div>
 
         <div className="grid gap-4 md:grid-cols-4">
