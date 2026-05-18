@@ -76,7 +76,7 @@ const movementTypeLabels: Record<string, { label: string; icon: typeof ArrowDown
 };
 
 const Warehouses = () => {
-  const { canManageWarehouses, user } = useAuth();
+  const { canManageWarehouses, user, isGeneralManager } = useAuth();
   const { toast } = useToast();
   const [warehouses, setWarehouses] = useState<WarehouseRow[]>([]);
   const [items, setItems] = useState<InventoryItem[]>([]);
