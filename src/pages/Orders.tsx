@@ -501,6 +501,7 @@ const Orders = () => {
 
   return (
     <DashboardLayout>
+      <DiscrepancyBanner />
       <OrdersAnalytics orders={orders} />
 
       <Tabs value={yearGroup} onValueChange={(v) => setYearGroup(v as YearGroup)} className="mb-4">
