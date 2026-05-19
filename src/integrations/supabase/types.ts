@@ -811,6 +811,9 @@ export type Database = {
       }
       correction_requests: {
         Row: {
+          attachment_name: string | null
+          attachment_type: string | null
+          attachment_url: string | null
           created_at: string
           id: string
           note: string
@@ -827,6 +830,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          attachment_name?: string | null
+          attachment_type?: string | null
+          attachment_url?: string | null
           created_at?: string
           id?: string
           note: string
@@ -843,6 +849,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          attachment_name?: string | null
+          attachment_type?: string | null
+          attachment_url?: string | null
           created_at?: string
           id?: string
           note?: string
