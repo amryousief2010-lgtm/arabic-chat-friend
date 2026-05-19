@@ -187,6 +187,29 @@ const Slaughterhouse = () => {
     fetchAll();
   };
 
+  const saveEditedReceipt = async () => {
+    if (!editReceipt) return;
+    if (!canEditReceiptData) { toast.error("غير مصرح لك بتعديل بيانات الاستلام"); return; }
+    const f = editReceiptForm;
+    const dateErr = validateReceiptDate(String(f.receipt_date ?? editReceipt.receipt_date));
+    if (dateErr) { toast.error(dateErr); return; }
+    const payload: any = {
+      receipt_date: f.receipt_date ?? editReceipt.receipt_date,
+      source_type: f.source_type ?? editReceipt.source_type,
+      source_name: f.source_name ?? editReceipt.source_name,
+      bird_count: Number(f.bird_count ?? editReceipt.bird_count) || 0,
+      total_weight_kg: Number(f.total_weight_kg ?? editReceipt.total_weight_kg) || 0,
+      price_per_kg: Number(f.price_per_kg ?? editReceipt.price_per_kg) || 0,
+      dead_on_arrival: Number(f.dead_on_arrival ?? editReceipt.dead_on_arrival) || 0,
+    };
+    const { error } = await supabase.from("slaughter_live_receipts" as any).update(payload).eq("id", editReceipt.id);
+    if (error) { toast.error("تعذّر حفظ التعديل", { description: error.message }); return; }
+    toast.success("✅ تم تحديث بيانات الاستلام");
+    setEditReceipt(null);
+    setEditReceiptForm({});
+    fetchAll();
+  };
+
   const saveBatch = async (formData?: typeof batchForm): Promise<boolean> => {
     const data = formData || batchForm;
     if (!data.birds_slaughtered || !data.total_live_weight_kg) { toast.error("أدخل عدد الطيور المذبوحة والوزن الحي"); return false; }
