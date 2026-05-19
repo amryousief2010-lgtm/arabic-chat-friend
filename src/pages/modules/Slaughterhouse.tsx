@@ -1123,6 +1123,63 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
           </div>
         </div>
 
+        {/* Custom (unregistered) cuts that only affect yield % */}
+        <div className="mb-3 p-3 border rounded bg-primary/5 space-y-2">
+          <Label className="text-xs font-semibold block">
+            ➕ إضافة صنف غير مسجل لاحتساب التصافي
+            <span className="text-muted-foreground font-normal mr-1">(يُضاف للوزن المُحتسب فقط ولا يدخل جدول التقسيمة)</span>
+          </Label>
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="flex-1 min-w-[180px]">
+              <Input
+                placeholder="اسم الصنف (مثال: ذيل، رأس...)"
+                value={newCustomName}
+                onChange={(e) => setNewCustomName(e.target.value)}
+              />
+            </div>
+            <div className="w-32">
+              <Input
+                type="number" step="0.1" min={0} inputMode="decimal"
+                placeholder="الوزن (كجم)"
+                value={newCustomWeight}
+                onChange={(e) => setNewCustomWeight(e.target.value === "" ? "" : +e.target.value)}
+              />
+            </div>
+            <Button
+              type="button"
+              onClick={() => {
+                const n = newCustomName.trim();
+                const w = Number(newCustomWeight);
+                if (!n || !w || w <= 0) { toast.error("أدخل اسمًا ووزنًا صالحًا"); return; }
+                setCustomItems((p) => [...p, { name: n, weight: w }]);
+                setNewCustomName(""); setNewCustomWeight("");
+              }}
+              className="bg-gradient-to-r from-primary to-accent"
+            >
+              <Plus className="w-4 h-4 ml-1" /> إضافة
+            </Button>
+          </div>
+          {customItems.length > 0 && (
+            <div className="flex flex-wrap gap-1 pt-1">
+              {customItems.map((c, idx) => (
+                <span key={idx} className="bg-primary/15 text-primary px-2 py-0.5 rounded text-xs flex items-center gap-1">
+                  {c.name}: <b>{c.weight.toFixed(1)} كجم</b>
+                  <button
+                    type="button"
+                    onClick={() => setCustomItems((p) => p.filter((_, i) => i !== idx))}
+                    className="hover:text-destructive"
+                    aria-label="حذف"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+
+
         {/* Dynamic add cut with search */}
         <div className="mb-3 p-3 border rounded bg-muted/20 space-y-2">
           <Label className="text-xs text-muted-foreground block">إضافة صنف للتقسيمة</Label>
