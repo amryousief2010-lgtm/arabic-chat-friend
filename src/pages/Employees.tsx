@@ -651,110 +651,150 @@ const Employees = () => {
           />
         </div>
 
-        {/* Employees Table */}
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-right">الموظف</TableHead>
-                  <TableHead className="text-right">البريد الإلكتروني</TableHead>
-                  <TableHead className="text-right">الوظيفة</TableHead>
-                  <TableHead className="text-right">تاريخ الانضمام</TableHead>
-                  <TableHead className="text-right">إجراءات</TableHead>
+        {/* Employees grouped by Department */}
+        {loading ? (
+          <Card>
+            <CardContent className="py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary mx-auto" />
+            </CardContent>
+          </Card>
+        ) : filteredEmployees.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center text-muted-foreground">
+              لا يوجد موظفون مطابقون للبحث
+            </CardContent>
+          </Card>
+        ) : (
+          (() => {
+            const assignedIds = new Set<string>();
+            const groups = departments.map((dept) => {
+              const rolePriority = new Map(dept.roles.map((r, i) => [r, i]));
+              const list = filteredEmployees
+                .filter((e) => rolePriority.has(e.role))
+                .sort((a, b) => {
+                  const pa = rolePriority.get(a.role)!;
+                  const pb = rolePriority.get(b.role)!;
+                  if (pa !== pb) return pa - pb;
+                  return a.full_name.localeCompare(b.full_name, 'ar');
+                });
+              list.forEach((e) => assignedIds.add(e.id));
+              return { dept, list };
+            });
+            const others = filteredEmployees.filter((e) => !assignedIds.has(e.id));
+
+            const renderRow = (employee: Employee) => {
+              const RoleIcon = roleIcons[employee.role];
+              return (
+                <TableRow key={employee.id}>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
+                        {employee.full_name.charAt(0)}
+                      </div>
+                      <span className="font-medium">{employee.full_name}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{employee.email}</TableCell>
+                  <TableCell>
+                    <Badge variant={roleBadgeVariants[employee.role]} className="gap-1">
+                      <RoleIcon className="w-3 h-3" />
+                      {roleLabels[employee.role]}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{formatDate(employee.created_at)}</TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <MoreHorizontal className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="max-h-80 overflow-y-auto">
+                        {(Object.keys(roleLabels) as AppRole[]).map((r) => {
+                          const Icon = roleIcons[r];
+                          return (
+                            <DropdownMenuItem
+                              key={r}
+                              onClick={() => handleChangeRole(employee.id, r)}
+                              disabled={employee.role === r}
+                            >
+                              <Icon className="w-4 h-4 ml-2" />
+                              {roleLabels[r]}
+                            </DropdownMenuItem>
+                          );
+                        })}
+                        <div className="my-1 border-t border-border" />
+                        <DropdownMenuItem onClick={() => handleResetAndCopy(employee)} disabled={!isGeneralManager}>
+                          <KeyRound className="w-4 h-4 ml-2" />
+                          إعادة تعيين ونسخ بيانات الدخول
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openCustomResetDialog(employee)} disabled={!isGeneralManager}>
+                          <KeyRound className="w-4 h-4 ml-2" />
+                          تعيين كلمة مرور مخصصة
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => openDeleteDialog(employee)}
+                          className="text-destructive focus:text-destructive"
+                          disabled={!isGeneralManager || employee.id === user?.id}
+                        >
+                          <Trash2 className="w-4 h-4 ml-2" />
+                          حذف الموظف {!isGeneralManager ? '(للمدير العام فقط)' : ''}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8">
-                      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary mx-auto"></div>
-                    </TableCell>
-                  </TableRow>
-                ) : filteredEmployees.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                      لا يوجد موظفون
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredEmployees.map((employee) => {
-                    const RoleIcon = roleIcons[employee.role];
-                    return (
-                      <TableRow key={employee.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
-                              {employee.full_name.charAt(0)}
-                            </div>
-                            <span className="font-medium">{employee.full_name}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">{employee.email}</TableCell>
-                        <TableCell>
-                          <Badge variant={roleBadgeVariants[employee.role]} className="gap-1">
-                            <RoleIcon className="w-3 h-3" />
-                            {roleLabels[employee.role]}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {formatDate(employee.created_at)}
-                        </TableCell>
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <MoreHorizontal className="w-4 h-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="max-h-80 overflow-y-auto">
-                              {(Object.keys(roleLabels) as AppRole[]).map((r) => {
-                                const Icon = roleIcons[r];
-                                return (
-                                  <DropdownMenuItem
-                                    key={r}
-                                    onClick={() => handleChangeRole(employee.id, r)}
-                                    disabled={employee.role === r}
-                                  >
-                                    <Icon className="w-4 h-4 ml-2" />
-                                    {roleLabels[r]}
-                                  </DropdownMenuItem>
-                                );
-                              })}
-                              <div className="my-1 border-t border-border" />
-                              <DropdownMenuItem
-                                onClick={() => handleResetAndCopy(employee)}
-                                disabled={!isGeneralManager}
-                              >
-                                <KeyRound className="w-4 h-4 ml-2" />
-                                إعادة تعيين ونسخ بيانات الدخول
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => openCustomResetDialog(employee)}
-                                disabled={!isGeneralManager}
-                              >
-                                <KeyRound className="w-4 h-4 ml-2" />
-                                تعيين كلمة مرور مخصصة
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={() => openDeleteDialog(employee)}
-                                className="text-destructive focus:text-destructive"
-                                disabled={!isGeneralManager || employee.id === user?.id}
-                              >
-                                <Trash2 className="w-4 h-4 ml-2" />
-                                حذف الموظف {!isGeneralManager ? '(للمدير العام فقط)' : ''}
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
+              );
+            };
+
+            const renderSection = (
+              key: string,
+              name: string,
+              Icon: React.ElementType,
+              color: string,
+              bg: string,
+              list: Employee[],
+            ) => (
+              <Card key={key} className="overflow-hidden">
+                <CardHeader className={`flex flex-row items-center justify-between gap-3 py-3 ${bg} border-b`}>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl bg-background/70 flex items-center justify-center`}>
+                      <Icon className={`w-5 h-5 ${color}`} />
+                    </div>
+                    <CardTitle className="text-base font-semibold">{name}</CardTitle>
+                  </div>
+                  <Badge variant="secondary" className="text-xs">
+                    {list.length} {list.length === 1 ? 'موظف' : 'موظفين'}
+                  </Badge>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-right">الموظف</TableHead>
+                        <TableHead className="text-right">البريد الإلكتروني</TableHead>
+                        <TableHead className="text-right">الوظيفة</TableHead>
+                        <TableHead className="text-right">تاريخ الانضمام</TableHead>
+                        <TableHead className="text-right">إجراءات</TableHead>
                       </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                    </TableHeader>
+                    <TableBody>{list.map(renderRow)}</TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            );
+
+            return (
+              <div className="space-y-4">
+                {groups
+                  .filter((g) => g.list.length > 0)
+                  .map((g) => renderSection(g.dept.key, g.dept.name, g.dept.icon, g.dept.color, g.dept.bg, g.list))}
+                {others.length > 0 &&
+                  renderSection('others', 'موظفون آخرون', Users, 'text-muted-foreground', 'bg-muted/40', others)}
+              </div>
+            );
+          })()
+        )}
 
         {/* Custom Password Reset Dialog */}
         <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
