@@ -74,6 +74,7 @@ const statusBadge: Record<CorrectionRequest["status"], { label: string; cls: str
 
 export default function CorrectionRequests() {
   const { isGeneralManager, isExecutiveManager, user } = useAuth();
+  const navigate = useNavigate();
   const canReview = isGeneralManager || isExecutiveManager;
   const [items, setItems] = useState<CorrectionRequest[]>([]);
   const [loading, setLoading] = useState(true);
