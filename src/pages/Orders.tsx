@@ -992,7 +992,13 @@ const Orders = () => {
 
               <div className="space-y-2 border-t pt-4">
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">المجموع الفرعي</span>
+                  <span className="text-muted-foreground flex items-center gap-1">
+                    المجموع الفرعي
+                    <span
+                      title="قيمة المنتجات فقط (subtotal) — كما في عمود «قيمة الاوردر بدون شحن» في ملف Excel. لا يشمل رسوم التوصيل إلا للعروض."
+                      className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-muted text-[10px] cursor-help"
+                    >؟</span>
+                  </span>
                   <span>{selectedOrder.subtotal.toLocaleString()} ج.م</span>
                 </div>
                 <div className="flex justify-between text-sm">
