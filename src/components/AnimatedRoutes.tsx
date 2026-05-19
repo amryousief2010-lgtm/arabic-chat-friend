@@ -206,6 +206,11 @@ const AnimatedRoutes = () => {
             <PageTransition><ImportSalesData /></PageTransition>
           </ProtectedRoute>
         } />
+        <Route path="/rebuild-may-orders" element={
+          <ProtectedRoute allowedRoles={['general_manager']}>
+            <PageTransition><RebuildMayOrders /></PageTransition>
+          </ProtectedRoute>
+        } />
         <Route path="/moderator-performance" element={
           <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager']}>
             <PageTransition><ModeratorPerformance /></PageTransition>
