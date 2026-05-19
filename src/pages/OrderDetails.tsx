@@ -36,6 +36,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import EditOrderItemsDialog from "@/components/orders/EditOrderItemsDialog";
+import SwapOfferDialog from "@/components/orders/SwapOfferDialog";
 
 type OrderStatus = 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
 type PaymentStatus = 'pending' | 'paid' | 'failed';
