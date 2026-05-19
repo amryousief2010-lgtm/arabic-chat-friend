@@ -37,7 +37,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { UserPlus, MoreHorizontal, Shield, Search, Users, UserCheck, Warehouse, Calculator, ShoppingCart, Trash2, UserMinus, Egg, FlaskConical, Drumstick, Beef, Factory, Wheat, Megaphone, Crown, Building2, Truck, KeyRound, Copy } from 'lucide-react';
+import { UserPlus, MoreHorizontal, Shield, Search, Users, UserCheck, Warehouse, Calculator, ShoppingCart, Trash2, UserMinus, Egg, FlaskConical, Drumstick, Beef, Factory, Wheat, Megaphone, Crown, Building2, Truck, KeyRound, Copy, ChevronDown, ChevronUp, GripVertical, Filter } from 'lucide-react';
 import { z } from 'zod';
 import { useAuth, AppRole } from '@/hooks/useAuth';
 import { formatDate } from "@/lib/dateFormat";
@@ -155,6 +155,53 @@ const Employees = () => {
   const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newRole, setNewRole] = useState<AppRole>('sales_moderator');
+
+  // Department filter, collapsed sections, custom order persistence
+  const ORDER_STORAGE_KEY = 'employees:dept-order:v1';
+  const COLLAPSED_STORAGE_KEY = 'employees:dept-collapsed:v1';
+  const [deptFilter, setDeptFilter] = useState<string>('all');
+  const [orderMap, setOrderMap] = useState<Record<string, string[]>>(() => {
+    try {
+      const raw = localStorage.getItem(ORDER_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+  });
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem(COLLAPSED_STORAGE_KEY);
+      return new Set<string>(raw ? JSON.parse(raw) : []);
+    } catch { return new Set(); }
+  });
+  const [dragInfo, setDragInfo] = useState<{ deptKey: string; id: string } | null>(null);
+
+  useEffect(() => {
+    try { localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(orderMap)); } catch { /* ignore */ }
+  }, [orderMap]);
+  useEffect(() => {
+    try { localStorage.setItem(COLLAPSED_STORAGE_KEY, JSON.stringify(Array.from(collapsed))); } catch { /* ignore */ }
+  }, [collapsed]);
+
+  const toggleCollapsed = (key: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
+  const handleDropOn = (deptKey: string, targetId: string, currentList: Employee[]) => {
+    if (!dragInfo || dragInfo.deptKey !== deptKey || dragInfo.id === targetId) {
+      setDragInfo(null);
+      return;
+    }
+    const ids = currentList.map((e) => e.id);
+    const from = ids.indexOf(dragInfo.id);
+    const to = ids.indexOf(targetId);
+    if (from === -1 || to === -1) { setDragInfo(null); return; }
+    ids.splice(to, 0, ids.splice(from, 1)[0]);
+    setOrderMap((prev) => ({ ...prev, [deptKey]: ids }));
+    setDragInfo(null);
+  };
 
   const fetchEmployees = async () => {
     try {
@@ -640,16 +687,46 @@ const Employees = () => {
           </div>
         </div>
 
-        {/* Search */}
-        <div className="relative max-w-md">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="بحث عن موظف..."
-            className="pr-10"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        {/* Search + Department filter + Expand/Collapse */}
+        <div className="flex flex-col md:flex-row md:items-center gap-3">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="بحث عن موظف..."
+              className="pr-10"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-muted-foreground" />
+            <Select value={deptFilter} onValueChange={setDeptFilter}>
+              <SelectTrigger className="w-56">
+                <SelectValue placeholder="كل الأقسام" />
+              </SelectTrigger>
+              <SelectContent className="max-h-72">
+                <SelectItem value="all">كل الأقسام</SelectItem>
+                {departments.map((d) => (
+                  <SelectItem key={d.key} value={d.key}>{d.name}</SelectItem>
+                ))}
+                <SelectItem value="others">موظفون آخرون</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setCollapsed(new Set())}>
+              <ChevronDown className="w-4 h-4 ml-1" /> توسيع الكل
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCollapsed(new Set([...departments.map((d) => d.key), 'others']))}
+            >
+              <ChevronUp className="w-4 h-4 ml-1" /> طي الكل
+            </Button>
+          </div>
         </div>
+
 
         {/* Employees grouped by Department */}
         {loading ? (
@@ -669,7 +746,7 @@ const Employees = () => {
             const assignedIds = new Set<string>();
             const groups = departments.map((dept) => {
               const rolePriority = new Map(dept.roles.map((r, i) => [r, i]));
-              const list = filteredEmployees
+              const baseList = filteredEmployees
                 .filter((e) => rolePriority.has(e.role))
                 .sort((a, b) => {
                   const pa = rolePriority.get(a.role)!;
@@ -677,17 +754,49 @@ const Employees = () => {
                   if (pa !== pb) return pa - pb;
                   return a.full_name.localeCompare(b.full_name, 'ar');
                 });
+              const customOrder = orderMap[dept.key];
+              let list = baseList;
+              if (customOrder && customOrder.length) {
+                const indexOf = (id: string) => {
+                  const i = customOrder.indexOf(id);
+                  return i === -1 ? Number.MAX_SAFE_INTEGER : i;
+                };
+                list = [...baseList].sort((a, b) => {
+                  const ia = indexOf(a.id);
+                  const ib = indexOf(b.id);
+                  if (ia !== ib) return ia - ib;
+                  return 0;
+                });
+              }
               list.forEach((e) => assignedIds.add(e.id));
               return { dept, list };
             });
             const others = filteredEmployees.filter((e) => !assignedIds.has(e.id));
 
-            const renderRow = (employee: Employee) => {
+            const renderRow = (employee: Employee, deptKey: string, list: Employee[]) => {
               const RoleIcon = roleIcons[employee.role];
+              const isDragging = dragInfo?.id === employee.id;
               return (
-                <TableRow key={employee.id}>
+                <TableRow
+                  key={employee.id}
+                  draggable
+                  onDragStart={(e) => {
+                    setDragInfo({ deptKey, id: employee.id });
+                    e.dataTransfer.effectAllowed = 'move';
+                  }}
+                  onDragOver={(e) => {
+                    if (dragInfo?.deptKey === deptKey) e.preventDefault();
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    handleDropOn(deptKey, employee.id, list);
+                  }}
+                  onDragEnd={() => setDragInfo(null)}
+                  className={isDragging ? 'opacity-50' : 'cursor-move'}
+                >
                   <TableCell>
                     <div className="flex items-center gap-3">
+                      <GripVertical className="w-4 h-4 text-muted-foreground/60" />
                       <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
                         {employee.full_name.charAt(0)}
                       </div>
@@ -754,43 +863,70 @@ const Employees = () => {
               color: string,
               bg: string,
               list: Employee[],
-            ) => (
-              <Card key={key} className="overflow-hidden">
-                <CardHeader className={`flex flex-row items-center justify-between gap-3 py-3 ${bg} border-b`}>
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl bg-background/70 flex items-center justify-center`}>
-                      <Icon className={`w-5 h-5 ${color}`} />
+            ) => {
+              const isCollapsed = collapsed.has(key);
+              return (
+                <Card key={key} className="overflow-hidden">
+                  <CardHeader
+                    className={`flex flex-row items-center justify-between gap-3 py-3 ${bg} border-b cursor-pointer select-none`}
+                    onClick={() => toggleCollapsed(key)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-xl bg-background/70 flex items-center justify-center`}>
+                        <Icon className={`w-5 h-5 ${color}`} />
+                      </div>
+                      <CardTitle className="text-base font-semibold">{name}</CardTitle>
                     </div>
-                    <CardTitle className="text-base font-semibold">{name}</CardTitle>
-                  </div>
-                  <Badge variant="secondary" className="text-xs">
-                    {list.length} {list.length === 1 ? 'موظف' : 'موظفين'}
-                  </Badge>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-right">الموظف</TableHead>
-                        <TableHead className="text-right">البريد الإلكتروني</TableHead>
-                        <TableHead className="text-right">الوظيفة</TableHead>
-                        <TableHead className="text-right">تاريخ الانضمام</TableHead>
-                        <TableHead className="text-right">إجراءات</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>{list.map(renderRow)}</TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            );
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-xs">
+                        {list.length} {list.length === 1 ? 'موظف' : 'موظفين'}
+                      </Badge>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={(e) => { e.stopPropagation(); toggleCollapsed(key); }}
+                        aria-label={isCollapsed ? 'توسيع' : 'طي'}
+                      >
+                        {isCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {!isCollapsed && (
+                    <CardContent className="p-0">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-right">الموظف</TableHead>
+                            <TableHead className="text-right">البريد الإلكتروني</TableHead>
+                            <TableHead className="text-right">الوظيفة</TableHead>
+                            <TableHead className="text-right">تاريخ الانضمام</TableHead>
+                            <TableHead className="text-right">إجراءات</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>{list.map((emp) => renderRow(emp, key, list))}</TableBody>
+                      </Table>
+                    </CardContent>
+                  )}
+                </Card>
+              );
+            };
+
+            const visibleGroups = groups.filter((g) => g.list.length > 0 && (deptFilter === 'all' || deptFilter === g.dept.key));
+            const showOthers = others.length > 0 && (deptFilter === 'all' || deptFilter === 'others');
 
             return (
               <div className="space-y-4">
-                {groups
-                  .filter((g) => g.list.length > 0)
-                  .map((g) => renderSection(g.dept.key, g.dept.name, g.dept.icon, g.dept.color, g.dept.bg, g.list))}
-                {others.length > 0 &&
+                {visibleGroups.map((g) => renderSection(g.dept.key, g.dept.name, g.dept.icon, g.dept.color, g.dept.bg, g.list))}
+                {showOthers &&
                   renderSection('others', 'موظفون آخرون', Users, 'text-muted-foreground', 'bg-muted/40', others)}
+                {visibleGroups.length === 0 && !showOthers && (
+                  <Card>
+                    <CardContent className="py-12 text-center text-muted-foreground">
+                      لا يوجد موظفون في هذا القسم
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             );
           })()
