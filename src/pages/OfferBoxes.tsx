@@ -286,7 +286,7 @@ const OfferBoxes = () => {
 
   // Add item to box
   const addItemMutation = useMutation({
-    mutationFn: async (data: { offer_box_id: string; product_id: string; custom_price: number; quantity: number; is_gift: boolean }) => {
+    mutationFn: async (data: { offer_box_id: string; product_id: string; custom_price: number; quantity: number; is_gift: boolean; original_price: number }) => {
       const { error } = await supabase.from('offer_box_items').insert(data);
       if (error) throw error;
     },
