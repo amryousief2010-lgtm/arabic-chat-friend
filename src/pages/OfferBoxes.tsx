@@ -65,6 +65,7 @@ interface OfferBoxItem {
   offer_box_id: string;
   product_id: string;
   custom_price: number;
+  original_price: number | null;
   quantity: number;
   is_gift: boolean;
   product?: {
