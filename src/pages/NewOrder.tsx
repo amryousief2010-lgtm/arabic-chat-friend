@@ -986,8 +986,8 @@ const NewOrder = () => {
                       />
                     </div>
 
-                    <div className="border rounded-lg overflow-hidden">
-                      <table className="w-full text-right text-sm">
+                    <div className="border rounded-lg overflow-x-auto">
+                      <table className="w-full min-w-[640px] text-right text-sm">
                         <thead className="bg-muted/60 text-xs">
                           <tr>
                             <th className="p-2 font-semibold">المنتج</th>
