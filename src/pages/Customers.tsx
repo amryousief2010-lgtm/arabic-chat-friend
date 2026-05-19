@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import Header from "@/components/layout/Header";
@@ -18,17 +18,23 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
-import { Users, Plus, Edit, Phone, Mail, MapPin, Trash2 } from "lucide-react";
+import { Users, Plus, Edit, Phone, Mail, MapPin, Trash2, ChevronRight, ChevronLeft, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import CustomersAnalytics from "@/components/dashboard/CustomersAnalytics";
 import { formatDate } from "@/lib/dateFormat";
 
+const PAGE_SIZE = 25;
+
 const Customers = () => {
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<any>(null);
+  const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [page, setPage] = useState(0);
   const { toast } = useToast();
   const { canDeleteCustomers } = useAuth();
 
@@ -36,31 +42,78 @@ const Customers = () => {
     name: "", phone: "", email: "", address: "", city: "",
   });
 
-  const { data: customers = [], isLoading } = useQuery({
-    queryKey: ['customers'],
+  // Debounce search
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setSearchQuery(searchInput.trim());
+      setPage(0);
+    }, 350);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  useEffect(() => { setPage(0); }, [dateFrom, dateTo]);
+
+  // Total count (always reflects full DB filtered count)
+  const { data: totalCount = 0 } = useQuery({
+    queryKey: ['customers-count', searchQuery, dateFrom, dateTo],
     queryFn: async () => {
-      const pageSize = 1000;
-      let from = 0;
-      const all: any[] = [];
-      while (true) {
-        const { data, error } = await supabase
-          .from('customers')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .range(from, from + pageSize - 1);
-        if (error) throw error;
-        if (!data || data.length === 0) break;
-        all.push(...data);
-        if (data.length < pageSize) break;
-        from += pageSize;
+      let q = supabase.from('customers').select('*', { count: 'exact', head: true });
+      if (searchQuery) q = q.or(`name.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`);
+      if (dateFrom) q = q.gte('created_at', new Date(dateFrom).toISOString());
+      if (dateTo) {
+        const end = new Date(dateTo);
+        end.setDate(end.getDate() + 1);
+        q = q.lt('created_at', end.toISOString());
       }
-      return all;
+      const { count, error } = await q;
+      if (error) throw error;
+      return count ?? 0;
     },
   });
 
-  const filteredCustomers = customers.filter(
-    (c) => c.name.includes(searchQuery) || c.phone.includes(searchQuery) || (c.email && c.email.includes(searchQuery))
-  );
+  // Paged page rows
+  const { data: customers = [], isLoading } = useQuery({
+    queryKey: ['customers-page', searchQuery, dateFrom, dateTo, page],
+    queryFn: async () => {
+      let q = supabase.from('customers').select('*')
+        .order('created_at', { ascending: false })
+        .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
+      if (searchQuery) q = q.or(`name.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`);
+      if (dateFrom) q = q.gte('created_at', new Date(dateFrom).toISOString());
+      if (dateTo) {
+        const end = new Date(dateTo);
+        end.setDate(end.getDate() + 1);
+        q = q.lt('created_at', end.toISOString());
+      }
+      const { data, error } = await q;
+      if (error) throw error;
+      return data || [];
+    },
+    placeholderData: keepPreviousData,
+  });
+
+  // Analytics dataset: load a wider sample (up to 1000 most recent of current filter) for charts
+  const { data: analyticsSample = [] } = useQuery({
+    queryKey: ['customers-analytics-sample', searchQuery, dateFrom, dateTo],
+    queryFn: async () => {
+      let q = supabase.from('customers').select('*')
+        .order('created_at', { ascending: false })
+        .range(0, 999);
+      if (searchQuery) q = q.or(`name.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`);
+      if (dateFrom) q = q.gte('created_at', new Date(dateFrom).toISOString());
+      if (dateTo) {
+        const end = new Date(dateTo);
+        end.setDate(end.getDate() + 1);
+        q = q.lt('created_at', end.toISOString());
+      }
+      const { data, error } = await q;
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 60 * 1000,
+  });
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   const handleOpenDialog = (customer?: any) => {
     if (customer) {
@@ -76,6 +129,12 @@ const Customers = () => {
     setIsDialogOpen(true);
   };
 
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: ['customers-page'] });
+    queryClient.invalidateQueries({ queryKey: ['customers-count'] });
+    queryClient.invalidateQueries({ queryKey: ['customers-analytics-sample'] });
+  };
+
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       const { error } = await supabase.from('customers').insert({
@@ -85,7 +144,7 @@ const Customers = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      invalidateAll();
       toast({ title: "تمت الإضافة", description: "تم إضافة العميل بنجاح" });
       setIsDialogOpen(false);
     },
@@ -98,7 +157,7 @@ const Customers = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      invalidateAll();
       toast({ title: "تم التحديث", description: "تم تحديث بيانات العميل بنجاح" });
       setIsDialogOpen(false);
     },
@@ -111,7 +170,7 @@ const Customers = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      invalidateAll();
       toast({ title: "تم الحذف", description: "تم حذف العميل بنجاح" });
     },
     onError: (e: any) => {
@@ -131,25 +190,22 @@ const Customers = () => {
     }
   };
 
+  const hasFilters = useMemo(() => !!(searchQuery || dateFrom || dateTo), [searchQuery, dateFrom, dateTo]);
+  const clearFilters = () => { setSearchInput(""); setSearchQuery(""); setDateFrom(""); setDateTo(""); setPage(0); };
+
   return (
     <DashboardLayout>
       <Header title="العملاء" subtitle="إدارة قاعدة بيانات العملاء" />
 
-      <CustomersAnalytics customers={customers} />
+      <CustomersAnalytics customers={analyticsSample} totalCount={totalCount} />
 
       <Card className="glass-card">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <Users className="w-5 h-5 text-primary" />
-            قائمة العملاء ({filteredCustomers.length})
-          </CardTitle>
-          <div className="flex items-center gap-4">
-            <Input
-              placeholder="بحث عن عميل..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-64 input-modern"
-            />
+        <CardHeader className="flex flex-col gap-3">
+          <div className="flex flex-row items-center justify-between flex-wrap gap-3">
+            <CardTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5 text-primary" />
+              قائمة العملاء — الإجمالي: {totalCount.toLocaleString()}
+            </CardTitle>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button className="btn-primary" onClick={() => handleOpenDialog()}>
@@ -189,97 +245,141 @@ const Customers = () => {
               </DialogContent>
             </Dialog>
           </div>
+
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">بحث (اسم / هاتف / بريد)</Label>
+              <Input
+                placeholder="بحث..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="w-64 input-modern"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">من تاريخ</Label>
+              <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-44 input-modern" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">إلى تاريخ</Label>
+              <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-44 input-modern" />
+            </div>
+            {hasFilters && (
+              <Button variant="outline" size="sm" onClick={clearFilters} className="gap-1">
+                <X className="w-3 h-3" /> مسح الفلاتر
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <div className="text-center py-8 text-muted-foreground">جاري التحميل...</div>
+          ) : customers.length === 0 ? (
+            <div className="text-center py-10 text-muted-foreground">لا يوجد عملاء مطابقين</div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-right">العميل</TableHead>
-                  <TableHead className="text-right">معلومات التواصل</TableHead>
-                  <TableHead className="text-right">المدينة</TableHead>
-                  <TableHead className="text-right">عدد الطلبات</TableHead>
-                  <TableHead className="text-right">إجمالي الإنفاق</TableHead>
-                  <TableHead className="text-right">تاريخ الانضمام</TableHead>
-                  <TableHead className="text-right">الإجراءات</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredCustomers.map((customer) => (
-                  <TableRow key={customer.id} className="table-row-hover">
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                          <span className="font-semibold text-primary">{customer.name.charAt(0)}</span>
-                        </div>
-                        <span className="font-medium">{customer.name}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-sm">
-                          <Phone className="w-3 h-3 text-muted-foreground" />
-                          {customer.phone}
-                        </div>
-                        {customer.email && (
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Mail className="w-3 h-3" />
-                            {customer.email}
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2 text-sm">
-                        <MapPin className="w-3 h-3 text-muted-foreground" />
-                        {customer.city || "غير محدد"}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{customer.total_orders} طلب</Badge>
-                    </TableCell>
-                    <TableCell className="font-bold">
-                      {customer.total_spent.toLocaleString()} ج.م
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {formatDate(customer.created_at)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(customer)}>
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        {canDeleteCustomers && (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>حذف العميل {customer.name}؟</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  لا يمكن التراجع عن هذا الإجراء. إذا كان للعميل طلبات مرتبطة فلن يتم الحذف.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => deleteMutation.mutate(customer.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                  حذف
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        )}
-                      </div>
-                    </TableCell>
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-right">العميل</TableHead>
+                    <TableHead className="text-right">معلومات التواصل</TableHead>
+                    <TableHead className="text-right">المدينة</TableHead>
+                    <TableHead className="text-right">عدد الطلبات</TableHead>
+                    <TableHead className="text-right">إجمالي الإنفاق</TableHead>
+                    <TableHead className="text-right">تاريخ الانضمام</TableHead>
+                    <TableHead className="text-right">الإجراءات</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {customers.map((customer: any) => (
+                    <TableRow key={customer.id} className="table-row-hover">
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                            <span className="font-semibold text-primary">{customer.name.charAt(0)}</span>
+                          </div>
+                          <span className="font-medium">{customer.name}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 text-sm">
+                            <Phone className="w-3 h-3 text-muted-foreground" />
+                            {customer.phone}
+                          </div>
+                          {customer.email && (
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <Mail className="w-3 h-3" />
+                              {customer.email}
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2 text-sm">
+                          <MapPin className="w-3 h-3 text-muted-foreground" />
+                          {customer.city || "غير محدد"}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{customer.total_orders} طلب</Badge>
+                      </TableCell>
+                      <TableCell className="font-bold">
+                        {Number(customer.total_spent).toLocaleString()} ج.م
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {formatDate(customer.created_at)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(customer)}>
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          {canDeleteCustomers && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>حذف العميل {customer.name}؟</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    لا يمكن التراجع عن هذا الإجراء. إذا كان للعميل طلبات مرتبطة فلن يتم الحذف.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => deleteMutation.mutate(customer.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                    حذف
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              <div className="flex items-center justify-between mt-4 flex-wrap gap-2">
+                <div className="text-sm text-muted-foreground">
+                  عرض {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, totalCount)} من {totalCount.toLocaleString()}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(p => Math.max(0, p - 1))}>
+                    <ChevronRight className="w-4 h-4" /> السابق
+                  </Button>
+                  <span className="text-sm px-2">صفحة {page + 1} / {totalPages}</span>
+                  <Button variant="outline" size="sm" disabled={page + 1 >= totalPages} onClick={() => setPage(p => p + 1)}>
+                    التالي <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
