@@ -2992,6 +2992,7 @@ export type Database = {
           id: string
           is_gift: boolean
           offer_box_id: string
+          original_price: number | null
           product_id: string
           quantity: number
         }
@@ -3001,6 +3002,7 @@ export type Database = {
           id?: string
           is_gift?: boolean
           offer_box_id: string
+          original_price?: number | null
           product_id: string
           quantity?: number
         }
@@ -3010,6 +3012,7 @@ export type Database = {
           id?: string
           is_gift?: boolean
           offer_box_id?: string
+          original_price?: number | null
           product_id?: string
           quantity?: number
         }

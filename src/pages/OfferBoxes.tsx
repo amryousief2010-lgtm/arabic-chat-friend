@@ -65,6 +65,7 @@ interface OfferBoxItem {
   offer_box_id: string;
   product_id: string;
   custom_price: number;
+  original_price: number | null;
   quantity: number;
   is_gift: boolean;
   product?: {
@@ -285,7 +286,7 @@ const OfferBoxes = () => {
 
   // Add item to box
   const addItemMutation = useMutation({
-    mutationFn: async (data: { offer_box_id: string; product_id: string; custom_price: number; quantity: number; is_gift: boolean }) => {
+    mutationFn: async (data: { offer_box_id: string; product_id: string; custom_price: number; quantity: number; is_gift: boolean; original_price: number }) => {
       const { error } = await supabase.from('offer_box_items').insert(data);
       if (error) throw error;
     },
@@ -358,18 +359,20 @@ const OfferBoxes = () => {
   const handleAddItem = () => {
     if (!newItem.product_id || !selectedBox) return;
     if (!newItem.is_gift && !newItem.custom_price) return;
+    const product = products.find(p => p.id === newItem.product_id);
     addItemMutation.mutate({
       offer_box_id: selectedBox.id,
       product_id: newItem.product_id,
       custom_price: newItem.is_gift ? 0 : Number(newItem.custom_price),
       quantity: Number(newItem.quantity),
       is_gift: newItem.is_gift,
+      original_price: Number(product?.price || 0),
     });
   };
 
   const selectedProduct = products.find(p => p.id === newItem.product_id);
   const totalBoxPrice = boxItems.reduce((sum, item) => sum + (item.is_gift ? 0 : item.custom_price * item.quantity), 0);
-  const originalPrice = boxItems.reduce((sum, item) => sum + (item.is_gift ? 0 : (item.product?.price || 0) * item.quantity), 0);
+  const originalPrice = boxItems.reduce((sum, item) => sum + (item.is_gift ? 0 : (item.original_price ?? item.product?.price ?? 0) * item.quantity), 0);
 
   return (
     <DashboardLayout>
@@ -808,7 +811,7 @@ const OfferBoxes = () => {
                   </TableHeader>
                   <TableBody>
                     {boxItems.map((item) => {
-                      const originalItemPrice = item.product?.price || 0;
+                      const originalItemPrice = item.original_price ?? item.product?.price ?? 0;
                       const lineOriginal = originalItemPrice * item.quantity;
                       const lineCustom = item.custom_price * item.quantity;
                       const savings = originalItemPrice > 0
