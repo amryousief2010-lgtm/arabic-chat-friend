@@ -244,12 +244,25 @@ export default function CorrectionRequests() {
                       <p className="text-xs text-muted-foreground">
                         مُرسِل الطلب: <span className="font-medium">{r.requester_name}</span>
                       </p>
-                      {canReview && (r.status === "pending" || r.status === "in_review") && (
-                        <Button size="sm" variant="default" onClick={() => { setSelected(r); setReviewNote(""); }}>
-                          <Eye className="w-4 h-4 ml-1" />
-                          مراجعة والرد
-                        </Button>
-                      )}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {(() => {
+                          const route = resolveTargetRoute(r.target_module, r.target_type);
+                          if (!route) return null;
+                          const qs = r.target_reference ? `?ref=${encodeURIComponent(r.target_reference)}` : "";
+                          return (
+                            <Button size="sm" variant="secondary" onClick={() => navigate(`${route}${qs}`)}>
+                              <ExternalLink className="w-4 h-4 ml-1" />
+                              فتح السجل المعني
+                            </Button>
+                          );
+                        })()}
+                        {canReview && (r.status === "pending" || r.status === "in_review") && (
+                          <Button size="sm" variant="default" onClick={() => { setSelected(r); setReviewNote(""); }}>
+                            <Eye className="w-4 h-4 ml-1" />
+                            مراجعة والرد
+                          </Button>
+                        )}
+                      </div>
                     </div>
 
                     {r.review_note && (
