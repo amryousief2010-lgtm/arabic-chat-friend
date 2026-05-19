@@ -156,6 +156,53 @@ const Employees = () => {
   const [newPassword, setNewPassword] = useState('');
   const [newRole, setNewRole] = useState<AppRole>('sales_moderator');
 
+  // Department filter, collapsed sections, custom order persistence
+  const ORDER_STORAGE_KEY = 'employees:dept-order:v1';
+  const COLLAPSED_STORAGE_KEY = 'employees:dept-collapsed:v1';
+  const [deptFilter, setDeptFilter] = useState<string>('all');
+  const [orderMap, setOrderMap] = useState<Record<string, string[]>>(() => {
+    try {
+      const raw = localStorage.getItem(ORDER_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+  });
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem(COLLAPSED_STORAGE_KEY);
+      return new Set<string>(raw ? JSON.parse(raw) : []);
+    } catch { return new Set(); }
+  });
+  const [dragInfo, setDragInfo] = useState<{ deptKey: string; id: string } | null>(null);
+
+  useEffect(() => {
+    try { localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(orderMap)); } catch { /* ignore */ }
+  }, [orderMap]);
+  useEffect(() => {
+    try { localStorage.setItem(COLLAPSED_STORAGE_KEY, JSON.stringify(Array.from(collapsed))); } catch { /* ignore */ }
+  }, [collapsed]);
+
+  const toggleCollapsed = (key: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
+  const handleDropOn = (deptKey: string, targetId: string, currentList: Employee[]) => {
+    if (!dragInfo || dragInfo.deptKey !== deptKey || dragInfo.id === targetId) {
+      setDragInfo(null);
+      return;
+    }
+    const ids = currentList.map((e) => e.id);
+    const from = ids.indexOf(dragInfo.id);
+    const to = ids.indexOf(targetId);
+    if (from === -1 || to === -1) { setDragInfo(null); return; }
+    ids.splice(to, 0, ids.splice(from, 1)[0]);
+    setOrderMap((prev) => ({ ...prev, [deptKey]: ids }));
+    setDragInfo(null);
+  };
+
   const fetchEmployees = async () => {
     try {
       // Fetch profiles with their roles
