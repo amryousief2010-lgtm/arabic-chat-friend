@@ -372,7 +372,7 @@ const OfferBoxes = () => {
 
   const selectedProduct = products.find(p => p.id === newItem.product_id);
   const totalBoxPrice = boxItems.reduce((sum, item) => sum + (item.is_gift ? 0 : item.custom_price * item.quantity), 0);
-  const originalPrice = boxItems.reduce((sum, item) => sum + (item.is_gift ? 0 : (item.product?.price || 0) * item.quantity), 0);
+  const originalPrice = boxItems.reduce((sum, item) => sum + (item.is_gift ? 0 : (item.original_price ?? item.product?.price ?? 0) * item.quantity), 0);
 
   return (
     <DashboardLayout>
