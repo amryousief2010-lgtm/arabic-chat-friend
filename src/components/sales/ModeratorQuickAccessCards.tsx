@@ -182,12 +182,12 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false }: Props) => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-          {(data || MODERATORS.map((m) => ({
+        <div className={`grid grid-cols-1 ${visibleModerators.length > 1 ? "md:grid-cols-2 lg:grid-cols-4" : "max-w-md mx-auto"} gap-3`}>
+          {(data || visibleModerators.map((m) => ({
             slug: m.slug, displayName: m.displayName, gradient: m.gradient, iconBg: m.iconBg,
             monthOrders: 0, monthTotal: 0, todayOrders: 0, todayTotal: 0,
             monthW: emptyW(), todayW: emptyW(),
-          }))).map((row) => (
+          }))).filter((row) => visibleSlugs.has(row.slug)).map((row) => (
             <div
               key={row.slug}
               className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${row.gradient} p-4 text-primary-foreground shadow-md hover:shadow-xl transition-all`}
