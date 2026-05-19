@@ -404,15 +404,28 @@ const OrderDetails = () => {
                     المنتجات ({order.items.length})
                   </CardTitle>
                   {canEditItems && order.status !== 'cancelled' && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setEditItemsOpen(true)}
-                      className="gap-1"
-                    >
-                      <Pencil className="w-4 h-4" />
-                      تعديل المنتجات
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                      {order.items.some((it) => it.offer_name) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSwapOfferOpen(true)}
+                          className="gap-1"
+                        >
+                          <Package className="w-4 h-4" />
+                          استبدال العرض
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditItemsOpen(true)}
+                        className="gap-1"
+                      >
+                        <Pencil className="w-4 h-4" />
+                        تعديل المنتجات
+                      </Button>
+                    </div>
                   )}
                 </div>
               </CardHeader>
