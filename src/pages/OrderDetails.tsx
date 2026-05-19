@@ -728,6 +728,23 @@ const OrderDetails = () => {
         />
       )}
 
+      {order && (
+        <SwapOfferDialog
+          open={swapOfferOpen}
+          onOpenChange={setSwapOfferOpen}
+          orderId={order.id}
+          currentItems={order.items.map((it) => ({
+            id: it.id,
+            product_name: it.product_name,
+            quantity: it.quantity,
+            unit_price: it.unit_price,
+            total_price: it.total_price,
+            offer_name: it.offer_name ?? null,
+          }))}
+          onSaved={() => id && fetchOrder(id)}
+        />
+      )}
+
       <Dialog open={editCustomerOpen} onOpenChange={setEditCustomerOpen}>
         <DialogContent>
           <DialogHeader>
