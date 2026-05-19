@@ -24,6 +24,7 @@ import OrgChart from "@/pages/OrgChart";
 import NotFound from "@/pages/NotFound";
 import Unauthorized from "@/pages/Unauthorized";
 import ImportSalesData from "@/pages/ImportSalesData";
+import RebuildMayOrders from "@/pages/RebuildMayOrders";
 import ExcelComparison from "@/pages/ExcelComparison";
 import ModeratorPerformance from "@/pages/ModeratorPerformance";
 import ModeratorOrdersLog from "@/pages/ModeratorOrdersLog";
