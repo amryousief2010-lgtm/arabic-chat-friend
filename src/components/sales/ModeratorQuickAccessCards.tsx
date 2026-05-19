@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ShoppingCart, Plus, FileText, UserRound, Beef, Drumstick, Flame } from "lucide-react";
-import { MODERATORS, isOrderForModerator, ModeratorConfig } from "@/constants/moderators";
+import { MODERATORS, isOrderForModerator, ModeratorConfig, findModeratorByName } from "@/constants/moderators";
 import { useAuth } from "@/hooks/useAuth";
 
 interface OrderRow {
