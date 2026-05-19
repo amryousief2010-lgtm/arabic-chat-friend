@@ -4268,6 +4268,11 @@ export type Database = {
         }
         Returns: number
       }
+      normalize_ar: { Args: { s: string }; Returns: string }
+      order_matches_moderator: {
+        Args: { _moderator_text: string; _user_id: string }
+        Returns: boolean
+      }
       preview_meat_factory_batch_requirements: {
         Args: { p_batch_id: string }
         Returns: Json
