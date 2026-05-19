@@ -932,6 +932,14 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
         excMap.set(r.cut_name_ar, (excMap.get(r.cut_name_ar) || 0) + accepted);
       }
     }
+    // Include custom (unregistered) cuts in yield calc + breakdown
+    for (const c of customItems) {
+      const w = Number(c.weight) || 0;
+      if (w <= 0 || !c.name?.trim()) continue;
+      yieldWeight += w;
+      const label = `${c.name.trim()} (مخصص)`;
+      incMap.set(label, (incMap.get(label) || 0) + w);
+    }
     const live = Number(batch.total_live_weight_kg);
     return {
       totalActual, totalProduced, totalValue, yieldWeight, totalDamaged, totalQuarantined,
@@ -939,7 +947,7 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
       includedBreakdown: Array.from(incMap.entries()).sort((a, b) => b[1] - a[1]),
       excludedBreakdown: Array.from(excMap.entries()).sort((a, b) => b[1] - a[1]),
     };
-  }, [rows, yieldSet, batch.total_live_weight_kg]);
+  }, [rows, yieldSet, batch.total_live_weight_kg, customItems]);
 
   const updateRow = (i: number, patch: Partial<any>) => {
     setRows(prev => {
