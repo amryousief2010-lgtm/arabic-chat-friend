@@ -30,8 +30,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus, Trash2, Pencil, ChevronDown, ChevronUp } from "lucide-react";
+import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus, Trash2, Pencil, ChevronDown, ChevronUp, PackageOpen } from "lucide-react";
 import EditOrderItemsDialog from "@/components/orders/EditOrderItemsDialog";
+import SwapOfferDialog from "@/components/orders/SwapOfferDialog";
 import DiscrepancyBanner from "@/components/orders/DiscrepancyBanner";
 import {
   AlertDialog,
@@ -160,6 +161,7 @@ const Orders = () => {
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+  const [swapOfferOrder, setSwapOfferOrder] = useState<Order | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [searchParams, setSearchParams] = useSearchParams();
   const yearParam = searchParams.get("year");
@@ -906,6 +908,18 @@ const Orders = () => {
                               <Pencil className="w-4 h-4" />
                             </Button>
                           )}
+                        {order.status !== 'delivered' &&
+                          order.status !== 'cancelled' &&
+                          order.items.some((it) => it.offer_name) && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setSwapOfferOrder(order)}
+                              title="استبدال العرض"
+                            >
+                              <PackageOpen className="w-4 h-4 text-primary" />
+                            </Button>
+                          )}
                         {canDeleteOrders && (
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
@@ -1107,6 +1121,27 @@ const Orders = () => {
           }}
         />
       )}
+
+      {swapOfferOrder && (
+        <SwapOfferDialog
+          open={!!swapOfferOrder}
+          onOpenChange={(o) => !o && setSwapOfferOrder(null)}
+          orderId={swapOfferOrder.id}
+          currentItems={swapOfferOrder.items.map((it) => ({
+            id: it.id,
+            product_name: it.product_name,
+            quantity: it.quantity,
+            unit_price: it.unit_price,
+            total_price: it.total_price,
+            offer_name: it.offer_name ?? null,
+          }))}
+          onSaved={() => {
+            setSwapOfferOrder(null);
+            fetchOrders();
+          }}
+        />
+      )}
+
 
       {/* Per-moderator quick access — only for the private delivery rep here
           (filtered to "مندوب خاص"). The general view was moved to /sales-targets. */}
