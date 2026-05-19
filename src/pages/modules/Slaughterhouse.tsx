@@ -609,6 +609,64 @@ const Slaughterhouse = () => {
               onUpdate={fetchAll}
             />
           )}
+
+          <Dialog open={!!editReceipt} onOpenChange={(o) => { if (!o) { setEditReceipt(null); setEditReceiptForm({}); } }}>
+            <DialogContent dir="rtl" className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>تعديل بيانات الاستلام — {editReceipt?.receipt_number}</DialogTitle>
+              </DialogHeader>
+              {editReceipt && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div><Label>تاريخ التوريد</Label>
+                    <Input type="date" max={todayStr}
+                      value={String(editReceiptForm.receipt_date ?? editReceipt.receipt_date)}
+                      onChange={e => setEditReceiptForm({ ...editReceiptForm, receipt_date: e.target.value })} />
+                  </div>
+                  <div><Label>المصدر</Label>
+                    <Select value={String(editReceiptForm.source_type ?? editReceipt.source_type)}
+                      onValueChange={v => setEditReceiptForm({ ...editReceiptForm, source_type: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="internal_farm">المزرعة الداخلية</SelectItem>
+                        <SelectItem value="external_supplier">مورد خارجي</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div><Label>اسم المصدر / المورد</Label>
+                    <Input value={String(editReceiptForm.source_name ?? editReceipt.source_name ?? "")}
+                      onChange={e => setEditReceiptForm({ ...editReceiptForm, source_name: e.target.value })} />
+                  </div>
+                  <div><Label>عدد الطيور</Label>
+                    <Input type="number"
+                      value={String(editReceiptForm.bird_count ?? editReceipt.bird_count ?? "")}
+                      onChange={e => setEditReceiptForm({ ...editReceiptForm, bird_count: +e.target.value })} />
+                  </div>
+                  <div><Label>الوزن الإجمالي (كجم)</Label>
+                    <Input type="number" step="0.1"
+                      value={String(editReceiptForm.total_weight_kg ?? editReceipt.total_weight_kg ?? "")}
+                      onChange={e => setEditReceiptForm({ ...editReceiptForm, total_weight_kg: +e.target.value })} />
+                  </div>
+                  <div><Label>السعر/كجم (ر.س)</Label>
+                    <Input type="number" step="0.01"
+                      value={String(editReceiptForm.price_per_kg ?? editReceipt.price_per_kg ?? "")}
+                      onChange={e => setEditReceiptForm({ ...editReceiptForm, price_per_kg: +e.target.value })} />
+                  </div>
+                  <div><Label>نافق عند الوصول</Label>
+                    <Input type="number"
+                      value={String(editReceiptForm.dead_on_arrival ?? editReceipt.dead_on_arrival ?? "")}
+                      onChange={e => setEditReceiptForm({ ...editReceiptForm, dead_on_arrival: +e.target.value })} />
+                  </div>
+                  <div className="sm:col-span-2 text-xs bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 p-2 rounded">
+                    ⚠️ هذا التعديل متاح فقط للمدير العام والمدير التنفيذي. تغيير التاريخ يُسجَّل تلقائيًا في سجل التدقيق. أوزان الطيور المنفصلة تُعدَّل من شاشة "الطيور".
+                  </div>
+                </div>
+              )}
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => { setEditReceipt(null); setEditReceiptForm({}); }}>إلغاء</Button>
+                <Button onClick={saveEditedReceipt}><Save className="w-4 h-4 ml-1" />حفظ التعديلات</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         {/* ========== TRANSFERS ========== */}
