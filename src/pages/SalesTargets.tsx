@@ -40,6 +40,8 @@ import MonthlyTargetTable from '@/components/sales/MonthlyTargetTable';
 import ModeratorOrdersBreakdown from '@/components/sales/ModeratorOrdersBreakdown';
 import GirlsSalesQuantityTable from '@/components/sales/GirlsSalesQuantityTable';
 import ModeratorPayrollTable from '@/components/sales/ModeratorPayrollTable';
+import ModeratorQuickAccessCards from '@/components/sales/ModeratorQuickAccessCards';
+import ModeratorsAggregateSummary from '@/components/sales/ModeratorsAggregateSummary';
 
 const months = [
   { value: 1, label: 'يناير' },
@@ -278,6 +280,8 @@ const SalesTargets = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {!isModerator && <ModeratorQuickAccessCards />}
+        {!isModerator && <ModeratorsAggregateSummary />}
         {!isModerator && <MonthlyTargetTable />}
         {!isModerator && <ModeratorOrdersBreakdown />}
         {!isModerator && <GirlsSalesQuantityTable />}
