@@ -66,8 +66,7 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false }: Props) => {
         .from("orders")
         .select("id, total, status, moderator, created_by, created_at, shipping_company")
         .gte("created_at", startOfMonth.toISOString())
-        .lt("created_at", startOfNextMonth.toISOString())
-        .neq("status", "cancelled");
+        .lt("created_at", startOfNextMonth.toISOString());
       if (privateDeliveryOnly) q = q.eq("shipping_company", "مندوب خاص");
       const { data: orders, error } = await q;
       if (error) throw error;
