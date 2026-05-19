@@ -1010,6 +1010,57 @@ export type Database = {
         }
         Relationships: []
       }
+      excel_snapshots: {
+        Row: {
+          cancelled_count: number | null
+          delivered_count: number | null
+          delivered_value: number | null
+          filename: string | null
+          id: string
+          pending_count: number | null
+          per_day: Json | null
+          per_moderator: Json | null
+          period: string
+          raw_rows: Json | null
+          total_rows: number | null
+          total_value: number | null
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          cancelled_count?: number | null
+          delivered_count?: number | null
+          delivered_value?: number | null
+          filename?: string | null
+          id?: string
+          pending_count?: number | null
+          per_day?: Json | null
+          per_moderator?: Json | null
+          period: string
+          raw_rows?: Json | null
+          total_rows?: number | null
+          total_value?: number | null
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          cancelled_count?: number | null
+          delivered_count?: number | null
+          delivered_value?: number | null
+          filename?: string | null
+          id?: string
+          pending_count?: number | null
+          per_day?: Json | null
+          per_moderator?: Json | null
+          period?: string
+          raw_rows?: Json | null
+          total_rows?: number | null
+          total_value?: number | null
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: []
+      }
       farm_egg_production: {
         Row: {
           created_at: string
@@ -2215,6 +2266,80 @@ export type Database = {
           notes?: string | null
         }
         Relationships: []
+      }
+      import_audit_log: {
+        Row: {
+          action: string
+          details: Json | null
+          id: string
+          performed_at: string
+          performed_by: string | null
+          rows_affected: number | null
+          source_file: string | null
+          target_period: string | null
+        }
+        Insert: {
+          action: string
+          details?: Json | null
+          id?: string
+          performed_at?: string
+          performed_by?: string | null
+          rows_affected?: number | null
+          source_file?: string | null
+          target_period?: string | null
+        }
+        Update: {
+          action?: string
+          details?: Json | null
+          id?: string
+          performed_at?: string
+          performed_by?: string | null
+          rows_affected?: number | null
+          source_file?: string | null
+          target_period?: string | null
+        }
+        Relationships: []
+      }
+      import_discrepancy_alerts: {
+        Row: {
+          detected_at: string
+          diff_summary: Json
+          id: string
+          is_resolved: boolean
+          period: string
+          resolved_at: string | null
+          resolved_by: string | null
+          snapshot_id: string | null
+        }
+        Insert: {
+          detected_at?: string
+          diff_summary?: Json
+          id?: string
+          is_resolved?: boolean
+          period: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          snapshot_id?: string | null
+        }
+        Update: {
+          detected_at?: string
+          diff_summary?: Json
+          id?: string
+          is_resolved?: boolean
+          period?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          snapshot_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_discrepancy_alerts_snapshot_id_fkey"
+            columns: ["snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "excel_snapshots"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       inventory_items: {
         Row: {
@@ -4224,6 +4349,10 @@ export type Database = {
       can_issue_feed_materials: { Args: { _user_id: string }; Returns: boolean }
       can_manage_feed_recipes: { Args: { _user_id: string }; Returns: boolean }
       check_offer_expiry: { Args: never; Returns: boolean }
+      compare_period_to_snapshot: {
+        Args: { p_raise_alert?: boolean; p_snapshot_id: string }
+        Returns: Json
+      }
       deactivate_expired_offers: { Args: never; Returns: undefined }
       delete_email: {
         Args: { message_id: number; queue_name: string }
