@@ -163,6 +163,22 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false }: Props) => {
     },
   });
 
+  // Live refresh whenever orders/items change so each girl sees up-to-date numbers
+  useEffect(() => {
+    const channel = supabase
+      .channel("moderator-quick-access-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["moderator-quick-access-v2"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "order_items" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["moderator-quick-access-v2"] });
+      })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
   const fmt = (n: number) => Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 1 });
 
   return (
