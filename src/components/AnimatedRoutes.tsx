@@ -131,6 +131,11 @@ const AnimatedRoutes = () => {
             <PageTransition><Reports /></PageTransition>
           </ProtectedRoute>
         } />
+        <Route path="/reports/excel-comparison" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'financial_manager']}>
+            <PageTransition><ExcelComparison /></PageTransition>
+          </ProtectedRoute>
+        } />
         <Route path="/reports/customer-weight" element={
           <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'financial_manager', 'warehouse_supervisor']}>
             <PageTransition><CustomerWeightReport /></PageTransition>
