@@ -687,16 +687,46 @@ const Employees = () => {
           </div>
         </div>
 
-        {/* Search */}
-        <div className="relative max-w-md">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="بحث عن موظف..."
-            className="pr-10"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        {/* Search + Department filter + Expand/Collapse */}
+        <div className="flex flex-col md:flex-row md:items-center gap-3">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="بحث عن موظف..."
+              className="pr-10"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-muted-foreground" />
+            <Select value={deptFilter} onValueChange={setDeptFilter}>
+              <SelectTrigger className="w-56">
+                <SelectValue placeholder="كل الأقسام" />
+              </SelectTrigger>
+              <SelectContent className="max-h-72">
+                <SelectItem value="all">كل الأقسام</SelectItem>
+                {departments.map((d) => (
+                  <SelectItem key={d.key} value={d.key}>{d.name}</SelectItem>
+                ))}
+                <SelectItem value="others">موظفون آخرون</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setCollapsed(new Set())}>
+              <ChevronDown className="w-4 h-4 ml-1" /> توسيع الكل
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCollapsed(new Set([...departments.map((d) => d.key), 'others']))}
+            >
+              <ChevronUp className="w-4 h-4 ml-1" /> طي الكل
+            </Button>
+          </div>
         </div>
+
 
         {/* Employees grouped by Department */}
         {loading ? (
