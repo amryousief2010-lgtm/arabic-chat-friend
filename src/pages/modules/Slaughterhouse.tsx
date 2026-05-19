@@ -1135,18 +1135,34 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
                 value={newCustomName || undefined}
                 onValueChange={(v) => setNewCustomName(v === "__other__" ? "" : v)}
               >
-                <SelectTrigger><SelectValue placeholder="اختر صنفًا..." /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="اختر صنفًا (مسجل أو غير مسجل)..." /></SelectTrigger>
                 <SelectContent className="z-[100] max-h-72">
+                  {yields.filter(y => y.is_active !== false).length > 0 && (
+                    <>
+                      <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground bg-muted/40">📦 من قائمة المنتجات المسجلة</div>
+                      {yields.filter(y => y.is_active !== false).map((y) => (
+                        <SelectItem key={`reg-${y.id}`} value={y.cut_name_ar}>
+                          <span className="flex items-center gap-2">
+                            <span>{y.cut_name_ar}</span>
+                            {y.barcode && <span className="text-xs text-muted-foreground font-mono">#{y.barcode}</span>}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </>
+                  )}
+                  <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground bg-muted/40 mt-1">➕ أصناف غير مسجلة شائعة</div>
                   {["ذيل", "رأس", "رقبة", "جلد", "أحشاء", "شحم بطن", "عظم رقبة", "عظم ظهر", "أرجل", "أجنحة"].map((n) => (
-                    <SelectItem key={n} value={n}>{n}</SelectItem>
+                    <SelectItem key={`pre-${n}`} value={n}>{n}</SelectItem>
                   ))}
-                  <SelectItem value="__other__">أخرى (اكتب يدويًا)...</SelectItem>
+                  <SelectItem value="__other__">✏️ أخرى (اكتب يدويًا)...</SelectItem>
                 </SelectContent>
               </Select>
-              {(newCustomName === "" || ![ "ذيل","رأس","رقبة","جلد","أحشاء","شحم بطن","عظم رقبة","عظم ظهر","أرجل","أجنحة" ].includes(newCustomName)) && (
+              {(newCustomName === "" ||
+                (!yields.some(y => y.cut_name_ar === newCustomName) &&
+                 !["ذيل","رأس","رقبة","جلد","أحشاء","شحم بطن","عظم رقبة","عظم ظهر","أرجل","أجنحة"].includes(newCustomName))) && (
                 <Input
                   className="mt-2"
-                  placeholder="اكتب اسم الصنف..."
+                  placeholder="اكتب اسم الصنف يدويًا..."
                   value={newCustomName}
                   onChange={(e) => setNewCustomName(e.target.value)}
                 />
