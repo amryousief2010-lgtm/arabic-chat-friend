@@ -811,7 +811,7 @@ const OfferBoxes = () => {
                   </TableHeader>
                   <TableBody>
                     {boxItems.map((item) => {
-                      const originalItemPrice = item.product?.price || 0;
+                      const originalItemPrice = item.original_price ?? item.product?.price ?? 0;
                       const lineOriginal = originalItemPrice * item.quantity;
                       const lineCustom = item.custom_price * item.quantity;
                       const savings = originalItemPrice > 0
