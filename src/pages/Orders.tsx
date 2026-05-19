@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/select";
 import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus, Trash2, Pencil, ChevronDown, ChevronUp } from "lucide-react";
 import EditOrderItemsDialog from "@/components/orders/EditOrderItemsDialog";
+import DiscrepancyBanner from "@/components/orders/DiscrepancyBanner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -501,6 +502,7 @@ const Orders = () => {
 
   return (
     <DashboardLayout>
+      <DiscrepancyBanner />
       <OrdersAnalytics orders={orders} />
 
       <Tabs value={yearGroup} onValueChange={(v) => setYearGroup(v as YearGroup)} className="mb-4">
@@ -990,7 +992,13 @@ const Orders = () => {
 
               <div className="space-y-2 border-t pt-4">
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">المجموع الفرعي</span>
+                  <span className="text-muted-foreground flex items-center gap-1">
+                    المجموع الفرعي
+                    <span
+                      title="قيمة المنتجات فقط (subtotal) — كما في عمود «قيمة الاوردر بدون شحن» في ملف Excel. لا يشمل رسوم التوصيل إلا للعروض."
+                      className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-muted text-[10px] cursor-help"
+                    >؟</span>
+                  </span>
                   <span>{selectedOrder.subtotal.toLocaleString()} ج.م</span>
                 </div>
                 <div className="flex justify-between text-sm">

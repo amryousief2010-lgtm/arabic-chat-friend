@@ -24,6 +24,7 @@ import OrgChart from "@/pages/OrgChart";
 import NotFound from "@/pages/NotFound";
 import Unauthorized from "@/pages/Unauthorized";
 import ImportSalesData from "@/pages/ImportSalesData";
+import ExcelComparison from "@/pages/ExcelComparison";
 import ModeratorPerformance from "@/pages/ModeratorPerformance";
 import ModeratorOrdersLog from "@/pages/ModeratorOrdersLog";
 import Farm from "@/pages/modules/Farm";
@@ -129,6 +130,11 @@ const AnimatedRoutes = () => {
         <Route path="/reports" element={
           <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'financial_manager', 'quality_manager']}>
             <PageTransition><Reports /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/reports/excel-comparison" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'financial_manager']}>
+            <PageTransition><ExcelComparison /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/reports/customer-weight" element={
