@@ -893,6 +893,14 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
   const [pickCut, setPickCut] = useState<string>("");
   const [searchCut, setSearchCut] = useState<string>("");
   const [pendingConfirm, setPendingConfirm] = useState<null | { mismatchRows: { name: string; produced: number; sum: number }[] }>(null);
+  // Custom (unregistered) cuts that count toward yield % only
+  const CUSTOM_KEY = `slaughter_custom_yield_${batchId}`;
+  const [customItems, setCustomItems] = useState<Array<{ name: string; weight: number }>>(() => {
+    try { return JSON.parse(localStorage.getItem(CUSTOM_KEY) || "[]"); } catch { return []; }
+  });
+  const [newCustomName, setNewCustomName] = useState("");
+  const [newCustomWeight, setNewCustomWeight] = useState<number | "">("");
+  useEffect(() => { try { localStorage.setItem(CUSTOM_KEY, JSON.stringify(customItems)); } catch {} }, [customItems, CUSTOM_KEY]);
 
   // Helper: accepted (available) = produced - damaged - quarantined, clamped ≥ 0
   const acceptedOf = (r: any) =>
