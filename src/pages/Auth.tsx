@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { Eye, EyeOff, LogIn, ShieldCheck } from 'lucide-react';
 import { z } from 'zod';
-import { checkAndReloadIfStale } from '@/lib/updateChecker';
+
 import cocLogo from '@/assets/coc-logo.jpg';
 
 const loginSchema = z.object({
@@ -57,11 +57,10 @@ const Auth = () => {
       }
     } else {
       toast.success('تم تسجيل الدخول بنجاح');
-      const willReload = await checkAndReloadIfStale('post-login');
-      if (willReload) {
-        toast.info('يوجد تحديث جديد — جارٍ إعادة التحميل...');
-        return;
-      }
+      // ملاحظة: تم إزالة فحص التحديث الفوري بعد تسجيل الدخول لأنه كان يمسح
+      // الكاش ويعيد تحميل الصفحة قبل أن يكتمل حفظ جلسة Supabase، مما يسبب
+      // تعارض refresh-token (429) ويُخرج المستخدم تلقائياً. الفحص الدوري
+      // وفحص الإقلاع كافيان لاكتشاف التحديثات.
     }
 
     setIsLoading(false);
