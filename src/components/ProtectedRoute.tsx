@@ -13,7 +13,6 @@ interface ProtectedRouteProps {
 const MODERATOR_ALLOWED_PREFIXES = [
   '/orders',
   '/sales-targets',
-  '/modules/warehouses',
   '/notifications',
   '/permissions',
   '/private-delivery-pricing',
