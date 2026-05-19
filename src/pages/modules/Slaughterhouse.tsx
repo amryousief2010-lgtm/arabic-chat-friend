@@ -1127,15 +1127,30 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
         <div className="mb-3 p-3 border rounded bg-primary/5 space-y-2">
           <Label className="text-xs font-semibold block">
             ➕ إضافة صنف غير مسجل لاحتساب التصافي
-            <span className="text-muted-foreground font-normal mr-1">(يُضاف للوزن المُحتسب فقط ولا يدخل جدول التقسيمة)</span>
+            <span className="text-muted-foreground font-normal mr-1">(يُضاف للوزن المُحتسب فقط ولا يدخل جدول التقسيمة — يُحفظ تلقائيًا لكل دفعة)</span>
           </Label>
           <div className="flex flex-wrap items-end gap-2">
             <div className="flex-1 min-w-[180px]">
-              <Input
-                placeholder="اسم الصنف (مثال: ذيل، رأس...)"
-                value={newCustomName}
-                onChange={(e) => setNewCustomName(e.target.value)}
-              />
+              <Select
+                value={newCustomName || undefined}
+                onValueChange={(v) => setNewCustomName(v === "__other__" ? "" : v)}
+              >
+                <SelectTrigger><SelectValue placeholder="اختر صنفًا..." /></SelectTrigger>
+                <SelectContent className="z-[100] max-h-72">
+                  {["ذيل", "رأس", "رقبة", "جلد", "أحشاء", "شحم بطن", "عظم رقبة", "عظم ظهر", "أرجل", "أجنحة"].map((n) => (
+                    <SelectItem key={n} value={n}>{n}</SelectItem>
+                  ))}
+                  <SelectItem value="__other__">أخرى (اكتب يدويًا)...</SelectItem>
+                </SelectContent>
+              </Select>
+              {(newCustomName === "" || ![ "ذيل","رأس","رقبة","جلد","أحشاء","شحم بطن","عظم رقبة","عظم ظهر","أرجل","أجنحة" ].includes(newCustomName)) && (
+                <Input
+                  className="mt-2"
+                  placeholder="اكتب اسم الصنف..."
+                  value={newCustomName}
+                  onChange={(e) => setNewCustomName(e.target.value)}
+                />
+              )}
             </div>
             <div className="w-32">
               <Input
@@ -1150,7 +1165,7 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
               onClick={() => {
                 const n = newCustomName.trim();
                 const w = Number(newCustomWeight);
-                if (!n || !w || w <= 0) { toast.error("أدخل اسمًا ووزنًا صالحًا"); return; }
+                if (!n || !w || w <= 0) { toast.error("اختر صنفًا وأدخل وزنًا صالحًا"); return; }
                 setCustomItems((p) => [...p, { name: n, weight: w }]);
                 setNewCustomName(""); setNewCustomWeight("");
               }}
@@ -1160,23 +1175,40 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
             </Button>
           </div>
           {customItems.length > 0 && (
-            <div className="flex flex-wrap gap-1 pt-1">
+            <div className="space-y-1 pt-2 border-t border-border/40">
+              <div className="text-xs text-muted-foreground mb-1">الأصناف المضافة (قابلة للتعديل):</div>
               {customItems.map((c, idx) => (
-                <span key={idx} className="bg-primary/15 text-primary px-2 py-0.5 rounded text-xs flex items-center gap-1">
-                  {c.name}: <b>{c.weight.toFixed(1)} كجم</b>
-                  <button
-                    type="button"
+                <div key={idx} className="flex items-center gap-2 bg-background/60 rounded px-2 py-1">
+                  <Input
+                    className="flex-1 min-w-[140px] h-8 text-sm"
+                    value={c.name}
+                    onChange={(e) => setCustomItems((p) => p.map((x, i) => i === idx ? { ...x, name: e.target.value } : x))}
+                    placeholder="اسم الصنف"
+                  />
+                  <Input
+                    className="w-24 h-8 text-sm"
+                    type="number" step="0.1" min={0} inputMode="decimal"
+                    value={c.weight || ""}
+                    onChange={(e) => setCustomItems((p) => p.map((x, i) => i === idx ? { ...x, weight: +e.target.value || 0 } : x))}
+                    placeholder="كجم"
+                  />
+                  <span className="text-xs text-muted-foreground">كجم</span>
+                  <Button
+                    type="button" size="sm" variant="destructive"
+                    className="h-8 px-2"
                     onClick={() => setCustomItems((p) => p.filter((_, i) => i !== idx))}
-                    className="hover:text-destructive"
-                    aria-label="حذف"
                   >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                </span>
+                    <Trash2 className="w-4 h-4 ml-1" /> حذف
+                  </Button>
+                </div>
               ))}
+              <div className="text-xs text-emerald-700 dark:text-emerald-400 pt-1">
+                إجمالي المضاف للتصافي: <b>{customItems.reduce((s, c) => s + (Number(c.weight) || 0), 0).toFixed(1)} كجم</b>
+              </div>
             </div>
           )}
         </div>
+
 
 
 
