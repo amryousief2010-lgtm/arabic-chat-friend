@@ -81,6 +81,9 @@ export default function RequestCorrectionDialog({
       }
       return;
     }
+    toast.success("📨 تم إرسال طلب التصحيح للإدارة", {
+      description: "سيصلك إشعار عند الرد",
+    });
     setOpen(false);
     setNote("");
     setPriority("normal");
