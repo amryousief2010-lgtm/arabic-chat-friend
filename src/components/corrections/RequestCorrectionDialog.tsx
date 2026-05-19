@@ -71,12 +71,16 @@ export default function RequestCorrectionDialog({
     setLoading(false);
 
     if (error) {
-      toast.error("تعذّر إرسال طلب التصحيح", { description: error.message });
+      const msg = (error.message || "").toLowerCase();
+      if (msg.includes("uniq_open_correction_per_target") || msg.includes("duplicate key")) {
+        toast.error("لديك بالفعل طلب تصحيح مفتوح لنفس السجل", {
+          description: "لا يمكن إرسال أكثر من ملاحظة واحدة للدفعة قبل أن يرد عليها المدير",
+        });
+      } else {
+        toast.error("تعذّر إرسال طلب التصحيح", { description: error.message });
+      }
       return;
     }
-    toast.success("📨 تم إرسال طلب التصحيح للإدارة", {
-      description: "سيصلك إشعار عند الرد",
-    });
     setOpen(false);
     setNote("");
     setPriority("normal");
