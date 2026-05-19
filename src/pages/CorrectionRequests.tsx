@@ -17,7 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { CheckCircle2, XCircle, Eye, Clock } from "lucide-react";
+import { CheckCircle2, XCircle, Eye, Clock, Paperclip, Download } from "lucide-react";
 import { format } from "date-fns";
 
 interface CorrectionRequest {
@@ -33,6 +33,9 @@ interface CorrectionRequest {
   review_note: string | null;
   reviewed_at: string | null;
   created_at: string;
+  attachment_url: string | null;
+  attachment_name: string | null;
+  attachment_type: string | null;
   requester_name?: string;
   reviewer_name?: string;
 }
@@ -137,6 +140,17 @@ export default function CorrectionRequests() {
     setReviewNote("");
   };
 
+  const openAttachment = async (path: string) => {
+    const { data, error } = await supabase.storage
+      .from("correction-attachments")
+      .createSignedUrl(path, 300);
+    if (error || !data?.signedUrl) {
+      toast.error("تعذّر فتح المرفق", { description: error?.message });
+      return;
+    }
+    window.open(data.signedUrl, "_blank");
+  };
+
   const filtered = items.filter((r) => (tab === "pending" ? r.status === "pending" || r.status === "in_review" : true));
 
   return (
@@ -195,6 +209,18 @@ export default function CorrectionRequests() {
 
                     <p className="text-sm">{r.note}</p>
 
+                    {r.attachment_url && (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="gap-1"
+                        onClick={() => openAttachment(r.attachment_url!)}
+                      >
+                        <Paperclip className="w-3 h-3" />
+                        {r.attachment_name || "عرض المرفق"}
+                      </Button>
+                    )}
+
                     <div className="flex items-center justify-between gap-2 flex-wrap">
                       <p className="text-xs text-muted-foreground">
                         مُرسِل الطلب: <span className="font-medium">{r.requester_name}</span>
@@ -238,6 +264,17 @@ export default function CorrectionRequests() {
                 {selected.target_reference && <p><strong>المرجع:</strong> {selected.target_reference}</p>}
                 <p><strong>الموظف:</strong> {selected.requester_name}</p>
                 <p><strong>الملاحظة:</strong> {selected.note}</p>
+                {selected.attachment_url && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1 mt-2"
+                    onClick={() => openAttachment(selected.attachment_url!)}
+                  >
+                    <Download className="w-3 h-3" />
+                    تنزيل / عرض المرفق ({selected.attachment_name})
+                  </Button>
+                )}
               </div>
               <Textarea
                 placeholder="رد الإدارة / الإجراء المتخذ..."
