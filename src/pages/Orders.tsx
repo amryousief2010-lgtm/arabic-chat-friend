@@ -908,6 +908,18 @@ const Orders = () => {
                               <Pencil className="w-4 h-4" />
                             </Button>
                           )}
+                        {order.status !== 'delivered' &&
+                          order.status !== 'cancelled' &&
+                          order.items.some((it) => it.offer_name) && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setSwapOfferOrder(order)}
+                              title="استبدال العرض"
+                            >
+                              <PackageOpen className="w-4 h-4 text-primary" />
+                            </Button>
+                          )}
                         {canDeleteOrders && (
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
