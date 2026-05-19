@@ -1100,13 +1100,10 @@ const Orders = () => {
         />
       )}
 
-      {/* Per-moderator quick access section — hidden from moderators themselves for privacy.
-          For the private delivery rep it's filtered to "مندوب خاص" shipping orders only. */}
-      {!isSalesModerator && (
-        <>
-          <ModeratorQuickAccessCards privateDeliveryOnly={isPrivateDeliveryRep} />
-          {!isPrivateDeliveryRep && <ModeratorsAggregateSummary />}
-        </>
+      {/* Per-moderator quick access — only for the private delivery rep here
+          (filtered to "مندوب خاص"). The general view was moved to /sales-targets. */}
+      {!isSalesModerator && isPrivateDeliveryRep && (
+        <ModeratorQuickAccessCards privateDeliveryOnly />
       )}
     </DashboardLayout>
   );
