@@ -280,7 +280,7 @@ const SalesTargets = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {!isModerator && <ModeratorQuickAccessCards />}
+        <ModeratorQuickAccessCards />
         {!isModerator && <ModeratorsAggregateSummary />}
         {!isModerator && <MonthlyTargetTable />}
         {!isModerator && <ModeratorOrdersBreakdown />}
