@@ -64,8 +64,11 @@ type AuditEntry = { id: string; action: string; target_type: string; target_id: 
 const Slaughterhouse = () => {
   const { role } = useAuth();
   const canEditReceiptDate = role === "slaughterhouse_manager" || role === "general_manager" || role === "executive_manager";
+  const canEditReceiptData = role === "general_manager" || role === "executive_manager";
   const canManageBatch = canEditReceiptDate;
   const [editBatch, setEditBatch] = useState<Batch | null>(null);
+  const [editReceipt, setEditReceipt] = useState<Receipt | null>(null);
+  const [editReceiptForm, setEditReceiptForm] = useState<Partial<Receipt> & { notes?: string }>({});
   const todayStr = new Date().toISOString().slice(0, 10);
   const [receiptDateFrom, setReceiptDateFrom] = useState<string>("");
   const [receiptDateTo, setReceiptDateTo] = useState<string>("");
@@ -181,6 +184,29 @@ const Slaughterhouse = () => {
     const { error } = await supabase.from("slaughter_live_receipts" as any).update({ receipt_date: newDate }).eq("id", id);
     if (error) { toast.error(error.message); return; }
     toast.success("تم تحديث تاريخ التوريد وتم تسجيله في سجل التدقيق");
+    fetchAll();
+  };
+
+  const saveEditedReceipt = async () => {
+    if (!editReceipt) return;
+    if (!canEditReceiptData) { toast.error("غير مصرح لك بتعديل بيانات الاستلام"); return; }
+    const f = editReceiptForm;
+    const dateErr = validateReceiptDate(String(f.receipt_date ?? editReceipt.receipt_date));
+    if (dateErr) { toast.error(dateErr); return; }
+    const payload: any = {
+      receipt_date: f.receipt_date ?? editReceipt.receipt_date,
+      source_type: f.source_type ?? editReceipt.source_type,
+      source_name: f.source_name ?? editReceipt.source_name,
+      bird_count: Number(f.bird_count ?? editReceipt.bird_count) || 0,
+      total_weight_kg: Number(f.total_weight_kg ?? editReceipt.total_weight_kg) || 0,
+      price_per_kg: Number(f.price_per_kg ?? editReceipt.price_per_kg) || 0,
+      dead_on_arrival: Number(f.dead_on_arrival ?? editReceipt.dead_on_arrival) || 0,
+    };
+    const { error } = await supabase.from("slaughter_live_receipts" as any).update(payload).eq("id", editReceipt.id);
+    if (error) { toast.error("تعذّر حفظ التعديل", { description: error.message }); return; }
+    toast.success("✅ تم تحديث بيانات الاستلام");
+    setEditReceipt(null);
+    setEditReceiptForm({});
     fetchAll();
   };
 
@@ -532,7 +558,7 @@ const Slaughterhouse = () => {
                 <TableHeader><TableRow>
                   <TableHead>الرقم</TableHead><TableHead>التاريخ</TableHead><TableHead>المصدر</TableHead>
                   <TableHead>عدد</TableHead><TableHead>وزن (كجم)</TableHead><TableHead>متوسط</TableHead>
-                  <TableHead>تكلفة (إجمالي)</TableHead><TableHead>نافق</TableHead><TableHead>الحالة</TableHead><TableHead>الطيور</TableHead>
+                  <TableHead>تكلفة (إجمالي)</TableHead><TableHead>نافق</TableHead><TableHead>الحالة</TableHead><TableHead>الطيور</TableHead>{canEditReceiptData && <TableHead>تعديل</TableHead>}
                 </TableRow></TableHeader>
                 <TableBody>
                   {receipts.filter(r => (!receiptDateFrom || r.receipt_date >= receiptDateFrom) && (!receiptDateTo || r.receipt_date <= receiptDateTo)).map(r => {
@@ -558,10 +584,17 @@ const Slaughterhouse = () => {
                             <Bird className="w-3 h-3 ml-1" />{recBirds.length}
                           </Button>
                         </TableCell>
+                        {canEditReceiptData && (
+                          <TableCell>
+                            <Button size="sm" variant="secondary" onClick={() => { setEditReceipt(r); setEditReceiptForm({}); }} title="تعديل بيانات الدفعة">
+                              <SettingsIcon className="w-3 h-3 ml-1" />تعديل
+                            </Button>
+                          </TableCell>
+                        )}
                       </TableRow>
                     );
                   })}
-                  {!receipts.length && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">لا توجد عمليات استلام</TableCell></TableRow>}
+                  {!receipts.length && <TableRow><TableCell colSpan={canEditReceiptData ? 11 : 10} className="text-center text-muted-foreground py-8">لا توجد عمليات استلام</TableCell></TableRow>}
                 </TableBody>
               </Table>
             </CardContent>
@@ -576,6 +609,64 @@ const Slaughterhouse = () => {
               onUpdate={fetchAll}
             />
           )}
+
+          <Dialog open={!!editReceipt} onOpenChange={(o) => { if (!o) { setEditReceipt(null); setEditReceiptForm({}); } }}>
+            <DialogContent dir="rtl" className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>تعديل بيانات الاستلام — {editReceipt?.receipt_number}</DialogTitle>
+              </DialogHeader>
+              {editReceipt && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div><Label>تاريخ التوريد</Label>
+                    <Input type="date" max={todayStr}
+                      value={String(editReceiptForm.receipt_date ?? editReceipt.receipt_date)}
+                      onChange={e => setEditReceiptForm({ ...editReceiptForm, receipt_date: e.target.value })} />
+                  </div>
+                  <div><Label>المصدر</Label>
+                    <Select value={String(editReceiptForm.source_type ?? editReceipt.source_type)}
+                      onValueChange={v => setEditReceiptForm({ ...editReceiptForm, source_type: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="internal_farm">المزرعة الداخلية</SelectItem>
+                        <SelectItem value="external_supplier">مورد خارجي</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div><Label>اسم المصدر / المورد</Label>
+                    <Input value={String(editReceiptForm.source_name ?? editReceipt.source_name ?? "")}
+                      onChange={e => setEditReceiptForm({ ...editReceiptForm, source_name: e.target.value })} />
+                  </div>
+                  <div><Label>عدد الطيور</Label>
+                    <Input type="number"
+                      value={String(editReceiptForm.bird_count ?? editReceipt.bird_count ?? "")}
+                      onChange={e => setEditReceiptForm({ ...editReceiptForm, bird_count: +e.target.value })} />
+                  </div>
+                  <div><Label>الوزن الإجمالي (كجم)</Label>
+                    <Input type="number" step="0.1"
+                      value={String(editReceiptForm.total_weight_kg ?? editReceipt.total_weight_kg ?? "")}
+                      onChange={e => setEditReceiptForm({ ...editReceiptForm, total_weight_kg: +e.target.value })} />
+                  </div>
+                  <div><Label>السعر/كجم (ر.س)</Label>
+                    <Input type="number" step="0.01"
+                      value={String(editReceiptForm.price_per_kg ?? editReceipt.price_per_kg ?? "")}
+                      onChange={e => setEditReceiptForm({ ...editReceiptForm, price_per_kg: +e.target.value })} />
+                  </div>
+                  <div><Label>نافق عند الوصول</Label>
+                    <Input type="number"
+                      value={String(editReceiptForm.dead_on_arrival ?? editReceipt.dead_on_arrival ?? "")}
+                      onChange={e => setEditReceiptForm({ ...editReceiptForm, dead_on_arrival: +e.target.value })} />
+                  </div>
+                  <div className="sm:col-span-2 text-xs bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 p-2 rounded">
+                    ⚠️ هذا التعديل متاح فقط للمدير العام والمدير التنفيذي. تغيير التاريخ يُسجَّل تلقائيًا في سجل التدقيق. أوزان الطيور المنفصلة تُعدَّل من شاشة "الطيور".
+                  </div>
+                </div>
+              )}
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => { setEditReceipt(null); setEditReceiptForm({}); }}>إلغاء</Button>
+                <Button onClick={saveEditedReceipt}><Save className="w-4 h-4 ml-1" />حفظ التعديلات</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         {/* ========== TRANSFERS ========== */}
