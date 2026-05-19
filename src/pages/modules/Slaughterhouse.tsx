@@ -33,6 +33,7 @@ import {
 import { SlaughterBatchDialog } from "@/components/slaughterhouse/SlaughterBatchDialog";
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import { ProductionDispatchInbox } from "@/components/production/ProductionDispatchInbox";
+import RequestCorrectionDialog from "@/components/corrections/RequestCorrectionDialog";
 
 type Receipt = { id: string; receipt_number: string; receipt_date: string; source_type: string; source_name: string | null; bird_count: number; total_weight_kg: number; avg_weight_kg: number; price_per_kg: number; total_cost: number; dead_on_arrival: number; status: string; };
 type Batch = { id: string; batch_number: string; slaughter_date: string; shift: string; live_receipt_id: string | null; birds_slaughtered: number; total_live_weight_kg: number; total_meat_kg: number; actual_yield_pct: number; cost_per_kg_meat: number; status: string; pre_slaughter_dead: number; rejected_birds: number; };
@@ -313,6 +314,15 @@ const Slaughterhouse = () => {
   return (
     <DashboardLayout>
       <Header title="إدارة المجزر" subtitle="استلام النعام، تفريغة الذبح اليومي، التقسيمة والتوزيع على الفروع" />
+
+      <div className="flex justify-end mb-3">
+        <RequestCorrectionDialog
+          targetModule="المجزر"
+          targetType="slaughterhouse"
+          label="طلب تصحيح بيانات للإدارة"
+          variant="outline"
+        />
+      </div>
 
       <div className="mb-6">
         <ProductionDispatchInbox destination="slaughterhouse" />

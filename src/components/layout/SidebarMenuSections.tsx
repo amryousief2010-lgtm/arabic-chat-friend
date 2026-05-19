@@ -65,6 +65,7 @@ export const moduleSections: ModuleSection[] = [
       { icon: TrendingUp, label: "اللوحات التنفيذية", path: "/executive-dashboards", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager', 'financial_manager', 'accountant'] },
       { icon: Network, label: "الهيكل التنظيمي", path: "/org-chart", roles: ['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'warehouse_supervisor', 'production_manager', 'marketing_sales_manager', 'financial_manager', 'quality_manager', 'farm_manager', 'hatchery_manager', 'brooding_manager', 'slaughterhouse_manager', 'meat_factory_manager', 'feed_factory_manager', 'hr_manager'] },
       { icon: Bell, label: "الإشعارات", path: "/notifications", roles: ['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'warehouse_supervisor', 'production_manager', 'marketing_sales_manager', 'financial_manager', 'quality_manager'] },
+      { icon: AlertTriangle, label: "طلبات التصحيح", path: "/correction-requests", roles: ['general_manager','executive_manager','slaughterhouse_manager','farm_manager','hatchery_manager','brooding_manager','meat_factory_manager','feed_factory_manager','warehouse_supervisor','production_manager','quality_manager'] },
     ],
   },
   {
