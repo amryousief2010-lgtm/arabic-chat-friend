@@ -314,6 +314,15 @@ const Slaughterhouse = () => {
     <DashboardLayout>
       <Header title="إدارة المجزر" subtitle="استلام النعام، تفريغة الذبح اليومي، التقسيمة والتوزيع على الفروع" />
 
+      <div className="flex justify-end mb-3">
+        <RequestCorrectionDialog
+          targetModule="المجزر"
+          targetType="slaughterhouse"
+          label="طلب تصحيح بيانات للإدارة"
+          variant="outline"
+        />
+      </div>
+
       <div className="mb-6">
         <ProductionDispatchInbox destination="slaughterhouse" />
       </div>
