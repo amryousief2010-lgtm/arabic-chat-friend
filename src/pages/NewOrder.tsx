@@ -986,7 +986,8 @@ const NewOrder = () => {
                       />
                     </div>
 
-                    <div className="border rounded-lg overflow-x-auto">
+                    {/* Desktop/tablet table view */}
+                    <div className="hidden md:block border rounded-lg overflow-x-auto">
                       <table className="w-full min-w-[640px] text-right text-sm">
                         <thead className="bg-muted/60 text-xs">
                           <tr>
@@ -1089,6 +1090,95 @@ const NewOrder = () => {
                           })}
                         </tbody>
                       </table>
+                    </div>
+
+                    {/* Mobile card view */}
+                    <div className="md:hidden space-y-2">
+                      {filteredProducts.map((product) => {
+                        const kg = isKgUnit(product.unit);
+                        return (
+                          <div
+                            key={product.id}
+                            className="border rounded-lg p-3 bg-card hover:bg-muted/30 transition-colors"
+                          >
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                              <span className="font-bold text-base text-green-600 dark:text-green-400 break-words flex-1">
+                                {product.name}
+                              </span>
+                              <Badge
+                                variant={product.stock <= 0 ? 'destructive' : 'outline'}
+                                className="text-[10px] whitespace-nowrap shrink-0"
+                              >
+                                {product.stock <= 0 ? 'بانتظار التصنيع' : `متاح: ${product.stock}`}
+                              </Badge>
+                            </div>
+                            <div className="text-primary font-bold text-sm mb-2">
+                              {product.price.toLocaleString()} ج.م / {product.unit}
+                            </div>
+                            {kg ? (
+                              <div className="flex flex-col gap-1.5">
+                                <div className="grid grid-cols-2 gap-1.5">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-9 text-xs"
+                                    onClick={() => addToCart(product)}
+                                  >
+                                    <Plus className="w-3 h-3 ml-1" />
+                                    كيلو
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="secondary"
+                                    className="h-9 text-xs"
+                                    onClick={() => addToCart(product, undefined, false, true)}
+                                    title="2 = 1 كيلو"
+                                  >
+                                    <Plus className="w-3 h-3 ml-1" />
+                                    ½ كيلو
+                                  </Button>
+                                </div>
+                                <div className="flex gap-1.5">
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    step="0.5"
+                                    inputMode="decimal"
+                                    placeholder="عدد الكيلو"
+                                    className="h-9 text-xs flex-1"
+                                    value={customQty[product.id] ?? ''}
+                                    onChange={(e) => setCustomQty(s => ({ ...s, [product.id]: e.target.value }))}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        addCustomKgToCart(product, parseFloat(customQty[product.id] || '0'));
+                                      }
+                                    }}
+                                  />
+                                  <Button
+                                    size="sm"
+                                    variant="default"
+                                    className="h-9 text-xs px-3"
+                                    onClick={() => addCustomKgToCart(product, parseFloat(customQty[product.id] || '0'))}
+                                  >
+                                    <Plus className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-9 text-xs w-full"
+                                onClick={() => addToCart(product)}
+                              >
+                                <Plus className="w-3 h-3 ml-1" />
+                                إضافة
+                              </Button>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </TabsContent>
 
