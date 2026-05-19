@@ -50,6 +50,7 @@ interface OrderItem {
   is_half_kg?: boolean;
   product_unit?: string | null;
   production_status?: 'pending' | 'in_progress' | 'completed';
+  offer_name?: string | null;
 }
 
 const productionStatusLabels: Record<string, string> = {
