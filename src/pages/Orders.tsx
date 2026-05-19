@@ -1122,6 +1122,27 @@ const Orders = () => {
         />
       )}
 
+      {swapOfferOrder && (
+        <SwapOfferDialog
+          open={!!swapOfferOrder}
+          onOpenChange={(o) => !o && setSwapOfferOrder(null)}
+          orderId={swapOfferOrder.id}
+          currentItems={swapOfferOrder.items.map((it) => ({
+            id: it.id,
+            product_name: it.product_name,
+            quantity: it.quantity,
+            unit_price: it.unit_price,
+            total_price: it.total_price,
+            offer_name: it.offer_name ?? null,
+          }))}
+          onSaved={() => {
+            setSwapOfferOrder(null);
+            fetchOrders();
+          }}
+        />
+      )}
+
+
       {/* Per-moderator quick access — only for the private delivery rep here
           (filtered to "مندوب خاص"). The general view was moved to /sales-targets. */}
       {!isSalesModerator && isPrivateDeliveryRep && (
