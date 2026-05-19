@@ -66,6 +66,7 @@ import FarmProductionImport from "@/pages/FarmProductionImport";
 import QuickGuide from "@/pages/QuickGuide";
 import RoleLanding from "@/components/RoleLanding";
 import CorrectionRequests from "@/pages/CorrectionRequests";
+import CorrectionAuditLog from "@/pages/CorrectionAuditLog";
 
 const RedirectWithQuery = ({ to }: { to: string }) => {
   const location = useLocation();
@@ -316,6 +317,11 @@ const AnimatedRoutes = () => {
         <Route path="/correction-requests" element={
           <ProtectedRoute allowedRoles={['general_manager','executive_manager','slaughterhouse_manager','farm_manager','hatchery_manager','brooding_manager','meat_factory_manager','feed_factory_manager','warehouse_supervisor','production_manager','quality_manager']}>
             <PageTransition><CorrectionRequests /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/correction-audit" element={
+          <ProtectedRoute allowedRoles={['general_manager','executive_manager']}>
+            <PageTransition><CorrectionAuditLog /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/unauthorized" element={
