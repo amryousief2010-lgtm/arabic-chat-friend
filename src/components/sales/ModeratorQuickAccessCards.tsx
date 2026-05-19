@@ -4,8 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ShoppingCart, Plus, FileText, UserRound } from "lucide-react";
-import { MODERATORS, isOrderForModerator } from "@/constants/moderators";
+import { ShoppingCart, Plus, FileText, UserRound, Beef, Drumstick, Flame } from "lucide-react";
+import { MODERATORS, isOrderForModerator, ModeratorConfig } from "@/constants/moderators";
 import { useAuth } from "@/hooks/useAuth";
 
 interface OrderRow {
@@ -18,11 +18,23 @@ interface OrderRow {
   shipping_company: string | null;
 }
 
+type Category = "meat" | "bone" | "processed" | "other";
+
+const classify = (productName: string, category: string | null): Category => {
+  const name = (productName || "").trim();
+  const cat = (category || "").trim();
+  if (/بالعظم|عظم/.test(name)) return "bone";
+  if (cat === "لحوم مصنعة") return "processed";
+  if (/برجر|سجق|كفتة|حواوشي|شاورما|شيش|طرب|شغت|مفروم|فرم|تصنيع/.test(name)) return "processed";
+  if (cat === "لحوم" || cat === "لحوم طازجة") return "meat";
+  return "other";
+};
+
+const emptyW = () => ({ meat: 0, bone: 0, processed: 0 });
+
 interface Props {
   /**
    * When true, only count orders whose shipping_company is "مندوب خاص".
-   * Used by the private delivery rep view so he sees how many of his
-   * delivery orders belong to each marketing employee.
    */
   privateDeliveryOnly?: boolean;
 }
@@ -32,7 +44,7 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false }: Props) => {
   const { user } = useAuth();
 
   const { data, isLoading } = useQuery({
-    queryKey: ["moderator-quick-access", privateDeliveryOnly],
+    queryKey: ["moderator-quick-access-v2", privateDeliveryOnly],
     refetchInterval: 60_000,
     queryFn: async () => {
       const now = new Date();
@@ -65,15 +77,69 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false }: Props) => {
         profileMap = new Map((profiles || []).map((p: any) => [p.id, p.full_name as string]));
       }
 
+      // Attribute each order to a moderator (if any)
+      const orderToMod = new Map<string, ModeratorConfig>();
+      (orders as OrderRow[]).forEach((o) => {
+        const creatorName = o.created_by ? profileMap.get(o.created_by) || null : null;
+        const m = MODERATORS.find((mod) => isOrderForModerator(mod, o.moderator, creatorName));
+        if (m) orderToMod.set(o.id, m);
+      });
+
+      // Fetch items for those orders (paged)
+      const ids = Array.from(orderToMod.keys());
+      let items: any[] = [];
+      for (let i = 0; i < ids.length; i += 300) {
+        const slice = ids.slice(i, i + 300);
+        let from = 0;
+        const PAGE = 1000;
+        while (true) {
+          const { data: chunk } = await supabase
+            .from("order_items")
+            .select("order_id, product_id, product_name, quantity")
+            .in("order_id", slice)
+            .range(from, from + PAGE - 1);
+          if (!chunk || chunk.length === 0) break;
+          items = items.concat(chunk);
+          if (chunk.length < PAGE) break;
+          from += PAGE;
+        }
+      }
+
+      // Resolve product categories
+      const productIds = Array.from(new Set(items.map((it) => it.product_id).filter(Boolean))) as string[];
+      const productCat = new Map<string, string | null>();
+      if (productIds.length) {
+        const { data: products } = await supabase
+          .from("products")
+          .select("id, category")
+          .in("id", productIds);
+        (products || []).forEach((p: any) => productCat.set(p.id, p.category ?? null));
+      }
+
       const todayStr = new Date().toISOString().slice(0, 10);
+      const orderById = new Map<string, OrderRow>(
+        (orders as OrderRow[]).map((o) => [o.id, o]),
+      );
 
       return MODERATORS.map((m) => {
-        const filtered = (orders as OrderRow[]).filter((o) =>
-          isOrderForModerator(m, o.moderator, o.created_by ? profileMap.get(o.created_by) || null : null),
-        );
+        const filtered = (orders as OrderRow[]).filter((o) => orderToMod.get(o.id)?.slug === m.slug);
         const today = filtered.filter((o) => o.created_at.slice(0, 10) === todayStr);
         const monthTotal = filtered.reduce((s, o) => s + Number(o.total || 0), 0);
         const todayTotal = today.reduce((s, o) => s + Number(o.total || 0), 0);
+
+        const monthW = emptyW();
+        const todayW = emptyW();
+        const orderIdSet = new Set(filtered.map((o) => o.id));
+        for (const it of items) {
+          if (!orderIdSet.has(it.order_id)) continue;
+          const cat = classify(it.product_name, it.product_id ? productCat.get(it.product_id) ?? null : null);
+          if (cat === "other") continue;
+          const qty = Number(it.quantity || 0);
+          monthW[cat] += qty;
+          const o = orderById.get(it.order_id);
+          if (o && o.created_at.slice(0, 10) === todayStr) todayW[cat] += qty;
+        }
+
         return {
           slug: m.slug,
           displayName: m.displayName,
@@ -83,10 +149,14 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false }: Props) => {
           monthTotal,
           todayOrders: today.length,
           todayTotal,
+          monthW,
+          todayW,
         };
       });
     },
   });
+
+  const fmt = (n: number) => Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 1 });
 
   return (
     <Card className="glass-card mb-6">
@@ -104,7 +174,7 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false }: Props) => {
           <p className="text-xs text-muted-foreground">
             {privateDeliveryOnly
               ? "عدد الطلبات المسجلة لكل مسوقة والمخصصة للمندوب الخاص — اضغط «السجل» لمعرفة بيانات العميل والتواصل مع المسوقة عند الحاجة."
-              : "كل بنت تسجّل طلبها هنا، ويتم تجميع كل الطلبات تلقائياً في الجدول العام بالأعلى."}
+              : "كل بنت تسجّل طلبها هنا، ويتم تجميع كل الطلبات وكميات اللحوم واللحوم بالعظم والمصنعات تلقائياً وتُحدَّث مع كل طلب."}
           </p>
         </div>
 
@@ -112,6 +182,7 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false }: Props) => {
           {(data || MODERATORS.map((m) => ({
             slug: m.slug, displayName: m.displayName, gradient: m.gradient, iconBg: m.iconBg,
             monthOrders: 0, monthTotal: 0, todayOrders: 0, todayTotal: 0,
+            monthW: emptyW(), todayW: emptyW(),
           }))).map((row) => (
             <div
               key={row.slug}
@@ -127,7 +198,7 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false }: Props) => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 text-xs mb-3">
+              <div className="grid grid-cols-2 gap-2 text-xs mb-2">
                 <div className="bg-white/15 rounded-lg p-2">
                   <p className="opacity-80">طلبات اليوم</p>
                   <p className="font-bold text-base">
@@ -141,6 +212,37 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false }: Props) => {
                     {isLoading ? "…" : row.monthOrders}
                   </p>
                   <p className="opacity-70 text-[10px]">{Number(row.monthTotal).toLocaleString()} ج.م</p>
+                </div>
+              </div>
+
+              {/* Weights breakdown */}
+              <div className="bg-white/10 rounded-lg p-2 mb-3">
+                <p className="text-[10px] opacity-80 mb-1.5 font-medium">الكميات (كجم) — اليوم / الشهر</p>
+                <div className="grid grid-cols-3 gap-1.5 text-[11px]">
+                  <div className="bg-white/15 rounded p-1.5 text-center">
+                    <div className="flex items-center justify-center gap-1 opacity-80">
+                      <Beef className="w-3 h-3" /> لحوم
+                    </div>
+                    <p className="font-bold mt-0.5">
+                      {isLoading ? "…" : `${fmt(row.todayW.meat)} / ${fmt(row.monthW.meat)}`}
+                    </p>
+                  </div>
+                  <div className="bg-white/15 rounded p-1.5 text-center">
+                    <div className="flex items-center justify-center gap-1 opacity-80">
+                      <Drumstick className="w-3 h-3" /> بالعظم
+                    </div>
+                    <p className="font-bold mt-0.5">
+                      {isLoading ? "…" : `${fmt(row.todayW.bone)} / ${fmt(row.monthW.bone)}`}
+                    </p>
+                  </div>
+                  <div className="bg-white/15 rounded p-1.5 text-center">
+                    <div className="flex items-center justify-center gap-1 opacity-80">
+                      <Flame className="w-3 h-3" /> مصنعات
+                    </div>
+                    <p className="font-bold mt-0.5">
+                      {isLoading ? "…" : `${fmt(row.todayW.processed)} / ${fmt(row.monthW.processed)}`}
+                    </p>
+                  </div>
                 </div>
               </div>
 
