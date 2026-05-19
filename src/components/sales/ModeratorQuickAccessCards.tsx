@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -41,6 +42,7 @@ interface Props {
 
 const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false }: Props) => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user, profile, isGeneralManager, isExecutiveManager, isSalesManager } = useAuth();
   const canSeeAll = isGeneralManager || isExecutiveManager || isSalesManager;
   const ownMod = !canSeeAll ? findModeratorByName(profile?.full_name) : undefined;
@@ -49,7 +51,8 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false }: Props) => {
 
   const { data, isLoading } = useQuery({
     queryKey: ["moderator-quick-access-v2", privateDeliveryOnly],
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       const now = new Date();
       const startOfMonth = new Date(
@@ -159,6 +162,22 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false }: Props) => {
       });
     },
   });
+
+  // Live refresh whenever orders/items change so each girl sees up-to-date numbers
+  useEffect(() => {
+    const channel = supabase
+      .channel("moderator-quick-access-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["moderator-quick-access-v2"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "order_items" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["moderator-quick-access-v2"] });
+      })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   const fmt = (n: number) => Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 1 });
 
