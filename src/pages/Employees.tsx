@@ -746,7 +746,7 @@ const Employees = () => {
             const assignedIds = new Set<string>();
             const groups = departments.map((dept) => {
               const rolePriority = new Map(dept.roles.map((r, i) => [r, i]));
-              const list = filteredEmployees
+              const baseList = filteredEmployees
                 .filter((e) => rolePriority.has(e.role))
                 .sort((a, b) => {
                   const pa = rolePriority.get(a.role)!;
@@ -754,17 +754,49 @@ const Employees = () => {
                   if (pa !== pb) return pa - pb;
                   return a.full_name.localeCompare(b.full_name, 'ar');
                 });
+              const customOrder = orderMap[dept.key];
+              let list = baseList;
+              if (customOrder && customOrder.length) {
+                const indexOf = (id: string) => {
+                  const i = customOrder.indexOf(id);
+                  return i === -1 ? Number.MAX_SAFE_INTEGER : i;
+                };
+                list = [...baseList].sort((a, b) => {
+                  const ia = indexOf(a.id);
+                  const ib = indexOf(b.id);
+                  if (ia !== ib) return ia - ib;
+                  return 0;
+                });
+              }
               list.forEach((e) => assignedIds.add(e.id));
               return { dept, list };
             });
             const others = filteredEmployees.filter((e) => !assignedIds.has(e.id));
 
-            const renderRow = (employee: Employee) => {
+            const renderRow = (employee: Employee, deptKey: string, list: Employee[]) => {
               const RoleIcon = roleIcons[employee.role];
+              const isDragging = dragInfo?.id === employee.id;
               return (
-                <TableRow key={employee.id}>
+                <TableRow
+                  key={employee.id}
+                  draggable
+                  onDragStart={(e) => {
+                    setDragInfo({ deptKey, id: employee.id });
+                    e.dataTransfer.effectAllowed = 'move';
+                  }}
+                  onDragOver={(e) => {
+                    if (dragInfo?.deptKey === deptKey) e.preventDefault();
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    handleDropOn(deptKey, employee.id, list);
+                  }}
+                  onDragEnd={() => setDragInfo(null)}
+                  className={isDragging ? 'opacity-50' : 'cursor-move'}
+                >
                   <TableCell>
                     <div className="flex items-center gap-3">
+                      <GripVertical className="w-4 h-4 text-muted-foreground/60" />
                       <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
                         {employee.full_name.charAt(0)}
                       </div>
@@ -831,43 +863,70 @@ const Employees = () => {
               color: string,
               bg: string,
               list: Employee[],
-            ) => (
-              <Card key={key} className="overflow-hidden">
-                <CardHeader className={`flex flex-row items-center justify-between gap-3 py-3 ${bg} border-b`}>
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl bg-background/70 flex items-center justify-center`}>
-                      <Icon className={`w-5 h-5 ${color}`} />
+            ) => {
+              const isCollapsed = collapsed.has(key);
+              return (
+                <Card key={key} className="overflow-hidden">
+                  <CardHeader
+                    className={`flex flex-row items-center justify-between gap-3 py-3 ${bg} border-b cursor-pointer select-none`}
+                    onClick={() => toggleCollapsed(key)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-xl bg-background/70 flex items-center justify-center`}>
+                        <Icon className={`w-5 h-5 ${color}`} />
+                      </div>
+                      <CardTitle className="text-base font-semibold">{name}</CardTitle>
                     </div>
-                    <CardTitle className="text-base font-semibold">{name}</CardTitle>
-                  </div>
-                  <Badge variant="secondary" className="text-xs">
-                    {list.length} {list.length === 1 ? 'موظف' : 'موظفين'}
-                  </Badge>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-right">الموظف</TableHead>
-                        <TableHead className="text-right">البريد الإلكتروني</TableHead>
-                        <TableHead className="text-right">الوظيفة</TableHead>
-                        <TableHead className="text-right">تاريخ الانضمام</TableHead>
-                        <TableHead className="text-right">إجراءات</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>{list.map(renderRow)}</TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            );
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-xs">
+                        {list.length} {list.length === 1 ? 'موظف' : 'موظفين'}
+                      </Badge>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={(e) => { e.stopPropagation(); toggleCollapsed(key); }}
+                        aria-label={isCollapsed ? 'توسيع' : 'طي'}
+                      >
+                        {isCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {!isCollapsed && (
+                    <CardContent className="p-0">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-right">الموظف</TableHead>
+                            <TableHead className="text-right">البريد الإلكتروني</TableHead>
+                            <TableHead className="text-right">الوظيفة</TableHead>
+                            <TableHead className="text-right">تاريخ الانضمام</TableHead>
+                            <TableHead className="text-right">إجراءات</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>{list.map((emp) => renderRow(emp, key, list))}</TableBody>
+                      </Table>
+                    </CardContent>
+                  )}
+                </Card>
+              );
+            };
+
+            const visibleGroups = groups.filter((g) => g.list.length > 0 && (deptFilter === 'all' || deptFilter === g.dept.key));
+            const showOthers = others.length > 0 && (deptFilter === 'all' || deptFilter === 'others');
 
             return (
               <div className="space-y-4">
-                {groups
-                  .filter((g) => g.list.length > 0)
-                  .map((g) => renderSection(g.dept.key, g.dept.name, g.dept.icon, g.dept.color, g.dept.bg, g.list))}
-                {others.length > 0 &&
+                {visibleGroups.map((g) => renderSection(g.dept.key, g.dept.name, g.dept.icon, g.dept.color, g.dept.bg, g.list))}
+                {showOthers &&
                   renderSection('others', 'موظفون آخرون', Users, 'text-muted-foreground', 'bg-muted/40', others)}
+                {visibleGroups.length === 0 && !showOthers && (
+                  <Card>
+                    <CardContent className="py-12 text-center text-muted-foreground">
+                      لا يوجد موظفون في هذا القسم
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             );
           })()
