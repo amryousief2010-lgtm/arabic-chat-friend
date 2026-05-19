@@ -104,31 +104,20 @@ Deno.serve(async (req) => {
       if (r.cancel_reason) notesParts.push(`سبب الإلغاء: ${r.cancel_reason}`);
       const notes = notesParts.join(" | ") || null;
 
-      if (orderId) {
-        matched++;
-        await supabase.from("order_items").delete().eq("order_id", orderId);
-        await supabase.from("orders").update({
-          status: r.status, payment_status: r.payment,
-          source: r.source, shipping_company: r.shipping, moderator: r.moderator_db,
-          delivery_address: r.address || undefined,
-          notes, subtotal: r.total, total: r.total,
-        }).eq("id", orderId);
-      } else {
-        counter++;
-        const on = `IMP14-${String(counter).padStart(5,"0")}`;
-        const { data: ins, error } = await supabase.from("orders").insert({
-          order_number: on, customer_id: cid,
-          status: r.status, payment_method: "cash", payment_status: r.payment,
-          subtotal: r.total, total: r.total, notes, delivery_address: r.address,
-          created_by: r.creator_id, created_at: ts?.toISOString() || new Date().toISOString(),
-          source: r.source, shipping_company: r.shipping, moderator: r.moderator_db,
-        }).select("id").single();
-        if (error) { console.error("order err", error.message, on); continue; }
-        orderId = ins.id;
-        created++;
-      }
+      if (orderId) { matched++; continue; }
+      counter++;
+      const on = `IMP14-${String(counter).padStart(5,"0")}`;
+      const { data: ins, error } = await supabase.from("orders").insert({
+        order_number: on, customer_id: cid,
+        status: r.status, payment_method: "cash", payment_status: r.payment,
+        subtotal: r.total, total: r.total, notes, delivery_address: r.address,
+        created_by: r.creator_id, created_at: ts?.toISOString() || new Date().toISOString(),
+        source: r.source, shipping_company: r.shipping, moderator: r.moderator_db,
+      }).select("id").single();
+      if (error) { console.error("order err", error.message, on); continue; }
+      orderId = ins.id;
+      created++;
 
-      // build items
       const total = Number(r.total) || 0;
       const specs: any[] = [];
       for (const it of (r.items || [])) {
@@ -150,8 +139,16 @@ Deno.serve(async (req) => {
           return w > 0 ? w : 1;
         });
         const sumW = weights.reduce((a,b)=>a+b,0) || 1;
+        const lineTotals: number[] = specs.map((_, i) =>
+          total > 0 ? Math.round(total * (weights[i]/sumW) * 100) / 100 : 0
+        );
+        if (total > 0 && lineTotals.length > 0) {
+          const sum = lineTotals.reduce((a,b)=>a+b,0);
+          const diff = Math.round((total - sum) * 100) / 100;
+          lineTotals[lineTotals.length-1] = Math.round((lineTotals[lineTotals.length-1] + diff) * 100) / 100;
+        }
         specs.forEach((s, i) => {
-          const lineTotal = total > 0 ? Math.round(total * (weights[i]/sumW) * 100) / 100 : 0;
+          const lineTotal = lineTotals[i];
           const qty = Number(s.it.qty);
           const up = qty > 0 ? Math.round((lineTotal/qty)*100)/100 : 0;
           itemRows.push({
