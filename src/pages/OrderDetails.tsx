@@ -154,6 +154,7 @@ const OrderDetails = () => {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [editItemsOpen, setEditItemsOpen] = useState(false);
+  const [swapOfferOpen, setSwapOfferOpen] = useState(false);
   const [editCustomerOpen, setEditCustomerOpen] = useState(false);
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
