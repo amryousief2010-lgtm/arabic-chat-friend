@@ -65,6 +65,7 @@ import FarmShipmentsLog from "@/pages/FarmShipmentsLog";
 import FarmProductionImport from "@/pages/FarmProductionImport";
 import QuickGuide from "@/pages/QuickGuide";
 import RoleLanding from "@/components/RoleLanding";
+import CorrectionRequests from "@/pages/CorrectionRequests";
 
 const RedirectWithQuery = ({ to }: { to: string }) => {
   const location = useLocation();
@@ -310,6 +311,11 @@ const AnimatedRoutes = () => {
         <Route path="/private-delivery-pricing" element={
           <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'private_delivery_rep', 'sales_moderator']}>
             <PageTransition><PrivateDeliveryPricing /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/correction-requests" element={
+          <ProtectedRoute allowedRoles={['general_manager','executive_manager','slaughterhouse_manager','farm_manager','hatchery_manager','brooding_manager','meat_factory_manager','feed_factory_manager','warehouse_supervisor','production_manager','quality_manager']}>
+            <PageTransition><CorrectionRequests /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/unauthorized" element={
