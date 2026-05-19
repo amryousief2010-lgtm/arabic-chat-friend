@@ -31,14 +31,15 @@ interface Customer {
 
 interface CustomersAnalyticsProps {
   customers: Customer[];
+  totalCount?: number;
 }
 
-const CustomersAnalytics = ({ customers }: CustomersAnalyticsProps) => {
+const CustomersAnalytics = ({ customers, totalCount }: CustomersAnalyticsProps) => {
   const analytics = useMemo(() => {
-    const totalCustomers = customers.length;
+    const totalCustomers = typeof totalCount === "number" ? totalCount : customers.length;
     const totalRevenue = customers.reduce((s, c) => s + c.total_spent, 0);
     const totalOrders = customers.reduce((s, c) => s + c.total_orders, 0);
-    const avgSpent = totalCustomers > 0 ? Math.round(totalRevenue / totalCustomers) : 0;
+    const avgSpent = customers.length > 0 ? Math.round(totalRevenue / customers.length) : 0;
     const activeCustomers = customers.filter(c => c.total_orders > 0).length;
     const vipCustomers = customers.filter(c => c.total_orders >= 5).length;
 
