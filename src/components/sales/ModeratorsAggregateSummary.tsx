@@ -63,9 +63,10 @@ const ModeratorsAggregateSummary = () => {
       // 1) Orders for this month (UTC boundaries — created_at is UTC)
       const { data: orders, error } = await supabase
         .from("orders")
-        .select("id, total, moderator, created_by, created_at")
+        .select("id, total, status, moderator, created_by, created_at")
         .gte("created_at", startOfMonth.toISOString())
-        .lt("created_at", startOfNextMonth.toISOString());
+        .lt("created_at", startOfNextMonth.toISOString())
+        .neq("status", "cancelled");
       if (error) throw error;
 
       // 2) Resolve creator profile names to attribute orders to the 4 girls
