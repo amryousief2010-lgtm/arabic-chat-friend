@@ -558,7 +558,7 @@ const Slaughterhouse = () => {
                 <TableHeader><TableRow>
                   <TableHead>الرقم</TableHead><TableHead>التاريخ</TableHead><TableHead>المصدر</TableHead>
                   <TableHead>عدد</TableHead><TableHead>وزن (كجم)</TableHead><TableHead>متوسط</TableHead>
-                  <TableHead>تكلفة (إجمالي)</TableHead><TableHead>نافق</TableHead><TableHead>الحالة</TableHead><TableHead>الطيور</TableHead>
+                  <TableHead>تكلفة (إجمالي)</TableHead><TableHead>نافق</TableHead><TableHead>الحالة</TableHead><TableHead>الطيور</TableHead>{canEditReceiptData && <TableHead>تعديل</TableHead>}
                 </TableRow></TableHeader>
                 <TableBody>
                   {receipts.filter(r => (!receiptDateFrom || r.receipt_date >= receiptDateFrom) && (!receiptDateTo || r.receipt_date <= receiptDateTo)).map(r => {
