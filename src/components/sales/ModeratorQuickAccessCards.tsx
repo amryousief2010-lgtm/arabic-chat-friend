@@ -42,6 +42,7 @@ interface Props {
 
 const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false }: Props) => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user, profile, isGeneralManager, isExecutiveManager, isSalesManager } = useAuth();
   const canSeeAll = isGeneralManager || isExecutiveManager || isSalesManager;
   const ownMod = !canSeeAll ? findModeratorByName(profile?.full_name) : undefined;
@@ -50,7 +51,8 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false }: Props) => {
 
   const { data, isLoading } = useQuery({
     queryKey: ["moderator-quick-access-v2", privateDeliveryOnly],
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       const now = new Date();
       const startOfMonth = new Date(
