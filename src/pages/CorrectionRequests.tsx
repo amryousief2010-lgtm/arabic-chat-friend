@@ -17,8 +17,26 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { CheckCircle2, XCircle, Eye, Clock, Paperclip, Download } from "lucide-react";
+import { CheckCircle2, XCircle, Eye, Clock, Paperclip, Download, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
+import { useNavigate } from "react-router-dom";
+
+/** Map a correction request's target_module/target_type to an in-app route */
+function resolveTargetRoute(module: string, type?: string): string | null {
+  const m = (module || "").toLowerCase();
+  const t = (type || "").toLowerCase();
+  if (t.includes("slaughter") || m.includes("مجزر") || m.includes("ذبح")) return "/modules/slaughterhouse";
+  if (t.includes("hatchery") || m.includes("فقاسة") || m.includes("تفقيس")) return "/modules/hatchery";
+  if (t.includes("farm") || m.includes("مزرعة") || m.includes("مزارع")) return "/modules/farm";
+  if (t.includes("brooding") || m.includes("حضان")) return "/modules/brooding";
+  if (t.includes("feed") || m.includes("علف") || m.includes("أعلاف")) return "/modules/feed-factory";
+  if (t.includes("meat") || m.includes("مصنع لحوم") || m.includes("لحوم")) return "/modules/meat-factory";
+  if (t.includes("warehouse") || m.includes("مخزن") || m.includes("مخازن")) return "/modules/warehouses";
+  if (t.includes("order") || m.includes("طلب") || m.includes("طلبات")) return "/orders";
+  if (t.includes("customer") || m.includes("عميل") || m.includes("عملاء")) return "/customers";
+  if (t.includes("product") || m.includes("منتج") || m.includes("أصناف")) return "/products";
+  return null;
+}
 
 interface CorrectionRequest {
   id: string;
@@ -56,6 +74,7 @@ const statusBadge: Record<CorrectionRequest["status"], { label: string; cls: str
 
 export default function CorrectionRequests() {
   const { isGeneralManager, isExecutiveManager, user } = useAuth();
+  const navigate = useNavigate();
   const canReview = isGeneralManager || isExecutiveManager;
   const [items, setItems] = useState<CorrectionRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -225,12 +244,25 @@ export default function CorrectionRequests() {
                       <p className="text-xs text-muted-foreground">
                         مُرسِل الطلب: <span className="font-medium">{r.requester_name}</span>
                       </p>
-                      {canReview && (r.status === "pending" || r.status === "in_review") && (
-                        <Button size="sm" variant="default" onClick={() => { setSelected(r); setReviewNote(""); }}>
-                          <Eye className="w-4 h-4 ml-1" />
-                          مراجعة والرد
-                        </Button>
-                      )}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {(() => {
+                          const route = resolveTargetRoute(r.target_module, r.target_type);
+                          if (!route) return null;
+                          const qs = r.target_reference ? `?ref=${encodeURIComponent(r.target_reference)}` : "";
+                          return (
+                            <Button size="sm" variant="secondary" onClick={() => navigate(`${route}${qs}`)}>
+                              <ExternalLink className="w-4 h-4 ml-1" />
+                              فتح السجل المعني
+                            </Button>
+                          );
+                        })()}
+                        {canReview && (r.status === "pending" || r.status === "in_review") && (
+                          <Button size="sm" variant="default" onClick={() => { setSelected(r); setReviewNote(""); }}>
+                            <Eye className="w-4 h-4 ml-1" />
+                            مراجعة والرد
+                          </Button>
+                        )}
+                      </div>
                     </div>
 
                     {r.review_note && (
