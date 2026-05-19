@@ -277,7 +277,7 @@ export default function ExcelComparison() {
 
   return (
     <DashboardLayout>
-      <Header title="مقارنة Excel بالنظام" description="رفع ملف Excel ومقارنته لحظيًا بأرقام النظام مع تنبيه عند وجود فروقات" />
+      <Header title="مقارنة Excel بالنظام" subtitle="رفع ملف Excel ومقارنته لحظيًا بأرقام النظام مع تنبيه عند وجود فروقات" />
       <div className="container mx-auto p-4 md:p-6 space-y-6" dir="rtl">
         <Card>
           <CardHeader>
