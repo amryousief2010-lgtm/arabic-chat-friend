@@ -36,6 +36,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import EditOrderItemsDialog from "@/components/orders/EditOrderItemsDialog";
+import SwapOfferDialog from "@/components/orders/SwapOfferDialog";
 
 type OrderStatus = 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
 type PaymentStatus = 'pending' | 'paid' | 'failed';
@@ -50,6 +51,7 @@ interface OrderItem {
   is_half_kg?: boolean;
   product_unit?: string | null;
   production_status?: 'pending' | 'in_progress' | 'completed';
+  offer_name?: string | null;
 }
 
 const productionStatusLabels: Record<string, string> = {
@@ -152,6 +154,7 @@ const OrderDetails = () => {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [editItemsOpen, setEditItemsOpen] = useState(false);
+  const [swapOfferOpen, setSwapOfferOpen] = useState(false);
   const [editCustomerOpen, setEditCustomerOpen] = useState(false);
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
@@ -279,6 +282,7 @@ const OrderDetails = () => {
           is_half_kg: !!item.is_half_kg,
           product_unit: item.product_id ? unitMap.get(item.product_id) ?? null : null,
           production_status: (item.production_status || 'pending') as 'pending' | 'in_progress' | 'completed',
+          offer_name: item.offer_name ?? null,
         })),
       };
 
@@ -400,15 +404,28 @@ const OrderDetails = () => {
                     المنتجات ({order.items.length})
                   </CardTitle>
                   {canEditItems && order.status !== 'cancelled' && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setEditItemsOpen(true)}
-                      className="gap-1"
-                    >
-                      <Pencil className="w-4 h-4" />
-                      تعديل المنتجات
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                      {order.items.some((it) => it.offer_name) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSwapOfferOpen(true)}
+                          className="gap-1"
+                        >
+                          <Package className="w-4 h-4" />
+                          استبدال العرض
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditItemsOpen(true)}
+                        className="gap-1"
+                      >
+                        <Pencil className="w-4 h-4" />
+                        تعديل المنتجات
+                      </Button>
+                    </div>
                   )}
                 </div>
               </CardHeader>
@@ -707,6 +724,23 @@ const OrderDetails = () => {
           }))}
           initialDiscount={order.discount}
           initialDeliveryFee={order.delivery_fee}
+          onSaved={() => id && fetchOrder(id)}
+        />
+      )}
+
+      {order && (
+        <SwapOfferDialog
+          open={swapOfferOpen}
+          onOpenChange={setSwapOfferOpen}
+          orderId={order.id}
+          currentItems={order.items.map((it) => ({
+            id: it.id,
+            product_name: it.product_name,
+            quantity: it.quantity,
+            unit_price: it.unit_price,
+            total_price: it.total_price,
+            offer_name: it.offer_name ?? null,
+          }))}
           onSaved={() => id && fetchOrder(id)}
         />
       )}
