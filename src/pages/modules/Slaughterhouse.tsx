@@ -584,10 +584,17 @@ const Slaughterhouse = () => {
                             <Bird className="w-3 h-3 ml-1" />{recBirds.length}
                           </Button>
                         </TableCell>
+                        {canEditReceiptData && (
+                          <TableCell>
+                            <Button size="sm" variant="secondary" onClick={() => { setEditReceipt(r); setEditReceiptForm({}); }} title="تعديل بيانات الدفعة">
+                              <SettingsIcon className="w-3 h-3 ml-1" />تعديل
+                            </Button>
+                          </TableCell>
+                        )}
                       </TableRow>
                     );
                   })}
-                  {!receipts.length && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">لا توجد عمليات استلام</TableCell></TableRow>}
+                  {!receipts.length && <TableRow><TableCell colSpan={canEditReceiptData ? 11 : 10} className="text-center text-muted-foreground py-8">لا توجد عمليات استلام</TableCell></TableRow>}
                 </TableBody>
               </Table>
             </CardContent>
