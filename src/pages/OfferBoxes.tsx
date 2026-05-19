@@ -359,12 +359,14 @@ const OfferBoxes = () => {
   const handleAddItem = () => {
     if (!newItem.product_id || !selectedBox) return;
     if (!newItem.is_gift && !newItem.custom_price) return;
+    const product = products.find(p => p.id === newItem.product_id);
     addItemMutation.mutate({
       offer_box_id: selectedBox.id,
       product_id: newItem.product_id,
       custom_price: newItem.is_gift ? 0 : Number(newItem.custom_price),
       quantity: Number(newItem.quantity),
       is_gift: newItem.is_gift,
+      original_price: Number(product?.price || 0),
     });
   };
 
