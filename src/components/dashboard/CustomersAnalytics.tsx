@@ -96,7 +96,7 @@ const CustomersAnalytics = ({ customers, totalCount }: CustomersAnalyticsProps) 
       totalCustomers, totalRevenue, totalOrders, avgSpent, activeCustomers,
       vipCustomers, cityData, topSpenders, segments, registrationTrend, spendingDist,
     };
-  }, [customers]);
+  }, [customers, totalCount]);
 
   const formatVal = (v: number) => {
     if (v >= 1000000) return `${(v / 1000000).toFixed(1)}M`;
