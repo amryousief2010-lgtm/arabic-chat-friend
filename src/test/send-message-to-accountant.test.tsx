@@ -20,19 +20,19 @@ vi.mock("@/hooks/useAuth", () => ({
 // plain native <select> that still exposes value/onValueChange semantics.
 vi.mock("@/components/ui/select", () => {
   const React = require("react");
-  const Ctx = React.createContext(null);
+  const collectItems = (node: any, out: any[] = []) => {
+    React.Children.forEach(node, (c: any) => {
+      if (!c) return;
+      if (c.props?.value !== undefined) {
+        out.push({ value: c.props.value, children: c.props.children });
+      } else if (c.props?.children) {
+        collectItems(c.props.children, out);
+      }
+    });
+    return out;
+  };
   const Select = ({ value, onValueChange, children }: any) => {
-    const items: { value: string; label: string }[] = [];
-    const walk = (node: any) => {
-      React.Children.forEach(node, (c: any) => {
-        if (!c) return;
-        if (c.props?.value !== undefined && typeof c.props?.children === "string") {
-          items.push({ value: c.props.value, label: c.props.children });
-        }
-        if (c.props?.children) walk(c.props.children);
-      });
-    };
-    walk(children);
+    const items = collectItems(children);
     return (
       <select
         data-testid="native-select"
@@ -40,8 +40,8 @@ vi.mock("@/components/ui/select", () => {
         onChange={(e) => onValueChange?.(e.target.value)}
       >
         <option value="" disabled>--</option>
-        {items.map((it) => (
-          <option key={it.value} value={it.value}>{it.label}</option>
+        {items.map((it: any, i: number) => (
+          <option key={`${it.value}-${i}`} value={it.value}>{it.children}</option>
         ))}
       </select>
     );
@@ -52,7 +52,7 @@ vi.mock("@/components/ui/select", () => {
     SelectTrigger: Passthrough,
     SelectValue: Passthrough,
     SelectContent: Passthrough,
-    SelectItem: ({ value, children }: any) => <option value={value}>{children}</option>,
+    SelectItem: ({ children }: any) => <>{children}</>,
     SelectGroup: Passthrough,
     SelectLabel: Passthrough,
     SelectSeparator: () => null,
