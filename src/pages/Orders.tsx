@@ -31,7 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus, Trash2, Pencil, ChevronDown, ChevronUp, PackageOpen, FileDown, FileText } from "lucide-react";
-import { exportOrdersToCSV, exportOrdersToPDF } from "@/utils/exportOrders";
+import { exportOrdersToCSV, exportOrdersToPDF, exportOrdersToXLSX } from "@/utils/exportOrders";
 import EditOrderItemsDialog from "@/components/orders/EditOrderItemsDialog";
 import SwapOfferDialog from "@/components/orders/SwapOfferDialog";
 import DiscrepancyBanner from "@/components/orders/DiscrepancyBanner";
@@ -564,6 +564,9 @@ const Orders = () => {
                 ))}
               </SelectContent>
             </Select>
+            <Button variant="outline" className="gap-2" onClick={() => exportOrdersToXLSX(filteredOrders)}>
+              <FileDown className="w-4 h-4" /> Excel
+            </Button>
             <Button variant="outline" className="gap-2" onClick={() => exportOrdersToCSV(filteredOrders)}>
               <FileDown className="w-4 h-4" /> CSV
             </Button>

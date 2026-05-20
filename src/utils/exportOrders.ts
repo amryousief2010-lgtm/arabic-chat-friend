@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
 
 export interface OrderExportRow {
   order_number: string;
@@ -69,6 +70,25 @@ export function exportOrdersToCSV(rows: OrderExportRow[], filename = "orders.csv
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+export function exportOrdersToXLSX(rows: OrderExportRow[], filename = `orders-${Date.now()}.xlsx`) {
+  const data = rows.map((r) => ({
+    "رقم الطلب": r.order_number,
+    "العميل": r.customer_name,
+    "الموديريتور": r.moderator_name || "",
+    "الإجمالي": r.total,
+    "طريقة الدفع": r.payment_method === "cash" ? "نقدي" : "إلكتروني",
+    "حالة الدفع": r.payment_status === "paid" ? "مدفوع" : r.payment_status === "failed" ? "فشل" : "قيد الانتظار",
+    "حالة التحصيل": r.collection_status === "collected" ? "تم التحصيل" : "لم يتم التحصيل",
+    "حالة الطلب": r.status,
+    "تاريخ الإنشاء": new Date(r.created_at).toLocaleString("ar-EG"),
+    "تاريخ التسليم": r.delivered_at ? new Date(r.delivered_at).toLocaleString("ar-EG") : "-",
+  }));
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Orders");
+  XLSX.writeFile(wb, filename, { bookType: "xlsx" });
 }
 
 export function exportOrdersToPDF(rows: OrderExportRow[], periodLabel = "All Orders") {
