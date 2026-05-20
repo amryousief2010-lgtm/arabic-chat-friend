@@ -224,6 +224,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const canUpdateOrderStatus = isGeneralManager || isExecutiveManager || isSalesManager || isWarehouseSupervisor || isMarketingSalesManager || isShippingCompany || isPrivateDeliveryRep;
   const canDeleteOrders = isGeneralManager || isExecutiveManager || isSalesManager || isMarketingSalesManager;
   const canDeleteCustomers = isGeneralManager || isExecutiveManager || isMarketingSalesManager;
+  const canEditOrderItems = isGeneralManager || isExecutiveManager || isSalesManager || isMarketingSalesManager || isSalesModerator;
   
   const canUpdateOrderStatusForOrder = (_orderCreatedBy: string | null) => {
     return (
