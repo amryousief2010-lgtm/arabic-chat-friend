@@ -143,18 +143,20 @@ describe("Sending the accountant welcome message", () => {
     // 1) Send the welcome message from the SendMessage page.
     const { unmount } = renderApp("/send-message");
 
-    // Pick the accountant from the recipient dropdown.
-    const recipientTrigger = await screen.findByText("اختر الموظف");
-    fireEvent.click(recipientTrigger);
-    const accountantOption = await screen.findByText(/محمد شعلة/);
-    fireEvent.click(accountantOption);
+    // Wait until the recipient list (from React Query) has loaded.
+    await waitFor(() => {
+      const selects = screen.getAllByTestId("native-select");
+      expect(
+        Array.from(selects[0].querySelectorAll("option")).some((o) =>
+          /محمد شعلة/.test(o.textContent || ""),
+        ),
+      ).toBe(true);
+    });
 
-    // Pick the welcome template — fills title + body automatically.
-    const templateTrigger = screen
-      .getAllByRole("combobox")
-      .find((el) => within(el).queryByText("رسالة مخصصة")) as HTMLElement;
-    fireEvent.click(templateTrigger);
-    fireEvent.click(await screen.findByText("ترحيب بالمحاسب وشرح المهام"));
+    const selects = screen.getAllByTestId("native-select") as HTMLSelectElement[];
+    // First select = recipient, second = template.
+    fireEvent.change(selects[0], { target: { value: ACCOUNTANT_ID } });
+    fireEvent.change(selects[1], { target: { value: "accountant_welcome" } });
 
     // Send.
     fireEvent.click(screen.getByRole("button", { name: /إرسال الرسالة/ }));
