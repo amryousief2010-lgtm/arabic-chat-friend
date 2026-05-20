@@ -149,7 +149,7 @@ const formatItemQty = (qty: number, unit?: string): string => {
 };
 
 const Orders = () => {
-  const { isShippingCompany, isAccountant, isSalesModerator, isPrivateDeliveryRep, canUpdateOrderStatusForOrder, canDeleteOrders } = useAuth();
+  const { isShippingCompany, isAccountant, isSalesModerator, isPrivateDeliveryRep, canUpdateOrderStatusForOrder, canDeleteOrders, canEditOrderItems } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const toggleExpanded = (id: string) => {
@@ -666,7 +666,7 @@ const Orders = () => {
                       <Button variant="ghost" size="icon" asChild className="h-8 w-8">
                         <Link to={`/orders/${order.id}`}><Eye className="w-4 h-4" /></Link>
                       </Button>
-                      {isSalesModerator && order.status !== 'delivered' && order.status !== 'cancelled' && order.collection_status !== 'collected' && (
+                      {canEditOrderItems && order.status !== 'delivered' && order.status !== 'cancelled' && (!isSalesModerator || order.collection_status !== 'collected') && (
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingOrder(order)} title="تعديل الطلب">
                           <Pencil className="w-4 h-4" />
                         </Button>
@@ -910,10 +910,10 @@ const Orders = () => {
                             <Eye className="w-4 h-4" />
                           </Link>
                         </Button>
-                        {isSalesModerator &&
+                        {canEditOrderItems &&
                           order.status !== 'delivered' &&
                           order.status !== 'cancelled' &&
-                          order.collection_status !== 'collected' && (
+                          (!isSalesModerator || order.collection_status !== 'collected') && (
                             <Button
                               variant="ghost"
                               size="icon"

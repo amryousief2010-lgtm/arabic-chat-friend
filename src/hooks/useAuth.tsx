@@ -58,6 +58,7 @@ interface AuthContextType {
   canUpdateOrderStatusForOrder: (orderCreatedBy: string | null) => boolean;
   canDeleteOrders: boolean;
   canDeleteCustomers: boolean;
+  canEditOrderItems: boolean;
   // Module permissions
   canManageFeedFactory: boolean;
   canManageWarehouses: boolean;
@@ -223,6 +224,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const canUpdateOrderStatus = isGeneralManager || isExecutiveManager || isSalesManager || isWarehouseSupervisor || isMarketingSalesManager || isShippingCompany || isPrivateDeliveryRep;
   const canDeleteOrders = isGeneralManager || isExecutiveManager || isSalesManager || isMarketingSalesManager;
   const canDeleteCustomers = isGeneralManager || isExecutiveManager || isMarketingSalesManager;
+  const canEditOrderItems = isGeneralManager || isExecutiveManager || isSalesManager || isMarketingSalesManager || isSalesModerator;
   
   const canUpdateOrderStatusForOrder = (_orderCreatedBy: string | null) => {
     return (
@@ -263,6 +265,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     canUpdateOrderStatusForOrder,
     canDeleteOrders,
     canDeleteCustomers,
+    canEditOrderItems,
     canManageFeedFactory,
     canManageWarehouses,
     canManageFarm,
