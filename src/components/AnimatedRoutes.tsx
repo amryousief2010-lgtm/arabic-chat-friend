@@ -211,6 +211,21 @@ const AnimatedRoutes = () => {
             <PageTransition><ProductCosts /></PageTransition>
           </ProtectedRoute>
         } />
+        <Route path="/order-status-audit" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'financial_manager', 'marketing_sales_manager']}>
+            <PageTransition><OrderStatusAudit /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/send-message" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'financial_manager', 'accountant']}>
+            <PageTransition><SendMessage /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/financial-reports" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'sales_manager']}>
+            <PageTransition><FinancialReports /></PageTransition>
+          </ProtectedRoute>
+        } />
         <Route path="/install" element={
           <PageTransition><Install /></PageTransition>
         } />
