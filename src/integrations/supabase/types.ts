@@ -3089,6 +3089,7 @@ export type Database = {
           product_name: string
           production_status: string
           quantity: number
+          quantity_conversion_version: string | null
           total_price: number
           unit_price: number
         }
@@ -3102,6 +3103,7 @@ export type Database = {
           product_name: string
           production_status?: string
           quantity: number
+          quantity_conversion_version?: string | null
           total_price: number
           unit_price: number
         }
@@ -3115,6 +3117,7 @@ export type Database = {
           product_name?: string
           production_status?: string
           quantity?: number
+          quantity_conversion_version?: string | null
           total_price?: number
           unit_price?: number
         }
