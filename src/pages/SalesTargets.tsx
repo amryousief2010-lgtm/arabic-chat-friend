@@ -326,6 +326,17 @@ const SalesTargets = () => {
                 ))}
               </SelectContent>
             </Select>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                await queryClient.invalidateQueries({ queryKey: ['achieved-sales', selectedMonth, selectedYear] });
+                await queryClient.invalidateQueries({ queryKey: ['sales-targets', selectedMonth, selectedYear] });
+                toast({ title: 'تم تحديث التارجت من آخر بيانات الطلبات' });
+              }}
+            >
+              <RefreshCw className="h-4 w-4 ml-2" />
+              تحديث من الطلبات
+            </Button>
             {targetsWithAchieved.length > 0 && (
               <Button variant="outline" onClick={exportToPDF}>
                 <FileDown className="h-4 w-4 ml-2" />
