@@ -454,7 +454,7 @@ const Employees = () => {
   );
 
   const countByRoles = (roles: AppRole[]) =>
-    employees.filter((e) => roles.includes(e.role)).length;
+    employees.filter((e) => e.roles.some((r) => roles.includes(r))).length;
 
   const departments: {
     key: string;
@@ -470,7 +470,15 @@ const Employees = () => {
       icon: Crown,
       color: 'text-amber-600',
       bg: 'bg-amber-500/10',
-      roles: ['general_manager', 'executive_manager', 'production_manager', 'financial_manager', 'quality_manager'],
+      roles: ['general_manager', 'executive_manager', 'production_manager', 'quality_manager'],
+    },
+    {
+      key: 'finance',
+      name: 'المالية والمحاسبة',
+      icon: Calculator,
+      color: 'text-emerald-600',
+      bg: 'bg-emerald-500/10',
+      roles: ['financial_manager', 'accountant'],
     },
     {
       key: 'sales',
@@ -478,7 +486,7 @@ const Employees = () => {
       icon: Megaphone,
       color: 'text-primary',
       bg: 'bg-primary/10',
-      roles: ['marketing_sales_manager', 'sales_manager', 'sales_moderator', 'accountant'],
+      roles: ['marketing_sales_manager', 'sales_manager', 'sales_moderator'],
     },
     {
       key: 'farm',
