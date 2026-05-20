@@ -910,10 +910,10 @@ const Orders = () => {
                             <Eye className="w-4 h-4" />
                           </Link>
                         </Button>
-                        {isSalesModerator &&
+                        {canEditOrderItems &&
                           order.status !== 'delivered' &&
                           order.status !== 'cancelled' &&
-                          order.collection_status !== 'collected' && (
+                          (!isSalesModerator || order.collection_status !== 'collected') && (
                             <Button
                               variant="ghost"
                               size="icon"
