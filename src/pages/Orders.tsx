@@ -575,6 +575,17 @@ const Orders = () => {
                 ))}
               </SelectContent>
             </Select>
+            <Select value={filterProduct} onValueChange={setFilterProduct}>
+              <SelectTrigger className="w-48 input-modern">
+                <SelectValue placeholder="فلترة حسب المنتج" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">جميع المنتجات</SelectItem>
+                {availableProducts.map((name) => (
+                  <SelectItem key={name} value={name}>{name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button variant="outline" className="gap-2" onClick={() => exportOrdersToXLSX(filteredOrders)}>
               <FileDown className="w-4 h-4" /> Excel
             </Button>
