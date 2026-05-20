@@ -564,6 +564,9 @@ const Orders = () => {
                 ))}
               </SelectContent>
             </Select>
+            <Button variant="outline" className="gap-2" onClick={() => exportOrdersToXLSX(filteredOrders)}>
+              <FileDown className="w-4 h-4" /> Excel
+            </Button>
             <Button variant="outline" className="gap-2" onClick={() => exportOrdersToCSV(filteredOrders)}>
               <FileDown className="w-4 h-4" /> CSV
             </Button>
