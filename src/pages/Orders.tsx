@@ -668,7 +668,7 @@ const Orders = () => {
                           <Pencil className="w-4 h-4" />
                         </Button>
                       )}
-                      {order.status !== 'cancelled' && order.items.some((it) => it.offer_name) && (
+                      {order.status !== 'delivered' && order.status !== 'cancelled' && order.items.some((it) => it.offer_name) && (
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSwapOfferOrder(order)} title="استبدال العرض">
                           <PackageOpen className="w-4 h-4 text-primary" />
                         </Button>
@@ -920,7 +920,7 @@ const Orders = () => {
                               <Pencil className="w-4 h-4" />
                             </Button>
                           )}
-                        {order.status !== 'cancelled' &&
+                        {order.status !== 'delivered' && order.status !== 'cancelled' &&
                           order.items.some((it) => it.offer_name) && (
                             <Button
                               variant="ghost"

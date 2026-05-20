@@ -166,9 +166,9 @@ const OrderDetails = () => {
   const canEditItems = (isGeneralManager || isExecutiveManager || isSalesManager || isMarketingSalesManager)
     || ((isShippingCompany || isSalesModerator) && !isLockedForModerators);
   // Swap-offer button: customers often change the chosen offer after registration,
-  // so the 4 sales moderators and the marketing manager can swap even on delivered orders.
+  // so the 4 sales moderators and the marketing manager can swap only on non-delivered, non-cancelled orders.
   const canSwapOffer = (isGeneralManager || isExecutiveManager || isSalesManager || isMarketingSalesManager || isSalesModerator)
-    && order?.status !== 'cancelled';
+    && order?.status !== 'delivered' && order?.status !== 'cancelled';
   const canEditCustomerInfo = (isGeneralManager || isExecutiveManager || isSalesManager || isMarketingSalesManager)
     || (isSalesModerator && !isLockedForModerators);
 
