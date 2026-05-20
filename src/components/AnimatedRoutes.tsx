@@ -47,6 +47,7 @@ import FeedIssues from "@/pages/modules/feed/Issues";
 import WarehouseDashboard from "@/pages/modules/warehouse/WarehouseDashboard";
 import InventoryImport from "@/pages/modules/warehouse/InventoryImport";
 import Debug from "@/pages/Debug";
+import PwaDiagnostics from "@/pages/PwaDiagnostics";
 import ExecutiveDashboards from "@/pages/ExecutiveDashboards";
 import CustomerWeightReport from "@/pages/CustomerWeightReport";
 import ManufacturingQueue from "@/pages/ManufacturingQueue";
