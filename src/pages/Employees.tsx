@@ -220,12 +220,13 @@ const Employees = () => {
       if (rolesError) throw rolesError;
 
       const employeeList: Employee[] = (profiles || []).map(profile => {
-        const userRole = roles?.find(r => r.user_id === profile.id);
+        const userRoles = (roles || []).filter(r => r.user_id === profile.id).map(r => r.role as AppRole);
         return {
           id: profile.id,
           full_name: profile.full_name,
           email: profile.email,
-          role: (userRole?.role as AppRole) || 'sales_moderator',
+          role: userRoles[0] || 'sales_moderator',
+          roles: userRoles.length ? userRoles : ['sales_moderator'],
           created_at: profile.created_at,
         };
       });
