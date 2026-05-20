@@ -915,8 +915,7 @@ const Orders = () => {
                               <Pencil className="w-4 h-4" />
                             </Button>
                           )}
-                        {order.status !== 'delivered' &&
-                          order.status !== 'cancelled' &&
+                        {order.status !== 'cancelled' &&
                           order.items.some((it) => it.offer_name) && (
                             <Button
                               variant="ghost"
