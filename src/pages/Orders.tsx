@@ -149,7 +149,7 @@ const formatItemQty = (qty: number, unit?: string): string => {
 };
 
 const Orders = () => {
-  const { isShippingCompany, isAccountant, isSalesModerator, isPrivateDeliveryRep, canUpdateOrderStatusForOrder, canDeleteOrders } = useAuth();
+  const { isShippingCompany, isAccountant, isSalesModerator, isPrivateDeliveryRep, canUpdateOrderStatusForOrder, canDeleteOrders, canEditOrderItems } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const toggleExpanded = (id: string) => {
