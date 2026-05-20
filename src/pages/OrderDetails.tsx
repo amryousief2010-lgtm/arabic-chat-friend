@@ -149,7 +149,8 @@ const getStatusIcon = (status: OrderStatus) => {
 const OrderDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { canUpdateOrderStatusForOrder, canUpdatePaymentStatus, isGeneralManager, isExecutiveManager, isSalesManager, isShippingCompany, isSalesModerator, canManageStock } = useAuth();
+  const { role, canUpdateOrderStatusForOrder, canUpdatePaymentStatus, isGeneralManager, isExecutiveManager, isSalesManager, isShippingCompany, isSalesModerator, canManageStock } = useAuth();
+  const isMarketingSalesManager = role === 'marketing_sales_manager';
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
@@ -162,9 +163,13 @@ const OrderDetails = () => {
   const [savingCustomer, setSavingCustomer] = useState(false);
   // Moderators (and shipping) can't edit orders that are already delivered or cancelled/returned
   const isLockedForModerators = order ? (order.status === 'delivered' || order.status === 'cancelled') : false;
-  const canEditItems = (isGeneralManager || isExecutiveManager || isSalesManager)
+  const canEditItems = (isGeneralManager || isExecutiveManager || isSalesManager || isMarketingSalesManager)
     || ((isShippingCompany || isSalesModerator) && !isLockedForModerators);
-  const canEditCustomerInfo = (isGeneralManager || isExecutiveManager || isSalesManager)
+  // Swap-offer button: customers often change the chosen offer after registration,
+  // so the 4 sales moderators and the marketing manager can swap even on delivered orders.
+  const canSwapOffer = (isGeneralManager || isExecutiveManager || isSalesManager || isMarketingSalesManager || isSalesModerator)
+    && order?.status !== 'cancelled';
+  const canEditCustomerInfo = (isGeneralManager || isExecutiveManager || isSalesManager || isMarketingSalesManager)
     || (isSalesModerator && !isLockedForModerators);
 
   const openEditCustomer = () => {
