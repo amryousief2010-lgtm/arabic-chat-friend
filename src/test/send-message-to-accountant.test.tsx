@@ -20,7 +20,7 @@ vi.mock("@/hooks/useAuth", () => ({
 // plain native <select> that still exposes value/onValueChange semantics.
 vi.mock("@/components/ui/select", () => {
   const React = require("react");
-  const Ctx = React.createContext<any>(null);
+  const Ctx = React.createContext(null);
   const Select = ({ value, onValueChange, children }: any) => {
     const items: { value: string; label: string }[] = [];
     const walk = (node: any) => {
