@@ -31,6 +31,9 @@ import {
   Network,
   TrendingUp,
   Calculator,
+  ScrollText,
+  MessageSquare,
+  Wallet,
   LucideIcon,
 } from "lucide-react";
 import { useAuth, AppRole } from "@/hooks/useAuth";
