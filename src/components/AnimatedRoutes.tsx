@@ -4,6 +4,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import PageTransition from "@/components/layout/PageTransition";
 import Index from "@/pages/Index";
 import Products from "@/pages/Products";
+import ProductCosts from "@/pages/ProductCosts";
 import Orders from "@/pages/Orders";
 import Customers from "@/pages/Customers";
 import Reports from "@/pages/Reports";
