@@ -163,7 +163,8 @@ const Orders = () => {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [swapOfferOrder, setSwapOfferOrder] = useState<Order | null>(null);
-  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterProduct, setFilterProduct] = useState<string>("all");
+  const [availableProducts, setAvailableProducts] = useState<string[]>([]);
   const [searchParams, setSearchParams] = useSearchParams();
   const yearParam = searchParams.get("year");
   const yearGroup: YearGroup =
