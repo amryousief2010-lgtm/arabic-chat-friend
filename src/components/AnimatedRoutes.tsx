@@ -4,6 +4,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import PageTransition from "@/components/layout/PageTransition";
 import Index from "@/pages/Index";
 import Products from "@/pages/Products";
+import ProductCosts from "@/pages/ProductCosts";
 import Orders from "@/pages/Orders";
 import Customers from "@/pages/Customers";
 import Reports from "@/pages/Reports";
@@ -200,6 +201,11 @@ const AnimatedRoutes = () => {
         <Route path="/reports/order-half-kg" element={
           <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'warehouse_supervisor', 'marketing_sales_manager']}>
             <PageTransition><OrderHalfKgReport /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/product-costs" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant', 'financial_manager']}>
+            <PageTransition><ProductCosts /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/install" element={
