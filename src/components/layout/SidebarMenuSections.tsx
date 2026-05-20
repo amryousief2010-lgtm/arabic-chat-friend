@@ -68,6 +68,8 @@ export const moduleSections: ModuleSection[] = [
       { icon: Bell, label: "الإشعارات", path: "/notifications", roles: ['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'warehouse_supervisor', 'production_manager', 'marketing_sales_manager', 'financial_manager', 'quality_manager'] },
       { icon: AlertTriangle, label: "طلبات التصحيح", path: "/correction-requests", roles: ['general_manager','executive_manager','slaughterhouse_manager','farm_manager','hatchery_manager','brooding_manager','meat_factory_manager','feed_factory_manager','warehouse_supervisor','production_manager','quality_manager'] },
       { icon: History, label: "سجل تدقيق التصحيحات", path: "/correction-audit", roles: ['general_manager','executive_manager'] },
+      { icon: ScrollText, label: "سجل تدقيق حالات الطلبات", path: "/order-status-audit", roles: ['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'financial_manager', 'marketing_sales_manager'] },
+      { icon: MessageSquare, label: "إرسال رسالة داخلية", path: "/send-message", roles: ['general_manager', 'executive_manager', 'sales_manager', 'financial_manager', 'accountant'] },
     ],
   },
   {
