@@ -55,6 +55,7 @@ import {
   Pencil
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { normalizePhone } from '@/lib/normalizePhone';
 
 interface Product {
   id: string;
