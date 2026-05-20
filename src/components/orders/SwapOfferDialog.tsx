@@ -159,10 +159,12 @@ const SwapOfferDialog = ({ open, onOpenChange, orderId, currentItems, onSaved }:
     const product = products.find((p) => p.id === productId);
     if (!product) return;
     const cur = previewItems.find((i) => i.key === key);
+    // Always refresh unit price from the newly-selected product, so swapping
+    // a product multiple times keeps the price in sync with the latest choice.
     updateItem(key, {
       product_id: productId,
       product,
-      custom_price: cur?.is_gift ? 0 : (cur?.custom_price || Number(product.price) || 0),
+      custom_price: cur?.is_gift ? 0 : (Number(product.price) || 0),
     });
   };
 
