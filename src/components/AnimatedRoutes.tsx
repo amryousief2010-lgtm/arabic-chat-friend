@@ -88,6 +88,9 @@ const AnimatedRoutes = () => {
         <Route path="/debug" element={
           <PageTransition><Debug /></PageTransition>
         } />
+        <Route path="/pwa-diagnostics" element={
+          <PageTransition><PwaDiagnostics /></PageTransition>
+        } />
         <Route path="/farm" element={<RedirectWithQuery to="/modules/farm" />} />
         <Route path="/hatchery" element={<RedirectWithQuery to="/modules/hatchery" />} />
         <Route path="/" element={<RoleLanding />} />
