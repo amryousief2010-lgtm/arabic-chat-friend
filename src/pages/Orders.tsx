@@ -604,6 +604,37 @@ const Orders = () => {
           </div>
         </CardHeader>
         <CardContent>
+          <div className="flex flex-wrap gap-2 mb-4">
+            <Button
+              variant={filterStatus === "all" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilterStatus("all")}
+            >
+              الكل
+            </Button>
+            <Button
+              variant={filterStatus === "shipped" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilterStatus("shipped")}
+            >
+              قيد التوصيل
+            </Button>
+            <Button
+              variant={filterStatus === "delivered" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilterStatus("delivered")}
+            >
+              تم التوصيل
+            </Button>
+            <Button
+              variant={filterStatus === "cancelled" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilterStatus("cancelled")}
+            >
+              مرتجع
+            </Button>
+          </div>
+
           {/* Mobile card view */}
           <div className="md:hidden space-y-3">
             {filteredOrders.length === 0 ? (
