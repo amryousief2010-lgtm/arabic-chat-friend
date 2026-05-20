@@ -564,6 +564,12 @@ const Orders = () => {
                 ))}
               </SelectContent>
             </Select>
+            <Button variant="outline" className="gap-2" onClick={() => exportOrdersToCSV(filteredOrders)}>
+              <FileDown className="w-4 h-4" /> CSV
+            </Button>
+            <Button variant="outline" className="gap-2" onClick={() => exportOrdersToPDF(filteredOrders)}>
+              <FileText className="w-4 h-4" /> PDF
+            </Button>
             <Button asChild className="gap-2">
               <Link to="/orders/new">
                 <Plus className="w-4 h-4" />
