@@ -815,10 +815,17 @@ const Employees = () => {
                   </TableCell>
                   <TableCell className="text-muted-foreground">{employee.email}</TableCell>
                   <TableCell>
-                    <Badge variant={roleBadgeVariants[employee.role]} className="gap-1">
-                      <RoleIcon className="w-3 h-3" />
-                      {roleLabels[employee.role]}
-                    </Badge>
+                    <div className="flex flex-wrap gap-1">
+                      {employee.roles.map((r) => {
+                        const Icon = roleIcons[r];
+                        return (
+                          <Badge key={r} variant={roleBadgeVariants[r]} className="gap-1">
+                            <Icon className="w-3 h-3" />
+                            {roleLabels[r]}
+                          </Badge>
+                        );
+                      })}
+                    </div>
                   </TableCell>
                   <TableCell className="text-muted-foreground">{formatDate(employee.created_at)}</TableCell>
                   <TableCell>
