@@ -408,9 +408,9 @@ const OrderDetails = () => {
                     <Package className="w-5 h-5 text-primary" />
                     المنتجات ({order.items.length})
                   </CardTitle>
-                  {canEditItems && order.status !== 'cancelled' && (
+                  {((canEditItems && order.status !== 'cancelled') || canSwapOffer) && (
                     <div className="flex flex-wrap gap-2">
-                      {order.items.some((it) => it.offer_name) && (
+                      {canSwapOffer && order.items.some((it) => it.offer_name) && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -421,15 +421,17 @@ const OrderDetails = () => {
                           استبدال العرض
                         </Button>
                       )}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setEditItemsOpen(true)}
-                        className="gap-1"
-                      >
-                        <Pencil className="w-4 h-4" />
-                        تعديل المنتجات
-                      </Button>
+                      {canEditItems && order.status !== 'cancelled' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEditItemsOpen(true)}
+                          className="gap-1"
+                        >
+                          <Pencil className="w-4 h-4" />
+                          تعديل المنتجات
+                        </Button>
+                      )}
                     </div>
                   )}
                 </div>
