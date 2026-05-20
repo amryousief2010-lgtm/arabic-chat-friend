@@ -203,6 +203,11 @@ const AnimatedRoutes = () => {
             <PageTransition><OrderHalfKgReport /></PageTransition>
           </ProtectedRoute>
         } />
+        <Route path="/product-costs" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant', 'financial_manager']}>
+            <PageTransition><ProductCosts /></PageTransition>
+          </ProtectedRoute>
+        } />
         <Route path="/install" element={
           <PageTransition><Install /></PageTransition>
         } />
