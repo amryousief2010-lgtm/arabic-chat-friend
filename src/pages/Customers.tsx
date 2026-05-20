@@ -23,6 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import CustomersAnalytics from "@/components/dashboard/CustomersAnalytics";
 import { formatDate } from "@/lib/dateFormat";
+import { normalizePhone } from "@/lib/normalizePhone";
 
 const PAGE_SIZE = 25;
 
