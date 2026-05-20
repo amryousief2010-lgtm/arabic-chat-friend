@@ -353,7 +353,10 @@ const Orders = () => {
       (yearGroup === "pre2026" && year < 2026);
     const matchesMonth = filterMonth === "all" || String(month) === filterMonth;
     const matchesYear = filterYear === "all" || String(year) === filterYear;
-    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear;
+    const matchesProduct =
+      filterProduct === "all" ||
+      order.items.some((it) => it.product_name === filterProduct);
+    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct;
   });
 
   const availableYears = Array.from(
