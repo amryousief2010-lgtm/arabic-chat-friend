@@ -56,7 +56,8 @@ interface Employee {
   id: string;
   full_name: string;
   email: string;
-  role: AppRole;
+  role: AppRole; // primary role (first) for back-compat in actions
+  roles: AppRole[]; // all roles assigned to the user
   created_at: string;
 }
 
