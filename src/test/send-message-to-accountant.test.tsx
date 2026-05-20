@@ -16,6 +16,49 @@ vi.mock("@/hooks/useAuth", () => ({
   useAuth: () => ({ role: "general_manager", user: { id: "gm-1" } }),
 }));
 
+// Radix Select is unreliable under jsdom (no scrollIntoView). Swap for a
+// plain native <select> that still exposes value/onValueChange semantics.
+vi.mock("@/components/ui/select", () => {
+  const React = require("react");
+  const Ctx = React.createContext<any>(null);
+  const Select = ({ value, onValueChange, children }: any) => {
+    const items: { value: string; label: string }[] = [];
+    const walk = (node: any) => {
+      React.Children.forEach(node, (c: any) => {
+        if (!c) return;
+        if (c.props?.value !== undefined && typeof c.props?.children === "string") {
+          items.push({ value: c.props.value, label: c.props.children });
+        }
+        if (c.props?.children) walk(c.props.children);
+      });
+    };
+    walk(children);
+    return (
+      <select
+        data-testid="native-select"
+        value={value ?? ""}
+        onChange={(e) => onValueChange?.(e.target.value)}
+      >
+        <option value="" disabled>--</option>
+        {items.map((it) => (
+          <option key={it.value} value={it.value}>{it.label}</option>
+        ))}
+      </select>
+    );
+  };
+  const Passthrough = ({ children }: any) => <>{children}</>;
+  return {
+    Select,
+    SelectTrigger: Passthrough,
+    SelectValue: Passthrough,
+    SelectContent: Passthrough,
+    SelectItem: ({ value, children }: any) => <option value={value}>{children}</option>,
+    SelectGroup: Passthrough,
+    SelectLabel: Passthrough,
+    SelectSeparator: () => null,
+  };
+});
+
 const ACCOUNTANT_ID = "acc-shaala-1";
 
 // --- In-memory backend --------------------------------------------------
