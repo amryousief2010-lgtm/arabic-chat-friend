@@ -2954,6 +2954,7 @@ export type Database = {
           id: string
           is_read: boolean
           order_id: string | null
+          target_user_id: string | null
           title: string
           type: string
         }
@@ -2963,6 +2964,7 @@ export type Database = {
           id?: string
           is_read?: boolean
           order_id?: string | null
+          target_user_id?: string | null
           title: string
           type?: string
         }
@@ -2972,6 +2974,7 @@ export type Database = {
           id?: string
           is_read?: boolean
           order_id?: string | null
+          target_user_id?: string | null
           title?: string
           type?: string
         }
@@ -3128,6 +3131,50 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_status_audit: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          changed_by_name: string | null
+          field_name: string
+          id: string
+          new_value: string | null
+          old_value: string | null
+          order_id: string | null
+          order_number: string | null
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          changed_by_name?: string | null
+          field_name: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          order_id?: string | null
+          order_number?: string | null
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          changed_by_name?: string | null
+          field_name?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          order_id?: string | null
+          order_number?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_status_audit_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
         ]
