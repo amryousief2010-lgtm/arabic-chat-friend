@@ -56,7 +56,8 @@ interface Employee {
   id: string;
   full_name: string;
   email: string;
-  role: AppRole;
+  role: AppRole; // primary role (first) for back-compat in actions
+  roles: AppRole[]; // all roles assigned to the user
   created_at: string;
 }
 
@@ -219,12 +220,13 @@ const Employees = () => {
       if (rolesError) throw rolesError;
 
       const employeeList: Employee[] = (profiles || []).map(profile => {
-        const userRole = roles?.find(r => r.user_id === profile.id);
+        const userRoles = (roles || []).filter(r => r.user_id === profile.id).map(r => r.role as AppRole);
         return {
           id: profile.id,
           full_name: profile.full_name,
           email: profile.email,
-          role: (userRole?.role as AppRole) || 'sales_moderator',
+          role: userRoles[0] || 'sales_moderator',
+          roles: userRoles.length ? userRoles : ['sales_moderator'],
           created_at: profile.created_at,
         };
       });
@@ -452,7 +454,7 @@ const Employees = () => {
   );
 
   const countByRoles = (roles: AppRole[]) =>
-    employees.filter((e) => roles.includes(e.role)).length;
+    employees.filter((e) => e.roles.some((r) => roles.includes(r))).length;
 
   const departments: {
     key: string;
@@ -468,7 +470,15 @@ const Employees = () => {
       icon: Crown,
       color: 'text-amber-600',
       bg: 'bg-amber-500/10',
-      roles: ['general_manager', 'executive_manager', 'production_manager', 'financial_manager', 'quality_manager'],
+      roles: ['general_manager', 'executive_manager', 'production_manager', 'quality_manager'],
+    },
+    {
+      key: 'finance',
+      name: 'المالية والمحاسبة',
+      icon: Calculator,
+      color: 'text-emerald-600',
+      bg: 'bg-emerald-500/10',
+      roles: ['financial_manager', 'accountant'],
     },
     {
       key: 'sales',
@@ -476,7 +486,7 @@ const Employees = () => {
       icon: Megaphone,
       color: 'text-primary',
       bg: 'bg-primary/10',
-      roles: ['marketing_sales_manager', 'sales_manager', 'sales_moderator', 'accountant'],
+      roles: ['marketing_sales_manager', 'sales_manager', 'sales_moderator'],
     },
     {
       key: 'farm',
@@ -747,10 +757,10 @@ const Employees = () => {
             const groups = departments.map((dept) => {
               const rolePriority = new Map(dept.roles.map((r, i) => [r, i]));
               const baseList = filteredEmployees
-                .filter((e) => rolePriority.has(e.role))
+                .filter((e) => e.roles.some((r) => rolePriority.has(r)))
                 .sort((a, b) => {
-                  const pa = rolePriority.get(a.role)!;
-                  const pb = rolePriority.get(b.role)!;
+                  const pa = Math.min(...a.roles.filter((r) => rolePriority.has(r)).map((r) => rolePriority.get(r)!));
+                  const pb = Math.min(...b.roles.filter((r) => rolePriority.has(r)).map((r) => rolePriority.get(r)!));
                   if (pa !== pb) return pa - pb;
                   return a.full_name.localeCompare(b.full_name, 'ar');
                 });
@@ -805,10 +815,17 @@ const Employees = () => {
                   </TableCell>
                   <TableCell className="text-muted-foreground">{employee.email}</TableCell>
                   <TableCell>
-                    <Badge variant={roleBadgeVariants[employee.role]} className="gap-1">
-                      <RoleIcon className="w-3 h-3" />
-                      {roleLabels[employee.role]}
-                    </Badge>
+                    <div className="flex flex-wrap gap-1">
+                      {employee.roles.map((r) => {
+                        const Icon = roleIcons[r];
+                        return (
+                          <Badge key={r} variant={roleBadgeVariants[r]} className="gap-1">
+                            <Icon className="w-3 h-3" />
+                            {roleLabels[r]}
+                          </Badge>
+                        );
+                      })}
+                    </div>
                   </TableCell>
                   <TableCell className="text-muted-foreground">{formatDate(employee.created_at)}</TableCell>
                   <TableCell>
