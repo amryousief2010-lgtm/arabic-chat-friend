@@ -47,6 +47,7 @@ import FeedIssues from "@/pages/modules/feed/Issues";
 import WarehouseDashboard from "@/pages/modules/warehouse/WarehouseDashboard";
 import InventoryImport from "@/pages/modules/warehouse/InventoryImport";
 import Debug from "@/pages/Debug";
+import PwaDiagnostics from "@/pages/PwaDiagnostics";
 import ExecutiveDashboards from "@/pages/ExecutiveDashboards";
 import CustomerWeightReport from "@/pages/CustomerWeightReport";
 import ManufacturingQueue from "@/pages/ManufacturingQueue";
@@ -86,6 +87,9 @@ const AnimatedRoutes = () => {
         } />
         <Route path="/debug" element={
           <PageTransition><Debug /></PageTransition>
+        } />
+        <Route path="/pwa-diagnostics" element={
+          <PageTransition><PwaDiagnostics /></PageTransition>
         } />
         <Route path="/farm" element={<RedirectWithQuery to="/modules/farm" />} />
         <Route path="/hatchery" element={<RedirectWithQuery to="/modules/hatchery" />} />

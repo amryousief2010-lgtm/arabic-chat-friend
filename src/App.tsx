@@ -9,6 +9,7 @@ import AnimatedRoutes from "@/components/AnimatedRoutes";
 import PWAUpdatePrompt from "@/components/PWAUpdatePrompt";
 import VersionBadge from "@/components/VersionBadge";
 import RouteVersionGuard from "@/components/RouteVersionGuard";
+import InstalledIconMismatchAlert from "@/components/InstalledIconMismatchAlert";
 
 const queryClient = new QueryClient();
 
@@ -21,6 +22,7 @@ const App = () => (
       <VersionBadge />
       <BrowserRouter>
         <RouteVersionGuard />
+        <InstalledIconMismatchAlert />
         <AuthProvider>
           <NotificationSettingsProvider>
             <AnimatedRoutes />
