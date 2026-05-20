@@ -164,6 +164,8 @@ const Orders = () => {
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [swapOfferOrder, setSwapOfferOrder] = useState<Order | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterProduct, setFilterProduct] = useState<string>("all");
+  const [availableProducts, setAvailableProducts] = useState<string[]>([]);
   const [searchParams, setSearchParams] = useSearchParams();
   const yearParam = searchParams.get("year");
   const yearGroup: YearGroup =
@@ -322,6 +324,12 @@ const Orders = () => {
       }));
 
       setOrders(formattedOrders);
+
+      // استخراج قائمة المنتجات الفريدة
+      const productNames = Array.from(
+        new Set(itemsData.map((it: any) => it.product_name).filter(Boolean))
+      ).sort((a: string, b: string) => a.localeCompare(b, 'ar'));
+      setAvailableProducts(productNames);
     } catch (error) {
       console.error('Error fetching orders:', error);
       toast.error('حدث خطأ أثناء جلب الطلبات');
@@ -345,7 +353,10 @@ const Orders = () => {
       (yearGroup === "pre2026" && year < 2026);
     const matchesMonth = filterMonth === "all" || String(month) === filterMonth;
     const matchesYear = filterYear === "all" || String(year) === filterYear;
-    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear;
+    const matchesProduct =
+      filterProduct === "all" ||
+      order.items.some((it) => it.product_name === filterProduct);
+    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct;
   });
 
   const availableYears = Array.from(
@@ -561,6 +572,17 @@ const Orders = () => {
                   <SelectItem key={value} value={value}>
                     {label}
                   </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterProduct} onValueChange={setFilterProduct}>
+              <SelectTrigger className="w-48 input-modern">
+                <SelectValue placeholder="فلترة حسب المنتج" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">جميع المنتجات</SelectItem>
+                {availableProducts.map((name) => (
+                  <SelectItem key={name} value={name}>{name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
