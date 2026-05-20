@@ -739,8 +739,10 @@ const NewOrder = () => {
       return a.name.localeCompare(b.name, "ar");
     });
 
+  const normalizedSearch = normalizePhone(customerSearch);
   const filteredCustomers = customers.filter(c =>
     c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
+    (normalizedSearch && (c.phone.includes(normalizedSearch) || ((c as any).phone2 || '').includes(normalizedSearch))) ||
     c.phone.includes(customerSearch) ||
     ((c as any).phone2 || '').includes(customerSearch)
   );
