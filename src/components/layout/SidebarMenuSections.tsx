@@ -30,6 +30,7 @@ import {
   Megaphone,
   Network,
   TrendingUp,
+  Calculator,
   LucideIcon,
 } from "lucide-react";
 import { useAuth, AppRole } from "@/hooks/useAuth";
