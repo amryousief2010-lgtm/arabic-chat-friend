@@ -32,7 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Target, Plus, TrendingUp, TrendingDown, Award, Users, BarChart3, FileDown } from 'lucide-react';
+import { Target, Plus, TrendingUp, TrendingDown, Award, Users, BarChart3, FileDown, RefreshCw } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -326,6 +326,17 @@ const SalesTargets = () => {
                 ))}
               </SelectContent>
             </Select>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                await queryClient.invalidateQueries({ queryKey: ['achieved-sales', selectedMonth, selectedYear] });
+                await queryClient.invalidateQueries({ queryKey: ['sales-targets', selectedMonth, selectedYear] });
+                toast({ title: 'تم تحديث التارجت من آخر بيانات الطلبات' });
+              }}
+            >
+              <RefreshCw className="h-4 w-4 ml-2" />
+              تحديث من الطلبات
+            </Button>
             {targetsWithAchieved.length > 0 && (
               <Button variant="outline" onClick={exportToPDF}>
                 <FileDown className="h-4 w-4 ml-2" />
