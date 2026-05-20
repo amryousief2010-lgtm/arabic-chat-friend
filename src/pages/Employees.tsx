@@ -757,10 +757,10 @@ const Employees = () => {
             const groups = departments.map((dept) => {
               const rolePriority = new Map(dept.roles.map((r, i) => [r, i]));
               const baseList = filteredEmployees
-                .filter((e) => rolePriority.has(e.role))
+                .filter((e) => e.roles.some((r) => rolePriority.has(r)))
                 .sort((a, b) => {
-                  const pa = rolePriority.get(a.role)!;
-                  const pb = rolePriority.get(b.role)!;
+                  const pa = Math.min(...a.roles.filter((r) => rolePriority.has(r)).map((r) => rolePriority.get(r)!));
+                  const pb = Math.min(...b.roles.filter((r) => rolePriority.has(r)).map((r) => rolePriority.get(r)!));
                   if (pa !== pb) return pa - pb;
                   return a.full_name.localeCompare(b.full_name, 'ar');
                 });
