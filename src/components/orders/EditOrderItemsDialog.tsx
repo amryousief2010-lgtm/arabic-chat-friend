@@ -79,7 +79,10 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
     setDiscount(Number(initialDiscount) || 0);
     setOriginalDiscount(Number(initialDiscount) || 0);
     fetchProducts();
-  }, [open, initialItems, initialDiscount]);
+    // Only reset on dialog open transition — don't overwrite user edits
+    // when parent re-renders due to tab switch / background refetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const fetchProducts = async () => {
     const { data, error } = await supabase
