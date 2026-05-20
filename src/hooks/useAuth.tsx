@@ -265,6 +265,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     canUpdateOrderStatusForOrder,
     canDeleteOrders,
     canDeleteCustomers,
+    canEditOrderItems,
     canManageFeedFactory,
     canManageWarehouses,
     canManageFarm,
