@@ -5,6 +5,9 @@ import PageTransition from "@/components/layout/PageTransition";
 import Index from "@/pages/Index";
 import Products from "@/pages/Products";
 import ProductCosts from "@/pages/ProductCosts";
+import OrderStatusAudit from "@/pages/OrderStatusAudit";
+import SendMessage from "@/pages/SendMessage";
+import FinancialReports from "@/pages/FinancialReports";
 import Orders from "@/pages/Orders";
 import Customers from "@/pages/Customers";
 import Reports from "@/pages/Reports";
@@ -206,6 +209,21 @@ const AnimatedRoutes = () => {
         <Route path="/product-costs" element={
           <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant', 'financial_manager']}>
             <PageTransition><ProductCosts /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/order-status-audit" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'financial_manager', 'marketing_sales_manager']}>
+            <PageTransition><OrderStatusAudit /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/send-message" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'financial_manager', 'accountant']}>
+            <PageTransition><SendMessage /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/financial-reports" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'sales_manager']}>
+            <PageTransition><FinancialReports /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/install" element={
