@@ -666,7 +666,7 @@ const Orders = () => {
                       <Button variant="ghost" size="icon" asChild className="h-8 w-8">
                         <Link to={`/orders/${order.id}`}><Eye className="w-4 h-4" /></Link>
                       </Button>
-                      {isSalesModerator && order.status !== 'delivered' && order.status !== 'cancelled' && order.collection_status !== 'collected' && (
+                      {canEditOrderItems && order.status !== 'delivered' && order.status !== 'cancelled' && (!isSalesModerator || order.collection_status !== 'collected') && (
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingOrder(order)} title="تعديل الطلب">
                           <Pencil className="w-4 h-4" />
                         </Button>
