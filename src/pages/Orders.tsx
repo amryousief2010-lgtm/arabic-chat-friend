@@ -324,6 +324,12 @@ const Orders = () => {
       }));
 
       setOrders(formattedOrders);
+
+      // استخراج قائمة المنتجات الفريدة
+      const productNames = Array.from(
+        new Set(itemsData.map((it: any) => it.product_name).filter(Boolean))
+      ).sort((a: string, b: string) => a.localeCompare(b, 'ar'));
+      setAvailableProducts(productNames);
     } catch (error) {
       console.error('Error fetching orders:', error);
       toast.error('حدث خطأ أثناء جلب الطلبات');
