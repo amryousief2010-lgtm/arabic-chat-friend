@@ -55,6 +55,7 @@ import {
   Pencil
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { normalizePhone } from '@/lib/normalizePhone';
 
 interface Product {
   id: string;
@@ -474,7 +475,9 @@ const NewOrder = () => {
   const total = subtotal - discount + Number(extraCharge || 0) + (hasOfferInCart ? Number(deliveryFee || 0) : 0);
 
   const handleAddCustomer = async () => {
-    if (!newCustomerName.trim() || !newCustomerPhone.trim()) {
+    const normalizedPhone = normalizePhone(newCustomerPhone);
+    const normalizedPhone2 = normalizePhone(newCustomerPhone2);
+    if (!newCustomerName.trim() || !normalizedPhone) {
       toast.error('يرجى إدخال اسم العميل ورقم الهاتف');
       return;
     }
@@ -484,8 +487,8 @@ const NewOrder = () => {
       const finalShipping = (newCustomerShipping === 'أخرى' ? newCustomerShippingCustom.trim() : newCustomerShipping) || null;
       const payload = {
         name: newCustomerName.trim(),
-        phone: newCustomerPhone.trim(),
-        phone2: newCustomerPhone2.trim() || null,
+        phone: normalizedPhone,
+        phone2: normalizedPhone2 || null,
         address: newCustomerAddress.trim() || null,
         city: newCustomerCity.trim() || null,
         governorate: newCustomerGovernorate.trim() || null,
@@ -736,8 +739,10 @@ const NewOrder = () => {
       return a.name.localeCompare(b.name, "ar");
     });
 
+  const normalizedSearch = normalizePhone(customerSearch);
   const filteredCustomers = customers.filter(c =>
     c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
+    (normalizedSearch && (c.phone.includes(normalizedSearch) || ((c as any).phone2 || '').includes(normalizedSearch))) ||
     c.phone.includes(customerSearch) ||
     ((c as any).phone2 || '').includes(customerSearch)
   );

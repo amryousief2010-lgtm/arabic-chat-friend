@@ -23,6 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import CustomersAnalytics from "@/components/dashboard/CustomersAnalytics";
 import { formatDate } from "@/lib/dateFormat";
+import { normalizePhone } from "@/lib/normalizePhone";
 
 const PAGE_SIZE = 25;
 
@@ -179,14 +180,16 @@ const Customers = () => {
   });
 
   const handleSubmit = () => {
-    if (!formData.name || !formData.phone) {
+    const normalizedPhone = normalizePhone(formData.phone);
+    if (!formData.name || !normalizedPhone) {
       toast({ title: "خطأ", description: "يرجى ملء الاسم ورقم الهاتف", variant: "destructive" });
       return;
     }
+    const cleaned = { ...formData, phone: normalizedPhone };
     if (editingCustomer) {
-      updateMutation.mutate({ id: editingCustomer.id, updates: { ...formData, email: formData.email || null, address: formData.address || null, city: formData.city || null } });
+      updateMutation.mutate({ id: editingCustomer.id, updates: { ...cleaned, email: cleaned.email || null, address: cleaned.address || null, city: cleaned.city || null } });
     } else {
-      createMutation.mutate(formData);
+      createMutation.mutate(cleaned);
     }
   };
 
