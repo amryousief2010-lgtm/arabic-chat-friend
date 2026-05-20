@@ -32,7 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Target, Plus, TrendingUp, TrendingDown, Award, Users, BarChart3, FileDown } from 'lucide-react';
+import { Target, Plus, TrendingUp, TrendingDown, Award, Users, BarChart3, FileDown, RefreshCw } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
