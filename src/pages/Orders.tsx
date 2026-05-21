@@ -72,6 +72,7 @@ interface Order {
   order_number: string;
   customer_id: string | null;
   customer_name: string;
+  customer_phone: string;
   status: OrderStatus;
   payment_method: string;
   payment_status: string;
@@ -222,7 +223,7 @@ const Orders = () => {
       while (true) {
         let q = supabase
           .from('orders')
-          .select(`*, customers (name)`)
+          .select(`*, customers (name, phone)`)
           .order('created_at', { ascending: false })
           .range(oPage * ORDERS_PAGE, (oPage + 1) * ORDERS_PAGE - 1);
         if (startDate) q = q.gte('created_at', startDate);
@@ -292,6 +293,7 @@ const Orders = () => {
         order_number: order.order_number,
         customer_id: order.customer_id,
         customer_name: order.customers?.name || 'عميل غير معروف',
+        customer_phone: order.customers?.phone || '',
         status: order.status as OrderStatus,
         payment_method: order.payment_method,
         payment_status: order.payment_status,
@@ -762,6 +764,7 @@ const Orders = () => {
               <TableRow className="bg-green-100 hover:bg-green-100 dark:bg-green-800/40 dark:hover:bg-green-800/40 [&_th]:text-green-900 dark:[&_th]:text-green-100 [&_th]:font-semibold">
                 <TableHead className="text-right">رقم الطلب</TableHead>
                 <TableHead className="text-right">العميل</TableHead>
+                <TableHead className="text-right">رقم الهاتف</TableHead>
                 <TableHead className="text-right">الموديريتور</TableHead>
                 <TableHead className="text-right">المنتجات</TableHead>
                 <TableHead className="text-right">العرض</TableHead>
@@ -780,7 +783,7 @@ const Orders = () => {
             <TableBody>
               {filteredOrders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={15} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={16} className="text-center py-8 text-muted-foreground">
                     لا توجد طلبات
                   </TableCell>
                 </TableRow>
@@ -791,6 +794,13 @@ const Orders = () => {
                       {order.order_number}
                     </TableCell>
                     <TableCell>{order.customer_name}</TableCell>
+                    <TableCell className="font-mono text-sm" dir="ltr">
+                      {order.customer_phone ? (
+                        <a href={`tel:${order.customer_phone}`} className="hover:underline">{order.customer_phone}</a>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Badge variant="secondary">{order.moderator_name}</Badge>
                     </TableCell>
