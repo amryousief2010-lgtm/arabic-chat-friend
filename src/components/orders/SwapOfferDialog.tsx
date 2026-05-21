@@ -145,6 +145,33 @@ const SwapOfferDialog = ({ open, onOpenChange, orderId, currentItems, onSaved }:
           is_gift: !!it.is_gift,
         };
       });
+
+      // Include the offer's shipping inside the items so the offer total
+      // matches offer_price (shipping baked in, delivery_fee=0 on save).
+      const offer = offers.find((o) => o.id === offerId);
+      const targetTotal = Number(offer?.offer_price || 0);
+      const baseSubtotal = items.reduce(
+        (s, it) => s + (it.is_gift ? 0 : Number(it.quantity) * Number(it.custom_price)),
+        0
+      );
+      if (targetTotal > 0 && baseSubtotal > 0 && Math.abs(targetTotal - baseSubtotal) > 0.005) {
+        const factor = targetTotal / baseSubtotal;
+        const nonGiftIdx: number[] = [];
+        items.forEach((it, i) => { if (!it.is_gift && it.quantity > 0) nonGiftIdx.push(i); });
+        let running = 0;
+        nonGiftIdx.forEach((i, k) => {
+          const it = items[i];
+          if (k < nonGiftIdx.length - 1) {
+            const newUnit = +(Number(it.custom_price) * factor).toFixed(2);
+            it.custom_price = newUnit;
+            running += newUnit * Number(it.quantity);
+          } else {
+            // last item absorbs rounding remainder
+            const remaining = targetTotal - running;
+            it.custom_price = +(remaining / Number(it.quantity)).toFixed(2);
+          }
+        });
+      }
       setPreviewItems(items);
     } catch (e: any) {
       toast.error(e.message || "فشل تحميل تفاصيل العرض");
@@ -241,13 +268,11 @@ const SwapOfferDialog = ({ open, onOpenChange, orderId, currentItems, onSaved }:
       const { error: insErr } = await supabase.from("order_items").insert(toInsert);
       if (insErr) throw insErr;
 
-      // 3) Update delivery_fee on the order to the new offer's shipping_cost.
-      //    The DB trigger `recompute_order_totals` will then recalc subtotal & total
-      //    (and includes delivery_fee in total when there are offer items).
-      const newShipping = Number(selectedNewOffer.shipping_cost || 0);
+      // 3) Shipping is now baked into the offer item prices so the items
+      //    subtotal already equals offer_price. Zero out delivery_fee.
       const { error: updErr } = await supabase
         .from("orders")
-        .update({ delivery_fee: newShipping })
+        .update({ delivery_fee: 0 })
         .eq("id", orderId);
       if (updErr) throw updErr;
 
@@ -396,16 +421,13 @@ const SwapOfferDialog = ({ open, onOpenChange, orderId, currentItems, onSaved }:
 
                 <div className="pt-2 border-t space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">إجمالي العرض الجديد (منتجات)</span>
+                    <span className="text-muted-foreground">إجمالي العرض الجديد (شامل الشحن)</span>
                     <span className="font-bold">{newSubtotal.toLocaleString()} ج.م</span>
                   </div>
                   {Number(selectedNewOffer?.shipping_cost || 0) > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">شحن العرض</span>
-                      <span>
-                        {Number(selectedNewOffer?.shipping_cost || 0).toLocaleString()} ج.م
-                      </span>
-                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      تم تضمين شحن العرض ({Number(selectedNewOffer?.shipping_cost || 0).toLocaleString()} ج.م) داخل أسعار المنتجات.
+                    </p>
                   )}
                 </div>
               </div>
