@@ -122,8 +122,8 @@ export default function OfferBoxPricingAudit() {
             <CardContent className="space-y-2">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <Stat label="إجمالي الطلبات المفحوصة" value={result.totalOrders} />
-                <Stat label="طلبات تحتاج تصحيح" value={result.affected.length} />
-                <Stat label="عروض متأثرة" value={Object.keys(result.summary.byOffer).length} />
+                <Stat label="طلبات للتصحيح فعلياً" value={correctable.length} />
+                <Stat label="اسم بوكس فقط (منتجات مختلفة)" value={onlyMislabeled.length} />
                 {typeof result.summary.applied === "number" && (
                   <Stat label="عناصر تم تصحيحها" value={result.summary.applied} />
                 )}
