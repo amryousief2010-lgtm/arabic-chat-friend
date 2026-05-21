@@ -243,9 +243,11 @@ Deno.serve(async (req) => {
     }
 
     let applied = 0;
+    let ordersTotalsUpdated = 0;
     const updateErrors: { item_id: string; message: string }[] = [];
     if (mode === "apply") {
       for (const a of affected) {
+        if (a.diffs.length === 0) continue;
         for (const d of a.diffs) {
           const payload: Record<string, unknown> = {
             unit_price: d.expected_unit_price,
@@ -265,8 +267,22 @@ Deno.serve(async (req) => {
             updateErrors.push({ item_id: d.item_id, message: "no rows matched" });
           }
         }
+        // Recompute order total/subtotal from current items (after updates).
+        const { data: items } = await supabase
+          .from("order_items")
+          .select("total_price")
+          .eq("order_id", a.order_id);
+        const newSubtotal = +(items || []).reduce((s: number, it: any) => s + Number(it.total_price || 0), 0).toFixed(2);
+        const newTotal = newSubtotal; // shipping is baked into items for imports
+        const { error: ordErr } = await supabase
+          .from("orders")
+          .update({ subtotal: newSubtotal, total: newTotal, delivery_fee: 0 })
+          .eq("id", a.order_id);
+        if (!ordErr) ordersTotalsUpdated += 1;
+        else updateErrors.push({ item_id: a.order_id, message: `order total: ${ordErr.message}` });
       }
     }
+
 
     return json({
       mode,
