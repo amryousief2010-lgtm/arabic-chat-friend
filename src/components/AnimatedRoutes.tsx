@@ -30,6 +30,7 @@ import Unauthorized from "@/pages/Unauthorized";
 import ImportSalesData from "@/pages/ImportSalesData";
 import RebuildMayOrders from "@/pages/RebuildMayOrders";
 import ExcelComparison from "@/pages/ExcelComparison";
+import OfferBoxPricingAudit from "@/pages/OfferBoxPricingAudit";
 import ModeratorPerformance from "@/pages/ModeratorPerformance";
 import ModeratorOrdersLog from "@/pages/ModeratorOrdersLog";
 import Farm from "@/pages/modules/Farm";
