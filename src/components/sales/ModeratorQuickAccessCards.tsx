@@ -136,13 +136,15 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false }: Props) => {
 
         const monthW = emptyW();
         const todayW = emptyW();
+        // Month weights count ONLY delivered orders; today weights remain all-statuses for the day
+        const deliveredMonthIds = new Set(filtered.filter((o) => o.status === "delivered").map((o) => o.id));
         const orderIdSet = new Set(filtered.map((o) => o.id));
         for (const it of items) {
           if (!orderIdSet.has(it.order_id)) continue;
           const cat = classify(it.product_name, it.product_id ? productCat.get(it.product_id) ?? null : null);
           if (cat === "other") continue;
           const qty = Number(it.quantity || 0);
-          monthW[cat] += qty;
+          if (deliveredMonthIds.has(it.order_id)) monthW[cat] += qty;
           const o = orderById.get(it.order_id);
           if (o && o.created_at.slice(0, 10) === todayStr) todayW[cat] += qty;
         }
