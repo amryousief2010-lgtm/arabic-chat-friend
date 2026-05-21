@@ -268,13 +268,11 @@ const SwapOfferDialog = ({ open, onOpenChange, orderId, currentItems, onSaved }:
       const { error: insErr } = await supabase.from("order_items").insert(toInsert);
       if (insErr) throw insErr;
 
-      // 3) Update delivery_fee on the order to the new offer's shipping_cost.
-      //    The DB trigger `recompute_order_totals` will then recalc subtotal & total
-      //    (and includes delivery_fee in total when there are offer items).
-      const newShipping = Number(selectedNewOffer.shipping_cost || 0);
+      // 3) Shipping is now baked into the offer item prices so the items
+      //    subtotal already equals offer_price. Zero out delivery_fee.
       const { error: updErr } = await supabase
         .from("orders")
-        .update({ delivery_fee: newShipping })
+        .update({ delivery_fee: 0 })
         .eq("id", orderId);
       if (updErr) throw updErr;
 
