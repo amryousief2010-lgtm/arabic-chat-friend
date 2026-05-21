@@ -48,6 +48,7 @@ export default function OfferBoxPricingAudit() {
   const [applying, setApplying] = useState(false);
   const [result, setResult] = useState<PreviewResult | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [scope, setScope] = useState<"offers" | "products" | "all">("all");
 
   const correctable = result?.affected.filter((a) => a.diffs.length > 0) ?? [];
   const onlyMislabeled = result?.affected.filter((a) => a.diffs.length === 0 && a.unmatched.length > 0) ?? [];
@@ -56,7 +57,7 @@ export default function OfferBoxPricingAudit() {
     if (mode === "apply") setApplying(true); else setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("audit-offer-box-pricing", {
-        body: { mode },
+        body: { mode, scope },
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
@@ -64,9 +65,9 @@ export default function OfferBoxPricingAudit() {
       const corr = (data.affected as Affected[]).filter((a) => a.diffs.length > 0).length;
       const mis = (data.affected as Affected[]).filter((a) => a.diffs.length === 0 && a.unmatched.length > 0).length;
       if (mode === "apply") {
-        toast.success(`تم تصحيح ${data.summary.applied} عنصر — ${mis} طلب اسمه بوكس لكن منتجاته مش من البوكس (لم يتم المساس بها)`);
+        toast.success(`تم تصحيح ${data.summary.applied} عنصر — ${mis} طلب يحتاج مراجعة يدوية`);
       } else {
-        toast.success(`فحص ${data.totalOrders} طلب: ${corr} للتصحيح فعلياً، ${mis} اسم بوكس فقط (منتجات مختلفة)`);
+        toast.success(`فحص ${data.totalOrders} طلب: ${corr} للتصحيح، ${mis} غير مطابق`);
       }
     } catch (e: any) {
       toast.error(e.message || "فشل التشغيل");
@@ -78,14 +79,24 @@ export default function OfferBoxPricingAudit() {
 
   return (
     <div className="container mx-auto p-4 space-y-4" dir="rtl">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <h1 className="text-2xl font-bold">تدقيق أسعار البوكسات (الاستيراد)</h1>
+          <h1 className="text-2xl font-bold">تدقيق أسعار الطلبات المُستوردة</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            يقارن الطلبات المُستوردة من Excel التي تحتوي عرضًا (بوكس) مع أسعار البوكس المعتمدة، ويعرض الفروق قبل التطبيق.
+            يصحح أسعار عناصر الطلبات المُستوردة من Excel: العروض بأسعار البوكس، والمنتجات العادية بأسعارها الأصلية. لا يُعدّل الكميات أو إجمالي الطلب أو العميل أو الحالة.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap items-center">
+          <select
+            value={scope}
+            onChange={(e) => setScope(e.target.value as any)}
+            disabled={loading || applying}
+            className="border rounded-md h-9 px-2 text-sm bg-background"
+          >
+            <option value="all">الكل (عروض + منتجات)</option>
+            <option value="offers">العروض فقط</option>
+            <option value="products">المنتجات العادية فقط</option>
+          </select>
           <Button onClick={() => run("preview")} disabled={loading || applying}>
             {loading ? <Loader2 className="w-4 h-4 animate-spin ms-1" /> : null}
             معاينة الفروق
@@ -94,7 +105,7 @@ export default function OfferBoxPricingAudit() {
             variant="destructive"
             disabled={!result || correctable.length === 0 || applying || loading}
             onClick={() => {
-              if (confirm("سيتم تصحيح أسعار عناصر الطلبات المعروضة فقط. لن يتم تعديل أي بيانات أخرى (الكميات، الإجمالي، العميل، الحالة). متابعة؟")) {
+              if (confirm(`سيتم تصحيح أسعار ${correctable.length} طلب. لن يتم تعديل أي بيانات أخرى. متابعة؟`)) {
                 run("apply");
               }
             }}
