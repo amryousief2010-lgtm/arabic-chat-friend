@@ -190,27 +190,81 @@ Deno.serve(async (req) => {
         ordersCreated++;
 
         const products = record.products || [];
-        const items = products.length > 0
-          ? products.map((p: any) => {
-              const totalQty = products.reduce((s: number, x: any) => s + x.quantity, 0);
-              const unitPrice = record.orderValue / totalQty;
-              return {
+        const matchedBox = offerBoxByName.get((record.offerType || "").trim());
+
+        let items: any[];
+        if (matchedBox) {
+          // OFFER BOX: use offer-box configured prices, never the normal product prices.
+          // Build a map of expected products from the offer box config.
+          const boxItems = matchedBox.offer_box_items || [];
+          const boxByNormName = new Map<string, any>();
+          for (const bi of boxItems) {
+            boxByNormName.set(normalize(bi.products?.name || ""), bi);
+          }
+          // Match incoming products to box items by normalized name.
+          const used = new Set<string>();
+          const matchedItems: any[] = [];
+          for (const p of products) {
+            const key = normalize(p.name);
+            const bi = boxByNormName.get(key);
+            if (!bi) continue;
+            used.add(key);
+            const unit = bi.is_gift ? 0 : Number(bi.custom_price);
+            matchedItems.push({
+              order_id: newOrder.id,
+              product_id: bi.product_id,
+              product_name: p.name,
+              quantity: p.quantity,
+              unit_price: unit,
+              total_price: +(unit * Number(p.quantity)).toFixed(2),
+            });
+          }
+          // Add any box products missing from the Excel row (gifts often omitted).
+          for (const bi of boxItems) {
+            const key = normalize(bi.products?.name || "");
+            if (used.has(key)) continue;
+            const unit = bi.is_gift ? 0 : Number(bi.custom_price);
+            matchedItems.push({
+              order_id: newOrder.id,
+              product_id: bi.product_id,
+              product_name: bi.products?.name || "",
+              quantity: Number(bi.quantity),
+              unit_price: unit,
+              total_price: +(unit * Number(bi.quantity)).toFixed(2),
+            });
+          }
+          items = matchedItems.length
+            ? matchedItems
+            : [{
                 order_id: newOrder.id,
-                product_name: p.name,
-                quantity: p.quantity,
-                unit_price: unitPrice,
-                total_price: unitPrice * p.quantity,
-              };
-            })
-          : [
-              {
+                product_name: record.offerType || "طلب",
+                quantity: 1,
+                unit_price: Number(matchedBox.offer_price) || record.orderValue,
+                total_price: Number(matchedBox.offer_price) || record.orderValue,
+              }];
+        } else {
+          // NORMAL ORDER: keep existing behaviour (split orderValue by qty).
+          items = products.length > 0
+            ? products.map((p: any) => {
+                const totalQty = products.reduce((s: number, x: any) => s + x.quantity, 0);
+                const unitPrice = record.orderValue / totalQty;
+                return {
+                  order_id: newOrder.id,
+                  product_name: p.name,
+                  quantity: p.quantity,
+                  unit_price: unitPrice,
+                  total_price: unitPrice * p.quantity,
+                };
+              })
+            : [{
                 order_id: newOrder.id,
                 product_name: record.offerType || "طلب",
                 quantity: 1,
                 unit_price: record.orderValue,
                 total_price: record.orderValue,
-              },
-            ];
+              }];
+        }
+
 
         const { error: itemErr, data: insertedItems } = await supabase
           .from("order_items")
