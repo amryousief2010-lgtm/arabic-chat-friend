@@ -38,6 +38,8 @@ type PreviewResult = {
     affectedCount: number;
     applied?: number;
     byOffer: Record<string, { orders: number; itemsCorrected: number; unmatched: number }>;
+    updateErrors?: { item_id: string; message: string }[];
+    updateErrorsCount?: number;
   };
 };
 
@@ -46,6 +48,9 @@ export default function OfferBoxPricingAudit() {
   const [applying, setApplying] = useState(false);
   const [result, setResult] = useState<PreviewResult | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  const correctable = result?.affected.filter((a) => a.diffs.length > 0) ?? [];
+  const onlyMislabeled = result?.affected.filter((a) => a.diffs.length === 0 && a.unmatched.length > 0) ?? [];
 
   const run = async (mode: "preview" | "apply") => {
     if (mode === "apply") setApplying(true); else setLoading(true);
@@ -56,10 +61,12 @@ export default function OfferBoxPricingAudit() {
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
       setResult(data as PreviewResult);
+      const corr = (data.affected as Affected[]).filter((a) => a.diffs.length > 0).length;
+      const mis = (data.affected as Affected[]).filter((a) => a.diffs.length === 0 && a.unmatched.length > 0).length;
       if (mode === "apply") {
-        toast.success(`تم تصحيح ${data.summary.applied} عنصر في ${data.affected.length} طلب`);
+        toast.success(`تم تصحيح ${data.summary.applied} عنصر — ${mis} طلب اسمه بوكس لكن منتجاته مش من البوكس (لم يتم المساس بها)`);
       } else {
-        toast.success(`تم فحص ${data.totalOrders} طلب — ${data.affected.length} يحتاج تصحيح`);
+        toast.success(`فحص ${data.totalOrders} طلب: ${corr} للتصحيح فعلياً، ${mis} اسم بوكس فقط (منتجات مختلفة)`);
       }
     } catch (e: any) {
       toast.error(e.message || "فشل التشغيل");
@@ -85,7 +92,7 @@ export default function OfferBoxPricingAudit() {
           </Button>
           <Button
             variant="destructive"
-            disabled={!result || result.affected.length === 0 || applying || loading}
+            disabled={!result || correctable.length === 0 || applying || loading}
             onClick={() => {
               if (confirm("سيتم تصحيح أسعار عناصر الطلبات المعروضة فقط. لن يتم تعديل أي بيانات أخرى (الكميات، الإجمالي، العميل، الحالة). متابعة؟")) {
                 run("apply");
@@ -115,8 +122,8 @@ export default function OfferBoxPricingAudit() {
             <CardContent className="space-y-2">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <Stat label="إجمالي الطلبات المفحوصة" value={result.totalOrders} />
-                <Stat label="طلبات تحتاج تصحيح" value={result.affected.length} />
-                <Stat label="عروض متأثرة" value={Object.keys(result.summary.byOffer).length} />
+                <Stat label="طلبات للتصحيح فعلياً" value={correctable.length} />
+                <Stat label="اسم بوكس فقط (منتجات مختلفة)" value={onlyMislabeled.length} />
                 {typeof result.summary.applied === "number" && (
                   <Stat label="عناصر تم تصحيحها" value={result.summary.applied} />
                 )}
@@ -154,7 +161,12 @@ export default function OfferBoxPricingAudit() {
 
           <Card>
             <CardHeader>
-              <CardTitle>الطلبات المتأثرة ({result.affected.length})</CardTitle>
+              <CardTitle>الطلبات ({result.affected.length}) — منها {correctable.length} للتصحيح فعلياً</CardTitle>
+              {onlyMislabeled.length > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {onlyMislabeled.length} طلب اسم العرض فيه "بوكس" لكن المنتجات داخله لا تنتمي لتكوين البوكس (مثلاً منتجات نعام كاملة). لن يتم المساس بأسعارها — يلزم مراجعة يدوية لتصحيح اسم العرض في الاستيراد.
+                </p>
+              )}
             </CardHeader>
             <CardContent>
               {result.affected.length === 0 ? (

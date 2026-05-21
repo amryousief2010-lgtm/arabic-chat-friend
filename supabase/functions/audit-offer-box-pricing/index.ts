@@ -160,18 +160,29 @@ Deno.serve(async (req) => {
     }
 
     let applied = 0;
+    const updateErrors: { item_id: string; message: string }[] = [];
     if (mode === "apply") {
       for (const a of affected) {
         for (const d of a.diffs) {
-          const { error: upErr } = await supabase
+          const payload: Record<string, unknown> = {
+            unit_price: d.expected_unit_price,
+            total_price: d.expected_total_price,
+          };
+          if (d.set_product_id) payload.product_id = d.set_product_id;
+          const { data: upData, error: upErr } = await supabase
             .from("order_items")
-            .update({
-              unit_price: d.expected_unit_price,
-              total_price: d.expected_total_price,
-              product_id: d.set_product_id,
-            })
-            .eq("id", d.item_id);
-          if (!upErr) applied += 1;
+            .update(payload)
+            .eq("id", d.item_id)
+            .select("id");
+          if (upErr) {
+            updateErrors.push({ item_id: d.item_id, message: upErr.message });
+            console.error("update failed", d.item_id, upErr.message);
+          } else if (upData && upData.length > 0) {
+            applied += 1;
+          } else {
+            updateErrors.push({ item_id: d.item_id, message: "no rows matched" });
+            console.error("no rows matched", d.item_id);
+          }
         }
       }
     }
@@ -180,7 +191,7 @@ Deno.serve(async (req) => {
       mode,
       totalOrders: (orders || []).length,
       affected,
-      summary: { byOffer, affectedCount: affected.length, applied },
+      summary: { byOffer, affectedCount: affected.length, applied, updateErrors: updateErrors.slice(0, 20), updateErrorsCount: updateErrors.length },
     });
   } catch (e) {
     return json({ error: (e as Error).message }, 500);
