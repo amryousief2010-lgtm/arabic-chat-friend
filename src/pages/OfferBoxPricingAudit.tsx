@@ -92,7 +92,7 @@ export default function OfferBoxPricingAudit() {
           </Button>
           <Button
             variant="destructive"
-            disabled={!result || result.affected.length === 0 || applying || loading}
+            disabled={!result || correctable.length === 0 || applying || loading}
             onClick={() => {
               if (confirm("سيتم تصحيح أسعار عناصر الطلبات المعروضة فقط. لن يتم تعديل أي بيانات أخرى (الكميات، الإجمالي، العميل، الحالة). متابعة؟")) {
                 run("apply");
