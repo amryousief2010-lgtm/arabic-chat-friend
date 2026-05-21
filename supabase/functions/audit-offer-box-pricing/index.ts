@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
       order_items: { id: string; product_id: string | null; product_name: string; quantity: number; unit_price: number; total_price: number }[];
     };
     const orders: OrderRow[] = [];
-    const PAGE = 1000;
+    const PAGE = 200;
     let from = 0;
     while (true) {
       let q = supabase
