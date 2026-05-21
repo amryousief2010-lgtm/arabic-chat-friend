@@ -421,16 +421,13 @@ const SwapOfferDialog = ({ open, onOpenChange, orderId, currentItems, onSaved }:
 
                 <div className="pt-2 border-t space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">إجمالي العرض الجديد (منتجات)</span>
+                    <span className="text-muted-foreground">إجمالي العرض الجديد (شامل الشحن)</span>
                     <span className="font-bold">{newSubtotal.toLocaleString()} ج.م</span>
                   </div>
                   {Number(selectedNewOffer?.shipping_cost || 0) > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">شحن العرض</span>
-                      <span>
-                        {Number(selectedNewOffer?.shipping_cost || 0).toLocaleString()} ج.م
-                      </span>
-                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      تم تضمين شحن العرض ({Number(selectedNewOffer?.shipping_cost || 0).toLocaleString()} ج.م) داخل أسعار المنتجات.
+                    </p>
                   )}
                 </div>
               </div>
