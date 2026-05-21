@@ -1,12 +1,15 @@
-// Audit & fix offer-box pricing on imported orders.
-// Safe by design:
-//  - Never touches: order.total, order.subtotal, order.customer, dates,
-//    status, shipping, quantities, product_id, gifts beyond price.
-//  - Only updates order_items.unit_price and order_items.total_price for
-//    orders whose notes contain "العرض: <exact offer box name>".
-//  - Matches products by exact (normalized) name. Products that don't map
-//    are reported as unmatched and left untouched.
-//  - mode=preview returns the diff. mode=apply writes the corrections.
+// Audit & fix pricing on imported (Excel) orders.
+// Two scopes:
+//  - "offers"   : orders whose notes reference a known offer box -> use box prices
+//  - "products" : imported orders NOT tied to any offer box      -> use products.price
+//  - "all"      : both of the above
+//
+// Safety:
+//  - Only mutates order_items.unit_price / total_price (and product_id when missing
+//    and we have a confident match by exact normalized name).
+//  - Never touches order.total / subtotal / customer / dates / status / qty / shipping.
+//  - Products with no exact name match in catalogue / box are reported as unmatched
+//    and left untouched.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -16,11 +19,9 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-// Normalize Arabic product names so "استيك نعام" == "استيك".
 const normalizeName = (s: string): string => {
   let x = (s || "").trim();
   x = x.replace(/\s+/g, " ");
-  // strip trailing "نعام" qualifier used in imported product_name values
   x = x.replace(/\s*نعام(?:\s+طازج)?\s*$/u, "").trim();
   return x;
 };
@@ -44,9 +45,7 @@ Deno.serve(async (req) => {
     );
 
     const auth = req.headers.get("Authorization");
-    if (!auth?.startsWith("Bearer ")) {
-      return json({ error: "Unauthorized" }, 401);
-    }
+    if (!auth?.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
     const { data: ud } = await supabase.auth.getUser(auth.replace("Bearer ", ""));
     if (!ud?.user) return json({ error: "Unauthorized" }, 401);
 
@@ -60,103 +59,187 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const mode: "preview" | "apply" = body.mode === "apply" ? "apply" : "preview";
+    const scope: "offers" | "products" | "all" = ["offers", "products", "all"].includes(body.scope) ? body.scope : "offers";
     const onlyOrderIds: string[] | undefined = Array.isArray(body.orderIds) ? body.orderIds : undefined;
 
-    // Load active offer boxes with items + product names
+    // Load active offer boxes + items
     const { data: boxes } = await supabase
       .from("offer_boxes")
       .select("id, name, offer_price, offer_box_items(product_id, custom_price, quantity, is_gift, products(name))");
     const boxByName = new Map<string, any>();
-    for (const b of boxes || []) {
-      boxByName.set((b.name || "").trim(), b);
+    for (const b of boxes || []) boxByName.set((b.name || "").trim(), b);
+
+    // Load catalogue products (for normal-product scope)
+    const { data: catalogue } = await supabase.from("products").select("id, name, price");
+    const productByNorm = new Map<string, { id: string; name: string; price: number }>();
+    for (const p of catalogue || []) {
+      productByNorm.set(normalizeName(p.name), { id: p.id, name: p.name, price: Number(p.price) });
     }
-    if (boxByName.size === 0) {
-      return json({ mode, totalOrders: 0, affected: [], summary: { byOffer: {} } });
+
+    // Fetch imported orders in pages (>1000 safe).
+    type OrderRow = {
+      id: string;
+      order_number: string;
+      notes: string | null;
+      total: number;
+      customers: { name: string; phone: string } | null;
+      order_items: { id: string; product_id: string | null; product_name: string; quantity: number; unit_price: number; total_price: number }[];
+    };
+    const orders: OrderRow[] = [];
+    const PAGE = 1000;
+    let from = 0;
+    while (true) {
+      let q = supabase
+        .from("orders")
+        .select("id, order_number, notes, total, customers(name, phone), order_items(id, product_id, product_name, quantity, unit_price, total_price)")
+        .like("order_number", "IMP-%")
+        .order("created_at", { ascending: false })
+        .range(from, from + PAGE - 1);
+      if (onlyOrderIds && onlyOrderIds.length) q = q.in("id", onlyOrderIds);
+      const { data, error } = await q;
+      if (error) return json({ error: error.message }, 500);
+      const rows = (data || []) as unknown as OrderRow[];
+      orders.push(...rows);
+      if (rows.length < PAGE) break;
+      from += PAGE;
+      if (orders.length > 50000) break;
     }
 
-    // Pull imported orders that reference a known offer name. Use a chunked
-    // OR filter so we only fetch relevant rows.
-    const offerNames = Array.from(boxByName.keys());
-    const orFilter = offerNames.map((n) => `notes.ilike.العرض: ${n}%`).join(",");
-
-    let query = supabase
-      .from("orders")
-      .select("id, order_number, notes, total, customer_id, customers(name, phone), order_items(id, product_id, product_name, quantity, unit_price, total_price)")
-      .or(orFilter)
-      .order("created_at", { ascending: false })
-      .limit(5000);
-    if (onlyOrderIds && onlyOrderIds.length) query = query.in("id", onlyOrderIds);
-
-    const { data: orders, error } = await query;
-    if (error) return json({ error: error.message }, 500);
-
-    const affected: any[] = [];
+    type Diff = {
+      item_id: string;
+      product_name: string;
+      quantity: number;
+      current_unit_price: number;
+      current_total_price: number;
+      expected_unit_price: number;
+      expected_total_price: number;
+      is_gift: boolean;
+      set_product_id?: string;
+    };
+    type Affected = {
+      order_id: string;
+      order_number: string;
+      kind: "offer" | "product";
+      offer_name: string;
+      offer_price: number;
+      order_total: number;
+      customer_name: string;
+      customer_phone: string;
+      diffs: Diff[];
+      unmatched: { id: string; product_name: string; unit_price: number }[];
+    };
+    const affected: Affected[] = [];
     const byOffer: Record<string, { orders: number; itemsCorrected: number; unmatched: number }> = {};
+    const PRODUCT_BUCKET = "منتجات بسعرها الأصلي";
+    let offersScanned = 0;
+    let productsScanned = 0;
 
-    for (const o of orders || []) {
+    for (const o of orders) {
       const offerName = parseOfferName(o.notes);
-      if (!offerName) continue;
-      const box = boxByName.get(offerName);
-      if (!box) continue;
+      const box = offerName ? boxByName.get(offerName) : null;
 
-      // Build expected price map (normalized name -> {price, isGift, productId})
-      const expected = new Map<string, { price: number; isGift: boolean; productId: string; rawName: string }>();
-      for (const it of box.offer_box_items || []) {
-        const pname = it.products?.name || "";
-        expected.set(normalizeName(pname), {
-          price: Number(it.custom_price),
-          isGift: !!it.is_gift,
-          productId: it.product_id,
-          rawName: pname.trim(),
-        });
-      }
-
-      const diffs: any[] = [];
-      const unmatched: any[] = [];
-      for (const oi of o.order_items || []) {
-        const key = normalizeName(oi.product_name);
-        const exp = expected.get(key);
-        if (!exp) {
-          unmatched.push({ id: oi.id, product_name: oi.product_name, unit_price: Number(oi.unit_price) });
-          continue;
-        }
-        const expectedUnit = exp.isGift ? 0 : exp.price;
-        const expectedTotal = +(expectedUnit * Number(oi.quantity)).toFixed(2);
-        const currUnit = Number(oi.unit_price);
-        const currTotal = Number(oi.total_price);
-        if (Math.abs(currUnit - expectedUnit) > 0.005 || Math.abs(currTotal - expectedTotal) > 0.005 || (oi.product_id && oi.product_id !== exp.productId) || !oi.product_id) {
-          diffs.push({
-            item_id: oi.id,
-            product_name: oi.product_name,
-            quantity: Number(oi.quantity),
-            current_unit_price: currUnit,
-            current_total_price: currTotal,
-            expected_unit_price: expectedUnit,
-            expected_total_price: expectedTotal,
-            is_gift: exp.isGift,
-            set_product_id: exp.productId,
+      if (box) {
+        if (scope === "products") continue;
+        offersScanned++;
+        const expected = new Map<string, { price: number; isGift: boolean; productId: string }>();
+        for (const it of box.offer_box_items || []) {
+          expected.set(normalizeName(it.products?.name || ""), {
+            price: Number(it.custom_price),
+            isGift: !!it.is_gift,
+            productId: it.product_id,
           });
         }
+        const diffs: Diff[] = [];
+        const unmatched: Affected["unmatched"] = [];
+        for (const oi of o.order_items || []) {
+          const exp = expected.get(normalizeName(oi.product_name));
+          if (!exp) {
+            unmatched.push({ id: oi.id, product_name: oi.product_name, unit_price: Number(oi.unit_price) });
+            continue;
+          }
+          const eu = exp.isGift ? 0 : exp.price;
+          const et = +(eu * Number(oi.quantity)).toFixed(2);
+          const cu = Number(oi.unit_price);
+          const ct = Number(oi.total_price);
+          if (Math.abs(cu - eu) > 0.005 || Math.abs(ct - et) > 0.005 || (oi.product_id && oi.product_id !== exp.productId) || !oi.product_id) {
+            diffs.push({
+              item_id: oi.id,
+              product_name: oi.product_name,
+              quantity: Number(oi.quantity),
+              current_unit_price: cu,
+              current_total_price: ct,
+              expected_unit_price: eu,
+              expected_total_price: et,
+              is_gift: exp.isGift,
+              set_product_id: exp.productId,
+            });
+          }
+        }
+        if (diffs.length === 0 && unmatched.length === 0) continue;
+        affected.push({
+          order_id: o.id,
+          order_number: o.order_number,
+          kind: "offer",
+          offer_name: offerName!,
+          offer_price: Number(box.offer_price),
+          order_total: Number(o.total),
+          customer_name: o.customers?.name || "",
+          customer_phone: o.customers?.phone || "",
+          diffs,
+          unmatched,
+        });
+        byOffer[offerName!] = byOffer[offerName!] || { orders: 0, itemsCorrected: 0, unmatched: 0 };
+        byOffer[offerName!].orders += 1;
+        byOffer[offerName!].itemsCorrected += diffs.length;
+        byOffer[offerName!].unmatched += unmatched.length;
+      } else {
+        // Normal-product imported order (no offer box match)
+        if (scope === "offers") continue;
+        productsScanned++;
+        const diffs: Diff[] = [];
+        const unmatched: Affected["unmatched"] = [];
+        for (const oi of o.order_items || []) {
+          const cat = productByNorm.get(normalizeName(oi.product_name));
+          if (!cat) {
+            unmatched.push({ id: oi.id, product_name: oi.product_name, unit_price: Number(oi.unit_price) });
+            continue;
+          }
+          const eu = cat.price;
+          const et = +(eu * Number(oi.quantity)).toFixed(2);
+          const cu = Number(oi.unit_price);
+          const ct = Number(oi.total_price);
+          if (Math.abs(cu - eu) > 0.005 || Math.abs(ct - et) > 0.005 || !oi.product_id) {
+            diffs.push({
+              item_id: oi.id,
+              product_name: oi.product_name,
+              quantity: Number(oi.quantity),
+              current_unit_price: cu,
+              current_total_price: ct,
+              expected_unit_price: eu,
+              expected_total_price: et,
+              is_gift: false,
+              set_product_id: cat.id,
+            });
+          }
+        }
+        if (diffs.length === 0 && unmatched.length === 0) continue;
+        affected.push({
+          order_id: o.id,
+          order_number: o.order_number,
+          kind: "product",
+          offer_name: PRODUCT_BUCKET,
+          offer_price: 0,
+          order_total: Number(o.total),
+          customer_name: o.customers?.name || "",
+          customer_phone: o.customers?.phone || "",
+          diffs,
+          unmatched,
+        });
+        byOffer[PRODUCT_BUCKET] = byOffer[PRODUCT_BUCKET] || { orders: 0, itemsCorrected: 0, unmatched: 0 };
+        byOffer[PRODUCT_BUCKET].orders += 1;
+        byOffer[PRODUCT_BUCKET].itemsCorrected += diffs.length;
+        byOffer[PRODUCT_BUCKET].unmatched += unmatched.length;
       }
-
-      if (diffs.length === 0 && unmatched.length === 0) continue;
-
-      affected.push({
-        order_id: o.id,
-        order_number: o.order_number,
-        offer_name: offerName,
-        offer_price: Number(box.offer_price),
-        order_total: Number(o.total),
-        customer_name: o.customers?.name || "",
-        customer_phone: o.customers?.phone || "",
-        diffs,
-        unmatched,
-      });
-
-      byOffer[offerName] = byOffer[offerName] || { orders: 0, itemsCorrected: 0, unmatched: 0 };
-      byOffer[offerName].orders += 1;
-      byOffer[offerName].itemsCorrected += diffs.length;
-      byOffer[offerName].unmatched += unmatched.length;
     }
 
     let applied = 0;
@@ -176,12 +259,10 @@ Deno.serve(async (req) => {
             .select("id");
           if (upErr) {
             updateErrors.push({ item_id: d.item_id, message: upErr.message });
-            console.error("update failed", d.item_id, upErr.message);
           } else if (upData && upData.length > 0) {
             applied += 1;
           } else {
             updateErrors.push({ item_id: d.item_id, message: "no rows matched" });
-            console.error("no rows matched", d.item_id);
           }
         }
       }
@@ -189,9 +270,18 @@ Deno.serve(async (req) => {
 
     return json({
       mode,
-      totalOrders: (orders || []).length,
+      scope,
+      totalOrders: orders.length,
+      offersScanned,
+      productsScanned,
       affected,
-      summary: { byOffer, affectedCount: affected.length, applied, updateErrors: updateErrors.slice(0, 20), updateErrorsCount: updateErrors.length },
+      summary: {
+        byOffer,
+        affectedCount: affected.length,
+        applied,
+        updateErrors: updateErrors.slice(0, 20),
+        updateErrorsCount: updateErrors.length,
+      },
     });
   } catch (e) {
     return json({ error: (e as Error).message }, 500);
