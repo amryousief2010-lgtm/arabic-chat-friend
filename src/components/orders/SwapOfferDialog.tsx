@@ -145,6 +145,33 @@ const SwapOfferDialog = ({ open, onOpenChange, orderId, currentItems, onSaved }:
           is_gift: !!it.is_gift,
         };
       });
+
+      // Include the offer's shipping inside the items so the offer total
+      // matches offer_price (shipping baked in, delivery_fee=0 on save).
+      const offer = offers.find((o) => o.id === offerId);
+      const targetTotal = Number(offer?.offer_price || 0);
+      const baseSubtotal = items.reduce(
+        (s, it) => s + (it.is_gift ? 0 : Number(it.quantity) * Number(it.custom_price)),
+        0
+      );
+      if (targetTotal > 0 && baseSubtotal > 0 && Math.abs(targetTotal - baseSubtotal) > 0.005) {
+        const factor = targetTotal / baseSubtotal;
+        const nonGiftIdx: number[] = [];
+        items.forEach((it, i) => { if (!it.is_gift && it.quantity > 0) nonGiftIdx.push(i); });
+        let running = 0;
+        nonGiftIdx.forEach((i, k) => {
+          const it = items[i];
+          if (k < nonGiftIdx.length - 1) {
+            const newUnit = +(Number(it.custom_price) * factor).toFixed(2);
+            it.custom_price = newUnit;
+            running += newUnit * Number(it.quantity);
+          } else {
+            // last item absorbs rounding remainder
+            const remaining = targetTotal - running;
+            it.custom_price = +(remaining / Number(it.quantity)).toFixed(2);
+          }
+        });
+      }
       setPreviewItems(items);
     } catch (e: any) {
       toast.error(e.message || "فشل تحميل تفاصيل العرض");
