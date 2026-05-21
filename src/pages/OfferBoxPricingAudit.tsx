@@ -38,6 +38,8 @@ type PreviewResult = {
     affectedCount: number;
     applied?: number;
     byOffer: Record<string, { orders: number; itemsCorrected: number; unmatched: number }>;
+    updateErrors?: { item_id: string; message: string }[];
+    updateErrorsCount?: number;
   };
 };
 
@@ -46,6 +48,9 @@ export default function OfferBoxPricingAudit() {
   const [applying, setApplying] = useState(false);
   const [result, setResult] = useState<PreviewResult | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  const correctable = result?.affected.filter((a) => a.diffs.length > 0) ?? [];
+  const onlyMislabeled = result?.affected.filter((a) => a.diffs.length === 0 && a.unmatched.length > 0) ?? [];
 
   const run = async (mode: "preview" | "apply") => {
     if (mode === "apply") setApplying(true); else setLoading(true);
@@ -56,10 +61,12 @@ export default function OfferBoxPricingAudit() {
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
       setResult(data as PreviewResult);
+      const corr = (data.affected as Affected[]).filter((a) => a.diffs.length > 0).length;
+      const mis = (data.affected as Affected[]).filter((a) => a.diffs.length === 0 && a.unmatched.length > 0).length;
       if (mode === "apply") {
-        toast.success(`تم تصحيح ${data.summary.applied} عنصر في ${data.affected.length} طلب`);
+        toast.success(`تم تصحيح ${data.summary.applied} عنصر — ${mis} طلب اسمه بوكس لكن منتجاته مش من البوكس (لم يتم المساس بها)`);
       } else {
-        toast.success(`تم فحص ${data.totalOrders} طلب — ${data.affected.length} يحتاج تصحيح`);
+        toast.success(`فحص ${data.totalOrders} طلب: ${corr} للتصحيح فعلياً، ${mis} اسم بوكس فقط (منتجات مختلفة)`);
       }
     } catch (e: any) {
       toast.error(e.message || "فشل التشغيل");
