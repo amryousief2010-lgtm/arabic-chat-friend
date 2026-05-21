@@ -1366,31 +1366,31 @@ const NewOrder = () => {
                     </div>
 
                     {/* Fees */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-2">
-                        <Label>رسوم التوصيل</Label>
-                        <div className="flex gap-2">
-                          <Input
-                            type="number"
-                            value={deliveryFee}
-                            onChange={(e) => setDeliveryFee(Number(e.target.value))}
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            title="مسح رسوم الشحن"
-                            onClick={() => setDeliveryFee(0)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                        {hasOfferInCart && (
+                    <div className={`grid gap-3 ${hasOfferInCart ? "grid-cols-2" : "grid-cols-1"}`}>
+                      {hasOfferInCart && (
+                        <div className="space-y-2">
+                          <Label>رسوم التوصيل</Label>
+                          <div className="flex gap-2">
+                            <Input
+                              type="number"
+                              value={deliveryFee}
+                              onChange={(e) => setDeliveryFee(Number(e.target.value))}
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              title="مسح رسوم الشحن"
+                              onClick={() => setDeliveryFee(0)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
                           <p className="text-xs text-muted-foreground">
                             العرض يشمل رسوم الشحن — يمكنك تعديل الرسوم يدويًا إن لزم الأمر.
                           </p>
-                        )}
-                      </div>
+                        </div>
+                      )}
                       <div className="space-y-2">
                         <Label>الخصم</Label>
                         <Input
