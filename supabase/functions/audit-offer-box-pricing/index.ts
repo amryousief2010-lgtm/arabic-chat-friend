@@ -295,6 +295,7 @@ Deno.serve(async (req) => {
         byOffer,
         affectedCount: affected.length,
         applied,
+        ordersTotalsUpdated,
         updateErrors: updateErrors.slice(0, 20),
         updateErrorsCount: updateErrors.length,
       },
