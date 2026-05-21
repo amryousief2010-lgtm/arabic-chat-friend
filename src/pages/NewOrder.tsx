@@ -605,7 +605,7 @@ const NewOrder = () => {
           payment_method: paymentMethod,
           subtotal,
           discount,
-          delivery_fee: deliveryFee,
+          delivery_fee: hasOfferInCart ? deliveryFee : 0,
           total,
           notes: notes.trim() || null,
           delivery_address: deliveryAddress.trim() || selectedCustomer.address,
