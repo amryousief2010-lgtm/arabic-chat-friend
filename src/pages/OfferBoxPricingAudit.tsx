@@ -161,7 +161,12 @@ export default function OfferBoxPricingAudit() {
 
           <Card>
             <CardHeader>
-              <CardTitle>الطلبات المتأثرة ({result.affected.length})</CardTitle>
+              <CardTitle>الطلبات ({result.affected.length}) — منها {correctable.length} للتصحيح فعلياً</CardTitle>
+              {onlyMislabeled.length > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {onlyMislabeled.length} طلب اسم العرض فيه "بوكس" لكن المنتجات داخله لا تنتمي لتكوين البوكس (مثلاً منتجات نعام كاملة). لن يتم المساس بأسعارها — يلزم مراجعة يدوية لتصحيح اسم العرض في الاستيراد.
+                </p>
+              )}
             </CardHeader>
             <CardContent>
               {result.affected.length === 0 ? (
