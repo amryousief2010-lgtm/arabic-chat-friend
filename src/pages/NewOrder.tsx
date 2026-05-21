@@ -1481,10 +1481,12 @@ const NewOrder = () => {
                         <span className="text-muted-foreground">المجموع الفرعي</span>
                         <span>{subtotal.toLocaleString()} ج.م</span>
                       </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">رسوم التوصيل</span>
-                        <span>{deliveryFee.toLocaleString()} ج.م</span>
-                      </div>
+                      {hasOfferInCart && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">رسوم التوصيل</span>
+                          <span>{deliveryFee.toLocaleString()} ج.م</span>
+                        </div>
+                      )}
                       {totalKg > 0 && (
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">إجمالي الوزن</span>
