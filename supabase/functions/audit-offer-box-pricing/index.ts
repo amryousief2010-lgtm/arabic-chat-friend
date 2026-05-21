@@ -191,7 +191,7 @@ Deno.serve(async (req) => {
       mode,
       totalOrders: (orders || []).length,
       affected,
-      summary: { byOffer, affectedCount: affected.length, applied },
+      summary: { byOffer, affectedCount: affected.length, applied, updateErrors: updateErrors.slice(0, 20), updateErrorsCount: updateErrors.length },
     });
   } catch (e) {
     return json({ error: (e as Error).message }, 500);
