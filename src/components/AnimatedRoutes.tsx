@@ -30,6 +30,7 @@ import Unauthorized from "@/pages/Unauthorized";
 import ImportSalesData from "@/pages/ImportSalesData";
 import RebuildMayOrders from "@/pages/RebuildMayOrders";
 import ExcelComparison from "@/pages/ExcelComparison";
+import OfferBoxPricingAudit from "@/pages/OfferBoxPricingAudit";
 import ModeratorPerformance from "@/pages/ModeratorPerformance";
 import ModeratorOrdersLog from "@/pages/ModeratorOrdersLog";
 import Farm from "@/pages/modules/Farm";
@@ -144,6 +145,11 @@ const AnimatedRoutes = () => {
         <Route path="/reports/excel-comparison" element={
           <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'financial_manager']}>
             <PageTransition><ExcelComparison /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/reports/offer-box-pricing-audit" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'financial_manager']}>
+            <PageTransition><OfferBoxPricingAudit /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/reports/customer-weight" element={
