@@ -73,11 +73,25 @@ Deno.serve(async (req) => {
 
     console.log(`Processing ${records.length} records, existing orders: ${globalCounter}`);
 
+    // Pre-load active offer boxes so we can price offer rows exactly
+    // instead of splitting orderValue/qty across products.
+    const { data: offerBoxes } = await supabase
+      .from("offer_boxes")
+      .select("id, name, offer_price, offer_box_items(product_id, custom_price, quantity, is_gift, products(name))");
+    const normalize = (s: string) => (s || "")
+      .trim()
+      .replace(/\s+/g, " ")
+      .replace(/\s*نعام(?:\s+طازج)?\s*$/u, "")
+      .trim();
+    const offerBoxByName = new Map<string, any>();
+    for (const ob of offerBoxes || []) offerBoxByName.set((ob.name || "").trim(), ob);
+
     let customersCreated = 0;
     let ordersCreated = 0;
     let itemsCreated = 0;
     let skipped = 0;
     const processedCustomers = new Map<string, string>();
+
 
     for (let b = 0; b < records.length; b += batchSize) {
       const batch = records.slice(b, b + batchSize);
