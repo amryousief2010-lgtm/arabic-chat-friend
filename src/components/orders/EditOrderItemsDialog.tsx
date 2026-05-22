@@ -192,26 +192,31 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
         if (error) throw error;
       }
 
-      // Update discount on order if changed (and recompute total).
-      // For orders containing offer items, shipping stays inside total.
-      if (Number(discount) !== Number(originalDiscount)) {
-        const { data: ord, error: oerr } = await supabase
-          .from("orders")
-          .select("subtotal, delivery_fee")
-          .eq("id", orderId)
-          .single();
-        if (oerr) throw oerr;
-        const hasOffer = initialItems.some((it) => it.offer_name);
-        const newTotal =
-          Number(ord.subtotal || 0) -
-          Number(discount || 0) +
-          (hasOffer ? Number(ord.delivery_fee || 0) : 0);
-        const { error: uerr } = await supabase
-          .from("orders")
-          .update({ discount: Number(discount) || 0, total: newTotal })
-          .eq("id", orderId);
-        if (uerr) throw uerr;
-      }
+      // Always recompute subtotal & total from the final items list,
+      // so changes to quantities/prices/items reflect on the order header.
+      const { data: ord, error: oerr } = await supabase
+        .from("orders")
+        .select("delivery_fee")
+        .eq("id", orderId)
+        .single();
+      if (oerr) throw oerr;
+      const hasOffer = initialItems.some((it) => it.offer_name);
+      const finalSubtotal = items
+        .filter((it) => !it._deleted)
+        .reduce((s, it) => s + Number(it.quantity) * Number(it.unit_price), 0);
+      const newTotal =
+        finalSubtotal -
+        Number(discount || 0) +
+        (hasOffer ? Number(ord.delivery_fee || 0) : 0);
+      const { error: uerr } = await supabase
+        .from("orders")
+        .update({
+          subtotal: finalSubtotal,
+          discount: Number(discount) || 0,
+          total: newTotal,
+        })
+        .eq("id", orderId);
+      if (uerr) throw uerr;
 
       toast.success("تم تحديث منتجات الطلب وإعادة حساب المجموع");
       onOpenChange(false);
