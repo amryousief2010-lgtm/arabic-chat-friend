@@ -400,21 +400,40 @@ const NewOrder = () => {
 
   const confirmAddOfferToCart = () => {
     if (!offerPreview) return;
+    const boxId = offerPreview.box.id;
+    const boxName = offerPreview.box.name;
     let added = 0;
-    for (const it of offerPreview.items) {
-      if (!it.product) continue;
-      setCart(prev => [...prev, {
-        cartItemId: genCartId(),
-        product: it.product!,
-        quantity: it.quantity,
-        customPrice: it.custom_price,
-        isOfferItem: true,
-        offerBoxId: offerPreview.box.id,
-        offerBoxName: offerPreview.box.name,
-      }]);
-      added++;
-    }
-    if (added > 0) toast.success(`تم إضافة عرض "${offerPreview.box.name}" للسلة`);
+    setCart(prev => {
+      const next = [...prev];
+      for (const it of offerPreview.items) {
+        if (!it.product) continue;
+        // Merge with an existing offer line for the SAME offer box + product + price
+        // so two of the same offer combine quantities (e.g., نص كيلو + نص كيلو = كيلو).
+        const idx = next.findIndex(c =>
+          c.isOfferItem &&
+          c.offerBoxId === boxId &&
+          c.product.id === it.product!.id &&
+          (c.customPrice ?? c.product.price) === it.custom_price
+        );
+        if (idx >= 0) {
+          next[idx] = { ...next[idx], quantity: next[idx].quantity + it.quantity };
+        } else {
+          next.push({
+            cartItemId: genCartId(),
+            product: it.product!,
+            quantity: it.quantity,
+            customPrice: it.custom_price,
+            isOfferItem: true,
+            offerBoxId: boxId,
+            offerBoxName: boxName,
+          });
+        }
+        added++;
+      }
+      return next;
+    });
+    setOfferInstanceCounts(prev => ({ ...prev, [boxId]: (prev[boxId] || 0) + 1 }));
+    if (added > 0) toast.success(`تم إضافة عرض "${boxName}" للسلة`);
     setOfferPreview(null);
   };
 
