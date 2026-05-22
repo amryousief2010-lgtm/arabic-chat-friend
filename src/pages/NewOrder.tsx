@@ -154,6 +154,8 @@ const NewOrder = () => {
   
   // Cart state
   const [cart, setCart] = useState<CartItem[]>([]);
+  // Tracks how many times each offer box was added (for shipping = N × 110).
+  const [offerInstanceCounts, setOfferInstanceCounts] = useState<Record<string, number>>({});
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'online'>('cash');
   const [deliveryFee, setDeliveryFee] = useState(110);
@@ -398,21 +400,40 @@ const NewOrder = () => {
 
   const confirmAddOfferToCart = () => {
     if (!offerPreview) return;
+    const boxId = offerPreview.box.id;
+    const boxName = offerPreview.box.name;
     let added = 0;
-    for (const it of offerPreview.items) {
-      if (!it.product) continue;
-      setCart(prev => [...prev, {
-        cartItemId: genCartId(),
-        product: it.product!,
-        quantity: it.quantity,
-        customPrice: it.custom_price,
-        isOfferItem: true,
-        offerBoxId: offerPreview.box.id,
-        offerBoxName: offerPreview.box.name,
-      }]);
-      added++;
-    }
-    if (added > 0) toast.success(`تم إضافة عرض "${offerPreview.box.name}" للسلة`);
+    setCart(prev => {
+      const next = [...prev];
+      for (const it of offerPreview.items) {
+        if (!it.product) continue;
+        // Merge with an existing offer line for the SAME offer box + product + price
+        // so two of the same offer combine quantities (e.g., نص كيلو + نص كيلو = كيلو).
+        const idx = next.findIndex(c =>
+          c.isOfferItem &&
+          c.offerBoxId === boxId &&
+          c.product.id === it.product!.id &&
+          (c.customPrice ?? c.product.price) === it.custom_price
+        );
+        if (idx >= 0) {
+          next[idx] = { ...next[idx], quantity: next[idx].quantity + it.quantity };
+        } else {
+          next.push({
+            cartItemId: genCartId(),
+            product: it.product!,
+            quantity: it.quantity,
+            customPrice: it.custom_price,
+            isOfferItem: true,
+            offerBoxId: boxId,
+            offerBoxName: boxName,
+          });
+        }
+        added++;
+      }
+      return next;
+    });
+    setOfferInstanceCounts(prev => ({ ...prev, [boxId]: (prev[boxId] || 0) + 1 }));
+    if (added > 0) toast.success(`تم إضافة عرض "${boxName}" للسلة`);
     setOfferPreview(null);
   };
 
@@ -428,7 +449,59 @@ const NewOrder = () => {
   };
 
   const removeFromCartById = (cartItemId: string) => {
+    const removed = cart.find(i => i.cartItemId === cartItemId);
     setCart(cart.filter(item => item.cartItemId !== cartItemId));
+    // If we removed the last line of an offer box, clear its instance counter too.
+    if (removed?.isOfferItem && removed.offerBoxId) {
+      const boxId = removed.offerBoxId;
+      const stillHas = cart.some(i => i.cartItemId !== cartItemId && i.isOfferItem && i.offerBoxId === boxId);
+      if (!stillHas) {
+        setOfferInstanceCounts(prev => {
+          const next = { ...prev };
+          delete next[boxId];
+          return next;
+        });
+      }
+    }
+  };
+
+  const decrementOfferInstance = (boxId: string) => {
+    setOfferInstanceCounts(prev => {
+      const cur = prev[boxId] || 0;
+      const next = { ...prev };
+      if (cur <= 1) {
+        delete next[boxId];
+        // Remove all cart lines tied to this offer box.
+        setCart(c => c.filter(i => !(i.isOfferItem && i.offerBoxId === boxId)));
+      } else {
+        next[boxId] = cur - 1;
+        // Subtract one instance worth of quantities from merged cart lines.
+        const box = offerBoxes.find(b => b.id === boxId);
+        // Reload offer item template quantities to subtract correctly.
+        (async () => {
+          const { data: items } = await supabase
+            .from('offer_box_items')
+            .select('product_id, quantity, custom_price, is_gift')
+            .eq('offer_box_id', boxId);
+          if (!items) return;
+          setCart(c => {
+            const out: CartItem[] = [];
+            for (const line of c) {
+              if (!(line.isOfferItem && line.offerBoxId === boxId)) { out.push(line); continue; }
+              const match = items.find((bi: any) =>
+                bi.product_id === line.product.id &&
+                Number(bi.is_gift ? 0 : bi.custom_price) === (line.customPrice ?? line.product.price)
+              );
+              if (!match) { out.push(line); continue; }
+              const newQty = line.quantity - Number(match.quantity || 0);
+              if (newQty > 0) out.push({ ...line, quantity: newQty });
+            }
+            return out;
+          });
+        })();
+      }
+      return next;
+    });
   };
 
   const updateCartItem = (cartItemId: string, patch: Partial<CartItem>) => {
@@ -453,16 +526,14 @@ const NewOrder = () => {
   }, 0);
   const hasOfferInCart = cart.some(item => item.isOfferItem);
 
-  // When offers are present, the delivery fee equals the sum of the offers' bundled shipping
-  // (shipping_cost stored on offer_boxes). This avoids charging shipping twice and keeps the
-  // box at its advertised price (e.g., 1485 = items 1375 + 110 bundled shipping).
+  // Each added offer instance carries its own bundled shipping (e.g., 110).
+  // Selecting the same 1500 offer twice => shipping = 2 × 110, not 110.
   const offerShippingTotal = useMemo(() => {
-    const offerIds = Array.from(new Set(cart.filter(i => i.isOfferItem && i.offerBoxId).map(i => i.offerBoxId as string)));
-    return offerIds.reduce((sum, id) => {
-      const box = offerBoxes.find(b => b.id === id);
-      return sum + Number(box?.shipping_cost || 0);
+    return Object.entries(offerInstanceCounts).reduce((sum, [boxId, count]) => {
+      const box = offerBoxes.find(b => b.id === boxId);
+      return sum + Number(box?.shipping_cost || 0) * Number(count || 0);
     }, 0);
-  }, [cart, offerBoxes]);
+  }, [offerInstanceCounts, offerBoxes]);
 
   useEffect(() => {
     if (hasOfferInCart) {
@@ -1245,6 +1316,30 @@ const NewOrder = () => {
                   </p>
                 ) : (
                   <>
+                    {Object.keys(offerInstanceCounts).length > 0 && (
+                      <div className="rounded-lg border border-green-200 bg-green-50/60 dark:bg-green-950/20 p-2 space-y-2">
+                        <p className="text-xs font-medium text-green-800 dark:text-green-300">العروض المختارة (الشحن 110 لكل عرض)</p>
+                        {Object.entries(offerInstanceCounts).map(([boxId, count]) => {
+                          const box = offerBoxes.find(b => b.id === boxId);
+                          return (
+                            <div key={boxId} className="flex items-center justify-between gap-2 text-sm">
+                              <span className="truncate">{box?.name || 'عرض'}</span>
+                              <div className="flex items-center gap-1">
+                                <Button variant="outline" size="icon" className="h-7 w-7"
+                                  onClick={() => decrementOfferInstance(boxId)}>
+                                  <Minus className="w-3 h-3" />
+                                </Button>
+                                <span className="w-8 text-center font-medium">×{count}</span>
+                                <Button variant="outline" size="icon" className="h-7 w-7"
+                                  onClick={() => box && openOfferPreview(box as any)}>
+                                  <Plus className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                     <div className="space-y-3 max-h-96 overflow-auto">
                       {cart.map((item) => {
                         const basePrice = item.customPrice ?? item.product.price;
