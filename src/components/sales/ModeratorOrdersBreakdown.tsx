@@ -125,7 +125,7 @@ const ModeratorOrdersBreakdown = ({ month, year }: Props = {}) => {
             تقسيم مبيعات المسوقات - {months.find(m => m.value === selectedMonth)?.label} {selectedYear}
           </CardTitle>
           <div className="flex items-center gap-2">
-            <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(Number(v))}>
+            <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(Number(v))} disabled={isControlled}>
               <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {months.map(m => (
@@ -133,7 +133,7 @@ const ModeratorOrdersBreakdown = ({ month, year }: Props = {}) => {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
+            <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))} disabled={isControlled}>
               <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {[currentYear - 1, currentYear, currentYear + 1].map(y => (
@@ -141,6 +141,7 @@ const ModeratorOrdersBreakdown = ({ month, year }: Props = {}) => {
                 ))}
               </SelectContent>
             </Select>
+
             <button
               onClick={handleRefresh}
               className="inline-flex items-center justify-center h-10 w-10 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
