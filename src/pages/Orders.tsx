@@ -542,7 +542,7 @@ const Orders = () => {
           </CardTitle>
           <div className="flex flex-wrap items-center gap-3">
             <Input
-              placeholder="بحث برقم الطلب أو اسم العميل..."
+              placeholder="بحث برقم الطلب أو اسم العميل أو رقم الهاتف..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-64 input-modern"
