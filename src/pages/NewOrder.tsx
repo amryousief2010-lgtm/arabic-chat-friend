@@ -474,16 +474,14 @@ const NewOrder = () => {
   }, 0);
   const hasOfferInCart = cart.some(item => item.isOfferItem);
 
-  // When offers are present, the delivery fee equals the sum of the offers' bundled shipping
-  // (shipping_cost stored on offer_boxes). This avoids charging shipping twice and keeps the
-  // box at its advertised price (e.g., 1485 = items 1375 + 110 bundled shipping).
+  // Each added offer instance carries its own bundled shipping (e.g., 110).
+  // Selecting the same 1500 offer twice => shipping = 2 × 110, not 110.
   const offerShippingTotal = useMemo(() => {
-    const offerIds = Array.from(new Set(cart.filter(i => i.isOfferItem && i.offerBoxId).map(i => i.offerBoxId as string)));
-    return offerIds.reduce((sum, id) => {
-      const box = offerBoxes.find(b => b.id === id);
-      return sum + Number(box?.shipping_cost || 0);
+    return Object.entries(offerInstanceCounts).reduce((sum, [boxId, count]) => {
+      const box = offerBoxes.find(b => b.id === boxId);
+      return sum + Number(box?.shipping_cost || 0) * Number(count || 0);
     }, 0);
-  }, [cart, offerBoxes]);
+  }, [offerInstanceCounts, offerBoxes]);
 
   useEffect(() => {
     if (hasOfferInCart) {
