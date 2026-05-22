@@ -76,13 +76,24 @@ const findTier = (sales: number, tiers: Array<{ sales: number; bonus: number; la
   return achieved;
 };
 
-const ModeratorPayrollTable = () => {
+interface Props {
+  month?: number;
+  year?: number;
+}
+
+const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { isGeneralManager, isExecutiveManager, isSalesManager, role } = useAuth();
   const canEdit = isGeneralManager || isExecutiveManager || isSalesManager || role === 'marketing_sales_manager';
-  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
-  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [internalMonth, setInternalMonth] = useState(currentMonth);
+  const [internalYear, setInternalYear] = useState(currentYear);
+  const isControlled = month !== undefined && year !== undefined;
+  const selectedMonth = isControlled ? (month as number) : internalMonth;
+  const selectedYear = isControlled ? (year as number) : internalYear;
+  const setSelectedMonth = setInternalMonth;
+  const setSelectedYear = setInternalYear;
+
 
   const [prices, setPrices] = useState(defaultPrices);
 
