@@ -165,6 +165,7 @@ const Orders = () => {
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [swapOfferOrder, setSwapOfferOrder] = useState<Order | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterModerator, setFilterModerator] = useState<string>("all");
   const [filterProduct, setFilterProduct] = useState<string>("all");
   const [availableProducts, setAvailableProducts] = useState<string[]>([]);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -363,7 +364,10 @@ const Orders = () => {
     const matchesProduct =
       filterProduct === "all" ||
       order.items.some((it) => it.product_name === filterProduct);
-    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct;
+    const matchesModerator =
+      filterModerator === "all" ||
+      order.moderator_name === filterModerator;
+    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator;
   });
 
   const availableYears = Array.from(
@@ -591,6 +595,18 @@ const Orders = () => {
                 {availableProducts.map((name) => (
                   <SelectItem key={name} value={name}>{name}</SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterModerator} onValueChange={setFilterModerator}>
+              <SelectTrigger className="w-40 input-modern">
+                <SelectValue placeholder="فلترة حسب المسوقة" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">جميع المسوقات</SelectItem>
+                <SelectItem value="أية">آية</SelectItem>
+                <SelectItem value="نورا">نورا</SelectItem>
+                <SelectItem value="سارة">سارة</SelectItem>
+                <SelectItem value="منال">منال</SelectItem>
               </SelectContent>
             </Select>
             <Button variant="outline" className="gap-2" onClick={() => exportOrdersToXLSX(filteredOrders)}>
