@@ -146,32 +146,8 @@ const SwapOfferDialog = ({ open, onOpenChange, orderId, currentItems, onSaved }:
         };
       });
 
-      // Include the offer's shipping inside the items so the offer total
-      // matches offer_price (shipping baked in, delivery_fee=0 on save).
-      const offer = offers.find((o) => o.id === offerId);
-      const targetTotal = Number(offer?.offer_price || 0);
-      const baseSubtotal = items.reduce(
-        (s, it) => s + (it.is_gift ? 0 : Number(it.quantity) * Number(it.custom_price)),
-        0
-      );
-      if (targetTotal > 0 && baseSubtotal > 0 && Math.abs(targetTotal - baseSubtotal) > 0.005) {
-        const factor = targetTotal / baseSubtotal;
-        const nonGiftIdx: number[] = [];
-        items.forEach((it, i) => { if (!it.is_gift && it.quantity > 0) nonGiftIdx.push(i); });
-        let running = 0;
-        nonGiftIdx.forEach((i, k) => {
-          const it = items[i];
-          if (k < nonGiftIdx.length - 1) {
-            const newUnit = +(Number(it.custom_price) * factor).toFixed(2);
-            it.custom_price = newUnit;
-            running += newUnit * Number(it.quantity);
-          } else {
-            // last item absorbs rounding remainder
-            const remaining = targetTotal - running;
-            it.custom_price = +(remaining / Number(it.quantity)).toFixed(2);
-          }
-        });
-      }
+      // Keep product prices as stored in offer_box_items (no scaling).
+      // Shipping is added as a SEPARATE line item ("تكلفة الشحن") on save.
       setPreviewItems(items);
     } catch (e: any) {
       toast.error(e.message || "فشل تحميل تفاصيل العرض");
@@ -253,8 +229,8 @@ const SwapOfferDialog = ({ open, onOpenChange, orderId, currentItems, onSaved }:
         .in("id", group.itemIds);
       if (delErr) throw delErr;
 
-      // 2) Insert new offer items
-      const toInsert = previewItems
+      // 2) Insert new offer items (product prices unchanged from offer storage)
+      const toInsert: any[] = previewItems
         .filter((it) => it.product_id)
         .map((it) => ({
           order_id: orderId,
@@ -265,11 +241,25 @@ const SwapOfferDialog = ({ open, onOpenChange, orderId, currentItems, onSaved }:
           total_price: Number(it.quantity) * Number(it.custom_price),
           offer_name: selectedNewOffer.name,
         }));
+
+      // 2b) Add a separate "تكلفة الشحن" line for this offer's shipping
+      const shippingCost = Number(selectedNewOffer.shipping_cost || 0);
+      if (shippingCost > 0) {
+        toInsert.push({
+          order_id: orderId,
+          product_id: null,
+          product_name: "تكلفة الشحن",
+          quantity: 1,
+          unit_price: shippingCost,
+          total_price: shippingCost,
+          offer_name: selectedNewOffer.name,
+        });
+      }
+
       const { error: insErr } = await supabase.from("order_items").insert(toInsert);
       if (insErr) throw insErr;
 
-      // 3) Shipping is now baked into the offer item prices so the items
-      //    subtotal already equals offer_price. Zero out delivery_fee.
+      // 3) Shipping is now a line item inside the offer; keep delivery_fee = 0
       const { error: updErr } = await supabase
         .from("orders")
         .update({ delivery_fee: 0 })
