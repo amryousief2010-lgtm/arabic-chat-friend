@@ -449,7 +449,59 @@ const NewOrder = () => {
   };
 
   const removeFromCartById = (cartItemId: string) => {
+    const removed = cart.find(i => i.cartItemId === cartItemId);
     setCart(cart.filter(item => item.cartItemId !== cartItemId));
+    // If we removed the last line of an offer box, clear its instance counter too.
+    if (removed?.isOfferItem && removed.offerBoxId) {
+      const boxId = removed.offerBoxId;
+      const stillHas = cart.some(i => i.cartItemId !== cartItemId && i.isOfferItem && i.offerBoxId === boxId);
+      if (!stillHas) {
+        setOfferInstanceCounts(prev => {
+          const next = { ...prev };
+          delete next[boxId];
+          return next;
+        });
+      }
+    }
+  };
+
+  const decrementOfferInstance = (boxId: string) => {
+    setOfferInstanceCounts(prev => {
+      const cur = prev[boxId] || 0;
+      const next = { ...prev };
+      if (cur <= 1) {
+        delete next[boxId];
+        // Remove all cart lines tied to this offer box.
+        setCart(c => c.filter(i => !(i.isOfferItem && i.offerBoxId === boxId)));
+      } else {
+        next[boxId] = cur - 1;
+        // Subtract one instance worth of quantities from merged cart lines.
+        const box = offerBoxes.find(b => b.id === boxId);
+        // Reload offer item template quantities to subtract correctly.
+        (async () => {
+          const { data: items } = await supabase
+            .from('offer_box_items')
+            .select('product_id, quantity, custom_price, is_gift')
+            .eq('offer_box_id', boxId);
+          if (!items) return;
+          setCart(c => {
+            const out: CartItem[] = [];
+            for (const line of c) {
+              if (!(line.isOfferItem && line.offerBoxId === boxId)) { out.push(line); continue; }
+              const match = items.find((bi: any) =>
+                bi.product_id === line.product.id &&
+                Number(bi.is_gift ? 0 : bi.custom_price) === (line.customPrice ?? line.product.price)
+              );
+              if (!match) { out.push(line); continue; }
+              const newQty = line.quantity - Number(match.quantity || 0);
+              if (newQty > 0) out.push({ ...line, quantity: newQty });
+            }
+            return out;
+          });
+        })();
+      }
+      return next;
+    });
   };
 
   const updateCartItem = (cartItemId: string, patch: Partial<CartItem>) => {
