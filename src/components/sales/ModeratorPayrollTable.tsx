@@ -76,13 +76,24 @@ const findTier = (sales: number, tiers: Array<{ sales: number; bonus: number; la
   return achieved;
 };
 
-const ModeratorPayrollTable = () => {
+interface Props {
+  month?: number;
+  year?: number;
+}
+
+const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { isGeneralManager, isExecutiveManager, isSalesManager, role } = useAuth();
   const canEdit = isGeneralManager || isExecutiveManager || isSalesManager || role === 'marketing_sales_manager';
-  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
-  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [internalMonth, setInternalMonth] = useState(currentMonth);
+  const [internalYear, setInternalYear] = useState(currentYear);
+  const isControlled = month !== undefined && year !== undefined;
+  const selectedMonth = isControlled ? (month as number) : internalMonth;
+  const selectedYear = isControlled ? (year as number) : internalYear;
+  const setSelectedMonth = setInternalMonth;
+  const setSelectedYear = setInternalYear;
+
 
   const [prices, setPrices] = useState(defaultPrices);
 
@@ -339,13 +350,13 @@ const ModeratorPayrollTable = () => {
             جدول قبض الموديريتور - {months.find(m => m.value === selectedMonth)?.label} {selectedYear}
           </CardTitle>
           <div className="flex items-center gap-2">
-            <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(Number(v))}>
+            <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(Number(v))} disabled={isControlled}>
               <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {months.map(m => <SelectItem key={m.value} value={m.value.toString()}>{m.label}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
+            <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))} disabled={isControlled}>
               <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {[currentYear - 1, currentYear, currentYear + 1].map(y => (
@@ -353,6 +364,7 @@ const ModeratorPayrollTable = () => {
                 ))}
               </SelectContent>
             </Select>
+
           </div>
         </div>
       </CardHeader>
