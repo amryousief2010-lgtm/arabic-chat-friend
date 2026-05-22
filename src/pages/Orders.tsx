@@ -343,9 +343,14 @@ const Orders = () => {
   const filteredOrders = orders.filter((order) => {
     const matchesStatus =
       filterStatus === "all" || order.status === filterStatus;
+    const q = searchQuery.trim().toLowerCase();
+    const normalizedPhoneQuery = q.replace(/[^\d]/g, "");
+    const normalizedOrderPhone = (order.customer_phone || "").replace(/[^\d]/g, "");
     const matchesSearch =
-      order.order_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.customer_name.toLowerCase().includes(searchQuery.toLowerCase());
+      !q ||
+      order.order_number.toLowerCase().includes(q) ||
+      order.customer_name.toLowerCase().includes(q) ||
+      (normalizedPhoneQuery.length > 0 && normalizedOrderPhone.includes(normalizedPhoneQuery));
     const d = new Date(order.created_at);
     const year = d.getUTCFullYear();
     const month = d.getUTCMonth() + 1;
@@ -537,7 +542,7 @@ const Orders = () => {
           </CardTitle>
           <div className="flex flex-wrap items-center gap-3">
             <Input
-              placeholder="بحث برقم الطلب أو اسم العميل..."
+              placeholder="بحث برقم الطلب أو اسم العميل أو رقم الهاتف..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-64 input-modern"
