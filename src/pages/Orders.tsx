@@ -364,7 +364,10 @@ const Orders = () => {
     const matchesProduct =
       filterProduct === "all" ||
       order.items.some((it) => it.product_name === filterProduct);
-    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct;
+    const matchesModerator =
+      filterModerator === "all" ||
+      order.moderator_name === filterModerator;
+    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator;
   });
 
   const availableYears = Array.from(
