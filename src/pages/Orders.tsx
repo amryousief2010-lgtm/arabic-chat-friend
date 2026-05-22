@@ -597,6 +597,18 @@ const Orders = () => {
                 ))}
               </SelectContent>
             </Select>
+            <Select value={filterModerator} onValueChange={setFilterModerator}>
+              <SelectTrigger className="w-40 input-modern">
+                <SelectValue placeholder="فلترة حسب المسوقة" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">جميع المسوقات</SelectItem>
+                <SelectItem value="أية">آية</SelectItem>
+                <SelectItem value="نورا">نورا</SelectItem>
+                <SelectItem value="سارة">سارة</SelectItem>
+                <SelectItem value="منال">منال</SelectItem>
+              </SelectContent>
+            </Select>
             <Button variant="outline" className="gap-2" onClick={() => exportOrdersToXLSX(filteredOrders)}>
               <FileDown className="w-4 h-4" /> Excel
             </Button>
