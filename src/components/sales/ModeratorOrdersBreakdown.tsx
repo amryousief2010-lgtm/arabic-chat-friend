@@ -42,10 +42,21 @@ const matches = (name: string, target: string) => {
   return normalize(name.trim()).includes(normalize(target));
 };
 
-const ModeratorOrdersBreakdown = () => {
+interface Props {
+  month?: number;
+  year?: number;
+}
+
+const ModeratorOrdersBreakdown = ({ month, year }: Props = {}) => {
   const queryClient = useQueryClient();
-  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
-  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [internalMonth, setInternalMonth] = useState(currentMonth);
+  const [internalYear, setInternalYear] = useState(currentYear);
+  const isControlled = month !== undefined && year !== undefined;
+  const selectedMonth = isControlled ? (month as number) : internalMonth;
+  const selectedYear = isControlled ? (year as number) : internalYear;
+  const setSelectedMonth = setInternalMonth;
+  const setSelectedYear = setInternalYear;
+
 
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ['moderator-orders-breakdown'] });
