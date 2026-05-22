@@ -1316,6 +1316,30 @@ const NewOrder = () => {
                   </p>
                 ) : (
                   <>
+                    {Object.keys(offerInstanceCounts).length > 0 && (
+                      <div className="rounded-lg border border-green-200 bg-green-50/60 dark:bg-green-950/20 p-2 space-y-2">
+                        <p className="text-xs font-medium text-green-800 dark:text-green-300">العروض المختارة (الشحن 110 لكل عرض)</p>
+                        {Object.entries(offerInstanceCounts).map(([boxId, count]) => {
+                          const box = offerBoxes.find(b => b.id === boxId);
+                          return (
+                            <div key={boxId} className="flex items-center justify-between gap-2 text-sm">
+                              <span className="truncate">{box?.name || 'عرض'}</span>
+                              <div className="flex items-center gap-1">
+                                <Button variant="outline" size="icon" className="h-7 w-7"
+                                  onClick={() => decrementOfferInstance(boxId)}>
+                                  <Minus className="w-3 h-3" />
+                                </Button>
+                                <span className="w-8 text-center font-medium">×{count}</span>
+                                <Button variant="outline" size="icon" className="h-7 w-7"
+                                  onClick={() => box && openOfferPreview(box as any)}>
+                                  <Plus className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                     <div className="space-y-3 max-h-96 overflow-auto">
                       {cart.map((item) => {
                         const basePrice = item.customPrice ?? item.product.price;
