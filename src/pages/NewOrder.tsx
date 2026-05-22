@@ -154,6 +154,8 @@ const NewOrder = () => {
   
   // Cart state
   const [cart, setCart] = useState<CartItem[]>([]);
+  // Tracks how many times each offer box was added (for shipping = N × 110).
+  const [offerInstanceCounts, setOfferInstanceCounts] = useState<Record<string, number>>({});
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'online'>('cash');
   const [deliveryFee, setDeliveryFee] = useState(110);
