@@ -283,9 +283,10 @@ const SalesTargets = () => {
         <ModeratorQuickAccessCards />
         {!isModerator && <ModeratorsAggregateSummary />}
         {!isModerator && <MonthlyTargetTable />}
-        {!isModerator && <ModeratorOrdersBreakdown />}
-        {!isModerator && <GirlsSalesQuantityTable />}
-        {!isModerator && <ModeratorPayrollTable />}
+        {!isModerator && <ModeratorOrdersBreakdown month={selectedMonth} year={selectedYear} />}
+        {!isModerator && <GirlsSalesQuantityTable month={selectedMonth} year={selectedYear} />}
+        {!isModerator && <ModeratorPayrollTable month={selectedMonth} year={selectedYear} />}
+
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
