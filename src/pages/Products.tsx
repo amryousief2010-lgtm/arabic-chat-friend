@@ -31,7 +31,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Edit, Trash2, Package, Minus, Printer, ScanLine, Upload, X } from "lucide-react";
+import { Plus, Edit, Trash2, Package, Minus, Printer, ScanLine, Upload, X, FileSpreadsheet } from "lucide-react";
+import * as XLSX from "xlsx";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import {
