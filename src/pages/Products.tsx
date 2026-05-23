@@ -148,6 +148,9 @@ const Products = () => {
     const stamp = new Date().toISOString().slice(0, 10);
     XLSX.writeFile(wb, `products-${stamp}.xlsx`);
     sonnerToast.success(`تم تصدير ${rows.length} منتج`);
+  };
+
+
 
   const [formData, setFormData] = useState({
     name: "",
