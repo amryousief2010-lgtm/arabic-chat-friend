@@ -123,6 +123,32 @@ const Products = () => {
     );
   };
 
+  const handleExportExcel = () => {
+    if (!filteredProducts.length) {
+      sonnerToast.error("لا توجد منتجات للتصدير");
+      return;
+    }
+    const rows = filteredProducts.map((p, i) => ({
+      "م": i + 1,
+      "الباركود": p.barcode || "",
+      "اسم المنتج": p.name,
+      "التصنيف": p.category || "",
+      "الوحدة": p.unit,
+      ...(canViewFinancials ? { "السعر (ج.م)": Number(p.price) || 0 } : {}),
+      "الكمية بالمخزون": Number(p.stock) || 0,
+      ...(canViewFinancials ? { "إجمالي القيمة (ج.م)": (Number(p.price) || 0) * (Number(p.stock) || 0) } : {}),
+      "الحالة": p.is_active ? "نشط" : "غير نشط",
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws["!cols"] = Object.keys(rows[0]).map((k) => ({
+      wch: k === "اسم المنتج" ? 28 : k === "الباركود" ? 18 : 14,
+    }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "المنتجات");
+    const stamp = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `products-${stamp}.xlsx`);
+    sonnerToast.success(`تم تصدير ${rows.length} منتج`);
+
   const [formData, setFormData] = useState({
     name: "",
     category: "",
