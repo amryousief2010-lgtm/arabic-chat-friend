@@ -31,7 +31,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Edit, Trash2, Package, Minus, Printer, ScanLine, Upload, X } from "lucide-react";
+import { Plus, Edit, Trash2, Package, Minus, Printer, ScanLine, Upload, X, FileSpreadsheet } from "lucide-react";
+import * as XLSX from "xlsx";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -121,6 +122,35 @@ const Products = () => {
       `تم طباعة ${valid.length} ملصق — تم تخطّي ${invalid} منتج بدون باركود صالح`
     );
   };
+
+  const handleExportExcel = () => {
+    if (!filteredProducts.length) {
+      sonnerToast.error("لا توجد منتجات للتصدير");
+      return;
+    }
+    const rows = filteredProducts.map((p, i) => ({
+      "م": i + 1,
+      "الباركود": p.barcode || "",
+      "اسم المنتج": p.name,
+      "التصنيف": p.category || "",
+      "الوحدة": p.unit,
+      ...(canViewFinancials ? { "السعر (ج.م)": Number(p.price) || 0 } : {}),
+      "الكمية بالمخزون": Number(p.stock) || 0,
+      ...(canViewFinancials ? { "إجمالي القيمة (ج.م)": (Number(p.price) || 0) * (Number(p.stock) || 0) } : {}),
+      "الحالة": p.is_active ? "نشط" : "غير نشط",
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws["!cols"] = Object.keys(rows[0]).map((k) => ({
+      wch: k === "اسم المنتج" ? 28 : k === "الباركود" ? 18 : 14,
+    }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "المنتجات");
+    const stamp = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `products-${stamp}.xlsx`);
+    sonnerToast.success(`تم تصدير ${rows.length} منتج`);
+  };
+
+
 
   const [formData, setFormData] = useState({
     name: "",
@@ -400,6 +430,15 @@ const Products = () => {
             >
               <ScanLine className="w-4 h-4 ml-2" />
               {scanMode ? "إيقاف المسح" : "وضع المسح"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleExportExcel}
+              title="تصدير المنتجات إلى Excel"
+            >
+              <FileSpreadsheet className="w-4 h-4 ml-2" />
+              تصدير Excel
             </Button>
             {canManageProducts && (
               <Button
