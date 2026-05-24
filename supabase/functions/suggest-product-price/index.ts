@@ -1,11 +1,48 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const clean = (s: unknown, max = 200) =>
+  typeof s === 'string' ? s.replace(/[\r\n`]/g, ' ').slice(0, max) : '';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   try {
-    const { name, description, category, unit, computed_cost } = await req.json();
-    if (!name || typeof name !== 'string') {
+    // Authenticate caller
+    const admin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      { auth: { autoRefreshToken: false, persistSession: false } },
+    );
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user: requester }, error: authErr } = await admin.auth.getUser(token);
+    if (authErr || !requester) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const { data: roles } = await admin.from('user_roles').select('role').eq('user_id', requester.id);
+    const allowed = ['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'financial_manager'];
+    if (!roles?.some((r: any) => allowed.includes(r.role))) {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), {
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const body = await req.json().catch(() => ({}));
+    const name = clean(body.name, 200);
+    const description = clean(body.description, 500);
+    const category = clean(body.category, 100);
+    const unit = clean(body.unit, 50) || 'قطعة';
+    const computed_cost = Number.isFinite(Number(body.computed_cost)) ? Number(body.computed_cost) : 0;
+
+    if (!name) {
       return new Response(JSON.stringify({ error: 'name مطلوب' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -23,8 +60,8 @@ Deno.serve(async (req) => {
 المنتج: ${name}
 ${description ? `الوصف: ${description}` : ''}
 ${category ? `الفئة: ${category}` : ''}
-الوحدة: ${unit || 'قطعة'}
-تكلفة الإنتاج الفعلية: ${computed_cost ?? 0} ر.س
+الوحدة: ${unit}
+تكلفة الإنتاج الفعلية: ${computed_cost} ر.س
 
 اقدّر السعر السوقي لهذا المنتج عند مزودي خدمات الكاترينج المنافسين في السعودية،
 ثم اقترح سعر بيع نهائي وهامش ربح مناسب لشركة Sugar in Space (شريحة وسط-عالية).
@@ -62,8 +99,7 @@ ${category ? `الفئة: ${category}` : ''}
       });
     }
     if (!aiRes.ok) {
-      const t = await aiRes.text();
-      return new Response(JSON.stringify({ error: 'فشل الاتصال بالذكاء الاصطناعي', details: t }), {
+      return new Response(JSON.stringify({ error: 'فشل الاتصال بالذكاء الاصطناعي' }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -78,7 +114,8 @@ ${category ? `الفئة: ${category}` : ''}
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e) {
-    return new Response(JSON.stringify({ error: (e as Error).message }), {
+    console.error(e);
+    return new Response(JSON.stringify({ error: 'Internal error' }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
