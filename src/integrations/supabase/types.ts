@@ -2927,6 +2927,13 @@ export type Database = {
             foreignKeyName: "inventory_items_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_agouza_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "inventory_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_product_stock_availability"
             referencedColumns: ["product_id"]
           },
@@ -3087,6 +3094,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_agouza_readiness"
+            referencedColumns: ["product_id"]
           },
           {
             foreignKeyName: "inventory_movements_product_id_fkey"
@@ -4144,6 +4158,13 @@ export type Database = {
             foreignKeyName: "offer_box_items_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "v_agouza_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "offer_box_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "v_product_stock_availability"
             referencedColumns: ["product_id"]
           },
@@ -4255,6 +4276,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_agouza_readiness"
+            referencedColumns: ["product_id"]
           },
           {
             foreignKeyName: "order_items_product_id_fkey"
@@ -4803,29 +4831,41 @@ export type Database = {
       }
       products_stock_snapshot_5d: {
         Row: {
+          agouza_stock_before: number | null
+          batch_id: string | null
           id: string
           inventory_stock_before: number
           legacy_stock_before: number
+          main_stock_before: number | null
           notes: string | null
           product_id: string
+          reason: string | null
           snapped_at: string
           snapped_by: string | null
         }
         Insert: {
+          agouza_stock_before?: number | null
+          batch_id?: string | null
           id?: string
           inventory_stock_before: number
           legacy_stock_before: number
+          main_stock_before?: number | null
           notes?: string | null
           product_id: string
+          reason?: string | null
           snapped_at?: string
           snapped_by?: string | null
         }
         Update: {
+          agouza_stock_before?: number | null
+          batch_id?: string | null
           id?: string
           inventory_stock_before?: number
           legacy_stock_before?: number
+          main_stock_before?: number | null
           notes?: string | null
           product_id?: string
+          reason?: string | null
           snapped_at?: string
           snapped_by?: string | null
         }
@@ -4836,6 +4876,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_stock_snapshot_5d_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_agouza_readiness"
+            referencedColumns: ["product_id"]
           },
           {
             foreignKeyName: "products_stock_snapshot_5d_product_id_fkey"
@@ -5611,6 +5658,142 @@ export type Database = {
         }
         Relationships: []
       }
+      stock_reconciliation_proposals: {
+        Row: {
+          agouza_warehouse_stock: number | null
+          approved_at: string | null
+          approved_by: string | null
+          audit_notes: Json
+          barcode: string | null
+          created_at: string
+          created_by: string | null
+          difference: number | null
+          dismissed_at: string | null
+          issue_type: string
+          legacy_stock: number | null
+          main_warehouse_stock: number | null
+          product_id: string | null
+          product_name: string | null
+          proposal_id: string
+          proposed_action: string
+          proposed_adjustment_qty: number | null
+          reason: string | null
+          rejected_at: string | null
+          rejected_by: string | null
+          requires_manager_approval: boolean
+          reviewed_at: string | null
+          reviewed_by: string | null
+          risk_level: string
+          status: string
+          target_warehouse_id: string | null
+          total_sales_inventory_stock: number | null
+          updated_at: string
+        }
+        Insert: {
+          agouza_warehouse_stock?: number | null
+          approved_at?: string | null
+          approved_by?: string | null
+          audit_notes?: Json
+          barcode?: string | null
+          created_at?: string
+          created_by?: string | null
+          difference?: number | null
+          dismissed_at?: string | null
+          issue_type: string
+          legacy_stock?: number | null
+          main_warehouse_stock?: number | null
+          product_id?: string | null
+          product_name?: string | null
+          proposal_id?: string
+          proposed_action: string
+          proposed_adjustment_qty?: number | null
+          reason?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          requires_manager_approval?: boolean
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          risk_level?: string
+          status?: string
+          target_warehouse_id?: string | null
+          total_sales_inventory_stock?: number | null
+          updated_at?: string
+        }
+        Update: {
+          agouza_warehouse_stock?: number | null
+          approved_at?: string | null
+          approved_by?: string | null
+          audit_notes?: Json
+          barcode?: string | null
+          created_at?: string
+          created_by?: string | null
+          difference?: number | null
+          dismissed_at?: string | null
+          issue_type?: string
+          legacy_stock?: number | null
+          main_warehouse_stock?: number | null
+          product_id?: string | null
+          product_name?: string | null
+          proposal_id?: string
+          proposed_action?: string
+          proposed_adjustment_qty?: number | null
+          reason?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          requires_manager_approval?: boolean
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          risk_level?: string
+          status?: string
+          target_warehouse_id?: string | null
+          total_sales_inventory_stock?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_reconciliation_proposals_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_reconciliation_proposals_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_agouza_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "stock_reconciliation_proposals_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_stock_availability"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "stock_reconciliation_proposals_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_reconciliation"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "stock_reconciliation_proposals_target_warehouse_id_fkey"
+            columns: ["target_warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_stock_availability"
+            referencedColumns: ["warehouse_id"]
+          },
+          {
+            foreignKeyName: "stock_reconciliation_proposals_target_warehouse_id_fkey"
+            columns: ["target_warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stock_replenishment_log: {
         Row: {
           created_at: string
@@ -5829,6 +6012,21 @@ export type Database = {
       }
     }
     Views: {
+      v_agouza_readiness: {
+        Row: {
+          agouza_stock: number | null
+          barcode: string | null
+          demand_qty: number | null
+          is_active: boolean | null
+          main_stock: number | null
+          main_sufficient: boolean | null
+          product_id: string | null
+          product_name: string | null
+          shortage: number | null
+          suggested_transfer: number | null
+        }
+        Relationships: []
+      }
       v_inventory_balances: {
         Row: {
           available_stock: number | null
@@ -5889,24 +6087,68 @@ export type Database = {
       }
       v_stock_reconciliation: {
         Row: {
-          agouza_stock: number | null
+          agouza_warehouse_stock: number | null
           barcode: string | null
-          diff: number | null
-          inv_row_count: number | null
+          difference: number | null
+          has_agouza_row: boolean | null
+          has_main_row: boolean | null
           is_active: boolean | null
-          issue_type: string | null
           legacy_stock: number | null
-          main_stock: number | null
-          name: string | null
+          main_warehouse_stock: number | null
           product_id: string | null
-          recommended_action: string | null
-          requires_manager_approval: boolean | null
-          total_sales_stock: number | null
+          product_name: string | null
+          total_sales_inventory_stock: number | null
         }
         Relationships: []
       }
     }
     Functions: {
+      _recon_assert_manager: { Args: never; Returns: undefined }
+      _recon_transition: {
+        Args: {
+          p_actor_col: string
+          p_from: string[]
+          p_id: string
+          p_note: string
+          p_to: string
+        }
+        Returns: {
+          agouza_warehouse_stock: number | null
+          approved_at: string | null
+          approved_by: string | null
+          audit_notes: Json
+          barcode: string | null
+          created_at: string
+          created_by: string | null
+          difference: number | null
+          dismissed_at: string | null
+          issue_type: string
+          legacy_stock: number | null
+          main_warehouse_stock: number | null
+          product_id: string | null
+          product_name: string | null
+          proposal_id: string
+          proposed_action: string
+          proposed_adjustment_qty: number | null
+          reason: string | null
+          rejected_at: string | null
+          rejected_by: string | null
+          requires_manager_approval: boolean
+          reviewed_at: string | null
+          reviewed_by: string | null
+          risk_level: string
+          status: string
+          target_warehouse_id: string | null
+          total_sales_inventory_stock: number | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "stock_reconciliation_proposals"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       activate_feed_bom: {
         Args: { p_notes?: string; p_recipe_id: string }
         Returns: Json
@@ -5931,6 +6173,45 @@ export type Database = {
       approve_meat_factory_batch: {
         Args: { p_batch_id: string }
         Returns: Json
+      }
+      approve_proposal_for_future: {
+        Args: { p_id: string; p_note?: string }
+        Returns: {
+          agouza_warehouse_stock: number | null
+          approved_at: string | null
+          approved_by: string | null
+          audit_notes: Json
+          barcode: string | null
+          created_at: string
+          created_by: string | null
+          difference: number | null
+          dismissed_at: string | null
+          issue_type: string
+          legacy_stock: number | null
+          main_warehouse_stock: number | null
+          product_id: string | null
+          product_name: string | null
+          proposal_id: string
+          proposed_action: string
+          proposed_adjustment_qty: number | null
+          reason: string | null
+          rejected_at: string | null
+          rejected_by: string | null
+          requires_manager_approval: boolean
+          reviewed_at: string | null
+          reviewed_by: string | null
+          risk_level: string
+          status: string
+          target_warehouse_id: string | null
+          total_sales_inventory_stock: number | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "stock_reconciliation_proposals"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       can_activate_bom: { Args: { _uid: string }; Returns: boolean }
       can_add_products: { Args: { _user_id: string }; Returns: boolean }
@@ -5979,6 +6260,45 @@ export type Database = {
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
+      }
+      dismiss_proposal: {
+        Args: { p_id: string; p_reason: string }
+        Returns: {
+          agouza_warehouse_stock: number | null
+          approved_at: string | null
+          approved_by: string | null
+          audit_notes: Json
+          barcode: string | null
+          created_at: string
+          created_by: string | null
+          difference: number | null
+          dismissed_at: string | null
+          issue_type: string
+          legacy_stock: number | null
+          main_warehouse_stock: number | null
+          product_id: string | null
+          product_name: string | null
+          proposal_id: string
+          proposed_action: string
+          proposed_adjustment_qty: number | null
+          reason: string | null
+          rejected_at: string | null
+          rejected_by: string | null
+          requires_manager_approval: boolean
+          reviewed_at: string | null
+          reviewed_by: string | null
+          risk_level: string
+          status: string
+          target_warehouse_id: string | null
+          total_sales_inventory_stock: number | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "stock_reconciliation_proposals"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       dispatch_dry_run: {
         Args: { p_order_id: string }
@@ -6106,6 +6426,15 @@ export type Database = {
       feed_batch_submit_review: { Args: { p_batch_id: string }; Returns: Json }
       finalize_slaughter_batch: { Args: { p_batch_id: string }; Returns: Json }
       generate_order_number: { Args: never; Returns: string }
+      generate_stock_reconciliation_proposals: {
+        Args: never
+        Returns: {
+          inserted: number
+          snapshot_batch_id: string
+          total_processed: number
+          updated: number
+        }[]
+      }
       get_dashboard_overview: { Args: never; Returns: Json }
       get_production_dashboard: {
         Args: { p_from?: string; p_to?: string }
@@ -6252,7 +6581,85 @@ export type Database = {
       }
       recompute_feed_batch_cost: { Args: { p_batch: string }; Returns: number }
       recompute_meat_batch_cost: { Args: { p_batch_id: string }; Returns: Json }
+      reject_proposal: {
+        Args: { p_id: string; p_note?: string }
+        Returns: {
+          agouza_warehouse_stock: number | null
+          approved_at: string | null
+          approved_by: string | null
+          audit_notes: Json
+          barcode: string | null
+          created_at: string
+          created_by: string | null
+          difference: number | null
+          dismissed_at: string | null
+          issue_type: string
+          legacy_stock: number | null
+          main_warehouse_stock: number | null
+          product_id: string | null
+          product_name: string | null
+          proposal_id: string
+          proposed_action: string
+          proposed_adjustment_qty: number | null
+          reason: string | null
+          rejected_at: string | null
+          rejected_by: string | null
+          requires_manager_approval: boolean
+          reviewed_at: string | null
+          reviewed_by: string | null
+          risk_level: string
+          status: string
+          target_warehouse_id: string | null
+          total_sales_inventory_stock: number | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "stock_reconciliation_proposals"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       release_order_reservation: { Args: { p_order_id: string }; Returns: Json }
+      request_proposal_investigation: {
+        Args: { p_id: string; p_note: string }
+        Returns: {
+          agouza_warehouse_stock: number | null
+          approved_at: string | null
+          approved_by: string | null
+          audit_notes: Json
+          barcode: string | null
+          created_at: string
+          created_by: string | null
+          difference: number | null
+          dismissed_at: string | null
+          issue_type: string
+          legacy_stock: number | null
+          main_warehouse_stock: number | null
+          product_id: string | null
+          product_name: string | null
+          proposal_id: string
+          proposed_action: string
+          proposed_adjustment_qty: number | null
+          reason: string | null
+          rejected_at: string | null
+          rejected_by: string | null
+          requires_manager_approval: boolean
+          reviewed_at: string | null
+          reviewed_by: string | null
+          risk_level: string
+          status: string
+          target_warehouse_id: string | null
+          total_sales_inventory_stock: number | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "stock_reconciliation_proposals"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       resolve_order_source_warehouse: {
         Args: { p_shipping_company: string }
         Returns: string
@@ -6262,6 +6669,45 @@ export type Database = {
         Returns: Json
       }
       slaughter_daily_summary: { Args: { p_date: string }; Returns: Json }
+      submit_proposal_for_review: {
+        Args: { p_id: string; p_note?: string }
+        Returns: {
+          agouza_warehouse_stock: number | null
+          approved_at: string | null
+          approved_by: string | null
+          audit_notes: Json
+          barcode: string | null
+          created_at: string
+          created_by: string | null
+          difference: number | null
+          dismissed_at: string | null
+          issue_type: string
+          legacy_stock: number | null
+          main_warehouse_stock: number | null
+          product_id: string | null
+          product_name: string | null
+          proposal_id: string
+          proposed_action: string
+          proposed_adjustment_qty: number | null
+          reason: string | null
+          rejected_at: string | null
+          rejected_by: string | null
+          requires_manager_approval: boolean
+          reviewed_at: string | null
+          reviewed_by: string | null
+          risk_level: string
+          status: string
+          target_warehouse_id: string | null
+          total_sales_inventory_stock: number | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "stock_reconciliation_proposals"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       suggest_hatch_batch_for_shipment: {
         Args: { p_shipment_id: string }
         Returns: string
