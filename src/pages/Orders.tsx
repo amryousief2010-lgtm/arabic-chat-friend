@@ -418,6 +418,85 @@ const Orders = () => {
     })();
   }, []);
 
+  // Load this private-delivery-rep's edit-request status (pending / approved)
+  useEffect(() => {
+    if (!isPrivateDeliveryRep || !user) return;
+    (async () => {
+      const { data } = await supabase
+        .from('order_edit_requests')
+        .select('order_id, status')
+        .eq('requested_by', user.id);
+      const approved = new Set<string>();
+      const pending = new Set<string>();
+      (data || []).forEach((r: any) => {
+        if (r.status === 'approved') approved.add(r.order_id);
+        else if (r.status === 'pending') pending.add(r.order_id);
+      });
+      setApprovedEditOrderIds(approved);
+      setPendingEditOrderIds(pending);
+    })();
+
+    const ch = supabase
+      .channel('edit-requests-rep')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'order_edit_requests', filter: `requested_by=eq.${user.id}` }, (payload: any) => {
+        const row = payload.new || payload.old;
+        if (!row) return;
+        setApprovedEditOrderIds(prev => {
+          const n = new Set(prev);
+          if (payload.new?.status === 'approved') n.add(payload.new.order_id);
+          else n.delete(row.order_id);
+          return n;
+        });
+        setPendingEditOrderIds(prev => {
+          const n = new Set(prev);
+          if (payload.new?.status === 'pending') n.add(payload.new.order_id);
+          else n.delete(row.order_id);
+          return n;
+        });
+        if (payload.new?.status === 'approved') {
+          toast.success('تمت الموافقة على طلب تعديلك');
+        } else if (payload.new?.status === 'rejected') {
+          toast.error('تم رفض طلب التعديل من مدير المبيعات');
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [isPrivateDeliveryRep, user?.id]);
+
+  const requestEditPermission = async (order: Order) => {
+    if (!user) return;
+    try {
+      const { error } = await supabase.from('order_edit_requests').insert({
+        order_id: order.id,
+        requested_by: user.id,
+        status: 'pending',
+      });
+      if (error) throw error;
+      await supabase.from('notifications').insert({
+        title: '🔑 طلب إذن تعديل طلب من كيمو',
+        description: `يطلب المندوب الخاص الإذن بتعديل الطلب ${order.order_number} (العميل: ${order.customer_name}). الرجاء الموافقة أو الرفض.`,
+        type: 'edit_request',
+        order_id: order.id,
+        target_user_id: SALES_MANAGER_ID,
+      });
+      setPendingEditOrderIds(prev => new Set(prev).add(order.id));
+      toast.success('تم إرسال طلب التعديل لمدير المبيعات');
+    } catch (e: any) {
+      console.error(e);
+      toast.error('تعذّر إرسال طلب التعديل');
+    }
+  };
+
+  // Whether the current user may edit this order's items right now
+  const canEditThisOrder = (order: Order): boolean => {
+    if (order.status === 'delivered' || order.status === 'cancelled') return false;
+    if (isPrivateDeliveryRep) return approvedEditOrderIds.has(order.id);
+    if (!canEditOrderItems) return false;
+    if (isSalesModerator && order.collection_status === 'collected') return false;
+    return true;
+  };
+
+
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
     try {
       const { error } = await supabase
