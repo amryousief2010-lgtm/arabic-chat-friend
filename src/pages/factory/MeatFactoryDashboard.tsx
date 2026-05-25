@@ -7,6 +7,7 @@ import StatCard from "@/components/dashboard/StatCard";
 import FactoryFilters, { defaultFilterState, FactoryFilterState } from "@/components/factory/FactoryFilters";
 import { useFactoryData } from "@/hooks/useFactoryData";
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import DashboardLayout from "@/components/layout/DashboardLayout";
 
 const STATUS_COLORS: Record<string, string> = {
   draft: "#94a3b8", under_review: "#f59e0b", approved: "#10b981", closed: "#6366f1", cancelled: "#ef4444", planned: "#06b6d4",
@@ -86,6 +87,7 @@ export default function MeatFactoryDashboard() {
   }, [meatCons]);
 
   return (
+    <DashboardLayout>
     <div dir="rtl" className="p-4 md:p-6 space-y-4">
       <div className="flex items-center gap-3">
         <Factory className="h-7 w-7 text-primary" />
@@ -168,5 +170,6 @@ export default function MeatFactoryDashboard() {
         </CardContent>
       </Card>
     </div>
+    </DashboardLayout>
   );
 }
