@@ -27,7 +27,7 @@ export const useTestFilterPredicate = () => {
     () => (row: { notes?: string | null; reference?: string | null }) => {
       if (includeTest) return true;
       const tag = `${row?.notes ?? ""} ${row?.reference ?? ""}`;
-      return !/TEST-DISPATCH/i.test(tag);
+      return !/(TEST-DISPATCH|LIMITED-PILOT)/i.test(tag);
     },
     [includeTest],
   );
