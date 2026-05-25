@@ -234,6 +234,16 @@ const AnimatedRoutes = () => {
             <PageTransition><MeatFactoryBatches /></PageTransition>
           </ProtectedRoute>
         } />
+        <Route path="/meat-factory/batches/new" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager']}>
+            <PageTransition><MeatBatchNew /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/feed-factory/batches/new" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'feed_factory_manager', 'production_manager']}>
+            <PageTransition><FeedBatchNew /></PageTransition>
+          </ProtectedRoute>
+        } />
         <Route path="/feed-factory/batches" element={
           <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'feed_factory_manager', 'production_manager', 'quality_manager']}>
             <PageTransition><FeedFactoryBatches /></PageTransition>
