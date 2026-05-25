@@ -200,14 +200,14 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
         .eq("id", orderId)
         .single();
       if (oerr) throw oerr;
-      const hasOffer = initialItems.some((it) => it.offer_name);
+      const hasOfferItems = initialItems.some((it) => it.offer_name);
       const finalSubtotal = items
         .filter((it) => !it._deleted)
         .reduce((s, it) => s + Number(it.quantity) * Number(it.unit_price), 0);
       const newTotal =
         finalSubtotal -
         Number(discount || 0) +
-        (hasOffer ? Number(ord.delivery_fee || 0) : 0);
+        (hasOfferItems ? Number(ord.delivery_fee || 0) : 0);
       const { error: uerr } = await supabase
         .from("orders")
         .update({
@@ -230,11 +230,13 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
   };
 
   const visibleItems = items.filter((it) => !it._deleted);
+  const hasOfferItems = initialItems.some((it) => it.offer_name);
   const newSubtotal = visibleItems.reduce(
     (sum, it) => sum + Number(it.quantity) * Number(it.unit_price),
     0
   );
-  const newTotalPreview = newSubtotal - Number(discount || 0);
+  const newTotalPreview =
+    newSubtotal - Number(discount || 0) + (hasOfferItems ? Number(initialDeliveryFee || 0) : 0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

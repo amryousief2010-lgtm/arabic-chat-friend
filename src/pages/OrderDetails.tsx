@@ -728,6 +728,7 @@ const OrderDetails = () => {
             product_name: it.product_name,
             quantity: it.quantity,
             unit_price: it.unit_price,
+            offer_name: it.offer_name ?? null,
           }))}
           initialDiscount={order.discount}
           initialDeliveryFee={order.delivery_fee}
