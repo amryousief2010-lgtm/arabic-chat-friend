@@ -379,8 +379,15 @@ const Orders = () => {
     const matchesModerator =
       filterModerator === "all" ||
       order.moderator_name === filterModerator;
-    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator;
+    const matchesGovernorate =
+      filterGovernorate === "all" ||
+      (order.governorate || "").trim() === filterGovernorate;
+    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate;
   });
+
+  const availableGovernorates = Array.from(
+    new Set(orders.map(o => (o.governorate || "").trim()).filter(Boolean))
+  ).sort((a, b) => a.localeCompare(b, 'ar'));
 
   const availableYears = Array.from(
     new Set([
