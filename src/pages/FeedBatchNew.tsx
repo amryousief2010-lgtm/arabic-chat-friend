@@ -42,14 +42,16 @@ export default function FeedBatchNew() {
     if (!recipeId || qty <= 0) return;
     if (plan?.blockers?.length) return toast.error("لا يمكن الحفظ — يوجد عوائق");
     setSaving(true);
-    const { data, error } = await supabase.rpc("fd_create_feed_batch_draft" as any, {
+    const { data: batchId, error } = await supabase.rpc("fd_create_feed_batch_draft" as any, {
       p_recipe_id: recipeId, p_planned_qty: qty,
       p_production_date: new Date().toISOString().slice(0, 10),
-      p_notes: null, p_label: null,
+      p_notes: null, p_label: "TEST-DISPATCH-D3-FEED-",
     });
+    if (error) { setSaving(false); return toast.error(error.message); }
+    const { error: perr } = await supabase.rpc("fd_feed_persist_lines" as any, { p_batch_id: batchId });
     setSaving(false);
-    if (error) return toast.error(error.message);
-    toast.success("تم إنشاء الدفعة كمسودة");
+    if (perr) return toast.error("تم إنشاء المسودة لكن فشل حفظ بنود الاستهلاك: " + perr.message);
+    toast.success("تم إنشاء الدفعة مع بنود الاستهلاك");
     nav("/feed-factory/batches");
   };
 
