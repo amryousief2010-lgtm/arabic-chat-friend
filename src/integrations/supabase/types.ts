@@ -5627,6 +5627,39 @@ export type Database = {
         }
         Relationships: []
       }
+      trigger_patch_audit: {
+        Row: {
+          action: string
+          id: string
+          notes: string | null
+          patched_at: string
+          phase: string
+          previous_definition: string | null
+          table_name: string | null
+          trigger_name: string | null
+        }
+        Insert: {
+          action: string
+          id?: string
+          notes?: string | null
+          patched_at?: string
+          phase: string
+          previous_definition?: string | null
+          table_name?: string | null
+          trigger_name?: string | null
+        }
+        Update: {
+          action?: string
+          id?: string
+          notes?: string | null
+          patched_at?: string
+          phase?: string
+          previous_definition?: string | null
+          table_name?: string | null
+          trigger_name?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
