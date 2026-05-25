@@ -74,7 +74,7 @@ const MeatFactory = () => {
   const [batchForm, setBatchForm] = useState({
     source_invoice_no: "", planned_qty: 0,
     production_date: new Date().toISOString().slice(0, 10),
-    expiry_date: "", labor_cost: 0, notes: "",
+    expiry_date: "", labor_cost: 0, other_expenses: 0, byproduct_value: 0, notes: "",
   });
   const [savingBatch, setSavingBatch] = useState(false);
 
@@ -384,7 +384,7 @@ const MeatFactory = () => {
 
   // ============ CREATE BATCH ============
   const openCreateBatch = () => {
-    setBatchForm({ source_invoice_no: "", planned_qty: 0, production_date: new Date().toISOString().slice(0,10), expiry_date: "", labor_cost: 0, notes: "" });
+    setBatchForm({ source_invoice_no: "", planned_qty: 0, production_date: new Date().toISOString().slice(0,10), expiry_date: "", labor_cost: 0, other_expenses: 0, byproduct_value: 0, notes: "" });
     setNewBatchOpen(true);
   };
 
@@ -401,6 +401,8 @@ const MeatFactory = () => {
       batch_number: batchNumber, product_code: inv.product_code!, product_name_ar: inv.product_name_ar,
       planned_qty: Number(batchForm.planned_qty), unit: inv.output_unit || "كيلو",
       status: "planned", labor_cost: Number(batchForm.labor_cost) || 0,
+      other_expenses: Number(batchForm.other_expenses) || 0,
+      byproduct_value: Number(batchForm.byproduct_value) || 0,
       production_date: batchForm.production_date,
       expiry_date: batchForm.expiry_date || null,
       source_invoice_no: inv.invoice_no, notes: batchForm.notes || null,
@@ -505,8 +507,9 @@ const MeatFactory = () => {
           <Button size="sm" onClick={openCreateBatch}><Plus className="w-4 h-4 ml-1" />أمر إنتاج جديد</Button>
         </div>
 
-        <Tabs defaultValue="batches" className="w-full">
-          <TabsList className="grid w-full grid-cols-7">
+        <Tabs defaultValue="costing" className="w-full">
+          <TabsList className="grid w-full grid-cols-8">
+            <TabsTrigger value="costing"><Coins className="w-4 h-4 ml-1" />التكلفة والاعتماد</TabsTrigger>
             <TabsTrigger value="batches"><Factory className="w-4 h-4 ml-1" />الدفعات</TabsTrigger>
             <TabsTrigger value="consumption"><History className="w-4 h-4 ml-1" />الاستهلاك</TabsTrigger>
             <TabsTrigger value="audit"><ClipboardList className="w-4 h-4 ml-1" />سجل الاعتمادات</TabsTrigger>
@@ -515,6 +518,10 @@ const MeatFactory = () => {
             <TabsTrigger value="invoices"><ClipboardList className="w-4 h-4 ml-1" />الفواتير</TabsTrigger>
             <TabsTrigger value="recipes"><Layers className="w-4 h-4 ml-1" />الوصفات</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="costing">
+            <MeatCostApprovalPanel onChanged={fetchAll} />
+          </TabsContent>
 
           {/* BATCHES */}
           <TabsContent value="batches">
@@ -860,7 +867,9 @@ const MeatFactory = () => {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label>الكمية المخططة</Label><Input type="number" min={0} step={0.1} value={batchForm.planned_qty} onChange={e => setBatchForm(f => ({ ...f, planned_qty: parseFloat(e.target.value) || 0 }))} /></div>
-              <div><Label>تكلفة العمالة</Label><Input type="number" min={0} value={batchForm.labor_cost} onChange={e => setBatchForm(f => ({ ...f, labor_cost: parseFloat(e.target.value) || 0 }))} /></div>
+              <div><Label>تكلفة العمالة (ج)</Label><Input type="number" min={0} value={batchForm.labor_cost} onChange={e => setBatchForm(f => ({ ...f, labor_cost: parseFloat(e.target.value) || 0 }))} /></div>
+              <div><Label>مصاريف أخرى (ج)</Label><Input type="number" min={0} value={batchForm.other_expenses} onChange={e => setBatchForm(f => ({ ...f, other_expenses: parseFloat(e.target.value) || 0 }))} /></div>
+              <div><Label>قيمة ناتج ثانوي (ج)</Label><Input type="number" min={0} value={batchForm.byproduct_value} onChange={e => setBatchForm(f => ({ ...f, byproduct_value: parseFloat(e.target.value) || 0 }))} /></div>
               <div><Label>تاريخ الإنتاج</Label><Input type="date" value={batchForm.production_date} onChange={e => setBatchForm(f => ({ ...f, production_date: e.target.value }))} /></div>
               <div><Label>تاريخ الصلاحية</Label><Input type="date" value={batchForm.expiry_date} onChange={e => setBatchForm(f => ({ ...f, expiry_date: e.target.value }))} /></div>
             </div>
