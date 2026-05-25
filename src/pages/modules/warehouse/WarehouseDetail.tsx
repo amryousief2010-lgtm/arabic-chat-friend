@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowRight, Warehouse, Package, AlertTriangle, ArrowDown, ArrowUp, ArrowLeftRight, Settings2, Truck, FileSpreadsheet } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { ArrowRight, Warehouse, Package, AlertTriangle, ArrowDown, ArrowUp, ArrowLeftRight, Settings2, Truck, FileSpreadsheet, Inbox, Send, CheckCircle2, Clock, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -40,6 +41,11 @@ const WarehouseDetail = () => {
   const [loading, setLoading] = useState(true);
   const [supplyDialog, setSupplyDialog] = useState(false);
   const [supplyQty, setSupplyQty] = useState<Record<string, number>>({});
+  const [transfers, setTransfers] = useState<any[]>([]);
+  const [receiveDialog, setReceiveDialog] = useState<any>(null); // transfer obj
+  const [receiveLines, setReceiveLines] = useState<Record<string, { qty: number; notes: string }>>({});
+  const [receiveHeaderNotes, setReceiveHeaderNotes] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const isAgouza = useMemo(() => !!warehouse && (warehouse.name?.includes("العجوزة") || warehouse.location?.includes("العجوزة")), [warehouse]);
   const mainWarehouse = useMemo(() => allWarehouses.find(w => w.id !== id && (w.name?.includes("الرئيسي") || w.name?.includes("المقر"))) || allWarehouses.find(w => w.id !== id && w.type === "finished_goods"), [allWarehouses, id]);
@@ -48,7 +54,7 @@ const WarehouseDetail = () => {
     if (!id) return;
     setLoading(true);
     const sinceISO = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
-    const [w, all, it, mv, oi] = await Promise.all([
+    const [w, all, it, mv, oi, tr] = await Promise.all([
       supabase.from("warehouses").select("*").eq("id", id).maybeSingle(),
       supabase.from("warehouses").select("*").order("name"),
       supabase.from("inventory_items").select("*").eq("warehouse_id", id).order("name"),
@@ -62,12 +68,18 @@ const WarehouseDetail = () => {
         .gte("orders.created_at", sinceISO)
         .neq("orders.status", "cancelled")
         .limit(2000),
+      supabase.from("warehouse_transfers")
+        .select("*, source:warehouses!warehouse_transfers_source_warehouse_id_fkey(name), destination:warehouses!warehouse_transfers_destination_warehouse_id_fkey(name), items:warehouse_transfer_items(*)")
+        .or(`source_warehouse_id.eq.${id},destination_warehouse_id.eq.${id}`)
+        .order("created_at", { ascending: false })
+        .limit(200),
     ]);
     setWarehouse(w.data);
     setAllWarehouses(all.data || []);
     setItems(it.data || []);
     setMovements(mv.data || []);
     setOrderItems(oi.data || []);
+    setTransfers(tr.data || []);
     setLoading(false);
   };
 
@@ -121,56 +133,109 @@ const WarehouseDetail = () => {
       return;
     }
 
-    // Fetch main warehouse items to find sources by name
+    // Resolve source item IDs by name from main warehouse
     const { data: mainItems } = await supabase
       .from("inventory_items")
-      .select("*")
+      .select("id, name, stock")
       .eq("warehouse_id", mainWarehouse.id);
 
-    const ref = `طلب توريد العجوزة ${new Date().toLocaleDateString("ar-EG")}`;
-    let success = 0, missing: string[] = [], insufficient: string[] = [];
-
+    const lines: Array<{ source_item_id: string; qty: number }> = [];
+    const missing: string[] = [];
+    const insufficient: string[] = [];
     for (const [name, qty] of requested) {
       const src = (mainItems || []).find((m: any) => m.name?.trim() === name.trim());
       if (!src) { missing.push(name); continue; }
       if (Number(src.stock) < qty) { insufficient.push(`${name} (متاح ${src.stock})`); continue; }
-
-      // Out from main
-      const { error: e1 } = await supabase.from("inventory_movements").insert({
-        item_id: src.id, warehouse_id: mainWarehouse.id,
-        movement_type: "transfer", quantity: qty,
-        destination_warehouse_id: id,
-        reference: ref, unit_cost: src.unit_cost, performed_by: user?.id,
-        notes: `نقل إلى ${warehouse?.name}`,
-      });
-      if (e1) continue;
-
-      // Ensure destination item exists
-      let destItem = items.find(i => i.name?.trim() === name.trim());
-      if (!destItem) {
-        const { data: created } = await supabase.from("inventory_items").insert({
-          warehouse_id: id, name: src.name, category: src.category, sku: src.sku,
-          unit: src.unit, stock: 0, low_stock_threshold: src.low_stock_threshold, unit_cost: src.unit_cost,
-        }).select().single();
-        destItem = created;
-      }
-      if (destItem) {
-        await supabase.from("inventory_movements").insert({
-          item_id: destItem.id, warehouse_id: id, movement_type: "in",
-          quantity: qty, reference: ref, unit_cost: src.unit_cost, performed_by: user?.id,
-          notes: `استلام من ${mainWarehouse.name}`,
-        });
-        success++;
-      }
+      lines.push({ source_item_id: src.id, qty });
     }
 
+    if (lines.length === 0) {
+      toast({ title: "لا يمكن التنفيذ", description: `مفقود: ${missing.length} • غير كافٍ: ${insufficient.length}`, variant: "destructive" });
+      return;
+    }
+
+    setSubmitting(true);
+    const { data, error } = await supabase.rpc("create_and_send_transfer", {
+      p_source_warehouse_id: mainWarehouse.id,
+      p_destination_warehouse_id: id!,
+      p_lines: lines,
+      p_notes: `طلب توريد ${warehouse?.name || ""} - ${new Date().toLocaleDateString("ar-EG")}`,
+    });
+    setSubmitting(false);
+
+    if (error) {
+      toast({ title: "فشل إنشاء التحويل", description: error.message, variant: "destructive" });
+      return;
+    }
+
+    const result = data as any;
     toast({
-      title: "تم تنفيذ طلب التوريد",
-      description: `نُقل ${success} صنف${missing.length ? ` • مفقود: ${missing.length}` : ""}${insufficient.length ? ` • غير كافٍ: ${insufficient.length}` : ""}`,
+      title: "تم إنشاء وإرسال التحويل",
+      description: `رقم التحويل ${result?.transfer_no} • ${result?.lines} صنف • بانتظار استلام ${warehouse?.name}`,
     });
     setSupplyDialog(false);
     fetchAll();
   };
+
+  const openReceiveDialog = (t: any) => {
+    const init: Record<string, { qty: number; notes: string }> = {};
+    (t.items || []).forEach((li: any) => {
+      init[li.id] = { qty: Number(li.sent_qty), notes: li.receive_notes || "" };
+    });
+    setReceiveLines(init);
+    setReceiveHeaderNotes("");
+    setReceiveDialog(t);
+  };
+
+  const confirmReceipt = async () => {
+    if (!receiveDialog) return;
+    const lines = Object.entries(receiveLines).map(([line_id, v]) => ({
+      line_id, received_qty: v.qty, notes: v.notes || null,
+    }));
+    setSubmitting(true);
+    const { data, error } = await supabase.rpc("confirm_transfer_receipt", {
+      p_transfer_id: receiveDialog.id,
+      p_lines: lines,
+      p_notes: receiveHeaderNotes || null,
+    });
+    setSubmitting(false);
+    if (error) {
+      toast({ title: "فشل تأكيد الاستلام", description: error.message, variant: "destructive" });
+      return;
+    }
+    const r = data as any;
+    toast({
+      title: r?.already_received ? "هذا التحويل تم استلامه بالفعل" : "تم تأكيد الاستلام",
+      description: `الحالة: ${statusLabel(r?.status)} • مرسل ${r?.total_sent} • مستلم ${r?.total_received}`,
+    });
+    setReceiveDialog(null);
+    fetchAll();
+  };
+
+  const statusLabel = (s?: string) => ({
+    draft: "مسودة", sent: "مرسل", pending_receipt: "بانتظار الاستلام",
+    partially_received: "استلام جزئي", received: "تم الاستلام",
+    needs_manager_review: "يحتاج مراجعة", cancelled: "ملغي",
+  } as any)[s || ""] || s || "—";
+
+  const statusBadge = (s?: string) => {
+    const map: Record<string, { cls: string; Icon: any }> = {
+      pending_receipt: { cls: "bg-amber-500/10 text-amber-600 border-amber-500/30", Icon: Clock },
+      partially_received: { cls: "bg-orange-500/10 text-orange-600 border-orange-500/30", Icon: AlertTriangle },
+      received: { cls: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30", Icon: CheckCircle2 },
+      needs_manager_review: { cls: "bg-purple-500/10 text-purple-600 border-purple-500/30", Icon: AlertTriangle },
+      cancelled: { cls: "bg-muted text-muted-foreground border-border", Icon: XCircle },
+      sent: { cls: "bg-blue-500/10 text-blue-600 border-blue-500/30", Icon: Send },
+      draft: { cls: "bg-muted text-muted-foreground", Icon: Clock },
+    };
+    const cfg = map[s || ""] || map.pending_receipt;
+    const Icon = cfg.Icon;
+    return <Badge variant="outline" className={`gap-1 ${cfg.cls}`}><Icon className="w-3 h-3" />{statusLabel(s)}</Badge>;
+  };
+
+  const outgoingTransfers = transfers.filter(t => t.source_warehouse_id === id);
+  const incomingPending = transfers.filter(t => t.destination_warehouse_id === id && ["pending_receipt", "partially_received", "needs_manager_review"].includes(t.status));
+  const incomingAll = transfers.filter(t => t.destination_warehouse_id === id);
 
   const exportSupplyExcel = () => {
     const rows = supplyNeeds.map((n, i) => ({
@@ -234,11 +299,19 @@ const WarehouseDetail = () => {
           </Card>
         </div>
 
-        <Tabs defaultValue="items">
-          <TabsList>
+        <Tabs defaultValue={incomingPending.length > 0 ? "incoming" : "items"}>
+          <TabsList className="flex-wrap h-auto">
             <TabsTrigger value="items">الأصناف</TabsTrigger>
             <TabsTrigger value="movements">الحركات</TabsTrigger>
             <TabsTrigger value="low">منخفضة {lowStock.length > 0 && <Badge variant="destructive" className="mr-2">{lowStock.length}</Badge>}</TabsTrigger>
+            <TabsTrigger value="incoming" className="gap-1">
+              <Inbox className="w-4 h-4" />وارد بانتظار الاستلام
+              {incomingPending.length > 0 && <Badge variant="destructive" className="mr-1">{incomingPending.length}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="outgoing" className="gap-1">
+              <Send className="w-4 h-4" />تحويلات صادرة
+              {outgoingTransfers.length > 0 && <Badge variant="secondary" className="mr-1">{outgoingTransfers.length}</Badge>}
+            </TabsTrigger>
             {isAgouza && (
               <TabsTrigger value="supply" className="gap-1">
                 <Truck className="w-4 h-4" />احتياج التوريد
@@ -286,10 +359,18 @@ const WarehouseDetail = () => {
                     const cfg = moveLabels[m.movement_type] || moveLabels.in;
                     const Icon = cfg.icon;
                     const isIncoming = m.destination_warehouse_id === id;
+                    const pairedTransfer = transfers.find(t =>
+                      (t.items || []).some((li: any) => li.source_movement_id === m.id || li.destination_movement_id === m.id)
+                    );
                     return (
                       <TableRow key={m.id}>
                         <TableCell className="text-xs">{formatDateTime(m.performed_at)}</TableCell>
-                        <TableCell><Badge variant={cfg.variant} className="gap-1"><Icon className="w-3 h-3" />{cfg.label}{isIncoming && m.movement_type === "transfer" ? " (وارد)" : ""}</Badge></TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1 flex-wrap">
+                            <Badge variant={cfg.variant} className="gap-1"><Icon className="w-3 h-3" />{cfg.label}{isIncoming && m.movement_type === "transfer" ? " (وارد)" : ""}</Badge>
+                            {pairedTransfer && statusBadge(pairedTransfer.status)}
+                          </div>
+                        </TableCell>
                         <TableCell>{m.item?.name || "—"}</TableCell>
                         <TableCell>{m.warehouse?.name || "—"}</TableCell>
                         <TableCell>{m.quantity} {m.item?.unit}</TableCell>
@@ -320,6 +401,78 @@ const WarehouseDetail = () => {
                   </Card>
                 ))}
               </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="incoming" className="space-y-4">
+            {incomingPending.length === 0 ? (
+              <Card><CardContent className="py-10 text-center text-muted-foreground">لا توجد تحويلات بانتظار الاستلام</CardContent></Card>
+            ) : incomingPending.map(t => (
+              <Card key={t.id} className="border-amber-500/30">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Inbox className="w-5 h-5 text-amber-600" />
+                        {t.transfer_no} • من {t.source?.name}
+                      </CardTitle>
+                      <CardDescription>{formatDateTime(t.sent_at || t.created_at)} • {(t.items || []).length} صنف</CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {statusBadge(t.status)}
+                      {canManageWarehouses && (
+                        <Button size="sm" onClick={() => openReceiveDialog(t)}>
+                          <CheckCircle2 className="w-4 h-4 ml-1" />تأكيد الاستلام
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader><TableRow>
+                      <TableHead>الصنف</TableHead><TableHead>الكمية المرسلة</TableHead>
+                      <TableHead>المستلم</TableHead><TableHead>نقص</TableHead>
+                    </TableRow></TableHeader>
+                    <TableBody>
+                      {(t.items || []).map((li: any) => (
+                        <TableRow key={li.id}>
+                          <TableCell className="font-medium">{li.item_name}</TableCell>
+                          <TableCell>{li.sent_qty} {li.unit}</TableCell>
+                          <TableCell>{li.received_qty ?? "—"}</TableCell>
+                          <TableCell className={li.shortage_qty > 0 ? "text-destructive" : ""}>{li.shortage_qty || 0}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            ))}
+          </TabsContent>
+
+          <TabsContent value="outgoing" className="space-y-4">
+            {outgoingTransfers.length === 0 ? (
+              <Card><CardContent className="py-10 text-center text-muted-foreground">لا توجد تحويلات صادرة</CardContent></Card>
+            ) : (
+              <Card><CardContent className="p-0">
+                <Table>
+                  <TableHeader><TableRow>
+                    <TableHead>رقم التحويل</TableHead><TableHead>التاريخ</TableHead>
+                    <TableHead>إلى</TableHead><TableHead>الأصناف</TableHead><TableHead>الحالة</TableHead>
+                  </TableRow></TableHeader>
+                  <TableBody>
+                    {outgoingTransfers.map(t => (
+                      <TableRow key={t.id}>
+                        <TableCell className="font-mono text-xs">{t.transfer_no}</TableCell>
+                        <TableCell className="text-xs">{formatDateTime(t.sent_at || t.created_at)}</TableCell>
+                        <TableCell>{t.destination?.name}</TableCell>
+                        <TableCell>{(t.items || []).length}</TableCell>
+                        <TableCell>{statusBadge(t.status)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent></Card>
             )}
           </TabsContent>
 
@@ -417,6 +570,67 @@ const WarehouseDetail = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setSupplyDialog(false)}>إلغاء</Button>
             <Button onClick={submitSupplyRequest} disabled={!mainWarehouse}>تنفيذ النقل</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Receive Confirmation Dialog (status-only — never inserts movements) */}
+      <Dialog open={!!receiveDialog} onOpenChange={(o) => !o && setReceiveDialog(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>تأكيد استلام التحويل {receiveDialog?.transfer_no}</DialogTitle>
+            <DialogDescription>
+              من {receiveDialog?.source?.name}. عدّل الكمية المستلمة إذا اختلفت عن المرسلة. لن يتم إنشاء أي حركة مخزون جديدة — هذه الخطوة لتوثيق الاستلام فقط.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>الصنف</TableHead><TableHead>مرسل</TableHead>
+                <TableHead>مستلم</TableHead><TableHead>ملاحظات (إلزامية للجزئي)</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {(receiveDialog?.items || []).map((li: any) => {
+                  const v = receiveLines[li.id] || { qty: Number(li.sent_qty), notes: "" };
+                  const diff = v.qty !== Number(li.sent_qty);
+                  return (
+                    <TableRow key={li.id}>
+                      <TableCell className="font-medium">{li.item_name}</TableCell>
+                      <TableCell>{li.sent_qty} {li.unit}</TableCell>
+                      <TableCell>
+                        <Input type="number" min={0} max={Number(li.sent_qty)} className="w-24"
+                          value={v.qty}
+                          onChange={e => setReceiveLines({ ...receiveLines, [li.id]: { ...v, qty: Number(e.target.value) } })} />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          placeholder={diff ? "إلزامي" : "اختياري"}
+                          className={diff && !v.notes ? "border-destructive" : ""}
+                          value={v.notes}
+                          onChange={e => setReceiveLines({ ...receiveLines, [li.id]: { ...v, notes: e.target.value } })} />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+            <Textarea placeholder="ملاحظات عامة على الاستلام (اختياري)" value={receiveHeaderNotes}
+              onChange={e => setReceiveHeaderNotes(e.target.value)} />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setReceiveDialog(null)}>إلغاء</Button>
+            <Button variant="secondary" disabled={submitting} onClick={() => {
+              // استلام كامل: reset all to sent_qty
+              const init: Record<string, { qty: number; notes: string }> = {};
+              (receiveDialog?.items || []).forEach((li: any) => {
+                init[li.id] = { qty: Number(li.sent_qty), notes: "" };
+              });
+              setReceiveLines(init);
+              setTimeout(confirmReceipt, 0);
+            }}>
+              <CheckCircle2 className="w-4 h-4 ml-1" />تأكيد الاستلام الكامل
+            </Button>
+            <Button disabled={submitting} onClick={confirmReceipt}>تأكيد كما هو</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
