@@ -309,6 +309,7 @@ const Notifications = () => {
                               </Button>
                             </div>
                           )}
+                        </div>
                       </div>
                       <div className="flex items-center gap-1">
                         {!notification.is_read && (
