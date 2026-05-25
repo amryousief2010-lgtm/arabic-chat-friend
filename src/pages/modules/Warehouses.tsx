@@ -217,9 +217,12 @@ const Warehouses = () => {
 
   const [deleteTarget, setDeleteTarget] = useState<{ type: "warehouse" | "item"; id: string; name: string } | null>(null);
 
+  const [recentOrders, setRecentOrders] = useState<any[]>([]);
+
   const fetchAll = async () => {
     setLoading(true);
-    const [w, i, m, s] = await Promise.all([
+    const sinceISO = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
+    const [w, i, m, s, o] = await Promise.all([
       supabase.from("warehouses").select("*").order("name"),
       supabase.from("inventory_items").select("*, warehouse:warehouses(name)").order("name"),
       supabase.from("inventory_movements").select("*, item:inventory_items(name, unit), warehouse:warehouses!inventory_movements_warehouse_id_fkey(name), destination:warehouses!inventory_movements_destination_warehouse_id_fkey(name)").order("performed_at", { ascending: false }).limit(200),
@@ -228,11 +231,17 @@ const Warehouses = () => {
         .in("destination", ["warehouse", "branch", "meat_factory"])
         .order("created_at", { ascending: false })
         .limit(300),
+      supabase.from("orders")
+        .select("id, order_number, total, status, created_at, customer:customers(governorate, city, name)")
+        .gte("created_at", sinceISO)
+        .neq("status", "cancelled")
+        .limit(1000),
     ]);
     if (w.data) setWarehouses(w.data as WarehouseRow[]);
     if (i.data) setItems(i.data as InventoryItem[]);
     if (m.data) setMovements(m.data as Movement[]);
     if (s.data) setSlaughterOutputs(s.data as any[]);
+    if (o.data) setRecentOrders(o.data as any[]);
     setLoading(false);
   };
 
