@@ -371,6 +371,9 @@ const AnimatedRoutes = () => {
             <PageTransition><CorrectionAuditLog /></PageTransition>
           </ProtectedRoute>
         } />
+        <Route path="/updates-log" element={
+          <ProtectedRoute><PageTransition><UpdatesLog /></PageTransition></ProtectedRoute>
+        } />
         <Route path="/unauthorized" element={
           <PageTransition><Unauthorized /></PageTransition>
         } />
