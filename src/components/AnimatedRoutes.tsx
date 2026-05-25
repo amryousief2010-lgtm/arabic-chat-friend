@@ -77,6 +77,9 @@ import RoleLanding from "@/components/RoleLanding";
 import CorrectionRequests from "@/pages/CorrectionRequests";
 import CorrectionAuditLog from "@/pages/CorrectionAuditLog";
 import UpdatesLog from "@/pages/UpdatesLog";
+import ImportWizard from "@/pages/modules/shared/ImportWizard";
+import DataQualityTasks from "@/pages/modules/shared/DataQualityTasks";
+import PackagingMaterials from "@/pages/modules/shared/PackagingMaterials";
 
 const RedirectWithQuery = ({ to }: { to: string }) => {
   const location = useLocation();
@@ -383,6 +386,21 @@ const AnimatedRoutes = () => {
         } />
         <Route path="/updates-log" element={
           <ProtectedRoute><PageTransition><UpdatesLog /></PageTransition></ProtectedRoute>
+        } />
+        <Route path="/modules/import-wizard" element={
+          <ProtectedRoute allowedRoles={['general_manager','executive_manager','warehouse_supervisor','meat_factory_manager','feed_factory_manager']}>
+            <PageTransition><ImportWizard /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/modules/data-quality" element={
+          <ProtectedRoute allowedRoles={['general_manager','executive_manager','warehouse_supervisor','meat_factory_manager','feed_factory_manager','quality_manager','accountant','production_manager']}>
+            <PageTransition><DataQualityTasks /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/modules/packaging" element={
+          <ProtectedRoute allowedRoles={['general_manager','executive_manager','warehouse_supervisor','meat_factory_manager','feed_factory_manager','production_manager','accountant']}>
+            <PageTransition><PackagingMaterials /></PageTransition>
+          </ProtectedRoute>
         } />
         <Route path="/unauthorized" element={
           <PageTransition><Unauthorized /></PageTransition>
