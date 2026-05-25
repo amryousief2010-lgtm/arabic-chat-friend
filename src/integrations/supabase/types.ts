@@ -5974,6 +5974,213 @@ export type Database = {
         }
         Relationships: []
       }
+      warehouse_transfer_items: {
+        Row: {
+          created_at: string
+          destination_item_id: string | null
+          destination_movement_id: string | null
+          id: string
+          item_name: string
+          receive_notes: string | null
+          received_qty: number | null
+          requested_qty: number
+          sent_qty: number
+          shortage_qty: number | null
+          source_item_id: string | null
+          source_movement_id: string | null
+          total_cost: number | null
+          transfer_id: string
+          unit: string | null
+          unit_cost: number | null
+        }
+        Insert: {
+          created_at?: string
+          destination_item_id?: string | null
+          destination_movement_id?: string | null
+          id?: string
+          item_name: string
+          receive_notes?: string | null
+          received_qty?: number | null
+          requested_qty?: number
+          sent_qty?: number
+          shortage_qty?: number | null
+          source_item_id?: string | null
+          source_movement_id?: string | null
+          total_cost?: number | null
+          transfer_id: string
+          unit?: string | null
+          unit_cost?: number | null
+        }
+        Update: {
+          created_at?: string
+          destination_item_id?: string | null
+          destination_movement_id?: string | null
+          id?: string
+          item_name?: string
+          receive_notes?: string | null
+          received_qty?: number | null
+          requested_qty?: number
+          sent_qty?: number
+          shortage_qty?: number | null
+          source_item_id?: string | null
+          source_movement_id?: string | null
+          total_cost?: number | null
+          transfer_id?: string
+          unit?: string | null
+          unit_cost?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "warehouse_transfer_items_destination_item_id_fkey"
+            columns: ["destination_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "warehouse_transfer_items_destination_item_id_fkey"
+            columns: ["destination_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_inventory_balances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "warehouse_transfer_items_destination_item_id_fkey"
+            columns: ["destination_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_stock_availability"
+            referencedColumns: ["inventory_item_id"]
+          },
+          {
+            foreignKeyName: "warehouse_transfer_items_destination_movement_id_fkey"
+            columns: ["destination_movement_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_movements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "warehouse_transfer_items_source_item_id_fkey"
+            columns: ["source_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "warehouse_transfer_items_source_item_id_fkey"
+            columns: ["source_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_inventory_balances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "warehouse_transfer_items_source_item_id_fkey"
+            columns: ["source_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_stock_availability"
+            referencedColumns: ["inventory_item_id"]
+          },
+          {
+            foreignKeyName: "warehouse_transfer_items_source_movement_id_fkey"
+            columns: ["source_movement_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_movements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "warehouse_transfer_items_transfer_id_fkey"
+            columns: ["transfer_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_transfers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      warehouse_transfers: {
+        Row: {
+          audit_log: Json
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          created_at: string
+          created_by: string | null
+          destination_warehouse_id: string
+          id: string
+          notes: string | null
+          received_at: string | null
+          received_by: string | null
+          sent_at: string | null
+          sent_by: string | null
+          source_warehouse_id: string
+          status: string
+          transfer_no: string | null
+        }
+        Insert: {
+          audit_log?: Json
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          destination_warehouse_id: string
+          id?: string
+          notes?: string | null
+          received_at?: string | null
+          received_by?: string | null
+          sent_at?: string | null
+          sent_by?: string | null
+          source_warehouse_id: string
+          status?: string
+          transfer_no?: string | null
+        }
+        Update: {
+          audit_log?: Json
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          destination_warehouse_id?: string
+          id?: string
+          notes?: string | null
+          received_at?: string | null
+          received_by?: string | null
+          sent_at?: string | null
+          sent_by?: string | null
+          source_warehouse_id?: string
+          status?: string
+          transfer_no?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "warehouse_transfers_destination_warehouse_id_fkey"
+            columns: ["destination_warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_stock_availability"
+            referencedColumns: ["warehouse_id"]
+          },
+          {
+            foreignKeyName: "warehouse_transfers_destination_warehouse_id_fkey"
+            columns: ["destination_warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "warehouse_transfers_source_warehouse_id_fkey"
+            columns: ["source_warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_stock_availability"
+            referencedColumns: ["warehouse_id"]
+          },
+          {
+            foreignKeyName: "warehouse_transfers_source_warehouse_id_fkey"
+            columns: ["source_warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       warehouses: {
         Row: {
           created_at: string
@@ -6229,6 +6436,10 @@ export type Database = {
       can_manage_meat_batch: { Args: { _uid: string }; Returns: boolean }
       can_manage_review: { Args: { _uid: string }; Returns: boolean }
       can_post_inventory: { Args: { _uid: string }; Returns: boolean }
+      cancel_transfer: {
+        Args: { p_reason: string; p_transfer_id: string }
+        Returns: Json
+      }
       check_offer_expiry: { Args: never; Returns: boolean }
       check_order_stock_availability: {
         Args: { p_order_id: string }
@@ -6254,6 +6465,19 @@ export type Database = {
       }
       compare_period_to_snapshot: {
         Args: { p_raise_alert?: boolean; p_snapshot_id: string }
+        Returns: Json
+      }
+      confirm_transfer_receipt: {
+        Args: { p_lines: Json; p_notes?: string; p_transfer_id: string }
+        Returns: Json
+      }
+      create_and_send_transfer: {
+        Args: {
+          p_destination_warehouse_id: string
+          p_lines: Json
+          p_notes?: string
+          p_source_warehouse_id: string
+        }
         Returns: Json
       }
       deactivate_expired_offers: { Args: never; Returns: undefined }
@@ -6425,6 +6649,7 @@ export type Database = {
       feed_batch_close: { Args: { p_batch_id: string }; Returns: Json }
       feed_batch_submit_review: { Args: { p_batch_id: string }; Returns: Json }
       finalize_slaughter_batch: { Args: { p_batch_id: string }; Returns: Json }
+      gen_transfer_no: { Args: never; Returns: string }
       generate_order_number: { Args: never; Returns: string }
       generate_stock_reconciliation_proposals: {
         Args: never
