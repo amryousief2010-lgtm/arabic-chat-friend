@@ -48,6 +48,7 @@ import BatchTracking from "@/pages/modules/feed/BatchTracking";
 import FeedDashboard from "@/pages/modules/feed/FeedDashboard";
 import FeedRecipes from "@/pages/modules/feed/Recipes";
 import ManagerReview from "@/pages/ManagerReview";
+import InventoryEngine from "@/pages/InventoryEngine";
 import FeedOrders from "@/pages/modules/feed/Orders";
 import FeedIssues from "@/pages/modules/feed/Issues";
 import WarehouseDashboard from "@/pages/modules/warehouse/WarehouseDashboard";
