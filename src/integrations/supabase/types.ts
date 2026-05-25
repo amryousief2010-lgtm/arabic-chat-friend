@@ -5981,6 +5981,7 @@ export type Database = {
           destination_movement_id: string | null
           id: string
           item_name: string
+          line_status: string
           receive_notes: string | null
           received_qty: number | null
           requested_qty: number
@@ -5999,6 +6000,7 @@ export type Database = {
           destination_movement_id?: string | null
           id?: string
           item_name: string
+          line_status?: string
           receive_notes?: string | null
           received_qty?: number | null
           requested_qty?: number
@@ -6017,6 +6019,7 @@ export type Database = {
           destination_movement_id?: string | null
           id?: string
           item_name?: string
+          line_status?: string
           receive_notes?: string | null
           received_qty?: number | null
           requested_qty?: number
@@ -6105,6 +6108,7 @@ export type Database = {
           created_by: string | null
           destination_warehouse_id: string
           id: string
+          legacy_dual_post: boolean
           notes: string | null
           received_at: string | null
           received_by: string | null
@@ -6123,6 +6127,7 @@ export type Database = {
           created_by?: string | null
           destination_warehouse_id: string
           id?: string
+          legacy_dual_post?: boolean
           notes?: string | null
           received_at?: string | null
           received_by?: string | null
@@ -6141,6 +6146,7 @@ export type Database = {
           created_by?: string | null
           destination_warehouse_id?: string
           id?: string
+          legacy_dual_post?: boolean
           notes?: string | null
           received_at?: string | null
           received_by?: string | null
@@ -6844,6 +6850,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      reject_transfer_line: {
+        Args: { p_line_id: string; p_reason: string }
+        Returns: Json
       }
       release_order_reservation: { Args: { p_order_id: string }; Returns: Json }
       request_proposal_investigation: {
