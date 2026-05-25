@@ -30,10 +30,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus, Trash2, Pencil, ChevronDown, ChevronUp, PackageOpen, FileDown, FileText } from "lucide-react";
+import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus, Trash2, Pencil, ChevronDown, ChevronUp, PackageOpen, PackagePlus, FileDown, FileText } from "lucide-react";
 import { exportOrdersToCSV, exportOrdersToPDF, exportOrdersToXLSX } from "@/utils/exportOrders";
 import EditOrderItemsDialog from "@/components/orders/EditOrderItemsDialog";
 import SwapOfferDialog from "@/components/orders/SwapOfferDialog";
+import AddOfferDialog from "@/components/orders/AddOfferDialog";
 import DiscrepancyBanner from "@/components/orders/DiscrepancyBanner";
 import {
   AlertDialog,
@@ -164,6 +165,7 @@ const Orders = () => {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [swapOfferOrder, setSwapOfferOrder] = useState<Order | null>(null);
+  const [addOfferOrder, setAddOfferOrder] = useState<Order | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterModerator, setFilterModerator] = useState<string>("all");
   const [filterProduct, setFilterProduct] = useState<string>("all");
@@ -747,11 +749,16 @@ const Orders = () => {
                           <Pencil className="w-4 h-4" />
                         </Button>
                       )}
-                      {order.status !== 'delivered' && order.status !== 'cancelled' && order.items.some((it) => it.offer_name) && (
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSwapOfferOrder(order)} title="استبدال العرض">
-                          <PackageOpen className="w-4 h-4 text-primary" />
-                        </Button>
-                      )}
+                       {canEditOrderItems && order.status !== 'delivered' && order.status !== 'cancelled' && (!isSalesModerator || order.collection_status !== 'collected') && (
+                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setAddOfferOrder(order)} title="إضافة بوكس / عرض">
+                           <PackagePlus className="w-4 h-4 text-primary" />
+                         </Button>
+                       )}
+                       {order.status !== 'delivered' && order.status !== 'cancelled' && order.items.some((it) => it.offer_name) && (
+                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSwapOfferOrder(order)} title="استبدال العرض">
+                           <PackageOpen className="w-4 h-4 text-primary" />
+                         </Button>
+                       )}
                       {canDeleteOrders && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
@@ -1007,6 +1014,19 @@ const Orders = () => {
                               <Pencil className="w-4 h-4" />
                             </Button>
                           )}
+                        {canEditOrderItems &&
+                          order.status !== 'delivered' &&
+                          order.status !== 'cancelled' &&
+                          (!isSalesModerator || order.collection_status !== 'collected') && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setAddOfferOrder(order)}
+                              title="إضافة بوكس / عرض"
+                            >
+                              <PackagePlus className="w-4 h-4 text-primary" />
+                            </Button>
+                          )}
                         {order.status !== 'delivered' && order.status !== 'cancelled' &&
                           order.items.some((it) => it.offer_name) && (
                             <Button
@@ -1239,6 +1259,18 @@ const Orders = () => {
           }}
         />
       )}
+      {addOfferOrder && (
+        <AddOfferDialog
+          open={!!addOfferOrder}
+          onOpenChange={(o) => !o && setAddOfferOrder(null)}
+          orderId={addOfferOrder.id}
+          onSaved={() => {
+            setAddOfferOrder(null);
+            fetchOrders();
+          }}
+        />
+      )}
+
 
 
       {/* Per-moderator quick access — only for the private delivery rep here
