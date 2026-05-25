@@ -558,14 +558,17 @@ const Products = () => {
               <ScanLine className="w-4 h-4 ml-2" />
               {scanMode ? "إيقاف المسح" : "وضع المسح"}
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleExportExcel}
-              title="تصدير المنتجات إلى Excel"
-            >
+            <Button type="button" variant="outline" onClick={handleExportExcel} title="تصدير المنتجات إلى Excel" className="text-emerald-600 hover:bg-emerald-50">
               <FileSpreadsheet className="w-4 h-4 ml-2" />
-              تصدير Excel
+              Excel
+            </Button>
+            <Button type="button" variant="outline" onClick={handleExportCSV} title="تصدير المنتجات إلى CSV" className="text-blue-600 hover:bg-blue-50">
+              <FileDown className="w-4 h-4 ml-2" />
+              CSV
+            </Button>
+            <Button type="button" variant="outline" onClick={handleExportInventoryPDF} title="تقرير PDF لملخص المخزون" className="text-red-600 hover:bg-red-50">
+              <FileText className="w-4 h-4 ml-2" />
+              تقرير PDF
             </Button>
             {canManageProducts && (
               <Button
