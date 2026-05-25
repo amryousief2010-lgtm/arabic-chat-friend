@@ -30,7 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus, Trash2, Pencil, ChevronDown, ChevronUp, PackageOpen, FileDown, FileText } from "lucide-react";
+import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus, Trash2, Pencil, ChevronDown, ChevronUp, PackageOpen, PackagePlus, FileDown, FileText } from "lucide-react";
 import { exportOrdersToCSV, exportOrdersToPDF, exportOrdersToXLSX } from "@/utils/exportOrders";
 import EditOrderItemsDialog from "@/components/orders/EditOrderItemsDialog";
 import SwapOfferDialog from "@/components/orders/SwapOfferDialog";
