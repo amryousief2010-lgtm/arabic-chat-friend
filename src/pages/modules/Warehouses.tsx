@@ -834,7 +834,12 @@ const Warehouses = () => {
                     <CardHeader>
                       <div className="flex items-start justify-between">
                         <div>
-                          <CardTitle className="text-lg flex items-center gap-2"><Warehouse className="w-5 h-5 text-primary" />{w.name}</CardTitle>
+                          <Link to={`/modules/warehouses/${w.id}`} className="group">
+                            <CardTitle className="text-lg flex items-center gap-2 group-hover:text-primary transition-colors cursor-pointer">
+                              <Warehouse className="w-5 h-5 text-primary" />
+                              <span className="underline-offset-4 group-hover:underline">{w.name}</span>
+                            </CardTitle>
+                          </Link>
                           <CardDescription>{warehouseTypes[w.type] || w.type}{w.location && ` • ${w.location}`}</CardDescription>
                         </div>
                         {canManageWarehouses && (
