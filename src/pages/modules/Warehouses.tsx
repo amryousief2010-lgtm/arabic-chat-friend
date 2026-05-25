@@ -582,11 +582,19 @@ const Warehouses = () => {
                               {rejected > 0 && <> • مرفوض: {rejected}</>}
                             </CardDescription>
                           </div>
-                          {canManageWarehouses && (
-                            <Button onClick={() => openReceiveBatch(b)}>
-                              <ArrowDown className="w-4 h-4 ml-1" /> استلام الدفعة
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Button variant="outline" size="sm" onClick={() => exportPendingBatchPDF(b)}>
+                              <Printer className="w-4 h-4 ml-1" /> طباعة / PDF
                             </Button>
-                          )}
+                            <Button variant="outline" size="sm" onClick={() => exportPendingBatchExcel(b)}>
+                              <FileSpreadsheet className="w-4 h-4 ml-1 text-emerald-600" /> Excel
+                            </Button>
+                            {canManageWarehouses && (
+                              <Button onClick={() => openReceiveBatch(b)}>
+                                <ArrowDown className="w-4 h-4 ml-1" /> استلام الدفعة
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </CardHeader>
                       <CardContent className="p-0">
