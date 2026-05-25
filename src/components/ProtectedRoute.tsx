@@ -42,7 +42,7 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
 
   // Sales moderators land on the org chart first, then navigate from there.
   const moderatorTarget =
-    role === 'sales_moderator' ? '/org-chart' :
+    role === 'sales_moderator' ? '/orders' :
     role === 'private_delivery_rep' ? '/orders' : '/';
 
   const isModeratorBlocked =

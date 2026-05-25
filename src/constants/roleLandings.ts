@@ -6,7 +6,7 @@ import type { AppRole } from "@/hooks/useAuth";
 //  - general/executive/marketing/financial/operations → main dashboard
 //  - others → the most relevant module they own
 export const ROLE_LANDING: Record<AppRole, string> = {
-  sales_moderator: "/org-chart",
+  sales_moderator: "/orders",
   general_manager: "/",
   executive_manager: "/",
   marketing_sales_manager: "/",
