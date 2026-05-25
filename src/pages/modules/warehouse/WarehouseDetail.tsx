@@ -574,13 +574,13 @@ const WarehouseDetail = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Receive Confirmation Dialog (status-only — never inserts movements) */}
+      {/* Receive Confirmation Dialog — posts destination IN movement on confirm */}
       <Dialog open={!!receiveDialog} onOpenChange={(o) => !o && setReceiveDialog(null)}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>تأكيد استلام التحويل {receiveDialog?.transfer_no}</DialogTitle>
             <DialogDescription>
-              من {receiveDialog?.source?.name}. عدّل الكمية المستلمة إذا اختلفت عن المرسلة. لن يتم إنشاء أي حركة مخزون جديدة — هذه الخطوة لتوثيق الاستلام فقط.
+              من {receiveDialog?.source?.name}. عند التأكيد، تُضاف الكمية المستلمة لمخزون {warehouse?.name}. الكميات الناقصة أو المرفوضة لا تُضاف. استخدم "رفض" للأصناف غير المطابقة لإرجاعها للمخزن المصدر.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -588,26 +588,57 @@ const WarehouseDetail = () => {
               <TableHeader><TableRow>
                 <TableHead>الصنف</TableHead><TableHead>مرسل</TableHead>
                 <TableHead>مستلم</TableHead><TableHead>ملاحظات (إلزامية للجزئي)</TableHead>
+                <TableHead></TableHead>
               </TableRow></TableHeader>
               <TableBody>
                 {(receiveDialog?.items || []).map((li: any) => {
                   const v = receiveLines[li.id] || { qty: Number(li.sent_qty), notes: "" };
                   const diff = v.qty !== Number(li.sent_qty);
+                  const finalized = ["received", "partial", "rejected"].includes(li.line_status);
                   return (
                     <TableRow key={li.id}>
-                      <TableCell className="font-medium">{li.item_name}</TableCell>
+                      <TableCell className="font-medium">
+                        {li.item_name}
+                        {finalized && <Badge variant="outline" className="mr-2">{statusLabel(li.line_status)}</Badge>}
+                      </TableCell>
                       <TableCell>{li.sent_qty} {li.unit}</TableCell>
                       <TableCell>
                         <Input type="number" min={0} max={Number(li.sent_qty)} className="w-24"
+                          disabled={finalized}
                           value={v.qty}
                           onChange={e => setReceiveLines({ ...receiveLines, [li.id]: { ...v, qty: Number(e.target.value) } })} />
                       </TableCell>
                       <TableCell>
                         <Input
                           placeholder={diff ? "إلزامي" : "اختياري"}
+                          disabled={finalized}
                           className={diff && !v.notes ? "border-destructive" : ""}
                           value={v.notes}
                           onChange={e => setReceiveLines({ ...receiveLines, [li.id]: { ...v, notes: e.target.value } })} />
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          size="sm" variant="ghost"
+                          disabled={finalized || submitting}
+                          className="text-destructive hover:text-destructive"
+                          onClick={async () => {
+                            const reason = window.prompt(`سبب رفض "${li.item_name}" (تلف / غير مطابق / جودة سيئة...)`);
+                            if (!reason || !reason.trim()) return;
+                            setSubmitting(true);
+                            const { error } = await supabase.rpc("reject_transfer_line", {
+                              p_line_id: li.id, p_reason: reason.trim(),
+                            });
+                            setSubmitting(false);
+                            if (error) {
+                              toast({ title: "تعذّر رفض السطر", description: error.message, variant: "destructive" });
+                              return;
+                            }
+                            toast({ title: "تم رفض السطر وإرجاع الكمية للمخزن المصدر" });
+                            setReceiveDialog(null);
+                            fetchAll();
+                          }}>
+                          <XCircle className="w-4 h-4 ml-1" />رفض
+                        </Button>
                       </TableCell>
                     </TableRow>
                   );
@@ -620,7 +651,6 @@ const WarehouseDetail = () => {
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setReceiveDialog(null)}>إلغاء</Button>
             <Button variant="secondary" disabled={submitting} onClick={() => {
-              // استلام كامل: reset all to sent_qty
               const init: Record<string, { qty: number; notes: string }> = {};
               (receiveDialog?.items || []).forEach((li: any) => {
                 init[li.id] = { qty: Number(li.sent_qty), notes: "" };
