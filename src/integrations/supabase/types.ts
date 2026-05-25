@@ -2653,14 +2653,19 @@ export type Database = {
       }
       inventory_items: {
         Row: {
+          blocked_qty: number
           category: string | null
           created_at: string
           expiry_date: string | null
           id: string
           is_active: boolean
+          item_code: string | null
+          last_movement_date: string | null
           low_stock_threshold: number
+          module: string | null
           name: string
           notes: string | null
+          reserved_qty: number
           sku: string | null
           stock: number
           unit: string
@@ -2669,14 +2674,19 @@ export type Database = {
           warehouse_id: string
         }
         Insert: {
+          blocked_qty?: number
           category?: string | null
           created_at?: string
           expiry_date?: string | null
           id?: string
           is_active?: boolean
+          item_code?: string | null
+          last_movement_date?: string | null
           low_stock_threshold?: number
+          module?: string | null
           name: string
           notes?: string | null
+          reserved_qty?: number
           sku?: string | null
           stock?: number
           unit?: string
@@ -2685,14 +2695,19 @@ export type Database = {
           warehouse_id: string
         }
         Update: {
+          blocked_qty?: number
           category?: string | null
           created_at?: string
           expiry_date?: string | null
           id?: string
           is_active?: boolean
+          item_code?: string | null
+          last_movement_date?: string | null
           low_stock_threshold?: number
+          module?: string | null
           name?: string
           notes?: string | null
+          reserved_qty?: number
           sku?: string | null
           stock?: number
           unit?: string
@@ -2712,47 +2727,80 @@ export type Database = {
       }
       inventory_movements: {
         Row: {
+          approval_status: string
+          approved_at: string | null
+          approved_by: string | null
+          batch_id: string | null
           created_at: string
           destination_warehouse_id: string | null
           id: string
           item_id: string
+          module: string | null
+          movement_no: string | null
           movement_type: string
           notes: string | null
           party: string | null
           performed_at: string
           performed_by: string | null
           quantity: number
+          reason: string | null
           reference: string | null
+          reference_id: string | null
+          reference_type: string | null
+          source_warehouse_id: string | null
+          total_cost: number | null
           unit_cost: number | null
           warehouse_id: string
         }
         Insert: {
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          batch_id?: string | null
           created_at?: string
           destination_warehouse_id?: string | null
           id?: string
           item_id: string
+          module?: string | null
+          movement_no?: string | null
           movement_type: string
           notes?: string | null
           party?: string | null
           performed_at?: string
           performed_by?: string | null
           quantity: number
+          reason?: string | null
           reference?: string | null
+          reference_id?: string | null
+          reference_type?: string | null
+          source_warehouse_id?: string | null
+          total_cost?: number | null
           unit_cost?: number | null
           warehouse_id: string
         }
         Update: {
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          batch_id?: string | null
           created_at?: string
           destination_warehouse_id?: string | null
           id?: string
           item_id?: string
+          module?: string | null
+          movement_no?: string | null
           movement_type?: string
           notes?: string | null
           party?: string | null
           performed_at?: string
           performed_by?: string | null
           quantity?: number
+          reason?: string | null
           reference?: string | null
+          reference_id?: string | null
+          reference_type?: string | null
+          source_warehouse_id?: string | null
+          total_cost?: number | null
           unit_cost?: number | null
           warehouse_id?: string
         }
@@ -2769,6 +2817,20 @@ export type Database = {
             columns: ["item_id"]
             isOneToOne: false
             referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "v_inventory_balances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_source_warehouse_id_fkey"
+            columns: ["source_warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
             referencedColumns: ["id"]
           },
           {
@@ -4320,6 +4382,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "slaughter_batch_outputs_received_inventory_item_id_fkey"
+            columns: ["received_inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_inventory_balances"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "slaughter_batch_outputs_received_warehouse_id_fkey"
             columns: ["received_warehouse_id"]
             isOneToOne: false
@@ -5032,7 +5101,39 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      v_inventory_balances: {
+        Row: {
+          available_stock: number | null
+          blocked_from_costing: boolean | null
+          blocked_stock: number | null
+          category: string | null
+          current_stock: number | null
+          id: string | null
+          is_active: boolean | null
+          is_low_stock: boolean | null
+          item_code: string | null
+          last_movement_date: string | null
+          low_stock_threshold: number | null
+          module: string | null
+          name: string | null
+          reserved_stock: number | null
+          total_value: number | null
+          unit: string | null
+          unit_cost: number | null
+          warehouse_id: string | null
+          warehouse_name: string | null
+          warehouse_type: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_items_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       approve_feed_batch_cost: {
@@ -5055,10 +5156,15 @@ export type Database = {
       can_add_products: { Args: { _user_id: string }; Returns: boolean }
       can_approve_feed_cost: { Args: { _user_id: string }; Returns: boolean }
       can_approve_feed_qc: { Args: { _user_id: string }; Returns: boolean }
+      can_approve_inventory_override: {
+        Args: { _uid: string }
+        Returns: boolean
+      }
       can_edit_product_price: { Args: { _user_id: string }; Returns: boolean }
       can_issue_feed_materials: { Args: { _user_id: string }; Returns: boolean }
       can_manage_feed_recipes: { Args: { _user_id: string }; Returns: boolean }
       can_manage_review: { Args: { _uid: string }; Returns: boolean }
+      can_post_inventory: { Args: { _uid: string }; Returns: boolean }
       check_offer_expiry: { Args: never; Returns: boolean }
       compare_period_to_snapshot: {
         Args: { p_raise_alert?: boolean; p_snapshot_id: string }
@@ -5104,6 +5210,34 @@ export type Database = {
         Returns: Json
       }
       import_validate_catalog: { Args: { p_run_id: string }; Returns: Json }
+      inv_can_consume: {
+        Args: { p_item_id: string; p_qty: number }
+        Returns: Json
+      }
+      inv_post_movement: {
+        Args: {
+          p_item_id: string
+          p_module?: string
+          p_movement_type: string
+          p_override_negative?: boolean
+          p_quantity: number
+          p_reason?: string
+          p_reference_id?: string
+          p_reference_type?: string
+          p_unit_cost?: number
+          p_warehouse_id: string
+        }
+        Returns: string
+      }
+      inv_transfer: {
+        Args: {
+          p_destination_warehouse_id: string
+          p_quantity: number
+          p_reason: string
+          p_source_item_id: string
+        }
+        Returns: Json
+      }
       is_feed_team: { Args: { _user_id: string }; Returns: boolean }
       move_to_dlq: {
         Args: {
