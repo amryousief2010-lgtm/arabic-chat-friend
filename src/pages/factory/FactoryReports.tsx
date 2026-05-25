@@ -8,6 +8,7 @@ import FactoryFilters, { defaultFilterState, FactoryFilterState } from "@/compon
 import { useFactoryData } from "@/hooks/useFactoryData";
 import { exportCSV } from "@/lib/csvExport";
 import { Link } from "react-router-dom";
+import DashboardLayout from "@/components/layout/DashboardLayout";
 
 // Accept both short keys ("batches") and full slug keys ("production") in the URL.
 const TAB_ALIASES: Record<string, string> = {
