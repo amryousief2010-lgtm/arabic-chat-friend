@@ -291,7 +291,24 @@ const Notifications = () => {
                           <p className="text-xs text-muted-foreground mt-2">
                             {format(new Date(notification.created_at), 'PPpp', { locale: ar })}
                           </p>
-                        </div>
+                          {notification.type === 'edit_request' && notification.order_id && canDecideEditRequests && !notification.is_read && (
+                            <div className="flex gap-2 mt-3" onClick={(e) => e.stopPropagation()}>
+                              <Button
+                                size="sm"
+                                className="gap-1"
+                                onClick={() => decideEditRequest(notification.order_id!, true, notification.id)}
+                              >
+                                <Check className="w-4 h-4" /> موافقة على التعديل
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => decideEditRequest(notification.order_id!, false, notification.id)}
+                              >
+                                رفض
+                              </Button>
+                            </div>
+                          )}
                       </div>
                       <div className="flex items-center gap-1">
                         {!notification.is_read && (
