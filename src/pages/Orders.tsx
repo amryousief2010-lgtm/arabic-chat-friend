@@ -156,8 +156,10 @@ const formatItemQty = (qty: number, unit?: string): string => {
 };
 
 const Orders = () => {
-  const { isShippingCompany, isAccountant, isSalesModerator, isPrivateDeliveryRep, canUpdateOrderStatusForOrder, canDeleteOrders, canEditOrderItems } = useAuth();
+  const { user, isShippingCompany, isAccountant, isSalesModerator, isPrivateDeliveryRep, canUpdateOrderStatusForOrder, canDeleteOrders, canEditOrderItems } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [approvedEditOrderIds, setApprovedEditOrderIds] = useState<Set<string>>(new Set());
+  const [pendingEditOrderIds, setPendingEditOrderIds] = useState<Set<string>>(new Set());
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const toggleExpanded = (id: string) => {
     setExpandedItems(prev => {
@@ -174,6 +176,7 @@ const Orders = () => {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterModerator, setFilterModerator] = useState<string>("all");
   const [filterProduct, setFilterProduct] = useState<string>("all");
+  const [filterGovernorate, setFilterGovernorate] = useState<string>("all");
   const [availableProducts, setAvailableProducts] = useState<string[]>([]);
   const [searchParams, setSearchParams] = useSearchParams();
   const yearParam = searchParams.get("year");
