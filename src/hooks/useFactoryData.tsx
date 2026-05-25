@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useMemo, useState } from "react";
 import { useTestDataFilter } from "@/hooks/useTestDataFilter";
 
-const TEST_TAG = /TEST-DISPATCH/i;
+const TEST_TAG = /(TEST-DISPATCH|LIMITED-PILOT)/i;
 
 export function useFactoryData(from: string, to: string) {
   const { includeTest } = useTestDataFilter();
