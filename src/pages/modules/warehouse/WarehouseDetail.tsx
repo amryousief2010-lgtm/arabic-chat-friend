@@ -396,7 +396,79 @@ const WarehouseDetail = () => {
             )}
           </TabsContent>
 
-          {isAgouza && (
+          <TabsContent value="incoming" className="space-y-4">
+            {incomingPending.length === 0 ? (
+              <Card><CardContent className="py-10 text-center text-muted-foreground">لا توجد تحويلات بانتظار الاستلام</CardContent></Card>
+            ) : incomingPending.map(t => (
+              <Card key={t.id} className="border-amber-500/30">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Inbox className="w-5 h-5 text-amber-600" />
+                        {t.transfer_no} • من {t.source?.name}
+                      </CardTitle>
+                      <CardDescription>{formatDateTime(t.sent_at || t.created_at)} • {(t.items || []).length} صنف</CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {statusBadge(t.status)}
+                      {canManageWarehouses && (
+                        <Button size="sm" onClick={() => openReceiveDialog(t)}>
+                          <CheckCircle2 className="w-4 h-4 ml-1" />تأكيد الاستلام
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader><TableRow>
+                      <TableHead>الصنف</TableHead><TableHead>الكمية المرسلة</TableHead>
+                      <TableHead>المستلم</TableHead><TableHead>نقص</TableHead>
+                    </TableRow></TableHeader>
+                    <TableBody>
+                      {(t.items || []).map((li: any) => (
+                        <TableRow key={li.id}>
+                          <TableCell className="font-medium">{li.item_name}</TableCell>
+                          <TableCell>{li.sent_qty} {li.unit}</TableCell>
+                          <TableCell>{li.received_qty ?? "—"}</TableCell>
+                          <TableCell className={li.shortage_qty > 0 ? "text-destructive" : ""}>{li.shortage_qty || 0}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            ))}
+          </TabsContent>
+
+          <TabsContent value="outgoing" className="space-y-4">
+            {outgoingTransfers.length === 0 ? (
+              <Card><CardContent className="py-10 text-center text-muted-foreground">لا توجد تحويلات صادرة</CardContent></Card>
+            ) : (
+              <Card><CardContent className="p-0">
+                <Table>
+                  <TableHeader><TableRow>
+                    <TableHead>رقم التحويل</TableHead><TableHead>التاريخ</TableHead>
+                    <TableHead>إلى</TableHead><TableHead>الأصناف</TableHead><TableHead>الحالة</TableHead>
+                  </TableRow></TableHeader>
+                  <TableBody>
+                    {outgoingTransfers.map(t => (
+                      <TableRow key={t.id}>
+                        <TableCell className="font-mono text-xs">{t.transfer_no}</TableCell>
+                        <TableCell className="text-xs">{formatDateTime(t.sent_at || t.created_at)}</TableCell>
+                        <TableCell>{t.destination?.name}</TableCell>
+                        <TableCell>{(t.items || []).length}</TableCell>
+                        <TableCell>{statusBadge(t.status)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent></Card>
+            )}
+          </TabsContent>
+
+
             <TabsContent value="supply" className="space-y-4">
               <Card className="border-orange-500/30">
                 <CardHeader>
