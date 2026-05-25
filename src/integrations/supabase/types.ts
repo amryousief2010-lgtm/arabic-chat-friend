@@ -923,6 +923,66 @@ export type Database = {
         }
         Relationships: []
       }
+      data_quality_tasks: {
+        Row: {
+          assigned_to: string | null
+          created_at: string
+          current_value: Json | null
+          description: string | null
+          id: string
+          module: string
+          reference_id: string | null
+          reference_table: string | null
+          resolution_notes: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          status: string
+          suggested_action: string | null
+          task_type: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          created_at?: string
+          current_value?: Json | null
+          description?: string | null
+          id?: string
+          module: string
+          reference_id?: string | null
+          reference_table?: string | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          status?: string
+          suggested_action?: string | null
+          task_type: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          created_at?: string
+          current_value?: Json | null
+          description?: string | null
+          id?: string
+          module?: string
+          reference_id?: string | null
+          reference_table?: string | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          status?: string
+          suggested_action?: string | null
+          task_type?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       email_send_log: {
         Row: {
           created_at: string
@@ -2341,6 +2401,101 @@ export type Database = {
           },
         ]
       }
+      import_staging_rows: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          parsed_data: Json | null
+          raw_data: Json
+          row_number: number
+          row_status: string
+          run_id: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          parsed_data?: Json | null
+          raw_data: Json
+          row_number: number
+          row_status?: string
+          run_id: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          parsed_data?: Json | null
+          raw_data?: Json
+          row_number?: number
+          row_status?: string
+          run_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_staging_rows_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "import_staging_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      import_staging_runs: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          error_rows: number
+          id: string
+          import_type: string
+          notes: string | null
+          posted_at: string | null
+          source_filename: string | null
+          status: string
+          total_rows: number
+          updated_at: string
+          uploaded_by: string | null
+          valid_rows: number
+          validation_summary: Json | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          error_rows?: number
+          id?: string
+          import_type: string
+          notes?: string | null
+          posted_at?: string | null
+          source_filename?: string | null
+          status?: string
+          total_rows?: number
+          updated_at?: string
+          uploaded_by?: string | null
+          valid_rows?: number
+          validation_summary?: Json | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          error_rows?: number
+          id?: string
+          import_type?: string
+          notes?: string | null
+          posted_at?: string | null
+          source_filename?: string | null
+          status?: string
+          total_rows?: number
+          updated_at?: string
+          uploaded_by?: string | null
+          valid_rows?: number
+          validation_summary?: Json | null
+        }
+        Relationships: []
+      }
       inventory_items: {
         Row: {
           category: string | null
@@ -3267,6 +3422,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      packaging_materials: {
+        Row: {
+          barcode: string | null
+          code: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          low_stock_threshold: number
+          module: string
+          name_ar: string
+          notes: string | null
+          stock: number
+          unit: string
+          unit_cost: number
+          updated_at: string
+        }
+        Insert: {
+          barcode?: string | null
+          code?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          low_stock_threshold?: number
+          module?: string
+          name_ar: string
+          notes?: string | null
+          stock?: number
+          unit?: string
+          unit_cost?: number
+          updated_at?: string
+        }
+        Update: {
+          barcode?: string | null
+          code?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          low_stock_threshold?: number
+          module?: string
+          name_ar?: string
+          notes?: string | null
+          stock?: number
+          unit?: string
+          unit_cost?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       payroll_bonus_overrides: {
         Row: {
