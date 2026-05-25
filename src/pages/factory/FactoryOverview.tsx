@@ -7,6 +7,7 @@ import FactoryFilters, { defaultFilterState, FactoryFilterState } from "@/compon
 import { useFactoryData } from "@/hooks/useFactoryData";
 import { Factory, Wheat, Banknote, Package, CheckCircle, AlertTriangle, Clock } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import DashboardLayout from "@/components/layout/DashboardLayout";
 
 const PURPLE = "#7c3aed"; const ORANGE = "#ea580c";
 
