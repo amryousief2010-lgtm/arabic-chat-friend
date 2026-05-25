@@ -4187,7 +4187,9 @@ export type Database = {
           payment_status: string
           shipping_company: string | null
           source: string | null
+          source_warehouse_id: string | null
           status: string
+          stock_status: string
           subtotal: number
           total: number
           total_at_delivery: number | null
@@ -4212,7 +4214,9 @@ export type Database = {
           payment_status?: string
           shipping_company?: string | null
           source?: string | null
+          source_warehouse_id?: string | null
           status?: string
+          stock_status?: string
           subtotal?: number
           total?: number
           total_at_delivery?: number | null
@@ -4237,7 +4241,9 @@ export type Database = {
           payment_status?: string
           shipping_company?: string | null
           source?: string | null
+          source_warehouse_id?: string | null
           status?: string
+          stock_status?: string
           subtotal?: number
           total?: number
           total_at_delivery?: number | null
@@ -4249,6 +4255,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_source_warehouse_id_fkey"
+            columns: ["source_warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
             referencedColumns: ["id"]
           },
         ]
@@ -5880,6 +5893,10 @@ export type Database = {
       }
       recompute_feed_batch_cost: { Args: { p_batch: string }; Returns: number }
       recompute_meat_batch_cost: { Args: { p_batch_id: string }; Returns: Json }
+      resolve_order_source_warehouse: {
+        Args: { p_shipping_company: string }
+        Returns: string
+      }
       slaughter_daily_summary: { Args: { p_date: string }; Returns: Json }
       suggest_hatch_batch_for_shipment: {
         Args: { p_shipment_id: string }
