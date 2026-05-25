@@ -640,7 +640,7 @@ const Orders = () => {
               size="sm"
               onClick={() => setFilterStatus("shipped")}
             >
-              قيد التوصيل
+              قيد الانتظار
             </Button>
             <Button
               variant={filterStatus === "delivered" ? "default" : "outline"}
