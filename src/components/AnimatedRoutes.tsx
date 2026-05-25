@@ -80,6 +80,7 @@ import UpdatesLog from "@/pages/UpdatesLog";
 import ImportWizard from "@/pages/modules/shared/ImportWizard";
 import DataQualityTasks from "@/pages/modules/shared/DataQualityTasks";
 import PackagingMaterials from "@/pages/modules/shared/PackagingMaterials";
+import StockSnapshotReview from "@/pages/modules/shared/StockSnapshotReview";
 
 const RedirectWithQuery = ({ to }: { to: string }) => {
   const location = useLocation();
@@ -400,6 +401,11 @@ const AnimatedRoutes = () => {
         <Route path="/modules/packaging" element={
           <ProtectedRoute allowedRoles={['general_manager','executive_manager','warehouse_supervisor','meat_factory_manager','feed_factory_manager','production_manager','accountant']}>
             <PageTransition><PackagingMaterials /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/modules/stock-snapshots" element={
+          <ProtectedRoute allowedRoles={['general_manager','executive_manager','warehouse_supervisor']}>
+            <PageTransition><StockSnapshotReview /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/unauthorized" element={
