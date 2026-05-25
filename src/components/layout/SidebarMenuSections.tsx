@@ -176,6 +176,7 @@ export const moduleSections: ModuleSection[] = [
       { icon: ClipboardList, label: "قائمة التصنيع", path: "/manufacturing-queue", roles: ['general_manager', 'executive_manager', 'sales_manager', 'warehouse_supervisor', 'production_manager', 'quality_manager'] },
       { icon: History, label: "سجل تزويد المخزون", path: "/stock-replenishment-log", roles: ['general_manager', 'executive_manager', 'sales_manager', 'warehouse_supervisor', 'production_manager', 'accountant'] },
       { icon: ShieldCheck, label: "مركز مراجعة المدير", path: "/manager-review", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'feed_factory_manager', 'quality_manager', 'accountant', 'financial_manager', 'warehouse_supervisor'] },
+      { icon: Boxes, label: "محرك المخزون", path: "/inventory", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'meat_factory_manager', 'feed_factory_manager', 'production_manager', 'accountant', 'financial_manager', 'quality_manager'] },
     ],
   },
   {
