@@ -580,6 +580,7 @@ const Warehouses = () => {
             <TabsTrigger value="movements">الحركات</TabsTrigger>
             <TabsTrigger value="low">منخفضة <Badge variant="destructive" className="mr-2">{lowStockItems.length}</Badge></TabsTrigger>
             <TabsTrigger value="warehouses">المخازن</TabsTrigger>
+            <TabsTrigger value="distribution" className="gap-1"><MapPin className="w-4 h-4" />التوزيع الجغرافي</TabsTrigger>
           </TabsList>
 
           {/* ITEMS */}
