@@ -18,8 +18,9 @@ import {
 import {
   Beef, TrendingUp, Package, Scale, Plus, AlertTriangle, CheckCircle2,
   Users, ClipboardCheck, Bird, FileSpreadsheet, FileText, Truck, Trash2,
-  Settings as SettingsIcon, History, Save, Search,
+  Settings as SettingsIcon, History, Save, Search, Printer,
 } from "lucide-react";
+import companyLogo from "@/assets/company-logo.jpg";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
