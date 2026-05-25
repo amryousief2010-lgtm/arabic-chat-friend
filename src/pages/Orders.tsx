@@ -835,8 +835,20 @@ const Orders = () => {
                         <SelectTrigger className="w-full h-9 text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {Object.entries(statusLabels)
-                            .filter(([value]) => !(isShippingCompany || isPrivateDeliveryRep) || value === order.status || value === "delivered" || value === "cancelled" || value === "shipped" || value === "pending")
-                            .map(([value, label]) => (<SelectItem key={value} value={value}>{label}</SelectItem>))}
+                            .filter(([value]) => {
+                              if (isPrivateDeliveryRep) {
+                                return value === order.status || value === 'delivered' || value === 'cancelled' || value === 'pending';
+                              }
+                              if (isShippingCompany) {
+                                return value === order.status || value === 'delivered' || value === 'cancelled' || value === 'shipped' || value === 'pending';
+                              }
+                              return true;
+                            })
+                            .map(([value, label]) => (
+                              <SelectItem key={value} value={value}>
+                                {value === 'pending' && isPrivateDeliveryRep ? 'مؤجل' : label}
+                              </SelectItem>
+                            ))}
                         </SelectContent>
                       </Select>
                     )}
@@ -849,25 +861,42 @@ const Orders = () => {
                         </SelectContent>
                       </Select>
                     )}
+                    {order.governorate && (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <MapPin className="w-3 h-3" /> {order.governorate}
+                      </div>
+                    )}
                     <div className="flex items-center justify-end gap-1 pt-1">
                       <Button variant="ghost" size="icon" asChild className="h-8 w-8">
                         <Link to={`/orders/${order.id}`}><Eye className="w-4 h-4" /></Link>
                       </Button>
-                      {canEditOrderItems && order.status !== 'delivered' && order.status !== 'cancelled' && (!isSalesModerator || order.collection_status !== 'collected') && (
+                      {isPrivateDeliveryRep && order.status !== 'delivered' && order.status !== 'cancelled' && !approvedEditOrderIds.has(order.id) && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          disabled={pendingEditOrderIds.has(order.id)}
+                          onClick={() => requestEditPermission(order)}
+                          title={pendingEditOrderIds.has(order.id) ? 'بانتظار موافقة مدير المبيعات' : 'طلب إذن تعديل من مدير المبيعات'}
+                        >
+                          <KeyRound className={`w-4 h-4 ${pendingEditOrderIds.has(order.id) ? 'text-warning' : 'text-primary'}`} />
+                        </Button>
+                      )}
+                      {canEditThisOrder(order) && (
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingOrder(order)} title="تعديل الطلب">
                           <Pencil className="w-4 h-4" />
                         </Button>
                       )}
-                       {canEditOrderItems && order.status !== 'delivered' && order.status !== 'cancelled' && (!isSalesModerator || order.collection_status !== 'collected') && (
-                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setAddOfferOrder(order)} title="إضافة بوكس / عرض">
-                           <PackagePlus className="w-4 h-4 text-primary" />
-                         </Button>
-                       )}
-                       {order.status !== 'delivered' && order.status !== 'cancelled' && order.items.some((it) => it.offer_name) && (
-                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSwapOfferOrder(order)} title="استبدال العرض">
-                           <PackageOpen className="w-4 h-4 text-primary" />
-                         </Button>
-                       )}
+                      {canEditThisOrder(order) && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setAddOfferOrder(order)} title="إضافة بوكس / عرض">
+                          <PackagePlus className="w-4 h-4 text-primary" />
+                        </Button>
+                      )}
+                      {order.status !== 'delivered' && order.status !== 'cancelled' && order.items.some((it) => it.offer_name) && !isPrivateDeliveryRep && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSwapOfferOrder(order)} title="استبدال العرض">
+                          <PackageOpen className="w-4 h-4 text-primary" />
+                        </Button>
+                      )}
                       {canDeleteOrders && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
