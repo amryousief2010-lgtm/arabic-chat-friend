@@ -30,7 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus, Trash2, Pencil, ChevronDown, ChevronUp, PackageOpen, PackagePlus, FileDown, FileText } from "lucide-react";
+import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus, Trash2, Pencil, ChevronDown, ChevronUp, PackageOpen, PackagePlus, FileDown, FileText, KeyRound, MapPin } from "lucide-react";
 import { exportOrdersToCSV, exportOrdersToPDF, exportOrdersToXLSX } from "@/utils/exportOrders";
 import EditOrderItemsDialog from "@/components/orders/EditOrderItemsDialog";
 import SwapOfferDialog from "@/components/orders/SwapOfferDialog";
@@ -88,8 +88,13 @@ interface Order {
   delivered_at: string | null;
   created_by: string | null;
   moderator_name: string;
+  governorate: string | null;
+  shipping_company: string | null;
   items: OrderItem[];
 }
+
+// Sales manager who must approve private-delivery-rep edits (م. آلاء حامد)
+const SALES_MANAGER_ID = '77b71c5f-cfa8-42bc-85de-ae536a3ec1c1';
 
 const statusColors: Record<OrderStatus, string> = {
   pending: "bg-warning text-warning-foreground",
