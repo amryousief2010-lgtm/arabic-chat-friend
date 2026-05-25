@@ -40,7 +40,7 @@ export default function MeatBatchDetail() {
       actual_qty: b.data?.actual_qty ?? "",
       labor_cost: b.data?.labor_cost ?? "",
       service_cost: b.data?.service_cost ?? "",
-      other_cost: b.data?.other_cost ?? "",
+      other_cost: (b.data as any)?.other_expenses ?? "",
       waste_qty: b.data?.waste_qty ?? "",
       waste_cost: b.data?.waste_cost ?? "",
     });
