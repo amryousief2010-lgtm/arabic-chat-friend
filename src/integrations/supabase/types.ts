@@ -2747,6 +2747,39 @@ export type Database = {
           },
         ]
       }
+      meat_factory_audit_log: {
+        Row: {
+          action: string
+          id: string
+          new_value: Json | null
+          old_value: Json | null
+          performed_at: string
+          performed_by: string | null
+          row_id: string | null
+          table_name: string
+        }
+        Insert: {
+          action: string
+          id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          performed_at?: string
+          performed_by?: string | null
+          row_id?: string | null
+          table_name: string
+        }
+        Update: {
+          action?: string
+          id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          performed_at?: string
+          performed_by?: string | null
+          row_id?: string | null
+          table_name?: string
+        }
+        Relationships: []
+      }
       meat_factory_batch_consumption: {
         Row: {
           batch_id: string
