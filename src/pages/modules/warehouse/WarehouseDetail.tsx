@@ -299,11 +299,19 @@ const WarehouseDetail = () => {
           </Card>
         </div>
 
-        <Tabs defaultValue="items">
-          <TabsList>
+        <Tabs defaultValue={incomingPending.length > 0 ? "incoming" : "items"}>
+          <TabsList className="flex-wrap h-auto">
             <TabsTrigger value="items">الأصناف</TabsTrigger>
             <TabsTrigger value="movements">الحركات</TabsTrigger>
             <TabsTrigger value="low">منخفضة {lowStock.length > 0 && <Badge variant="destructive" className="mr-2">{lowStock.length}</Badge>}</TabsTrigger>
+            <TabsTrigger value="incoming" className="gap-1">
+              <Inbox className="w-4 h-4" />وارد بانتظار الاستلام
+              {incomingPending.length > 0 && <Badge variant="destructive" className="mr-1">{incomingPending.length}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="outgoing" className="gap-1">
+              <Send className="w-4 h-4" />تحويلات صادرة
+              {outgoingTransfers.length > 0 && <Badge variant="secondary" className="mr-1">{outgoingTransfers.length}</Badge>}
+            </TabsTrigger>
             {isAgouza && (
               <TabsTrigger value="supply" className="gap-1">
                 <Truck className="w-4 h-4" />احتياج التوريد
