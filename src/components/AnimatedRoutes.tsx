@@ -50,6 +50,7 @@ import FeedRecipes from "@/pages/modules/feed/Recipes";
 import FeedOrders from "@/pages/modules/feed/Orders";
 import FeedIssues from "@/pages/modules/feed/Issues";
 import WarehouseDashboard from "@/pages/modules/warehouse/WarehouseDashboard";
+import WarehouseDetail from "@/pages/modules/warehouse/WarehouseDetail";
 import InventoryImport from "@/pages/modules/warehouse/InventoryImport";
 import Debug from "@/pages/Debug";
 import PwaDiagnostics from "@/pages/PwaDiagnostics";
@@ -339,6 +340,11 @@ const AnimatedRoutes = () => {
         <Route path="/modules/warehouses/import" element={
           <ProtectedRoute allowedRoles={['general_manager']}>
             <PageTransition><InventoryImport /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/modules/warehouses/:id" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager', 'quality_manager', 'sales_moderator']}>
+            <PageTransition><WarehouseDetail /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/modules/feed-factory/recipes/:id" element={
