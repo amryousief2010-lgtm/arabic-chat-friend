@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      bom_approval_audit: {
+        Row: {
+          action: string
+          id: string
+          module: string
+          notes: string | null
+          performed_at: string
+          performed_by: string | null
+          product_code: string | null
+          recipe_id: string | null
+          result: Json | null
+          version: number | null
+        }
+        Insert: {
+          action: string
+          id?: string
+          module: string
+          notes?: string | null
+          performed_at?: string
+          performed_by?: string | null
+          product_code?: string | null
+          recipe_id?: string | null
+          result?: Json | null
+          version?: number | null
+        }
+        Update: {
+          action?: string
+          id?: string
+          module?: string
+          notes?: string | null
+          performed_at?: string
+          performed_by?: string | null
+          product_code?: string | null
+          recipe_id?: string | null
+          result?: Json | null
+          version?: number | null
+        }
+        Relationships: []
+      }
       branches: {
         Row: {
           address: string | null
@@ -1437,28 +1476,37 @@ export type Database = {
           batch_id: string
           created_at: string
           id: string
+          inventory_item_id: string | null
+          posted_movement_id: string | null
           quantity: number
           raw_material_id: string
           total_cost: number
           unit_cost: number
+          warehouse_id: string | null
         }
         Insert: {
           batch_id: string
           created_at?: string
           id?: string
+          inventory_item_id?: string | null
+          posted_movement_id?: string | null
           quantity: number
           raw_material_id: string
           total_cost?: number
           unit_cost?: number
+          warehouse_id?: string | null
         }
         Update: {
           batch_id?: string
           created_at?: string
           id?: string
+          inventory_item_id?: string | null
+          posted_movement_id?: string | null
           quantity?: number
           raw_material_id?: string
           total_cost?: number
           unit_cost?: number
+          warehouse_id?: string | null
         }
         Relationships: [
           {
@@ -1779,48 +1827,120 @@ export type Database = {
       feed_production_batches: {
         Row: {
           actual_quantity: number | null
+          approved_at: string | null
+          approved_by: string | null
           batch_number: string
+          bom_version: number | null
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          closed_at: string | null
+          closed_by: string | null
           completed_at: string | null
+          cost_per_kg: number | null
           created_at: string
           created_by: string | null
+          feed_product_id: string | null
+          finished_inventory_item_id: string | null
           id: string
+          labor_cost: number
           notes: string | null
+          other_cost: number
+          override_negative: boolean
+          override_reason: string | null
+          posted_to_inventory: boolean
+          production_date: string
           recipe_id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          service_cost: number
           started_at: string | null
           status: string
           target_quantity: number
+          target_warehouse_id: string | null
           total_cost: number
+          unit_cost: number | null
           updated_at: string
+          waste_cost: number
+          waste_qty: number
         }
         Insert: {
           actual_quantity?: number | null
+          approved_at?: string | null
+          approved_by?: string | null
           batch_number: string
+          bom_version?: number | null
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
           completed_at?: string | null
+          cost_per_kg?: number | null
           created_at?: string
           created_by?: string | null
+          feed_product_id?: string | null
+          finished_inventory_item_id?: string | null
           id?: string
+          labor_cost?: number
           notes?: string | null
+          other_cost?: number
+          override_negative?: boolean
+          override_reason?: string | null
+          posted_to_inventory?: boolean
+          production_date?: string
           recipe_id: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          service_cost?: number
           started_at?: string | null
           status?: string
           target_quantity: number
+          target_warehouse_id?: string | null
           total_cost?: number
+          unit_cost?: number | null
           updated_at?: string
+          waste_cost?: number
+          waste_qty?: number
         }
         Update: {
           actual_quantity?: number | null
+          approved_at?: string | null
+          approved_by?: string | null
           batch_number?: string
+          bom_version?: number | null
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
           completed_at?: string | null
+          cost_per_kg?: number | null
           created_at?: string
           created_by?: string | null
+          feed_product_id?: string | null
+          finished_inventory_item_id?: string | null
           id?: string
+          labor_cost?: number
           notes?: string | null
+          other_cost?: number
+          override_negative?: boolean
+          override_reason?: string | null
+          posted_to_inventory?: boolean
+          production_date?: string
           recipe_id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          service_cost?: number
           started_at?: string | null
           status?: string
           target_quantity?: number
+          target_warehouse_id?: string | null
           total_cost?: number
+          unit_cost?: number | null
           updated_at?: string
+          waste_cost?: number
+          waste_qty?: number
         }
         Relationships: [
           {
@@ -3078,34 +3198,43 @@ export type Database = {
           batch_id: string
           created_at: string
           id: string
+          inventory_item_id: string | null
           line_total: number
           material_code: string
           material_name_ar: string | null
+          posted_movement_id: string | null
           quantity: number
           unit: string
           unit_cost: number
+          warehouse_id: string | null
         }
         Insert: {
           batch_id: string
           created_at?: string
           id?: string
+          inventory_item_id?: string | null
           line_total?: number
           material_code: string
           material_name_ar?: string | null
+          posted_movement_id?: string | null
           quantity: number
           unit: string
           unit_cost?: number
+          warehouse_id?: string | null
         }
         Update: {
           batch_id?: string
           created_at?: string
           id?: string
+          inventory_item_id?: string | null
           line_total?: number
           material_code?: string
           material_name_ar?: string | null
+          posted_movement_id?: string | null
           quantity?: number
           unit?: string
           unit_cost?: number
+          warehouse_id?: string | null
         }
         Relationships: [
           {
@@ -3123,36 +3252,45 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          inventory_item_id: string | null
           line_total: number | null
           packaging_material_id: string | null
           packaging_name_ar: string
+          posted_movement_id: string | null
           quantity: number
           unit: string
           unit_cost: number
+          warehouse_id: string | null
         }
         Insert: {
           batch_id: string
           created_at?: string
           created_by?: string | null
           id?: string
+          inventory_item_id?: string | null
           line_total?: number | null
           packaging_material_id?: string | null
           packaging_name_ar: string
+          posted_movement_id?: string | null
           quantity?: number
           unit?: string
           unit_cost?: number
+          warehouse_id?: string | null
         }
         Update: {
           batch_id?: string
           created_at?: string
           created_by?: string | null
           id?: string
+          inventory_item_id?: string | null
           line_total?: number | null
           packaging_material_id?: string | null
           packaging_name_ar?: string
+          posted_movement_id?: string | null
           quantity?: number
           unit?: string
           unit_cost?: number
+          warehouse_id?: string | null
         }
         Relationships: [
           {
@@ -3174,21 +3312,33 @@ export type Database = {
       meat_factory_batches: {
         Row: {
           actual_qty: number | null
+          approved_at: string | null
+          approved_by: string | null
           approved_output_qty: number | null
           batch_number: string
+          bom_version: number | null
           byproduct_value: number
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          closed_at: string | null
+          closed_by: string | null
           completed_at: string | null
           cost_approval_notes: string | null
           cost_approved_at: string | null
           cost_approved_by: string | null
+          cost_per_unit: number | null
           created_at: string
           created_by: string | null
           expiry_date: string | null
+          finished_inventory_item_id: string | null
           id: string
           labor_cost: number
           materials_cost: number
           notes: string | null
           other_expenses: number
+          override_negative: boolean
+          override_reason: string | null
           packaging_cost: number
           planned_qty: number
           posted_at: string | null
@@ -3199,31 +3349,49 @@ export type Database = {
           production_date: string
           quality_notes: string | null
           quality_status: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          service_cost: number
           source_invoice_no: number | null
           started_at: string | null
           status: string
+          target_warehouse_id: string | null
           total_cost: number
           unit: string
           unit_cost: number | null
           updated_at: string
+          waste_cost: number
+          waste_qty: number
         }
         Insert: {
           actual_qty?: number | null
+          approved_at?: string | null
+          approved_by?: string | null
           approved_output_qty?: number | null
           batch_number: string
+          bom_version?: number | null
           byproduct_value?: number
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
           completed_at?: string | null
           cost_approval_notes?: string | null
           cost_approved_at?: string | null
           cost_approved_by?: string | null
+          cost_per_unit?: number | null
           created_at?: string
           created_by?: string | null
           expiry_date?: string | null
+          finished_inventory_item_id?: string | null
           id?: string
           labor_cost?: number
           materials_cost?: number
           notes?: string | null
           other_expenses?: number
+          override_negative?: boolean
+          override_reason?: string | null
           packaging_cost?: number
           planned_qty?: number
           posted_at?: string | null
@@ -3234,31 +3402,49 @@ export type Database = {
           production_date?: string
           quality_notes?: string | null
           quality_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          service_cost?: number
           source_invoice_no?: number | null
           started_at?: string | null
           status?: string
+          target_warehouse_id?: string | null
           total_cost?: number
           unit?: string
           unit_cost?: number | null
           updated_at?: string
+          waste_cost?: number
+          waste_qty?: number
         }
         Update: {
           actual_qty?: number | null
+          approved_at?: string | null
+          approved_by?: string | null
           approved_output_qty?: number | null
           batch_number?: string
+          bom_version?: number | null
           byproduct_value?: number
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
           completed_at?: string | null
           cost_approval_notes?: string | null
           cost_approved_at?: string | null
           cost_approved_by?: string | null
+          cost_per_unit?: number | null
           created_at?: string
           created_by?: string | null
           expiry_date?: string | null
+          finished_inventory_item_id?: string | null
           id?: string
           labor_cost?: number
           materials_cost?: number
           notes?: string | null
           other_expenses?: number
+          override_negative?: boolean
+          override_reason?: string | null
           packaging_cost?: number
           planned_qty?: number
           posted_at?: string | null
@@ -3269,13 +3455,19 @@ export type Database = {
           production_date?: string
           quality_notes?: string | null
           quality_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          service_cost?: number
           source_invoice_no?: number | null
           started_at?: string | null
           status?: string
+          target_warehouse_id?: string | null
           total_cost?: number
           unit?: string
           unit_cost?: number | null
           updated_at?: string
+          waste_cost?: number
+          waste_qty?: number
         }
         Relationships: []
       }
@@ -3560,6 +3752,48 @@ export type Database = {
           unit_cost?: number | null
           version?: number
           warehouse?: string | null
+        }
+        Relationships: []
+      }
+      meat_recipe_version_status: {
+        Row: {
+          activated_at: string | null
+          activated_by: string | null
+          created_at: string
+          deactivated_at: string | null
+          deactivated_by: string | null
+          is_active: boolean
+          notes: string | null
+          product_code: string
+          status: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          activated_at?: string | null
+          activated_by?: string | null
+          created_at?: string
+          deactivated_at?: string | null
+          deactivated_by?: string | null
+          is_active?: boolean
+          notes?: string | null
+          product_code: string
+          status?: string
+          updated_at?: string
+          version: number
+        }
+        Update: {
+          activated_at?: string | null
+          activated_by?: string | null
+          created_at?: string
+          deactivated_at?: string | null
+          deactivated_by?: string | null
+          is_active?: boolean
+          notes?: string | null
+          product_code?: string
+          status?: string
+          updated_at?: string
+          version?: number
         }
         Relationships: []
       }
@@ -4046,6 +4280,42 @@ export type Database = {
           source?: string | null
           target_id?: string
           target_table?: string
+        }
+        Relationships: []
+      }
+      production_batch_audit: {
+        Row: {
+          action: string
+          batch_id: string
+          id: string
+          module: string
+          new_status: string | null
+          old_status: string | null
+          payload: Json | null
+          performed_at: string
+          performed_by: string | null
+        }
+        Insert: {
+          action: string
+          batch_id: string
+          id?: string
+          module: string
+          new_status?: string | null
+          old_status?: string | null
+          payload?: Json | null
+          performed_at?: string
+          performed_by?: string | null
+        }
+        Update: {
+          action?: string
+          batch_id?: string
+          id?: string
+          module?: string
+          new_status?: string | null
+          old_status?: string | null
+          payload?: Json | null
+          performed_at?: string
+          performed_by?: string | null
         }
         Relationships: []
       }
@@ -5136,6 +5406,14 @@ export type Database = {
       }
     }
     Functions: {
+      activate_feed_bom: {
+        Args: { p_notes?: string; p_recipe_id: string }
+        Returns: Json
+      }
+      activate_meat_bom: {
+        Args: { p_notes?: string; p_product_code: string; p_version: number }
+        Returns: Json
+      }
       approve_feed_batch_cost: {
         Args: {
           p_batch: string
@@ -5153,7 +5431,9 @@ export type Database = {
         Args: { p_batch_id: string }
         Returns: Json
       }
+      can_activate_bom: { Args: { _uid: string }; Returns: boolean }
       can_add_products: { Args: { _user_id: string }; Returns: boolean }
+      can_approve_batch: { Args: { _uid: string }; Returns: boolean }
       can_approve_feed_cost: { Args: { _user_id: string }; Returns: boolean }
       can_approve_feed_qc: { Args: { _user_id: string }; Returns: boolean }
       can_approve_inventory_override: {
@@ -5162,7 +5442,9 @@ export type Database = {
       }
       can_edit_product_price: { Args: { _user_id: string }; Returns: boolean }
       can_issue_feed_materials: { Args: { _user_id: string }; Returns: boolean }
+      can_manage_feed_batch: { Args: { _uid: string }; Returns: boolean }
       can_manage_feed_recipes: { Args: { _user_id: string }; Returns: boolean }
+      can_manage_meat_batch: { Args: { _uid: string }; Returns: boolean }
       can_manage_review: { Args: { _uid: string }; Returns: boolean }
       can_post_inventory: { Args: { _uid: string }; Returns: boolean }
       check_offer_expiry: { Args: never; Returns: boolean }
@@ -5179,6 +5461,20 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      feed_batch_approve: {
+        Args: {
+          p_batch_id: string
+          p_override_negative?: boolean
+          p_override_reason?: string
+        }
+        Returns: Json
+      }
+      feed_batch_cancel: {
+        Args: { p_batch_id: string; p_reason: string }
+        Returns: Json
+      }
+      feed_batch_close: { Args: { p_batch_id: string }; Returns: Json }
+      feed_batch_submit_review: { Args: { p_batch_id: string }; Returns: Json }
       finalize_slaughter_batch: { Args: { p_batch_id: string }; Returns: Json }
       generate_order_number: { Args: never; Returns: string }
       get_dashboard_overview: { Args: never; Returns: Json }
@@ -5239,6 +5535,20 @@ export type Database = {
         Returns: Json
       }
       is_feed_team: { Args: { _user_id: string }; Returns: boolean }
+      meat_batch_approve: {
+        Args: {
+          p_batch_id: string
+          p_override_negative?: boolean
+          p_override_reason?: string
+        }
+        Returns: Json
+      }
+      meat_batch_cancel: {
+        Args: { p_batch_id: string; p_reason: string }
+        Returns: Json
+      }
+      meat_batch_close: { Args: { p_batch_id: string }; Returns: Json }
+      meat_batch_submit_review: { Args: { p_batch_id: string }; Returns: Json }
       move_to_dlq: {
         Args: {
           dlq_name: string
@@ -5317,6 +5627,11 @@ export type Database = {
       suggest_hatch_batch_for_shipment: {
         Args: { p_shipment_id: string }
         Returns: string
+      }
+      validate_feed_bom: { Args: { p_recipe_id: string }; Returns: Json }
+      validate_meat_bom: {
+        Args: { p_product_code: string; p_version: number }
+        Returns: Json
       }
     }
     Enums: {
