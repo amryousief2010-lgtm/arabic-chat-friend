@@ -342,6 +342,11 @@ const AnimatedRoutes = () => {
             <PageTransition><InventoryImport /></PageTransition>
           </ProtectedRoute>
         } />
+        <Route path="/modules/warehouses/:id" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager', 'quality_manager', 'sales_moderator']}>
+            <PageTransition><WarehouseDetail /></PageTransition>
+          </ProtectedRoute>
+        } />
         <Route path="/modules/feed-factory/recipes/:id" element={
           <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'feed_factory_manager', 'production_manager', 'quality_manager']}>
             <PageTransition><RecipeDetail /></PageTransition>
