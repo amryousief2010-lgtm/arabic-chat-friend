@@ -54,7 +54,7 @@ const WarehouseDetail = () => {
     if (!id) return;
     setLoading(true);
     const sinceISO = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
-    const [w, all, it, mv, oi] = await Promise.all([
+    const [w, all, it, mv, oi, tr] = await Promise.all([
       supabase.from("warehouses").select("*").eq("id", id).maybeSingle(),
       supabase.from("warehouses").select("*").order("name"),
       supabase.from("inventory_items").select("*").eq("warehouse_id", id).order("name"),
@@ -68,12 +68,18 @@ const WarehouseDetail = () => {
         .gte("orders.created_at", sinceISO)
         .neq("orders.status", "cancelled")
         .limit(2000),
+      supabase.from("warehouse_transfers")
+        .select("*, source:warehouses!warehouse_transfers_source_warehouse_id_fkey(name), destination:warehouses!warehouse_transfers_destination_warehouse_id_fkey(name), items:warehouse_transfer_items(*)")
+        .or(`source_warehouse_id.eq.${id},destination_warehouse_id.eq.${id}`)
+        .order("created_at", { ascending: false })
+        .limit(200),
     ]);
     setWarehouse(w.data);
     setAllWarehouses(all.data || []);
     setItems(it.data || []);
     setMovements(mv.data || []);
     setOrderItems(oi.data || []);
+    setTransfers(tr.data || []);
     setLoading(false);
   };
 
