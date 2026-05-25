@@ -545,6 +545,7 @@ const Warehouses = () => {
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <Link to="/modules/warehouses/dashboard"><Button variant="outline" size="sm"><BarChart3 className="w-4 h-4 ml-2" />لوحة المؤشرات</Button></Link>
+            <Button variant="outline" size="sm" onClick={exportInventorySummaryPDF}><FileText className="w-4 h-4 ml-2 text-red-600" />تقرير PDF</Button>
             {isGeneralManager && (<Link to="/modules/warehouses/import"><Button variant="outline" size="sm"><Upload className="w-4 h-4 ml-2" />استيراد CSV</Button></Link>)}
             {!canManageWarehouses && (<Badge variant="outline">عرض فقط</Badge>)}
           </div>
