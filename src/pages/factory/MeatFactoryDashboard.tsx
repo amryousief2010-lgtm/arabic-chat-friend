@@ -170,5 +170,6 @@ export default function MeatFactoryDashboard() {
         </CardContent>
       </Card>
     </div>
+    </DashboardLayout>
   );
 }
