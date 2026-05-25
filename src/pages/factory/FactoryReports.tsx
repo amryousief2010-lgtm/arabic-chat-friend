@@ -129,7 +129,7 @@ export default function FactoryReports() {
       <h1 className="text-2xl font-bold">تقارير المصانع</h1>
       <FactoryFilters value={f} onChange={setF} statuses={["draft", "under_review", "approved", "closed", "cancelled"]} onExport={exportMap[tab]} />
 
-      <Tabs value={tab} onValueChange={(v) => setSp({ tab: v })}>
+      <Tabs value={tab} onValueChange={(v) => setSp({ tab: TAB_TO_SLUG[v] || v })}>
         <TabsList className="flex flex-wrap h-auto">
           <TabsTrigger value="batches">دفعات الإنتاج</TabsTrigger>
           <TabsTrigger value="raw">المواد الخام</TabsTrigger>
