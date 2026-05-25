@@ -11,12 +11,126 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Warehouse, Trash2, Edit, ArrowDown, ArrowUp, ArrowLeftRight, Settings2, Package, AlertTriangle, BarChart3, Upload, Beef, CheckCircle2 } from "lucide-react";
+import { Plus, Warehouse, Trash2, Edit, ArrowDown, ArrowUp, ArrowLeftRight, Settings2, Package, AlertTriangle, BarChart3, Upload, Beef, CheckCircle2, Printer, FileSpreadsheet } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { formatDateTime } from "@/lib/dateFormat";
+import * as XLSX from "xlsx";
+import companyLogo from "@/assets/company-logo.jpg";
+
+const qualityLabelText: Record<string, string> = {
+  accepted: "مقبول",
+  rejected: "مرفوض",
+  quarantine: "حجر صحي",
+};
+
+function exportPendingBatchPDF(b: any) {
+  const totalKg = b.outputs.reduce((s: number, o: any) => s + Number(o.actual_weight_kg || 0), 0);
+  const totalCost = b.outputs.reduce((s: number, o: any) => s + Number(o.actual_weight_kg || 0) * Number(o.unit_cost || 0), 0);
+  const rows = b.outputs.map((o: any, i: number) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td>${o.cut_name_ar || ""}</td>
+      <td>${Number(o.actual_weight_kg || 0).toFixed(2)}</td>
+      <td>${Number(o.unit_cost || 0).toFixed(2)}</td>
+      <td>${(Number(o.actual_weight_kg || 0) * Number(o.unit_cost || 0)).toFixed(2)}</td>
+      <td>${qualityLabelText[o.quality_status] || "—"}</td>
+    </tr>`).join("");
+  const html = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8"/>
+    <title>دفعة ${b.batch_number}</title>
+    <style>
+      @page { size: A4; margin: 14mm; }
+      body { font-family: "Segoe UI", Tahoma, Arial, sans-serif; color: #111; }
+      .header { display:flex; align-items:center; justify-content:space-between; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 14px; }
+      .header img { height: 70px; }
+      .title { text-align:center; }
+      .title h1 { margin:0; font-size: 22px; }
+      .title p { margin:2px 0; color:#555; font-size: 12px; }
+      .meta { display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-bottom:12px; font-size: 13px; }
+      .meta div { background:#f5f5f5; padding:8px; border-radius:6px; }
+      table { width:100%; border-collapse: collapse; font-size: 13px; }
+      th, td { border:1px solid #ccc; padding:6px 8px; text-align:right; }
+      th { background:#f0f0f0; }
+      tfoot td { font-weight:bold; background:#fafafa; }
+      .sign { display:grid; grid-template-columns: repeat(3,1fr); gap:16px; margin-top:28px; font-size:12px; }
+      .sign div { border-top:1px solid #333; padding-top:6px; text-align:center; }
+      @media print { .no-print { display:none; } }
+      .bar { text-align:center; margin-bottom:10px; }
+      .bar button { padding:8px 18px; font-size:14px; cursor:pointer; }
+    </style></head><body>
+    <div class="bar no-print"><button onclick="window.print()">طباعة / حفظ PDF</button></div>
+    <div class="header">
+      <img src="${companyLogo}" />
+      <div class="title">
+        <h1>إيصال استلام دفعة ذبح</h1>
+        <p>كابيتال أوستريش</p>
+        <p>تاريخ الإصدار: ${new Date().toLocaleString("ar-EG")}</p>
+      </div>
+      <div style="width:70px"></div>
+    </div>
+    <div class="meta">
+      <div><strong>رقم الدفعة:</strong> ${b.batch_number}</div>
+      <div><strong>تاريخ الذبح:</strong> ${b.slaughter_date || "—"}</div>
+      <div><strong>الحالة:</strong> ${b.status === "completed" ? "مكتملة" : b.status === "in_progress" ? "جارية" : b.status || "—"}</div>
+      <div><strong>عدد الأصناف:</strong> ${b.outputs.length}</div>
+      <div><strong>إجمالي الوزن:</strong> ${totalKg.toFixed(2)} كجم</div>
+      <div><strong>إجمالي التكلفة:</strong> ${totalCost.toFixed(2)} ج.م</div>
+    </div>
+    <table>
+      <thead><tr>
+        <th>م</th><th>الصنف</th><th>الوزن (كجم)</th><th>التكلفة/كجم</th><th>الإجمالي</th><th>الجودة</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr>
+        <td colspan="2">الإجماليات</td>
+        <td>${totalKg.toFixed(2)}</td>
+        <td>—</td>
+        <td>${totalCost.toFixed(2)}</td>
+        <td></td>
+      </tr></tfoot>
+    </table>
+    <div class="sign">
+      <div>أمين المخزن المستلم</div>
+      <div>مشرف الإنتاج</div>
+      <div>المراجعة</div>
+    </div>
+    <script>window.addEventListener('load',()=>setTimeout(()=>window.print(),400));</script>
+    </body></html>`;
+  const w = window.open("", "_blank", "width=900,height=700");
+  if (!w) return;
+  w.document.open(); w.document.write(html); w.document.close();
+}
+
+function exportPendingBatchExcel(b: any) {
+  const rows = b.outputs.map((o: any, i: number) => ({
+    "م": i + 1,
+    "الصنف": o.cut_name_ar || "",
+    "الوزن (كجم)": Number(o.actual_weight_kg || 0),
+    "التكلفة/كجم": Number(o.unit_cost || 0),
+    "إجمالي التكلفة": Number(o.actual_weight_kg || 0) * Number(o.unit_cost || 0),
+    "الجودة": qualityLabelText[o.quality_status] || "",
+  }));
+  const totalKg = b.outputs.reduce((s: number, o: any) => s + Number(o.actual_weight_kg || 0), 0);
+  const totalCost = b.outputs.reduce((s: number, o: any) => s + Number(o.actual_weight_kg || 0) * Number(o.unit_cost || 0), 0);
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws["!cols"] = [{ wch: 5 }, { wch: 28 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 12 }];
+  const summary = XLSX.utils.json_to_sheet([
+    { "البند": "رقم الدفعة", "القيمة": b.batch_number },
+    { "البند": "تاريخ الذبح", "القيمة": b.slaughter_date || "—" },
+    { "البند": "الحالة", "القيمة": b.status || "—" },
+    { "البند": "عدد الأصناف", "القيمة": b.outputs.length },
+    { "البند": "إجمالي الوزن (كجم)", "القيمة": totalKg.toFixed(2) },
+    { "البند": "إجمالي التكلفة (ج.م)", "القيمة": totalCost.toFixed(2) },
+    { "البند": "تاريخ الإصدار", "القيمة": new Date().toLocaleString("ar-EG") },
+  ]);
+  summary["!cols"] = [{ wch: 22 }, { wch: 28 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "الأصناف");
+  XLSX.utils.book_append_sheet(wb, summary, "الملخص");
+  XLSX.writeFile(wb, `استلام-دفعة-${b.batch_number}.xlsx`);
+}
 
 interface WarehouseRow {
   id: string;
@@ -468,11 +582,19 @@ const Warehouses = () => {
                               {rejected > 0 && <> • مرفوض: {rejected}</>}
                             </CardDescription>
                           </div>
-                          {canManageWarehouses && (
-                            <Button onClick={() => openReceiveBatch(b)}>
-                              <ArrowDown className="w-4 h-4 ml-1" /> استلام الدفعة
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Button variant="outline" size="sm" onClick={() => exportPendingBatchPDF(b)}>
+                              <Printer className="w-4 h-4 ml-1" /> طباعة / PDF
                             </Button>
-                          )}
+                            <Button variant="outline" size="sm" onClick={() => exportPendingBatchExcel(b)}>
+                              <FileSpreadsheet className="w-4 h-4 ml-1 text-emerald-600" /> Excel
+                            </Button>
+                            {canManageWarehouses && (
+                              <Button onClick={() => openReceiveBatch(b)}>
+                                <ArrowDown className="w-4 h-4 ml-1" /> استلام الدفعة
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </CardHeader>
                       <CardContent className="p-0">
