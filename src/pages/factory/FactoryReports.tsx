@@ -9,9 +9,28 @@ import { useFactoryData } from "@/hooks/useFactoryData";
 import { exportCSV } from "@/lib/csvExport";
 import { Link } from "react-router-dom";
 
+// Accept both short keys ("batches") and full slug keys ("production") in the URL.
+const TAB_ALIASES: Record<string, string> = {
+  production: "batches",
+  "raw-materials": "raw",
+  packaging: "packaging",
+  "inventory-movements": "movements",
+  "cost-analysis": "cost",
+  "pending-review": "pending",
+};
+const TAB_TO_SLUG: Record<string, string> = {
+  batches: "production",
+  raw: "raw-materials",
+  packaging: "packaging",
+  movements: "inventory-movements",
+  cost: "cost-analysis",
+  pending: "pending-review",
+};
+
 export default function FactoryReports() {
   const [sp, setSp] = useSearchParams();
-  const tab = sp.get("tab") || "batches";
+  const rawTab = sp.get("tab") || "production";
+  const tab = TAB_ALIASES[rawTab] ?? rawTab;
   const [f, setF] = useState<FactoryFilterState>(defaultFilterState());
   const { meat, feed, meatCons, meatPack, feedCons, movs, items } = useFactoryData(f.from, f.to);
 
@@ -21,13 +40,17 @@ export default function FactoryReports() {
   const batches = useMemo(() => {
     const rows = [
       ...meat.map((b: any) => ({
-        batch_number: b.batch_number, date: (b.production_date || b.created_at?.slice(0, 10)) || "", factory: "Meat",
-        product: b.product_name_ar || b.product_code, status: b.status, actual_qty: b.actual_qty, total_cost: b.total_cost,
+        id: b.id, batch_number: b.batch_number, date: (b.production_date || b.created_at?.slice(0, 10)) || "", factory: "Meat",
+        product: b.product_name_ar || b.product_code, status: b.status,
+        planned_qty: b.planned_qty, actual_qty: b.actual_qty,
+        planned_cost: b.planned_total_cost, actual_cost: b.total_cost,
         cost_per_unit: b.cost_per_unit, prepared_by: b.created_by, approved_by: b.approved_by, closed_by: b.closed_by,
       })),
       ...feed.map((b: any) => ({
-        batch_number: b.batch_number, date: (b.production_date || b.created_at?.slice(0, 10)) || "", factory: "Feed",
-        product: b.feed_product_id?.slice(0, 8), status: b.status, actual_qty: b.actual_quantity, total_cost: b.total_cost,
+        id: b.id, batch_number: b.batch_number, date: (b.production_date || b.created_at?.slice(0, 10)) || "", factory: "Feed",
+        product: b.feed_product_id?.slice(0, 8), status: b.status,
+        planned_qty: b.target_quantity, actual_qty: b.actual_quantity,
+        planned_cost: b.planned_total_cost, actual_cost: b.total_cost,
         cost_per_unit: b.cost_per_kg, prepared_by: b.created_by, approved_by: b.approved_by, closed_by: b.closed_by,
       })),
     ];
@@ -65,10 +88,21 @@ export default function FactoryReports() {
     })).filter((r) => !f.search || JSON.stringify(r).toLowerCase().includes(f.search.toLowerCase()))
   , [movs, itemById, f.search]);
 
-  const costRows = useMemo(() => batches.filter((b: any) => b.status === "closed").map((b: any) => ({
-    factory: b.factory, batch: b.batch_number, bom_version: "—",
-    planned_cost: "—", actual_cost: b.total_cost, variance: "—", cost_per_unit: b.cost_per_unit,
-  })), [batches]);
+  const costRows = useMemo(() => batches.filter((b: any) => b.status === "closed").map((b: any) => {
+    const planned = b.planned_cost == null ? null : Number(b.planned_cost);
+    const actual = Number(b.actual_cost || 0);
+    const variance = planned == null ? null : actual - planned;
+    const variancePct = planned == null || planned === 0 ? null : (variance! / planned) * 100;
+    return {
+      factory: b.factory, batch: b.batch_number,
+      planned_qty: b.planned_qty, actual_qty: b.actual_qty,
+      planned_cost: planned == null ? "planned snapshot not available" : planned.toFixed(2),
+      actual_cost: actual.toFixed(2),
+      variance: variance == null ? "—" : variance.toFixed(2),
+      variance_pct: variancePct == null ? "—" : variancePct.toFixed(2) + "%",
+      cost_per_unit: b.cost_per_unit,
+    };
+  }), [batches]);
 
   const pendingRows = useMemo(() => {
     const list: any[] = [];
@@ -95,7 +129,7 @@ export default function FactoryReports() {
       <h1 className="text-2xl font-bold">تقارير المصانع</h1>
       <FactoryFilters value={f} onChange={setF} statuses={["draft", "under_review", "approved", "closed", "cancelled"]} onExport={exportMap[tab]} />
 
-      <Tabs value={tab} onValueChange={(v) => setSp({ tab: v })}>
+      <Tabs value={tab} onValueChange={(v) => setSp({ tab: TAB_TO_SLUG[v] || v })}>
         <TabsList className="flex flex-wrap h-auto">
           <TabsTrigger value="batches">دفعات الإنتاج</TabsTrigger>
           <TabsTrigger value="raw">المواد الخام</TabsTrigger>
@@ -138,10 +172,28 @@ export default function FactoryReports() {
             <TableBody>{movRows.slice(0, 300).map((r, i) => (<TableRow key={i}><TableCell className="font-mono text-xs">{r.movement_no}</TableCell><TableCell>{r.date}</TableCell><TableCell>{r.item}</TableCell><TableCell><Badge variant="outline">{r.type}</Badge></TableCell><TableCell>{r.quantity.toFixed(3)}</TableCell><TableCell>{r.unit_cost.toFixed(4)}</TableCell><TableCell>{r.total.toFixed(2)}</TableCell><TableCell className="text-xs">{r.reference_type}/{String(r.reference_id).slice(0, 8)}</TableCell></TableRow>))}</TableBody></Table>
           </CardContent></Card></TabsContent>
 
-        <TabsContent value="cost"><Card><CardHeader><CardTitle className="text-base">تحليل التكلفة (مغلقة فقط)</CardTitle></CardHeader>
+        <TabsContent value="cost"><Card><CardHeader><CardTitle className="text-base">تحليل التكلفة — مخطط مقابل فعلي (الدفعات المغلقة فقط)</CardTitle></CardHeader>
           <CardContent className="p-0 overflow-x-auto">
-            <Table><TableHeader><TableRow><TableHead>مصنع</TableHead><TableHead>دفعة</TableHead><TableHead>BOM</TableHead><TableHead>مخططة</TableHead><TableHead>فعلية</TableHead><TableHead>تباين</TableHead><TableHead>تكلفة/وحدة</TableHead></TableRow></TableHeader>
-            <TableBody>{costRows.map((r: any, i) => (<TableRow key={i}><TableCell><Badge variant="outline">{r.factory}</Badge></TableCell><TableCell className="font-mono text-xs">{r.batch}</TableCell><TableCell>{r.bom_version}</TableCell><TableCell>{r.planned_cost}</TableCell><TableCell>{Number(r.actual_cost || 0).toFixed(2)}</TableCell><TableCell>{r.variance}</TableCell><TableCell>{r.cost_per_unit ? Number(r.cost_per_unit).toFixed(4) : "—"}</TableCell></TableRow>))}</TableBody></Table>
+            <Table><TableHeader><TableRow>
+              <TableHead>مصنع</TableHead><TableHead>دفعة</TableHead>
+              <TableHead>كمية مخططة</TableHead><TableHead>كمية فعلية</TableHead>
+              <TableHead>تكلفة مخططة</TableHead><TableHead>تكلفة فعلية</TableHead>
+              <TableHead>الفرق</TableHead><TableHead>الفرق %</TableHead>
+              <TableHead>تكلفة/وحدة</TableHead>
+            </TableRow></TableHeader>
+            <TableBody>{costRows.map((r: any, i) => (
+              <TableRow key={i}>
+                <TableCell><Badge variant="outline">{r.factory}</Badge></TableCell>
+                <TableCell className="font-mono text-xs">{r.batch}</TableCell>
+                <TableCell>{r.planned_qty != null ? Number(r.planned_qty).toFixed(2) : "—"}</TableCell>
+                <TableCell>{r.actual_qty != null ? Number(r.actual_qty).toFixed(2) : "—"}</TableCell>
+                <TableCell className={r.planned_cost === "planned snapshot not available" ? "text-muted-foreground text-xs" : ""}>{r.planned_cost}</TableCell>
+                <TableCell>{r.actual_cost}</TableCell>
+                <TableCell>{r.variance}</TableCell>
+                <TableCell>{r.variance_pct}</TableCell>
+                <TableCell>{r.cost_per_unit ? Number(r.cost_per_unit).toFixed(4) : "—"}</TableCell>
+              </TableRow>
+            ))}</TableBody></Table>
           </CardContent></Card></TabsContent>
 
         <TabsContent value="pending"><Card><CardHeader><CardTitle className="text-base">عناصر للمراجعة ({pendingRows.length})</CardTitle></CardHeader>

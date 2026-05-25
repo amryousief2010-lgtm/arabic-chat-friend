@@ -1872,6 +1872,7 @@ export type Database = {
           other_cost: number
           override_negative: boolean
           override_reason: string | null
+          planned_total_cost: number | null
           posted_to_inventory: boolean
           production_date: string
           recipe_id: string
@@ -1911,6 +1912,7 @@ export type Database = {
           other_cost?: number
           override_negative?: boolean
           override_reason?: string | null
+          planned_total_cost?: number | null
           posted_to_inventory?: boolean
           production_date?: string
           recipe_id: string
@@ -1950,6 +1952,7 @@ export type Database = {
           other_cost?: number
           override_negative?: boolean
           override_reason?: string | null
+          planned_total_cost?: number | null
           posted_to_inventory?: boolean
           production_date?: string
           recipe_id?: string
@@ -3434,6 +3437,7 @@ export type Database = {
           override_reason: string | null
           packaging_cost: number
           planned_qty: number
+          planned_total_cost: number | null
           posted_at: string | null
           posted_to_inventory: boolean
           posted_warehouse_id: string | null
@@ -3487,6 +3491,7 @@ export type Database = {
           override_reason?: string | null
           packaging_cost?: number
           planned_qty?: number
+          planned_total_cost?: number | null
           posted_at?: string | null
           posted_to_inventory?: boolean
           posted_warehouse_id?: string | null
@@ -3540,6 +3545,7 @@ export type Database = {
           override_reason?: string | null
           packaging_cost?: number
           planned_qty?: number
+          planned_total_cost?: number | null
           posted_at?: string | null
           posted_to_inventory?: boolean
           posted_warehouse_id?: string | null
