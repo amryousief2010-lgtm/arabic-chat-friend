@@ -359,10 +359,18 @@ const WarehouseDetail = () => {
                     const cfg = moveLabels[m.movement_type] || moveLabels.in;
                     const Icon = cfg.icon;
                     const isIncoming = m.destination_warehouse_id === id;
+                    const pairedTransfer = transfers.find(t =>
+                      (t.items || []).some((li: any) => li.source_movement_id === m.id || li.destination_movement_id === m.id)
+                    );
                     return (
                       <TableRow key={m.id}>
                         <TableCell className="text-xs">{formatDateTime(m.performed_at)}</TableCell>
-                        <TableCell><Badge variant={cfg.variant} className="gap-1"><Icon className="w-3 h-3" />{cfg.label}{isIncoming && m.movement_type === "transfer" ? " (وارد)" : ""}</Badge></TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1 flex-wrap">
+                            <Badge variant={cfg.variant} className="gap-1"><Icon className="w-3 h-3" />{cfg.label}{isIncoming && m.movement_type === "transfer" ? " (وارد)" : ""}</Badge>
+                            {pairedTransfer && statusBadge(pairedTransfer.status)}
+                          </div>
+                        </TableCell>
                         <TableCell>{m.item?.name || "—"}</TableCell>
                         <TableCell>{m.warehouse?.name || "—"}</TableCell>
                         <TableCell>{m.quantity} {m.item?.unit}</TableCell>
