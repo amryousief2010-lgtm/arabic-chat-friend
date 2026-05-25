@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Warehouse, Trash2, Edit, ArrowDown, ArrowUp, ArrowLeftRight, Settings2, Package, AlertTriangle, BarChart3, Upload, Beef, CheckCircle2, Printer, FileSpreadsheet, FileText } from "lucide-react";
+import { Plus, Warehouse, Trash2, Edit, ArrowDown, ArrowUp, ArrowLeftRight, Settings2, Package, AlertTriangle, BarChart3, Upload, Beef, CheckCircle2, Printer, FileSpreadsheet, FileText, MapPin } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -217,9 +217,12 @@ const Warehouses = () => {
 
   const [deleteTarget, setDeleteTarget] = useState<{ type: "warehouse" | "item"; id: string; name: string } | null>(null);
 
+  const [recentOrders, setRecentOrders] = useState<any[]>([]);
+
   const fetchAll = async () => {
     setLoading(true);
-    const [w, i, m, s] = await Promise.all([
+    const sinceISO = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
+    const [w, i, m, s, o] = await Promise.all([
       supabase.from("warehouses").select("*").order("name"),
       supabase.from("inventory_items").select("*, warehouse:warehouses(name)").order("name"),
       supabase.from("inventory_movements").select("*, item:inventory_items(name, unit), warehouse:warehouses!inventory_movements_warehouse_id_fkey(name), destination:warehouses!inventory_movements_destination_warehouse_id_fkey(name)").order("performed_at", { ascending: false }).limit(200),
@@ -228,11 +231,17 @@ const Warehouses = () => {
         .in("destination", ["warehouse", "branch", "meat_factory"])
         .order("created_at", { ascending: false })
         .limit(300),
+      supabase.from("orders")
+        .select("id, order_number, total, status, created_at, customer:customers(governorate, city, name)")
+        .gte("created_at", sinceISO)
+        .neq("status", "cancelled")
+        .limit(1000),
     ]);
     if (w.data) setWarehouses(w.data as WarehouseRow[]);
     if (i.data) setItems(i.data as InventoryItem[]);
     if (m.data) setMovements(m.data as Movement[]);
     if (s.data) setSlaughterOutputs(s.data as any[]);
+    if (o.data) setRecentOrders(o.data as any[]);
     setLoading(false);
   };
 
@@ -571,6 +580,7 @@ const Warehouses = () => {
             <TabsTrigger value="movements">الحركات</TabsTrigger>
             <TabsTrigger value="low">منخفضة <Badge variant="destructive" className="mr-2">{lowStockItems.length}</Badge></TabsTrigger>
             <TabsTrigger value="warehouses">المخازن</TabsTrigger>
+            <TabsTrigger value="distribution" className="gap-1"><MapPin className="w-4 h-4" />التوزيع الجغرافي</TabsTrigger>
           </TabsList>
 
           {/* ITEMS */}
@@ -843,6 +853,104 @@ const Warehouses = () => {
                 );
               })}
             </div>
+          </TabsContent>
+
+          {/* GEOGRAPHIC DISTRIBUTION */}
+          <TabsContent value="distribution" className="space-y-4">
+            {(() => {
+              const CAIRO_GIZA = ["القاهرة", "الجيزة", "قاهره", "جيزه", "Cairo", "Giza"];
+              const isCairoGiza = (g?: string) => !!g && CAIRO_GIZA.some(k => g.includes(k));
+              const agouza = warehouses.find(w => w.name.includes("العجوزة"));
+              const main = warehouses.find(w => w.name.includes("الرئيسي") || w.name.includes("المقر")) || warehouses[0];
+
+              const byGov = new Map<string, { count: number; total: number; orders: any[] }>();
+              recentOrders.forEach(o => {
+                const g = o.customer?.governorate || "غير محدد";
+                if (!byGov.has(g)) byGov.set(g, { count: 0, total: 0, orders: [] });
+                const e = byGov.get(g)!;
+                e.count++;
+                e.total += Number(o.total || 0);
+                e.orders.push(o);
+              });
+              const sorted = Array.from(byGov.entries()).sort((a, b) => b[1].count - a[1].count);
+              const agouzaOrders = recentOrders.filter(o => isCairoGiza(o.customer?.governorate));
+              const mainOrders = recentOrders.filter(o => !isCairoGiza(o.customer?.governorate));
+              const sum = (arr: any[]) => arr.reduce((s, o) => s + Number(o.total || 0), 0);
+
+              return (
+                <>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Card className="border-orange-500/40">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-base">
+                          <MapPin className="w-5 h-5 text-orange-500" />
+                          {agouza?.name || "مخزن فرع العجوزة"}
+                        </CardTitle>
+                        <CardDescription>يخدم عملاء القاهرة والجيزة</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <div className="flex justify-between"><span className="text-muted-foreground">طلبات (30 يوم):</span><strong>{agouzaOrders.length}</strong></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">إجمالي القيمة:</span><strong>{sum(agouzaOrders).toLocaleString()} ج.م</strong></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">أصناف بالمخزن:</span><strong>{agouza ? items.filter(i => i.warehouse_id === agouza.id).length : 0}</strong></div>
+                      </CardContent>
+                    </Card>
+                    <Card className="border-primary/40">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-base">
+                          <Warehouse className="w-5 h-5 text-primary" />
+                          {main?.name || "المخزن الرئيسي - المقر"}
+                        </CardTitle>
+                        <CardDescription>يخدم باقي المحافظات</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <div className="flex justify-between"><span className="text-muted-foreground">طلبات (30 يوم):</span><strong>{mainOrders.length}</strong></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">إجمالي القيمة:</span><strong>{sum(mainOrders).toLocaleString()} ج.م</strong></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">أصناف بالمخزن:</span><strong>{main ? items.filter(i => i.warehouse_id === main.id).length : 0}</strong></div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">توزيع الطلبات حسب المحافظة (آخر 30 يوم)</CardTitle>
+                      <CardDescription>المخزن المختص يتم اختياره يدوياً عند إنشاء/تجهيز الطلب</CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>المحافظة</TableHead>
+                            <TableHead>عدد الطلبات</TableHead>
+                            <TableHead>إجمالي القيمة</TableHead>
+                            <TableHead>المخزن المُقترح</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {sorted.length === 0 ? (
+                            <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">لا توجد طلبات حديثة</TableCell></TableRow>
+                          ) : sorted.map(([gov, e]) => (
+                            <TableRow key={gov}>
+                              <TableCell className="font-medium">{gov}</TableCell>
+                              <TableCell><Badge variant="outline">{e.count}</Badge></TableCell>
+                              <TableCell>{e.total.toLocaleString()} ج.م</TableCell>
+                              <TableCell>
+                                {isCairoGiza(gov) ? (
+                                  <Badge className="bg-orange-500/10 text-orange-600 hover:bg-orange-500/20 border-orange-500/30">فرع العجوزة</Badge>
+                                ) : gov === "غير محدد" ? (
+                                  <Badge variant="secondary">غير محدد</Badge>
+                                ) : (
+                                  <Badge variant="outline">المخزن الرئيسي</Badge>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                </>
+              );
+            })()}
           </TabsContent>
         </Tabs>
       </div>
