@@ -1,0 +1,1 @@
+ALTER VIEW public.v_product_stock_availability SET (security_invoker = on);
