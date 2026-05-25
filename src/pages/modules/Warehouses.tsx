@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Warehouse, Trash2, Edit, ArrowDown, ArrowUp, ArrowLeftRight, Settings2, Package, AlertTriangle, BarChart3, Upload, Beef, CheckCircle2, Printer, FileSpreadsheet } from "lucide-react";
+import { Plus, Warehouse, Trash2, Edit, ArrowDown, ArrowUp, ArrowLeftRight, Settings2, Package, AlertTriangle, BarChart3, Upload, Beef, CheckCircle2, Printer, FileSpreadsheet, FileText } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -452,6 +452,84 @@ const Warehouses = () => {
     quarantine: { label: 'حجر صحي', variant: 'secondary' },
   };
 
+  const exportInventorySummaryPDF = () => {
+    const totalValue = items.reduce((s, i) => s + i.stock * i.unit_cost, 0);
+    const activeWarehouses = warehouses.filter(w => w.is_active).length;
+    const rows = (warehouseFilter === 'all' ? items : filteredItems).map((it, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td>${it.name}${it.sku ? ` <span style="color:#666;font-size:11px">(${it.sku})</span>` : ''}</td>
+        <td>${it.warehouse?.name || '—'}</td>
+        <td>${it.category || '—'}</td>
+        <td>${it.stock}</td>
+        <td>${it.unit}</td>
+        <td>${it.unit_cost.toFixed(2)}</td>
+        <td>${(it.stock * it.unit_cost).toFixed(2)}</td>
+        <td style="color:${it.stock <= it.low_stock_threshold ? '#c0392b' : '#27ae60'};font-weight:bold">${it.stock <= it.low_stock_threshold ? 'منخفض' : 'جيد'}</td>
+      </tr>`).join('');
+    const html = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8"/>
+      <title>تقرير ملخص المخزون</title>
+      <style>
+        @page { size: A4; margin: 12mm; }
+        body { font-family: "Segoe UI", Tahoma, Arial, sans-serif; color: #111; }
+        .header { display:flex; align-items:center; justify-content:space-between; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 14px; }
+        .header img { height: 70px; }
+        .title { text-align:center; }
+        .title h1 { margin:0; font-size: 20px; }
+        .title p { margin:3px 0; color:#555; font-size: 12px; }
+        .summary { display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; margin-bottom:16px; }
+        .summary div { background:#f8f9fa; border:1px solid #e1e4e8; padding:10px; border-radius:6px; text-align:center; }
+        .summary div strong { display:block; font-size: 18px; color:#2c3e50; }
+        .summary div span { font-size: 11px; color:#666; }
+        table { width:100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+        th, td { border:1px solid #ccc; padding:5px 7px; text-align:right; }
+        th { background:#f0f0f0; font-weight:bold; }
+        tfoot td { font-weight:bold; background:#fafafa; }
+        .sign { display:grid; grid-template-columns: repeat(3,1fr); gap:16px; margin-top:24px; font-size:12px; }
+        .sign div { border-top:1px solid #333; padding-top:6px; text-align:center; }
+        @media print { .no-print { display:none; } }
+        .bar { text-align:center; margin-bottom:10px; }
+        .bar button { padding:8px 18px; font-size:14px; cursor:pointer; }
+      </style></head><body>
+      <div class="bar no-print"><button onclick="window.print()">طباعة / حفظ PDF</button></div>
+      <div class="header">
+        <img src="${companyLogo}" />
+        <div class="title">
+          <h1>تقرير ملخص المخزون والمنتجات</h1>
+          <p>كابيتال أوستريش</p>
+          <p>تاريخ الإصدار: ${new Date().toLocaleString("ar-EG")}</p>
+        </div>
+        <div style="width:70px"></div>
+      </div>
+      <div class="summary">
+        <div><strong>${items.length}</strong><span>إجمالي الأصناف</span></div>
+        <div><strong>${activeWarehouses}</strong><span>المخازن النشطة</span></div>
+        <div><strong>${totalValue.toLocaleString()}</strong><span>قيمة المخزون (ج.م)</span></div>
+        <div><strong style="color:#c0392b">${lowStockItems.length}</strong><span>أصناف منخفضة</span></div>
+      </div>
+      <table>
+        <thead><tr>
+          <th>م</th><th>الصنف</th><th>المخزن</th><th>الفئة</th><th>الرصيد</th><th>الوحدة</th><th>التكلفة</th><th>القيمة</th><th>الحالة</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr>
+          <td colspan="7">الإجمالي</td>
+          <td>${totalValue.toFixed(2)}</td>
+          <td></td>
+        </tr></tfoot>
+      </table>
+      <div class="sign">
+        <div>أمين المخزن</div>
+        <div>المسؤول المالي</div>
+        <div>الإدارة</div>
+      </div>
+      <script>window.addEventListener('load',()=>setTimeout(()=>window.print(),400));</script>
+      </body></html>`;
+    const w = window.open("", "_blank", "width=1000,height=800");
+    if (!w) return;
+    w.document.open(); w.document.write(html); w.document.close();
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -467,6 +545,7 @@ const Warehouses = () => {
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <Link to="/modules/warehouses/dashboard"><Button variant="outline" size="sm"><BarChart3 className="w-4 h-4 ml-2" />لوحة المؤشرات</Button></Link>
+            <Button variant="outline" size="sm" onClick={exportInventorySummaryPDF}><FileText className="w-4 h-4 ml-2 text-red-600" />تقرير PDF</Button>
             {isGeneralManager && (<Link to="/modules/warehouses/import"><Button variant="outline" size="sm"><Upload className="w-4 h-4 ml-2" />استيراد CSV</Button></Link>)}
             {!canManageWarehouses && (<Badge variant="outline">عرض فقط</Badge>)}
           </div>
