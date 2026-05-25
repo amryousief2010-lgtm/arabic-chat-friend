@@ -35,6 +35,7 @@ import {
   MessageSquare,
   Wallet,
   LucideIcon,
+  ShieldCheck,
 } from "lucide-react";
 import { useAuth, AppRole } from "@/hooks/useAuth";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
