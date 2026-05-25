@@ -205,5 +205,6 @@ export default function FactoryReports() {
           </CardContent></Card></TabsContent>
       </Tabs>
     </div>
+    </DashboardLayout>
   );
 }
