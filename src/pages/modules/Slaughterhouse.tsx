@@ -601,6 +601,12 @@ const Slaughterhouse = () => {
                       <TableCell className="flex gap-2 flex-wrap">
                         <Button size="sm" variant="outline" onClick={() => setOutputBatchId(b.id)}>التقسيمة</Button>
                         {b.status === "in_progress" && <Button size="sm" onClick={() => finalizeBatch(b)} title="إنهاء واحتساب التكلفة وتوزيع الفروع"><CheckCircle2 className="w-4 h-4" /></Button>}
+                        {b.status === "completed" && (
+                          <>
+                            <Button size="sm" variant="outline" onClick={() => exportBatchPDF(b)} title="طباعة / تصدير PDF" className="text-red-600 hover:bg-red-50"><Printer className="w-4 h-4" /></Button>
+                            <Button size="sm" variant="outline" onClick={() => exportBatchExcel(b)} title="تصدير Excel" className="text-emerald-600 hover:bg-emerald-50"><FileSpreadsheet className="w-4 h-4" /></Button>
+                          </>
+                        )}
                         {canManageBatch && (
                           <>
                             <Button size="sm" variant="outline" onClick={() => setEditBatch(b)} title="تعديل بيانات الدفعة"><SettingsIcon className="w-4 h-4" /></Button>
