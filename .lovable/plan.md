@@ -1,92 +1,89 @@
+# خطة تطوير مصنع اللحوم (Meat Factory)
 
-## نظرة عامة
+النواة موجودة بالفعل (8 جداول + شاشة 1090 سطر تغطي المنتجات/الخامات/الفواتير/الوصفات/الدفعات/QC/الاستهلاك/سجل الاعتمادات). الخطة تركز على **سد الفجوات** المطلوبة في الـ Prompt دون إعادة بناء.
 
-ملف Excel يحتوي على 19 ورقة (كتالوج، مخزون، باركود، تغليف، فواتير تصنيع، وصفات BOM، قواعد تكلفة، صلاحيات، مخطط جداول، شاشات). النظام داخلي بالكامل خلف Auth + RLS. لن تُنشأ صفحات عامة ولن تُغيَّر إعدادات الأمان أو SEO.
+## الفجوات الحالية مقابل المطلوب
+| المطلوب | الحالي | الإجراء |
+|---|---|---|
+| باركود لجميع المنتجات | 29/30 لديهم باركود | مراجعة Burger Cheese / Mombar في شاشة المنتجات |
+| فواتير 169/170/171/172 | غير موجودة في DB | استيراد عبر Import Wizard الموجود |
+| محرك تكلفة كامل: (مدخلات + أجور + مصاريف − ناتج ثانوي) / كمية معتمدة | لدينا labor + materials فقط | إضافة أعمدة + احتساب |
+| التغليف كتكلفة منفصلة | غير مرتبط بالدفعة | جدول `meat_factory_batch_packaging` |
+| اعتماد محاسبي للتكلفة | غير موجود | حقول + RPC `approve_meat_batch_cost` |
+| تنبيهات أرصدة سالبة + تسوية | `data_quality_tasks` موجود | تريغر على inventory + ربط واجهة |
+| لوحات (تكلفة/كجم، أعلى تكلفة، نواقص، حالة) | محدودة | تبويب Dashboard متكامل |
+| تطبيق الأدوار السبعة | RLS أساسي | تحديث policies للأدوار الجديدة |
 
-النظام الحالي يحتوي بالفعل على طبقة جيدة من الجداول لمصنعَي اللحوم والأعلاف (`meat_factory_*`, `feed_*`, `inventory_movements`, `warehouses`)، لذا الخطة هي **توسعة وتوحيد** وليس إعادة بناء.
+## المرحلة 1 — Migration
 
-## مراحل التنفيذ (مقترحة بالترتيب)
+### تعديلات على `meat_factory_batches`
+- `other_expenses numeric DEFAULT 0`
+- `byproduct_value numeric DEFAULT 0`
+- `packaging_cost numeric DEFAULT 0`
+- `approved_output_qty numeric` (يُعتمد بعد QC ليكون مقام التكلفة)
+- `cost_approved_by uuid`, `cost_approved_at timestamptz`, `cost_approval_notes text`
+- `posted_to_inventory boolean DEFAULT false`, `posted_at timestamptz`
 
-### المرحلة 1 — الأساس المشترك (Shared)
-- توحيد `items` كدليل أصناف موحد (خامات/تغليف/منتج تام/خدمة) مع `item_type`، `category`، `unit`، `barcode`.
-- إضافة جدول `packaging_materials` (10 أصناف من الورقة).
-- مزامنة `warehouses` مع: المخزن الرئيسي (المحتسب 3 - لحوم 101 صنف)، مخزن الأعلاف (المحتسب 10 - 20 صنف)، مخزن تغليف.
-- جدول `stock_balances` (تجميع لحظي من `inventory_movements`).
-- جدول `audit_log` موحّد + جدول `import_staging` للاستيراد المرحلي.
+### جدول جديد `meat_factory_batch_packaging`
+`id, batch_id, packaging_material_id (→ packaging_materials), quantity, unit_cost, line_total`
 
-### المرحلة 2 — استيراد البيانات على مراحل (Staging)
-المسار الإلزامي: **رفع → معاينة → تحقق → حل أخطاء → اعتماد → ترحيل**.
-الترتيب:
-1. كتالوج الأصناف (`Current_Products`, `Packaging_Materials`).
-2. لقطات المخزون (`Meat_Stock` 101 صنف، `Feed_Stock` 20 صنف) إلى staging.
-3. فواتير الإنتاج التاريخية (13 فاتورة لحوم + 3 أعلاف) كـ batches.
-4. وصفات BOM مرتبطة بالـ batches.
-5. مهام مراجعة من `Data_Quality` (19 رصيد سالب).
+### دوال
+- `recompute_meat_batch_cost(p_batch_id)` — يُحدّث `total_cost = materials + labor + other_expenses + packaging − byproduct_value` و `unit_cost = total_cost / approved_output_qty`.
+- `approve_meat_batch_cost(p_batch_id, p_notes)` — يتحقق من الدور (`accountant`/`financial_manager`/`general_manager`/`executive_manager`)، يستدعي الاحتساب، يسجل المعتمد، يُرحّل المخزون (يستلم المنتج التام في warehouse الرئيسي عبر `inventory_movements`).
+- `meat_batch_negative_stock_check()` — تريغر بعد صرف الخامات، يُنشئ مهمة في `data_quality_tasks` لو رصيد < 0.
 
-لا تُكتب أرصدة الإنتاج مباشرة بدون معاملة استيراد معتمدة.
+### RLS / Roles
+أدوار جديدة في enum `app_role` لو ناقصة: `meat_factory_manager`, `meat_factory_supervisor`, `meat_factory_warehouse`, `cost_accountant`, `quality_manager` (موجود).
+Policies:
+- READ: كل الأدوار أعلاه + management + admin.
+- INSERT/UPDATE دفعة: meat_manager/supervisor/warehouse + management.
+- اعتماد QC: quality_manager فقط.
+- اعتماد التكلفة: cost_accountant/financial_manager/management.
 
-### المرحلة 3 — مصنع اللحوم (Meat)
-- شاشة كتالوج المنتجات + ربط الباركود (مع تنبيه على Burger Cheese و Mombar للمراجعة).
-- شاشة الوصفات `meat_recipes` + `meat_recipe_items` مع نسخ واعتماد.
-- شاشة دفعة الإنتاج من الفواتير (172 مفروم، 171 حواوشي، 170 برجر، 169 كفتة أرز).
-- محرك التكلفة الفعلية: `unit_cost = (مدخلات + أجور + مصاريف − ناتج ثانوي) / كمية ناتجة معتمدة`.
-- ترحيل تلقائي: صرف الخامات، استلام المنتج التام، خصم التغليف كتكلفة.
-- فحص جودة قبل الترحيل النهائي + اعتماد محاسبي.
-- لوحة تنبيهات الأرصدة السالبة وسير عمل التسوية.
-- لوحات: تكلفة/كجم، أعلى المنتجات تكلفة (كباب 341، شيش 277، طرب نعام 234)، حالات الدفعات.
+## المرحلة 2 — تحديثات الواجهة
 
-### المرحلة 4 — مصنع الأعلاف (Feed)
-- منتجات: علف بياض، علف تسمين، علف كتاكيت.
-- خامات: ذرة، صويا، ردة، بريمكس، حجر جيري، ملح، دريس، شكاير.
-- تركيبات `feed_formulas` بنسب `inclusion_rate` مع **فصل التغليف** (`is_packaging=true` يدخل التكلفة لا النسبة الغذائية).
-- دفعات إنتاج بناءً على الفواتير (173 تسمين، 167 كتاكيت، 164 بياض مع `variance_review_flag`).
-- تحقق فروقات الكمية (Output > Input يحتاج اعتمادًا).
-- لوحات: تكلفة كجم/طن، تغطية الخامات، آخر أسعار شراء، أرصدة سالبة.
+### `src/pages/modules/MeatFactory.tsx`
+- نموذج إنشاء الدفعة: إضافة حقول `other_expenses`, `byproduct_value`, `packaging` (selector + qty).
+- تبويب الدفعة (BatchDetail dialog) يعرض:
+  - استهلاك الخامات (موجود)
+  - **التغليف** (جدول جديد)
+  - **ملخص التكلفة** (مدخلات + أجور + مصاريف + تغليف − ناتج ثانوي)
+  - زر "اعتماد التكلفة" (للمحاسبة فقط) → يستدعي RPC
+  - زر "ترحيل للمخزون" يظهر بعد الاعتماد
+- تبويب جديد **Dashboard**:
+  - KPIs: عدد الدفعات الشهر، إجمالي الإنتاج كجم، متوسط تكلفة/كجم، عدد بانتظار اعتماد.
+  - Recharts: أعلى 5 منتجات تكلفة، تطور تكلفة/كجم شهريًا، توزيع حالة الدفعات.
+  - جدول النواقص (من `data_quality_tasks` type=negative_stock).
+- تبويب **Packaging** يستهلك `PackagingMaterials.tsx` الموجود لكن مفلتر `module='meat'`.
 
-### المرحلة 5 — الأمان والصلاحيات
-- 7 أدوار مطبَّقة في UI و RLS: Admin، Management، Cost_Accounting، Meat_Manager/Supervisor/Warehouse، Feed_Manager/Supervisor/Warehouse، Quality.
-- الاعتماد والترحيل عبر Edge Functions (server-side) فقط.
-- Audit log لكل: تعديل وصفة، تغيير دفعة، اعتماد تكلفة، ترحيل مخزون، استيراد Excel، تسوية يدوية.
+### مكوّن جديد `BatchCostApprovalDialog.tsx`
+ملخص التكلفة + ملاحظات + زر اعتماد.
 
-### المرحلة 6 — لوحات القيادة والتقارير
-شاشات تنفيذية لكل مصنع + تقارير قابلة للتصدير (Excel/PDF) مع فلاتر شهرية UTC.
+### مكوّن جديد `NegativeStockReconcileDialog.tsx`
+يفتح من Dashboard، يسمح بتسوية يدوية (adjustment) مع سبب.
 
-## الجداول التي ستُعدَّل أو تُنشأ
+## المرحلة 3 — استيراد الفواتير 169-172
+- لن أكتبها يدويًا في migration. تستخدم `ImportWizard` الموجود مع ورقة `Invoice_172/171/170/169` من نفس الـ workbook.
+- بعد الاستيراد، `meat_factory_recipes` تمتلئ تلقائيًا (سكربت موجود) ويظهر الزر "إنشاء دفعة من فاتورة" لكل من 172/171/170/169.
 
-**موجودة وستُحدَّث (لن تُحذف):**
-- `meat_factory_products`, `meat_factory_recipes`, `meat_factory_batches`, `meat_factory_raw_materials`, `meat_factory_invoices`, `meat_factory_batch_consumption`, `meat_factory_quality_log`, `meat_factory_approval_audit`
-- `feed_products`, `feed_recipes`, `feed_recipe_items`, `feed_production_batches`, `feed_raw_materials`, `feed_invoice_batches`, `feed_batch_consumption`, `feed_qc_checks`, `feed_cost_reviews`, `feed_audit_log`, `feed_finished_goods_moves`, `feed_material_issues`
-- `inventory_movements`, `warehouses`
+## ملفات ستُعدَّل أو تُنشَأ
+**تُنشَأ:**
+- `supabase/migrations/<ts>_meat_factory_costing_v2.sql`
+- `src/components/meat/BatchCostApprovalDialog.tsx`
+- `src/components/meat/NegativeStockReconcileDialog.tsx`
+- `src/components/meat/MeatDashboard.tsx`
 
-**ستُنشأ:**
-- `items` (دليل موحّد) + `packaging_materials`
-- `stock_balances`
-- `import_staging_meat_stock`, `import_staging_feed_stock`, `import_staging_products`
-- `meat_recipe_items` (بنود مفصّلة)
-- `feed_formulas` view/alias فوق `feed_recipes` بحقل `inclusion_rate` و `is_packaging`
-- `data_quality_tasks` (لمتابعة الأرصدة السالبة)
-
-**سياسات RLS:** ستُحدَّث لتطابق مصفوفة الأدوار السبعة في `Roles_Permissions`.
-
-## الملفات/المسارات في الواجهة
-
-- `src/pages/modules/MeatFactory.tsx` (إعادة هيكلة)
-- `src/pages/modules/meat/` جديد: `Products.tsx`, `Recipes.tsx`, `Batches.tsx`, `BatchDetail.tsx`, `Costing.tsx`, `Dashboard.tsx`
-- `src/pages/modules/FeedFactory.tsx` (إعادة هيكلة)
-- `src/pages/modules/feed/Formulas.tsx`, `Batches.tsx`, `Dashboard.tsx` (توسعة الموجود)
-- `src/pages/modules/shared/ImportWizard.tsx` (رفع → معاينة → اعتماد)
-- `src/pages/modules/shared/NegativeStockTasks.tsx`
-- Edge functions: `post-meat-batch`, `post-feed-batch`, `import-stock-snapshot`, `approve-batch-cost`
-- تحديث `src/components/AnimatedRoutes.tsx` بالمسارات الجديدة + ProtectedRoute بالأدوار.
+**تُعدَّل:**
+- `src/pages/modules/MeatFactory.tsx` (حقول جديدة + تبويبات + ربط RPCs)
+- `src/integrations/supabase/types.ts` (تلقائي بعد migration)
 
 ## ما لن أفعله
-- لن أُنشئ أي صفحة عامة أو endpoint بدون JWT.
-- لن أعدّل إعدادات SEO أو `robots.txt`.
-- لن أكشف `service_role` في الواجهة.
-- لن أكتب أرصدة مخزون مباشرة دون معاملة استيراد معتمدة.
+- لن أنشئ صفحات عامة أو endpoints بدون JWT.
+- لن أكتب أرصدة مخزون بدون اعتماد محاسبي.
+- لن أُدخل بيانات فواتير 169-172 يدويًا في migration — تُرفع عبر Import Wizard لتسجَّل في staging أولًا.
+- لن أُغيّر إعدادات SEO/robots/أمان.
 
 ## للموافقة
-أكّد لي:
-1. هل أبدأ بالمرحلة 1 (الأساس + جداول staging) في migration واحدة، أم تفضّل تقسيمها؟
-2. هل أبني محرك التكلفة بنفس الصيغة في الورقة (مدخلات + أجور + مصاريف − ناتج ثانوي) لكل من اللحوم والأعلاف؟
-3. هل تريد استيراد بيانات الفواتير الـ13 + الـ3 تلقائيًا كـ batches تاريخية بعد إنشاء الجداول، أم لاحقًا يدويًا عبر شاشة الاستيراد؟
+1. هل أبدأ بالـ migration (المرحلة 1) الآن؟
+2. هل توافق أن "اعتماد التكلفة" هو الذي يُرحِّل المنتج التام للمخزون (وليس QC)؟
+3. هل أعتمد warehouse المخزن الرئيسي تلقائيًا كوجهة المنتج التام، أم تريد اختياره يدويًا في كل دفعة؟
