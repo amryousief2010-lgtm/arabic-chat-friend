@@ -320,6 +320,165 @@ const Slaughterhouse = () => {
     fetchAll();
   };
 
+  const exportBatchExcel = (b: Batch) => {
+    const items = outputs.filter(o => o.batch_id === b.id);
+    if (!items.length) { toast.error("لا توجد تقسيمة لهذه الدفعة"); return; }
+    const rows = items.map((o, i) => {
+      const branch = branches.find(br => br.id === o.branch_id);
+      return {
+        "م": i + 1,
+        "اسم القطعية": o.cut_name_ar,
+        "الباركود": o.barcode || "-",
+        "الوزن الفعلي (كجم)": Number(o.actual_weight_kg || 0).toFixed(2),
+        "الوزن القياسي (كجم)": Number(o.standard_weight_kg || 0).toFixed(2),
+        "نسبة الانحراف %": Number(o.variance_pct || 0).toFixed(2),
+        "عدد العبوات": o.package_count,
+        "تالف (كجم)": Number(o.damaged_weight_kg || 0).toFixed(2),
+        "محجوز (كجم)": Number(o.quarantined_weight_kg || 0).toFixed(2),
+        "تكلفة الوحدة": Number(o.unit_cost || 0).toFixed(2),
+        "سعر البيع": Number(o.unit_price || 0).toFixed(2),
+        "إجمالي التكلفة": Number(o.total_cost || 0).toFixed(2),
+        "الوجهة": o.destination,
+        "الفرع": branch?.name_ar || "-",
+      };
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws["!cols"] = [{ wch: 4 }, { wch: 22 }, { wch: 16 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 16 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "التقسيمة");
+    const summary = [
+      ["شركة نعام العاصمة - تقرير تقسيمة دفعة"],
+      [],
+      ["رقم الدفعة", b.batch_number],
+      ["التاريخ", b.slaughter_date],
+      ["الشيفت", b.shift === "morning" ? "صباحي" : b.shift === "evening" ? "مسائي" : "ليلي"],
+      ["عدد الطيور المذبوحة", b.birds_slaughtered],
+      ["الوزن الحي (كجم)", Number(b.total_live_weight_kg || 0).toFixed(2)],
+      ["إجمالي اللحم (كجم)", Number(b.total_meat_kg || 0).toFixed(2)],
+      ["نسبة التصافي %", Number(b.actual_yield_pct || 0).toFixed(2)],
+      ["تكلفة الكيلو", Number(b.cost_per_kg_meat || 0).toFixed(2)],
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summary), "ملخص الدفعة");
+    XLSX.writeFile(wb, `تقسيمة-${b.batch_number}.xlsx`);
+    toast.success("تم تصدير ملف Excel");
+  };
+
+  const exportBatchPDF = (b: Batch) => {
+    const items = outputs.filter(o => o.batch_id === b.id);
+    if (!items.length) { toast.error("لا توجد تقسيمة لهذه الدفعة"); return; }
+    const logoUrl = `${window.location.origin}${companyLogo}`;
+    const shiftLabel = b.shift === "morning" ? "صباحي" : b.shift === "evening" ? "مسائي" : "ليلي";
+    const totalActual = items.reduce((s, o) => s + Number(o.actual_weight_kg || 0), 0);
+    const totalDamaged = items.reduce((s, o) => s + Number(o.damaged_weight_kg || 0), 0);
+    const totalQuarantined = items.reduce((s, o) => s + Number(o.quarantined_weight_kg || 0), 0);
+    const totalPackages = items.reduce((s, o) => s + (o.package_count || 0), 0);
+    const totalCost = items.reduce((s, o) => s + Number(o.total_cost || 0), 0);
+
+    const rowsHtml = items.map((o, i) => {
+      const branch = branches.find(br => br.id === o.branch_id);
+      const variance = Number(o.variance_pct || 0);
+      const varColor = variance < -5 ? "color:#b91c1c;font-weight:700" : variance > 5 ? "color:#15803d;font-weight:700" : "";
+      return `<tr>
+        <td>${i + 1}</td>
+        <td style="font-weight:600">${o.cut_name_ar}</td>
+        <td style="font-family:monospace;font-size:11px">${o.barcode || "-"}</td>
+        <td>${Number(o.actual_weight_kg || 0).toFixed(2)}</td>
+        <td>${Number(o.standard_weight_kg || 0).toFixed(2)}</td>
+        <td style="${varColor}">${variance.toFixed(1)}%</td>
+        <td>${o.package_count}</td>
+        <td>${Number(o.damaged_weight_kg || 0).toFixed(2)}</td>
+        <td>${Number(o.unit_cost || 0).toFixed(2)}</td>
+        <td>${Number(o.total_cost || 0).toFixed(2)}</td>
+        <td>${branch?.name_ar || o.destination || "-"}</td>
+      </tr>`;
+    }).join("");
+
+    const html = `<!DOCTYPE html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8"/>
+<title>تقسيمة الدفعة ${b.batch_number}</title>
+<style>
+  @page { size: A4; margin: 10mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", Tahoma, Arial, sans-serif; margin: 0; padding: 12px; color: #111; }
+  .header { display:flex; align-items:center; gap:16px; border-bottom:3px double #7c3aed; padding-bottom:10px; margin-bottom:12px; }
+  .header img { width:90px; height:90px; object-fit:contain; }
+  .header .titles { flex:1; text-align:center; }
+  .header h1 { margin:0; font-size:22px; color:#7c3aed; }
+  .header p { margin:2px 0; font-size:11px; color:#555; }
+  .report-title { text-align:center; font-size:16px; font-weight:700; background:linear-gradient(90deg,#7c3aed,#f97316); color:white; padding:8px; border-radius:6px; margin-bottom:12px; }
+  .meta { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-bottom:12px; font-size:12px; }
+  .meta div { border:1px solid #ddd; padding:6px 8px; border-radius:4px; background:#f9fafb; }
+  .meta strong { color:#7c3aed; display:block; font-size:10px; }
+  table { width:100%; border-collapse:collapse; font-size:11px; }
+  th { background:#7c3aed; color:white; padding:6px 4px; border:1px solid #6d28d9; text-align:center; }
+  td { border:1px solid #ddd; padding:5px 4px; text-align:center; }
+  tbody tr:nth-child(even) { background:#faf5ff; }
+  tfoot td { background:#fef3c7; font-weight:700; border-top:2px solid #f97316; }
+  .footer { display:flex; justify-content:space-between; margin-top:20px; font-size:11px; color:#555; border-top:1px solid #ddd; padding-top:8px; }
+  .sig { margin-top:30px; display:grid; grid-template-columns:repeat(3,1fr); gap:30px; text-align:center; font-size:12px; }
+  .sig div { border-top:1px solid #333; padding-top:6px; }
+  .toolbar { text-align:center; margin-bottom:10px; }
+  .toolbar button { padding:8px 18px; background:#7c3aed; color:white; border:none; border-radius:4px; cursor:pointer; font-size:13px; }
+  @media print { .toolbar { display:none; } body { padding:0; } }
+</style></head>
+<body>
+  <div class="toolbar"><button onclick="window.print()">🖨️ طباعة / حفظ PDF</button></div>
+  <div class="header">
+    <img src="${logoUrl}" alt="شعار الشركة"/>
+    <div class="titles">
+      <h1>شركة نعام العاصمة</h1>
+      <p>محافظة الغربية - مركز زفتى - قرية مسجد وصيف</p>
+      <p>مجزر النعام — قرار وزاري رقم (298) لسنة 2023 — كود (N/1604020114)</p>
+      <p>تم الذبح طبقًا للشريعة الإسلامية وتحت إشراف بيطري كامل</p>
+    </div>
+  </div>
+  <div class="report-title">تقرير تقسيمة الذبح — ${b.batch_number}</div>
+  <div class="meta">
+    <div><strong>رقم الدفعة</strong>${b.batch_number}</div>
+    <div><strong>تاريخ الذبح</strong>${b.slaughter_date}</div>
+    <div><strong>الشيفت</strong>${shiftLabel}</div>
+    <div><strong>عدد الطيور</strong>${b.birds_slaughtered}</div>
+    <div><strong>الوزن الحي (كجم)</strong>${Number(b.total_live_weight_kg || 0).toFixed(1)}</div>
+    <div><strong>إجمالي اللحم (كجم)</strong>${Number(b.total_meat_kg || 0).toFixed(1)}</div>
+    <div><strong>نسبة التصافي</strong>${Number(b.actual_yield_pct || 0).toFixed(1)}%</div>
+    <div><strong>تكلفة الكيلو</strong>${Number(b.cost_per_kg_meat || 0).toFixed(0)} ج.م</div>
+  </div>
+  <table>
+    <thead><tr>
+      <th>م</th><th>اسم القطعية</th><th>الباركود</th>
+      <th>الوزن الفعلي</th><th>الوزن القياسي</th><th>الانحراف %</th>
+      <th>العبوات</th><th>تالف</th><th>تكلفة الوحدة</th><th>إجمالي التكلفة</th><th>الوجهة</th>
+    </tr></thead>
+    <tbody>${rowsHtml}</tbody>
+    <tfoot><tr>
+      <td colspan="3">الإجمالي</td>
+      <td>${totalActual.toFixed(2)}</td>
+      <td>-</td><td>-</td>
+      <td>${totalPackages}</td>
+      <td>${totalDamaged.toFixed(2)}</td>
+      <td>-</td>
+      <td>${totalCost.toFixed(2)}</td>
+      <td>محجوز: ${totalQuarantined.toFixed(2)}</td>
+    </tr></tfoot>
+  </table>
+  <div class="sig">
+    <div>مسؤول المجزر</div>
+    <div>الطبيب البيطري</div>
+    <div>مدير الإنتاج</div>
+  </div>
+  <div class="footer">
+    <span>تاريخ الطباعة: ${new Date().toLocaleString("ar-EG")}</span>
+    <span>شركة نعام العاصمة © ${new Date().getFullYear()}</span>
+  </div>
+  <script>window.addEventListener('load',()=>setTimeout(()=>window.print(),500));</script>
+</body></html>`;
+
+    const w = window.open("", "_blank", "width=900,height=700");
+    if (!w) { toast.error("افتح النوافذ المنبثقة"); return; }
+    w.document.open(); w.document.write(html); w.document.close();
+    toast.success("جاري إعداد ملف PDF...");
+  };
+
   const statusBadge = (s: string) => {
     const map: Record<string, { label: string; cls: string }> = {
       received: { label: "مستلم", cls: "bg-blue-500/20 text-blue-700" },
