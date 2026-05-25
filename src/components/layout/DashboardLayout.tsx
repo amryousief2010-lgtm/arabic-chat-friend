@@ -4,6 +4,7 @@ import MobileNavigation from "./MobileNavigation";
 import PullToRefreshIndicator from "./PullToRefresh";
 import SwipeIndicator from "./SwipeIndicator";
 import StartOfDayDialog from "@/components/StartOfDayDialog";
+import ClockCalendarWidget from "@/components/ClockCalendarWidget";
 import { useOrderNotifications } from "@/hooks/useOrderNotifications";
 import { useDailyReminders } from "@/hooks/useDailyReminders";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
