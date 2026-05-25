@@ -9,9 +9,28 @@ import { useFactoryData } from "@/hooks/useFactoryData";
 import { exportCSV } from "@/lib/csvExport";
 import { Link } from "react-router-dom";
 
+// Accept both short keys ("batches") and full slug keys ("production") in the URL.
+const TAB_ALIASES: Record<string, string> = {
+  production: "batches",
+  "raw-materials": "raw",
+  packaging: "packaging",
+  "inventory-movements": "movements",
+  "cost-analysis": "cost",
+  "pending-review": "pending",
+};
+const TAB_TO_SLUG: Record<string, string> = {
+  batches: "production",
+  raw: "raw-materials",
+  packaging: "packaging",
+  movements: "inventory-movements",
+  cost: "cost-analysis",
+  pending: "pending-review",
+};
+
 export default function FactoryReports() {
   const [sp, setSp] = useSearchParams();
-  const tab = sp.get("tab") || "batches";
+  const rawTab = sp.get("tab") || "production";
+  const tab = TAB_ALIASES[rawTab] ?? rawTab;
   const [f, setF] = useState<FactoryFilterState>(defaultFilterState());
   const { meat, feed, meatCons, meatPack, feedCons, movs, items } = useFactoryData(f.from, f.to);
 
