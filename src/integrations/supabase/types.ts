@@ -1609,6 +1609,7 @@ export type Database = {
           feed_product_id: string
           final_unit_cost: number | null
           id: string
+          import_run_id: string | null
           input_cost: number
           input_qty_invoice: number | null
           input_qty_weight_kg: number | null
@@ -1645,6 +1646,7 @@ export type Database = {
           feed_product_id: string
           final_unit_cost?: number | null
           id?: string
+          import_run_id?: string | null
           input_cost?: number
           input_qty_invoice?: number | null
           input_qty_weight_kg?: number | null
@@ -1681,6 +1683,7 @@ export type Database = {
           feed_product_id?: string
           final_unit_cost?: number | null
           id?: string
+          import_run_id?: string | null
           input_cost?: number
           input_qty_invoice?: number | null
           input_qty_weight_kg?: number | null
@@ -2124,6 +2127,8 @@ export type Database = {
       }
       feed_recipes: {
         Row: {
+          approved_at: string | null
+          approved_by: string | null
           batch_size: number
           created_at: string
           created_by: string | null
@@ -2131,6 +2136,7 @@ export type Database = {
           feed_product_id: string | null
           feed_type: string
           id: string
+          import_run_id: string | null
           is_active: boolean
           name: string
           recipe_status: string
@@ -2140,6 +2146,8 @@ export type Database = {
           version: number
         }
         Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
           batch_size?: number
           created_at?: string
           created_by?: string | null
@@ -2147,6 +2155,7 @@ export type Database = {
           feed_product_id?: string | null
           feed_type: string
           id?: string
+          import_run_id?: string | null
           is_active?: boolean
           name: string
           recipe_status?: string
@@ -2156,6 +2165,8 @@ export type Database = {
           version?: number
         }
         Update: {
+          approved_at?: string | null
+          approved_by?: string | null
           batch_size?: number
           created_at?: string
           created_by?: string | null
@@ -2163,6 +2174,7 @@ export type Database = {
           feed_product_id?: string | null
           feed_type?: string
           id?: string
+          import_run_id?: string | null
           is_active?: boolean
           name?: string
           recipe_status?: string
@@ -2396,6 +2408,68 @@ export type Database = {
         }
         Relationships: []
       }
+      import_catalog_staging: {
+        Row: {
+          barcode: string | null
+          category: string | null
+          created_at: string
+          default_cost: number | null
+          default_price: number | null
+          error_reason: string | null
+          id: string
+          item_code: string | null
+          module: string
+          name_ar: string | null
+          raw_row: Json | null
+          run_id: string
+          source_sheet: string
+          status: string
+          unit: string | null
+        }
+        Insert: {
+          barcode?: string | null
+          category?: string | null
+          created_at?: string
+          default_cost?: number | null
+          default_price?: number | null
+          error_reason?: string | null
+          id?: string
+          item_code?: string | null
+          module: string
+          name_ar?: string | null
+          raw_row?: Json | null
+          run_id: string
+          source_sheet: string
+          status?: string
+          unit?: string | null
+        }
+        Update: {
+          barcode?: string | null
+          category?: string | null
+          created_at?: string
+          default_cost?: number | null
+          default_price?: number | null
+          error_reason?: string | null
+          id?: string
+          item_code?: string | null
+          module?: string
+          name_ar?: string | null
+          raw_row?: Json | null
+          run_id?: string
+          source_sheet?: string
+          status?: string
+          unit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_catalog_staging_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "import_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       import_discrepancy_alerts: {
         Row: {
           detected_at: string
@@ -2436,6 +2510,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      import_runs: {
+        Row: {
+          created_at: string
+          error_rows: number | null
+          filename: string | null
+          id: string
+          notes: string | null
+          posted_at: string | null
+          posted_by: string | null
+          sheet: string
+          status: string
+          total_rows: number | null
+          uploaded_by: string | null
+          valid_rows: number | null
+        }
+        Insert: {
+          created_at?: string
+          error_rows?: number | null
+          filename?: string | null
+          id?: string
+          notes?: string | null
+          posted_at?: string | null
+          posted_by?: string | null
+          sheet: string
+          status?: string
+          total_rows?: number | null
+          uploaded_by?: string | null
+          valid_rows?: number | null
+        }
+        Update: {
+          created_at?: string
+          error_rows?: number | null
+          filename?: string | null
+          id?: string
+          notes?: string | null
+          posted_at?: string | null
+          posted_by?: string | null
+          sheet?: string
+          status?: string
+          total_rows?: number | null
+          uploaded_by?: string | null
+          valid_rows?: number | null
+        }
+        Relationships: []
       }
       import_staging_rows: {
         Row: {
@@ -2657,6 +2776,68 @@ export type Database = {
             columns: ["warehouse_id"]
             isOneToOne: false
             referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_stock_snapshots: {
+        Row: {
+          created_at: string
+          error_reason: string | null
+          id: string
+          item_code: string | null
+          item_name_ar: string | null
+          posted_movement_id: string | null
+          qty: number
+          raw_row: Json | null
+          run_id: string
+          snapshot_date: string
+          source_sheet: string | null
+          status: string
+          unit: string | null
+          warehouse_code: string | null
+          warehouse_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_reason?: string | null
+          id?: string
+          item_code?: string | null
+          item_name_ar?: string | null
+          posted_movement_id?: string | null
+          qty?: number
+          raw_row?: Json | null
+          run_id: string
+          snapshot_date?: string
+          source_sheet?: string | null
+          status?: string
+          unit?: string | null
+          warehouse_code?: string | null
+          warehouse_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_reason?: string | null
+          id?: string
+          item_code?: string | null
+          item_name_ar?: string | null
+          posted_movement_id?: string | null
+          qty?: number
+          raw_row?: Json | null
+          run_id?: string
+          snapshot_date?: string
+          source_sheet?: string | null
+          status?: string
+          unit?: string | null
+          warehouse_code?: string | null
+          warehouse_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_stock_snapshots_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "import_runs"
             referencedColumns: ["id"]
           },
         ]
@@ -2990,6 +3171,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          import_run_id: string | null
           input_total: number | null
           invoice_date: string | null
           invoice_no: number
@@ -3006,6 +3188,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          import_run_id?: string | null
           input_total?: number | null
           invoice_date?: string | null
           invoice_no: number
@@ -3022,6 +3205,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          import_run_id?: string | null
           input_total?: number | null
           invoice_date?: string | null
           invoice_no?: number
@@ -3197,8 +3381,11 @@ export type Database = {
       }
       meat_factory_recipes: {
         Row: {
+          approved_at: string | null
+          approved_by: string | null
           created_at: string
           id: string
+          import_run_id: string | null
           invoice_date: string | null
           invoice_no: number | null
           labor_total_if_output: number | null
@@ -3213,11 +3400,15 @@ export type Database = {
           source_document: string | null
           unit: string
           unit_cost: number | null
+          version: number
           warehouse: string | null
         }
         Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string
           id?: string
+          import_run_id?: string | null
           invoice_date?: string | null
           invoice_no?: number | null
           labor_total_if_output?: number | null
@@ -3232,11 +3423,15 @@ export type Database = {
           source_document?: string | null
           unit: string
           unit_cost?: number | null
+          version?: number
           warehouse?: string | null
         }
         Update: {
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string
           id?: string
+          import_run_id?: string | null
           invoice_date?: string | null
           invoice_no?: number | null
           labor_total_if_output?: number | null
@@ -3251,6 +3446,7 @@ export type Database = {
           source_document?: string | null
           unit?: string
           unit_cost?: number | null
+          version?: number
           warehouse?: string | null
         }
         Relationships: []
@@ -4809,6 +5005,12 @@ export type Database = {
         }
         Returns: boolean
       }
+      import_post_catalog: { Args: { p_run_id: string }; Returns: Json }
+      import_post_stock_snapshot: {
+        Args: { p_run_id: string; p_warehouse_id: string }
+        Returns: Json
+      }
+      import_validate_catalog: { Args: { p_run_id: string }; Returns: Json }
       is_feed_team: { Args: { _user_id: string }; Returns: boolean }
       move_to_dlq: {
         Args: {

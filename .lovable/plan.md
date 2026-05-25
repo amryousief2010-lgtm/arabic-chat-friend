@@ -1,75 +1,105 @@
-# Feed Factory — Professional Upgrade Plan
+# خطة استيراد بيانات Excel — Capital Ostrich
 
-The Feed Factory module already has a rich foundation (products, raw materials, recipes with versioning + `is_packaging` flag, invoice batches with auto-computed `unit_cost_calc` and variance, QC checks, cost reviews, material issues with stock deduction, finished-goods moves, audit log, role helpers). This plan closes the remaining professional gaps without rebuilding what exists.
+تنفيذ مرحلي عبر **staging tables + RPC** بدون كتابة مباشرة على الجداول الإنتاجية، مع تطبيق RLS وSecurity Definer.
 
-## 1. Database (single migration)
+---
 
-**Extend `feed_invoice_batches`** — add the accountant-final costing fields, mirroring the meat module:
-- `other_expenses numeric(14,4) default 0`
-- `byproduct_value numeric(14,4) default 0`
-- `packaging_cost numeric(14,4) default 0` (auto-derived from `is_packaging` consumption)
-- `approved_output_qty numeric(14,3)`
-- `final_unit_cost numeric(14,4)`
-- `cost_approved_by uuid`, `cost_approved_at timestamptz`
-- `posted_to_inventory boolean default false`, `posted_at timestamptz`
-- `destination_warehouse text`
-- `needs_review boolean default false`, `review_reason text` (for invoice 164 quantity variance)
+## 1) الترتيب التنفيذي (8 مراحل)
 
-**Update trigger `feed_invoice_batch_compute()`**:
-- Split `input_cost` into nutritional vs packaging using `feed_recipe_items.is_packaging`.
-- Auto-flag `needs_review = true` when `output_qty_kg > input_qty_weight_kg * 1.02` (quantity variance > 2%).
+| # | المصدر (Sheet) | الهدف | الوضع |
+|---|---|---|---|
+| 1 | Current_Products, Meat_Stock, Feed_Stock, Packaging_Materials | كتالوج موحد للأصناف | staging → approve → upsert |
+| 2 | Warehouses | `warehouses` | upsert مباشر (idempotent by name) |
+| 3 | Stock snapshots | `inventory_stock_snapshots` (staging) | لا يكتب على `inventory_items.stock` إلا بعد اعتماد |
+| 4 | Meat_Costs (172/171/170/169), Feed_Costs (173/167/164) | `meat_factory_invoices`, `feed_invoice_batches` | تاريخي + إعادة حساب |
+| 5 | Meat_BOM, Feed_BOM | `meat_factory_recipes`, `feed_recipes/items` | versioned + approval |
+| 6 | Data_Quality | `data_quality_tasks` | auto-open tasks (negative_stock, missing_code, unit_mismatch) |
+| 7 | Screens_Workflow | تفعيل routes/tabs موجودة | UI فقط |
+| 8 | DB_Schema/Roles/Validation/Costing | triggers + RLS + helpers | migration واحدة |
 
-**New RPCs (SECURITY DEFINER, search_path=public)**:
-- `recompute_feed_batch_cost(p_batch uuid)` → `(materials + operating_cost + other_expenses + packaging_cost − byproduct_value) / approved_output_qty`. Restricted to feed managers + cost accounting.
-- `approve_feed_batch_cost(p_batch uuid, p_final_qty numeric, p_destination text, p_notes text)` → requires QC `passed`, writes `feed_cost_reviews`, sets `cost_approved_*`, inserts `feed_finished_goods_moves` (movement `in`) and bumps `feed_products.current_stock`, marks `posted_to_inventory`. Restricted to `accountant`, `financial_manager`, `executive_manager`, `general_manager`.
-- `feed_post_finished_to_destination(p_batch uuid, p_destination text, p_qty numeric)` for later farm/cost-center issues.
+---
 
-**Negative-stock guard**: extend the existing `feed_apply_issue()` trigger to log a `data_quality_tasks` row when a feed raw-material issue would push stock below zero (allow with warning, matching the meat pattern).
+## 2) جداول جديدة / تعديلات
 
-**RLS**: existing helpers `is_feed_team`, `can_manage_feed_recipes`, `can_approve_feed_qc`, `can_approve_feed_cost`, `can_issue_feed_materials` already cover the seven roles requested — confirm RPCs use them; no policy rewrite needed.
+### جديدة
+- **`import_catalog_staging`** — للمرحلة (1)  
+  `id, run_id, source_sheet, item_code, name_ar, category, unit, barcode, default_price, default_cost, module ('shared'|'meat'|'feed'|'packaging'), status ('pending'|'approved'|'rejected'|'posted'), error_reason, raw_row jsonb`
+- **`inventory_stock_snapshots`** — للمرحلة (3)  
+  `id, run_id, snapshot_date, warehouse_code, item_code, qty, unit, source_sheet, status, posted_movement_id, error_reason, raw_row jsonb`
+- **`import_runs`** — meta للتشغيلات  
+  `id, sheet, filename, uploaded_by, total_rows, valid_rows, error_rows, status ('uploaded'|'validated'|'approved'|'posted'|'failed'), created_at, posted_at, posted_by`
 
-## 2. UI
+### تعديلات
+- `meat_factory_invoices` + `feed_invoice_batches` → إضافة `import_run_id uuid` (FK اختياري) لتتبع المصدر.
+- `meat_factory_recipes` + `feed_recipes` → إضافة `version int default 1`, `approved_by`, `approved_at`, `import_run_id`.
+- `data_quality_tasks` (موجود) → إضافة index على `(module, status, severity)`.
 
-**New components** (under `src/components/feed/`):
-- `FeedCostApprovalPanel.tsx` — pending-batch list, edit final output qty, view variance & cost breakdown, "Approve & post to warehouse" action, destination selector. Mirrors `MeatCostApprovalPanel`.
-- `FeedQualityReviewDialog.tsx` — pass / rework / reject with variance reason, writes `feed_qc_checks`.
-- `FeedVarianceBanner.tsx` — yellow banner shown on batches where `needs_review = true`.
+### Helpers/Triggers
+- `import_validate_catalog(run_id)` — يكشف التكرار، الوحدة الفارغة، الباركود المكرر.
+- `import_post_catalog(run_id)` — upsert على `products` / `meat_factory_raw_materials` / `feed_raw_materials` / `inventory_items` حسب `module`.
+- `import_post_stock_snapshot(run_id, warehouse_id)` — يدخل صفوف `inventory_movements` نوع `adjustment` بدلاً من الكتابة المباشرة.
+- `import_open_quality_tasks(run_id)` — يفتح `data_quality_tasks` للصفوف المرفوضة + للأرصدة السالبة بعد الترحيل.
 
-**Enhanced `feed/FeedDashboard.tsx`** — add KPI strip (avg cost/kg this month, total output, batches awaiting cost approval, low-stock raw materials), Recharts bar chart "cost per kg by product (last 30 days)", and "negative stock" + "recipes missing latest cost" tables.
+---
 
-**`FeedFactory.tsx`** — register two new tabs: "اعتماد التكاليف" (cost approval) and "مراقبة الجودة" (QC). Make the dashboard tab the default landing.
+## 3) RLS Policies (موحدة)
 
-## 3. Invoice seeding (via existing ImportWizard, not a migration)
+كل الجداول الجديدة **RLS ENABLED**.
 
-After the migration is approved I will document the import steps for the user:
-- **Invoice 173** → latest fattening feed (علف تسمين) cost.
-- **Invoice 167** → latest chick feed (علف كتاكيت) cost.
-- **Invoice 164** → layer feed (علف بياض) — will be imported with `needs_review = true` because input vs output variance exceeds the 2% threshold.
+| الجدول | view | insert | update (status) | post (RPC) |
+|---|---|---|---|---|
+| `import_runs` | management + uploader | management + warehouse_supervisor + factory_managers | management | — |
+| `import_catalog_staging` | management + uploader | management + warehouse_supervisor + factory_managers | management + accountant | RPC: `accountant` / `general_manager` / `executive_manager` |
+| `inventory_stock_snapshots` | management + warehouse_supervisor | warehouse_supervisor + management | management | RPC: `warehouse_supervisor` / `general_manager` / `executive_manager` |
 
-I will **not** hard-code these invoices in SQL — they must flow through the staging → validation → post pipeline already built in `ImportWizard.tsx`.
+**لا يوجد** سياسة public select/insert. الكتابة الفعلية على المخزون تمر **حصراً** عبر `SECURITY DEFINER RPC` يتحقق من الدور داخلياً.
 
-## 4. Files
+---
 
-**Created**
-- `supabase/migrations/<ts>_feed_factory_costing_v2.sql`
-- `src/components/feed/FeedCostApprovalPanel.tsx`
-- `src/components/feed/FeedQualityReviewDialog.tsx`
-- `src/components/feed/FeedVarianceBanner.tsx`
+## 4) ملخص التحقق (Validation)
 
-**Modified**
-- `src/pages/modules/FeedFactory.tsx` (new tabs, default tab)
-- `src/pages/modules/feed/FeedDashboard.tsx` (KPIs + charts)
-- `src/integrations/supabase/types.ts` (auto-regenerated)
+عند رفع كل sheet نشغّل قواعد:
+- `item_code` مطلوب وفريد داخل الـ run.
+- `unit` ضمن قائمة معتمدة (`كجم, جم, لتر, مل, قطعة, كيس, علبة, طبق`).
+- `barcode` (إن وُجد) فريد عبر `products`.
+- `qty >= 0` (السالب → quality task، لا يُرحَّل).
+- `warehouse_code` يجب أن يطابق `warehouses.code`.
+- صفوف Meat_Costs / Feed_Costs: `invoice_no` + `output_qty > 0` + كل سطر Input له `unit_cost`.
+- صفوف BOM: لا بد من ربطها بـ invoice أو product موجود.
 
-## 5. Out of scope (per project rules)
+نخرج Preview JSON: `{ total, valid, errors_by_type, sample_errors[10] }` يظهر في الـ ImportWizard.
 
-- No public pages, no SEO/security loosening.
-- No direct stock writes without QC → cost approval.
-- No invoice data hard-coded in migrations.
-- No changes to existing role / RLS model — only new RPCs reuse existing helpers.
+---
 
-## Questions before I start
+## 5) الشاشات / المسارات
 
-1. Confirm the quantity-variance threshold for auto-flagging "needs review" should be **2% over input weight**, or do you want a different number (e.g. 1% or 5%)?
-2. On cost approval, should finished feed always post to **"مخزن أعلاف وأدوية"** by default, or should the approver always pick a destination warehouse?
-3. Should the cost approval be locked until QC `passed` is recorded (recommended), or do you want accounting to be able to approve cost even with QC `rework`?
+موجودة بالفعل ونعيد استخدامها:
+- `/modules/shared/import-wizard` (موجود) — ندعم اختيار sheet من القائمة الجديدة (8 خيارات).
+- `/modules/shared/data-quality-tasks` (موجود).
+- `/modules/shared/packaging-materials` (موجود).
+- `/modules/meat-factory` — تبويب **اعتماد التكاليف** (موجود) + تبويب جديد **الوصفات (BOM)**.
+- `/modules/feed-factory` — نفس الشيء (تبويب **الوصفات** + اعتماد التكاليف الموجود).
+
+شاشة جديدة واحدة:
+- `src/pages/modules/shared/StockSnapshotReview.tsx` — قائمة snapshots بانتظار الاعتماد، زر "ترحيل كتسوية مخزون".
+
+---
+
+## 6) خطوات التنفيذ
+
+1. **Migration واحدة** بكل ما سبق (جداول + RLS + RPCs + indexes).
+2. تحديث `ImportWizard` ليدعم 8 أوراق Excel ويوجّه كل ورقة لجدول staging المناسب.
+3. صفحة `StockSnapshotReview` + ربطها في القائمة الجانبية للمدير العام/المخازن.
+4. تسجيل تبويب **BOM** داخل `MeatFactory` و `FeedFactory` يعرض `meat_factory_recipes` / `feed_recipes` مع زر "اعتماد نسخة".
+5. توثيق القواعد في `mem://features/import-pipeline`.
+
+---
+
+## 7) خارج النطاق
+
+- لا تغييرات على auth أو الأدوار السبعة.
+- لا حذف لأي بيانات قائمة.
+- لا writes مباشرة على `products.stock` / `inventory_items.stock` / `*_raw_materials.stock` خارج RPC.
+- لا تضمين بيانات الفواتير داخل migration (تُرفع عبر ImportWizard).
+
+في انتظار الموافقة لبدء التنفيذ.
