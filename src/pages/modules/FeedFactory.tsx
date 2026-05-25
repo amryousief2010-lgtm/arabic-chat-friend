@@ -17,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/dateFormat";
+import { FeedCostApprovalPanel } from "@/components/feed/FeedCostApprovalPanel";
 
 interface RawMaterial {
   id: string;
