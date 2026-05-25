@@ -87,6 +87,7 @@ export default function MeatFactoryDashboard() {
   }, [meatCons]);
 
   return (
+    <DashboardLayout>
     <div dir="rtl" className="p-4 md:p-6 space-y-4">
       <div className="flex items-center gap-3">
         <Factory className="h-7 w-7 text-primary" />
