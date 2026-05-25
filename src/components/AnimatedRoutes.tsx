@@ -77,6 +77,9 @@ import RoleLanding from "@/components/RoleLanding";
 import CorrectionRequests from "@/pages/CorrectionRequests";
 import CorrectionAuditLog from "@/pages/CorrectionAuditLog";
 import UpdatesLog from "@/pages/UpdatesLog";
+import ImportWizard from "@/pages/modules/shared/ImportWizard";
+import DataQualityTasks from "@/pages/modules/shared/DataQualityTasks";
+import PackagingMaterials from "@/pages/modules/shared/PackagingMaterials";
 
 const RedirectWithQuery = ({ to }: { to: string }) => {
   const location = useLocation();
