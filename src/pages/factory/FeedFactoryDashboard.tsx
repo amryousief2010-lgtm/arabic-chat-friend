@@ -67,8 +67,9 @@ export default function FeedFactoryDashboard() {
     return Object.entries(m).sort(([, a], [, b]) => b - a).slice(0, 10).map(([name, qty]) => ({ name: name.slice(0, 18), qty }));
   }, [feedCons]);
 
-  return (
-    <div dir="rtl" className="p-4 md:p-6 space-y-4">
+ return (
+   <DashboardLayout>
+   <div dir="rtl" className="p-4 md:p-6 space-y-4">
       <div className="flex items-center gap-3">
         <Wheat className="h-7 w-7 text-primary" />
         <div>
