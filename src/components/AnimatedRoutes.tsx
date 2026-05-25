@@ -403,6 +403,11 @@ const AnimatedRoutes = () => {
             <PageTransition><PackagingMaterials /></PageTransition>
           </ProtectedRoute>
         } />
+        <Route path="/modules/stock-snapshots" element={
+          <ProtectedRoute allowedRoles={['general_manager','executive_manager','warehouse_supervisor']}>
+            <PageTransition><StockSnapshotReview /></PageTransition>
+          </ProtectedRoute>
+        } />
         <Route path="/unauthorized" element={
           <PageTransition><Unauthorized /></PageTransition>
         } />
