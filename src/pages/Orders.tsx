@@ -34,6 +34,7 @@ import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus, Trash2, Pencil, C
 import { exportOrdersToCSV, exportOrdersToPDF, exportOrdersToXLSX } from "@/utils/exportOrders";
 import EditOrderItemsDialog from "@/components/orders/EditOrderItemsDialog";
 import SwapOfferDialog from "@/components/orders/SwapOfferDialog";
+import AddOfferDialog from "@/components/orders/AddOfferDialog";
 import DiscrepancyBanner from "@/components/orders/DiscrepancyBanner";
 import {
   AlertDialog,
