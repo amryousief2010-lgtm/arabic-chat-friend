@@ -231,7 +231,7 @@ const Orders = () => {
       while (true) {
         let q = supabase
           .from('orders')
-          .select(`*, customers (name, phone)`)
+          .select(`*, customers (name, phone, governorate)`)
           .order('created_at', { ascending: false })
           .range(oPage * ORDERS_PAGE, (oPage + 1) * ORDERS_PAGE - 1);
         if (startDate) q = q.gte('created_at', startDate);
@@ -319,6 +319,8 @@ const Orders = () => {
           (order.created_by && profilesMap[order.created_by]) ||
           order.moderator ||
           '-',
+        governorate: (order.customers as any)?.governorate ?? null,
+        shipping_company: order.shipping_company ?? null,
         items: (itemsData || [])
           .filter(item => item.order_id === order.id)
           .map(item => ({
