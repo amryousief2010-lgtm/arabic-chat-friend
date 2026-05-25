@@ -749,11 +749,16 @@ const Orders = () => {
                           <Pencil className="w-4 h-4" />
                         </Button>
                       )}
-                      {order.status !== 'delivered' && order.status !== 'cancelled' && order.items.some((it) => it.offer_name) && (
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSwapOfferOrder(order)} title="استبدال العرض">
-                          <PackageOpen className="w-4 h-4 text-primary" />
-                        </Button>
-                      )}
+                       {canEditOrderItems && order.status !== 'delivered' && order.status !== 'cancelled' && (!isSalesModerator || order.collection_status !== 'collected') && (
+                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setAddOfferOrder(order)} title="إضافة بوكس / عرض">
+                           <PackagePlus className="w-4 h-4 text-primary" />
+                         </Button>
+                       )}
+                       {order.status !== 'delivered' && order.status !== 'cancelled' && order.items.some((it) => it.offer_name) && (
+                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSwapOfferOrder(order)} title="استبدال العرض">
+                           <PackageOpen className="w-4 h-4 text-primary" />
+                         </Button>
+                       )}
                       {canDeleteOrders && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
