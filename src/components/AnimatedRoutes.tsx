@@ -52,6 +52,8 @@ import InventoryEngine from "@/pages/InventoryEngine";
 import BomApproval from "@/pages/BomApproval";
 import MeatFactoryBatches from "@/pages/MeatFactoryBatches";
 import FeedFactoryBatches from "@/pages/FeedFactoryBatches";
+import MeatBatchNew from "@/pages/MeatBatchNew";
+import FeedBatchNew from "@/pages/FeedBatchNew";
 import FeedOrders from "@/pages/modules/feed/Orders";
 import FeedIssues from "@/pages/modules/feed/Issues";
 import WarehouseDashboard from "@/pages/modules/warehouse/WarehouseDashboard";
@@ -230,6 +232,16 @@ const AnimatedRoutes = () => {
         <Route path="/meat-factory/batches" element={
           <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'quality_manager']}>
             <PageTransition><MeatFactoryBatches /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/meat-factory/batches/new" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager']}>
+            <PageTransition><MeatBatchNew /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/feed-factory/batches/new" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'feed_factory_manager', 'production_manager']}>
+            <PageTransition><FeedBatchNew /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/feed-factory/batches" element={

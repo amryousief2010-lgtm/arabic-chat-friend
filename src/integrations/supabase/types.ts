@@ -2017,6 +2017,7 @@ export type Database = {
           default_bag_kg: number
           feed_code: string
           id: string
+          inventory_item_id: string | null
           latest_unit_cost: number
           name: string
           notes: string | null
@@ -2032,6 +2033,7 @@ export type Database = {
           default_bag_kg?: number
           feed_code: string
           id?: string
+          inventory_item_id?: string | null
           latest_unit_cost?: number
           name: string
           notes?: string | null
@@ -2047,6 +2049,7 @@ export type Database = {
           default_bag_kg?: number
           feed_code?: string
           id?: string
+          inventory_item_id?: string | null
           latest_unit_cost?: number
           name?: string
           notes?: string | null
@@ -2055,7 +2058,22 @@ export type Database = {
           standard_batch_kg?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "feed_products_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feed_products_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_inventory_balances"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       feed_qc_checks: {
         Row: {
@@ -2103,6 +2121,7 @@ export type Database = {
           created_at: string
           criticality: string | null
           id: string
+          inventory_item_id: string | null
           is_active: boolean
           is_packaging: boolean
           item_code: string | null
@@ -2123,6 +2142,7 @@ export type Database = {
           created_at?: string
           criticality?: string | null
           id?: string
+          inventory_item_id?: string | null
           is_active?: boolean
           is_packaging?: boolean
           item_code?: string | null
@@ -2143,6 +2163,7 @@ export type Database = {
           created_at?: string
           criticality?: string | null
           id?: string
+          inventory_item_id?: string | null
           is_active?: boolean
           is_packaging?: boolean
           item_code?: string | null
@@ -2156,7 +2177,22 @@ export type Database = {
           updated_at?: string
           warehouse_name?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "feed_raw_materials_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feed_raw_materials_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_inventory_balances"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       feed_recipe_history: {
         Row: {
@@ -3536,6 +3572,7 @@ export type Database = {
           functional_name_ar: string | null
           functional_name_en: string | null
           id: string
+          inventory_item_id: string | null
           is_active: boolean
           name_ar: string
           name_en: string | null
@@ -3559,6 +3596,7 @@ export type Database = {
           functional_name_ar?: string | null
           functional_name_en?: string | null
           id?: string
+          inventory_item_id?: string | null
           is_active?: boolean
           name_ar: string
           name_en?: string | null
@@ -3582,6 +3620,7 @@ export type Database = {
           functional_name_ar?: string | null
           functional_name_en?: string | null
           id?: string
+          inventory_item_id?: string | null
           is_active?: boolean
           name_ar?: string
           name_en?: string | null
@@ -3595,7 +3634,22 @@ export type Database = {
           source_document_no?: number | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "meat_factory_products_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meat_factory_products_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_inventory_balances"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       meat_factory_quality_log: {
         Row: {
@@ -3645,6 +3699,7 @@ export type Database = {
           created_at: string
           default_unit: string
           id: string
+          inventory_item_id: string | null
           is_active: boolean
           low_stock_threshold: number
           material_code: string
@@ -3659,6 +3714,7 @@ export type Database = {
           created_at?: string
           default_unit?: string
           id?: string
+          inventory_item_id?: string | null
           is_active?: boolean
           low_stock_threshold?: number
           material_code: string
@@ -3673,6 +3729,7 @@ export type Database = {
           created_at?: string
           default_unit?: string
           id?: string
+          inventory_item_id?: string | null
           is_active?: boolean
           low_stock_threshold?: number
           material_code?: string
@@ -3681,7 +3738,22 @@ export type Database = {
           stock?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "meat_factory_raw_materials_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meat_factory_raw_materials_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_inventory_balances"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       meat_factory_recipes: {
         Row: {
@@ -4124,6 +4196,7 @@ export type Database = {
           code: string | null
           created_at: string
           id: string
+          inventory_item_id: string | null
           is_active: boolean
           low_stock_threshold: number
           module: string
@@ -4139,6 +4212,7 @@ export type Database = {
           code?: string | null
           created_at?: string
           id?: string
+          inventory_item_id?: string | null
           is_active?: boolean
           low_stock_threshold?: number
           module?: string
@@ -4154,6 +4228,7 @@ export type Database = {
           code?: string | null
           created_at?: string
           id?: string
+          inventory_item_id?: string | null
           is_active?: boolean
           low_stock_threshold?: number
           module?: string
@@ -4164,7 +4239,22 @@ export type Database = {
           unit_cost?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "packaging_materials_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "packaging_materials_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_inventory_balances"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payroll_bonus_overrides: {
         Row: {
@@ -4208,6 +4298,33 @@ export type Database = {
           processed_rate?: number | null
           updated_at?: string
           year?: number
+        }
+        Relationships: []
+      }
+      phase6_test_log: {
+        Row: {
+          batch_id: string | null
+          created_at: string
+          id: string
+          kind: string
+          label: string
+          result: Json
+        }
+        Insert: {
+          batch_id?: string | null
+          created_at?: string
+          id?: string
+          kind: string
+          label: string
+          result?: Json
+        }
+        Update: {
+          batch_id?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          label?: string
+          result?: Json
         }
         Relationships: []
       }
@@ -5460,6 +5577,37 @@ export type Database = {
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
+      }
+      fd_activate_bom_v2: { Args: { p_product_code: string }; Returns: Json }
+      fd_can_manage: { Args: { _uid: string }; Returns: boolean }
+      fd_create_feed_batch_draft: {
+        Args: {
+          p_label?: string
+          p_notes?: string
+          p_planned_qty: number
+          p_production_date?: string
+          p_recipe_id: string
+        }
+        Returns: string
+      }
+      fd_create_meat_batch_draft: {
+        Args: {
+          p_label?: string
+          p_notes?: string
+          p_planned_qty: number
+          p_product_code: string
+          p_production_date?: string
+        }
+        Returns: string
+      }
+      fd_link_factory_items: { Args: never; Returns: Json }
+      fd_plan_feed_batch: {
+        Args: { p_planned_qty: number; p_recipe_id: string }
+        Returns: Json
+      }
+      fd_plan_meat_batch: {
+        Args: { p_planned_qty: number; p_product_code: string }
+        Returns: Json
       }
       feed_batch_approve: {
         Args: {
