@@ -325,12 +325,34 @@ const Warehouses = () => {
       return;
     }
 
+    // Transfers MUST go through create_and_send_transfer RPC so they appear
+    // in "وارد بانتظار الاستلام" at the destination and stock only lands
+    // after receipt confirmation.
+    if (moveForm.movement_type === "transfer") {
+      const { data, error } = await supabase.rpc("create_and_send_transfer", {
+        p_source_warehouse_id: item.warehouse_id,
+        p_destination_warehouse_id: moveForm.destination_warehouse_id,
+        p_lines: [{ source_item_id: item.id, qty: moveForm.quantity }],
+        p_notes: moveForm.notes || moveForm.reference || null,
+      });
+      if (error) { toast({ title: "فشل إنشاء التحويل", description: error.message, variant: "destructive" }); return; }
+      const r = data as any;
+      toast({
+        title: "تم إرسال التحويل",
+        description: `رقم ${r?.transfer_no} • بانتظار استلام الوجهة (لن يُضاف للمخزون إلا بعد التأكيد)`,
+      });
+      setMoveDialog(false);
+      fetchAll();
+      return;
+    }
+
+    // Non-transfer movements (in / out / adjustment) — direct insert as before
     const payload = {
       item_id: moveForm.item_id,
       warehouse_id: item.warehouse_id,
       movement_type: moveForm.movement_type,
       quantity: moveForm.quantity,
-      destination_warehouse_id: moveForm.movement_type === "transfer" ? moveForm.destination_warehouse_id : null,
+      destination_warehouse_id: null,
       reference: moveForm.reference || null,
       party: moveForm.party || null,
       notes: moveForm.notes || null,
@@ -339,36 +361,6 @@ const Warehouses = () => {
     };
     const { error } = await supabase.from("inventory_movements").insert(payload);
     if (error) { toast({ title: "خطأ", description: error.message, variant: "destructive" }); return; }
-
-    // For transfer: also create a matching inbound entry in destination warehouse
-    // Find/create matching item in destination by SKU or name
-    if (moveForm.movement_type === "transfer") {
-      let destItem = items.find(i => i.warehouse_id === moveForm.destination_warehouse_id && (i.sku === item.sku && item.sku) || (i.name === item.name && i.warehouse_id === moveForm.destination_warehouse_id));
-      if (!destItem) {
-        const { data: created } = await supabase.from("inventory_items").insert({
-          warehouse_id: moveForm.destination_warehouse_id,
-          name: item.name,
-          category: item.category,
-          sku: item.sku,
-          unit: item.unit,
-          stock: 0,
-          low_stock_threshold: item.low_stock_threshold,
-          unit_cost: item.unit_cost,
-        }).select().single();
-        destItem = created as InventoryItem;
-      }
-      if (destItem) {
-        await supabase.from("inventory_movements").insert({
-          item_id: destItem.id,
-          warehouse_id: destItem.warehouse_id,
-          movement_type: "in",
-          quantity: moveForm.quantity,
-          reference: `تحويل من ${item.warehouse?.name || ""}`,
-          unit_cost: item.unit_cost,
-          performed_by: user?.id,
-        });
-      }
-    }
 
     toast({ title: "تم تسجيل الحركة" });
     setMoveDialog(false);
