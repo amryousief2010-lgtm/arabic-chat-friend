@@ -5788,6 +5788,28 @@ export type Database = {
       can_manage_review: { Args: { _uid: string }; Returns: boolean }
       can_post_inventory: { Args: { _uid: string }; Returns: boolean }
       check_offer_expiry: { Args: never; Returns: boolean }
+      check_order_stock_availability: {
+        Args: { p_order_id: string }
+        Returns: {
+          available_qty: number
+          barcode: string
+          blocked_qty: number
+          blocker_reason: string
+          can_dispatch: boolean
+          current_stock: number
+          inventory_item_id: string
+          order_id: string
+          order_item_id: string
+          order_number: string
+          product_id: string
+          product_name: string
+          required_qty: number
+          reserved_qty: number
+          shipping_company: string
+          source_warehouse_id: string
+          source_warehouse_name: string
+        }[]
+      }
       compare_period_to_snapshot: {
         Args: { p_raise_alert?: boolean; p_snapshot_id: string }
         Returns: Json
@@ -5797,6 +5819,7 @@ export type Database = {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
       }
+      dispatch_order_stock: { Args: { p_order_id: string }; Returns: Json }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
@@ -6040,9 +6063,14 @@ export type Database = {
       }
       recompute_feed_batch_cost: { Args: { p_batch: string }; Returns: number }
       recompute_meat_batch_cost: { Args: { p_batch_id: string }; Returns: Json }
+      release_order_reservation: { Args: { p_order_id: string }; Returns: Json }
       resolve_order_source_warehouse: {
         Args: { p_shipping_company: string }
         Returns: string
+      }
+      return_order_stock: {
+        Args: { p_order_id: string; p_reason?: string }
+        Returns: Json
       }
       slaughter_daily_summary: { Args: { p_date: string }; Returns: Json }
       suggest_hatch_batch_for_shipment: {
