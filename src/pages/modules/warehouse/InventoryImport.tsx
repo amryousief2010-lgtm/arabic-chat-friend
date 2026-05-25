@@ -118,26 +118,47 @@ const InventoryImport = () => {
         const { error } = await supabase.from("inventory_items").insert(payload);
         if (error) throw error;
       } else {
-        const payload = validRows.map(r => {
+        const transferRows = validRows.filter(r => r.data.movement_type === "transfer");
+        const directRows = validRows.filter(r => r.data.movement_type !== "transfer");
+
+        if (directRows.length > 0) {
+          const payload = directRows.map(r => {
+            const wh = warehouses.find(w => w.name === r.data.warehouse_name.trim())!;
+            const key = r.data.item_name_or_sku.trim();
+            const item = items.find(i => (i.sku === key || i.name === key) && i.warehouse_id === wh.id)!;
+            return {
+              item_id: item.id,
+              warehouse_id: wh.id,
+              movement_type: r.data.movement_type,
+              quantity: Number(r.data.quantity),
+              destination_warehouse_id: null,
+              reference: r.data.reference?.trim() || null,
+              party: r.data.party?.trim() || null,
+              notes: r.data.notes?.trim() || null,
+              unit_cost: item.unit_cost,
+              performed_by: user?.id,
+            };
+          });
+
+          const { error } = await supabase.from("inventory_movements").insert(payload);
+          if (error) throw error;
+        }
+
+        for (const r of transferRows) {
           const wh = warehouses.find(w => w.name === r.data.warehouse_name.trim())!;
           const key = r.data.item_name_or_sku.trim();
           const item = items.find(i => (i.sku === key || i.name === key) && i.warehouse_id === wh.id)!;
-          const dest = r.data.movement_type === "transfer" ? warehouses.find(w => w.name === r.data.destination_warehouse_name?.trim()) : null;
-          return {
-            item_id: item.id,
-            warehouse_id: wh.id,
-            movement_type: r.data.movement_type,
-            quantity: Number(r.data.quantity),
-            destination_warehouse_id: dest?.id || null,
-            reference: r.data.reference?.trim() || null,
-            party: r.data.party?.trim() || null,
-            notes: r.data.notes?.trim() || null,
-            unit_cost: item.unit_cost,
-            performed_by: user?.id,
-          };
-        });
-        const { error } = await supabase.from("inventory_movements").insert(payload);
-        if (error) throw error;
+          const dest = warehouses.find(w => w.name === r.data.destination_warehouse_name?.trim())!;
+
+          const { error } = await supabase.rpc("create_and_send_transfer", {
+            p_source_warehouse_id: wh.id,
+            p_destination_warehouse_id: dest.id,
+            p_lines: [{ source_item_id: item.id, qty: Number(r.data.quantity) }],
+            p_notes: r.data.notes?.trim() || r.data.reference?.trim() || null,
+          });
+
+          if (error) throw error;
+        }
       }
       toast({ title: "تم الحفظ", description: `تم استيراد ${validRows.length} سجلًا` });
       setParsed([]);
