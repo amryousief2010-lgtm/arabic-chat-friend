@@ -78,6 +78,9 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           />
         )}
       </main>
+
+      {/* Floating Clock + Calendar widget (visible to all users on every page) */}
+      <ClockCalendarWidget />
     </div>
   );
 };
