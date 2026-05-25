@@ -565,6 +565,67 @@ const WarehouseDetail = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Receive Confirmation Dialog (status-only — never inserts movements) */}
+      <Dialog open={!!receiveDialog} onOpenChange={(o) => !o && setReceiveDialog(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>تأكيد استلام التحويل {receiveDialog?.transfer_no}</DialogTitle>
+            <DialogDescription>
+              من {receiveDialog?.source?.name}. عدّل الكمية المستلمة إذا اختلفت عن المرسلة. لن يتم إنشاء أي حركة مخزون جديدة — هذه الخطوة لتوثيق الاستلام فقط.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>الصنف</TableHead><TableHead>مرسل</TableHead>
+                <TableHead>مستلم</TableHead><TableHead>ملاحظات (إلزامية للجزئي)</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {(receiveDialog?.items || []).map((li: any) => {
+                  const v = receiveLines[li.id] || { qty: Number(li.sent_qty), notes: "" };
+                  const diff = v.qty !== Number(li.sent_qty);
+                  return (
+                    <TableRow key={li.id}>
+                      <TableCell className="font-medium">{li.item_name}</TableCell>
+                      <TableCell>{li.sent_qty} {li.unit}</TableCell>
+                      <TableCell>
+                        <Input type="number" min={0} max={Number(li.sent_qty)} className="w-24"
+                          value={v.qty}
+                          onChange={e => setReceiveLines({ ...receiveLines, [li.id]: { ...v, qty: Number(e.target.value) } })} />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          placeholder={diff ? "إلزامي" : "اختياري"}
+                          className={diff && !v.notes ? "border-destructive" : ""}
+                          value={v.notes}
+                          onChange={e => setReceiveLines({ ...receiveLines, [li.id]: { ...v, notes: e.target.value } })} />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+            <Textarea placeholder="ملاحظات عامة على الاستلام (اختياري)" value={receiveHeaderNotes}
+              onChange={e => setReceiveHeaderNotes(e.target.value)} />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setReceiveDialog(null)}>إلغاء</Button>
+            <Button variant="secondary" disabled={submitting} onClick={() => {
+              // استلام كامل: reset all to sent_qty
+              const init: Record<string, { qty: number; notes: string }> = {};
+              (receiveDialog?.items || []).forEach((li: any) => {
+                init[li.id] = { qty: Number(li.sent_qty), notes: "" };
+              });
+              setReceiveLines(init);
+              setTimeout(confirmReceipt, 0);
+            }}>
+              <CheckCircle2 className="w-4 h-4 ml-1" />تأكيد الاستلام الكامل
+            </Button>
+            <Button disabled={submitting} onClick={confirmReceipt}>تأكيد كما هو</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };
