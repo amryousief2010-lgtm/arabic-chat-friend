@@ -75,6 +75,7 @@ import QuickGuide from "@/pages/QuickGuide";
 import RoleLanding from "@/components/RoleLanding";
 import CorrectionRequests from "@/pages/CorrectionRequests";
 import CorrectionAuditLog from "@/pages/CorrectionAuditLog";
+import UpdatesLog from "@/pages/UpdatesLog";
 
 const RedirectWithQuery = ({ to }: { to: string }) => {
   const location = useLocation();
@@ -369,6 +370,9 @@ const AnimatedRoutes = () => {
           <ProtectedRoute allowedRoles={['general_manager','executive_manager']}>
             <PageTransition><CorrectionAuditLog /></PageTransition>
           </ProtectedRoute>
+        } />
+        <Route path="/updates-log" element={
+          <ProtectedRoute><PageTransition><UpdatesLog /></PageTransition></ProtectedRoute>
         } />
         <Route path="/unauthorized" element={
           <PageTransition><Unauthorized /></PageTransition>
