@@ -2755,11 +2755,70 @@ export type Database = {
           },
         ]
       }
+      meat_factory_batch_packaging: {
+        Row: {
+          batch_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          line_total: number | null
+          packaging_material_id: string | null
+          packaging_name_ar: string
+          quantity: number
+          unit: string
+          unit_cost: number
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          line_total?: number | null
+          packaging_material_id?: string | null
+          packaging_name_ar: string
+          quantity?: number
+          unit?: string
+          unit_cost?: number
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          line_total?: number | null
+          packaging_material_id?: string | null
+          packaging_name_ar?: string
+          quantity?: number
+          unit?: string
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meat_factory_batch_packaging_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "meat_factory_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meat_factory_batch_packaging_packaging_material_id_fkey"
+            columns: ["packaging_material_id"]
+            isOneToOne: false
+            referencedRelation: "packaging_materials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meat_factory_batches: {
         Row: {
           actual_qty: number | null
+          approved_output_qty: number | null
           batch_number: string
+          byproduct_value: number
           completed_at: string | null
+          cost_approval_notes: string | null
+          cost_approved_at: string | null
+          cost_approved_by: string | null
           created_at: string
           created_by: string | null
           expiry_date: string | null
@@ -2767,7 +2826,12 @@ export type Database = {
           labor_cost: number
           materials_cost: number
           notes: string | null
+          other_expenses: number
+          packaging_cost: number
           planned_qty: number
+          posted_at: string | null
+          posted_to_inventory: boolean
+          posted_warehouse_id: string | null
           product_code: string
           product_name_ar: string | null
           production_date: string
@@ -2783,8 +2847,13 @@ export type Database = {
         }
         Insert: {
           actual_qty?: number | null
+          approved_output_qty?: number | null
           batch_number: string
+          byproduct_value?: number
           completed_at?: string | null
+          cost_approval_notes?: string | null
+          cost_approved_at?: string | null
+          cost_approved_by?: string | null
           created_at?: string
           created_by?: string | null
           expiry_date?: string | null
@@ -2792,7 +2861,12 @@ export type Database = {
           labor_cost?: number
           materials_cost?: number
           notes?: string | null
+          other_expenses?: number
+          packaging_cost?: number
           planned_qty?: number
+          posted_at?: string | null
+          posted_to_inventory?: boolean
+          posted_warehouse_id?: string | null
           product_code: string
           product_name_ar?: string | null
           production_date?: string
@@ -2808,8 +2882,13 @@ export type Database = {
         }
         Update: {
           actual_qty?: number | null
+          approved_output_qty?: number | null
           batch_number?: string
+          byproduct_value?: number
           completed_at?: string | null
+          cost_approval_notes?: string | null
+          cost_approved_at?: string | null
+          cost_approved_by?: string | null
           created_at?: string
           created_by?: string | null
           expiry_date?: string | null
@@ -2817,7 +2896,12 @@ export type Database = {
           labor_cost?: number
           materials_cost?: number
           notes?: string | null
+          other_expenses?: number
+          packaging_cost?: number
           planned_qty?: number
+          posted_at?: string | null
+          posted_to_inventory?: boolean
+          posted_warehouse_id?: string | null
           product_code?: string
           product_name_ar?: string | null
           production_date?: string
@@ -4594,6 +4678,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      approve_meat_batch_cost: {
+        Args: { p_batch_id: string; p_notes?: string; p_warehouse_id: string }
+        Returns: Json
+      }
       approve_meat_factory_batch: {
         Args: { p_batch_id: string }
         Returns: Json
@@ -4682,6 +4770,7 @@ export type Database = {
         Args: { p_output_id: string; p_warehouse_id: string }
         Returns: Json
       }
+      recompute_meat_batch_cost: { Args: { p_batch_id: string }; Returns: Json }
       slaughter_daily_summary: { Args: { p_date: string }; Returns: Json }
       suggest_hatch_batch_for_shipment: {
         Args: { p_shipment_id: string }
