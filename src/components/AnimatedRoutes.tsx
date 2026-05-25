@@ -93,10 +93,14 @@ const AnimatedRoutes = () => {
           <PageTransition><Auth /></PageTransition>
         } />
         <Route path="/debug" element={
-          <PageTransition><Debug /></PageTransition>
+          <ProtectedRoute allowedRoles={['general_manager']}>
+            <PageTransition><Debug /></PageTransition>
+          </ProtectedRoute>
         } />
         <Route path="/pwa-diagnostics" element={
-          <PageTransition><PwaDiagnostics /></PageTransition>
+          <ProtectedRoute allowedRoles={['general_manager']}>
+            <PageTransition><PwaDiagnostics /></PageTransition>
+          </ProtectedRoute>
         } />
         <Route path="/farm" element={<RedirectWithQuery to="/modules/farm" />} />
         <Route path="/hatchery" element={<RedirectWithQuery to="/modules/hatchery" />} />

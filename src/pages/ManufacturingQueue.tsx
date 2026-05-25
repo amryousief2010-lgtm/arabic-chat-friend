@@ -499,17 +499,20 @@ const ManufacturingQueue = () => {
     try {
       for (let p = 0; p < totalPages; p++) {
         const slice = filtered.slice(p * ROWS_PER_PAGE, (p + 1) * ROWS_PER_PAGE);
+        const esc = (s: unknown) => String(s ?? '')
+          .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+          .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
         const rowsHtml = slice.map(r => `
           <tr>
-            <td style="padding:7px;border:1px solid #e5e7eb;text-align:right;">${r.product_name}</td>
-            <td style="padding:7px;border:1px solid #e5e7eb;text-align:center;">${r.unit}</td>
-            <td style="padding:7px;border:1px solid #e5e7eb;text-align:center;">${r.current_stock}</td>
-            <td style="padding:7px;border:1px solid #e5e7eb;text-align:center;">${r.pending_quantity}</td>
-            <td style="padding:7px;border:1px solid #e5e7eb;text-align:center;color:${r.shortage>0?'#dc2626':'#111'};font-weight:${r.shortage>0?'700':'400'};">${r.shortage}</td>
-            <td style="padding:7px;border:1px solid #e5e7eb;text-align:center;">${r.affected_orders.length}</td>
-            <td style="padding:7px;border:1px solid #e5e7eb;text-align:center;font-size:11px;">${r.oldest_order_at ? formatDate(r.oldest_order_at) : "-"}</td>
-            <td style="padding:7px;border:1px solid #e5e7eb;text-align:center;">${priorityLabel[r.priority] || r.priority}</td>
-            <td style="padding:7px;border:1px solid #e5e7eb;text-align:center;">${statusLabel[r.mfg_status]}</td>
+            <td style="padding:7px;border:1px solid #e5e7eb;text-align:right;">${esc(r.product_name)}</td>
+            <td style="padding:7px;border:1px solid #e5e7eb;text-align:center;">${esc(r.unit)}</td>
+            <td style="padding:7px;border:1px solid #e5e7eb;text-align:center;">${esc(r.current_stock)}</td>
+            <td style="padding:7px;border:1px solid #e5e7eb;text-align:center;">${esc(r.pending_quantity)}</td>
+            <td style="padding:7px;border:1px solid #e5e7eb;text-align:center;color:${r.shortage>0?'#dc2626':'#111'};font-weight:${r.shortage>0?'700':'400'};">${esc(r.shortage)}</td>
+            <td style="padding:7px;border:1px solid #e5e7eb;text-align:center;">${esc(r.affected_orders.length)}</td>
+            <td style="padding:7px;border:1px solid #e5e7eb;text-align:center;font-size:11px;">${r.oldest_order_at ? esc(formatDate(r.oldest_order_at)) : "-"}</td>
+            <td style="padding:7px;border:1px solid #e5e7eb;text-align:center;">${esc(priorityLabel[r.priority] || r.priority)}</td>
+            <td style="padding:7px;border:1px solid #e5e7eb;text-align:center;">${esc(statusLabel[r.mfg_status])}</td>
           </tr>
         `).join("");
 
