@@ -1598,10 +1598,16 @@ export type Database = {
       }
       feed_invoice_batches: {
         Row: {
+          approved_output_qty: number | null
           batch_no: string
+          byproduct_value: number
+          cost_approved_at: string | null
+          cost_approved_by: string | null
           cost_diff: number | null
           created_at: string
+          destination_warehouse: string | null
           feed_product_id: string
+          final_unit_cost: number | null
           id: string
           input_cost: number
           input_qty_invoice: number | null
@@ -1609,12 +1615,18 @@ export type Database = {
           invoice_date: string | null
           invoice_no: string | null
           invoice_output_total: number | null
+          needs_review: boolean
           notes: string | null
           operating_cost: number
           order_id: string | null
+          other_expenses: number
           output_qty_kg: number
+          packaging_cost: number
+          posted_at: string | null
+          posted_to_inventory: boolean
           qty_variance_kg: number | null
           qty_variance_pct: number | null
+          review_reason: string | null
           source_file: string | null
           status: Database["public"]["Enums"]["feed_order_status"]
           unit_cost_calc: number | null
@@ -1622,10 +1634,16 @@ export type Database = {
           warehouse_name: string | null
         }
         Insert: {
+          approved_output_qty?: number | null
           batch_no: string
+          byproduct_value?: number
+          cost_approved_at?: string | null
+          cost_approved_by?: string | null
           cost_diff?: number | null
           created_at?: string
+          destination_warehouse?: string | null
           feed_product_id: string
+          final_unit_cost?: number | null
           id?: string
           input_cost?: number
           input_qty_invoice?: number | null
@@ -1633,12 +1651,18 @@ export type Database = {
           invoice_date?: string | null
           invoice_no?: string | null
           invoice_output_total?: number | null
+          needs_review?: boolean
           notes?: string | null
           operating_cost?: number
           order_id?: string | null
+          other_expenses?: number
           output_qty_kg?: number
+          packaging_cost?: number
+          posted_at?: string | null
+          posted_to_inventory?: boolean
           qty_variance_kg?: number | null
           qty_variance_pct?: number | null
+          review_reason?: string | null
           source_file?: string | null
           status?: Database["public"]["Enums"]["feed_order_status"]
           unit_cost_calc?: number | null
@@ -1646,10 +1670,16 @@ export type Database = {
           warehouse_name?: string | null
         }
         Update: {
+          approved_output_qty?: number | null
           batch_no?: string
+          byproduct_value?: number
+          cost_approved_at?: string | null
+          cost_approved_by?: string | null
           cost_diff?: number | null
           created_at?: string
+          destination_warehouse?: string | null
           feed_product_id?: string
+          final_unit_cost?: number | null
           id?: string
           input_cost?: number
           input_qty_invoice?: number | null
@@ -1657,12 +1687,18 @@ export type Database = {
           invoice_date?: string | null
           invoice_no?: string | null
           invoice_output_total?: number | null
+          needs_review?: boolean
           notes?: string | null
           operating_cost?: number
           order_id?: string | null
+          other_expenses?: number
           output_qty_kg?: number
+          packaging_cost?: number
+          posted_at?: string | null
+          posted_to_inventory?: boolean
           qty_variance_kg?: number | null
           qty_variance_pct?: number | null
+          review_reason?: string | null
           source_file?: string | null
           status?: Database["public"]["Enums"]["feed_order_status"]
           unit_cost_calc?: number | null
@@ -4678,6 +4714,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      approve_feed_batch_cost: {
+        Args: {
+          p_batch: string
+          p_destination?: string
+          p_final_qty: number
+          p_notes?: string
+        }
+        Returns: string
+      }
       approve_meat_batch_cost: {
         Args: { p_batch_id: string; p_notes?: string; p_warehouse_id: string }
         Returns: Json
@@ -4770,6 +4815,7 @@ export type Database = {
         Args: { p_output_id: string; p_warehouse_id: string }
         Returns: Json
       }
+      recompute_feed_batch_cost: { Args: { p_batch: string }; Returns: number }
       recompute_meat_batch_cost: { Args: { p_batch_id: string }; Returns: Json }
       slaughter_daily_summary: { Args: { p_date: string }; Returns: Json }
       suggest_hatch_batch_for_shipment: {
