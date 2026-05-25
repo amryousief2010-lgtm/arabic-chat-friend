@@ -77,7 +77,8 @@ export default function MeatFactoryBatches() {
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge>{b.status}</Badge>
-                          <Button size="sm" variant="outline" onClick={() => setOpenDetail(b)}>عرض</Button>
+                          <Link to={`/meat-factory/batches/${b.id}`}><Button size="sm" variant="outline">تفاصيل</Button></Link>
+                          <Button size="sm" variant="ghost" onClick={() => setOpenDetail(b)}>عرض سريع</Button>
                         </div>
                       </div>
                     ))}
