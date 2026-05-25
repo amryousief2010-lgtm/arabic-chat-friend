@@ -133,56 +133,109 @@ const WarehouseDetail = () => {
       return;
     }
 
-    // Fetch main warehouse items to find sources by name
+    // Resolve source item IDs by name from main warehouse
     const { data: mainItems } = await supabase
       .from("inventory_items")
-      .select("*")
+      .select("id, name, stock")
       .eq("warehouse_id", mainWarehouse.id);
 
-    const ref = `طلب توريد العجوزة ${new Date().toLocaleDateString("ar-EG")}`;
-    let success = 0, missing: string[] = [], insufficient: string[] = [];
-
+    const lines: Array<{ source_item_id: string; qty: number }> = [];
+    const missing: string[] = [];
+    const insufficient: string[] = [];
     for (const [name, qty] of requested) {
       const src = (mainItems || []).find((m: any) => m.name?.trim() === name.trim());
       if (!src) { missing.push(name); continue; }
       if (Number(src.stock) < qty) { insufficient.push(`${name} (متاح ${src.stock})`); continue; }
-
-      // Out from main
-      const { error: e1 } = await supabase.from("inventory_movements").insert({
-        item_id: src.id, warehouse_id: mainWarehouse.id,
-        movement_type: "transfer", quantity: qty,
-        destination_warehouse_id: id,
-        reference: ref, unit_cost: src.unit_cost, performed_by: user?.id,
-        notes: `نقل إلى ${warehouse?.name}`,
-      });
-      if (e1) continue;
-
-      // Ensure destination item exists
-      let destItem = items.find(i => i.name?.trim() === name.trim());
-      if (!destItem) {
-        const { data: created } = await supabase.from("inventory_items").insert({
-          warehouse_id: id, name: src.name, category: src.category, sku: src.sku,
-          unit: src.unit, stock: 0, low_stock_threshold: src.low_stock_threshold, unit_cost: src.unit_cost,
-        }).select().single();
-        destItem = created;
-      }
-      if (destItem) {
-        await supabase.from("inventory_movements").insert({
-          item_id: destItem.id, warehouse_id: id, movement_type: "in",
-          quantity: qty, reference: ref, unit_cost: src.unit_cost, performed_by: user?.id,
-          notes: `استلام من ${mainWarehouse.name}`,
-        });
-        success++;
-      }
+      lines.push({ source_item_id: src.id, qty });
     }
 
+    if (lines.length === 0) {
+      toast({ title: "لا يمكن التنفيذ", description: `مفقود: ${missing.length} • غير كافٍ: ${insufficient.length}`, variant: "destructive" });
+      return;
+    }
+
+    setSubmitting(true);
+    const { data, error } = await supabase.rpc("create_and_send_transfer", {
+      p_source_warehouse_id: mainWarehouse.id,
+      p_destination_warehouse_id: id!,
+      p_lines: lines,
+      p_notes: `طلب توريد ${warehouse?.name || ""} - ${new Date().toLocaleDateString("ar-EG")}`,
+    });
+    setSubmitting(false);
+
+    if (error) {
+      toast({ title: "فشل إنشاء التحويل", description: error.message, variant: "destructive" });
+      return;
+    }
+
+    const result = data as any;
     toast({
-      title: "تم تنفيذ طلب التوريد",
-      description: `نُقل ${success} صنف${missing.length ? ` • مفقود: ${missing.length}` : ""}${insufficient.length ? ` • غير كافٍ: ${insufficient.length}` : ""}`,
+      title: "تم إنشاء وإرسال التحويل",
+      description: `رقم التحويل ${result?.transfer_no} • ${result?.lines} صنف • بانتظار استلام ${warehouse?.name}`,
     });
     setSupplyDialog(false);
     fetchAll();
   };
+
+  const openReceiveDialog = (t: any) => {
+    const init: Record<string, { qty: number; notes: string }> = {};
+    (t.items || []).forEach((li: any) => {
+      init[li.id] = { qty: Number(li.sent_qty), notes: li.receive_notes || "" };
+    });
+    setReceiveLines(init);
+    setReceiveHeaderNotes("");
+    setReceiveDialog(t);
+  };
+
+  const confirmReceipt = async () => {
+    if (!receiveDialog) return;
+    const lines = Object.entries(receiveLines).map(([line_id, v]) => ({
+      line_id, received_qty: v.qty, notes: v.notes || null,
+    }));
+    setSubmitting(true);
+    const { data, error } = await supabase.rpc("confirm_transfer_receipt", {
+      p_transfer_id: receiveDialog.id,
+      p_lines: lines,
+      p_notes: receiveHeaderNotes || null,
+    });
+    setSubmitting(false);
+    if (error) {
+      toast({ title: "فشل تأكيد الاستلام", description: error.message, variant: "destructive" });
+      return;
+    }
+    const r = data as any;
+    toast({
+      title: r?.already_received ? "هذا التحويل تم استلامه بالفعل" : "تم تأكيد الاستلام",
+      description: `الحالة: ${statusLabel(r?.status)} • مرسل ${r?.total_sent} • مستلم ${r?.total_received}`,
+    });
+    setReceiveDialog(null);
+    fetchAll();
+  };
+
+  const statusLabel = (s?: string) => ({
+    draft: "مسودة", sent: "مرسل", pending_receipt: "بانتظار الاستلام",
+    partially_received: "استلام جزئي", received: "تم الاستلام",
+    needs_manager_review: "يحتاج مراجعة", cancelled: "ملغي",
+  } as any)[s || ""] || s || "—";
+
+  const statusBadge = (s?: string) => {
+    const map: Record<string, { cls: string; Icon: any }> = {
+      pending_receipt: { cls: "bg-amber-500/10 text-amber-600 border-amber-500/30", Icon: Clock },
+      partially_received: { cls: "bg-orange-500/10 text-orange-600 border-orange-500/30", Icon: AlertTriangle },
+      received: { cls: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30", Icon: CheckCircle2 },
+      needs_manager_review: { cls: "bg-purple-500/10 text-purple-600 border-purple-500/30", Icon: AlertTriangle },
+      cancelled: { cls: "bg-muted text-muted-foreground border-border", Icon: XCircle },
+      sent: { cls: "bg-blue-500/10 text-blue-600 border-blue-500/30", Icon: Send },
+      draft: { cls: "bg-muted text-muted-foreground", Icon: Clock },
+    };
+    const cfg = map[s || ""] || map.pending_receipt;
+    const Icon = cfg.Icon;
+    return <Badge variant="outline" className={`gap-1 ${cfg.cls}`}><Icon className="w-3 h-3" />{statusLabel(s)}</Badge>;
+  };
+
+  const outgoingTransfers = transfers.filter(t => t.source_warehouse_id === id);
+  const incomingPending = transfers.filter(t => t.destination_warehouse_id === id && ["pending_receipt", "partially_received", "needs_manager_review"].includes(t.status));
+  const incomingAll = transfers.filter(t => t.destination_warehouse_id === id);
 
   const exportSupplyExcel = () => {
     const rows = supplyNeeds.map((n, i) => ({
