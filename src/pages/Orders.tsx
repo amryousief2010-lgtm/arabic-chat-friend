@@ -30,7 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus, Trash2, Pencil, ChevronDown, ChevronUp, PackageOpen, PackagePlus, FileDown, FileText } from "lucide-react";
+import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus, Trash2, Pencil, ChevronDown, ChevronUp, PackageOpen, PackagePlus, FileDown, FileText, KeyRound, MapPin } from "lucide-react";
 import { exportOrdersToCSV, exportOrdersToPDF, exportOrdersToXLSX } from "@/utils/exportOrders";
 import EditOrderItemsDialog from "@/components/orders/EditOrderItemsDialog";
 import SwapOfferDialog from "@/components/orders/SwapOfferDialog";
@@ -88,8 +88,13 @@ interface Order {
   delivered_at: string | null;
   created_by: string | null;
   moderator_name: string;
+  governorate: string | null;
+  shipping_company: string | null;
   items: OrderItem[];
 }
+
+// Sales manager who must approve private-delivery-rep edits (م. آلاء حامد)
+const SALES_MANAGER_ID = '77b71c5f-cfa8-42bc-85de-ae536a3ec1c1';
 
 const statusColors: Record<OrderStatus, string> = {
   pending: "bg-warning text-warning-foreground",
@@ -151,8 +156,10 @@ const formatItemQty = (qty: number, unit?: string): string => {
 };
 
 const Orders = () => {
-  const { isShippingCompany, isAccountant, isSalesModerator, isPrivateDeliveryRep, canUpdateOrderStatusForOrder, canDeleteOrders, canEditOrderItems } = useAuth();
+  const { user, isShippingCompany, isAccountant, isSalesModerator, isPrivateDeliveryRep, canUpdateOrderStatusForOrder, canDeleteOrders, canEditOrderItems } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [approvedEditOrderIds, setApprovedEditOrderIds] = useState<Set<string>>(new Set());
+  const [pendingEditOrderIds, setPendingEditOrderIds] = useState<Set<string>>(new Set());
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const toggleExpanded = (id: string) => {
     setExpandedItems(prev => {
@@ -169,6 +176,7 @@ const Orders = () => {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterModerator, setFilterModerator] = useState<string>("all");
   const [filterProduct, setFilterProduct] = useState<string>("all");
+  const [filterGovernorate, setFilterGovernorate] = useState<string>("all");
   const [availableProducts, setAvailableProducts] = useState<string[]>([]);
   const [searchParams, setSearchParams] = useSearchParams();
   const yearParam = searchParams.get("year");
@@ -226,7 +234,7 @@ const Orders = () => {
       while (true) {
         let q = supabase
           .from('orders')
-          .select(`*, customers (name, phone)`)
+          .select(`*, customers (name, phone, governorate)`)
           .order('created_at', { ascending: false })
           .range(oPage * ORDERS_PAGE, (oPage + 1) * ORDERS_PAGE - 1);
         if (startDate) q = q.gte('created_at', startDate);
@@ -314,6 +322,8 @@ const Orders = () => {
           (order.created_by && profilesMap[order.created_by]) ||
           order.moderator ||
           '-',
+        governorate: (order.customers as any)?.governorate ?? null,
+        shipping_company: order.shipping_company ?? null,
         items: (itemsData || [])
           .filter(item => item.order_id === order.id)
           .map(item => ({
@@ -369,8 +379,15 @@ const Orders = () => {
     const matchesModerator =
       filterModerator === "all" ||
       order.moderator_name === filterModerator;
-    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator;
+    const matchesGovernorate =
+      filterGovernorate === "all" ||
+      (order.governorate || "").trim() === filterGovernorate;
+    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate;
   });
+
+  const availableGovernorates = Array.from(
+    new Set(orders.map(o => (o.governorate || "").trim()).filter(Boolean))
+  ).sort((a, b) => a.localeCompare(b, 'ar'));
 
   const availableYears = Array.from(
     new Set([
@@ -400,6 +417,85 @@ const Orders = () => {
       });
     })();
   }, []);
+
+  // Load this private-delivery-rep's edit-request status (pending / approved)
+  useEffect(() => {
+    if (!isPrivateDeliveryRep || !user) return;
+    (async () => {
+      const { data } = await supabase
+        .from('order_edit_requests')
+        .select('order_id, status')
+        .eq('requested_by', user.id);
+      const approved = new Set<string>();
+      const pending = new Set<string>();
+      (data || []).forEach((r: any) => {
+        if (r.status === 'approved') approved.add(r.order_id);
+        else if (r.status === 'pending') pending.add(r.order_id);
+      });
+      setApprovedEditOrderIds(approved);
+      setPendingEditOrderIds(pending);
+    })();
+
+    const ch = supabase
+      .channel('edit-requests-rep')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'order_edit_requests', filter: `requested_by=eq.${user.id}` }, (payload: any) => {
+        const row = payload.new || payload.old;
+        if (!row) return;
+        setApprovedEditOrderIds(prev => {
+          const n = new Set(prev);
+          if (payload.new?.status === 'approved') n.add(payload.new.order_id);
+          else n.delete(row.order_id);
+          return n;
+        });
+        setPendingEditOrderIds(prev => {
+          const n = new Set(prev);
+          if (payload.new?.status === 'pending') n.add(payload.new.order_id);
+          else n.delete(row.order_id);
+          return n;
+        });
+        if (payload.new?.status === 'approved') {
+          toast.success('تمت الموافقة على طلب تعديلك');
+        } else if (payload.new?.status === 'rejected') {
+          toast.error('تم رفض طلب التعديل من مدير المبيعات');
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [isPrivateDeliveryRep, user?.id]);
+
+  const requestEditPermission = async (order: Order) => {
+    if (!user) return;
+    try {
+      const { error } = await supabase.from('order_edit_requests').insert({
+        order_id: order.id,
+        requested_by: user.id,
+        status: 'pending',
+      });
+      if (error) throw error;
+      await supabase.from('notifications').insert({
+        title: '🔑 طلب إذن تعديل طلب من كيمو',
+        description: `يطلب المندوب الخاص الإذن بتعديل الطلب ${order.order_number} (العميل: ${order.customer_name}). الرجاء الموافقة أو الرفض.`,
+        type: 'edit_request',
+        order_id: order.id,
+        target_user_id: SALES_MANAGER_ID,
+      });
+      setPendingEditOrderIds(prev => new Set(prev).add(order.id));
+      toast.success('تم إرسال طلب التعديل لمدير المبيعات');
+    } catch (e: any) {
+      console.error(e);
+      toast.error('تعذّر إرسال طلب التعديل');
+    }
+  };
+
+  // Whether the current user may edit this order's items right now
+  const canEditThisOrder = (order: Order): boolean => {
+    if (order.status === 'delivered' || order.status === 'cancelled') return false;
+    if (isPrivateDeliveryRep) return approvedEditOrderIds.has(order.id);
+    if (!canEditOrderItems) return false;
+    if (isSalesModerator && order.collection_status === 'collected') return false;
+    return true;
+  };
+
 
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
     try {
@@ -599,18 +695,31 @@ const Orders = () => {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={filterModerator} onValueChange={setFilterModerator}>
-              <SelectTrigger className="w-40 input-modern">
-                <SelectValue placeholder="فلترة حسب المسوقة" />
+            <Select value={filterGovernorate} onValueChange={setFilterGovernorate}>
+              <SelectTrigger className="w-44 input-modern">
+                <SelectValue placeholder="فلترة حسب المحافظة" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">جميع المسوقات</SelectItem>
-                <SelectItem value="أية">آية</SelectItem>
-                <SelectItem value="نورا">نورا</SelectItem>
-                <SelectItem value="سارة">سارة</SelectItem>
-                <SelectItem value="منال">منال</SelectItem>
+                <SelectItem value="all">جميع المحافظات</SelectItem>
+                {availableGovernorates.map((g) => (
+                  <SelectItem key={g} value={g}>{g}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
+            {!isPrivateDeliveryRep && (
+              <Select value={filterModerator} onValueChange={setFilterModerator}>
+                <SelectTrigger className="w-40 input-modern">
+                  <SelectValue placeholder="فلترة حسب المسوقة" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">جميع المسوقات</SelectItem>
+                  <SelectItem value="أية">آية</SelectItem>
+                  <SelectItem value="نورا">نورا</SelectItem>
+                  <SelectItem value="سارة">سارة</SelectItem>
+                  <SelectItem value="منال">منال</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
             <Button variant="outline" className="gap-2" onClick={() => exportOrdersToXLSX(filteredOrders)}>
               <FileDown className="w-4 h-4" /> Excel
             </Button>
@@ -726,8 +835,20 @@ const Orders = () => {
                         <SelectTrigger className="w-full h-9 text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {Object.entries(statusLabels)
-                            .filter(([value]) => !(isShippingCompany || isPrivateDeliveryRep) || value === order.status || value === "delivered" || value === "cancelled" || value === "shipped" || value === "pending")
-                            .map(([value, label]) => (<SelectItem key={value} value={value}>{label}</SelectItem>))}
+                            .filter(([value]) => {
+                              if (isPrivateDeliveryRep) {
+                                return value === order.status || value === 'delivered' || value === 'cancelled' || value === 'pending';
+                              }
+                              if (isShippingCompany) {
+                                return value === order.status || value === 'delivered' || value === 'cancelled' || value === 'shipped' || value === 'pending';
+                              }
+                              return true;
+                            })
+                            .map(([value, label]) => (
+                              <SelectItem key={value} value={value}>
+                                {value === 'pending' && isPrivateDeliveryRep ? 'مؤجل' : label}
+                              </SelectItem>
+                            ))}
                         </SelectContent>
                       </Select>
                     )}
@@ -740,25 +861,42 @@ const Orders = () => {
                         </SelectContent>
                       </Select>
                     )}
+                    {order.governorate && (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <MapPin className="w-3 h-3" /> {order.governorate}
+                      </div>
+                    )}
                     <div className="flex items-center justify-end gap-1 pt-1">
                       <Button variant="ghost" size="icon" asChild className="h-8 w-8">
                         <Link to={`/orders/${order.id}`}><Eye className="w-4 h-4" /></Link>
                       </Button>
-                      {canEditOrderItems && order.status !== 'delivered' && order.status !== 'cancelled' && (!isSalesModerator || order.collection_status !== 'collected') && (
+                      {isPrivateDeliveryRep && order.status !== 'delivered' && order.status !== 'cancelled' && !approvedEditOrderIds.has(order.id) && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          disabled={pendingEditOrderIds.has(order.id)}
+                          onClick={() => requestEditPermission(order)}
+                          title={pendingEditOrderIds.has(order.id) ? 'بانتظار موافقة مدير المبيعات' : 'طلب إذن تعديل من مدير المبيعات'}
+                        >
+                          <KeyRound className={`w-4 h-4 ${pendingEditOrderIds.has(order.id) ? 'text-warning' : 'text-primary'}`} />
+                        </Button>
+                      )}
+                      {canEditThisOrder(order) && (
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingOrder(order)} title="تعديل الطلب">
                           <Pencil className="w-4 h-4" />
                         </Button>
                       )}
-                       {canEditOrderItems && order.status !== 'delivered' && order.status !== 'cancelled' && (!isSalesModerator || order.collection_status !== 'collected') && (
-                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setAddOfferOrder(order)} title="إضافة بوكس / عرض">
-                           <PackagePlus className="w-4 h-4 text-primary" />
-                         </Button>
-                       )}
-                       {order.status !== 'delivered' && order.status !== 'cancelled' && order.items.some((it) => it.offer_name) && (
-                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSwapOfferOrder(order)} title="استبدال العرض">
-                           <PackageOpen className="w-4 h-4 text-primary" />
-                         </Button>
-                       )}
+                      {canEditThisOrder(order) && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setAddOfferOrder(order)} title="إضافة بوكس / عرض">
+                          <PackagePlus className="w-4 h-4 text-primary" />
+                        </Button>
+                      )}
+                      {order.status !== 'delivered' && order.status !== 'cancelled' && order.items.some((it) => it.offer_name) && !isPrivateDeliveryRep && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSwapOfferOrder(order)} title="استبدال العرض">
+                          <PackageOpen className="w-4 h-4 text-primary" />
+                        </Button>
+                      )}
                       {canDeleteOrders && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
@@ -914,12 +1052,18 @@ const Orders = () => {
                           </SelectTrigger>
                           <SelectContent>
                             {Object.entries(statusLabels)
-                              .filter(([value]) =>
-                                !(isShippingCompany || isPrivateDeliveryRep) || value === order.status || value === "delivered" || value === "cancelled" || value === "shipped" || value === "pending"
-                              )
+                              .filter(([value]) => {
+                                if (isPrivateDeliveryRep) {
+                                  return value === order.status || value === 'delivered' || value === 'cancelled' || value === 'pending';
+                                }
+                                if (isShippingCompany) {
+                                  return value === order.status || value === 'delivered' || value === 'cancelled' || value === 'shipped' || value === 'pending';
+                                }
+                                return true;
+                              })
                               .map(([value, label]) => (
                                 <SelectItem key={value} value={value}>
-                                  {label}
+                                  {value === 'pending' && isPrivateDeliveryRep ? 'مؤجل' : label}
                                 </SelectItem>
                               ))}
                           </SelectContent>
@@ -1001,34 +1145,42 @@ const Orders = () => {
                             <Eye className="w-4 h-4" />
                           </Link>
                         </Button>
-                        {canEditOrderItems &&
+                        {isPrivateDeliveryRep &&
                           order.status !== 'delivered' &&
                           order.status !== 'cancelled' &&
-                          (!isSalesModerator || order.collection_status !== 'collected') && (
+                          !approvedEditOrderIds.has(order.id) && (
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => setEditingOrder(order)}
-                              title="تعديل الطلب"
+                              disabled={pendingEditOrderIds.has(order.id)}
+                              onClick={() => requestEditPermission(order)}
+                              title={pendingEditOrderIds.has(order.id) ? 'بانتظار موافقة مدير المبيعات' : 'طلب إذن تعديل من مدير المبيعات'}
                             >
-                              <Pencil className="w-4 h-4" />
+                              <KeyRound className={`w-4 h-4 ${pendingEditOrderIds.has(order.id) ? 'text-warning' : 'text-primary'}`} />
                             </Button>
                           )}
-                        {canEditOrderItems &&
-                          order.status !== 'delivered' &&
-                          order.status !== 'cancelled' &&
-                          (!isSalesModerator || order.collection_status !== 'collected') && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setAddOfferOrder(order)}
-                              title="إضافة بوكس / عرض"
-                            >
-                              <PackagePlus className="w-4 h-4 text-primary" />
-                            </Button>
-                          )}
+                        {canEditThisOrder(order) && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setEditingOrder(order)}
+                            title="تعديل الطلب"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                        )}
+                        {canEditThisOrder(order) && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setAddOfferOrder(order)}
+                            title="إضافة بوكس / عرض"
+                          >
+                            <PackagePlus className="w-4 h-4 text-primary" />
+                          </Button>
+                        )}
                         {order.status !== 'delivered' && order.status !== 'cancelled' &&
-                          order.items.some((it) => it.offer_name) && (
+                          order.items.some((it) => it.offer_name) && !isPrivateDeliveryRep && (
                             <Button
                               variant="ghost"
                               size="icon"

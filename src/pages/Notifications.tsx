@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 
@@ -45,6 +46,29 @@ const Notifications = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user, isSalesManager, isGeneralManager, isExecutiveManager } = useAuth();
+  const canDecideEditRequests = isSalesManager || isGeneralManager || isExecutiveManager;
+
+  const decideEditRequest = async (orderId: string, approve: boolean, notificationId: string) => {
+    try {
+      const { error } = await supabase
+        .from('order_edit_requests')
+        .update({
+          status: approve ? 'approved' : 'rejected',
+          decided_by: user?.id ?? null,
+          decided_at: new Date().toISOString(),
+        })
+        .eq('order_id', orderId)
+        .eq('status', 'pending');
+      if (error) throw error;
+      await supabase.from('notifications').update({ is_read: true }).eq('id', notificationId);
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      toast({ title: approve ? 'تمت الموافقة على تعديل الطلب' : 'تم رفض طلب التعديل' });
+    } catch (e: any) {
+      console.error(e);
+      toast({ title: 'تعذّر تنفيذ الإجراء', description: e?.message, variant: 'destructive' });
+    }
+  };
 
   const { data: notifications = [], isLoading, refetch } = useQuery({
     queryKey: ['notifications'],
@@ -267,6 +291,24 @@ const Notifications = () => {
                           <p className="text-xs text-muted-foreground mt-2">
                             {format(new Date(notification.created_at), 'PPpp', { locale: ar })}
                           </p>
+                          {notification.type === 'edit_request' && notification.order_id && canDecideEditRequests && !notification.is_read && (
+                            <div className="flex gap-2 mt-3" onClick={(e) => e.stopPropagation()}>
+                              <Button
+                                size="sm"
+                                className="gap-1"
+                                onClick={() => decideEditRequest(notification.order_id!, true, notification.id)}
+                              >
+                                <Check className="w-4 h-4" /> موافقة على التعديل
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => decideEditRequest(notification.order_id!, false, notification.id)}
+                              >
+                                رفض
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-1">
