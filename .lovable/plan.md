@@ -1,89 +1,75 @@
-# خطة تطوير مصنع اللحوم (Meat Factory)
+# Feed Factory — Professional Upgrade Plan
 
-النواة موجودة بالفعل (8 جداول + شاشة 1090 سطر تغطي المنتجات/الخامات/الفواتير/الوصفات/الدفعات/QC/الاستهلاك/سجل الاعتمادات). الخطة تركز على **سد الفجوات** المطلوبة في الـ Prompt دون إعادة بناء.
+The Feed Factory module already has a rich foundation (products, raw materials, recipes with versioning + `is_packaging` flag, invoice batches with auto-computed `unit_cost_calc` and variance, QC checks, cost reviews, material issues with stock deduction, finished-goods moves, audit log, role helpers). This plan closes the remaining professional gaps without rebuilding what exists.
 
-## الفجوات الحالية مقابل المطلوب
-| المطلوب | الحالي | الإجراء |
-|---|---|---|
-| باركود لجميع المنتجات | 29/30 لديهم باركود | مراجعة Burger Cheese / Mombar في شاشة المنتجات |
-| فواتير 169/170/171/172 | غير موجودة في DB | استيراد عبر Import Wizard الموجود |
-| محرك تكلفة كامل: (مدخلات + أجور + مصاريف − ناتج ثانوي) / كمية معتمدة | لدينا labor + materials فقط | إضافة أعمدة + احتساب |
-| التغليف كتكلفة منفصلة | غير مرتبط بالدفعة | جدول `meat_factory_batch_packaging` |
-| اعتماد محاسبي للتكلفة | غير موجود | حقول + RPC `approve_meat_batch_cost` |
-| تنبيهات أرصدة سالبة + تسوية | `data_quality_tasks` موجود | تريغر على inventory + ربط واجهة |
-| لوحات (تكلفة/كجم، أعلى تكلفة، نواقص، حالة) | محدودة | تبويب Dashboard متكامل |
-| تطبيق الأدوار السبعة | RLS أساسي | تحديث policies للأدوار الجديدة |
+## 1. Database (single migration)
 
-## المرحلة 1 — Migration
+**Extend `feed_invoice_batches`** — add the accountant-final costing fields, mirroring the meat module:
+- `other_expenses numeric(14,4) default 0`
+- `byproduct_value numeric(14,4) default 0`
+- `packaging_cost numeric(14,4) default 0` (auto-derived from `is_packaging` consumption)
+- `approved_output_qty numeric(14,3)`
+- `final_unit_cost numeric(14,4)`
+- `cost_approved_by uuid`, `cost_approved_at timestamptz`
+- `posted_to_inventory boolean default false`, `posted_at timestamptz`
+- `destination_warehouse text`
+- `needs_review boolean default false`, `review_reason text` (for invoice 164 quantity variance)
 
-### تعديلات على `meat_factory_batches`
-- `other_expenses numeric DEFAULT 0`
-- `byproduct_value numeric DEFAULT 0`
-- `packaging_cost numeric DEFAULT 0`
-- `approved_output_qty numeric` (يُعتمد بعد QC ليكون مقام التكلفة)
-- `cost_approved_by uuid`, `cost_approved_at timestamptz`, `cost_approval_notes text`
-- `posted_to_inventory boolean DEFAULT false`, `posted_at timestamptz`
+**Update trigger `feed_invoice_batch_compute()`**:
+- Split `input_cost` into nutritional vs packaging using `feed_recipe_items.is_packaging`.
+- Auto-flag `needs_review = true` when `output_qty_kg > input_qty_weight_kg * 1.02` (quantity variance > 2%).
 
-### جدول جديد `meat_factory_batch_packaging`
-`id, batch_id, packaging_material_id (→ packaging_materials), quantity, unit_cost, line_total`
+**New RPCs (SECURITY DEFINER, search_path=public)**:
+- `recompute_feed_batch_cost(p_batch uuid)` → `(materials + operating_cost + other_expenses + packaging_cost − byproduct_value) / approved_output_qty`. Restricted to feed managers + cost accounting.
+- `approve_feed_batch_cost(p_batch uuid, p_final_qty numeric, p_destination text, p_notes text)` → requires QC `passed`, writes `feed_cost_reviews`, sets `cost_approved_*`, inserts `feed_finished_goods_moves` (movement `in`) and bumps `feed_products.current_stock`, marks `posted_to_inventory`. Restricted to `accountant`, `financial_manager`, `executive_manager`, `general_manager`.
+- `feed_post_finished_to_destination(p_batch uuid, p_destination text, p_qty numeric)` for later farm/cost-center issues.
 
-### دوال
-- `recompute_meat_batch_cost(p_batch_id)` — يُحدّث `total_cost = materials + labor + other_expenses + packaging − byproduct_value` و `unit_cost = total_cost / approved_output_qty`.
-- `approve_meat_batch_cost(p_batch_id, p_notes)` — يتحقق من الدور (`accountant`/`financial_manager`/`general_manager`/`executive_manager`)، يستدعي الاحتساب، يسجل المعتمد، يُرحّل المخزون (يستلم المنتج التام في warehouse الرئيسي عبر `inventory_movements`).
-- `meat_batch_negative_stock_check()` — تريغر بعد صرف الخامات، يُنشئ مهمة في `data_quality_tasks` لو رصيد < 0.
+**Negative-stock guard**: extend the existing `feed_apply_issue()` trigger to log a `data_quality_tasks` row when a feed raw-material issue would push stock below zero (allow with warning, matching the meat pattern).
 
-### RLS / Roles
-أدوار جديدة في enum `app_role` لو ناقصة: `meat_factory_manager`, `meat_factory_supervisor`, `meat_factory_warehouse`, `cost_accountant`, `quality_manager` (موجود).
-Policies:
-- READ: كل الأدوار أعلاه + management + admin.
-- INSERT/UPDATE دفعة: meat_manager/supervisor/warehouse + management.
-- اعتماد QC: quality_manager فقط.
-- اعتماد التكلفة: cost_accountant/financial_manager/management.
+**RLS**: existing helpers `is_feed_team`, `can_manage_feed_recipes`, `can_approve_feed_qc`, `can_approve_feed_cost`, `can_issue_feed_materials` already cover the seven roles requested — confirm RPCs use them; no policy rewrite needed.
 
-## المرحلة 2 — تحديثات الواجهة
+## 2. UI
 
-### `src/pages/modules/MeatFactory.tsx`
-- نموذج إنشاء الدفعة: إضافة حقول `other_expenses`, `byproduct_value`, `packaging` (selector + qty).
-- تبويب الدفعة (BatchDetail dialog) يعرض:
-  - استهلاك الخامات (موجود)
-  - **التغليف** (جدول جديد)
-  - **ملخص التكلفة** (مدخلات + أجور + مصاريف + تغليف − ناتج ثانوي)
-  - زر "اعتماد التكلفة" (للمحاسبة فقط) → يستدعي RPC
-  - زر "ترحيل للمخزون" يظهر بعد الاعتماد
-- تبويب جديد **Dashboard**:
-  - KPIs: عدد الدفعات الشهر، إجمالي الإنتاج كجم، متوسط تكلفة/كجم، عدد بانتظار اعتماد.
-  - Recharts: أعلى 5 منتجات تكلفة، تطور تكلفة/كجم شهريًا، توزيع حالة الدفعات.
-  - جدول النواقص (من `data_quality_tasks` type=negative_stock).
-- تبويب **Packaging** يستهلك `PackagingMaterials.tsx` الموجود لكن مفلتر `module='meat'`.
+**New components** (under `src/components/feed/`):
+- `FeedCostApprovalPanel.tsx` — pending-batch list, edit final output qty, view variance & cost breakdown, "Approve & post to warehouse" action, destination selector. Mirrors `MeatCostApprovalPanel`.
+- `FeedQualityReviewDialog.tsx` — pass / rework / reject with variance reason, writes `feed_qc_checks`.
+- `FeedVarianceBanner.tsx` — yellow banner shown on batches where `needs_review = true`.
 
-### مكوّن جديد `BatchCostApprovalDialog.tsx`
-ملخص التكلفة + ملاحظات + زر اعتماد.
+**Enhanced `feed/FeedDashboard.tsx`** — add KPI strip (avg cost/kg this month, total output, batches awaiting cost approval, low-stock raw materials), Recharts bar chart "cost per kg by product (last 30 days)", and "negative stock" + "recipes missing latest cost" tables.
 
-### مكوّن جديد `NegativeStockReconcileDialog.tsx`
-يفتح من Dashboard، يسمح بتسوية يدوية (adjustment) مع سبب.
+**`FeedFactory.tsx`** — register two new tabs: "اعتماد التكاليف" (cost approval) and "مراقبة الجودة" (QC). Make the dashboard tab the default landing.
 
-## المرحلة 3 — استيراد الفواتير 169-172
-- لن أكتبها يدويًا في migration. تستخدم `ImportWizard` الموجود مع ورقة `Invoice_172/171/170/169` من نفس الـ workbook.
-- بعد الاستيراد، `meat_factory_recipes` تمتلئ تلقائيًا (سكربت موجود) ويظهر الزر "إنشاء دفعة من فاتورة" لكل من 172/171/170/169.
+## 3. Invoice seeding (via existing ImportWizard, not a migration)
 
-## ملفات ستُعدَّل أو تُنشَأ
-**تُنشَأ:**
-- `supabase/migrations/<ts>_meat_factory_costing_v2.sql`
-- `src/components/meat/BatchCostApprovalDialog.tsx`
-- `src/components/meat/NegativeStockReconcileDialog.tsx`
-- `src/components/meat/MeatDashboard.tsx`
+After the migration is approved I will document the import steps for the user:
+- **Invoice 173** → latest fattening feed (علف تسمين) cost.
+- **Invoice 167** → latest chick feed (علف كتاكيت) cost.
+- **Invoice 164** → layer feed (علف بياض) — will be imported with `needs_review = true` because input vs output variance exceeds the 2% threshold.
 
-**تُعدَّل:**
-- `src/pages/modules/MeatFactory.tsx` (حقول جديدة + تبويبات + ربط RPCs)
-- `src/integrations/supabase/types.ts` (تلقائي بعد migration)
+I will **not** hard-code these invoices in SQL — they must flow through the staging → validation → post pipeline already built in `ImportWizard.tsx`.
 
-## ما لن أفعله
-- لن أنشئ صفحات عامة أو endpoints بدون JWT.
-- لن أكتب أرصدة مخزون بدون اعتماد محاسبي.
-- لن أُدخل بيانات فواتير 169-172 يدويًا في migration — تُرفع عبر Import Wizard لتسجَّل في staging أولًا.
-- لن أُغيّر إعدادات SEO/robots/أمان.
+## 4. Files
 
-## للموافقة
-1. هل أبدأ بالـ migration (المرحلة 1) الآن؟
-2. هل توافق أن "اعتماد التكلفة" هو الذي يُرحِّل المنتج التام للمخزون (وليس QC)؟
-3. هل أعتمد warehouse المخزن الرئيسي تلقائيًا كوجهة المنتج التام، أم تريد اختياره يدويًا في كل دفعة؟
+**Created**
+- `supabase/migrations/<ts>_feed_factory_costing_v2.sql`
+- `src/components/feed/FeedCostApprovalPanel.tsx`
+- `src/components/feed/FeedQualityReviewDialog.tsx`
+- `src/components/feed/FeedVarianceBanner.tsx`
+
+**Modified**
+- `src/pages/modules/FeedFactory.tsx` (new tabs, default tab)
+- `src/pages/modules/feed/FeedDashboard.tsx` (KPIs + charts)
+- `src/integrations/supabase/types.ts` (auto-regenerated)
+
+## 5. Out of scope (per project rules)
+
+- No public pages, no SEO/security loosening.
+- No direct stock writes without QC → cost approval.
+- No invoice data hard-coded in migrations.
+- No changes to existing role / RLS model — only new RPCs reuse existing helpers.
+
+## Questions before I start
+
+1. Confirm the quantity-variance threshold for auto-flagging "needs review" should be **2% over input weight**, or do you want a different number (e.g. 1% or 5%)?
+2. On cost approval, should finished feed always post to **"مخزن أعلاف وأدوية"** by default, or should the approver always pick a destination warehouse?
+3. Should the cost approval be locked until QC `passed` is recorded (recommended), or do you want accounting to be able to approve cost even with QC `rework`?
