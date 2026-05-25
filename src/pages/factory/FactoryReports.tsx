@@ -172,10 +172,28 @@ export default function FactoryReports() {
             <TableBody>{movRows.slice(0, 300).map((r, i) => (<TableRow key={i}><TableCell className="font-mono text-xs">{r.movement_no}</TableCell><TableCell>{r.date}</TableCell><TableCell>{r.item}</TableCell><TableCell><Badge variant="outline">{r.type}</Badge></TableCell><TableCell>{r.quantity.toFixed(3)}</TableCell><TableCell>{r.unit_cost.toFixed(4)}</TableCell><TableCell>{r.total.toFixed(2)}</TableCell><TableCell className="text-xs">{r.reference_type}/{String(r.reference_id).slice(0, 8)}</TableCell></TableRow>))}</TableBody></Table>
           </CardContent></Card></TabsContent>
 
-        <TabsContent value="cost"><Card><CardHeader><CardTitle className="text-base">تحليل التكلفة (مغلقة فقط)</CardTitle></CardHeader>
+        <TabsContent value="cost"><Card><CardHeader><CardTitle className="text-base">تحليل التكلفة — مخطط مقابل فعلي (الدفعات المغلقة فقط)</CardTitle></CardHeader>
           <CardContent className="p-0 overflow-x-auto">
-            <Table><TableHeader><TableRow><TableHead>مصنع</TableHead><TableHead>دفعة</TableHead><TableHead>BOM</TableHead><TableHead>مخططة</TableHead><TableHead>فعلية</TableHead><TableHead>تباين</TableHead><TableHead>تكلفة/وحدة</TableHead></TableRow></TableHeader>
-            <TableBody>{costRows.map((r: any, i) => (<TableRow key={i}><TableCell><Badge variant="outline">{r.factory}</Badge></TableCell><TableCell className="font-mono text-xs">{r.batch}</TableCell><TableCell>{r.bom_version}</TableCell><TableCell>{r.planned_cost}</TableCell><TableCell>{Number(r.actual_cost || 0).toFixed(2)}</TableCell><TableCell>{r.variance}</TableCell><TableCell>{r.cost_per_unit ? Number(r.cost_per_unit).toFixed(4) : "—"}</TableCell></TableRow>))}</TableBody></Table>
+            <Table><TableHeader><TableRow>
+              <TableHead>مصنع</TableHead><TableHead>دفعة</TableHead>
+              <TableHead>كمية مخططة</TableHead><TableHead>كمية فعلية</TableHead>
+              <TableHead>تكلفة مخططة</TableHead><TableHead>تكلفة فعلية</TableHead>
+              <TableHead>الفرق</TableHead><TableHead>الفرق %</TableHead>
+              <TableHead>تكلفة/وحدة</TableHead>
+            </TableRow></TableHeader>
+            <TableBody>{costRows.map((r: any, i) => (
+              <TableRow key={i}>
+                <TableCell><Badge variant="outline">{r.factory}</Badge></TableCell>
+                <TableCell className="font-mono text-xs">{r.batch}</TableCell>
+                <TableCell>{r.planned_qty != null ? Number(r.planned_qty).toFixed(2) : "—"}</TableCell>
+                <TableCell>{r.actual_qty != null ? Number(r.actual_qty).toFixed(2) : "—"}</TableCell>
+                <TableCell className={r.planned_cost === "planned snapshot not available" ? "text-muted-foreground text-xs" : ""}>{r.planned_cost}</TableCell>
+                <TableCell>{r.actual_cost}</TableCell>
+                <TableCell>{r.variance}</TableCell>
+                <TableCell>{r.variance_pct}</TableCell>
+                <TableCell>{r.cost_per_unit ? Number(r.cost_per_unit).toFixed(4) : "—"}</TableCell>
+              </TableRow>
+            ))}</TableBody></Table>
           </CardContent></Card></TabsContent>
 
         <TabsContent value="pending"><Card><CardHeader><CardTitle className="text-base">عناصر للمراجعة ({pendingRows.length})</CardTitle></CardHeader>
