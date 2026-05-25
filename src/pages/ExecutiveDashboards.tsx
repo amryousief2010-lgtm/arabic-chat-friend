@@ -101,18 +101,25 @@ const ExecutiveDashboards = () => {
     (async () => {
       setLoading(true);
       try {
-        const [o, it, p, c, n] = await Promise.all([
+        // Load lighter datasets first so the UI renders fast; items load in the background.
+        const [o, p, c, n] = await Promise.all([
           fetchAll<OrderRow>("orders", "id,customer_id,status,payment_method,payment_status,collection_status,total,total_at_delivery,subtotal,delivery_fee,discount,delivered_at,created_at,source,shipping_company,moderator"),
-          fetchAll<OrderItemRow>("order_items", "order_id,product_id,product_name,quantity,unit_price,total_price"),
           fetchAll<ProductRow>("products", "id,name,price,cost_price,stock,low_stock_threshold,category"),
           fetchAll<CustomerRow>("customers", "id,name,city,total_orders,total_spent"),
           supabase.from("notifications").select("id", { count: "exact", head: true }).eq("type", "collection_mismatch"),
         ]);
-        setOrders(o); setItems(it); setProducts(p); setCustomers(c);
+        setOrders(o); setProducts(p); setCustomers(c);
         setMismatchCount(n.count || 0);
+        setLoading(false);
+        // Load order_items in background (large table) — used for profit & product panels only.
+        try {
+          const it = await fetchAll<OrderItemRow>("order_items", "order_id,product_id,product_name,quantity,unit_price,total_price");
+          setItems(it);
+        } catch (e) {
+          console.error("order_items load failed", e);
+        }
       } catch (e) {
         console.error(e);
-      } finally {
         setLoading(false);
       }
     })();
