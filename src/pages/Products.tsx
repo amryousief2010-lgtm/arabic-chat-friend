@@ -152,6 +152,131 @@ const Products = () => {
     sonnerToast.success(`تم تصدير ${rows.length} منتج`);
   };
 
+  const handleExportCSV = () => {
+    if (!filteredProducts.length) {
+      sonnerToast.error("لا توجد منتجات للتصدير");
+      return;
+    }
+    const headers = ["م", "الباركود", "اسم المنتج", "التصنيف", "الوحدة",
+      ...(canViewFinancials ? ["السعر (ج.م)"] : []),
+      "الكمية بالمخزون",
+      ...(canViewFinancials ? ["إجمالي القيمة (ج.م)"] : []),
+      "الحالة"];
+    const escape = (v: any) => {
+      const s = String(v ?? "");
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const lines = [headers.join(",")];
+    filteredProducts.forEach((p, i) => {
+      const row = [i + 1, p.barcode || "", p.name, p.category || "", p.unit,
+        ...(canViewFinancials ? [Number(p.price) || 0] : []),
+        Number(p.stock) || 0,
+        ...(canViewFinancials ? [(Number(p.price) || 0) * (Number(p.stock) || 0)] : []),
+        p.is_active ? "نشط" : "غير نشط"];
+      lines.push(row.map(escape).join(","));
+    });
+    const csv = "\uFEFF" + lines.join("\n"); // BOM for Excel Arabic
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `products-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    sonnerToast.success(`تم تصدير ${filteredProducts.length} منتج CSV`);
+  };
+
+  const handleExportInventoryPDF = () => {
+    if (!filteredProducts.length) {
+      sonnerToast.error("لا توجد منتجات للتصدير");
+      return;
+    }
+    const issueDate = new Date().toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" });
+    const issueTime = new Date().toLocaleTimeString("ar-EG");
+    const totalProducts = filteredProducts.length;
+    const activeProducts = filteredProducts.filter(p => p.is_active).length;
+    const totalStock = filteredProducts.reduce((s, p) => s + (Number(p.stock) || 0), 0);
+    const totalValue = filteredProducts.reduce((s, p) => s + ((Number(p.price) || 0) * (Number(p.stock) || 0)), 0);
+    const lowStock = filteredProducts.filter(p => (Number(p.stock) || 0) < 5).length;
+
+    const rowsHtml = filteredProducts.map((p, i) => {
+      const value = (Number(p.price) || 0) * (Number(p.stock) || 0);
+      const stockClass = (Number(p.stock) || 0) < 5 ? 'style="color:#b91c1c;font-weight:700"' : '';
+      return `<tr>
+        <td>${i + 1}</td>
+        <td style="font-family:monospace;font-size:10px">${p.barcode || "-"}</td>
+        <td style="text-align:right;font-weight:600">${p.name}</td>
+        <td>${p.category || "-"}</td>
+        <td>${p.unit}</td>
+        ${canViewFinancials ? `<td>${(Number(p.price) || 0).toFixed(2)}</td>` : ""}
+        <td ${stockClass}>${Number(p.stock) || 0}</td>
+        ${canViewFinancials ? `<td>${value.toFixed(2)}</td>` : ""}
+        <td><span style="padding:2px 6px;border-radius:3px;font-size:10px;background:${p.is_active ? "#d1fae5" : "#fee2e2"};color:${p.is_active ? "#065f46" : "#991b1b"}">${p.is_active ? "نشط" : "غير نشط"}</span></td>
+      </tr>`;
+    }).join("");
+
+    const html = `<!DOCTYPE html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8"/>
+<title>تقرير المخزون والمنتجات</title>
+<style>
+  @page { size: A4; margin: 10mm; }
+  body { font-family: "Segoe UI", Tahoma, Arial, sans-serif; margin: 0; padding: 12px; color: #111; }
+  .header { text-align:center; border-bottom:3px double #7c3aed; padding-bottom:10px; margin-bottom:12px; }
+  .header h1 { margin:0; font-size:22px; color:#7c3aed; }
+  .header p { margin:3px 0; font-size:11px; color:#555; }
+  .report-title { text-align:center; font-size:18px; font-weight:700; background:linear-gradient(90deg,#7c3aed,#f97316); color:white; padding:10px; border-radius:6px; margin-bottom:12px; }
+  .meta { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin-bottom:14px; }
+  .meta div { border:1px solid #e5e7eb; padding:10px; border-radius:6px; background:#f9fafb; text-align:center; }
+  .meta strong { color:#7c3aed; display:block; font-size:11px; margin-bottom:4px; }
+  .meta span { font-size:16px; font-weight:700; }
+  table { width:100%; border-collapse:collapse; font-size:11px; }
+  th { background:#7c3aed; color:white; padding:6px 4px; border:1px solid #6d28d9; text-align:center; }
+  td { border:1px solid #ddd; padding:5px 4px; text-align:center; }
+  tbody tr:nth-child(even) { background:#faf5ff; }
+  .footer { margin-top:20px; padding-top:10px; border-top:1px solid #ddd; display:flex; justify-content:space-between; font-size:10px; color:#666; }
+  .toolbar { text-align:center; margin-bottom:10px; }
+  .toolbar button { padding:8px 18px; background:#7c3aed; color:white; border:none; border-radius:4px; cursor:pointer; font-size:13px; }
+  @media print { .toolbar { display:none; } body { padding:0; } }
+</style></head>
+<body>
+  <div class="toolbar"><button onclick="window.print()">🖨️ طباعة / حفظ PDF</button></div>
+  <div class="header">
+    <h1>شركة نعام العاصمة</h1>
+    <p>تقرير شامل لحالة المخزون والمنتجات</p>
+  </div>
+  <div class="report-title">ملخص المخزون والمنتجات</div>
+  <div class="meta">
+    <div><strong>إجمالي المنتجات</strong><span>${totalProducts}</span></div>
+    <div><strong>المنتجات النشطة</strong><span style="color:#059669">${activeProducts}</span></div>
+    <div><strong>إجمالي المخزون</strong><span>${totalStock.toFixed(1)}</span></div>
+    ${canViewFinancials ? `<div><strong>إجمالي قيمة المخزون</strong><span style="color:#7c3aed">${totalValue.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م</span></div>` : '<div></div>'}
+    <div><strong>منتجات قاربت النفاد</strong><span style="color:#dc2626">${lowStock}</span></div>
+  </div>
+  <table>
+    <thead><tr>
+      <th>م</th><th>الباركود</th><th>اسم المنتج</th><th>التصنيف</th><th>الوحدة</th>
+      ${canViewFinancials ? "<th>السعر</th>" : ""}
+      <th>الكمية</th>
+      ${canViewFinancials ? "<th>القيمة الإجمالية</th>" : ""}
+      <th>الحالة</th>
+    </tr></thead>
+    <tbody>${rowsHtml}</tbody>
+  </table>
+  <div class="footer">
+    <span>تاريخ الإصدار: ${issueDate} - ${issueTime}</span>
+    <span>شركة نعام العاصمة © ${new Date().getFullYear()}</span>
+  </div>
+  <script>window.addEventListener('load',()=>setTimeout(()=>window.print(),500));</script>
+</body></html>`;
+
+    const w = window.open("", "_blank", "width=900,height=700");
+    if (!w) { sonnerToast.error("افتح النوافذ المنبثقة"); return; }
+    w.document.open(); w.document.write(html); w.document.close();
+    sonnerToast.success("جاري إعداد تقرير PDF...");
+  };
+
+
+
 
 
   const [formData, setFormData] = useState({
