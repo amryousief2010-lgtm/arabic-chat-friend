@@ -2967,9 +2967,11 @@ export type Database = {
           movement_no: string | null
           movement_type: string
           notes: string | null
+          order_item_id: string | null
           party: string | null
           performed_at: string
           performed_by: string | null
+          product_id: string | null
           quantity: number
           reason: string | null
           reference: string | null
@@ -2993,9 +2995,11 @@ export type Database = {
           movement_no?: string | null
           movement_type: string
           notes?: string | null
+          order_item_id?: string | null
           party?: string | null
           performed_at?: string
           performed_by?: string | null
+          product_id?: string | null
           quantity: number
           reason?: string | null
           reference?: string | null
@@ -3019,9 +3023,11 @@ export type Database = {
           movement_no?: string | null
           movement_type?: string
           notes?: string | null
+          order_item_id?: string | null
           party?: string | null
           performed_at?: string
           performed_by?: string | null
+          product_id?: string | null
           quantity?: number
           reason?: string | null
           reference?: string | null
@@ -3067,6 +3073,34 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_product_stock_availability"
             referencedColumns: ["inventory_item_id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_order_item_id_fkey"
+            columns: ["order_item_id"]
+            isOneToOne: false
+            referencedRelation: "order_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_stock_availability"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_reconciliation"
+            referencedColumns: ["product_id"]
           },
           {
             foreignKeyName: "inventory_movements_source_warehouse_id_fkey"
@@ -4304,6 +4338,7 @@ export type Database = {
           source: string | null
           source_warehouse_id: string | null
           status: string
+          stock_router_log: Json | null
           stock_status: string
           subtotal: number
           total: number
@@ -4331,6 +4366,7 @@ export type Database = {
           source?: string | null
           source_warehouse_id?: string | null
           status?: string
+          stock_router_log?: Json | null
           stock_status?: string
           subtotal?: number
           total?: number
@@ -4358,6 +4394,7 @@ export type Database = {
           source?: string | null
           source_warehouse_id?: string | null
           status?: string
+          stock_router_log?: Json | null
           stock_status?: string
           subtotal?: number
           total?: number
@@ -4763,6 +4800,58 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      products_stock_snapshot_5d: {
+        Row: {
+          id: string
+          inventory_stock_before: number
+          legacy_stock_before: number
+          notes: string | null
+          product_id: string
+          snapped_at: string
+          snapped_by: string | null
+        }
+        Insert: {
+          id?: string
+          inventory_stock_before: number
+          legacy_stock_before: number
+          notes?: string | null
+          product_id: string
+          snapped_at?: string
+          snapped_by?: string | null
+        }
+        Update: {
+          id?: string
+          inventory_stock_before?: number
+          legacy_stock_before?: number
+          notes?: string | null
+          product_id?: string
+          snapped_at?: string
+          snapped_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_stock_snapshot_5d_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_stock_snapshot_5d_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_stock_availability"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "products_stock_snapshot_5d_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_reconciliation"
+            referencedColumns: ["product_id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -5899,12 +5988,14 @@ export type Database = {
           blocker_reason: string
           can_dispatch: boolean
           double_deduction_risk: boolean
+          expected_idempotency_key: Json
           expected_movement: Json
           inventory_item_id: string
           is_active: boolean
           legacy_behavior: string
           new_behavior: string
           order_id: string
+          order_item_id: string
           order_number: string
           product_id: string
           product_name: string
@@ -5913,6 +6004,8 @@ export type Database = {
           source_warehouse_id: string
           stock_status: string
           warehouse_name: string
+          would_be_unique: boolean
+          would_conflict: boolean
         }[]
       }
       dispatch_order_stock: { Args: { p_order_id: string }; Returns: Json }
