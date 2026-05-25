@@ -165,6 +165,7 @@ const Orders = () => {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [swapOfferOrder, setSwapOfferOrder] = useState<Order | null>(null);
+  const [addOfferOrder, setAddOfferOrder] = useState<Order | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterModerator, setFilterModerator] = useState<string>("all");
   const [filterProduct, setFilterProduct] = useState<string>("all");
