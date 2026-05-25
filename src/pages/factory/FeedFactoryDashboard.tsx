@@ -140,5 +140,6 @@ export default function FeedFactoryDashboard() {
         </CardContent>
       </Card>
     </div>
+   </DashboardLayout>
   );
 }
