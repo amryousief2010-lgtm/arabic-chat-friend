@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 
@@ -45,6 +46,29 @@ const Notifications = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user, isSalesManager, isGeneralManager, isExecutiveManager } = useAuth();
+  const canDecideEditRequests = isSalesManager || isGeneralManager || isExecutiveManager;
+
+  const decideEditRequest = async (orderId: string, approve: boolean, notificationId: string) => {
+    try {
+      const { error } = await supabase
+        .from('order_edit_requests')
+        .update({
+          status: approve ? 'approved' : 'rejected',
+          decided_by: user?.id ?? null,
+          decided_at: new Date().toISOString(),
+        })
+        .eq('order_id', orderId)
+        .eq('status', 'pending');
+      if (error) throw error;
+      await supabase.from('notifications').update({ is_read: true }).eq('id', notificationId);
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      toast({ title: approve ? 'تمت الموافقة على تعديل الطلب' : 'تم رفض طلب التعديل' });
+    } catch (e: any) {
+      console.error(e);
+      toast({ title: 'تعذّر تنفيذ الإجراء', description: e?.message, variant: 'destructive' });
+    }
+  };
 
   const { data: notifications = [], isLoading, refetch } = useQuery({
     queryKey: ['notifications'],
