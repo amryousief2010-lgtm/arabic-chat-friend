@@ -1,82 +1,80 @@
-## تأكيد سؤال الباركود (قبل المراحل)
+## Dispatch E — Factory Dashboards, Reports & Printable PDFs
 
-**النتيجة:** المنتجات الـ8 موجودة فعلاً داخل جدول `products` بحقل `barcode` فارغ، وكانت `is_active=true`.
+Frontend-first build. No RLS changes, no service_role exposure, no movement bypass. BOM v1 preserved, BOM v2 not auto-activated, invoice 164 stays `needs_review`. Test data (TEST-DISPATCH-D4) is **preserved**, never deleted — only filtered out of default operational KPIs.
 
-**الإجراء المنفذ الآن (آمن، بدون حذف):**
-- ✅ `is_active=false` للـ8 منتجات → محجوبة تلقائياً من البيع/الإنتاج/التكلفة (الواجهات تفلتر `is_active`)
-- ✅ 8 مهام جديدة في `data_quality_tasks` بنوع `missing_barcode` وأولوية `high`
-- ✅ السجلات محفوظة، مرئية للمدير فقط لتصحيحها (RLS موجود)
-- ✅ لا حذف، لا استبدال
+### A) Test-data handling
 
-**القائمة:** برجر جبنة، بيض، دهن، شغت نعام، طرب تصنيع، فخدة بالعظم، فرم نعام، نخاع.
+- Introduce a shared client-side `useTestDataFilter()` hook + `<TestDataToggle/>` control.
+- Default: dashboards/reports query with `audit_reason NOT LIKE 'TEST-DISPATCH%'` and `batch.notes NOT LIKE 'TEST-DISPATCH%'` (or equivalent metadata filter on `meat_factory_batches` / `feed_batches` / `inventory_movements.reference_note`).
+- Admin/Manager (`useAuth().roles`) sees the toggle; Production/Warehouse roles cannot enable test view.
+- Reversal note: surfaced as documentation in dashboard footer ("Adjustments must go through inventory_movements only").
 
----
+### B) Meat Factory Dashboard — `/meat-factory/dashboard`
 
-## لماذا أحتاج موافقة مرحلية
+- KPIs (cards via existing `StatCard`): today/monthly production qty, batches by status (draft, under_review, approved, closed, cancelled), raw consumption, packaging consumption, finished goods received, total cost, avg cost/kg, waste qty + %, shortage/zero-cost/missing-barcode/pending-review counters.
+- Charts (Recharts): production-by-product (Bar), cost-per-product (Bar), raw-material trend (Line, 30d), waste trend (Line, 30d), batch status (Pie), top-10 consumed raw (Bar).
+- Data via small focused RPCs (read-only, SECURITY DEFINER with role guards): `dash_meat_kpis(p_from, p_to, p_include_test)`, `dash_meat_charts(...)`.
 
-المراحل 3–8 كما طلبتها تعادل بناء **نظام ERP كامل لمصنعَي اللحوم والأعلاف**: مركز مراجعة، محرك مخزون، سير عمل دفعات إنتاج، محرك تكلفة موزون، لوحات تحكم متعددة، تقارير PDF، اختبارات شاملة. تنفيذها في رسالة واحدة سيُنتج كوداً غير مُختبر ويكسر قاعدة "لا إطلاق قبل الموافقة".
+### C) Feed Factory Dashboard — `/feed-factory/dashboard`
 
-سأنفذها على **6 دفعات** كل واحدة برسالة منفصلة تنتظر موافقتك.
+- KPIs: today/monthly feed production, production by feed type, batches by status, raw consumption, finished feed received, total cost, avg cost/kg, shortage/zero-cost/pending review, **invoice 164 needs_review** persistent alert card.
+- Charts: production-by-type, cost/kg, raw trend, batch status, top-10 feed materials.
+- Data via `dash_feed_kpis(...)`, `dash_feed_charts(...)`.
 
----
+### D) Combined Factory Overview — `/factories/overview`
 
-## التسلسل المقترح
+- KPIs: total production value, raw value consumed, finished value received, batches closed, pending approval, review issues, inventory valuation, cost alerts, operational blockers.
+- Pulls from both factory RPCs + `inventory_movements` aggregates.
 
-### Dispatch A — Phase 3: مركز مراجعة المدير (Manager Review Center)
-- صفحة `/manager-review` مع تبويبات: باركود ناقص، مخزون سالب، تكلفة صفرية، تعارض تغليف، فاتورة 164، BOM v2
-- فلاتر (وحدة، أولوية، حالة، مخزن) + بحث
-- إجراءات: تعيين باركود (مع فحص تفرد) → إعادة تفعيل، تسوية مخزون (سبب + موافقة + `inventory_movements`)، اعتماد تكلفة (مع تاريخ)، اعتماد/فصل تغليف
-- جدول `cost_history` جديد + سجل تدقيق لكل إجراء
-- RLS: مدير عام/تنفيذي/جودة/محاسب فقط
+### E) Reports — `/factories/reports` (tabbed)
 
-### Dispatch B — Phase 4: محرك التحكم في المخزون
-- خدمات موحدة: in / out / production_consume / packaging_consume / finished_goods / adjustment / transfer / purchase_receipt
-- حقول مشتقة: `available = stock - reserved`
-- منع المخزون السالب أثناء الموافقة (أو يتطلب bypass للمدير + سجل)
-- كل تغيير → `inventory_movements`
+Tabs, each with filter bar (date range, factory, product/feed, status, warehouse, include-test toggle, search) and CSV export via `src/lib/safeExcel.ts`:
 
-### Dispatch C — Phase 5: سير عمل دفعات الإنتاج + اعتماد BOM v2
-- حالات: draft → under_review → approved → closed / cancelled
-- صفحة `/bom-approval` لاعتماد v2 (يدوي فقط)
-- نموذج دفعة: منتج + إصدار BOM نشط + مواد مخططة/فعلية + تغليف + عمالة + خدمات + هالك
-- فحص ما قبل الاعتماد (يستخدم `preview_meat_factory_batch_requirements` الموجود)
+1. Production Batch Report
+2. Raw Material Consumption Report
+3. Packaging Consumption Report
+4. Inventory Movement Report
+5. Cost Analysis Report (planned vs actual, variance)
+6. Pending Review Report (missing barcode, zero cost, negative stock, packaging conflicts, **invoice 164**, unresolved issues)
 
-### Dispatch D — Phase 6: قواعد التكلفة
-- متوسط مرجح للمخزون (تريجر على `inventory_movements`)
-- التكلفة الفعلية للدفعة محفوظة كـ snapshot
-- جدول `cost_history` (لا استبدال)
-- قفل التكلفة لمواد تكلفتها صفر + فاتورة 164
-- صفحة شرح داخل النظام
+Backed by read-only RPCs `rep_*` returning tabular JSON; pagination by 1000.
 
-### Dispatch E — Phase 7: لوحات وتقارير
-- ثلاث لوحات: لحوم، أعلاف، مدمجة
-- KPIs والتنبيهات (مراجعة، تكلفة صفر، مخزون سالب…)
-- 7 تقارير قابلة للتصدير Excel
+### F) Printable PDF reports
 
-### Dispatch F — Phase 8: PDF + اختبارات نهائية + التقرير
-- مولد PDF (jsPDF + خط عربي) لدفعة لحوم ودفعة أعلاف
-- اختبارات end-to-end لدفعتين تجريبيتين (لحوم + أعلاف) draft→closed
-- تقرير نهائي شامل بالتوصية: Ready / Not Ready
+- Use existing `jspdf` + `jspdf-autotable` (already in deps; verify, install if missing).
+- Helpers: `src/utils/exportMeatBatchPDF.ts`, `src/utils/exportFeedBatchPDF.ts`.
+- Header: "نعم العاصمة — Na'am Al-Asimah" + factory name + batch # + status; sections for materials, packaging, costs, waste, movements, audit notes, signatures (prepared/approved/closed), print timestamp.
+- Print button wired into `MeatBatchDetail.tsx` and `FeedBatchDetail.tsx`.
 
----
+### G) UI
 
-## ضمانات الأمان لكل دفعة
+- Arabic-first (RTL), brand purple/orange, Framer page transition.
+- Filter bar component reused across dashboards & reports.
+- Drill-down: row click → batch detail or movement detail dialog.
+- Alert cards for blockers (shortage / zero-cost / missing barcode / invoice 164).
 
-- ✅ لا حذف، لا تعطيل RLS، لا تسريب `service_role`
-- ✅ BOM v1 محفوظ، v2 يبقى `draft/inactive` حتى الاعتماد اليدوي
-- ✅ فاتورة 164 تبقى `needs_review`
-- ✅ المنتجات بدون باركود تبقى معطلة حتى الاعتماد
-- ✅ كل عملية اعتماد/تعديل تكتب في سجل تدقيق
-- ✅ Anonymous محجوب على كل الجداول الجديدة
+### H) Security
 
----
+- New RPCs: `SECURITY DEFINER`, `SET search_path = public`, guarded by `has_role(auth.uid(), ...)` for Admin/Manager/Accountant; production roles get qty-only view (no cost) via dedicated function.
+- No table grants changed; RLS untouched; anon blocked (RPC `RAISE` on missing auth).
+- No client-side service_role; UI never writes to stock — only via existing `inv_*` / `fd_*` RPCs.
 
-## ما أحتاجه منك الآن
+### I) Routes summary
 
-**اختر واحداً:**
+- `/meat-factory/dashboard` (new)
+- `/feed-factory/dashboard` (new)
+- `/factories/overview` (new)
+- `/factories/reports` (new, tabbed)
+- `MeatBatchDetail` / `FeedBatchDetail` — add Print PDF button
+- Sidebar entries under existing Meat/Feed sections + Executive group
 
-1. **اعتماد الخطة كاملة + البدء بـ Dispatch A (Phase 3)** الآن — وسأتوقف بعدها لتقرير قبل B.
-2. تعديل الترتيب / دمج دفعات / تقسيمها أكثر.
-3. تغيير نطاق مرحلة معينة قبل البدء.
+### Verification
 
-⛔ لن أبدأ Dispatch A قبل أن تقول "ابدأ Dispatch A" أو ما يماثله.
+- After build, exec a script to generate sample PDFs for the two TEST-DISPATCH-D4 batches (`643b69ee…` meat, `0bf18d11…` feed), QA via `pdftoppm` inspection, and attach as artifacts to the final report.
+- Run targeted SQL counts confirming default KPIs exclude test data and toggled view includes them.
+
+### Out of scope (deferred to Dispatch F)
+
+- Marking modules "production-ready".
+- Email/scheduled report delivery.
+- Mobile-optimized dashboard variants beyond responsive grid.

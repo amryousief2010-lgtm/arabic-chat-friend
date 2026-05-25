@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ArrowRight, Loader2, Wheat, AlertTriangle } from "lucide-react";
+import { ArrowRight, Loader2, Wheat, AlertTriangle, Printer } from "lucide-react";
+import { exportBatchPDF } from "@/utils/exportBatchPDF";
 
 export default function FeedBatchDetail() {
   const { id } = useParams<{ id: string }>();
@@ -102,6 +103,9 @@ export default function FeedBatchDetail() {
           <p className="text-xs text-muted-foreground">BOM v{batch.bom_version ?? "—"} • مخطط {batch.target_quantity} كجم</p>
         </div>
         <Badge className="text-base">{batch.status}</Badge>
+        <Button size="sm" variant="outline" onClick={() => exportBatchPDF({ factory: "Feed Factory", batch, consumption: cons, movements: movs, audit })}>
+          <Printer className="h-4 w-4 ml-1" />طباعة PDF
+        </Button>
       </div>
 
       {isLocked && <div className="bg-muted border rounded p-3 text-sm flex items-center gap-2"><AlertTriangle className="h-4 w-4" />الدفعة مغلقة/ملغاة — للقراءة فقط</div>}
