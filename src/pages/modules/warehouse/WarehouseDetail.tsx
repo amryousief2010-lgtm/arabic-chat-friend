@@ -468,7 +468,7 @@ const WarehouseDetail = () => {
             )}
           </TabsContent>
 
-
+          {isAgouza && (
             <TabsContent value="supply" className="space-y-4">
               <Card className="border-orange-500/30">
                 <CardHeader>
