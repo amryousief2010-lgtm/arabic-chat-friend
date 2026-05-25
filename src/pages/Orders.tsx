@@ -1145,34 +1145,42 @@ const Orders = () => {
                             <Eye className="w-4 h-4" />
                           </Link>
                         </Button>
-                        {canEditOrderItems &&
+                        {isPrivateDeliveryRep &&
                           order.status !== 'delivered' &&
                           order.status !== 'cancelled' &&
-                          (!isSalesModerator || order.collection_status !== 'collected') && (
+                          !approvedEditOrderIds.has(order.id) && (
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => setEditingOrder(order)}
-                              title="تعديل الطلب"
+                              disabled={pendingEditOrderIds.has(order.id)}
+                              onClick={() => requestEditPermission(order)}
+                              title={pendingEditOrderIds.has(order.id) ? 'بانتظار موافقة مدير المبيعات' : 'طلب إذن تعديل من مدير المبيعات'}
                             >
-                              <Pencil className="w-4 h-4" />
+                              <KeyRound className={`w-4 h-4 ${pendingEditOrderIds.has(order.id) ? 'text-warning' : 'text-primary'}`} />
                             </Button>
                           )}
-                        {canEditOrderItems &&
-                          order.status !== 'delivered' &&
-                          order.status !== 'cancelled' &&
-                          (!isSalesModerator || order.collection_status !== 'collected') && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setAddOfferOrder(order)}
-                              title="إضافة بوكس / عرض"
-                            >
-                              <PackagePlus className="w-4 h-4 text-primary" />
-                            </Button>
-                          )}
+                        {canEditThisOrder(order) && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setEditingOrder(order)}
+                            title="تعديل الطلب"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                        )}
+                        {canEditThisOrder(order) && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setAddOfferOrder(order)}
+                            title="إضافة بوكس / عرض"
+                          >
+                            <PackagePlus className="w-4 h-4 text-primary" />
+                          </Button>
+                        )}
                         {order.status !== 'delivered' && order.status !== 'cancelled' &&
-                          order.items.some((it) => it.offer_name) && (
+                          order.items.some((it) => it.offer_name) && !isPrivateDeliveryRep && (
                             <Button
                               variant="ghost"
                               size="icon"
