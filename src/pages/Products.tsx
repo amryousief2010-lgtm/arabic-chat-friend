@@ -31,8 +31,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Edit, Trash2, Package, Minus, Printer, ScanLine, Upload, X, FileSpreadsheet } from "lucide-react";
+import { Plus, Edit, Trash2, Package, Minus, Printer, ScanLine, Upload, X, FileSpreadsheet, FileText, FileDown } from "lucide-react";
 import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import {
