@@ -331,12 +331,17 @@ const FeedFactory = () => {
           </Card>
         </div>
 
-        <Tabs defaultValue="batches">
+        <Tabs defaultValue="costing">
           <TabsList>
+            <TabsTrigger value="costing">اعتماد التكاليف</TabsTrigger>
             <TabsTrigger value="batches">دفعات الإنتاج</TabsTrigger>
             <TabsTrigger value="recipes">الوصفات (BOM)</TabsTrigger>
             <TabsTrigger value="materials">المواد الخام</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="costing" className="space-y-4">
+            <FeedCostApprovalPanel />
+          </TabsContent>
 
           {/* BATCHES */}
           <TabsContent value="batches" className="space-y-4">
