@@ -48,6 +48,7 @@ import BatchTracking from "@/pages/modules/feed/BatchTracking";
 import FeedDashboard from "@/pages/modules/feed/FeedDashboard";
 import FeedRecipes from "@/pages/modules/feed/Recipes";
 import ManagerReview from "@/pages/ManagerReview";
+import InventoryEngine from "@/pages/InventoryEngine";
 import FeedOrders from "@/pages/modules/feed/Orders";
 import FeedIssues from "@/pages/modules/feed/Issues";
 import WarehouseDashboard from "@/pages/modules/warehouse/WarehouseDashboard";
@@ -211,6 +212,11 @@ const AnimatedRoutes = () => {
         <Route path="/manager-review" element={
           <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'meat_factory_manager', 'feed_factory_manager', 'quality_manager', 'accountant', 'financial_manager', 'warehouse_supervisor']}>
             <PageTransition><ManagerReview /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/inventory" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'meat_factory_manager', 'feed_factory_manager', 'production_manager', 'accountant', 'financial_manager', 'quality_manager']}>
+            <PageTransition><InventoryEngine /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/manufacturing-queue" element={
