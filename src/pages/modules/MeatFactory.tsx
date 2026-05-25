@@ -20,6 +20,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import { ProductionDispatchInbox } from "@/components/production/ProductionDispatchInbox";
+import { MeatCostApprovalPanel } from "@/components/meat/MeatCostApprovalPanel";
 
 type Product = { id: string; product_code: string | null; barcode: string | null; name_ar: string; functional_name_ar: string | null; package_qty: number; package_unit: string; base_cost_unit: string | null; cost_per_base_unit: number | null; cost_price: number | null; sale_price: number | null; cost_status: string | null; source_document: string | null; source_date: string | null; notes: string | null; is_active: boolean; };
 type RawMaterial = { id: string; material_code: string; name_ar: string; default_unit: string; avg_unit_cost: number; category: string; is_active: boolean; stock: number; low_stock_threshold: number; };
