@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { NotificationSettingsProvider } from "@/hooks/useNotificationSettings";
+import { TestDataProvider } from "@/hooks/useTestDataFilter";
 import AnimatedRoutes from "@/components/AnimatedRoutes";
 import PWAUpdatePrompt from "@/components/PWAUpdatePrompt";
 import VersionBadge from "@/components/VersionBadge";
@@ -25,7 +26,9 @@ const App = () => (
         <InstalledIconMismatchAlert />
         <AuthProvider>
           <NotificationSettingsProvider>
-            <AnimatedRoutes />
+            <TestDataProvider>
+              <AnimatedRoutes />
+            </TestDataProvider>
           </NotificationSettingsProvider>
         </AuthProvider>
       </BrowserRouter>

@@ -56,6 +56,10 @@ import MeatBatchNew from "@/pages/MeatBatchNew";
 import FeedBatchNew from "@/pages/FeedBatchNew";
 import MeatBatchDetail from "@/pages/MeatBatchDetail";
 import FeedBatchDetail from "@/pages/FeedBatchDetail";
+import MeatFactoryDashboard from "@/pages/factory/MeatFactoryDashboard";
+import FeedFactoryDashboard from "@/pages/factory/FeedFactoryDashboard";
+import FactoryOverview from "@/pages/factory/FactoryOverview";
+import FactoryReports from "@/pages/factory/FactoryReports";
 import FeedOrders from "@/pages/modules/feed/Orders";
 import FeedIssues from "@/pages/modules/feed/Issues";
 import WarehouseDashboard from "@/pages/modules/warehouse/WarehouseDashboard";
@@ -259,6 +263,26 @@ const AnimatedRoutes = () => {
         <Route path="/feed-factory/batches/:id" element={
           <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'feed_factory_manager', 'production_manager', 'quality_manager']}>
             <PageTransition><FeedBatchDetail /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/meat-factory/dashboard" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'quality_manager', 'accountant', 'financial_manager']}>
+            <PageTransition><MeatFactoryDashboard /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/feed-factory/dashboard" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'feed_factory_manager', 'production_manager', 'quality_manager', 'accountant', 'financial_manager']}>
+            <PageTransition><FeedFactoryDashboard /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/factories/overview" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'meat_factory_manager', 'feed_factory_manager', 'production_manager', 'accountant', 'financial_manager']}>
+            <PageTransition><FactoryOverview /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/factories/reports" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'meat_factory_manager', 'feed_factory_manager', 'production_manager', 'accountant', 'financial_manager', 'quality_manager']}>
+            <PageTransition><FactoryReports /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/manufacturing-queue" element={
