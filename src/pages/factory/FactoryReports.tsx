@@ -40,13 +40,17 @@ export default function FactoryReports() {
   const batches = useMemo(() => {
     const rows = [
       ...meat.map((b: any) => ({
-        batch_number: b.batch_number, date: (b.production_date || b.created_at?.slice(0, 10)) || "", factory: "Meat",
-        product: b.product_name_ar || b.product_code, status: b.status, actual_qty: b.actual_qty, total_cost: b.total_cost,
+        id: b.id, batch_number: b.batch_number, date: (b.production_date || b.created_at?.slice(0, 10)) || "", factory: "Meat",
+        product: b.product_name_ar || b.product_code, status: b.status,
+        planned_qty: b.planned_qty, actual_qty: b.actual_qty,
+        planned_cost: b.planned_total_cost, actual_cost: b.total_cost,
         cost_per_unit: b.cost_per_unit, prepared_by: b.created_by, approved_by: b.approved_by, closed_by: b.closed_by,
       })),
       ...feed.map((b: any) => ({
-        batch_number: b.batch_number, date: (b.production_date || b.created_at?.slice(0, 10)) || "", factory: "Feed",
-        product: b.feed_product_id?.slice(0, 8), status: b.status, actual_qty: b.actual_quantity, total_cost: b.total_cost,
+        id: b.id, batch_number: b.batch_number, date: (b.production_date || b.created_at?.slice(0, 10)) || "", factory: "Feed",
+        product: b.feed_product_id?.slice(0, 8), status: b.status,
+        planned_qty: b.target_quantity, actual_qty: b.actual_quantity,
+        planned_cost: b.planned_total_cost, actual_cost: b.total_cost,
         cost_per_unit: b.cost_per_kg, prepared_by: b.created_by, approved_by: b.approved_by, closed_by: b.closed_by,
       })),
     ];
