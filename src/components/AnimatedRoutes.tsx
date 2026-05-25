@@ -75,6 +75,7 @@ import QuickGuide from "@/pages/QuickGuide";
 import RoleLanding from "@/components/RoleLanding";
 import CorrectionRequests from "@/pages/CorrectionRequests";
 import CorrectionAuditLog from "@/pages/CorrectionAuditLog";
+import UpdatesLog from "@/pages/UpdatesLog";
 
 const RedirectWithQuery = ({ to }: { to: string }) => {
   const location = useLocation();
