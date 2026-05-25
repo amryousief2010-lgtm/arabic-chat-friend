@@ -4,6 +4,7 @@ import MobileNavigation from "./MobileNavigation";
 import PullToRefreshIndicator from "./PullToRefresh";
 import SwipeIndicator from "./SwipeIndicator";
 import StartOfDayDialog from "@/components/StartOfDayDialog";
+import ClockCalendarWidget from "@/components/ClockCalendarWidget";
 import { useOrderNotifications } from "@/hooks/useOrderNotifications";
 import { useDailyReminders } from "@/hooks/useDailyReminders";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
@@ -77,6 +78,9 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           />
         )}
       </main>
+
+      {/* Floating Clock + Calendar widget (visible to all users on every page) */}
+      <ClockCalendarWidget />
     </div>
   );
 };
