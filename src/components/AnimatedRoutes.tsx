@@ -52,6 +52,8 @@ import InventoryEngine from "@/pages/InventoryEngine";
 import BomApproval from "@/pages/BomApproval";
 import MeatFactoryBatches from "@/pages/MeatFactoryBatches";
 import FeedFactoryBatches from "@/pages/FeedFactoryBatches";
+import MeatBatchNew from "@/pages/MeatBatchNew";
+import FeedBatchNew from "@/pages/FeedBatchNew";
 import FeedOrders from "@/pages/modules/feed/Orders";
 import FeedIssues from "@/pages/modules/feed/Issues";
 import WarehouseDashboard from "@/pages/modules/warehouse/WarehouseDashboard";
