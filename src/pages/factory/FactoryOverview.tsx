@@ -39,6 +39,7 @@ export default function FactoryOverview() {
   ];
 
   return (
+    <DashboardLayout>
     <div dir="rtl" className="p-4 md:p-6 space-y-4">
       <h1 className="text-2xl font-bold">نظرة عامة على المصانع</h1>
       <FactoryFilters value={f} onChange={setF} />
