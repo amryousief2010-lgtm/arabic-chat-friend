@@ -2842,6 +2842,56 @@ export type Database = {
           },
         ]
       }
+      manager_review_audit: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          module: string | null
+          new_value: Json | null
+          old_value: Json | null
+          performed_by: string | null
+          reason: string | null
+          target_id: string | null
+          target_table: string | null
+          task_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          module?: string | null
+          new_value?: Json | null
+          old_value?: Json | null
+          performed_by?: string | null
+          reason?: string | null
+          target_id?: string | null
+          target_table?: string | null
+          task_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          module?: string | null
+          new_value?: Json | null
+          old_value?: Json | null
+          performed_by?: string | null
+          reason?: string | null
+          target_id?: string | null
+          target_table?: string | null
+          task_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manager_review_audit_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "data_quality_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       manufacturing_status: {
         Row: {
           created_at: string
@@ -3892,6 +3942,48 @@ export type Database = {
           notes?: string | null
           price?: number
           updated_at?: string
+        }
+        Relationships: []
+      }
+      product_cost_history: {
+        Row: {
+          approved_by: string | null
+          created_at: string
+          id: string
+          module: string
+          new_cost: number
+          old_cost: number | null
+          reason: string | null
+          reference_code: string | null
+          source: string | null
+          target_id: string
+          target_table: string
+        }
+        Insert: {
+          approved_by?: string | null
+          created_at?: string
+          id?: string
+          module: string
+          new_cost: number
+          old_cost?: number | null
+          reason?: string | null
+          reference_code?: string | null
+          source?: string | null
+          target_id: string
+          target_table: string
+        }
+        Update: {
+          approved_by?: string | null
+          created_at?: string
+          id?: string
+          module?: string
+          new_cost?: number
+          old_cost?: number | null
+          reason?: string | null
+          reference_code?: string | null
+          source?: string | null
+          target_id?: string
+          target_table?: string
         }
         Relationships: []
       }
@@ -4966,6 +5058,7 @@ export type Database = {
       can_edit_product_price: { Args: { _user_id: string }; Returns: boolean }
       can_issue_feed_materials: { Args: { _user_id: string }; Returns: boolean }
       can_manage_feed_recipes: { Args: { _user_id: string }; Returns: boolean }
+      can_manage_review: { Args: { _uid: string }; Returns: boolean }
       check_offer_expiry: { Args: never; Returns: boolean }
       compare_period_to_snapshot: {
         Args: { p_raise_alert?: boolean; p_snapshot_id: string }
@@ -5020,6 +5113,40 @@ export type Database = {
           source_queue: string
         }
         Returns: number
+      }
+      mr_approve_cost: {
+        Args: {
+          p_module: string
+          p_new_cost: number
+          p_reason: string
+          p_target_id: string
+          p_target_table: string
+          p_task_id: string
+        }
+        Returns: Json
+      }
+      mr_assign_barcode: {
+        Args: {
+          p_barcode: string
+          p_product_id: string
+          p_reason?: string
+          p_task_id: string
+        }
+        Returns: Json
+      }
+      mr_dismiss_task: {
+        Args: { p_reason: string; p_task_id: string }
+        Returns: Json
+      }
+      mr_reconcile_negative_stock: {
+        Args: {
+          p_new_stock: number
+          p_reason: string
+          p_target_id: string
+          p_target_table: string
+          p_task_id: string
+        }
+        Returns: Json
       }
       normalize_ar: { Args: { s: string }; Returns: string }
       order_matches_moderator: {

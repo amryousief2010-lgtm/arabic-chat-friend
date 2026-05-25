@@ -1,0 +1,10 @@
+REVOKE EXECUTE ON FUNCTION public.mr_assign_barcode(uuid,uuid,text,text) FROM anon, public;
+REVOKE EXECUTE ON FUNCTION public.mr_reconcile_negative_stock(uuid,text,text,numeric,text) FROM anon, public;
+REVOKE EXECUTE ON FUNCTION public.mr_approve_cost(uuid,text,text,text,numeric,text) FROM anon, public;
+REVOKE EXECUTE ON FUNCTION public.mr_dismiss_task(uuid,text) FROM anon, public;
+REVOKE EXECUTE ON FUNCTION public.can_manage_review(uuid) FROM anon, public;
+GRANT EXECUTE ON FUNCTION public.mr_assign_barcode(uuid,uuid,text,text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.mr_reconcile_negative_stock(uuid,text,text,numeric,text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.mr_approve_cost(uuid,text,text,text,numeric,text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.mr_dismiss_task(uuid,text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.can_manage_review(uuid) TO authenticated;
