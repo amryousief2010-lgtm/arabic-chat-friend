@@ -1259,6 +1259,18 @@ const Orders = () => {
           }}
         />
       )}
+      {addOfferOrder && (
+        <AddOfferDialog
+          open={!!addOfferOrder}
+          onOpenChange={(o) => !o && setAddOfferOrder(null)}
+          orderId={addOfferOrder.id}
+          onSaved={() => {
+            setAddOfferOrder(null);
+            fetchOrders();
+          }}
+        />
+      )}
+
 
 
       {/* Per-moderator quick access — only for the private delivery rep here
