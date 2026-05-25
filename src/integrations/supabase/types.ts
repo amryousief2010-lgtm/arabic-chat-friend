@@ -2931,6 +2931,13 @@ export type Database = {
             referencedColumns: ["product_id"]
           },
           {
+            foreignKeyName: "inventory_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_reconciliation"
+            referencedColumns: ["product_id"]
+          },
+          {
             foreignKeyName: "inventory_items_warehouse_id_fkey"
             columns: ["warehouse_id"]
             isOneToOne: false
@@ -4106,6 +4113,13 @@ export type Database = {
             referencedRelation: "v_product_stock_availability"
             referencedColumns: ["product_id"]
           },
+          {
+            foreignKeyName: "offer_box_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_reconciliation"
+            referencedColumns: ["product_id"]
+          },
         ]
       }
       offer_boxes: {
@@ -4213,6 +4227,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "v_product_stock_availability"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_reconciliation"
             referencedColumns: ["product_id"]
           },
         ]
@@ -5777,6 +5798,24 @@ export type Database = {
         }
         Relationships: []
       }
+      v_stock_reconciliation: {
+        Row: {
+          agouza_stock: number | null
+          barcode: string | null
+          diff: number | null
+          inv_row_count: number | null
+          is_active: boolean | null
+          issue_type: string | null
+          legacy_stock: number | null
+          main_stock: number | null
+          name: string | null
+          product_id: string | null
+          recommended_action: string | null
+          requires_manager_approval: boolean | null
+          total_sales_stock: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       activate_feed_bom: {
@@ -5851,6 +5890,30 @@ export type Database = {
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
+      }
+      dispatch_dry_run: {
+        Args: { p_order_id: string }
+        Returns: {
+          available_qty: number
+          barcode: string
+          blocker_reason: string
+          can_dispatch: boolean
+          double_deduction_risk: boolean
+          expected_movement: Json
+          inventory_item_id: string
+          is_active: boolean
+          legacy_behavior: string
+          new_behavior: string
+          order_id: string
+          order_number: string
+          product_id: string
+          product_name: string
+          required_qty: number
+          shipping_company: string
+          source_warehouse_id: string
+          stock_status: string
+          warehouse_name: string
+        }[]
       }
       dispatch_order_stock: { Args: { p_order_id: string }; Returns: Json }
       enqueue_email: {
