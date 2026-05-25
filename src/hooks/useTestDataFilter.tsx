@@ -27,7 +27,7 @@ export const useTestFilterPredicate = () => {
     () => (row: { notes?: string | null; reference?: string | null }) => {
       if (includeTest) return true;
       const tag = `${row?.notes ?? ""} ${row?.reference ?? ""}`;
-      return !/TEST-DISPATCH/i.test(tag);
+      return !/(TEST-DISPATCH|LIMITED-PILOT)/i.test(tag);
     },
     [includeTest],
   );
@@ -45,7 +45,7 @@ export const TestDataToggle = () => {
     <div className="flex items-center gap-2 text-xs">
       <Switch id="test-toggle" checked={includeTest} onCheckedChange={setIncludeTest} />
       <Label htmlFor="test-toggle" className="cursor-pointer">
-        تضمين بيانات الاختبار (TEST-DISPATCH)
+        تضمين بيانات الاختبار / التجريبي (TEST-DISPATCH / LIMITED-PILOT)
       </Label>
       {includeTest && <Badge variant="destructive">عرض الاختبار مفعل</Badge>}
     </div>
