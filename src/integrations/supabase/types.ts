@@ -1473,39 +1473,63 @@ export type Database = {
       }
       feed_batch_consumption: {
         Row: {
+          actual_qty: number | null
           batch_id: string
           created_at: string
+          created_by: string | null
           id: string
           inventory_item_id: string | null
+          line_type: string
+          material_name: string | null
           posted_movement_id: string | null
           quantity: number
           raw_material_id: string
+          source: string | null
           total_cost: number
+          unit: string | null
           unit_cost: number
+          updated_at: string
+          updated_by: string | null
           warehouse_id: string | null
         }
         Insert: {
+          actual_qty?: number | null
           batch_id: string
           created_at?: string
+          created_by?: string | null
           id?: string
           inventory_item_id?: string | null
+          line_type?: string
+          material_name?: string | null
           posted_movement_id?: string | null
           quantity: number
           raw_material_id: string
+          source?: string | null
           total_cost?: number
+          unit?: string | null
           unit_cost?: number
+          updated_at?: string
+          updated_by?: string | null
           warehouse_id?: string | null
         }
         Update: {
+          actual_qty?: number | null
           batch_id?: string
           created_at?: string
+          created_by?: string | null
           id?: string
           inventory_item_id?: string | null
+          line_type?: string
+          material_name?: string | null
           posted_movement_id?: string | null
           quantity?: number
           raw_material_id?: string
+          source?: string | null
           total_cost?: number
+          unit?: string | null
           unit_cost?: number
+          updated_at?: string
+          updated_by?: string | null
           warehouse_id?: string | null
         }
         Relationships: [
@@ -3231,45 +3255,63 @@ export type Database = {
       }
       meat_factory_batch_consumption: {
         Row: {
+          actual_qty: number | null
           batch_id: string
           created_at: string
+          created_by: string | null
           id: string
           inventory_item_id: string | null
           line_total: number
+          line_type: string
           material_code: string
           material_name_ar: string | null
           posted_movement_id: string | null
           quantity: number
+          source: string | null
           unit: string
           unit_cost: number
+          updated_at: string
+          updated_by: string | null
           warehouse_id: string | null
         }
         Insert: {
+          actual_qty?: number | null
           batch_id: string
           created_at?: string
+          created_by?: string | null
           id?: string
           inventory_item_id?: string | null
           line_total?: number
+          line_type?: string
           material_code: string
           material_name_ar?: string | null
           posted_movement_id?: string | null
           quantity: number
+          source?: string | null
           unit: string
           unit_cost?: number
+          updated_at?: string
+          updated_by?: string | null
           warehouse_id?: string | null
         }
         Update: {
+          actual_qty?: number | null
           batch_id?: string
           created_at?: string
+          created_by?: string | null
           id?: string
           inventory_item_id?: string | null
           line_total?: number
+          line_type?: string
           material_code?: string
           material_name_ar?: string | null
           posted_movement_id?: string | null
           quantity?: number
+          source?: string | null
           unit?: string
           unit_cost?: number
+          updated_at?: string
+          updated_by?: string | null
           warehouse_id?: string | null
         }
         Relationships: [
@@ -3284,48 +3326,63 @@ export type Database = {
       }
       meat_factory_batch_packaging: {
         Row: {
+          actual_qty: number | null
           batch_id: string
           created_at: string
           created_by: string | null
           id: string
           inventory_item_id: string | null
           line_total: number | null
+          line_type: string
           packaging_material_id: string | null
           packaging_name_ar: string
           posted_movement_id: string | null
           quantity: number
+          source: string | null
           unit: string
           unit_cost: number
+          updated_at: string
+          updated_by: string | null
           warehouse_id: string | null
         }
         Insert: {
+          actual_qty?: number | null
           batch_id: string
           created_at?: string
           created_by?: string | null
           id?: string
           inventory_item_id?: string | null
           line_total?: number | null
+          line_type?: string
           packaging_material_id?: string | null
           packaging_name_ar: string
           posted_movement_id?: string | null
           quantity?: number
+          source?: string | null
           unit?: string
           unit_cost?: number
+          updated_at?: string
+          updated_by?: string | null
           warehouse_id?: string | null
         }
         Update: {
+          actual_qty?: number | null
           batch_id?: string
           created_at?: string
           created_by?: string | null
           id?: string
           inventory_item_id?: string | null
           line_total?: number | null
+          line_type?: string
           packaging_material_id?: string | null
           packaging_name_ar?: string
           posted_movement_id?: string | null
           quantity?: number
+          source?: string | null
           unit?: string
           unit_cost?: number
+          updated_at?: string
+          updated_by?: string | null
           warehouse_id?: string | null
         }
         Relationships: [
@@ -5600,7 +5657,45 @@ export type Database = {
         }
         Returns: string
       }
+      fd_feed_edit_consumption_qty: {
+        Args: { p_actual_qty: number; p_line_id: string }
+        Returns: Json
+      }
+      fd_feed_persist_lines: { Args: { p_batch_id: string }; Returns: Json }
+      fd_feed_set_fields: {
+        Args: {
+          p_actual_qty?: number
+          p_batch_id: string
+          p_finished_item_id?: string
+          p_labor_cost?: number
+          p_other_cost?: number
+          p_service_cost?: number
+          p_target_warehouse_id?: string
+          p_waste_cost?: number
+          p_waste_qty?: number
+        }
+        Returns: Json
+      }
       fd_link_factory_items: { Args: never; Returns: Json }
+      fd_meat_edit_consumption_qty: {
+        Args: { p_actual_qty: number; p_line_id: string }
+        Returns: Json
+      }
+      fd_meat_persist_lines: { Args: { p_batch_id: string }; Returns: Json }
+      fd_meat_set_fields: {
+        Args: {
+          p_actual_qty?: number
+          p_batch_id: string
+          p_finished_item_id?: string
+          p_labor_cost?: number
+          p_other_expenses?: number
+          p_service_cost?: number
+          p_target_warehouse_id?: string
+          p_waste_cost?: number
+          p_waste_qty?: number
+        }
+        Returns: Json
+      }
       fd_plan_feed_batch: {
         Args: { p_planned_qty: number; p_recipe_id: string }
         Returns: Json
@@ -5608,6 +5703,14 @@ export type Database = {
       fd_plan_meat_batch: {
         Args: { p_planned_qty: number; p_product_code: string }
         Returns: Json
+      }
+      fd_resolve_feed_finished_item: {
+        Args: { p_feed_product_id: string; p_warehouse_id: string }
+        Returns: string
+      }
+      fd_resolve_meat_finished_item: {
+        Args: { p_product_code: string; p_warehouse_id: string }
+        Returns: string
       }
       feed_batch_approve: {
         Args: {
