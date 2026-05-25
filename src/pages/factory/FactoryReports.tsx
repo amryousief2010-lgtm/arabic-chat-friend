@@ -88,10 +88,21 @@ export default function FactoryReports() {
     })).filter((r) => !f.search || JSON.stringify(r).toLowerCase().includes(f.search.toLowerCase()))
   , [movs, itemById, f.search]);
 
-  const costRows = useMemo(() => batches.filter((b: any) => b.status === "closed").map((b: any) => ({
-    factory: b.factory, batch: b.batch_number, bom_version: "—",
-    planned_cost: "—", actual_cost: b.total_cost, variance: "—", cost_per_unit: b.cost_per_unit,
-  })), [batches]);
+  const costRows = useMemo(() => batches.filter((b: any) => b.status === "closed").map((b: any) => {
+    const planned = b.planned_cost == null ? null : Number(b.planned_cost);
+    const actual = Number(b.actual_cost || 0);
+    const variance = planned == null ? null : actual - planned;
+    const variancePct = planned == null || planned === 0 ? null : (variance! / planned) * 100;
+    return {
+      factory: b.factory, batch: b.batch_number,
+      planned_qty: b.planned_qty, actual_qty: b.actual_qty,
+      planned_cost: planned == null ? "planned snapshot not available" : planned.toFixed(2),
+      actual_cost: actual.toFixed(2),
+      variance: variance == null ? "—" : variance.toFixed(2),
+      variance_pct: variancePct == null ? "—" : variancePct.toFixed(2) + "%",
+      cost_per_unit: b.cost_per_unit,
+    };
+  }), [batches]);
 
   const pendingRows = useMemo(() => {
     const list: any[] = [];
