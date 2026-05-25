@@ -1052,12 +1052,18 @@ const Orders = () => {
                           </SelectTrigger>
                           <SelectContent>
                             {Object.entries(statusLabels)
-                              .filter(([value]) =>
-                                !(isShippingCompany || isPrivateDeliveryRep) || value === order.status || value === "delivered" || value === "cancelled" || value === "shipped" || value === "pending"
-                              )
+                              .filter(([value]) => {
+                                if (isPrivateDeliveryRep) {
+                                  return value === order.status || value === 'delivered' || value === 'cancelled' || value === 'pending';
+                                }
+                                if (isShippingCompany) {
+                                  return value === order.status || value === 'delivered' || value === 'cancelled' || value === 'shipped' || value === 'pending';
+                                }
+                                return true;
+                              })
                               .map(([value, label]) => (
                                 <SelectItem key={value} value={value}>
-                                  {label}
+                                  {value === 'pending' && isPrivateDeliveryRep ? 'مؤجل' : label}
                                 </SelectItem>
                               ))}
                           </SelectContent>
