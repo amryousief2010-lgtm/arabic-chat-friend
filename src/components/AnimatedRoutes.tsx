@@ -208,6 +208,11 @@ const AnimatedRoutes = () => {
             <PageTransition><LowStock /></PageTransition>
           </ProtectedRoute>
         } />
+        <Route path="/manager-review" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'meat_factory_manager', 'feed_factory_manager', 'quality_manager', 'accountant', 'financial_manager', 'warehouse_supervisor']}>
+            <PageTransition><ManagerReview /></PageTransition>
+          </ProtectedRoute>
+        } />
         <Route path="/manufacturing-queue" element={
           <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'warehouse_supervisor', 'production_manager', 'quality_manager']}>
             <PageTransition><ManufacturingQueue /></PageTransition>
