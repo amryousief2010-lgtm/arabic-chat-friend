@@ -65,17 +65,19 @@ interface CustomerRow {
 const PAGE = 1000;
 
 async function fetchAll<T = any>(table: string, select = "*") {
-  let from = 0;
-  const acc: T[] = [];
-  while (true) {
-    const { data, error } = await supabase.from(table as any).select(select).range(from, from + PAGE - 1);
-    if (error) throw error;
-    if (!data || data.length === 0) break;
-    acc.push(...(data as any));
-    if (data.length < PAGE) break;
-    from += PAGE;
-  }
-  return acc;
+  // Get total count first, then fetch all pages in parallel for speed.
+  const { count, error: cErr } = await supabase.from(table as any).select("*", { count: "exact", head: true });
+  if (cErr) throw cErr;
+  const total = count || 0;
+  if (total === 0) return [] as T[];
+  const pages = Math.ceil(total / PAGE);
+  const results = await Promise.all(
+    Array.from({ length: pages }, (_, i) =>
+      supabase.from(table as any).select(select).range(i * PAGE, i * PAGE + PAGE - 1)
+        .then(r => { if (r.error) throw r.error; return (r.data || []) as T[]; })
+    )
+  );
+  return results.flat();
 }
 
 const fmt = (n: number) => new Intl.NumberFormat("ar-EG", { maximumFractionDigits: 0 }).format(Math.round(n || 0));
