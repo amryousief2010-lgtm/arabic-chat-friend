@@ -80,6 +80,7 @@ import UpdatesLog from "@/pages/UpdatesLog";
 import ImportWizard from "@/pages/modules/shared/ImportWizard";
 import DataQualityTasks from "@/pages/modules/shared/DataQualityTasks";
 import PackagingMaterials from "@/pages/modules/shared/PackagingMaterials";
+import StockSnapshotReview from "@/pages/modules/shared/StockSnapshotReview";
 
 const RedirectWithQuery = ({ to }: { to: string }) => {
   const location = useLocation();
