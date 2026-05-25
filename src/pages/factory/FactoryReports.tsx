@@ -8,6 +8,7 @@ import FactoryFilters, { defaultFilterState, FactoryFilterState } from "@/compon
 import { useFactoryData } from "@/hooks/useFactoryData";
 import { exportCSV } from "@/lib/csvExport";
 import { Link } from "react-router-dom";
+import DashboardLayout from "@/components/layout/DashboardLayout";
 
 // Accept both short keys ("batches") and full slug keys ("production") in the URL.
 const TAB_ALIASES: Record<string, string> = {
@@ -125,6 +126,7 @@ export default function FactoryReports() {
   };
 
   return (
+    <DashboardLayout>
     <div dir="rtl" className="p-4 md:p-6 space-y-4">
       <h1 className="text-2xl font-bold">تقارير المصانع</h1>
       <FactoryFilters value={f} onChange={setF} statuses={["draft", "under_review", "approved", "closed", "cancelled"]} onExport={exportMap[tab]} />
@@ -203,5 +205,6 @@ export default function FactoryReports() {
           </CardContent></Card></TabsContent>
       </Tabs>
     </div>
+    </DashboardLayout>
   );
 }
