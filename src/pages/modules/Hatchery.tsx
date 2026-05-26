@@ -485,6 +485,13 @@ const BatchesTab = ({ batches, customers, qc }: any) => {
             <SelectItem value="completed">مكتملة</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={fMachine} onValueChange={setFMachine}>
+          <SelectTrigger><SelectValue placeholder="كل الماكينات" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">كل الماكينات</SelectItem>
+            {MACHINES.map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
         <Input type="date" value={fFrom} onChange={(e) => setFFrom(e.target.value)} />
         <Input type="date" value={fTo} onChange={(e) => setFTo(e.target.value)} />
       </div>
@@ -494,7 +501,7 @@ const BatchesTab = ({ batches, customers, qc }: any) => {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>رقم</TableHead><TableHead>التاريخ</TableHead><TableHead>العميل</TableHead>
+              <TableHead>رقم</TableHead><TableHead>التاريخ</TableHead><TableHead>الماكينة</TableHead><TableHead>العميل</TableHead>
               <TableHead>وارد</TableHead><TableHead>صافي</TableHead><TableHead>كتاكيت</TableHead>
               <TableHead>خصوبة</TableHead><TableHead>تحول</TableHead><TableHead>الحالة</TableHead><TableHead></TableHead>
             </TableRow>
@@ -504,6 +511,7 @@ const BatchesTab = ({ batches, customers, qc }: any) => {
               <TableRow key={b.id}>
                 <TableCell className="font-mono text-xs">{b.batch_number}</TableCell>
                 <TableCell>{b.receive_date}</TableCell>
+                <TableCell><Badge variant="outline">{MACHINES.find((m) => m.id === b.machine)?.name || b.machine || "—"}</Badge></TableCell>
                 <TableCell>{customerName(b.customer_id)}</TableCell>
                 <TableCell>{b.received_eggs}</TableCell>
                 <TableCell>{b.net_eggs}</TableCell>
@@ -521,7 +529,7 @@ const BatchesTab = ({ batches, customers, qc }: any) => {
                 </TableCell>
               </TableRow>
             ))}
-            {filtered.length === 0 && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-6">لا توجد دفعات مطابقة</TableCell></TableRow>}
+            {filtered.length === 0 && <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-6">لا توجد دفعات مطابقة</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>
