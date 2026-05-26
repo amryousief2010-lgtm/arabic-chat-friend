@@ -40,6 +40,7 @@ const PRICE_INFERTILE = 50;   // غير مخصب (كشف 1)
 const PRICE_DEAD2 = 100;      // ميت كشف 2
 const PRICE_CHICK = 150;      // كتكوت ناتج
 const PRICE_HATCHER_DEAD = 100; // نافق هاتشر
+const PRICE_BROODING_PER_DAY = 10; // مبلغ التحضين عن كل يوم تأخير في الاستلام
 
 const addDaysStr = (d: string, n: number) => d ? format(addDays(parseISO(d), n), "yyyy-MM-dd") : "";
 const autoStatus = (entry: string): "pending" | "incubating" | "hatching" | "completed" => {
