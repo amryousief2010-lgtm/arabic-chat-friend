@@ -95,6 +95,7 @@ interface Order {
   created_at: string;
   created_by: string | null;
   created_by_name: string | null;
+  source_warehouse_name: string | null;
   items: OrderItem[];
 }
 
