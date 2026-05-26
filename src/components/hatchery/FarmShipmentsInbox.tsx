@@ -122,9 +122,11 @@ const FarmShipmentsInbox = () => {
 
   const openReceive = async (r: Shipment) => {
     setEditing(r);
+    setConfirmMatch(false);
     setForm({
       received: r.egg_count,
       damaged: 0,
+      dead: 0,
       notes: "",
       hatch_batch_id: r.hatch_batch_id || r.suggested_batch_id || "",
     });
