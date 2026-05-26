@@ -356,24 +356,78 @@ const EggsTab = ({ eggs, families, qc }: any) => {
           <Button size="sm" variant="outline" onClick={exportReport} className="gap-1">
             <Download className="w-4 h-4" />تصدير تقرير
           </Button>
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild><Button size="sm"><Plus className="w-4 h-4 ml-1" />تسجيل إنتاج</Button></DialogTrigger>
-            <DialogContent dir="rtl">
-              <DialogHeader><DialogTitle>إنتاج بيض جديد</DialogTitle></DialogHeader>
+          <Dialog open={open} onOpenChange={(v) => (v ? openDialog() : setOpen(false))}>
+            <DialogTrigger asChild><Button size="sm" onClick={openDialog}><Plus className="w-4 h-4 ml-1" />تسجيل إنتاج</Button></DialogTrigger>
+            <DialogContent dir="rtl" className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>تسجيل إنتاج البيض اليومي</DialogTitle>
+              </DialogHeader>
               <div className="space-y-3">
-                <div><Label>التاريخ</Label><Input type="date" value={form.production_date} onChange={(e) => setForm({ ...form, production_date: e.target.value })} /></div>
-                <div><Label>الأسرة</Label>
-                  <Select value={form.family_id} onValueChange={(v) => setForm({ ...form, family_id: v })}>
-                    <SelectTrigger><SelectValue placeholder="اختر الأسرة" /></SelectTrigger>
-                    <SelectContent>
-                      {families.map((f: any) => <SelectItem key={f.id} value={f.id}>{f.family_number} {f.pen ? `- ${f.pen}` : ""}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <Label>التاريخ</Label>
+                    <Input type="date" value={bulkDate} onChange={(e) => setBulkDate(e.target.value)} />
+                  </div>
+                  <div>
+                    <Label>بحث برقم الأسرة / الملعب</Label>
+                    <Input value={bulkSearch} onChange={(e) => setBulkSearch(e.target.value)} placeholder="مثال: 9" />
+                  </div>
                 </div>
-                <div><Label>عدد البيض</Label><Input type="number" value={form.egg_count} onChange={(e) => setForm({ ...form, egg_count: +e.target.value })} /></div>
-                <div><Label>ملاحظات</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+                <div className="flex items-center justify-between text-xs text-muted-foreground bg-muted/40 rounded-md px-3 py-2">
+                  <span>الأسر المعبأة: <b className="text-foreground">{filledCount}</b> / {families.length}</span>
+                  <span>إجمالي البيض: <b className="text-orange-600">{totalBulk.toLocaleString()}</b></span>
+                </div>
+                <div className="border rounded-md max-h-[340px] overflow-auto">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-background">
+                      <TableRow>
+                        <TableHead className="w-24">الأسرة</TableHead>
+                        <TableHead className="w-20">الملعب</TableHead>
+                        <TableHead>عدد البيض</TableHead>
+                        <TableHead className="w-32 text-xs">مسجل سابقاً</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {visibleFamilies.map((f: any) => {
+                        const already = recordedForDate[f.id] || 0;
+                        return (
+                          <TableRow key={f.id}>
+                            <TableCell className="font-bold">{f.family_number}</TableCell>
+                            <TableCell className="text-muted-foreground">{f.pen || "-"}</TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                min="0"
+                                inputMode="numeric"
+                                value={bulkCounts[f.id] ?? ""}
+                                onChange={(e) => setBulkCounts(prev => ({ ...prev, [f.id]: e.target.value }))}
+                                placeholder="0"
+                                className="h-8"
+                              />
+                            </TableCell>
+                            <TableCell className="text-xs">
+                              {already > 0 ? <Badge variant="secondary">{already} بيضة</Badge> : <span className="text-muted-foreground">—</span>}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                      {visibleFamilies.length === 0 && (
+                        <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-4">لا توجد أسر مطابقة</TableCell></TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+                <div>
+                  <Label>ملاحظات (اختياري - تطبق على كل السجلات)</Label>
+                  <Textarea value={bulkNotes} onChange={(e) => setBulkNotes(e.target.value)} rows={2} />
+                </div>
               </div>
-              <DialogFooter><Button onClick={() => save.mutate()} disabled={save.isPending}>حفظ</Button></DialogFooter>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setBulkCounts({})}>مسح الكل</Button>
+                <Button onClick={() => save.mutate()} disabled={save.isPending || filledCount === 0}>
+                  حفظ {filledCount > 0 ? `(${filledCount})` : ""}
+                </Button>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
