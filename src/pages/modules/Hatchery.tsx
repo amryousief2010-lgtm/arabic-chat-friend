@@ -222,10 +222,26 @@ const BatchesTab = ({ batches, customers, qc }: any) => {
     return map;
   }, [batches, editing]);
 
+  const machineUsageActual = useMemo(() => {
+    const map: Record<string, number> = { M1: 0, M2: 0, M3: 0 };
+    batches.forEach((b: any) => {
+      if (b.status !== "completed" && b.machine && map[b.machine] !== undefined) {
+        map[b.machine] += b.net_eggs || b.received_eggs || 0;
+      }
+    });
+    return map;
+  }, [batches]);
+
   const selectedMachine = MACHINES.find((m) => m.id === form.machine);
   const machineUsed = selectedMachine ? machineUsage[selectedMachine.id] || 0 : 0;
+  const machineActualUsed = selectedMachine ? machineUsageActual[selectedMachine.id] || 0 : 0;
+  const currentBatchEggs = form.net_eggs || form.received_eggs || 0;
+  const projectedMachineUsed = machineUsed + currentBatchEggs;
   const machineFree = selectedMachine ? selectedMachine.capacity - machineUsed : 0;
-  const machineOver = selectedMachine ? (machineUsed + (form.net_eggs || form.received_eggs || 0)) > selectedMachine.capacity : false;
+  const machineOver = selectedMachine ? projectedMachineUsed > selectedMachine.capacity : false;
+  const machineCapacityBlocked = selectedMachine
+    ? projectedMachineUsed > selectedMachine.capacity && projectedMachineUsed > machineActualUsed
+    : false;
 
   // العميل الحالي (لحساب الفواتير الخارجية)
   const currentCustomer = customers.find((c: any) => c.id === form.customer_id);
@@ -250,7 +266,9 @@ const BatchesTab = ({ batches, customers, qc }: any) => {
 
   const save = useMutation({
     mutationFn: async () => {
-      if (machineOver) throw new Error(`الماكينة ${selectedMachine?.name} تجاوزت السعة ${selectedMachine?.capacity}`);
+      if (machineCapacityBlocked) {
+        throw new Error(`الماكينة ${selectedMachine?.name} ستتجاوز السعة ${selectedMachine?.capacity} بسبب هذا التعديل`);
+      }
       const payload = { ...form, customer_id: form.customer_id || null,
         candle1_date: form.candle1_date || null, candle2_date: form.candle2_date || null,
         exit_date: form.exit_date || null, pickup_date: form.pickup_date || null,
@@ -392,9 +410,10 @@ const BatchesTab = ({ batches, customers, qc }: any) => {
                     </SelectContent>
                   </Select>
                   {selectedMachine && (
-                    <p className={`text-xs mt-1 ${machineOver ? "text-destructive font-bold" : "text-muted-foreground"}`}>
+                    <p className={`text-xs mt-1 ${machineCapacityBlocked ? "text-destructive font-bold" : machineOver ? "text-amber-600 font-bold" : "text-muted-foreground"}`}>
                       مستخدم {machineUsed}/{selectedMachine.capacity} • متاح {machineFree}
-                      {machineOver && " ⚠️ تجاوز السعة"}
+                      {machineCapacityBlocked && " ⚠️ هذا التعديل سيزيد تجاوز السعة"}
+                      {!machineCapacityBlocked && machineOver && " ⚠️ السعة متجاوزة مسبقاً، لكن يمكن حفظ التعديل إذا لم يزد الحمل"}
                     </p>
                   )}
                 </div>
@@ -534,7 +553,7 @@ const BatchesTab = ({ batches, customers, qc }: any) => {
 
               <div><Label>ملاحظات</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
             </div>
-            <DialogFooter><Button onClick={() => save.mutate()} disabled={save.isPending || machineOver}>حفظ</Button></DialogFooter>
+            <DialogFooter><Button onClick={() => save.mutate()} disabled={save.isPending || machineCapacityBlocked}>حفظ</Button></DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
