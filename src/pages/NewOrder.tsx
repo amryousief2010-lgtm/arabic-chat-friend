@@ -1251,12 +1251,14 @@ const NewOrder = () => {
                                   {product.price.toLocaleString()} ج.م / {product.unit}
                                 </td>
                                 <td className="p-2 align-middle">
-                                  <Badge
-                                    variant={product.stock <= 0 ? 'destructive' : 'outline'}
-                                    className="text-xs whitespace-nowrap"
-                                  >
-                                    {product.stock <= 0 ? 'بانتظار التصنيع' : `متاح: ${product.stock}`}
-                                  </Badge>
+                                  <div className="flex flex-col gap-1">
+                                    <Badge variant={(agouzaStock[product.id] ?? 0) <= 0 ? 'destructive' : 'outline'} className="text-[10px] whitespace-nowrap">
+                                      العجوزة: {agouzaStock[product.id] ?? 0}
+                                    </Badge>
+                                    <Badge variant={(mainStock[product.id] ?? 0) <= 0 ? 'destructive' : 'outline'} className="text-[10px] whitespace-nowrap">
+                                      الرئيسي: {mainStock[product.id] ?? 0}
+                                    </Badge>
+                                  </div>
                                 </td>
                                 <td className="p-2 align-middle">
                                   {kg ? (
