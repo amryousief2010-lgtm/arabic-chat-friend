@@ -173,6 +173,9 @@ const NewOrder = () => {
   const [warehousesList, setWarehousesList] = useState<Array<{id:string;name:string}>>([]);
   const agouzaWh = useMemo(() => warehousesList.find(w => w.name?.includes('العجوزة')), [warehousesList]);
   const mainWh = useMemo(() => warehousesList.find(w => w.name?.includes('الرئيسي') || w.name?.includes('المقر')), [warehousesList]);
+  // Available stock per product per warehouse (stock - reserved - blocked)
+  const [agouzaStock, setAgouzaStock] = useState<Record<string, number>>({});
+  const [mainStock, setMainStock] = useState<Record<string, number>>({});
 
   // عند اختيار "توصيل من المخزن الرئيسى" → الأوردر يتسجل تلقائياً على المندوب الخاص (كيمو)
   useEffect(() => {
