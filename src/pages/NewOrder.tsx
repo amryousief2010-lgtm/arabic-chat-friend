@@ -675,6 +675,21 @@ const NewOrder = () => {
 
       if (orderNumberError) throw orderNumberError;
 
+      // Resolve fulfillment source warehouse
+      if (!fulfillmentKey) {
+        toast.error('يرجى اختيار مصدر تنفيذ الطلب');
+        setSubmitting(false);
+        return;
+      }
+      const isAgouza = fulfillmentKey.endsWith('_agouza');
+      const fulfillmentType = fulfillmentKey.startsWith('pickup') ? 'pickup' : 'delivery';
+      const sourceWh = isAgouza ? agouzaWh : mainWh;
+      if (!sourceWh) {
+        toast.error('تعذر تحديد المخزن المختار');
+        setSubmitting(false);
+        return;
+      }
+
       // Create order
       const { data: order, error: orderError } = await supabase
         .from('orders')
@@ -694,6 +709,8 @@ const NewOrder = () => {
           shipping_company: (shippingCompany === 'أخرى' ? shippingCustom.trim() : shippingCompany) || null,
           extra_charge: Number(extraCharge) || 0,
           extra_charge_reason: extraChargeReason.trim() || null,
+          fulfillment_type: fulfillmentType,
+          source_warehouse_id: sourceWh.id,
         })
         .select()
         .single();
