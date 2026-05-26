@@ -208,20 +208,34 @@ const NewOrder = () => {
 
   const fetchData = async () => {
     try {
-      const [productsRes, customersRes, offersRes, whRes] = await Promise.all([
+      const [productsRes, offersRes, whRes] = await Promise.all([
         supabase.from('products').select('*').eq('is_active', true),
-        supabase.from('customers').select('*').order('name'),
         supabase.from('offer_boxes').select('*').eq('is_active', true),
         supabase.from('warehouses').select('id, name').eq('is_active', true),
       ]);
 
       if (productsRes.error) throw productsRes.error;
-      if (customersRes.error) throw customersRes.error;
       if (offersRes.error) throw offersRes.error;
       setWarehousesList(whRes.data || []);
 
       setProducts(productsRes.data || []);
-      setCustomers(customersRes.data || []);
+
+      // تحميل كل العملاء على دفعات 1000 لتجاوز حد Supabase الافتراضي
+      const allCustomers: any[] = [];
+      const PAGE = 1000;
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await supabase
+          .from('customers')
+          .select('*')
+          .order('name')
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        allCustomers.push(...data);
+        if (data.length < PAGE) break;
+      }
+      setCustomers(allCustomers);
+
       
       // Filter out expired offers and not-yet-started offers
       const now = new Date();
