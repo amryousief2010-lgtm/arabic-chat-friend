@@ -168,6 +168,12 @@ const NewOrder = () => {
   const [sourceCustom, setSourceCustom] = useState('');
   const [shippingCompany, setShippingCompany] = useState<string>('');
   const [shippingCustom, setShippingCustom] = useState('');
+  // Fulfillment source — مصدر تنفيذ الطلب
+  const [fulfillmentKey, setFulfillmentKey] = useState<'pickup_agouza'|'delivery_agouza'|'pickup_main'|'delivery_main'|''>('');
+  const [warehousesList, setWarehousesList] = useState<Array<{id:string;name:string}>>([]);
+  const agouzaWh = useMemo(() => warehousesList.find(w => w.name?.includes('العجوزة')), [warehousesList]);
+  const mainWh = useMemo(() => warehousesList.find(w => w.name?.includes('الرئيسي') || w.name?.includes('المقر')), [warehousesList]);
+  
   
   // Search
   const [productSearch, setProductSearch] = useState('');
@@ -194,15 +200,17 @@ const NewOrder = () => {
 
   const fetchData = async () => {
     try {
-      const [productsRes, customersRes, offersRes] = await Promise.all([
+      const [productsRes, customersRes, offersRes, whRes] = await Promise.all([
         supabase.from('products').select('*').eq('is_active', true),
         supabase.from('customers').select('*').order('name'),
         supabase.from('offer_boxes').select('*').eq('is_active', true),
+        supabase.from('warehouses').select('id, name').eq('is_active', true),
       ]);
 
       if (productsRes.error) throw productsRes.error;
       if (customersRes.error) throw customersRes.error;
       if (offersRes.error) throw offersRes.error;
+      setWarehousesList(whRes.data || []);
 
       setProducts(productsRes.data || []);
       setCustomers(customersRes.data || []);
@@ -667,6 +675,21 @@ const NewOrder = () => {
 
       if (orderNumberError) throw orderNumberError;
 
+      // Resolve fulfillment source warehouse
+      if (!fulfillmentKey) {
+        toast.error('يرجى اختيار مصدر تنفيذ الطلب');
+        setSubmitting(false);
+        return;
+      }
+      const isAgouza = fulfillmentKey.endsWith('_agouza');
+      const fulfillmentType = fulfillmentKey.startsWith('pickup') ? 'pickup' : 'delivery';
+      const sourceWh = isAgouza ? agouzaWh : mainWh;
+      if (!sourceWh) {
+        toast.error('تعذر تحديد المخزن المختار');
+        setSubmitting(false);
+        return;
+      }
+
       // Create order
       const { data: order, error: orderError } = await supabase
         .from('orders')
@@ -686,6 +709,8 @@ const NewOrder = () => {
           shipping_company: (shippingCompany === 'أخرى' ? shippingCustom.trim() : shippingCompany) || null,
           extra_charge: Number(extraCharge) || 0,
           extra_charge_reason: extraChargeReason.trim() || null,
+          fulfillment_type: fulfillmentType,
+          source_warehouse_id: sourceWh.id,
         })
         .select()
         .single();
@@ -771,7 +796,18 @@ const NewOrder = () => {
         })
         .eq('id', selectedCustomer.id);
 
-      toast.success(`تم إنشاء الطلب رقم ${orderNumberData} بنجاح`);
+      // Auto-create production/slaughter dispatch orders for any shortages
+      try {
+        const { data: short } = await supabase.rpc('request_production_for_order_shortages', { p_order_id: order.id });
+        const shortLines = (short as any)?.shortage_lines || 0;
+        if (shortLines > 0) {
+          toast.success(`تم إنشاء الطلب ${orderNumberData} • تم تحويل ${shortLines} صنف ناقص لأمر إنتاج/ذبح تلقائياً`);
+        } else {
+          toast.success(`تم إنشاء الطلب رقم ${orderNumberData} بنجاح`);
+        }
+      } catch (e) {
+        toast.success(`تم إنشاء الطلب رقم ${orderNumberData} بنجاح`);
+      }
       navigate('/orders');
     } catch (error) {
       console.error('Error creating order:', error);
@@ -1541,6 +1577,23 @@ const NewOrder = () => {
                       {source === 'أخرى' && (
                         <Input placeholder="أدخل المصدر" value={sourceCustom} onChange={(e) => setSourceCustom(e.target.value)} />
                       )}
+                    </div>
+
+                    {/* Fulfillment Source — مصدر تنفيذ الطلب */}
+                    <div className="space-y-2">
+                      <Label>مصدر تنفيذ الطلب <span className="text-destructive">*</span></Label>
+                      <Select value={fulfillmentKey} onValueChange={(v) => setFulfillmentKey(v as any)}>
+                        <SelectTrigger><SelectValue placeholder="اختر من أين يستلم العميل" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pickup_agouza">استلام من مخزن العجوزة</SelectItem>
+                          <SelectItem value="delivery_agouza">توصيل من منفذ العجوزة</SelectItem>
+                          <SelectItem value="pickup_main">استلام من المخزن الرئيسى</SelectItem>
+                          <SelectItem value="delivery_main">توصيل من المخزن الرئيسى</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        سيتم خصم المخزون من المخزن المختار. لو الكمية غير كافية يدخل تلقائياً فى أمر إنتاج/ذبح.
+                      </p>
                     </div>
 
                     {/* Shipping Company */}

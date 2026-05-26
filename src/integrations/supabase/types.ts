@@ -4409,6 +4409,7 @@ export type Database = {
           discount: number
           extra_charge: number
           extra_charge_reason: string | null
+          fulfillment_type: string | null
           id: string
           moderator: string | null
           notes: string | null
@@ -4437,6 +4438,7 @@ export type Database = {
           discount?: number
           extra_charge?: number
           extra_charge_reason?: string | null
+          fulfillment_type?: string | null
           id?: string
           moderator?: string | null
           notes?: string | null
@@ -4465,6 +4467,7 @@ export type Database = {
           discount?: number
           extra_charge?: number
           extra_charge_reason?: string | null
+          fulfillment_type?: string | null
           id?: string
           moderator?: string | null
           notes?: string | null
@@ -6029,6 +6032,7 @@ export type Database = {
       }
       warehouse_transfer_items: {
         Row: {
+          approved_qty: number | null
           created_at: string
           destination_item_id: string | null
           destination_movement_id: string | null
@@ -6048,6 +6052,7 @@ export type Database = {
           unit_cost: number | null
         }
         Insert: {
+          approved_qty?: number | null
           created_at?: string
           destination_item_id?: string | null
           destination_movement_id?: string | null
@@ -6067,6 +6072,7 @@ export type Database = {
           unit_cost?: number | null
         }
         Update: {
+          approved_qty?: number | null
           created_at?: string
           destination_item_id?: string | null
           destination_movement_id?: string | null
@@ -6153,6 +6159,8 @@ export type Database = {
       }
       warehouse_transfers: {
         Row: {
+          approved_at: string | null
+          approved_by: string | null
           audit_log: Json
           cancel_reason: string | null
           cancelled_at: string | null
@@ -6165,6 +6173,9 @@ export type Database = {
           notes: string | null
           received_at: string | null
           received_by: string | null
+          rejected_at: string | null
+          rejected_by: string | null
+          rejection_reason: string | null
           sent_at: string | null
           sent_by: string | null
           source_warehouse_id: string
@@ -6172,6 +6183,8 @@ export type Database = {
           transfer_no: string | null
         }
         Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
           audit_log?: Json
           cancel_reason?: string | null
           cancelled_at?: string | null
@@ -6184,6 +6197,9 @@ export type Database = {
           notes?: string | null
           received_at?: string | null
           received_by?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
           sent_at?: string | null
           sent_by?: string | null
           source_warehouse_id: string
@@ -6191,6 +6207,8 @@ export type Database = {
           transfer_no?: string | null
         }
         Update: {
+          approved_at?: string | null
+          approved_by?: string | null
           audit_log?: Json
           cancel_reason?: string | null
           cancelled_at?: string | null
@@ -6203,6 +6221,9 @@ export type Database = {
           notes?: string | null
           received_at?: string | null
           received_by?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
           sent_at?: string | null
           sent_by?: string | null
           source_warehouse_id?: string
@@ -6479,12 +6500,20 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      approve_warehouse_transfer: {
+        Args: { p_approved_lines?: Json; p_transfer_id: string }
+        Returns: Json
+      }
       can_activate_bom: { Args: { _uid: string }; Returns: boolean }
       can_add_products: { Args: { _user_id: string }; Returns: boolean }
       can_approve_batch: { Args: { _uid: string }; Returns: boolean }
       can_approve_feed_cost: { Args: { _user_id: string }; Returns: boolean }
       can_approve_feed_qc: { Args: { _user_id: string }; Returns: boolean }
       can_approve_inventory_override: {
+        Args: { _uid: string }
+        Returns: boolean
+      }
+      can_approve_warehouse_transfer: {
         Args: { _uid: string }
         Returns: boolean
       }
@@ -6908,7 +6937,15 @@ export type Database = {
         Args: { p_line_id: string; p_reason: string }
         Returns: Json
       }
+      reject_warehouse_transfer: {
+        Args: { p_reason: string; p_transfer_id: string }
+        Returns: Json
+      }
       release_order_reservation: { Args: { p_order_id: string }; Returns: Json }
+      request_production_for_order_shortages: {
+        Args: { p_order_id: string }
+        Returns: Json
+      }
       request_proposal_investigation: {
         Args: { p_id: string; p_note: string }
         Returns: {
@@ -6947,6 +6984,15 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      request_warehouse_transfer: {
+        Args: {
+          p_destination_warehouse_id: string
+          p_lines: Json
+          p_notes?: string
+          p_source_warehouse_id: string
+        }
+        Returns: Json
       }
       resolve_order_source_warehouse: {
         Args: { p_shipping_company: string }
