@@ -747,9 +747,9 @@ const Orders = () => {
               الكل
             </Button>
             <Button
-              variant={filterStatus === "shipped" ? "default" : "outline"}
+              variant={filterStatus === "pending" ? "default" : "outline"}
               size="sm"
-              onClick={() => setFilterStatus("shipped")}
+              onClick={() => setFilterStatus("pending")}
             >
               قيد الانتظار
             </Button>
