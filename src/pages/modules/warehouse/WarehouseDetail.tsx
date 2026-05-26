@@ -155,7 +155,7 @@ const WarehouseDetail = () => {
     }
 
     setSubmitting(true);
-    const { data, error } = await supabase.rpc("create_and_send_transfer", {
+    const { data, error } = await supabase.rpc("request_warehouse_transfer", {
       p_source_warehouse_id: mainWarehouse.id,
       p_destination_warehouse_id: id!,
       p_lines: lines,
@@ -164,16 +164,61 @@ const WarehouseDetail = () => {
     setSubmitting(false);
 
     if (error) {
-      toast({ title: "فشل إنشاء التحويل", description: error.message, variant: "destructive" });
+      toast({ title: "فشل تقديم الطلب", description: error.message, variant: "destructive" });
       return;
     }
 
     const result = data as any;
     toast({
-      title: "تم إنشاء وإرسال التحويل",
-      description: `رقم التحويل ${result?.transfer_no} • ${result?.lines} صنف • بانتظار استلام ${warehouse?.name}`,
+      title: "تم تقديم الطلب للموافقة",
+      description: `رقم الطلب ${result?.transfer_no} • ${result?.lines} صنف • بانتظار موافقة الإدارة / مشرف المخازن`,
     });
     setSupplyDialog(false);
+    fetchAll();
+  };
+
+  // Approval actions (Main warehouse manager / Hadi / GM / Executive)
+  const [approveDialog, setApproveDialog] = useState<any>(null); // transfer obj
+  const [approveQty, setApproveQty] = useState<Record<string, number>>({});
+
+  const openApproveDialog = (t: any) => {
+    const init: Record<string, number> = {};
+    (t.items || []).forEach((li: any) => { init[li.id] = Number(li.requested_qty); });
+    setApproveQty(init);
+    setApproveDialog(t);
+  };
+
+  const submitApprove = async () => {
+    if (!approveDialog) return;
+    const approved_lines = Object.entries(approveQty).map(([line_id, qty]) => ({ line_id, approved_qty: Number(qty) }));
+    setSubmitting(true);
+    const { error } = await supabase.rpc("approve_warehouse_transfer", {
+      p_transfer_id: approveDialog.id,
+      p_approved_lines: approved_lines,
+    });
+    setSubmitting(false);
+    if (error) {
+      toast({ title: "تعذرت الموافقة", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "تمت الموافقة وتم خصم المخزون", description: "الطلب الآن بانتظار الاستلام لدى الفرع" });
+    setApproveDialog(null);
+    fetchAll();
+  };
+
+  const rejectTransfer = async (t: any) => {
+    const reason = window.prompt(`سبب رفض طلب ${t.transfer_no}؟`);
+    if (!reason || reason.trim().length < 3) return;
+    setSubmitting(true);
+    const { error } = await supabase.rpc("reject_warehouse_transfer", {
+      p_transfer_id: t.id, p_reason: reason.trim(),
+    });
+    setSubmitting(false);
+    if (error) {
+      toast({ title: "تعذر الرفض", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "تم رفض الطلب" });
     fetchAll();
   };
 
