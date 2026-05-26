@@ -466,16 +466,44 @@ const EggsTab = ({ eggs, families, qc }: any) => {
 };
 
 // ============ TRANSFERS ============
+const emptyRow = () => ({ transfer_date: today(), family_id: "", quantity: "", damaged: "", notes: "" });
+
 const TransfersTab = ({ transfers, families, qc }: any) => {
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState<any>({ transfer_date: today(), family_id: "", quantity: 0, damaged: 0, notes: "" });
+  const [batchFrom, setBatchFrom] = useState(today());
+  const [batchTo, setBatchTo] = useState(today());
+  const [batchLabel, setBatchLabel] = useState("");
+  const [batchNotes, setBatchNotes] = useState("");
+  const [rows, setRows] = useState<any[]>([emptyRow()]);
+
+  const resetForm = () => {
+    setRows([emptyRow()]);
+    setBatchFrom(today()); setBatchTo(today());
+    setBatchLabel(""); setBatchNotes("");
+  };
 
   const save = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("farm_transfers").insert({ ...form, family_id: form.family_id || null });
+      const valid = rows
+        .filter((r) => Number(r.quantity) > 0 || Number(r.damaged) > 0)
+        .map((r) => ({
+          transfer_date: r.transfer_date,
+          family_id: r.family_id || null,
+          quantity: Number(r.quantity) || 0,
+          damaged: Number(r.damaged) || 0,
+          notes: [batchLabel && `دفعة: ${batchLabel}`, batchNotes, r.notes]
+            .filter(Boolean).join(" | ") || null,
+        }));
+      if (!valid.length) throw new Error("أضف صفًا واحدًا على الأقل بكمية");
+      const { error } = await supabase.from("farm_transfers").insert(valid);
       if (error) throw error;
+      return valid.length;
     },
-    onSuccess: () => { toast.success("تم تسجيل النقل"); setOpen(false); setForm({ transfer_date: today(), family_id: "", quantity: 0, damaged: 0, notes: "" }); qc.invalidateQueries({ queryKey: ["farm_transfers"] }); },
+    onSuccess: (n) => {
+      toast.success(`تم تسجيل ${n} عملية نقل`);
+      setOpen(false); resetForm();
+      qc.invalidateQueries({ queryKey: ["farm_transfers"] });
+    },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -497,31 +525,112 @@ const TransfersTab = ({ transfers, families, qc }: any) => {
   }), [transfers, fFamily, fFrom, fTo]);
   const totals = useMemo(() => filtered.reduce((a: any, t: any) => ({ q: a.q + (t.quantity || 0), d: a.d + (t.damaged || 0) }), { q: 0, d: 0 }), [filtered]);
 
+  const rowTotals = useMemo(() => rows.reduce(
+    (a, r) => ({ q: a.q + (Number(r.quantity) || 0), d: a.d + (Number(r.damaged) || 0) }),
+    { q: 0, d: 0 }
+  ), [rows]);
+
+  const updateRow = (i: number, patch: any) =>
+    setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+  const addRow = () => setRows((rs) => [...rs, { ...emptyRow(), transfer_date: batchTo || today() }]);
+  const addRowAll = () =>
+    setRows((rs) => [
+      ...rs,
+      ...families.map((f: any) => ({ ...emptyRow(), transfer_date: batchTo || today(), family_id: f.id })),
+    ]);
+  const removeRow = (i: number) =>
+    setRows((rs) => (rs.length === 1 ? [emptyRow()] : rs.filter((_, idx) => idx !== i)));
+
+  const exportReport = () => {
+    if (!filtered.length) { toast.error("لا توجد بيانات للتصدير"); return; }
+    const data = filtered.map((t: any) => ({
+      التاريخ: t.transfer_date,
+      الأسرة: familyName(t.family_id),
+      الكمية: t.quantity || 0,
+      الهالك: t.damaged || 0,
+      الصافي: (t.quantity || 0) - (t.damaged || 0),
+      ملاحظات: t.notes || "",
+    }));
+    data.push({ التاريخ: "الإجمالي", الأسرة: "", الكمية: totals.q, الهالك: totals.d, الصافي: totals.q - totals.d, ملاحظات: "" } as any);
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "نقل للمعمل");
+    const period = `${fFrom || "الكل"}_${fTo || "الكل"}`;
+    XLSX.writeFile(wb, `تقرير_نقل_للمعمل_${period}.xlsx`);
+    toast.success("تم تصدير التقرير");
+  };
+
   return (
     <Card className="p-4">
-      <div className="flex justify-between mb-3">
+      <div className="flex flex-wrap justify-between items-center gap-2 mb-3">
         <h3 className="font-bold">نقل البيض للمعمل (المنقول: {totals.q.toLocaleString()} - هالك: {totals.d.toLocaleString()})</h3>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild><Button size="sm"><Plus className="w-4 h-4 ml-1" />تسجيل نقل</Button></DialogTrigger>
-          <DialogContent dir="rtl">
-            <DialogHeader><DialogTitle>نقل بيض جديد</DialogTitle></DialogHeader>
-            <div className="space-y-3">
-              <div><Label>التاريخ</Label><Input type="date" value={form.transfer_date} onChange={(e) => setForm({ ...form, transfer_date: e.target.value })} /></div>
-              <div><Label>الأسرة (اختياري)</Label>
-                <Select value={form.family_id} onValueChange={(v) => setForm({ ...form, family_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="اختر" /></SelectTrigger>
-                  <SelectContent>{families.map((f: any) => <SelectItem key={f.id} value={f.id}>{f.family_number}</SelectItem>)}</SelectContent>
-                </Select>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={exportReport}><Download className="w-4 h-4 ml-1" />تصدير تقرير المدة</Button>
+          <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
+            <DialogTrigger asChild><Button size="sm"><Plus className="w-4 h-4 ml-1" />تسجيل دفعة نقل</Button></DialogTrigger>
+            <DialogContent dir="rtl" className="max-w-4xl max-h-[90vh] overflow-auto">
+              <DialogHeader>
+                <DialogTitle>تسجيل دفعة نقل للمعمل</DialogTitle>
+                <p className="text-xs text-muted-foreground">يمكن تسجيل دفعة لعدة أيام وعدة أسر دفعة واحدة</p>
+              </DialogHeader>
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <div><Label>من تاريخ</Label><Input type="date" value={batchFrom} onChange={(e) => setBatchFrom(e.target.value)} /></div>
+                  <div><Label>إلى تاريخ</Label><Input type="date" value={batchTo} onChange={(e) => setBatchTo(e.target.value)} /></div>
+                  <div className="md:col-span-2"><Label>اسم/رقم الدفعة (اختياري)</Label><Input value={batchLabel} onChange={(e) => setBatchLabel(e.target.value)} placeholder="مثال: دفعة 1 - مايو" /></div>
+                </div>
+                <div><Label>ملاحظات الدفعة</Label><Textarea rows={2} value={batchNotes} onChange={(e) => setBatchNotes(e.target.value)} /></div>
+
+                <div className="flex gap-2 flex-wrap items-center">
+                  <Button type="button" size="sm" variant="outline" onClick={addRow}><Plus className="w-4 h-4 ml-1" />إضافة صف</Button>
+                  <Button type="button" size="sm" variant="outline" onClick={addRowAll}>إضافة كل الأسر</Button>
+                  <Button type="button" size="sm" variant="ghost" onClick={() => setRows([emptyRow()])}>مسح الكل</Button>
+                  <div className="text-xs text-muted-foreground mr-auto">
+                    إجمالي الكمية: <span className="font-bold text-primary">{rowTotals.q.toLocaleString()}</span> -
+                    الهالك: <span className="font-bold text-destructive">{rowTotals.d.toLocaleString()}</span>
+                  </div>
+                </div>
+
+                <div className="border rounded overflow-auto max-h-[50vh]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>التاريخ</TableHead>
+                        <TableHead>الأسرة</TableHead>
+                        <TableHead>الكمية</TableHead>
+                        <TableHead>الهالك</TableHead>
+                        <TableHead>ملاحظة</TableHead>
+                        <TableHead></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {rows.map((r, i) => (
+                        <TableRow key={i}>
+                          <TableCell><Input type="date" value={r.transfer_date} onChange={(e) => updateRow(i, { transfer_date: e.target.value })} /></TableCell>
+                          <TableCell>
+                            <Select value={r.family_id} onValueChange={(v) => updateRow(i, { family_id: v })}>
+                              <SelectTrigger className="min-w-[120px]"><SelectValue placeholder="اختر" /></SelectTrigger>
+                              <SelectContent>{families.map((f: any) => <SelectItem key={f.id} value={f.id}>{f.family_number}</SelectItem>)}</SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell><Input type="number" min="0" value={r.quantity} onChange={(e) => updateRow(i, { quantity: e.target.value })} className="w-24" /></TableCell>
+                          <TableCell><Input type="number" min="0" value={r.damaged} onChange={(e) => updateRow(i, { damaged: e.target.value })} className="w-20" /></TableCell>
+                          <TableCell><Input value={r.notes} onChange={(e) => updateRow(i, { notes: e.target.value })} placeholder="-" /></TableCell>
+                          <TableCell><Button size="icon" variant="ghost" onClick={() => removeRow(i)}><Trash2 className="w-4 h-4 text-destructive" /></Button></TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div><Label>الكمية</Label><Input type="number" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: +e.target.value })} /></div>
-                <div><Label>الهالك</Label><Input type="number" value={form.damaged} onChange={(e) => setForm({ ...form, damaged: +e.target.value })} /></div>
-              </div>
-              <div><Label>ملاحظات</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
-            </div>
-            <DialogFooter><Button onClick={() => save.mutate()} disabled={save.isPending}>حفظ</Button></DialogFooter>
-          </DialogContent>
-        </Dialog>
+              <DialogFooter>
+                <Button onClick={() => save.mutate()} disabled={save.isPending}>
+                  حفظ الدفعة ({rows.filter((r) => Number(r.quantity) > 0 || Number(r.damaged) > 0).length} سجل)
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">
         <Select value={fFamily} onValueChange={setFFamily}>
