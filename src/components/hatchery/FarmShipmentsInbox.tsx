@@ -148,7 +148,11 @@ const FarmShipmentsInbox = () => {
       })
       .eq("id", editing.id);
     if (error) { toast.error(error.message); return; }
-    toast.success("تم تأكيد الاستلام");
+    if (damaged > 0) {
+      toast.success(`تم تأكيد الاستلام — تم إرسال إشعار للمدير العام والتنفيذي بوجود هالك (${damaged})`);
+    } else {
+      toast.success("تم تأكيد الاستلام");
+    }
     setEditing(null);
     refetch();
   };
