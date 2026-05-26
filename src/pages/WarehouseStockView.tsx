@@ -83,6 +83,22 @@ const WarehouseStockView = () => {
               <Button size="sm" variant="outline" onClick={fetchAll} disabled={loading}>
                 <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
               </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => printWarehouseStock(
+                  filtered.map(p => ({
+                    name: p.name,
+                    unit: p.unit,
+                    agouza: agouzaStock[p.id] ?? 0,
+                    main: mainStock[p.id] ?? 0,
+                  })),
+                  { filter: search.trim() || undefined }
+                )}
+              >
+                <Printer className="w-4 h-4 ml-1" />
+                طباعة
+              </Button>
             </div>
           </div>
         </CardHeader>
