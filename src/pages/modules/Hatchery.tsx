@@ -157,7 +157,7 @@ const Hatchery = () => {
           <TabsContent value="batches"><BatchesTab batches={batches} customers={customers} qc={qc} /></TabsContent>
           <TabsContent value="charts"><BatchesChartsTab batches={batches} customers={customers} /></TabsContent>
           <TabsContent value="quality"><QualityTab stats={stats} /></TabsContent>
-          <TabsContent value="customers"><CustomersTab customers={customers} qc={qc} /></TabsContent>
+          <TabsContent value="customers"><CustomersTab customers={customers} batches={batches} qc={qc} /></TabsContent>
           <TabsContent value="ops"><OpsTab ops={ops} qc={qc} /></TabsContent>
           <TabsContent value="maint"><MaintTab maint={maint} qc={qc} /></TabsContent>
           <TabsContent value="chicks"><ChicksTab chicks={chicks} qc={qc} /></TabsContent>
