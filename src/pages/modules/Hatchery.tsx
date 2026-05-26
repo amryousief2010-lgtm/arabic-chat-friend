@@ -495,6 +495,23 @@ const BatchesTab = ({ batches, customers, qc }: any) => {
                 </div>
               </div>
 
+              {/* استلام العميل + التحضين */}
+              <div>
+                <p className="font-semibold text-sm mb-2 text-amber-700">
+                  استلام العميل — كل يوم تأخير = {PRICE_BROODING_PER_DAY} ج تحضين
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  <div><Label>تاريخ إبلاغ العميل (الخروج)</Label><Input type="date" value={form.exit_date} disabled /></div>
+                  <div><Label>تاريخ الاستلام الفعلي</Label><Input type="date" value={form.pickup_date || ""} onChange={(e) => setForm({ ...form, pickup_date: e.target.value })} /></div>
+                  <div><Label>أيام التحضين (تلقائي)</Label><Input type="number" value={broodingDays} disabled /></div>
+                </div>
+                {broodingDays > 0 && (
+                  <p className="text-xs text-amber-700 mt-1">
+                    مبلغ التحضين = {broodingDays} يوم × {PRICE_BROODING_PER_DAY} ج = <b>{(broodingDays * PRICE_BROODING_PER_DAY).toLocaleString()} ج</b>
+                  </p>
+                )}
+              </div>
+
               {/* ====== ملخص فاتورة العميل الخارجي ====== */}
               {isExternal && billing && (
                 <div className="rounded-lg border border-emerald-300 bg-emerald-50 dark:bg-emerald-950/20 p-3">
