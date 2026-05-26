@@ -29,6 +29,7 @@ const MobileNavigation = () => {
     ? [
         { icon: ShoppingCart, label: "طلباتي", path: "/orders" },
         { icon: Target, label: "التارجت", path: "/sales-targets" },
+        { icon: Warehouse, label: "المتاح", path: "/warehouse-stock" },
       ]
     : [
         { icon: LayoutDashboard, label: "الرئيسية", path: "/" },
