@@ -779,6 +779,7 @@ const QualityTab = ({ stats }: any) => {
 const CustomersTab = ({ customers, batches, qc }: any) => {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
+  const [viewing, setViewing] = useState<any>(null);
   const emptyForm = { name: "", customer_type: "external", incubation_price: 150, infertile_price: 50, hatcher_price: 100, notes: "" };
   const [form, setForm] = useState<any>(emptyForm);
   const [search, setSearch] = useState("");
