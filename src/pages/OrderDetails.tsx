@@ -405,6 +405,31 @@ const OrderDetails = () => {
             />
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1"
+              onClick={() => order && printOrderInvoice({
+                order_number: order.order_number,
+                created_at: order.created_at,
+                customer_name: order.customer_name,
+                customer_phone: order.customer_phone,
+                delivery_address: order.delivery_address,
+                payment_method: order.payment_method,
+                payment_status: order.payment_status,
+                source_warehouse_name: order.source_warehouse_name,
+                notes: order.notes,
+                items: order.items,
+                subtotal: order.subtotal,
+                discount: order.discount,
+                delivery_fee: order.delivery_fee,
+                total: order.total,
+                created_by_name: order.created_by_name,
+              })}
+            >
+              <Printer className="w-4 h-4" />
+              طباعة فاتورة
+            </Button>
             <Badge className={`${statusColors[order.status]} flex items-center gap-1 text-sm px-3 py-1`}>
               {getStatusIcon(order.status)}
               {statusLabels[order.status]}
