@@ -178,21 +178,67 @@ const KPI = ({ icon: Icon, label, value, sub, color }: any) => (
 );
 
 // ============ BATCHES ============
-const emptyBatch = () => ({
-  batch_number: `BATCH-${Date.now()}`, receive_date: today(), customer_id: "", machine: "",
-  received_eggs: 0, net_eggs: 0, entry_date: today(),
-  candle1_date: "", candle1_fertile: 0, candle1_infertile: 0,
-  candle2_date: "", candle2_fertile: 0, candle2_dead: 0,
-  exit_date: "", hatched_chicks: 0, hatcher_dead: 0, status: "pending", notes: "",
-});
+const emptyBatch = () => {
+  const entry = today();
+  return {
+    batch_number: `BATCH-${Date.now()}`, receive_date: today(), customer_id: "", machine: "M1",
+    received_eggs: 0, net_eggs: 0, entry_date: entry,
+    candle1_date: addDaysStr(entry, STAGE_CANDLE1), candle1_fertile: 0, candle1_infertile: 0,
+    candle2_date: addDaysStr(entry, STAGE_CANDLE2), candle2_fertile: 0, candle2_dead: 0,
+    exit_date: addDaysStr(entry, STAGE_EXIT), hatched_chicks: 0, hatcher_dead: 0, status: "pending", notes: "",
+  };
+};
 
 const BatchesTab = ({ batches, customers, qc }: any) => {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState<any>(emptyBatch());
 
+  // مزامنة تواريخ المراحل تلقائياً عند تغيير تاريخ الدخول
+  const setEntry = (entry: string) => {
+    setForm((f: any) => ({
+      ...f,
+      entry_date: entry,
+      candle1_date: addDaysStr(entry, STAGE_CANDLE1),
+      candle2_date: addDaysStr(entry, STAGE_CANDLE2),
+      exit_date: addDaysStr(entry, STAGE_EXIT),
+      status: autoStatus(entry),
+    }));
+  };
+
+  // إشغال الماكينات حسب الدفعات النشطة
+  const machineUsage = useMemo(() => {
+    const map: Record<string, number> = { M1: 0, M2: 0, M3: 0 };
+    batches.forEach((b: any) => {
+      if (b.status !== "completed" && b.machine && map[b.machine] !== undefined) {
+        // استبعاد الدفعة قيد التعديل من الحساب
+        if (editing && b.id === editing.id) return;
+        map[b.machine] += b.net_eggs || b.received_eggs || 0;
+      }
+    });
+    return map;
+  }, [batches, editing]);
+
+  const selectedMachine = MACHINES.find((m) => m.id === form.machine);
+  const machineUsed = selectedMachine ? machineUsage[selectedMachine.id] || 0 : 0;
+  const machineFree = selectedMachine ? selectedMachine.capacity - machineUsed : 0;
+  const machineOver = selectedMachine ? (machineUsed + (form.net_eggs || form.received_eggs || 0)) > selectedMachine.capacity : false;
+
+  // العميل الحالي (لحساب الفواتير الخارجية)
+  const currentCustomer = customers.find((c: any) => c.id === form.customer_id);
+  const isExternal = currentCustomer && currentCustomer.customer_type !== "internal";
+  const billing = useMemo(() => {
+    if (!isExternal) return null;
+    const infertile = (form.candle1_infertile || 0) * (currentCustomer.infertile_price || PRICE_INFERTILE);
+    const dead2 = (form.candle2_dead || 0) * PRICE_DEAD2;
+    const chicks = (form.hatched_chicks || 0) * (currentCustomer.incubation_price || PRICE_CHICK);
+    const hatcherDead = (form.hatcher_dead || 0) * (currentCustomer.hatcher_price || PRICE_HATCHER_DEAD);
+    return { infertile, dead2, chicks, hatcherDead, total: infertile + dead2 + chicks + hatcherDead };
+  }, [isExternal, form, currentCustomer]);
+
   const save = useMutation({
     mutationFn: async () => {
+      if (machineOver) throw new Error(`الماكينة ${selectedMachine?.name} تجاوزت السعة ${selectedMachine?.capacity}`);
       const payload = { ...form, customer_id: form.customer_id || null,
         candle1_date: form.candle1_date || null, candle2_date: form.candle2_date || null, exit_date: form.exit_date || null };
       if (editing) {
@@ -214,25 +260,49 @@ const BatchesTab = ({ batches, customers, qc }: any) => {
 
   const customerName = (id: string) => customers.find((c: any) => c.id === id)?.name || "-";
 
-  const openEdit = (b: any) => { setEditing(b); setForm({ ...b, candle1_date: b.candle1_date || "", candle2_date: b.candle2_date || "", exit_date: b.exit_date || "", customer_id: b.customer_id || "" }); setOpen(true); };
+  const openEdit = (b: any) => { setEditing(b); setForm({ ...b, candle1_date: b.candle1_date || "", candle2_date: b.candle2_date || "", exit_date: b.exit_date || "", customer_id: b.customer_id || "", machine: b.machine || "M1" }); setOpen(true); };
   const openNew = () => { setEditing(null); setForm(emptyBatch()); setOpen(true); };
 
   const fertility = (b: any) => b.net_eggs > 0 ? (((b.candle2_fertile || b.candle1_fertile || 0) / b.net_eggs) * 100).toFixed(1) + "%" : "-";
   const conversion = (b: any) => b.net_eggs > 0 ? ((b.hatched_chicks / b.net_eggs) * 100).toFixed(1) + "%" : "-";
 
+  // ====== إشعارات المراحل القادمة / المتأخرة ======
+  const alerts = useMemo(() => {
+    const list: { batch: any; type: string; label: string; days: number; severity: "due" | "soon" | "late" }[] = [];
+    const now = new Date();
+    batches.forEach((b: any) => {
+      if (b.status === "completed" || !b.entry_date) return;
+      const checks: { date: string | null; type: string; label: string; done: boolean }[] = [
+        { date: b.candle1_date || addDaysStr(b.entry_date, STAGE_CANDLE1), type: "candle1", label: "الكشف الأول", done: !!b.candle1_fertile || !!b.candle1_infertile },
+        { date: b.candle2_date || addDaysStr(b.entry_date, STAGE_CANDLE2), type: "candle2", label: "الكشف الثاني", done: !!b.candle2_fertile || !!b.candle2_dead },
+        { date: b.exit_date || addDaysStr(b.entry_date, STAGE_EXIT), type: "exit", label: "الخروج للهاتشر", done: !!b.hatched_chicks },
+      ];
+      checks.forEach((c) => {
+        if (!c.date || c.done) return;
+        const diff = differenceInDays(parseISO(c.date), now);
+        if (diff < -1) list.push({ batch: b, type: c.type, label: c.label, days: diff, severity: "late" });
+        else if (diff <= 0) list.push({ batch: b, type: c.type, label: c.label, days: diff, severity: "due" });
+        else if (diff <= 3) list.push({ batch: b, type: c.type, label: c.label, days: diff, severity: "soon" });
+      });
+    });
+    return list.sort((a, b) => a.days - b.days);
+  }, [batches]);
+
   const [search, setSearch] = useState("");
   const [fCustomer, setFCustomer] = useState("all");
   const [fStatus, setFStatus] = useState("all");
+  const [fMachine, setFMachine] = useState("all");
   const [fFrom, setFFrom] = useState("");
   const [fTo, setFTo] = useState("");
   const filtered = useMemo(() => batches.filter((b: any) => {
     if (search && !b.batch_number.toLowerCase().includes(search.toLowerCase())) return false;
     if (fCustomer !== "all" && b.customer_id !== fCustomer) return false;
     if (fStatus !== "all" && b.status !== fStatus) return false;
+    if (fMachine !== "all" && b.machine !== fMachine) return false;
     if (fFrom && b.receive_date < fFrom) return false;
     if (fTo && b.receive_date > fTo) return false;
     return true;
-  }), [batches, search, fCustomer, fStatus, fFrom, fTo]);
+  }), [batches, search, fCustomer, fStatus, fMachine, fFrom, fTo]);
 
   return (
     <Card className="p-4">
