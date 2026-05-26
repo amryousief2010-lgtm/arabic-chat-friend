@@ -864,6 +864,29 @@ const NewOrder = () => {
     ((c as any).phone2 || '').includes(customerSearch)
   );
 
+  // كشف عميل موجود بنفس رقم الهاتف داخل فورم "عميل جديد"
+  const existingCustomerMatch = useMemo(() => {
+    const p1 = normalizePhone(newCustomerPhone);
+    const p2 = normalizePhone(newCustomerPhone2);
+    if (!p1 && !p2) return null;
+    const match = customers.find(c => {
+      if (editingCustomerId && c.id === editingCustomerId) return false;
+      const cp1 = normalizePhone(c.phone || '');
+      const cp2 = normalizePhone((c as any).phone2 || '');
+      return (p1 && (cp1 === p1 || cp2 === p1)) || (p2 && (cp1 === p2 || cp2 === p2));
+    });
+    return match || null;
+  }, [newCustomerPhone, newCustomerPhone2, customers, editingCustomerId]);
+
+  const useExistingCustomer = () => {
+    if (!existingCustomerMatch) return;
+    setSelectedCustomer(existingCustomerMatch);
+    setDeliveryAddress(existingCustomerMatch.address || '');
+    setIsNewCustomerOpen(false);
+    resetCustomerForm();
+    toast.success(`تم اختيار العميل: ${existingCustomerMatch.name}`);
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
