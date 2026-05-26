@@ -258,18 +258,21 @@ const WarehouseDetail = () => {
   };
 
   const statusLabel = (s?: string) => ({
-    draft: "مسودة", sent: "مرسل", pending_receipt: "بانتظار الاستلام",
+    draft: "مسودة", sent: "مرسل", pending_approval: "بانتظار الموافقة",
+    pending_receipt: "بانتظار الاستلام",
     partially_received: "استلام جزئي", received: "تم الاستلام",
-    needs_manager_review: "يحتاج مراجعة", cancelled: "ملغي",
+    needs_manager_review: "يحتاج مراجعة", cancelled: "ملغي", rejected: "مرفوض",
   } as any)[s || ""] || s || "—";
 
   const statusBadge = (s?: string) => {
     const map: Record<string, { cls: string; Icon: any }> = {
+      pending_approval: { cls: "bg-yellow-500/10 text-yellow-700 border-yellow-500/30", Icon: ShieldCheck },
       pending_receipt: { cls: "bg-amber-500/10 text-amber-600 border-amber-500/30", Icon: Clock },
       partially_received: { cls: "bg-orange-500/10 text-orange-600 border-orange-500/30", Icon: AlertTriangle },
       received: { cls: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30", Icon: CheckCircle2 },
       needs_manager_review: { cls: "bg-purple-500/10 text-purple-600 border-purple-500/30", Icon: AlertTriangle },
       cancelled: { cls: "bg-muted text-muted-foreground border-border", Icon: XCircle },
+      rejected: { cls: "bg-destructive/10 text-destructive border-destructive/30", Icon: ThumbsDown },
       sent: { cls: "bg-blue-500/10 text-blue-600 border-blue-500/30", Icon: Send },
       draft: { cls: "bg-muted text-muted-foreground", Icon: Clock },
     };
@@ -281,6 +284,10 @@ const WarehouseDetail = () => {
   const outgoingTransfers = transfers.filter(t => t.source_warehouse_id === id);
   const incomingPending = transfers.filter(t => t.destination_warehouse_id === id && ["pending_receipt", "partially_received", "needs_manager_review"].includes(t.status));
   const incomingAll = transfers.filter(t => t.destination_warehouse_id === id);
+  // Requests awaiting MY approval (I am the source warehouse, status pending_approval)
+  const awaitingMyApproval = transfers.filter(t => t.source_warehouse_id === id && t.status === "pending_approval");
+  // My own pending requests (I am destination, awaiting approval at source)
+  const myPendingRequests = transfers.filter(t => t.destination_warehouse_id === id && ["pending_approval","rejected"].includes(t.status));
 
   const exportSupplyExcel = () => {
     const rows = supplyNeeds.map((n, i) => ({
