@@ -770,6 +770,9 @@ ${batchNotes ? `<div class="notes"><b>ملاحظات الدفعة:</b> ${esc(bat
                   <Button type="button" size="sm" variant="secondary" onClick={autoLoadPending} disabled={autoLoading}>
                     {autoLoading ? "جارٍ التحميل..." : "تحميل الإنتاج غير المنقول"}
                   </Button>
+                  <Button type="button" size="sm" variant="outline" onClick={exportPendingPdf}>
+                    <Download className="w-4 h-4 ml-1" />تصدير PDF
+                  </Button>
                   <Button type="button" size="sm" variant="outline" onClick={addRow}><Plus className="w-4 h-4 ml-1" />إضافة صف</Button>
                   <Button type="button" size="sm" variant="outline" onClick={addRowAll}>إضافة كل الأسر</Button>
                   <Button type="button" size="sm" variant="ghost" onClick={() => setRows([emptyRow()])}>مسح الكل</Button>
