@@ -1010,6 +1010,159 @@ const CustRow = ({ label, value, color = "" }: { label: string; value: string | 
   </div>
 );
 
+const statusLabel = (s: string) => ({ pending: "بانتظار", incubating: "تحت التحضين", hatching: "بالهاتشر", completed: "مكتمل" } as any)[s] || s;
+const statusVariant = (s: string): any => ({ pending: "secondary", incubating: "default", hatching: "outline", completed: "outline" } as any)[s] || "secondary";
+
+const CustomerDetailDialog = ({ customer, onClose, batches, stats }: any) => {
+  const custBatches = useMemo(() => {
+    if (!customer) return [];
+    return (batches || [])
+      .filter((b: any) => b.customer_id === customer.id)
+      .sort((a: any, b: any) => (b.receive_date || "").localeCompare(a.receive_date || ""));
+  }, [customer, batches]);
+
+  if (!customer) return null;
+  const isInternal = customer.customer_type === "internal";
+  const s = stats || {};
+
+  return (
+    <Dialog open={!!customer} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent dir="rtl" className="max-w-5xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-xl">
+            <Users className="w-5 h-5 text-primary" />
+            {customer.name}
+            <Badge variant={isInternal ? "default" : "outline"} className="text-[10px]">
+              {isInternal ? "داخلي - العاصمة" : "خارجي"}
+            </Badge>
+          </DialogTitle>
+          {customer.notes && <p className="text-xs text-muted-foreground mt-1">{customer.notes}</p>}
+        </DialogHeader>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <Card className="p-3 bg-gradient-to-br from-cyan-500/10 to-cyan-700/5 border-cyan-500/20">
+            <div className="text-[10px] text-muted-foreground">الدفعات</div>
+            <div className="text-xl font-bold">{s.batches || 0}</div>
+            <div className="text-[10px] text-muted-foreground">نشط {s.active || 0} • مكتمل {s.completed || 0}</div>
+          </Card>
+          <Card className="p-3 bg-gradient-to-br from-purple-500/10 to-purple-700/5 border-purple-500/20">
+            <div className="text-[10px] text-muted-foreground">البيض الصافي</div>
+            <div className="text-xl font-bold">{(s.netEggs || 0).toLocaleString()}</div>
+            <div className="text-[10px] text-muted-foreground">مستلم {(s.receivedEggs || 0).toLocaleString()}</div>
+          </Card>
+          <Card className="p-3 bg-gradient-to-br from-orange-500/10 to-orange-700/5 border-orange-500/20">
+            <div className="text-[10px] text-muted-foreground">الكتاكيت</div>
+            <div className="text-xl font-bold text-orange-600">{(s.chicks || 0).toLocaleString()}</div>
+            <div className="text-[10px] text-muted-foreground">تحويل {s.conversionPct || 0}%</div>
+          </Card>
+          <Card className={`p-3 ${isInternal ? "bg-muted/30" : "bg-gradient-to-br from-emerald-500/10 to-emerald-700/5 border-emerald-500/20"}`}>
+            <div className="text-[10px] text-muted-foreground">{isInternal ? "مُسلَّم / بانتظار" : "إجمالي المستحقات"}</div>
+            <div className="text-xl font-bold text-emerald-700">
+              {isInternal ? `${(s.delivered || 0).toLocaleString()} / ${(s.pendingDelivery || 0).toLocaleString()}` : `${(s.receivable || 0).toLocaleString()} ج`}
+            </div>
+            <div className="text-[10px] text-muted-foreground">حتى {today()}</div>
+          </Card>
+        </div>
+
+        <Card className="p-3">
+          <div className="text-xs font-semibold mb-2 text-muted-foreground">تفصيل دورة الحياة (تراكمي)</div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-center text-xs">
+            <div className="bg-emerald-500/10 rounded p-2"><div className="text-[10px] text-muted-foreground">مخصب</div><div className="font-bold text-emerald-700">{(s.fertile || 0).toLocaleString()}</div><div className="text-[10px]">{s.fertilityPct || 0}%</div></div>
+            <div className="bg-amber-500/10 rounded p-2"><div className="text-[10px] text-muted-foreground">غير مخصب</div><div className="font-bold text-amber-700">{(s.infertile || 0).toLocaleString()}</div></div>
+            <div className="bg-rose-500/10 rounded p-2"><div className="text-[10px] text-muted-foreground">ميت كشف 2</div><div className="font-bold text-rose-700">{(s.dead2 || 0).toLocaleString()}</div></div>
+            <div className="bg-red-500/10 rounded p-2"><div className="text-[10px] text-muted-foreground">نافق هاتشر</div><div className="font-bold text-red-700">{(s.hatcherDead || 0).toLocaleString()}</div></div>
+            <div className="bg-cyan-500/10 rounded p-2"><div className="text-[10px] text-muted-foreground">تحضين تأخير</div><div className="font-bold text-cyan-700">{(s.brooding || 0).toLocaleString()} ج</div></div>
+          </div>
+        </Card>
+
+        {!isInternal && (
+          <Card className="p-3 bg-muted/30">
+            <div className="text-xs font-semibold mb-1.5 text-muted-foreground">أسعار العميل</div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+              <div><span className="text-muted-foreground">تحضين/كتكوت: </span><span className="font-semibold">{customer.incubation_price} ج</span></div>
+              <div><span className="text-muted-foreground">غير مخصب: </span><span className="font-semibold">{customer.infertile_price} ج</span></div>
+              <div><span className="text-muted-foreground">نافق هاتشر: </span><span className="font-semibold">{customer.hatcher_price} ج</span></div>
+              <div><span className="text-muted-foreground">تأخير الاستلام: </span><span className="font-semibold">{PRICE_BROODING_PER_DAY} ج/يوم</span></div>
+            </div>
+          </Card>
+        )}
+
+        <div>
+          <div className="text-sm font-semibold mb-2 flex items-center gap-2">
+            <FlaskConical className="w-4 h-4" /> دفعات العميل ({custBatches.length})
+          </div>
+          {custBatches.length === 0 ? (
+            <div className="text-center text-muted-foreground py-8 text-sm border rounded-lg">لا توجد دفعات مسجلة لهذا العميل</div>
+          ) : (
+            <div className="border rounded-lg overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/40">
+                    <TableHead className="text-right text-xs">#</TableHead>
+                    <TableHead className="text-right text-xs">الاستلام</TableHead>
+                    <TableHead className="text-right text-xs">الماكينة</TableHead>
+                    <TableHead className="text-right text-xs">صافي البيض</TableHead>
+                    <TableHead className="text-right text-xs">كشف 1 (مخصب/غير)</TableHead>
+                    <TableHead className="text-right text-xs">كشف 2 (مخصب/ميت)</TableHead>
+                    <TableHead className="text-right text-xs">كتاكيت / نافق</TableHead>
+                    <TableHead className="text-right text-xs">الاستلام النهائي</TableHead>
+                    <TableHead className="text-right text-xs">الحالة</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {custBatches.map((b: any, i: number) => {
+                    const st = b.status || autoStatus(b.entry_date || b.receive_date);
+                    return (
+                      <TableRow key={b.id} className="text-xs">
+                        <TableCell className="font-semibold">{custBatches.length - i}</TableCell>
+                        <TableCell>{b.receive_date || "—"}</TableCell>
+                        <TableCell>{b.machine_id || "—"}</TableCell>
+                        <TableCell className="font-semibold text-purple-700">{(b.net_eggs || 0).toLocaleString()}</TableCell>
+                        <TableCell>
+                          <span className="text-emerald-600 font-semibold">{(b.candle1_fertile || 0).toLocaleString()}</span>
+                          <span className="text-muted-foreground"> / </span>
+                          <span className="text-amber-600">{(b.candle1_infertile || 0).toLocaleString()}</span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-emerald-600 font-semibold">{(b.candle2_fertile || 0).toLocaleString()}</span>
+                          <span className="text-muted-foreground"> / </span>
+                          <span className="text-rose-600">{(b.candle2_dead || 0).toLocaleString()}</span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-orange-600 font-semibold">{(b.hatched_chicks || 0).toLocaleString()}</span>
+                          <span className="text-muted-foreground"> / </span>
+                          <span className="text-red-600">{(b.hatcher_dead || 0).toLocaleString()}</span>
+                        </TableCell>
+                        <TableCell>
+                          {b.pickup_date ? (
+                            <span className="text-cyan-700 font-semibold">{b.pickup_date}</span>
+                          ) : b.exit_date ? (
+                            <span className="text-orange-700">بانتظار ({b.exit_date})</span>
+                          ) : "—"}
+                          {b.brooding_days > 0 && <div className="text-[10px] text-cyan-600">تحضين {b.brooding_days} يوم</div>}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={statusVariant(st)} className="text-[10px]">{statusLabel(st)}</Badge>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>إغلاق</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+
+
 // ============ DAILY OPS ============
 const OpsTab = ({ ops, qc }: any) => {
   const [open, setOpen] = useState(false);
