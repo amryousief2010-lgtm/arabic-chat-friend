@@ -864,6 +864,29 @@ const NewOrder = () => {
     ((c as any).phone2 || '').includes(customerSearch)
   );
 
+  // كشف عميل موجود بنفس رقم الهاتف داخل فورم "عميل جديد"
+  const existingCustomerMatch = useMemo(() => {
+    const p1 = normalizePhone(newCustomerPhone);
+    const p2 = normalizePhone(newCustomerPhone2);
+    if (!p1 && !p2) return null;
+    const match = customers.find(c => {
+      if (editingCustomerId && c.id === editingCustomerId) return false;
+      const cp1 = normalizePhone(c.phone || '');
+      const cp2 = normalizePhone((c as any).phone2 || '');
+      return (p1 && (cp1 === p1 || cp2 === p1)) || (p2 && (cp1 === p2 || cp2 === p2));
+    });
+    return match || null;
+  }, [newCustomerPhone, newCustomerPhone2, customers, editingCustomerId]);
+
+  const useExistingCustomer = () => {
+    if (!existingCustomerMatch) return;
+    setSelectedCustomer(existingCustomerMatch);
+    setDeliveryAddress(existingCustomerMatch.address || '');
+    setIsNewCustomerOpen(false);
+    resetCustomerForm();
+    toast.success(`تم اختيار العميل: ${existingCustomerMatch.name}`);
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -935,6 +958,42 @@ const NewOrder = () => {
                             onChange={(e) => setNewCustomerName(e.target.value)}
                           />
                           </div>
+                          {existingCustomerMatch && (
+                            <div className="md:col-span-2 rounded-lg border-2 border-amber-400 bg-amber-50 dark:bg-amber-950/30 p-3 space-y-2">
+                              <div className="flex items-start justify-between gap-2 flex-wrap">
+                                <div className="space-y-1">
+                                  <p className="text-sm font-bold text-amber-900 dark:text-amber-200">
+                                    ⚠️ هذا الرقم مسجّل مسبقًا لعميل آخر
+                                  </p>
+                                  <p className="text-sm font-semibold">{existingCustomerMatch.name}</p>
+                                  <p className="text-xs text-muted-foreground" dir="ltr">
+                                    {existingCustomerMatch.phone}
+                                    {(existingCustomerMatch as any).phone2 ? ` / ${(existingCustomerMatch as any).phone2}` : ''}
+                                  </p>
+                                  {(existingCustomerMatch as any).address && (
+                                    <p className="text-xs text-muted-foreground">
+                                      📍 {(existingCustomerMatch as any).address}
+                                      {(existingCustomerMatch as any).city ? ` - ${(existingCustomerMatch as any).city}` : ''}
+                                      {(existingCustomerMatch as any).governorate ? ` - ${(existingCustomerMatch as any).governorate}` : ''}
+                                    </p>
+                                  )}
+                                  {(existingCustomerMatch as any).source && (
+                                    <p className="text-xs text-muted-foreground">
+                                      المصدر: {(existingCustomerMatch as any).source}
+                                    </p>
+                                  )}
+                                </div>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="default"
+                                  onClick={useExistingCustomer}
+                                >
+                                  استخدام هذا العميل
+                                </Button>
+                              </div>
+                            </div>
+                          )}
                           <div className="space-y-2">
                           <Label>رقم الهاتف *</Label>
                           <Input
