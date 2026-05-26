@@ -1344,12 +1344,14 @@ const NewOrder = () => {
                               <span className="font-bold text-base text-green-600 dark:text-green-400 break-words flex-1">
                                 {product.name}
                               </span>
-                              <Badge
-                                variant={product.stock <= 0 ? 'destructive' : 'outline'}
-                                className="text-[10px] whitespace-nowrap shrink-0"
-                              >
-                                {product.stock <= 0 ? 'بانتظار التصنيع' : `متاح: ${product.stock}`}
-                              </Badge>
+                              <div className="flex flex-col items-end gap-1 shrink-0">
+                                <Badge variant={(agouzaStock[product.id] ?? 0) <= 0 ? 'destructive' : 'outline'} className="text-[10px] whitespace-nowrap">
+                                  العجوزة: {agouzaStock[product.id] ?? 0}
+                                </Badge>
+                                <Badge variant={(mainStock[product.id] ?? 0) <= 0 ? 'destructive' : 'outline'} className="text-[10px] whitespace-nowrap">
+                                  الرئيسي: {mainStock[product.id] ?? 0}
+                                </Badge>
+                              </div>
                             </div>
                             <div className="text-primary font-bold text-sm mb-2">
                               {product.price.toLocaleString()} ج.م / {product.unit}
