@@ -262,6 +262,17 @@ const OrderDetails = () => {
         createdByName = profileData?.full_name || null;
       }
 
+      // Fetch source warehouse name if any
+      let sourceWarehouseName: string | null = null;
+      if ((orderData as any).source_warehouse_id) {
+        const { data: whData } = await supabase
+          .from('warehouses')
+          .select('name')
+          .eq('id', (orderData as any).source_warehouse_id)
+          .maybeSingle();
+        sourceWarehouseName = whData?.name || null;
+      }
+
       const formattedOrder: Order = {
         id: orderData.id,
         order_number: orderData.order_number,
@@ -280,6 +291,7 @@ const OrderDetails = () => {
         created_at: orderData.created_at,
         created_by: orderData.created_by,
         created_by_name: createdByName,
+        source_warehouse_name: sourceWarehouseName,
         items: (itemsData || []).map((item: any) => ({
           id: item.id,
           product_id: item.product_id ?? null,
