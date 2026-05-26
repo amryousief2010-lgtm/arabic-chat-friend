@@ -796,7 +796,18 @@ const NewOrder = () => {
         })
         .eq('id', selectedCustomer.id);
 
-      toast.success(`تم إنشاء الطلب رقم ${orderNumberData} بنجاح`);
+      // Auto-create production/slaughter dispatch orders for any shortages
+      try {
+        const { data: short } = await supabase.rpc('request_production_for_order_shortages', { p_order_id: order.id });
+        const shortLines = (short as any)?.shortage_lines || 0;
+        if (shortLines > 0) {
+          toast.success(`تم إنشاء الطلب ${orderNumberData} • تم تحويل ${shortLines} صنف ناقص لأمر إنتاج/ذبح تلقائياً`);
+        } else {
+          toast.success(`تم إنشاء الطلب رقم ${orderNumberData} بنجاح`);
+        }
+      } catch (e) {
+        toast.success(`تم إنشاء الطلب رقم ${orderNumberData} بنجاح`);
+      }
       navigate('/orders');
     } catch (error) {
       console.error('Error creating order:', error);
