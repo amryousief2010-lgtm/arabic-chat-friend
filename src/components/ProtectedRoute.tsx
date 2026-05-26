@@ -17,6 +17,7 @@ const MODERATOR_ALLOWED_PREFIXES = [
   '/permissions',
   '/private-delivery-pricing',
   '/org-chart',
+  '/warehouse-stock',
   '/auth',
   '/install',
 ];
