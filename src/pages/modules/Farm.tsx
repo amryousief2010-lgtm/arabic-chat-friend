@@ -475,11 +475,90 @@ const TransfersTab = ({ transfers, families, qc }: any) => {
   const [batchLabel, setBatchLabel] = useState("");
   const [batchNotes, setBatchNotes] = useState("");
   const [rows, setRows] = useState<any[]>([emptyRow()]);
+  const [autoLoaded, setAutoLoaded] = useState<{ count: number; from: string; to: string } | null>(null);
+  const [autoLoading, setAutoLoading] = useState(false);
 
   const resetForm = () => {
     setRows([emptyRow()]);
     setBatchFrom(today()); setBatchTo(today());
     setBatchLabel(""); setBatchNotes("");
+    setAutoLoaded(null);
+  };
+
+  // Compute pending production per family per date (production not yet covered by transfers).
+  // Heuristic: per family, find latest transfer_date; sum egg_production rows after that date per (family, date).
+  const autoLoadPending = async () => {
+    setAutoLoading(true);
+    try {
+      const lastTransferByFamily: Record<string, string> = {};
+      transfers.forEach((t: any) => {
+        if (!t.family_id) return;
+        const prev = lastTransferByFamily[t.family_id];
+        if (!prev || t.transfer_date > prev) lastTransferByFamily[t.family_id] = t.transfer_date;
+      });
+
+      const all: any[] = [];
+      let from = 0; const size = 1000;
+      while (true) {
+        const { data, error } = await supabase.from("farm_egg_production")
+          .select("production_date,family_id,egg_count")
+          .order("production_date", { ascending: true })
+          .range(from, from + size - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        all.push(...data);
+        if (data.length < size) break;
+        from += size;
+      }
+
+      const td = today();
+      const pending = all.filter((e: any) => {
+        if (!e.family_id) return false;
+        const last = lastTransferByFamily[e.family_id];
+        if (last && e.production_date <= last) return false;
+        return e.production_date <= td;
+      });
+
+      if (!pending.length) {
+        toast.info("لا يوجد إنتاج جديد بعد آخر نقل");
+        setRows([emptyRow()]);
+        setAutoLoaded({ count: 0, from: "", to: "" });
+        return;
+      }
+      const map = new Map<string, { date: string; family_id: string; qty: number }>();
+      pending.forEach((e: any) => {
+        const k = `${e.family_id}|${e.production_date}`;
+        const cur = map.get(k) || { date: e.production_date, family_id: e.family_id, qty: 0 };
+        cur.qty += e.egg_count || 0;
+        map.set(k, cur);
+      });
+      const newRows = Array.from(map.values())
+        .sort((a, b) => a.date.localeCompare(b.date) || String(a.family_id).localeCompare(String(b.family_id)))
+        .map((g) => ({
+          transfer_date: g.date,
+          family_id: g.family_id,
+          quantity: String(g.qty),
+          damaged: "",
+          notes: "تحميل تلقائي من الإنتاج اليومي",
+        }));
+      const dates = newRows.map((r) => r.transfer_date);
+      const minD = dates[0], maxD = dates[dates.length - 1];
+      setBatchFrom(minD); setBatchTo(maxD);
+      setRows(newRows);
+      setAutoLoaded({ count: newRows.length, from: minD, to: maxD });
+      toast.success(`تم تحميل ${newRows.length} سجل من الإنتاج غير المنقول`);
+    } catch (e: any) {
+      toast.error(e.message || "فشل تحميل الإنتاج");
+    } finally {
+      setAutoLoading(false);
+    }
+  };
+
+  // Auto-load pending production when opening the dialog
+  const openDialog = async () => {
+    resetForm();
+    setOpen(true);
+    await autoLoadPending();
   };
 
   const save = useMutation({
@@ -566,12 +645,12 @@ const TransfersTab = ({ transfers, families, qc }: any) => {
         <h3 className="font-bold">نقل البيض للمعمل (المنقول: {totals.q.toLocaleString()} - هالك: {totals.d.toLocaleString()})</h3>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={exportReport}><Download className="w-4 h-4 ml-1" />تصدير تقرير المدة</Button>
-          <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
+          <Dialog open={open} onOpenChange={(v) => { if (v) openDialog(); else { setOpen(false); resetForm(); } }}>
             <DialogTrigger asChild><Button size="sm"><Plus className="w-4 h-4 ml-1" />تسجيل دفعة نقل</Button></DialogTrigger>
             <DialogContent dir="rtl" className="max-w-4xl max-h-[90vh] overflow-auto">
               <DialogHeader>
                 <DialogTitle>تسجيل دفعة نقل للمعمل</DialogTitle>
-                <p className="text-xs text-muted-foreground">يمكن تسجيل دفعة لعدة أيام وعدة أسر دفعة واحدة</p>
+                <p className="text-xs text-muted-foreground">يتم تحميل الإنتاج غير المنقول تلقائيًا — راجع الصفوف ثم اضغط حفظ</p>
               </DialogHeader>
               <div className="space-y-3">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -582,6 +661,9 @@ const TransfersTab = ({ transfers, families, qc }: any) => {
                 <div><Label>ملاحظات الدفعة</Label><Textarea rows={2} value={batchNotes} onChange={(e) => setBatchNotes(e.target.value)} /></div>
 
                 <div className="flex gap-2 flex-wrap items-center">
+                  <Button type="button" size="sm" variant="secondary" onClick={autoLoadPending} disabled={autoLoading}>
+                    {autoLoading ? "جارٍ التحميل..." : "تحميل الإنتاج غير المنقول"}
+                  </Button>
                   <Button type="button" size="sm" variant="outline" onClick={addRow}><Plus className="w-4 h-4 ml-1" />إضافة صف</Button>
                   <Button type="button" size="sm" variant="outline" onClick={addRowAll}>إضافة كل الأسر</Button>
                   <Button type="button" size="sm" variant="ghost" onClick={() => setRows([emptyRow()])}>مسح الكل</Button>
@@ -590,6 +672,16 @@ const TransfersTab = ({ transfers, families, qc }: any) => {
                     الهالك: <span className="font-bold text-destructive">{rowTotals.d.toLocaleString()}</span>
                   </div>
                 </div>
+                {autoLoaded && autoLoaded.count > 0 && (
+                  <div className="text-xs bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-emerald-800 dark:text-emerald-200 rounded p-2">
+                    تم تحميل {autoLoaded.count} سجل تلقائيًا من الإنتاج اليومي ({autoLoaded.from} → {autoLoaded.to}). يمكنك التعديل قبل الحفظ.
+                  </div>
+                )}
+                {autoLoaded && autoLoaded.count === 0 && (
+                  <div className="text-xs bg-muted border rounded p-2 text-muted-foreground">
+                    لا يوجد إنتاج جديد بعد آخر نقل لكل أسرة. يمكنك إضافة صفوف يدويًا.
+                  </div>
+                )}
 
                 <div className="border rounded overflow-auto max-h-[50vh]">
                   <Table>
