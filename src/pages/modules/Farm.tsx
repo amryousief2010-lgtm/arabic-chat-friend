@@ -645,12 +645,12 @@ const TransfersTab = ({ transfers, families, qc }: any) => {
         <h3 className="font-bold">نقل البيض للمعمل (المنقول: {totals.q.toLocaleString()} - هالك: {totals.d.toLocaleString()})</h3>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={exportReport}><Download className="w-4 h-4 ml-1" />تصدير تقرير المدة</Button>
-          <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
+          <Dialog open={open} onOpenChange={(v) => { if (v) openDialog(); else { setOpen(false); resetForm(); } }}>
             <DialogTrigger asChild><Button size="sm"><Plus className="w-4 h-4 ml-1" />تسجيل دفعة نقل</Button></DialogTrigger>
             <DialogContent dir="rtl" className="max-w-4xl max-h-[90vh] overflow-auto">
               <DialogHeader>
                 <DialogTitle>تسجيل دفعة نقل للمعمل</DialogTitle>
-                <p className="text-xs text-muted-foreground">يمكن تسجيل دفعة لعدة أيام وعدة أسر دفعة واحدة</p>
+                <p className="text-xs text-muted-foreground">يتم تحميل الإنتاج غير المنقول تلقائيًا — راجع الصفوف ثم اضغط حفظ</p>
               </DialogHeader>
               <div className="space-y-3">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
