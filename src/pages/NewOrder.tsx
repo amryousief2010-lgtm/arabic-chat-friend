@@ -173,6 +173,14 @@ const NewOrder = () => {
   const [warehousesList, setWarehousesList] = useState<Array<{id:string;name:string}>>([]);
   const agouzaWh = useMemo(() => warehousesList.find(w => w.name?.includes('العجوزة')), [warehousesList]);
   const mainWh = useMemo(() => warehousesList.find(w => w.name?.includes('الرئيسي') || w.name?.includes('المقر')), [warehousesList]);
+
+  // عند اختيار "توصيل من المخزن الرئيسى" → الأوردر يتسجل تلقائياً على المندوب الخاص (كيمو)
+  useEffect(() => {
+    if (fulfillmentKey === 'delivery_main') {
+      setShippingCompany('مندوب خاص');
+      setShippingCustom('');
+    }
+  }, [fulfillmentKey]);
   
   
   // Search
