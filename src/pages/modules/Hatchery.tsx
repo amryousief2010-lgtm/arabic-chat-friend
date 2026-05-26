@@ -902,15 +902,15 @@ const CustomersTab = ({ customers, batches, qc }: any) => {
             const s = customerStats[c.id];
             const isInternal = c.customer_type === "internal";
             return (
-              <Card key={c.id} className={`p-4 border-l-4 ${isInternal ? "border-l-purple-500" : "border-l-orange-500"} hover:shadow-md transition`}>
+              <Card key={c.id} className={`p-4 border-l-4 ${isInternal ? "border-l-purple-500" : "border-l-orange-500"} hover:shadow-md hover:-translate-y-0.5 transition cursor-pointer`} onClick={() => setViewing(c)}>
                 <div className="flex justify-between items-start mb-3">
                   <div>
-                    <div className="font-bold text-base">{c.name}</div>
+                    <div className="font-bold text-base hover:underline">{c.name}</div>
                     <Badge variant={isInternal ? "default" : "outline"} className="mt-1 text-[10px]">
                       {isInternal ? "داخلي - العاصمة" : "خارجي"}
                     </Badge>
                   </div>
-                  <div className="flex gap-1">
+                  <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                     <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(c)}><Pencil className="w-3.5 h-3.5" /></Button>
                     <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { if (confirm(`حذف ${c.name}؟`)) del.mutate(c.id); }}><Trash2 className="w-3.5 h-3.5 text-destructive" /></Button>
                   </div>
