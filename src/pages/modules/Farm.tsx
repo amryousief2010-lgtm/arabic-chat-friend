@@ -475,69 +475,94 @@ const TransfersTab = ({ transfers, families, qc }: any) => {
   const [batchLabel, setBatchLabel] = useState("");
   const [batchNotes, setBatchNotes] = useState("");
   const [rows, setRows] = useState<any[]>([emptyRow()]);
+  const [autoLoaded, setAutoLoaded] = useState<{ count: number; from: string; to: string } | null>(null);
+  const [autoLoading, setAutoLoading] = useState(false);
 
   const resetForm = () => {
     setRows([emptyRow()]);
     setBatchFrom(today()); setBatchTo(today());
     setBatchLabel(""); setBatchNotes("");
+    setAutoLoaded(null);
+  };
+
+  // Compute pending production per family per date (production not yet covered by transfers).
+  // Heuristic: per family, find latest transfer_date; sum egg_production rows after that date per (family, date).
+  const autoLoadPending = async () => {
+    setAutoLoading(true);
+    try {
+      const lastTransferByFamily: Record<string, string> = {};
+      transfers.forEach((t: any) => {
+        if (!t.family_id) return;
+        const prev = lastTransferByFamily[t.family_id];
+        if (!prev || t.transfer_date > prev) lastTransferByFamily[t.family_id] = t.transfer_date;
+      });
+
+      const all: any[] = [];
+      let from = 0; const size = 1000;
+      while (true) {
+        const { data, error } = await supabase.from("farm_egg_production")
+          .select("production_date,family_id,egg_count")
+          .order("production_date", { ascending: true })
+          .range(from, from + size - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        all.push(...data);
+        if (data.length < size) break;
+        from += size;
+      }
+
+      const td = today();
+      const pending = all.filter((e: any) => {
+        if (!e.family_id) return false;
+        const last = lastTransferByFamily[e.family_id];
+        if (last && e.production_date <= last) return false;
+        return e.production_date <= td;
+      });
+
+      if (!pending.length) {
+        toast.info("لا يوجد إنتاج جديد بعد آخر نقل");
+        setRows([emptyRow()]);
+        setAutoLoaded({ count: 0, from: "", to: "" });
+        return;
+      }
+      const map = new Map<string, { date: string; family_id: string; qty: number }>();
+      pending.forEach((e: any) => {
+        const k = `${e.family_id}|${e.production_date}`;
+        const cur = map.get(k) || { date: e.production_date, family_id: e.family_id, qty: 0 };
+        cur.qty += e.egg_count || 0;
+        map.set(k, cur);
+      });
+      const newRows = Array.from(map.values())
+        .sort((a, b) => a.date.localeCompare(b.date) || String(a.family_id).localeCompare(String(b.family_id)))
+        .map((g) => ({
+          transfer_date: g.date,
+          family_id: g.family_id,
+          quantity: String(g.qty),
+          damaged: "",
+          notes: "تحميل تلقائي من الإنتاج اليومي",
+        }));
+      const dates = newRows.map((r) => r.transfer_date);
+      const minD = dates[0], maxD = dates[dates.length - 1];
+      setBatchFrom(minD); setBatchTo(maxD);
+      setRows(newRows);
+      setAutoLoaded({ count: newRows.length, from: minD, to: maxD });
+      toast.success(`تم تحميل ${newRows.length} سجل من الإنتاج غير المنقول`);
+    } catch (e: any) {
+      toast.error(e.message || "فشل تحميل الإنتاج");
+    } finally {
+      setAutoLoading(false);
+    }
+  };
+
+  // Auto-load pending production when opening the dialog
+  const openDialog = async () => {
+    resetForm();
+    setOpen(true);
+    await autoLoadPending();
   };
 
   const save = useMutation({
-    mutationFn: async () => {
-      const valid = rows
-        .filter((r) => Number(r.quantity) > 0 || Number(r.damaged) > 0)
-        .map((r) => ({
-          transfer_date: r.transfer_date,
-          family_id: r.family_id || null,
-          quantity: Number(r.quantity) || 0,
-          damaged: Number(r.damaged) || 0,
-          notes: [batchLabel && `دفعة: ${batchLabel}`, batchNotes, r.notes]
-            .filter(Boolean).join(" | ") || null,
-        }));
-      if (!valid.length) throw new Error("أضف صفًا واحدًا على الأقل بكمية");
-      const { error } = await supabase.from("farm_transfers").insert(valid);
-      if (error) throw error;
-      return valid.length;
-    },
-    onSuccess: (n) => {
-      toast.success(`تم تسجيل ${n} عملية نقل`);
-      setOpen(false); resetForm();
-      qc.invalidateQueries({ queryKey: ["farm_transfers"] });
-    },
-    onError: (e: any) => toast.error(e.message),
-  });
-
-  const del = useMutation({
-    mutationFn: async (id: string) => { const { error } = await supabase.from("farm_transfers").delete().eq("id", id); if (error) throw error; },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["farm_transfers"] }),
-  });
-
-  const familyName = (id: string) => families.find((f: any) => f.id === id)?.family_number || "-";
-
-  const [fFamily, setFFamily] = useState("all");
-  const [fFrom, setFFrom] = useState("");
-  const [fTo, setFTo] = useState("");
-  const filtered = useMemo(() => transfers.filter((t: any) => {
-    if (fFamily !== "all" && t.family_id !== fFamily) return false;
-    if (fFrom && t.transfer_date < fFrom) return false;
-    if (fTo && t.transfer_date > fTo) return false;
-    return true;
-  }), [transfers, fFamily, fFrom, fTo]);
-  const totals = useMemo(() => filtered.reduce((a: any, t: any) => ({ q: a.q + (t.quantity || 0), d: a.d + (t.damaged || 0) }), { q: 0, d: 0 }), [filtered]);
-
-  const rowTotals = useMemo(() => rows.reduce(
-    (a, r) => ({ q: a.q + (Number(r.quantity) || 0), d: a.d + (Number(r.damaged) || 0) }),
-    { q: 0, d: 0 }
-  ), [rows]);
-
-  const updateRow = (i: number, patch: any) =>
-    setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
-  const addRow = () => setRows((rs) => [...rs, { ...emptyRow(), transfer_date: batchTo || today() }]);
-  const addRowAll = () =>
-    setRows((rs) => [
-      ...rs,
-      ...families.map((f: any) => ({ ...emptyRow(), transfer_date: batchTo || today(), family_id: f.id })),
-    ]);
+...
   const removeRow = (i: number) =>
     setRows((rs) => (rs.length === 1 ? [emptyRow()] : rs.filter((_, idx) => idx !== i)));
 
