@@ -533,6 +533,7 @@ const TransfersTab = ({ transfers, families, qc }: any) => {
         map.set(k, cur);
       });
       const newRows = Array.from(map.values())
+        .filter((g) => g.qty > 0)
         .sort((a, b) => a.date.localeCompare(b.date) || String(a.family_id).localeCompare(String(b.family_id)))
         .map((g) => ({
           transfer_date: g.date,
