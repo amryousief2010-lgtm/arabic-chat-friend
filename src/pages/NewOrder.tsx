@@ -958,8 +958,24 @@ const NewOrder = () => {
                             onChange={(e) => setNewCustomerName(e.target.value)}
                           />
                           </div>
+                          <div className="space-y-2">
+                          <Label>رقم الهاتف *</Label>
+                          <Input
+                            placeholder="01xxxxxxxxx"
+                            value={newCustomerPhone}
+                            onChange={(e) => setNewCustomerPhone(e.target.value)}
+                          />
+                          </div>
+                          <div className="space-y-2">
+                          <Label>رقم هاتف آخر (اختياري)</Label>
+                          <Input
+                            placeholder="01xxxxxxxxx"
+                            value={newCustomerPhone2}
+                            onChange={(e) => setNewCustomerPhone2(e.target.value)}
+                          />
+                          </div>
                           {existingCustomerMatch && (
-                            <div className="md:col-span-2 rounded-lg border-2 border-amber-400 bg-amber-50 dark:bg-amber-950/30 p-3 space-y-2">
+                            <div className="md:col-span-2 rounded-lg border-2 border-amber-400 bg-amber-50 dark:bg-amber-950/30 p-3 space-y-2 animate-in fade-in slide-in-from-top-2">
                               <div className="flex items-start justify-between gap-2 flex-wrap">
                                 <div className="space-y-1">
                                   <p className="text-sm font-bold text-amber-900 dark:text-amber-200">
@@ -994,22 +1010,7 @@ const NewOrder = () => {
                               </div>
                             </div>
                           )}
-                          <div className="space-y-2">
-                          <Label>رقم الهاتف *</Label>
-                          <Input
-                            placeholder="01xxxxxxxxx"
-                            value={newCustomerPhone}
-                            onChange={(e) => setNewCustomerPhone(e.target.value)}
-                          />
-                          </div>
-                          <div className="space-y-2">
-                          <Label>رقم هاتف آخر (اختياري)</Label>
-                          <Input
-                            placeholder="01xxxxxxxxx"
-                            value={newCustomerPhone2}
-                            onChange={(e) => setNewCustomerPhone2(e.target.value)}
-                          />
-                          </div>
+
                           <div className="space-y-2 md:col-span-2">
                           <Label>العنوان</Label>
                           <Input
