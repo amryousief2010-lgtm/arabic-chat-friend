@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowRight, Warehouse, Package, AlertTriangle, ArrowDown, ArrowUp, ArrowLeftRight, Settings2, Truck, FileSpreadsheet, Inbox, Send, CheckCircle2, Clock, XCircle } from "lucide-react";
+import { ArrowRight, Warehouse, Package, AlertTriangle, ArrowDown, ArrowUp, ArrowLeftRight, Settings2, Truck, FileSpreadsheet, Inbox, Send, CheckCircle2, Clock, XCircle, ShieldCheck, ThumbsDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
