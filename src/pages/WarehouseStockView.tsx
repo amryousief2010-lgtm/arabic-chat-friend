@@ -83,22 +83,29 @@ const WarehouseStockView = () => {
               <Button size="sm" variant="outline" onClick={fetchAll} disabled={loading}>
                 <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
               </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => printWarehouseStock(
-                  filtered.map(p => ({
-                    name: p.name,
-                    unit: p.unit,
-                    agouza: agouzaStock[p.id] ?? 0,
-                    main: mainStock[p.id] ?? 0,
-                  })),
-                  { filter: search.trim() || undefined }
-                )}
-              >
-                <Printer className="w-4 h-4 ml-1" />
-                طباعة
-              </Button>
+              {(() => {
+                const rows = filtered.map(p => ({
+                  name: p.name,
+                  unit: p.unit,
+                  agouza: agouzaStock[p.id] ?? 0,
+                  main: mainStock[p.id] ?? 0,
+                }));
+                const filter = search.trim() || undefined;
+                const btn = "inline-flex items-center gap-1 h-8 px-3 text-xs rounded-md border bg-background hover:bg-muted transition";
+                return (
+                  <>
+                    <button className={btn} onClick={() => printWarehouseStock(rows, { filter, mode: "agouza" })}>
+                      <Printer className="w-4 h-4" /> العجوزة
+                    </button>
+                    <button className={btn} onClick={() => printWarehouseStock(rows, { filter, mode: "main" })}>
+                      <Printer className="w-4 h-4" /> الرئيسي
+                    </button>
+                    <button className={btn} onClick={() => printWarehouseStock(rows, { filter, mode: "both" })}>
+                      <Printer className="w-4 h-4" /> الإجمالي
+                    </button>
+                  </>
+                );
+              })()}
             </div>
           </div>
         </CardHeader>

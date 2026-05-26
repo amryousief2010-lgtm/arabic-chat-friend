@@ -119,14 +119,43 @@ export interface PrintStockRow {
   main: number;
 }
 
-export const printWarehouseStock = (rows: PrintStockRow[], opts?: { title?: string; filter?: string }) => {
+export type StockPrintMode = "both" | "agouza" | "main";
+
+export const printWarehouseStock = (
+  rows: PrintStockRow[],
+  opts?: { title?: string; filter?: string; mode?: StockPrintMode }
+) => {
+  const mode: StockPrintMode = opts?.mode || "both";
   const now = new Date().toLocaleString("ar-EG");
-  const totalAg = rows.reduce((s, r) => s + (r.agouza || 0), 0);
-  const totalMn = rows.reduce((s, r) => s + (r.main || 0), 0);
+  const title = opts?.title || (
+    mode === "agouza" ? "المتاح في مخزن العجوزة" :
+    mode === "main" ? "المتاح في المخزن الرئيسي" :
+    "المتاح في المخازن"
+  );
+
+  let headerCols = "";
+  let bodyRows = "";
+  let footerRow = "";
+
+  if (mode === "both") {
+    const totalAg = rows.reduce((s, r) => s + (r.agouza || 0), 0);
+    const totalMn = rows.reduce((s, r) => s + (r.main || 0), 0);
+    headerCols = `<th style="width:80px">الوحدة</th><th style="width:110px">مخزن العجوزة</th><th style="width:110px">المخزن الرئيسي</th><th style="width:110px">الإجمالي</th>`;
+    bodyRows = rows.map((r, i) => `<tr><td>${i + 1}</td><td>${r.name}</td><td>${r.unit || "-"}</td><td>${fmt(r.agouza)}</td><td>${fmt(r.main)}</td><td><b>${fmt(r.agouza + r.main)}</b></td></tr>`).join("");
+    footerRow = `<tr><td colspan="3">الإجمالي</td><td>${fmt(totalAg)}</td><td>${fmt(totalMn)}</td><td>${fmt(totalAg + totalMn)}</td></tr>`;
+  } else {
+    const getVal = (r: PrintStockRow) => mode === "agouza" ? r.agouza : r.main;
+    const label = mode === "agouza" ? "مخزن العجوزة" : "المخزن الرئيسي";
+    const total = rows.reduce((s, r) => s + getVal(r), 0);
+    headerCols = `<th style="width:80px">الوحدة</th><th style="width:140px">${label}</th>`;
+    bodyRows = rows.map((r, i) => `<tr><td>${i + 1}</td><td>${r.name}</td><td>${r.unit || "-"}</td><td><b>${fmt(getVal(r))}</b></td></tr>`).join("");
+    footerRow = `<tr><td colspan="3">الإجمالي</td><td>${fmt(total)}</td></tr>`;
+  }
+
   const body = `
     <div class="header">
       <div class="brand">العاصمة للنعام<small>Capital Ostrich</small></div>
-      <div class="doc-title">${opts?.title || "المتاح في المخازن"}</div>
+      <div class="doc-title">${title}</div>
     </div>
     <div class="meta">
       <div><b>تاريخ التقرير:</b> ${now}</div>
@@ -134,18 +163,14 @@ export const printWarehouseStock = (rows: PrintStockRow[], opts?: { title?: stri
       <div><b>عدد المنتجات:</b> ${rows.length}</div>
     </div>
     <table>
-      <thead><tr><th style="width:40px">#</th><th>المنتج</th><th style="width:80px">الوحدة</th><th style="width:110px">مخزن العجوزة</th><th style="width:110px">المخزن الرئيسي</th><th style="width:110px">الإجمالي</th></tr></thead>
-      <tbody>
-        ${rows.map((r, i) => `<tr><td>${i + 1}</td><td>${r.name}</td><td>${r.unit || "-"}</td><td>${fmt(r.agouza)}</td><td>${fmt(r.main)}</td><td><b>${fmt(r.agouza + r.main)}</b></td></tr>`).join("")}
-      </tbody>
-      <tfoot>
-        <tr><td colspan="3">الإجمالي</td><td>${fmt(totalAg)}</td><td>${fmt(totalMn)}</td><td>${fmt(totalAg + totalMn)}</td></tr>
-      </tfoot>
+      <thead><tr><th style="width:40px">#</th><th>المنتج</th>${headerCols}</tr></thead>
+      <tbody>${bodyRows}</tbody>
+      <tfoot>${footerRow}</tfoot>
     </table>
     <div class="footer">
-      <div>العاصمة للنعام — تقرير المتاح في المخازن</div>
+      <div>العاصمة للنعام — ${title}</div>
       <div>طُبعت في: ${now}</div>
     </div>
   `;
-  openPrint(opts?.title || "المتاح في المخازن", body);
+  openPrint(title, body);
 };
