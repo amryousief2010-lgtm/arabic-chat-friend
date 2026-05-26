@@ -11,7 +11,17 @@ import { printWarehouseStock } from "@/lib/printUtils";
 
 interface Product { id: string; name: string; unit: string; category?: string | null; }
 
-const WarehouseStockView = () => {
+export type StockScope = "both" | "agouza" | "main";
+
+interface Props { scope?: StockScope }
+
+const titleMap: Record<StockScope, { title: string; subtitle: string }> = {
+  both: { title: "المتاح في المخازن", subtitle: "رؤية لحظية للكميات المتاحة في مخزن العجوزة والمخزن الرئيسي" },
+  agouza: { title: "مخزن العجوزة", subtitle: "الكميات المتاحة في مخزن العجوزة" },
+  main: { title: "المخزن الرئيسي", subtitle: "الكميات المتاحة في المخزن الرئيسي" },
+};
+
+const WarehouseStockView = ({ scope = "both" }: Props) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [agouzaStock, setAgouzaStock] = useState<Record<string, number>>({});
   const [mainStock, setMainStock] = useState<Record<string, number>>({});
@@ -55,13 +65,17 @@ const WarehouseStockView = () => {
 
   const filtered = useMemo(() => {
     const q = search.trim();
-    if (!q) return products;
-    return products.filter(p => p.name?.includes(q) || p.category?.includes(q));
-  }, [products, search]);
+    const list = q ? products.filter(p => p.name?.includes(q) || p.category?.includes(q)) : products;
+    if (scope === "agouza") return list.filter(p => (agouzaStock[p.id] ?? 0) !== 0 || !q);
+    if (scope === "main") return list.filter(p => (mainStock[p.id] ?? 0) !== 0 || !q);
+    return list;
+  }, [products, search, scope, agouzaStock, mainStock]);
+
+  const { title, subtitle } = titleMap[scope];
 
   return (
     <DashboardLayout>
-      <Header title="المتاح في المخازن" subtitle="رؤية لحظية للكميات المتاحة في مخزن العجوزة والمخزن الرئيسي" />
+      <Header title={title} subtitle={subtitle} />
 
       <Card>
         <CardHeader>
@@ -70,7 +84,7 @@ const WarehouseStockView = () => {
               <Warehouse className="w-5 h-5 text-primary" />
               المنتجات والكميات المتاحة
             </CardTitle>
-            <div className="flex gap-2 items-center">
+            <div className="flex gap-2 items-center flex-wrap">
               <div className="relative flex-1 sm:w-64">
                 <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
@@ -92,6 +106,20 @@ const WarehouseStockView = () => {
                 }));
                 const filter = search.trim() || undefined;
                 const btn = "inline-flex items-center gap-1 h-8 px-3 text-xs rounded-md border bg-background hover:bg-muted transition";
+                if (scope === "agouza") {
+                  return (
+                    <button className={btn} onClick={() => printWarehouseStock(rows, { filter, mode: "agouza" })}>
+                      <Printer className="w-4 h-4" /> طباعة المتاح
+                    </button>
+                  );
+                }
+                if (scope === "main") {
+                  return (
+                    <button className={btn} onClick={() => printWarehouseStock(rows, { filter, mode: "main" })}>
+                      <Printer className="w-4 h-4" /> طباعة المتاح
+                    </button>
+                  );
+                }
                 return (
                   <>
                     <button className={btn} onClick={() => printWarehouseStock(rows, { filter, mode: "agouza" })}>
@@ -117,9 +145,9 @@ const WarehouseStockView = () => {
                 <tr>
                   <th className="p-2 font-semibold">المنتج</th>
                   <th className="p-2 font-semibold">الوحدة</th>
-                  <th className="p-2 font-semibold whitespace-nowrap">مخزن العجوزة</th>
-                  <th className="p-2 font-semibold whitespace-nowrap">المخزن الرئيسي</th>
-                  <th className="p-2 font-semibold whitespace-nowrap">الإجمالي المتاح</th>
+                  {scope !== "main" && <th className="p-2 font-semibold whitespace-nowrap">مخزن العجوزة</th>}
+                  {scope !== "agouza" && <th className="p-2 font-semibold whitespace-nowrap">المخزن الرئيسي</th>}
+                  {scope === "both" && <th className="p-2 font-semibold whitespace-nowrap">الإجمالي المتاح</th>}
                 </tr>
               </thead>
               <tbody>
@@ -130,13 +158,19 @@ const WarehouseStockView = () => {
                     <tr key={p.id} className="border-t hover:bg-muted/30">
                       <td className="p-2 font-bold text-green-600 dark:text-green-400">{p.name}</td>
                       <td className="p-2 text-muted-foreground">{p.unit}</td>
-                      <td className="p-2">
-                        <Badge variant={a <= 0 ? "destructive" : "outline"}>{a}</Badge>
-                      </td>
-                      <td className="p-2">
-                        <Badge variant={m <= 0 ? "destructive" : "outline"}>{m}</Badge>
-                      </td>
-                      <td className="p-2 font-bold text-primary">{a + m}</td>
+                      {scope !== "main" && (
+                        <td className="p-2">
+                          <Badge variant={a <= 0 ? "destructive" : "outline"}>{a}</Badge>
+                        </td>
+                      )}
+                      {scope !== "agouza" && (
+                        <td className="p-2">
+                          <Badge variant={m <= 0 ? "destructive" : "outline"}>{m}</Badge>
+                        </td>
+                      )}
+                      {scope === "both" && (
+                        <td className="p-2 font-bold text-primary">{a + m}</td>
+                      )}
                     </tr>
                   );
                 })}
@@ -156,19 +190,25 @@ const WarehouseStockView = () => {
                 <div key={p.id} className="border rounded-lg p-3 bg-card">
                   <div className="font-bold text-green-600 dark:text-green-400 mb-1">{p.name}</div>
                   <div className="text-xs text-muted-foreground mb-2">{p.unit}</div>
-                  <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                    <div>
-                      <div className="text-muted-foreground mb-1">العجوزة</div>
-                      <Badge variant={a <= 0 ? "destructive" : "outline"}>{a}</Badge>
-                    </div>
-                    <div>
-                      <div className="text-muted-foreground mb-1">الرئيسي</div>
-                      <Badge variant={m <= 0 ? "destructive" : "outline"}>{m}</Badge>
-                    </div>
-                    <div>
-                      <div className="text-muted-foreground mb-1">الإجمالي</div>
-                      <Badge className="bg-primary">{a + m}</Badge>
-                    </div>
+                  <div className={`grid ${scope === "both" ? "grid-cols-3" : "grid-cols-1"} gap-2 text-center text-xs`}>
+                    {scope !== "main" && (
+                      <div>
+                        <div className="text-muted-foreground mb-1">العجوزة</div>
+                        <Badge variant={a <= 0 ? "destructive" : "outline"}>{a}</Badge>
+                      </div>
+                    )}
+                    {scope !== "agouza" && (
+                      <div>
+                        <div className="text-muted-foreground mb-1">الرئيسي</div>
+                        <Badge variant={m <= 0 ? "destructive" : "outline"}>{m}</Badge>
+                      </div>
+                    )}
+                    {scope === "both" && (
+                      <div>
+                        <div className="text-muted-foreground mb-1">الإجمالي</div>
+                        <Badge className="bg-primary">{a + m}</Badge>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
