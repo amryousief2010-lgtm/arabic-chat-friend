@@ -413,30 +413,71 @@ const BatchesTab = ({ batches, customers, qc }: any) => {
                 <div><Label>الصافي</Label><Input type="number" value={form.net_eggs} onChange={(e) => setForm({ ...form, net_eggs: +e.target.value })} /></div>
               </div>
 
+              {/* الكشف الأول: مخصب + غير مخصب = الصافي (تلقائي) */}
               <div className="border-t pt-3 mt-2">
-                <p className="font-semibold text-sm mb-2 text-cyan-700">الكشف الأول (بعد {STAGE_CANDLE1} يوم) — غير المخصب يخرج للبيع</p>
+                <p className="font-semibold text-sm mb-2 text-cyan-700">
+                  الكشف الأول (بعد {STAGE_CANDLE1} يوم) — غير المخصب يخرج للبيع · الإجمالي = {form.net_eggs || form.received_eggs || 0}
+                </p>
                 <div className="grid grid-cols-3 gap-2">
                   <div><Label>التاريخ</Label><Input type="date" value={form.candle1_date} onChange={(e) => setForm({ ...form, candle1_date: e.target.value })} /></div>
-                  <div><Label>مخصب</Label><Input type="number" value={form.candle1_fertile} onChange={(e) => setForm({ ...form, candle1_fertile: +e.target.value })} /></div>
-                  <div><Label>غير مخصب</Label><Input type="number" value={form.candle1_infertile} onChange={(e) => setForm({ ...form, candle1_infertile: +e.target.value })} /></div>
+                  <div><Label>مخصب</Label><Input type="number" min={0} value={form.candle1_fertile} onChange={(e) => {
+                    const v = Math.max(0, +e.target.value || 0);
+                    const total = form.net_eggs || form.received_eggs || 0;
+                    setForm({ ...form, candle1_fertile: v, candle1_infertile: Math.max(0, total - v) });
+                  }} /></div>
+                  <div><Label>غير مخصب (تلقائي)</Label><Input type="number" min={0} value={form.candle1_infertile} onChange={(e) => {
+                    const v = Math.max(0, +e.target.value || 0);
+                    const total = form.net_eggs || form.received_eggs || 0;
+                    setForm({ ...form, candle1_infertile: v, candle1_fertile: Math.max(0, total - v) });
+                  }} /></div>
                 </div>
+                {((form.candle1_fertile || 0) + (form.candle1_infertile || 0)) > 0 &&
+                  ((form.candle1_fertile || 0) + (form.candle1_infertile || 0)) !== (form.net_eggs || form.received_eggs || 0) && (
+                  <p className="text-xs text-destructive mt-1">⚠️ المجموع {(form.candle1_fertile || 0) + (form.candle1_infertile || 0)} ≠ الإجمالي {form.net_eggs || form.received_eggs || 0}</p>
+                )}
               </div>
 
+              {/* الكشف الثاني: مخصب مكتمل + ميت = مخصب الكشف الأول */}
               <div>
-                <p className="font-semibold text-sm mb-2 text-cyan-700">الكشف الثاني (بعد {STAGE_CANDLE2} يوم) — الميت يُعدم</p>
+                <p className="font-semibold text-sm mb-2 text-cyan-700">
+                  الكشف الثاني (بعد {STAGE_CANDLE2} يوم) — الميت يُعدم · من الكشف الأول = {form.candle1_fertile || 0}
+                </p>
                 <div className="grid grid-cols-3 gap-2">
                   <div><Label>التاريخ</Label><Input type="date" value={form.candle2_date} onChange={(e) => setForm({ ...form, candle2_date: e.target.value })} /></div>
-                  <div><Label>مخصب (مكتمل النمو)</Label><Input type="number" value={form.candle2_fertile} onChange={(e) => setForm({ ...form, candle2_fertile: +e.target.value })} /></div>
-                  <div><Label>ميت</Label><Input type="number" value={form.candle2_dead} onChange={(e) => setForm({ ...form, candle2_dead: +e.target.value })} /></div>
+                  <div><Label>مخصب (مكتمل النمو)</Label><Input type="number" min={0} value={form.candle2_fertile} onChange={(e) => {
+                    const v = Math.max(0, +e.target.value || 0);
+                    const base = form.candle1_fertile || 0;
+                    setForm({ ...form, candle2_fertile: v, candle2_dead: Math.max(0, base - v) });
+                  }} /></div>
+                  <div><Label>ميت (تلقائي)</Label><Input type="number" min={0} value={form.candle2_dead} onChange={(e) => {
+                    const v = Math.max(0, +e.target.value || 0);
+                    const base = form.candle1_fertile || 0;
+                    setForm({ ...form, candle2_dead: v, candle2_fertile: Math.max(0, base - v) });
+                  }} /></div>
                 </div>
+                {((form.candle2_fertile || 0) + (form.candle2_dead || 0)) > 0 &&
+                  ((form.candle2_fertile || 0) + (form.candle2_dead || 0)) !== (form.candle1_fertile || 0) && (
+                  <p className="text-xs text-destructive mt-1">⚠️ المجموع {(form.candle2_fertile || 0) + (form.candle2_dead || 0)} ≠ مخصب الكشف الأول {form.candle1_fertile || 0}</p>
+                )}
               </div>
 
+              {/* الهاتشر: كتاكيت + نافق = مخصب الكشف الثاني */}
               <div>
-                <p className="font-semibold text-sm mb-2 text-cyan-700">الخروج للهاتشر (بعد {STAGE_EXIT} يوم) — سعة الهاتشر {HATCHER.capacity}</p>
+                <p className="font-semibold text-sm mb-2 text-cyan-700">
+                  الخروج للهاتشر (بعد {STAGE_EXIT} يوم) — سعة {HATCHER.capacity} · الداخل = {form.candle2_fertile || 0}
+                </p>
                 <div className="grid grid-cols-3 gap-2">
                   <div><Label>تاريخ الخروج</Label><Input type="date" value={form.exit_date} onChange={(e) => setForm({ ...form, exit_date: e.target.value })} /></div>
-                  <div><Label>كتاكيت ناتجة</Label><Input type="number" value={form.hatched_chicks} onChange={(e) => setForm({ ...form, hatched_chicks: +e.target.value })} /></div>
-                  <div><Label>نافق هاتشر</Label><Input type="number" value={form.hatcher_dead} onChange={(e) => setForm({ ...form, hatcher_dead: +e.target.value })} /></div>
+                  <div><Label>كتاكيت ناتجة</Label><Input type="number" min={0} value={form.hatched_chicks} onChange={(e) => {
+                    const v = Math.max(0, +e.target.value || 0);
+                    const base = form.candle2_fertile || 0;
+                    setForm({ ...form, hatched_chicks: v, hatcher_dead: Math.max(0, base - v) });
+                  }} /></div>
+                  <div><Label>نافق هاتشر (تلقائي)</Label><Input type="number" min={0} value={form.hatcher_dead} onChange={(e) => {
+                    const v = Math.max(0, +e.target.value || 0);
+                    const base = form.candle2_fertile || 0;
+                    setForm({ ...form, hatcher_dead: v, hatched_chicks: Math.max(0, base - v) });
+                  }} /></div>
                 </div>
               </div>
 
