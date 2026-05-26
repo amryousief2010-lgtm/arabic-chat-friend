@@ -143,34 +143,57 @@ const FarmShipmentsInbox = () => {
   const computedStatus: Shipment["status"] = useMemo(() => {
     if (!editing) return "received";
     const received = Number(form.received) || 0;
-    const damaged = Number(form.damaged) || 0;
+    const damaged = (Number(form.damaged) || 0) + (Number(form.dead) || 0);
     if (received <= 0) return "rejected";
     if (received < editing.egg_count || damaged > 0) return "partial";
     return "received";
-  }, [editing, form.received, form.damaged]);
+  }, [editing, form.received, form.damaged, form.dead]);
+
+  const totalAccounted = (Number(form.received) || 0) + (Number(form.damaged) || 0) + (Number(form.dead) || 0);
+  const variance = editing ? editing.egg_count - totalAccounted : 0;
 
   const confirmReceive = async () => {
     if (!editing) return;
     const received = Number(form.received) || 0;
     const damaged = Number(form.damaged) || 0;
+    const dead = Number(form.dead) || 0;
+    const totalDamage = damaged + dead;
+    if (received < 0 || damaged < 0 || dead < 0) { toast.error("القيم غير صحيحة"); return; }
     if (received > editing.egg_count) { toast.error("الكمية المستلمة لا يمكن أن تتجاوز المرسلة"); return; }
-    if (damaged < 0 || received < 0) { toast.error("القيم غير صحيحة"); return; }
+    if (received + totalDamage > editing.egg_count) {
+      toast.error(`المجموع (${received + totalDamage}) يتجاوز المرسل (${editing.egg_count})`);
+      return;
+    }
+    if (variance !== 0) {
+      toast.error(`يجب مطابقة الكمية — الفرق الحالي: ${variance} (مستلم + تالف + هالك يجب أن يساوي المرسل)`);
+      return;
+    }
+    if (!confirmMatch) {
+      toast.error("يجب تأكيد مطابقة الكمية المستلمة قبل الحفظ");
+      return;
+    }
+
+    const notes = [
+      form.notes?.trim() || null,
+      dead > 0 ? `هالك: ${dead}` : null,
+      damaged > 0 ? `تالف/مكسور: ${damaged}` : null,
+    ].filter(Boolean).join(" · ") || null;
 
     const { error } = await (supabase as any)
       .from("farm_to_hatchery_shipments")
       .update({
         status: computedStatus,
         received_egg_count: received,
-        damaged_count: damaged,
+        damaged_count: totalDamage,
         received_at: new Date().toISOString(),
         received_by: profile?.id ?? null,
-        receipt_notes: form.notes || null,
+        receipt_notes: notes,
         hatch_batch_id: form.hatch_batch_id || null,
       })
       .eq("id", editing.id);
     if (error) { toast.error(error.message); return; }
-    toast.success(damaged > 0
-      ? `تم تأكيد الاستلام — تم إرسال إشعار للمدير العام والتنفيذي بوجود هالك (${damaged})`
+    toast.success(totalDamage > 0
+      ? `تم تأكيد الاستلام — تم إرسال إشعار للمدير العام والتنفيذي (تالف ${damaged} · هالك ${dead})`
       : "تم تأكيد الاستلام");
     setEditing(null);
     setDetail(null);
