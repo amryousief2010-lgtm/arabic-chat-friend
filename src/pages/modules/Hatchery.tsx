@@ -14,15 +14,42 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import {
-  FlaskConical, Plus, Users, Wrench, Bird, Activity, TrendingUp, Trash2, Pencil, AlertTriangle, BarChart3, Inbox,
+  FlaskConical, Plus, Users, Wrench, Bird, Activity, TrendingUp, Trash2, Pencil, AlertTriangle, BarChart3, Inbox, Bell, DollarSign,
 } from "lucide-react";
 import FarmShipmentsInbox from "@/components/hatchery/FarmShipmentsInbox";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, addDays, differenceInDays, parseISO } from "date-fns";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
 
 const today = () => format(new Date(), "yyyy-MM-dd");
 const monthStart = () => { const d = new Date(); d.setDate(1); return format(d, "yyyy-MM-dd"); };
+
+// ====== ثوابت ماكينات المعمل ======
+export const MACHINES = [
+  { id: "M1", name: "ماكينة 1", capacity: 720 },
+  { id: "M2", name: "ماكينة 2", capacity: 720 },
+  { id: "M3", name: "ماكينة 3", capacity: 120 },
+];
+export const HATCHER = { id: "HATCHER", name: "هاتشر", capacity: 120 };
+// مراحل الدورة (بالأيام من تاريخ الدخول)
+const STAGE_CANDLE1 = 15; // الكشف الأول
+const STAGE_CANDLE2 = 30; // الكشف الثاني
+const STAGE_EXIT = 42;    // الخروج للهاتشر
+// تسعير العملاء الخارجيين (افتراضي)
+const PRICE_INFERTILE = 50;   // غير مخصب (كشف 1)
+const PRICE_DEAD2 = 100;      // ميت كشف 2
+const PRICE_CHICK = 150;      // كتكوت ناتج
+const PRICE_HATCHER_DEAD = 100; // نافق هاتشر
+
+const addDaysStr = (d: string, n: number) => d ? format(addDays(parseISO(d), n), "yyyy-MM-dd") : "";
+const autoStatus = (entry: string): "pending" | "incubating" | "hatching" | "completed" => {
+  if (!entry) return "pending";
+  const age = differenceInDays(new Date(), parseISO(entry));
+  if (age < 0) return "pending";
+  if (age < STAGE_EXIT) return "incubating";
+  if (age < STAGE_EXIT + 3) return "hatching";
+  return "completed";
+};
 
 const Hatchery = () => {
   const qc = useQueryClient();
