@@ -968,6 +968,13 @@ const CustomersTab = ({ customers, batches, qc }: any) => {
         </div>
       </Card>
 
+      <CustomerDetailDialog
+        customer={viewing}
+        onClose={() => setViewing(null)}
+        batches={batches}
+        stats={viewing ? customerStats[viewing.id] : null}
+      />
+
       <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setEditing(null); setForm(emptyForm); } }}>
         <DialogContent dir="rtl">
           <DialogHeader><DialogTitle>{editing ? "تعديل بيانات العميل" : "عميل جديد"}</DialogTitle></DialogHeader>
