@@ -142,6 +142,11 @@ const AnimatedRoutes = () => {
             <PageTransition><NewOrder /></PageTransition>
           </ProtectedRoute>
         } />
+        <Route path="/warehouse-stock" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'warehouse_supervisor']}>
+            <PageTransition><WarehouseStockView /></PageTransition>
+          </ProtectedRoute>
+        } />
         <Route path="/orders/moderator/:slug" element={
           <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'private_delivery_rep']}>
             <PageTransition><ModeratorOrdersLog /></PageTransition>
