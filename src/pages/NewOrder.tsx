@@ -219,9 +219,32 @@ const NewOrder = () => {
 
       if (productsRes.error) throw productsRes.error;
       if (offersRes.error) throw offersRes.error;
-      setWarehousesList(whRes.data || []);
+      const whs = whRes.data || [];
+      setWarehousesList(whs);
 
-      setProducts(productsRes.data || []);
+      const productsData = productsRes.data || [];
+      setProducts(productsData);
+
+      // Fetch available stock for Agouza & Main warehouses
+      const agouza = whs.find((w: any) => w.name?.includes('العجوزة'));
+      const main = whs.find((w: any) => w.name?.includes('الرئيسي') || w.name?.includes('المقر'));
+      const whIds = [agouza?.id, main?.id].filter(Boolean) as string[];
+      if (whIds.length > 0) {
+        const { data: invRows } = await supabase
+          .from('inventory_items')
+          .select('warehouse_id, product_id, stock, reserved_qty, blocked_qty')
+          .in('warehouse_id', whIds)
+          .not('product_id', 'is', null);
+        const ag: Record<string, number> = {};
+        const mn: Record<string, number> = {};
+        (invRows || []).forEach((r: any) => {
+          const avail = Number(r.stock || 0) - Number(r.reserved_qty || 0) - Number(r.blocked_qty || 0);
+          if (r.warehouse_id === agouza?.id) ag[r.product_id] = (ag[r.product_id] || 0) + avail;
+          if (r.warehouse_id === main?.id) mn[r.product_id] = (mn[r.product_id] || 0) + avail;
+        });
+        setAgouzaStock(ag);
+        setMainStock(mn);
+      }
 
       // تحميل كل العملاء على دفعات 1000 لتجاوز حد Supabase الافتراضي
       const allCustomers: any[] = [];
