@@ -534,22 +534,42 @@ const FarmShipmentsInbox = () => {
               <div className="text-sm bg-muted p-2 rounded">
                 أسرة <strong>{editing.family_number}</strong> · تاريخ {editing.production_date} · مرسل: <strong>{editing.egg_count}</strong> بيضة
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <Label>المستلم فعلياً</Label>
+                  <Label>المستلم سليم</Label>
                   <Input type="number" min={0} max={editing.egg_count} value={form.received}
-                    onChange={(e) => setForm({ ...form, received: +e.target.value })} />
+                    onChange={(e) => { setForm({ ...form, received: +e.target.value }); setConfirmMatch(false); }} />
                 </div>
                 <div>
-                  <Label>تالف / مكسور</Label>
+                  <Label className="text-amber-600">تالف / مكسور</Label>
                   <Input type="number" min={0} max={editing.egg_count} value={form.damaged}
-                    onChange={(e) => setForm({ ...form, damaged: +e.target.value })} />
+                    onChange={(e) => { setForm({ ...form, damaged: +e.target.value }); setConfirmMatch(false); }} />
+                </div>
+                <div>
+                  <Label className="text-destructive">هالك</Label>
+                  <Input type="number" min={0} max={editing.egg_count} value={form.dead}
+                    onChange={(e) => { setForm({ ...form, dead: +e.target.value }); setConfirmMatch(false); }} />
                 </div>
               </div>
+
+              <div className={`text-xs p-2 rounded border ${variance === 0 ? "bg-emerald-50 border-emerald-300 text-emerald-700" : "bg-destructive/10 border-destructive/40 text-destructive"}`}>
+                <div className="flex justify-between"><span>المرسل:</span><strong>{editing.egg_count}</strong></div>
+                <div className="flex justify-between"><span>المجموع (سليم + تالف + هالك):</span><strong>{totalAccounted}</strong></div>
+                <div className="flex justify-between"><span>الفرق:</span><strong>{variance}</strong></div>
+                {variance !== 0 && <div className="mt-1">⚠️ يجب أن يساوي المجموع الكمية المرسلة لتفعيل التأكيد</div>}
+              </div>
+
               <div className="flex items-center justify-between text-xs bg-accent/30 p-2 rounded">
                 <span>الحالة المحسوبة:</span>
                 {statusBadge(computedStatus)}
               </div>
+
+              <label className={`flex items-start gap-2 text-sm p-2 rounded border cursor-pointer ${confirmMatch ? "bg-primary/5 border-primary/40" : "bg-muted border-border"} ${variance !== 0 ? "opacity-50 cursor-not-allowed" : ""}`}>
+                <input type="checkbox" className="mt-1" disabled={variance !== 0}
+                  checked={confirmMatch} onChange={(e) => setConfirmMatch(e.target.checked)} />
+                <span>أؤكد مطابقة الكمية المستلمة وصحة تسجيل التالف والهالك، وأتحمل المسؤولية عن صحة البيانات.</span>
+              </label>
+
               <div>
                 <Label className="flex items-center gap-1">
                   ربط بدفعة معمل
@@ -580,7 +600,7 @@ const FarmShipmentsInbox = () => {
             </div>
           )}
           <DialogFooter>
-            <Button onClick={confirmReceive}>تأكيد الاستلام</Button>
+            <Button onClick={confirmReceive} disabled={variance !== 0 || !confirmMatch}>تأكيد الاستلام</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
