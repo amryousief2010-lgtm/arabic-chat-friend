@@ -64,7 +64,8 @@ const FarmShipmentsInbox = () => {
   const [detail, setDetail] = useState<Shipment | null>(null);
   const [rejecting, setRejecting] = useState<Shipment | null>(null);
   const [rejectReason, setRejectReason] = useState("");
-  const [form, setForm] = useState({ received: 0, damaged: 0, notes: "", hatch_batch_id: "" });
+  const [form, setForm] = useState({ received: 0, damaged: 0, dead: 0, notes: "", hatch_batch_id: "" });
+  const [confirmMatch, setConfirmMatch] = useState(false);
   const [suggestedId, setSuggestedId] = useState<string | null>(null);
 
   const { data: rows = [], isLoading, refetch } = useQuery({
