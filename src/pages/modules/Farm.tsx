@@ -235,14 +235,60 @@ const FamiliesTab = ({ families, qc }: any) => {
 // ============ EGGS ============
 const EggsTab = ({ eggs, families, qc }: any) => {
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState<any>({ production_date: today(), family_id: "", egg_count: 0, notes: "" });
+  const [bulkDate, setBulkDate] = useState<string>(today());
+  const [bulkNotes, setBulkNotes] = useState<string>("");
+  const [bulkCounts, setBulkCounts] = useState<Record<string, string>>({});
+  const [bulkSearch, setBulkSearch] = useState("");
+
+  // Reset counts when dialog opens
+  const openDialog = () => {
+    setBulkDate(today());
+    setBulkNotes("");
+    setBulkCounts({});
+    setBulkSearch("");
+    setOpen(true);
+  };
+
+  // Track which families already have a record for the selected date
+  const recordedForDate = useMemo(() => {
+    const map: Record<string, number> = {};
+    eggs.forEach((e: any) => {
+      if (e.production_date === bulkDate && e.family_id) {
+        map[e.family_id] = (map[e.family_id] || 0) + (e.egg_count || 0);
+      }
+    });
+    return map;
+  }, [eggs, bulkDate]);
+
+  const visibleFamilies = useMemo(() => {
+    const q = bulkSearch.trim();
+    if (!q) return families;
+    return families.filter((f: any) =>
+      String(f.family_number).includes(q) || String(f.pen || "").includes(q)
+    );
+  }, [families, bulkSearch]);
 
   const save = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("farm_egg_production").insert({ ...form, family_id: form.family_id || null });
+      const rows = Object.entries(bulkCounts)
+        .map(([family_id, v]) => ({ family_id, egg_count: parseInt(v, 10) }))
+        .filter(r => Number.isFinite(r.egg_count) && r.egg_count > 0)
+        .map(r => ({
+          production_date: bulkDate,
+          family_id: r.family_id,
+          egg_count: r.egg_count,
+          notes: bulkNotes || null,
+        }));
+      if (rows.length === 0) throw new Error("أدخل عدد البيض لأسرة واحدة على الأقل");
+      const { error } = await supabase.from("farm_egg_production").insert(rows);
       if (error) throw error;
+      return rows.length;
     },
-    onSuccess: () => { toast.success("تم تسجيل الإنتاج"); setOpen(false); setForm({ production_date: today(), family_id: "", egg_count: 0, notes: "" }); qc.invalidateQueries({ queryKey: ["farm_egg_production"] }); },
+    onSuccess: (n: number) => {
+      toast.success(`تم تسجيل إنتاج ${n} أسرة`);
+      setOpen(false);
+      qc.invalidateQueries({ queryKey: ["farm_egg_production"] });
+    },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -250,6 +296,15 @@ const EggsTab = ({ eggs, families, qc }: any) => {
     mutationFn: async (id: string) => { const { error } = await supabase.from("farm_egg_production").delete().eq("id", id); if (error) throw error; },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["farm_egg_production"] }),
   });
+
+  const totalBulk = useMemo(
+    () => Object.values(bulkCounts).reduce((s, v) => s + (parseInt(v, 10) || 0), 0),
+    [bulkCounts]
+  );
+  const filledCount = useMemo(
+    () => Object.values(bulkCounts).filter(v => (parseInt(v, 10) || 0) > 0).length,
+    [bulkCounts]
+  );
 
   const familyName = (id: string) => families.find((f: any) => f.id === id)?.family_number || "-";
 
