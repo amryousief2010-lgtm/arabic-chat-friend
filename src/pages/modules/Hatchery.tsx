@@ -15,6 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import {
   FlaskConical, Plus, Users, Wrench, Bird, Activity, TrendingUp, Trash2, Pencil, AlertTriangle, BarChart3, Inbox, Bell, DollarSign,
+  Printer, Search, ArrowDownToLine, ArrowUpFromLine, Skull, ShoppingCart, Wallet, Calendar as CalendarIcon, Eye, FileText, Hash,
 } from "lucide-react";
 import FarmShipmentsInbox from "@/components/hatchery/FarmShipmentsInbox";
 import { toast } from "sonner";
@@ -1605,87 +1606,298 @@ const MaintTab = ({ maint, qc }: any) => {
 };
 
 // ============ CHICKS ============
+const ChickDetailDialog = ({ row, onClose }: { row: any; onClose: () => void }) => {
+  if (!row) return null;
+  const total = (row.sold || 0) * (row.unit_price || 0);
+  const balance = (row.incoming || 0) - (row.outgoing || 0) - (row.dead || 0);
+
+  const handlePrint = () => {
+    const html = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8"/><title>تفاصيل حركة كتاكيت - ${row.movement_date}</title>
+    <style>
+      body{font-family:-apple-system,"Segoe UI",Tahoma,Arial,sans-serif;padding:24px;color:#1a1a1a}
+      .header{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #7c3aed;padding-bottom:12px;margin-bottom:16px}
+      .header h1{margin:0;font-size:22px;color:#7c3aed}
+      .header .sub{color:#666;font-size:13px;margin-top:4px}
+      .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:12px 0}
+      .cell{border:1px solid #e5e7eb;border-radius:8px;padding:10px}
+      .cell .label{font-size:11px;color:#666;margin-bottom:4px}
+      .cell .val{font-size:16px;font-weight:700}
+      .section-title{font-size:14px;font-weight:700;margin:16px 0 6px;color:#7c3aed;border-right:4px solid #f97316;padding-right:8px}
+      .notes{border:1px dashed #cbd5e1;border-radius:8px;padding:10px;background:#fafafa;font-size:13px;line-height:1.7;min-height:60px}
+      .footer{margin-top:20px;font-size:11px;color:#888;text-align:center;border-top:1px solid #eee;padding-top:8px}
+      .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;background:#ede9fe;color:#6d28d9}
+      @media print{button{display:none}}
+    </style></head><body>
+    <div class="header"><div><h1>تفاصيل حركة كتاكيت</h1><div class="sub">معمل التفريخ – عاصمة النعام</div></div>
+    <div style="text-align:left"><span class="pill">${row.movement_date}</span></div></div>
+    <div class="section-title">البيانات الأساسية</div>
+    <div class="grid">
+      <div class="cell"><div class="label">المصدر / الدفعة</div><div class="val">${row.source || "—"}</div></div>
+      <div class="cell"><div class="label">العمر عند البيع (يوم)</div><div class="val">${row.age_days ?? "—"}</div></div>
+    </div>
+    <div class="section-title">حركة المخزون</div>
+    <div class="grid">
+      <div class="cell"><div class="label">وارد</div><div class="val">${row.incoming || 0}</div></div>
+      <div class="cell"><div class="label">منصرف</div><div class="val">${row.outgoing || 0}</div></div>
+      <div class="cell"><div class="label">نافق</div><div class="val" style="color:#dc2626">${row.dead || 0}</div></div>
+      <div class="cell"><div class="label">مباع</div><div class="val" style="color:#059669">${row.sold || 0}</div></div>
+      <div class="cell" style="grid-column:span 2;background:#faf5ff"><div class="label">الرصيد المتبقي</div><div class="val" style="color:#7c3aed;font-size:22px">${balance}</div></div>
+    </div>
+    <div class="section-title">المالية</div>
+    <div class="grid">
+      <div class="cell"><div class="label">سعر الوحدة</div><div class="val">${(row.unit_price || 0).toLocaleString()} ج.م</div></div>
+      <div class="cell" style="background:#fff7ed"><div class="label">إجمالي البيع</div><div class="val" style="color:#ea580c">${total.toLocaleString()} ج.م</div></div>
+    </div>
+    <div class="section-title">ملاحظات</div>
+    <div class="notes">${(row.notes || "لا توجد ملاحظات").replace(/</g,"&lt;")}</div>
+    <div class="footer">طُبع في ${new Date().toLocaleString("ar-EG")}</div>
+    <script>window.addEventListener('load',()=>setTimeout(()=>window.print(),250));</script>
+    </body></html>`;
+    const w = window.open("", "_blank", "width=820,height=720");
+    if (!w) return;
+    w.document.open(); w.document.write(html); w.document.close();
+  };
+
+  const Item = ({ icon: Icon, label, value, color = "" }: any) => (
+    <div className="flex items-center gap-3 p-3 rounded-lg border bg-card">
+      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${color || "bg-muted"}`}>
+        <Icon className="w-5 h-5" />
+      </div>
+      <div className="flex-1">
+        <p className="text-[11px] text-muted-foreground">{label}</p>
+        <p className="font-bold text-base">{value}</p>
+      </div>
+    </div>
+  );
+
+  return (
+    <Dialog open={!!row} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent dir="rtl" className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <div className="flex items-center justify-between gap-2">
+            <DialogTitle className="flex items-center gap-2">
+              <Bird className="w-5 h-5 text-purple-600" />
+              تفاصيل حركة كتاكيت
+            </DialogTitle>
+            <Button size="sm" variant="outline" onClick={handlePrint}><Printer className="w-4 h-4 ml-1" />طباعة</Button>
+          </div>
+        </DialogHeader>
+        <div className="space-y-4 mt-2">
+          <div className="rounded-xl bg-gradient-to-l from-purple-600 to-orange-500 text-white p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs opacity-90">المصدر / الدفعة</p>
+                <p className="text-xl font-bold">{row.source || "—"}</p>
+              </div>
+              <div className="text-left">
+                <p className="text-xs opacity-90 flex items-center gap-1 justify-end"><CalendarIcon className="w-3 h-3" />{row.movement_date}</p>
+                <p className="text-2xl font-bold">{balance}</p>
+                <p className="text-[10px] opacity-90">الرصيد المتبقي</p>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <p className="text-sm font-semibold mb-2 flex items-center gap-1"><Activity className="w-4 h-4 text-purple-600" />حركة المخزون</p>
+            <div className="grid grid-cols-2 gap-2">
+              <Item icon={ArrowDownToLine} label="وارد" value={row.incoming || 0} color="bg-blue-100 text-blue-600" />
+              <Item icon={ArrowUpFromLine} label="منصرف" value={row.outgoing || 0} color="bg-amber-100 text-amber-600" />
+              <Item icon={Skull} label="نافق" value={row.dead || 0} color="bg-red-100 text-red-600" />
+              <Item icon={ShoppingCart} label="مباع" value={row.sold || 0} color="bg-emerald-100 text-emerald-600" />
+            </div>
+          </div>
+
+          <div>
+            <p className="text-sm font-semibold mb-2 flex items-center gap-1"><DollarSign className="w-4 h-4 text-orange-500" />المالية</p>
+            <div className="grid grid-cols-3 gap-2">
+              <Item icon={Hash} label="العمر (يوم)" value={row.age_days ?? "—"} color="bg-slate-100 text-slate-600" />
+              <Item icon={Wallet} label="سعر الوحدة" value={`${(row.unit_price || 0).toLocaleString()} ج`} color="bg-purple-100 text-purple-600" />
+              <Item icon={DollarSign} label="إجمالي البيع" value={`${total.toLocaleString()} ج`} color="bg-orange-100 text-orange-600" />
+            </div>
+          </div>
+
+          <div>
+            <p className="text-sm font-semibold mb-2 flex items-center gap-1"><FileText className="w-4 h-4 text-muted-foreground" />ملاحظات</p>
+            <div className="rounded-lg border bg-muted/30 p-3 text-sm min-h-[60px] whitespace-pre-wrap">{row.notes || "لا توجد ملاحظات"}</div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 const ChicksTab = ({ chicks, qc }: any) => {
   const [open, setOpen] = useState(false);
+  const [viewing, setViewing] = useState<any>(null);
+  const [search, setSearch] = useState("");
   const [form, setForm] = useState<any>({ movement_date: today(), source: "", incoming: 0, outgoing: 0, dead: 0, sold: 0, unit_price: 0, age_days: 0, notes: "" });
   const save = useMutation({
     mutationFn: async () => { const { error } = await supabase.from("chick_movements").insert(form); if (error) throw error; },
     onSuccess: () => { toast.success("تم"); setOpen(false); setForm({ movement_date: today(), source: "", incoming: 0, outgoing: 0, dead: 0, sold: 0, unit_price: 0, age_days: 0, notes: "" }); qc.invalidateQueries({ queryKey: ["chick_movements"] }); qc.invalidateQueries({ queryKey: ["production-stats"] }); },
     onError: (e: any) => toast.error(e.message),
   });
-  const del = useMutation({ mutationFn: async (id: string) => { const { error } = await supabase.from("chick_movements").delete().eq("id", id); if (error) throw error; }, onSuccess: () => qc.invalidateQueries({ queryKey: ["chick_movements"] }) });
+  const del = useMutation({ mutationFn: async (id: string) => { const { error } = await supabase.from("chick_movements").delete().eq("id", id); if (error) throw error; }, onSuccess: () => { toast.success("تم الحذف"); qc.invalidateQueries({ queryKey: ["chick_movements"] }); } });
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return chicks;
+    const s = search.toLowerCase();
+    return chicks.filter((c: any) => (c.source || "").toLowerCase().includes(s) || (c.notes || "").toLowerCase().includes(s) || (c.movement_date || "").includes(s));
+  }, [chicks, search]);
 
   const totals = useMemo(() => {
-    const t = chicks.reduce((acc: any, c: any) => {
+    const t = filtered.reduce((acc: any, c: any) => {
       acc.in += c.incoming; acc.out += c.outgoing; acc.dead += c.dead;
       acc.sold += c.sold; acc.revenue += (c.sold * c.unit_price);
       return acc;
     }, { in: 0, out: 0, dead: 0, sold: 0, revenue: 0 });
     t.balance = t.in - t.out - t.dead;
     return t;
-  }, [chicks]);
+  }, [filtered]);
+
+  const printAll = () => {
+    const rows = filtered.map((c: any) => `<tr>
+      <td>${c.movement_date}</td><td>${c.source || "—"}</td>
+      <td>${c.incoming}</td><td>${c.outgoing}</td>
+      <td style="color:#dc2626">${c.dead}</td><td style="color:#059669">${c.sold}</td>
+      <td>${c.age_days || "—"}</td><td>${c.unit_price}</td>
+      <td><b>${(c.sold * c.unit_price).toLocaleString()}</b></td></tr>`).join("");
+    const html = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8"/><title>سجل حركة الكتاكيت</title>
+    <style>body{font-family:-apple-system,Tahoma,sans-serif;padding:20px}h1{color:#7c3aed;border-bottom:3px solid #f97316;padding-bottom:8px}
+    table{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px}th,td{border:1px solid #e5e7eb;padding:8px;text-align:center}
+    th{background:#7c3aed;color:#fff}tr:nth-child(even){background:#fafafa}.totals{margin-top:14px;padding:12px;background:#faf5ff;border-radius:8px;display:flex;justify-content:space-around;flex-wrap:wrap}
+    .totals div{text-align:center}.totals b{display:block;font-size:18px;color:#7c3aed}@media print{button{display:none}}</style></head><body>
+    <h1>سجل حركة الكتاكيت</h1>
+    <div class="totals">
+      <div><span>وارد</span><b>${totals.in}</b></div><div><span>منصرف</span><b>${totals.out}</b></div>
+      <div><span>نافق</span><b style="color:#dc2626">${totals.dead}</b></div><div><span>مباع</span><b style="color:#059669">${totals.sold}</b></div>
+      <div><span>الرصيد</span><b>${totals.balance}</b></div><div><span>الإيراد</span><b style="color:#ea580c">${totals.revenue.toLocaleString()} ج</b></div>
+    </div>
+    <table><thead><tr><th>التاريخ</th><th>المصدر</th><th>وارد</th><th>منصرف</th><th>نافق</th><th>مباع</th><th>العمر</th><th>سعر</th><th>إجمالي</th></tr></thead><tbody>${rows}</tbody></table>
+    <script>window.addEventListener('load',()=>setTimeout(()=>window.print(),250));</script></body></html>`;
+    const w = window.open("", "_blank", "width=900,height=700");
+    if (!w) return; w.document.open(); w.document.write(html); w.document.close();
+  };
+
+  const Kpi = ({ icon: Icon, label, value, gradient }: any) => (
+    <Card className={`p-4 text-white border-0 shadow-md bg-gradient-to-br ${gradient} relative overflow-hidden`}>
+      <Icon className="absolute -top-2 -left-2 w-16 h-16 opacity-10" />
+      <p className="text-xs opacity-90 flex items-center gap-1"><Icon className="w-3.5 h-3.5" />{label}</p>
+      <p className="text-2xl font-bold mt-1">{typeof value === "number" ? value.toLocaleString() : value}</p>
+    </Card>
+  );
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-        <Card className="p-3"><p className="text-xs text-muted-foreground">إجمالي وارد</p><p className="text-lg font-bold">{totals.in}</p></Card>
-        <Card className="p-3"><p className="text-xs text-muted-foreground">منصرف</p><p className="text-lg font-bold">{totals.out}</p></Card>
-        <Card className="p-3"><p className="text-xs text-muted-foreground">نافق</p><p className="text-lg font-bold text-destructive">{totals.dead}</p></Card>
-        <Card className="p-3"><p className="text-xs text-muted-foreground">مبيعات</p><p className="text-lg font-bold text-emerald-600">{totals.sold}</p></Card>
-        <Card className="p-3"><p className="text-xs text-muted-foreground">الرصيد</p><p className="text-lg font-bold text-purple-600">{totals.balance}</p></Card>
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+        <Kpi icon={ArrowDownToLine} label="وارد" value={totals.in} gradient="from-blue-500 to-blue-700" />
+        <Kpi icon={ArrowUpFromLine} label="منصرف" value={totals.out} gradient="from-amber-500 to-orange-600" />
+        <Kpi icon={Skull} label="نافق" value={totals.dead} gradient="from-red-500 to-rose-700" />
+        <Kpi icon={ShoppingCart} label="مباع" value={totals.sold} gradient="from-emerald-500 to-emerald-700" />
+        <Kpi icon={Bird} label="الرصيد" value={totals.balance} gradient="from-purple-600 to-purple-800" />
+        <Kpi icon={Wallet} label="الإيراد" value={`${totals.revenue.toLocaleString()} ج`} gradient="from-orange-500 to-pink-600" />
       </div>
 
       <Card className="p-4">
-        <div className="flex justify-between mb-3">
-          <h3 className="font-bold">حركة الكتاكيت</h3>
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild><Button size="sm"><Plus className="w-4 h-4 ml-1" />حركة جديدة</Button></DialogTrigger>
-            <DialogContent dir="rtl">
-              <DialogHeader><DialogTitle>حركة كتاكيت</DialogTitle></DialogHeader>
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-2">
-                  <div><Label>التاريخ</Label><Input type="date" value={form.movement_date} onChange={(e) => setForm({ ...form, movement_date: e.target.value })} /></div>
-                  <div><Label>المصدر</Label><Input value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} placeholder="اسم الدفعة/العميل" /></div>
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-purple-600 to-orange-500 flex items-center justify-center">
+              <Bird className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h3 className="font-bold">حركة الكتاكيت</h3>
+              <p className="text-[11px] text-muted-foreground">{filtered.length} حركة — اضغط على أي صف لعرض التفاصيل</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-1 md:flex-none md:min-w-[420px] justify-end">
+            <div className="relative flex-1 md:max-w-xs">
+              <Search className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input className="pr-8" placeholder="بحث بالمصدر أو التاريخ..." value={search} onChange={(e) => setSearch(e.target.value)} />
+            </div>
+            <Button size="sm" variant="outline" onClick={printAll} disabled={!filtered.length}><Printer className="w-4 h-4 ml-1" />طباعة</Button>
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild><Button size="sm" className="bg-gradient-to-l from-purple-600 to-orange-500 text-white"><Plus className="w-4 h-4 ml-1" />حركة جديدة</Button></DialogTrigger>
+              <DialogContent dir="rtl">
+                <DialogHeader><DialogTitle>حركة كتاكيت</DialogTitle></DialogHeader>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div><Label>التاريخ</Label><Input type="date" value={form.movement_date} onChange={(e) => setForm({ ...form, movement_date: e.target.value })} /></div>
+                    <div><Label>المصدر</Label><Input value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} placeholder="اسم الدفعة/العميل" /></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div><Label>وارد</Label><Input type="number" value={form.incoming} onChange={(e) => setForm({ ...form, incoming: +e.target.value })} /></div>
+                    <div><Label>منصرف</Label><Input type="number" value={form.outgoing} onChange={(e) => setForm({ ...form, outgoing: +e.target.value })} /></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div><Label>نافق</Label><Input type="number" value={form.dead} onChange={(e) => setForm({ ...form, dead: +e.target.value })} /></div>
+                    <div><Label>مباع</Label><Input type="number" value={form.sold} onChange={(e) => setForm({ ...form, sold: +e.target.value })} /></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div><Label>سعر الوحدة (ج.م)</Label><Input type="number" value={form.unit_price} onChange={(e) => setForm({ ...form, unit_price: +e.target.value })} /></div>
+                    <div><Label>العمر عند البيع (يوم)</Label><Input type="number" value={form.age_days} onChange={(e) => setForm({ ...form, age_days: +e.target.value })} /></div>
+                  </div>
+                  <div><Label>ملاحظات</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div><Label>وارد</Label><Input type="number" value={form.incoming} onChange={(e) => setForm({ ...form, incoming: +e.target.value })} /></div>
-                  <div><Label>منصرف</Label><Input type="number" value={form.outgoing} onChange={(e) => setForm({ ...form, outgoing: +e.target.value })} /></div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div><Label>نافق</Label><Input type="number" value={form.dead} onChange={(e) => setForm({ ...form, dead: +e.target.value })} /></div>
-                  <div><Label>مباع</Label><Input type="number" value={form.sold} onChange={(e) => setForm({ ...form, sold: +e.target.value })} /></div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div><Label>سعر الوحدة (ج.م)</Label><Input type="number" value={form.unit_price} onChange={(e) => setForm({ ...form, unit_price: +e.target.value })} /></div>
-                  <div><Label>العمر عند البيع (يوم)</Label><Input type="number" value={form.age_days} onChange={(e) => setForm({ ...form, age_days: +e.target.value })} /></div>
-                </div>
-                <div><Label>ملاحظات</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
-              </div>
-              <DialogFooter><Button onClick={() => save.mutate()} disabled={save.isPending}>حفظ</Button></DialogFooter>
-            </DialogContent>
-          </Dialog>
+                <DialogFooter><Button onClick={() => save.mutate()} disabled={save.isPending}>حفظ</Button></DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
-        <Table>
-          <TableHeader><TableRow><TableHead>التاريخ</TableHead><TableHead>المصدر</TableHead><TableHead>وارد</TableHead><TableHead>منصرف</TableHead><TableHead>نافق</TableHead><TableHead>مباع</TableHead><TableHead>العمر (يوم)</TableHead><TableHead>سعر</TableHead><TableHead>إجمالي بيع</TableHead><TableHead></TableHead></TableRow></TableHeader>
-          <TableBody>
-            {chicks.map((c: any) => (
-              <TableRow key={c.id}>
-                <TableCell>{c.movement_date}</TableCell>
-                <TableCell>{c.source}</TableCell>
-                <TableCell>{c.incoming}</TableCell>
-                <TableCell>{c.outgoing}</TableCell>
-                <TableCell className="text-destructive">{c.dead}</TableCell>
-                <TableCell className="text-emerald-600">{c.sold}</TableCell>
-                <TableCell>{c.age_days || "-"}</TableCell>
-                <TableCell>{c.unit_price}</TableCell>
-                <TableCell className="font-bold">{(c.sold * c.unit_price).toLocaleString()}</TableCell>
-                <TableCell><Button size="icon" variant="ghost" onClick={() => del.mutate(c.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button></TableCell>
+
+        <div className="rounded-lg border overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/50">
+                <TableHead><CalendarIcon className="w-3.5 h-3.5 inline ml-1" />التاريخ</TableHead>
+                <TableHead>المصدر</TableHead>
+                <TableHead className="text-center"><ArrowDownToLine className="w-3.5 h-3.5 inline text-blue-600" /> وارد</TableHead>
+                <TableHead className="text-center"><ArrowUpFromLine className="w-3.5 h-3.5 inline text-amber-600" /> منصرف</TableHead>
+                <TableHead className="text-center"><Skull className="w-3.5 h-3.5 inline text-red-600" /> نافق</TableHead>
+                <TableHead className="text-center"><ShoppingCart className="w-3.5 h-3.5 inline text-emerald-600" /> مباع</TableHead>
+                <TableHead className="text-center">العمر</TableHead>
+                <TableHead className="text-center">سعر</TableHead>
+                <TableHead className="text-center"><Wallet className="w-3.5 h-3.5 inline text-orange-600" /> إجمالي</TableHead>
+                <TableHead></TableHead>
               </TableRow>
-            ))}
-            {chicks.length === 0 && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-6">لا توجد حركة</TableCell></TableRow>}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((c: any) => (
+                <TableRow key={c.id} className="cursor-pointer hover:bg-purple-50/40 transition-colors" onClick={() => setViewing(c)}>
+                  <TableCell className="font-medium">{c.movement_date}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-500 to-orange-400 flex items-center justify-center text-white text-[10px] font-bold">
+                        {(c.source || "?").slice(0, 2)}
+                      </div>
+                      <span>{c.source || "—"}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-center"><Badge variant="secondary" className="bg-blue-100 text-blue-700">{c.incoming}</Badge></TableCell>
+                  <TableCell className="text-center"><Badge variant="secondary" className="bg-amber-100 text-amber-700">{c.outgoing}</Badge></TableCell>
+                  <TableCell className="text-center"><Badge variant="secondary" className="bg-red-100 text-red-700">{c.dead}</Badge></TableCell>
+                  <TableCell className="text-center"><Badge variant="secondary" className="bg-emerald-100 text-emerald-700">{c.sold}</Badge></TableCell>
+                  <TableCell className="text-center text-muted-foreground">{c.age_days || "—"}</TableCell>
+                  <TableCell className="text-center">{c.unit_price}</TableCell>
+                  <TableCell className="text-center font-bold text-orange-600">{(c.sold * c.unit_price).toLocaleString()}</TableCell>
+                  <TableCell className="text-left" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex gap-1">
+                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setViewing(c)}><Eye className="w-3.5 h-3.5 text-purple-600" /></Button>
+                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { if (confirm("حذف هذه الحركة؟")) del.mutate(c.id); }}><Trash2 className="w-3.5 h-3.5 text-destructive" /></Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {filtered.length === 0 && (
+                <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-10">
+                  <Bird className="w-10 h-10 mx-auto opacity-20 mb-2" />
+                  <p>{search ? "لا توجد نتائج مطابقة" : "لا توجد حركة"}</p>
+                </TableCell></TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </Card>
+
+      <ChickDetailDialog row={viewing} onClose={() => setViewing(null)} />
     </div>
   );
 };
