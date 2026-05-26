@@ -173,6 +173,9 @@ const NewOrder = () => {
   const [warehousesList, setWarehousesList] = useState<Array<{id:string;name:string}>>([]);
   const agouzaWh = useMemo(() => warehousesList.find(w => w.name?.includes('العجوزة')), [warehousesList]);
   const mainWh = useMemo(() => warehousesList.find(w => w.name?.includes('الرئيسي') || w.name?.includes('المقر')), [warehousesList]);
+  // Available stock per product per warehouse (stock - reserved - blocked)
+  const [agouzaStock, setAgouzaStock] = useState<Record<string, number>>({});
+  const [mainStock, setMainStock] = useState<Record<string, number>>({});
 
   // عند اختيار "توصيل من المخزن الرئيسى" → الأوردر يتسجل تلقائياً على المندوب الخاص (كيمو)
   useEffect(() => {
@@ -216,9 +219,32 @@ const NewOrder = () => {
 
       if (productsRes.error) throw productsRes.error;
       if (offersRes.error) throw offersRes.error;
-      setWarehousesList(whRes.data || []);
+      const whs = whRes.data || [];
+      setWarehousesList(whs);
 
-      setProducts(productsRes.data || []);
+      const productsData = productsRes.data || [];
+      setProducts(productsData);
+
+      // Fetch available stock for Agouza & Main warehouses
+      const agouza = whs.find((w: any) => w.name?.includes('العجوزة'));
+      const main = whs.find((w: any) => w.name?.includes('الرئيسي') || w.name?.includes('المقر'));
+      const whIds = [agouza?.id, main?.id].filter(Boolean) as string[];
+      if (whIds.length > 0) {
+        const { data: invRows } = await supabase
+          .from('inventory_items')
+          .select('warehouse_id, product_id, stock, reserved_qty, blocked_qty')
+          .in('warehouse_id', whIds)
+          .not('product_id', 'is', null);
+        const ag: Record<string, number> = {};
+        const mn: Record<string, number> = {};
+        (invRows || []).forEach((r: any) => {
+          const avail = Number(r.stock || 0) - Number(r.reserved_qty || 0) - Number(r.blocked_qty || 0);
+          if (r.warehouse_id === agouza?.id) ag[r.product_id] = (ag[r.product_id] || 0) + avail;
+          if (r.warehouse_id === main?.id) mn[r.product_id] = (mn[r.product_id] || 0) + avail;
+        });
+        setAgouzaStock(ag);
+        setMainStock(mn);
+      }
 
       // تحميل كل العملاء على دفعات 1000 لتجاوز حد Supabase الافتراضي
       const allCustomers: any[] = [];
@@ -1225,12 +1251,14 @@ const NewOrder = () => {
                                   {product.price.toLocaleString()} ج.م / {product.unit}
                                 </td>
                                 <td className="p-2 align-middle">
-                                  <Badge
-                                    variant={product.stock <= 0 ? 'destructive' : 'outline'}
-                                    className="text-xs whitespace-nowrap"
-                                  >
-                                    {product.stock <= 0 ? 'بانتظار التصنيع' : `متاح: ${product.stock}`}
-                                  </Badge>
+                                  <div className="flex flex-col gap-1">
+                                    <Badge variant={(agouzaStock[product.id] ?? 0) <= 0 ? 'destructive' : 'outline'} className="text-[10px] whitespace-nowrap">
+                                      العجوزة: {agouzaStock[product.id] ?? 0}
+                                    </Badge>
+                                    <Badge variant={(mainStock[product.id] ?? 0) <= 0 ? 'destructive' : 'outline'} className="text-[10px] whitespace-nowrap">
+                                      الرئيسي: {mainStock[product.id] ?? 0}
+                                    </Badge>
+                                  </div>
                                 </td>
                                 <td className="p-2 align-middle">
                                   {kg ? (
@@ -1316,12 +1344,14 @@ const NewOrder = () => {
                               <span className="font-bold text-base text-green-600 dark:text-green-400 break-words flex-1">
                                 {product.name}
                               </span>
-                              <Badge
-                                variant={product.stock <= 0 ? 'destructive' : 'outline'}
-                                className="text-[10px] whitespace-nowrap shrink-0"
-                              >
-                                {product.stock <= 0 ? 'بانتظار التصنيع' : `متاح: ${product.stock}`}
-                              </Badge>
+                              <div className="flex flex-col items-end gap-1 shrink-0">
+                                <Badge variant={(agouzaStock[product.id] ?? 0) <= 0 ? 'destructive' : 'outline'} className="text-[10px] whitespace-nowrap">
+                                  العجوزة: {agouzaStock[product.id] ?? 0}
+                                </Badge>
+                                <Badge variant={(mainStock[product.id] ?? 0) <= 0 ? 'destructive' : 'outline'} className="text-[10px] whitespace-nowrap">
+                                  الرئيسي: {mainStock[product.id] ?? 0}
+                                </Badge>
+                              </div>
                             </div>
                             <div className="text-primary font-bold text-sm mb-2">
                               {product.price.toLocaleString()} ج.م / {product.unit}
