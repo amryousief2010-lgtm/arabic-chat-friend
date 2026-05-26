@@ -958,6 +958,42 @@ const NewOrder = () => {
                             onChange={(e) => setNewCustomerName(e.target.value)}
                           />
                           </div>
+                          {existingCustomerMatch && (
+                            <div className="md:col-span-2 rounded-lg border-2 border-amber-400 bg-amber-50 dark:bg-amber-950/30 p-3 space-y-2">
+                              <div className="flex items-start justify-between gap-2 flex-wrap">
+                                <div className="space-y-1">
+                                  <p className="text-sm font-bold text-amber-900 dark:text-amber-200">
+                                    ⚠️ هذا الرقم مسجّل مسبقًا لعميل آخر
+                                  </p>
+                                  <p className="text-sm font-semibold">{existingCustomerMatch.name}</p>
+                                  <p className="text-xs text-muted-foreground" dir="ltr">
+                                    {existingCustomerMatch.phone}
+                                    {(existingCustomerMatch as any).phone2 ? ` / ${(existingCustomerMatch as any).phone2}` : ''}
+                                  </p>
+                                  {(existingCustomerMatch as any).address && (
+                                    <p className="text-xs text-muted-foreground">
+                                      📍 {(existingCustomerMatch as any).address}
+                                      {(existingCustomerMatch as any).city ? ` - ${(existingCustomerMatch as any).city}` : ''}
+                                      {(existingCustomerMatch as any).governorate ? ` - ${(existingCustomerMatch as any).governorate}` : ''}
+                                    </p>
+                                  )}
+                                  {(existingCustomerMatch as any).source && (
+                                    <p className="text-xs text-muted-foreground">
+                                      المصدر: {(existingCustomerMatch as any).source}
+                                    </p>
+                                  )}
+                                </div>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="default"
+                                  onClick={useExistingCustomer}
+                                >
+                                  استخدام هذا العميل
+                                </Button>
+                              </div>
+                            </div>
+                          )}
                           <div className="space-y-2">
                           <Label>رقم الهاتف *</Label>
                           <Input
