@@ -168,6 +168,12 @@ const NewOrder = () => {
   const [sourceCustom, setSourceCustom] = useState('');
   const [shippingCompany, setShippingCompany] = useState<string>('');
   const [shippingCustom, setShippingCustom] = useState('');
+  // Fulfillment source — مصدر تنفيذ الطلب
+  const [fulfillmentKey, setFulfillmentKey] = useState<'pickup_agouza'|'delivery_agouza'|'pickup_main'|'delivery_main'|''>('');
+  const [warehousesList, setWarehousesList] = useState<Array<{id:string;name:string}>>([]);
+  const agouzaWh = useMemo(() => warehousesList.find(w => w.name?.includes('العجوزة')), [warehousesList]);
+  const mainWh = useMemo(() => warehousesList.find(w => w.name?.includes('الرئيسي') || w.name?.includes('المقر')), [warehousesList]);
+  
   
   // Search
   const [productSearch, setProductSearch] = useState('');
