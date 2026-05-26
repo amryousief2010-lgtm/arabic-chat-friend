@@ -31,8 +31,10 @@ import {
   ShoppingCart,
   FileText,
   Pencil,
+  Printer,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { printOrderInvoice } from "@/lib/printUtils";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import EditOrderItemsDialog from "@/components/orders/EditOrderItemsDialog";
@@ -93,6 +95,7 @@ interface Order {
   created_at: string;
   created_by: string | null;
   created_by_name: string | null;
+  source_warehouse_name: string | null;
   items: OrderItem[];
 }
 
@@ -259,6 +262,17 @@ const OrderDetails = () => {
         createdByName = profileData?.full_name || null;
       }
 
+      // Fetch source warehouse name if any
+      let sourceWarehouseName: string | null = null;
+      if ((orderData as any).source_warehouse_id) {
+        const { data: whData } = await supabase
+          .from('warehouses')
+          .select('name')
+          .eq('id', (orderData as any).source_warehouse_id)
+          .maybeSingle();
+        sourceWarehouseName = whData?.name || null;
+      }
+
       const formattedOrder: Order = {
         id: orderData.id,
         order_number: orderData.order_number,
@@ -277,6 +291,7 @@ const OrderDetails = () => {
         created_at: orderData.created_at,
         created_by: orderData.created_by,
         created_by_name: createdByName,
+        source_warehouse_name: sourceWarehouseName,
         items: (itemsData || []).map((item: any) => ({
           id: item.id,
           product_id: item.product_id ?? null,
@@ -390,6 +405,31 @@ const OrderDetails = () => {
             />
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1"
+              onClick={() => order && printOrderInvoice({
+                order_number: order.order_number,
+                created_at: order.created_at,
+                customer_name: order.customer_name,
+                customer_phone: order.customer_phone,
+                delivery_address: order.delivery_address,
+                payment_method: order.payment_method,
+                payment_status: order.payment_status,
+                source_warehouse_name: order.source_warehouse_name,
+                notes: order.notes,
+                items: order.items,
+                subtotal: order.subtotal,
+                discount: order.discount,
+                delivery_fee: order.delivery_fee,
+                total: order.total,
+                created_by_name: order.created_by_name,
+              })}
+            >
+              <Printer className="w-4 h-4" />
+              طباعة فاتورة
+            </Button>
             <Badge className={`${statusColors[order.status]} flex items-center gap-1 text-sm px-3 py-1`}>
               {getStatusIcon(order.status)}
               {statusLabels[order.status]}

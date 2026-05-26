@@ -5,8 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, RefreshCw, Warehouse } from "lucide-react";
+import { Search, RefreshCw, Warehouse, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { printWarehouseStock } from "@/lib/printUtils";
 
 interface Product { id: string; name: string; unit: string; category?: string | null; }
 
@@ -81,6 +82,22 @@ const WarehouseStockView = () => {
               </div>
               <Button size="sm" variant="outline" onClick={fetchAll} disabled={loading}>
                 <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => printWarehouseStock(
+                  filtered.map(p => ({
+                    name: p.name,
+                    unit: p.unit,
+                    agouza: agouzaStock[p.id] ?? 0,
+                    main: mainStock[p.id] ?? 0,
+                  })),
+                  { filter: search.trim() || undefined }
+                )}
+              >
+                <Printer className="w-4 h-4 ml-1" />
+                طباعة
               </Button>
             </div>
           </div>
