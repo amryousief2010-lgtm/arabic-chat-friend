@@ -31,8 +31,10 @@ import {
   ShoppingCart,
   FileText,
   Pencil,
+  Printer,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { printOrderInvoice } from "@/lib/printUtils";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import EditOrderItemsDialog from "@/components/orders/EditOrderItemsDialog";
