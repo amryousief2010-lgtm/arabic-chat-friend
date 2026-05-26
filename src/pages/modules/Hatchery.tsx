@@ -15,6 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import {
   FlaskConical, Plus, Users, Wrench, Bird, Activity, TrendingUp, Trash2, Pencil, AlertTriangle, BarChart3, Inbox, Bell, DollarSign,
+  Printer, Search, ArrowDownToLine, ArrowUpFromLine, Skull, ShoppingCart, Wallet, Calendar as CalendarIcon, Eye, FileText, Hash,
 } from "lucide-react";
 import FarmShipmentsInbox from "@/components/hatchery/FarmShipmentsInbox";
 import { toast } from "sonner";
