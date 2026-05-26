@@ -676,7 +676,7 @@ const TransfersTab = ({ transfers, families, qc }: any) => {
                 </div>
                 {autoLoaded && autoLoaded.count > 0 && (
                   <div className="text-xs bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-emerald-800 dark:text-emerald-200 rounded p-2">
-                    تم تحميل {autoLoaded.count} سجل تلقائيًا من الإنتاج اليومي ({autoLoaded.from} → {autoLoaded.to}). يمكنك التعديل قبل الحفظ.
+                    تم تحميل <b>{autoLoaded.count}</b> سجل تلقائيًا من الإنتاج اليومي ({autoLoaded.from} → {autoLoaded.to}). إجمالي البيض: <b>{autoLoaded.totalQty.toLocaleString()}</b> — يمكنك التعديل قبل الحفظ.
                   </div>
                 )}
                 {autoLoaded && autoLoaded.count === 0 && (
