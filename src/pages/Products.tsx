@@ -199,21 +199,24 @@ const Products = () => {
     const totalValue = filteredProducts.reduce((s, p) => s + ((Number(p.price) || 0) * (Number(p.stock) || 0)), 0);
     const lowStock = filteredProducts.filter(p => (Number(p.stock) || 0) < 5).length;
 
+    const esc = (s: unknown) =>
+      String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
     const rowsHtml = filteredProducts.map((p, i) => {
       const value = (Number(p.price) || 0) * (Number(p.stock) || 0);
       const stockClass = (Number(p.stock) || 0) < 5 ? 'style="color:#b91c1c;font-weight:700"' : '';
       return `<tr>
         <td>${i + 1}</td>
-        <td style="font-family:monospace;font-size:10px">${p.barcode || "-"}</td>
-        <td style="text-align:right;font-weight:600">${p.name}</td>
-        <td>${p.category || "-"}</td>
-        <td>${p.unit}</td>
+        <td style="font-family:monospace;font-size:10px">${esc(p.barcode || "-")}</td>
+        <td style="text-align:right;font-weight:600">${esc(p.name)}</td>
+        <td>${esc(p.category || "-")}</td>
+        <td>${esc(p.unit)}</td>
         ${canViewFinancials ? `<td>${(Number(p.price) || 0).toFixed(2)}</td>` : ""}
         <td ${stockClass}>${Number(p.stock) || 0}</td>
         ${canViewFinancials ? `<td>${value.toFixed(2)}</td>` : ""}
         <td><span style="padding:2px 6px;border-radius:3px;font-size:10px;background:${p.is_active ? "#d1fae5" : "#fee2e2"};color:${p.is_active ? "#065f46" : "#991b1b"}">${p.is_active ? "نشط" : "غير نشط"}</span></td>
       </tr>`;
     }).join("");
+
 
     const html = `<!DOCTYPE html>
 <html lang="ar" dir="rtl"><head><meta charset="utf-8"/>

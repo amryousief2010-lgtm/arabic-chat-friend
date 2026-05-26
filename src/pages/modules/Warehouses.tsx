@@ -26,20 +26,23 @@ const qualityLabelText: Record<string, string> = {
   quarantine: "حجر صحي",
 };
 
+const esc = (s: unknown) =>
+  String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+
 function exportPendingBatchPDF(b: any) {
   const totalKg = b.outputs.reduce((s: number, o: any) => s + Number(o.actual_weight_kg || 0), 0);
   const totalCost = b.outputs.reduce((s: number, o: any) => s + Number(o.actual_weight_kg || 0) * Number(o.unit_cost || 0), 0);
   const rows = b.outputs.map((o: any, i: number) => `
     <tr>
       <td>${i + 1}</td>
-      <td>${o.cut_name_ar || ""}</td>
+      <td>${esc(o.cut_name_ar || "")}</td>
       <td>${Number(o.actual_weight_kg || 0).toFixed(2)}</td>
       <td>${Number(o.unit_cost || 0).toFixed(2)}</td>
       <td>${(Number(o.actual_weight_kg || 0) * Number(o.unit_cost || 0)).toFixed(2)}</td>
-      <td>${qualityLabelText[o.quality_status] || "—"}</td>
+      <td>${esc(qualityLabelText[o.quality_status] || "—")}</td>
     </tr>`).join("");
   const html = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8"/>
-    <title>دفعة ${b.batch_number}</title>
+    <title>دفعة ${esc(b.batch_number)}</title>
     <style>
       @page { size: A4; margin: 14mm; }
       body { font-family: "Segoe UI", Tahoma, Arial, sans-serif; color: #111; }
@@ -71,13 +74,14 @@ function exportPendingBatchPDF(b: any) {
       <div style="width:70px"></div>
     </div>
     <div class="meta">
-      <div><strong>رقم الدفعة:</strong> ${b.batch_number}</div>
-      <div><strong>تاريخ الذبح:</strong> ${b.slaughter_date || "—"}</div>
-      <div><strong>الحالة:</strong> ${b.status === "completed" ? "مكتملة" : b.status === "in_progress" ? "جارية" : b.status || "—"}</div>
+      <div><strong>رقم الدفعة:</strong> ${esc(b.batch_number)}</div>
+      <div><strong>تاريخ الذبح:</strong> ${esc(b.slaughter_date || "—")}</div>
+      <div><strong>الحالة:</strong> ${esc(b.status === "completed" ? "مكتملة" : b.status === "in_progress" ? "جارية" : b.status || "—")}</div>
       <div><strong>عدد الأصناف:</strong> ${b.outputs.length}</div>
       <div><strong>إجمالي الوزن:</strong> ${totalKg.toFixed(2)} كجم</div>
       <div><strong>إجمالي التكلفة:</strong> ${totalCost.toFixed(2)} ج.م</div>
     </div>
+
     <table>
       <thead><tr>
         <th>م</th><th>الصنف</th><th>الوزن (كجم)</th><th>التكلفة/كجم</th><th>الإجمالي</th><th>الجودة</th>

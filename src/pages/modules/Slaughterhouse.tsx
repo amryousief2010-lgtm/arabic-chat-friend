@@ -374,14 +374,16 @@ const Slaughterhouse = () => {
     const totalPackages = items.reduce((s, o) => s + (o.package_count || 0), 0);
     const totalCost = items.reduce((s, o) => s + Number(o.total_cost || 0), 0);
 
+    const esc = (s: unknown) =>
+      String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
     const rowsHtml = items.map((o, i) => {
       const branch = branches.find(br => br.id === o.branch_id);
       const variance = Number(o.variance_pct || 0);
       const varColor = variance < -5 ? "color:#b91c1c;font-weight:700" : variance > 5 ? "color:#15803d;font-weight:700" : "";
       return `<tr>
         <td>${i + 1}</td>
-        <td style="font-weight:600">${o.cut_name_ar}</td>
-        <td style="font-family:monospace;font-size:11px">${o.barcode || "-"}</td>
+        <td style="font-weight:600">${esc(o.cut_name_ar)}</td>
+        <td style="font-family:monospace;font-size:11px">${esc(o.barcode || "-")}</td>
         <td>${Number(o.actual_weight_kg || 0).toFixed(2)}</td>
         <td>${Number(o.standard_weight_kg || 0).toFixed(2)}</td>
         <td style="${varColor}">${variance.toFixed(1)}%</td>
@@ -389,13 +391,13 @@ const Slaughterhouse = () => {
         <td>${Number(o.damaged_weight_kg || 0).toFixed(2)}</td>
         <td>${Number(o.unit_cost || 0).toFixed(2)}</td>
         <td>${Number(o.total_cost || 0).toFixed(2)}</td>
-        <td>${branch?.name_ar || o.destination || "-"}</td>
+        <td>${esc(branch?.name_ar || o.destination || "-")}</td>
       </tr>`;
     }).join("");
 
     const html = `<!DOCTYPE html>
 <html lang="ar" dir="rtl"><head><meta charset="utf-8"/>
-<title>تقسيمة الدفعة ${b.batch_number}</title>
+<title>تقسيمة الدفعة ${esc(b.batch_number)}</title>
 <style>
   @page { size: A4; margin: 10mm; }
   * { box-sizing: border-box; }
@@ -432,17 +434,18 @@ const Slaughterhouse = () => {
       <p>تم الذبح طبقًا للشريعة الإسلامية وتحت إشراف بيطري كامل</p>
     </div>
   </div>
-  <div class="report-title">تقرير تقسيمة الذبح — ${b.batch_number}</div>
+  <div class="report-title">تقرير تقسيمة الذبح — ${esc(b.batch_number)}</div>
   <div class="meta">
-    <div><strong>رقم الدفعة</strong>${b.batch_number}</div>
-    <div><strong>تاريخ الذبح</strong>${b.slaughter_date}</div>
-    <div><strong>الشيفت</strong>${shiftLabel}</div>
+    <div><strong>رقم الدفعة</strong>${esc(b.batch_number)}</div>
+    <div><strong>تاريخ الذبح</strong>${esc(b.slaughter_date)}</div>
+    <div><strong>الشيفت</strong>${esc(shiftLabel)}</div>
     <div><strong>عدد الطيور</strong>${b.birds_slaughtered}</div>
     <div><strong>الوزن الحي (كجم)</strong>${Number(b.total_live_weight_kg || 0).toFixed(1)}</div>
     <div><strong>إجمالي اللحم (كجم)</strong>${Number(b.total_meat_kg || 0).toFixed(1)}</div>
     <div><strong>نسبة التصافي</strong>${Number(b.actual_yield_pct || 0).toFixed(1)}%</div>
     <div><strong>تكلفة الكيلو</strong>${Number(b.cost_per_kg_meat || 0).toFixed(0)} ج.م</div>
   </div>
+
   <table>
     <thead><tr>
       <th>م</th><th>اسم القطعية</th><th>الباركود</th>
