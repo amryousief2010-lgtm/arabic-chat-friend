@@ -186,7 +186,9 @@ const emptyBatch = () => {
     received_eggs: 0, net_eggs: 0, entry_date: entry,
     candle1_date: addDaysStr(entry, STAGE_CANDLE1), candle1_fertile: 0, candle1_infertile: 0,
     candle2_date: addDaysStr(entry, STAGE_CANDLE2), candle2_fertile: 0, candle2_dead: 0,
-    exit_date: addDaysStr(entry, STAGE_EXIT), hatched_chicks: 0, hatcher_dead: 0, status: "pending", notes: "",
+    exit_date: addDaysStr(entry, STAGE_EXIT), hatched_chicks: 0, hatcher_dead: 0,
+    pickup_date: "", brooding_days: 0, brooding_fee: 0,
+    status: "pending", notes: "",
   };
 };
 
