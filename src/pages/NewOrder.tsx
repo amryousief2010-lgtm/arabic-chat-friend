@@ -1551,6 +1551,23 @@ const NewOrder = () => {
                       )}
                     </div>
 
+                    {/* Fulfillment Source — مصدر تنفيذ الطلب */}
+                    <div className="space-y-2">
+                      <Label>مصدر تنفيذ الطلب <span className="text-destructive">*</span></Label>
+                      <Select value={fulfillmentKey} onValueChange={(v) => setFulfillmentKey(v as any)}>
+                        <SelectTrigger><SelectValue placeholder="اختر من أين يستلم العميل" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pickup_agouza">استلام من مخزن العجوزة</SelectItem>
+                          <SelectItem value="delivery_agouza">توصيل من منفذ العجوزة</SelectItem>
+                          <SelectItem value="pickup_main">استلام من المخزن الرئيسى</SelectItem>
+                          <SelectItem value="delivery_main">توصيل من المخزن الرئيسى</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        سيتم خصم المخزون من المخزن المختار. لو الكمية غير كافية يدخل تلقائياً فى أمر إنتاج/ذبح.
+                      </p>
+                    </div>
+
                     {/* Shipping Company */}
                     <div className="space-y-2">
                       <Label>شركة الشحن</Label>
