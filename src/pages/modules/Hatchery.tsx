@@ -157,7 +157,7 @@ const Hatchery = () => {
           <TabsContent value="batches"><BatchesTab batches={batches} customers={customers} qc={qc} /></TabsContent>
           <TabsContent value="charts"><BatchesChartsTab batches={batches} customers={customers} /></TabsContent>
           <TabsContent value="quality"><QualityTab stats={stats} /></TabsContent>
-          <TabsContent value="customers"><CustomersTab customers={customers} qc={qc} /></TabsContent>
+          <TabsContent value="customers"><CustomersTab customers={customers} batches={batches} qc={qc} /></TabsContent>
           <TabsContent value="ops"><OpsTab ops={ops} qc={qc} /></TabsContent>
           <TabsContent value="maint"><MaintTab maint={maint} qc={qc} /></TabsContent>
           <TabsContent value="chicks"><ChicksTab chicks={chicks} qc={qc} /></TabsContent>
@@ -776,71 +776,231 @@ const QualityTab = ({ stats }: any) => {
 };
 
 // ============ CUSTOMERS ============
-const CustomersTab = ({ customers, qc }: any) => {
+const CustomersTab = ({ customers, batches, qc }: any) => {
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState<any>({ name: "", customer_type: "external", incubation_price: 150, infertile_price: 50, hatcher_price: 100, notes: "" });
+  const [editing, setEditing] = useState<any>(null);
+  const emptyForm = { name: "", customer_type: "external", incubation_price: 150, infertile_price: 50, hatcher_price: 100, notes: "" };
+  const [form, setForm] = useState<any>(emptyForm);
+  const [search, setSearch] = useState("");
 
   const save = useMutation({
-    mutationFn: async () => { const { error } = await supabase.from("hatch_customers").insert(form); if (error) throw error; },
-    onSuccess: () => { toast.success("تم"); setOpen(false); setForm({ name: "", customer_type: "external", incubation_price: 150, infertile_price: 50, hatcher_price: 100, notes: "" }); qc.invalidateQueries({ queryKey: ["hatch_customers"] }); },
+    mutationFn: async () => {
+      if (editing) {
+        const { error } = await supabase.from("hatch_customers").update(form).eq("id", editing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("hatch_customers").insert(form);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => { toast.success("تم الحفظ"); setOpen(false); setEditing(null); setForm(emptyForm); qc.invalidateQueries({ queryKey: ["hatch_customers"] }); },
     onError: (e: any) => toast.error(e.message),
   });
   const del = useMutation({
     mutationFn: async (id: string) => { const { error } = await supabase.from("hatch_customers").delete().eq("id", id); if (error) throw error; },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["hatch_customers"] }),
+    onSuccess: () => { toast.success("تم الحذف"); qc.invalidateQueries({ queryKey: ["hatch_customers"] }); },
+    onError: (e: any) => toast.error(e.message),
   });
 
+  const customerStats = useMemo(() => {
+    const map: Record<string, any> = {};
+    for (const c of customers) {
+      map[c.id] = {
+        batches: 0, active: 0, completed: 0,
+        receivedEggs: 0, netEggs: 0,
+        fertile: 0, infertile: 0, dead2: 0,
+        chicks: 0, hatcherDead: 0, brooding: 0,
+        lastDate: "", receivable: 0, delivered: 0,
+      };
+    }
+    for (const b of batches || []) {
+      const s = map[b.customer_id]; if (!s) continue;
+      s.batches++;
+      if (b.status === "completed") s.completed++; else s.active++;
+      s.receivedEggs += b.received_eggs || 0;
+      s.netEggs += b.net_eggs || 0;
+      s.fertile += b.candle2_fertile || b.candle1_fertile || 0;
+      s.infertile += b.candle1_infertile || 0;
+      s.dead2 += b.candle2_dead || 0;
+      s.chicks += b.hatched_chicks || 0;
+      s.hatcherDead += b.hatcher_dead || 0;
+      s.brooding += b.brooding_fee || 0;
+      if (b.receive_date && (!s.lastDate || b.receive_date > s.lastDate)) s.lastDate = b.receive_date;
+      if (b.pickup_date) s.delivered += b.hatched_chicks || 0;
+    }
+    for (const c of customers) {
+      const s = map[c.id];
+      if (c.customer_type === "external") {
+        s.receivable =
+          s.infertile * (c.infertile_price || PRICE_INFERTILE) +
+          s.dead2 * PRICE_DEAD2 +
+          s.chicks * (c.incubation_price || PRICE_CHICK) +
+          s.hatcherDead * (c.hatcher_price || PRICE_HATCHER_DEAD) +
+          s.brooding;
+      }
+      s.fertilityPct = s.netEggs > 0 ? ((s.fertile / s.netEggs) * 100).toFixed(1) : "0.0";
+      s.conversionPct = s.netEggs > 0 ? ((s.chicks / s.netEggs) * 100).toFixed(1) : "0.0";
+      s.pendingDelivery = Math.max(0, s.chicks - s.delivered);
+    }
+    return map;
+  }, [customers, batches]);
+
+  const totals = useMemo(() => {
+    const t = { customers: customers.length, batches: 0, chicks: 0, receivable: 0, eggs: 0 };
+    for (const c of customers) {
+      const s = customerStats[c.id]; if (!s) continue;
+      t.batches += s.batches; t.chicks += s.chicks; t.receivable += s.receivable; t.eggs += s.netEggs;
+    }
+    return t;
+  }, [customers, customerStats]);
+
+  const openNew = () => { setEditing(null); setForm(emptyForm); setOpen(true); };
+  const openEdit = (c: any) => { setEditing(c); setForm({ name: c.name, customer_type: c.customer_type, incubation_price: c.incubation_price, infertile_price: c.infertile_price, hatcher_price: c.hatcher_price, notes: c.notes || "" }); setOpen(true); };
+
+  const filtered = customers.filter((c: any) => !search || c.name.includes(search));
+
   return (
-    <Card className="p-4">
-      <div className="flex justify-between mb-3">
-        <h3 className="font-bold">عملاء المعمل</h3>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild><Button size="sm"><Plus className="w-4 h-4 ml-1" />عميل جديد</Button></DialogTrigger>
-          <DialogContent dir="rtl">
-            <DialogHeader><DialogTitle>عميل جديد</DialogTitle></DialogHeader>
-            <div className="space-y-3">
-              <div><Label>الاسم</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-              <div><Label>النوع</Label>
-                <Select value={form.customer_type} onValueChange={(v) => setForm({ ...form, customer_type: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="internal">داخلي (العاصمة)</SelectItem>
-                    <SelectItem value="external">خارجي</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                <div><Label>تحضين</Label><Input type="number" value={form.incubation_price} onChange={(e) => setForm({ ...form, incubation_price: +e.target.value })} /></div>
-                <div><Label>غير مخصب</Label><Input type="number" value={form.infertile_price} onChange={(e) => setForm({ ...form, infertile_price: +e.target.value })} /></div>
-                <div><Label>هاتشر</Label><Input type="number" value={form.hatcher_price} onChange={(e) => setForm({ ...form, hatcher_price: +e.target.value })} /></div>
-              </div>
-              <div><Label>ملاحظات</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Card className="p-3 bg-gradient-to-br from-purple-500/10 to-purple-700/5 border-purple-500/20">
+          <div className="text-xs text-muted-foreground">إجمالي العملاء</div>
+          <div className="text-2xl font-bold">{totals.customers}</div>
+          <div className="text-xs text-muted-foreground mt-1">{totals.batches} دفعة إجمالاً</div>
+        </Card>
+        <Card className="p-3 bg-gradient-to-br from-cyan-500/10 to-cyan-700/5 border-cyan-500/20">
+          <div className="text-xs text-muted-foreground">إجمالي البيض الصافي</div>
+          <div className="text-2xl font-bold">{totals.eggs.toLocaleString()}</div>
+          <div className="text-xs text-muted-foreground mt-1">بيضة دخلت المعمل</div>
+        </Card>
+        <Card className="p-3 bg-gradient-to-br from-orange-500/10 to-orange-700/5 border-orange-500/20">
+          <div className="text-xs text-muted-foreground">إجمالي الكتاكيت الناتجة</div>
+          <div className="text-2xl font-bold">{totals.chicks.toLocaleString()}</div>
+          <div className="text-xs text-muted-foreground mt-1">من كل العملاء</div>
+        </Card>
+        <Card className="p-3 bg-gradient-to-br from-emerald-500/10 to-emerald-700/5 border-emerald-500/20">
+          <div className="text-xs text-muted-foreground">المستحقات (خارجي)</div>
+          <div className="text-2xl font-bold">{totals.receivable.toLocaleString()} ج</div>
+          <div className="text-xs text-muted-foreground mt-1">حتى تاريخه</div>
+        </Card>
+      </div>
+
+      <Card className="p-4">
+        <div className="flex flex-wrap gap-2 justify-between items-center mb-4">
+          <div>
+            <h3 className="font-bold text-lg">عملاء المعمل</h3>
+            <p className="text-xs text-muted-foreground">تحديث ديناميكي حسب الدفعات المسجلة حتى اليوم</p>
+          </div>
+          <div className="flex gap-2">
+            <Input placeholder="بحث بالاسم..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-48 h-9" />
+            <Button size="sm" onClick={openNew}><Plus className="w-4 h-4 ml-1" />عميل جديد</Button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          {filtered.map((c: any) => {
+            const s = customerStats[c.id];
+            const isInternal = c.customer_type === "internal";
+            return (
+              <Card key={c.id} className={`p-4 border-l-4 ${isInternal ? "border-l-purple-500" : "border-l-orange-500"} hover:shadow-md transition`}>
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <div className="font-bold text-base">{c.name}</div>
+                    <Badge variant={isInternal ? "default" : "outline"} className="mt-1 text-[10px]">
+                      {isInternal ? "داخلي - العاصمة" : "خارجي"}
+                    </Badge>
+                  </div>
+                  <div className="flex gap-1">
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(c)}><Pencil className="w-3.5 h-3.5" /></Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { if (confirm(`حذف ${c.name}؟`)) del.mutate(c.id); }}><Trash2 className="w-3.5 h-3.5 text-destructive" /></Button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 text-center mb-3">
+                  <div className="bg-muted/40 rounded p-1.5">
+                    <div className="text-[10px] text-muted-foreground">الدفعات</div>
+                    <div className="font-bold text-sm">{s.batches}</div>
+                    <div className="text-[9px] text-muted-foreground">نشط {s.active} • تم {s.completed}</div>
+                  </div>
+                  <div className="bg-muted/40 rounded p-1.5">
+                    <div className="text-[10px] text-muted-foreground">بيض صافي</div>
+                    <div className="font-bold text-sm">{s.netEggs.toLocaleString()}</div>
+                    <div className="text-[9px] text-muted-foreground">مستلم {s.receivedEggs.toLocaleString()}</div>
+                  </div>
+                  <div className="bg-muted/40 rounded p-1.5">
+                    <div className="text-[10px] text-muted-foreground">كتاكيت</div>
+                    <div className="font-bold text-sm text-orange-600">{s.chicks.toLocaleString()}</div>
+                    <div className="text-[9px] text-muted-foreground">تحويل {s.conversionPct}%</div>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 text-xs border-t pt-2">
+                  <CustRow label="مخصب (خصوبة)" value={`${s.fertile.toLocaleString()} (${s.fertilityPct}%)`} color="text-emerald-600" />
+                  <CustRow label="غير مخصب" value={s.infertile.toLocaleString()} color="text-amber-600" />
+                  <CustRow label="ميت كشف 2" value={s.dead2.toLocaleString()} color="text-rose-600" />
+                  <CustRow label="نافق هاتشر" value={s.hatcherDead.toLocaleString()} color="text-red-600" />
+                  <CustRow label="مُسلَّم للعميل" value={`${s.delivered.toLocaleString()} / ${s.chicks.toLocaleString()}`} color="text-cyan-700" />
+                  {s.pendingDelivery > 0 && (
+                    <CustRow label="بانتظار الاستلام" value={s.pendingDelivery.toLocaleString()} color="text-orange-700" />
+                  )}
+                </div>
+
+                <div className="mt-2 pt-2 border-t flex justify-between items-center text-xs">
+                  <div className="text-muted-foreground">آخر دفعة: {s.lastDate || "—"}</div>
+                  {!isInternal && (
+                    <div className="font-bold text-emerald-700 flex items-center gap-1">
+                      <DollarSign className="w-3 h-3" />{s.receivable.toLocaleString()} ج
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-2 text-[10px] text-muted-foreground grid grid-cols-3 gap-1 text-center">
+                  <span>تحضين {c.incubation_price}ج</span>
+                  <span>غ.مخصب {c.infertile_price}ج</span>
+                  <span>هاتشر {c.hatcher_price}ج</span>
+                </div>
+              </Card>
+            );
+          })}
+          {filtered.length === 0 && (
+            <div className="col-span-full text-center text-muted-foreground py-10">لا يوجد عملاء</div>
+          )}
+        </div>
+      </Card>
+
+      <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setEditing(null); setForm(emptyForm); } }}>
+        <DialogContent dir="rtl">
+          <DialogHeader><DialogTitle>{editing ? "تعديل بيانات العميل" : "عميل جديد"}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div><Label>الاسم</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+            <div><Label>النوع</Label>
+              <Select value={form.customer_type} onValueChange={(v) => setForm({ ...form, customer_type: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="internal">داخلي (العاصمة)</SelectItem>
+                  <SelectItem value="external">خارجي</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <DialogFooter><Button onClick={() => save.mutate()} disabled={save.isPending}>حفظ</Button></DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-      <div className="overflow-auto">
-        <Table>
-          <TableHeader><TableRow><TableHead>الاسم</TableHead><TableHead>النوع</TableHead><TableHead>تحضين</TableHead><TableHead>غير مخصب</TableHead><TableHead>هاتشر</TableHead><TableHead></TableHead></TableRow></TableHeader>
-          <TableBody>
-            {customers.map((c: any) => (
-              <TableRow key={c.id}>
-                <TableCell className="font-bold">{c.name}</TableCell>
-                <TableCell><Badge variant={c.customer_type === "internal" ? "default" : "outline"}>{c.customer_type === "internal" ? "داخلي" : "خارجي"}</Badge></TableCell>
-                <TableCell>{c.incubation_price}</TableCell>
-                <TableCell>{c.infertile_price}</TableCell>
-                <TableCell>{c.hatcher_price}</TableCell>
-                <TableCell><Button size="icon" variant="ghost" onClick={() => del.mutate(c.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button></TableCell>
-              </TableRow>
-            ))}
-            {customers.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">لا يوجد عملاء</TableCell></TableRow>}
-          </TableBody>
-        </Table>
-      </div>
-    </Card>
+            <div className="grid grid-cols-3 gap-2">
+              <div><Label>تحضين</Label><Input type="number" value={form.incubation_price} onChange={(e) => setForm({ ...form, incubation_price: +e.target.value })} /></div>
+              <div><Label>غير مخصب</Label><Input type="number" value={form.infertile_price} onChange={(e) => setForm({ ...form, infertile_price: +e.target.value })} /></div>
+              <div><Label>هاتشر</Label><Input type="number" value={form.hatcher_price} onChange={(e) => setForm({ ...form, hatcher_price: +e.target.value })} /></div>
+            </div>
+            <div><Label>ملاحظات</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+          </div>
+          <DialogFooter><Button onClick={() => save.mutate()} disabled={save.isPending || !form.name}>{editing ? "تحديث" : "حفظ"}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 };
+
+const CustRow = ({ label, value, color = "" }: { label: string; value: string | number; color?: string }) => (
+  <div className="flex justify-between">
+    <span className="text-muted-foreground">{label}</span>
+    <span className={`font-semibold ${color}`}>{value}</span>
+  </div>
+);
 
 // ============ DAILY OPS ============
 const OpsTab = ({ ops, qc }: any) => {
