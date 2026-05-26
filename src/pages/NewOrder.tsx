@@ -200,15 +200,17 @@ const NewOrder = () => {
 
   const fetchData = async () => {
     try {
-      const [productsRes, customersRes, offersRes] = await Promise.all([
+      const [productsRes, customersRes, offersRes, whRes] = await Promise.all([
         supabase.from('products').select('*').eq('is_active', true),
         supabase.from('customers').select('*').order('name'),
         supabase.from('offer_boxes').select('*').eq('is_active', true),
+        supabase.from('warehouses').select('id, name').eq('is_active', true),
       ]);
 
       if (productsRes.error) throw productsRes.error;
       if (customersRes.error) throw customersRes.error;
       if (offersRes.error) throw offersRes.error;
+      setWarehousesList(whRes.data || []);
 
       setProducts(productsRes.data || []);
       setCustomers(customersRes.data || []);
