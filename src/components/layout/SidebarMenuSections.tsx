@@ -174,7 +174,7 @@ export const moduleSections: ModuleSection[] = [
     id: "warehouses",
     icon: Warehouse,
     label: "9. المخازن",
-    roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager', 'quality_manager', 'sales_manager', 'marketing_sales_manager'],
+    roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager', 'quality_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager'],
     items: [
       { icon: Warehouse, label: "إدارة المخازن", path: "/modules/warehouses", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager', 'quality_manager'] },
       { icon: Warehouse, label: "المتاح في المخازن", path: "/warehouse-stock", roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'warehouse_supervisor'] },
