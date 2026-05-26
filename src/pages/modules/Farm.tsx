@@ -661,6 +661,9 @@ const TransfersTab = ({ transfers, families, qc }: any) => {
                 <div><Label>ملاحظات الدفعة</Label><Textarea rows={2} value={batchNotes} onChange={(e) => setBatchNotes(e.target.value)} /></div>
 
                 <div className="flex gap-2 flex-wrap items-center">
+                  <Button type="button" size="sm" variant="secondary" onClick={autoLoadPending} disabled={autoLoading}>
+                    {autoLoading ? "جارٍ التحميل..." : "تحميل الإنتاج غير المنقول"}
+                  </Button>
                   <Button type="button" size="sm" variant="outline" onClick={addRow}><Plus className="w-4 h-4 ml-1" />إضافة صف</Button>
                   <Button type="button" size="sm" variant="outline" onClick={addRowAll}>إضافة كل الأسر</Button>
                   <Button type="button" size="sm" variant="ghost" onClick={() => setRows([emptyRow()])}>مسح الكل</Button>
@@ -669,6 +672,16 @@ const TransfersTab = ({ transfers, families, qc }: any) => {
                     الهالك: <span className="font-bold text-destructive">{rowTotals.d.toLocaleString()}</span>
                   </div>
                 </div>
+                {autoLoaded && autoLoaded.count > 0 && (
+                  <div className="text-xs bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-emerald-800 dark:text-emerald-200 rounded p-2">
+                    تم تحميل {autoLoaded.count} سجل تلقائيًا من الإنتاج اليومي ({autoLoaded.from} → {autoLoaded.to}). يمكنك التعديل قبل الحفظ.
+                  </div>
+                )}
+                {autoLoaded && autoLoaded.count === 0 && (
+                  <div className="text-xs bg-muted border rounded p-2 text-muted-foreground">
+                    لا يوجد إنتاج جديد بعد آخر نقل لكل أسرة. يمكنك إضافة صفوف يدويًا.
+                  </div>
+                )}
 
                 <div className="border rounded overflow-auto max-h-[50vh]">
                   <Table>
