@@ -40,6 +40,7 @@ const PRICE_INFERTILE = 50;   // غير مخصب (كشف 1)
 const PRICE_DEAD2 = 100;      // ميت كشف 2
 const PRICE_CHICK = 150;      // كتكوت ناتج
 const PRICE_HATCHER_DEAD = 100; // نافق هاتشر
+const PRICE_BROODING_PER_DAY = 10; // مبلغ التحضين عن كل يوم تأخير في الاستلام
 
 const addDaysStr = (d: string, n: number) => d ? format(addDays(parseISO(d), n), "yyyy-MM-dd") : "";
 const autoStatus = (entry: string): "pending" | "incubating" | "hatching" | "completed" => {
@@ -185,7 +186,9 @@ const emptyBatch = () => {
     received_eggs: 0, net_eggs: 0, entry_date: entry,
     candle1_date: addDaysStr(entry, STAGE_CANDLE1), candle1_fertile: 0, candle1_infertile: 0,
     candle2_date: addDaysStr(entry, STAGE_CANDLE2), candle2_fertile: 0, candle2_dead: 0,
-    exit_date: addDaysStr(entry, STAGE_EXIT), hatched_chicks: 0, hatcher_dead: 0, status: "pending", notes: "",
+    exit_date: addDaysStr(entry, STAGE_EXIT), hatched_chicks: 0, hatcher_dead: 0,
+    pickup_date: "", brooding_days: 0, brooding_fee: 0,
+    status: "pending", notes: "",
   };
 };
 
@@ -227,20 +230,31 @@ const BatchesTab = ({ batches, customers, qc }: any) => {
   // العميل الحالي (لحساب الفواتير الخارجية)
   const currentCustomer = customers.find((c: any) => c.id === form.customer_id);
   const isExternal = currentCustomer && currentCustomer.customer_type !== "internal";
+  const broodingDays = useMemo(() => {
+    if (!form.exit_date || !form.pickup_date) return 0;
+    const ex = new Date(form.exit_date).getTime();
+    const pu = new Date(form.pickup_date).getTime();
+    const d = Math.floor((pu - ex) / (1000 * 60 * 60 * 24));
+    return Math.max(0, d);
+  }, [form.exit_date, form.pickup_date]);
+
   const billing = useMemo(() => {
     if (!isExternal) return null;
     const infertile = (form.candle1_infertile || 0) * (currentCustomer.infertile_price || PRICE_INFERTILE);
     const dead2 = (form.candle2_dead || 0) * PRICE_DEAD2;
     const chicks = (form.hatched_chicks || 0) * (currentCustomer.incubation_price || PRICE_CHICK);
     const hatcherDead = (form.hatcher_dead || 0) * (currentCustomer.hatcher_price || PRICE_HATCHER_DEAD);
-    return { infertile, dead2, chicks, hatcherDead, total: infertile + dead2 + chicks + hatcherDead };
-  }, [isExternal, form, currentCustomer]);
+    const brooding = broodingDays * PRICE_BROODING_PER_DAY;
+    return { infertile, dead2, chicks, hatcherDead, brooding, broodingDays, total: infertile + dead2 + chicks + hatcherDead + brooding };
+  }, [isExternal, form, currentCustomer, broodingDays]);
 
   const save = useMutation({
     mutationFn: async () => {
       if (machineOver) throw new Error(`الماكينة ${selectedMachine?.name} تجاوزت السعة ${selectedMachine?.capacity}`);
       const payload = { ...form, customer_id: form.customer_id || null,
-        candle1_date: form.candle1_date || null, candle2_date: form.candle2_date || null, exit_date: form.exit_date || null };
+        candle1_date: form.candle1_date || null, candle2_date: form.candle2_date || null,
+        exit_date: form.exit_date || null, pickup_date: form.pickup_date || null,
+        brooding_days: broodingDays, brooding_fee: broodingDays * PRICE_BROODING_PER_DAY };
       if (editing) {
         const { error } = await supabase.from("hatch_batches").update(payload).eq("id", editing.id);
         if (error) throw error;
@@ -481,6 +495,23 @@ const BatchesTab = ({ batches, customers, qc }: any) => {
                 </div>
               </div>
 
+              {/* استلام العميل + التحضين */}
+              <div>
+                <p className="font-semibold text-sm mb-2 text-amber-700">
+                  استلام العميل — كل يوم تأخير = {PRICE_BROODING_PER_DAY} ج تحضين
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  <div><Label>تاريخ إبلاغ العميل (الخروج)</Label><Input type="date" value={form.exit_date} disabled /></div>
+                  <div><Label>تاريخ الاستلام الفعلي</Label><Input type="date" value={form.pickup_date || ""} onChange={(e) => setForm({ ...form, pickup_date: e.target.value })} /></div>
+                  <div><Label>أيام التحضين (تلقائي)</Label><Input type="number" value={broodingDays} disabled /></div>
+                </div>
+                {broodingDays > 0 && (
+                  <p className="text-xs text-amber-700 mt-1">
+                    مبلغ التحضين = {broodingDays} يوم × {PRICE_BROODING_PER_DAY} ج = <b>{(broodingDays * PRICE_BROODING_PER_DAY).toLocaleString()} ج</b>
+                  </p>
+                )}
+              </div>
+
               {/* ====== ملخص فاتورة العميل الخارجي ====== */}
               {isExternal && billing && (
                 <div className="rounded-lg border border-emerald-300 bg-emerald-50 dark:bg-emerald-950/20 p-3">
@@ -492,6 +523,7 @@ const BatchesTab = ({ batches, customers, qc }: any) => {
                     <div>ميت كشف 2 ({form.candle2_dead} × {PRICE_DEAD2})</div><div className="text-end font-bold">{billing.dead2.toLocaleString()} ج</div>
                     <div>كتاكيت ({form.hatched_chicks} × {currentCustomer.incubation_price || PRICE_CHICK})</div><div className="text-end font-bold">{billing.chicks.toLocaleString()} ج</div>
                     <div>نافق هاتشر ({form.hatcher_dead} × {currentCustomer.hatcher_price || PRICE_HATCHER_DEAD})</div><div className="text-end font-bold">{billing.hatcherDead.toLocaleString()} ج</div>
+                    <div>تحضين ({billing.broodingDays} يوم × {PRICE_BROODING_PER_DAY})</div><div className="text-end font-bold">{billing.brooding.toLocaleString()} ج</div>
                     <div className="col-span-2 border-t pt-2 mt-1 flex justify-between text-base">
                       <span className="font-bold text-emerald-700">الإجمالي</span>
                       <span className="font-bold text-emerald-700">{billing.total.toLocaleString()} ج</span>

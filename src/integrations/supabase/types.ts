@@ -2393,6 +2393,8 @@ export type Database = {
       hatch_batches: {
         Row: {
           batch_number: string
+          brooding_days: number | null
+          brooding_fee: number | null
           candle1_date: string | null
           candle1_fertile: number | null
           candle1_infertile: number | null
@@ -2410,6 +2412,7 @@ export type Database = {
           machine: string | null
           net_eggs: number
           notes: string | null
+          pickup_date: string | null
           receive_date: string
           received_eggs: number
           status: string
@@ -2417,6 +2420,8 @@ export type Database = {
         }
         Insert: {
           batch_number: string
+          brooding_days?: number | null
+          brooding_fee?: number | null
           candle1_date?: string | null
           candle1_fertile?: number | null
           candle1_infertile?: number | null
@@ -2434,6 +2439,7 @@ export type Database = {
           machine?: string | null
           net_eggs?: number
           notes?: string | null
+          pickup_date?: string | null
           receive_date: string
           received_eggs?: number
           status?: string
@@ -2441,6 +2447,8 @@ export type Database = {
         }
         Update: {
           batch_number?: string
+          brooding_days?: number | null
+          brooding_fee?: number | null
           candle1_date?: string | null
           candle1_fertile?: number | null
           candle1_infertile?: number | null
@@ -2458,6 +2466,7 @@ export type Database = {
           machine?: string | null
           net_eggs?: number
           notes?: string | null
+          pickup_date?: string | null
           receive_date?: string
           received_eggs?: number
           status?: string
