@@ -19,13 +19,34 @@ Deno.serve(async (req) => {
     if (authErr || !requester) return json({ error: 'Unauthorized' }, 401)
 
     const { data: roles } = await admin.from('user_roles').select('role').eq('user_id', requester.id)
+    const requesterRoles: string[] = (roles ?? []).map((r: any) => r.role)
     const allowed = ['general_manager', 'executive_manager', 'sales_manager']
-    if (!roles?.some((r: any) => allowed.includes(r.role))) {
+    if (!requesterRoles.some((r) => allowed.includes(r))) {
       return json({ error: 'Not authorized to create employees' }, 403)
     }
 
     const { email, password, full_name, role } = await req.json()
     if (!email || !password || !full_name) return json({ error: 'email, password, full_name required' }, 400)
+
+    // Build allowlist of roles the requester may assign — prevents privilege escalation.
+    const VALID_ROLES = [
+      'general_manager', 'executive_manager', 'sales_manager',
+      'warehouse_manager', 'warehouse_supervisor', 'accountant',
+      'sales_moderator', 'private_delivery_rep', 'shipping_company',
+    ]
+    let assignable: string[] = []
+    if (requesterRoles.includes('general_manager')) {
+      assignable = VALID_ROLES
+    } else if (requesterRoles.includes('executive_manager')) {
+      assignable = VALID_ROLES.filter((r) => r !== 'general_manager')
+    } else if (requesterRoles.includes('sales_manager')) {
+      assignable = ['sales_moderator', 'private_delivery_rep', 'shipping_company']
+    }
+
+    const finalRole = role || 'sales_moderator'
+    if (!assignable.includes(finalRole)) {
+      return json({ error: 'You are not allowed to assign this role' }, 403)
+    }
 
     const { data: created, error: createErr } = await admin.auth.admin.createUser({
       email,
@@ -37,9 +58,10 @@ Deno.serve(async (req) => {
 
     // handle_new_user trigger inserts profile + default sales_moderator role.
     // If a different role is requested, update it.
-    if (role && role !== 'sales_moderator') {
-      await admin.from('user_roles').update({ role }).eq('user_id', created.user.id)
+    if (finalRole !== 'sales_moderator') {
+      await admin.from('user_roles').update({ role: finalRole }).eq('user_id', created.user.id)
     }
+
 
     return json({ success: true, user_id: created.user.id }, 200)
   } catch (e) {
