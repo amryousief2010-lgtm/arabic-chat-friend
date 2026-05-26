@@ -562,7 +562,61 @@ const TransfersTab = ({ transfers, families, qc }: any) => {
   };
 
   const save = useMutation({
-...
+    mutationFn: async () => {
+      const valid = rows
+        .filter((r) => Number(r.quantity) > 0 || Number(r.damaged) > 0)
+        .map((r) => ({
+          transfer_date: r.transfer_date,
+          family_id: r.family_id || null,
+          quantity: Number(r.quantity) || 0,
+          damaged: Number(r.damaged) || 0,
+          notes: [batchLabel && `دفعة: ${batchLabel}`, batchNotes, r.notes]
+            .filter(Boolean).join(" | ") || null,
+        }));
+      if (!valid.length) throw new Error("أضف صفًا واحدًا على الأقل بكمية");
+      const { error } = await supabase.from("farm_transfers").insert(valid);
+      if (error) throw error;
+      return valid.length;
+    },
+    onSuccess: (n) => {
+      toast.success(`تم تسجيل ${n} عملية نقل`);
+      setOpen(false); resetForm();
+      qc.invalidateQueries({ queryKey: ["farm_transfers"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const del = useMutation({
+    mutationFn: async (id: string) => { const { error } = await supabase.from("farm_transfers").delete().eq("id", id); if (error) throw error; },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["farm_transfers"] }),
+  });
+
+  const familyName = (id: string) => families.find((f: any) => f.id === id)?.family_number || "-";
+
+  const [fFamily, setFFamily] = useState("all");
+  const [fFrom, setFFrom] = useState("");
+  const [fTo, setFTo] = useState("");
+  const filtered = useMemo(() => transfers.filter((t: any) => {
+    if (fFamily !== "all" && t.family_id !== fFamily) return false;
+    if (fFrom && t.transfer_date < fFrom) return false;
+    if (fTo && t.transfer_date > fTo) return false;
+    return true;
+  }), [transfers, fFamily, fFrom, fTo]);
+  const totals = useMemo(() => filtered.reduce((a: any, t: any) => ({ q: a.q + (t.quantity || 0), d: a.d + (t.damaged || 0) }), { q: 0, d: 0 }), [filtered]);
+
+  const rowTotals = useMemo(() => rows.reduce(
+    (a, r) => ({ q: a.q + (Number(r.quantity) || 0), d: a.d + (Number(r.damaged) || 0) }),
+    { q: 0, d: 0 }
+  ), [rows]);
+
+  const updateRow = (i: number, patch: any) =>
+    setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+  const addRow = () => setRows((rs) => [...rs, { ...emptyRow(), transfer_date: batchTo || today() }]);
+  const addRowAll = () =>
+    setRows((rs) => [
+      ...rs,
+      ...families.map((f: any) => ({ ...emptyRow(), transfer_date: batchTo || today(), family_id: f.id })),
+    ]);
   const removeRow = (i: number) =>
     setRows((rs) => (rs.length === 1 ? [emptyRow()] : rs.filter((_, idx) => idx !== i)));
 
