@@ -147,6 +147,16 @@ const AnimatedRoutes = () => {
             <PageTransition><WarehouseStockView /></PageTransition>
           </ProtectedRoute>
         } />
+        <Route path="/warehouse-stock/agouza" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'warehouse_supervisor']}>
+            <PageTransition><WarehouseStockView scope="agouza" /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/warehouse-stock/main" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'warehouse_supervisor']}>
+            <PageTransition><WarehouseStockView scope="main" /></PageTransition>
+          </ProtectedRoute>
+        } />
         <Route path="/orders/moderator/:slug" element={
           <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'private_delivery_rep']}>
             <PageTransition><ModeratorOrdersLog /></PageTransition>
