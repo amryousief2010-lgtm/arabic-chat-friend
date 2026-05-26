@@ -14,6 +14,7 @@ import Reports from "@/pages/Reports";
 import Settings from "@/pages/Settings";
 import Employees from "@/pages/Employees";
 import NewOrder from "@/pages/NewOrder";
+import WarehouseStockView from "@/pages/WarehouseStockView";
 import Notifications from "@/pages/Notifications";
 import OrderDetails from "@/pages/OrderDetails";
 import Install from "@/pages/Install";
