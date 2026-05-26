@@ -252,7 +252,9 @@ const BatchesTab = ({ batches, customers, qc }: any) => {
     mutationFn: async () => {
       if (machineOver) throw new Error(`الماكينة ${selectedMachine?.name} تجاوزت السعة ${selectedMachine?.capacity}`);
       const payload = { ...form, customer_id: form.customer_id || null,
-        candle1_date: form.candle1_date || null, candle2_date: form.candle2_date || null, exit_date: form.exit_date || null };
+        candle1_date: form.candle1_date || null, candle2_date: form.candle2_date || null,
+        exit_date: form.exit_date || null, pickup_date: form.pickup_date || null,
+        brooding_days: broodingDays, brooding_fee: broodingDays * PRICE_BROODING_PER_DAY };
       if (editing) {
         const { error } = await supabase.from("hatch_batches").update(payload).eq("id", editing.id);
         if (error) throw error;
