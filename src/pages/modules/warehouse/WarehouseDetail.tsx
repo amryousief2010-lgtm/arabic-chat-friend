@@ -351,11 +351,23 @@ const WarehouseDetail = () => {
           </Card>
         </div>
 
-        <Tabs defaultValue={incomingPending.length > 0 ? "incoming" : "items"}>
+        <Tabs defaultValue={awaitingMyApproval.length > 0 ? "approvals" : (incomingPending.length > 0 ? "incoming" : "items")}>
           <TabsList className="flex-wrap h-auto">
             <TabsTrigger value="items">الأصناف</TabsTrigger>
             <TabsTrigger value="movements">الحركات</TabsTrigger>
             <TabsTrigger value="low">منخفضة {lowStock.length > 0 && <Badge variant="destructive" className="mr-2">{lowStock.length}</Badge>}</TabsTrigger>
+            {awaitingMyApproval.length > 0 && (
+              <TabsTrigger value="approvals" className="gap-1">
+                <ShieldCheck className="w-4 h-4" />بانتظار موافقتى
+                <Badge variant="destructive" className="mr-1">{awaitingMyApproval.length}</Badge>
+              </TabsTrigger>
+            )}
+            {isAgouza && myPendingRequests.length > 0 && (
+              <TabsTrigger value="mypending" className="gap-1">
+                <Clock className="w-4 h-4" />طلباتى المعلقة
+                <Badge variant="secondary" className="mr-1">{myPendingRequests.length}</Badge>
+              </TabsTrigger>
+            )}
             <TabsTrigger value="incoming" className="gap-1">
               <Inbox className="w-4 h-4" />وارد بانتظار الاستلام
               {incomingPending.length > 0 && <Badge variant="destructive" className="mr-1">{incomingPending.length}</Badge>}
@@ -371,6 +383,94 @@ const WarehouseDetail = () => {
               </TabsTrigger>
             )}
           </TabsList>
+
+          <TabsContent value="approvals" className="space-y-4">
+            {awaitingMyApproval.length === 0 ? (
+              <Card><CardContent className="py-10 text-center text-muted-foreground">لا توجد طلبات بانتظار موافقتك</CardContent></Card>
+            ) : awaitingMyApproval.map(t => (
+              <Card key={t.id} className="border-yellow-500/40">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <ShieldCheck className="w-5 h-5 text-yellow-600" />
+                        {t.transfer_no} • طلب من {t.destination?.name}
+                      </CardTitle>
+                      <CardDescription>{formatDateTime(t.created_at)} • {(t.items || []).length} صنف{t.notes ? ` • ${t.notes}` : ""}</CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {statusBadge(t.status)}
+                      <Button size="sm" onClick={() => openApproveDialog(t)}>
+                        <CheckCircle2 className="w-4 h-4 ml-1" />موافقة / تعديل
+                      </Button>
+                      <Button size="sm" variant="outline" className="text-destructive border-destructive/40 hover:bg-destructive/10" onClick={() => rejectTransfer(t)}>
+                        <ThumbsDown className="w-4 h-4 ml-1" />رفض
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader><TableRow>
+                      <TableHead>الصنف</TableHead><TableHead>الكمية المطلوبة</TableHead><TableHead>الوحدة</TableHead>
+                    </TableRow></TableHeader>
+                    <TableBody>
+                      {(t.items || []).map((li: any) => (
+                        <TableRow key={li.id}>
+                          <TableCell className="font-medium">{li.item_name}</TableCell>
+                          <TableCell>{li.requested_qty}</TableCell>
+                          <TableCell>{li.unit}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            ))}
+          </TabsContent>
+
+          <TabsContent value="mypending" className="space-y-4">
+            {myPendingRequests.length === 0 ? (
+              <Card><CardContent className="py-10 text-center text-muted-foreground">لا توجد طلبات معلقة</CardContent></Card>
+            ) : myPendingRequests.map(t => (
+              <Card key={t.id} className={t.status === "rejected" ? "border-destructive/40" : "border-yellow-500/40"}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Clock className="w-5 h-5 text-yellow-600" />
+                        {t.transfer_no} • إلى {t.source?.name}
+                      </CardTitle>
+                      <CardDescription>
+                        {formatDateTime(t.created_at)} • {(t.items || []).length} صنف
+                        {t.status === "rejected" && t.rejection_reason && (
+                          <span className="block text-destructive mt-1">سبب الرفض: {t.rejection_reason}</span>
+                        )}
+                      </CardDescription>
+                    </div>
+                    {statusBadge(t.status)}
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader><TableRow>
+                      <TableHead>الصنف</TableHead><TableHead>المطلوب</TableHead><TableHead>الوحدة</TableHead>
+                    </TableRow></TableHeader>
+                    <TableBody>
+                      {(t.items || []).map((li: any) => (
+                        <TableRow key={li.id}>
+                          <TableCell className="font-medium">{li.item_name}</TableCell>
+                          <TableCell>{li.requested_qty}</TableCell>
+                          <TableCell>{li.unit}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            ))}
+          </TabsContent>
+
 
           <TabsContent value="items">
             <Card><CardContent className="p-0">
