@@ -714,7 +714,9 @@ const NewOrder = () => {
           created_by: user?.id,
           moderator: moderatorName,
           source: (source === 'أخرى' ? sourceCustom.trim() : source) || null,
-          shipping_company: (shippingCompany === 'أخرى' ? shippingCustom.trim() : shippingCompany) || null,
+          shipping_company: fulfillmentKey === 'delivery_main'
+            ? 'مندوب خاص'
+            : ((shippingCompany === 'أخرى' ? shippingCustom.trim() : shippingCompany) || null),
           extra_charge: Number(extraCharge) || 0,
           extra_charge_reason: extraChargeReason.trim() || null,
           fulfillment_type: fulfillmentType,
