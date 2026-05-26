@@ -475,7 +475,7 @@ const TransfersTab = ({ transfers, families, qc }: any) => {
   const [batchLabel, setBatchLabel] = useState("");
   const [batchNotes, setBatchNotes] = useState("");
   const [rows, setRows] = useState<any[]>([emptyRow()]);
-  const [autoLoaded, setAutoLoaded] = useState<{ count: number; from: string; to: string } | null>(null);
+  const [autoLoaded, setAutoLoaded] = useState<{ count: number; from: string; to: string; totalQty: number } | null>(null);
   const [autoLoading, setAutoLoading] = useState(false);
 
   const resetForm = () => {
