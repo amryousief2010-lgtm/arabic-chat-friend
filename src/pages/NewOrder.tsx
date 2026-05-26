@@ -992,8 +992,23 @@ const NewOrder = () => {
                           {newCustomerShipping === 'أخرى' && (
                             <Input placeholder="أدخل اسم شركة الشحن" value={newCustomerShippingCustom} onChange={(e) => setNewCustomerShippingCustom(e.target.value)} />
                           )}
-                          </div>
-                        </div>
+                           </div>
+                           <div className="space-y-2 md:col-span-2">
+                             <Label>مصدر تنفيذ الطلب <span className="text-destructive">*</span></Label>
+                             <Select value={fulfillmentKey} onValueChange={(v) => setFulfillmentKey(v as any)}>
+                               <SelectTrigger><SelectValue placeholder="اختر من أين يستلم العميل" /></SelectTrigger>
+                               <SelectContent>
+                                 <SelectItem value="pickup_agouza">استلام من مخزن العجوزة</SelectItem>
+                                 <SelectItem value="delivery_agouza">توصيل من منفذ العجوزة</SelectItem>
+                                 <SelectItem value="pickup_main">استلام من المخزن الرئيسى</SelectItem>
+                                 <SelectItem value="delivery_main">توصيل من المخزن الرئيسى</SelectItem>
+                               </SelectContent>
+                             </Select>
+                             <p className="text-xs text-muted-foreground">
+                               سيتم خصم المخزون من المخزن المختار. لو الكمية غير كافية يدخل تلقائياً فى أمر إنتاج/ذبح.
+                             </p>
+                           </div>
+                         </div>
                       </div>
                       <DialogFooter>
                         <Button variant="outline" onClick={() => { setIsNewCustomerOpen(false); resetCustomerForm(); }}>
