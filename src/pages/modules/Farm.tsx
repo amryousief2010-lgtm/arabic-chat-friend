@@ -522,7 +522,7 @@ const TransfersTab = ({ transfers, families, qc }: any) => {
       if (!pending.length) {
         toast.info("لا يوجد إنتاج جديد بعد آخر نقل");
         setRows([emptyRow()]);
-        setAutoLoaded({ count: 0, from: "", to: "" });
+        setAutoLoaded({ count: 0, from: "", to: "", totalQty: 0 });
         return;
       }
       const map = new Map<string, { date: string; family_id: string; qty: number }>();
@@ -544,10 +544,11 @@ const TransfersTab = ({ transfers, families, qc }: any) => {
         }));
       const dates = newRows.map((r) => r.transfer_date);
       const minD = dates[0], maxD = dates[dates.length - 1];
+      const totalQty = newRows.reduce((s, r) => s + (Number(r.quantity) || 0), 0);
       setBatchFrom(minD); setBatchTo(maxD);
       setRows(newRows);
-      setAutoLoaded({ count: newRows.length, from: minD, to: maxD });
-      toast.success(`تم تحميل ${newRows.length} سجل من الإنتاج غير المنقول`);
+      setAutoLoaded({ count: newRows.length, from: minD, to: maxD, totalQty });
+      toast.success(`تم تحميل ${newRows.length} سجل من الإنتاج غير المنقول — إجمالي البيض: ${totalQty.toLocaleString()}`);
     } catch (e: any) {
       toast.error(e.message || "فشل تحميل الإنتاج");
     } finally {
