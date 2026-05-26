@@ -1013,7 +1013,22 @@ const CustRow = ({ label, value, color = "" }: { label: string; value: string | 
 const statusLabel = (s: string) => ({ pending: "بانتظار", incubating: "تحت التحضين", hatching: "بالهاتشر", completed: "مكتمل" } as any)[s] || s;
 const statusVariant = (s: string): any => ({ pending: "secondary", incubating: "default", hatching: "outline", completed: "outline" } as any)[s] || "secondary";
 
+const batchReceivable = (b: any, c: any) =>
+  (b.candle1_infertile || 0) * (c.infertile_price || PRICE_INFERTILE) +
+  (b.candle2_dead || 0) * PRICE_DEAD2 +
+  (b.hatched_chicks || 0) * (c.incubation_price || PRICE_CHICK) +
+  (b.hatcher_dead || 0) * (c.hatcher_price || PRICE_HATCHER_DEAD) +
+  (b.brooding_fee || 0);
+
 const CustomerDetailDialog = ({ customer, onClose, batches, stats }: any) => {
+  const [search, setSearch] = useState("");
+  const [machineFilter, setMachineFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [pickupFilter, setPickupFilter] = useState<string>("all"); // all | delivered | pending
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [viewingBatch, setViewingBatch] = useState<any>(null);
+
   const custBatches = useMemo(() => {
     if (!customer) return [];
     return (batches || [])
@@ -1021,20 +1036,161 @@ const CustomerDetailDialog = ({ customer, onClose, batches, stats }: any) => {
       .sort((a: any, b: any) => (b.receive_date || "").localeCompare(a.receive_date || ""));
   }, [customer, batches]);
 
+  const filteredBatches = useMemo(() => {
+    return custBatches.filter((b: any) => {
+      const st = b.status || autoStatus(b.entry_date || b.receive_date);
+      if (search) {
+        const q = search.toLowerCase();
+        const hay = `${b.machine_id || ""} ${b.notes || ""} ${b.receive_date || ""} ${b.pickup_date || ""}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      if (machineFilter !== "all" && b.machine_id !== machineFilter) return false;
+      if (statusFilter !== "all" && st !== statusFilter) return false;
+      if (pickupFilter === "delivered" && !b.pickup_date) return false;
+      if (pickupFilter === "pending" && b.pickup_date) return false;
+      if (dateFrom && (b.receive_date || "") < dateFrom) return false;
+      if (dateTo && (b.receive_date || "") > dateTo) return false;
+      return true;
+    });
+  }, [custBatches, search, machineFilter, statusFilter, pickupFilter, dateFrom, dateTo]);
+
+  const chartData = useMemo(() => {
+    return [...filteredBatches]
+      .sort((a: any, b: any) => (a.receive_date || "").localeCompare(b.receive_date || ""))
+      .map((b: any) => {
+        const net = b.net_eggs || 0;
+        const fertile = b.candle2_fertile || b.candle1_fertile || 0;
+        return {
+          date: b.receive_date || "—",
+          netEggs: net,
+          chicks: b.hatched_chicks || 0,
+          fertilityPct: net > 0 ? +((fertile / net) * 100).toFixed(1) : 0,
+          conversionPct: net > 0 ? +(((b.hatched_chicks || 0) / net) * 100).toFixed(1) : 0,
+        };
+      });
+  }, [filteredBatches]);
+
+  const receivables = useMemo(() => {
+    if (!customer) return { delivered: 0, pending: 0, total: 0 };
+    let delivered = 0, pending = 0;
+    for (const b of custBatches) {
+      const v = batchReceivable(b, customer);
+      if (b.pickup_date) delivered += v; else pending += v;
+    }
+    return { delivered, pending, total: delivered + pending };
+  }, [custBatches, customer]);
+
+  const exportExcel = async () => {
+    const XLSX: any = await import("xlsx");
+    const summary = [
+      ["تقرير عميل", customer.name],
+      ["النوع", customer.customer_type === "internal" ? "داخلي" : "خارجي"],
+      ["تاريخ التقرير", today()],
+      [],
+      ["الدفعات", stats?.batches || 0],
+      ["نشط", stats?.active || 0],
+      ["مكتمل", stats?.completed || 0],
+      ["البيض الصافي", stats?.netEggs || 0],
+      ["مخصب", stats?.fertile || 0],
+      ["نسبة الخصوبة %", stats?.fertilityPct || 0],
+      ["الكتاكيت", stats?.chicks || 0],
+      ["نسبة التحويل %", stats?.conversionPct || 0],
+      ["مُسلَّم (كتاكيت)", stats?.delivered || 0],
+      ["بانتظار التسليم", stats?.pendingDelivery || 0],
+      ["المستحق المُسلَّم (ج)", receivables.delivered],
+      ["المستحق المتبقي (ج)", receivables.pending],
+      ["إجمالي المستحقات (ج)", receivables.total],
+    ];
+    const rows = filteredBatches.map((b: any, i: number) => ({
+      "#": filteredBatches.length - i,
+      "الاستلام": b.receive_date || "",
+      "الماكينة": b.machine_id || "",
+      "صافي البيض": b.net_eggs || 0,
+      "كشف 1 مخصب": b.candle1_fertile || 0,
+      "كشف 1 غير مخصب": b.candle1_infertile || 0,
+      "كشف 2 مخصب": b.candle2_fertile || 0,
+      "كشف 2 ميت": b.candle2_dead || 0,
+      "كتاكيت": b.hatched_chicks || 0,
+      "نافق هاتشر": b.hatcher_dead || 0,
+      "الخروج": b.exit_date || "",
+      "الاستلام النهائي": b.pickup_date || "",
+      "أيام التحضين": b.brooding_days || 0,
+      "تحضين (ج)": b.brooding_fee || 0,
+      "مستحق الدفعة (ج)": batchReceivable(b, customer),
+      "الحالة": statusLabel(b.status || autoStatus(b.entry_date || b.receive_date)),
+      "ملاحظات": b.notes || "",
+    }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summary), "الملخص");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "الدفعات");
+    XLSX.writeFile(wb, `customer-${customer.name}-${today()}.xlsx`);
+  };
+
+  const exportPDF = async () => {
+    const { jsPDF } = await import("jspdf");
+    const autoTable = (await import("jspdf-autotable")).default;
+    const doc = new jsPDF({ orientation: "landscape" });
+    doc.setFontSize(14);
+    doc.text(`Customer Report: ${customer.name}`, 14, 14);
+    doc.setFontSize(10);
+    doc.text(`Type: ${customer.customer_type}   Date: ${today()}`, 14, 22);
+    autoTable(doc, {
+      startY: 28,
+      head: [["Metric", "Value"]],
+      body: [
+        ["Batches", String(stats?.batches || 0)],
+        ["Active / Completed", `${stats?.active || 0} / ${stats?.completed || 0}`],
+        ["Net Eggs", (stats?.netEggs || 0).toLocaleString()],
+        ["Fertility %", `${stats?.fertilityPct || 0}%`],
+        ["Chicks", (stats?.chicks || 0).toLocaleString()],
+        ["Conversion %", `${stats?.conversionPct || 0}%`],
+        ["Delivered chicks", (stats?.delivered || 0).toLocaleString()],
+        ["Pending delivery", (stats?.pendingDelivery || 0).toLocaleString()],
+        ["Receivable - Delivered", `${receivables.delivered.toLocaleString()} EGP`],
+        ["Receivable - Pending", `${receivables.pending.toLocaleString()} EGP`],
+        ["Receivable - Total", `${receivables.total.toLocaleString()} EGP`],
+      ],
+      styles: { fontSize: 9 },
+    });
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable.finalY + 6,
+      head: [["#", "Receive", "Machine", "Net Eggs", "C1 F/I", "C2 F/D", "Chicks/Dead", "Pickup", "Status", "Receivable"]],
+      body: filteredBatches.map((b: any, i: number) => [
+        filteredBatches.length - i,
+        b.receive_date || "-",
+        b.machine_id || "-",
+        (b.net_eggs || 0).toLocaleString(),
+        `${b.candle1_fertile || 0}/${b.candle1_infertile || 0}`,
+        `${b.candle2_fertile || 0}/${b.candle2_dead || 0}`,
+        `${b.hatched_chicks || 0}/${b.hatcher_dead || 0}`,
+        b.pickup_date || (b.exit_date ? `wait(${b.exit_date})` : "-"),
+        statusLabel(b.status || autoStatus(b.entry_date || b.receive_date)),
+        batchReceivable(b, customer).toLocaleString(),
+      ]),
+      styles: { fontSize: 8 },
+    });
+    doc.save(`customer-${customer.name}-${today()}.pdf`);
+  };
+
   if (!customer) return null;
   const isInternal = customer.customer_type === "internal";
   const s = stats || {};
+  const machinesUsed = Array.from(new Set(custBatches.map((b: any) => b.machine_id).filter(Boolean)));
 
   return (
     <Dialog open={!!customer} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent dir="rtl" className="max-w-5xl max-h-[90vh] overflow-y-auto">
+      <DialogContent dir="rtl" className="max-w-6xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-xl">
+          <DialogTitle className="flex items-center gap-2 text-xl flex-wrap">
             <Users className="w-5 h-5 text-primary" />
             {customer.name}
             <Badge variant={isInternal ? "default" : "outline"} className="text-[10px]">
               {isInternal ? "داخلي - العاصمة" : "خارجي"}
             </Badge>
+            <div className="ms-auto flex gap-1">
+              <Button size="sm" variant="outline" onClick={exportExcel}>تصدير Excel</Button>
+              <Button size="sm" variant="outline" onClick={exportPDF}>تصدير PDF</Button>
+            </div>
           </DialogTitle>
           {customer.notes && <p className="text-xs text-muted-foreground mt-1">{customer.notes}</p>}
         </DialogHeader>
@@ -1058,11 +1214,59 @@ const CustomerDetailDialog = ({ customer, onClose, batches, stats }: any) => {
           <Card className={`p-3 ${isInternal ? "bg-muted/30" : "bg-gradient-to-br from-emerald-500/10 to-emerald-700/5 border-emerald-500/20"}`}>
             <div className="text-[10px] text-muted-foreground">{isInternal ? "مُسلَّم / بانتظار" : "إجمالي المستحقات"}</div>
             <div className="text-xl font-bold text-emerald-700">
-              {isInternal ? `${(s.delivered || 0).toLocaleString()} / ${(s.pendingDelivery || 0).toLocaleString()}` : `${(s.receivable || 0).toLocaleString()} ج`}
+              {isInternal ? `${(s.delivered || 0).toLocaleString()} / ${(s.pendingDelivery || 0).toLocaleString()}` : `${receivables.total.toLocaleString()} ج`}
             </div>
             <div className="text-[10px] text-muted-foreground">حتى {today()}</div>
           </Card>
         </div>
+
+        {/* Receivables breakdown */}
+        {!isInternal && (
+          <Card className="p-3">
+            <div className="text-xs font-semibold mb-2 text-muted-foreground flex items-center gap-1">
+              <DollarSign className="w-3.5 h-3.5" /> ملخص الاستحقاقات حتى {today()}
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-center text-xs">
+              <div className="bg-emerald-500/10 rounded p-2 border border-emerald-500/20">
+                <div className="text-[10px] text-muted-foreground">المُسلَّم (دفعات تم استلامها)</div>
+                <div className="font-bold text-emerald-700 text-lg">{receivables.delivered.toLocaleString()} ج</div>
+              </div>
+              <div className="bg-orange-500/10 rounded p-2 border border-orange-500/20">
+                <div className="text-[10px] text-muted-foreground">المستحق المتبقي (لم يُستلم)</div>
+                <div className="font-bold text-orange-700 text-lg">{receivables.pending.toLocaleString()} ج</div>
+              </div>
+              <div className="bg-primary/10 rounded p-2 border border-primary/20">
+                <div className="text-[10px] text-muted-foreground">إجمالي المستحقات</div>
+                <div className="font-bold text-primary text-lg">{receivables.total.toLocaleString()} ج</div>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* KPI chart */}
+        {chartData.length > 0 && (
+          <Card className="p-3">
+            <div className="text-xs font-semibold mb-2 text-muted-foreground flex items-center gap-1">
+              <BarChart3 className="w-3.5 h-3.5" /> اتجاه الأداء عبر الأيام
+            </div>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                  <XAxis dataKey="date" fontSize={10} />
+                  <YAxis yAxisId="left" fontSize={10} />
+                  <YAxis yAxisId="right" orientation="right" fontSize={10} unit="%" />
+                  <Tooltip />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Line yAxisId="left" type="monotone" dataKey="netEggs" name="صافي البيض" stroke="#a855f7" strokeWidth={2} dot={{ r: 3 }} />
+                  <Line yAxisId="left" type="monotone" dataKey="chicks" name="الكتاكيت" stroke="#f97316" strokeWidth={2} dot={{ r: 3 }} />
+                  <Line yAxisId="right" type="monotone" dataKey="fertilityPct" name="خصوبة %" stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} />
+                  <Line yAxisId="right" type="monotone" dataKey="conversionPct" name="تحويل %" stroke="#06b6d4" strokeWidth={2} dot={{ r: 3 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+        )}
 
         <Card className="p-3">
           <div className="text-xs font-semibold mb-2 text-muted-foreground">تفصيل دورة الحياة (تراكمي)</div>
@@ -1088,11 +1292,46 @@ const CustomerDetailDialog = ({ customer, onClose, batches, stats }: any) => {
         )}
 
         <div>
-          <div className="text-sm font-semibold mb-2 flex items-center gap-2">
-            <FlaskConical className="w-4 h-4" /> دفعات العميل ({custBatches.length})
+          <div className="text-sm font-semibold mb-2 flex items-center gap-2 flex-wrap">
+            <FlaskConical className="w-4 h-4" /> دفعات العميل ({filteredBatches.length}/{custBatches.length})
           </div>
-          {custBatches.length === 0 ? (
-            <div className="text-center text-muted-foreground py-8 text-sm border rounded-lg">لا توجد دفعات مسجلة لهذا العميل</div>
+
+          {/* Filters */}
+          <Card className="p-2 mb-2">
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+              <Input placeholder="بحث (رقم/ملاحظة)" value={search} onChange={(e) => setSearch(e.target.value)} className="h-8 text-xs" />
+              <Select value={machineFilter} onValueChange={setMachineFilter}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="الماكينة" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">كل الماكينات</SelectItem>
+                  {machinesUsed.map((m: any) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="الحالة" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">كل الحالات</SelectItem>
+                  <SelectItem value="pending">بانتظار</SelectItem>
+                  <SelectItem value="incubating">تحت التحضين</SelectItem>
+                  <SelectItem value="hatching">بالهاتشر</SelectItem>
+                  <SelectItem value="completed">مكتمل</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={pickupFilter} onValueChange={setPickupFilter}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="الاستلام" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">الكل</SelectItem>
+                  <SelectItem value="delivered">مُسلَّم</SelectItem>
+                  <SelectItem value="pending">بانتظار الاستلام</SelectItem>
+                </SelectContent>
+              </Select>
+              <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-8 text-xs" title="من تاريخ" />
+              <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-8 text-xs" title="إلى تاريخ" />
+            </div>
+          </Card>
+
+          {filteredBatches.length === 0 ? (
+            <div className="text-center text-muted-foreground py-8 text-sm border rounded-lg">لا توجد دفعات مطابقة للمرشحات</div>
           ) : (
             <div className="border rounded-lg overflow-x-auto">
               <Table>
@@ -1110,11 +1349,11 @@ const CustomerDetailDialog = ({ customer, onClose, batches, stats }: any) => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {custBatches.map((b: any, i: number) => {
+                  {filteredBatches.map((b: any, i: number) => {
                     const st = b.status || autoStatus(b.entry_date || b.receive_date);
                     return (
-                      <TableRow key={b.id} className="text-xs">
-                        <TableCell className="font-semibold">{custBatches.length - i}</TableCell>
+                      <TableRow key={b.id} className="text-xs cursor-pointer hover:bg-muted/40" onClick={() => setViewingBatch(b)}>
+                        <TableCell className="font-semibold">{filteredBatches.length - i}</TableCell>
                         <TableCell>{b.receive_date || "—"}</TableCell>
                         <TableCell>{b.machine_id || "—"}</TableCell>
                         <TableCell className="font-semibold text-purple-700">{(b.net_eggs || 0).toLocaleString()}</TableCell>
@@ -1152,6 +1391,90 @@ const CustomerDetailDialog = ({ customer, onClose, batches, stats }: any) => {
             </div>
           )}
         </div>
+
+        <BatchDetailDialog batch={viewingBatch} customer={customer} onClose={() => setViewingBatch(null)} />
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>إغلاق</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+const BatchDetailDialog = ({ batch, customer, onClose }: any) => {
+  if (!batch) return null;
+  const st = batch.status || autoStatus(batch.entry_date || batch.receive_date);
+  const entry = batch.entry_date || batch.receive_date;
+  const c1 = entry ? addDaysStr(entry, STAGE_CANDLE1) : "—";
+  const c2 = entry ? addDaysStr(entry, STAGE_CANDLE2) : "—";
+  const exit = entry ? addDaysStr(entry, STAGE_EXIT) : "—";
+  const receivable = customer ? batchReceivable(batch, customer) : 0;
+
+  const Row = ({ label, value, color = "" }: any) => (
+    <div className="flex justify-between text-sm py-1 border-b last:border-0">
+      <span className="text-muted-foreground">{label}</span>
+      <span className={`font-semibold ${color}`}>{value}</span>
+    </div>
+  );
+
+  return (
+    <Dialog open={!!batch} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent dir="rtl" className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <FlaskConical className="w-4 h-4 text-primary" />
+            تفاصيل الدفعة - {batch.machine_id || "بدون ماكينة"}
+            <Badge variant={statusVariant(st)} className="text-[10px]">{statusLabel(st)}</Badge>
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <Card className="p-3">
+            <div className="text-xs font-semibold mb-1 text-muted-foreground">التواريخ</div>
+            <Row label="استلام البيض" value={batch.receive_date || "—"} />
+            <Row label="دخول الحضانة" value={batch.entry_date || "—"} />
+            <Row label="كشف 1 المتوقع" value={c1} />
+            <Row label="كشف 2 المتوقع" value={c2} />
+            <Row label="الخروج للهاتشر" value={batch.exit_date || exit} />
+            <Row label="استلام العميل" value={batch.pickup_date || "—"} color="text-cyan-700" />
+            {batch.brooding_days > 0 && <Row label="أيام التحضين بعد الخروج" value={`${batch.brooding_days} يوم`} color="text-cyan-700" />}
+          </Card>
+
+          <Card className="p-3">
+            <div className="text-xs font-semibold mb-1 text-muted-foreground">الأرقام</div>
+            <Row label="البيض المستلم" value={(batch.received_eggs || 0).toLocaleString()} />
+            <Row label="بيض مكسور/مرفوض" value={(batch.rejected_eggs || 0).toLocaleString()} color="text-rose-600" />
+            <Row label="صافي البيض" value={(batch.net_eggs || 0).toLocaleString()} color="text-purple-700" />
+            <Row label="كشف 1 مخصب" value={(batch.candle1_fertile || 0).toLocaleString()} color="text-emerald-600" />
+            <Row label="كشف 1 غير مخصب" value={(batch.candle1_infertile || 0).toLocaleString()} color="text-amber-600" />
+            <Row label="كشف 2 مخصب" value={(batch.candle2_fertile || 0).toLocaleString()} color="text-emerald-600" />
+            <Row label="كشف 2 ميت" value={(batch.candle2_dead || 0).toLocaleString()} color="text-rose-600" />
+            <Row label="كتاكيت ناتجة" value={(batch.hatched_chicks || 0).toLocaleString()} color="text-orange-600" />
+            <Row label="نافق هاتشر" value={(batch.hatcher_dead || 0).toLocaleString()} color="text-red-600" />
+          </Card>
+        </div>
+
+        {customer && customer.customer_type !== "internal" && (
+          <Card className="p-3 bg-emerald-500/5 border-emerald-500/20">
+            <div className="flex justify-between items-center">
+              <div className="text-sm font-semibold text-muted-foreground">مستحق هذه الدفعة</div>
+              <div className="text-2xl font-bold text-emerald-700">{receivable.toLocaleString()} ج</div>
+            </div>
+            {batch.brooding_fee > 0 && (
+              <div className="text-xs text-muted-foreground mt-1">
+                يشمل {(batch.brooding_fee || 0).toLocaleString()} ج رسوم تحضين بعد الخروج
+              </div>
+            )}
+          </Card>
+        )}
+
+        {batch.notes && (
+          <Card className="p-3 bg-muted/30">
+            <div className="text-xs font-semibold mb-1 text-muted-foreground">ملاحظات</div>
+            <p className="text-sm whitespace-pre-wrap">{batch.notes}</p>
+          </Card>
+        )}
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>إغلاق</Button>
