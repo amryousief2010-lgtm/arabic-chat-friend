@@ -523,6 +523,7 @@ const BatchesTab = ({ batches, customers, qc }: any) => {
                     <div>ميت كشف 2 ({form.candle2_dead} × {PRICE_DEAD2})</div><div className="text-end font-bold">{billing.dead2.toLocaleString()} ج</div>
                     <div>كتاكيت ({form.hatched_chicks} × {currentCustomer.incubation_price || PRICE_CHICK})</div><div className="text-end font-bold">{billing.chicks.toLocaleString()} ج</div>
                     <div>نافق هاتشر ({form.hatcher_dead} × {currentCustomer.hatcher_price || PRICE_HATCHER_DEAD})</div><div className="text-end font-bold">{billing.hatcherDead.toLocaleString()} ج</div>
+                    <div>تحضين ({billing.broodingDays} يوم × {PRICE_BROODING_PER_DAY})</div><div className="text-end font-bold">{billing.brooding.toLocaleString()} ج</div>
                     <div className="col-span-2 border-t pt-2 mt-1 flex justify-between text-base">
                       <span className="font-bold text-emerald-700">الإجمالي</span>
                       <span className="font-bold text-emerald-700">{billing.total.toLocaleString()} ج</span>
