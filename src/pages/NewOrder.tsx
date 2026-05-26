@@ -173,6 +173,14 @@ const NewOrder = () => {
   const [warehousesList, setWarehousesList] = useState<Array<{id:string;name:string}>>([]);
   const agouzaWh = useMemo(() => warehousesList.find(w => w.name?.includes('العجوزة')), [warehousesList]);
   const mainWh = useMemo(() => warehousesList.find(w => w.name?.includes('الرئيسي') || w.name?.includes('المقر')), [warehousesList]);
+
+  // عند اختيار "توصيل من المخزن الرئيسى" → الأوردر يتسجل تلقائياً على المندوب الخاص (كيمو)
+  useEffect(() => {
+    if (fulfillmentKey === 'delivery_main') {
+      setShippingCompany('مندوب خاص');
+      setShippingCustom('');
+    }
+  }, [fulfillmentKey]);
   
   
   // Search
@@ -706,7 +714,9 @@ const NewOrder = () => {
           created_by: user?.id,
           moderator: moderatorName,
           source: (source === 'أخرى' ? sourceCustom.trim() : source) || null,
-          shipping_company: (shippingCompany === 'أخرى' ? shippingCustom.trim() : shippingCompany) || null,
+          shipping_company: fulfillmentKey === 'delivery_main'
+            ? 'مندوب خاص'
+            : ((shippingCompany === 'أخرى' ? shippingCustom.trim() : shippingCompany) || null),
           extra_charge: Number(extraCharge) || 0,
           extra_charge_reason: extraChargeReason.trim() || null,
           fulfillment_type: fulfillmentType,
