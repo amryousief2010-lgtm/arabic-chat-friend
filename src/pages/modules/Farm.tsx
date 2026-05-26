@@ -641,6 +641,110 @@ const TransfersTab = ({ transfers, families, qc }: any) => {
     toast.success("تم تصدير التقرير");
   };
 
+  // Professional Arabic PDF for the pending production currently loaded in the dialog
+  const exportPendingPdf = () => {
+    const valid = rows.filter((r) => Number(r.quantity) > 0 || Number(r.damaged) > 0);
+    if (!valid.length) { toast.error("لا توجد صفوف للتصدير"); return; }
+    const esc = (s: any) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
+    const totalQ = valid.reduce((s, r) => s + (Number(r.quantity) || 0), 0);
+    const totalD = valid.reduce((s, r) => s + (Number(r.damaged) || 0), 0);
+    const period = (autoLoaded && autoLoaded.count > 0)
+      ? `${autoLoaded.from} → ${autoLoaded.to}`
+      : `${batchFrom} → ${batchTo}`;
+    const printedAt = new Date().toLocaleString("ar-EG");
+    const rowsHtml = valid.map((r, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td>${esc(r.transfer_date)}</td>
+        <td>${esc(familyName(r.family_id))}</td>
+        <td class="num">${(Number(r.quantity) || 0).toLocaleString()}</td>
+        <td class="num">${(Number(r.damaged) || 0).toLocaleString()}</td>
+        <td class="num">${((Number(r.quantity) || 0) - (Number(r.damaged) || 0)).toLocaleString()}</td>
+        <td>${esc(r.notes || "—")}</td>
+      </tr>`).join("");
+
+    const html = `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8">
+<title>تقرير الإنتاج غير المنقول للمعمل</title>
+<style>
+  @page { size: A4; margin: 14mm 12mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Cairo","Tajawal","Noto Naskh Arabic","Segoe UI",Tahoma,sans-serif; font-size: 12px; color:#111; margin:0; }
+  header { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:3px solid #6b46c1; padding-bottom:10px; margin-bottom:12px; }
+  header h1 { margin:0; font-size:20px; color:#6b46c1; }
+  header .sub { font-size:11px; color:#666; margin-top:2px; }
+  header .meta { text-align:left; font-size:10px; color:#444; line-height:1.6; }
+  .summary { display:grid; grid-template-columns: repeat(4, 1fr); gap:8px; margin-bottom:14px; }
+  .card { border:1px solid #ddd; border-radius:6px; padding:8px 10px; background:#fafafa; }
+  .card .k { font-size:10px; color:#666; }
+  .card .v { font-size:16px; font-weight:bold; color:#6b46c1; margin-top:2px; }
+  .card.warn .v { color:#e85d3a; }
+  .card.ok .v { color:#2e7d32; }
+  table { width:100%; border-collapse:collapse; font-size:11px; }
+  thead th { background:#6b46c1; color:#fff; padding:6px 8px; text-align:right; font-weight:bold; }
+  tbody td { border:1px solid #e0e0e0; padding:5px 8px; text-align:right; }
+  tbody tr:nth-child(even) td { background:#faf8ff; }
+  td.num { font-variant-numeric: tabular-nums; font-weight:600; }
+  tfoot td { background:#f5edff; font-weight:bold; padding:7px 8px; border:1px solid #cdb4f5; }
+  .notes { margin-top:10px; padding:8px; background:#fff8e6; border:1px solid #f3d77a; border-radius:6px; font-size:11px; }
+  .signatures { display:grid; grid-template-columns: repeat(3, 1fr); gap:14px; margin-top:24px; }
+  .sig { border-top:1px solid #999; padding-top:5px; font-size:10px; text-align:center; color:#666; }
+  footer { position:fixed; bottom:6mm; left:0; right:0; text-align:center; font-size:9px; color:#888; }
+  .no-print { padding:10px; background:#f5edff; text-align:center; }
+  .no-print button { font-size:14px; padding:6px 18px; cursor:pointer; margin:0 4px; }
+  @media print { .no-print { display:none; } }
+</style></head><body>
+<div class="no-print">
+  <button onclick="window.print()">طباعة / حفظ كـ PDF</button>
+  <button onclick="window.close()">إغلاق</button>
+</div>
+<header>
+  <div>
+    <h1>تقرير الإنتاج غير المنقول للمعمل</h1>
+    <div class="sub">شركة عاصمة النعام — Capital Ostrich</div>
+    <div class="sub">الفترة: <b>${esc(period)}</b></div>
+    ${batchLabel ? `<div class="sub">الدفعة: <b>${esc(batchLabel)}</b></div>` : ""}
+  </div>
+  <div class="meta">
+    <div>تاريخ الطباعة: ${esc(printedAt)}</div>
+    <div>عدد السجلات: <b>${valid.length}</b></div>
+  </div>
+</header>
+<div class="summary">
+  <div class="card"><div class="k">عدد السجلات</div><div class="v">${valid.length.toLocaleString()}</div></div>
+  <div class="card ok"><div class="k">إجمالي الكمية</div><div class="v">${totalQ.toLocaleString()}</div></div>
+  <div class="card warn"><div class="k">إجمالي الهالك</div><div class="v">${totalD.toLocaleString()}</div></div>
+  <div class="card"><div class="k">الصافي للنقل</div><div class="v">${(totalQ - totalD).toLocaleString()}</div></div>
+</div>
+<table>
+  <thead><tr>
+    <th style="width:32px">#</th><th>التاريخ</th><th>الأسرة</th>
+    <th>الكمية</th><th>الهالك</th><th>الصافي</th><th>ملاحظات</th>
+  </tr></thead>
+  <tbody>${rowsHtml}</tbody>
+  <tfoot><tr>
+    <td colspan="3" style="text-align:center">الإجمالي</td>
+    <td class="num">${totalQ.toLocaleString()}</td>
+    <td class="num">${totalD.toLocaleString()}</td>
+    <td class="num">${(totalQ - totalD).toLocaleString()}</td>
+    <td></td>
+  </tr></tfoot>
+</table>
+${batchNotes ? `<div class="notes"><b>ملاحظات الدفعة:</b> ${esc(batchNotes)}</div>` : ""}
+<div class="signatures">
+  <div class="sig">مسؤول المزرعة</div>
+  <div class="sig">مسؤول المعمل</div>
+  <div class="sig">المدير المسؤول</div>
+</div>
+<footer>تم إنشاء التقرير بواسطة نظام عاصمة النعام — ${esc(printedAt)}</footer>
+<script>setTimeout(()=>window.focus(), 100);</script>
+</body></html>`;
+
+    const w = window.open("", "_blank", "width=1000,height=800");
+    if (!w) { toast.error("تعذّر فتح نافذة الطباعة — اسمح بالنوافذ المنبثقة"); return; }
+    w.document.open(); w.document.write(html); w.document.close();
+    toast.success("تم تجهيز التقرير — استخدم زر الطباعة لحفظه PDF");
+  };
+
   return (
     <Card className="p-4">
       <div className="flex flex-wrap justify-between items-center gap-2 mb-3">
