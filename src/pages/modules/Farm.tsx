@@ -475,7 +475,7 @@ const TransfersTab = ({ transfers, families, qc }: any) => {
   const [batchLabel, setBatchLabel] = useState("");
   const [batchNotes, setBatchNotes] = useState("");
   const [rows, setRows] = useState<any[]>([emptyRow()]);
-  const [autoLoaded, setAutoLoaded] = useState<{ count: number; from: string; to: string } | null>(null);
+  const [autoLoaded, setAutoLoaded] = useState<{ count: number; from: string; to: string; totalQty: number } | null>(null);
   const [autoLoading, setAutoLoading] = useState(false);
 
   const resetForm = () => {
@@ -522,7 +522,7 @@ const TransfersTab = ({ transfers, families, qc }: any) => {
       if (!pending.length) {
         toast.info("لا يوجد إنتاج جديد بعد آخر نقل");
         setRows([emptyRow()]);
-        setAutoLoaded({ count: 0, from: "", to: "" });
+        setAutoLoaded({ count: 0, from: "", to: "", totalQty: 0 });
         return;
       }
       const map = new Map<string, { date: string; family_id: string; qty: number }>();
@@ -544,10 +544,11 @@ const TransfersTab = ({ transfers, families, qc }: any) => {
         }));
       const dates = newRows.map((r) => r.transfer_date);
       const minD = dates[0], maxD = dates[dates.length - 1];
+      const totalQty = newRows.reduce((s, r) => s + (Number(r.quantity) || 0), 0);
       setBatchFrom(minD); setBatchTo(maxD);
       setRows(newRows);
-      setAutoLoaded({ count: newRows.length, from: minD, to: maxD });
-      toast.success(`تم تحميل ${newRows.length} سجل من الإنتاج غير المنقول`);
+      setAutoLoaded({ count: newRows.length, from: minD, to: maxD, totalQty });
+      toast.success(`تم تحميل ${newRows.length} سجل من الإنتاج غير المنقول — إجمالي البيض: ${totalQty.toLocaleString()}`);
     } catch (e: any) {
       toast.error(e.message || "فشل تحميل الإنتاج");
     } finally {
@@ -675,7 +676,7 @@ const TransfersTab = ({ transfers, families, qc }: any) => {
                 </div>
                 {autoLoaded && autoLoaded.count > 0 && (
                   <div className="text-xs bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-emerald-800 dark:text-emerald-200 rounded p-2">
-                    تم تحميل {autoLoaded.count} سجل تلقائيًا من الإنتاج اليومي ({autoLoaded.from} → {autoLoaded.to}). يمكنك التعديل قبل الحفظ.
+                    تم تحميل <b>{autoLoaded.count}</b> سجل تلقائيًا من الإنتاج اليومي ({autoLoaded.from} → {autoLoaded.to}). إجمالي البيض: <b>{autoLoaded.totalQty.toLocaleString()}</b> — يمكنك التعديل قبل الحفظ.
                   </div>
                 )}
                 {autoLoaded && autoLoaded.count === 0 && (
