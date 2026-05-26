@@ -306,6 +306,52 @@ const BatchesTab = ({ batches, customers, qc }: any) => {
 
   return (
     <Card className="p-4">
+      {/* ====== شريط الإشعارات الديناميكي ====== */}
+      {alerts.length > 0 && (
+        <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/20 p-3">
+          <div className="flex items-center gap-2 mb-2 text-amber-700 dark:text-amber-300 font-semibold">
+            <Bell className="w-4 h-4" /> إشعارات المراحل القادمة ({alerts.length})
+          </div>
+          <div className="grid md:grid-cols-2 gap-2 max-h-40 overflow-auto">
+            {alerts.slice(0, 12).map((a, i) => (
+              <div key={i} className={`text-xs rounded p-2 flex items-center justify-between gap-2
+                ${a.severity === "late" ? "bg-destructive/15 text-destructive" : a.severity === "due" ? "bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300" : "bg-cyan-50 dark:bg-cyan-950/20 text-cyan-700 dark:text-cyan-300"}`}>
+                <span className="font-mono">{a.batch.batch_number}</span>
+                <span>{a.label}</span>
+                <Badge variant="outline">{a.batch.machine || "—"}</Badge>
+                <span className="font-bold">{a.days < 0 ? `متأخر ${-a.days} يوم` : a.days === 0 ? "اليوم" : `بعد ${a.days} يوم`}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ====== شريط إشغال الماكينات ====== */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
+        {MACHINES.map((m) => {
+          const used = machineUsage[m.id] || 0;
+          const pct = Math.min(100, Math.round((used / m.capacity) * 100));
+          return (
+            <Card key={m.id} className="p-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-bold">{m.name}</span>
+                <span className="text-xs text-muted-foreground">{used}/{m.capacity}</span>
+              </div>
+              <div className="h-2 rounded-full bg-muted overflow-hidden">
+                <div className={`h-full ${pct >= 100 ? "bg-destructive" : pct >= 80 ? "bg-orange-500" : "bg-emerald-500"}`} style={{ width: `${pct}%` }} />
+              </div>
+            </Card>
+          );
+        })}
+        <Card className="p-3">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-sm font-bold">{HATCHER.name}</span>
+            <span className="text-xs text-muted-foreground">سعة {HATCHER.capacity} كتكوت</span>
+          </div>
+          <div className="h-2 rounded-full bg-gradient-to-r from-purple-400 to-orange-400" />
+        </Card>
+      </div>
+
       <div className="flex justify-between mb-3">
         <h3 className="font-bold">دفعات المعمل</h3>
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditing(null); setForm(emptyBatch()); } }}>
@@ -315,16 +361,38 @@ const BatchesTab = ({ batches, customers, qc }: any) => {
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-2">
                 <div><Label>رقم الدفعة</Label><Input value={form.batch_number} onChange={(e) => setForm({ ...form, batch_number: e.target.value })} /></div>
-                <div><Label>الماكينة</Label><Input value={form.machine} onChange={(e) => setForm({ ...form, machine: e.target.value })} /></div>
+                <div>
+                  <Label>الماكينة</Label>
+                  <Select value={form.machine} onValueChange={(v) => setForm({ ...form, machine: v })}>
+                    <SelectTrigger><SelectValue placeholder="اختر الماكينة" /></SelectTrigger>
+                    <SelectContent>
+                      {MACHINES.map((m) => {
+                        const used = machineUsage[m.id] || 0;
+                        const free = m.capacity - used;
+                        return (
+                          <SelectItem key={m.id} value={m.id}>
+                            {m.name} — سعة {m.capacity} (متاح {free})
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                  {selectedMachine && (
+                    <p className={`text-xs mt-1 ${machineOver ? "text-destructive font-bold" : "text-muted-foreground"}`}>
+                      مستخدم {machineUsed}/{selectedMachine.capacity} • متاح {machineFree}
+                      {machineOver && " ⚠️ تجاوز السعة"}
+                    </p>
+                  )}
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div><Label>العميل</Label>
                   <Select value={form.customer_id} onValueChange={(v) => setForm({ ...form, customer_id: v })}>
                     <SelectTrigger><SelectValue placeholder="اختر" /></SelectTrigger>
-                    <SelectContent>{customers.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name} {c.customer_type === "internal" ? "(داخلي)" : ""}</SelectItem>)}</SelectContent>
+                    <SelectContent>{customers.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name} {c.customer_type === "internal" ? "(داخلي)" : "(خارجي)"}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
-                <div><Label>الحالة</Label>
+                <div><Label>الحالة (تلقائية)</Label>
                   <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -338,7 +406,7 @@ const BatchesTab = ({ batches, customers, qc }: any) => {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div><Label>تاريخ الوارد</Label><Input type="date" value={form.receive_date} onChange={(e) => setForm({ ...form, receive_date: e.target.value })} /></div>
-                <div><Label>تاريخ الدخول</Label><Input type="date" value={form.entry_date} onChange={(e) => setForm({ ...form, entry_date: e.target.value })} /></div>
+                <div><Label>تاريخ الدخول (يحدد المراحل تلقائياً)</Label><Input type="date" value={form.entry_date} onChange={(e) => setEntry(e.target.value)} /></div>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div><Label>وارد البيض</Label><Input type="number" value={form.received_eggs} onChange={(e) => setForm({ ...form, received_eggs: +e.target.value })} /></div>
@@ -346,7 +414,7 @@ const BatchesTab = ({ batches, customers, qc }: any) => {
               </div>
 
               <div className="border-t pt-3 mt-2">
-                <p className="font-semibold text-sm mb-2 text-cyan-700">الكشف الأول (18 يوم)</p>
+                <p className="font-semibold text-sm mb-2 text-cyan-700">الكشف الأول (بعد {STAGE_CANDLE1} يوم) — غير المخصب يخرج للبيع</p>
                 <div className="grid grid-cols-3 gap-2">
                   <div><Label>التاريخ</Label><Input type="date" value={form.candle1_date} onChange={(e) => setForm({ ...form, candle1_date: e.target.value })} /></div>
                   <div><Label>مخصب</Label><Input type="number" value={form.candle1_fertile} onChange={(e) => setForm({ ...form, candle1_fertile: +e.target.value })} /></div>
@@ -355,26 +423,45 @@ const BatchesTab = ({ batches, customers, qc }: any) => {
               </div>
 
               <div>
-                <p className="font-semibold text-sm mb-2 text-cyan-700">الكشف الثاني (30 يوم)</p>
+                <p className="font-semibold text-sm mb-2 text-cyan-700">الكشف الثاني (بعد {STAGE_CANDLE2} يوم) — الميت يُعدم</p>
                 <div className="grid grid-cols-3 gap-2">
                   <div><Label>التاريخ</Label><Input type="date" value={form.candle2_date} onChange={(e) => setForm({ ...form, candle2_date: e.target.value })} /></div>
-                  <div><Label>مخصب</Label><Input type="number" value={form.candle2_fertile} onChange={(e) => setForm({ ...form, candle2_fertile: +e.target.value })} /></div>
+                  <div><Label>مخصب (مكتمل النمو)</Label><Input type="number" value={form.candle2_fertile} onChange={(e) => setForm({ ...form, candle2_fertile: +e.target.value })} /></div>
                   <div><Label>ميت</Label><Input type="number" value={form.candle2_dead} onChange={(e) => setForm({ ...form, candle2_dead: +e.target.value })} /></div>
                 </div>
               </div>
 
               <div>
-                <p className="font-semibold text-sm mb-2 text-cyan-700">الخروج / الفقس</p>
+                <p className="font-semibold text-sm mb-2 text-cyan-700">الخروج للهاتشر (بعد {STAGE_EXIT} يوم) — سعة الهاتشر {HATCHER.capacity}</p>
                 <div className="grid grid-cols-3 gap-2">
                   <div><Label>تاريخ الخروج</Label><Input type="date" value={form.exit_date} onChange={(e) => setForm({ ...form, exit_date: e.target.value })} /></div>
-                  <div><Label>كتاكيت</Label><Input type="number" value={form.hatched_chicks} onChange={(e) => setForm({ ...form, hatched_chicks: +e.target.value })} /></div>
+                  <div><Label>كتاكيت ناتجة</Label><Input type="number" value={form.hatched_chicks} onChange={(e) => setForm({ ...form, hatched_chicks: +e.target.value })} /></div>
                   <div><Label>نافق هاتشر</Label><Input type="number" value={form.hatcher_dead} onChange={(e) => setForm({ ...form, hatcher_dead: +e.target.value })} /></div>
                 </div>
               </div>
 
+              {/* ====== ملخص فاتورة العميل الخارجي ====== */}
+              {isExternal && billing && (
+                <div className="rounded-lg border border-emerald-300 bg-emerald-50 dark:bg-emerald-950/20 p-3">
+                  <div className="flex items-center gap-2 mb-2 text-emerald-700 dark:text-emerald-300 font-semibold">
+                    <DollarSign className="w-4 h-4" /> فاتورة العميل الخارجي
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>غير مخصب ({form.candle1_infertile} × {currentCustomer.infertile_price || PRICE_INFERTILE})</div><div className="text-end font-bold">{billing.infertile.toLocaleString()} ج</div>
+                    <div>ميت كشف 2 ({form.candle2_dead} × {PRICE_DEAD2})</div><div className="text-end font-bold">{billing.dead2.toLocaleString()} ج</div>
+                    <div>كتاكيت ({form.hatched_chicks} × {currentCustomer.incubation_price || PRICE_CHICK})</div><div className="text-end font-bold">{billing.chicks.toLocaleString()} ج</div>
+                    <div>نافق هاتشر ({form.hatcher_dead} × {currentCustomer.hatcher_price || PRICE_HATCHER_DEAD})</div><div className="text-end font-bold">{billing.hatcherDead.toLocaleString()} ج</div>
+                    <div className="col-span-2 border-t pt-2 mt-1 flex justify-between text-base">
+                      <span className="font-bold text-emerald-700">الإجمالي</span>
+                      <span className="font-bold text-emerald-700">{billing.total.toLocaleString()} ج</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div><Label>ملاحظات</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
             </div>
-            <DialogFooter><Button onClick={() => save.mutate()} disabled={save.isPending}>حفظ</Button></DialogFooter>
+            <DialogFooter><Button onClick={() => save.mutate()} disabled={save.isPending || machineOver}>حفظ</Button></DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
