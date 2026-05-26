@@ -230,14 +230,23 @@ const BatchesTab = ({ batches, customers, qc }: any) => {
   // العميل الحالي (لحساب الفواتير الخارجية)
   const currentCustomer = customers.find((c: any) => c.id === form.customer_id);
   const isExternal = currentCustomer && currentCustomer.customer_type !== "internal";
+  const broodingDays = useMemo(() => {
+    if (!form.exit_date || !form.pickup_date) return 0;
+    const ex = new Date(form.exit_date).getTime();
+    const pu = new Date(form.pickup_date).getTime();
+    const d = Math.floor((pu - ex) / (1000 * 60 * 60 * 24));
+    return Math.max(0, d);
+  }, [form.exit_date, form.pickup_date]);
+
   const billing = useMemo(() => {
     if (!isExternal) return null;
     const infertile = (form.candle1_infertile || 0) * (currentCustomer.infertile_price || PRICE_INFERTILE);
     const dead2 = (form.candle2_dead || 0) * PRICE_DEAD2;
     const chicks = (form.hatched_chicks || 0) * (currentCustomer.incubation_price || PRICE_CHICK);
     const hatcherDead = (form.hatcher_dead || 0) * (currentCustomer.hatcher_price || PRICE_HATCHER_DEAD);
-    return { infertile, dead2, chicks, hatcherDead, total: infertile + dead2 + chicks + hatcherDead };
-  }, [isExternal, form, currentCustomer]);
+    const brooding = broodingDays * PRICE_BROODING_PER_DAY;
+    return { infertile, dead2, chicks, hatcherDead, brooding, broodingDays, total: infertile + dead2 + chicks + hatcherDead + brooding };
+  }, [isExternal, form, currentCustomer, broodingDays]);
 
   const save = useMutation({
     mutationFn: async () => {
