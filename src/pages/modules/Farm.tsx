@@ -33,8 +33,14 @@ const Farm = () => {
   const { data: families = [] } = useQuery({
     queryKey: ["farm_families"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("farm_families").select("*").order("family_number");
-      if (error) throw error; return data || [];
+      const { data, error } = await supabase.from("farm_families").select("*");
+      if (error) throw error;
+      return (data || []).sort((a: any, b: any) => {
+        const na = parseInt(String(a.family_number), 10);
+        const nb = parseInt(String(b.family_number), 10);
+        if (!isNaN(na) && !isNaN(nb)) return na - nb;
+        return String(a.family_number).localeCompare(String(b.family_number));
+      });
     },
   });
 
