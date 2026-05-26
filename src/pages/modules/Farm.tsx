@@ -33,8 +33,14 @@ const Farm = () => {
   const { data: families = [] } = useQuery({
     queryKey: ["farm_families"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("farm_families").select("*").order("family_number");
-      if (error) throw error; return data || [];
+      const { data, error } = await supabase.from("farm_families").select("*");
+      if (error) throw error;
+      return (data || []).sort((a: any, b: any) => {
+        const na = parseInt(String(a.family_number), 10);
+        const nb = parseInt(String(b.family_number), 10);
+        if (!isNaN(na) && !isNaN(nb)) return na - nb;
+        return String(a.family_number).localeCompare(String(b.family_number));
+      });
     },
   });
 
@@ -229,14 +235,60 @@ const FamiliesTab = ({ families, qc }: any) => {
 // ============ EGGS ============
 const EggsTab = ({ eggs, families, qc }: any) => {
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState<any>({ production_date: today(), family_id: "", egg_count: 0, notes: "" });
+  const [bulkDate, setBulkDate] = useState<string>(today());
+  const [bulkNotes, setBulkNotes] = useState<string>("");
+  const [bulkCounts, setBulkCounts] = useState<Record<string, string>>({});
+  const [bulkSearch, setBulkSearch] = useState("");
+
+  // Reset counts when dialog opens
+  const openDialog = () => {
+    setBulkDate(today());
+    setBulkNotes("");
+    setBulkCounts({});
+    setBulkSearch("");
+    setOpen(true);
+  };
+
+  // Track which families already have a record for the selected date
+  const recordedForDate = useMemo(() => {
+    const map: Record<string, number> = {};
+    eggs.forEach((e: any) => {
+      if (e.production_date === bulkDate && e.family_id) {
+        map[e.family_id] = (map[e.family_id] || 0) + (e.egg_count || 0);
+      }
+    });
+    return map;
+  }, [eggs, bulkDate]);
+
+  const visibleFamilies = useMemo(() => {
+    const q = bulkSearch.trim();
+    if (!q) return families;
+    return families.filter((f: any) =>
+      String(f.family_number).includes(q) || String(f.pen || "").includes(q)
+    );
+  }, [families, bulkSearch]);
 
   const save = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("farm_egg_production").insert({ ...form, family_id: form.family_id || null });
+      const rows = Object.entries(bulkCounts)
+        .map(([family_id, v]) => ({ family_id, egg_count: parseInt(v, 10) }))
+        .filter(r => Number.isFinite(r.egg_count) && r.egg_count > 0)
+        .map(r => ({
+          production_date: bulkDate,
+          family_id: r.family_id,
+          egg_count: r.egg_count,
+          notes: bulkNotes || null,
+        }));
+      if (rows.length === 0) throw new Error("أدخل عدد البيض لأسرة واحدة على الأقل");
+      const { error } = await supabase.from("farm_egg_production").insert(rows);
       if (error) throw error;
+      return rows.length;
     },
-    onSuccess: () => { toast.success("تم تسجيل الإنتاج"); setOpen(false); setForm({ production_date: today(), family_id: "", egg_count: 0, notes: "" }); qc.invalidateQueries({ queryKey: ["farm_egg_production"] }); },
+    onSuccess: (n: number) => {
+      toast.success(`تم تسجيل إنتاج ${n} أسرة`);
+      setOpen(false);
+      qc.invalidateQueries({ queryKey: ["farm_egg_production"] });
+    },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -244,6 +296,15 @@ const EggsTab = ({ eggs, families, qc }: any) => {
     mutationFn: async (id: string) => { const { error } = await supabase.from("farm_egg_production").delete().eq("id", id); if (error) throw error; },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["farm_egg_production"] }),
   });
+
+  const totalBulk = useMemo(
+    () => Object.values(bulkCounts).reduce((s, v) => s + (parseInt(v, 10) || 0), 0),
+    [bulkCounts]
+  );
+  const filledCount = useMemo(
+    () => Object.values(bulkCounts).filter(v => (parseInt(v, 10) || 0) > 0).length,
+    [bulkCounts]
+  );
 
   const familyName = (id: string) => families.find((f: any) => f.id === id)?.family_number || "-";
 
@@ -295,24 +356,78 @@ const EggsTab = ({ eggs, families, qc }: any) => {
           <Button size="sm" variant="outline" onClick={exportReport} className="gap-1">
             <Download className="w-4 h-4" />تصدير تقرير
           </Button>
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild><Button size="sm"><Plus className="w-4 h-4 ml-1" />تسجيل إنتاج</Button></DialogTrigger>
-            <DialogContent dir="rtl">
-              <DialogHeader><DialogTitle>إنتاج بيض جديد</DialogTitle></DialogHeader>
+          <Dialog open={open} onOpenChange={(v) => (v ? openDialog() : setOpen(false))}>
+            <DialogTrigger asChild><Button size="sm" onClick={openDialog}><Plus className="w-4 h-4 ml-1" />تسجيل إنتاج</Button></DialogTrigger>
+            <DialogContent dir="rtl" className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>تسجيل إنتاج البيض اليومي</DialogTitle>
+              </DialogHeader>
               <div className="space-y-3">
-                <div><Label>التاريخ</Label><Input type="date" value={form.production_date} onChange={(e) => setForm({ ...form, production_date: e.target.value })} /></div>
-                <div><Label>الأسرة</Label>
-                  <Select value={form.family_id} onValueChange={(v) => setForm({ ...form, family_id: v })}>
-                    <SelectTrigger><SelectValue placeholder="اختر الأسرة" /></SelectTrigger>
-                    <SelectContent>
-                      {families.map((f: any) => <SelectItem key={f.id} value={f.id}>{f.family_number} {f.pen ? `- ${f.pen}` : ""}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <Label>التاريخ</Label>
+                    <Input type="date" value={bulkDate} onChange={(e) => setBulkDate(e.target.value)} />
+                  </div>
+                  <div>
+                    <Label>بحث برقم الأسرة / الملعب</Label>
+                    <Input value={bulkSearch} onChange={(e) => setBulkSearch(e.target.value)} placeholder="مثال: 9" />
+                  </div>
                 </div>
-                <div><Label>عدد البيض</Label><Input type="number" value={form.egg_count} onChange={(e) => setForm({ ...form, egg_count: +e.target.value })} /></div>
-                <div><Label>ملاحظات</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+                <div className="flex items-center justify-between text-xs text-muted-foreground bg-muted/40 rounded-md px-3 py-2">
+                  <span>الأسر المعبأة: <b className="text-foreground">{filledCount}</b> / {families.length}</span>
+                  <span>إجمالي البيض: <b className="text-orange-600">{totalBulk.toLocaleString()}</b></span>
+                </div>
+                <div className="border rounded-md max-h-[340px] overflow-auto">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-background">
+                      <TableRow>
+                        <TableHead className="w-24">الأسرة</TableHead>
+                        <TableHead className="w-20">الملعب</TableHead>
+                        <TableHead>عدد البيض</TableHead>
+                        <TableHead className="w-32 text-xs">مسجل سابقاً</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {visibleFamilies.map((f: any) => {
+                        const already = recordedForDate[f.id] || 0;
+                        return (
+                          <TableRow key={f.id}>
+                            <TableCell className="font-bold">{f.family_number}</TableCell>
+                            <TableCell className="text-muted-foreground">{f.pen || "-"}</TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                min="0"
+                                inputMode="numeric"
+                                value={bulkCounts[f.id] ?? ""}
+                                onChange={(e) => setBulkCounts(prev => ({ ...prev, [f.id]: e.target.value }))}
+                                placeholder="0"
+                                className="h-8"
+                              />
+                            </TableCell>
+                            <TableCell className="text-xs">
+                              {already > 0 ? <Badge variant="secondary">{already} بيضة</Badge> : <span className="text-muted-foreground">—</span>}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                      {visibleFamilies.length === 0 && (
+                        <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-4">لا توجد أسر مطابقة</TableCell></TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+                <div>
+                  <Label>ملاحظات (اختياري - تطبق على كل السجلات)</Label>
+                  <Textarea value={bulkNotes} onChange={(e) => setBulkNotes(e.target.value)} rows={2} />
+                </div>
               </div>
-              <DialogFooter><Button onClick={() => save.mutate()} disabled={save.isPending}>حفظ</Button></DialogFooter>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setBulkCounts({})}>مسح الكل</Button>
+                <Button onClick={() => save.mutate()} disabled={save.isPending || filledCount === 0}>
+                  حفظ {filledCount > 0 ? `(${filledCount})` : ""}
+                </Button>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
