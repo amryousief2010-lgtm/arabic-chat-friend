@@ -64,7 +64,8 @@ const FarmShipmentsInbox = () => {
   const [detail, setDetail] = useState<Shipment | null>(null);
   const [rejecting, setRejecting] = useState<Shipment | null>(null);
   const [rejectReason, setRejectReason] = useState("");
-  const [form, setForm] = useState({ received: 0, damaged: 0, notes: "", hatch_batch_id: "" });
+  const [form, setForm] = useState({ received: 0, damaged: 0, dead: 0, notes: "", hatch_batch_id: "" });
+  const [confirmMatch, setConfirmMatch] = useState(false);
   const [suggestedId, setSuggestedId] = useState<string | null>(null);
 
   const { data: rows = [], isLoading, refetch } = useQuery({
@@ -121,9 +122,11 @@ const FarmShipmentsInbox = () => {
 
   const openReceive = async (r: Shipment) => {
     setEditing(r);
+    setConfirmMatch(false);
     setForm({
       received: r.egg_count,
       damaged: 0,
+      dead: 0,
       notes: "",
       hatch_batch_id: r.hatch_batch_id || r.suggested_batch_id || "",
     });
@@ -140,34 +143,57 @@ const FarmShipmentsInbox = () => {
   const computedStatus: Shipment["status"] = useMemo(() => {
     if (!editing) return "received";
     const received = Number(form.received) || 0;
-    const damaged = Number(form.damaged) || 0;
+    const damaged = (Number(form.damaged) || 0) + (Number(form.dead) || 0);
     if (received <= 0) return "rejected";
     if (received < editing.egg_count || damaged > 0) return "partial";
     return "received";
-  }, [editing, form.received, form.damaged]);
+  }, [editing, form.received, form.damaged, form.dead]);
+
+  const totalAccounted = (Number(form.received) || 0) + (Number(form.damaged) || 0) + (Number(form.dead) || 0);
+  const variance = editing ? editing.egg_count - totalAccounted : 0;
 
   const confirmReceive = async () => {
     if (!editing) return;
     const received = Number(form.received) || 0;
     const damaged = Number(form.damaged) || 0;
+    const dead = Number(form.dead) || 0;
+    const totalDamage = damaged + dead;
+    if (received < 0 || damaged < 0 || dead < 0) { toast.error("القيم غير صحيحة"); return; }
     if (received > editing.egg_count) { toast.error("الكمية المستلمة لا يمكن أن تتجاوز المرسلة"); return; }
-    if (damaged < 0 || received < 0) { toast.error("القيم غير صحيحة"); return; }
+    if (received + totalDamage > editing.egg_count) {
+      toast.error(`المجموع (${received + totalDamage}) يتجاوز المرسل (${editing.egg_count})`);
+      return;
+    }
+    if (variance !== 0) {
+      toast.error(`يجب مطابقة الكمية — الفرق الحالي: ${variance} (مستلم + تالف + هالك يجب أن يساوي المرسل)`);
+      return;
+    }
+    if (!confirmMatch) {
+      toast.error("يجب تأكيد مطابقة الكمية المستلمة قبل الحفظ");
+      return;
+    }
+
+    const notes = [
+      form.notes?.trim() || null,
+      dead > 0 ? `هالك: ${dead}` : null,
+      damaged > 0 ? `تالف/مكسور: ${damaged}` : null,
+    ].filter(Boolean).join(" · ") || null;
 
     const { error } = await (supabase as any)
       .from("farm_to_hatchery_shipments")
       .update({
         status: computedStatus,
         received_egg_count: received,
-        damaged_count: damaged,
+        damaged_count: totalDamage,
         received_at: new Date().toISOString(),
         received_by: profile?.id ?? null,
-        receipt_notes: form.notes || null,
+        receipt_notes: notes,
         hatch_batch_id: form.hatch_batch_id || null,
       })
       .eq("id", editing.id);
     if (error) { toast.error(error.message); return; }
-    toast.success(damaged > 0
-      ? `تم تأكيد الاستلام — تم إرسال إشعار للمدير العام والتنفيذي بوجود هالك (${damaged})`
+    toast.success(totalDamage > 0
+      ? `تم تأكيد الاستلام — تم إرسال إشعار للمدير العام والتنفيذي (تالف ${damaged} · هالك ${dead})`
       : "تم تأكيد الاستلام");
     setEditing(null);
     setDetail(null);
@@ -508,22 +534,42 @@ const FarmShipmentsInbox = () => {
               <div className="text-sm bg-muted p-2 rounded">
                 أسرة <strong>{editing.family_number}</strong> · تاريخ {editing.production_date} · مرسل: <strong>{editing.egg_count}</strong> بيضة
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <Label>المستلم فعلياً</Label>
+                  <Label>المستلم سليم</Label>
                   <Input type="number" min={0} max={editing.egg_count} value={form.received}
-                    onChange={(e) => setForm({ ...form, received: +e.target.value })} />
+                    onChange={(e) => { setForm({ ...form, received: +e.target.value }); setConfirmMatch(false); }} />
                 </div>
                 <div>
-                  <Label>تالف / مكسور</Label>
+                  <Label className="text-amber-600">تالف / مكسور</Label>
                   <Input type="number" min={0} max={editing.egg_count} value={form.damaged}
-                    onChange={(e) => setForm({ ...form, damaged: +e.target.value })} />
+                    onChange={(e) => { setForm({ ...form, damaged: +e.target.value }); setConfirmMatch(false); }} />
+                </div>
+                <div>
+                  <Label className="text-destructive">هالك</Label>
+                  <Input type="number" min={0} max={editing.egg_count} value={form.dead}
+                    onChange={(e) => { setForm({ ...form, dead: +e.target.value }); setConfirmMatch(false); }} />
                 </div>
               </div>
+
+              <div className={`text-xs p-2 rounded border ${variance === 0 ? "bg-emerald-50 border-emerald-300 text-emerald-700" : "bg-destructive/10 border-destructive/40 text-destructive"}`}>
+                <div className="flex justify-between"><span>المرسل:</span><strong>{editing.egg_count}</strong></div>
+                <div className="flex justify-between"><span>المجموع (سليم + تالف + هالك):</span><strong>{totalAccounted}</strong></div>
+                <div className="flex justify-between"><span>الفرق:</span><strong>{variance}</strong></div>
+                {variance !== 0 && <div className="mt-1">⚠️ يجب أن يساوي المجموع الكمية المرسلة لتفعيل التأكيد</div>}
+              </div>
+
               <div className="flex items-center justify-between text-xs bg-accent/30 p-2 rounded">
                 <span>الحالة المحسوبة:</span>
                 {statusBadge(computedStatus)}
               </div>
+
+              <label className={`flex items-start gap-2 text-sm p-2 rounded border cursor-pointer ${confirmMatch ? "bg-primary/5 border-primary/40" : "bg-muted border-border"} ${variance !== 0 ? "opacity-50 cursor-not-allowed" : ""}`}>
+                <input type="checkbox" className="mt-1" disabled={variance !== 0}
+                  checked={confirmMatch} onChange={(e) => setConfirmMatch(e.target.checked)} />
+                <span>أؤكد مطابقة الكمية المستلمة وصحة تسجيل التالف والهالك، وأتحمل المسؤولية عن صحة البيانات.</span>
+              </label>
+
               <div>
                 <Label className="flex items-center gap-1">
                   ربط بدفعة معمل
@@ -554,7 +600,7 @@ const FarmShipmentsInbox = () => {
             </div>
           )}
           <DialogFooter>
-            <Button onClick={confirmReceive}>تأكيد الاستلام</Button>
+            <Button onClick={confirmReceive} disabled={variance !== 0 || !confirmMatch}>تأكيد الاستلام</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
