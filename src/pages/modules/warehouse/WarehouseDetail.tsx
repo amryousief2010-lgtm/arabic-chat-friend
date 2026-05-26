@@ -726,6 +726,43 @@ const WarehouseDetail = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Approve Transfer Request Dialog */}
+      <Dialog open={!!approveDialog} onOpenChange={(o) => !o && setApproveDialog(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>الموافقة على طلب {approveDialog?.transfer_no}</DialogTitle>
+            <DialogDescription>
+              من {approveDialog?.destination?.name}. يمكنك تعديل الكميات قبل الموافقة. عند الموافقة سيُخصم المخزون فوراً من {warehouse?.name} وينتقل الطلب لحالة "بانتظار الاستلام".
+            </DialogDescription>
+          </DialogHeader>
+          <Table>
+            <TableHeader><TableRow>
+              <TableHead>الصنف</TableHead><TableHead>المطلوب</TableHead><TableHead>الموافق عليها</TableHead><TableHead>الوحدة</TableHead>
+            </TableRow></TableHeader>
+            <TableBody>
+              {(approveDialog?.items || []).map((li: any) => (
+                <TableRow key={li.id}>
+                  <TableCell className="font-medium">{li.item_name}</TableCell>
+                  <TableCell>{li.requested_qty}</TableCell>
+                  <TableCell>
+                    <Input type="number" min={0} max={Number(li.requested_qty)} className="w-24"
+                      value={approveQty[li.id] ?? 0}
+                      onChange={e => setApproveQty({ ...approveQty, [li.id]: Number(e.target.value) })} />
+                  </TableCell>
+                  <TableCell>{li.unit}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setApproveDialog(null)}>إلغاء</Button>
+            <Button onClick={submitApprove} disabled={submitting}>
+              <CheckCircle2 className="w-4 h-4 ml-1" />موافقة وصرف
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Receive Confirmation Dialog — posts destination IN movement on confirm */}
       <Dialog open={!!receiveDialog} onOpenChange={(o) => !o && setReceiveDialog(null)}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
