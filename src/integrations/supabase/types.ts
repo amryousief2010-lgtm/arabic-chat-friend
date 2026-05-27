@@ -7166,6 +7166,7 @@ export type Database = {
         | "procurement_manager"
         | "cost_accountant"
         | "private_delivery_rep"
+        | "agouza_warehouse_keeper"
       feed_order_status:
         | "draft"
         | "issued"
@@ -7333,6 +7334,7 @@ export const Constants = {
         "procurement_manager",
         "cost_accountant",
         "private_delivery_rep",
+        "agouza_warehouse_keeper",
       ],
       feed_order_status: [
         "draft",
