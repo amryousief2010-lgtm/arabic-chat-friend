@@ -174,6 +174,32 @@ const Orders = () => {
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [swapOfferOrder, setSwapOfferOrder] = useState<Order | null>(null);
   const [addOfferOrder, setAddOfferOrder] = useState<Order | null>(null);
+
+  const handlePrintOrder = (order: Order) => {
+    printOrderInvoice({
+      order_number: order.order_number,
+      created_at: order.created_at,
+      customer_name: order.customer_name,
+      customer_phone: order.customer_phone,
+      delivery_address: order.delivery_address,
+      payment_method: order.payment_method,
+      payment_status: order.payment_status,
+      notes: order.notes,
+      items: order.items.map((it) => ({
+        product_name: it.product_name,
+        quantity: it.quantity,
+        unit_price: it.unit_price,
+        total_price: it.total_price,
+        product_unit: it.unit,
+        offer_name: it.offer_name,
+      })),
+      subtotal: order.subtotal,
+      discount: order.discount,
+      delivery_fee: order.delivery_fee,
+      total: order.total,
+      created_by_name: order.moderator_name,
+    });
+  };
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterModerator, setFilterModerator] = useState<string>("all");
   const [filterProduct, setFilterProduct] = useState<string>("all");
