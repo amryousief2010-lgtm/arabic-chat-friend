@@ -717,6 +717,37 @@ const NewOrder = () => {
 
     setSubmitting(true);
 
+    // Duplicate order pre-check (sales_moderator only)
+    if (isSalesModerator && user?.id && selectedCustomer?.id) {
+      try {
+        const [{ data: hasOther }, { data: approved }] = await Promise.all([
+          supabase.rpc('customer_has_other_order_today', { p_customer_id: selectedCustomer.id, p_user_id: user.id }),
+          supabase.rpc('has_approved_duplicate_order', { p_customer_id: selectedCustomer.id, p_user_id: user.id }),
+        ]);
+        if (hasOther && !approved) {
+          setSubmitting(false);
+          // Check if a pending request already exists
+          const { data: pending } = await supabase
+            .from('duplicate_order_approvals')
+            .select('status, reason')
+            .eq('customer_id', selectedCustomer.id)
+            .eq('requested_by', user.id)
+            .gt('expires_at', new Date().toISOString())
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          setApprovalDialog({
+            open: true,
+            status: pending?.status === 'rejected' ? 'rejected' : (pending?.status === 'pending' ? 'pending' : 'idle'),
+            reason: pending?.reason || undefined,
+          });
+          return;
+        }
+      } catch (e) {
+        console.warn('duplicate check failed', e);
+      }
+    }
+
     try {
       // Generate order number
       const { data: orderNumberData, error: orderNumberError } = await supabase
