@@ -440,7 +440,22 @@ const Orders = () => {
     const matchesGovernorate =
       filterGovernorate === "all" ||
       (order.governorate || "").trim() === filterGovernorate;
-    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate;
+    // مصدر التنفيذ: تصنيف موحّد يجمع نوع التنفيذ والمخزن أو شركة الشحن
+    const fulfillmentKey = (() => {
+      const ft = order.fulfillment_type;
+      const wn = order.source_warehouse_name || '';
+      const isMain = wn.includes('الرئيسي');
+      const isAgouza = wn.includes('العجوزة');
+      if (ft === 'pickup' && isMain) return 'pickup_main';
+      if (ft === 'delivery' && isMain) return 'delivery_main';
+      if (ft === 'pickup' && isAgouza) return 'pickup_agouza';
+      if (ft === 'delivery' && isAgouza) return 'delivery_agouza';
+      if (order.shipping_company && order.shipping_company !== 'مندوب خاص') return 'shipping_company';
+      return '';
+    })();
+    const matchesFulfillment =
+      filterFulfillment === "all" || fulfillmentKey === filterFulfillment;
+    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment;
   });
 
   const availableGovernorates = Array.from(
