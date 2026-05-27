@@ -98,6 +98,7 @@ import DataQualityTasks from "@/pages/modules/shared/DataQualityTasks";
 import PackagingMaterials from "@/pages/modules/shared/PackagingMaterials";
 import StockSnapshotReview from "@/pages/modules/shared/StockSnapshotReview";
 import StockReconciliation from "@/pages/StockReconciliation";
+import PrivateDeliveryCollection from "@/pages/PrivateDeliveryCollection";
 
 const RedirectWithQuery = ({ to }: { to: string }) => {
   const location = useLocation();
@@ -155,8 +156,13 @@ const AnimatedRoutes = () => {
           </ProtectedRoute>
         } />
         <Route path="/warehouse-stock/agouza" element={
-          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'warehouse_supervisor']}>
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper']}>
             <PageTransition><WarehouseStockView scope="agouza" /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/private-delivery-collection" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor']}>
+            <PageTransition><PrivateDeliveryCollection /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/warehouse-stock/main" element={
