@@ -209,6 +209,7 @@ const Orders = () => {
       discount: order.discount,
       delivery_fee: order.delivery_fee,
       total: order.total,
+      source_warehouse_name: order.source_warehouse_name,
       created_by_name: order.moderator_name,
     });
   };
