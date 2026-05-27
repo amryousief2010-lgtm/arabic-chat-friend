@@ -481,6 +481,14 @@ const WarehouseDetail = () => {
                       ))}
                     </TableBody>
                   </Table>
+                  <div className="p-3 border-t flex justify-end">
+                    <Button size="sm" variant="outline" onClick={() => printSupplyRequest(
+                      (t.items || []).map((li: any) => ({ name: li.item_name, qty: Number(li.requested_qty), unit: li.unit })),
+                      { transferNo: t.transfer_no, fromWarehouse: t.source?.name, toWarehouse: t.destination?.name, notes: t.notes }
+                    )}>
+                      طباعة الكميات المطلوبة
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))}
