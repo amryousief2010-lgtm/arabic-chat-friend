@@ -216,6 +216,7 @@ const Orders = () => {
   const [filterModerator, setFilterModerator] = useState<string>("all");
   const [filterProduct, setFilterProduct] = useState<string>("all");
   const [filterGovernorate, setFilterGovernorate] = useState<string>("all");
+  const [filterFulfillment, setFilterFulfillment] = useState<string>("all");
   const [availableProducts, setAvailableProducts] = useState<string[]>([]);
   const [searchParams, setSearchParams] = useSearchParams();
   const yearParam = searchParams.get("year");
