@@ -144,6 +144,11 @@ const AnimatedRoutes = () => {
             <PageTransition><NewOrder /></PageTransition>
           </ProtectedRoute>
         } />
+        <Route path="/duplicate-order-approvals" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'marketing_sales_manager', 'sales_manager']}>
+            <PageTransition><DuplicateOrderApprovals /></PageTransition>
+          </ProtectedRoute>
+        } />
         <Route path="/warehouse-stock" element={
           <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'warehouse_supervisor']}>
             <PageTransition><WarehouseStockView /></PageTransition>
