@@ -33,6 +33,7 @@ Deno.serve(async (req) => {
       'general_manager', 'executive_manager', 'sales_manager',
       'warehouse_manager', 'warehouse_supervisor', 'accountant',
       'sales_moderator', 'private_delivery_rep', 'shipping_company',
+      'agouza_warehouse_keeper',
     ]
     let assignable: string[] = []
     if (requesterRoles.includes('general_manager')) {

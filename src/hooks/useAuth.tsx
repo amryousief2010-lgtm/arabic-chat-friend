@@ -21,7 +21,8 @@ export type AppRole =
   | 'financial_manager'
   | 'quality_manager'
   | 'shipping_company'
-  | 'private_delivery_rep';
+  | 'private_delivery_rep'
+  | 'agouza_warehouse_keeper';
 
 interface UserProfile {
   id: string;
@@ -47,10 +48,13 @@ interface AuthContextType {
   isWarehouseSupervisor: boolean;
   isShippingCompany: boolean;
   isPrivateDeliveryRep: boolean;
+  isAgouzaWarehouseKeeper: boolean;
   // Permission helpers
   canManageEmployees: boolean;
   canManageProducts: boolean;
   canManageStock: boolean;
+  canManageAgouzaStock: boolean;
+  canCollectPrivateDelivery: boolean;
   canManageOrders: boolean;
   canViewReports: boolean;
   canUpdatePaymentStatus: boolean;
@@ -203,6 +207,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const isQualityManager = role === 'quality_manager';
   const isShippingCompany = role === 'shipping_company';
   const isPrivateDeliveryRep = role === 'private_delivery_rep';
+  const isAgouzaWarehouseKeeper = role === 'agouza_warehouse_keeper';
 
   // Module-level write permissions
   const canManageFeedFactory = isGeneralManager || isExecutiveManager || isFeedFactoryManager || isProductionManager;
@@ -210,7 +215,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const canManageFarm = isGeneralManager || isExecutiveManager || isFarmManager || isProductionManager;
   const canManageHatchery = isGeneralManager || isExecutiveManager || isHatcheryManager || isProductionManager;
   const canManageBrooding = isGeneralManager || isExecutiveManager || isBroodingManager || isProductionManager;
-  const canManageSlaughterhouse = isGeneralManager || isExecutiveManager || isSlaughterhouseManager || isProductionManager;
+  const canManageSlaughterhouse = isGeneralManager || isExecutiveManager || isSlaughterhouseManager || isProductionManager || isAgouzaWarehouseKeeper;
   const canManageMeatFactory = isGeneralManager || isExecutiveManager || isMeatFactoryManager || isProductionManager;
   const canManageHr = isGeneralManager || isExecutiveManager || isHrManager;
 
@@ -218,9 +223,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const canManageEmployees = isGeneralManager;
   const canManageProducts = isGeneralManager || isExecutiveManager || isSalesManager || isWarehouseSupervisor || isMarketingSalesManager;
   const canManageStock = isGeneralManager || isExecutiveManager || isWarehouseSupervisor || isProductionManager;
+  const canManageAgouzaStock = isGeneralManager || isExecutiveManager || isWarehouseSupervisor || isAgouzaWarehouseKeeper;
+  const canCollectPrivateDelivery = isGeneralManager || isExecutiveManager || isWarehouseSupervisor;
   const canManageOrders = isGeneralManager || isExecutiveManager || isSalesManager || isAccountant || isWarehouseSupervisor || isMarketingSalesManager || isFinancialManager;
   const canViewReports = isGeneralManager || isExecutiveManager || isSalesManager || isAccountant || isWarehouseSupervisor || isMarketingSalesManager || isFinancialManager || isQualityManager || isProductionManager;
-  const canUpdatePaymentStatus = isGeneralManager || isExecutiveManager || isSalesManager || isAccountant || isMarketingSalesManager || isFinancialManager;
+  const canUpdatePaymentStatus = isGeneralManager || isExecutiveManager || isSalesManager || isAccountant || isMarketingSalesManager || isFinancialManager || isWarehouseSupervisor;
   const canUpdateOrderStatus = isGeneralManager || isExecutiveManager || isSalesManager || isWarehouseSupervisor || isMarketingSalesManager || isShippingCompany || isPrivateDeliveryRep;
   const canDeleteOrders = isGeneralManager || isExecutiveManager || isSalesManager || isMarketingSalesManager;
   const canDeleteCustomers = isGeneralManager || isExecutiveManager || isMarketingSalesManager;
@@ -255,9 +262,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     isWarehouseSupervisor,
     isShippingCompany,
     isPrivateDeliveryRep,
+    isAgouzaWarehouseKeeper,
     canManageEmployees,
     canManageProducts,
     canManageStock,
+    canManageAgouzaStock,
+    canCollectPrivateDelivery,
     canManageOrders,
     canViewReports,
     canUpdatePaymentStatus,

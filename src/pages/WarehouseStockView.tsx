@@ -40,8 +40,9 @@ const formatPackages = (kg: number, name: string): string => {
 };
 
 const WarehouseStockView = ({ scope = "both" }: Props) => {
-  const { isExecutiveManager, isGeneralManager } = useAuth();
-  const canEdit = isExecutiveManager || isGeneralManager;
+  const { isExecutiveManager, isGeneralManager, canManageAgouzaStock, isAgouzaWarehouseKeeper } = useAuth();
+  const canEditAll = isExecutiveManager || isGeneralManager;
+  const canEditAgouza = canManageAgouzaStock;
   const [products, setProducts] = useState<Product[]>([]);
   const [agouzaStock, setAgouzaStock] = useState<Record<string, number>>({});
   const [mainStock, setMainStock] = useState<Record<string, number>>({});
@@ -217,7 +218,7 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
     return (
       <div className="flex items-center gap-1 justify-end">
         <span className="text-xs text-muted-foreground whitespace-nowrap">{pkgs} عبوة</span>
-        {canEdit && (
+        {(wh === "agouza" ? canEditAgouza : canEditAll) && (
           <button
             className="text-muted-foreground hover:text-primary opacity-60 hover:opacity-100"
             title="تعديل عدد العبوات"

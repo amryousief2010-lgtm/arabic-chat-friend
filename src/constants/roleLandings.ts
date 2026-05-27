@@ -25,6 +25,7 @@ export const ROLE_LANDING: Record<AppRole, string> = {
   feed_factory_manager: "/modules/feed-factory",
   hr_manager: "/modules/hr",
   private_delivery_rep: "/orders",
+  agouza_warehouse_keeper: "/warehouse-stock/agouza",
 };
 
 export const getLandingForRole = (role?: AppRole | null): string =>
