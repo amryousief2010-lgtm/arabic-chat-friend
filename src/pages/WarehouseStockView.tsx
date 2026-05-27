@@ -21,6 +21,22 @@ const titleMap: Record<StockScope, { title: string; subtitle: string }> = {
   main: { title: "المخزن الرئيسي", subtitle: "الكميات المتاحة في المخزن الرئيسي" },
 };
 
+// كيلوجرامات لكل عبوة بحسب اسم المنتج. الافتراضي 0.5 كجم لكل عبوة (عبوتين/كيلو).
+const kgPerPackage = (name: string): number => {
+  const n = (name || "").trim();
+  if (n.includes("6ك") || n.includes("دبوس بالعظم")) return 6;
+  if (n.includes("نعامة صندوق")) return 6;
+  return 0.5;
+};
+
+const formatPackages = (kg: number, name: string): string => {
+  const per = kgPerPackage(name);
+  if (!per || per <= 0) return "-";
+  const pkgs = kg / per;
+  const rounded = Math.round(pkgs * 100) / 100;
+  return `${rounded} عبوة`;
+};
+
 const WarehouseStockView = ({ scope = "both" }: Props) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [agouzaStock, setAgouzaStock] = useState<Record<string, number>>({});
@@ -146,8 +162,11 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
                   <th className="p-2 font-semibold">المنتج</th>
                   <th className="p-2 font-semibold">الوحدة</th>
                   {scope !== "main" && <th className="p-2 font-semibold whitespace-nowrap">مخزن العجوزة</th>}
+                  {scope !== "main" && <th className="p-2 font-semibold whitespace-nowrap">عبوات العجوزة</th>}
                   {scope !== "agouza" && <th className="p-2 font-semibold whitespace-nowrap">المخزن الرئيسي</th>}
+                  {scope !== "agouza" && <th className="p-2 font-semibold whitespace-nowrap">عبوات الرئيسي</th>}
                   {scope === "both" && <th className="p-2 font-semibold whitespace-nowrap">الإجمالي المتاح</th>}
+                  {scope === "both" && <th className="p-2 font-semibold whitespace-nowrap">إجمالي العبوات</th>}
                 </tr>
               </thead>
               <tbody>
@@ -163,13 +182,22 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
                           <Badge variant={a <= 0 ? "destructive" : "outline"}>{a}</Badge>
                         </td>
                       )}
+                      {scope !== "main" && (
+                        <td className="p-2 text-xs text-muted-foreground whitespace-nowrap">{formatPackages(a, p.name)}</td>
+                      )}
                       {scope !== "agouza" && (
                         <td className="p-2">
                           <Badge variant={m <= 0 ? "destructive" : "outline"}>{m}</Badge>
                         </td>
                       )}
+                      {scope !== "agouza" && (
+                        <td className="p-2 text-xs text-muted-foreground whitespace-nowrap">{formatPackages(m, p.name)}</td>
+                      )}
                       {scope === "both" && (
                         <td className="p-2 font-bold text-primary">{a + m}</td>
+                      )}
+                      {scope === "both" && (
+                        <td className="p-2 text-xs text-primary whitespace-nowrap">{formatPackages(a + m, p.name)}</td>
                       )}
                     </tr>
                   );
@@ -195,18 +223,21 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
                       <div>
                         <div className="text-muted-foreground mb-1">العجوزة</div>
                         <Badge variant={a <= 0 ? "destructive" : "outline"}>{a}</Badge>
+                        <div className="text-[10px] text-muted-foreground mt-1">{formatPackages(a, p.name)}</div>
                       </div>
                     )}
                     {scope !== "agouza" && (
                       <div>
                         <div className="text-muted-foreground mb-1">الرئيسي</div>
                         <Badge variant={m <= 0 ? "destructive" : "outline"}>{m}</Badge>
+                        <div className="text-[10px] text-muted-foreground mt-1">{formatPackages(m, p.name)}</div>
                       </div>
                     )}
                     {scope === "both" && (
                       <div>
                         <div className="text-muted-foreground mb-1">الإجمالي</div>
                         <Badge className="bg-primary">{a + m}</Badge>
+                        <div className="text-[10px] text-primary mt-1">{formatPackages(a + m, p.name)}</div>
                       </div>
                     )}
                   </div>
