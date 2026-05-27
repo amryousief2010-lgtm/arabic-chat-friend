@@ -17,6 +17,7 @@ import NewOrder from "@/pages/NewOrder";
 import WarehouseStockView from "@/pages/WarehouseStockView";
 import ModeratorWarehouseStock from "@/pages/ModeratorWarehouseStock";
 import Notifications from "@/pages/Notifications";
+import DuplicateOrderApprovals from "@/pages/DuplicateOrderApprovals";
 import OrderDetails from "@/pages/OrderDetails";
 import Install from "@/pages/Install";
 import Auth from "@/pages/Auth";
@@ -141,6 +142,11 @@ const AnimatedRoutes = () => {
         <Route path="/orders/new" element={
           <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager']}>
             <PageTransition><NewOrder /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/duplicate-order-approvals" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'marketing_sales_manager', 'sales_manager']}>
+            <PageTransition><DuplicateOrderApprovals /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/warehouse-stock" element={

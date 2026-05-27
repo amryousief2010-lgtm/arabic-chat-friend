@@ -124,7 +124,8 @@ const isKgUnit = (unit: string) => {
 
 const NewOrder = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isSalesModerator } = useAuth();
+  const [approvalDialog, setApprovalDialog] = useState<{ open: boolean; status: 'idle'|'pending'|'rejected'; reason?: string }>({ open: false, status: 'idle' });
   const [searchParams] = useSearchParams();
 
   // Determine the moderator name to attribute this new order to.
@@ -716,6 +717,37 @@ const NewOrder = () => {
 
     setSubmitting(true);
 
+    // Duplicate order pre-check (sales_moderator only)
+    if (isSalesModerator && user?.id && selectedCustomer?.id) {
+      try {
+        const [{ data: hasOther }, { data: approved }] = await Promise.all([
+          supabase.rpc('customer_has_other_order_today', { p_customer_id: selectedCustomer.id, p_user_id: user.id }),
+          supabase.rpc('has_approved_duplicate_order', { p_customer_id: selectedCustomer.id, p_user_id: user.id }),
+        ]);
+        if (hasOther && !approved) {
+          setSubmitting(false);
+          // Check if a pending request already exists
+          const { data: pending } = await supabase
+            .from('duplicate_order_approvals')
+            .select('status, reason')
+            .eq('customer_id', selectedCustomer.id)
+            .eq('requested_by', user.id)
+            .gt('expires_at', new Date().toISOString())
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          setApprovalDialog({
+            open: true,
+            status: pending?.status === 'rejected' ? 'rejected' : (pending?.status === 'pending' ? 'pending' : 'idle'),
+            reason: pending?.reason || undefined,
+          });
+          return;
+        }
+      } catch (e) {
+        console.warn('duplicate check failed', e);
+      }
+    }
+
     try {
       // Generate order number
       const { data: orderNumberData, error: orderNumberError } = await supabase
@@ -859,9 +891,14 @@ const NewOrder = () => {
         toast.success(`تم إنشاء الطلب رقم ${orderNumberData} بنجاح`);
       }
       navigate('/orders');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating order:', error);
-      toast.error('حدث خطأ أثناء إنشاء الطلب');
+      const msg = String(error?.message || '');
+      if (msg.includes('DUPLICATE_ORDER_REQUIRES_APPROVAL')) {
+        setApprovalDialog({ open: true, status: 'idle' });
+      } else {
+        toast.error('حدث خطأ أثناء إنشاء الطلب');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -1930,6 +1967,55 @@ const NewOrder = () => {
               <Plus className="w-4 h-4 ml-1" />
               إضافة العرض للسلة
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Duplicate order approval dialog */}
+      <Dialog open={approvalDialog.open} onOpenChange={(o) => setApprovalDialog((s) => ({ ...s, open: o }))}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>يلزم موافقة مديرة التسويق</DialogTitle>
+            <DialogDescription>
+              العميل ده عنده طلب اليوم من بنت تانية. عشان متبقاش فيه تكرار، لازم موافقة مديرة التسويق آلاء حامد قبل تسجيل الطلب.
+            </DialogDescription>
+          </DialogHeader>
+
+          {approvalDialog.status === 'pending' && (
+            <div className="rounded-md border bg-amber-50 dark:bg-amber-950/30 p-3 text-sm text-amber-800 dark:text-amber-200">
+              طلب الموافقة اتبعت بالفعل ومستنى الرد. هترجعى تسجلى الطلب أول ما يتم القبول.
+            </div>
+          )}
+          {approvalDialog.status === 'rejected' && (
+            <div className="rounded-md border bg-destructive/10 p-3 text-sm">
+              <div className="font-semibold text-destructive mb-1">تم رفض الطلب السابق</div>
+              {approvalDialog.reason && <div className="text-muted-foreground">{approvalDialog.reason}</div>}
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setApprovalDialog({ open: false, status: 'idle' })}>
+              إغلاق
+            </Button>
+            {approvalDialog.status !== 'pending' && (
+              <Button
+                onClick={async () => {
+                  if (!selectedCustomer?.id) return;
+                  const { error } = await supabase.rpc('request_duplicate_order_approval', {
+                    p_customer_id: selectedCustomer.id,
+                    p_note: notes.trim() || null,
+                  });
+                  if (error) {
+                    toast.error('تعذر إرسال طلب الموافقة');
+                  } else {
+                    toast.success('تم إرسال طلب الموافقة لمديرة التسويق آلاء حامد');
+                    setApprovalDialog({ open: false, status: 'pending' });
+                  }
+                }}
+              >
+                اطلب الموافقة
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

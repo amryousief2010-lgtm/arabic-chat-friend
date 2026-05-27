@@ -1022,6 +1022,56 @@ export type Database = {
         }
         Relationships: []
       }
+      duplicate_order_approvals: {
+        Row: {
+          created_at: string
+          customer_id: string
+          decided_at: string | null
+          decided_by: string | null
+          expires_at: string
+          id: string
+          note: string | null
+          reason: string | null
+          requested_by: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          decided_at?: string | null
+          decided_by?: string | null
+          expires_at?: string
+          id?: string
+          note?: string | null
+          reason?: string | null
+          requested_by: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          expires_at?: string
+          id?: string
+          note?: string | null
+          reason?: string | null
+          requested_by?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "duplicate_order_approvals_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_send_log: {
         Row: {
           created_at: string
@@ -6568,7 +6618,33 @@ export type Database = {
         }
         Returns: Json
       }
+      customer_has_other_order_today: {
+        Args: { p_customer_id: string; p_user_id: string }
+        Returns: boolean
+      }
       deactivate_expired_offers: { Args: never; Returns: undefined }
+      decide_duplicate_order_approval: {
+        Args: { p_approve: boolean; p_id: string; p_reason?: string }
+        Returns: {
+          created_at: string
+          customer_id: string
+          decided_at: string | null
+          decided_by: string | null
+          expires_at: string
+          id: string
+          note: string | null
+          reason: string | null
+          requested_by: string
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "duplicate_order_approvals"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
@@ -6764,6 +6840,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_approved_duplicate_order: {
+        Args: { p_customer_id: string; p_user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -6942,6 +7022,10 @@ export type Database = {
         Returns: Json
       }
       release_order_reservation: { Args: { p_order_id: string }; Returns: Json }
+      request_duplicate_order_approval: {
+        Args: { p_customer_id: string; p_note?: string }
+        Returns: string
+      }
       request_production_for_order_shortages: {
         Args: { p_order_id: string }
         Returns: Json
