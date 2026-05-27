@@ -1022,6 +1022,80 @@ export type Database = {
         }
         Relationships: []
       }
+      delivery_collection_batch_orders: {
+        Row: {
+          batch_id: string
+          created_at: string
+          id: string
+          order_id: string
+          order_total: number
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          id?: string
+          order_id: string
+          order_total?: number
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          id?: string
+          order_id?: string
+          order_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_collection_batch_orders_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_collection_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_collection_batches: {
+        Row: {
+          actual_total: number
+          collected_at: string
+          collector_id: string
+          created_at: string
+          expected_total: number
+          id: string
+          notes: string | null
+          rep_name: string
+          rep_user_id: string | null
+          variance_amount: number | null
+          variance_reason: string | null
+        }
+        Insert: {
+          actual_total?: number
+          collected_at?: string
+          collector_id: string
+          created_at?: string
+          expected_total?: number
+          id?: string
+          notes?: string | null
+          rep_name: string
+          rep_user_id?: string | null
+          variance_amount?: number | null
+          variance_reason?: string | null
+        }
+        Update: {
+          actual_total?: number
+          collected_at?: string
+          collector_id?: string
+          created_at?: string
+          expected_total?: number
+          id?: string
+          notes?: string | null
+          rep_name?: string
+          rep_user_id?: string | null
+          variance_amount?: number | null
+          variance_reason?: string | null
+        }
+        Relationships: []
+      }
       duplicate_order_approvals: {
         Row: {
           created_at: string
@@ -4449,6 +4523,9 @@ export type Database = {
       }
       orders: {
         Row: {
+          collected_at: string | null
+          collected_by: string | null
+          collection_batch_id: string | null
           collection_status: string
           created_at: string
           created_by: string | null
@@ -4478,6 +4555,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          collected_at?: string | null
+          collected_by?: string | null
+          collection_batch_id?: string | null
           collection_status?: string
           created_at?: string
           created_by?: string | null
@@ -4507,6 +4587,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          collected_at?: string | null
+          collected_by?: string | null
+          collection_batch_id?: string | null
           collection_status?: string
           created_at?: string
           created_by?: string | null
@@ -4536,6 +4619,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "orders_collection_batch_id_fkey"
+            columns: ["collection_batch_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_collection_batches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "orders_customer_id_fkey"
             columns: ["customer_id"]
@@ -6563,10 +6653,9 @@ export type Database = {
         Args: { _uid: string }
         Returns: boolean
       }
-      can_approve_warehouse_transfer: {
-        Args: { _uid: string }
-        Returns: boolean
-      }
+      can_approve_warehouse_transfer:
+        | { Args: { _uid: string }; Returns: boolean }
+        | { Args: { _transfer_id: string; _uid: string }; Returns: boolean }
       can_edit_product_price: { Args: { _user_id: string }; Returns: boolean }
       can_issue_feed_materials: { Args: { _user_id: string }; Returns: boolean }
       can_manage_feed_batch: { Args: { _uid: string }; Returns: boolean }
