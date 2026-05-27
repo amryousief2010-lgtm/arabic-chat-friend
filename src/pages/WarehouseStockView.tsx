@@ -404,14 +404,14 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
                     {scope !== "main" && (
                       <div>
                         <div className="text-muted-foreground mb-1">العجوزة</div>
-                        <Badge variant={a <= 0 ? "destructive" : "outline"}>{a}</Badge>
+                        <div className="flex justify-center"><EditCell wh="agouza" pid={p.id} value={a} /></div>
                         <div className="text-[10px] text-muted-foreground mt-1">{formatPackages(a, p.name)}</div>
                       </div>
                     )}
                     {scope !== "agouza" && (
                       <div>
                         <div className="text-muted-foreground mb-1">الرئيسي</div>
-                        <Badge variant={m <= 0 ? "destructive" : "outline"}>{m}</Badge>
+                        <div className="flex justify-center"><EditCell wh="main" pid={p.id} value={m} /></div>
                         <div className="text-[10px] text-muted-foreground mt-1">{formatPackages(m, p.name)}</div>
                       </div>
                     )}
