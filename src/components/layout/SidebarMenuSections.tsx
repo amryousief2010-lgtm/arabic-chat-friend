@@ -88,6 +88,7 @@ export const moduleSections: ModuleSection[] = [
       { icon: Package, label: "المنتجات", path: "/products", roles: ['general_manager', 'executive_manager', 'sales_manager', 'warehouse_supervisor', 'marketing_sales_manager', 'quality_manager'] },
       { icon: Calculator, label: "تكاليف المنتجات وهامش الربح", path: "/product-costs", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager'] },
       { icon: ShoppingCart, label: "الطلبات", path: "/orders", roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'accountant', 'warehouse_supervisor', 'marketing_sales_manager', 'financial_manager', 'quality_manager'] },
+      { icon: ShieldAlert, label: "موافقات تكرار الطلبات", path: "/duplicate-order-approvals", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager'] },
       { icon: Users, label: "العملاء", path: "/customers", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager'] },
       { icon: Gift, label: "صناديق العروض", path: "/offer-boxes", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager'] },
       { icon: Target, label: "أهداف المبيعات", path: "/sales-targets", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager'] },
