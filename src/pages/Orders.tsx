@@ -379,6 +379,9 @@ const Orders = () => {
           '-',
         governorate: (order.customers as any)?.governorate ?? null,
         shipping_company: order.shipping_company ?? null,
+        fulfillment_type: (order as any).fulfillment_type ?? null,
+        source_warehouse_id: (order as any).source_warehouse_id ?? null,
+        source_warehouse_name: (order as any).source_warehouse_id ? (warehousesMap[(order as any).source_warehouse_id] ?? null) : null,
         items: (itemsData || [])
           .filter(item => item.order_id === order.id)
           .map(item => ({
