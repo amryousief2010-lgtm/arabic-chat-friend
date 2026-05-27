@@ -43,6 +43,7 @@ const WarehouseDetail = () => {
   const [supplyDialog, setSupplyDialog] = useState(false);
   const [supplyQty, setSupplyQty] = useState<Record<string, number>>({});
   const [transfers, setTransfers] = useState<any[]>([]);
+  const [outletOrders, setOutletOrders] = useState<any[]>([]);
   const [receiveDialog, setReceiveDialog] = useState<any>(null); // transfer obj
   const [receiveLines, setReceiveLines] = useState<Record<string, { qty: number; notes: string }>>({});
   const [receiveHeaderNotes, setReceiveHeaderNotes] = useState("");
@@ -92,6 +93,14 @@ const WarehouseDetail = () => {
     setMovements(mv.data || []);
     setOrderItems(oi.data || []);
     setTransfers(tr.data || []);
+    // طلبات المنفذ (مصدرها هذا المخزن) — للعرض والتصدير لاحمد خاطر فى العجوزة وأى مخزن آخر
+    const { data: ords } = await supabase
+      .from("orders")
+      .select("id, order_number, created_at, status, fulfillment_type, total_amount, payment_status, payment_method, customer:customers(name, phone, governorate), order_items(product_name, quantity, unit_price, total_price)")
+      .eq("source_warehouse_id", id)
+      .order("created_at", { ascending: false })
+      .limit(2000);
+    setOutletOrders(ords || []);
     setLoading(false);
   };
 
@@ -326,6 +335,55 @@ const WarehouseDetail = () => {
     XLSX.writeFile(wb, `احتياج-توريد-${warehouse?.name || ""}.xlsx`);
   };
 
+  // طلبات منفذ المخزن — تجميع وتصدير Excel
+  const statusArLabel = (s: string) => ({
+    pending: "قيد المراجعة", confirmed: "مؤكد", processing: "قيد التجهيز",
+    ready: "جاهز", shipped: "تم الشحن", out_for_delivery: "خرج للتوصيل",
+    delivered: "تم التسليم", cancelled: "ملغى", returned: "مرتجع",
+  }[s] || s);
+  const fulfillmentLabel = (f: string) => ({
+    pickup: "استلام من المنفذ", delivery: "توصيل", shipping: "شحن",
+  }[f] || f || "-");
+
+  const exportOutletOrdersExcel = () => {
+    const summary = outletOrders.map((o, i) => ({
+      "م": i + 1,
+      "رقم الطلب": o.order_number,
+      "التاريخ": new Date(o.created_at).toLocaleString("ar-EG"),
+      "العميل": o.customer?.name || "-",
+      "الهاتف": o.customer?.phone || "-",
+      "المحافظة": o.customer?.governorate || "-",
+      "نوع التنفيذ": fulfillmentLabel(o.fulfillment_type),
+      "الحالة": statusArLabel(o.status),
+      "الدفع": o.payment_method || "-",
+      "حالة الدفع": o.payment_status || "-",
+      "عدد الأصناف": (o.order_items || []).length,
+      "الإجمالي": Number(o.total_amount || 0),
+    }));
+    const lines: any[] = [];
+    outletOrders.forEach((o) => {
+      (o.order_items || []).forEach((li: any) => {
+        lines.push({
+          "رقم الطلب": o.order_number,
+          "التاريخ": new Date(o.created_at).toLocaleString("ar-EG"),
+          "العميل": o.customer?.name || "-",
+          "الصنف": li.product_name,
+          "الكمية": Number(li.quantity || 0),
+          "سعر الوحدة": Number(li.unit_price || 0),
+          "الإجمالي": Number(li.total_price || 0),
+        });
+      });
+    });
+    const wb = XLSX.utils.book_new();
+    const ws1 = XLSX.utils.json_to_sheet(summary);
+    ws1["!cols"] = [{ wch: 5 }, { wch: 14 }, { wch: 18 }, { wch: 22 }, { wch: 14 }, { wch: 12 }, { wch: 16 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 12 }];
+    XLSX.utils.book_append_sheet(wb, ws1, "ملخص الطلبات");
+    const ws2 = XLSX.utils.json_to_sheet(lines);
+    ws2["!cols"] = [{ wch: 14 }, { wch: 18 }, { wch: 22 }, { wch: 30 }, { wch: 10 }, { wch: 12 }, { wch: 12 }];
+    XLSX.utils.book_append_sheet(wb, ws2, "تفاصيل الأصناف");
+    XLSX.writeFile(wb, `طلبات-${warehouse?.name || "المنفذ"}-${new Date().toISOString().slice(0,10)}.xlsx`);
+  };
+
   if (loading && !warehouse) {
     return <DashboardLayout><div className="text-center py-12 text-muted-foreground">جارٍ التحميل...</div></DashboardLayout>;
   }
@@ -407,6 +465,10 @@ const WarehouseDetail = () => {
                 {supplyNeeds.length > 0 && <Badge variant="destructive" className="mr-1">{supplyNeeds.length}</Badge>}
               </TabsTrigger>
             )}
+            <TabsTrigger value="outlet" className="gap-1">
+              <FileSpreadsheet className="w-4 h-4" />طلبات المنفذ
+              {outletOrders.length > 0 && <Badge variant="secondary" className="mr-1">{outletOrders.length}</Badge>}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="approvals" className="space-y-4">
@@ -714,6 +776,56 @@ const WarehouseDetail = () => {
               </Card>
             </TabsContent>
           )}
+
+          <TabsContent value="outlet" className="space-y-3">
+            <Card>
+              <CardHeader className="pb-3 flex flex-row items-center justify-between gap-2">
+                <div>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
+                    طلبات منفذ {warehouse.name}
+                  </CardTitle>
+                  <CardDescription>الطلبات المسجَّلة على هذا المنفذ • إجمالى {outletOrders.length}</CardDescription>
+                </div>
+                <Button size="sm" variant="outline" onClick={exportOutletOrdersExcel} disabled={outletOrders.length === 0}>
+                  <FileSpreadsheet className="w-4 h-4 ml-1 text-emerald-600" />تحميل Excel
+                </Button>
+              </CardHeader>
+              <CardContent className="p-0">
+                {outletOrders.length === 0 ? (
+                  <div className="py-10 text-center text-muted-foreground">لا توجد طلبات مسجّلة على هذا المنفذ</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader><TableRow>
+                        <TableHead>رقم الطلب</TableHead><TableHead>التاريخ</TableHead>
+                        <TableHead>العميل</TableHead><TableHead>المحافظة</TableHead>
+                        <TableHead>التنفيذ</TableHead><TableHead>الحالة</TableHead>
+                        <TableHead>الأصناف</TableHead><TableHead>الإجمالى</TableHead>
+                      </TableRow></TableHeader>
+                      <TableBody>
+                        {outletOrders.slice(0, 200).map((o) => (
+                          <TableRow key={o.id}>
+                            <TableCell className="font-mono text-xs">{o.order_number}</TableCell>
+                            <TableCell className="text-xs">{formatDateTime(o.created_at)}</TableCell>
+                            <TableCell>{o.customer?.name || "-"}</TableCell>
+                            <TableCell className="text-xs">{o.customer?.governorate || "-"}</TableCell>
+                            <TableCell className="text-xs">{fulfillmentLabel(o.fulfillment_type)}</TableCell>
+                            <TableCell><Badge variant="outline">{statusArLabel(o.status)}</Badge></TableCell>
+                            <TableCell>{(o.order_items || []).length}</TableCell>
+                            <TableCell className="font-semibold">{Number(o.total_amount || 0).toLocaleString()}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                    {outletOrders.length > 200 && (
+                      <div className="p-3 text-center text-xs text-muted-foreground">يتم عرض أحدث 200 طلب — حمّل ملف Excel للحصول على الكل ({outletOrders.length})</div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
 
