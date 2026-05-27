@@ -91,8 +91,20 @@ interface Order {
   moderator_name: string;
   governorate: string | null;
   shipping_company: string | null;
+  fulfillment_type: string | null;
+  source_warehouse_id: string | null;
+  source_warehouse_name: string | null;
   items: OrderItem[];
 }
+
+// Fulfillment filter keys
+const fulfillmentOptions: { value: string; label: string }[] = [
+  { value: 'pickup_main', label: 'استلام من المخزن الرئيسي' },
+  { value: 'delivery_main', label: 'توصيل بالمندوب الخاص (كيمو)' },
+  { value: 'pickup_agouza', label: 'استلام من العجوزة' },
+  { value: 'delivery_agouza', label: 'توصيل من العجوزة' },
+  { value: 'shipping_company', label: 'شركة شحن' },
+];
 
 // Sales manager who must approve private-delivery-rep edits (م. آلاء حامد)
 const SALES_MANAGER_ID = '77b71c5f-cfa8-42bc-85de-ae536a3ec1c1';
@@ -197,6 +209,7 @@ const Orders = () => {
       discount: order.discount,
       delivery_fee: order.delivery_fee,
       total: order.total,
+      source_warehouse_name: order.source_warehouse_name,
       created_by_name: order.moderator_name,
     });
   };
@@ -204,6 +217,7 @@ const Orders = () => {
   const [filterModerator, setFilterModerator] = useState<string>("all");
   const [filterProduct, setFilterProduct] = useState<string>("all");
   const [filterGovernorate, setFilterGovernorate] = useState<string>("all");
+  const [filterFulfillment, setFilterFulfillment] = useState<string>("all");
   const [availableProducts, setAvailableProducts] = useState<string[]>([]);
   const [searchParams, setSearchParams] = useSearchParams();
   const yearParam = searchParams.get("year");
@@ -326,6 +340,21 @@ const Orders = () => {
         );
       }
 
+      // Map warehouse ids → names for "مصدر التنفيذ"
+      const warehouseIds = Array.from(
+        new Set((ordersData || []).map((o: any) => o.source_warehouse_id).filter(Boolean))
+      );
+      let warehousesMap: Record<string, string> = {};
+      if (warehouseIds.length > 0) {
+        const { data: whData } = await supabase
+          .from('warehouses')
+          .select('id, name')
+          .in('id', warehouseIds as string[]);
+        warehousesMap = Object.fromEntries(
+          (whData || []).map((w: any) => [w.id, w.name])
+        );
+      }
+
       const formattedOrders: Order[] = (ordersData || []).map(order => ({
         id: order.id,
         order_number: order.order_number,
@@ -351,6 +380,9 @@ const Orders = () => {
           '-',
         governorate: (order.customers as any)?.governorate ?? null,
         shipping_company: order.shipping_company ?? null,
+        fulfillment_type: (order as any).fulfillment_type ?? null,
+        source_warehouse_id: (order as any).source_warehouse_id ?? null,
+        source_warehouse_name: (order as any).source_warehouse_id ? (warehousesMap[(order as any).source_warehouse_id] ?? null) : null,
         items: (itemsData || [])
           .filter(item => item.order_id === order.id)
           .map(item => ({
@@ -409,7 +441,22 @@ const Orders = () => {
     const matchesGovernorate =
       filterGovernorate === "all" ||
       (order.governorate || "").trim() === filterGovernorate;
-    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate;
+    // مصدر التنفيذ: تصنيف موحّد يجمع نوع التنفيذ والمخزن أو شركة الشحن
+    const fulfillmentKey = (() => {
+      const ft = order.fulfillment_type;
+      const wn = order.source_warehouse_name || '';
+      const isMain = wn.includes('الرئيسي');
+      const isAgouza = wn.includes('العجوزة');
+      if (ft === 'pickup' && isMain) return 'pickup_main';
+      if (ft === 'delivery' && isMain) return 'delivery_main';
+      if (ft === 'pickup' && isAgouza) return 'pickup_agouza';
+      if (ft === 'delivery' && isAgouza) return 'delivery_agouza';
+      if (order.shipping_company && order.shipping_company !== 'مندوب خاص') return 'shipping_company';
+      return '';
+    })();
+    const matchesFulfillment =
+      filterFulfillment === "all" || fulfillmentKey === filterFulfillment;
+    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment;
   });
 
   const availableGovernorates = Array.from(
@@ -738,6 +785,17 @@ const Orders = () => {
                 ))}
               </SelectContent>
             </Select>
+            <Select value={filterFulfillment} onValueChange={setFilterFulfillment}>
+              <SelectTrigger className="w-56 input-modern">
+                <SelectValue placeholder="فلترة حسب مصدر التنفيذ" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">كل مصادر التنفيذ</SelectItem>
+                {fulfillmentOptions.map((f) => (
+                  <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {!isPrivateDeliveryRep && (
               <Select value={filterModerator} onValueChange={setFilterModerator}>
                 <SelectTrigger className="w-40 input-modern">
@@ -896,6 +954,15 @@ const Orders = () => {
                     {order.governorate && (
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
                         <MapPin className="w-3 h-3" /> {order.governorate}
+                      </div>
+                    )}
+                    {(order.source_warehouse_name || order.fulfillment_type || order.shipping_company) && (
+                      <div className="text-[11px]">
+                        <Badge variant="outline" className="text-[10px]">
+                          {order.fulfillment_type === 'pickup' ? 'استلام من ' : order.fulfillment_type === 'delivery' ? 'توصيل من ' : ''}
+                          {order.source_warehouse_name || order.shipping_company || '-'}
+                          {order.fulfillment_type === 'delivery' && order.source_warehouse_name?.includes('الرئيسي') ? ' • مندوب خاص (كيمو)' : ''}
+                        </Badge>
                       </div>
                     )}
                     <div className="flex items-center justify-end gap-1 pt-1">
