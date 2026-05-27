@@ -30,7 +30,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus, Trash2, Pencil, ChevronDown, ChevronUp, PackageOpen, PackagePlus, FileDown, FileText, KeyRound, MapPin } from "lucide-react";
+import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus, Trash2, Pencil, ChevronDown, ChevronUp, PackageOpen, PackagePlus, FileDown, FileText, KeyRound, MapPin, Printer } from "lucide-react";
+import { printOrderInvoice } from "@/lib/printUtils";
 import { exportOrdersToCSV, exportOrdersToPDF, exportOrdersToXLSX } from "@/utils/exportOrders";
 import EditOrderItemsDialog from "@/components/orders/EditOrderItemsDialog";
 import SwapOfferDialog from "@/components/orders/SwapOfferDialog";
@@ -173,6 +174,32 @@ const Orders = () => {
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [swapOfferOrder, setSwapOfferOrder] = useState<Order | null>(null);
   const [addOfferOrder, setAddOfferOrder] = useState<Order | null>(null);
+
+  const handlePrintOrder = (order: Order) => {
+    printOrderInvoice({
+      order_number: order.order_number,
+      created_at: order.created_at,
+      customer_name: order.customer_name,
+      customer_phone: order.customer_phone,
+      delivery_address: order.delivery_address,
+      payment_method: order.payment_method,
+      payment_status: order.payment_status,
+      notes: order.notes,
+      items: order.items.map((it) => ({
+        product_name: it.product_name,
+        quantity: it.quantity,
+        unit_price: it.unit_price,
+        total_price: it.total_price,
+        product_unit: it.unit,
+        offer_name: it.offer_name,
+      })),
+      subtotal: order.subtotal,
+      discount: order.discount,
+      delivery_fee: order.delivery_fee,
+      total: order.total,
+      created_by_name: order.moderator_name,
+    });
+  };
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterModerator, setFilterModerator] = useState<string>("all");
   const [filterProduct, setFilterProduct] = useState<string>("all");
@@ -872,9 +899,12 @@ const Orders = () => {
                       </div>
                     )}
                     <div className="flex items-center justify-end gap-1 pt-1">
-                      <Button variant="ghost" size="icon" asChild className="h-8 w-8">
-                        <Link to={`/orders/${order.id}`}><Eye className="w-4 h-4" /></Link>
-                      </Button>
+                       <Button variant="ghost" size="icon" asChild className="h-8 w-8">
+                         <Link to={`/orders/${order.id}`}><Eye className="w-4 h-4" /></Link>
+                       </Button>
+                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handlePrintOrder(order)} title="طباعة الطلب">
+                         <Printer className="w-4 h-4 text-primary" />
+                       </Button>
                       {isPrivateDeliveryRep && order.status !== 'delivered' && order.status !== 'cancelled' && !approvedEditOrderIds.has(order.id) && (
                         <Button
                           variant="ghost"
@@ -1149,6 +1179,14 @@ const Orders = () => {
                           <Link to={`/orders/${order.id}`}>
                             <Eye className="w-4 h-4" />
                           </Link>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handlePrintOrder(order)}
+                          title="طباعة الطلب"
+                        >
+                          <Printer className="w-4 h-4 text-primary" />
                         </Button>
                         {isPrivateDeliveryRep &&
                           order.status !== 'delivered' &&
