@@ -93,6 +93,14 @@ const WarehouseDetail = () => {
     setMovements(mv.data || []);
     setOrderItems(oi.data || []);
     setTransfers(tr.data || []);
+    // طلبات المنفذ (مصدرها هذا المخزن) — للعرض والتصدير لاحمد خاطر فى العجوزة وأى مخزن آخر
+    const { data: ords } = await supabase
+      .from("orders")
+      .select("id, order_number, created_at, status, fulfillment_type, total_amount, payment_status, payment_method, customer:customers(name, phone, governorate), order_items(product_name, quantity, unit_price, total_price)")
+      .eq("source_warehouse_id", id)
+      .order("created_at", { ascending: false })
+      .limit(2000);
+    setOutletOrders(ords || []);
     setLoading(false);
   };
 
