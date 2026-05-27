@@ -21,6 +21,22 @@ const titleMap: Record<StockScope, { title: string; subtitle: string }> = {
   main: { title: "المخزن الرئيسي", subtitle: "الكميات المتاحة في المخزن الرئيسي" },
 };
 
+// كيلوجرامات لكل عبوة بحسب اسم المنتج. الافتراضي 0.5 كجم لكل عبوة (عبوتين/كيلو).
+const kgPerPackage = (name: string): number => {
+  const n = (name || "").trim();
+  if (n.includes("6ك") || n.includes("دبوس بالعظم")) return 6;
+  if (n.includes("نعامة صندوق")) return 6;
+  return 0.5;
+};
+
+const formatPackages = (kg: number, name: string): string => {
+  const per = kgPerPackage(name);
+  if (!per || per <= 0) return "-";
+  const pkgs = kg / per;
+  const rounded = Math.round(pkgs * 100) / 100;
+  return `${rounded} عبوة`;
+};
+
 const WarehouseStockView = ({ scope = "both" }: Props) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [agouzaStock, setAgouzaStock] = useState<Record<string, number>>({});
