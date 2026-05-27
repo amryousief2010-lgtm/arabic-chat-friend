@@ -465,6 +465,10 @@ const WarehouseDetail = () => {
                 {supplyNeeds.length > 0 && <Badge variant="destructive" className="mr-1">{supplyNeeds.length}</Badge>}
               </TabsTrigger>
             )}
+            <TabsTrigger value="outlet" className="gap-1">
+              <FileSpreadsheet className="w-4 h-4" />طلبات المنفذ
+              {outletOrders.length > 0 && <Badge variant="secondary" className="mr-1">{outletOrders.length}</Badge>}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="approvals" className="space-y-4">
