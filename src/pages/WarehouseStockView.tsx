@@ -41,8 +41,13 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [agouzaStock, setAgouzaStock] = useState<Record<string, number>>({});
   const [mainStock, setMainStock] = useState<Record<string, number>>({});
+  // الكميات المحجوزة على طلبات لم تُسلَّم/تُلغَ بعد، حسب مصدر التنفيذ
+  const [agouzaPending, setAgouzaPending] = useState<Record<string, number>>({});
+  const [mainPending, setMainPending] = useState<Record<string, number>>({});
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  // وضع العرض: قبل الطلبات (الكمية الفعلية في المخزن) أو بعد خصم الطلبات الجارية
+  const [mode, setMode] = useState<"raw" | "after_orders">("raw");
 
   const fetchAll = async () => {
     setLoading(true);
@@ -71,6 +76,37 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
         });
         setAgouzaStock(ag);
         setMainStock(mn);
+
+        // الطلبات الجارية (غير المُسلَّمة/المُلغاة) المحجوزة على كل مخزن
+        const { data: pendOrders } = await supabase
+          .from("orders")
+          .select("id, source_warehouse_id, status")
+          .in("source_warehouse_id", whIds)
+          .not("status", "in", "(delivered,cancelled)");
+        const orderIds = (pendOrders || []).map((o: any) => o.id);
+        const whByOrder: Record<string, string> = Object.fromEntries(
+          (pendOrders || []).map((o: any) => [o.id, o.source_warehouse_id])
+        );
+        const agPend: Record<string, number> = {};
+        const mnPend: Record<string, number> = {};
+        if (orderIds.length > 0) {
+          for (let i = 0; i < orderIds.length; i += 500) {
+            const slice = orderIds.slice(i, i + 500);
+            const { data: items } = await supabase
+              .from("order_items")
+              .select("order_id, product_id, quantity")
+              .in("order_id", slice)
+              .not("product_id", "is", null);
+            (items || []).forEach((it: any) => {
+              const wh = whByOrder[it.order_id];
+              const qty = Number(it.quantity || 0);
+              if (wh === agouza?.id) agPend[it.product_id] = (agPend[it.product_id] || 0) + qty;
+              if (wh === main?.id) mnPend[it.product_id] = (mnPend[it.product_id] || 0) + qty;
+            });
+          }
+        }
+        setAgouzaPending(agPend);
+        setMainPending(mnPend);
       }
     } finally {
       setLoading(false);
@@ -79,13 +115,31 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
 
   useEffect(() => { fetchAll(); }, []);
 
+  // الكميات الظاهرة (مع/بدون خصم الطلبات الجارية)
+  const displayAgouza = useMemo(() => {
+    if (mode === "raw") return agouzaStock;
+    const out: Record<string, number> = {};
+    Object.keys({ ...agouzaStock, ...agouzaPending }).forEach((id) => {
+      out[id] = (agouzaStock[id] ?? 0) - (agouzaPending[id] ?? 0);
+    });
+    return out;
+  }, [mode, agouzaStock, agouzaPending]);
+  const displayMain = useMemo(() => {
+    if (mode === "raw") return mainStock;
+    const out: Record<string, number> = {};
+    Object.keys({ ...mainStock, ...mainPending }).forEach((id) => {
+      out[id] = (mainStock[id] ?? 0) - (mainPending[id] ?? 0);
+    });
+    return out;
+  }, [mode, mainStock, mainPending]);
+
   const filtered = useMemo(() => {
     const q = search.trim();
     const list = q ? products.filter(p => p.name?.includes(q) || p.category?.includes(q)) : products;
-    if (scope === "agouza") return list.filter(p => (agouzaStock[p.id] ?? 0) !== 0 || !q);
-    if (scope === "main") return list.filter(p => (mainStock[p.id] ?? 0) !== 0 || !q);
+    if (scope === "agouza") return list.filter(p => (displayAgouza[p.id] ?? 0) !== 0 || !q);
+    if (scope === "main") return list.filter(p => (displayMain[p.id] ?? 0) !== 0 || !q);
     return list;
-  }, [products, search, scope, agouzaStock, mainStock]);
+  }, [products, search, scope, displayAgouza, displayMain]);
 
   const { title, subtitle } = titleMap[scope];
 
