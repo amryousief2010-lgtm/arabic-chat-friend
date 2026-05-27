@@ -171,8 +171,8 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
                 const rows = filtered.map(p => ({
                   name: p.name,
                   unit: p.unit,
-                  agouza: agouzaStock[p.id] ?? 0,
-                  main: mainStock[p.id] ?? 0,
+                  agouza: displayAgouza[p.id] ?? 0,
+                  main: displayMain[p.id] ?? 0,
                 }));
                 const filter = search.trim() || undefined;
                 const btn = "inline-flex items-center gap-1 h-8 px-3 text-xs rounded-md border bg-background hover:bg-muted transition";
@@ -225,8 +225,8 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
               </thead>
               <tbody>
                 {filtered.map((p) => {
-                  const a = agouzaStock[p.id] ?? 0;
-                  const m = mainStock[p.id] ?? 0;
+                  const a = displayAgouza[p.id] ?? 0;
+                  const m = displayMain[p.id] ?? 0;
                   return (
                     <tr key={p.id} className="border-t hover:bg-muted/30">
                       <td className="p-2 font-bold text-green-600 dark:text-green-400">{p.name}</td>
@@ -266,8 +266,8 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
           {/* Mobile cards */}
           <div className="md:hidden space-y-2">
             {filtered.map((p) => {
-              const a = agouzaStock[p.id] ?? 0;
-              const m = mainStock[p.id] ?? 0;
+              const a = displayAgouza[p.id] ?? 0;
+              const m = displayMain[p.id] ?? 0;
               return (
                 <div key={p.id} className="border rounded-lg p-3 bg-card">
                   <div className="font-bold text-green-600 dark:text-green-400 mb-1">{p.name}</div>
