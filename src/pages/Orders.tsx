@@ -899,9 +899,12 @@ const Orders = () => {
                       </div>
                     )}
                     <div className="flex items-center justify-end gap-1 pt-1">
-                      <Button variant="ghost" size="icon" asChild className="h-8 w-8">
-                        <Link to={`/orders/${order.id}`}><Eye className="w-4 h-4" /></Link>
-                      </Button>
+                       <Button variant="ghost" size="icon" asChild className="h-8 w-8">
+                         <Link to={`/orders/${order.id}`}><Eye className="w-4 h-4" /></Link>
+                       </Button>
+                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handlePrintOrder(order)} title="طباعة الطلب">
+                         <Printer className="w-4 h-4 text-primary" />
+                       </Button>
                       {isPrivateDeliveryRep && order.status !== 'delivered' && order.status !== 'cancelled' && !approvedEditOrderIds.has(order.id) && (
                         <Button
                           variant="ghost"
