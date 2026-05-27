@@ -136,6 +136,94 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
 
   useEffect(() => { fetchAll(); }, []);
 
+  // حفظ تعديل الرصيد لمنتج في مخزن. القيمة المُدخلة تُفسَّر حسب وضع العرض.
+  const saveStock = async (wh: "agouza" | "main", productId: string) => {
+    const raw = parseFloat(editValue.replace(",", "."));
+    if (isNaN(raw) || raw < 0) { toast.error("أدخل قيمة صحيحة"); return; }
+    const pending = (wh === "agouza" ? agouzaPending : mainPending)[productId] ?? 0;
+    // عند العرض "بعد الطلبات"، المُدخل هو المتاح بعد الخصم → الرصيد الفعلي = المُدخل + المعلق
+    const newStock = mode === "after_orders" ? raw + pending : raw;
+    const whId = wh === "agouza" ? agouzaWhId : mainWhId;
+    if (!whId) return;
+    const itemId = (wh === "agouza" ? agouzaItemIds : mainItemIds)[productId];
+    setSaving(true);
+    try {
+      if (itemId) {
+        const { error } = await supabase
+          .from("inventory_items")
+          .update({ stock: newStock })
+          .eq("id", itemId);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase
+          .from("inventory_items")
+          .insert({ warehouse_id: whId, product_id: productId, stock: newStock, module: "warehouse" } as any)
+          .select("id")
+          .single();
+        if (error) throw error;
+        if (wh === "agouza") setAgouzaItemIds((m) => ({ ...m, [productId]: data!.id }));
+        else setMainItemIds((m) => ({ ...m, [productId]: data!.id }));
+      }
+      if (wh === "agouza") setAgouzaStock((s) => ({ ...s, [productId]: newStock }));
+      else setMainStock((s) => ({ ...s, [productId]: newStock }));
+      toast.success("تم تحديث الرصيد");
+      setEditingKey(null);
+    } catch (e: any) {
+      toast.error(e.message || "تعذّر الحفظ");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const startEdit = (wh: "agouza" | "main", productId: string, currentDisplay: number) => {
+    setEditingKey(`${wh}:${productId}`);
+    setEditValue(String(currentDisplay));
+  };
+
+  const EditCell = ({ wh, pid, value }: { wh: "agouza" | "main"; pid: string; value: number }) => {
+    const key = `${wh}:${pid}`;
+    const isEditing = editingKey === key;
+    if (isEditing) {
+      return (
+        <div className="flex items-center gap-1">
+          <Input
+            type="number"
+            step="0.5"
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            className="h-7 w-20 text-xs"
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === "Enter") saveStock(wh, pid);
+              if (e.key === "Escape") setEditingKey(null);
+            }}
+          />
+          <button className="text-green-600 disabled:opacity-50" disabled={saving} onClick={() => saveStock(wh, pid)}>
+            <Check className="w-4 h-4" />
+          </button>
+          <button className="text-muted-foreground" onClick={() => setEditingKey(null)}>
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      );
+    }
+    return (
+      <div className="flex items-center gap-1">
+        <Badge variant={value <= 0 ? "destructive" : "outline"}>{value}</Badge>
+        {canEdit && (
+          <button
+            className="text-muted-foreground hover:text-primary opacity-60 hover:opacity-100"
+            title="تعديل الرصيد"
+            onClick={() => startEdit(wh, pid, value)}
+          >
+            <Pencil className="w-3 h-3" />
+          </button>
+        )}
+      </div>
+    );
+  };
+
+
   // الكميات الظاهرة (مع/بدون خصم الطلبات الجارية)
   const displayAgouza = useMemo(() => {
     if (mode === "raw") return agouzaStock;
