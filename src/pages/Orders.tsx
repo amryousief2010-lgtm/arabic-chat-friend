@@ -403,6 +403,11 @@ const Orders = () => {
 
   const [counts, setCounts] = useState({ all: 0, "2026": 0, pre2026: 0 });
   useEffect(() => {
+    // Skip the expensive global count queries for sales moderators / shipping rep —
+    // their RLS forces per-row evaluation across all ~12k orders and the year-tab
+    // UI is not shown to them anyway, which used to time out and leave the page
+    // stuck loading (so May orders never appeared for the girls).
+    if (isSalesModerator || isPrivateDeliveryRep || isShippingCompany) return;
     (async () => {
       const cutoff = new Date(Date.UTC(2026, 0, 1)).toISOString();
       const [allRes, y2026Res, preRes] = await Promise.all([
@@ -416,7 +421,7 @@ const Orders = () => {
         pre2026: preRes.count || 0,
       });
     })();
-  }, []);
+  }, [isSalesModerator, isPrivateDeliveryRep, isShippingCompany]);
 
   // Load this private-delivery-rep's edit-request status (pending / approved)
   useEffect(() => {
