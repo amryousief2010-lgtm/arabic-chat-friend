@@ -91,8 +91,20 @@ interface Order {
   moderator_name: string;
   governorate: string | null;
   shipping_company: string | null;
+  fulfillment_type: string | null;
+  source_warehouse_id: string | null;
+  source_warehouse_name: string | null;
   items: OrderItem[];
 }
+
+// Fulfillment filter keys
+const fulfillmentOptions: { value: string; label: string }[] = [
+  { value: 'pickup_main', label: 'استلام من المخزن الرئيسي' },
+  { value: 'delivery_main', label: 'توصيل بالمندوب الخاص (كيمو)' },
+  { value: 'pickup_agouza', label: 'استلام من العجوزة' },
+  { value: 'delivery_agouza', label: 'توصيل من العجوزة' },
+  { value: 'shipping_company', label: 'شركة شحن' },
+];
 
 // Sales manager who must approve private-delivery-rep edits (م. آلاء حامد)
 const SALES_MANAGER_ID = '77b71c5f-cfa8-42bc-85de-ae536a3ec1c1';
