@@ -211,7 +211,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Module-level write permissions
   const canManageFeedFactory = isGeneralManager || isExecutiveManager || isFeedFactoryManager || isProductionManager;
-  const canManageWarehouses = isGeneralManager || isExecutiveManager || isWarehouseSupervisor || isProductionManager;
+  const canManageWarehouses = isGeneralManager || isExecutiveManager || isWarehouseSupervisor || isProductionManager || isAgouzaWarehouseKeeper;
   const canManageFarm = isGeneralManager || isExecutiveManager || isFarmManager || isProductionManager;
   const canManageHatchery = isGeneralManager || isExecutiveManager || isHatcheryManager || isProductionManager;
   const canManageBrooding = isGeneralManager || isExecutiveManager || isBroodingManager || isProductionManager;

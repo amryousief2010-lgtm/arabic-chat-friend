@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import Header from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, RefreshCw, Warehouse, Printer, Pencil, Check, X } from "lucide-react";
+import { Search, RefreshCw, Warehouse, Printer, Pencil, Check, X, ArrowLeftRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { printWarehouseStock } from "@/lib/printUtils";
 import { useAuth } from "@/hooks/useAuth";
@@ -41,6 +42,7 @@ const formatPackages = (kg: number, name: string): string => {
 
 const WarehouseStockView = ({ scope = "both" }: Props) => {
   const { isExecutiveManager, isGeneralManager, canManageAgouzaStock, isAgouzaWarehouseKeeper } = useAuth();
+  const navigate = useNavigate();
   const canEditAll = isExecutiveManager || isGeneralManager;
   const canEditAgouza = canManageAgouzaStock;
   const [products, setProducts] = useState<Product[]>([]);
@@ -305,6 +307,16 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
               <Button size="sm" variant="outline" onClick={fetchAll} disabled={loading}>
                 <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
               </Button>
+              {scope === "agouza" && (isAgouzaWarehouseKeeper || canEditAll) && agouzaWhId && (
+                <Button
+                  size="sm"
+                  className="gap-1"
+                  onClick={() => navigate(`/modules/warehouses/${agouzaWhId}`)}
+                >
+                  <ArrowLeftRight className="w-4 h-4" />
+                  طلب تحويل من الرئيسي
+                </Button>
+              )}
               {(() => {
                 const rows = filtered.map(p => ({
                   name: p.name,

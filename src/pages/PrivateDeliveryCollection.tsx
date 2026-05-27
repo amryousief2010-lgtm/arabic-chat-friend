@@ -40,6 +40,9 @@ const PrivateDeliveryCollection = () => {
   const [reason, setReason] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [tab, setTab] = useState<"pending" | "history">("pending");
+  const [history, setHistory] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -74,6 +77,29 @@ const PrivateDeliveryCollection = () => {
   };
 
   useEffect(() => { load(); }, []);
+
+  const loadHistory = async () => {
+    setHistoryLoading(true);
+    try {
+      const { data } = await supabase
+        .from("delivery_collection_batches")
+        .select("id, rep_name, expected_total, actual_total, variance_reason, notes, collected_at, collector_id, delivery_collection_batch_orders(order_id, order_total)")
+        .order("collected_at", { ascending: false })
+        .limit(200);
+      const list = (data || []) as any[];
+      const collectorIds = Array.from(new Set(list.map((b) => b.collector_id).filter(Boolean)));
+      let nameMap: Record<string, string> = {};
+      if (collectorIds.length) {
+        const { data: ps } = await supabase.from("profiles").select("id, full_name").in("id", collectorIds);
+        nameMap = Object.fromEntries((ps || []).map((p: any) => [p.id, p.full_name]));
+      }
+      setHistory(list.map((b) => ({ ...b, collector_name: nameMap[b.collector_id] || "-" })));
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  useEffect(() => { if (tab === "history") loadHistory(); }, [tab]);
 
   const reps = useMemo(() => {
     const s = new Set<string>();
@@ -169,83 +195,155 @@ const PrivateDeliveryCollection = () => {
     <DashboardLayout>
       <Header title="تحصيل أوردرات المندوب الخاص" subtitle="تحصيل دفعات نقدية من مناديب الشحن الخاص" />
 
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <CardTitle className="flex items-center gap-2">
-              <Wallet className="w-5 h-5 text-primary" />
-              أوردرات بانتظار التحصيل ({orders.length})
-            </CardTitle>
-            <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" onClick={load} disabled={loading}>
-                <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-              </Button>
-              <Button size="sm" onClick={openCollect} disabled={selectedOrders.length === 0}>
-                تحصيل دفعة ({selectedOrders.length}) — {fmt(expectedTotal)} ج
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Tabs value={activeRep} onValueChange={(v) => { setActiveRep(v); setSelected({}); }}>
-            <TabsList className="flex flex-wrap h-auto">
-              <TabsTrigger value="all">الكل ({orders.length})</TabsTrigger>
-              {reps.map((r) => (
-                <TabsTrigger key={r} value={r}>
-                  {r} ({orders.filter((o) => (o.moderator || "غير محدد") === r).length})
-                </TabsTrigger>
-              ))}
-            </TabsList>
-            <TabsContent value={activeRep} className="mt-4">
+      <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
+        <TabsList>
+          <TabsTrigger value="pending">بانتظار التحصيل ({orders.length})</TabsTrigger>
+          <TabsTrigger value="history">سجل التحصيلات</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="pending" className="mt-4">
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <CardTitle className="flex items-center gap-2">
+                  <Wallet className="w-5 h-5 text-primary" />
+                  أوردرات بانتظار التحصيل ({orders.length})
+                </CardTitle>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="outline" onClick={load} disabled={loading}>
+                    <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+                  </Button>
+                  <Button size="sm" onClick={openCollect} disabled={selectedOrders.length === 0}>
+                    تحصيل دفعة ({selectedOrders.length}) — {fmt(expectedTotal)} ج
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Tabs value={activeRep} onValueChange={(v) => { setActiveRep(v); setSelected({}); }}>
+                <TabsList className="flex flex-wrap h-auto">
+                  <TabsTrigger value="all">الكل ({orders.length})</TabsTrigger>
+                  {reps.map((r) => (
+                    <TabsTrigger key={r} value={r}>
+                      {r} ({orders.filter((o) => (o.moderator || "غير محدد") === r).length})
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+                <TabsContent value={activeRep} className="mt-4">
+                  <div className="border rounded-lg overflow-x-auto">
+                    <table className="w-full text-right text-sm">
+                      <thead className="bg-muted/60 text-xs">
+                        <tr>
+                          <th className="p-2 w-10">
+                            <Checkbox
+                              checked={filtered.length > 0 && filtered.every((o) => selected[o.id])}
+                              onCheckedChange={(c) => {
+                                const next: Record<string, boolean> = { ...selected };
+                                filtered.forEach((o) => { next[o.id] = !!c; });
+                                setSelected(next);
+                              }}
+                            />
+                          </th>
+                          <th className="p-2">رقم الأوردر</th>
+                          <th className="p-2">العميل</th>
+                          <th className="p-2">المندوب</th>
+                          <th className="p-2">طريقة الدفع</th>
+                          <th className="p-2">تاريخ التسليم</th>
+                          <th className="p-2">المبلغ</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filtered.map((o) => (
+                          <tr key={o.id} className="border-b hover:bg-muted/30">
+                            <td className="p-2">
+                              <Checkbox
+                                checked={!!selected[o.id]}
+                                onCheckedChange={(c) => setSelected((s) => ({ ...s, [o.id]: !!c }))}
+                              />
+                            </td>
+                            <td className="p-2 font-mono text-xs">{o.order_number || o.id.slice(0, 8)}</td>
+                            <td className="p-2">{o.customer_name}</td>
+                            <td className="p-2"><Badge variant="outline">{o.moderator || "—"}</Badge></td>
+                            <td className="p-2">{o.payment_method === "cash" ? "نقدي" : "إلكتروني"}</td>
+                            <td className="p-2 text-xs">{o.delivered_at ? formatDate(o.delivered_at) : "—"}</td>
+                            <td className="p-2 font-semibold">{fmt(o.total)} ج</td>
+                          </tr>
+                        ))}
+                        {filtered.length === 0 && (
+                          <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">لا توجد أوردرات بانتظار التحصيل</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="history" className="mt-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Wallet className="w-5 h-5 text-primary" />
+                  سجل الدفعات المحصّلة ({history.length})
+                </CardTitle>
+                <Button size="sm" variant="outline" onClick={loadHistory} disabled={historyLoading}>
+                  <RefreshCw className={`w-4 h-4 ${historyLoading ? "animate-spin" : ""}`} />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
               <div className="border rounded-lg overflow-x-auto">
                 <table className="w-full text-right text-sm">
                   <thead className="bg-muted/60 text-xs">
                     <tr>
-                      <th className="p-2 w-10">
-                        <Checkbox
-                          checked={filtered.length > 0 && filtered.every((o) => selected[o.id])}
-                          onCheckedChange={(c) => {
-                            const next: Record<string, boolean> = { ...selected };
-                            filtered.forEach((o) => { next[o.id] = !!c; });
-                            setSelected(next);
-                          }}
-                        />
-                      </th>
-                      <th className="p-2">رقم الأوردر</th>
-                      <th className="p-2">العميل</th>
+                      <th className="p-2">التاريخ</th>
                       <th className="p-2">المندوب</th>
-                      <th className="p-2">طريقة الدفع</th>
-                      <th className="p-2">تاريخ التسليم</th>
-                      <th className="p-2">المبلغ</th>
+                      <th className="p-2">المُحصِّل</th>
+                      <th className="p-2">عدد الأوردرات</th>
+                      <th className="p-2">المطلوب</th>
+                      <th className="p-2">المحصّل</th>
+                      <th className="p-2">الفرق / السبب</th>
+                      <th className="p-2">ملاحظات</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filtered.map((o) => (
-                      <tr key={o.id} className="border-b hover:bg-muted/30">
-                        <td className="p-2">
-                          <Checkbox
-                            checked={!!selected[o.id]}
-                            onCheckedChange={(c) => setSelected((s) => ({ ...s, [o.id]: !!c }))}
-                          />
-                        </td>
-                        <td className="p-2 font-mono text-xs">{o.order_number || o.id.slice(0, 8)}</td>
-                        <td className="p-2">{o.customer_name}</td>
-                        <td className="p-2"><Badge variant="outline">{o.moderator || "—"}</Badge></td>
-                        <td className="p-2">{o.payment_method === "cash" ? "نقدي" : "إلكتروني"}</td>
-                        <td className="p-2 text-xs">{o.delivered_at ? formatDate(o.delivered_at) : "—"}</td>
-                        <td className="p-2 font-semibold">{fmt(o.total)} ج</td>
-                      </tr>
-                    ))}
-                    {filtered.length === 0 && (
-                      <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">لا توجد أوردرات بانتظار التحصيل</td></tr>
+                    {history.map((b) => {
+                      const v = Number(b.actual_total) - Number(b.expected_total);
+                      return (
+                        <tr key={b.id} className="border-b hover:bg-muted/30">
+                          <td className="p-2 text-xs">{formatDate(b.collected_at)}</td>
+                          <td className="p-2"><Badge variant="outline">{b.rep_name}</Badge></td>
+                          <td className="p-2 text-xs">{b.collector_name}</td>
+                          <td className="p-2">{b.delivery_collection_batch_orders?.length || 0}</td>
+                          <td className="p-2">{fmt(b.expected_total)} ج</td>
+                          <td className="p-2 font-semibold">{fmt(b.actual_total)} ج</td>
+                          <td className="p-2 text-xs">
+                            {Math.abs(v) > 0.001 ? (
+                              <span className={v > 0 ? "text-green-700" : "text-orange-700"}>
+                                {v > 0 ? `+${fmt(v)}` : fmt(v)} — {b.variance_reason || "-"}
+                              </span>
+                            ) : "—"}
+                          </td>
+                          <td className="p-2 text-xs text-muted-foreground">{b.notes || "—"}</td>
+                        </tr>
+                      );
+                    })}
+                    {history.length === 0 && (
+                      <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">
+                        {historyLoading ? "جارٍ التحميل..." : "لا توجد دفعات سابقة"}
+                      </td></tr>
                     )}
                   </tbody>
                 </table>
               </div>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
