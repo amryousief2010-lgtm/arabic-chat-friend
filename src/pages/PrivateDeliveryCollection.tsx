@@ -40,6 +40,9 @@ const PrivateDeliveryCollection = () => {
   const [reason, setReason] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [tab, setTab] = useState<"pending" | "history">("pending");
+  const [history, setHistory] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const load = async () => {
     setLoading(true);
