@@ -40,9 +40,16 @@ const formatPackages = (kg: number, name: string): string => {
 };
 
 const WarehouseStockView = ({ scope = "both" }: Props) => {
+  const { isExecutiveManager, isGeneralManager } = useAuth();
+  const canEdit = isExecutiveManager || isGeneralManager;
   const [products, setProducts] = useState<Product[]>([]);
   const [agouzaStock, setAgouzaStock] = useState<Record<string, number>>({});
   const [mainStock, setMainStock] = useState<Record<string, number>>({});
+  // معرّفات صفوف inventory_items لكل (مخزن، منتج) لاستخدامها عند الحفظ
+  const [agouzaItemIds, setAgouzaItemIds] = useState<Record<string, string>>({});
+  const [mainItemIds, setMainItemIds] = useState<Record<string, string>>({});
+  const [agouzaWhId, setAgouzaWhId] = useState<string | null>(null);
+  const [mainWhId, setMainWhId] = useState<string | null>(null);
   // الكميات المحجوزة على طلبات لم تُسلَّم/تُلغَ بعد، حسب مصدر التنفيذ
   const [agouzaPending, setAgouzaPending] = useState<Record<string, number>>({});
   const [mainPending, setMainPending] = useState<Record<string, number>>({});
@@ -50,6 +57,10 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
   const [loading, setLoading] = useState(true);
   // وضع العرض: قبل الطلبات (الكمية الفعلية في المخزن) أو بعد خصم الطلبات الجارية
   const [mode, setMode] = useState<"raw" | "after_orders">("raw");
+  // حالة التحرير: مفتاح "wh:productId"
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState<string>("");
+  const [saving, setSaving] = useState(false);
 
   const fetchAll = async () => {
     setLoading(true);
