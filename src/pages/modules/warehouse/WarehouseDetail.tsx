@@ -53,7 +53,8 @@ const WarehouseDetail = () => {
   const fetchAll = async () => {
     if (!id) return;
     setLoading(true);
-    const sinceISO = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
+    // نافذة الاحتياج = آخر 24 ساعة + كل الأوردرات المعلقة (غير المسلَّمة/الملغاة) بصرف النظر عن تاريخها
+    const sinceISO = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
     const [w, all, it, mv, oi, tr] = await Promise.all([
       supabase.from("warehouses").select("*").eq("id", id).maybeSingle(),
       supabase.from("warehouses").select("*").order("name"),
@@ -65,7 +66,7 @@ const WarehouseDetail = () => {
         .limit(300),
       supabase.from("order_items")
         .select("product_name, quantity, orders!inner(created_at, status, customer:customers(governorate))")
-        .gte("orders.created_at", sinceISO)
+        .or(`created_at.gte.${sinceISO},status.in.(pending,confirmed,processing,ready,shipped,out_for_delivery)`, { foreignTable: "orders" })
         .neq("orders.status", "cancelled")
         .limit(2000),
       supabase.from("warehouse_transfers")
