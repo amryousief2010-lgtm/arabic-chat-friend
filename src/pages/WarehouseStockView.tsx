@@ -409,15 +409,15 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
                     {scope !== "main" && (
                       <div>
                         <div className="text-muted-foreground mb-1">العجوزة</div>
-                        <div className="flex justify-center"><EditCell wh="agouza" pid={p.id} value={a} /></div>
-                        <div className="text-[10px] text-muted-foreground mt-1">{formatPackages(a, p.name)}</div>
+                        <div className="flex justify-center"><KgCell value={a} /></div>
+                        <div className="mt-1 flex justify-center"><PackagesCell wh="agouza" pid={p.id} name={p.name} kgValue={a} /></div>
                       </div>
                     )}
                     {scope !== "agouza" && (
                       <div>
                         <div className="text-muted-foreground mb-1">الرئيسي</div>
-                        <div className="flex justify-center"><EditCell wh="main" pid={p.id} value={m} /></div>
-                        <div className="text-[10px] text-muted-foreground mt-1">{formatPackages(m, p.name)}</div>
+                        <div className="flex justify-center"><KgCell value={m} /></div>
+                        <div className="mt-1 flex justify-center"><PackagesCell wh="main" pid={p.id} name={p.name} kgValue={m} /></div>
                       </div>
                     )}
                     {scope === "both" && (
