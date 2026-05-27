@@ -164,6 +164,25 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
                   className="pr-9"
                 />
               </div>
+              {/* مفتاح التبديل: قبل/بعد الطلبات الجارية */}
+              <div className="inline-flex rounded-md border bg-background overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setMode("raw")}
+                  className={`px-3 h-8 text-xs transition ${mode === "raw" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                  title="المتاح الحالي في المخزن قبل خصم الطلبات الجارية"
+                >
+                  بدون الطلبات
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode("after_orders")}
+                  className={`px-3 h-8 text-xs border-r transition ${mode === "after_orders" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                  title="المتاح بعد خصم الطلبات الجارية (غير المُسلَّمة/المُلغاة)"
+                >
+                  بعد الطلبات
+                </button>
+              </div>
               <Button size="sm" variant="outline" onClick={fetchAll} disabled={loading}>
                 <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
               </Button>
