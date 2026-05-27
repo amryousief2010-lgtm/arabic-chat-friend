@@ -891,9 +891,14 @@ const NewOrder = () => {
         toast.success(`تم إنشاء الطلب رقم ${orderNumberData} بنجاح`);
       }
       navigate('/orders');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating order:', error);
-      toast.error('حدث خطأ أثناء إنشاء الطلب');
+      const msg = String(error?.message || '');
+      if (msg.includes('DUPLICATE_ORDER_REQUIRES_APPROVAL')) {
+        setApprovalDialog({ open: true, status: 'idle' });
+      } else {
+        toast.error('حدث خطأ أثناء إنشاء الطلب');
+      }
     } finally {
       setSubmitting(false);
     }
