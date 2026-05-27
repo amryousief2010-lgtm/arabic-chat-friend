@@ -43,6 +43,7 @@ const WarehouseDetail = () => {
   const [supplyDialog, setSupplyDialog] = useState(false);
   const [supplyQty, setSupplyQty] = useState<Record<string, number>>({});
   const [transfers, setTransfers] = useState<any[]>([]);
+  const [outletOrders, setOutletOrders] = useState<any[]>([]);
   const [receiveDialog, setReceiveDialog] = useState<any>(null); // transfer obj
   const [receiveLines, setReceiveLines] = useState<Record<string, { qty: number; notes: string }>>({});
   const [receiveHeaderNotes, setReceiveHeaderNotes] = useState("");
