@@ -1,0 +1,5 @@
+CREATE POLICY "Agouza keeper can view outlet orders" ON public.orders FOR SELECT USING (has_role(auth.uid(), 'agouza_warehouse_keeper'::app_role) AND source_warehouse_id IN (SELECT id FROM public.warehouses WHERE name LIKE '%العجوزة%'));
+
+CREATE POLICY "Agouza keeper can view outlet order items" ON public.order_items FOR SELECT USING (has_role(auth.uid(), 'agouza_warehouse_keeper'::app_role) AND EXISTS (SELECT 1 FROM public.orders o JOIN public.warehouses w ON w.id = o.source_warehouse_id WHERE o.id = order_items.order_id AND w.name LIKE '%العجوزة%'));
+
+CREATE POLICY "Agouza keeper can view outlet customers" ON public.customers FOR SELECT USING (has_role(auth.uid(), 'agouza_warehouse_keeper'::app_role) AND EXISTS (SELECT 1 FROM public.orders o JOIN public.warehouses w ON w.id = o.source_warehouse_id WHERE o.customer_id = customers.id AND w.name LIKE '%العجوزة%'));
