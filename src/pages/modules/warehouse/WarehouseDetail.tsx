@@ -175,6 +175,19 @@ const WarehouseDetail = () => {
       title: "تم تقديم الطلب للموافقة",
       description: `رقم الطلب ${result?.transfer_no} • ${result?.lines} صنف • بانتظار موافقة الإدارة / مشرف المخازن`,
     });
+    // طباعة فورية للكميات المطلوبة من المخزن الرئيسي
+    try {
+      const printLines = requested.map(([name, qty]) => {
+        const need = supplyNeeds.find(n => n.name === name);
+        return { name, qty: Number(qty), unit: need?.unit || "قطعة" };
+      });
+      printSupplyRequest(printLines, {
+        transferNo: result?.transfer_no,
+        fromWarehouse: mainWarehouse?.name,
+        toWarehouse: warehouse?.name,
+        notes: `طلب توريد ${warehouse?.name || ""} - ${new Date().toLocaleDateString("ar-EG")}`,
+      });
+    } catch {}
     setSupplyDialog(false);
     fetchAll();
   };
