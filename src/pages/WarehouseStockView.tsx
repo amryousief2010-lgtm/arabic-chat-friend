@@ -73,22 +73,28 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
       const whs = wRes.data || [];
       const agouza = whs.find((w: any) => w.name?.includes("العجوزة"));
       const main = whs.find((w: any) => w.name?.includes("الرئيسي") || w.name?.includes("المقر"));
+      setAgouzaWhId(agouza?.id ?? null);
+      setMainWhId(main?.id ?? null);
       const whIds = [agouza?.id, main?.id].filter(Boolean) as string[];
       if (whIds.length > 0) {
         const { data: invRows } = await supabase
           .from("inventory_items")
-          .select("warehouse_id, product_id, stock, reserved_qty, blocked_qty")
+          .select("id, warehouse_id, product_id, stock, reserved_qty, blocked_qty")
           .in("warehouse_id", whIds)
           .not("product_id", "is", null);
         const ag: Record<string, number> = {};
         const mn: Record<string, number> = {};
+        const agIds: Record<string, string> = {};
+        const mnIds: Record<string, string> = {};
         (invRows || []).forEach((r: any) => {
           const avail = Number(r.stock || 0) - Number(r.reserved_qty || 0) - Number(r.blocked_qty || 0);
-          if (r.warehouse_id === agouza?.id) ag[r.product_id] = (ag[r.product_id] || 0) + avail;
-          if (r.warehouse_id === main?.id) mn[r.product_id] = (mn[r.product_id] || 0) + avail;
+          if (r.warehouse_id === agouza?.id) { ag[r.product_id] = (ag[r.product_id] || 0) + avail; agIds[r.product_id] = r.id; }
+          if (r.warehouse_id === main?.id) { mn[r.product_id] = (mn[r.product_id] || 0) + avail; mnIds[r.product_id] = r.id; }
         });
         setAgouzaStock(ag);
         setMainStock(mn);
+        setAgouzaItemIds(agIds);
+        setMainItemIds(mnIds);
 
         // الطلبات الجارية المحجوزة على كل مخزن — أي أوردر لم يُسلَّم/يُلغَ
         // يُخصم من المتاح، بصرف النظر عن تاريخه (يشمل الـ 16 أوردر القديمة المعلقة).
