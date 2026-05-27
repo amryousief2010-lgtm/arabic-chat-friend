@@ -81,6 +81,7 @@ const roleLabels: Record<AppRole, string> = {
   quality_manager: 'مدير الجودة',
   shipping_company: 'شركة الشحن',
   private_delivery_rep: 'مندوب شحن خاص',
+  agouza_warehouse_keeper: 'مسؤول مخزن العجوزة',
 };
 
 const roleBadgeVariants: Record<AppRole, 'default' | 'secondary' | 'outline' | 'destructive'> = {
@@ -103,6 +104,7 @@ const roleBadgeVariants: Record<AppRole, 'default' | 'secondary' | 'outline' | '
   quality_manager: 'default',
   shipping_company: 'outline',
   private_delivery_rep: 'outline',
+  agouza_warehouse_keeper: 'outline',
 };
 
 const roleIcons: Record<AppRole, React.ElementType> = {
@@ -125,6 +127,7 @@ const roleIcons: Record<AppRole, React.ElementType> = {
   quality_manager: Shield,
   shipping_company: Truck,
   private_delivery_rep: Truck,
+  agouza_warehouse_keeper: Warehouse,
 };
 
 const addEmployeeSchema = z.object({
