@@ -136,13 +136,12 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
 
   useEffect(() => { fetchAll(); }, []);
 
-  // حفظ تعديل الرصيد لمنتج في مخزن. القيمة المُدخلة تُفسَّر حسب وضع العرض.
-  const saveStock = async (wh: "agouza" | "main", productId: string) => {
-    const raw = parseFloat(editValue.replace(",", "."));
-    if (isNaN(raw) || raw < 0) { toast.error("أدخل قيمة صحيحة"); return; }
+  // حفظ تعديل الرصيد لمنتج في مخزن. القيمة المُدخلة بالكيلو وتُفسَّر حسب وضع العرض.
+  const saveStock = async (wh: "agouza" | "main", productId: string, newDisplayKg: number) => {
+    if (isNaN(newDisplayKg) || newDisplayKg < 0) { toast.error("أدخل قيمة صحيحة"); return; }
     const pending = (wh === "agouza" ? agouzaPending : mainPending)[productId] ?? 0;
     // عند العرض "بعد الطلبات"، المُدخل هو المتاح بعد الخصم → الرصيد الفعلي = المُدخل + المعلق
-    const newStock = mode === "after_orders" ? raw + pending : raw;
+    const newStock = mode === "after_orders" ? newDisplayKg + pending : newDisplayKg;
     const whId = wh === "agouza" ? agouzaWhId : mainWhId;
     if (!whId) return;
     const itemId = (wh === "agouza" ? agouzaItemIds : mainItemIds)[productId];
@@ -175,30 +174,37 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
     }
   };
 
-  const startEdit = (wh: "agouza" | "main", productId: string, currentDisplay: number) => {
-    setEditingKey(`${wh}:${productId}`);
-    setEditValue(String(currentDisplay));
-  };
+  // خلية عرض الكيلو (للقراءة فقط)
+  const KgCell = ({ value }: { value: number }) => (
+    <Badge variant={value <= 0 ? "destructive" : "outline"}>{value}</Badge>
+  );
 
-  const EditCell = ({ wh, pid, value }: { wh: "agouza" | "main"; pid: string; value: number }) => {
+  // خلية العبوات: تعرض عدد العبوات، وعند المدير العام/التنفيذي يمكن تحريرها بالعبوة
+  // فيتم تحويلها للكيلو حسب وزن العبوة قبل الحفظ.
+  const PackagesCell = ({ wh, pid, name, kgValue }: { wh: "agouza" | "main"; pid: string; name: string; kgValue: number }) => {
+    const per = kgPerPackage(name) || 0.5;
     const key = `${wh}:${pid}`;
     const isEditing = editingKey === key;
     if (isEditing) {
+      const parsed = parseFloat(editValue.replace(",", "."));
+      const previewKg = isNaN(parsed) ? 0 : parsed * per;
       return (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 justify-end">
           <Input
             type="number"
-            step="0.5"
+            step="1"
+            min="0"
             value={editValue}
             onChange={(e) => setEditValue(e.target.value)}
             className="h-7 w-20 text-xs"
             autoFocus
             onKeyDown={(e) => {
-              if (e.key === "Enter") saveStock(wh, pid);
+              if (e.key === "Enter") saveStock(wh, pid, previewKg);
               if (e.key === "Escape") setEditingKey(null);
             }}
           />
-          <button className="text-green-600 disabled:opacity-50" disabled={saving} onClick={() => saveStock(wh, pid)}>
+          <span className="text-[10px] text-muted-foreground whitespace-nowrap">عبوة = {previewKg} كجم</span>
+          <button className="text-green-600 disabled:opacity-50" disabled={saving} onClick={() => saveStock(wh, pid, previewKg)}>
             <Check className="w-4 h-4" />
           </button>
           <button className="text-muted-foreground" onClick={() => setEditingKey(null)}>
@@ -207,14 +213,15 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
         </div>
       );
     }
+    const pkgs = per > 0 ? Math.round((kgValue / per) * 100) / 100 : 0;
     return (
-      <div className="flex items-center gap-1">
-        <Badge variant={value <= 0 ? "destructive" : "outline"}>{value}</Badge>
+      <div className="flex items-center gap-1 justify-end">
+        <span className="text-xs text-muted-foreground whitespace-nowrap">{pkgs} عبوة</span>
         {canEdit && (
           <button
             className="text-muted-foreground hover:text-primary opacity-60 hover:opacity-100"
-            title="تعديل الرصيد"
-            onClick={() => startEdit(wh, pid, value)}
+            title="تعديل عدد العبوات"
+            onClick={() => { setEditingKey(key); setEditValue(String(pkgs)); }}
           >
             <Pencil className="w-3 h-3" />
           </button>
@@ -222,6 +229,8 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
       </div>
     );
   };
+
+
 
 
   // الكميات الظاهرة (مع/بدون خصم الطلبات الجارية)
@@ -360,20 +369,16 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
                       <td className="p-2 font-bold text-green-600 dark:text-green-400">{p.name}</td>
                       <td className="p-2 text-muted-foreground">{p.unit}</td>
                       {scope !== "main" && (
-                        <td className="p-2">
-                          <EditCell wh="agouza" pid={p.id} value={a} />
-                        </td>
+                        <td className="p-2"><KgCell value={a} /></td>
                       )}
                       {scope !== "main" && (
-                        <td className="p-2 text-xs text-muted-foreground whitespace-nowrap">{formatPackages(a, p.name)}</td>
+                        <td className="p-2"><PackagesCell wh="agouza" pid={p.id} name={p.name} kgValue={a} /></td>
                       )}
                       {scope !== "agouza" && (
-                        <td className="p-2">
-                          <EditCell wh="main" pid={p.id} value={m} />
-                        </td>
+                        <td className="p-2"><KgCell value={m} /></td>
                       )}
                       {scope !== "agouza" && (
-                        <td className="p-2 text-xs text-muted-foreground whitespace-nowrap">{formatPackages(m, p.name)}</td>
+                        <td className="p-2"><PackagesCell wh="main" pid={p.id} name={p.name} kgValue={m} /></td>
                       )}
                       {scope === "both" && (
                         <td className="p-2 font-bold text-primary">{a + m}</td>
@@ -404,15 +409,15 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
                     {scope !== "main" && (
                       <div>
                         <div className="text-muted-foreground mb-1">العجوزة</div>
-                        <div className="flex justify-center"><EditCell wh="agouza" pid={p.id} value={a} /></div>
-                        <div className="text-[10px] text-muted-foreground mt-1">{formatPackages(a, p.name)}</div>
+                        <div className="flex justify-center"><KgCell value={a} /></div>
+                        <div className="mt-1 flex justify-center"><PackagesCell wh="agouza" pid={p.id} name={p.name} kgValue={a} /></div>
                       </div>
                     )}
                     {scope !== "agouza" && (
                       <div>
                         <div className="text-muted-foreground mb-1">الرئيسي</div>
-                        <div className="flex justify-center"><EditCell wh="main" pid={p.id} value={m} /></div>
-                        <div className="text-[10px] text-muted-foreground mt-1">{formatPackages(m, p.name)}</div>
+                        <div className="flex justify-center"><KgCell value={m} /></div>
+                        <div className="mt-1 flex justify-center"><PackagesCell wh="main" pid={p.id} name={p.name} kgValue={m} /></div>
                       </div>
                     )}
                     {scope === "both" && (
