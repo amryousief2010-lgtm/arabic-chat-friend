@@ -956,6 +956,15 @@ const Orders = () => {
                         <MapPin className="w-3 h-3" /> {order.governorate}
                       </div>
                     )}
+                    {(order.source_warehouse_name || order.fulfillment_type || order.shipping_company) && (
+                      <div className="text-[11px]">
+                        <Badge variant="outline" className="text-[10px]">
+                          {order.fulfillment_type === 'pickup' ? 'استلام من ' : order.fulfillment_type === 'delivery' ? 'توصيل من ' : ''}
+                          {order.source_warehouse_name || order.shipping_company || '-'}
+                          {order.fulfillment_type === 'delivery' && order.source_warehouse_name?.includes('الرئيسي') ? ' • مندوب خاص (كيمو)' : ''}
+                        </Badge>
+                      </div>
+                    )}
                     <div className="flex items-center justify-end gap-1 pt-1">
                        <Button variant="ghost" size="icon" asChild className="h-8 w-8">
                          <Link to={`/orders/${order.id}`}><Eye className="w-4 h-4" /></Link>
