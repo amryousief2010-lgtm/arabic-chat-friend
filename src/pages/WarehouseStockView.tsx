@@ -42,6 +42,7 @@ const formatPackages = (kg: number, name: string): string => {
 
 const WarehouseStockView = ({ scope = "both" }: Props) => {
   const { isExecutiveManager, isGeneralManager, canManageAgouzaStock, isAgouzaWarehouseKeeper } = useAuth();
+  const navigate = useNavigate();
   const canEditAll = isExecutiveManager || isGeneralManager;
   const canEditAgouza = canManageAgouzaStock;
   const [products, setProducts] = useState<Product[]>([]);
