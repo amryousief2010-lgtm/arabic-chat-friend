@@ -174,3 +174,46 @@ export const printWarehouseStock = (
   `;
   openPrint(title, body);
 };
+
+export interface PrintSupplyLine {
+  name: string;
+  qty: number;
+  unit?: string;
+}
+
+export const printSupplyRequest = (
+  lines: PrintSupplyLine[],
+  opts?: { transferNo?: string; fromWarehouse?: string; toWarehouse?: string; notes?: string }
+) => {
+  const now = new Date().toLocaleString("ar-EG");
+  const title = `طلب توريد${opts?.transferNo ? ` رقم ${opts.transferNo}` : ""}`;
+  const total = lines.reduce((s, l) => s + (Number(l.qty) || 0), 0);
+  const body = `
+    <div class="header">
+      <div class="brand">العاصمة للنعام<small>Capital Ostrich</small></div>
+      <div class="doc-title">${title}</div>
+    </div>
+    <div class="meta">
+      <div><b>التاريخ:</b> ${now}</div>
+      ${opts?.transferNo ? `<div><b>رقم الطلب:</b> ${opts.transferNo}</div>` : ""}
+      ${opts?.fromWarehouse ? `<div><b>من:</b> ${opts.fromWarehouse}</div>` : ""}
+      ${opts?.toWarehouse ? `<div><b>إلى:</b> ${opts.toWarehouse}</div>` : ""}
+      <div><b>عدد الأصناف:</b> ${lines.length}</div>
+    </div>
+    <table>
+      <thead><tr><th style="width:40px">#</th><th>الصنف</th><th style="width:120px">الكمية المطلوبة</th><th style="width:80px">الوحدة</th></tr></thead>
+      <tbody>${lines.map((l, i) => `<tr><td>${i + 1}</td><td>${l.name}</td><td><b>${fmt(l.qty)}</b></td><td>${l.unit || "-"}</td></tr>`).join("")}</tbody>
+      <tfoot><tr><td colspan="2">الإجمالي</td><td><b>${fmt(total)}</b></td><td>-</td></tr></tfoot>
+    </table>
+    ${opts?.notes ? `<div class="note"><b>ملاحظات:</b> ${opts.notes}</div>` : ""}
+    <div style="margin-top:40px; display:grid; grid-template-columns:1fr 1fr; gap:40px; font-size:13px;">
+      <div><b>توقيع طالب التوريد (العجوزة):</b><div style="margin-top:30px; border-top:1px solid #333;"></div></div>
+      <div><b>توقيع المستلم بالمخزن الرئيسي:</b><div style="margin-top:30px; border-top:1px solid #333;"></div></div>
+    </div>
+    <div class="footer">
+      <div>العاصمة للنعام — ${title}</div>
+      <div>طُبعت في: ${now}</div>
+    </div>
+  `;
+  openPrint(title, body);
+};

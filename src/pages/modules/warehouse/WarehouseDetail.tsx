@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { formatDateTime } from "@/lib/dateFormat";
+import { printSupplyRequest } from "@/lib/printUtils";
 import * as XLSX from "xlsx";
 
 const warehouseTypes: Record<string, string> = {
@@ -174,6 +175,19 @@ const WarehouseDetail = () => {
       title: "تم تقديم الطلب للموافقة",
       description: `رقم الطلب ${result?.transfer_no} • ${result?.lines} صنف • بانتظار موافقة الإدارة / مشرف المخازن`,
     });
+    // طباعة فورية للكميات المطلوبة من المخزن الرئيسي
+    try {
+      const printLines = requested.map(([name, qty]) => {
+        const need = supplyNeeds.find(n => n.name === name);
+        return { name, qty: Number(qty), unit: need?.unit || "قطعة" };
+      });
+      printSupplyRequest(printLines, {
+        transferNo: result?.transfer_no,
+        fromWarehouse: mainWarehouse?.name,
+        toWarehouse: warehouse?.name,
+        notes: `طلب توريد ${warehouse?.name || ""} - ${new Date().toLocaleDateString("ar-EG")}`,
+      });
+    } catch {}
     setSupplyDialog(false);
     fetchAll();
   };
@@ -467,6 +481,14 @@ const WarehouseDetail = () => {
                       ))}
                     </TableBody>
                   </Table>
+                  <div className="p-3 border-t flex justify-end">
+                    <Button size="sm" variant="outline" onClick={() => printSupplyRequest(
+                      (t.items || []).map((li: any) => ({ name: li.item_name, qty: Number(li.requested_qty), unit: li.unit })),
+                      { transferNo: t.transfer_no, fromWarehouse: t.source?.name, toWarehouse: t.destination?.name, notes: t.notes }
+                    )}>
+                      طباعة الكميات المطلوبة
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))}
