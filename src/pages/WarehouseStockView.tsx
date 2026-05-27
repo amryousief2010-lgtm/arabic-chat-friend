@@ -41,8 +41,13 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [agouzaStock, setAgouzaStock] = useState<Record<string, number>>({});
   const [mainStock, setMainStock] = useState<Record<string, number>>({});
+  // الكميات المحجوزة على طلبات لم تُسلَّم/تُلغَ بعد، حسب مصدر التنفيذ
+  const [agouzaPending, setAgouzaPending] = useState<Record<string, number>>({});
+  const [mainPending, setMainPending] = useState<Record<string, number>>({});
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  // وضع العرض: قبل الطلبات (الكمية الفعلية في المخزن) أو بعد خصم الطلبات الجارية
+  const [mode, setMode] = useState<"raw" | "after_orders">("raw");
 
   const fetchAll = async () => {
     setLoading(true);
@@ -71,6 +76,37 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
         });
         setAgouzaStock(ag);
         setMainStock(mn);
+
+        // الطلبات الجارية (غير المُسلَّمة/المُلغاة) المحجوزة على كل مخزن
+        const { data: pendOrders } = await supabase
+          .from("orders")
+          .select("id, source_warehouse_id, status")
+          .in("source_warehouse_id", whIds)
+          .not("status", "in", "(delivered,cancelled)");
+        const orderIds = (pendOrders || []).map((o: any) => o.id);
+        const whByOrder: Record<string, string> = Object.fromEntries(
+          (pendOrders || []).map((o: any) => [o.id, o.source_warehouse_id])
+        );
+        const agPend: Record<string, number> = {};
+        const mnPend: Record<string, number> = {};
+        if (orderIds.length > 0) {
+          for (let i = 0; i < orderIds.length; i += 500) {
+            const slice = orderIds.slice(i, i + 500);
+            const { data: items } = await supabase
+              .from("order_items")
+              .select("order_id, product_id, quantity")
+              .in("order_id", slice)
+              .not("product_id", "is", null);
+            (items || []).forEach((it: any) => {
+              const wh = whByOrder[it.order_id];
+              const qty = Number(it.quantity || 0);
+              if (wh === agouza?.id) agPend[it.product_id] = (agPend[it.product_id] || 0) + qty;
+              if (wh === main?.id) mnPend[it.product_id] = (mnPend[it.product_id] || 0) + qty;
+            });
+          }
+        }
+        setAgouzaPending(agPend);
+        setMainPending(mnPend);
       }
     } finally {
       setLoading(false);
@@ -79,13 +115,31 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
 
   useEffect(() => { fetchAll(); }, []);
 
+  // الكميات الظاهرة (مع/بدون خصم الطلبات الجارية)
+  const displayAgouza = useMemo(() => {
+    if (mode === "raw") return agouzaStock;
+    const out: Record<string, number> = {};
+    Object.keys({ ...agouzaStock, ...agouzaPending }).forEach((id) => {
+      out[id] = (agouzaStock[id] ?? 0) - (agouzaPending[id] ?? 0);
+    });
+    return out;
+  }, [mode, agouzaStock, agouzaPending]);
+  const displayMain = useMemo(() => {
+    if (mode === "raw") return mainStock;
+    const out: Record<string, number> = {};
+    Object.keys({ ...mainStock, ...mainPending }).forEach((id) => {
+      out[id] = (mainStock[id] ?? 0) - (mainPending[id] ?? 0);
+    });
+    return out;
+  }, [mode, mainStock, mainPending]);
+
   const filtered = useMemo(() => {
     const q = search.trim();
     const list = q ? products.filter(p => p.name?.includes(q) || p.category?.includes(q)) : products;
-    if (scope === "agouza") return list.filter(p => (agouzaStock[p.id] ?? 0) !== 0 || !q);
-    if (scope === "main") return list.filter(p => (mainStock[p.id] ?? 0) !== 0 || !q);
+    if (scope === "agouza") return list.filter(p => (displayAgouza[p.id] ?? 0) !== 0 || !q);
+    if (scope === "main") return list.filter(p => (displayMain[p.id] ?? 0) !== 0 || !q);
     return list;
-  }, [products, search, scope, agouzaStock, mainStock]);
+  }, [products, search, scope, displayAgouza, displayMain]);
 
   const { title, subtitle } = titleMap[scope];
 
@@ -110,6 +164,25 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
                   className="pr-9"
                 />
               </div>
+              {/* مفتاح التبديل: قبل/بعد الطلبات الجارية */}
+              <div className="inline-flex rounded-md border bg-background overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setMode("raw")}
+                  className={`px-3 h-8 text-xs transition ${mode === "raw" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                  title="المتاح الحالي في المخزن قبل خصم الطلبات الجارية"
+                >
+                  بدون الطلبات
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode("after_orders")}
+                  className={`px-3 h-8 text-xs border-r transition ${mode === "after_orders" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                  title="المتاح بعد خصم الطلبات الجارية (غير المُسلَّمة/المُلغاة)"
+                >
+                  بعد الطلبات
+                </button>
+              </div>
               <Button size="sm" variant="outline" onClick={fetchAll} disabled={loading}>
                 <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
               </Button>
@@ -117,8 +190,8 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
                 const rows = filtered.map(p => ({
                   name: p.name,
                   unit: p.unit,
-                  agouza: agouzaStock[p.id] ?? 0,
-                  main: mainStock[p.id] ?? 0,
+                  agouza: displayAgouza[p.id] ?? 0,
+                  main: displayMain[p.id] ?? 0,
                 }));
                 const filter = search.trim() || undefined;
                 const btn = "inline-flex items-center gap-1 h-8 px-3 text-xs rounded-md border bg-background hover:bg-muted transition";
@@ -171,8 +244,8 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
               </thead>
               <tbody>
                 {filtered.map((p) => {
-                  const a = agouzaStock[p.id] ?? 0;
-                  const m = mainStock[p.id] ?? 0;
+                  const a = displayAgouza[p.id] ?? 0;
+                  const m = displayMain[p.id] ?? 0;
                   return (
                     <tr key={p.id} className="border-t hover:bg-muted/30">
                       <td className="p-2 font-bold text-green-600 dark:text-green-400">{p.name}</td>
@@ -212,8 +285,8 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
           {/* Mobile cards */}
           <div className="md:hidden space-y-2">
             {filtered.map((p) => {
-              const a = agouzaStock[p.id] ?? 0;
-              const m = mainStock[p.id] ?? 0;
+              const a = displayAgouza[p.id] ?? 0;
+              const m = displayMain[p.id] ?? 0;
               return (
                 <div key={p.id} className="border rounded-lg p-3 bg-card">
                   <div className="font-bold text-green-600 dark:text-green-400 mb-1">{p.name}</div>
