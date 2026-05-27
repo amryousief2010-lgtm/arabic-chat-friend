@@ -77,12 +77,16 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
         setAgouzaStock(ag);
         setMainStock(mn);
 
-        // الطلبات الجارية (غير المُسلَّمة/المُلغاة) المحجوزة على كل مخزن
+        // الطلبات الجارية المحجوزة على كل مخزن — نبدأ السحب من المخزن
+        // فقط للطلبات المُسجَّلة من 27/5/2026 وما بعد (طلب صاحب النظام).
+        const CUTOFF = "2026-05-27T00:00:00Z";
         const { data: pendOrders } = await supabase
           .from("orders")
           .select("id, source_warehouse_id, status")
           .in("source_warehouse_id", whIds)
-          .not("status", "in", "(delivered,cancelled)");
+          .not("status", "in", "(delivered,cancelled)")
+          .gte("created_at", CUTOFF);
+
         const orderIds = (pendOrders || []).map((o: any) => o.id);
         const whByOrder: Record<string, string> = Object.fromEntries(
           (pendOrders || []).map((o: any) => [o.id, o.source_warehouse_id])
