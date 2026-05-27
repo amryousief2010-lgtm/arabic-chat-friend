@@ -339,6 +339,21 @@ const Orders = () => {
         );
       }
 
+      // Map warehouse ids → names for "مصدر التنفيذ"
+      const warehouseIds = Array.from(
+        new Set((ordersData || []).map((o: any) => o.source_warehouse_id).filter(Boolean))
+      );
+      let warehousesMap: Record<string, string> = {};
+      if (warehouseIds.length > 0) {
+        const { data: whData } = await supabase
+          .from('warehouses')
+          .select('id, name')
+          .in('id', warehouseIds as string[]);
+        warehousesMap = Object.fromEntries(
+          (whData || []).map((w: any) => [w.id, w.name])
+        );
+      }
+
       const formattedOrders: Order[] = (ordersData || []).map(order => ({
         id: order.id,
         order_number: order.order_number,
