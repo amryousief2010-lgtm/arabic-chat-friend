@@ -369,20 +369,16 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
                       <td className="p-2 font-bold text-green-600 dark:text-green-400">{p.name}</td>
                       <td className="p-2 text-muted-foreground">{p.unit}</td>
                       {scope !== "main" && (
-                        <td className="p-2">
-                          <EditCell wh="agouza" pid={p.id} value={a} />
-                        </td>
+                        <td className="p-2"><KgCell value={a} /></td>
                       )}
                       {scope !== "main" && (
-                        <td className="p-2 text-xs text-muted-foreground whitespace-nowrap">{formatPackages(a, p.name)}</td>
+                        <td className="p-2"><PackagesCell wh="agouza" pid={p.id} name={p.name} kgValue={a} /></td>
                       )}
                       {scope !== "agouza" && (
-                        <td className="p-2">
-                          <EditCell wh="main" pid={p.id} value={m} />
-                        </td>
+                        <td className="p-2"><KgCell value={m} /></td>
                       )}
                       {scope !== "agouza" && (
-                        <td className="p-2 text-xs text-muted-foreground whitespace-nowrap">{formatPackages(m, p.name)}</td>
+                        <td className="p-2"><PackagesCell wh="main" pid={p.id} name={p.name} kgValue={m} /></td>
                       )}
                       {scope === "both" && (
                         <td className="p-2 font-bold text-primary">{a + m}</td>
