@@ -1970,6 +1970,55 @@ const NewOrder = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Duplicate order approval dialog */}
+      <Dialog open={approvalDialog.open} onOpenChange={(o) => setApprovalDialog((s) => ({ ...s, open: o }))}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>يلزم موافقة مديرة التسويق</DialogTitle>
+            <DialogDescription>
+              العميل ده عنده طلب اليوم من بنت تانية. عشان متبقاش فيه تكرار، لازم موافقة مديرة التسويق آلاء حامد قبل تسجيل الطلب.
+            </DialogDescription>
+          </DialogHeader>
+
+          {approvalDialog.status === 'pending' && (
+            <div className="rounded-md border bg-amber-50 dark:bg-amber-950/30 p-3 text-sm text-amber-800 dark:text-amber-200">
+              طلب الموافقة اتبعت بالفعل ومستنى الرد. هترجعى تسجلى الطلب أول ما يتم القبول.
+            </div>
+          )}
+          {approvalDialog.status === 'rejected' && (
+            <div className="rounded-md border bg-destructive/10 p-3 text-sm">
+              <div className="font-semibold text-destructive mb-1">تم رفض الطلب السابق</div>
+              {approvalDialog.reason && <div className="text-muted-foreground">{approvalDialog.reason}</div>}
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setApprovalDialog({ open: false, status: 'idle' })}>
+              إغلاق
+            </Button>
+            {approvalDialog.status !== 'pending' && (
+              <Button
+                onClick={async () => {
+                  if (!selectedCustomer?.id) return;
+                  const { error } = await supabase.rpc('request_duplicate_order_approval', {
+                    p_customer_id: selectedCustomer.id,
+                    p_note: notes.trim() || null,
+                  });
+                  if (error) {
+                    toast.error('تعذر إرسال طلب الموافقة');
+                  } else {
+                    toast.success('تم إرسال طلب الموافقة لمديرة التسويق آلاء حامد');
+                    setApprovalDialog({ open: false, status: 'pending' });
+                  }
+                }}
+              >
+                اطلب الموافقة
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };
