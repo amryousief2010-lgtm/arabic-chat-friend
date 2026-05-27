@@ -307,6 +307,16 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
               <Button size="sm" variant="outline" onClick={fetchAll} disabled={loading}>
                 <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
               </Button>
+              {scope === "agouza" && (isAgouzaWarehouseKeeper || canEditAll) && agouzaWhId && (
+                <Button
+                  size="sm"
+                  className="gap-1"
+                  onClick={() => navigate(`/modules/warehouses/${agouzaWhId}`)}
+                >
+                  <ArrowLeftRight className="w-4 h-4" />
+                  طلب تحويل من الرئيسي
+                </Button>
+              )}
               {(() => {
                 const rows = filtered.map(p => ({
                   name: p.name,
