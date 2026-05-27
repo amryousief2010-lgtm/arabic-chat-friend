@@ -1748,21 +1748,6 @@ const NewOrder = () => {
                       </p>
                     </div>
 
-                    {/* Shipping Company */}
-                    <div className="space-y-2">
-                      <Label>شركة الشحن</Label>
-                      <Select value={shippingCompany} onValueChange={setShippingCompany}>
-                        <SelectTrigger><SelectValue placeholder="اختر شركة الشحن" /></SelectTrigger>
-                        <SelectContent>
-                          {['مندوب من المزرعة','استلام من المزرعة','العاصمة','مندوب خاص','أخرى'].map(s => (
-                            <SelectItem key={s} value={s}>{s}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {shippingCompany === 'أخرى' && (
-                        <Input placeholder="أدخل اسم شركة الشحن" value={shippingCustom} onChange={(e) => setShippingCustom(e.target.value)} />
-                      )}
-                    </div>
 
                     {/* Notes */}
                     <div className="space-y-2">
