@@ -335,6 +335,55 @@ const WarehouseDetail = () => {
     XLSX.writeFile(wb, `احتياج-توريد-${warehouse?.name || ""}.xlsx`);
   };
 
+  // طلبات منفذ المخزن — تجميع وتصدير Excel
+  const statusArLabel = (s: string) => ({
+    pending: "قيد المراجعة", confirmed: "مؤكد", processing: "قيد التجهيز",
+    ready: "جاهز", shipped: "تم الشحن", out_for_delivery: "خرج للتوصيل",
+    delivered: "تم التسليم", cancelled: "ملغى", returned: "مرتجع",
+  }[s] || s);
+  const fulfillmentLabel = (f: string) => ({
+    pickup: "استلام من المنفذ", delivery: "توصيل", shipping: "شحن",
+  }[f] || f || "-");
+
+  const exportOutletOrdersExcel = () => {
+    const summary = outletOrders.map((o, i) => ({
+      "م": i + 1,
+      "رقم الطلب": o.order_number,
+      "التاريخ": new Date(o.created_at).toLocaleString("ar-EG"),
+      "العميل": o.customer?.name || "-",
+      "الهاتف": o.customer?.phone || "-",
+      "المحافظة": o.customer?.governorate || "-",
+      "نوع التنفيذ": fulfillmentLabel(o.fulfillment_type),
+      "الحالة": statusArLabel(o.status),
+      "الدفع": o.payment_method || "-",
+      "حالة الدفع": o.payment_status || "-",
+      "عدد الأصناف": (o.order_items || []).length,
+      "الإجمالي": Number(o.total_amount || 0),
+    }));
+    const lines: any[] = [];
+    outletOrders.forEach((o) => {
+      (o.order_items || []).forEach((li: any) => {
+        lines.push({
+          "رقم الطلب": o.order_number,
+          "التاريخ": new Date(o.created_at).toLocaleString("ar-EG"),
+          "العميل": o.customer?.name || "-",
+          "الصنف": li.product_name,
+          "الكمية": Number(li.quantity || 0),
+          "سعر الوحدة": Number(li.unit_price || 0),
+          "الإجمالي": Number(li.total_price || 0),
+        });
+      });
+    });
+    const wb = XLSX.utils.book_new();
+    const ws1 = XLSX.utils.json_to_sheet(summary);
+    ws1["!cols"] = [{ wch: 5 }, { wch: 14 }, { wch: 18 }, { wch: 22 }, { wch: 14 }, { wch: 12 }, { wch: 16 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 12 }];
+    XLSX.utils.book_append_sheet(wb, ws1, "ملخص الطلبات");
+    const ws2 = XLSX.utils.json_to_sheet(lines);
+    ws2["!cols"] = [{ wch: 14 }, { wch: 18 }, { wch: 22 }, { wch: 30 }, { wch: 10 }, { wch: 12 }, { wch: 12 }];
+    XLSX.utils.book_append_sheet(wb, ws2, "تفاصيل الأصناف");
+    XLSX.writeFile(wb, `طلبات-${warehouse?.name || "المنفذ"}-${new Date().toISOString().slice(0,10)}.xlsx`);
+  };
+
   if (loading && !warehouse) {
     return <DashboardLayout><div className="text-center py-12 text-muted-foreground">جارٍ التحميل...</div></DashboardLayout>;
   }
