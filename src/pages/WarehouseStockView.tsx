@@ -5,9 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, RefreshCw, Warehouse, Printer } from "lucide-react";
+import { Search, RefreshCw, Warehouse, Printer, Pencil, Check, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { printWarehouseStock } from "@/lib/printUtils";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 interface Product { id: string; name: string; unit: string; category?: string | null; }
 
