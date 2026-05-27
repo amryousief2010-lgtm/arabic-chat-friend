@@ -5,9 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, RefreshCw, Warehouse, Printer } from "lucide-react";
+import { Search, RefreshCw, Warehouse, Printer, Pencil, Check, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { printWarehouseStock } from "@/lib/printUtils";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 interface Product { id: string; name: string; unit: string; category?: string | null; }
 
@@ -38,9 +40,16 @@ const formatPackages = (kg: number, name: string): string => {
 };
 
 const WarehouseStockView = ({ scope = "both" }: Props) => {
+  const { isExecutiveManager, isGeneralManager } = useAuth();
+  const canEdit = isExecutiveManager || isGeneralManager;
   const [products, setProducts] = useState<Product[]>([]);
   const [agouzaStock, setAgouzaStock] = useState<Record<string, number>>({});
   const [mainStock, setMainStock] = useState<Record<string, number>>({});
+  // معرّفات صفوف inventory_items لكل (مخزن، منتج) لاستخدامها عند الحفظ
+  const [agouzaItemIds, setAgouzaItemIds] = useState<Record<string, string>>({});
+  const [mainItemIds, setMainItemIds] = useState<Record<string, string>>({});
+  const [agouzaWhId, setAgouzaWhId] = useState<string | null>(null);
+  const [mainWhId, setMainWhId] = useState<string | null>(null);
   // الكميات المحجوزة على طلبات لم تُسلَّم/تُلغَ بعد، حسب مصدر التنفيذ
   const [agouzaPending, setAgouzaPending] = useState<Record<string, number>>({});
   const [mainPending, setMainPending] = useState<Record<string, number>>({});
@@ -48,6 +57,10 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
   const [loading, setLoading] = useState(true);
   // وضع العرض: قبل الطلبات (الكمية الفعلية في المخزن) أو بعد خصم الطلبات الجارية
   const [mode, setMode] = useState<"raw" | "after_orders">("raw");
+  // حالة التحرير: مفتاح "wh:productId"
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState<string>("");
+  const [saving, setSaving] = useState(false);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -60,22 +73,28 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
       const whs = wRes.data || [];
       const agouza = whs.find((w: any) => w.name?.includes("العجوزة"));
       const main = whs.find((w: any) => w.name?.includes("الرئيسي") || w.name?.includes("المقر"));
+      setAgouzaWhId(agouza?.id ?? null);
+      setMainWhId(main?.id ?? null);
       const whIds = [agouza?.id, main?.id].filter(Boolean) as string[];
       if (whIds.length > 0) {
         const { data: invRows } = await supabase
           .from("inventory_items")
-          .select("warehouse_id, product_id, stock, reserved_qty, blocked_qty")
+          .select("id, warehouse_id, product_id, stock, reserved_qty, blocked_qty")
           .in("warehouse_id", whIds)
           .not("product_id", "is", null);
         const ag: Record<string, number> = {};
         const mn: Record<string, number> = {};
+        const agIds: Record<string, string> = {};
+        const mnIds: Record<string, string> = {};
         (invRows || []).forEach((r: any) => {
           const avail = Number(r.stock || 0) - Number(r.reserved_qty || 0) - Number(r.blocked_qty || 0);
-          if (r.warehouse_id === agouza?.id) ag[r.product_id] = (ag[r.product_id] || 0) + avail;
-          if (r.warehouse_id === main?.id) mn[r.product_id] = (mn[r.product_id] || 0) + avail;
+          if (r.warehouse_id === agouza?.id) { ag[r.product_id] = (ag[r.product_id] || 0) + avail; agIds[r.product_id] = r.id; }
+          if (r.warehouse_id === main?.id) { mn[r.product_id] = (mn[r.product_id] || 0) + avail; mnIds[r.product_id] = r.id; }
         });
         setAgouzaStock(ag);
         setMainStock(mn);
+        setAgouzaItemIds(agIds);
+        setMainItemIds(mnIds);
 
         // الطلبات الجارية المحجوزة على كل مخزن — أي أوردر لم يُسلَّم/يُلغَ
         // يُخصم من المتاح، بصرف النظر عن تاريخه (يشمل الـ 16 أوردر القديمة المعلقة).
@@ -116,6 +135,94 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
   };
 
   useEffect(() => { fetchAll(); }, []);
+
+  // حفظ تعديل الرصيد لمنتج في مخزن. القيمة المُدخلة تُفسَّر حسب وضع العرض.
+  const saveStock = async (wh: "agouza" | "main", productId: string) => {
+    const raw = parseFloat(editValue.replace(",", "."));
+    if (isNaN(raw) || raw < 0) { toast.error("أدخل قيمة صحيحة"); return; }
+    const pending = (wh === "agouza" ? agouzaPending : mainPending)[productId] ?? 0;
+    // عند العرض "بعد الطلبات"، المُدخل هو المتاح بعد الخصم → الرصيد الفعلي = المُدخل + المعلق
+    const newStock = mode === "after_orders" ? raw + pending : raw;
+    const whId = wh === "agouza" ? agouzaWhId : mainWhId;
+    if (!whId) return;
+    const itemId = (wh === "agouza" ? agouzaItemIds : mainItemIds)[productId];
+    setSaving(true);
+    try {
+      if (itemId) {
+        const { error } = await supabase
+          .from("inventory_items")
+          .update({ stock: newStock })
+          .eq("id", itemId);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase
+          .from("inventory_items")
+          .insert({ warehouse_id: whId, product_id: productId, stock: newStock, module: "warehouse" } as any)
+          .select("id")
+          .single();
+        if (error) throw error;
+        if (wh === "agouza") setAgouzaItemIds((m) => ({ ...m, [productId]: data!.id }));
+        else setMainItemIds((m) => ({ ...m, [productId]: data!.id }));
+      }
+      if (wh === "agouza") setAgouzaStock((s) => ({ ...s, [productId]: newStock }));
+      else setMainStock((s) => ({ ...s, [productId]: newStock }));
+      toast.success("تم تحديث الرصيد");
+      setEditingKey(null);
+    } catch (e: any) {
+      toast.error(e.message || "تعذّر الحفظ");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const startEdit = (wh: "agouza" | "main", productId: string, currentDisplay: number) => {
+    setEditingKey(`${wh}:${productId}`);
+    setEditValue(String(currentDisplay));
+  };
+
+  const EditCell = ({ wh, pid, value }: { wh: "agouza" | "main"; pid: string; value: number }) => {
+    const key = `${wh}:${pid}`;
+    const isEditing = editingKey === key;
+    if (isEditing) {
+      return (
+        <div className="flex items-center gap-1">
+          <Input
+            type="number"
+            step="0.5"
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            className="h-7 w-20 text-xs"
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === "Enter") saveStock(wh, pid);
+              if (e.key === "Escape") setEditingKey(null);
+            }}
+          />
+          <button className="text-green-600 disabled:opacity-50" disabled={saving} onClick={() => saveStock(wh, pid)}>
+            <Check className="w-4 h-4" />
+          </button>
+          <button className="text-muted-foreground" onClick={() => setEditingKey(null)}>
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      );
+    }
+    return (
+      <div className="flex items-center gap-1">
+        <Badge variant={value <= 0 ? "destructive" : "outline"}>{value}</Badge>
+        {canEdit && (
+          <button
+            className="text-muted-foreground hover:text-primary opacity-60 hover:opacity-100"
+            title="تعديل الرصيد"
+            onClick={() => startEdit(wh, pid, value)}
+          >
+            <Pencil className="w-3 h-3" />
+          </button>
+        )}
+      </div>
+    );
+  };
+
 
   // الكميات الظاهرة (مع/بدون خصم الطلبات الجارية)
   const displayAgouza = useMemo(() => {
@@ -254,7 +361,7 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
                       <td className="p-2 text-muted-foreground">{p.unit}</td>
                       {scope !== "main" && (
                         <td className="p-2">
-                          <Badge variant={a <= 0 ? "destructive" : "outline"}>{a}</Badge>
+                          <EditCell wh="agouza" pid={p.id} value={a} />
                         </td>
                       )}
                       {scope !== "main" && (
@@ -262,7 +369,7 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
                       )}
                       {scope !== "agouza" && (
                         <td className="p-2">
-                          <Badge variant={m <= 0 ? "destructive" : "outline"}>{m}</Badge>
+                          <EditCell wh="main" pid={p.id} value={m} />
                         </td>
                       )}
                       {scope !== "agouza" && (
@@ -297,14 +404,14 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
                     {scope !== "main" && (
                       <div>
                         <div className="text-muted-foreground mb-1">العجوزة</div>
-                        <Badge variant={a <= 0 ? "destructive" : "outline"}>{a}</Badge>
+                        <div className="flex justify-center"><EditCell wh="agouza" pid={p.id} value={a} /></div>
                         <div className="text-[10px] text-muted-foreground mt-1">{formatPackages(a, p.name)}</div>
                       </div>
                     )}
                     {scope !== "agouza" && (
                       <div>
                         <div className="text-muted-foreground mb-1">الرئيسي</div>
-                        <Badge variant={m <= 0 ? "destructive" : "outline"}>{m}</Badge>
+                        <div className="flex justify-center"><EditCell wh="main" pid={p.id} value={m} /></div>
                         <div className="text-[10px] text-muted-foreground mt-1">{formatPackages(m, p.name)}</div>
                       </div>
                     )}
