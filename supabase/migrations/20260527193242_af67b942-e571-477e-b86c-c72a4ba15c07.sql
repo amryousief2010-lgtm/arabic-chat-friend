@@ -1,0 +1,2 @@
+UPDATE public.inventory_items SET stock = 13.50 WHERE product_id = '2bcf341e-9675-4027-9822-a692f65db045' AND warehouse_id = '5ec781b5-685b-4806-b59a-83a79ea5662c';
+UPDATE public.inventory_items SET stock = 133 WHERE product_id = '399eab16-5ed7-4e87-8435-d4a459509fa1' AND warehouse_id = '5ec781b5-685b-4806-b59a-83a79ea5662c';
