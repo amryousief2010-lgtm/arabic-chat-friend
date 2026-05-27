@@ -1089,20 +1089,6 @@ const NewOrder = () => {
                             <Input placeholder="أدخل المصدر" value={newCustomerSourceCustom} onChange={(e) => setNewCustomerSourceCustom(e.target.value)} />
                           )}
                           </div>
-                          <div className="space-y-2">
-                          <Label>شركة الشحن</Label>
-                          <Select value={newCustomerShipping} onValueChange={setNewCustomerShipping}>
-                            <SelectTrigger><SelectValue placeholder="اختر شركة الشحن" /></SelectTrigger>
-                            <SelectContent>
-                              {['مندوب من المزرعة','استلام من المزرعة','العاصمة','مندوب خاص','أخرى'].map(s => (
-                                <SelectItem key={s} value={s}>{s}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          {newCustomerShipping === 'أخرى' && (
-                            <Input placeholder="أدخل اسم شركة الشحن" value={newCustomerShippingCustom} onChange={(e) => setNewCustomerShippingCustom(e.target.value)} />
-                          )}
-                           </div>
                            <div className="space-y-2 md:col-span-2">
                              <Label>مصدر تنفيذ الطلب <span className="text-destructive">*</span></Label>
                              <Select value={fulfillmentKey} onValueChange={(v) => setFulfillmentKey(v as any)}>
