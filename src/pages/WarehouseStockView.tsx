@@ -361,7 +361,7 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
                       <td className="p-2 text-muted-foreground">{p.unit}</td>
                       {scope !== "main" && (
                         <td className="p-2">
-                          <Badge variant={a <= 0 ? "destructive" : "outline"}>{a}</Badge>
+                          <EditCell wh="agouza" pid={p.id} value={a} />
                         </td>
                       )}
                       {scope !== "main" && (
@@ -369,7 +369,7 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
                       )}
                       {scope !== "agouza" && (
                         <td className="p-2">
-                          <Badge variant={m <= 0 ? "destructive" : "outline"}>{m}</Badge>
+                          <EditCell wh="main" pid={p.id} value={m} />
                         </td>
                       )}
                       {scope !== "agouza" && (
