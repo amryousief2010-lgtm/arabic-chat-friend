@@ -785,6 +785,17 @@ const Orders = () => {
                 ))}
               </SelectContent>
             </Select>
+            <Select value={filterFulfillment} onValueChange={setFilterFulfillment}>
+              <SelectTrigger className="w-56 input-modern">
+                <SelectValue placeholder="فلترة حسب مصدر التنفيذ" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">كل مصادر التنفيذ</SelectItem>
+                {fulfillmentOptions.map((f) => (
+                  <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {!isPrivateDeliveryRep && (
               <Select value={filterModerator} onValueChange={setFilterModerator}>
                 <SelectTrigger className="w-40 input-modern">
