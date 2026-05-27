@@ -78,6 +78,29 @@ const PrivateDeliveryCollection = () => {
 
   useEffect(() => { load(); }, []);
 
+  const loadHistory = async () => {
+    setHistoryLoading(true);
+    try {
+      const { data } = await supabase
+        .from("delivery_collection_batches")
+        .select("id, rep_name, expected_total, actual_total, variance_reason, notes, collected_at, collector_id, delivery_collection_batch_orders(order_id, order_total)")
+        .order("collected_at", { ascending: false })
+        .limit(200);
+      const list = (data || []) as any[];
+      const collectorIds = Array.from(new Set(list.map((b) => b.collector_id).filter(Boolean)));
+      let nameMap: Record<string, string> = {};
+      if (collectorIds.length) {
+        const { data: ps } = await supabase.from("profiles").select("id, full_name").in("id", collectorIds);
+        nameMap = Object.fromEntries((ps || []).map((p: any) => [p.id, p.full_name]));
+      }
+      setHistory(list.map((b) => ({ ...b, collector_name: nameMap[b.collector_id] || "-" })));
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  useEffect(() => { if (tab === "history") loadHistory(); }, [tab]);
+
   const reps = useMemo(() => {
     const s = new Set<string>();
     orders.forEach((o) => s.add(o.moderator || "غير محدد"));
