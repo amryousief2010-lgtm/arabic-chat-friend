@@ -637,7 +637,7 @@ const WarehouseDetail = () => {
                     <div>
                       <CardTitle className="text-base flex items-center gap-2"><Truck className="w-5 h-5 text-orange-500" />احتياج التوريد المحسوب</CardTitle>
                       <CardDescription>
-                        بناءً على طلبات القاهرة/الجيزة (آخر 30 يوم) مقابل الرصيد الحالي بالمخزن
+                        طلبات القاهرة/الجيزة (آخر 24 ساعة + كل الأوردرات المعلقة) مقابل الرصيد الحالي بمخزن العجوزة
                       </CardDescription>
                     </div>
                     <div className="flex gap-2">
