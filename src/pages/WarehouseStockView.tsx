@@ -40,8 +40,9 @@ const formatPackages = (kg: number, name: string): string => {
 };
 
 const WarehouseStockView = ({ scope = "both" }: Props) => {
-  const { isExecutiveManager, isGeneralManager } = useAuth();
-  const canEdit = isExecutiveManager || isGeneralManager;
+  const { isExecutiveManager, isGeneralManager, canManageAgouzaStock, isAgouzaWarehouseKeeper } = useAuth();
+  const canEditAll = isExecutiveManager || isGeneralManager;
+  const canEditAgouza = canManageAgouzaStock;
   const [products, setProducts] = useState<Product[]>([]);
   const [agouzaStock, setAgouzaStock] = useState<Record<string, number>>({});
   const [mainStock, setMainStock] = useState<Record<string, number>>({});
