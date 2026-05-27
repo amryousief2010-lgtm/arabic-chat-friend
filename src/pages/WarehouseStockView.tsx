@@ -162,8 +162,11 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
                   <th className="p-2 font-semibold">المنتج</th>
                   <th className="p-2 font-semibold">الوحدة</th>
                   {scope !== "main" && <th className="p-2 font-semibold whitespace-nowrap">مخزن العجوزة</th>}
+                  {scope !== "main" && <th className="p-2 font-semibold whitespace-nowrap">عبوات العجوزة</th>}
                   {scope !== "agouza" && <th className="p-2 font-semibold whitespace-nowrap">المخزن الرئيسي</th>}
+                  {scope !== "agouza" && <th className="p-2 font-semibold whitespace-nowrap">عبوات الرئيسي</th>}
                   {scope === "both" && <th className="p-2 font-semibold whitespace-nowrap">الإجمالي المتاح</th>}
+                  {scope === "both" && <th className="p-2 font-semibold whitespace-nowrap">إجمالي العبوات</th>}
                 </tr>
               </thead>
               <tbody>
@@ -179,13 +182,22 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
                           <Badge variant={a <= 0 ? "destructive" : "outline"}>{a}</Badge>
                         </td>
                       )}
+                      {scope !== "main" && (
+                        <td className="p-2 text-xs text-muted-foreground whitespace-nowrap">{formatPackages(a, p.name)}</td>
+                      )}
                       {scope !== "agouza" && (
                         <td className="p-2">
                           <Badge variant={m <= 0 ? "destructive" : "outline"}>{m}</Badge>
                         </td>
                       )}
+                      {scope !== "agouza" && (
+                        <td className="p-2 text-xs text-muted-foreground whitespace-nowrap">{formatPackages(m, p.name)}</td>
+                      )}
                       {scope === "both" && (
                         <td className="p-2 font-bold text-primary">{a + m}</td>
+                      )}
+                      {scope === "both" && (
+                        <td className="p-2 text-xs text-primary whitespace-nowrap">{formatPackages(a + m, p.name)}</td>
                       )}
                     </tr>
                   );
