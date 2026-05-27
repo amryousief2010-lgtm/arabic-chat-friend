@@ -56,15 +56,25 @@ const WarehouseDetail = () => {
     setLoading(true);
     // نافذة الاحتياج = آخر 24 ساعة + كل الأوردرات المعلقة (غير المسلَّمة/الملغاة) بصرف النظر عن تاريخها
     const sinceISO = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
-    const [w, all, it, mv, oi, tr] = await Promise.all([
+    // اجلب المخزن الحالى وقائمة المخازن أولاً لمعرفة هل هو العجوزة (وبالتالى نوسع نطاق الحركات/التحويلات)
+    const [wRes, allRes] = await Promise.all([
       supabase.from("warehouses").select("*").eq("id", id).maybeSingle(),
       supabase.from("warehouses").select("*").order("name"),
+    ]);
+    const allWh = allRes.data || [];
+    const currentIsAgouza = !!wRes.data && (wRes.data.name?.includes("العجوزة") || wRes.data.location?.includes("العجوزة"));
+    const mainWh = allWh.find((w: any) => w.id !== id && (w.name?.includes("الرئيسي") || w.name?.includes("المقر"))) || allWh.find((w: any) => w.id !== id && w.type === "finished_goods");
+    // عند العرض من العجوزة نعرض حركات وتحويلات كل من العجوزة والمخزن الرئيسي
+    const scopeIds = currentIsAgouza && mainWh ? [id, mainWh.id] : [id];
+    const mvFilter = scopeIds.flatMap(w => [`warehouse_id.eq.${w}`, `destination_warehouse_id.eq.${w}`]).join(",");
+    const trFilter = scopeIds.flatMap(w => [`source_warehouse_id.eq.${w}`, `destination_warehouse_id.eq.${w}`]).join(",");
+    const [it, mv, oi, tr] = await Promise.all([
       supabase.from("inventory_items").select("*").eq("warehouse_id", id).order("name"),
       supabase.from("inventory_movements")
         .select("*, item:inventory_items(name, unit), warehouse:warehouses!inventory_movements_warehouse_id_fkey(name), destination:warehouses!inventory_movements_destination_warehouse_id_fkey(name)")
-        .or(`warehouse_id.eq.${id},destination_warehouse_id.eq.${id}`)
+        .or(mvFilter)
         .order("performed_at", { ascending: false })
-        .limit(300),
+        .limit(500),
       supabase.from("order_items")
         .select("product_name, quantity, orders!inner(created_at, status, customer:customers(governorate))")
         .or(`created_at.gte.${sinceISO},status.in.(pending,confirmed,processing,ready,shipped,out_for_delivery)`, { foreignTable: "orders" })
@@ -72,12 +82,12 @@ const WarehouseDetail = () => {
         .limit(2000),
       supabase.from("warehouse_transfers")
         .select("*, source:warehouses!warehouse_transfers_source_warehouse_id_fkey(name), destination:warehouses!warehouse_transfers_destination_warehouse_id_fkey(name), items:warehouse_transfer_items(*)")
-        .or(`source_warehouse_id.eq.${id},destination_warehouse_id.eq.${id}`)
+        .or(trFilter)
         .order("created_at", { ascending: false })
         .limit(200),
     ]);
-    setWarehouse(w.data);
-    setAllWarehouses(all.data || []);
+    setWarehouse(wRes.data);
+    setAllWarehouses(allWh);
     setItems(it.data || []);
     setMovements(mv.data || []);
     setOrderItems(oi.data || []);
