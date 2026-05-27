@@ -1180,6 +1180,14 @@ const Orders = () => {
                             <Eye className="w-4 h-4" />
                           </Link>
                         </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handlePrintOrder(order)}
+                          title="طباعة الطلب"
+                        >
+                          <Printer className="w-4 h-4 text-primary" />
+                        </Button>
                         {isPrivateDeliveryRep &&
                           order.status !== 'delivered' &&
                           order.status !== 'cancelled' &&
