@@ -17,6 +17,7 @@ import NewOrder from "@/pages/NewOrder";
 import WarehouseStockView from "@/pages/WarehouseStockView";
 import ModeratorWarehouseStock from "@/pages/ModeratorWarehouseStock";
 import Notifications from "@/pages/Notifications";
+import DuplicateOrderApprovals from "@/pages/DuplicateOrderApprovals";
 import OrderDetails from "@/pages/OrderDetails";
 import Install from "@/pages/Install";
 import Auth from "@/pages/Auth";
