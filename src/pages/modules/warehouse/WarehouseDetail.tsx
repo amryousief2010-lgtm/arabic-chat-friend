@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { formatDateTime } from "@/lib/dateFormat";
+import { printSupplyRequest } from "@/lib/printUtils";
 import * as XLSX from "xlsx";
 
 const warehouseTypes: Record<string, string> = {
