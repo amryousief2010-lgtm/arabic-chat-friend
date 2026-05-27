@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CheckCircle2, XCircle, RefreshCw, ShieldAlert } from "lucide-react";
-import { formatCairoDateTime } from "@/lib/cairoDate";
+const fmt = (s: string) => new Date(s).toLocaleString("ar-EG", { timeZone: "Africa/Cairo", dateStyle: "short", timeStyle: "short" });
 
 type Row = {
   id: string;
