@@ -112,8 +112,8 @@ const DuplicateOrderApprovals = () => {
       {r.note && <div className="text-sm">ملاحظتها: {r.note}</div>}
       {r.reason && <div className="text-sm text-muted-foreground">سبب القرار: {r.reason}</div>}
       <div className="text-xs text-muted-foreground">
-        طلبت: {formatCairoDateTime(r.created_at)}
-        {r.decided_at && <> • تم البت: {formatCairoDateTime(r.decided_at)}</>}
+        طلبت: {fmt(r.created_at)}
+        {r.decided_at && <> • تم البت: {fmt(r.decided_at)}</>}
       </div>
       {r.status === "pending" && new Date(r.expires_at) > new Date() && (
         <div className="flex gap-2 pt-2">
