@@ -7219,6 +7219,10 @@ export type Database = {
         Args: { p_shipment_id: string }
         Returns: string
       }
+      update_transfer_request_quantities: {
+        Args: { p_lines: Json; p_transfer_id: string }
+        Returns: Json
+      }
       validate_feed_bom: { Args: { p_recipe_id: string }; Returns: Json }
       validate_meat_bom: {
         Args: { p_product_code: string; p_version: number }
