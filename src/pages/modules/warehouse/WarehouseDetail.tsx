@@ -326,6 +326,26 @@ const WarehouseDetail = () => {
     }
     toast({ title: "تم تعديل الطلب", description: "تم حفظ الكميات الجديدة" });
     setEditRequestDialog(null);
+    toast({ title: "تم تعديل الطلب", description: "تم حفظ الكميات الجديدة" });
+    setEditRequestDialog(null);
+    fetchAll();
+  };
+
+  const cancelTransferRequest = async (t: any) => {
+    if (!window.confirm(`هل تريد إلغاء طلب التحويل ${t.transfer_no} بالكامل؟`)) return;
+    setSubmitting(true);
+    const { data, error } = await supabase.rpc("cancel_transfer_request", { p_transfer_id: t.id });
+    setSubmitting(false);
+    if (error) {
+      toast({ title: "تعذر الإلغاء", description: error.message, variant: "destructive" });
+      return;
+    }
+    const result = data as any;
+    if (!result?.success) {
+      toast({ title: "تعذر الإلغاء", description: result?.message || "لا يمكن إلغاء هذا الطلب", variant: "destructive" });
+      return;
+    }
+    toast({ title: "تم إلغاء الطلب" });
     fetchAll();
   };
 
