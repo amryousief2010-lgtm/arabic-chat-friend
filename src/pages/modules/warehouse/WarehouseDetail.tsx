@@ -966,10 +966,6 @@ const WarehouseDetail = () => {
               })}
             </TableBody>
           </Table>
-
-              ))}
-            </TableBody>
-          </Table>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setApproveDialog(null)}>إلغاء</Button>
             <Button onClick={submitApprove} disabled={submitting}>
