@@ -257,14 +257,16 @@ const WarehouseDetail = () => {
 
   const openApproveDialog = (t: any) => {
     const init: Record<string, number> = {};
-    (t.items || []).forEach((li: any) => { init[li.id] = Number(li.requested_qty); });
+    // store in half-kg packages (1 package = 0.5 kg)
+    (t.items || []).forEach((li: any) => { init[li.id] = Math.round(Number(li.requested_qty) * 2); });
     setApproveQty(init);
     setApproveDialog(t);
   };
 
   const submitApprove = async () => {
     if (!approveDialog) return;
-    const approved_lines = Object.entries(approveQty).map(([line_id, qty]) => ({ line_id, approved_qty: Number(qty) }));
+    // convert packages back to kg before sending
+    const approved_lines = Object.entries(approveQty).map(([line_id, pkgs]) => ({ line_id, approved_qty: Number(pkgs) * 0.5 }));
     setSubmitting(true);
     const { error } = await supabase.rpc("approve_warehouse_transfer", {
       p_transfer_id: approveDialog.id,
@@ -279,6 +281,7 @@ const WarehouseDetail = () => {
     setApproveDialog(null);
     fetchAll();
   };
+
 
   const rejectTransfer = async (t: any) => {
     const reason = window.prompt(`سبب رفض طلب ${t.transfer_no}؟`);
