@@ -443,13 +443,12 @@ const WarehouseDetail = () => {
   }[s] || s);
   const fulfillmentLabel = (f: string) => ({
     pickup: "استلام من المنفذ", delivery: "توصيل", shipping: "شحن",
-  }[f] || f || "-");
-
   const exportOutletOrdersExcel = () => {
     const summary = outletOrders.map((o, i) => ({
       "م": i + 1,
       "رقم الطلب": o.order_number,
       "التاريخ": new Date(o.created_at).toLocaleString("ar-EG"),
+      "المخزن": o.source?.name || "-",
       "العميل": o.customer?.name || "-",
       "الهاتف": o.customer?.phone || "-",
       "المحافظة": o.customer?.governorate || "-",
@@ -466,12 +465,16 @@ const WarehouseDetail = () => {
         lines.push({
           "رقم الطلب": o.order_number,
           "التاريخ": new Date(o.created_at).toLocaleString("ar-EG"),
+          "المخزن": o.source?.name || "-",
           "العميل": o.customer?.name || "-",
           "الصنف": li.product_name,
           "الكمية": Number(li.quantity || 0),
           "سعر الوحدة": Number(li.unit_price || 0),
           "الإجمالي": Number(li.total_price || 0),
         });
+      });
+    });
+
       });
     });
     const wb = XLSX.utils.book_new();
