@@ -302,6 +302,34 @@ const WarehouseDetail = () => {
     fetchAll();
   };
 
+  const openEditRequestDialog = (t: any) => {
+    const init: Record<string, number> = {};
+    (t.items || []).forEach((li: any) => { init[li.id] = Math.round(Number(li.requested_qty) * 2); });
+    setEditRequestQty(init);
+    setEditRequestDialog(t);
+  };
+
+  const submitEditRequest = async () => {
+    if (!editRequestDialog) return;
+    const lines = Object.entries(editRequestQty).map(([line_id, pkgs]) => ({
+      line_id, qty: Number(pkgs) * 0.5,
+    }));
+    setSubmitting(true);
+    const { error } = await supabase.rpc("update_transfer_request_quantities", {
+      p_transfer_id: editRequestDialog.id,
+      p_lines: lines,
+    });
+    setSubmitting(false);
+    if (error) {
+      toast({ title: "تعذر تعديل الطلب", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "تم تعديل الطلب", description: "تم حفظ الكميات الجديدة" });
+    setEditRequestDialog(null);
+    fetchAll();
+  };
+
+
   const openReceiveDialog = (t: any) => {
     const init: Record<string, { qty: number; notes: string }> = {};
     (t.items || []).forEach((li: any) => {
