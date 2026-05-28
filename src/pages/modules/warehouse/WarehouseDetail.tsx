@@ -14,7 +14,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { formatDateTime } from "@/lib/dateFormat";
-import { printSupplyRequest } from "@/lib/printUtils";
+import { printSupplyRequest, printOrderInvoice } from "@/lib/printUtils";
+
 import * as XLSX from "xlsx";
 
 const warehouseTypes: Record<string, string> = {
@@ -57,7 +58,9 @@ const WarehouseDetail = () => {
 
 
   const isAgouza = useMemo(() => !!warehouse && (warehouse.name?.includes("العجوزة") || warehouse.location?.includes("العجوزة")), [warehouse]);
+  const isMain = useMemo(() => !!warehouse && !isAgouza && (warehouse.name?.includes("الرئيسي") || warehouse.name?.includes("المقر") || warehouse.type === "finished_goods"), [warehouse, isAgouza]);
   const mainWarehouse = useMemo(() => allWarehouses.find(w => w.id !== id && (w.name?.includes("الرئيسي") || w.name?.includes("المقر"))) || allWarehouses.find(w => w.id !== id && w.type === "finished_goods"), [allWarehouses, id]);
+
 
   const fetchAll = async () => {
     if (!id) return;
@@ -105,7 +108,9 @@ const WarehouseDetail = () => {
     const orderSourceIds = currentIsAgouza && mainWh ? [id, mainWh.id] : [id];
     const { data: ords } = await supabase
       .from("orders")
-      .select("id, order_number, created_at, status, fulfillment_type, total_amount, payment_status, payment_method, source_warehouse_id, source:warehouses!orders_source_warehouse_id_fkey(name), customer:customers(name, phone, governorate), order_items(product_name, quantity, unit_price, total_price)")
+      .select("id, order_number, created_at, status, fulfillment_type, total, subtotal, discount, delivery_fee, notes, delivery_address, payment_status, payment_method, source_warehouse_id, source:warehouses!orders_source_warehouse_id_fkey(name), customer:customers(name, phone, governorate), order_items(product_name, quantity, unit_price, total_price, offer_name)")
+
+
       .in("source_warehouse_id", orderSourceIds)
       .order("created_at", { ascending: false })
       .limit(2000);
@@ -167,6 +172,42 @@ const WarehouseDetail = () => {
     });
     return needs.sort((a, b) => b.suggestedHalf - a.suggestedHalf);
   }, [demandByProduct, items, isAgouza, mainStockByName]);
+
+  // طلبات الاستلام من المخزن الرئيسي — لمسؤول المخزن (هادى) عشان يجهز الفاتورة قبل ما العميل يستلم
+  const pickupOrders = useMemo(() => {
+    if (!isMain) return [];
+    return outletOrders.filter((o: any) =>
+      o.fulfillment_type === "pickup"
+      && o.source_warehouse_id === id
+      && !["delivered", "cancelled", "returned"].includes(o.status)
+    );
+  }, [outletOrders, isMain, id]);
+
+  const handlePrintPickupInvoice = (o: any) => {
+    printOrderInvoice({
+      order_number: o.order_number,
+      created_at: o.created_at,
+      customer_name: o.customer?.name || "-",
+      customer_phone: o.customer?.phone || "",
+      delivery_address: o.delivery_address || "",
+      payment_method: o.payment_method || "cash",
+      payment_status: o.payment_status || "pending",
+      notes: o.notes || "",
+      items: (o.order_items || []).map((it: any) => ({
+        product_name: it.product_name,
+        quantity: Number(it.quantity || 0),
+        unit_price: Number(it.unit_price || 0),
+        total_price: Number(it.total_price || 0),
+        offer_name: it.offer_name,
+      })),
+      subtotal: Number(o.subtotal || 0),
+      discount: Number(o.discount || 0),
+      delivery_fee: Number(o.delivery_fee || 0),
+      total: Number(o.total ?? 0),
+      source_warehouse_name: o.source?.name || warehouse?.name || "",
+    } as any);
+  };
+
 
   const openSupplyDialog = () => {
     const init: Record<string, number> = {};
@@ -459,7 +500,8 @@ const WarehouseDetail = () => {
       "الدفع": o.payment_method || "-",
       "حالة الدفع": o.payment_status || "-",
       "عدد الأصناف": (o.order_items || []).length,
-      "الإجمالي": Number(o.total_amount || 0),
+      "الإجمالي": Number(o.total ?? o.total_amount ?? 0),
+
     }));
     const lines: any[] = [];
     outletOrders.forEach((o) => {
@@ -568,6 +610,14 @@ const WarehouseDetail = () => {
                 {supplyNeeds.length > 0 && <Badge variant="destructive" className="mr-1">{supplyNeeds.length}</Badge>}
               </TabsTrigger>
             )}
+            {isMain && (
+              <TabsTrigger value="pickup" className="gap-1">
+                <Package className="w-4 h-4" />استلام من المخزن
+                {pickupOrders.length > 0 && <Badge variant="destructive" className="mr-1">{pickupOrders.length}</Badge>}
+              </TabsTrigger>
+            )}
+
+
             <TabsTrigger value="outlet" className="gap-1">
               <FileSpreadsheet className="w-4 h-4" />طلبات المنفذ
               {outletOrders.length > 0 && <Badge variant="secondary" className="mr-1">{outletOrders.length}</Badge>}
@@ -938,7 +988,8 @@ const WarehouseDetail = () => {
                             <TableCell className="text-xs">{o.customer?.governorate || "-"}</TableCell>
                             <TableCell className="text-xs">{fulfillmentLabel(o.fulfillment_type)}</TableCell>
                             <TableCell><Badge variant="outline">{statusArLabel(o.status)}</Badge></TableCell>
-                            <TableCell>{(o.order_items || []).length}</TableCell>
+                            <TableCell className="font-semibold">{Number(o.total ?? o.total_amount ?? 0).toLocaleString()}</TableCell>
+
                             <TableCell className="font-semibold">{Number(o.total_amount || 0).toLocaleString()}</TableCell>
                           </TableRow>
                         ))}
@@ -953,6 +1004,88 @@ const WarehouseDetail = () => {
               </CardContent>
             </Card>
           </TabsContent>
+
+          <TabsContent value="pickup" className="space-y-3">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Package className="w-5 h-5 text-primary" />
+                  طلبات استلام من المخزن الرئيسي
+                </CardTitle>
+                <CardDescription>
+                  الأوردرات اللى العميل هيستلمها من المخزن — جهّز الفاتورة والأصناف قبل وصوله • إجمالى {pickupOrders.length}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                {pickupOrders.length === 0 ? (
+                  <div className="py-10 text-center text-muted-foreground">لا توجد طلبات استلام معلقة حالياً</div>
+                ) : (
+                  <div className="divide-y">
+                    {pickupOrders.map((o: any) => {
+                      const itemsCount = (o.order_items || []).length;
+                      const total = Number(o.total ?? 0);
+                      return (
+                        <div key={o.id} className="p-4 space-y-3">
+                          <div className="flex items-start justify-between flex-wrap gap-2">
+                            <div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-mono text-sm font-semibold">{o.order_number}</span>
+                                <Badge variant="outline">{statusArLabel(o.status)}</Badge>
+                                <Badge variant={o.payment_status === "paid" ? "default" : "secondary"}>
+                                  {o.payment_status === "paid" ? "مدفوع" : "غير مدفوع"} • {o.payment_method || "-"}
+                                </Badge>
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-1">{formatDateTime(o.created_at)}</div>
+                              <div className="text-sm mt-2">
+                                <span className="font-medium">{o.customer?.name || "-"}</span>
+                                {o.customer?.phone && <span className="text-muted-foreground mr-2 font-mono">{o.customer.phone}</span>}
+                              </div>
+                            </div>
+                            <div className="text-left">
+                              <div className="text-xs text-muted-foreground">الإجمالى</div>
+                              <div className="text-xl font-bold text-primary">{total.toLocaleString()} ج.م</div>
+                              <Button size="sm" className="mt-2" onClick={() => handlePrintPickupInvoice(o)}>
+                                <FileSpreadsheet className="w-4 h-4 ml-1" />طباعة الفاتورة
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="bg-muted/40 rounded-md overflow-hidden">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>الصنف</TableHead>
+                                  <TableHead className="text-center">الكمية</TableHead>
+                                  <TableHead className="text-center">السعر</TableHead>
+                                  <TableHead className="text-left">الإجمالى</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {(o.order_items || []).map((li: any, idx: number) => (
+                                  <TableRow key={idx}>
+                                    <TableCell className="text-sm">{li.product_name}{li.offer_name ? <span className="text-xs text-muted-foreground mr-1">({li.offer_name})</span> : null}</TableCell>
+                                    <TableCell className="text-center text-sm">{Number(li.quantity || 0)}</TableCell>
+                                    <TableCell className="text-center text-sm">{Number(li.unit_price || 0).toLocaleString()}</TableCell>
+                                    <TableCell className="text-left text-sm font-semibold">{Number(li.total_price || 0).toLocaleString()}</TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                          {o.notes && (
+                            <div className="text-xs bg-yellow-50 border border-yellow-200 rounded px-3 py-2">
+                              <span className="font-semibold">ملاحظات: </span>{o.notes}
+                            </div>
+                          )}
+                          <div className="text-xs text-muted-foreground">عدد الأصناف: {itemsCount}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
         </Tabs>
       </div>
 
