@@ -173,15 +173,18 @@ const WarehouseDetail = () => {
     return needs.sort((a, b) => b.suggestedHalf - a.suggestedHalf);
   }, [demandByProduct, items, isAgouza, mainStockByName]);
 
-  // طلبات الاستلام من المخزن الرئيسي — لمسؤول المخزن (هادى) عشان يجهز الفاتورة قبل ما العميل يستلم
+  // طلبات الاستلام من المخزن الرئيسي — لمسؤول المخزن (هادى) ولأحمد خاطر فى العجوزة (عرض)
   const pickupOrders = useMemo(() => {
-    if (!isMain) return [];
-    return outletOrders.filter((o: any) =>
-      o.fulfillment_type === "pickup"
-      && o.source_warehouse_id === id
-      && !["delivered", "cancelled", "returned"].includes(o.status)
-    );
-  }, [outletOrders, isMain, id]);
+    if (!isMain && !isAgouza) return [];
+    return outletOrders.filter((o: any) => {
+      if (o.fulfillment_type !== "pickup") return false;
+      if (["delivered", "cancelled", "returned"].includes(o.status)) return false;
+      if (isMain) return o.source_warehouse_id === id;
+      // isAgouza: show pickup orders from main warehouse
+      return o.source_warehouse_id && o.source_warehouse_id !== id;
+    });
+  }, [outletOrders, isMain, isAgouza, id]);
+
 
   const handlePrintPickupInvoice = (o: any) => {
     printOrderInvoice({
