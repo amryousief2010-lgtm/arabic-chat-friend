@@ -41,13 +41,17 @@ const WarehouseDetail = () => {
   const [orderItems, setOrderItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [supplyDialog, setSupplyDialog] = useState(false);
+  // الكميات المطلوبة بوحدة نص كيلو (= 0.5 كجم لكل وحدة)
   const [supplyQty, setSupplyQty] = useState<Record<string, number>>({});
   const [transfers, setTransfers] = useState<any[]>([]);
   const [outletOrders, setOutletOrders] = useState<any[]>([]);
+  // مخزون المخزن الرئيسي (قبل الطلبات) — لعرضه في حوار التوريد
+  const [mainStockByName, setMainStockByName] = useState<Record<string, number>>({});
   const [receiveDialog, setReceiveDialog] = useState<any>(null); // transfer obj
   const [receiveLines, setReceiveLines] = useState<Record<string, { qty: number; notes: string }>>({});
   const [receiveHeaderNotes, setReceiveHeaderNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
 
   const isAgouza = useMemo(() => !!warehouse && (warehouse.name?.includes("العجوزة") || warehouse.location?.includes("العجوزة")), [warehouse]);
   const mainWarehouse = useMemo(() => allWarehouses.find(w => w.id !== id && (w.name?.includes("الرئيسي") || w.name?.includes("المقر"))) || allWarehouses.find(w => w.id !== id && w.type === "finished_goods"), [allWarehouses, id]);
@@ -101,8 +105,24 @@ const WarehouseDetail = () => {
       .order("created_at", { ascending: false })
       .limit(2000);
     setOutletOrders(ords || []);
+    // مخزون المخزن الرئيسي (raw stock قبل خصم الطلبات) — للعرض في حوار التوريد
+    if (currentIsAgouza && mainWh) {
+      const { data: mainInv } = await supabase
+        .from("inventory_items")
+        .select("name, stock")
+        .eq("warehouse_id", mainWh.id);
+      const map: Record<string, number> = {};
+      (mainInv || []).forEach((r: any) => {
+        const key = (r.name || "").trim();
+        if (key) map[key] = (map[key] || 0) + Number(r.stock || 0);
+      });
+      setMainStockByName(map);
+    } else {
+      setMainStockByName({});
+    }
     setLoading(false);
   };
+
 
   useEffect(() => { fetchAll(); }, [id]);
 
@@ -123,31 +143,41 @@ const WarehouseDetail = () => {
     return m;
   }, [orderItems, isAgouza]);
 
-  // Suggested supply list = demand - current stock (positive only)
+  // قائمة احتياج التوريد. كل القيم هنا بوحدة "نص كيلو" (1 وحدة = 0.5 كجم)
+  // الحد الأقصى للكمية المقترحة 20 نص كيلو (= 10 كجم).
+  const MAX_HALF_KG = 20;
+  const kgToHalf = (kg: number) => Math.max(0, Math.round(kg * 2));
   const supplyNeeds = useMemo(() => {
     if (!isAgouza) return [];
-    const needs: Array<{ name: string; demand: number; stock: number; suggested: number; unit: string; item?: any }> = [];
-    demandByProduct.forEach((demand, name) => {
+    const needs: Array<{ name: string; demandHalf: number; stockHalf: number; mainStockHalf: number; suggestedHalf: number; unit: string; item?: any }> = [];
+    demandByProduct.forEach((demandKg, name) => {
       const item = items.find(i => i.name?.trim() === name);
-      const stock = item ? Number(item.stock) : 0;
-      const suggested = Math.max(0, Math.ceil(demand - stock));
-      if (suggested > 0) needs.push({ name, demand, stock, suggested, unit: item?.unit || "قطعة", item });
+      const stockKg = item ? Number(item.stock) : 0;
+      const demandHalf = Math.ceil(demandKg * 2); // أقرب نص كيلو لأعلى
+      const stockHalf = Math.floor(stockKg * 2);
+      const mainStockHalf = Math.floor((mainStockByName[name] ?? 0) * 2);
+      const rawSuggested = Math.max(0, demandHalf - stockHalf);
+      const suggestedHalf = Math.min(MAX_HALF_KG, rawSuggested);
+      if (suggestedHalf > 0) needs.push({ name, demandHalf, stockHalf, mainStockHalf, suggestedHalf, unit: item?.unit || "كجم", item });
     });
-    return needs.sort((a, b) => b.suggested - a.suggested);
-  }, [demandByProduct, items, isAgouza]);
+    return needs.sort((a, b) => b.suggestedHalf - a.suggestedHalf);
+  }, [demandByProduct, items, isAgouza, mainStockByName]);
 
   const openSupplyDialog = () => {
     const init: Record<string, number> = {};
-    supplyNeeds.forEach(n => { init[n.name] = n.suggested; });
+    supplyNeeds.forEach(n => { init[n.name] = n.suggestedHalf; });
     setSupplyQty(init);
     setSupplyDialog(true);
   };
 
+
   const submitSupplyRequest = async () => {
+
     if (!mainWarehouse) {
       toast({ title: "لا يوجد مخزن رئيسي", description: "تعذر تحديد المخزن المصدر", variant: "destructive" });
       return;
     }
+    // supplyQty قيمها بوحدة نص كيلو — نحولها لكجم قبل الإرسال للـ RPC
     const requested = Object.entries(supplyQty).filter(([_, q]) => q > 0);
     if (requested.length === 0) {
       toast({ title: "لا يوجد أصناف", description: "أدخل كميات أكبر من صفر", variant: "destructive" });
@@ -155,23 +185,32 @@ const WarehouseDetail = () => {
     }
 
     // Resolve source item IDs by name from main warehouse
-    const { data: mainItems } = await supabase
+    const { data: mainItems, error: mErr } = await supabase
       .from("inventory_items")
       .select("id, name, stock")
       .eq("warehouse_id", mainWarehouse.id);
+    if (mErr) {
+      toast({ title: "تعذّر قراءة مخزون الرئيسي", description: mErr.message, variant: "destructive" });
+      return;
+    }
 
     const lines: Array<{ source_item_id: string; qty: number }> = [];
     const missing: string[] = [];
     const insufficient: string[] = [];
-    for (const [name, qty] of requested) {
+    for (const [name, halfQty] of requested) {
+      const qtyKg = Number(halfQty) * 0.5;
       const src = (mainItems || []).find((m: any) => m.name?.trim() === name.trim());
       if (!src) { missing.push(name); continue; }
-      if (Number(src.stock) < qty) { insufficient.push(`${name} (متاح ${src.stock})`); continue; }
-      lines.push({ source_item_id: src.id, qty });
+      if (Number(src.stock) < qtyKg) { insufficient.push(`${name} (متاح ${src.stock} كجم)`); continue; }
+      lines.push({ source_item_id: src.id, qty: qtyKg });
     }
 
     if (lines.length === 0) {
-      toast({ title: "لا يمكن التنفيذ", description: `مفقود: ${missing.length} • غير كافٍ: ${insufficient.length}`, variant: "destructive" });
+      const details = [
+        missing.length ? `مفقود من الرئيسي: ${missing.join("، ")}` : "",
+        insufficient.length ? `غير كافٍ: ${insufficient.join("، ")}` : "",
+      ].filter(Boolean).join(" • ");
+      toast({ title: "لا يمكن التنفيذ", description: details || "راجع الكميات", variant: "destructive" });
       return;
     }
 
@@ -196,10 +235,11 @@ const WarehouseDetail = () => {
     });
     // طباعة فورية للكميات المطلوبة من المخزن الرئيسي
     try {
-      const printLines = requested.map(([name, qty]) => {
-        const need = supplyNeeds.find(n => n.name === name);
-        return { name, qty: Number(qty), unit: need?.unit || "قطعة" };
+      const printLines = requested.map(([name, halfQty]) => {
+        const qtyKg = Number(halfQty) * 0.5;
+        return { name, qty: qtyKg, unit: "كجم" };
       });
+
       printSupplyRequest(printLines, {
         transferNo: result?.transfer_no,
         fromWarehouse: mainWarehouse?.name,
@@ -325,11 +365,15 @@ const WarehouseDetail = () => {
 
   const exportSupplyExcel = () => {
     const rows = supplyNeeds.map((n, i) => ({
-      "م": i + 1, "الصنف": n.name, "الطلب (30 يوم)": n.demand,
-      "الرصيد الحالي": n.stock, "الكمية المقترحة": n.suggested, "الوحدة": n.unit,
+      "م": i + 1, "الصنف": n.name,
+      "الطلب (نص كيلو)": n.demandHalf,
+      "الرصيد بالعجوزة (نص كيلو)": n.stockHalf,
+      "المتاح بالرئيسي (نص كيلو)": n.mainStockHalf,
+      "الكمية المقترحة (نص كيلو)": n.suggestedHalf,
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
-    ws["!cols"] = [{ wch: 5 }, { wch: 30 }, { wch: 16 }, { wch: 14 }, { wch: 18 }, { wch: 10 }];
+    ws["!cols"] = [{ wch: 5 }, { wch: 30 }, { wch: 16 }, { wch: 22 }, { wch: 22 }, { wch: 22 }];
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "احتياج التوريد");
     XLSX.writeFile(wb, `احتياج-توريد-${warehouse?.name || ""}.xlsx`);
@@ -751,26 +795,30 @@ const WarehouseDetail = () => {
                 <CardContent className="p-0">
                   <Table>
                     <TableHeader><TableRow>
-                      <TableHead>الصنف</TableHead><TableHead>الطلب (30 يوم)</TableHead>
-                      <TableHead>الرصيد الحالي</TableHead><TableHead>الكمية المقترحة</TableHead><TableHead>الحالة</TableHead>
+                      <TableHead>الصنف</TableHead><TableHead>الطلب (نص كيلو)</TableHead>
+                      <TableHead>الرصيد بالعجوزة (نص كيلو)</TableHead>
+                      <TableHead>المتاح بالرئيسي (نص كيلو)</TableHead>
+                      <TableHead>الكمية المقترحة (نص كيلو)</TableHead><TableHead>الحالة</TableHead>
                     </TableRow></TableHeader>
                     <TableBody>
                       {supplyNeeds.length === 0 ? (
-                        <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">لا يوجد احتياج توريد حالياً</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">لا يوجد احتياج توريد حالياً</TableCell></TableRow>
                       ) : supplyNeeds.map(n => (
                         <TableRow key={n.name}>
                           <TableCell className="font-medium">{n.name}</TableCell>
-                          <TableCell>{n.demand} {n.unit}</TableCell>
-                          <TableCell className={n.stock === 0 ? "text-destructive font-bold" : ""}>{n.stock} {n.unit}</TableCell>
-                          <TableCell className="text-orange-600 font-bold">{n.suggested} {n.unit}</TableCell>
+                          <TableCell>{n.demandHalf}</TableCell>
+                          <TableCell className={n.stockHalf === 0 ? "text-destructive font-bold" : ""}>{n.stockHalf}</TableCell>
+                          <TableCell className={n.mainStockHalf === 0 ? "text-destructive font-bold" : ""}>{n.mainStockHalf}</TableCell>
+                          <TableCell className="text-orange-600 font-bold">{n.suggestedHalf}</TableCell>
                           <TableCell>
-                            {n.stock === 0
+                            {n.stockHalf === 0
                               ? <Badge variant="destructive">نفد</Badge>
                               : <Badge className="bg-orange-500/10 text-orange-600 border-orange-500/30">يحتاج توريد</Badge>}
                           </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
+
                   </Table>
                 </CardContent>
               </Card>
@@ -844,24 +892,36 @@ const WarehouseDetail = () => {
             ) : (
               <Table>
                 <TableHeader><TableRow>
-                  <TableHead>الصنف</TableHead><TableHead>متاح بالعجوزة</TableHead>
-                  <TableHead>المطلوب</TableHead><TableHead>الكمية</TableHead>
+                  <TableHead>الصنف</TableHead>
+                  <TableHead>متاح بالعجوزة</TableHead>
+                  <TableHead>متاح بالرئيسي (قبل الطلبات)</TableHead>
+                  <TableHead>المطلوب (نص كيلو)</TableHead>
+                  <TableHead>الكمية (نص كيلو)</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
-                  {supplyNeeds.map(n => (
-                    <TableRow key={n.name}>
-                      <TableCell className="font-medium">{n.name}</TableCell>
-                      <TableCell>{n.stock} {n.unit}</TableCell>
-                      <TableCell>{n.demand} {n.unit}</TableCell>
-                      <TableCell>
-                        <Input type="number" min={0} className="w-24"
-                          value={supplyQty[n.name] ?? 0}
-                          onChange={e => setSupplyQty({ ...supplyQty, [n.name]: Number(e.target.value) })} />
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {supplyNeeds.map(n => {
+                    const cap = Math.min(MAX_HALF_KG, n.mainStockHalf || MAX_HALF_KG);
+                    return (
+                      <TableRow key={n.name}>
+                        <TableCell className="font-medium">{n.name}</TableCell>
+                        <TableCell>{n.stockHalf} نص كيلو</TableCell>
+                        <TableCell className={n.mainStockHalf === 0 ? "text-destructive font-bold" : ""}>{n.mainStockHalf} نص كيلو</TableCell>
+                        <TableCell>{n.demandHalf} نص كيلو</TableCell>
+                        <TableCell>
+                          <Input type="number" min={0} max={cap} step={1} className="w-24"
+                            value={supplyQty[n.name] ?? 0}
+                            onChange={e => {
+                              const v = Math.max(0, Math.min(cap, Math.floor(Number(e.target.value) || 0)));
+                              setSupplyQty({ ...supplyQty, [n.name]: v });
+                            }} />
+                          <div className="text-[10px] text-muted-foreground mt-1">حد أقصى {cap} (10 كجم{n.mainStockHalf < MAX_HALF_KG ? " أو المتاح بالرئيسي" : ""})</div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
+
             )}
           </div>
           <DialogFooter>
