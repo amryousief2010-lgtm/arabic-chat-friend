@@ -136,6 +136,18 @@ const WarehouseDetail = () => {
 
   useEffect(() => { fetchAll(); }, [id]);
 
+  // Realtime: refresh when orders/order_items change so new orders by moderators appear instantly
+  useEffect(() => {
+    if (!id) return;
+    const ch = supabase
+      .channel(`warehouse-detail-${id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => fetchAll())
+      .on("postgres_changes", { event: "*", schema: "public", table: "order_items" }, () => fetchAll())
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [id]);
+
+
   const lowStock = items.filter(i => Number(i.stock) <= Number(i.low_stock_threshold));
   const totalValue = items.reduce((s, i) => s + Number(i.stock) * Number(i.unit_cost), 0);
 
@@ -173,15 +185,18 @@ const WarehouseDetail = () => {
     return needs.sort((a, b) => b.suggestedHalf - a.suggestedHalf);
   }, [demandByProduct, items, isAgouza, mainStockByName]);
 
-  // طلبات الاستلام من المخزن الرئيسي — لمسؤول المخزن (هادى) عشان يجهز الفاتورة قبل ما العميل يستلم
+  // طلبات الاستلام من المخزن الرئيسي — لمسؤول المخزن (هادى) ولأحمد خاطر فى العجوزة (عرض)
   const pickupOrders = useMemo(() => {
-    if (!isMain) return [];
-    return outletOrders.filter((o: any) =>
-      o.fulfillment_type === "pickup"
-      && o.source_warehouse_id === id
-      && !["delivered", "cancelled", "returned"].includes(o.status)
-    );
-  }, [outletOrders, isMain, id]);
+    if (!isMain && !isAgouza) return [];
+    return outletOrders.filter((o: any) => {
+      if (o.fulfillment_type !== "pickup") return false;
+      if (["delivered", "cancelled", "returned"].includes(o.status)) return false;
+      if (isMain) return o.source_warehouse_id === id;
+      // isAgouza: show pickup orders from main warehouse
+      return o.source_warehouse_id && o.source_warehouse_id !== id;
+    });
+  }, [outletOrders, isMain, isAgouza, id]);
+
 
   const handlePrintPickupInvoice = (o: any) => {
     printOrderInvoice({
@@ -607,12 +622,13 @@ const WarehouseDetail = () => {
             {isAgouza && (
               <TabsTrigger value="supply" className="gap-1">
                 <Truck className="w-4 h-4" />احتياج التوريد
-                {supplyNeeds.length > 0 && <Badge variant="destructive" className="mr-1">{supplyNeeds.length}</Badge>}
-              </TabsTrigger>
-            )}
-            {isMain && (
+            {(isMain || isAgouza) && (
               <TabsTrigger value="pickup" className="gap-1">
                 <Package className="w-4 h-4" />استلام من المخزن
+                {pickupOrders.length > 0 && <Badge variant="destructive" className="mr-1">{pickupOrders.length}</Badge>}
+              </TabsTrigger>
+            )}
+
                 {pickupOrders.length > 0 && <Badge variant="destructive" className="mr-1">{pickupOrders.length}</Badge>}
               </TabsTrigger>
             )}
