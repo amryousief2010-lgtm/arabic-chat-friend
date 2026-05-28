@@ -940,7 +940,11 @@ const WarehouseDetail = () => {
           <DialogHeader>
             <DialogTitle>الموافقة على طلب {approveDialog?.transfer_no}</DialogTitle>
             <DialogDescription>
+              من {approveDialog?.destination?.name}. الكميات معروضة بعبوات نصف الكيلو. يمكنك تعديلها قبل الموافقة. عند الموافقة سيُخصم المخزون فوراً من {warehouse?.name}.
+            </DialogDescription>
+          </DialogHeader>
           <Table>
+
             <TableHeader><TableRow>
               <TableHead>الصنف</TableHead>
               <TableHead>المطلوب (عبوات ½ كجم)</TableHead>
