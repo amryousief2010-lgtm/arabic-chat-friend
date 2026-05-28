@@ -48,6 +48,9 @@ const WarehouseDetail = () => {
   // مخزون المخزن الرئيسي (قبل الطلبات) — لعرضه في حوار التوريد
   const [mainStockByName, setMainStockByName] = useState<Record<string, number>>({});
   const [receiveDialog, setReceiveDialog] = useState<any>(null); // transfer obj
+  const [editRequestDialog, setEditRequestDialog] = useState<any>(null); // transfer obj
+  const [editRequestQty, setEditRequestQty] = useState<Record<string, number>>({}); // line_id -> half-kg packages
+
   const [receiveLines, setReceiveLines] = useState<Record<string, { qty: number; notes: string }>>({});
   const [receiveHeaderNotes, setReceiveHeaderNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -298,6 +301,34 @@ const WarehouseDetail = () => {
     toast({ title: "تم رفض الطلب" });
     fetchAll();
   };
+
+  const openEditRequestDialog = (t: any) => {
+    const init: Record<string, number> = {};
+    (t.items || []).forEach((li: any) => { init[li.id] = Math.round(Number(li.requested_qty) * 2); });
+    setEditRequestQty(init);
+    setEditRequestDialog(t);
+  };
+
+  const submitEditRequest = async () => {
+    if (!editRequestDialog) return;
+    const lines = Object.entries(editRequestQty).map(([line_id, pkgs]) => ({
+      line_id, qty: Number(pkgs) * 0.5,
+    }));
+    setSubmitting(true);
+    const { error } = await supabase.rpc("update_transfer_request_quantities", {
+      p_transfer_id: editRequestDialog.id,
+      p_lines: lines,
+    });
+    setSubmitting(false);
+    if (error) {
+      toast({ title: "تعذر تعديل الطلب", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "تم تعديل الطلب", description: "تم حفظ الكميات الجديدة" });
+    setEditRequestDialog(null);
+    fetchAll();
+  };
+
 
   const openReceiveDialog = (t: any) => {
     const init: Record<string, { qty: number; notes: string }> = {};
@@ -588,19 +619,24 @@ const WarehouseDetail = () => {
                 <CardContent className="p-0">
                   <Table>
                     <TableHeader><TableRow>
-                      <TableHead>الصنف</TableHead><TableHead>المطلوب</TableHead><TableHead>الوحدة</TableHead>
+                      <TableHead>الصنف</TableHead><TableHead>المطلوب (عبوات ½ كجم)</TableHead><TableHead>الإجمالي (كجم)</TableHead>
                     </TableRow></TableHeader>
                     <TableBody>
                       {(t.items || []).map((li: any) => (
                         <TableRow key={li.id}>
                           <TableCell className="font-medium">{li.item_name}</TableCell>
-                          <TableCell>{li.requested_qty}</TableCell>
-                          <TableCell>{li.unit}</TableCell>
+                          <TableCell>{Math.round(Number(li.requested_qty) * 2)} عبوة</TableCell>
+                          <TableCell className="text-muted-foreground">{Number(li.requested_qty).toFixed(1)} كجم</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
-                  <div className="p-3 border-t flex justify-end">
+                  <div className="p-3 border-t flex justify-end gap-2">
+                    {t.status === "pending_approval" && (
+                      <Button size="sm" variant="default" onClick={() => openEditRequestDialog(t)}>
+                        تعديل الكميات
+                      </Button>
+                    )}
                     <Button size="sm" variant="outline" onClick={() => printSupplyRequest(
                       (t.items || []).map((li: any) => ({ name: li.item_name, qty: Number(li.requested_qty), unit: li.unit })),
                       { transferNo: t.transfer_no, fromWarehouse: t.source?.name, toWarehouse: t.destination?.name, notes: t.notes }
@@ -608,6 +644,7 @@ const WarehouseDetail = () => {
                       طباعة الكميات المطلوبة
                     </Button>
                   </div>
+
                 </CardContent>
               </Card>
             ))}
@@ -978,6 +1015,51 @@ const WarehouseDetail = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit My Pending Request Dialog — requester adjusts quantities before approval */}
+      <Dialog open={!!editRequestDialog} onOpenChange={(o) => !o && setEditRequestDialog(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>تعديل طلب التوريد {editRequestDialog?.transfer_no}</DialogTitle>
+            <DialogDescription>
+              يمكنك زيادة أو نقصان الكميات بعبوات نص الكيلو (حد أقصى 20 عبوة = 10 كجم لكل صنف). ضع 0 لحذف الصنف من الطلب.
+            </DialogDescription>
+          </DialogHeader>
+          <Table>
+            <TableHeader><TableRow>
+              <TableHead>الصنف</TableHead>
+              <TableHead>الكمية (عبوات ½ كجم)</TableHead>
+              <TableHead>الإجمالي (كجم)</TableHead>
+            </TableRow></TableHeader>
+            <TableBody>
+              {(editRequestDialog?.items || []).map((li: any) => {
+                const cur = editRequestQty[li.id] ?? 0;
+                return (
+                  <TableRow key={li.id}>
+                    <TableCell className="font-medium">{li.item_name}</TableCell>
+                    <TableCell>
+                      <Input type="number" min={0} max={20} step={1} className="w-24"
+                        value={cur}
+                        onChange={e => setEditRequestQty({
+                          ...editRequestQty,
+                          [li.id]: Math.max(0, Math.min(20, Math.floor(Number(e.target.value) || 0)))
+                        })} />
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{(cur * 0.5).toFixed(1)} كجم</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setEditRequestDialog(null)}>إلغاء</Button>
+            <Button onClick={submitEditRequest} disabled={submitting}>
+              <CheckCircle2 className="w-4 h-4 ml-1" />حفظ التعديلات
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
       {/* Receive Confirmation Dialog — posts destination IN movement on confirm */}
       <Dialog open={!!receiveDialog} onOpenChange={(o) => !o && setReceiveDialog(null)}>
