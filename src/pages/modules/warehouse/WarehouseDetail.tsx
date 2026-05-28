@@ -463,7 +463,8 @@ const WarehouseDetail = () => {
       "الدفع": o.payment_method || "-",
       "حالة الدفع": o.payment_status || "-",
       "عدد الأصناف": (o.order_items || []).length,
-      "الإجمالي": Number(o.total_amount || 0),
+      "الإجمالي": Number(o.total ?? o.total_amount ?? 0),
+
     }));
     const lines: any[] = [];
     outletOrders.forEach((o) => {
