@@ -93,16 +93,32 @@ const WarehouseDetail = () => {
     ]);
     setWarehouse(wRes.data);
     setAllWarehouses(allWh);
-    setItems(it.data || []);
-    setMovements(mv.data || []);
-    setOrderItems(oi.data || []);
-    setTransfers(tr.data || []);
     // طلبات المنفذ (مصدرها هذا المخزن) — للعرض والتصدير لاحمد خاطر فى العجوزة وأى مخزن آخر
     const { data: ords } = await supabase
       .from("orders")
       .select("id, order_number, created_at, status, fulfillment_type, total_amount, payment_status, payment_method, customer:customers(name, phone, governorate), order_items(product_name, quantity, unit_price, total_price)")
       .eq("source_warehouse_id", id)
       .order("created_at", { ascending: false })
+      .limit(2000);
+    setOutletOrders(ords || []);
+    // مخزون المخزن الرئيسي (raw stock قبل خصم الطلبات) — للعرض في حوار التوريد
+    if (currentIsAgouza && mainWh) {
+      const { data: mainInv } = await supabase
+        .from("inventory_items")
+        .select("name, stock")
+        .eq("warehouse_id", mainWh.id);
+      const map: Record<string, number> = {};
+      (mainInv || []).forEach((r: any) => {
+        const key = (r.name || "").trim();
+        if (key) map[key] = (map[key] || 0) + Number(r.stock || 0);
+      });
+      setMainStockByName(map);
+    } else {
+      setMainStockByName({});
+    }
+    setLoading(false);
+  };
+
       .limit(2000);
     setOutletOrders(ords || []);
     setLoading(false);
