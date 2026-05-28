@@ -384,8 +384,6 @@ const WarehouseDetail = () => {
     }
     toast({ title: "تم تعديل الطلب", description: "تم حفظ الكميات الجديدة" });
     setEditRequestDialog(null);
-    toast({ title: "تم تعديل الطلب", description: "تم حفظ الكميات الجديدة" });
-    setEditRequestDialog(null);
     fetchAll();
   };
 
