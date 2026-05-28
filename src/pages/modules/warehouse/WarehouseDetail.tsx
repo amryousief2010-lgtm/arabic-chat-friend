@@ -610,6 +610,14 @@ const WarehouseDetail = () => {
                 {supplyNeeds.length > 0 && <Badge variant="destructive" className="mr-1">{supplyNeeds.length}</Badge>}
               </TabsTrigger>
             )}
+            {isMain && (
+              <TabsTrigger value="pickup" className="gap-1">
+                <Package className="w-4 h-4" />استلام من المخزن
+                {pickupOrders.length > 0 && <Badge variant="destructive" className="mr-1">{pickupOrders.length}</Badge>}
+              </TabsTrigger>
+            )}
+            {false && (
+
             <TabsTrigger value="outlet" className="gap-1">
               <FileSpreadsheet className="w-4 h-4" />طلبات المنفذ
               {outletOrders.length > 0 && <Badge variant="secondary" className="mr-1">{outletOrders.length}</Badge>}
