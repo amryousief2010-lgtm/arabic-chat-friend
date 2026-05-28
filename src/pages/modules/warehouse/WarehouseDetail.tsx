@@ -101,13 +101,15 @@ const WarehouseDetail = () => {
     setOrderItems(oi.data || []);
     setTransfers(tr.data || []);
     // طلبات المنفذ (مصدرها هذا المخزن) — للعرض والتصدير لاحمد خاطر فى العجوزة وأى مخزن آخر
+    // عند العرض من العجوزة نعرض أيضاً الطلبات المسجَّلة على المخزن الرئيسي (عرض فقط + تصدير)
+    const orderSourceIds = currentIsAgouza && mainWh ? [id, mainWh.id] : [id];
     const { data: ords } = await supabase
       .from("orders")
-      .select("id, order_number, created_at, status, fulfillment_type, total_amount, payment_status, payment_method, customer:customers(name, phone, governorate), order_items(product_name, quantity, unit_price, total_price)")
-      .eq("source_warehouse_id", id)
+      .select("id, order_number, created_at, status, fulfillment_type, total_amount, payment_status, payment_method, source_warehouse_id, source:warehouses!orders_source_warehouse_id_fkey(name), customer:customers(name, phone, governorate), order_items(product_name, quantity, unit_price, total_price)")
+      .in("source_warehouse_id", orderSourceIds)
       .order("created_at", { ascending: false })
       .limit(2000);
-    setOutletOrders(ords || []);
+
     // مخزون المخزن الرئيسي (raw stock قبل خصم الطلبات) — للعرض في حوار التوريد
     if (currentIsAgouza && mainWh) {
       const { data: mainInv } = await supabase
@@ -448,6 +450,7 @@ const WarehouseDetail = () => {
       "م": i + 1,
       "رقم الطلب": o.order_number,
       "التاريخ": new Date(o.created_at).toLocaleString("ar-EG"),
+      "المخزن": o.source?.name || "-",
       "العميل": o.customer?.name || "-",
       "الهاتف": o.customer?.phone || "-",
       "المحافظة": o.customer?.governorate || "-",
@@ -464,6 +467,7 @@ const WarehouseDetail = () => {
         lines.push({
           "رقم الطلب": o.order_number,
           "التاريخ": new Date(o.created_at).toLocaleString("ar-EG"),
+          "المخزن": o.source?.name || "-",
           "العميل": o.customer?.name || "-",
           "الصنف": li.product_name,
           "الكمية": Number(li.quantity || 0),
@@ -474,10 +478,11 @@ const WarehouseDetail = () => {
     });
     const wb = XLSX.utils.book_new();
     const ws1 = XLSX.utils.json_to_sheet(summary);
-    ws1["!cols"] = [{ wch: 5 }, { wch: 14 }, { wch: 18 }, { wch: 22 }, { wch: 14 }, { wch: 12 }, { wch: 16 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 12 }];
+    ws1["!cols"] = [{ wch: 5 }, { wch: 14 }, { wch: 18 }, { wch: 18 }, { wch: 22 }, { wch: 14 }, { wch: 12 }, { wch: 16 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 12 }];
     XLSX.utils.book_append_sheet(wb, ws1, "ملخص الطلبات");
     const ws2 = XLSX.utils.json_to_sheet(lines);
-    ws2["!cols"] = [{ wch: 14 }, { wch: 18 }, { wch: 22 }, { wch: 30 }, { wch: 10 }, { wch: 12 }, { wch: 12 }];
+    ws2["!cols"] = [{ wch: 14 }, { wch: 18 }, { wch: 18 }, { wch: 22 }, { wch: 30 }, { wch: 10 }, { wch: 12 }, { wch: 12 }];
+
     XLSX.utils.book_append_sheet(wb, ws2, "تفاصيل الأصناف");
     XLSX.writeFile(wb, `طلبات-${warehouse?.name || "المنفذ"}-${new Date().toISOString().slice(0,10)}.xlsx`);
   };
@@ -896,9 +901,13 @@ const WarehouseDetail = () => {
                 <div>
                   <CardTitle className="text-base flex items-center gap-2">
                     <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
-                    طلبات منفذ {warehouse.name}
+                    {isAgouza ? "طلبات منفذ العجوزة + المخزن الرئيسي" : `طلبات منفذ ${warehouse.name}`}
                   </CardTitle>
-                  <CardDescription>الطلبات المسجَّلة على هذا المنفذ • إجمالى {outletOrders.length}</CardDescription>
+                  <CardDescription>
+                    {isAgouza
+                      ? `كل الطلبات المسجَّلة على العجوزة والمخزن الرئيسي (عرض فقط) • إجمالى ${outletOrders.length}`
+                      : `الطلبات المسجَّلة على هذا المنفذ • إجمالى ${outletOrders.length}`}
+                  </CardDescription>
                 </div>
                 <Button size="sm" variant="outline" onClick={exportOutletOrdersExcel} disabled={outletOrders.length === 0}>
                   <FileSpreadsheet className="w-4 h-4 ml-1 text-emerald-600" />تحميل Excel
@@ -912,6 +921,7 @@ const WarehouseDetail = () => {
                     <Table>
                       <TableHeader><TableRow>
                         <TableHead>رقم الطلب</TableHead><TableHead>التاريخ</TableHead>
+                        <TableHead>المخزن</TableHead>
                         <TableHead>العميل</TableHead><TableHead>المحافظة</TableHead>
                         <TableHead>التنفيذ</TableHead><TableHead>الحالة</TableHead>
                         <TableHead>الأصناف</TableHead><TableHead>الإجمالى</TableHead>
@@ -921,6 +931,9 @@ const WarehouseDetail = () => {
                           <TableRow key={o.id}>
                             <TableCell className="font-mono text-xs">{o.order_number}</TableCell>
                             <TableCell className="text-xs">{formatDateTime(o.created_at)}</TableCell>
+                            <TableCell className="text-xs">
+                              <Badge variant={o.source_warehouse_id === id ? "default" : "secondary"}>{o.source?.name || "-"}</Badge>
+                            </TableCell>
                             <TableCell>{o.customer?.name || "-"}</TableCell>
                             <TableCell className="text-xs">{o.customer?.governorate || "-"}</TableCell>
                             <TableCell className="text-xs">{fulfillmentLabel(o.fulfillment_type)}</TableCell>
@@ -936,6 +949,7 @@ const WarehouseDetail = () => {
                     )}
                   </div>
                 )}
+
               </CardContent>
             </Card>
           </TabsContent>
