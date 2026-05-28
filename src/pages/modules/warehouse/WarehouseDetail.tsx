@@ -353,11 +353,15 @@ const WarehouseDetail = () => {
 
   const exportSupplyExcel = () => {
     const rows = supplyNeeds.map((n, i) => ({
-      "م": i + 1, "الصنف": n.name, "الطلب (30 يوم)": n.demand,
-      "الرصيد الحالي": n.stock, "الكمية المقترحة": n.suggested, "الوحدة": n.unit,
+      "م": i + 1, "الصنف": n.name,
+      "الطلب (نص كيلو)": n.demandHalf,
+      "الرصيد بالعجوزة (نص كيلو)": n.stockHalf,
+      "المتاح بالرئيسي (نص كيلو)": n.mainStockHalf,
+      "الكمية المقترحة (نص كيلو)": n.suggestedHalf,
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
-    ws["!cols"] = [{ wch: 5 }, { wch: 30 }, { wch: 16 }, { wch: 14 }, { wch: 18 }, { wch: 10 }];
+    ws["!cols"] = [{ wch: 5 }, { wch: 30 }, { wch: 16 }, { wch: 22 }, { wch: 22 }, { wch: 22 }];
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "احتياج التوريد");
     XLSX.writeFile(wb, `احتياج-توريد-${warehouse?.name || ""}.xlsx`);
