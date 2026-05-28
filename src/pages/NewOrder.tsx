@@ -790,6 +790,24 @@ const NewOrder = () => {
         return;
       }
 
+      // Upload deposit receipt (if required/provided) BEFORE inserting the order
+      let depositReceiptPath: string | null = null;
+      let depositReceiptName: string | null = null;
+      if (depositReceiptFile && user?.id) {
+        const ext = depositReceiptFile.name.split('.').pop() ?? 'bin';
+        const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from('order-deposit-receipts')
+          .upload(path, depositReceiptFile, { contentType: depositReceiptFile.type, upsert: false });
+        if (upErr) {
+          toast.error('تعذّر رفع إيصال العربون', { description: upErr.message });
+          setSubmitting(false);
+          return;
+        }
+        depositReceiptPath = path;
+        depositReceiptName = depositReceiptFile.name;
+      }
+
       // Create order
       const { data: order, error: orderError } = await supabase
         .from('orders')
@@ -813,6 +831,8 @@ const NewOrder = () => {
           extra_charge_reason: extraChargeReason.trim() || null,
           fulfillment_type: fulfillmentType,
           source_warehouse_id: sourceWh.id,
+          deposit_receipt_url: depositReceiptPath,
+          deposit_receipt_name: depositReceiptName,
         })
         .select()
         .single();
