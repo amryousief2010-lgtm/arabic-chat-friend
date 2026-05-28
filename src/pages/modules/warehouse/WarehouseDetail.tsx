@@ -236,16 +236,13 @@ const WarehouseDetail = () => {
       title: "تم تقديم الطلب للموافقة",
       description: `رقم الطلب ${result?.transfer_no} • ${result?.lines} صنف • بانتظار موافقة الإدارة / مشرف المخازن`,
     });
-
-      title: "تم تقديم الطلب للموافقة",
-      description: `رقم الطلب ${result?.transfer_no} • ${result?.lines} صنف • بانتظار موافقة الإدارة / مشرف المخازن`,
-    });
     // طباعة فورية للكميات المطلوبة من المخزن الرئيسي
     try {
-      const printLines = requested.map(([name, qty]) => {
-        const need = supplyNeeds.find(n => n.name === name);
-        return { name, qty: Number(qty), unit: need?.unit || "قطعة" };
+      const printLines = requested.map(([name, halfQty]) => {
+        const qtyKg = Number(halfQty) * 0.5;
+        return { name, qty: qtyKg, unit: "كجم" };
       });
+
       printSupplyRequest(printLines, {
         transferNo: result?.transfer_no,
         fromWarehouse: mainWarehouse?.name,
