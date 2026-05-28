@@ -443,6 +443,8 @@ const WarehouseDetail = () => {
   }[s] || s);
   const fulfillmentLabel = (f: string) => ({
     pickup: "استلام من المنفذ", delivery: "توصيل", shipping: "شحن",
+  }[f] || f || "-");
+
   const exportOutletOrdersExcel = () => {
     const summary = outletOrders.map((o, i) => ({
       "م": i + 1,
@@ -474,15 +476,13 @@ const WarehouseDetail = () => {
         });
       });
     });
-
-      });
-    });
     const wb = XLSX.utils.book_new();
     const ws1 = XLSX.utils.json_to_sheet(summary);
-    ws1["!cols"] = [{ wch: 5 }, { wch: 14 }, { wch: 18 }, { wch: 22 }, { wch: 14 }, { wch: 12 }, { wch: 16 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 12 }];
+    ws1["!cols"] = [{ wch: 5 }, { wch: 14 }, { wch: 18 }, { wch: 18 }, { wch: 22 }, { wch: 14 }, { wch: 12 }, { wch: 16 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 12 }];
     XLSX.utils.book_append_sheet(wb, ws1, "ملخص الطلبات");
     const ws2 = XLSX.utils.json_to_sheet(lines);
-    ws2["!cols"] = [{ wch: 14 }, { wch: 18 }, { wch: 22 }, { wch: 30 }, { wch: 10 }, { wch: 12 }, { wch: 12 }];
+    ws2["!cols"] = [{ wch: 14 }, { wch: 18 }, { wch: 18 }, { wch: 22 }, { wch: 30 }, { wch: 10 }, { wch: 12 }, { wch: 12 }];
+
     XLSX.utils.book_append_sheet(wb, ws2, "تفاصيل الأصناف");
     XLSX.writeFile(wb, `طلبات-${warehouse?.name || "المنفذ"}-${new Date().toISOString().slice(0,10)}.xlsx`);
   };
