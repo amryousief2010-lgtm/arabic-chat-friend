@@ -164,6 +164,7 @@ const NewOrder = () => {
   const [extraCharge, setExtraCharge] = useState(0);
   const [extraChargeReason, setExtraChargeReason] = useState('');
   const [notes, setNotes] = useState('');
+  const [depositReceiptFile, setDepositReceiptFile] = useState<File | null>(null);
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [source, setSource] = useState<string>('');
   const [sourceCustom, setSourceCustom] = useState('');
@@ -704,9 +705,28 @@ const NewOrder = () => {
     setNewCustomerShippingCustom('');
   };
 
+  // Products that require a deposit (عربون) transfer receipt before submission
+  const requiresDepositReceipt = useMemo(() => {
+    return cart.some(item => {
+      const n = (item.product?.name || '').replace(/\s+/g, ' ').trim();
+      const hasBone = n.includes('عظم') || n.includes('عضم');
+      if (n.includes('دبوس') && hasBone) return true;
+      if ((n.includes('فخدة') || n.includes('فخده')) && hasBone) return true;
+      if ((n.includes('نعامة') || n.includes('نعامه')) && n.includes('صندوق')) return true;
+      return false;
+    });
+  }, [cart]);
+
   const handleSubmitOrder = async () => {
     if (cart.length === 0) {
       toast.error('يرجى إضافة منتجات للطلب');
+      return;
+    }
+
+    if (isSalesModerator && requiresDepositReceipt && !depositReceiptFile) {
+      toast.error('يجب رفع إيصال تحويل العربون قبل تسجيل الطلب', {
+        description: 'الطلب يحتوي على منتج (دبوس بالعظم / فخدة بالعظم / نعامة صندوق) ويتطلب إثبات تحويل العربون',
+      });
       return;
     }
 
@@ -770,6 +790,24 @@ const NewOrder = () => {
         return;
       }
 
+      // Upload deposit receipt (if required/provided) BEFORE inserting the order
+      let depositReceiptPath: string | null = null;
+      let depositReceiptName: string | null = null;
+      if (depositReceiptFile && user?.id) {
+        const ext = depositReceiptFile.name.split('.').pop() ?? 'bin';
+        const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from('order-deposit-receipts')
+          .upload(path, depositReceiptFile, { contentType: depositReceiptFile.type, upsert: false });
+        if (upErr) {
+          toast.error('تعذّر رفع إيصال العربون', { description: upErr.message });
+          setSubmitting(false);
+          return;
+        }
+        depositReceiptPath = path;
+        depositReceiptName = depositReceiptFile.name;
+      }
+
       // Create order
       const { data: order, error: orderError } = await supabase
         .from('orders')
@@ -793,6 +831,8 @@ const NewOrder = () => {
           extra_charge_reason: extraChargeReason.trim() || null,
           fulfillment_type: fulfillmentType,
           source_warehouse_id: sourceWh.id,
+          deposit_receipt_url: depositReceiptPath,
+          deposit_receipt_name: depositReceiptName,
         })
         .select()
         .single();
@@ -1796,6 +1836,37 @@ const NewOrder = () => {
                       </div>
                     </div>
 
+                    {isSalesModerator && requiresDepositReceipt && (
+                      <div className="space-y-2 rounded-lg border-2 border-orange-400 dark:border-orange-700 bg-orange-50/60 dark:bg-orange-950/30 p-3">
+                        <Label className="flex items-center gap-1 font-semibold text-orange-900 dark:text-orange-200">
+                          إيصال تحويل العربون <span className="text-destructive">*</span>
+                        </Label>
+                        <p className="text-xs text-orange-800 dark:text-orange-300">
+                          الطلب يحتوي على (دبوس بالعظم / فخدة بالعظم / نعامة صندوق). يجب رفع صورة إيصال تحويل العربون قبل تأكيد الطلب.
+                        </p>
+                        <Input
+                          type="file"
+                          accept="image/*,application/pdf"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0] ?? null;
+                            if (f && f.size > 10 * 1024 * 1024) {
+                              toast.error('حجم الملف يجب ألا يتجاوز 10 ميجابايت');
+                              return;
+                            }
+                            setDepositReceiptFile(f);
+                          }}
+                        />
+                        {depositReceiptFile && (
+                          <div className="flex items-center justify-between p-2 rounded-md bg-background/60 text-xs">
+                            <span className="truncate">{depositReceiptFile.name} ({(depositReceiptFile.size / 1024).toFixed(0)} KB)</span>
+                            <Button type="button" variant="ghost" size="sm" onClick={() => setDepositReceiptFile(null)}>
+                              إزالة
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {!selectedCustomer && (
                       <p className="text-sm text-amber-600 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-md p-2 text-center">
                         يرجى اختيار العميل أولاً لتفعيل زر تأكيد الطلب
@@ -1805,7 +1876,7 @@ const NewOrder = () => {
                       className="w-full gap-2"
                       size="lg"
                       onClick={handleSubmitOrder}
-                      disabled={submitting || !selectedCustomer}
+                      disabled={submitting || !selectedCustomer || (isSalesModerator && requiresDepositReceipt && !depositReceiptFile)}
                     >
                       {submitting ? (
                         <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-primary-foreground"></div>
