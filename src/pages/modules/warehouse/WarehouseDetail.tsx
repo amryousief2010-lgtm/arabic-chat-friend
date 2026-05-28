@@ -940,25 +940,33 @@ const WarehouseDetail = () => {
           <DialogHeader>
             <DialogTitle>الموافقة على طلب {approveDialog?.transfer_no}</DialogTitle>
             <DialogDescription>
-              من {approveDialog?.destination?.name}. يمكنك تعديل الكميات قبل الموافقة. عند الموافقة سيُخصم المخزون فوراً من {warehouse?.name} وينتقل الطلب لحالة "بانتظار الاستلام".
-            </DialogDescription>
-          </DialogHeader>
           <Table>
             <TableHeader><TableRow>
-              <TableHead>الصنف</TableHead><TableHead>المطلوب</TableHead><TableHead>الموافق عليها</TableHead><TableHead>الوحدة</TableHead>
+              <TableHead>الصنف</TableHead>
+              <TableHead>المطلوب (عبوات ½ كجم)</TableHead>
+              <TableHead>الموافق عليها (عبوات ½ كجم)</TableHead>
+              <TableHead>الإجمالي (كجم)</TableHead>
             </TableRow></TableHeader>
             <TableBody>
-              {(approveDialog?.items || []).map((li: any) => (
-                <TableRow key={li.id}>
-                  <TableCell className="font-medium">{li.item_name}</TableCell>
-                  <TableCell>{li.requested_qty}</TableCell>
-                  <TableCell>
-                    <Input type="number" min={0} max={Number(li.requested_qty)} className="w-24"
-                      value={approveQty[li.id] ?? 0}
-                      onChange={e => setApproveQty({ ...approveQty, [li.id]: Number(e.target.value) })} />
-                  </TableCell>
-                  <TableCell>{li.unit}</TableCell>
-                </TableRow>
+              {(approveDialog?.items || []).map((li: any) => {
+                const reqPkgs = Math.round(Number(li.requested_qty) * 2);
+                const curPkgs = approveQty[li.id] ?? 0;
+                return (
+                  <TableRow key={li.id}>
+                    <TableCell className="font-medium">{li.item_name}</TableCell>
+                    <TableCell>{reqPkgs} عبوة</TableCell>
+                    <TableCell>
+                      <Input type="number" min={0} max={reqPkgs} step={1} className="w-24"
+                        value={curPkgs}
+                        onChange={e => setApproveQty({ ...approveQty, [li.id]: Math.max(0, Math.min(reqPkgs, Math.floor(Number(e.target.value)))) })} />
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{(curPkgs * 0.5).toFixed(1)} كجم</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+
               ))}
             </TableBody>
           </Table>
