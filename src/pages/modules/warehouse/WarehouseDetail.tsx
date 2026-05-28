@@ -1004,6 +1004,88 @@ const WarehouseDetail = () => {
               </CardContent>
             </Card>
           </TabsContent>
+
+          <TabsContent value="pickup" className="space-y-3">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Package className="w-5 h-5 text-primary" />
+                  طلبات استلام من المخزن الرئيسي
+                </CardTitle>
+                <CardDescription>
+                  الأوردرات اللى العميل هيستلمها من المخزن — جهّز الفاتورة والأصناف قبل وصوله • إجمالى {pickupOrders.length}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                {pickupOrders.length === 0 ? (
+                  <div className="py-10 text-center text-muted-foreground">لا توجد طلبات استلام معلقة حالياً</div>
+                ) : (
+                  <div className="divide-y">
+                    {pickupOrders.map((o: any) => {
+                      const itemsCount = (o.order_items || []).length;
+                      const total = Number(o.total ?? 0);
+                      return (
+                        <div key={o.id} className="p-4 space-y-3">
+                          <div className="flex items-start justify-between flex-wrap gap-2">
+                            <div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-mono text-sm font-semibold">{o.order_number}</span>
+                                <Badge variant="outline">{statusArLabel(o.status)}</Badge>
+                                <Badge variant={o.payment_status === "paid" ? "default" : "secondary"}>
+                                  {o.payment_status === "paid" ? "مدفوع" : "غير مدفوع"} • {o.payment_method || "-"}
+                                </Badge>
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-1">{formatDateTime(o.created_at)}</div>
+                              <div className="text-sm mt-2">
+                                <span className="font-medium">{o.customer?.name || "-"}</span>
+                                {o.customer?.phone && <span className="text-muted-foreground mr-2 font-mono">{o.customer.phone}</span>}
+                              </div>
+                            </div>
+                            <div className="text-left">
+                              <div className="text-xs text-muted-foreground">الإجمالى</div>
+                              <div className="text-xl font-bold text-primary">{total.toLocaleString()} ج.م</div>
+                              <Button size="sm" className="mt-2" onClick={() => handlePrintPickupInvoice(o)}>
+                                <FileSpreadsheet className="w-4 h-4 ml-1" />طباعة الفاتورة
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="bg-muted/40 rounded-md overflow-hidden">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>الصنف</TableHead>
+                                  <TableHead className="text-center">الكمية</TableHead>
+                                  <TableHead className="text-center">السعر</TableHead>
+                                  <TableHead className="text-left">الإجمالى</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {(o.order_items || []).map((li: any, idx: number) => (
+                                  <TableRow key={idx}>
+                                    <TableCell className="text-sm">{li.product_name}{li.offer_name ? <span className="text-xs text-muted-foreground mr-1">({li.offer_name})</span> : null}</TableCell>
+                                    <TableCell className="text-center text-sm">{Number(li.quantity || 0)}</TableCell>
+                                    <TableCell className="text-center text-sm">{Number(li.unit_price || 0).toLocaleString()}</TableCell>
+                                    <TableCell className="text-left text-sm font-semibold">{Number(li.total_price || 0).toLocaleString()}</TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                          {o.notes && (
+                            <div className="text-xs bg-yellow-50 border border-yellow-200 rounded px-3 py-2">
+                              <span className="font-semibold">ملاحظات: </span>{o.notes}
+                            </div>
+                          )}
+                          <div className="text-xs text-muted-foreground">عدد الأصناف: {itemsCount}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
         </Tabs>
       </div>
 
