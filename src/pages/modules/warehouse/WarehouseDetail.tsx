@@ -175,7 +175,12 @@ const WarehouseDetail = () => {
     if (!mainWarehouse) {
       toast({ title: "لا يوجد مخزن رئيسي", description: "تعذر تحديد المخزن المصدر", variant: "destructive" });
       return;
+  const submitSupplyRequest = async () => {
+    if (!mainWarehouse) {
+      toast({ title: "لا يوجد مخزن رئيسي", description: "تعذر تحديد المخزن المصدر", variant: "destructive" });
+      return;
     }
+    // supplyQty قيمها بوحدة نص كيلو — نحولها لكجم قبل الإرسال للـ RPC
     const requested = Object.entries(supplyQty).filter(([_, q]) => q > 0);
     if (requested.length === 0) {
       toast({ title: "لا يوجد أصناف", description: "أدخل كميات أكبر من صفر", variant: "destructive" });
@@ -183,23 +188,32 @@ const WarehouseDetail = () => {
     }
 
     // Resolve source item IDs by name from main warehouse
-    const { data: mainItems } = await supabase
+    const { data: mainItems, error: mErr } = await supabase
       .from("inventory_items")
       .select("id, name, stock")
       .eq("warehouse_id", mainWarehouse.id);
+    if (mErr) {
+      toast({ title: "تعذّر قراءة مخزون الرئيسي", description: mErr.message, variant: "destructive" });
+      return;
+    }
 
     const lines: Array<{ source_item_id: string; qty: number }> = [];
     const missing: string[] = [];
     const insufficient: string[] = [];
-    for (const [name, qty] of requested) {
+    for (const [name, halfQty] of requested) {
+      const qtyKg = Number(halfQty) * 0.5;
       const src = (mainItems || []).find((m: any) => m.name?.trim() === name.trim());
       if (!src) { missing.push(name); continue; }
-      if (Number(src.stock) < qty) { insufficient.push(`${name} (متاح ${src.stock})`); continue; }
-      lines.push({ source_item_id: src.id, qty });
+      if (Number(src.stock) < qtyKg) { insufficient.push(`${name} (متاح ${src.stock} كجم)`); continue; }
+      lines.push({ source_item_id: src.id, qty: qtyKg });
     }
 
     if (lines.length === 0) {
-      toast({ title: "لا يمكن التنفيذ", description: `مفقود: ${missing.length} • غير كافٍ: ${insufficient.length}`, variant: "destructive" });
+      const details = [
+        missing.length ? `مفقود من الرئيسي: ${missing.join("، ")}` : "",
+        insufficient.length ? `غير كافٍ: ${insufficient.join("، ")}` : "",
+      ].filter(Boolean).join(" • ");
+      toast({ title: "لا يمكن التنفيذ", description: details || "راجع الكميات", variant: "destructive" });
       return;
     }
 
@@ -219,6 +233,10 @@ const WarehouseDetail = () => {
 
     const result = data as any;
     toast({
+      title: "تم تقديم الطلب للموافقة",
+      description: `رقم الطلب ${result?.transfer_no} • ${result?.lines} صنف • بانتظار موافقة الإدارة / مشرف المخازن`,
+    });
+
       title: "تم تقديم الطلب للموافقة",
       description: `رقم الطلب ${result?.transfer_no} • ${result?.lines} صنف • بانتظار موافقة الإدارة / مشرف المخازن`,
     });
