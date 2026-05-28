@@ -895,15 +895,16 @@ const WarehouseDetail = () => {
             </TabsContent>
           )}
 
-          <TabsContent value="outlet" className="space-y-3">
-            <Card>
-              <CardHeader className="pb-3 flex flex-row items-center justify-between gap-2">
                 <div>
                   <CardTitle className="text-base flex items-center gap-2">
                     <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
-                    طلبات منفذ {warehouse.name}
+                    {isAgouza ? "طلبات منفذ العجوزة + المخزن الرئيسي" : `طلبات منفذ ${warehouse.name}`}
                   </CardTitle>
-                  <CardDescription>الطلبات المسجَّلة على هذا المنفذ • إجمالى {outletOrders.length}</CardDescription>
+                  <CardDescription>
+                    {isAgouza
+                      ? `كل الطلبات المسجَّلة على العجوزة والمخزن الرئيسي (عرض فقط) • إجمالى ${outletOrders.length}`
+                      : `الطلبات المسجَّلة على هذا المنفذ • إجمالى ${outletOrders.length}`}
+                  </CardDescription>
                 </div>
                 <Button size="sm" variant="outline" onClick={exportOutletOrdersExcel} disabled={outletOrders.length === 0}>
                   <FileSpreadsheet className="w-4 h-4 ml-1 text-emerald-600" />تحميل Excel
@@ -917,6 +918,7 @@ const WarehouseDetail = () => {
                     <Table>
                       <TableHeader><TableRow>
                         <TableHead>رقم الطلب</TableHead><TableHead>التاريخ</TableHead>
+                        <TableHead>المخزن</TableHead>
                         <TableHead>العميل</TableHead><TableHead>المحافظة</TableHead>
                         <TableHead>التنفيذ</TableHead><TableHead>الحالة</TableHead>
                         <TableHead>الأصناف</TableHead><TableHead>الإجمالى</TableHead>
@@ -926,6 +928,9 @@ const WarehouseDetail = () => {
                           <TableRow key={o.id}>
                             <TableCell className="font-mono text-xs">{o.order_number}</TableCell>
                             <TableCell className="text-xs">{formatDateTime(o.created_at)}</TableCell>
+                            <TableCell className="text-xs">
+                              <Badge variant={o.source_warehouse_id === id ? "default" : "secondary"}>{o.source?.name || "-"}</Badge>
+                            </TableCell>
                             <TableCell>{o.customer?.name || "-"}</TableCell>
                             <TableCell className="text-xs">{o.customer?.governorate || "-"}</TableCell>
                             <TableCell className="text-xs">{fulfillmentLabel(o.fulfillment_type)}</TableCell>
@@ -934,6 +939,12 @@ const WarehouseDetail = () => {
                             <TableCell className="font-semibold">{Number(o.total_amount || 0).toLocaleString()}</TableCell>
                           </TableRow>
                         ))}
+                      </TableBody>
+                    </Table>
+                    {outletOrders.length > 200 && (
+                      <div className="p-3 text-center text-xs text-muted-foreground">يتم عرض أحدث 200 طلب — حمّل ملف Excel للحصول على الكل ({outletOrders.length})</div>
+                    )}
+
                       </TableBody>
                     </Table>
                     {outletOrders.length > 200 && (
