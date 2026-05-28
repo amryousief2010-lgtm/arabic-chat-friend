@@ -4533,6 +4533,8 @@ export type Database = {
           delivered_at: string | null
           delivery_address: string | null
           delivery_fee: number
+          deposit_receipt_name: string | null
+          deposit_receipt_url: string | null
           discount: number
           extra_charge: number
           extra_charge_reason: string | null
@@ -4565,6 +4567,8 @@ export type Database = {
           delivered_at?: string | null
           delivery_address?: string | null
           delivery_fee?: number
+          deposit_receipt_name?: string | null
+          deposit_receipt_url?: string | null
           discount?: number
           extra_charge?: number
           extra_charge_reason?: string | null
@@ -4597,6 +4601,8 @@ export type Database = {
           delivered_at?: string | null
           delivery_address?: string | null
           delivery_fee?: number
+          deposit_receipt_name?: string | null
+          deposit_receipt_url?: string | null
           discount?: number
           extra_charge?: number
           extra_charge_reason?: string | null
