@@ -257,14 +257,16 @@ const WarehouseDetail = () => {
 
   const openApproveDialog = (t: any) => {
     const init: Record<string, number> = {};
-    (t.items || []).forEach((li: any) => { init[li.id] = Number(li.requested_qty); });
+    // store in half-kg packages (1 package = 0.5 kg)
+    (t.items || []).forEach((li: any) => { init[li.id] = Math.round(Number(li.requested_qty) * 2); });
     setApproveQty(init);
     setApproveDialog(t);
   };
 
   const submitApprove = async () => {
     if (!approveDialog) return;
-    const approved_lines = Object.entries(approveQty).map(([line_id, qty]) => ({ line_id, approved_qty: Number(qty) }));
+    // convert packages back to kg before sending
+    const approved_lines = Object.entries(approveQty).map(([line_id, pkgs]) => ({ line_id, approved_qty: Number(pkgs) * 0.5 }));
     setSubmitting(true);
     const { error } = await supabase.rpc("approve_warehouse_transfer", {
       p_transfer_id: approveDialog.id,
@@ -279,6 +281,7 @@ const WarehouseDetail = () => {
     setApproveDialog(null);
     fetchAll();
   };
+
 
   const rejectTransfer = async (t: any) => {
     const reason = window.prompt(`سبب رفض طلب ${t.transfer_no}؟`);
@@ -937,26 +940,34 @@ const WarehouseDetail = () => {
           <DialogHeader>
             <DialogTitle>الموافقة على طلب {approveDialog?.transfer_no}</DialogTitle>
             <DialogDescription>
-              من {approveDialog?.destination?.name}. يمكنك تعديل الكميات قبل الموافقة. عند الموافقة سيُخصم المخزون فوراً من {warehouse?.name} وينتقل الطلب لحالة "بانتظار الاستلام".
+              من {approveDialog?.destination?.name}. الكميات معروضة بعبوات نصف الكيلو. يمكنك تعديلها قبل الموافقة. عند الموافقة سيُخصم المخزون فوراً من {warehouse?.name}.
             </DialogDescription>
           </DialogHeader>
           <Table>
+
             <TableHeader><TableRow>
-              <TableHead>الصنف</TableHead><TableHead>المطلوب</TableHead><TableHead>الموافق عليها</TableHead><TableHead>الوحدة</TableHead>
+              <TableHead>الصنف</TableHead>
+              <TableHead>المطلوب (عبوات ½ كجم)</TableHead>
+              <TableHead>الموافق عليها (عبوات ½ كجم)</TableHead>
+              <TableHead>الإجمالي (كجم)</TableHead>
             </TableRow></TableHeader>
             <TableBody>
-              {(approveDialog?.items || []).map((li: any) => (
-                <TableRow key={li.id}>
-                  <TableCell className="font-medium">{li.item_name}</TableCell>
-                  <TableCell>{li.requested_qty}</TableCell>
-                  <TableCell>
-                    <Input type="number" min={0} max={Number(li.requested_qty)} className="w-24"
-                      value={approveQty[li.id] ?? 0}
-                      onChange={e => setApproveQty({ ...approveQty, [li.id]: Number(e.target.value) })} />
-                  </TableCell>
-                  <TableCell>{li.unit}</TableCell>
-                </TableRow>
-              ))}
+              {(approveDialog?.items || []).map((li: any) => {
+                const reqPkgs = Math.round(Number(li.requested_qty) * 2);
+                const curPkgs = approveQty[li.id] ?? 0;
+                return (
+                  <TableRow key={li.id}>
+                    <TableCell className="font-medium">{li.item_name}</TableCell>
+                    <TableCell>{reqPkgs} عبوة</TableCell>
+                    <TableCell>
+                      <Input type="number" min={0} max={reqPkgs} step={1} className="w-24"
+                        value={curPkgs}
+                        onChange={e => setApproveQty({ ...approveQty, [li.id]: Math.max(0, Math.min(reqPkgs, Math.floor(Number(e.target.value)))) })} />
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{(curPkgs * 0.5).toFixed(1)} كجم</TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
           <DialogFooter className="gap-2">
