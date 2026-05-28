@@ -169,7 +169,7 @@ const formatItemQty = (qty: number, unit?: string): string => {
 };
 
 const Orders = () => {
-  const { user, isShippingCompany, isAccountant, isSalesModerator, isPrivateDeliveryRep, canUpdateOrderStatusForOrder, canDeleteOrders, canEditOrderItems } = useAuth();
+  const { user, isShippingCompany, isAccountant, isSalesModerator, isPrivateDeliveryRep, isWarehouseSupervisor, canUpdateOrderStatusForOrder, canDeleteOrders, canEditOrderItems } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [approvedEditOrderIds, setApprovedEditOrderIds] = useState<Set<string>>(new Set());
   const [pendingEditOrderIds, setPendingEditOrderIds] = useState<Set<string>>(new Set());
@@ -456,7 +456,10 @@ const Orders = () => {
     })();
     const matchesFulfillment =
       filterFulfillment === "all" || fulfillmentKey === filterFulfillment;
-    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment;
+    // مشرف المخزن الرئيسي (هادى) يشوف فقط طلبات المخزن الرئيسي (استلام أو توصيل)
+    const matchesWarehouseScope =
+      !isWarehouseSupervisor || fulfillmentKey === 'pickup_main' || fulfillmentKey === 'delivery_main';
+    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment && matchesWarehouseScope;
   });
 
   const availableGovernorates = Array.from(
