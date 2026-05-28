@@ -93,6 +93,10 @@ const WarehouseDetail = () => {
     ]);
     setWarehouse(wRes.data);
     setAllWarehouses(allWh);
+    setItems(it.data || []);
+    setMovements(mv.data || []);
+    setOrderItems(oi.data || []);
+    setTransfers(tr.data || []);
     // طلبات المنفذ (مصدرها هذا المخزن) — للعرض والتصدير لاحمد خاطر فى العجوزة وأى مخزن آخر
     const { data: ords } = await supabase
       .from("orders")
@@ -119,10 +123,6 @@ const WarehouseDetail = () => {
     setLoading(false);
   };
 
-      .limit(2000);
-    setOutletOrders(ords || []);
-    setLoading(false);
-  };
 
   useEffect(() => { fetchAll(); }, [id]);
 
