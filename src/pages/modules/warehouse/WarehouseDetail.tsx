@@ -783,26 +783,30 @@ const WarehouseDetail = () => {
                 <CardContent className="p-0">
                   <Table>
                     <TableHeader><TableRow>
-                      <TableHead>الصنف</TableHead><TableHead>الطلب (30 يوم)</TableHead>
-                      <TableHead>الرصيد الحالي</TableHead><TableHead>الكمية المقترحة</TableHead><TableHead>الحالة</TableHead>
+                      <TableHead>الصنف</TableHead><TableHead>الطلب (نص كيلو)</TableHead>
+                      <TableHead>الرصيد بالعجوزة (نص كيلو)</TableHead>
+                      <TableHead>المتاح بالرئيسي (نص كيلو)</TableHead>
+                      <TableHead>الكمية المقترحة (نص كيلو)</TableHead><TableHead>الحالة</TableHead>
                     </TableRow></TableHeader>
                     <TableBody>
                       {supplyNeeds.length === 0 ? (
-                        <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">لا يوجد احتياج توريد حالياً</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">لا يوجد احتياج توريد حالياً</TableCell></TableRow>
                       ) : supplyNeeds.map(n => (
                         <TableRow key={n.name}>
                           <TableCell className="font-medium">{n.name}</TableCell>
-                          <TableCell>{n.demand} {n.unit}</TableCell>
-                          <TableCell className={n.stock === 0 ? "text-destructive font-bold" : ""}>{n.stock} {n.unit}</TableCell>
-                          <TableCell className="text-orange-600 font-bold">{n.suggested} {n.unit}</TableCell>
+                          <TableCell>{n.demandHalf}</TableCell>
+                          <TableCell className={n.stockHalf === 0 ? "text-destructive font-bold" : ""}>{n.stockHalf}</TableCell>
+                          <TableCell className={n.mainStockHalf === 0 ? "text-destructive font-bold" : ""}>{n.mainStockHalf}</TableCell>
+                          <TableCell className="text-orange-600 font-bold">{n.suggestedHalf}</TableCell>
                           <TableCell>
-                            {n.stock === 0
+                            {n.stockHalf === 0
                               ? <Badge variant="destructive">نفد</Badge>
                               : <Badge className="bg-orange-500/10 text-orange-600 border-orange-500/30">يحتاج توريد</Badge>}
                           </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
+
                   </Table>
                 </CardContent>
               </Card>
