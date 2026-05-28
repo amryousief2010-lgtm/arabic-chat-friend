@@ -880,24 +880,36 @@ const WarehouseDetail = () => {
             ) : (
               <Table>
                 <TableHeader><TableRow>
-                  <TableHead>الصنف</TableHead><TableHead>متاح بالعجوزة</TableHead>
-                  <TableHead>المطلوب</TableHead><TableHead>الكمية</TableHead>
+                  <TableHead>الصنف</TableHead>
+                  <TableHead>متاح بالعجوزة</TableHead>
+                  <TableHead>متاح بالرئيسي (قبل الطلبات)</TableHead>
+                  <TableHead>المطلوب (نص كيلو)</TableHead>
+                  <TableHead>الكمية (نص كيلو)</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
-                  {supplyNeeds.map(n => (
-                    <TableRow key={n.name}>
-                      <TableCell className="font-medium">{n.name}</TableCell>
-                      <TableCell>{n.stock} {n.unit}</TableCell>
-                      <TableCell>{n.demand} {n.unit}</TableCell>
-                      <TableCell>
-                        <Input type="number" min={0} className="w-24"
-                          value={supplyQty[n.name] ?? 0}
-                          onChange={e => setSupplyQty({ ...supplyQty, [n.name]: Number(e.target.value) })} />
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {supplyNeeds.map(n => {
+                    const cap = Math.min(MAX_HALF_KG, n.mainStockHalf || MAX_HALF_KG);
+                    return (
+                      <TableRow key={n.name}>
+                        <TableCell className="font-medium">{n.name}</TableCell>
+                        <TableCell>{n.stockHalf} نص كيلو</TableCell>
+                        <TableCell className={n.mainStockHalf === 0 ? "text-destructive font-bold" : ""}>{n.mainStockHalf} نص كيلو</TableCell>
+                        <TableCell>{n.demandHalf} نص كيلو</TableCell>
+                        <TableCell>
+                          <Input type="number" min={0} max={cap} step={1} className="w-24"
+                            value={supplyQty[n.name] ?? 0}
+                            onChange={e => {
+                              const v = Math.max(0, Math.min(cap, Math.floor(Number(e.target.value) || 0)));
+                              setSupplyQty({ ...supplyQty, [n.name]: v });
+                            }} />
+                          <div className="text-[10px] text-muted-foreground mt-1">حد أقصى {cap} (10 كجم{n.mainStockHalf < MAX_HALF_KG ? " أو المتاح بالرئيسي" : ""})</div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
+
             )}
           </div>
           <DialogFooter>
