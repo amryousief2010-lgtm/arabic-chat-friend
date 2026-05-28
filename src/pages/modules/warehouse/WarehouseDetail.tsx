@@ -657,6 +657,11 @@ const WarehouseDetail = () => {
                         تعديل الكميات
                       </Button>
                     )}
+                    {t.status === "pending_approval" && (
+                      <Button size="sm" variant="outline" className="text-destructive border-destructive/40 hover:bg-destructive/10" onClick={() => cancelTransferRequest(t)}>
+                        <XCircle className="w-4 h-4 ml-1" />إلغاء الطلب
+                      </Button>
+                    )}
                     <Button size="sm" variant="outline" onClick={() => printSupplyRequest(
                       (t.items || []).map((li: any) => ({ name: li.item_name, qty: Number(li.requested_qty), unit: li.unit })),
                       { transferNo: t.transfer_no, fromWarehouse: t.source?.name, toWarehouse: t.destination?.name, notes: t.notes }
