@@ -705,9 +705,28 @@ const NewOrder = () => {
     setNewCustomerShippingCustom('');
   };
 
+  // Products that require a deposit (عربون) transfer receipt before submission
+  const requiresDepositReceipt = useMemo(() => {
+    return cart.some(item => {
+      const n = (item.product?.name || '').replace(/\s+/g, ' ').trim();
+      const hasBone = n.includes('عظم') || n.includes('عضم');
+      if (n.includes('دبوس') && hasBone) return true;
+      if ((n.includes('فخدة') || n.includes('فخده')) && hasBone) return true;
+      if ((n.includes('نعامة') || n.includes('نعامه')) && n.includes('صندوق')) return true;
+      return false;
+    });
+  }, [cart]);
+
   const handleSubmitOrder = async () => {
     if (cart.length === 0) {
       toast.error('يرجى إضافة منتجات للطلب');
+      return;
+    }
+
+    if (isSalesModerator && requiresDepositReceipt && !depositReceiptFile) {
+      toast.error('يجب رفع إيصال تحويل العربون قبل تسجيل الطلب', {
+        description: 'الطلب يحتوي على منتج (دبوس بالعظم / فخدة بالعظم / نعامة صندوق) ويتطلب إثبات تحويل العربون',
+      });
       return;
     }
 
