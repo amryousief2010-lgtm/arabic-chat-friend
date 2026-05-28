@@ -895,6 +895,9 @@ const WarehouseDetail = () => {
             </TabsContent>
           )}
 
+          <TabsContent value="outlet" className="space-y-3">
+            <Card>
+              <CardHeader className="pb-3 flex flex-row items-center justify-between gap-2">
                 <div>
                   <CardTitle className="text-base flex items-center gap-2">
                     <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
@@ -944,14 +947,9 @@ const WarehouseDetail = () => {
                     {outletOrders.length > 200 && (
                       <div className="p-3 text-center text-xs text-muted-foreground">يتم عرض أحدث 200 طلب — حمّل ملف Excel للحصول على الكل ({outletOrders.length})</div>
                     )}
-
-                      </TableBody>
-                    </Table>
-                    {outletOrders.length > 200 && (
-                      <div className="p-3 text-center text-xs text-muted-foreground">يتم عرض أحدث 200 طلب — حمّل ملف Excel للحصول على الكل ({outletOrders.length})</div>
-                    )}
                   </div>
                 )}
+
               </CardContent>
             </Card>
           </TabsContent>
