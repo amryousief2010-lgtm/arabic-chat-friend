@@ -48,6 +48,9 @@ const WarehouseDetail = () => {
   // مخزون المخزن الرئيسي (قبل الطلبات) — لعرضه في حوار التوريد
   const [mainStockByName, setMainStockByName] = useState<Record<string, number>>({});
   const [receiveDialog, setReceiveDialog] = useState<any>(null); // transfer obj
+  const [editRequestDialog, setEditRequestDialog] = useState<any>(null); // transfer obj
+  const [editRequestQty, setEditRequestQty] = useState<Record<string, number>>({}); // line_id -> half-kg packages
+
   const [receiveLines, setReceiveLines] = useState<Record<string, { qty: number; notes: string }>>({});
   const [receiveHeaderNotes, setReceiveHeaderNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
