@@ -456,7 +456,10 @@ const Orders = () => {
     })();
     const matchesFulfillment =
       filterFulfillment === "all" || fulfillmentKey === filterFulfillment;
-    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment;
+    // مشرف المخزن الرئيسي (هادى) يشوف فقط طلبات المخزن الرئيسي (استلام أو توصيل)
+    const matchesWarehouseScope =
+      !isWarehouseSupervisor || fulfillmentKey === 'pickup_main' || fulfillmentKey === 'delivery_main';
+    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment && matchesWarehouseScope;
   });
 
   const availableGovernorates = Array.from(
