@@ -201,10 +201,15 @@ export const printSupplyRequest = (
       <div><b>عدد الأصناف:</b> ${lines.length}</div>
     </div>
     <table>
-      <thead><tr><th style="width:40px">#</th><th>الصنف</th><th style="width:120px">الكمية المطلوبة</th><th style="width:80px">الوحدة</th></tr></thead>
-      <tbody>${lines.map((l, i) => `<tr><td>${i + 1}</td><td>${l.name}</td><td><b>${fmt(l.qty)}</b></td><td>${l.unit || "-"}</td></tr>`).join("")}</tbody>
-      <tfoot><tr><td colspan="2">الإجمالي</td><td><b>${fmt(total)}</b></td><td>-</td></tr></tfoot>
+      <thead><tr><th style="width:40px">#</th><th>الصنف</th><th style="width:110px">الكمية (كجم)</th><th style="width:130px">الكمية (نص كيلو)</th><th style="width:80px">الوحدة</th></tr></thead>
+      <tbody>${lines.map((l, i) => {
+        const kg = Number(l.qty) || 0;
+        const half = Math.round(kg * 2 * 100) / 100;
+        return `<tr><td>${i + 1}</td><td>${l.name}</td><td><b>${fmt(kg)}</b></td><td><b>${fmt(half)}</b> نص كيلو</td><td>${l.unit || "-"}</td></tr>`;
+      }).join("")}</tbody>
+      <tfoot><tr><td colspan="2">الإجمالي</td><td><b>${fmt(total)}</b> كجم</td><td><b>${fmt(Math.round(total * 2 * 100) / 100)}</b> نص كيلو</td><td>-</td></tr></tfoot>
     </table>
+
     ${opts?.notes ? `<div class="note"><b>ملاحظات:</b> ${opts.notes}</div>` : ""}
     <div style="margin-top:40px; display:grid; grid-template-columns:1fr 1fr; gap:40px; font-size:13px;">
       <div><b>توقيع طالب التوريد (العجوزة):</b><div style="margin-top:30px; border-top:1px solid #333;"></div></div>
