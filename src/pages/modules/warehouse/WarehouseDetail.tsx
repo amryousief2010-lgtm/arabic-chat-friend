@@ -143,25 +143,33 @@ const WarehouseDetail = () => {
     return m;
   }, [orderItems, isAgouza]);
 
-  // Suggested supply list = demand - current stock (positive only)
+  // قائمة احتياج التوريد. كل القيم هنا بوحدة "نص كيلو" (1 وحدة = 0.5 كجم)
+  // الحد الأقصى للكمية المقترحة 20 نص كيلو (= 10 كجم).
+  const MAX_HALF_KG = 20;
+  const kgToHalf = (kg: number) => Math.max(0, Math.round(kg * 2));
   const supplyNeeds = useMemo(() => {
     if (!isAgouza) return [];
-    const needs: Array<{ name: string; demand: number; stock: number; suggested: number; unit: string; item?: any }> = [];
-    demandByProduct.forEach((demand, name) => {
+    const needs: Array<{ name: string; demandHalf: number; stockHalf: number; mainStockHalf: number; suggestedHalf: number; unit: string; item?: any }> = [];
+    demandByProduct.forEach((demandKg, name) => {
       const item = items.find(i => i.name?.trim() === name);
-      const stock = item ? Number(item.stock) : 0;
-      const suggested = Math.max(0, Math.ceil(demand - stock));
-      if (suggested > 0) needs.push({ name, demand, stock, suggested, unit: item?.unit || "قطعة", item });
+      const stockKg = item ? Number(item.stock) : 0;
+      const demandHalf = Math.ceil(demandKg * 2); // أقرب نص كيلو لأعلى
+      const stockHalf = Math.floor(stockKg * 2);
+      const mainStockHalf = Math.floor((mainStockByName[name] ?? 0) * 2);
+      const rawSuggested = Math.max(0, demandHalf - stockHalf);
+      const suggestedHalf = Math.min(MAX_HALF_KG, rawSuggested);
+      if (suggestedHalf > 0) needs.push({ name, demandHalf, stockHalf, mainStockHalf, suggestedHalf, unit: item?.unit || "كجم", item });
     });
-    return needs.sort((a, b) => b.suggested - a.suggested);
-  }, [demandByProduct, items, isAgouza]);
+    return needs.sort((a, b) => b.suggestedHalf - a.suggestedHalf);
+  }, [demandByProduct, items, isAgouza, mainStockByName]);
 
   const openSupplyDialog = () => {
     const init: Record<string, number> = {};
-    supplyNeeds.forEach(n => { init[n.name] = n.suggested; });
+    supplyNeeds.forEach(n => { init[n.name] = n.suggestedHalf; });
     setSupplyQty(init);
     setSupplyDialog(true);
   };
+
 
   const submitSupplyRequest = async () => {
     if (!mainWarehouse) {
