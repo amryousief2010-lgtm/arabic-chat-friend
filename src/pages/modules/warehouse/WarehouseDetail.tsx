@@ -136,6 +136,18 @@ const WarehouseDetail = () => {
 
   useEffect(() => { fetchAll(); }, [id]);
 
+  // Realtime: refresh when orders/order_items change so new orders by moderators appear instantly
+  useEffect(() => {
+    if (!id) return;
+    const ch = supabase
+      .channel(`warehouse-detail-${id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => fetchAll())
+      .on("postgres_changes", { event: "*", schema: "public", table: "order_items" }, () => fetchAll())
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [id]);
+
+
   const lowStock = items.filter(i => Number(i.stock) <= Number(i.low_stock_threshold));
   const totalValue = items.reduce((s, i) => s + Number(i.stock) * Number(i.unit_cost), 0);
 
