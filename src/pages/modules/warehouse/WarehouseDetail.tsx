@@ -1016,6 +1016,51 @@ const WarehouseDetail = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Edit My Pending Request Dialog — requester adjusts quantities before approval */}
+      <Dialog open={!!editRequestDialog} onOpenChange={(o) => !o && setEditRequestDialog(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>تعديل طلب التوريد {editRequestDialog?.transfer_no}</DialogTitle>
+            <DialogDescription>
+              يمكنك زيادة أو نقصان الكميات بعبوات نص الكيلو (حد أقصى 20 عبوة = 10 كجم لكل صنف). ضع 0 لحذف الصنف من الطلب.
+            </DialogDescription>
+          </DialogHeader>
+          <Table>
+            <TableHeader><TableRow>
+              <TableHead>الصنف</TableHead>
+              <TableHead>الكمية (عبوات ½ كجم)</TableHead>
+              <TableHead>الإجمالي (كجم)</TableHead>
+            </TableRow></TableHeader>
+            <TableBody>
+              {(editRequestDialog?.items || []).map((li: any) => {
+                const cur = editRequestQty[li.id] ?? 0;
+                return (
+                  <TableRow key={li.id}>
+                    <TableCell className="font-medium">{li.item_name}</TableCell>
+                    <TableCell>
+                      <Input type="number" min={0} max={20} step={1} className="w-24"
+                        value={cur}
+                        onChange={e => setEditRequestQty({
+                          ...editRequestQty,
+                          [li.id]: Math.max(0, Math.min(20, Math.floor(Number(e.target.value) || 0)))
+                        })} />
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{(cur * 0.5).toFixed(1)} كجم</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setEditRequestDialog(null)}>إلغاء</Button>
+            <Button onClick={submitEditRequest} disabled={submitting}>
+              <CheckCircle2 className="w-4 h-4 ml-1" />حفظ التعديلات
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
       {/* Receive Confirmation Dialog — posts destination IN movement on confirm */}
       <Dialog open={!!receiveDialog} onOpenChange={(o) => !o && setReceiveDialog(null)}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
