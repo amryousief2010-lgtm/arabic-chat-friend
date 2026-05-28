@@ -610,12 +610,13 @@ const WarehouseDetail = () => {
             {isAgouza && (
               <TabsTrigger value="supply" className="gap-1">
                 <Truck className="w-4 h-4" />احتياج التوريد
-                {supplyNeeds.length > 0 && <Badge variant="destructive" className="mr-1">{supplyNeeds.length}</Badge>}
-              </TabsTrigger>
-            )}
-            {isMain && (
+            {(isMain || isAgouza) && (
               <TabsTrigger value="pickup" className="gap-1">
                 <Package className="w-4 h-4" />استلام من المخزن
+                {pickupOrders.length > 0 && <Badge variant="destructive" className="mr-1">{pickupOrders.length}</Badge>}
+              </TabsTrigger>
+            )}
+
                 {pickupOrders.length > 0 && <Badge variant="destructive" className="mr-1">{pickupOrders.length}</Badge>}
               </TabsTrigger>
             )}
