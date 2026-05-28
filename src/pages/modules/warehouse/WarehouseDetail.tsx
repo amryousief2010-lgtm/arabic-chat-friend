@@ -943,7 +943,8 @@ const WarehouseDetail = () => {
                             <TableCell className="text-xs">{o.customer?.governorate || "-"}</TableCell>
                             <TableCell className="text-xs">{fulfillmentLabel(o.fulfillment_type)}</TableCell>
                             <TableCell><Badge variant="outline">{statusArLabel(o.status)}</Badge></TableCell>
-                            <TableCell>{(o.order_items || []).length}</TableCell>
+                            <TableCell className="font-semibold">{Number(o.total ?? o.total_amount ?? 0).toLocaleString()}</TableCell>
+
                             <TableCell className="font-semibold">{Number(o.total_amount || 0).toLocaleString()}</TableCell>
                           </TableRow>
                         ))}
