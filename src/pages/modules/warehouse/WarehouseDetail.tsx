@@ -619,19 +619,24 @@ const WarehouseDetail = () => {
                 <CardContent className="p-0">
                   <Table>
                     <TableHeader><TableRow>
-                      <TableHead>الصنف</TableHead><TableHead>المطلوب</TableHead><TableHead>الوحدة</TableHead>
+                      <TableHead>الصنف</TableHead><TableHead>المطلوب (عبوات ½ كجم)</TableHead><TableHead>الإجمالي (كجم)</TableHead>
                     </TableRow></TableHeader>
                     <TableBody>
                       {(t.items || []).map((li: any) => (
                         <TableRow key={li.id}>
                           <TableCell className="font-medium">{li.item_name}</TableCell>
-                          <TableCell>{li.requested_qty}</TableCell>
-                          <TableCell>{li.unit}</TableCell>
+                          <TableCell>{Math.round(Number(li.requested_qty) * 2)} عبوة</TableCell>
+                          <TableCell className="text-muted-foreground">{Number(li.requested_qty).toFixed(1)} كجم</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
-                  <div className="p-3 border-t flex justify-end">
+                  <div className="p-3 border-t flex justify-end gap-2">
+                    {t.status === "pending_approval" && (
+                      <Button size="sm" variant="default" onClick={() => openEditRequestDialog(t)}>
+                        تعديل الكميات
+                      </Button>
+                    )}
                     <Button size="sm" variant="outline" onClick={() => printSupplyRequest(
                       (t.items || []).map((li: any) => ({ name: li.item_name, qty: Number(li.requested_qty), unit: li.unit })),
                       { transferNo: t.transfer_no, fromWarehouse: t.source?.name, toWarehouse: t.destination?.name, notes: t.notes }
@@ -639,6 +644,7 @@ const WarehouseDetail = () => {
                       طباعة الكميات المطلوبة
                     </Button>
                   </div>
+
                 </CardContent>
               </Card>
             ))}
