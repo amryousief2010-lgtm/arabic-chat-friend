@@ -6667,6 +6667,10 @@ export type Database = {
         Args: { p_reason: string; p_transfer_id: string }
         Returns: Json
       }
+      cancel_transfer_request: {
+        Args: { p_transfer_id: string }
+        Returns: Json
+      }
       check_offer_expiry: { Args: never; Returns: boolean }
       check_order_stock_availability: {
         Args: { p_order_id: string }
