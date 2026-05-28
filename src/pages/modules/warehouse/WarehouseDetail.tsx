@@ -107,7 +107,8 @@ const WarehouseDetail = () => {
     const orderSourceIds = currentIsAgouza && mainWh ? [id, mainWh.id] : [id];
     const { data: ords } = await supabase
       .from("orders")
-      .select("id, order_number, created_at, status, fulfillment_type, total_amount, payment_status, payment_method, source_warehouse_id, source:warehouses!orders_source_warehouse_id_fkey(name), customer:customers(name, phone, governorate), order_items(product_name, quantity, unit_price, total_price)")
+      .select("id, order_number, created_at, status, fulfillment_type, total_amount, subtotal, discount, delivery_fee, notes, delivery_address, payment_status, payment_method, source_warehouse_id, source:warehouses!orders_source_warehouse_id_fkey(name), customer:customers(name, phone, governorate), order_items(product_name, quantity, unit_price, total_price, unit, offer_name)")
+
       .in("source_warehouse_id", orderSourceIds)
       .order("created_at", { ascending: false })
       .limit(2000);
