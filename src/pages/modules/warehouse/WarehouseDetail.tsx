@@ -173,6 +173,42 @@ const WarehouseDetail = () => {
     return needs.sort((a, b) => b.suggestedHalf - a.suggestedHalf);
   }, [demandByProduct, items, isAgouza, mainStockByName]);
 
+  // طلبات الاستلام من المخزن الرئيسي — لمسؤول المخزن (هادى) عشان يجهز الفاتورة قبل ما العميل يستلم
+  const pickupOrders = useMemo(() => {
+    if (!isMain) return [];
+    return outletOrders.filter((o: any) =>
+      o.fulfillment_type === "pickup"
+      && o.source_warehouse_id === id
+      && !["delivered", "cancelled", "returned"].includes(o.status)
+    );
+  }, [outletOrders, isMain, id]);
+
+  const handlePrintPickupInvoice = (o: any) => {
+    printOrderInvoice({
+      order_number: o.order_number,
+      created_at: o.created_at,
+      customer_name: o.customer?.name || "-",
+      customer_phone: o.customer?.phone || "",
+      delivery_address: o.delivery_address || "",
+      payment_method: o.payment_method || "cash",
+      payment_status: o.payment_status || "pending",
+      notes: o.notes || "",
+      items: (o.order_items || []).map((it: any) => ({
+        product_name: it.product_name,
+        quantity: Number(it.quantity || 0),
+        unit_price: Number(it.unit_price || 0),
+        total_price: Number(it.total_price || 0),
+        offer_name: it.offer_name,
+      })),
+      subtotal: Number(o.subtotal || 0),
+      discount: Number(o.discount || 0),
+      delivery_fee: Number(o.delivery_fee || 0),
+      total: Number(o.total ?? 0),
+      source_warehouse_name: o.source?.name || warehouse?.name || "",
+    } as any);
+  };
+
+
   const openSupplyDialog = () => {
     const init: Record<string, number> = {};
     supplyNeeds.forEach(n => { init[n.name] = n.suggestedHalf; });
