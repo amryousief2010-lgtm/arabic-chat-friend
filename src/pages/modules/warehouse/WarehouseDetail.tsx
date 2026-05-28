@@ -172,10 +172,7 @@ const WarehouseDetail = () => {
 
 
   const submitSupplyRequest = async () => {
-    if (!mainWarehouse) {
-      toast({ title: "لا يوجد مخزن رئيسي", description: "تعذر تحديد المخزن المصدر", variant: "destructive" });
-      return;
-  const submitSupplyRequest = async () => {
+
     if (!mainWarehouse) {
       toast({ title: "لا يوجد مخزن رئيسي", description: "تعذر تحديد المخزن المصدر", variant: "destructive" });
       return;
