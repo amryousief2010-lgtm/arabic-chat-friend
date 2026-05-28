@@ -41,13 +41,17 @@ const WarehouseDetail = () => {
   const [orderItems, setOrderItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [supplyDialog, setSupplyDialog] = useState(false);
+  // الكميات المطلوبة بوحدة نص كيلو (= 0.5 كجم لكل وحدة)
   const [supplyQty, setSupplyQty] = useState<Record<string, number>>({});
   const [transfers, setTransfers] = useState<any[]>([]);
   const [outletOrders, setOutletOrders] = useState<any[]>([]);
+  // مخزون المخزن الرئيسي (قبل الطلبات) — لعرضه في حوار التوريد
+  const [mainStockByName, setMainStockByName] = useState<Record<string, number>>({});
   const [receiveDialog, setReceiveDialog] = useState<any>(null); // transfer obj
   const [receiveLines, setReceiveLines] = useState<Record<string, { qty: number; notes: string }>>({});
   const [receiveHeaderNotes, setReceiveHeaderNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
 
   const isAgouza = useMemo(() => !!warehouse && (warehouse.name?.includes("العجوزة") || warehouse.location?.includes("العجوزة")), [warehouse]);
   const mainWarehouse = useMemo(() => allWarehouses.find(w => w.id !== id && (w.name?.includes("الرئيسي") || w.name?.includes("المقر"))) || allWarehouses.find(w => w.id !== id && w.type === "finished_goods"), [allWarehouses, id]);
