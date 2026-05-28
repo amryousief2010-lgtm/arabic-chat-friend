@@ -164,6 +164,7 @@ const NewOrder = () => {
   const [extraCharge, setExtraCharge] = useState(0);
   const [extraChargeReason, setExtraChargeReason] = useState('');
   const [notes, setNotes] = useState('');
+  const [depositReceiptFile, setDepositReceiptFile] = useState<File | null>(null);
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [source, setSource] = useState<string>('');
   const [sourceCustom, setSourceCustom] = useState('');
