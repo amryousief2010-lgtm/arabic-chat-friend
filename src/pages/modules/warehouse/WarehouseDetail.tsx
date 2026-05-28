@@ -1134,7 +1134,7 @@ const WarehouseDetail = () => {
                         <TableCell className="font-medium">{n.name}</TableCell>
                         <TableCell>{n.stockHalf} نص كيلو</TableCell>
                         <TableCell className={n.mainStockHalf === 0 ? "text-destructive font-bold" : ""}>{n.mainStockHalf} نص كيلو</TableCell>
-                        <TableCell>{n.demandHalf} نص كيلو</TableCell>
+                        
                         <TableCell>
                           <Input type="number" min={0} max={cap} step={1} className="w-24"
                             value={supplyQty[n.name] ?? 0}
