@@ -616,7 +616,7 @@ const WarehouseDetail = () => {
                 {pickupOrders.length > 0 && <Badge variant="destructive" className="mr-1">{pickupOrders.length}</Badge>}
               </TabsTrigger>
             )}
-            {false && (
+
 
             <TabsTrigger value="outlet" className="gap-1">
               <FileSpreadsheet className="w-4 h-4" />طلبات المنفذ
