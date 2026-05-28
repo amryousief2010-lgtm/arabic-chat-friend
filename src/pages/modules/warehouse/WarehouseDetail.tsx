@@ -1123,7 +1123,7 @@ const WarehouseDetail = () => {
                   <TableHead>الصنف</TableHead>
                   <TableHead>متاح بالعجوزة</TableHead>
                   <TableHead>متاح بالرئيسي (قبل الطلبات)</TableHead>
-                  <TableHead>المطلوب (نص كيلو)</TableHead>
+                  
                   <TableHead>الكمية (نص كيلو)</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
