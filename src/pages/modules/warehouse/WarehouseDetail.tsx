@@ -101,13 +101,15 @@ const WarehouseDetail = () => {
     setOrderItems(oi.data || []);
     setTransfers(tr.data || []);
     // طلبات المنفذ (مصدرها هذا المخزن) — للعرض والتصدير لاحمد خاطر فى العجوزة وأى مخزن آخر
+    // عند العرض من العجوزة نعرض أيضاً الطلبات المسجَّلة على المخزن الرئيسي (عرض فقط + تصدير)
+    const orderSourceIds = currentIsAgouza && mainWh ? [id, mainWh.id] : [id];
     const { data: ords } = await supabase
       .from("orders")
-      .select("id, order_number, created_at, status, fulfillment_type, total_amount, payment_status, payment_method, customer:customers(name, phone, governorate), order_items(product_name, quantity, unit_price, total_price)")
-      .eq("source_warehouse_id", id)
+      .select("id, order_number, created_at, status, fulfillment_type, total_amount, payment_status, payment_method, source_warehouse_id, source:warehouses!orders_source_warehouse_id_fkey(name), customer:customers(name, phone, governorate), order_items(product_name, quantity, unit_price, total_price)")
+      .in("source_warehouse_id", orderSourceIds)
       .order("created_at", { ascending: false })
       .limit(2000);
-    setOutletOrders(ords || []);
+
     // مخزون المخزن الرئيسي (raw stock قبل خصم الطلبات) — للعرض في حوار التوريد
     if (currentIsAgouza && mainWh) {
       const { data: mainInv } = await supabase
