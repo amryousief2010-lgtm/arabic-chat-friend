@@ -1652,6 +1652,37 @@ const NewOrder = () => {
                       })}
                     </div>
 
+                    {isSalesModerator && requiresDepositReceipt && (
+                      <div className="space-y-2 rounded-lg border-2 border-orange-400 dark:border-orange-700 bg-orange-50/60 dark:bg-orange-950/30 p-3">
+                        <Label className="flex items-center gap-1 font-semibold text-orange-900 dark:text-orange-200">
+                          إيصال تحويل العربون <span className="text-destructive">*</span>
+                        </Label>
+                        <p className="text-xs text-orange-800 dark:text-orange-300">
+                          الطلب يحتوي على (دبوس بالعظم / فخدة بالعظم / نعامة صندوق). يجب رفع صورة إيصال تحويل العربون قبل تأكيد الطلب.
+                        </p>
+                        <Input
+                          type="file"
+                          accept="image/*,application/pdf"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0] ?? null;
+                            if (f && f.size > 10 * 1024 * 1024) {
+                              toast.error('حجم الملف يجب ألا يتجاوز 10 ميجابايت');
+                              return;
+                            }
+                            setDepositReceiptFile(f);
+                          }}
+                        />
+                        {depositReceiptFile && (
+                          <div className="flex items-center justify-between p-2 rounded-md bg-background/60 text-xs">
+                            <span className="truncate">{depositReceiptFile.name} ({(depositReceiptFile.size / 1024).toFixed(0)} KB)</span>
+                            <Button type="button" variant="ghost" size="sm" onClick={() => setDepositReceiptFile(null)}>
+                              إزالة
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {/* Delivery Address */}
                     <div className="space-y-2">
                       <Label>عنوان التوصيل</Label>
@@ -1836,36 +1867,6 @@ const NewOrder = () => {
                       </div>
                     </div>
 
-                    {isSalesModerator && requiresDepositReceipt && (
-                      <div className="space-y-2 rounded-lg border-2 border-orange-400 dark:border-orange-700 bg-orange-50/60 dark:bg-orange-950/30 p-3">
-                        <Label className="flex items-center gap-1 font-semibold text-orange-900 dark:text-orange-200">
-                          إيصال تحويل العربون <span className="text-destructive">*</span>
-                        </Label>
-                        <p className="text-xs text-orange-800 dark:text-orange-300">
-                          الطلب يحتوي على (دبوس بالعظم / فخدة بالعظم / نعامة صندوق). يجب رفع صورة إيصال تحويل العربون قبل تأكيد الطلب.
-                        </p>
-                        <Input
-                          type="file"
-                          accept="image/*,application/pdf"
-                          onChange={(e) => {
-                            const f = e.target.files?.[0] ?? null;
-                            if (f && f.size > 10 * 1024 * 1024) {
-                              toast.error('حجم الملف يجب ألا يتجاوز 10 ميجابايت');
-                              return;
-                            }
-                            setDepositReceiptFile(f);
-                          }}
-                        />
-                        {depositReceiptFile && (
-                          <div className="flex items-center justify-between p-2 rounded-md bg-background/60 text-xs">
-                            <span className="truncate">{depositReceiptFile.name} ({(depositReceiptFile.size / 1024).toFixed(0)} KB)</span>
-                            <Button type="button" variant="ghost" size="sm" onClick={() => setDepositReceiptFile(null)}>
-                              إزالة
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    )}
 
                     {!selectedCustomer && (
                       <p className="text-sm text-amber-600 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-md p-2 text-center">
