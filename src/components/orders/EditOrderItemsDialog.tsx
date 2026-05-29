@@ -311,25 +311,21 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
                     size="icon"
                     onClick={() => handleDelete(realIdx)}
                   >
-                    <Trash2 className="w-4 h-4 text-destructive" />
-                  </Button>
-                </div>
-              </div>
-            );
-          })}
-
-          <Button type="button" variant="outline" onClick={handleAdd} className="w-full">
-            <Plus className="w-4 h-4 ml-1" />
-            إضافة منتج
-          </Button>
-
           <div className="pt-2 border-t space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">المجموع الفرعي الجديد</span>
-              <span className="text-lg font-bold">
-                {newSubtotal.toLocaleString()} ج.م
-              </span>
-            </div>
+            {hasOfferItems && (
+              <div className="rounded-md border border-amber-300 bg-amber-50 text-amber-900 text-xs p-2">
+                هذا الطلب يحتوي على عرض بسعر ثابت. تعديل الأصناف هنا لن يغير سعر العرض الأصلي ولا رسوم التوصيل المسجلة.
+              </div>
+            )}
+
+            {!hasOfferItems && (
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">المجموع الفرعي الجديد</span>
+                <span className="text-lg font-bold">
+                  {newSubtotal.toLocaleString()} ج.م
+                </span>
+              </div>
+            )}
 
             <div className="flex justify-between items-center gap-3">
               <label className="text-muted-foreground whitespace-nowrap">
@@ -345,15 +341,30 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
               />
             </div>
 
-            {Number(initialDeliveryFee) > 0 && (
+            {!hasOfferItems && Number(initialDeliveryFee) > 0 && (
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">رسوم التوصيل</span>
                 <span>{Number(initialDeliveryFee).toLocaleString()} ج.م</span>
               </div>
             )}
 
-            {Number(discount) > 0 && (
+            {!hasOfferItems && Number(discount) > 0 && (
               <div className="flex justify-between text-sm text-green-600">
+                <span>الخصم</span>
+                <span>- {Number(discount).toLocaleString()} ج.م</span>
+              </div>
+            )}
+
+            {!hasOfferItems && (
+              <div className="flex justify-between items-center pt-2 border-t">
+                <span className="font-semibold">الإجمالي بعد الخصم</span>
+                <span className="text-xl font-bold text-primary">
+                  {newTotalPreview.toLocaleString()} ج.م
+                </span>
+              </div>
+            )}
+          </div>
+
                 <span>الخصم</span>
                 <span>- {Number(discount).toLocaleString()} ج.م</span>
               </div>
