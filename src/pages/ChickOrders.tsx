@@ -84,6 +84,9 @@ const ChickOrders = () => {
   const [editing, setEditing] = useState<ChickOrder | null>(null);
   const [form, setForm] = useState<typeof emptyForm>(emptyForm);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [moderatorFilter, setModeratorFilter] = useState<string>("all");
+  const [yearFilter, setYearFilter] = useState<string>("all");
+  const [monthFilter, setMonthFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
@@ -99,14 +102,49 @@ const ChickOrders = () => {
     },
   });
 
+  const { data: profilesMap = {} } = useQuery<Record<string, string>>({
+    queryKey: ["chick-orders-profiles", orders.map((o) => o.created_by).join(",")],
+    enabled: orders.length > 0,
+    queryFn: async () => {
+      const ids = Array.from(new Set(orders.map((o) => o.created_by).filter(Boolean)));
+      if (!ids.length) return {};
+      const { data, error } = await supabase.from("profiles").select("id, full_name").in("id", ids);
+      if (error) throw error;
+      return Object.fromEntries((data || []).map((p: any) => [p.id, p.full_name as string]));
+    },
+  });
+
+  const moderatorOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    orders.forEach((o) => {
+      if (o.created_by && !seen.has(o.created_by)) {
+        seen.set(o.created_by, profilesMap[o.created_by] || "غير معروف");
+      }
+    });
+    return Array.from(seen.entries()).map(([id, name]) => ({ id, name }));
+  }, [orders, profilesMap]);
+
+  const yearOptions = useMemo(() => {
+    const ys = new Set<number>();
+    orders.forEach((o) => ys.add(new Date(o.created_at).getUTCFullYear()));
+    return Array.from(ys).sort((a, b) => b - a);
+  }, [orders]);
+
   const filtered = useMemo(() => {
-    const s = search.trim();
+    const s = search.trim().toLowerCase();
     return orders.filter((o) => {
       if (statusFilter !== "all" && o.status !== statusFilter) return false;
-      if (s && !`${o.customer_name} ${o.phone_primary} ${o.phone_secondary || ""} ${o.governorate} ${o.city}`.includes(s)) return false;
+      if (moderatorFilter !== "all" && o.created_by !== moderatorFilter) return false;
+      const d = new Date(o.created_at);
+      if (yearFilter !== "all" && d.getUTCFullYear() !== Number(yearFilter)) return false;
+      if (monthFilter !== "all" && d.getUTCMonth() + 1 !== Number(monthFilter)) return false;
+      if (s) {
+        const hay = `${o.customer_name} ${o.phone_primary} ${o.phone_secondary || ""}`.toLowerCase();
+        if (!hay.includes(s)) return false;
+      }
       return true;
     });
-  }, [orders, statusFilter, search]);
+  }, [orders, statusFilter, moderatorFilter, yearFilter, monthFilter, search]);
 
   const totals = useMemo(() => {
     const count = filtered.reduce((s, o) => s + o.chick_count, 0);
@@ -235,14 +273,37 @@ const ChickOrders = () => {
             <div className="relative flex-1 min-w-[220px]">
               <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="بحث (اسم، تليفون، محافظة...)"
+                placeholder="بحث باسم العميل أو رقم الهاتف..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pr-10"
               />
             </div>
+            <Select value={yearFilter} onValueChange={setYearFilter}>
+              <SelectTrigger className="w-32"><SelectValue placeholder="السنة" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">كل السنوات</SelectItem>
+                {yearOptions.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={monthFilter} onValueChange={setMonthFilter}>
+              <SelectTrigger className="w-32"><SelectValue placeholder="الشهر" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">كل الشهور</SelectItem>
+                {["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"].map((n, i) => (
+                  <SelectItem key={i + 1} value={String(i + 1)}>{n}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={moderatorFilter} onValueChange={setModeratorFilter}>
+              <SelectTrigger className="w-44"><SelectValue placeholder="المسوقة" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">كل المسوقات</SelectItem>
+                {moderatorOptions.map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">كل الحالات</SelectItem>
                 <SelectItem value="pending">قيد التنفيذ</SelectItem>
@@ -260,9 +321,11 @@ const ChickOrders = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="text-right">رقم الطلب</TableHead>
                   <TableHead className="text-right">العميل</TableHead>
                   <TableHead className="text-right">الهاتف</TableHead>
                   <TableHead className="text-right">المحافظة / المدينة</TableHead>
+                  <TableHead className="text-right">المسوقة</TableHead>
                   <TableHead className="text-right">العمر</TableHead>
                   <TableHead className="text-right">العدد</TableHead>
                   <TableHead className="text-right">السعر</TableHead>
@@ -273,19 +336,22 @@ const ChickOrders = () => {
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                  <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">جارٍ التحميل...</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">جارٍ التحميل...</TableCell></TableRow>
                 ) : filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={9} className="text-center py-10 text-muted-foreground">لا توجد طلبات</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={11} className="text-center py-10 text-muted-foreground">لا توجد طلبات</TableCell></TableRow>
                 ) : filtered.map((o) => {
                   const st = statusLabels[o.status];
+                  const orderNo = `CK-${o.id.slice(0, 8).toUpperCase()}`;
                   return (
                     <TableRow key={o.id}>
+                      <TableCell className="font-mono text-xs">{orderNo}</TableCell>
                       <TableCell className="font-medium">{o.customer_name}</TableCell>
                       <TableCell dir="ltr" className="text-right">
                         {o.phone_primary}
                         {o.phone_secondary && <div className="text-xs text-muted-foreground">{o.phone_secondary}</div>}
                       </TableCell>
                       <TableCell>{o.governorate} / {o.city}</TableCell>
+                      <TableCell className="text-sm">{profilesMap[o.created_by] || "—"}</TableCell>
                       <TableCell>{o.chick_age}</TableCell>
                       <TableCell>{o.chick_count.toLocaleString()}</TableCell>
                       <TableCell>{Number(o.chick_price).toLocaleString()} ج</TableCell>
