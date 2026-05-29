@@ -192,31 +192,43 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
         if (error) throw error;
       }
 
-      // Always recompute subtotal & total from the final items list,
-      // so changes to quantities/prices/items reflect on the order header.
-      const { data: ord, error: oerr } = await supabase
-        .from("orders")
-        .select("delivery_fee")
-        .eq("id", orderId)
-        .single();
-      if (oerr) throw oerr;
       const hasOfferItems = initialItems.some((it) => it.offer_name);
-      const finalSubtotal = items
-        .filter((it) => !it._deleted)
-        .reduce((s, it) => s + Number(it.quantity) * Number(it.unit_price), 0);
-      const newTotal =
-        finalSubtotal -
-        Number(discount || 0) +
-        (hasOfferItems ? Number(ord.delivery_fee || 0) : 0);
-      const { error: uerr } = await supabase
-        .from("orders")
-        .update({
-          subtotal: finalSubtotal,
-          discount: Number(discount) || 0,
-          total: newTotal,
-        })
-        .eq("id", orderId);
-      if (uerr) throw uerr;
+
+      if (hasOfferItems) {
+        // Order contains an offer bundle with a fixed price.
+        // Do NOT recompute subtotal/total from individual item prices,
+        // otherwise the offer's bundle price (and delivery fee) get lost.
+        // Only update discount if the user changed it.
+        if (Number(discount) !== Number(originalDiscount)) {
+          const { error: uerr } = await supabase
+            .from("orders")
+            .update({ discount: Number(discount) || 0 })
+            .eq("id", orderId);
+          if (uerr) throw uerr;
+        }
+      } else {
+        // Regular order — recompute subtotal & total from final items list
+        const { data: ord, error: oerr } = await supabase
+          .from("orders")
+          .select("delivery_fee")
+          .eq("id", orderId)
+          .single();
+        if (oerr) throw oerr;
+        const finalSubtotal = items
+          .filter((it) => !it._deleted)
+          .reduce((s, it) => s + Number(it.quantity) * Number(it.unit_price), 0);
+        const newTotal = finalSubtotal - Number(discount || 0) + Number(ord.delivery_fee || 0);
+        const { error: uerr } = await supabase
+          .from("orders")
+          .update({
+            subtotal: finalSubtotal,
+            discount: Number(discount) || 0,
+            total: newTotal,
+          })
+          .eq("id", orderId);
+        if (uerr) throw uerr;
+      }
+
 
       toast.success("تم تحديث منتجات الطلب وإعادة حساب المجموع");
       onOpenChange(false);
@@ -312,12 +324,20 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
           </Button>
 
           <div className="pt-2 border-t space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">المجموع الفرعي الجديد</span>
-              <span className="text-lg font-bold">
-                {newSubtotal.toLocaleString()} ج.م
-              </span>
-            </div>
+            {hasOfferItems && (
+              <div className="rounded-md border border-amber-300 bg-amber-50 text-amber-900 text-xs p-2">
+                هذا الطلب يحتوي على عرض بسعر ثابت. تعديل الأصناف هنا لن يغير سعر العرض الأصلي ولا رسوم التوصيل المسجلة.
+              </div>
+            )}
+
+            {!hasOfferItems && (
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">المجموع الفرعي الجديد</span>
+                <span className="text-lg font-bold">
+                  {newSubtotal.toLocaleString()} ج.م
+                </span>
+              </div>
+            )}
 
             <div className="flex justify-between items-center gap-3">
               <label className="text-muted-foreground whitespace-nowrap">
@@ -333,28 +353,31 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
               />
             </div>
 
-            {Number(initialDeliveryFee) > 0 && (
+            {!hasOfferItems && Number(initialDeliveryFee) > 0 && (
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">رسوم التوصيل</span>
                 <span>{Number(initialDeliveryFee).toLocaleString()} ج.م</span>
               </div>
             )}
 
-            {Number(discount) > 0 && (
+            {!hasOfferItems && Number(discount) > 0 && (
               <div className="flex justify-between text-sm text-green-600">
                 <span>الخصم</span>
                 <span>- {Number(discount).toLocaleString()} ج.م</span>
               </div>
             )}
 
-            <div className="flex justify-between items-center pt-2 border-t">
-              <span className="font-semibold">الإجمالي بعد الخصم</span>
-              <span className="text-xl font-bold text-primary">
-                {newTotalPreview.toLocaleString()} ج.م
-              </span>
-            </div>
+            {!hasOfferItems && (
+              <div className="flex justify-between items-center pt-2 border-t">
+                <span className="font-semibold">الإجمالي بعد الخصم</span>
+                <span className="text-xl font-bold text-primary">
+                  {newTotalPreview.toLocaleString()} ج.م
+                </span>
+              </div>
+            )}
           </div>
         </div>
+
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
