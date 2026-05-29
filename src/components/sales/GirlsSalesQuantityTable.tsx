@@ -72,6 +72,8 @@ interface Props {
 
 const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
   const queryClient = useQueryClient();
+  const { role, isGeneralManager, isExecutiveManager, isSalesManager } = useAuth();
+  const canEditChickRate = isGeneralManager || isExecutiveManager || isSalesManager || role === 'marketing_sales_manager';
   const [internalMonth, setInternalMonth] = useState(currentMonth);
   const [internalYear, setInternalYear] = useState(currentYear);
   const isControlled = month !== undefined && year !== undefined;
