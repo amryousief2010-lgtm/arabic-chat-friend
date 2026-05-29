@@ -192,6 +192,37 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
     refetchInterval: 60000,
   });
 
+  // Chick orders count per girl
+  const { data: chickQtyByGirl = {} as Record<string, number> } = useQuery({
+    queryKey: ['girls-chick-qty', selectedMonth, selectedYear],
+    queryFn: async () => {
+      const startDate = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1, 0, 0, 0, 0)).toISOString();
+      const endDate = new Date(Date.UTC(selectedYear, selectedMonth, 1, 0, 0, 0, 0)).toISOString();
+      const empty = GIRLS.reduce((acc, g) => { acc[g] = 0; return acc; }, {} as Record<string, number>);
+      const { data: rows, error } = await supabase
+        .from('chick_orders')
+        .select('chick_count, created_by')
+        .gte('created_at', startDate)
+        .lt('created_at', endDate)
+        .neq('status', 'cancelled');
+      if (error) throw error;
+      const userIds = Array.from(new Set((rows || []).map(r => r.created_by).filter(Boolean))) as string[];
+      let profileMap = new Map<string, string>();
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase.from('profiles').select('id, full_name').in('id', userIds);
+        profileMap = new Map((profiles || []).map(p => [p.id, p.full_name]));
+      }
+      (rows || []).forEach(r => {
+        const name = r.created_by ? (profileMap.get(r.created_by) || '') : '';
+        const girl = GIRLS.find(g => matches(name, g));
+        if (girl) empty[girl] += Number(r.chick_count) || 0;
+      });
+      return empty;
+    },
+    refetchInterval: 60000,
+  });
+
+
   useEffect(() => {
     const channel = supabase
       .channel('moderator-payroll-realtime')
