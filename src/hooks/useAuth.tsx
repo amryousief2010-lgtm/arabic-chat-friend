@@ -141,11 +141,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Defer role fetch with setTimeout to prevent deadlock
         if (session?.user) {
           setTimeout(() => {
-            fetchUserRole(session.user.id).then(setRole);
+            fetchUserRoles(session.user.id).then(({ primary, all }) => {
+              setRole(primary);
+              setRoles(all);
+            });
             fetchUserProfile(session.user.id).then(setProfile);
           }, 0);
         } else {
           setRole(null);
+          setRoles([]);
           setProfile(null);
         }
       }
@@ -158,7 +162,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       if (session?.user) {
         Promise.all([
-          fetchUserRole(session.user.id).then(setRole),
+          fetchUserRoles(session.user.id).then(({ primary, all }) => {
+            setRole(primary);
+            setRoles(all);
+          }),
           fetchUserProfile(session.user.id).then(setProfile),
         ]).finally(() => setLoading(false));
       } else {
