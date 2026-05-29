@@ -495,15 +495,32 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
               <TableCell className="font-bold border">بونص اللحوم بالعظم (ج.م)</TableCell>
               {rows.map(r => <TableCell key={r.girl} className="text-center border">{renderBonusCell(r.girl, r.boneBonus, 'bone_bonus', r.boneOverridden)}</TableCell>)}
             </TableRow>
+            <TableRow className="bg-yellow-100 dark:bg-yellow-900/30">
+              <TableCell className="font-bold border">
+                بونص الكتاكيت (ج.م)
+                <span className="block text-xs font-normal text-muted-foreground">
+                  {`${fmt(chickBonusRate)} ج × عدد الكتاكيت`}
+                </span>
+              </TableCell>
+              {rows.map(r => (
+                <TableCell key={r.girl} className="text-center border font-bold text-primary">
+                  {fmt(r.chickBonus)}
+                  <span className="block text-xs font-normal text-muted-foreground">
+                    ({fmt(r.chickCount)} كتكوت)
+                  </span>
+                </TableCell>
+              ))}
+            </TableRow>
 
             <TableRow className="bg-accent/20">
               <TableCell className="font-bold border text-accent-foreground">إجمالي البونص (ج.م)</TableCell>
               {rows.map(r => (
                 <TableCell key={r.girl} className="text-center border font-bold text-primary">
-                  {fmt(r.procBonus + r.meatBonus + r.boneBonus)}
+                  {fmt(r.procBonus + r.meatBonus + r.boneBonus + r.chickBonus)}
                 </TableCell>
               ))}
             </TableRow>
+
 
             <TableRow className="bg-primary/15">
               <TableCell className="font-bold border text-primary">إجمالي القبض (ج.م)</TableCell>
