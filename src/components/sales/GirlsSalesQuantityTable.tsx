@@ -274,6 +274,9 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, () => {
         queryClient.invalidateQueries({ queryKey: ['girls-auto-qty'] });
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'chick_orders' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['girls-chick-qty'] });
+      })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [queryClient]);
