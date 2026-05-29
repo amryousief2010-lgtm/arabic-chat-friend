@@ -34,6 +34,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   role: AppRole | null;
+  roles: AppRole[];
   profile: UserProfile | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
@@ -80,6 +81,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
+  const [roles, setRoles] = useState<AppRole[]>([]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -97,23 +99,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const fetchUserRole = async (userId: string) => {
+  const fetchUserRoles = async (userId: string): Promise<{ primary: AppRole | null; all: AppRole[] }> => {
     try {
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', userId)
-        .maybeSingle();
-      
+        .eq('user_id', userId);
+
       if (error) {
         console.error('Error fetching role:', error);
-        return null;
+        return { primary: null, all: [] };
       }
-      
-      return data?.role as AppRole | null;
+
+      const all = (data || []).map((r: any) => r.role as AppRole);
+      if (all.length === 0) return { primary: null, all: [] };
+
+      const priority: AppRole[] = [
+        'general_manager', 'executive_manager',
+        'sales_manager', 'marketing_sales_manager', 'financial_manager',
+        'production_manager', 'quality_manager', 'hr_manager',
+        'farm_manager', 'hatchery_manager', 'brooding_manager',
+        'slaughterhouse_manager', 'meat_factory_manager', 'feed_factory_manager',
+        'warehouse_supervisor', 'agouza_warehouse_keeper',
+        'accountant', 'sales_moderator', 'shipping_company', 'private_delivery_rep',
+      ];
+      const primary = priority.find((p) => all.includes(p)) ?? all[0];
+      return { primary, all };
     } catch (error) {
       console.error('Error fetching role:', error);
-      return null;
+      return { primary: null, all: [] };
     }
   };
 
@@ -127,11 +141,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Defer role fetch with setTimeout to prevent deadlock
         if (session?.user) {
           setTimeout(() => {
-            fetchUserRole(session.user.id).then(setRole);
+            fetchUserRoles(session.user.id).then(({ primary, all }) => {
+              setRole(primary);
+              setRoles(all);
+            });
             fetchUserProfile(session.user.id).then(setProfile);
           }, 0);
         } else {
           setRole(null);
+          setRoles([]);
           setProfile(null);
         }
       }
@@ -144,7 +162,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       if (session?.user) {
         Promise.all([
-          fetchUserRole(session.user.id).then(setRole),
+          fetchUserRoles(session.user.id).then(({ primary, all }) => {
+            setRole(primary);
+            setRoles(all);
+          }),
           fetchUserProfile(session.user.id).then(setProfile),
         ]).finally(() => setLoading(false));
       } else {
@@ -187,27 +208,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setProfile(null);
   };
 
-  // Role checks
-  const isGeneralManager = role === 'general_manager';
-  const isExecutiveManager = role === 'executive_manager';
-  const isSalesManager = role === 'sales_manager';
-  const isSalesModerator = role === 'sales_moderator';
-  const isAccountant = role === 'accountant';
-  const isWarehouseSupervisor = role === 'warehouse_supervisor';
-  const isFarmManager = role === 'farm_manager';
-  const isHatcheryManager = role === 'hatchery_manager';
-  const isBroodingManager = role === 'brooding_manager';
-  const isSlaughterhouseManager = role === 'slaughterhouse_manager';
-  const isMeatFactoryManager = role === 'meat_factory_manager';
-  const isFeedFactoryManager = role === 'feed_factory_manager';
-  const isHrManager = role === 'hr_manager';
-  const isProductionManager = role === 'production_manager';
-  const isMarketingSalesManager = role === 'marketing_sales_manager';
-  const isFinancialManager = role === 'financial_manager';
-  const isQualityManager = role === 'quality_manager';
-  const isShippingCompany = role === 'shipping_company';
-  const isPrivateDeliveryRep = role === 'private_delivery_rep';
-  const isAgouzaWarehouseKeeper = role === 'agouza_warehouse_keeper';
+  // Role checks — consider ALL of the user's roles, not only the primary one.
+  const has = (r: AppRole) => roles.includes(r);
+  const isGeneralManager = has('general_manager');
+  const isExecutiveManager = has('executive_manager');
+  const isSalesManager = has('sales_manager');
+  const isSalesModerator = has('sales_moderator');
+  const isAccountant = has('accountant');
+  const isWarehouseSupervisor = has('warehouse_supervisor');
+  const isFarmManager = has('farm_manager');
+  const isHatcheryManager = has('hatchery_manager');
+  const isBroodingManager = has('brooding_manager');
+  const isSlaughterhouseManager = has('slaughterhouse_manager');
+  const isMeatFactoryManager = has('meat_factory_manager');
+  const isFeedFactoryManager = has('feed_factory_manager');
+  const isHrManager = has('hr_manager');
+  const isProductionManager = has('production_manager');
+  const isMarketingSalesManager = has('marketing_sales_manager');
+  const isFinancialManager = has('financial_manager');
+  const isQualityManager = has('quality_manager');
+  const isShippingCompany = has('shipping_company');
+  const isPrivateDeliveryRep = has('private_delivery_rep');
+  const isAgouzaWarehouseKeeper = has('agouza_warehouse_keeper');
 
   // Module-level write permissions
   const canManageFeedFactory = isGeneralManager || isExecutiveManager || isFeedFactoryManager || isProductionManager;
@@ -249,6 +271,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     user,
     session,
     role,
+    roles,
     profile,
     loading,
     signIn,

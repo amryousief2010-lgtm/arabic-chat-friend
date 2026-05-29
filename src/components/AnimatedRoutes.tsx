@@ -15,6 +15,7 @@ import Settings from "@/pages/Settings";
 import Employees from "@/pages/Employees";
 import NewOrder from "@/pages/NewOrder";
 import WarehouseStockView from "@/pages/WarehouseStockView";
+import CustomerWarehouseView from "@/pages/CustomerWarehouseView";
 import ModeratorWarehouseStock from "@/pages/ModeratorWarehouseStock";
 import Notifications from "@/pages/Notifications";
 import DuplicateOrderApprovals from "@/pages/DuplicateOrderApprovals";
@@ -174,6 +175,28 @@ const AnimatedRoutes = () => {
         <Route path="/warehouse-stock/main" element={
           <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'warehouse_supervisor']}>
             <PageTransition><WarehouseStockView scope="main" /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/warehouse-stock/hyper-healthy-test" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor']}>
+            <PageTransition>
+              <CustomerWarehouseView
+                warehouseName="هايبر هيلثي تيست"
+                pageTitle="مخزن هايبر هيلثي تيست"
+                pageSubtitle="توريد ومرتجع منتجات هايبر هيلثي تيست — يُخصم/يُضاف تلقائياً من المخزن الرئيسي"
+              />
+            </PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/warehouse-stock/hyper-carrefour" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor']}>
+            <PageTransition>
+              <CustomerWarehouseView
+                warehouseName="هايبر كارفور"
+                pageTitle="مخزن هايبر كارفور"
+                pageSubtitle="توريد ومرتجع منتجات هايبر كارفور — يُخصم/يُضاف تلقائياً من المخزن الرئيسي"
+              />
+            </PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/warehouse-stock/moderator/:slug" element={

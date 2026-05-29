@@ -181,6 +181,8 @@ export const moduleSections: ModuleSection[] = [
       { icon: Warehouse, label: "المتاح في المخازن", path: "/warehouse-stock", roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'warehouse_supervisor'] },
       { icon: Warehouse, label: "مخزن العجوزة", path: "/warehouse-stock/agouza", roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper'] },
       { icon: Warehouse, label: "المخزن الرئيسي", path: "/warehouse-stock/main", roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'warehouse_supervisor'] },
+      { icon: Warehouse, label: "هايبر هيلثي تيست", path: "/warehouse-stock/hyper-healthy-test", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'] },
+      { icon: Warehouse, label: "هايبر كارفور", path: "/warehouse-stock/hyper-carrefour", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'] },
       { icon: Wallet, label: "تحصيل المندوب الخاص", path: "/private-delivery-collection", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'] },
       { icon: AlertTriangle, label: "مخزون منخفض", path: "/low-stock", roles: ['general_manager', 'executive_manager', 'sales_manager', 'warehouse_supervisor', 'production_manager', 'marketing_sales_manager', 'quality_manager'] },
       { icon: ClipboardList, label: "قائمة التصنيع", path: "/manufacturing-queue", roles: ['general_manager', 'executive_manager', 'sales_manager', 'warehouse_supervisor', 'production_manager', 'quality_manager'] },
@@ -221,12 +223,15 @@ interface SidebarMenuProps {
 
 export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
   const location = useLocation();
-  const { role, profile } = useAuth();
+  const { role, roles, profile } = useAuth();
   const { unreadCount } = useUnreadNotifications();
   // Sales moderators now use the same /orders page as managers (RLS scopes
   // them to their own rows). The previous override sent them to a stripped-
   // down log view, which the user explicitly asked to remove.
   const ordersPathOverride: string | null = null;
+
+  const userRoles: AppRole[] = roles && roles.length > 0 ? roles : (role ? [role] : []);
+  const hasAnyRole = (allowed: AppRole[]) => userRoles.some((r) => allowed.includes(r));
 
   const activeSectionId = moduleSections.find((s) =>
     s.items.some((i) => i.path === location.pathname)
@@ -245,9 +250,9 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
   const visibleSections = moduleSections
     .map((section) => ({
       ...section,
-      items: section.items.filter((item) => role && item.roles.includes(role)),
+      items: section.items.filter((item) => hasAnyRole(item.roles)),
     }))
-    .filter((section) => role && section.roles.includes(role) && section.items.length > 0);
+    .filter((section) => hasAnyRole(section.roles) && section.items.length > 0);
 
   return (
     <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
