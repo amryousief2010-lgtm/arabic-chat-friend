@@ -208,27 +208,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setProfile(null);
   };
 
-  // Role checks
-  const isGeneralManager = role === 'general_manager';
-  const isExecutiveManager = role === 'executive_manager';
-  const isSalesManager = role === 'sales_manager';
-  const isSalesModerator = role === 'sales_moderator';
-  const isAccountant = role === 'accountant';
-  const isWarehouseSupervisor = role === 'warehouse_supervisor';
-  const isFarmManager = role === 'farm_manager';
-  const isHatcheryManager = role === 'hatchery_manager';
-  const isBroodingManager = role === 'brooding_manager';
-  const isSlaughterhouseManager = role === 'slaughterhouse_manager';
-  const isMeatFactoryManager = role === 'meat_factory_manager';
-  const isFeedFactoryManager = role === 'feed_factory_manager';
-  const isHrManager = role === 'hr_manager';
-  const isProductionManager = role === 'production_manager';
-  const isMarketingSalesManager = role === 'marketing_sales_manager';
-  const isFinancialManager = role === 'financial_manager';
-  const isQualityManager = role === 'quality_manager';
-  const isShippingCompany = role === 'shipping_company';
-  const isPrivateDeliveryRep = role === 'private_delivery_rep';
-  const isAgouzaWarehouseKeeper = role === 'agouza_warehouse_keeper';
+  // Role checks — consider ALL of the user's roles, not only the primary one.
+  const has = (r: AppRole) => roles.includes(r);
+  const isGeneralManager = has('general_manager');
+  const isExecutiveManager = has('executive_manager');
+  const isSalesManager = has('sales_manager');
+  const isSalesModerator = has('sales_moderator');
+  const isAccountant = has('accountant');
+  const isWarehouseSupervisor = has('warehouse_supervisor');
+  const isFarmManager = has('farm_manager');
+  const isHatcheryManager = has('hatchery_manager');
+  const isBroodingManager = has('brooding_manager');
+  const isSlaughterhouseManager = has('slaughterhouse_manager');
+  const isMeatFactoryManager = has('meat_factory_manager');
+  const isFeedFactoryManager = has('feed_factory_manager');
+  const isHrManager = has('hr_manager');
+  const isProductionManager = has('production_manager');
+  const isMarketingSalesManager = has('marketing_sales_manager');
+  const isFinancialManager = has('financial_manager');
+  const isQualityManager = has('quality_manager');
+  const isShippingCompany = has('shipping_company');
+  const isPrivateDeliveryRep = has('private_delivery_rep');
+  const isAgouzaWarehouseKeeper = has('agouza_warehouse_keeper');
 
   // Module-level write permissions
   const canManageFeedFactory = isGeneralManager || isExecutiveManager || isFeedFactoryManager || isProductionManager;
