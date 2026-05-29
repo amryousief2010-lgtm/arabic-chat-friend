@@ -199,6 +199,70 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
   const boneMeatQtyByGirl = autoQtyByGirl.bone;
   const processedQtyByGirl = autoQtyByGirl.processed;
 
+  // Chick orders count per girl
+  const { data: chickQtyByGirl = {} as Record<string, number> } = useQuery({
+    queryKey: ['girls-chick-qty', selectedMonth, selectedYear],
+    queryFn: async () => {
+      const startDate = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1, 0, 0, 0, 0)).toISOString();
+      const endDate = new Date(Date.UTC(selectedYear, selectedMonth, 1, 0, 0, 0, 0)).toISOString();
+      const empty = GIRLS.reduce((acc, g) => { acc[g] = 0; return acc; }, {} as Record<string, number>);
+      const { data: rows, error } = await supabase
+        .from('chick_orders')
+        .select('chick_count, created_by')
+        .gte('created_at', startDate)
+        .lt('created_at', endDate)
+        .neq('status', 'cancelled');
+      if (error) throw error;
+      const userIds = Array.from(new Set((rows || []).map(r => r.created_by).filter(Boolean))) as string[];
+      let profileMap = new Map<string, string>();
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase.from('profiles').select('id, full_name').in('id', userIds);
+        profileMap = new Map((profiles || []).map(p => [p.id, p.full_name]));
+      }
+      (rows || []).forEach(r => {
+        const name = r.created_by ? (profileMap.get(r.created_by) || '') : '';
+        const girl = GIRLS.find(g => matches(name, g));
+        if (girl) empty[girl] += Number(r.chick_count) || 0;
+      });
+      return empty;
+    },
+    refetchInterval: 60000,
+  });
+
+  // Chick bonus rate stored in target_bonus_settings
+  const { data: chickBonusSetting } = useQuery({
+    queryKey: ['chick-bonus-setting'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('target_bonus_settings')
+        .select('id, bonus_amount')
+        .eq('category', 'كتاكيت')
+        .eq('tier', 1)
+        .maybeSingle();
+      if (error) throw error;
+      return data as { id: string; bonus_amount: number } | null;
+    },
+  });
+  const chickBonusRate = Number(chickBonusSetting?.bonus_amount ?? 50);
+
+  const updateChickRateMutation = useMutation({
+    mutationFn: async (value: number) => {
+      if (!chickBonusSetting?.id) throw new Error('إعداد بونص الكتاكيت غير موجود');
+      const { error } = await supabase
+        .from('target_bonus_settings')
+        .update({ bonus_amount: value })
+        .eq('id', chickBonusSetting.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chick-bonus-setting'] });
+      toast.success('تم تحديث سعر بونص الكتكوت');
+    },
+    onError: (e: any) => toast.error(e.message || 'تعذر التحديث'),
+  });
+
+
+
 
   // Realtime: refetch on order/items changes
   useEffect(() => {
