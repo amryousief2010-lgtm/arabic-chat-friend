@@ -84,6 +84,9 @@ const ChickOrders = () => {
   const [editing, setEditing] = useState<ChickOrder | null>(null);
   const [form, setForm] = useState<typeof emptyForm>(emptyForm);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [moderatorFilter, setModeratorFilter] = useState<string>("all");
+  const [yearFilter, setYearFilter] = useState<string>("all");
+  const [monthFilter, setMonthFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
@@ -99,14 +102,49 @@ const ChickOrders = () => {
     },
   });
 
+  const { data: profilesMap = {} } = useQuery<Record<string, string>>({
+    queryKey: ["chick-orders-profiles", orders.map((o) => o.created_by).join(",")],
+    enabled: orders.length > 0,
+    queryFn: async () => {
+      const ids = Array.from(new Set(orders.map((o) => o.created_by).filter(Boolean)));
+      if (!ids.length) return {};
+      const { data, error } = await supabase.from("profiles").select("id, full_name").in("id", ids);
+      if (error) throw error;
+      return Object.fromEntries((data || []).map((p: any) => [p.id, p.full_name as string]));
+    },
+  });
+
+  const moderatorOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    orders.forEach((o) => {
+      if (o.created_by && !seen.has(o.created_by)) {
+        seen.set(o.created_by, profilesMap[o.created_by] || "غير معروف");
+      }
+    });
+    return Array.from(seen.entries()).map(([id, name]) => ({ id, name }));
+  }, [orders, profilesMap]);
+
+  const yearOptions = useMemo(() => {
+    const ys = new Set<number>();
+    orders.forEach((o) => ys.add(new Date(o.created_at).getUTCFullYear()));
+    return Array.from(ys).sort((a, b) => b - a);
+  }, [orders]);
+
   const filtered = useMemo(() => {
-    const s = search.trim();
+    const s = search.trim().toLowerCase();
     return orders.filter((o) => {
       if (statusFilter !== "all" && o.status !== statusFilter) return false;
-      if (s && !`${o.customer_name} ${o.phone_primary} ${o.phone_secondary || ""} ${o.governorate} ${o.city}`.includes(s)) return false;
+      if (moderatorFilter !== "all" && o.created_by !== moderatorFilter) return false;
+      const d = new Date(o.created_at);
+      if (yearFilter !== "all" && d.getUTCFullYear() !== Number(yearFilter)) return false;
+      if (monthFilter !== "all" && d.getUTCMonth() + 1 !== Number(monthFilter)) return false;
+      if (s) {
+        const hay = `${o.customer_name} ${o.phone_primary} ${o.phone_secondary || ""}`.toLowerCase();
+        if (!hay.includes(s)) return false;
+      }
       return true;
     });
-  }, [orders, statusFilter, search]);
+  }, [orders, statusFilter, moderatorFilter, yearFilter, monthFilter, search]);
 
   const totals = useMemo(() => {
     const count = filtered.reduce((s, o) => s + o.chick_count, 0);
