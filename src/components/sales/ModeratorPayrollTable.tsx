@@ -192,6 +192,37 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
     refetchInterval: 60000,
   });
 
+  // Chick orders count per girl
+  const { data: chickQtyByGirl = {} as Record<string, number> } = useQuery({
+    queryKey: ['girls-chick-qty', selectedMonth, selectedYear],
+    queryFn: async () => {
+      const startDate = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1, 0, 0, 0, 0)).toISOString();
+      const endDate = new Date(Date.UTC(selectedYear, selectedMonth, 1, 0, 0, 0, 0)).toISOString();
+      const empty = GIRLS.reduce((acc, g) => { acc[g] = 0; return acc; }, {} as Record<string, number>);
+      const { data: rows, error } = await supabase
+        .from('chick_orders')
+        .select('chick_count, created_by')
+        .gte('created_at', startDate)
+        .lt('created_at', endDate)
+        .neq('status', 'cancelled');
+      if (error) throw error;
+      const userIds = Array.from(new Set((rows || []).map(r => r.created_by).filter(Boolean))) as string[];
+      let profileMap = new Map<string, string>();
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase.from('profiles').select('id, full_name').in('id', userIds);
+        profileMap = new Map((profiles || []).map(p => [p.id, p.full_name]));
+      }
+      (rows || []).forEach(r => {
+        const name = r.created_by ? (profileMap.get(r.created_by) || '') : '';
+        const girl = GIRLS.find(g => matches(name, g));
+        if (girl) empty[girl] += Number(r.chick_count) || 0;
+      });
+      return empty;
+    },
+    refetchInterval: 60000,
+  });
+
+
   useEffect(() => {
     const channel = supabase
       .channel('moderator-payroll-realtime')
@@ -200,6 +231,9 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, () => {
         queryClient.invalidateQueries({ queryKey: ['girls-auto-qty'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'chick_orders' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['girls-chick-qty'] });
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -244,6 +278,12 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
     return r.map(x => ({ sales: Number(x.sales_amount), bonus: Number(x.bonus_amount), label: TIER_LABELS[x.tier - 1] || String(x.tier) }));
   }, [tierSettings]);
 
+  const chickBonusRate = useMemo(() => {
+    const r = tierSettings.find(t => t.category === 'كتاكيت' && t.tier === 1);
+    return r ? Number(r.bonus_amount) : 50;
+  }, [tierSettings]);
+
+
   const overrideMutation = useMutation({
     mutationFn: async ({ girl, field, value }: { girl: Girl; field: 'processed_bonus' | 'meat_bonus' | 'bone_bonus' | 'processed_rate' | 'meat_rate' | 'bone_rate'; value: number | null }) => {
       const payload: any = {
@@ -268,13 +308,13 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
       const meatKg = qty.meat[g] || 0;
       const boneKg = qty.bone[g] || 0;
       const procKg = qty.processed[g] || 0;
+      const chickCount = chickQtyByGirl[g] || 0;
       const meatSales = meatKg * prices.meat_price + boneKg * prices.bone_meat_price;
       const procSales = procKg * prices.processed_price;
       const procTier = findTier(procSales, PROCESSED_TIERS);
       const meatTier = findTier(meatSales, MEAT_TIERS);
       const ov = overrides.find(o => o.moderator_name === g);
       const tierProcRate = procTier ? procTier.bonus : 0;
-      // شرط: لا يُحتسب أي بونص لحوم/لحوم بالعظم إلا إذا تحقق تارجت مصنعات (procTier موجود)
       const meatEligible = !!procTier;
       const tierMeatRate = meatTier && meatEligible ? meatTier.bonus : 0;
       const procRate = ov?.processed_rate != null ? Number(ov.processed_rate) : tierProcRate;
@@ -289,22 +329,24 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
       const procBonus = ov?.processed_bonus != null ? Number(ov.processed_bonus) : calcProcBonus;
       const meatBonus = ov?.meat_bonus != null ? Number(ov.meat_bonus) : calcMeatBonus;
       const boneBonus = ov?.bone_bonus != null ? Number(ov.bone_bonus) : calcBoneBonus;
+      const chickBonus = chickCount * chickBonusRate;
       const procOverridden = ov?.processed_bonus != null;
       const meatOverridden = ov?.meat_bonus != null;
       const boneOverridden = ov?.bone_bonus != null;
       const base = BASE_SALARY[g];
       return {
-        girl: g, base, meatKg, boneKg, procKg,
+        girl: g, base, meatKg, boneKg, procKg, chickCount,
         meatSales, procSales, procTier, meatTier,
         procRate, procRateOverridden,
         meatRate, meatRateOverridden,
         boneRate, boneRateOverridden,
-        procBonus, meatBonus, boneBonus,
+        procBonus, meatBonus, boneBonus, chickBonus,
         procOverridden, meatOverridden, boneOverridden,
-        total: base + procBonus + meatBonus + boneBonus,
+        total: base + procBonus + meatBonus + boneBonus + chickBonus,
       };
     });
-  }, [qty, prices, overrides, PROCESSED_TIERS, MEAT_TIERS]);
+  }, [qty, prices, overrides, PROCESSED_TIERS, MEAT_TIERS, chickQtyByGirl, chickBonusRate]);
+
 
   const renderBonusCell = (girl: Girl, value: number, field: 'processed_bonus' | 'meat_bonus' | 'bone_bonus' | 'processed_rate' | 'meat_rate' | 'bone_rate', overridden: boolean) => {
     if (!canEdit) {
@@ -453,15 +495,32 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
               <TableCell className="font-bold border">بونص اللحوم بالعظم (ج.م)</TableCell>
               {rows.map(r => <TableCell key={r.girl} className="text-center border">{renderBonusCell(r.girl, r.boneBonus, 'bone_bonus', r.boneOverridden)}</TableCell>)}
             </TableRow>
+            <TableRow className="bg-yellow-100 dark:bg-yellow-900/30">
+              <TableCell className="font-bold border">
+                بونص الكتاكيت (ج.م)
+                <span className="block text-xs font-normal text-muted-foreground">
+                  {`${fmt(chickBonusRate)} ج × عدد الكتاكيت`}
+                </span>
+              </TableCell>
+              {rows.map(r => (
+                <TableCell key={r.girl} className="text-center border font-bold text-primary">
+                  {fmt(r.chickBonus)}
+                  <span className="block text-xs font-normal text-muted-foreground">
+                    ({fmt(r.chickCount)} كتكوت)
+                  </span>
+                </TableCell>
+              ))}
+            </TableRow>
 
             <TableRow className="bg-accent/20">
               <TableCell className="font-bold border text-accent-foreground">إجمالي البونص (ج.م)</TableCell>
               {rows.map(r => (
                 <TableCell key={r.girl} className="text-center border font-bold text-primary">
-                  {fmt(r.procBonus + r.meatBonus + r.boneBonus)}
+                  {fmt(r.procBonus + r.meatBonus + r.boneBonus + r.chickBonus)}
                 </TableCell>
               ))}
             </TableRow>
+
 
             <TableRow className="bg-primary/15">
               <TableCell className="font-bold border text-primary">إجمالي القبض (ج.م)</TableCell>

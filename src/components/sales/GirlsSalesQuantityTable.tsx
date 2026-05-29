@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ClipboardList } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
 
 const validateNumber = (value: number, label: string): number | null => {
   if (Number.isNaN(value)) {
@@ -71,6 +72,8 @@ interface Props {
 
 const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
   const queryClient = useQueryClient();
+  const { role, isGeneralManager, isExecutiveManager, isSalesManager } = useAuth();
+  const canEditChickRate = isGeneralManager || isExecutiveManager || isSalesManager || role === 'marketing_sales_manager';
   const [internalMonth, setInternalMonth] = useState(currentMonth);
   const [internalYear, setInternalYear] = useState(currentYear);
   const isControlled = month !== undefined && year !== undefined;
@@ -196,6 +199,70 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
   const boneMeatQtyByGirl = autoQtyByGirl.bone;
   const processedQtyByGirl = autoQtyByGirl.processed;
 
+  // Chick orders count per girl
+  const { data: chickQtyByGirl = {} as Record<string, number> } = useQuery({
+    queryKey: ['girls-chick-qty', selectedMonth, selectedYear],
+    queryFn: async () => {
+      const startDate = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1, 0, 0, 0, 0)).toISOString();
+      const endDate = new Date(Date.UTC(selectedYear, selectedMonth, 1, 0, 0, 0, 0)).toISOString();
+      const empty = GIRLS.reduce((acc, g) => { acc[g] = 0; return acc; }, {} as Record<string, number>);
+      const { data: rows, error } = await supabase
+        .from('chick_orders')
+        .select('chick_count, created_by')
+        .gte('created_at', startDate)
+        .lt('created_at', endDate)
+        .neq('status', 'cancelled');
+      if (error) throw error;
+      const userIds = Array.from(new Set((rows || []).map(r => r.created_by).filter(Boolean))) as string[];
+      let profileMap = new Map<string, string>();
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase.from('profiles').select('id, full_name').in('id', userIds);
+        profileMap = new Map((profiles || []).map(p => [p.id, p.full_name]));
+      }
+      (rows || []).forEach(r => {
+        const name = r.created_by ? (profileMap.get(r.created_by) || '') : '';
+        const girl = GIRLS.find(g => matches(name, g));
+        if (girl) empty[girl] += Number(r.chick_count) || 0;
+      });
+      return empty;
+    },
+    refetchInterval: 60000,
+  });
+
+  // Chick bonus rate stored in target_bonus_settings
+  const { data: chickBonusSetting } = useQuery({
+    queryKey: ['chick-bonus-setting'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('target_bonus_settings')
+        .select('id, bonus_amount')
+        .eq('category', 'كتاكيت')
+        .eq('tier', 1)
+        .maybeSingle();
+      if (error) throw error;
+      return data as { id: string; bonus_amount: number } | null;
+    },
+  });
+  const chickBonusRate = Number(chickBonusSetting?.bonus_amount ?? 50);
+
+  const updateChickRateMutation = useMutation({
+    mutationFn: async (value: number) => {
+      if (!chickBonusSetting?.id) throw new Error('إعداد بونص الكتاكيت غير موجود');
+      const { error } = await supabase
+        .from('target_bonus_settings')
+        .update({ bonus_amount: value })
+        .eq('id', chickBonusSetting.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chick-bonus-setting'] });
+      toast.success('تم تحديث سعر بونص الكتكوت');
+    },
+    onError: (e: any) => toast.error(e.message || 'تعذر التحديث'),
+  });
+
+
+
 
   // Realtime: refetch on order/items changes
   useEffect(() => {
@@ -206,6 +273,9 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, () => {
         queryClient.invalidateQueries({ queryKey: ['girls-auto-qty'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'chick_orders' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['girls-chick-qty'] });
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -398,6 +468,51 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
                 {GIRLS.map(g => (
                   <TableCell key={g} className="text-center font-bold text-primary">
                     {totals[g].processed_total.toLocaleString()}
+                  </TableCell>
+                ))}
+              </TableRow>
+
+              {/* Chick rows */}
+              <TableRow>
+                <TableCell className="font-medium">عدد الكتاكيت</TableCell>
+                {GIRLS.map(g => (
+                  <TableCell key={g} className="text-center font-bold">
+                    {(chickQtyByGirl[g] || 0).toLocaleString()}
+                  </TableCell>
+                ))}
+              </TableRow>
+              <TableRow>
+                <TableCell className="font-medium">
+                  سعر بونص الكتكوت (ج.م)
+                  {canEditChickRate && (
+                    <span className="text-xs text-muted-foreground mr-2">(قابل للتعديل)</span>
+                  )}
+                </TableCell>
+                {GIRLS.map((g, idx) => (
+                  <TableCell key={g} className="text-center">
+                    {canEditChickRate && idx === 0 ? (
+                      <Input
+                        type="number"
+                        min="0"
+                        defaultValue={chickBonusRate}
+                        key={`chick-rate-${chickBonusRate}`}
+                        className="w-24 text-center mx-auto h-8"
+                        onBlur={(e) => {
+                          const v = Number(e.target.value);
+                          if (v !== chickBonusRate) updateChickRateMutation.mutate(v);
+                        }}
+                      />
+                    ) : (
+                      chickBonusRate.toLocaleString()
+                    )}
+                  </TableCell>
+                ))}
+              </TableRow>
+              <TableRow className="bg-primary/15 hover:bg-primary/20">
+                <TableCell className="font-bold text-primary">بونص الكتاكيت (ج.م)</TableCell>
+                {GIRLS.map(g => (
+                  <TableCell key={g} className="text-center font-bold text-primary">
+                    {((chickQtyByGirl[g] || 0) * chickBonusRate).toLocaleString()}
                   </TableCell>
                 ))}
               </TableRow>
