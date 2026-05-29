@@ -99,10 +99,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const fetchUserRole = async (userId: string) => {
+  const fetchUserRoles = async (userId: string): Promise<{ primary: AppRole | null; all: AppRole[] }> => {
     try {
-      // A user may have multiple roles (e.g. Ahmed Khater = agouza_warehouse_keeper + slaughterhouse_manager).
-      // Fetch them all and pick the highest-priority one for the active session.
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
@@ -110,11 +108,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (error) {
         console.error('Error fetching role:', error);
-        return null;
+        return { primary: null, all: [] };
       }
 
-      const roles = (data || []).map((r: any) => r.role as AppRole);
-      if (roles.length === 0) return null;
+      const all = (data || []).map((r: any) => r.role as AppRole);
+      if (all.length === 0) return { primary: null, all: [] };
 
       const priority: AppRole[] = [
         'general_manager', 'executive_manager',
@@ -125,13 +123,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         'warehouse_supervisor', 'agouza_warehouse_keeper',
         'accountant', 'sales_moderator', 'shipping_company', 'private_delivery_rep',
       ];
-      for (const p of priority) {
-        if (roles.includes(p)) return p;
-      }
-      return roles[0];
+      const primary = priority.find((p) => all.includes(p)) ?? all[0];
+      return { primary, all };
     } catch (error) {
       console.error('Error fetching role:', error);
-      return null;
+      return { primary: null, all: [] };
     }
   };
 
