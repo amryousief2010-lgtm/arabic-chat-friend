@@ -192,31 +192,43 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
         if (error) throw error;
       }
 
-      // Always recompute subtotal & total from the final items list,
-      // so changes to quantities/prices/items reflect on the order header.
-      const { data: ord, error: oerr } = await supabase
-        .from("orders")
-        .select("delivery_fee")
-        .eq("id", orderId)
-        .single();
-      if (oerr) throw oerr;
       const hasOfferItems = initialItems.some((it) => it.offer_name);
-      const finalSubtotal = items
-        .filter((it) => !it._deleted)
-        .reduce((s, it) => s + Number(it.quantity) * Number(it.unit_price), 0);
-      const newTotal =
-        finalSubtotal -
-        Number(discount || 0) +
-        (hasOfferItems ? Number(ord.delivery_fee || 0) : 0);
-      const { error: uerr } = await supabase
-        .from("orders")
-        .update({
-          subtotal: finalSubtotal,
-          discount: Number(discount) || 0,
-          total: newTotal,
-        })
-        .eq("id", orderId);
-      if (uerr) throw uerr;
+
+      if (hasOfferItems) {
+        // Order contains an offer bundle with a fixed price.
+        // Do NOT recompute subtotal/total from individual item prices,
+        // otherwise the offer's bundle price (and delivery fee) get lost.
+        // Only update discount if the user changed it.
+        if (Number(discount) !== Number(originalDiscount)) {
+          const { error: uerr } = await supabase
+            .from("orders")
+            .update({ discount: Number(discount) || 0 })
+            .eq("id", orderId);
+          if (uerr) throw uerr;
+        }
+      } else {
+        // Regular order — recompute subtotal & total from final items list
+        const { data: ord, error: oerr } = await supabase
+          .from("orders")
+          .select("delivery_fee")
+          .eq("id", orderId)
+          .single();
+        if (oerr) throw oerr;
+        const finalSubtotal = items
+          .filter((it) => !it._deleted)
+          .reduce((s, it) => s + Number(it.quantity) * Number(it.unit_price), 0);
+        const newTotal = finalSubtotal - Number(discount || 0) + Number(ord.delivery_fee || 0);
+        const { error: uerr } = await supabase
+          .from("orders")
+          .update({
+            subtotal: finalSubtotal,
+            discount: Number(discount) || 0,
+            total: newTotal,
+          })
+          .eq("id", orderId);
+        if (uerr) throw uerr;
+      }
+
 
       toast.success("تم تحديث منتجات الطلب وإعادة حساب المجموع");
       onOpenChange(false);
