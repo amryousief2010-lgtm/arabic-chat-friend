@@ -471,6 +471,51 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
                   </TableCell>
                 ))}
               </TableRow>
+
+              {/* Chick rows */}
+              <TableRow>
+                <TableCell className="font-medium">عدد الكتاكيت</TableCell>
+                {GIRLS.map(g => (
+                  <TableCell key={g} className="text-center font-bold">
+                    {(chickQtyByGirl[g] || 0).toLocaleString()}
+                  </TableCell>
+                ))}
+              </TableRow>
+              <TableRow>
+                <TableCell className="font-medium">
+                  سعر بونص الكتكوت (ج.م)
+                  {canEditChickRate && (
+                    <span className="text-xs text-muted-foreground mr-2">(قابل للتعديل)</span>
+                  )}
+                </TableCell>
+                {GIRLS.map((g, idx) => (
+                  <TableCell key={g} className="text-center">
+                    {canEditChickRate && idx === 0 ? (
+                      <Input
+                        type="number"
+                        min="0"
+                        defaultValue={chickBonusRate}
+                        key={`chick-rate-${chickBonusRate}`}
+                        className="w-24 text-center mx-auto h-8"
+                        onBlur={(e) => {
+                          const v = Number(e.target.value);
+                          if (v !== chickBonusRate) updateChickRateMutation.mutate(v);
+                        }}
+                      />
+                    ) : (
+                      chickBonusRate.toLocaleString()
+                    )}
+                  </TableCell>
+                ))}
+              </TableRow>
+              <TableRow className="bg-primary/15 hover:bg-primary/20">
+                <TableCell className="font-bold text-primary">بونص الكتاكيت (ج.م)</TableCell>
+                {GIRLS.map(g => (
+                  <TableCell key={g} className="text-center font-bold text-primary">
+                    {((chickQtyByGirl[g] || 0) * chickBonusRate).toLocaleString()}
+                  </TableCell>
+                ))}
+              </TableRow>
             </TableBody>
           </Table>
         </div>
