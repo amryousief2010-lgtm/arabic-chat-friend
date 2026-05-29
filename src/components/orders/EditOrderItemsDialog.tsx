@@ -311,6 +311,18 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
                     size="icon"
                     onClick={() => handleDelete(realIdx)}
                   >
+                    <Trash2 className="w-4 h-4 text-destructive" />
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+
+          <Button type="button" variant="outline" onClick={handleAdd} className="w-full">
+            <Plus className="w-4 h-4 ml-1" />
+            إضافة منتج
+          </Button>
+
           <div className="pt-2 border-t space-y-3">
             {hasOfferItems && (
               <div className="rounded-md border border-amber-300 bg-amber-50 text-amber-900 text-xs p-2">
@@ -364,20 +376,8 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
               </div>
             )}
           </div>
-
-                <span>الخصم</span>
-                <span>- {Number(discount).toLocaleString()} ج.م</span>
-              </div>
-            )}
-
-            <div className="flex justify-between items-center pt-2 border-t">
-              <span className="font-semibold">الإجمالي بعد الخصم</span>
-              <span className="text-xl font-bold text-primary">
-                {newTotalPreview.toLocaleString()} ج.م
-              </span>
-            </div>
-          </div>
         </div>
+
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
