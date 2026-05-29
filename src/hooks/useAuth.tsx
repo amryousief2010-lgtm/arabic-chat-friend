@@ -99,18 +99,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchUserRole = async (userId: string) => {
     try {
+      // A user may have multiple roles (e.g. Ahmed Khater = agouza_warehouse_keeper + slaughterhouse_manager).
+      // Fetch them all and pick the highest-priority one for the active session.
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', userId)
-        .maybeSingle();
-      
+        .eq('user_id', userId);
+
       if (error) {
         console.error('Error fetching role:', error);
         return null;
       }
-      
-      return data?.role as AppRole | null;
+
+      const roles = (data || []).map((r: any) => r.role as AppRole);
+      if (roles.length === 0) return null;
+
+      const priority: AppRole[] = [
+        'general_manager', 'executive_manager',
+        'sales_manager', 'marketing_sales_manager', 'financial_manager',
+        'production_manager', 'quality_manager', 'hr_manager',
+        'farm_manager', 'hatchery_manager', 'brooding_manager',
+        'slaughterhouse_manager', 'meat_factory_manager', 'feed_factory_manager',
+        'warehouse_supervisor', 'agouza_warehouse_keeper',
+        'accountant', 'sales_moderator', 'shipping_company', 'private_delivery_rep',
+      ];
+      for (const p of priority) {
+        if (roles.includes(p)) return p;
+      }
+      return roles[0];
     } catch (error) {
       console.error('Error fetching role:', error);
       return null;
