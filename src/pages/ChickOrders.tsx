@@ -321,9 +321,11 @@ const ChickOrders = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="text-right">رقم الطلب</TableHead>
                   <TableHead className="text-right">العميل</TableHead>
                   <TableHead className="text-right">الهاتف</TableHead>
                   <TableHead className="text-right">المحافظة / المدينة</TableHead>
+                  <TableHead className="text-right">المسوقة</TableHead>
                   <TableHead className="text-right">العمر</TableHead>
                   <TableHead className="text-right">العدد</TableHead>
                   <TableHead className="text-right">السعر</TableHead>
@@ -334,19 +336,22 @@ const ChickOrders = () => {
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                  <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">جارٍ التحميل...</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">جارٍ التحميل...</TableCell></TableRow>
                 ) : filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={9} className="text-center py-10 text-muted-foreground">لا توجد طلبات</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={11} className="text-center py-10 text-muted-foreground">لا توجد طلبات</TableCell></TableRow>
                 ) : filtered.map((o) => {
                   const st = statusLabels[o.status];
+                  const orderNo = `CK-${o.id.slice(0, 8).toUpperCase()}`;
                   return (
                     <TableRow key={o.id}>
+                      <TableCell className="font-mono text-xs">{orderNo}</TableCell>
                       <TableCell className="font-medium">{o.customer_name}</TableCell>
                       <TableCell dir="ltr" className="text-right">
                         {o.phone_primary}
                         {o.phone_secondary && <div className="text-xs text-muted-foreground">{o.phone_secondary}</div>}
                       </TableCell>
                       <TableCell>{o.governorate} / {o.city}</TableCell>
+                      <TableCell className="text-sm">{profilesMap[o.created_by] || "—"}</TableCell>
                       <TableCell>{o.chick_age}</TableCell>
                       <TableCell>{o.chick_count.toLocaleString()}</TableCell>
                       <TableCell>{Number(o.chick_price).toLocaleString()} ج</TableCell>
