@@ -133,6 +133,29 @@ export const printWarehouseStock = (
     "المتاح في المخازن"
   );
 
+  // عرض كل كمية بالكيلو + عدد العبوات (نص كيلو) للمنتجات التي وحدتها كيلو
+  const isKiloUnit = (u?: string) => {
+    const s = (u || "").trim();
+    return s === "كيلو" || s === "كجم" || s === "كج" || s === "كغ" || s.toLowerCase() === "kg";
+  };
+  const cellQty = (val: number, unit: string) => {
+    const v = Number(val) || 0;
+    if (isKiloUnit(unit)) {
+      const halves = Math.round(v * 2 * 100) / 100;
+      return `<div><b>${fmt(v)}</b> كجم</div><div style="font-size:11px;color:#6b7280">${fmt(halves)} نص كيلو</div>`;
+    }
+    return `<b>${fmt(v)}</b>`;
+  };
+  const footQty = (val: number, anyKilo: boolean) => {
+    const v = Number(val) || 0;
+    if (anyKilo) {
+      const halves = Math.round(v * 2 * 100) / 100;
+      return `<div><b>${fmt(v)}</b> كجم</div><div style="font-size:11px;color:#6b7280">${fmt(halves)} نص كيلو</div>`;
+    }
+    return `<b>${fmt(v)}</b>`;
+  };
+  const anyKilo = rows.some((r) => isKiloUnit(r.unit));
+
   let headerCols = "";
   let bodyRows = "";
   let footerRow = "";
@@ -140,17 +163,18 @@ export const printWarehouseStock = (
   if (mode === "both") {
     const totalAg = rows.reduce((s, r) => s + (r.agouza || 0), 0);
     const totalMn = rows.reduce((s, r) => s + (r.main || 0), 0);
-    headerCols = `<th style="width:80px">الوحدة</th><th style="width:110px">مخزن العجوزة</th><th style="width:110px">المخزن الرئيسي</th><th style="width:110px">الإجمالي</th>`;
-    bodyRows = rows.map((r, i) => `<tr><td>${i + 1}</td><td>${r.name}</td><td>${r.unit || "-"}</td><td>${fmt(r.agouza)}</td><td>${fmt(r.main)}</td><td><b>${fmt(r.agouza + r.main)}</b></td></tr>`).join("");
-    footerRow = `<tr><td colspan="3">الإجمالي</td><td>${fmt(totalAg)}</td><td>${fmt(totalMn)}</td><td>${fmt(totalAg + totalMn)}</td></tr>`;
+    headerCols = `<th style="width:80px">الوحدة</th><th style="width:130px">مخزن العجوزة</th><th style="width:130px">المخزن الرئيسي</th><th style="width:130px">الإجمالي</th>`;
+    bodyRows = rows.map((r, i) => `<tr><td>${i + 1}</td><td>${r.name}</td><td>${r.unit || "-"}</td><td>${cellQty(r.agouza, r.unit)}</td><td>${cellQty(r.main, r.unit)}</td><td>${cellQty((r.agouza || 0) + (r.main || 0), r.unit)}</td></tr>`).join("");
+    footerRow = `<tr><td colspan="3">الإجمالي</td><td>${footQty(totalAg, anyKilo)}</td><td>${footQty(totalMn, anyKilo)}</td><td>${footQty(totalAg + totalMn, anyKilo)}</td></tr>`;
   } else {
     const getVal = (r: PrintStockRow) => mode === "agouza" ? r.agouza : r.main;
     const label = mode === "agouza" ? "مخزن العجوزة" : "المخزن الرئيسي";
     const total = rows.reduce((s, r) => s + getVal(r), 0);
-    headerCols = `<th style="width:80px">الوحدة</th><th style="width:140px">${label}</th>`;
-    bodyRows = rows.map((r, i) => `<tr><td>${i + 1}</td><td>${r.name}</td><td>${r.unit || "-"}</td><td><b>${fmt(getVal(r))}</b></td></tr>`).join("");
-    footerRow = `<tr><td colspan="3">الإجمالي</td><td>${fmt(total)}</td></tr>`;
+    headerCols = `<th style="width:80px">الوحدة</th><th style="width:160px">${label}</th>`;
+    bodyRows = rows.map((r, i) => `<tr><td>${i + 1}</td><td>${r.name}</td><td>${r.unit || "-"}</td><td>${cellQty(getVal(r), r.unit)}</td></tr>`).join("");
+    footerRow = `<tr><td colspan="3">الإجمالي</td><td>${footQty(total, anyKilo)}</td></tr>`;
   }
+
 
   const body = `
     <div class="header">
