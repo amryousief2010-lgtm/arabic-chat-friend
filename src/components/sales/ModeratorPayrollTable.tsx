@@ -204,7 +204,7 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
         .select('chick_count, created_by')
         .gte('created_at', startDate)
         .lt('created_at', endDate)
-        .neq('status', 'cancelled');
+        .eq('status', 'delivered');
       if (error) throw error;
       const userIds = Array.from(new Set((rows || []).map(r => r.created_by).filter(Boolean))) as string[];
       let profileMap = new Map<string, string>();
