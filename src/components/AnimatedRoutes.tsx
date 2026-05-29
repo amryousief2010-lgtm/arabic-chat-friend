@@ -99,6 +99,7 @@ import PackagingMaterials from "@/pages/modules/shared/PackagingMaterials";
 import StockSnapshotReview from "@/pages/modules/shared/StockSnapshotReview";
 import StockReconciliation from "@/pages/StockReconciliation";
 import PrivateDeliveryCollection from "@/pages/PrivateDeliveryCollection";
+import ChickOrders from "@/pages/ChickOrders";
 
 const RedirectWithQuery = ({ to }: { to: string }) => {
   const location = useLocation();
@@ -139,7 +140,8 @@ const AnimatedRoutes = () => {
           <ProtectedRoute>
             <PageTransition><Orders /></PageTransition>
           </ProtectedRoute>
-        } />
+        }>
+        </Route>
         <Route path="/orders/new" element={
           <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager']}>
             <PageTransition><NewOrder /></PageTransition>
