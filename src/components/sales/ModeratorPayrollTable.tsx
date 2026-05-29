@@ -308,13 +308,13 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
       const meatKg = qty.meat[g] || 0;
       const boneKg = qty.bone[g] || 0;
       const procKg = qty.processed[g] || 0;
+      const chickCount = chickQtyByGirl[g] || 0;
       const meatSales = meatKg * prices.meat_price + boneKg * prices.bone_meat_price;
       const procSales = procKg * prices.processed_price;
       const procTier = findTier(procSales, PROCESSED_TIERS);
       const meatTier = findTier(meatSales, MEAT_TIERS);
       const ov = overrides.find(o => o.moderator_name === g);
       const tierProcRate = procTier ? procTier.bonus : 0;
-      // شرط: لا يُحتسب أي بونص لحوم/لحوم بالعظم إلا إذا تحقق تارجت مصنعات (procTier موجود)
       const meatEligible = !!procTier;
       const tierMeatRate = meatTier && meatEligible ? meatTier.bonus : 0;
       const procRate = ov?.processed_rate != null ? Number(ov.processed_rate) : tierProcRate;
@@ -329,22 +329,24 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
       const procBonus = ov?.processed_bonus != null ? Number(ov.processed_bonus) : calcProcBonus;
       const meatBonus = ov?.meat_bonus != null ? Number(ov.meat_bonus) : calcMeatBonus;
       const boneBonus = ov?.bone_bonus != null ? Number(ov.bone_bonus) : calcBoneBonus;
+      const chickBonus = chickCount * chickBonusRate;
       const procOverridden = ov?.processed_bonus != null;
       const meatOverridden = ov?.meat_bonus != null;
       const boneOverridden = ov?.bone_bonus != null;
       const base = BASE_SALARY[g];
       return {
-        girl: g, base, meatKg, boneKg, procKg,
+        girl: g, base, meatKg, boneKg, procKg, chickCount,
         meatSales, procSales, procTier, meatTier,
         procRate, procRateOverridden,
         meatRate, meatRateOverridden,
         boneRate, boneRateOverridden,
-        procBonus, meatBonus, boneBonus,
+        procBonus, meatBonus, boneBonus, chickBonus,
         procOverridden, meatOverridden, boneOverridden,
-        total: base + procBonus + meatBonus + boneBonus,
+        total: base + procBonus + meatBonus + boneBonus + chickBonus,
       };
     });
-  }, [qty, prices, overrides, PROCESSED_TIERS, MEAT_TIERS]);
+  }, [qty, prices, overrides, PROCESSED_TIERS, MEAT_TIERS, chickQtyByGirl, chickBonusRate]);
+
 
   const renderBonusCell = (girl: Girl, value: number, field: 'processed_bonus' | 'meat_bonus' | 'bone_bonus' | 'processed_rate' | 'meat_rate' | 'bone_rate', overridden: boolean) => {
     if (!canEdit) {
