@@ -278,6 +278,12 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
     return r.map(x => ({ sales: Number(x.sales_amount), bonus: Number(x.bonus_amount), label: TIER_LABELS[x.tier - 1] || String(x.tier) }));
   }, [tierSettings]);
 
+  const chickBonusRate = useMemo(() => {
+    const r = tierSettings.find(t => t.category === 'كتاكيت' && t.tier === 1);
+    return r ? Number(r.bonus_amount) : 50;
+  }, [tierSettings]);
+
+
   const overrideMutation = useMutation({
     mutationFn: async ({ girl, field, value }: { girl: Girl; field: 'processed_bonus' | 'meat_bonus' | 'bone_bonus' | 'processed_rate' | 'meat_rate' | 'bone_rate'; value: number | null }) => {
       const payload: any = {
