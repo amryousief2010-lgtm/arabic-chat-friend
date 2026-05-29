@@ -273,14 +273,37 @@ const ChickOrders = () => {
             <div className="relative flex-1 min-w-[220px]">
               <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="بحث (اسم، تليفون، محافظة...)"
+                placeholder="بحث باسم العميل أو رقم الهاتف..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pr-10"
               />
             </div>
+            <Select value={yearFilter} onValueChange={setYearFilter}>
+              <SelectTrigger className="w-32"><SelectValue placeholder="السنة" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">كل السنوات</SelectItem>
+                {yearOptions.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={monthFilter} onValueChange={setMonthFilter}>
+              <SelectTrigger className="w-32"><SelectValue placeholder="الشهر" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">كل الشهور</SelectItem>
+                {["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"].map((n, i) => (
+                  <SelectItem key={i + 1} value={String(i + 1)}>{n}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={moderatorFilter} onValueChange={setModeratorFilter}>
+              <SelectTrigger className="w-44"><SelectValue placeholder="المسوقة" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">كل المسوقات</SelectItem>
+                {moderatorOptions.map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">كل الحالات</SelectItem>
                 <SelectItem value="pending">قيد التنفيذ</SelectItem>
