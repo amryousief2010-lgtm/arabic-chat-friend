@@ -39,7 +39,7 @@ const isPathAllowedForPrivateRep = (pathname: string) =>
   PRIVATE_REP_ALLOWED_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'));
 
 const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
-  const { user, role, loading } = useAuth();
+  const { user, role, roles, loading } = useAuth();
   const location = useLocation();
 
   // Sales moderators land on the org chart first, then navigate from there.
@@ -50,8 +50,8 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
   const isModeratorBlocked =
     (role === 'sales_moderator' && !isPathAllowedForModerator(location.pathname)) ||
     (role === 'private_delivery_rep' && !isPathAllowedForPrivateRep(location.pathname));
-  // 2) Standard role check
-  const isRoleDenied = !!(allowedRoles && (!role || !allowedRoles.includes(role)));
+  // 2) Standard role check — pass if ANY of the user's roles is allowed.
+  const isRoleDenied = !!(allowedRoles && !(roles.some((r) => allowedRoles.includes(r))));
   const isDenied = isModeratorBlocked || isRoleDenied;
 
   useEffect(() => {
