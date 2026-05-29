@@ -807,6 +807,60 @@ export type Database = {
         }
         Relationships: []
       }
+      chick_orders: {
+        Row: {
+          chick_age: string
+          chick_count: number
+          chick_price: number
+          city: string
+          created_at: string
+          created_by: string
+          customer_name: string
+          governorate: string
+          id: string
+          notes: string | null
+          phone_primary: string
+          phone_secondary: string | null
+          status: Database["public"]["Enums"]["chick_order_status"]
+          total_amount: number | null
+          updated_at: string
+        }
+        Insert: {
+          chick_age: string
+          chick_count: number
+          chick_price: number
+          city: string
+          created_at?: string
+          created_by?: string
+          customer_name: string
+          governorate: string
+          id?: string
+          notes?: string | null
+          phone_primary: string
+          phone_secondary?: string | null
+          status?: Database["public"]["Enums"]["chick_order_status"]
+          total_amount?: number | null
+          updated_at?: string
+        }
+        Update: {
+          chick_age?: string
+          chick_count?: number
+          chick_price?: number
+          city?: string
+          created_at?: string
+          created_by?: string
+          customer_name?: string
+          governorate?: string
+          id?: string
+          notes?: string | null
+          phone_primary?: string
+          phone_secondary?: string | null
+          status?: Database["public"]["Enums"]["chick_order_status"]
+          total_amount?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       correction_request_audit: {
         Row: {
           action: string
@@ -6664,6 +6718,7 @@ export type Database = {
         | { Args: { _transfer_id: string; _uid: string }; Returns: boolean }
       can_edit_product_price: { Args: { _user_id: string }; Returns: boolean }
       can_issue_feed_materials: { Args: { _user_id: string }; Returns: boolean }
+      can_manage_chick_orders: { Args: { _user_id: string }; Returns: boolean }
       can_manage_feed_batch: { Args: { _uid: string }; Returns: boolean }
       can_manage_feed_recipes: { Args: { _user_id: string }; Returns: boolean }
       can_manage_meat_batch: { Args: { _uid: string }; Returns: boolean }
@@ -7270,6 +7325,7 @@ export type Database = {
         | "cost_accountant"
         | "private_delivery_rep"
         | "agouza_warehouse_keeper"
+      chick_order_status: "pending" | "delivered" | "returned" | "cancelled"
       feed_order_status:
         | "draft"
         | "issued"
@@ -7439,6 +7495,7 @@ export const Constants = {
         "private_delivery_rep",
         "agouza_warehouse_keeper",
       ],
+      chick_order_status: ["pending", "delivered", "returned", "cancelled"],
       feed_order_status: [
         "draft",
         "issued",
