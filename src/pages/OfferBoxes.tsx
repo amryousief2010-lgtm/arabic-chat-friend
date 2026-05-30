@@ -149,7 +149,8 @@ const OfferBoxes = () => {
       const { data, error } = await supabase
         .from('products')
         .select('id, name, price, image_url')
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .order('name', { ascending: true });
       if (error) throw error;
       return data as Product[];
     },
