@@ -2227,6 +2227,7 @@ export type Database = {
           name: string
           notes: string | null
           recipe_status: string
+          selling_price: number
           stage: string | null
           standard_batch_kg: number
           updated_at: string
@@ -2243,6 +2244,7 @@ export type Database = {
           name: string
           notes?: string | null
           recipe_status?: string
+          selling_price?: number
           stage?: string | null
           standard_batch_kg?: number
           updated_at?: string
@@ -2259,6 +2261,7 @@ export type Database = {
           name?: string
           notes?: string | null
           recipe_status?: string
+          selling_price?: number
           stage?: string | null
           standard_batch_kg?: number
           updated_at?: string
@@ -2412,6 +2415,90 @@ export type Database = {
             referencedColumns: ["inventory_item_id"]
           },
         ]
+      }
+      feed_raw_purchase_items: {
+        Row: {
+          created_at: string
+          id: string
+          line_total: number
+          purchase_id: string
+          quantity: number
+          raw_material_id: string
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          line_total?: number
+          purchase_id: string
+          quantity: number
+          raw_material_id: string
+          unit_price: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          line_total?: number
+          purchase_id?: string
+          quantity?: number
+          raw_material_id?: string
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_raw_purchase_items_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "feed_raw_purchases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feed_raw_purchase_items_raw_material_id_fkey"
+            columns: ["raw_material_id"]
+            isOneToOne: false
+            referencedRelation: "feed_raw_materials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feed_raw_purchases: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          purchase_date: string
+          purchase_no: string
+          supplier: string | null
+          supplier_invoice_no: string | null
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          purchase_date?: string
+          purchase_no?: string
+          supplier?: string | null
+          supplier_invoice_no?: string | null
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          purchase_date?: string
+          purchase_no?: string
+          supplier?: string | null
+          supplier_invoice_no?: string | null
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       feed_recipe_history: {
         Row: {
@@ -2567,6 +2654,99 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      feed_sale_items: {
+        Row: {
+          created_at: string
+          feed_product_id: string
+          id: string
+          line_cost: number
+          line_total: number
+          quantity: number
+          sale_id: string
+          unit_cost: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          feed_product_id: string
+          id?: string
+          line_cost?: number
+          line_total?: number
+          quantity: number
+          sale_id: string
+          unit_cost?: number
+          unit_price: number
+        }
+        Update: {
+          created_at?: string
+          feed_product_id?: string
+          id?: string
+          line_cost?: number
+          line_total?: number
+          quantity?: number
+          sale_id?: string
+          unit_cost?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_sale_items_feed_product_id_fkey"
+            columns: ["feed_product_id"]
+            isOneToOne: false
+            referencedRelation: "feed_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feed_sale_items_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "feed_sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feed_sales: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          customer: string | null
+          id: string
+          notes: string | null
+          profit: number
+          sale_date: string
+          sale_no: string
+          total_amount: number
+          total_cost: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          customer?: string | null
+          id?: string
+          notes?: string | null
+          profit?: number
+          sale_date?: string
+          sale_no?: string
+          total_amount?: number
+          total_cost?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          customer?: string | null
+          id?: string
+          notes?: string | null
+          profit?: number
+          sale_date?: string
+          sale_no?: string
+          total_amount?: number
+          total_cost?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       hatch_batches: {
         Row: {
