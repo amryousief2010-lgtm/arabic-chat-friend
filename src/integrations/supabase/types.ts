@@ -6984,6 +6984,10 @@ export type Database = {
         Args: { p_notes?: string; p_product_code: string; p_version: number }
         Returns: Json
       }
+      apply_feed_stock_count: {
+        Args: { _count_id: string }
+        Returns: undefined
+      }
       approve_feed_batch_cost: {
         Args: {
           p_batch: string
