@@ -493,8 +493,8 @@ export default function FeedWarehouses() {
           </TabsContent>
         </Tabs>
 
-        <PurchaseDialog open={purchaseOpen} onOpenChange={setPurchaseOpen} materials={rawQ.data || []} onSaved={() => { qc.invalidateQueries({ queryKey: ["feed-raw-materials"] }); qc.invalidateQueries({ queryKey: ["feed-purchases"] }); }} />
-        <SaleDialog open={saleOpen} onOpenChange={setSaleOpen} products={prodQ.data || []} materials={rawQ.data || []} onSaved={() => { qc.invalidateQueries({ queryKey: ["feed-products"] }); qc.invalidateQueries({ queryKey: ["feed-raw-materials"] }); qc.invalidateQueries({ queryKey: ["feed-sales"] }); qc.invalidateQueries({ queryKey: ["feed-treasury"] }); }} />
+        <PurchaseDialog open={purchaseOpen || !!purchaseEdit} onOpenChange={(b) => { if (!b) { setPurchaseOpen(false); setPurchaseEdit(null); } }} editPurchase={purchaseEdit} materials={rawQ.data || []} onSaved={() => { qc.invalidateQueries({ queryKey: ["feed-raw-materials"] }); qc.invalidateQueries({ queryKey: ["feed-purchases"] }); qc.invalidateQueries({ queryKey: ["feed-treasury"] }); }} />
+        <SaleDialog open={saleOpen || !!saleEdit} onOpenChange={(b) => { if (!b) { setSaleOpen(false); setSaleEdit(null); } }} editSale={saleEdit} products={prodQ.data || []} materials={rawQ.data || []} onSaved={() => { qc.invalidateQueries({ queryKey: ["feed-products"] }); qc.invalidateQueries({ queryKey: ["feed-raw-materials"] }); qc.invalidateQueries({ queryKey: ["feed-sales"] }); qc.invalidateQueries({ queryKey: ["feed-treasury"] }); }} />
         {canEditStock && <RawMaterialDialog item={editRaw} onClose={() => setEditRaw(null)} onSaved={() => qc.invalidateQueries({ queryKey: ["feed-raw-materials"] })} />}
         {canEditStock && <ProductDialog item={editProd} onClose={() => setEditProd(null)} onSaved={() => qc.invalidateQueries({ queryKey: ["feed-products"] })} />}
         {canStockCount && <StockCountDialog open={countOpen} onOpenChange={setCountOpen} rawMaterials={rawQ.data || []} products={prodQ.data || []} onSaved={() => qc.invalidateQueries({ queryKey: ["feed-stock-counts"] })} />}
