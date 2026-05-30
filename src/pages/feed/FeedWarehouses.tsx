@@ -195,7 +195,7 @@ export default function FeedWarehouses() {
   const salesQ = useQuery({
     queryKey: ["feed-sales"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("feed_sales").select("*, feed_sale_items(*, feed_products(name))").order("sale_date", { ascending: false }).limit(100);
+      const { data, error } = await supabase.from("feed_sales").select("*, feed_sale_items(*, feed_products(name), feed_raw_materials(name,unit))").order("sale_date", { ascending: false }).limit(100);
       if (error) throw error; return data || [];
     },
   });
