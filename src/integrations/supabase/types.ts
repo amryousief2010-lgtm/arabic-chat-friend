@@ -2703,33 +2703,36 @@ export type Database = {
       feed_sale_items: {
         Row: {
           created_at: string
-          feed_product_id: string
+          feed_product_id: string | null
           id: string
           line_cost: number
           line_total: number
           quantity: number
+          raw_material_id: string | null
           sale_id: string
           unit_cost: number
           unit_price: number
         }
         Insert: {
           created_at?: string
-          feed_product_id: string
+          feed_product_id?: string | null
           id?: string
           line_cost?: number
           line_total?: number
           quantity: number
+          raw_material_id?: string | null
           sale_id: string
           unit_cost?: number
           unit_price: number
         }
         Update: {
           created_at?: string
-          feed_product_id?: string
+          feed_product_id?: string | null
           id?: string
           line_cost?: number
           line_total?: number
           quantity?: number
+          raw_material_id?: string | null
           sale_id?: string
           unit_cost?: number
           unit_price?: number
@@ -2740,6 +2743,13 @@ export type Database = {
             columns: ["feed_product_id"]
             isOneToOne: false
             referencedRelation: "feed_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feed_sale_items_raw_material_id_fkey"
+            columns: ["raw_material_id"]
+            isOneToOne: false
+            referencedRelation: "feed_raw_materials"
             referencedColumns: ["id"]
           },
           {
