@@ -63,7 +63,7 @@ const printPurchase = (p: any) => {
 
 const printSale = (s: any) => {
   const rows = (s.feed_sale_items || []).map((it: any) => `
-    <tr><td>${it.feed_products?.name || "-"}</td><td>${fmt(it.quantity)} كجم</td><td>${fmt(it.unit_price)}</td><td>${fmt(Number(it.quantity) * Number(it.unit_price))}</td></tr>`).join("");
+    <tr><td>${it.feed_products?.name || it.feed_raw_materials?.name || "-"}</td><td>${fmt(it.quantity)} ${it.feed_raw_materials?.unit || "كجم"}</td><td>${fmt(it.unit_price)}</td><td>${fmt(Number(it.quantity) * Number(it.unit_price))}</td></tr>`).join("");
   const total = (s.feed_sale_items || []).reduce((sum: number, i: any) => sum + Number(i.quantity) * Number(i.unit_price), 0);
   printHtml(`فاتورة بيع ${s.sale_no}`, `
     <div class="header"><div><div class="brand">عاصمة النعام</div><div>مصنع الأعلاف — فاتورة بيع</div></div>
