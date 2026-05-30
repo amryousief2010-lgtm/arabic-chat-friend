@@ -783,3 +783,66 @@ function StockCountDialog({ open, onOpenChange, rawMaterials, products, onSaved 
     </Dialog>
   );
 }
+
+function TreasuryDialog({ open, onOpenChange, onSaved }: { open: boolean; onOpenChange: (b: boolean) => void; onSaved: () => void }) {
+  const [kind, setKind] = useState<string>("loan_from_naam");
+  const [amount, setAmount] = useState<number>(0);
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [party, setParty] = useState("شركة نعام العاصمة");
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (kind === "loan_from_naam" || kind === "loan_to_naam") setParty("شركة نعام العاصمة");
+    else if (kind === "manual_in" || kind === "manual_out" || kind === "opening_balance") setParty("");
+  }, [kind]);
+
+  const direction: "in" | "out" = ["loan_from_naam", "manual_in", "opening_balance"].includes(kind) ? "in" : "out";
+
+  const save = async () => {
+    if (!amount || amount <= 0) return toast.error("اكتب مبلغاً صحيحاً");
+    setSaving(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const txn_no = `TRZ-${Date.now().toString().slice(-8)}`;
+      const { error } = await (supabase as any).from("feed_factory_treasury_txns").insert({
+        txn_no, txn_date: date, direction, kind, amount, party, note, created_by: user?.id,
+      });
+      if (error) throw error;
+      toast.success("تم تسجيل الحركة");
+      onOpenChange(false); onSaved();
+      setAmount(0); setNote("");
+    } catch (e: any) { toast.error(e.message || "فشل الحفظ"); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent dir="rtl" className="max-w-lg">
+        <DialogHeader><DialogTitle className="flex items-center gap-2"><Wallet className="h-5 w-5"/>حركة خزنة جديدة</DialogTitle></DialogHeader>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="col-span-2">
+            <Label>نوع الحركة</Label>
+            <Select value={kind} onValueChange={setKind}>
+              <SelectTrigger><SelectValue/></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="loan_from_naam">سلفة من شركة نعام العاصمة (إيداع)</SelectItem>
+                <SelectItem value="loan_to_naam">إقراض شركة نعام العاصمة (سحب)</SelectItem>
+                <SelectItem value="manual_in">إيداع يدوي</SelectItem>
+                <SelectItem value="manual_out">سحب يدوي / مصروف</SelectItem>
+                <SelectItem value="opening_balance">رصيد افتتاحي</SelectItem>
+                <SelectItem value="other">أخرى</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="text-xs mt-1 text-muted-foreground">الاتجاه: <b className={direction === "in" ? "text-success" : "text-destructive"}>{direction === "in" ? "وارد (يضاف للخزنة)" : "منصرف (يُخصم من الخزنة)"}</b></div>
+          </div>
+          <div><Label>المبلغ (ج.م)</Label><Input type="number" value={amount || ""} onChange={(e) => setAmount(Number(e.target.value))} /></div>
+          <div><Label>التاريخ</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+          <div className="col-span-2"><Label>الجهة</Label><Input value={party} onChange={(e) => setParty(e.target.value)} /></div>
+          <div className="col-span-2"><Label>البيان / الملاحظات</Label><Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} /></div>
+        </div>
+        <DialogFooter><Button onClick={save} disabled={saving}>{saving ? "جاري الحفظ..." : "تسجيل الحركة"}</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
