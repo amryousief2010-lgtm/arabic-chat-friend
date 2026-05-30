@@ -128,7 +128,9 @@ export default function FeedWarehouses() {
   // Only top managers may delete/edit any transaction.
   const canManageAll = roles.some((r) => ["general_manager","executive_manager"].includes(r));
   const [purchaseOpen, setPurchaseOpen] = useState(false);
+  const [purchaseEdit, setPurchaseEdit] = useState<any | null>(null);
   const [saleOpen, setSaleOpen] = useState(false);
+  const [saleEdit, setSaleEdit] = useState<any | null>(null);
   const [countOpen, setCountOpen] = useState(false);
   const [editRaw, setEditRaw] = useState<any | null>(null);
   const [editProd, setEditProd] = useState<any | null>(null);
