@@ -644,7 +644,8 @@ function ProductDialog({ item, onClose, onSaved }: { item: any | null; onClose: 
   );
 }
 
-function PurchaseDialog({ open, onOpenChange, materials, onSaved }: any) {
+function PurchaseDialog({ open, onOpenChange, materials, onSaved, editPurchase }: any) {
+  const isEdit = !!editPurchase?.id;
   const [supplier, setSupplier] = useState("");
   const [invoiceNo, setInvoiceNo] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -653,23 +654,49 @@ function PurchaseDialog({ open, onOpenChange, materials, onSaved }: any) {
   const [saving, setSaving] = useState(false);
   const total = lines.reduce((s, l) => s + l.qty * l.price, 0);
 
+  useEffect(() => {
+    if (editPurchase?.id) {
+      setSupplier(editPurchase.supplier || "");
+      setInvoiceNo(editPurchase.supplier_invoice_no || "");
+      setDate(editPurchase.purchase_date || new Date().toISOString().slice(0, 10));
+      setNotes(editPurchase.notes || "");
+      const items = editPurchase.feed_raw_purchase_items || [];
+      setLines(items.length
+        ? items.map((it: any) => ({ id: crypto.randomUUID(), ref_id: it.raw_material_id, qty: Number(it.quantity), price: Number(it.unit_price) }))
+        : [newLine()]);
+    } else if (open) {
+      setSupplier(""); setInvoiceNo(""); setDate(new Date().toISOString().slice(0, 10)); setNotes(""); setLines([newLine()]);
+    }
+  }, [editPurchase?.id, open]);
+
   const save = async () => {
     const valid = lines.filter((l) => l.ref_id && l.qty > 0 && l.price >= 0);
     if (!valid.length) return toast.error("أضف بنداً واحداً على الأقل");
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      const { data: head, error: e1 } = await supabase.from("feed_raw_purchases").insert({
-        supplier, supplier_invoice_no: invoiceNo, purchase_date: date, notes, created_by: user?.id,
-      }).select("id").single();
-      if (e1) throw e1;
+      let purchaseId = editPurchase?.id;
+      if (isEdit) {
+        // Delete existing items first — triggers will revert stock + treasury
+        const { error: eDel } = await supabase.from("feed_raw_purchase_items").delete().eq("purchase_id", purchaseId);
+        if (eDel) throw eDel;
+        const { error: eUpd } = await supabase.from("feed_raw_purchases").update({
+          supplier, supplier_invoice_no: invoiceNo, purchase_date: date, notes,
+        }).eq("id", purchaseId);
+        if (eUpd) throw eUpd;
+      } else {
+        const { data: head, error: e1 } = await supabase.from("feed_raw_purchases").insert({
+          supplier, supplier_invoice_no: invoiceNo, purchase_date: date, notes, created_by: user?.id,
+        }).select("id").single();
+        if (e1) throw e1;
+        purchaseId = head.id;
+      }
       const { error: e2 } = await supabase.from("feed_raw_purchase_items").insert(
-        valid.map((l) => ({ purchase_id: head.id, raw_material_id: l.ref_id, quantity: l.qty, unit_price: l.price }))
+        valid.map((l) => ({ purchase_id: purchaseId, raw_material_id: l.ref_id, quantity: l.qty, unit_price: l.price }))
       );
       if (e2) throw e2;
-      toast.success("تم حفظ فاتورة الشراء وتحديث المخزون");
+      toast.success(isEdit ? "تم تعديل الفاتورة وتحديث المخزون والخزنة" : "تم حفظ فاتورة الشراء وتحديث المخزون");
       onOpenChange(false); onSaved();
-      setSupplier(""); setInvoiceNo(""); setNotes(""); setLines([newLine()]);
     } catch (err: any) { toast.error(err.message || "فشل الحفظ"); }
     finally { setSaving(false); }
   };
@@ -677,7 +704,7 @@ function PurchaseDialog({ open, onOpenChange, materials, onSaved }: any) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl" dir="rtl">
-        <DialogHeader><DialogTitle>فاتورة شراء مواد خام</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{isEdit ? `تعديل فاتورة شراء ${editPurchase?.purchase_no || ""}` : "فاتورة شراء مواد خام"}</DialogTitle></DialogHeader>
         <div className="grid grid-cols-3 gap-3">
           <div><Label>المورد</Label><Input value={supplier} onChange={(e) => setSupplier(e.target.value)} /></div>
           <div><Label>رقم فاتورة المورد</Label><Input value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} /></div>
