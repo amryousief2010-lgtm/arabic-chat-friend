@@ -754,11 +754,12 @@ function StockCountDialog({ open, onOpenChange, rawMaterials, products, onSaved 
 
   const totalVariance = rows.reduce((s, r) => s + (r.counted_qty - r.system_qty) * r.unit_cost, 0);
 
-  const save = async (closeIt: boolean) => {
+  const save = async (mode: "draft" | "close" | "apply") => {
     if (!rows.length) return toast.error("لا توجد أصناف للجرد");
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      const closeIt = mode !== "draft";
       const { data: head, error: e1 } = await supabase.from("feed_stock_counts").insert({
         count_date: date, warehouse_kind: kind, notes, status: closeIt ? "closed" : "draft",
         closed_at: closeIt ? new Date().toISOString() : null,
@@ -775,7 +776,13 @@ function StockCountDialog({ open, onOpenChange, rawMaterials, products, onSaved 
         }))
       );
       if (e2) throw e2;
-      toast.success(closeIt ? "تم حفظ وإغلاق محضر الجرد" : "تم حفظ محضر الجرد كمسودة");
+      if (mode === "apply") {
+        const { error: e3 } = await (supabase as any).rpc("apply_feed_stock_count", { _count_id: head.id });
+        if (e3) throw e3;
+        toast.success("تم حفظ الجرد وتعديل أرصدة المخزون");
+      } else {
+        toast.success(closeIt ? "تم حفظ وإغلاق محضر الجرد" : "تم حفظ محضر الجرد كمسودة");
+      }
       onOpenChange(false); onSaved();
       setNotes("");
     } catch (err: any) { toast.error(err.message || "فشل الحفظ"); }
