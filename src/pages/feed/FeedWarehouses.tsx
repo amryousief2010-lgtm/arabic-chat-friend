@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -12,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Warehouse, Package, ShoppingCart, Banknote, Plus, Trash2, AlertTriangle } from "lucide-react";
+import { Warehouse, Package, ShoppingCart, Banknote, Plus, Trash2, AlertTriangle, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 type Line = { id: string; ref_id: string; qty: number; price: number };
@@ -21,8 +22,13 @@ const fmt = (n: number) => n.toLocaleString("ar-EG", { maximumFractionDigits: 2 
 
 export default function FeedWarehouses() {
   const qc = useQueryClient();
+  const { roles } = useAuth();
+  // التعديل المباشر للمخزون مسموح للمدير العام/التنفيذي/مشرف المخزن/مدير الإنتاج فقط. مدير المصنع (العنازى) يقدر يعمل فواتير بس.
+  const canEditStock = roles.some((r) => ["general_manager","executive_manager","warehouse_supervisor","production_manager"].includes(r));
   const [purchaseOpen, setPurchaseOpen] = useState(false);
   const [saleOpen, setSaleOpen] = useState(false);
+  const [editRaw, setEditRaw] = useState<any | null>(null);
+  const [editProd, setEditProd] = useState<any | null>(null);
 
   const rawQ = useQuery({
     queryKey: ["feed-raw-materials"],
@@ -85,10 +91,13 @@ export default function FeedWarehouses() {
           {/* RAW STOCK */}
           <TabsContent value="raw">
             <Card>
-              <CardHeader><CardTitle>المواد الخام تحت التصنيع</CardTitle><CardDescription>الرصيد الحالي ومتوسط تكلفة كل خامة</CardDescription></CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div><CardTitle>المواد الخام تحت التصنيع</CardTitle><CardDescription>الرصيد الحالي ومتوسط تكلفة كل خامة</CardDescription></div>
+                {canEditStock && <Button onClick={() => setEditRaw({})}><Plus className="h-4 w-4 ml-1" />إضافة خامة</Button>}
+              </CardHeader>
               <CardContent>
                 <Table>
-                  <TableHeader><TableRow><TableHead>الصنف</TableHead><TableHead>الرصيد</TableHead><TableHead>الوحدة</TableHead><TableHead>متوسط التكلفة</TableHead><TableHead>القيمة الإجمالية</TableHead><TableHead>المورد</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>الصنف</TableHead><TableHead>الرصيد</TableHead><TableHead>الوحدة</TableHead><TableHead>متوسط التكلفة</TableHead><TableHead>القيمة الإجمالية</TableHead><TableHead>المورد</TableHead>{canEditStock && <TableHead></TableHead>}</TableRow></TableHeader>
                   <TableBody>
                     {(rawQ.data || []).map((r: any) => {
                       const low = Number(r.stock) <= Number(r.low_stock_threshold || 0);
@@ -100,20 +109,25 @@ export default function FeedWarehouses() {
                           <TableCell>{fmt(Number(r.unit_cost))}</TableCell>
                           <TableCell className="font-bold">{fmt(Number(r.stock) * Number(r.unit_cost))}</TableCell>
                           <TableCell className="text-muted-foreground text-xs">{r.supplier || "-"}</TableCell>
+                          {canEditStock && <TableCell><Button size="icon" variant="ghost" onClick={() => setEditRaw(r)}><Pencil className="h-4 w-4" /></Button></TableCell>}
                         </TableRow>
                       );
                     })}
-                    {!rawQ.data?.length && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">لا توجد خامات</TableCell></TableRow>}
+                    {!rawQ.data?.length && <TableRow><TableCell colSpan={canEditStock ? 7 : 6} className="text-center text-muted-foreground py-6">لا توجد خامات</TableCell></TableRow>}
                   </TableBody>
                 </Table>
               </CardContent>
             </Card>
           </TabsContent>
 
+
           {/* FINISHED STOCK */}
           <TabsContent value="finished">
             <Card>
-              <CardHeader><CardTitle>العلف الجاهز للبيع</CardTitle><CardDescription>الرصيد بالكيلو والشكاير لكل منتج</CardDescription></CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div><CardTitle>العلف الجاهز للبيع</CardTitle><CardDescription>الرصيد بالكيلو والشكاير لكل منتج</CardDescription></div>
+                {canEditStock && <Button onClick={() => setEditProd({})}><Plus className="h-4 w-4 ml-1" />إضافة منتج</Button>}
+              </CardHeader>
               <CardContent className="space-y-3">
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {(prodQ.data || []).map((p: any) => {
@@ -126,7 +140,10 @@ export default function FeedWarehouses() {
                         <CardContent className="p-4 space-y-2">
                           <div className="flex items-center justify-between">
                             <div className="font-bold">{p.name}</div>
-                            <Badge variant="outline">{p.stage}</Badge>
+                            <div className="flex items-center gap-1">
+                              <Badge variant="outline">{p.stage}</Badge>
+                              {canEditStock && <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditProd(p)}><Pencil className="h-3.5 w-3.5" /></Button>}
+                            </div>
                           </div>
                           <div className="grid grid-cols-2 gap-2 text-sm">
                             <div><div className="text-xs text-muted-foreground">الكمية</div><div className="font-bold text-lg text-primary">{fmt(stock)} كجم</div></div>
@@ -144,6 +161,7 @@ export default function FeedWarehouses() {
               </CardContent>
             </Card>
           </TabsContent>
+
 
           {/* PURCHASES */}
           <TabsContent value="purchases">
@@ -203,10 +221,114 @@ export default function FeedWarehouses() {
 
         <PurchaseDialog open={purchaseOpen} onOpenChange={setPurchaseOpen} materials={rawQ.data || []} onSaved={() => { qc.invalidateQueries({ queryKey: ["feed-raw-materials"] }); qc.invalidateQueries({ queryKey: ["feed-purchases"] }); }} />
         <SaleDialog open={saleOpen} onOpenChange={setSaleOpen} products={prodQ.data || []} onSaved={() => { qc.invalidateQueries({ queryKey: ["feed-products"] }); qc.invalidateQueries({ queryKey: ["feed-sales"] }); }} />
+        {canEditStock && <RawMaterialDialog item={editRaw} onClose={() => setEditRaw(null)} onSaved={() => qc.invalidateQueries({ queryKey: ["feed-raw-materials"] })} />}
+        {canEditStock && <ProductDialog item={editProd} onClose={() => setEditProd(null)} onSaved={() => qc.invalidateQueries({ queryKey: ["feed-products"] })} />}
       </div>
     </DashboardLayout>
   );
 }
+
+function RawMaterialDialog({ item, onClose, onSaved }: { item: any | null; onClose: () => void; onSaved: () => void }) {
+  const open = item !== null;
+  const isEdit = !!item?.id;
+  const [name, setName] = useState(item?.name || "");
+  const [unit, setUnit] = useState(item?.unit || "كجم");
+  const [stock, setStock] = useState<number>(Number(item?.stock || 0));
+  const [unitCost, setUnitCost] = useState<number>(Number(item?.unit_cost || 0));
+  const [lowThr, setLowThr] = useState<number>(Number(item?.low_stock_threshold || 0));
+  const [supplier, setSupplier] = useState(item?.supplier || "");
+  const [saving, setSaving] = useState(false);
+  // reset when item changes
+  useMemo(() => {
+    setName(item?.name || ""); setUnit(item?.unit || "كجم");
+    setStock(Number(item?.stock || 0)); setUnitCost(Number(item?.unit_cost || 0));
+    setLowThr(Number(item?.low_stock_threshold || 0)); setSupplier(item?.supplier || "");
+  }, [item?.id]);
+
+  const save = async () => {
+    if (!name.trim()) return toast.error("اكتب اسم الخامة");
+    setSaving(true);
+    try {
+      const payload = { name, unit, stock, unit_cost: unitCost, low_stock_threshold: lowThr, supplier, is_active: true };
+      const { error } = isEdit
+        ? await supabase.from("feed_raw_materials").update(payload).eq("id", item.id)
+        : await supabase.from("feed_raw_materials").insert(payload);
+      if (error) throw error;
+      toast.success(isEdit ? "تم تحديث الخامة" : "تم إضافة الخامة");
+      onClose(); onSaved();
+    } catch (e: any) { toast.error(e.message || "فشل الحفظ"); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent dir="rtl" className="max-w-lg">
+        <DialogHeader><DialogTitle>{isEdit ? "تعديل خامة" : "إضافة خامة جديدة"}</DialogTitle></DialogHeader>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="col-span-2"><Label>اسم الخامة</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
+          <div><Label>الوحدة</Label><Input value={unit} onChange={(e) => setUnit(e.target.value)} /></div>
+          <div><Label>المورد</Label><Input value={supplier} onChange={(e) => setSupplier(e.target.value)} /></div>
+          <div><Label>الرصيد الحالي</Label><Input type="number" value={stock} onChange={(e) => setStock(Number(e.target.value))} /></div>
+          <div><Label>متوسط التكلفة</Label><Input type="number" value={unitCost} onChange={(e) => setUnitCost(Number(e.target.value))} /></div>
+          <div><Label>حد التنبيه</Label><Input type="number" value={lowThr} onChange={(e) => setLowThr(Number(e.target.value))} /></div>
+        </div>
+        <DialogFooter><Button onClick={save} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ"}</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ProductDialog({ item, onClose, onSaved }: { item: any | null; onClose: () => void; onSaved: () => void }) {
+  const open = item !== null;
+  const isEdit = !!item?.id;
+  const [name, setName] = useState(item?.name || "");
+  const [stage, setStage] = useState(item?.stage || "تسمين");
+  const [feedCode, setFeedCode] = useState(item?.feed_code || "");
+  const [bagKg, setBagKg] = useState<number>(Number(item?.default_bag_kg || 50));
+  const [stock, setStock] = useState<number>(Number(item?.current_stock || 0));
+  const [cost, setCost] = useState<number>(Number(item?.latest_unit_cost || 0));
+  const [price, setPrice] = useState<number>(Number(item?.selling_price || 0));
+  const [saving, setSaving] = useState(false);
+  useMemo(() => {
+    setName(item?.name || ""); setStage(item?.stage || "تسمين"); setFeedCode(item?.feed_code || "");
+    setBagKg(Number(item?.default_bag_kg || 50)); setStock(Number(item?.current_stock || 0));
+    setCost(Number(item?.latest_unit_cost || 0)); setPrice(Number(item?.selling_price || 0));
+  }, [item?.id]);
+
+  const save = async () => {
+    if (!name.trim() || !feedCode.trim()) return toast.error("اكتب اسم وكود المنتج");
+    setSaving(true);
+    try {
+      const payload: any = { name, stage, feed_code: feedCode, default_bag_kg: bagKg, current_stock: stock, latest_unit_cost: cost, selling_price: price };
+      const { error } = isEdit
+        ? await supabase.from("feed_products").update(payload).eq("id", item.id)
+        : await supabase.from("feed_products").insert(payload);
+      if (error) throw error;
+      toast.success(isEdit ? "تم تحديث المنتج" : "تم إضافة المنتج");
+      onClose(); onSaved();
+    } catch (e: any) { toast.error(e.message || "فشل الحفظ"); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent dir="rtl" className="max-w-lg">
+        <DialogHeader><DialogTitle>{isEdit ? "تعديل منتج علف" : "إضافة منتج علف جاهز"}</DialogTitle></DialogHeader>
+        <div className="grid grid-cols-2 gap-3">
+          <div><Label>اسم المنتج</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
+          <div><Label>كود المنتج</Label><Input value={feedCode} onChange={(e) => setFeedCode(e.target.value)} /></div>
+          <div><Label>المرحلة</Label><Input value={stage} onChange={(e) => setStage(e.target.value)} placeholder="تسمين / بادي / بياض ..." /></div>
+          <div><Label>وزن الشيكارة (كجم)</Label><Input type="number" value={bagKg} onChange={(e) => setBagKg(Number(e.target.value))} /></div>
+          <div><Label>الرصيد الحالي (كجم)</Label><Input type="number" value={stock} onChange={(e) => setStock(Number(e.target.value))} /></div>
+          <div><Label>متوسط التكلفة (ج/كجم)</Label><Input type="number" value={cost} onChange={(e) => setCost(Number(e.target.value))} /></div>
+          <div className="col-span-2"><Label>سعر البيع (ج/كجم)</Label><Input type="number" value={price} onChange={(e) => setPrice(Number(e.target.value))} /></div>
+        </div>
+        <DialogFooter><Button onClick={save} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ"}</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 function PurchaseDialog({ open, onOpenChange, materials, onSaved }: any) {
   const [supplier, setSupplier] = useState("");
