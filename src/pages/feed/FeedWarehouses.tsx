@@ -125,6 +125,8 @@ export default function FeedWarehouses() {
   const { roles } = useAuth();
   const canEditStock = roles.some((r) => ["general_manager","executive_manager","warehouse_supervisor","production_manager"].includes(r));
   const canStockCount = roles.some((r) => ["general_manager","executive_manager"].includes(r));
+  // Only top managers may delete/edit any transaction.
+  const canManageAll = roles.some((r) => ["general_manager","executive_manager"].includes(r));
   const [purchaseOpen, setPurchaseOpen] = useState(false);
   const [saleOpen, setSaleOpen] = useState(false);
   const [countOpen, setCountOpen] = useState(false);
@@ -132,6 +134,42 @@ export default function FeedWarehouses() {
   const [editProd, setEditProd] = useState<any | null>(null);
   const [treasuryOpen, setTreasuryOpen] = useState(false);
   const canTreasury = roles.some((r) => ["general_manager","executive_manager","feed_factory_manager","warehouse_supervisor"].includes(r));
+
+  // ---- delete helpers (top managers only) ----
+  const confirmDel = (msg: string) => window.confirm(msg);
+  const delPurchase = async (p: any) => {
+    if (!confirmDel(`حذف فاتورة الشراء ${p.purchase_no}؟ سيتم إرجاع كميات الخامات من المخزن.`)) return;
+    const { error } = await supabase.from("feed_raw_purchases").delete().eq("id", p.id);
+    if (error) return toast.error(error.message);
+    toast.success("تم حذف الفاتورة وإرجاع الخامات");
+    qc.invalidateQueries({ queryKey: ["feed-purchases"] });
+    qc.invalidateQueries({ queryKey: ["feed-raw-materials"] });
+    qc.invalidateQueries({ queryKey: ["feed-treasury"] });
+  };
+  const delSale = async (s: any) => {
+    if (!confirmDel(`حذف فاتورة البيع ${s.sale_no}؟ سيتم إرجاع كميات العلف للمخزون.`)) return;
+    const { error } = await supabase.from("feed_sales").delete().eq("id", s.id);
+    if (error) return toast.error(error.message);
+    toast.success("تم حذف الفاتورة وإرجاع المخزون");
+    qc.invalidateQueries({ queryKey: ["feed-sales"] });
+    qc.invalidateQueries({ queryKey: ["feed-products"] });
+    qc.invalidateQueries({ queryKey: ["feed-treasury"] });
+  };
+  const delTreasury = async (t: any) => {
+    if (t.kind === "sale" || t.kind === "purchase") return toast.error("هذه الحركة ناتجة عن فاتورة — احذف الفاتورة من تبويبها.");
+    if (!confirmDel(`حذف حركة الخزنة ${t.txn_no}؟`)) return;
+    const { error } = await (supabase as any).from("feed_factory_treasury_txns").delete().eq("id", t.id);
+    if (error) return toast.error(error.message);
+    toast.success("تم حذف الحركة");
+    qc.invalidateQueries({ queryKey: ["feed-treasury"] });
+  };
+  const delCount = async (c: any) => {
+    if (!confirmDel(`حذف محضر الجرد ${c.count_no}؟`)) return;
+    const { error } = await supabase.from("feed_stock_counts").delete().eq("id", c.id);
+    if (error) return toast.error(error.message);
+    toast.success("تم الحذف");
+    qc.invalidateQueries({ queryKey: ["feed-stock-counts"] });
+  };
 
   const rawQ = useQuery({
     queryKey: ["feed-raw-materials"],
