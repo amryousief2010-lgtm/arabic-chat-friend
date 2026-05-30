@@ -421,7 +421,7 @@ export default function FeedWarehouses() {
               </CardHeader>
               <CardContent>
                 <Table>
-                  <TableHeader><TableRow><TableHead>الرقم</TableHead><TableHead>التاريخ</TableHead><TableHead>النوع</TableHead><TableHead>الجهة</TableHead><TableHead>البيان</TableHead><TableHead>وارد</TableHead><TableHead>منصرف</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>الرقم</TableHead><TableHead>التاريخ</TableHead><TableHead>النوع</TableHead><TableHead>الجهة</TableHead><TableHead>البيان</TableHead><TableHead>وارد</TableHead><TableHead>منصرف</TableHead>{canManageAll && <TableHead className="w-16">حذف</TableHead>}</TableRow></TableHeader>
                   <TableBody>
                     {(treasuryQ.data || []).map((t: any) => (
                       <TableRow key={t.id}>
@@ -432,9 +432,10 @@ export default function FeedWarehouses() {
                         <TableCell className="text-xs text-muted-foreground">{t.note || "-"}</TableCell>
                         <TableCell className="text-success font-bold">{t.direction === "in" ? fmt(t.amount) : "-"}</TableCell>
                         <TableCell className="text-destructive font-bold">{t.direction === "out" ? fmt(t.amount) : "-"}</TableCell>
+                        {canManageAll && <TableCell>{t.kind !== "sale" && t.kind !== "purchase" && <Button size="icon" variant="ghost" className="text-destructive" onClick={() => delTreasury(t)}><Trash2 className="h-4 w-4" /></Button>}</TableCell>}
                       </TableRow>
                     ))}
-                    {!treasuryQ.data?.length && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">لا توجد حركات بعد</TableCell></TableRow>}
+                    {!treasuryQ.data?.length && <TableRow><TableCell colSpan={canManageAll ? 8 : 7} className="text-center text-muted-foreground py-6">لا توجد حركات بعد</TableCell></TableRow>}
                   </TableBody>
                 </Table>
               </CardContent>
