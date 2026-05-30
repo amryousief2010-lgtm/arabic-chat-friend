@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -12,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Warehouse, Package, ShoppingCart, Banknote, Plus, Trash2, AlertTriangle } from "lucide-react";
+import { Warehouse, Package, ShoppingCart, Banknote, Plus, Trash2, AlertTriangle, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 type Line = { id: string; ref_id: string; qty: number; price: number };
@@ -21,8 +22,13 @@ const fmt = (n: number) => n.toLocaleString("ar-EG", { maximumFractionDigits: 2 
 
 export default function FeedWarehouses() {
   const qc = useQueryClient();
+  const { roles } = useAuth();
+  // التعديل المباشر للمخزون مسموح للمدير العام/التنفيذي/مشرف المخزن/مدير الإنتاج فقط. مدير المصنع (العنازى) يقدر يعمل فواتير بس.
+  const canEditStock = roles.some((r) => ["general_manager","executive_manager","warehouse_supervisor","production_manager"].includes(r));
   const [purchaseOpen, setPurchaseOpen] = useState(false);
   const [saleOpen, setSaleOpen] = useState(false);
+  const [editRaw, setEditRaw] = useState<any | null>(null);
+  const [editProd, setEditProd] = useState<any | null>(null);
 
   const rawQ = useQuery({
     queryKey: ["feed-raw-materials"],
