@@ -169,7 +169,8 @@ const formatItemQty = (qty: number, unit?: string): string => {
 };
 
 const Orders = () => {
-  const { user, isShippingCompany, isAccountant, isSalesModerator, isPrivateDeliveryRep, isWarehouseSupervisor, canUpdateOrderStatusForOrder, canDeleteOrders, canEditOrderItems } = useAuth();
+  const { user, isShippingCompany, isAccountant, isSalesModerator, isPrivateDeliveryRep, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, roles, canUpdateOrderStatusForOrder, canDeleteOrders, canEditOrderItems } = useAuth();
+  const canExportExcel = isGeneralManager || isExecutiveManager || roles.includes('marketing_sales_manager');
   const [orders, setOrders] = useState<Order[]>([]);
   const [approvedEditOrderIds, setApprovedEditOrderIds] = useState<Set<string>>(new Set());
   const [pendingEditOrderIds, setPendingEditOrderIds] = useState<Set<string>>(new Set());
@@ -813,9 +814,11 @@ const Orders = () => {
                 </SelectContent>
               </Select>
             )}
-            <Button variant="outline" className="gap-2" onClick={() => exportOrdersToXLSX(filteredOrders)}>
-              <FileDown className="w-4 h-4" /> Excel
-            </Button>
+            {canExportExcel && (
+              <Button variant="outline" className="gap-2" onClick={() => exportOrdersToXLSX(filteredOrders)}>
+                <FileDown className="w-4 h-4" /> Excel
+              </Button>
+            )}
             <Button variant="outline" className="gap-2" onClick={() => exportOrdersToCSV(filteredOrders)}>
               <FileDown className="w-4 h-4" /> CSV
             </Button>
