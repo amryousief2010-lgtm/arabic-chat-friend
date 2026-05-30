@@ -301,9 +301,12 @@ export default function FeedWarehouses() {
           {/* PURCHASES */}
           <TabsContent value="purchases">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
                 <div><CardTitle>مشتريات المواد الخام</CardTitle><CardDescription>سجل فواتير الشراء — اضغط الطباعة لطباعة الفاتورة</CardDescription></div>
-                <Button onClick={() => setPurchaseOpen(true)}><Plus className="h-4 w-4 ml-1" />شراء خامات</Button>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={exportPur}><FileSpreadsheet className="h-4 w-4 ml-1"/>Excel</Button>
+                  <Button onClick={() => setPurchaseOpen(true)}><Plus className="h-4 w-4 ml-1" />شراء خامات</Button>
+                </div>
               </CardHeader>
               <CardContent>
                 <Table>
