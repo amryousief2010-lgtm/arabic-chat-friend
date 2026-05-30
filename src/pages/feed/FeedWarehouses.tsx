@@ -128,7 +128,9 @@ export default function FeedWarehouses() {
   // Only top managers may delete/edit any transaction.
   const canManageAll = roles.some((r) => ["general_manager","executive_manager"].includes(r));
   const [purchaseOpen, setPurchaseOpen] = useState(false);
+  const [purchaseEdit, setPurchaseEdit] = useState<any | null>(null);
   const [saleOpen, setSaleOpen] = useState(false);
+  const [saleEdit, setSaleEdit] = useState<any | null>(null);
   const [countOpen, setCountOpen] = useState(false);
   const [editRaw, setEditRaw] = useState<any | null>(null);
   const [editProd, setEditProd] = useState<any | null>(null);
@@ -302,7 +304,43 @@ export default function FeedWarehouses() {
                   {canEditStock && <Button onClick={() => setEditProd({})}><Plus className="h-4 w-4 ml-1" />إضافة منتج</Button>}
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-5">
+                {(() => {
+                  const ready = (rawQ.data || []).filter((r: any) => {
+                    const n = String(r.name || "").toLowerCase();
+                    return n.includes("بريمكس") || n.includes("دريس") || n.includes("premix") || n.includes("dress");
+                  });
+                  if (!ready.length) return null;
+                  return (
+                    <div className="rounded-lg border border-secondary/30 bg-secondary/5 p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="font-bold text-secondary">جاهز للبيع — بريمكس / دريس</div>
+                        <Badge variant="outline" className="text-xs">من مخزن الخامات</Badge>
+                      </div>
+                      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {ready.map((r: any) => {
+                          const stock = Number(r.stock || 0);
+                          const cost = Number(r.unit_cost || 0);
+                          return (
+                            <Card key={r.id} className="border-secondary/30">
+                              <CardContent className="p-3 space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <div className="font-bold">{r.name}</div>
+                                  <Badge variant="secondary" className="text-xs">{r.unit || "كجم"}</Badge>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2 text-sm">
+                                  <div><div className="text-xs text-muted-foreground">المتاح</div><div className="font-bold text-lg text-secondary">{fmt(stock)}</div></div>
+                                  <div><div className="text-xs text-muted-foreground">متوسط التكلفة</div><div>{fmt(cost)} ج</div></div>
+                                </div>
+                                <div className="pt-1 border-t flex justify-between text-xs"><span className="text-muted-foreground">القيمة</span><span className="font-bold">{fmt(stock * cost)} ج.م</span></div>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {(prodQ.data || []).map((p: any) => {
                     const bag = Number(p.default_bag_kg || 50);
@@ -359,6 +397,7 @@ export default function FeedWarehouses() {
                         <TableCell className="font-bold">{fmt(Number(p.total_amount))} ج.م</TableCell>
                         <TableCell className="flex gap-1">
                           <Button size="icon" variant="ghost" onClick={() => printPurchase(p)}><Printer className="h-4 w-4" /></Button>
+                          {canManageAll && <Button size="icon" variant="ghost" onClick={() => setPurchaseEdit(p)}><Pencil className="h-4 w-4" /></Button>}
                           {canManageAll && <Button size="icon" variant="ghost" className="text-destructive" onClick={() => delPurchase(p)}><Trash2 className="h-4 w-4" /></Button>}
                         </TableCell>
                       </TableRow>
@@ -394,6 +433,7 @@ export default function FeedWarehouses() {
                         <TableCell className="font-bold text-success">{fmt(Number(s.profit))}</TableCell>
                         <TableCell className="flex gap-1">
                           <Button size="icon" variant="ghost" onClick={() => printSale(s)}><Printer className="h-4 w-4" /></Button>
+                          {canManageAll && <Button size="icon" variant="ghost" onClick={() => setSaleEdit(s)}><Pencil className="h-4 w-4" /></Button>}
                           {canManageAll && <Button size="icon" variant="ghost" className="text-destructive" onClick={() => delSale(s)}><Trash2 className="h-4 w-4" /></Button>}
                         </TableCell>
                       </TableRow>
@@ -491,8 +531,8 @@ export default function FeedWarehouses() {
           </TabsContent>
         </Tabs>
 
-        <PurchaseDialog open={purchaseOpen} onOpenChange={setPurchaseOpen} materials={rawQ.data || []} onSaved={() => { qc.invalidateQueries({ queryKey: ["feed-raw-materials"] }); qc.invalidateQueries({ queryKey: ["feed-purchases"] }); }} />
-        <SaleDialog open={saleOpen} onOpenChange={setSaleOpen} products={prodQ.data || []} materials={rawQ.data || []} onSaved={() => { qc.invalidateQueries({ queryKey: ["feed-products"] }); qc.invalidateQueries({ queryKey: ["feed-raw-materials"] }); qc.invalidateQueries({ queryKey: ["feed-sales"] }); qc.invalidateQueries({ queryKey: ["feed-treasury"] }); }} />
+        <PurchaseDialog open={purchaseOpen || !!purchaseEdit} onOpenChange={(b) => { if (!b) { setPurchaseOpen(false); setPurchaseEdit(null); } }} editPurchase={purchaseEdit} materials={rawQ.data || []} onSaved={() => { qc.invalidateQueries({ queryKey: ["feed-raw-materials"] }); qc.invalidateQueries({ queryKey: ["feed-purchases"] }); qc.invalidateQueries({ queryKey: ["feed-treasury"] }); }} />
+        <SaleDialog open={saleOpen || !!saleEdit} onOpenChange={(b) => { if (!b) { setSaleOpen(false); setSaleEdit(null); } }} editSale={saleEdit} products={prodQ.data || []} materials={rawQ.data || []} onSaved={() => { qc.invalidateQueries({ queryKey: ["feed-products"] }); qc.invalidateQueries({ queryKey: ["feed-raw-materials"] }); qc.invalidateQueries({ queryKey: ["feed-sales"] }); qc.invalidateQueries({ queryKey: ["feed-treasury"] }); }} />
         {canEditStock && <RawMaterialDialog item={editRaw} onClose={() => setEditRaw(null)} onSaved={() => qc.invalidateQueries({ queryKey: ["feed-raw-materials"] })} />}
         {canEditStock && <ProductDialog item={editProd} onClose={() => setEditProd(null)} onSaved={() => qc.invalidateQueries({ queryKey: ["feed-products"] })} />}
         {canStockCount && <StockCountDialog open={countOpen} onOpenChange={setCountOpen} rawMaterials={rawQ.data || []} products={prodQ.data || []} onSaved={() => qc.invalidateQueries({ queryKey: ["feed-stock-counts"] })} />}
@@ -604,7 +644,8 @@ function ProductDialog({ item, onClose, onSaved }: { item: any | null; onClose: 
   );
 }
 
-function PurchaseDialog({ open, onOpenChange, materials, onSaved }: any) {
+function PurchaseDialog({ open, onOpenChange, materials, onSaved, editPurchase }: any) {
+  const isEdit = !!editPurchase?.id;
   const [supplier, setSupplier] = useState("");
   const [invoiceNo, setInvoiceNo] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -613,23 +654,49 @@ function PurchaseDialog({ open, onOpenChange, materials, onSaved }: any) {
   const [saving, setSaving] = useState(false);
   const total = lines.reduce((s, l) => s + l.qty * l.price, 0);
 
+  useEffect(() => {
+    if (editPurchase?.id) {
+      setSupplier(editPurchase.supplier || "");
+      setInvoiceNo(editPurchase.supplier_invoice_no || "");
+      setDate(editPurchase.purchase_date || new Date().toISOString().slice(0, 10));
+      setNotes(editPurchase.notes || "");
+      const items = editPurchase.feed_raw_purchase_items || [];
+      setLines(items.length
+        ? items.map((it: any) => ({ id: crypto.randomUUID(), ref_id: it.raw_material_id, qty: Number(it.quantity), price: Number(it.unit_price) }))
+        : [newLine()]);
+    } else if (open) {
+      setSupplier(""); setInvoiceNo(""); setDate(new Date().toISOString().slice(0, 10)); setNotes(""); setLines([newLine()]);
+    }
+  }, [editPurchase?.id, open]);
+
   const save = async () => {
     const valid = lines.filter((l) => l.ref_id && l.qty > 0 && l.price >= 0);
     if (!valid.length) return toast.error("أضف بنداً واحداً على الأقل");
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      const { data: head, error: e1 } = await supabase.from("feed_raw_purchases").insert({
-        supplier, supplier_invoice_no: invoiceNo, purchase_date: date, notes, created_by: user?.id,
-      }).select("id").single();
-      if (e1) throw e1;
+      let purchaseId = editPurchase?.id;
+      if (isEdit) {
+        // Delete existing items first — triggers will revert stock + treasury
+        const { error: eDel } = await supabase.from("feed_raw_purchase_items").delete().eq("purchase_id", purchaseId);
+        if (eDel) throw eDel;
+        const { error: eUpd } = await supabase.from("feed_raw_purchases").update({
+          supplier, supplier_invoice_no: invoiceNo, purchase_date: date, notes,
+        }).eq("id", purchaseId);
+        if (eUpd) throw eUpd;
+      } else {
+        const { data: head, error: e1 } = await supabase.from("feed_raw_purchases").insert({
+          supplier, supplier_invoice_no: invoiceNo, purchase_date: date, notes, created_by: user?.id,
+        }).select("id").single();
+        if (e1) throw e1;
+        purchaseId = head.id;
+      }
       const { error: e2 } = await supabase.from("feed_raw_purchase_items").insert(
-        valid.map((l) => ({ purchase_id: head.id, raw_material_id: l.ref_id, quantity: l.qty, unit_price: l.price }))
+        valid.map((l) => ({ purchase_id: purchaseId, raw_material_id: l.ref_id, quantity: l.qty, unit_price: l.price }))
       );
       if (e2) throw e2;
-      toast.success("تم حفظ فاتورة الشراء وتحديث المخزون");
+      toast.success(isEdit ? "تم تعديل الفاتورة وتحديث المخزون والخزنة" : "تم حفظ فاتورة الشراء وتحديث المخزون");
       onOpenChange(false); onSaved();
-      setSupplier(""); setInvoiceNo(""); setNotes(""); setLines([newLine()]);
     } catch (err: any) { toast.error(err.message || "فشل الحفظ"); }
     finally { setSaving(false); }
   };
@@ -637,7 +704,7 @@ function PurchaseDialog({ open, onOpenChange, materials, onSaved }: any) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl" dir="rtl">
-        <DialogHeader><DialogTitle>فاتورة شراء مواد خام</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{isEdit ? `تعديل فاتورة شراء ${editPurchase?.purchase_no || ""}` : "فاتورة شراء مواد خام"}</DialogTitle></DialogHeader>
         <div className="grid grid-cols-3 gap-3">
           <div><Label>المورد</Label><Input value={supplier} onChange={(e) => setSupplier(e.target.value)} /></div>
           <div><Label>رقم فاتورة المورد</Label><Input value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} /></div>
@@ -666,13 +733,34 @@ function PurchaseDialog({ open, onOpenChange, materials, onSaved }: any) {
 type SaleLine = { id: string; kind: "finished" | "raw"; ref_id: string; qty: number; price: number };
 const newSaleLine = (): SaleLine => ({ id: crypto.randomUUID(), kind: "finished", ref_id: "", qty: 0, price: 0 });
 
-function SaleDialog({ open, onOpenChange, products, materials, onSaved }: any) {
+function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale }: any) {
+  const isEdit = !!editSale?.id;
   const [customer, setCustomer] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<SaleLine[]>([newSaleLine()]);
   const [saving, setSaving] = useState(false);
   const total = lines.reduce((s, l) => s + l.qty * l.price, 0);
+
+  useEffect(() => {
+    if (editSale?.id) {
+      setCustomer(editSale.customer || "");
+      setDate(editSale.sale_date || new Date().toISOString().slice(0, 10));
+      setNotes(editSale.notes || "");
+      const items = editSale.feed_sale_items || [];
+      setLines(items.length
+        ? items.map((it: any) => ({
+            id: crypto.randomUUID(),
+            kind: it.feed_product_id ? "finished" : "raw",
+            ref_id: it.feed_product_id || it.raw_material_id,
+            qty: Number(it.quantity),
+            price: Number(it.unit_price),
+          }))
+        : [newSaleLine()]);
+    } else if (open) {
+      setCustomer(""); setNotes(""); setDate(new Date().toISOString().slice(0, 10)); setLines([newSaleLine()]);
+    }
+  }, [editSale?.id, open]);
 
   const upd = (id: string, patch: Partial<SaleLine>) =>
     setLines((prev) => prev.map((x) => (x.id === id ? { ...x, ...patch } : x)));
@@ -683,20 +771,30 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved }: any) {
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      const { data: head, error: e1 } = await supabase.from("feed_sales").insert({
-        customer, sale_date: date, notes, created_by: user?.id,
-      }).select("id").single();
-      if (e1) throw e1;
+      let saleId = editSale?.id;
+      if (isEdit) {
+        const { error: eDel } = await supabase.from("feed_sale_items").delete().eq("sale_id", saleId);
+        if (eDel) throw eDel;
+        const { error: eUpd } = await supabase.from("feed_sales").update({
+          customer, sale_date: date, notes,
+        }).eq("id", saleId);
+        if (eUpd) throw eUpd;
+      } else {
+        const { data: head, error: e1 } = await supabase.from("feed_sales").insert({
+          customer, sale_date: date, notes, created_by: user?.id,
+        }).select("id").single();
+        if (e1) throw e1;
+        saleId = head.id;
+      }
       for (const l of valid) {
-        const payload: any = { sale_id: head.id, quantity: l.qty, unit_price: l.price };
+        const payload: any = { sale_id: saleId, quantity: l.qty, unit_price: l.price };
         if (l.kind === "finished") payload.feed_product_id = l.ref_id;
         else payload.raw_material_id = l.ref_id;
         const { error } = await supabase.from("feed_sale_items").insert(payload);
         if (error) throw error;
       }
-      toast.success("تم حفظ فاتورة البيع وخصم المخزون");
+      toast.success(isEdit ? "تم تعديل الفاتورة وتحديث المخزون والخزنة" : "تم حفظ فاتورة البيع وخصم المخزون");
       onOpenChange(false); onSaved();
-      setCustomer(""); setNotes(""); setLines([newSaleLine()]);
     } catch (err: any) { toast.error(err.message || "فشل الحفظ"); }
     finally { setSaving(false); }
   };
@@ -704,7 +802,7 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved }: any) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl" dir="rtl">
-        <DialogHeader><DialogTitle>فاتورة بيع — علف جاهز أو خامات (بريمكس / دريس...)</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{isEdit ? `تعديل فاتورة بيع ${editSale?.sale_no || ""}` : "فاتورة بيع — علف جاهز أو خامات (بريمكس / دريس...)"}</DialogTitle></DialogHeader>
         <div className="grid grid-cols-2 gap-3">
           <div><Label>العميل</Label><Input value={customer} onChange={(e) => setCustomer(e.target.value)} /></div>
           <div><Label>التاريخ</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
