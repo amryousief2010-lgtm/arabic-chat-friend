@@ -361,6 +361,7 @@ export default function FeedWarehouses() {
                         <TableCell className="font-bold">{fmt(Number(p.total_amount))} ج.م</TableCell>
                         <TableCell className="flex gap-1">
                           <Button size="icon" variant="ghost" onClick={() => printPurchase(p)}><Printer className="h-4 w-4" /></Button>
+                          {canManageAll && <Button size="icon" variant="ghost" onClick={() => setPurchaseEdit(p)}><Pencil className="h-4 w-4" /></Button>}
                           {canManageAll && <Button size="icon" variant="ghost" className="text-destructive" onClick={() => delPurchase(p)}><Trash2 className="h-4 w-4" /></Button>}
                         </TableCell>
                       </TableRow>
