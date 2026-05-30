@@ -132,6 +132,10 @@ export default function FeedWarehouses() {
   const [editProd, setEditProd] = useState<any | null>(null);
   const [treasuryOpen, setTreasuryOpen] = useState(false);
   const canTreasury = roles.some((r) => ["general_manager","executive_manager","feed_factory_manager","warehouse_supervisor"].includes(r));
+
+  const rawQ = useQuery({
+    queryKey: ["feed-raw-materials"],
+    queryFn: async () => {
       const { data, error } = await supabase.from("feed_raw_materials").select("*").eq("is_active", true).order("name");
       if (error) throw error; return data || [];
     },
