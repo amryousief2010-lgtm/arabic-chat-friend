@@ -361,12 +361,51 @@ export default function FeedWarehouses() {
             </Card>
           </TabsContent>
 
+          {/* TREASURY */}
+          <TabsContent value="treasury">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
+                <div>
+                  <CardTitle className="flex items-center gap-2"><Wallet className="h-5 w-5 text-success"/>خزنة مصنع الأعلاف</CardTitle>
+                  <CardDescription>الرصيد الحالي: <span className={`font-bold ${treasuryBalance<0?'text-destructive':'text-success'}`}>{fmt(treasuryBalance)} ج.م</span> — البيع يضيف للخزنة والشراء يخصم منها تلقائياً</CardDescription>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  <Button size="sm" variant="outline" onClick={() => printTreasury(treasuryQ.data || [], treasuryBalance)}><Printer className="h-4 w-4 ml-1"/>طباعة</Button>
+                  <Button size="sm" variant="outline" onClick={exportTreasury}><FileSpreadsheet className="h-4 w-4 ml-1"/>Excel</Button>
+                  {canTreasury && <Button onClick={() => setTreasuryOpen(true)}><Plus className="h-4 w-4 ml-1"/>حركة جديدة</Button>}
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader><TableRow><TableHead>الرقم</TableHead><TableHead>التاريخ</TableHead><TableHead>النوع</TableHead><TableHead>الجهة</TableHead><TableHead>البيان</TableHead><TableHead>وارد</TableHead><TableHead>منصرف</TableHead></TableRow></TableHeader>
+                  <TableBody>
+                    {(treasuryQ.data || []).map((t: any) => (
+                      <TableRow key={t.id}>
+                        <TableCell className="font-mono text-xs">{t.txn_no}</TableCell>
+                        <TableCell>{t.txn_date}</TableCell>
+                        <TableCell><Badge variant="outline">{KIND_LABEL[t.kind] || t.kind}</Badge></TableCell>
+                        <TableCell>{t.party || "-"}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{t.note || "-"}</TableCell>
+                        <TableCell className="text-success font-bold">{t.direction === "in" ? fmt(t.amount) : "-"}</TableCell>
+                        <TableCell className="text-destructive font-bold">{t.direction === "out" ? fmt(t.amount) : "-"}</TableCell>
+                      </TableRow>
+                    ))}
+                    {!treasuryQ.data?.length && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">لا توجد حركات بعد</TableCell></TableRow>}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* STOCK COUNTS */}
           <TabsContent value="counts">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
                 <div><CardTitle>الجرد الفعلي للمخازن</CardTitle><CardDescription>للمدير التنفيذي — جرد المخزون في أي وقت ومقارنته برصيد النظام</CardDescription></div>
-                {canStockCount && <Button onClick={() => setCountOpen(true)}><Plus className="h-4 w-4 ml-1" />جرد جديد</Button>}
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={exportCounts}><FileSpreadsheet className="h-4 w-4 ml-1"/>Excel</Button>
+                  {canStockCount && <Button onClick={() => setCountOpen(true)}><Plus className="h-4 w-4 ml-1" />جرد جديد</Button>}
+                </div>
               </CardHeader>
               <CardContent>
                 <Table>
