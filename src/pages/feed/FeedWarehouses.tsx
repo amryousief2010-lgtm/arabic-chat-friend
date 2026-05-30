@@ -304,7 +304,43 @@ export default function FeedWarehouses() {
                   {canEditStock && <Button onClick={() => setEditProd({})}><Plus className="h-4 w-4 ml-1" />إضافة منتج</Button>}
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-5">
+                {(() => {
+                  const ready = (rawQ.data || []).filter((r: any) => {
+                    const n = String(r.name || "").toLowerCase();
+                    return n.includes("بريمكس") || n.includes("دريس") || n.includes("premix") || n.includes("dress");
+                  });
+                  if (!ready.length) return null;
+                  return (
+                    <div className="rounded-lg border border-secondary/30 bg-secondary/5 p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="font-bold text-secondary">جاهز للبيع — بريمكس / دريس</div>
+                        <Badge variant="outline" className="text-xs">من مخزن الخامات</Badge>
+                      </div>
+                      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {ready.map((r: any) => {
+                          const stock = Number(r.stock || 0);
+                          const cost = Number(r.unit_cost || 0);
+                          return (
+                            <Card key={r.id} className="border-secondary/30">
+                              <CardContent className="p-3 space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <div className="font-bold">{r.name}</div>
+                                  <Badge variant="secondary" className="text-xs">{r.unit || "كجم"}</Badge>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2 text-sm">
+                                  <div><div className="text-xs text-muted-foreground">المتاح</div><div className="font-bold text-lg text-secondary">{fmt(stock)}</div></div>
+                                  <div><div className="text-xs text-muted-foreground">متوسط التكلفة</div><div>{fmt(cost)} ج</div></div>
+                                </div>
+                                <div className="pt-1 border-t flex justify-between text-xs"><span className="text-muted-foreground">القيمة</span><span className="font-bold">{fmt(stock * cost)} ج.م</span></div>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {(prodQ.data || []).map((p: any) => {
                     const bag = Number(p.default_bag_kg || 50);
