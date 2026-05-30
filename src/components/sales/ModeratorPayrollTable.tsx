@@ -68,12 +68,16 @@ const defaultPrices = { meat_price: 390, bone_meat_price: 350, processed_price: 
 
 const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
 
-const findTier = (sales: number, tiers: Array<{ sales: number; bonus: number; label: string }>) => {
-  let achieved: { sales: number; bonus: number; label: string } | null = null;
-  for (const t of tiers) {
-    if (sales >= t.sales) achieved = t;
+const findTierIndex = (sales: number, tiers: Array<{ sales: number; bonus: number; label: string }>) => {
+  let idx = -1;
+  for (let i = 0; i < tiers.length; i++) {
+    if (sales >= tiers[i].sales) idx = i;
   }
-  return achieved;
+  return idx;
+};
+const findTier = (sales: number, tiers: Array<{ sales: number; bonus: number; label: string }>) => {
+  const i = findTierIndex(sales, tiers);
+  return i >= 0 ? tiers[i] : null;
 };
 
 interface Props {
@@ -311,11 +315,15 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
       const chickCount = chickQtyByGirl[g] || 0;
       const meatSales = meatKg * prices.meat_price + boneKg * prices.bone_meat_price;
       const procSales = procKg * prices.processed_price;
-      const procTier = findTier(procSales, PROCESSED_TIERS);
-      const meatTier = findTier(meatSales, MEAT_TIERS);
+      const procTierIdx = findTierIndex(procSales, PROCESSED_TIERS);
+      const procTier = procTierIdx >= 0 ? PROCESSED_TIERS[procTierIdx] : null;
+      const rawMeatTierIdx = findTierIndex(meatSales, MEAT_TIERS);
+      // قاعدة: تارجت اللحوم مقيّد بتارجت المصنعات — لا يتجاوز مستوى اللحوم مستوى المصنعات.
+      const meatTierIdx = procTierIdx >= 0 && rawMeatTierIdx >= 0 ? Math.min(rawMeatTierIdx, procTierIdx) : -1;
+      const meatTier = meatTierIdx >= 0 ? MEAT_TIERS[meatTierIdx] : null;
       const ov = overrides.find(o => o.moderator_name === g);
       const tierProcRate = procTier ? procTier.bonus : 0;
-      const meatEligible = !!procTier;
+      const meatEligible = !!procTier && !!meatTier;
       const tierMeatRate = meatTier && meatEligible ? meatTier.bonus : 0;
       const procRate = ov?.processed_rate != null ? Number(ov.processed_rate) : tierProcRate;
       const meatRate = ov?.meat_rate != null ? Number(ov.meat_rate) : tierMeatRate;
