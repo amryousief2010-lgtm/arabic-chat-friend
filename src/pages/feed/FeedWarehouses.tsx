@@ -348,7 +348,7 @@ export default function FeedWarehouses() {
               </CardHeader>
               <CardContent>
                 <Table>
-                  <TableHeader><TableRow><TableHead>الرقم</TableHead><TableHead>التاريخ</TableHead><TableHead>المورد</TableHead><TableHead>البنود</TableHead><TableHead>الإجمالي</TableHead><TableHead className="w-20">طباعة</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>الرقم</TableHead><TableHead>التاريخ</TableHead><TableHead>المورد</TableHead><TableHead>البنود</TableHead><TableHead>الإجمالي</TableHead><TableHead className="w-28">إجراءات</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {(purQ.data || []).map((p: any) => (
                       <TableRow key={p.id}>
@@ -357,7 +357,10 @@ export default function FeedWarehouses() {
                         <TableCell>{p.supplier || "-"}</TableCell>
                         <TableCell>{p.feed_raw_purchase_items?.length || 0}</TableCell>
                         <TableCell className="font-bold">{fmt(Number(p.total_amount))} ج.م</TableCell>
-                        <TableCell><Button size="icon" variant="ghost" onClick={() => printPurchase(p)}><Printer className="h-4 w-4" /></Button></TableCell>
+                        <TableCell className="flex gap-1">
+                          <Button size="icon" variant="ghost" onClick={() => printPurchase(p)}><Printer className="h-4 w-4" /></Button>
+                          {canManageAll && <Button size="icon" variant="ghost" className="text-destructive" onClick={() => delPurchase(p)}><Trash2 className="h-4 w-4" /></Button>}
+                        </TableCell>
                       </TableRow>
                     ))}
                     {!purQ.data?.length && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">لا توجد مشتريات</TableCell></TableRow>}
