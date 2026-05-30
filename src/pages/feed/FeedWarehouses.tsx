@@ -125,6 +125,8 @@ export default function FeedWarehouses() {
   const { roles } = useAuth();
   const canEditStock = roles.some((r) => ["general_manager","executive_manager","warehouse_supervisor","production_manager"].includes(r));
   const canStockCount = roles.some((r) => ["general_manager","executive_manager"].includes(r));
+  // Only top managers may delete/edit any transaction.
+  const canManageAll = roles.some((r) => ["general_manager","executive_manager"].includes(r));
   const [purchaseOpen, setPurchaseOpen] = useState(false);
   const [saleOpen, setSaleOpen] = useState(false);
   const [countOpen, setCountOpen] = useState(false);
@@ -132,6 +134,42 @@ export default function FeedWarehouses() {
   const [editProd, setEditProd] = useState<any | null>(null);
   const [treasuryOpen, setTreasuryOpen] = useState(false);
   const canTreasury = roles.some((r) => ["general_manager","executive_manager","feed_factory_manager","warehouse_supervisor"].includes(r));
+
+  // ---- delete helpers (top managers only) ----
+  const confirmDel = (msg: string) => window.confirm(msg);
+  const delPurchase = async (p: any) => {
+    if (!confirmDel(`حذف فاتورة الشراء ${p.purchase_no}؟ سيتم إرجاع كميات الخامات من المخزن.`)) return;
+    const { error } = await supabase.from("feed_raw_purchases").delete().eq("id", p.id);
+    if (error) return toast.error(error.message);
+    toast.success("تم حذف الفاتورة وإرجاع الخامات");
+    qc.invalidateQueries({ queryKey: ["feed-purchases"] });
+    qc.invalidateQueries({ queryKey: ["feed-raw-materials"] });
+    qc.invalidateQueries({ queryKey: ["feed-treasury"] });
+  };
+  const delSale = async (s: any) => {
+    if (!confirmDel(`حذف فاتورة البيع ${s.sale_no}؟ سيتم إرجاع كميات العلف للمخزون.`)) return;
+    const { error } = await supabase.from("feed_sales").delete().eq("id", s.id);
+    if (error) return toast.error(error.message);
+    toast.success("تم حذف الفاتورة وإرجاع المخزون");
+    qc.invalidateQueries({ queryKey: ["feed-sales"] });
+    qc.invalidateQueries({ queryKey: ["feed-products"] });
+    qc.invalidateQueries({ queryKey: ["feed-treasury"] });
+  };
+  const delTreasury = async (t: any) => {
+    if (t.kind === "sale" || t.kind === "purchase") return toast.error("هذه الحركة ناتجة عن فاتورة — احذف الفاتورة من تبويبها.");
+    if (!confirmDel(`حذف حركة الخزنة ${t.txn_no}؟`)) return;
+    const { error } = await (supabase as any).from("feed_factory_treasury_txns").delete().eq("id", t.id);
+    if (error) return toast.error(error.message);
+    toast.success("تم حذف الحركة");
+    qc.invalidateQueries({ queryKey: ["feed-treasury"] });
+  };
+  const delCount = async (c: any) => {
+    if (!confirmDel(`حذف محضر الجرد ${c.count_no}؟`)) return;
+    const { error } = await supabase.from("feed_stock_counts").delete().eq("id", c.id);
+    if (error) return toast.error(error.message);
+    toast.success("تم الحذف");
+    qc.invalidateQueries({ queryKey: ["feed-stock-counts"] });
+  };
 
   const rawQ = useQuery({
     queryKey: ["feed-raw-materials"],
@@ -310,7 +348,7 @@ export default function FeedWarehouses() {
               </CardHeader>
               <CardContent>
                 <Table>
-                  <TableHeader><TableRow><TableHead>الرقم</TableHead><TableHead>التاريخ</TableHead><TableHead>المورد</TableHead><TableHead>البنود</TableHead><TableHead>الإجمالي</TableHead><TableHead className="w-20">طباعة</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>الرقم</TableHead><TableHead>التاريخ</TableHead><TableHead>المورد</TableHead><TableHead>البنود</TableHead><TableHead>الإجمالي</TableHead><TableHead className="w-28">إجراءات</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {(purQ.data || []).map((p: any) => (
                       <TableRow key={p.id}>
@@ -319,7 +357,10 @@ export default function FeedWarehouses() {
                         <TableCell>{p.supplier || "-"}</TableCell>
                         <TableCell>{p.feed_raw_purchase_items?.length || 0}</TableCell>
                         <TableCell className="font-bold">{fmt(Number(p.total_amount))} ج.م</TableCell>
-                        <TableCell><Button size="icon" variant="ghost" onClick={() => printPurchase(p)}><Printer className="h-4 w-4" /></Button></TableCell>
+                        <TableCell className="flex gap-1">
+                          <Button size="icon" variant="ghost" onClick={() => printPurchase(p)}><Printer className="h-4 w-4" /></Button>
+                          {canManageAll && <Button size="icon" variant="ghost" className="text-destructive" onClick={() => delPurchase(p)}><Trash2 className="h-4 w-4" /></Button>}
+                        </TableCell>
                       </TableRow>
                     ))}
                     {!purQ.data?.length && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">لا توجد مشتريات</TableCell></TableRow>}
@@ -341,7 +382,7 @@ export default function FeedWarehouses() {
               </CardHeader>
               <CardContent>
                 <Table>
-                  <TableHeader><TableRow><TableHead>الرقم</TableHead><TableHead>التاريخ</TableHead><TableHead>العميل</TableHead><TableHead>الإجمالي</TableHead><TableHead>التكلفة</TableHead><TableHead>الربح</TableHead><TableHead className="w-20">طباعة</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>الرقم</TableHead><TableHead>التاريخ</TableHead><TableHead>العميل</TableHead><TableHead>الإجمالي</TableHead><TableHead>التكلفة</TableHead><TableHead>الربح</TableHead><TableHead className="w-28">إجراءات</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {(salesQ.data || []).map((s: any) => (
                       <TableRow key={s.id}>
@@ -351,7 +392,10 @@ export default function FeedWarehouses() {
                         <TableCell>{fmt(Number(s.total_amount))}</TableCell>
                         <TableCell className="text-muted-foreground">{fmt(Number(s.total_cost))}</TableCell>
                         <TableCell className="font-bold text-success">{fmt(Number(s.profit))}</TableCell>
-                        <TableCell><Button size="icon" variant="ghost" onClick={() => printSale(s)}><Printer className="h-4 w-4" /></Button></TableCell>
+                        <TableCell className="flex gap-1">
+                          <Button size="icon" variant="ghost" onClick={() => printSale(s)}><Printer className="h-4 w-4" /></Button>
+                          {canManageAll && <Button size="icon" variant="ghost" className="text-destructive" onClick={() => delSale(s)}><Trash2 className="h-4 w-4" /></Button>}
+                        </TableCell>
                       </TableRow>
                     ))}
                     {!salesQ.data?.length && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">لا توجد مبيعات</TableCell></TableRow>}
@@ -377,7 +421,7 @@ export default function FeedWarehouses() {
               </CardHeader>
               <CardContent>
                 <Table>
-                  <TableHeader><TableRow><TableHead>الرقم</TableHead><TableHead>التاريخ</TableHead><TableHead>النوع</TableHead><TableHead>الجهة</TableHead><TableHead>البيان</TableHead><TableHead>وارد</TableHead><TableHead>منصرف</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>الرقم</TableHead><TableHead>التاريخ</TableHead><TableHead>النوع</TableHead><TableHead>الجهة</TableHead><TableHead>البيان</TableHead><TableHead>وارد</TableHead><TableHead>منصرف</TableHead>{canManageAll && <TableHead className="w-16">حذف</TableHead>}</TableRow></TableHeader>
                   <TableBody>
                     {(treasuryQ.data || []).map((t: any) => (
                       <TableRow key={t.id}>
@@ -388,9 +432,10 @@ export default function FeedWarehouses() {
                         <TableCell className="text-xs text-muted-foreground">{t.note || "-"}</TableCell>
                         <TableCell className="text-success font-bold">{t.direction === "in" ? fmt(t.amount) : "-"}</TableCell>
                         <TableCell className="text-destructive font-bold">{t.direction === "out" ? fmt(t.amount) : "-"}</TableCell>
+                        {canManageAll && <TableCell>{t.kind !== "sale" && t.kind !== "purchase" && <Button size="icon" variant="ghost" className="text-destructive" onClick={() => delTreasury(t)}><Trash2 className="h-4 w-4" /></Button>}</TableCell>}
                       </TableRow>
                     ))}
-                    {!treasuryQ.data?.length && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">لا توجد حركات بعد</TableCell></TableRow>}
+                    {!treasuryQ.data?.length && <TableRow><TableCell colSpan={canManageAll ? 8 : 7} className="text-center text-muted-foreground py-6">لا توجد حركات بعد</TableCell></TableRow>}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -409,10 +454,19 @@ export default function FeedWarehouses() {
               </CardHeader>
               <CardContent>
                 <Table>
-                  <TableHeader><TableRow><TableHead>الرقم</TableHead><TableHead>التاريخ</TableHead><TableHead>النوع</TableHead><TableHead>عدد الأصناف</TableHead><TableHead>قيمة الفروقات</TableHead><TableHead>الحالة</TableHead><TableHead className="w-20">طباعة</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>الرقم</TableHead><TableHead>التاريخ</TableHead><TableHead>النوع</TableHead><TableHead>عدد الأصناف</TableHead><TableHead>قيمة الفروقات</TableHead><TableHead>الحالة</TableHead><TableHead className="w-40">إجراءات</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {(countsQ.data || []).map((c: any) => {
                       const variance = (c.feed_stock_count_items || []).reduce((s: number, i: any) => s + (Number(i.counted_qty) - Number(i.system_qty)) * Number(i.unit_cost || 0), 0);
+                      const applyCount = async () => {
+                        if (!window.confirm(`تطبيق نتائج جرد ${c.count_no} على المخزون؟\nسيتم استبدال أرصدة الأصناف بالكميات المجرودة.`)) return;
+                        const { error } = await (supabase as any).rpc("apply_feed_stock_count", { _count_id: c.id });
+                        if (error) return toast.error(error.message);
+                        toast.success("تم تطبيق الجرد وتحديث أرصدة المخزون");
+                        qc.invalidateQueries({ queryKey: ["feed-stock-counts"] });
+                        qc.invalidateQueries({ queryKey: ["feed-raw-materials"] });
+                        qc.invalidateQueries({ queryKey: ["feed-products"] });
+                      };
                       return (
                         <TableRow key={c.id}>
                           <TableCell className="font-mono text-xs">{c.count_no}</TableCell>
@@ -421,7 +475,11 @@ export default function FeedWarehouses() {
                           <TableCell>{c.feed_stock_count_items?.length || 0}</TableCell>
                           <TableCell className={variance < 0 ? "text-destructive font-bold" : variance > 0 ? "text-success font-bold" : ""}>{fmt(variance)} ج.م</TableCell>
                           <TableCell><Badge variant={c.status === "closed" ? "default" : "outline"}>{c.status === "closed" ? "مغلق" : "مسودة"}</Badge></TableCell>
-                          <TableCell><Button size="icon" variant="ghost" onClick={() => printCount(c)}><Printer className="h-4 w-4" /></Button></TableCell>
+                          <TableCell className="flex gap-1">
+                            <Button size="icon" variant="ghost" onClick={() => printCount(c)}><Printer className="h-4 w-4" /></Button>
+                            {canStockCount && <Button size="sm" variant="outline" onClick={applyCount} title="تطبيق الجرد على المخزون"><ClipboardCheck className="h-3.5 w-3.5 ml-1"/>تطبيق</Button>}
+                            {canManageAll && <Button size="icon" variant="ghost" className="text-destructive" onClick={() => delCount(c)}><Trash2 className="h-4 w-4" /></Button>}
+                          </TableCell>
                         </TableRow>
                       );
                     })}
@@ -696,11 +754,12 @@ function StockCountDialog({ open, onOpenChange, rawMaterials, products, onSaved 
 
   const totalVariance = rows.reduce((s, r) => s + (r.counted_qty - r.system_qty) * r.unit_cost, 0);
 
-  const save = async (closeIt: boolean) => {
+  const save = async (mode: "draft" | "close" | "apply") => {
     if (!rows.length) return toast.error("لا توجد أصناف للجرد");
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      const closeIt = mode !== "draft";
       const { data: head, error: e1 } = await supabase.from("feed_stock_counts").insert({
         count_date: date, warehouse_kind: kind, notes, status: closeIt ? "closed" : "draft",
         closed_at: closeIt ? new Date().toISOString() : null,
@@ -717,7 +776,13 @@ function StockCountDialog({ open, onOpenChange, rawMaterials, products, onSaved 
         }))
       );
       if (e2) throw e2;
-      toast.success(closeIt ? "تم حفظ وإغلاق محضر الجرد" : "تم حفظ محضر الجرد كمسودة");
+      if (mode === "apply") {
+        const { error: e3 } = await (supabase as any).rpc("apply_feed_stock_count", { _count_id: head.id });
+        if (e3) throw e3;
+        toast.success("تم حفظ الجرد وتعديل أرصدة المخزون");
+      } else {
+        toast.success(closeIt ? "تم حفظ وإغلاق محضر الجرد" : "تم حفظ محضر الجرد كمسودة");
+      }
       onOpenChange(false); onSaved();
       setNotes("");
     } catch (err: any) { toast.error(err.message || "فشل الحفظ"); }
@@ -775,9 +840,10 @@ function StockCountDialog({ open, onOpenChange, rawMaterials, products, onSaved 
         <div className="flex items-center justify-between border-t pt-3">
           <div className="text-lg">إجمالي قيمة الفروقات: <b className={totalVariance < 0 ? "text-destructive" : totalVariance > 0 ? "text-success" : ""}>{fmt(totalVariance)} ج.م</b></div>
         </div>
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => save(false)} disabled={saving}>حفظ كمسودة</Button>
-          <Button onClick={() => save(true)} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ وإغلاق المحضر"}</Button>
+        <DialogFooter className="gap-2 flex-wrap">
+          <Button variant="outline" onClick={() => save("draft")} disabled={saving}>حفظ كمسودة</Button>
+          <Button variant="outline" onClick={() => save("close")} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ وإغلاق المحضر"}</Button>
+          <Button onClick={() => save("apply")} disabled={saving} className="bg-primary"><ClipboardCheck className="h-4 w-4 ml-1"/>حفظ وتطبيق على المخزون</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
