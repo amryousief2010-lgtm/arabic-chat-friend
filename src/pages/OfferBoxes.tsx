@@ -264,6 +264,21 @@ const OfferBoxes = () => {
     },
   });
 
+  // Toggle active status
+  const toggleActiveMutation = useMutation({
+    mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
+      const { error } = await supabase.from('offer_boxes').update({ is_active }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['offer-boxes'] });
+      toast({ title: vars.is_active ? 'تم تفعيل العرض' : 'تم إيقاف العرض' });
+    },
+    onError: (err: any) => {
+      toast({ title: 'تعذّر تحديث الحالة', description: err?.message, variant: 'destructive' });
+    },
+  });
+
   // Update shipping cost
   const updateShippingMutation = useMutation({
     mutationFn: async ({ id, shipping_cost }: { id: string; shipping_cost: number | null }) => {
