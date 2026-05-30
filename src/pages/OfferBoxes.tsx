@@ -264,6 +264,21 @@ const OfferBoxes = () => {
     },
   });
 
+  // Toggle active status
+  const toggleActiveMutation = useMutation({
+    mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
+      const { error } = await supabase.from('offer_boxes').update({ is_active }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['offer-boxes'] });
+      toast({ title: vars.is_active ? 'تم تفعيل العرض' : 'تم إيقاف العرض' });
+    },
+    onError: (err: any) => {
+      toast({ title: 'تعذّر تحديث الحالة', description: err?.message, variant: 'destructive' });
+    },
+  });
+
   // Update shipping cost
   const updateShippingMutation = useMutation({
     mutationFn: async ({ id, shipping_cost }: { id: string; shipping_cost: number | null }) => {
@@ -511,9 +526,16 @@ const OfferBoxes = () => {
                           مجدول
                         </Badge>
                       )}
-                      <Badge variant={box.is_active && !expired && !scheduled ? 'default' : 'secondary'}>
-                        {box.is_active && !expired && !scheduled ? 'نشط' : expired ? 'منتهي' : scheduled ? 'لم يبدأ' : 'معطل'}
-                      </Badge>
+                      <div className="flex items-center gap-2 rounded-full border px-2 py-1 bg-card">
+                        <Switch
+                          checked={box.is_active && !expired}
+                          disabled={expired || toggleActiveMutation.isPending}
+                          onCheckedChange={(checked) => toggleActiveMutation.mutate({ id: box.id, is_active: checked })}
+                        />
+                        <span className={`text-xs font-semibold ${box.is_active && !expired ? 'text-primary' : 'text-muted-foreground'}`}>
+                          {box.is_active && !expired ? 'نشط' : 'غير نشط'}
+                        </span>
+                      </div>
                     </div>
                   </div>
                   {box.description && (
