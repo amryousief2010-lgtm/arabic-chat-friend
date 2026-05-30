@@ -221,10 +221,114 @@ export default function FeedWarehouses() {
 
         <PurchaseDialog open={purchaseOpen} onOpenChange={setPurchaseOpen} materials={rawQ.data || []} onSaved={() => { qc.invalidateQueries({ queryKey: ["feed-raw-materials"] }); qc.invalidateQueries({ queryKey: ["feed-purchases"] }); }} />
         <SaleDialog open={saleOpen} onOpenChange={setSaleOpen} products={prodQ.data || []} onSaved={() => { qc.invalidateQueries({ queryKey: ["feed-products"] }); qc.invalidateQueries({ queryKey: ["feed-sales"] }); }} />
+        {canEditStock && <RawMaterialDialog item={editRaw} onClose={() => setEditRaw(null)} onSaved={() => qc.invalidateQueries({ queryKey: ["feed-raw-materials"] })} />}
+        {canEditStock && <ProductDialog item={editProd} onClose={() => setEditProd(null)} onSaved={() => qc.invalidateQueries({ queryKey: ["feed-products"] })} />}
       </div>
     </DashboardLayout>
   );
 }
+
+function RawMaterialDialog({ item, onClose, onSaved }: { item: any | null; onClose: () => void; onSaved: () => void }) {
+  const open = item !== null;
+  const isEdit = !!item?.id;
+  const [name, setName] = useState(item?.name || "");
+  const [unit, setUnit] = useState(item?.unit || "كجم");
+  const [stock, setStock] = useState<number>(Number(item?.stock || 0));
+  const [unitCost, setUnitCost] = useState<number>(Number(item?.unit_cost || 0));
+  const [lowThr, setLowThr] = useState<number>(Number(item?.low_stock_threshold || 0));
+  const [supplier, setSupplier] = useState(item?.supplier || "");
+  const [saving, setSaving] = useState(false);
+  // reset when item changes
+  useMemo(() => {
+    setName(item?.name || ""); setUnit(item?.unit || "كجم");
+    setStock(Number(item?.stock || 0)); setUnitCost(Number(item?.unit_cost || 0));
+    setLowThr(Number(item?.low_stock_threshold || 0)); setSupplier(item?.supplier || "");
+  }, [item?.id]);
+
+  const save = async () => {
+    if (!name.trim()) return toast.error("اكتب اسم الخامة");
+    setSaving(true);
+    try {
+      const payload = { name, unit, stock, unit_cost: unitCost, low_stock_threshold: lowThr, supplier, is_active: true };
+      const { error } = isEdit
+        ? await supabase.from("feed_raw_materials").update(payload).eq("id", item.id)
+        : await supabase.from("feed_raw_materials").insert(payload);
+      if (error) throw error;
+      toast.success(isEdit ? "تم تحديث الخامة" : "تم إضافة الخامة");
+      onClose(); onSaved();
+    } catch (e: any) { toast.error(e.message || "فشل الحفظ"); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent dir="rtl" className="max-w-lg">
+        <DialogHeader><DialogTitle>{isEdit ? "تعديل خامة" : "إضافة خامة جديدة"}</DialogTitle></DialogHeader>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="col-span-2"><Label>اسم الخامة</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
+          <div><Label>الوحدة</Label><Input value={unit} onChange={(e) => setUnit(e.target.value)} /></div>
+          <div><Label>المورد</Label><Input value={supplier} onChange={(e) => setSupplier(e.target.value)} /></div>
+          <div><Label>الرصيد الحالي</Label><Input type="number" value={stock} onChange={(e) => setStock(Number(e.target.value))} /></div>
+          <div><Label>متوسط التكلفة</Label><Input type="number" value={unitCost} onChange={(e) => setUnitCost(Number(e.target.value))} /></div>
+          <div><Label>حد التنبيه</Label><Input type="number" value={lowThr} onChange={(e) => setLowThr(Number(e.target.value))} /></div>
+        </div>
+        <DialogFooter><Button onClick={save} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ"}</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ProductDialog({ item, onClose, onSaved }: { item: any | null; onClose: () => void; onSaved: () => void }) {
+  const open = item !== null;
+  const isEdit = !!item?.id;
+  const [name, setName] = useState(item?.name || "");
+  const [stage, setStage] = useState(item?.stage || "تسمين");
+  const [feedCode, setFeedCode] = useState(item?.feed_code || "");
+  const [bagKg, setBagKg] = useState<number>(Number(item?.default_bag_kg || 50));
+  const [stock, setStock] = useState<number>(Number(item?.current_stock || 0));
+  const [cost, setCost] = useState<number>(Number(item?.latest_unit_cost || 0));
+  const [price, setPrice] = useState<number>(Number(item?.selling_price || 0));
+  const [saving, setSaving] = useState(false);
+  useMemo(() => {
+    setName(item?.name || ""); setStage(item?.stage || "تسمين"); setFeedCode(item?.feed_code || "");
+    setBagKg(Number(item?.default_bag_kg || 50)); setStock(Number(item?.current_stock || 0));
+    setCost(Number(item?.latest_unit_cost || 0)); setPrice(Number(item?.selling_price || 0));
+  }, [item?.id]);
+
+  const save = async () => {
+    if (!name.trim() || !feedCode.trim()) return toast.error("اكتب اسم وكود المنتج");
+    setSaving(true);
+    try {
+      const payload: any = { name, stage, feed_code: feedCode, default_bag_kg: bagKg, current_stock: stock, latest_unit_cost: cost, selling_price: price };
+      const { error } = isEdit
+        ? await supabase.from("feed_products").update(payload).eq("id", item.id)
+        : await supabase.from("feed_products").insert(payload);
+      if (error) throw error;
+      toast.success(isEdit ? "تم تحديث المنتج" : "تم إضافة المنتج");
+      onClose(); onSaved();
+    } catch (e: any) { toast.error(e.message || "فشل الحفظ"); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent dir="rtl" className="max-w-lg">
+        <DialogHeader><DialogTitle>{isEdit ? "تعديل منتج علف" : "إضافة منتج علف جاهز"}</DialogTitle></DialogHeader>
+        <div className="grid grid-cols-2 gap-3">
+          <div><Label>اسم المنتج</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
+          <div><Label>كود المنتج</Label><Input value={feedCode} onChange={(e) => setFeedCode(e.target.value)} /></div>
+          <div><Label>المرحلة</Label><Input value={stage} onChange={(e) => setStage(e.target.value)} placeholder="تسمين / بادي / بياض ..." /></div>
+          <div><Label>وزن الشيكارة (كجم)</Label><Input type="number" value={bagKg} onChange={(e) => setBagKg(Number(e.target.value))} /></div>
+          <div><Label>الرصيد الحالي (كجم)</Label><Input type="number" value={stock} onChange={(e) => setStock(Number(e.target.value))} /></div>
+          <div><Label>متوسط التكلفة (ج/كجم)</Label><Input type="number" value={cost} onChange={(e) => setCost(Number(e.target.value))} /></div>
+          <div className="col-span-2"><Label>سعر البيع (ج/كجم)</Label><Input type="number" value={price} onChange={(e) => setPrice(Number(e.target.value))} /></div>
+        </div>
+        <DialogFooter><Button onClick={save} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ"}</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 function PurchaseDialog({ open, onOpenChange, materials, onSaved }: any) {
   const [supplier, setSupplier] = useState("");
