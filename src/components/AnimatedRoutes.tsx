@@ -62,6 +62,7 @@ import MeatBatchDetail from "@/pages/MeatBatchDetail";
 import FeedBatchDetail from "@/pages/FeedBatchDetail";
 import MeatFactoryDashboard from "@/pages/factory/MeatFactoryDashboard";
 import FeedFactoryDashboard from "@/pages/factory/FeedFactoryDashboard";
+import FeedWarehouses from "@/pages/feed/FeedWarehouses";
 import FactoryOverview from "@/pages/factory/FactoryOverview";
 import FactoryReports from "@/pages/factory/FactoryReports";
 import FeedOrders from "@/pages/modules/feed/Orders";
@@ -342,6 +343,11 @@ const AnimatedRoutes = () => {
         <Route path="/feed-factory/dashboard" element={
           <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'feed_factory_manager', 'production_manager', 'quality_manager', 'accountant', 'financial_manager']}>
             <PageTransition><FeedFactoryDashboard /></PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/feed-factory/warehouses" element={
+          <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'feed_factory_manager', 'production_manager', 'financial_manager', 'warehouse_supervisor']}>
+            <PageTransition><FeedWarehouses /></PageTransition>
           </ProtectedRoute>
         } />
         <Route path="/factories/overview" element={

@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Wheat, AlertTriangle, Package, CheckCircle, Clock, Banknote, Boxes, FileWarning } from "lucide-react";
+import { Wheat, AlertTriangle, Package, CheckCircle, Clock, Banknote, Boxes, FileWarning, Warehouse, ShoppingCart } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import StatCard from "@/components/dashboard/StatCard";
 import FactoryFilters, { defaultFilterState, FactoryFilterState } from "@/components/factory/FactoryFilters";
 import { useFactoryData } from "@/hooks/useFactoryData";
@@ -79,6 +80,19 @@ export default function FeedFactoryDashboard() {
       </div>
 
       <FactoryFilters value={f} onChange={setF} />
+
+      <Card className="border-primary/40 bg-primary/5">
+        <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Warehouse className="h-5 w-5 text-primary" />
+            <div>
+              <div className="font-bold">مخازن المصنع — خامات وعلف جاهز</div>
+              <div className="text-xs text-muted-foreground">قيمة المخزون، شراء الخامات، فواتير البيع والربح</div>
+            </div>
+          </div>
+          <Link to="/feed-factory/warehouses"><Button><ShoppingCart className="h-4 w-4 ml-1" />فتح المخازن</Button></Link>
+        </CardContent>
+      </Card>
 
       <Card className="border-warning">
         <CardContent className="p-3 flex items-center gap-2 text-sm">
