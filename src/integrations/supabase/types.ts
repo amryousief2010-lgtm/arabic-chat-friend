@@ -1795,6 +1795,51 @@ export type Database = {
           },
         ]
       }
+      feed_factory_treasury_txns: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          direction: string
+          id: string
+          kind: string
+          note: string | null
+          party: string | null
+          ref_id: string | null
+          ref_table: string | null
+          txn_date: string
+          txn_no: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          direction: string
+          id?: string
+          kind: string
+          note?: string | null
+          party?: string | null
+          ref_id?: string | null
+          ref_table?: string | null
+          txn_date?: string
+          txn_no: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          direction?: string
+          id?: string
+          kind?: string
+          note?: string | null
+          party?: string | null
+          ref_id?: string | null
+          ref_table?: string | null
+          txn_date?: string
+          txn_no?: string
+        }
+        Relationships: []
+      }
       feed_finished_goods_moves: {
         Row: {
           batch_id: string

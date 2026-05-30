@@ -13,8 +13,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Warehouse, Package, ShoppingCart, Banknote, Plus, Trash2, AlertTriangle, Pencil, Printer, ClipboardCheck, Eye } from "lucide-react";
+import { Warehouse, Package, ShoppingCart, Banknote, Plus, Trash2, AlertTriangle, Pencil, Printer, ClipboardCheck, Eye, Wallet, FileSpreadsheet, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
 import { toast } from "sonner";
+import { exportCSV } from "@/lib/csvExport";
 
 type Line = { id: string; ref_id: string; qty: number; price: number };
 const newLine = (): Line => ({ id: crypto.randomUUID(), ref_id: "", qty: 0, price: 0 });
@@ -92,7 +93,33 @@ const printCount = (c: any) => {
     <div class="sig"><div>القائم بالجرد: ____________</div><div>المدير التنفيذي: ____________</div></div>`);
 };
 
-// ============ MAIN COMPONENT ============
+// ---- list printers ----
+const printRawList = (rows: any[]) => {
+  const body = rows.map((r) => `<tr><td>${r.name}</td><td>${fmt(r.stock)}</td><td>${r.unit||'كجم'}</td><td>${fmt(r.unit_cost)}</td><td>${fmt(Number(r.stock)*Number(r.unit_cost))}</td><td>${r.supplier||'-'}</td></tr>`).join("");
+  const total = rows.reduce((s,r)=>s+Number(r.stock)*Number(r.unit_cost),0);
+  printHtml("جرد المواد الخام", `<div class="header"><div><div class="brand">عاصمة النعام</div><div>مصنع الأعلاف — كشف المواد الخام</div></div><div style="text-align:left"><b>التاريخ:</b> ${new Date().toLocaleDateString('ar-EG')}</div></div>
+  <table><thead><tr><th>الصنف</th><th>الرصيد</th><th>الوحدة</th><th>متوسط التكلفة</th><th>القيمة</th><th>المورد</th></tr></thead><tbody>${body}</tbody><tfoot><tr><td colspan="4">إجمالي قيمة المخزون</td><td colspan="2">${fmt(total)} ج.م</td></tr></tfoot></table>`);
+};
+const printProdList = (rows: any[]) => {
+  const body = rows.map((p)=>{const bag=Number(p.default_bag_kg||50);const st=Number(p.current_stock||0);return `<tr><td>${p.name}</td><td>${p.stage||'-'}</td><td>${fmt(st)}</td><td>${fmt(bag>0?st/bag:0)}</td><td>${fmt(p.latest_unit_cost)}</td><td>${fmt(p.selling_price)}</td><td>${fmt(st*Number(p.latest_unit_cost||0))}</td></tr>`}).join("");
+  const total = rows.reduce((s,p)=>s+Number(p.current_stock||0)*Number(p.latest_unit_cost||0),0);
+  printHtml("جرد العلف الجاهز", `<div class="header"><div><div class="brand">عاصمة النعام</div><div>مصنع الأعلاف — كشف العلف الجاهز</div></div><div style="text-align:left"><b>التاريخ:</b> ${new Date().toLocaleDateString('ar-EG')}</div></div>
+  <table><thead><tr><th>المنتج</th><th>المرحلة</th><th>الكمية كجم</th><th>عدد الشكاير</th><th>متوسط التكلفة</th><th>سعر البيع</th><th>القيمة</th></tr></thead><tbody>${body}</tbody><tfoot><tr><td colspan="6">إجمالي قيمة العلف</td><td>${fmt(total)} ج.م</td></tr></tfoot></table>`);
+};
+const printTreasury = (rows: any[], balance: number) => {
+  const body = rows.map((t)=>`<tr><td>${t.txn_no}</td><td>${t.txn_date}</td><td>${KIND_LABEL[t.kind]||t.kind}</td><td>${t.party||'-'}</td><td>${t.note||'-'}</td><td style="color:#059669">${t.direction==='in'?fmt(t.amount):'-'}</td><td style="color:#dc2626">${t.direction==='out'?fmt(t.amount):'-'}</td></tr>`).join("");
+  const tin = rows.filter(r=>r.direction==='in').reduce((s,r)=>s+Number(r.amount),0);
+  const tout = rows.filter(r=>r.direction==='out').reduce((s,r)=>s+Number(r.amount),0);
+  printHtml("كشف خزنة المصنع", `<div class="header"><div><div class="brand">عاصمة النعام</div><div>مصنع الأعلاف — كشف حركة الخزنة</div></div><div style="text-align:left"><b>التاريخ:</b> ${new Date().toLocaleDateString('ar-EG')}<br/><b>الرصيد:</b> ${fmt(balance)} ج.م</div></div>
+  <table><thead><tr><th>الرقم</th><th>التاريخ</th><th>النوع</th><th>الجهة</th><th>البيان</th><th>وارد</th><th>منصرف</th></tr></thead><tbody>${body}</tbody><tfoot><tr><td colspan="5">الإجمالي</td><td>${fmt(tin)}</td><td>${fmt(tout)}</td></tr><tr><td colspan="6">الرصيد الحالي</td><td>${fmt(balance)} ج.م</td></tr></tfoot></table>`);
+};
+
+const KIND_LABEL: Record<string,string> = {
+  sale: "بيع علف", purchase: "شراء خامات",
+  loan_from_naam: "سلفة من شركة نعام", loan_to_naam: "إقراض شركة نعام",
+  manual_in: "إيداع يدوي", manual_out: "سحب يدوي",
+  opening_balance: "رصيد افتتاحي", other: "أخرى",
+};
 export default function FeedWarehouses() {
   const qc = useQueryClient();
   const { roles } = useAuth();
@@ -103,6 +130,8 @@ export default function FeedWarehouses() {
   const [countOpen, setCountOpen] = useState(false);
   const [editRaw, setEditRaw] = useState<any | null>(null);
   const [editProd, setEditProd] = useState<any | null>(null);
+  const [treasuryOpen, setTreasuryOpen] = useState(false);
+  const canTreasury = roles.some((r) => ["general_manager","executive_manager","feed_factory_manager","warehouse_supervisor"].includes(r));
 
   const rawQ = useQuery({
     queryKey: ["feed-raw-materials"],
@@ -139,9 +168,25 @@ export default function FeedWarehouses() {
       if (error) throw error; return data || [];
     },
   });
+  const treasuryQ = useQuery({
+    queryKey: ["feed-treasury"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("feed_factory_treasury_txns").select("*").order("txn_date", { ascending: false }).order("created_at", { ascending: false }).limit(500);
+      if (error) throw error; return data || [];
+    },
+  });
 
   const rawValue = useMemo(() => (rawQ.data || []).reduce((s: number, r: any) => s + Number(r.stock || 0) * Number(r.unit_cost || 0), 0), [rawQ.data]);
   const finishedValue = useMemo(() => (prodQ.data || []).reduce((s: number, p: any) => s + Number(p.current_stock || 0) * Number(p.latest_unit_cost || 0), 0), [prodQ.data]);
+  const treasuryBalance = useMemo(() => (treasuryQ.data || []).reduce((s: number, t: any) => s + (t.direction === "in" ? 1 : -1) * Number(t.amount || 0), 0), [treasuryQ.data]);
+  const loanFromNaam = useMemo(() => (treasuryQ.data || []).filter((t: any) => t.kind === "loan_from_naam").reduce((s: number, t: any) => s + Number(t.amount), 0) - (treasuryQ.data || []).filter((t: any) => t.kind === "loan_to_naam").reduce((s: number, t: any) => s + Number(t.amount), 0), [treasuryQ.data]);
+
+  const exportRaw = () => exportCSV("raw_materials.csv", (rawQ.data||[]).map((r:any)=>({الصنف:r.name,الرصيد:r.stock,الوحدة:r.unit,متوسط_التكلفة:r.unit_cost,القيمة:Number(r.stock)*Number(r.unit_cost),المورد:r.supplier||""})));
+  const exportProd = () => exportCSV("finished_products.csv", (prodQ.data||[]).map((p:any)=>({المنتج:p.name,المرحلة:p.stage,الكمية_كجم:p.current_stock,عدد_الشكاير:Number(p.default_bag_kg||50)>0?Number(p.current_stock)/Number(p.default_bag_kg||50):0,وزن_الشيكارة:p.default_bag_kg,متوسط_التكلفة:p.latest_unit_cost,سعر_البيع:p.selling_price,القيمة:Number(p.current_stock||0)*Number(p.latest_unit_cost||0)})));
+  const exportPur = () => exportCSV("purchases.csv", (purQ.data||[]).map((p:any)=>({الرقم:p.purchase_no,التاريخ:p.purchase_date,المورد:p.supplier||"",رقم_فاتورة_المورد:p.supplier_invoice_no||"",عدد_البنود:p.feed_raw_purchase_items?.length||0,الإجمالي:p.total_amount})));
+  const exportSales = () => exportCSV("sales.csv", (salesQ.data||[]).map((s:any)=>({الرقم:s.sale_no,التاريخ:s.sale_date,العميل:s.customer||"",الإجمالي:s.total_amount,التكلفة:s.total_cost,الربح:s.profit})));
+  const exportCounts = () => exportCSV("stock_counts.csv", (countsQ.data||[]).map((c:any)=>({الرقم:c.count_no,التاريخ:c.count_date,النوع:c.warehouse_kind,عدد_الأصناف:c.feed_stock_count_items?.length||0,الحالة:c.status})));
+  const exportTreasury = () => exportCSV("treasury.csv", (treasuryQ.data||[]).map((t:any)=>({الرقم:t.txn_no,التاريخ:t.txn_date,النوع:KIND_LABEL[t.kind]||t.kind,الجهة:t.party||"",وارد:t.direction==="in"?t.amount:0,منصرف:t.direction==="out"?t.amount:0,البيان:t.note||""})));
 
   return (
     <DashboardLayout>
@@ -150,32 +195,38 @@ export default function FeedWarehouses() {
           <Warehouse className="h-7 w-7 text-primary" />
           <div>
             <h1 className="text-2xl font-bold">مخازن مصنع الأعلاف</h1>
-            <p className="text-sm text-muted-foreground">الخامات، الجاهز، المشتريات، المبيعات والجرد</p>
+            <p className="text-sm text-muted-foreground">الخامات، الجاهز، المشتريات، المبيعات، الخزنة والجرد</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">قيمة مخزن الخامات</div><div className="text-2xl font-bold text-primary">{fmt(rawValue)} ج.م</div></CardContent></Card>
           <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">قيمة العلف الجاهز</div><div className="text-2xl font-bold text-secondary">{fmt(finishedValue)} ج.م</div></CardContent></Card>
-          <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">أصناف خامات</div><div className="text-2xl font-bold">{rawQ.data?.length || 0}</div></CardContent></Card>
-          <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">أصناف علف جاهز</div><div className="text-2xl font-bold">{prodQ.data?.length || 0}</div></CardContent></Card>
+          <Card className="border-success/50"><CardContent className="p-4"><div className="text-xs text-muted-foreground flex items-center gap-1"><Wallet className="h-3 w-3"/>رصيد الخزنة</div><div className={`text-2xl font-bold ${treasuryBalance<0?'text-destructive':'text-success'}`}>{fmt(treasuryBalance)} ج.م</div></CardContent></Card>
+          <Card className="border-warning/50"><CardContent className="p-4"><div className="text-xs text-muted-foreground">مستحق لشركة نعام</div><div className={`text-2xl font-bold ${loanFromNaam>0?'text-warning':loanFromNaam<0?'text-success':''}`}>{fmt(loanFromNaam)} ج.م</div><div className="text-[10px] text-muted-foreground">{loanFromNaam>=0?'سلف قائمة':'فائض للمصنع'}</div></CardContent></Card>
+          <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">أصناف خامات / جاهز</div><div className="text-2xl font-bold">{rawQ.data?.length||0} / {prodQ.data?.length||0}</div></CardContent></Card>
         </div>
 
         <Tabs defaultValue="raw" dir="rtl">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="raw"><Package className="h-4 w-4 ml-1" />الخامات</TabsTrigger>
             <TabsTrigger value="finished"><Warehouse className="h-4 w-4 ml-1" />الجاهز</TabsTrigger>
             <TabsTrigger value="purchases"><ShoppingCart className="h-4 w-4 ml-1" />المشتريات</TabsTrigger>
             <TabsTrigger value="sales"><Banknote className="h-4 w-4 ml-1" />المبيعات</TabsTrigger>
+            <TabsTrigger value="treasury"><Wallet className="h-4 w-4 ml-1" />الخزنة</TabsTrigger>
             <TabsTrigger value="counts"><ClipboardCheck className="h-4 w-4 ml-1" />الجرد</TabsTrigger>
           </TabsList>
 
           {/* RAW STOCK */}
           <TabsContent value="raw">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
                 <div><CardTitle>المواد الخام تحت التصنيع</CardTitle><CardDescription>الرصيد الحالي ومتوسط تكلفة كل خامة</CardDescription></div>
-                {canEditStock && <Button onClick={() => setEditRaw({})}><Plus className="h-4 w-4 ml-1" />إضافة خامة</Button>}
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => printRawList(rawQ.data || [])}><Printer className="h-4 w-4 ml-1"/>طباعة</Button>
+                  <Button size="sm" variant="outline" onClick={exportRaw}><FileSpreadsheet className="h-4 w-4 ml-1"/>Excel</Button>
+                  {canEditStock && <Button onClick={() => setEditRaw({})}><Plus className="h-4 w-4 ml-1" />إضافة خامة</Button>}
+                </div>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -205,9 +256,13 @@ export default function FeedWarehouses() {
           {/* FINISHED STOCK */}
           <TabsContent value="finished">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
                 <div><CardTitle>العلف الجاهز للبيع</CardTitle><CardDescription>الرصيد بالكيلو والشكاير لكل منتج</CardDescription></div>
-                {canEditStock && <Button onClick={() => setEditProd({})}><Plus className="h-4 w-4 ml-1" />إضافة منتج</Button>}
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => printProdList(prodQ.data || [])}><Printer className="h-4 w-4 ml-1"/>طباعة</Button>
+                  <Button size="sm" variant="outline" onClick={exportProd}><FileSpreadsheet className="h-4 w-4 ml-1"/>Excel</Button>
+                  {canEditStock && <Button onClick={() => setEditProd({})}><Plus className="h-4 w-4 ml-1" />إضافة منتج</Button>}
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -246,9 +301,12 @@ export default function FeedWarehouses() {
           {/* PURCHASES */}
           <TabsContent value="purchases">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
                 <div><CardTitle>مشتريات المواد الخام</CardTitle><CardDescription>سجل فواتير الشراء — اضغط الطباعة لطباعة الفاتورة</CardDescription></div>
-                <Button onClick={() => setPurchaseOpen(true)}><Plus className="h-4 w-4 ml-1" />شراء خامات</Button>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={exportPur}><FileSpreadsheet className="h-4 w-4 ml-1"/>Excel</Button>
+                  <Button onClick={() => setPurchaseOpen(true)}><Plus className="h-4 w-4 ml-1" />شراء خامات</Button>
+                </div>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -274,9 +332,12 @@ export default function FeedWarehouses() {
           {/* SALES */}
           <TabsContent value="sales">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
                 <div><CardTitle>مبيعات العلف</CardTitle><CardDescription>سجل المبيعات والأرباح — اضغط الطباعة لإصدار فاتورة العميل</CardDescription></div>
-                <Button onClick={() => setSaleOpen(true)}><Plus className="h-4 w-4 ml-1" />فاتورة بيع</Button>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={exportSales}><FileSpreadsheet className="h-4 w-4 ml-1"/>Excel</Button>
+                  <Button onClick={() => setSaleOpen(true)}><Plus className="h-4 w-4 ml-1" />فاتورة بيع</Button>
+                </div>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -300,12 +361,51 @@ export default function FeedWarehouses() {
             </Card>
           </TabsContent>
 
+          {/* TREASURY */}
+          <TabsContent value="treasury">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
+                <div>
+                  <CardTitle className="flex items-center gap-2"><Wallet className="h-5 w-5 text-success"/>خزنة مصنع الأعلاف</CardTitle>
+                  <CardDescription>الرصيد الحالي: <span className={`font-bold ${treasuryBalance<0?'text-destructive':'text-success'}`}>{fmt(treasuryBalance)} ج.م</span> — البيع يضيف للخزنة والشراء يخصم منها تلقائياً</CardDescription>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  <Button size="sm" variant="outline" onClick={() => printTreasury(treasuryQ.data || [], treasuryBalance)}><Printer className="h-4 w-4 ml-1"/>طباعة</Button>
+                  <Button size="sm" variant="outline" onClick={exportTreasury}><FileSpreadsheet className="h-4 w-4 ml-1"/>Excel</Button>
+                  {canTreasury && <Button onClick={() => setTreasuryOpen(true)}><Plus className="h-4 w-4 ml-1"/>حركة جديدة</Button>}
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader><TableRow><TableHead>الرقم</TableHead><TableHead>التاريخ</TableHead><TableHead>النوع</TableHead><TableHead>الجهة</TableHead><TableHead>البيان</TableHead><TableHead>وارد</TableHead><TableHead>منصرف</TableHead></TableRow></TableHeader>
+                  <TableBody>
+                    {(treasuryQ.data || []).map((t: any) => (
+                      <TableRow key={t.id}>
+                        <TableCell className="font-mono text-xs">{t.txn_no}</TableCell>
+                        <TableCell>{t.txn_date}</TableCell>
+                        <TableCell><Badge variant="outline">{KIND_LABEL[t.kind] || t.kind}</Badge></TableCell>
+                        <TableCell>{t.party || "-"}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{t.note || "-"}</TableCell>
+                        <TableCell className="text-success font-bold">{t.direction === "in" ? fmt(t.amount) : "-"}</TableCell>
+                        <TableCell className="text-destructive font-bold">{t.direction === "out" ? fmt(t.amount) : "-"}</TableCell>
+                      </TableRow>
+                    ))}
+                    {!treasuryQ.data?.length && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">لا توجد حركات بعد</TableCell></TableRow>}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* STOCK COUNTS */}
           <TabsContent value="counts">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
                 <div><CardTitle>الجرد الفعلي للمخازن</CardTitle><CardDescription>للمدير التنفيذي — جرد المخزون في أي وقت ومقارنته برصيد النظام</CardDescription></div>
-                {canStockCount && <Button onClick={() => setCountOpen(true)}><Plus className="h-4 w-4 ml-1" />جرد جديد</Button>}
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={exportCounts}><FileSpreadsheet className="h-4 w-4 ml-1"/>Excel</Button>
+                  {canStockCount && <Button onClick={() => setCountOpen(true)}><Plus className="h-4 w-4 ml-1" />جرد جديد</Button>}
+                </div>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -338,6 +438,7 @@ export default function FeedWarehouses() {
         {canEditStock && <RawMaterialDialog item={editRaw} onClose={() => setEditRaw(null)} onSaved={() => qc.invalidateQueries({ queryKey: ["feed-raw-materials"] })} />}
         {canEditStock && <ProductDialog item={editProd} onClose={() => setEditProd(null)} onSaved={() => qc.invalidateQueries({ queryKey: ["feed-products"] })} />}
         {canStockCount && <StockCountDialog open={countOpen} onOpenChange={setCountOpen} rawMaterials={rawQ.data || []} products={prodQ.data || []} onSaved={() => qc.invalidateQueries({ queryKey: ["feed-stock-counts"] })} />}
+        {canTreasury && <TreasuryDialog open={treasuryOpen} onOpenChange={setTreasuryOpen} onSaved={() => qc.invalidateQueries({ queryKey: ["feed-treasury"] })} />}
       </div>
     </DashboardLayout>
   );
@@ -678,6 +779,69 @@ function StockCountDialog({ open, onOpenChange, rawMaterials, products, onSaved 
           <Button variant="outline" onClick={() => save(false)} disabled={saving}>حفظ كمسودة</Button>
           <Button onClick={() => save(true)} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ وإغلاق المحضر"}</Button>
         </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function TreasuryDialog({ open, onOpenChange, onSaved }: { open: boolean; onOpenChange: (b: boolean) => void; onSaved: () => void }) {
+  const [kind, setKind] = useState<string>("loan_from_naam");
+  const [amount, setAmount] = useState<number>(0);
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [party, setParty] = useState("شركة نعام العاصمة");
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (kind === "loan_from_naam" || kind === "loan_to_naam") setParty("شركة نعام العاصمة");
+    else if (kind === "manual_in" || kind === "manual_out" || kind === "opening_balance") setParty("");
+  }, [kind]);
+
+  const direction: "in" | "out" = ["loan_from_naam", "manual_in", "opening_balance"].includes(kind) ? "in" : "out";
+
+  const save = async () => {
+    if (!amount || amount <= 0) return toast.error("اكتب مبلغاً صحيحاً");
+    setSaving(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const txn_no = `TRZ-${Date.now().toString().slice(-8)}`;
+      const { error } = await (supabase as any).from("feed_factory_treasury_txns").insert({
+        txn_no, txn_date: date, direction, kind, amount, party, note, created_by: user?.id,
+      });
+      if (error) throw error;
+      toast.success("تم تسجيل الحركة");
+      onOpenChange(false); onSaved();
+      setAmount(0); setNote("");
+    } catch (e: any) { toast.error(e.message || "فشل الحفظ"); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent dir="rtl" className="max-w-lg">
+        <DialogHeader><DialogTitle className="flex items-center gap-2"><Wallet className="h-5 w-5"/>حركة خزنة جديدة</DialogTitle></DialogHeader>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="col-span-2">
+            <Label>نوع الحركة</Label>
+            <Select value={kind} onValueChange={setKind}>
+              <SelectTrigger><SelectValue/></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="loan_from_naam">سلفة من شركة نعام العاصمة (إيداع)</SelectItem>
+                <SelectItem value="loan_to_naam">إقراض شركة نعام العاصمة (سحب)</SelectItem>
+                <SelectItem value="manual_in">إيداع يدوي</SelectItem>
+                <SelectItem value="manual_out">سحب يدوي / مصروف</SelectItem>
+                <SelectItem value="opening_balance">رصيد افتتاحي</SelectItem>
+                <SelectItem value="other">أخرى</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="text-xs mt-1 text-muted-foreground">الاتجاه: <b className={direction === "in" ? "text-success" : "text-destructive"}>{direction === "in" ? "وارد (يضاف للخزنة)" : "منصرف (يُخصم من الخزنة)"}</b></div>
+          </div>
+          <div><Label>المبلغ (ج.م)</Label><Input type="number" value={amount || ""} onChange={(e) => setAmount(Number(e.target.value))} /></div>
+          <div><Label>التاريخ</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+          <div className="col-span-2"><Label>الجهة</Label><Input value={party} onChange={(e) => setParty(e.target.value)} /></div>
+          <div className="col-span-2"><Label>البيان / الملاحظات</Label><Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} /></div>
+        </div>
+        <DialogFooter><Button onClick={save} disabled={saving}>{saving ? "جاري الحفظ..." : "تسجيل الحركة"}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   );
