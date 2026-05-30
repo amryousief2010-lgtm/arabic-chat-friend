@@ -256,9 +256,13 @@ export default function FeedWarehouses() {
           {/* FINISHED STOCK */}
           <TabsContent value="finished">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
                 <div><CardTitle>العلف الجاهز للبيع</CardTitle><CardDescription>الرصيد بالكيلو والشكاير لكل منتج</CardDescription></div>
-                {canEditStock && <Button onClick={() => setEditProd({})}><Plus className="h-4 w-4 ml-1" />إضافة منتج</Button>}
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => printProdList(prodQ.data || [])}><Printer className="h-4 w-4 ml-1"/>طباعة</Button>
+                  <Button size="sm" variant="outline" onClick={exportProd}><FileSpreadsheet className="h-4 w-4 ml-1"/>Excel</Button>
+                  {canEditStock && <Button onClick={() => setEditProd({})}><Plus className="h-4 w-4 ml-1" />إضافة منتج</Button>}
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
