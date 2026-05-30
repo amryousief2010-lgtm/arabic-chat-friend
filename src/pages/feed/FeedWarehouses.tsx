@@ -663,13 +663,19 @@ function PurchaseDialog({ open, onOpenChange, materials, onSaved }: any) {
   );
 }
 
-function SaleDialog({ open, onOpenChange, products, onSaved }: any) {
+type SaleLine = { id: string; kind: "finished" | "raw"; ref_id: string; qty: number; price: number };
+const newSaleLine = (): SaleLine => ({ id: crypto.randomUUID(), kind: "finished", ref_id: "", qty: 0, price: 0 });
+
+function SaleDialog({ open, onOpenChange, products, materials, onSaved }: any) {
   const [customer, setCustomer] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
-  const [lines, setLines] = useState<Line[]>([newLine()]);
+  const [lines, setLines] = useState<SaleLine[]>([newSaleLine()]);
   const [saving, setSaving] = useState(false);
   const total = lines.reduce((s, l) => s + l.qty * l.price, 0);
+
+  const upd = (id: string, patch: Partial<SaleLine>) =>
+    setLines((prev) => prev.map((x) => (x.id === id ? { ...x, ...patch } : x)));
 
   const save = async () => {
     const valid = lines.filter((l) => l.ref_id && l.qty > 0 && l.price >= 0);
@@ -682,37 +688,71 @@ function SaleDialog({ open, onOpenChange, products, onSaved }: any) {
       }).select("id").single();
       if (e1) throw e1;
       for (const l of valid) {
-        const { error } = await supabase.from("feed_sale_items").insert({ sale_id: head.id, feed_product_id: l.ref_id, quantity: l.qty, unit_price: l.price });
+        const payload: any = { sale_id: head.id, quantity: l.qty, unit_price: l.price };
+        if (l.kind === "finished") payload.feed_product_id = l.ref_id;
+        else payload.raw_material_id = l.ref_id;
+        const { error } = await supabase.from("feed_sale_items").insert(payload);
         if (error) throw error;
       }
       toast.success("تم حفظ فاتورة البيع وخصم المخزون");
       onOpenChange(false); onSaved();
-      setCustomer(""); setNotes(""); setLines([newLine()]);
+      setCustomer(""); setNotes(""); setLines([newSaleLine()]);
     } catch (err: any) { toast.error(err.message || "فشل الحفظ"); }
     finally { setSaving(false); }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl" dir="rtl">
-        <DialogHeader><DialogTitle>فاتورة بيع علف</DialogTitle></DialogHeader>
+      <DialogContent className="max-w-4xl" dir="rtl">
+        <DialogHeader><DialogTitle>فاتورة بيع — علف جاهز أو خامات (بريمكس / دريس...)</DialogTitle></DialogHeader>
         <div className="grid grid-cols-2 gap-3">
           <div><Label>العميل</Label><Input value={customer} onChange={(e) => setCustomer(e.target.value)} /></div>
           <div><Label>التاريخ</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
         </div>
         <div className="space-y-2">
-          <div className="flex items-center justify-between"><Label>البنود</Label><Button size="sm" variant="outline" onClick={() => setLines([...lines, newLine()])}><Plus className="h-3 w-3 ml-1" />بند</Button></div>
+          <div className="flex items-center justify-between"><Label>البنود</Label><Button size="sm" variant="outline" onClick={() => setLines([...lines, newSaleLine()])}><Plus className="h-3 w-3 ml-1" />بند</Button></div>
           {lines.map((l) => {
-            const p = products.find((x: any) => x.id === l.ref_id);
+            const item = l.kind === "finished"
+              ? products.find((x: any) => x.id === l.ref_id)
+              : materials.find((x: any) => x.id === l.ref_id);
+            const available = l.kind === "finished" ? Number(item?.current_stock || 0) : Number(item?.stock || 0);
+            const cost = l.kind === "finished" ? Number(item?.latest_unit_cost || 0) : Number(item?.unit_cost || 0);
+            const unit = l.kind === "finished" ? "كجم" : (item?.unit || "كجم");
             return (
-              <div key={l.id} className="grid grid-cols-12 gap-2 items-end">
-                <div className="col-span-5"><Select value={l.ref_id} onValueChange={(v) => {
-                  const prod = products.find((x: any) => x.id === v);
-                  setLines(lines.map((x) => x.id === l.id ? { ...x, ref_id: v, price: Number(prod?.selling_price || x.price) } : x));
-                }}><SelectTrigger><SelectValue placeholder="اختر المنتج" /></SelectTrigger><SelectContent>{products.map((m: any) => <SelectItem key={m.id} value={m.id}>{m.name} (متاح: {fmt(Number(m.current_stock))} كجم)</SelectItem>)}</SelectContent></Select>{p && <div className="text-xs text-muted-foreground mt-1">تكلفة: {fmt(Number(p.latest_unit_cost))}</div>}</div>
-                <div className="col-span-2"><Input type="number" placeholder="الكمية كجم" value={l.qty || ""} onChange={(e) => setLines(lines.map((x) => x.id === l.id ? { ...x, qty: Number(e.target.value) } : x))} /></div>
-                <div className="col-span-2"><Input type="number" placeholder="سعر الكيلو" value={l.price || ""} onChange={(e) => setLines(lines.map((x) => x.id === l.id ? { ...x, price: Number(e.target.value) } : x))} /></div>
-                <div className="col-span-2 text-sm font-bold text-left">{fmt(l.qty * l.price)}</div>
+              <div key={l.id} className="grid grid-cols-12 gap-2 items-end border-b pb-2">
+                <div className="col-span-2">
+                  <Select value={l.kind} onValueChange={(v: any) => upd(l.id, { kind: v, ref_id: "", price: 0 })}>
+                    <SelectTrigger><SelectValue/></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="finished">علف جاهز</SelectItem>
+                      <SelectItem value="raw">خامة</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="col-span-4">
+                  <Select value={l.ref_id} onValueChange={(v) => {
+                    if (l.kind === "finished") {
+                      const prod = products.find((x: any) => x.id === v);
+                      upd(l.id, { ref_id: v, price: Number(prod?.selling_price || 0) || l.price });
+                    } else {
+                      const mat = materials.find((x: any) => x.id === v);
+                      upd(l.id, { ref_id: v, price: Number(mat?.unit_cost || 0) || l.price });
+                    }
+                  }}>
+                    <SelectTrigger><SelectValue placeholder={l.kind === "finished" ? "اختر المنتج" : "اختر الخامة"} /></SelectTrigger>
+                    <SelectContent>
+                      {(l.kind === "finished" ? products : materials).map((m: any) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.name} (متاح: {fmt(Number(l.kind === "finished" ? m.current_stock : m.stock))} {l.kind === "finished" ? "كجم" : (m.unit || "كجم")})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {item && <div className="text-xs text-muted-foreground mt-1">تكلفة: {fmt(cost)} — متاح: {fmt(available)} {unit}</div>}
+                </div>
+                <div className="col-span-2"><Input type="number" placeholder={`الكمية ${unit}`} value={l.qty || ""} onChange={(e) => upd(l.id, { qty: Number(e.target.value) })} /></div>
+                <div className="col-span-2"><Input type="number" placeholder="سعر الوحدة" value={l.price || ""} onChange={(e) => upd(l.id, { price: Number(e.target.value) })} /></div>
+                <div className="col-span-1 text-sm font-bold text-left">{fmt(l.qty * l.price)}</div>
                 <div className="col-span-1"><Button size="icon" variant="ghost" onClick={() => setLines(lines.filter((x) => x.id !== l.id))}><Trash2 className="h-4 w-4" /></Button></div>
               </div>
             );
