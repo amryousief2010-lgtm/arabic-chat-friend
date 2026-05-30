@@ -382,7 +382,7 @@ export default function FeedWarehouses() {
               </CardHeader>
               <CardContent>
                 <Table>
-                  <TableHeader><TableRow><TableHead>الرقم</TableHead><TableHead>التاريخ</TableHead><TableHead>العميل</TableHead><TableHead>الإجمالي</TableHead><TableHead>التكلفة</TableHead><TableHead>الربح</TableHead><TableHead className="w-20">طباعة</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>الرقم</TableHead><TableHead>التاريخ</TableHead><TableHead>العميل</TableHead><TableHead>الإجمالي</TableHead><TableHead>التكلفة</TableHead><TableHead>الربح</TableHead><TableHead className="w-28">إجراءات</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {(salesQ.data || []).map((s: any) => (
                       <TableRow key={s.id}>
@@ -392,7 +392,10 @@ export default function FeedWarehouses() {
                         <TableCell>{fmt(Number(s.total_amount))}</TableCell>
                         <TableCell className="text-muted-foreground">{fmt(Number(s.total_cost))}</TableCell>
                         <TableCell className="font-bold text-success">{fmt(Number(s.profit))}</TableCell>
-                        <TableCell><Button size="icon" variant="ghost" onClick={() => printSale(s)}><Printer className="h-4 w-4" /></Button></TableCell>
+                        <TableCell className="flex gap-1">
+                          <Button size="icon" variant="ghost" onClick={() => printSale(s)}><Printer className="h-4 w-4" /></Button>
+                          {canManageAll && <Button size="icon" variant="ghost" className="text-destructive" onClick={() => delSale(s)}><Trash2 className="h-4 w-4" /></Button>}
+                        </TableCell>
                       </TableRow>
                     ))}
                     {!salesQ.data?.length && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">لا توجد مبيعات</TableCell></TableRow>}
