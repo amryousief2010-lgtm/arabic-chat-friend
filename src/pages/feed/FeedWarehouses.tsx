@@ -220,9 +220,13 @@ export default function FeedWarehouses() {
           {/* RAW STOCK */}
           <TabsContent value="raw">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
                 <div><CardTitle>المواد الخام تحت التصنيع</CardTitle><CardDescription>الرصيد الحالي ومتوسط تكلفة كل خامة</CardDescription></div>
-                {canEditStock && <Button onClick={() => setEditRaw({})}><Plus className="h-4 w-4 ml-1" />إضافة خامة</Button>}
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => printRawList(rawQ.data || [])}><Printer className="h-4 w-4 ml-1"/>طباعة</Button>
+                  <Button size="sm" variant="outline" onClick={exportRaw}><FileSpreadsheet className="h-4 w-4 ml-1"/>Excel</Button>
+                  {canEditStock && <Button onClick={() => setEditRaw({})}><Plus className="h-4 w-4 ml-1" />إضافة خامة</Button>}
+                </div>
               </CardHeader>
               <CardContent>
                 <Table>
