@@ -526,9 +526,16 @@ const OfferBoxes = () => {
                           مجدول
                         </Badge>
                       )}
-                      <Badge variant={box.is_active && !expired && !scheduled ? 'default' : 'secondary'}>
-                        {box.is_active && !expired && !scheduled ? 'نشط' : expired ? 'منتهي' : scheduled ? 'لم يبدأ' : 'معطل'}
-                      </Badge>
+                      <div className="flex items-center gap-2 rounded-full border px-2 py-1 bg-card">
+                        <Switch
+                          checked={box.is_active && !expired}
+                          disabled={expired || toggleActiveMutation.isPending}
+                          onCheckedChange={(checked) => toggleActiveMutation.mutate({ id: box.id, is_active: checked })}
+                        />
+                        <span className={`text-xs font-semibold ${box.is_active && !expired ? 'text-primary' : 'text-muted-foreground'}`}>
+                          {box.is_active && !expired ? 'نشط' : 'غير نشط'}
+                        </span>
+                      </div>
                     </div>
                   </div>
                   {box.description && (
