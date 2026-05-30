@@ -454,10 +454,19 @@ export default function FeedWarehouses() {
               </CardHeader>
               <CardContent>
                 <Table>
-                  <TableHeader><TableRow><TableHead>الرقم</TableHead><TableHead>التاريخ</TableHead><TableHead>النوع</TableHead><TableHead>عدد الأصناف</TableHead><TableHead>قيمة الفروقات</TableHead><TableHead>الحالة</TableHead><TableHead className="w-20">طباعة</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>الرقم</TableHead><TableHead>التاريخ</TableHead><TableHead>النوع</TableHead><TableHead>عدد الأصناف</TableHead><TableHead>قيمة الفروقات</TableHead><TableHead>الحالة</TableHead><TableHead className="w-40">إجراءات</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {(countsQ.data || []).map((c: any) => {
                       const variance = (c.feed_stock_count_items || []).reduce((s: number, i: any) => s + (Number(i.counted_qty) - Number(i.system_qty)) * Number(i.unit_cost || 0), 0);
+                      const applyCount = async () => {
+                        if (!window.confirm(`تطبيق نتائج جرد ${c.count_no} على المخزون؟\nسيتم استبدال أرصدة الأصناف بالكميات المجرودة.`)) return;
+                        const { error } = await (supabase as any).rpc("apply_feed_stock_count", { _count_id: c.id });
+                        if (error) return toast.error(error.message);
+                        toast.success("تم تطبيق الجرد وتحديث أرصدة المخزون");
+                        qc.invalidateQueries({ queryKey: ["feed-stock-counts"] });
+                        qc.invalidateQueries({ queryKey: ["feed-raw-materials"] });
+                        qc.invalidateQueries({ queryKey: ["feed-products"] });
+                      };
                       return (
                         <TableRow key={c.id}>
                           <TableCell className="font-mono text-xs">{c.count_no}</TableCell>
@@ -466,7 +475,11 @@ export default function FeedWarehouses() {
                           <TableCell>{c.feed_stock_count_items?.length || 0}</TableCell>
                           <TableCell className={variance < 0 ? "text-destructive font-bold" : variance > 0 ? "text-success font-bold" : ""}>{fmt(variance)} ج.م</TableCell>
                           <TableCell><Badge variant={c.status === "closed" ? "default" : "outline"}>{c.status === "closed" ? "مغلق" : "مسودة"}</Badge></TableCell>
-                          <TableCell><Button size="icon" variant="ghost" onClick={() => printCount(c)}><Printer className="h-4 w-4" /></Button></TableCell>
+                          <TableCell className="flex gap-1">
+                            <Button size="icon" variant="ghost" onClick={() => printCount(c)}><Printer className="h-4 w-4" /></Button>
+                            {canStockCount && <Button size="sm" variant="outline" onClick={applyCount} title="تطبيق الجرد على المخزون"><ClipboardCheck className="h-3.5 w-3.5 ml-1"/>تطبيق</Button>}
+                            {canManageAll && <Button size="icon" variant="ghost" className="text-destructive" onClick={() => delCount(c)}><Trash2 className="h-4 w-4" /></Button>}
+                          </TableCell>
                         </TableRow>
                       );
                     })}
