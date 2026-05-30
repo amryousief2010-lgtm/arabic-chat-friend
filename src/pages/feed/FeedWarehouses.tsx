@@ -840,9 +840,10 @@ function StockCountDialog({ open, onOpenChange, rawMaterials, products, onSaved 
         <div className="flex items-center justify-between border-t pt-3">
           <div className="text-lg">إجمالي قيمة الفروقات: <b className={totalVariance < 0 ? "text-destructive" : totalVariance > 0 ? "text-success" : ""}>{fmt(totalVariance)} ج.م</b></div>
         </div>
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => save(false)} disabled={saving}>حفظ كمسودة</Button>
-          <Button onClick={() => save(true)} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ وإغلاق المحضر"}</Button>
+        <DialogFooter className="gap-2 flex-wrap">
+          <Button variant="outline" onClick={() => save("draft")} disabled={saving}>حفظ كمسودة</Button>
+          <Button variant="outline" onClick={() => save("close")} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ وإغلاق المحضر"}</Button>
+          <Button onClick={() => save("apply")} disabled={saving} className="bg-primary"><ClipboardCheck className="h-4 w-4 ml-1"/>حفظ وتطبيق على المخزون</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
