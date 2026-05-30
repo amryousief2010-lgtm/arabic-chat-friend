@@ -733,13 +733,34 @@ function PurchaseDialog({ open, onOpenChange, materials, onSaved, editPurchase }
 type SaleLine = { id: string; kind: "finished" | "raw"; ref_id: string; qty: number; price: number };
 const newSaleLine = (): SaleLine => ({ id: crypto.randomUUID(), kind: "finished", ref_id: "", qty: 0, price: 0 });
 
-function SaleDialog({ open, onOpenChange, products, materials, onSaved }: any) {
+function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale }: any) {
+  const isEdit = !!editSale?.id;
   const [customer, setCustomer] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<SaleLine[]>([newSaleLine()]);
   const [saving, setSaving] = useState(false);
   const total = lines.reduce((s, l) => s + l.qty * l.price, 0);
+
+  useEffect(() => {
+    if (editSale?.id) {
+      setCustomer(editSale.customer || "");
+      setDate(editSale.sale_date || new Date().toISOString().slice(0, 10));
+      setNotes(editSale.notes || "");
+      const items = editSale.feed_sale_items || [];
+      setLines(items.length
+        ? items.map((it: any) => ({
+            id: crypto.randomUUID(),
+            kind: it.feed_product_id ? "finished" : "raw",
+            ref_id: it.feed_product_id || it.raw_material_id,
+            qty: Number(it.quantity),
+            price: Number(it.unit_price),
+          }))
+        : [newSaleLine()]);
+    } else if (open) {
+      setCustomer(""); setNotes(""); setDate(new Date().toISOString().slice(0, 10)); setLines([newSaleLine()]);
+    }
+  }, [editSale?.id, open]);
 
   const upd = (id: string, patch: Partial<SaleLine>) =>
     setLines((prev) => prev.map((x) => (x.id === id ? { ...x, ...patch } : x)));
@@ -750,20 +771,30 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved }: any) {
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      const { data: head, error: e1 } = await supabase.from("feed_sales").insert({
-        customer, sale_date: date, notes, created_by: user?.id,
-      }).select("id").single();
-      if (e1) throw e1;
+      let saleId = editSale?.id;
+      if (isEdit) {
+        const { error: eDel } = await supabase.from("feed_sale_items").delete().eq("sale_id", saleId);
+        if (eDel) throw eDel;
+        const { error: eUpd } = await supabase.from("feed_sales").update({
+          customer, sale_date: date, notes,
+        }).eq("id", saleId);
+        if (eUpd) throw eUpd;
+      } else {
+        const { data: head, error: e1 } = await supabase.from("feed_sales").insert({
+          customer, sale_date: date, notes, created_by: user?.id,
+        }).select("id").single();
+        if (e1) throw e1;
+        saleId = head.id;
+      }
       for (const l of valid) {
-        const payload: any = { sale_id: head.id, quantity: l.qty, unit_price: l.price };
+        const payload: any = { sale_id: saleId, quantity: l.qty, unit_price: l.price };
         if (l.kind === "finished") payload.feed_product_id = l.ref_id;
         else payload.raw_material_id = l.ref_id;
         const { error } = await supabase.from("feed_sale_items").insert(payload);
         if (error) throw error;
       }
-      toast.success("تم حفظ فاتورة البيع وخصم المخزون");
+      toast.success(isEdit ? "تم تعديل الفاتورة وتحديث المخزون والخزنة" : "تم حفظ فاتورة البيع وخصم المخزون");
       onOpenChange(false); onSaved();
-      setCustomer(""); setNotes(""); setLines([newSaleLine()]);
     } catch (err: any) { toast.error(err.message || "فشل الحفظ"); }
     finally { setSaving(false); }
   };
@@ -771,7 +802,7 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved }: any) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl" dir="rtl">
-        <DialogHeader><DialogTitle>فاتورة بيع — علف جاهز أو خامات (بريمكس / دريس...)</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{isEdit ? `تعديل فاتورة بيع ${editSale?.sale_no || ""}` : "فاتورة بيع — علف جاهز أو خامات (بريمكس / دريس...)"}</DialogTitle></DialogHeader>
         <div className="grid grid-cols-2 gap-3">
           <div><Label>العميل</Label><Input value={customer} onChange={(e) => setCustomer(e.target.value)} /></div>
           <div><Label>التاريخ</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
