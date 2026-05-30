@@ -91,10 +91,13 @@ export default function FeedWarehouses() {
           {/* RAW STOCK */}
           <TabsContent value="raw">
             <Card>
-              <CardHeader><CardTitle>المواد الخام تحت التصنيع</CardTitle><CardDescription>الرصيد الحالي ومتوسط تكلفة كل خامة</CardDescription></CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div><CardTitle>المواد الخام تحت التصنيع</CardTitle><CardDescription>الرصيد الحالي ومتوسط تكلفة كل خامة</CardDescription></div>
+                {canEditStock && <Button onClick={() => setEditRaw({})}><Plus className="h-4 w-4 ml-1" />إضافة خامة</Button>}
+              </CardHeader>
               <CardContent>
                 <Table>
-                  <TableHeader><TableRow><TableHead>الصنف</TableHead><TableHead>الرصيد</TableHead><TableHead>الوحدة</TableHead><TableHead>متوسط التكلفة</TableHead><TableHead>القيمة الإجمالية</TableHead><TableHead>المورد</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>الصنف</TableHead><TableHead>الرصيد</TableHead><TableHead>الوحدة</TableHead><TableHead>متوسط التكلفة</TableHead><TableHead>القيمة الإجمالية</TableHead><TableHead>المورد</TableHead>{canEditStock && <TableHead></TableHead>}</TableRow></TableHeader>
                   <TableBody>
                     {(rawQ.data || []).map((r: any) => {
                       const low = Number(r.stock) <= Number(r.low_stock_threshold || 0);
@@ -106,15 +109,17 @@ export default function FeedWarehouses() {
                           <TableCell>{fmt(Number(r.unit_cost))}</TableCell>
                           <TableCell className="font-bold">{fmt(Number(r.stock) * Number(r.unit_cost))}</TableCell>
                           <TableCell className="text-muted-foreground text-xs">{r.supplier || "-"}</TableCell>
+                          {canEditStock && <TableCell><Button size="icon" variant="ghost" onClick={() => setEditRaw(r)}><Pencil className="h-4 w-4" /></Button></TableCell>}
                         </TableRow>
                       );
                     })}
-                    {!rawQ.data?.length && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">لا توجد خامات</TableCell></TableRow>}
+                    {!rawQ.data?.length && <TableRow><TableCell colSpan={canEditStock ? 7 : 6} className="text-center text-muted-foreground py-6">لا توجد خامات</TableCell></TableRow>}
                   </TableBody>
                 </Table>
               </CardContent>
             </Card>
           </TabsContent>
+
 
           {/* FINISHED STOCK */}
           <TabsContent value="finished">
