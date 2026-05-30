@@ -168,9 +168,25 @@ export default function FeedWarehouses() {
       if (error) throw error; return data || [];
     },
   });
+  const treasuryQ = useQuery({
+    queryKey: ["feed-treasury"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("feed_factory_treasury_txns").select("*").order("txn_date", { ascending: false }).order("created_at", { ascending: false }).limit(500);
+      if (error) throw error; return data || [];
+    },
+  });
 
   const rawValue = useMemo(() => (rawQ.data || []).reduce((s: number, r: any) => s + Number(r.stock || 0) * Number(r.unit_cost || 0), 0), [rawQ.data]);
   const finishedValue = useMemo(() => (prodQ.data || []).reduce((s: number, p: any) => s + Number(p.current_stock || 0) * Number(p.latest_unit_cost || 0), 0), [prodQ.data]);
+  const treasuryBalance = useMemo(() => (treasuryQ.data || []).reduce((s: number, t: any) => s + (t.direction === "in" ? 1 : -1) * Number(t.amount || 0), 0), [treasuryQ.data]);
+  const loanFromNaam = useMemo(() => (treasuryQ.data || []).filter((t: any) => t.kind === "loan_from_naam").reduce((s: number, t: any) => s + Number(t.amount), 0) - (treasuryQ.data || []).filter((t: any) => t.kind === "loan_to_naam").reduce((s: number, t: any) => s + Number(t.amount), 0), [treasuryQ.data]);
+
+  const exportRaw = () => exportCSV("raw_materials.csv", (rawQ.data||[]).map((r:any)=>({الصنف:r.name,الرصيد:r.stock,الوحدة:r.unit,متوسط_التكلفة:r.unit_cost,القيمة:Number(r.stock)*Number(r.unit_cost),المورد:r.supplier||""})));
+  const exportProd = () => exportCSV("finished_products.csv", (prodQ.data||[]).map((p:any)=>({المنتج:p.name,المرحلة:p.stage,الكمية_كجم:p.current_stock,عدد_الشكاير:Number(p.default_bag_kg||50)>0?Number(p.current_stock)/Number(p.default_bag_kg||50):0,وزن_الشيكارة:p.default_bag_kg,متوسط_التكلفة:p.latest_unit_cost,سعر_البيع:p.selling_price,القيمة:Number(p.current_stock||0)*Number(p.latest_unit_cost||0)})));
+  const exportPur = () => exportCSV("purchases.csv", (purQ.data||[]).map((p:any)=>({الرقم:p.purchase_no,التاريخ:p.purchase_date,المورد:p.supplier||"",رقم_فاتورة_المورد:p.supplier_invoice_no||"",عدد_البنود:p.feed_raw_purchase_items?.length||0,الإجمالي:p.total_amount})));
+  const exportSales = () => exportCSV("sales.csv", (salesQ.data||[]).map((s:any)=>({الرقم:s.sale_no,التاريخ:s.sale_date,العميل:s.customer||"",الإجمالي:s.total_amount,التكلفة:s.total_cost,الربح:s.profit})));
+  const exportCounts = () => exportCSV("stock_counts.csv", (countsQ.data||[]).map((c:any)=>({الرقم:c.count_no,التاريخ:c.count_date,النوع:c.warehouse_kind,عدد_الأصناف:c.feed_stock_count_items?.length||0,الحالة:c.status})));
+  const exportTreasury = () => exportCSV("treasury.csv", (treasuryQ.data||[]).map((t:any)=>({الرقم:t.txn_no,التاريخ:t.txn_date,النوع:KIND_LABEL[t.kind]||t.kind,الجهة:t.party||"",وارد:t.direction==="in"?t.amount:0,منصرف:t.direction==="out"?t.amount:0,البيان:t.note||""})));
 
   return (
     <DashboardLayout>
@@ -179,23 +195,25 @@ export default function FeedWarehouses() {
           <Warehouse className="h-7 w-7 text-primary" />
           <div>
             <h1 className="text-2xl font-bold">مخازن مصنع الأعلاف</h1>
-            <p className="text-sm text-muted-foreground">الخامات، الجاهز، المشتريات، المبيعات والجرد</p>
+            <p className="text-sm text-muted-foreground">الخامات، الجاهز، المشتريات، المبيعات، الخزنة والجرد</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">قيمة مخزن الخامات</div><div className="text-2xl font-bold text-primary">{fmt(rawValue)} ج.م</div></CardContent></Card>
           <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">قيمة العلف الجاهز</div><div className="text-2xl font-bold text-secondary">{fmt(finishedValue)} ج.م</div></CardContent></Card>
-          <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">أصناف خامات</div><div className="text-2xl font-bold">{rawQ.data?.length || 0}</div></CardContent></Card>
-          <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">أصناف علف جاهز</div><div className="text-2xl font-bold">{prodQ.data?.length || 0}</div></CardContent></Card>
+          <Card className="border-success/50"><CardContent className="p-4"><div className="text-xs text-muted-foreground flex items-center gap-1"><Wallet className="h-3 w-3"/>رصيد الخزنة</div><div className={`text-2xl font-bold ${treasuryBalance<0?'text-destructive':'text-success'}`}>{fmt(treasuryBalance)} ج.م</div></CardContent></Card>
+          <Card className="border-warning/50"><CardContent className="p-4"><div className="text-xs text-muted-foreground">مستحق لشركة نعام</div><div className={`text-2xl font-bold ${loanFromNaam>0?'text-warning':loanFromNaam<0?'text-success':''}`}>{fmt(loanFromNaam)} ج.م</div><div className="text-[10px] text-muted-foreground">{loanFromNaam>=0?'سلف قائمة':'فائض للمصنع'}</div></CardContent></Card>
+          <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">أصناف خامات / جاهز</div><div className="text-2xl font-bold">{rawQ.data?.length||0} / {prodQ.data?.length||0}</div></CardContent></Card>
         </div>
 
         <Tabs defaultValue="raw" dir="rtl">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="raw"><Package className="h-4 w-4 ml-1" />الخامات</TabsTrigger>
             <TabsTrigger value="finished"><Warehouse className="h-4 w-4 ml-1" />الجاهز</TabsTrigger>
             <TabsTrigger value="purchases"><ShoppingCart className="h-4 w-4 ml-1" />المشتريات</TabsTrigger>
             <TabsTrigger value="sales"><Banknote className="h-4 w-4 ml-1" />المبيعات</TabsTrigger>
+            <TabsTrigger value="treasury"><Wallet className="h-4 w-4 ml-1" />الخزنة</TabsTrigger>
             <TabsTrigger value="counts"><ClipboardCheck className="h-4 w-4 ml-1" />الجرد</TabsTrigger>
           </TabsList>
 
