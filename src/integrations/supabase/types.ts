@@ -2748,6 +2748,121 @@ export type Database = {
         }
         Relationships: []
       }
+      feed_stock_count_items: {
+        Row: {
+          count_id: string
+          counted_qty: number
+          created_at: string
+          feed_product_id: string | null
+          id: string
+          item_kind: string
+          item_name: string
+          notes: string | null
+          raw_material_id: string | null
+          system_qty: number
+          unit: string | null
+          unit_cost: number
+          variance: number | null
+          variance_value: number | null
+        }
+        Insert: {
+          count_id: string
+          counted_qty?: number
+          created_at?: string
+          feed_product_id?: string | null
+          id?: string
+          item_kind: string
+          item_name: string
+          notes?: string | null
+          raw_material_id?: string | null
+          system_qty?: number
+          unit?: string | null
+          unit_cost?: number
+          variance?: number | null
+          variance_value?: number | null
+        }
+        Update: {
+          count_id?: string
+          counted_qty?: number
+          created_at?: string
+          feed_product_id?: string | null
+          id?: string
+          item_kind?: string
+          item_name?: string
+          notes?: string | null
+          raw_material_id?: string | null
+          system_qty?: number
+          unit?: string | null
+          unit_cost?: number
+          variance?: number | null
+          variance_value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_stock_count_items_count_id_fkey"
+            columns: ["count_id"]
+            isOneToOne: false
+            referencedRelation: "feed_stock_counts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feed_stock_count_items_feed_product_id_fkey"
+            columns: ["feed_product_id"]
+            isOneToOne: false
+            referencedRelation: "feed_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feed_stock_count_items_raw_material_id_fkey"
+            columns: ["raw_material_id"]
+            isOneToOne: false
+            referencedRelation: "feed_raw_materials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feed_stock_counts: {
+        Row: {
+          closed_at: string | null
+          count_date: string
+          count_no: string
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          status: string
+          total_variance_value: number
+          updated_at: string
+          warehouse_kind: string
+        }
+        Insert: {
+          closed_at?: string | null
+          count_date?: string
+          count_no?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          status?: string
+          total_variance_value?: number
+          updated_at?: string
+          warehouse_kind: string
+        }
+        Update: {
+          closed_at?: string | null
+          count_date?: string
+          count_no?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          status?: string
+          total_variance_value?: number
+          updated_at?: string
+          warehouse_kind?: string
+        }
+        Relationships: []
+      }
       hatch_batches: {
         Row: {
           batch_number: string
