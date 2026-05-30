@@ -62,6 +62,7 @@ import MeatBatchDetail from "@/pages/MeatBatchDetail";
 import FeedBatchDetail from "@/pages/FeedBatchDetail";
 import MeatFactoryDashboard from "@/pages/factory/MeatFactoryDashboard";
 import FeedFactoryDashboard from "@/pages/factory/FeedFactoryDashboard";
+import FeedWarehouses from "@/pages/feed/FeedWarehouses";
 import FactoryOverview from "@/pages/factory/FactoryOverview";
 import FactoryReports from "@/pages/factory/FactoryReports";
 import FeedOrders from "@/pages/modules/feed/Orders";
