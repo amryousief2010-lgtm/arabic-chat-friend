@@ -68,12 +68,16 @@ const defaultPrices = { meat_price: 390, bone_meat_price: 350, processed_price: 
 
 const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
 
-const findTier = (sales: number, tiers: Array<{ sales: number; bonus: number; label: string }>) => {
-  let achieved: { sales: number; bonus: number; label: string } | null = null;
-  for (const t of tiers) {
-    if (sales >= t.sales) achieved = t;
+const findTierIndex = (sales: number, tiers: Array<{ sales: number; bonus: number; label: string }>) => {
+  let idx = -1;
+  for (let i = 0; i < tiers.length; i++) {
+    if (sales >= tiers[i].sales) idx = i;
   }
-  return achieved;
+  return idx;
+};
+const findTier = (sales: number, tiers: Array<{ sales: number; bonus: number; label: string }>) => {
+  const i = findTierIndex(sales, tiers);
+  return i >= 0 ? tiers[i] : null;
 };
 
 interface Props {
