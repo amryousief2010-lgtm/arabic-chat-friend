@@ -114,6 +114,15 @@ const WarehouseDetail = () => {
       .gte("created_at", fiveDaysAgo)
       .order("created_at", { ascending: false })
       .limit(2000);
+    // فلترة المخزن الرئيسي: نعرض فقط طلبات (تسليم/توصيل) المسجَّلة على المخزن الرئيسي
+    const filteredOrds = (ords || []).filter((o: any) => {
+      if (currentIsAgouza) return true;
+      if (!currentIsMain) return true;
+      if (o.source_warehouse_id !== id) return false;
+      const ft = o.fulfillment_type;
+      return ft === "pickup" || ft === "delivery";
+    });
+    setOutletOrders(filteredOrds);
 
     // مخزون المخزن الرئيسي (raw stock قبل خصم الطلبات) — للعرض في حوار التوريد
     if (currentIsAgouza && mainWh) {
