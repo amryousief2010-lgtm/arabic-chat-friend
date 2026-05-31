@@ -737,15 +737,17 @@ const WarehouseDetail = () => {
                       <Button size="sm" variant="outline" className="text-destructive border-destructive/40 hover:bg-destructive/10" onClick={() => rejectTransfer(t)}>
                         <ThumbsDown className="w-4 h-4 ml-1" />رفض
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-destructive hover:bg-destructive/10"
-                        title="حذف الطلب نهائياً"
-                        onClick={() => cancelTransferRequest(t)}
-                      >
-                        <XCircle className="w-4 h-4 ml-1" />حذف
-                      </Button>
+                      {canCancelTransferRequest(t) && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-destructive hover:bg-destructive/10"
+                          title="حذف الطلب نهائياً"
+                          onClick={() => cancelTransferRequest(t)}
+                        >
+                          <XCircle className="w-4 h-4 ml-1" />حذف
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardHeader>
@@ -812,7 +814,7 @@ const WarehouseDetail = () => {
                         تعديل الكميات
                       </Button>
                     )}
-                    {t.status === "pending_approval" && (
+                    {t.status === "pending_approval" && canCancelTransferRequest(t) && (
                       <Button size="sm" variant="outline" className="text-destructive border-destructive/40 hover:bg-destructive/10" onClick={() => cancelTransferRequest(t)}>
                         <XCircle className="w-4 h-4 ml-1" />إلغاء الطلب
                       </Button>
