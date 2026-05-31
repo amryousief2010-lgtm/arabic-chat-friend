@@ -272,10 +272,11 @@ export default function FeedWarehouses() {
         </div>
 
         <Tabs defaultValue="raw" dir="rtl">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="raw"><Package className="h-4 w-4 ml-1" />الخامات</TabsTrigger>
             <TabsTrigger value="finished"><Warehouse className="h-4 w-4 ml-1" />الجاهز</TabsTrigger>
             <TabsTrigger value="purchases"><ShoppingCart className="h-4 w-4 ml-1" />المشتريات</TabsTrigger>
+            <TabsTrigger value="production"><Factory className="h-4 w-4 ml-1" />التصنيع</TabsTrigger>
             <TabsTrigger value="sales"><Banknote className="h-4 w-4 ml-1" />المبيعات</TabsTrigger>
             <TabsTrigger value="treasury"><Wallet className="h-4 w-4 ml-1" />الخزنة</TabsTrigger>
             <TabsTrigger value="counts"><ClipboardCheck className="h-4 w-4 ml-1" />الجرد</TabsTrigger>
