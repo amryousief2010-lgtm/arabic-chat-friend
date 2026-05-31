@@ -222,6 +222,15 @@ export default function FeedWarehouses() {
       if (error) throw error; return data || [];
     },
   });
+  const prodInvQ = useQuery({
+    queryKey: ["feed-prod-invoices"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("feed_production_invoices")
+        .select("*, feed_products(name,stage), feed_production_invoice_items(*, feed_raw_materials(name,unit))")
+        .order("prod_date", { ascending: false }).limit(100);
+      if (error) throw error; return data || [];
+    },
+  });
 
   const rawValue = useMemo(() => (rawQ.data || []).reduce((s: number, r: any) => s + Number(r.stock || 0) * Number(r.unit_cost || 0), 0), [rawQ.data]);
   const finishedValue = useMemo(() => (prodQ.data || []).reduce((s: number, p: any) => s + Number(p.current_stock || 0) * Number(p.latest_unit_cost || 0), 0), [prodQ.data]);
