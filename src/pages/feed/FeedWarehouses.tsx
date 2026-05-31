@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Warehouse, Package, ShoppingCart, Banknote, Plus, Trash2, AlertTriangle, Pencil, Printer, ClipboardCheck, Eye, Wallet, FileSpreadsheet, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
+import { Warehouse, Package, ShoppingCart, Banknote, Plus, Trash2, AlertTriangle, Pencil, Printer, ClipboardCheck, Eye, Wallet, FileSpreadsheet, ArrowDownCircle, ArrowUpCircle, Factory } from "lucide-react";
 import { toast } from "sonner";
 import { exportCSV } from "@/lib/csvExport";
 
@@ -119,6 +119,11 @@ const KIND_LABEL: Record<string,string> = {
   loan_from_naam: "سلفة من شركة نعام", loan_to_naam: "إقراض شركة نعام",
   manual_in: "إيداع يدوي", manual_out: "سحب يدوي",
   opening_balance: "رصيد افتتاحي", other: "أخرى",
+  custody_shoala: "عهدة كاش شعله",
+  custody_gamal: "عهدة كاش أحمد الجمل",
+  general_expense: "مصروفات عامة",
+  tobacco_expense: "مصروف دخان",
+  transport_expense: "مصروف نقل",
 };
 export default function FeedWarehouses() {
   const qc = useQueryClient();
@@ -135,7 +140,9 @@ export default function FeedWarehouses() {
   const [editRaw, setEditRaw] = useState<any | null>(null);
   const [editProd, setEditProd] = useState<any | null>(null);
   const [treasuryOpen, setTreasuryOpen] = useState(false);
+  const [productionOpen, setProductionOpen] = useState(false);
   const canTreasury = roles.some((r) => ["general_manager","executive_manager","feed_factory_manager","warehouse_supervisor"].includes(r));
+  const canProduce = roles.some((r) => ["general_manager","executive_manager","feed_factory_manager","warehouse_supervisor","production_manager"].includes(r));
 
   // ---- delete helpers (top managers only) ----
   const confirmDel = (msg: string) => window.confirm(msg);
@@ -171,6 +178,14 @@ export default function FeedWarehouses() {
     if (error) return toast.error(error.message);
     toast.success("تم الحذف");
     qc.invalidateQueries({ queryKey: ["feed-stock-counts"] });
+  };
+  const delProduction = async (p: any) => {
+    if (!confirmDel(`حذف فاتورة التصنيع ${p.prod_no}؟ سيتم إرجاع الخامات للمخزن. ملاحظة: المنتج النهائي لن يُخصم تلقائياً — راجع رصيد ${p.feed_products?.name || ""} يدوياً.`)) return;
+    const { error } = await (supabase as any).from("feed_production_invoices").delete().eq("id", p.id);
+    if (error) return toast.error(error.message);
+    toast.success("تم حذف فاتورة التصنيع وإرجاع الخامات");
+    qc.invalidateQueries({ queryKey: ["feed-prod-invoices"] });
+    qc.invalidateQueries({ queryKey: ["feed-raw-materials"] });
   };
 
   const rawQ = useQuery({
@@ -215,6 +230,15 @@ export default function FeedWarehouses() {
       if (error) throw error; return data || [];
     },
   });
+  const prodInvQ = useQuery({
+    queryKey: ["feed-prod-invoices"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("feed_production_invoices")
+        .select("*, feed_products(name,stage), feed_production_invoice_items(*, feed_raw_materials(name,unit))")
+        .order("prod_date", { ascending: false }).limit(100);
+      if (error) throw error; return data || [];
+    },
+  });
 
   const rawValue = useMemo(() => (rawQ.data || []).reduce((s: number, r: any) => s + Number(r.stock || 0) * Number(r.unit_cost || 0), 0), [rawQ.data]);
   const finishedValue = useMemo(() => (prodQ.data || []).reduce((s: number, p: any) => s + Number(p.current_stock || 0) * Number(p.latest_unit_cost || 0), 0), [prodQ.data]);
@@ -248,10 +272,11 @@ export default function FeedWarehouses() {
         </div>
 
         <Tabs defaultValue="raw" dir="rtl">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="raw"><Package className="h-4 w-4 ml-1" />الخامات</TabsTrigger>
             <TabsTrigger value="finished"><Warehouse className="h-4 w-4 ml-1" />الجاهز</TabsTrigger>
             <TabsTrigger value="purchases"><ShoppingCart className="h-4 w-4 ml-1" />المشتريات</TabsTrigger>
+            <TabsTrigger value="production"><Factory className="h-4 w-4 ml-1" />التصنيع</TabsTrigger>
             <TabsTrigger value="sales"><Banknote className="h-4 w-4 ml-1" />المبيعات</TabsTrigger>
             <TabsTrigger value="treasury"><Wallet className="h-4 w-4 ml-1" />الخزنة</TabsTrigger>
             <TabsTrigger value="counts"><ClipboardCheck className="h-4 w-4 ml-1" />الجرد</TabsTrigger>
@@ -409,6 +434,41 @@ export default function FeedWarehouses() {
             </Card>
           </TabsContent>
 
+          {/* PRODUCTION INVOICES */}
+          <TabsContent value="production">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
+                <div><CardTitle>فواتير تصنيع العلف</CardTitle><CardDescription>تصنيع علف بادي / تسمين / بياض — يخصم الخامات تلقائياً ويضيف الناتج للجاهز بمتوسط التكلفة</CardDescription></div>
+                <div className="flex gap-2">
+                  {canProduce && <Button onClick={() => setProductionOpen(true)}><Plus className="h-4 w-4 ml-1" />فاتورة تصنيع</Button>}
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader><TableRow><TableHead>الرقم</TableHead><TableHead>التاريخ</TableHead><TableHead>المنتج</TableHead><TableHead>الكمية المنتجة</TableHead><TableHead>عدد الشكاير</TableHead><TableHead>إجمالي التكلفة</TableHead><TableHead>تكلفة الكيلو</TableHead><TableHead>الخامات</TableHead>{canManageAll && <TableHead className="w-16">حذف</TableHead>}</TableRow></TableHeader>
+                  <TableBody>
+                    {(prodInvQ.data || []).map((p: any) => (
+                      <TableRow key={p.id}>
+                        <TableCell className="font-mono text-xs">{p.prod_no}</TableCell>
+                        <TableCell>{p.prod_date}</TableCell>
+                        <TableCell className="font-medium">{p.feed_products?.name} <Badge variant="outline" className="text-[10px] mr-1">{p.feed_products?.stage}</Badge></TableCell>
+                        <TableCell>{fmt(p.qty_produced)} كجم</TableCell>
+                        <TableCell>{fmt(p.bags)}</TableCell>
+                        <TableCell className="font-bold">{fmt(p.total_cost)} ج.م</TableCell>
+                        <TableCell>{fmt(p.unit_cost)} ج/كجم</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{(p.feed_production_invoice_items||[]).map((i:any)=>`${i.feed_raw_materials?.name||''} ${fmt(i.quantity)}`).join(" • ")}</TableCell>
+                        {canManageAll && <TableCell><Button size="icon" variant="ghost" className="text-destructive" onClick={() => delProduction(p)}><Trash2 className="h-4 w-4" /></Button></TableCell>}
+                      </TableRow>
+                    ))}
+                    {!prodInvQ.data?.length && <TableRow><TableCell colSpan={canManageAll ? 9 : 8} className="text-center text-muted-foreground py-6">لا توجد فواتير تصنيع بعد</TableCell></TableRow>}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+
+
           {/* SALES */}
           <TabsContent value="sales">
             <Card>
@@ -537,6 +597,7 @@ export default function FeedWarehouses() {
         {canEditStock && <ProductDialog item={editProd} onClose={() => setEditProd(null)} onSaved={() => qc.invalidateQueries({ queryKey: ["feed-products"] })} />}
         {canStockCount && <StockCountDialog open={countOpen} onOpenChange={setCountOpen} rawMaterials={rawQ.data || []} products={prodQ.data || []} onSaved={() => qc.invalidateQueries({ queryKey: ["feed-stock-counts"] })} />}
         {canTreasury && <TreasuryDialog open={treasuryOpen} onOpenChange={setTreasuryOpen} onSaved={() => qc.invalidateQueries({ queryKey: ["feed-treasury"] })} />}
+        {canProduce && <ProductionDialog open={productionOpen} onOpenChange={setProductionOpen} rawMaterials={rawQ.data || []} products={prodQ.data || []} onSaved={() => { qc.invalidateQueries({ queryKey: ["feed-prod-invoices"] }); qc.invalidateQueries({ queryKey: ["feed-raw-materials"] }); qc.invalidateQueries({ queryKey: ["feed-products"] }); }} />}
       </div>
     </DashboardLayout>
   );
@@ -651,8 +712,12 @@ function PurchaseDialog({ open, onOpenChange, materials, onSaved, editPurchase }
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<Line[]>([newLine()]);
+  const [transportCost, setTransportCost] = useState<number>(0);
+  const [tobaccoCost, setTobaccoCost] = useState<number>(0);
+  const [otherExpense, setOtherExpense] = useState<number>(0);
   const [saving, setSaving] = useState(false);
-  const total = lines.reduce((s, l) => s + l.qty * l.price, 0);
+  const itemsTotal = lines.reduce((s, l) => s + l.qty * l.price, 0);
+  const total = itemsTotal + Number(transportCost||0) + Number(tobaccoCost||0) + Number(otherExpense||0);
 
   useEffect(() => {
     if (editPurchase?.id) {
@@ -660,12 +725,17 @@ function PurchaseDialog({ open, onOpenChange, materials, onSaved, editPurchase }
       setInvoiceNo(editPurchase.supplier_invoice_no || "");
       setDate(editPurchase.purchase_date || new Date().toISOString().slice(0, 10));
       setNotes(editPurchase.notes || "");
+      setTransportCost(Number(editPurchase.transport_cost||0));
+      setTobaccoCost(Number(editPurchase.tobacco_cost||0));
+      setOtherExpense(Number(editPurchase.other_expense||0));
       const items = editPurchase.feed_raw_purchase_items || [];
       setLines(items.length
         ? items.map((it: any) => ({ id: crypto.randomUUID(), ref_id: it.raw_material_id, qty: Number(it.quantity), price: Number(it.unit_price) }))
         : [newLine()]);
     } else if (open) {
-      setSupplier(""); setInvoiceNo(""); setDate(new Date().toISOString().slice(0, 10)); setNotes(""); setLines([newLine()]);
+      setSupplier(""); setInvoiceNo(""); setDate(new Date().toISOString().slice(0, 10)); setNotes("");
+      setTransportCost(0); setTobaccoCost(0); setOtherExpense(0);
+      setLines([newLine()]);
     }
   }, [editPurchase?.id, open]);
 
@@ -682,12 +752,14 @@ function PurchaseDialog({ open, onOpenChange, materials, onSaved, editPurchase }
         if (eDel) throw eDel;
         const { error: eUpd } = await supabase.from("feed_raw_purchases").update({
           supplier, supplier_invoice_no: invoiceNo, purchase_date: date, notes,
-        }).eq("id", purchaseId);
+          transport_cost: Number(transportCost||0), tobacco_cost: Number(tobaccoCost||0), other_expense: Number(otherExpense||0),
+        } as any).eq("id", purchaseId);
         if (eUpd) throw eUpd;
       } else {
         const { data: head, error: e1 } = await supabase.from("feed_raw_purchases").insert({
           supplier, supplier_invoice_no: invoiceNo, purchase_date: date, notes, created_by: user?.id,
-        }).select("id").single();
+          transport_cost: Number(transportCost||0), tobacco_cost: Number(tobaccoCost||0), other_expense: Number(otherExpense||0),
+        } as any).select("id").single();
         if (e1) throw e1;
         purchaseId = head.id;
       }
@@ -722,8 +794,14 @@ function PurchaseDialog({ open, onOpenChange, materials, onSaved, editPurchase }
             </div>
           ))}
         </div>
+        <div className="grid grid-cols-3 gap-3 border-t pt-3">
+          <div><Label>مصروف نقل (ج.م)</Label><Input type="number" value={transportCost || ""} onChange={(e)=>setTransportCost(Number(e.target.value))} /></div>
+          <div><Label>مصروف دخان (ج.م)</Label><Input type="number" value={tobaccoCost || ""} onChange={(e)=>setTobaccoCost(Number(e.target.value))} /></div>
+          <div><Label>مصاريف أخرى (ج.م)</Label><Input type="number" value={otherExpense || ""} onChange={(e)=>setOtherExpense(Number(e.target.value))} /></div>
+        </div>
         <div><Label>ملاحظات</Label><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} /></div>
-        <div className="text-left text-xl font-bold">الإجمالي: {fmt(total)} ج.م</div>
+        <div className="text-left text-sm text-muted-foreground">إجمالي بنود الخامات: {fmt(itemsTotal)} ج.م + مصروفات: {fmt(Number(transportCost||0)+Number(tobaccoCost||0)+Number(otherExpense||0))} ج.م</div>
+        <div className="text-left text-xl font-bold">الإجمالي الكلي: {fmt(total)} ج.م</div>
         <DialogFooter><Button onClick={save} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ الفاتورة"}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
@@ -998,7 +1076,10 @@ function TreasuryDialog({ open, onOpenChange, onSaved }: { open: boolean; onOpen
 
   useEffect(() => {
     if (kind === "loan_from_naam" || kind === "loan_to_naam") setParty("شركة نعام العاصمة");
-    else if (kind === "manual_in" || kind === "manual_out" || kind === "opening_balance") setParty("");
+    else if (kind === "custody_shoala") setParty("كاش شعله");
+    else if (kind === "custody_gamal") setParty("كاش أحمد الجمل");
+    else if (kind === "manual_in" || kind === "manual_out" || kind === "opening_balance" ||
+             kind === "general_expense" || kind === "tobacco_expense" || kind === "transport_expense") setParty("");
   }, [kind]);
 
   const direction: "in" | "out" = ["loan_from_naam", "manual_in", "opening_balance"].includes(kind) ? "in" : "out";
@@ -1035,6 +1116,11 @@ function TreasuryDialog({ open, onOpenChange, onSaved }: { open: boolean; onOpen
                 <SelectItem value="manual_in">إيداع يدوي</SelectItem>
                 <SelectItem value="manual_out">سحب يدوي / مصروف</SelectItem>
                 <SelectItem value="opening_balance">رصيد افتتاحي</SelectItem>
+                <SelectItem value="custody_shoala">عهدة على كاش شعله (سحب)</SelectItem>
+                <SelectItem value="custody_gamal">عهدة على كاش أحمد الجمل (سحب)</SelectItem>
+                <SelectItem value="general_expense">مصروفات عامة</SelectItem>
+                <SelectItem value="tobacco_expense">مصروف دخان</SelectItem>
+                <SelectItem value="transport_expense">مصروف نقل</SelectItem>
                 <SelectItem value="other">أخرى</SelectItem>
               </SelectContent>
             </Select>
@@ -1046,6 +1132,120 @@ function TreasuryDialog({ open, onOpenChange, onSaved }: { open: boolean; onOpen
           <div className="col-span-2"><Label>البيان / الملاحظات</Label><Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} /></div>
         </div>
         <DialogFooter><Button onClick={save} disabled={saving}>{saving ? "جاري الحفظ..." : "تسجيل الحركة"}</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ============ PRODUCTION DIALOG ============
+type ProdLine = { id: string; raw_id: string; qty: number };
+const newProdLine = (): ProdLine => ({ id: crypto.randomUUID(), raw_id: "", qty: 0 });
+
+function ProductionDialog({ open, onOpenChange, rawMaterials, products, onSaved }: any) {
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [productId, setProductId] = useState<string>("");
+  const [qtyProduced, setQtyProduced] = useState<number>(0);
+  const [bags, setBags] = useState<number>(0);
+  const [notes, setNotes] = useState("");
+  const [lines, setLines] = useState<ProdLine[]>([newProdLine()]);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setDate(new Date().toISOString().slice(0, 10));
+      setProductId(""); setQtyProduced(0); setBags(0); setNotes("");
+      setLines([newProdLine()]);
+    }
+  }, [open]);
+
+  // Auto-derive bags from product's default bag weight
+  useEffect(() => {
+    const prod = products.find((p: any) => p.id === productId);
+    const bagKg = Number(prod?.default_bag_kg || 0);
+    if (bagKg > 0 && qtyProduced > 0) setBags(Math.round((qtyProduced / bagKg) * 100) / 100);
+  }, [productId, qtyProduced, products]);
+
+  const estTotalCost = useMemo(() => lines.reduce((s, l) => {
+    const m = rawMaterials.find((r: any) => r.id === l.raw_id);
+    return s + (Number(m?.unit_cost || 0) * Number(l.qty || 0));
+  }, 0), [lines, rawMaterials]);
+  const estUnitCost = qtyProduced > 0 ? estTotalCost / qtyProduced : 0;
+
+  const save = async () => {
+    if (!productId) return toast.error("اختر منتج العلف الناتج");
+    if (!qtyProduced || qtyProduced <= 0) return toast.error("اكتب الكمية المنتجة");
+    const valid = lines.filter((l) => l.raw_id && l.qty > 0);
+    if (!valid.length) return toast.error("أضف خامة واحدة على الأقل");
+
+    setSaving(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: head, error: e1 } = await (supabase as any).from("feed_production_invoices").insert({
+        prod_date: date, product_id: productId, qty_produced: qtyProduced,
+        bags, notes, created_by: user?.id,
+      }).select("id").single();
+      if (e1) throw e1;
+      const { error: e2 } = await (supabase as any).from("feed_production_invoice_items").insert(
+        valid.map((l) => ({ invoice_id: head.id, raw_material_id: l.raw_id, quantity: l.qty }))
+      );
+      if (e2) throw e2;
+      const { error: e3 } = await (supabase as any).rpc("finalize_feed_production", { _invoice_id: head.id });
+      if (e3) throw e3;
+      toast.success("تم تسجيل فاتورة التصنيع — خُصمت الخامات وأُضيفت الكمية لمخزن الجاهز");
+      onOpenChange(false); onSaved();
+    } catch (err: any) { toast.error(err.message || "فشل الحفظ"); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" dir="rtl">
+        <DialogHeader><DialogTitle className="flex items-center gap-2"><Factory className="h-5 w-5"/>فاتورة تصنيع علف (بادي / تسمين / بياض)</DialogTitle></DialogHeader>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="col-span-2"><Label>المنتج الناتج</Label>
+            <Select value={productId} onValueChange={setProductId}>
+              <SelectTrigger><SelectValue placeholder="اختر منتج العلف"/></SelectTrigger>
+              <SelectContent>
+                {products.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name} — {p.stage}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div><Label>التاريخ</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+          <div><Label>الكمية المنتجة (كجم)</Label><Input type="number" value={qtyProduced || ""} onChange={(e) => setQtyProduced(Number(e.target.value))} /></div>
+          <div><Label>عدد الشكاير</Label><Input type="number" value={bags || ""} onChange={(e) => setBags(Number(e.target.value))} /></div>
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between"><Label>الخامات المستهلكة</Label><Button size="sm" variant="outline" onClick={() => setLines([...lines, newProdLine()])}><Plus className="h-3 w-3 ml-1" />خامة</Button></div>
+          {lines.map((l) => {
+            const m = rawMaterials.find((r: any) => r.id === l.raw_id);
+            const available = Number(m?.stock || 0);
+            const cost = Number(m?.unit_cost || 0);
+            return (
+              <div key={l.id} className="grid grid-cols-12 gap-2 items-end border-b pb-2">
+                <div className="col-span-6">
+                  <Select value={l.raw_id} onValueChange={(v) => setLines(lines.map((x) => x.id === l.id ? { ...x, raw_id: v } : x))}>
+                    <SelectTrigger><SelectValue placeholder="اختر الخامة"/></SelectTrigger>
+                    <SelectContent>
+                      {rawMaterials.map((r: any) => (
+                        <SelectItem key={r.id} value={r.id}>{r.name} (متاح: {fmt(Number(r.stock))} {r.unit || "كجم"} — {fmt(Number(r.unit_cost))} ج)</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {m && <div className="text-xs text-muted-foreground mt-1">المتاح: {fmt(available)} • تكلفة الكيلو: {fmt(cost)} ج</div>}
+                </div>
+                <div className="col-span-3"><Input type="number" placeholder="الكمية كجم" value={l.qty || ""} onChange={(e) => setLines(lines.map((x) => x.id === l.id ? { ...x, qty: Number(e.target.value) } : x))} /></div>
+                <div className="col-span-2 text-sm font-bold text-left">{fmt(l.qty * cost)} ج</div>
+                <div className="col-span-1"><Button size="icon" variant="ghost" onClick={() => setLines(lines.filter((x) => x.id !== l.id))}><Trash2 className="h-4 w-4"/></Button></div>
+              </div>
+            );
+          })}
+        </div>
+        <div><Label>ملاحظات</Label><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} /></div>
+        <div className="border-t pt-3 flex items-center justify-between flex-wrap gap-3">
+          <div className="text-sm">إجمالي تكلفة الخامات: <b>{fmt(estTotalCost)}</b> ج.م</div>
+          <div className="text-sm">تكلفة الكيلو المنتج: <b className="text-primary">{fmt(estUnitCost)}</b> ج/كجم</div>
+        </div>
+        <DialogFooter><Button onClick={save} disabled={saving}>{saving ? "جاري التصنيع..." : "حفظ فاتورة التصنيع"}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   );

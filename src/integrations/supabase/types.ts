@@ -2202,6 +2202,101 @@ export type Database = {
           },
         ]
       }
+      feed_production_invoice_items: {
+        Row: {
+          id: string
+          invoice_id: string
+          line_cost: number
+          quantity: number
+          raw_material_id: string
+          unit_cost: number
+        }
+        Insert: {
+          id?: string
+          invoice_id: string
+          line_cost?: number
+          quantity: number
+          raw_material_id: string
+          unit_cost?: number
+        }
+        Update: {
+          id?: string
+          invoice_id?: string
+          line_cost?: number
+          quantity?: number
+          raw_material_id?: string
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_production_invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "feed_production_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feed_production_invoice_items_raw_material_id_fkey"
+            columns: ["raw_material_id"]
+            isOneToOne: false
+            referencedRelation: "feed_raw_materials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feed_production_invoices: {
+        Row: {
+          bags: number
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          prod_date: string
+          prod_no: string
+          product_id: string
+          qty_produced: number
+          total_cost: number
+          unit_cost: number
+          updated_at: string
+        }
+        Insert: {
+          bags?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          prod_date?: string
+          prod_no?: string
+          product_id: string
+          qty_produced: number
+          total_cost?: number
+          unit_cost?: number
+          updated_at?: string
+        }
+        Update: {
+          bags?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          prod_date?: string
+          prod_no?: string
+          product_id?: string
+          qty_produced?: number
+          total_cost?: number
+          unit_cost?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_production_invoices_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "feed_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feed_production_orders: {
         Row: {
           approved_by: string | null
@@ -2512,11 +2607,14 @@ export type Database = {
           created_by: string | null
           id: string
           notes: string | null
+          other_expense: number
           purchase_date: string
           purchase_no: string
           supplier: string | null
           supplier_invoice_no: string | null
+          tobacco_cost: number
           total_amount: number
+          transport_cost: number
           updated_at: string
         }
         Insert: {
@@ -2524,11 +2622,14 @@ export type Database = {
           created_by?: string | null
           id?: string
           notes?: string | null
+          other_expense?: number
           purchase_date?: string
           purchase_no?: string
           supplier?: string | null
           supplier_invoice_no?: string | null
+          tobacco_cost?: number
           total_amount?: number
+          transport_cost?: number
           updated_at?: string
         }
         Update: {
@@ -2536,11 +2637,14 @@ export type Database = {
           created_by?: string | null
           id?: string
           notes?: string | null
+          other_expense?: number
           purchase_date?: string
           purchase_no?: string
           supplier?: string | null
           supplier_invoice_no?: string | null
+          tobacco_cost?: number
           total_amount?: number
+          transport_cost?: number
           updated_at?: string
         }
         Relationships: []
@@ -7320,6 +7424,10 @@ export type Database = {
       }
       feed_batch_close: { Args: { p_batch_id: string }; Returns: Json }
       feed_batch_submit_review: { Args: { p_batch_id: string }; Returns: Json }
+      finalize_feed_production: {
+        Args: { _invoice_id: string }
+        Returns: undefined
+      }
       finalize_slaughter_batch: { Args: { p_batch_id: string }; Returns: Json }
       gen_transfer_no: { Args: never; Returns: string }
       generate_order_number: { Args: never; Returns: string }
