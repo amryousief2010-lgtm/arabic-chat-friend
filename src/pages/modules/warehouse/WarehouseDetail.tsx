@@ -1029,7 +1029,8 @@ const WarehouseDetail = () => {
                         <TableHead>المخزن</TableHead>
                         <TableHead>العميل</TableHead><TableHead>المحافظة</TableHead>
                         <TableHead>التنفيذ</TableHead><TableHead>الحالة</TableHead>
-                        <TableHead>الأصناف</TableHead><TableHead>الإجمالى</TableHead>
+                        <TableHead>الإجمالى</TableHead>
+                        <TableHead className="text-center">إجراءات</TableHead>
                       </TableRow></TableHeader>
                       <TableBody>
                         {outletOrders.slice(0, 200).map((o) => (
@@ -1044,8 +1045,18 @@ const WarehouseDetail = () => {
                             <TableCell className="text-xs">{fulfillmentLabel(o.fulfillment_type)}</TableCell>
                             <TableCell><Badge variant="outline">{statusArLabel(o.status)}</Badge></TableCell>
                             <TableCell className="font-semibold">{Number(o.total ?? o.total_amount ?? 0).toLocaleString()}</TableCell>
-
-                            <TableCell className="font-semibold">{Number(o.total_amount || 0).toLocaleString()}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center justify-center gap-1">
+                                <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => printOutletOrder(o)}>
+                                  طباعة
+                                </Button>
+                                {isGeneralManager && (
+                                  <Button size="sm" variant="destructive" className="h-7 px-2" onClick={() => deleteOutletOrder(o)}>
+                                    حذف
+                                  </Button>
+                                )}
+                              </div>
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
