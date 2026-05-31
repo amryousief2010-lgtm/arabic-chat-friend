@@ -1003,7 +1003,10 @@ function TreasuryDialog({ open, onOpenChange, onSaved }: { open: boolean; onOpen
 
   useEffect(() => {
     if (kind === "loan_from_naam" || kind === "loan_to_naam") setParty("شركة نعام العاصمة");
-    else if (kind === "manual_in" || kind === "manual_out" || kind === "opening_balance") setParty("");
+    else if (kind === "custody_shoala") setParty("كاش شعله");
+    else if (kind === "custody_gamal") setParty("كاش أحمد الجمل");
+    else if (kind === "manual_in" || kind === "manual_out" || kind === "opening_balance" ||
+             kind === "general_expense" || kind === "tobacco_expense" || kind === "transport_expense") setParty("");
   }, [kind]);
 
   const direction: "in" | "out" = ["loan_from_naam", "manual_in", "opening_balance"].includes(kind) ? "in" : "out";
