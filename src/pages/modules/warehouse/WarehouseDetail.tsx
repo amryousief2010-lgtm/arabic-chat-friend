@@ -1045,12 +1045,10 @@ const WarehouseDetail = () => {
                 <div>
                   <CardTitle className="text-base flex items-center gap-2">
                     <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
-                    {isAgouza ? "طلبات منفذ العجوزة + المخزن الرئيسي" : `طلبات منفذ ${warehouse.name}`}
+                    {`طلبات منفذ ${warehouse.name}`}
                   </CardTitle>
                   <CardDescription>
-                    {isAgouza
-                      ? `كل الطلبات المسجَّلة على العجوزة والمخزن الرئيسي (عرض فقط) • إجمالى ${outletOrders.length}`
-                      : `الطلبات المسجَّلة على هذا المنفذ • إجمالى ${outletOrders.length}`}
+                    {`طلبات التسليم/التوصيل من هذا المخزن فقط • إجمالى ${outletOrders.length}`}
                   </CardDescription>
                 </div>
                 <Button size="sm" variant="outline" onClick={exportOutletOrdersExcel} disabled={outletOrders.length === 0}>
