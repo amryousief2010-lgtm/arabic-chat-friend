@@ -4,6 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Users, Package, CheckCircle2, XCircle, Truck, RefreshCw } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { findModeratorByName } from '@/constants/moderators';
 
 const GIRLS = ['اية', 'نورا', 'سارة', 'منال'];
 
@@ -49,6 +51,10 @@ interface Props {
 
 const ModeratorOrdersBreakdown = ({ month, year }: Props = {}) => {
   const queryClient = useQueryClient();
+  const { profile, isGeneralManager, isExecutiveManager, isSalesManager } = useAuth();
+  const canSeeAll = isGeneralManager || isExecutiveManager || isSalesManager;
+  const ownMod = !canSeeAll ? findModeratorByName(profile?.full_name) : undefined;
+  const visibleGirls = canSeeAll ? GIRLS : (ownMod ? [ownMod.canonicalModerator] : []);
   const [internalMonth, setInternalMonth] = useState(currentMonth);
   const [internalYear, setInternalYear] = useState(currentYear);
   const isControlled = month !== undefined && year !== undefined;
@@ -156,8 +162,8 @@ const ModeratorOrdersBreakdown = ({ month, year }: Props = {}) => {
         {isLoading ? (
           <p className="text-center text-muted-foreground py-8">جاري التحميل...</p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {(data || []).map(item => (
+          <div className={`grid grid-cols-1 ${visibleGirls.length > 1 ? 'md:grid-cols-2 lg:grid-cols-4' : 'max-w-md mx-auto'} gap-4`}>
+            {(data || []).filter(item => visibleGirls.includes(item.name)).map(item => (
               <Card key={item.name} className="border-2">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg text-center">{item.name}</CardTitle>

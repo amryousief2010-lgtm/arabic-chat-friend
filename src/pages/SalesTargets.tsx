@@ -283,7 +283,7 @@ const SalesTargets = () => {
         <ModeratorQuickAccessCards />
         {!isModerator && <ModeratorsAggregateSummary />}
         {!isModerator && <MonthlyTargetTable />}
-        {!isModerator && <ModeratorOrdersBreakdown month={selectedMonth} year={selectedYear} />}
+        <ModeratorOrdersBreakdown month={selectedMonth} year={selectedYear} />
         {!isModerator && <GirlsSalesQuantityTable month={selectedMonth} year={selectedYear} />}
         {!isModerator && <ModeratorPayrollTable month={selectedMonth} year={selectedYear} />}
 
