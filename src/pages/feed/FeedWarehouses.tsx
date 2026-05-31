@@ -656,8 +656,12 @@ function PurchaseDialog({ open, onOpenChange, materials, onSaved, editPurchase }
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<Line[]>([newLine()]);
+  const [transportCost, setTransportCost] = useState<number>(0);
+  const [tobaccoCost, setTobaccoCost] = useState<number>(0);
+  const [otherExpense, setOtherExpense] = useState<number>(0);
   const [saving, setSaving] = useState(false);
-  const total = lines.reduce((s, l) => s + l.qty * l.price, 0);
+  const itemsTotal = lines.reduce((s, l) => s + l.qty * l.price, 0);
+  const total = itemsTotal + Number(transportCost||0) + Number(tobaccoCost||0) + Number(otherExpense||0);
 
   useEffect(() => {
     if (editPurchase?.id) {
