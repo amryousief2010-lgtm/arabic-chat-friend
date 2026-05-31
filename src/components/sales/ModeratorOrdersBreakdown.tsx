@@ -51,6 +51,10 @@ interface Props {
 
 const ModeratorOrdersBreakdown = ({ month, year }: Props = {}) => {
   const queryClient = useQueryClient();
+  const { profile, isGeneralManager, isExecutiveManager, isSalesManager } = useAuth();
+  const canSeeAll = isGeneralManager || isExecutiveManager || isSalesManager;
+  const ownMod = !canSeeAll ? findModeratorByName(profile?.full_name) : undefined;
+  const visibleGirls = canSeeAll ? GIRLS : (ownMod ? [ownMod.canonicalModerator] : []);
   const [internalMonth, setInternalMonth] = useState(currentMonth);
   const [internalYear, setInternalYear] = useState(currentYear);
   const isControlled = month !== undefined && year !== undefined;
