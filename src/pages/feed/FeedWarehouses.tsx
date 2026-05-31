@@ -179,6 +179,14 @@ export default function FeedWarehouses() {
     toast.success("تم الحذف");
     qc.invalidateQueries({ queryKey: ["feed-stock-counts"] });
   };
+  const delProduction = async (p: any) => {
+    if (!confirmDel(`حذف فاتورة التصنيع ${p.prod_no}؟ سيتم إرجاع الخامات للمخزن. ملاحظة: المنتج النهائي لن يُخصم تلقائياً — راجع رصيد ${p.feed_products?.name || ""} يدوياً.`)) return;
+    const { error } = await (supabase as any).from("feed_production_invoices").delete().eq("id", p.id);
+    if (error) return toast.error(error.message);
+    toast.success("تم حذف فاتورة التصنيع وإرجاع الخامات");
+    qc.invalidateQueries({ queryKey: ["feed-prod-invoices"] });
+    qc.invalidateQueries({ queryKey: ["feed-raw-materials"] });
+  };
 
   const rawQ = useQuery({
     queryKey: ["feed-raw-materials"],
