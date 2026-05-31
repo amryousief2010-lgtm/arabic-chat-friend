@@ -106,7 +106,7 @@ const WarehouseDetail = () => {
     setTransfers(tr.data || []);
     // طلبات المنفذ (مصدرها هذا المخزن) — للعرض والتصدير لاحمد خاطر فى العجوزة وأى مخزن آخر
     // عند العرض من العجوزة نعرض أيضاً الطلبات المسجَّلة على المخزن الرئيسي (عرض فقط + تصدير)
-    const orderSourceIds = currentIsAgouza && mainWh ? [id, mainWh.id] : [id];
+    const orderSourceIds = [id];
     const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
     const { data: ords } = await supabase
       .from("orders")
@@ -115,11 +115,10 @@ const WarehouseDetail = () => {
       .gte("created_at", fiveDaysAgo)
       .order("created_at", { ascending: false })
       .limit(2000);
-    // فلترة المخزن الرئيسي: نعرض فقط طلبات (تسليم/توصيل) المسجَّلة على المخزن الرئيسي
+    // فلترة: نعرض فقط طلبات (تسليم/توصيل) المسجَّلة على هذا المخزن (العجوزة أو الرئيسي)
     const currentIsMain = !!wRes.data && !currentIsAgouza && ((wRes.data.name || "").includes("الرئيسي") || (wRes.data.name || "").includes("المقر") || wRes.data.type === "finished_goods");
     const filteredOrds = (ords || []).filter((o: any) => {
-      if (currentIsAgouza) return true;
-      if (!currentIsMain) return true;
+      if (!currentIsAgouza && !currentIsMain) return true;
       if (o.source_warehouse_id !== id) return false;
       const ft = o.fulfillment_type;
       return ft === "pickup" || ft === "delivery";
