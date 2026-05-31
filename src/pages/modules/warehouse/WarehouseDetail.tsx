@@ -1089,7 +1089,7 @@ const WarehouseDetail = () => {
                                 <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => printOutletOrder(o)}>
                                   طباعة
                                 </Button>
-                                {isGeneralManager && (
+                                {canDeleteOutletOrder && (
                                   <Button size="sm" variant="destructive" className="h-7 px-2" onClick={() => deleteOutletOrder(o)}>
                                     حذف
                                   </Button>
