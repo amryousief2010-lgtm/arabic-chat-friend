@@ -119,6 +119,11 @@ const KIND_LABEL: Record<string,string> = {
   loan_from_naam: "سلفة من شركة نعام", loan_to_naam: "إقراض شركة نعام",
   manual_in: "إيداع يدوي", manual_out: "سحب يدوي",
   opening_balance: "رصيد افتتاحي", other: "أخرى",
+  custody_shoala: "عهدة كاش شعله",
+  custody_gamal: "عهدة كاش أحمد الجمل",
+  general_expense: "مصروفات عامة",
+  tobacco_expense: "مصروف دخان",
+  transport_expense: "مصروف نقل",
 };
 export default function FeedWarehouses() {
   const qc = useQueryClient();
