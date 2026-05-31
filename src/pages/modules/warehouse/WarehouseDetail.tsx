@@ -33,7 +33,8 @@ const isCairoGiza = (g?: string) => !!g && CAIRO_GIZA.some(k => g.includes(k));
 
 const WarehouseDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const { canManageWarehouses, user, isGeneralManager } = useAuth();
+  const { canManageWarehouses, user, isGeneralManager, isExecutiveManager } = useAuth();
+  const canDeleteOutletOrder = isGeneralManager || isExecutiveManager;
   const { toast } = useToast();
   const [warehouse, setWarehouse] = useState<any>(null);
   const [allWarehouses, setAllWarehouses] = useState<any[]>([]);
