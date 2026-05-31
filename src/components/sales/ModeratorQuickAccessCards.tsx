@@ -32,6 +32,7 @@ const classify = (productName: string, category: string | null): Category => {
 };
 
 const emptyW = () => ({ meat: 0, bone: 0, processed: 0 });
+const emptyM = () => ({ meat: 0, bone: 0, processed: 0 });
 
 interface Props {
   /**
