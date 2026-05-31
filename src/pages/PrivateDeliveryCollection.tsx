@@ -85,7 +85,7 @@ const PrivateDeliveryCollection = () => {
     try {
       const { data } = await supabase
         .from("delivery_collection_batches")
-        .select("id, rep_name, expected_total, actual_total, variance_reason, notes, collected_at, collector_id, delivery_collection_batch_orders(order_id, order_total)")
+        .select("id, rep_name, expected_total, actual_total, cash_amount, vodafone_cash_amount, instapay_amount, variance_reason, notes, collected_at, collector_id, delivery_collection_batch_orders(order_id, order_total)")
         .order("collected_at", { ascending: false })
         .limit(200);
       const list = (data || []) as any[];
