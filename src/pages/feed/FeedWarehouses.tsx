@@ -696,12 +696,14 @@ function PurchaseDialog({ open, onOpenChange, materials, onSaved, editPurchase }
         if (eDel) throw eDel;
         const { error: eUpd } = await supabase.from("feed_raw_purchases").update({
           supplier, supplier_invoice_no: invoiceNo, purchase_date: date, notes,
-        }).eq("id", purchaseId);
+          transport_cost: Number(transportCost||0), tobacco_cost: Number(tobaccoCost||0), other_expense: Number(otherExpense||0),
+        } as any).eq("id", purchaseId);
         if (eUpd) throw eUpd;
       } else {
         const { data: head, error: e1 } = await supabase.from("feed_raw_purchases").insert({
           supplier, supplier_invoice_no: invoiceNo, purchase_date: date, notes, created_by: user?.id,
-        }).select("id").single();
+          transport_cost: Number(transportCost||0), tobacco_cost: Number(tobaccoCost||0), other_expense: Number(otherExpense||0),
+        } as any).select("id").single();
         if (e1) throw e1;
         purchaseId = head.id;
       }
