@@ -480,12 +480,15 @@ const printReceipt = (d: ReceiptData) => {
   <div class="totals">
     <div class="row"><span>عدد الأوردرات</span><b>${d.orders.length}</b></div>
     <div class="row"><span>المبلغ المطلوب</span><b>${d.expected.toLocaleString("en-US")} ج</b></div>
-    <div class="row"><span>المبلغ المحصّل</span><b>${d.actual.toLocaleString("en-US")} ج</b></div>
+    <div class="row"><span>نقدي</span><b>${d.cash.toLocaleString("en-US")} ج</b></div>
+    <div class="row"><span>فودافون كاش</span><b>${d.vodafone.toLocaleString("en-US")} ج</b></div>
+    <div class="row"><span>انستا باى</span><b>${d.instapay.toLocaleString("en-US")} ج</b></div>
     ${variantRow}
     <div class="row grand"><span>الإجمالي المحصّل</span><b>${d.actual.toLocaleString("en-US")} ج</b></div>
   </div>
   ${d.notes ? `<div style="margin-top:14px;padding:8px;background:#fff7ed;border-right:3px solid #f97316;font-size:12px;"><b>ملاحظات:</b> ${d.notes}</div>` : ""}
   <div class="sig">
+
     <div>توقيع المندوب</div>
     <div>توقيع المُحصِّل</div>
   </div>
