@@ -669,12 +669,17 @@ function PurchaseDialog({ open, onOpenChange, materials, onSaved, editPurchase }
       setInvoiceNo(editPurchase.supplier_invoice_no || "");
       setDate(editPurchase.purchase_date || new Date().toISOString().slice(0, 10));
       setNotes(editPurchase.notes || "");
+      setTransportCost(Number(editPurchase.transport_cost||0));
+      setTobaccoCost(Number(editPurchase.tobacco_cost||0));
+      setOtherExpense(Number(editPurchase.other_expense||0));
       const items = editPurchase.feed_raw_purchase_items || [];
       setLines(items.length
         ? items.map((it: any) => ({ id: crypto.randomUUID(), ref_id: it.raw_material_id, qty: Number(it.quantity), price: Number(it.unit_price) }))
         : [newLine()]);
     } else if (open) {
-      setSupplier(""); setInvoiceNo(""); setDate(new Date().toISOString().slice(0, 10)); setNotes(""); setLines([newLine()]);
+      setSupplier(""); setInvoiceNo(""); setDate(new Date().toISOString().slice(0, 10)); setNotes("");
+      setTransportCost(0); setTobaccoCost(0); setOtherExpense(0);
+      setLines([newLine()]);
     }
   }, [editPurchase?.id, open]);
 
