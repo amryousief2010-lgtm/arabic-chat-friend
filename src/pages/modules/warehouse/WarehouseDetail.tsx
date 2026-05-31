@@ -33,7 +33,8 @@ const isCairoGiza = (g?: string) => !!g && CAIRO_GIZA.some(k => g.includes(k));
 
 const WarehouseDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const { canManageWarehouses, user, isGeneralManager } = useAuth();
+  const { canManageWarehouses, user, isGeneralManager, isExecutiveManager } = useAuth();
+  const canDeleteOutletOrder = isGeneralManager || isExecutiveManager;
   const { toast } = useToast();
   const [warehouse, setWarehouse] = useState<any>(null);
   const [allWarehouses, setAllWarehouses] = useState<any[]>([]);
@@ -105,7 +106,7 @@ const WarehouseDetail = () => {
     setTransfers(tr.data || []);
     // طلبات المنفذ (مصدرها هذا المخزن) — للعرض والتصدير لاحمد خاطر فى العجوزة وأى مخزن آخر
     // عند العرض من العجوزة نعرض أيضاً الطلبات المسجَّلة على المخزن الرئيسي (عرض فقط + تصدير)
-    const orderSourceIds = currentIsAgouza && mainWh ? [id, mainWh.id] : [id];
+    const orderSourceIds = [id];
     const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
     const { data: ords } = await supabase
       .from("orders")
@@ -114,11 +115,10 @@ const WarehouseDetail = () => {
       .gte("created_at", fiveDaysAgo)
       .order("created_at", { ascending: false })
       .limit(2000);
-    // فلترة المخزن الرئيسي: نعرض فقط طلبات (تسليم/توصيل) المسجَّلة على المخزن الرئيسي
+    // فلترة: نعرض فقط طلبات (تسليم/توصيل) المسجَّلة على هذا المخزن (العجوزة أو الرئيسي)
     const currentIsMain = !!wRes.data && !currentIsAgouza && ((wRes.data.name || "").includes("الرئيسي") || (wRes.data.name || "").includes("المقر") || wRes.data.type === "finished_goods");
     const filteredOrds = (ords || []).filter((o: any) => {
-      if (currentIsAgouza) return true;
-      if (!currentIsMain) return true;
+      if (!currentIsAgouza && !currentIsMain) return true;
       if (o.source_warehouse_id !== id) return false;
       const ft = o.fulfillment_type;
       return ft === "pickup" || ft === "delivery";
@@ -600,8 +600,8 @@ const WarehouseDetail = () => {
   };
 
   const deleteOutletOrder = async (o: any) => {
-    if (!isGeneralManager) {
-      toast({ title: "غير مسموح", description: "حذف الطلبات من صلاحيات المدير العام فقط", variant: "destructive" });
+    if (!canDeleteOutletOrder) {
+      toast({ title: "غير مسموح", description: "حذف الطلبات من صلاحيات المدير العام والتنفيذي فقط", variant: "destructive" });
       return;
     }
     if (!window.confirm(`تأكيد حذف الطلب ${o.order_number}؟ لا يمكن التراجع.`)) return;
@@ -1045,12 +1045,10 @@ const WarehouseDetail = () => {
                 <div>
                   <CardTitle className="text-base flex items-center gap-2">
                     <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
-                    {isAgouza ? "طلبات منفذ العجوزة + المخزن الرئيسي" : `طلبات منفذ ${warehouse.name}`}
+                    {`طلبات منفذ ${warehouse.name}`}
                   </CardTitle>
                   <CardDescription>
-                    {isAgouza
-                      ? `كل الطلبات المسجَّلة على العجوزة والمخزن الرئيسي (عرض فقط) • إجمالى ${outletOrders.length}`
-                      : `الطلبات المسجَّلة على هذا المنفذ • إجمالى ${outletOrders.length}`}
+                    {`طلبات التسليم/التوصيل من هذا المخزن فقط • إجمالى ${outletOrders.length}`}
                   </CardDescription>
                 </div>
                 <Button size="sm" variant="outline" onClick={exportOutletOrdersExcel} disabled={outletOrders.length === 0}>
@@ -1089,7 +1087,7 @@ const WarehouseDetail = () => {
                                 <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => printOutletOrder(o)}>
                                   طباعة
                                 </Button>
-                                {isGeneralManager && (
+                                {canDeleteOutletOrder && (
                                   <Button size="sm" variant="destructive" className="h-7 px-2" onClick={() => deleteOutletOrder(o)}>
                                     حذف
                                   </Button>
