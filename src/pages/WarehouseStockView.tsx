@@ -257,8 +257,7 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
   const filtered = useMemo(() => {
     const q = search.trim();
     const list = q ? products.filter(p => p.name?.includes(q) || p.category?.includes(q)) : products;
-    if (scope === "agouza") return list.filter(p => (displayAgouza[p.id] ?? 0) !== 0 || !q);
-    if (scope === "main") return list.filter(p => (displayMain[p.id] ?? 0) !== 0 || !q);
+    // نعرض كل المنتجات حتى لو رصيدها صفر — عشان يقدر يدخل ويعدّل عليها (دهن، نخاع، ممبار، صندوق، شغت، فرم…)
     return list;
   }, [products, search, scope, displayAgouza, displayMain]);
 
