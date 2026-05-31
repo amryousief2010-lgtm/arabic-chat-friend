@@ -600,8 +600,8 @@ const WarehouseDetail = () => {
   };
 
   const deleteOutletOrder = async (o: any) => {
-    if (!isGeneralManager) {
-      toast({ title: "غير مسموح", description: "حذف الطلبات من صلاحيات المدير العام فقط", variant: "destructive" });
+    if (!canDeleteOutletOrder) {
+      toast({ title: "غير مسموح", description: "حذف الطلبات من صلاحيات المدير العام والتنفيذي فقط", variant: "destructive" });
       return;
     }
     if (!window.confirm(`تأكيد حذف الطلب ${o.order_number}؟ لا يمكن التراجع.`)) return;
