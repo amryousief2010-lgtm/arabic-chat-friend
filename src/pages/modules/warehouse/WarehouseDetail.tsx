@@ -61,6 +61,8 @@ const WarehouseDetail = () => {
   const isAgouza = useMemo(() => !!warehouse && (warehouse.name?.includes("العجوزة") || warehouse.location?.includes("العجوزة")), [warehouse]);
   const isMain = useMemo(() => !!warehouse && !isAgouza && (warehouse.name?.includes("الرئيسي") || warehouse.name?.includes("المقر") || warehouse.type === "finished_goods"), [warehouse, isAgouza]);
   const mainWarehouse = useMemo(() => allWarehouses.find(w => w.id !== id && (w.name?.includes("الرئيسي") || w.name?.includes("المقر"))) || allWarehouses.find(w => w.id !== id && w.type === "finished_goods"), [allWarehouses, id]);
+  const canCancelTransferRequest = (transfer: any) =>
+    isGeneralManager || isExecutiveManager || transfer?.created_by === user?.id;
 
 
   const fetchAll = async () => {
@@ -420,6 +422,10 @@ const WarehouseDetail = () => {
   };
 
   const cancelTransferRequest = async (t: any) => {
+    if (!canCancelTransferRequest(t)) {
+      toast({ title: "غير مسموح", description: "إلغاء طلب التحويل متاح لصاحب الطلب أو المدير العام أو المدير التنفيذي فقط", variant: "destructive" });
+      return;
+    }
     if (!window.confirm(`هل تريد إلغاء طلب التحويل ${t.transfer_no} بالكامل؟`)) return;
     setSubmitting(true);
     const { data, error } = await supabase.rpc("cancel_transfer_request", { p_transfer_id: t.id });
@@ -731,15 +737,17 @@ const WarehouseDetail = () => {
                       <Button size="sm" variant="outline" className="text-destructive border-destructive/40 hover:bg-destructive/10" onClick={() => rejectTransfer(t)}>
                         <ThumbsDown className="w-4 h-4 ml-1" />رفض
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-destructive hover:bg-destructive/10"
-                        title="حذف الطلب نهائياً"
-                        onClick={() => cancelTransferRequest(t)}
-                      >
-                        <XCircle className="w-4 h-4 ml-1" />حذف
-                      </Button>
+                      {canCancelTransferRequest(t) && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-destructive hover:bg-destructive/10"
+                          title="حذف الطلب نهائياً"
+                          onClick={() => cancelTransferRequest(t)}
+                        >
+                          <XCircle className="w-4 h-4 ml-1" />حذف
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardHeader>
@@ -806,7 +814,7 @@ const WarehouseDetail = () => {
                         تعديل الكميات
                       </Button>
                     )}
-                    {t.status === "pending_approval" && (
+                    {t.status === "pending_approval" && canCancelTransferRequest(t) && (
                       <Button size="sm" variant="outline" className="text-destructive border-destructive/40 hover:bg-destructive/10" onClick={() => cancelTransferRequest(t)}>
                         <XCircle className="w-4 h-4 ml-1" />إلغاء الطلب
                       </Button>
