@@ -32,6 +32,7 @@ const classify = (productName: string, category: string | null): Category => {
 };
 
 const emptyW = () => ({ meat: 0, bone: 0, processed: 0 });
+const emptyM = () => ({ meat: 0, bone: 0, processed: 0 });
 
 interface Props {
   /**
@@ -102,7 +103,7 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false }: Props) => {
         while (true) {
           const { data: chunk } = await supabase
             .from("order_items")
-            .select("order_id, product_id, product_name, quantity")
+            .select("order_id, product_id, product_name, quantity, unit_price, total_price")
             .in("order_id", slice)
             .range(from, from + PAGE - 1);
           if (!chunk || chunk.length === 0) break;
@@ -136,7 +137,8 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false }: Props) => {
 
         const monthW = emptyW();
         const todayW = emptyW();
-        // Month weights count ONLY delivered orders; today weights remain all-statuses for the day
+        const monthMoney = emptyM();
+        // Month weights/money count ONLY delivered orders; today weights remain all-statuses for the day
         const deliveredMonthIds = new Set(filtered.filter((o) => o.status === "delivered").map((o) => o.id));
         const orderIdSet = new Set(filtered.map((o) => o.id));
         for (const it of items) {
@@ -144,7 +146,11 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false }: Props) => {
           const cat = classify(it.product_name, it.product_id ? productCat.get(it.product_id) ?? null : null);
           if (cat === "other") continue;
           const qty = Number(it.quantity || 0);
-          if (deliveredMonthIds.has(it.order_id)) monthW[cat] += qty;
+          const money = Number(it.total_price ?? (Number(it.unit_price || 0) * qty)) || 0;
+          if (deliveredMonthIds.has(it.order_id)) {
+            monthW[cat] += qty;
+            monthMoney[cat] += money;
+          }
           const o = orderById.get(it.order_id);
           if (o && o.created_at.slice(0, 10) === todayStr) todayW[cat] += qty;
         }
@@ -160,6 +166,7 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false }: Props) => {
           todayTotal,
           monthW,
           todayW,
+          monthMoney,
         };
       });
     },
@@ -207,7 +214,7 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false }: Props) => {
           {(data || visibleModerators.map((m) => ({
             slug: m.slug, displayName: m.displayName, gradient: m.gradient, iconBg: m.iconBg,
             monthOrders: 0, monthTotal: 0, todayOrders: 0, todayTotal: 0,
-            monthW: emptyW(), todayW: emptyW(),
+            monthW: emptyW(), todayW: emptyW(), monthMoney: emptyM(),
           }))).filter((row) => visibleSlugs.has(row.slug)).map((row) => (
             <div
               key={row.slug}
@@ -240,55 +247,85 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false }: Props) => {
                 </div>
               </div>
 
-              {/* Weights breakdown — Today */}
+              {/* Monthly sales (EGP) by category — visible to everyone */}
               <div className="bg-white/10 rounded-lg p-2 mb-2">
-                <p className="text-[10px] opacity-80 mb-1.5 font-medium">كميات اليوم (كجم)</p>
+                <p className="text-[10px] opacity-80 mb-1.5 font-medium">مبيعات الشهر بالجنيه</p>
                 <div className="grid grid-cols-3 gap-1.5 text-[11px]">
                   <div className="bg-white/15 rounded p-1.5 text-center">
                     <div className="flex items-center justify-center gap-1 opacity-80">
                       <Beef className="w-3 h-3" /> لحوم
                     </div>
-                    <p className="font-bold mt-0.5">{isLoading ? "…" : fmt(row.todayW.meat)}</p>
+                    <p className="font-bold mt-0.5">{isLoading ? "…" : Number(row.monthMoney?.meat || 0).toLocaleString()}</p>
                   </div>
                   <div className="bg-white/15 rounded p-1.5 text-center">
                     <div className="flex items-center justify-center gap-1 opacity-80">
                       <Drumstick className="w-3 h-3" /> بالعظم
                     </div>
-                    <p className="font-bold mt-0.5">{isLoading ? "…" : fmt(row.todayW.bone)}</p>
+                    <p className="font-bold mt-0.5">{isLoading ? "…" : Number(row.monthMoney?.bone || 0).toLocaleString()}</p>
                   </div>
                   <div className="bg-white/15 rounded p-1.5 text-center">
                     <div className="flex items-center justify-center gap-1 opacity-80">
                       <Flame className="w-3 h-3" /> مصنعات
                     </div>
-                    <p className="font-bold mt-0.5">{isLoading ? "…" : fmt(row.todayW.processed)}</p>
+                    <p className="font-bold mt-0.5">{isLoading ? "…" : Number(row.monthMoney?.processed || 0).toLocaleString()}</p>
                   </div>
                 </div>
               </div>
 
-              {/* Weights breakdown — Month */}
-              <div className="bg-white/10 rounded-lg p-2 mb-3">
-                <p className="text-[10px] opacity-80 mb-1.5 font-medium">كميات الشهر (كجم)</p>
-                <div className="grid grid-cols-3 gap-1.5 text-[11px]">
-                  <div className="bg-white/15 rounded p-1.5 text-center">
-                    <div className="flex items-center justify-center gap-1 opacity-80">
-                      <Beef className="w-3 h-3" /> لحوم
+              {canSeeAll && (
+                <>
+                  {/* Weights breakdown — Today */}
+                  <div className="bg-white/10 rounded-lg p-2 mb-2">
+                    <p className="text-[10px] opacity-80 mb-1.5 font-medium">كميات اليوم (كجم)</p>
+                    <div className="grid grid-cols-3 gap-1.5 text-[11px]">
+                      <div className="bg-white/15 rounded p-1.5 text-center">
+                        <div className="flex items-center justify-center gap-1 opacity-80">
+                          <Beef className="w-3 h-3" /> لحوم
+                        </div>
+                        <p className="font-bold mt-0.5">{isLoading ? "…" : fmt(row.todayW.meat)}</p>
+                      </div>
+                      <div className="bg-white/15 rounded p-1.5 text-center">
+                        <div className="flex items-center justify-center gap-1 opacity-80">
+                          <Drumstick className="w-3 h-3" /> بالعظم
+                        </div>
+                        <p className="font-bold mt-0.5">{isLoading ? "…" : fmt(row.todayW.bone)}</p>
+                      </div>
+                      <div className="bg-white/15 rounded p-1.5 text-center">
+                        <div className="flex items-center justify-center gap-1 opacity-80">
+                          <Flame className="w-3 h-3" /> مصنعات
+                        </div>
+                        <p className="font-bold mt-0.5">{isLoading ? "…" : fmt(row.todayW.processed)}</p>
+                      </div>
                     </div>
-                    <p className="font-bold mt-0.5">{isLoading ? "…" : fmt(row.monthW.meat)}</p>
                   </div>
-                  <div className="bg-white/15 rounded p-1.5 text-center">
-                    <div className="flex items-center justify-center gap-1 opacity-80">
-                      <Drumstick className="w-3 h-3" /> بالعظم
+
+                  {/* Weights breakdown — Month */}
+                  <div className="bg-white/10 rounded-lg p-2 mb-3">
+                    <p className="text-[10px] opacity-80 mb-1.5 font-medium">كميات الشهر (كجم)</p>
+                    <div className="grid grid-cols-3 gap-1.5 text-[11px]">
+                      <div className="bg-white/15 rounded p-1.5 text-center">
+                        <div className="flex items-center justify-center gap-1 opacity-80">
+                          <Beef className="w-3 h-3" /> لحوم
+                        </div>
+                        <p className="font-bold mt-0.5">{isLoading ? "…" : fmt(row.monthW.meat)}</p>
+                      </div>
+                      <div className="bg-white/15 rounded p-1.5 text-center">
+                        <div className="flex items-center justify-center gap-1 opacity-80">
+                          <Drumstick className="w-3 h-3" /> بالعظم
+                        </div>
+                        <p className="font-bold mt-0.5">{isLoading ? "…" : fmt(row.monthW.bone)}</p>
+                      </div>
+                      <div className="bg-white/15 rounded p-1.5 text-center">
+                        <div className="flex items-center justify-center gap-1 opacity-80">
+                          <Flame className="w-3 h-3" /> مصنعات
+                        </div>
+                        <p className="font-bold mt-0.5">{isLoading ? "…" : fmt(row.monthW.processed)}</p>
+                      </div>
                     </div>
-                    <p className="font-bold mt-0.5">{isLoading ? "…" : fmt(row.monthW.bone)}</p>
                   </div>
-                  <div className="bg-white/15 rounded p-1.5 text-center">
-                    <div className="flex items-center justify-center gap-1 opacity-80">
-                      <Flame className="w-3 h-3" /> مصنعات
-                    </div>
-                    <p className="font-bold mt-0.5">{isLoading ? "…" : fmt(row.monthW.processed)}</p>
-                  </div>
-                </div>
-              </div>
+                </>
+              )}
+
 
 
               <div className="flex gap-2">
