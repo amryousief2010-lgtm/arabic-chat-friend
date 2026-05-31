@@ -140,7 +140,9 @@ export default function FeedWarehouses() {
   const [editRaw, setEditRaw] = useState<any | null>(null);
   const [editProd, setEditProd] = useState<any | null>(null);
   const [treasuryOpen, setTreasuryOpen] = useState(false);
+  const [productionOpen, setProductionOpen] = useState(false);
   const canTreasury = roles.some((r) => ["general_manager","executive_manager","feed_factory_manager","warehouse_supervisor"].includes(r));
+  const canProduce = roles.some((r) => ["general_manager","executive_manager","feed_factory_manager","warehouse_supervisor","production_manager"].includes(r));
 
   // ---- delete helpers (top managers only) ----
   const confirmDel = (msg: string) => window.confirm(msg);
