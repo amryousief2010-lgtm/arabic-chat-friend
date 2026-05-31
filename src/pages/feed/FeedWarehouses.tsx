@@ -738,8 +738,14 @@ function PurchaseDialog({ open, onOpenChange, materials, onSaved, editPurchase }
             </div>
           ))}
         </div>
+        <div className="grid grid-cols-3 gap-3 border-t pt-3">
+          <div><Label>مصروف نقل (ج.م)</Label><Input type="number" value={transportCost || ""} onChange={(e)=>setTransportCost(Number(e.target.value))} /></div>
+          <div><Label>مصروف دخان (ج.م)</Label><Input type="number" value={tobaccoCost || ""} onChange={(e)=>setTobaccoCost(Number(e.target.value))} /></div>
+          <div><Label>مصاريف أخرى (ج.م)</Label><Input type="number" value={otherExpense || ""} onChange={(e)=>setOtherExpense(Number(e.target.value))} /></div>
+        </div>
         <div><Label>ملاحظات</Label><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} /></div>
-        <div className="text-left text-xl font-bold">الإجمالي: {fmt(total)} ج.م</div>
+        <div className="text-left text-sm text-muted-foreground">إجمالي بنود الخامات: {fmt(itemsTotal)} ج.م + مصروفات: {fmt(Number(transportCost||0)+Number(tobaccoCost||0)+Number(otherExpense||0))} ج.م</div>
+        <div className="text-left text-xl font-bold">الإجمالي الكلي: {fmt(total)} ج.م</div>
         <DialogFooter><Button onClick={save} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ الفاتورة"}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
