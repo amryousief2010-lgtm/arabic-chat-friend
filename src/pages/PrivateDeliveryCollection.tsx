@@ -432,6 +432,9 @@ interface ReceiptData {
   orders: OrderRow[];
   expected: number;
   actual: number;
+  cash: number;
+  vodafone: number;
+  instapay: number;
   variance: number;
   reason: string;
   notes: string;
