@@ -119,13 +119,19 @@ const PrivateDeliveryCollection = () => {
 
   const openCollect = () => {
     if (selectedOrders.length === 0) { toast.error("اختر طلبات أولاً"); return; }
-    setActualAmount(String(expectedTotal));
+    setCashAmount(String(expectedTotal));
+    setVodafoneAmount("");
+    setInstapayAmount("");
     setReason("");
     setNotes("");
     setDialogOpen(true);
   };
 
-  const variance = (Number(actualAmount) || 0) - expectedTotal;
+  const cashNum = Number(cashAmount) || 0;
+  const vodafoneNum = Number(vodafoneAmount) || 0;
+  const instapayNum = Number(instapayAmount) || 0;
+  const actualTotal = cashNum + vodafoneNum + instapayNum;
+  const variance = actualTotal - expectedTotal;
   const needsReason = Math.abs(variance) > 0.001;
 
   const submit = async (doPrint: boolean) => {
@@ -140,10 +146,13 @@ const PrivateDeliveryCollection = () => {
           rep_name: repName,
           collector_id: user.id,
           expected_total: expectedTotal,
-          actual_total: Number(actualAmount) || 0,
+          actual_total: actualTotal,
+          cash_amount: cashNum,
+          vodafone_cash_amount: vodafoneNum,
+          instapay_amount: instapayNum,
           variance_reason: needsReason ? reason.trim() : null,
           notes: notes.trim() || null,
-        })
+        } as any)
         .select("id, collected_at")
         .single();
       if (bErr || !batch) throw bErr || new Error("failed");
@@ -175,7 +184,10 @@ const PrivateDeliveryCollection = () => {
         rep: repName,
         orders: selectedOrders,
         expected: expectedTotal,
-        actual: Number(actualAmount) || 0,
+        actual: actualTotal,
+        cash: cashNum,
+        vodafone: vodafoneNum,
+        instapay: instapayNum,
         variance,
         reason: needsReason ? reason.trim() : "",
         notes: notes.trim(),
