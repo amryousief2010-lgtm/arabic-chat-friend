@@ -172,17 +172,39 @@ const WarehouseDetail = () => {
   const supplyNeeds = useMemo(() => {
     if (!isAgouza) return [];
     const needs: Array<{ name: string; demandHalf: number; stockHalf: number; mainStockHalf: number; suggestedHalf: number; unit: string; item?: any }> = [];
-    demandByProduct.forEach((demandKg, name) => {
-      const item = items.find(i => i.name?.trim() === name);
-      const stockKg = item ? Number(item.stock) : 0;
-      const demandHalf = Math.ceil(demandKg * 2); // أقرب نص كيلو لأعلى
+    const seen = new Set<string>();
+
+    // 1) كل المنتجات الموجودة فى مخزن العجوزة (حتى لو الرصيد صفر أو مفيش طلبات عليها)
+    items.forEach((item: any) => {
+      const name = (item.name || "").trim();
+      if (!name || seen.has(name)) return;
+      seen.add(name);
+      const stockKg = Number(item.stock || 0);
+      const demandKg = demandByProduct.get(name) || 0;
+      const demandHalf = Math.ceil(demandKg * 2);
       const stockHalf = Math.floor(stockKg * 2);
       const mainStockHalf = Math.floor((mainStockByName[name] ?? 0) * 2);
       const rawSuggested = Math.max(0, demandHalf - stockHalf);
       const suggestedHalf = Math.min(MAX_HALF_KG, rawSuggested);
-      if (suggestedHalf > 0) needs.push({ name, demandHalf, stockHalf, mainStockHalf, suggestedHalf, unit: item?.unit || "كجم", item });
+      needs.push({ name, demandHalf, stockHalf, mainStockHalf, suggestedHalf, unit: item?.unit || "كجم", item });
     });
-    return needs.sort((a, b) => b.suggestedHalf - a.suggestedHalf);
+
+    // 2) كمان أى منتج عليه طلب لكنه مش موجود كصنف فى العجوزة لسه
+    demandByProduct.forEach((demandKg, name) => {
+      if (seen.has(name)) return;
+      seen.add(name);
+      const item = items.find((i: any) => i.name?.trim() === name);
+      const stockKg = item ? Number(item.stock) : 0;
+      const demandHalf = Math.ceil(demandKg * 2);
+      const stockHalf = Math.floor(stockKg * 2);
+      const mainStockHalf = Math.floor((mainStockByName[name] ?? 0) * 2);
+      const rawSuggested = Math.max(0, demandHalf - stockHalf);
+      const suggestedHalf = Math.min(MAX_HALF_KG, rawSuggested);
+      needs.push({ name, demandHalf, stockHalf, mainStockHalf, suggestedHalf, unit: item?.unit || "كجم", item });
+    });
+
+    // 3) ترتيب: المقترح أكتر الأول، بعدين الأكثر متاح بالرئيسي
+    return needs.sort((a, b) => (b.suggestedHalf - a.suggestedHalf) || (b.mainStockHalf - a.mainStockHalf) || a.name.localeCompare(b.name, "ar"));
   }, [demandByProduct, items, isAgouza, mainStockByName]);
 
   // طلبات الاستلام من المخزن الرئيسي — لمسؤول المخزن (هادى) ولأحمد خاطر فى العجوزة (عرض)
@@ -659,6 +681,15 @@ const WarehouseDetail = () => {
                       </Button>
                       <Button size="sm" variant="outline" className="text-destructive border-destructive/40 hover:bg-destructive/10" onClick={() => rejectTransfer(t)}>
                         <ThumbsDown className="w-4 h-4 ml-1" />رفض
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-destructive hover:bg-destructive/10"
+                        title="حذف الطلب نهائياً"
+                        onClick={() => cancelTransferRequest(t)}
+                      >
+                        <XCircle className="w-4 h-4 ml-1" />حذف
                       </Button>
                     </div>
                   </div>
