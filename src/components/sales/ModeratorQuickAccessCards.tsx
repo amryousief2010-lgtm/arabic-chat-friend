@@ -247,55 +247,85 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false }: Props) => {
                 </div>
               </div>
 
-              {/* Weights breakdown — Today */}
+              {/* Monthly sales (EGP) by category — visible to everyone */}
               <div className="bg-white/10 rounded-lg p-2 mb-2">
-                <p className="text-[10px] opacity-80 mb-1.5 font-medium">كميات اليوم (كجم)</p>
+                <p className="text-[10px] opacity-80 mb-1.5 font-medium">مبيعات الشهر بالجنيه</p>
                 <div className="grid grid-cols-3 gap-1.5 text-[11px]">
                   <div className="bg-white/15 rounded p-1.5 text-center">
                     <div className="flex items-center justify-center gap-1 opacity-80">
                       <Beef className="w-3 h-3" /> لحوم
                     </div>
-                    <p className="font-bold mt-0.5">{isLoading ? "…" : fmt(row.todayW.meat)}</p>
+                    <p className="font-bold mt-0.5">{isLoading ? "…" : Number(row.monthMoney?.meat || 0).toLocaleString()}</p>
                   </div>
                   <div className="bg-white/15 rounded p-1.5 text-center">
                     <div className="flex items-center justify-center gap-1 opacity-80">
                       <Drumstick className="w-3 h-3" /> بالعظم
                     </div>
-                    <p className="font-bold mt-0.5">{isLoading ? "…" : fmt(row.todayW.bone)}</p>
+                    <p className="font-bold mt-0.5">{isLoading ? "…" : Number(row.monthMoney?.bone || 0).toLocaleString()}</p>
                   </div>
                   <div className="bg-white/15 rounded p-1.5 text-center">
                     <div className="flex items-center justify-center gap-1 opacity-80">
                       <Flame className="w-3 h-3" /> مصنعات
                     </div>
-                    <p className="font-bold mt-0.5">{isLoading ? "…" : fmt(row.todayW.processed)}</p>
+                    <p className="font-bold mt-0.5">{isLoading ? "…" : Number(row.monthMoney?.processed || 0).toLocaleString()}</p>
                   </div>
                 </div>
               </div>
 
-              {/* Weights breakdown — Month */}
-              <div className="bg-white/10 rounded-lg p-2 mb-3">
-                <p className="text-[10px] opacity-80 mb-1.5 font-medium">كميات الشهر (كجم)</p>
-                <div className="grid grid-cols-3 gap-1.5 text-[11px]">
-                  <div className="bg-white/15 rounded p-1.5 text-center">
-                    <div className="flex items-center justify-center gap-1 opacity-80">
-                      <Beef className="w-3 h-3" /> لحوم
+              {canSeeAll && (
+                <>
+                  {/* Weights breakdown — Today */}
+                  <div className="bg-white/10 rounded-lg p-2 mb-2">
+                    <p className="text-[10px] opacity-80 mb-1.5 font-medium">كميات اليوم (كجم)</p>
+                    <div className="grid grid-cols-3 gap-1.5 text-[11px]">
+                      <div className="bg-white/15 rounded p-1.5 text-center">
+                        <div className="flex items-center justify-center gap-1 opacity-80">
+                          <Beef className="w-3 h-3" /> لحوم
+                        </div>
+                        <p className="font-bold mt-0.5">{isLoading ? "…" : fmt(row.todayW.meat)}</p>
+                      </div>
+                      <div className="bg-white/15 rounded p-1.5 text-center">
+                        <div className="flex items-center justify-center gap-1 opacity-80">
+                          <Drumstick className="w-3 h-3" /> بالعظم
+                        </div>
+                        <p className="font-bold mt-0.5">{isLoading ? "…" : fmt(row.todayW.bone)}</p>
+                      </div>
+                      <div className="bg-white/15 rounded p-1.5 text-center">
+                        <div className="flex items-center justify-center gap-1 opacity-80">
+                          <Flame className="w-3 h-3" /> مصنعات
+                        </div>
+                        <p className="font-bold mt-0.5">{isLoading ? "…" : fmt(row.todayW.processed)}</p>
+                      </div>
                     </div>
-                    <p className="font-bold mt-0.5">{isLoading ? "…" : fmt(row.monthW.meat)}</p>
                   </div>
-                  <div className="bg-white/15 rounded p-1.5 text-center">
-                    <div className="flex items-center justify-center gap-1 opacity-80">
-                      <Drumstick className="w-3 h-3" /> بالعظم
+
+                  {/* Weights breakdown — Month */}
+                  <div className="bg-white/10 rounded-lg p-2 mb-3">
+                    <p className="text-[10px] opacity-80 mb-1.5 font-medium">كميات الشهر (كجم)</p>
+                    <div className="grid grid-cols-3 gap-1.5 text-[11px]">
+                      <div className="bg-white/15 rounded p-1.5 text-center">
+                        <div className="flex items-center justify-center gap-1 opacity-80">
+                          <Beef className="w-3 h-3" /> لحوم
+                        </div>
+                        <p className="font-bold mt-0.5">{isLoading ? "…" : fmt(row.monthW.meat)}</p>
+                      </div>
+                      <div className="bg-white/15 rounded p-1.5 text-center">
+                        <div className="flex items-center justify-center gap-1 opacity-80">
+                          <Drumstick className="w-3 h-3" /> بالعظم
+                        </div>
+                        <p className="font-bold mt-0.5">{isLoading ? "…" : fmt(row.monthW.bone)}</p>
+                      </div>
+                      <div className="bg-white/15 rounded p-1.5 text-center">
+                        <div className="flex items-center justify-center gap-1 opacity-80">
+                          <Flame className="w-3 h-3" /> مصنعات
+                        </div>
+                        <p className="font-bold mt-0.5">{isLoading ? "…" : fmt(row.monthW.processed)}</p>
+                      </div>
                     </div>
-                    <p className="font-bold mt-0.5">{isLoading ? "…" : fmt(row.monthW.bone)}</p>
                   </div>
-                  <div className="bg-white/15 rounded p-1.5 text-center">
-                    <div className="flex items-center justify-center gap-1 opacity-80">
-                      <Flame className="w-3 h-3" /> مصنعات
-                    </div>
-                    <p className="font-bold mt-0.5">{isLoading ? "…" : fmt(row.monthW.processed)}</p>
-                  </div>
-                </div>
-              </div>
+                </>
+              )}
+
 
 
               <div className="flex gap-2">
