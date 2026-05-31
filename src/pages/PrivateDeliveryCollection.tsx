@@ -373,14 +373,23 @@ const PrivateDeliveryCollection = () => {
               <span>المبلغ المطلوب</span>
               <span className="font-bold">{fmt(expectedTotal)} ج</span>
             </div>
-            <div>
-              <label className="text-xs font-medium">المبلغ الفعلي المحصّل</label>
-              <Input
-                type="number"
-                value={actualAmount}
-                onChange={(e) => setActualAmount(e.target.value)}
-                className="mt-1"
-              />
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <label className="text-xs font-medium">نقدي</label>
+                <Input type="number" value={cashAmount} onChange={(e) => setCashAmount(e.target.value)} className="mt-1" />
+              </div>
+              <div>
+                <label className="text-xs font-medium">فودافون كاش</label>
+                <Input type="number" value={vodafoneAmount} onChange={(e) => setVodafoneAmount(e.target.value)} className="mt-1" />
+              </div>
+              <div>
+                <label className="text-xs font-medium">انستا باى</label>
+                <Input type="number" value={instapayAmount} onChange={(e) => setInstapayAmount(e.target.value)} className="mt-1" />
+              </div>
+            </div>
+            <div className="flex justify-between p-3 rounded bg-primary/10">
+              <span className="font-semibold">إجمالي المحصّل</span>
+              <span className="font-bold">{fmt(actualTotal)} ج</span>
             </div>
             {needsReason && (
               <div className={`p-2 rounded ${variance > 0 ? "bg-orange-50 border border-orange-200" : "bg-green-50 border border-green-200"}`}>
