@@ -214,7 +214,7 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false }: Props) => {
           {(data || visibleModerators.map((m) => ({
             slug: m.slug, displayName: m.displayName, gradient: m.gradient, iconBg: m.iconBg,
             monthOrders: 0, monthTotal: 0, todayOrders: 0, todayTotal: 0,
-            monthW: emptyW(), todayW: emptyW(),
+            monthW: emptyW(), todayW: emptyW(), monthMoney: emptyM(),
           }))).filter((row) => visibleSlugs.has(row.slug)).map((row) => (
             <div
               key={row.slug}
