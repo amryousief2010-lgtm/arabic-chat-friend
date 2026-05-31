@@ -36,7 +36,9 @@ const PrivateDeliveryCollection = () => {
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [activeRep, setActiveRep] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [actualAmount, setActualAmount] = useState("");
+  const [cashAmount, setCashAmount] = useState("");
+  const [vodafoneAmount, setVodafoneAmount] = useState("");
+  const [instapayAmount, setInstapayAmount] = useState("");
   const [reason, setReason] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
