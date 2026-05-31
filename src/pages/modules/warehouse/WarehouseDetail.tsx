@@ -574,6 +574,45 @@ const WarehouseDetail = () => {
     XLSX.writeFile(wb, `طلبات-${warehouse?.name || "المنفذ"}-${new Date().toISOString().slice(0,10)}.xlsx`);
   };
 
+  const printOutletOrder = (o: any) => {
+    printOrderInvoice({
+      order_number: o.order_number,
+      created_at: o.created_at,
+      customer_name: o.customer?.name || "-",
+      customer_phone: o.customer?.phone || "",
+      delivery_address: o.delivery_address || null,
+      payment_method: o.payment_method || "",
+      payment_status: o.payment_status || "",
+      source_warehouse_name: o.source?.name || warehouse?.name || null,
+      notes: o.notes || null,
+      items: (o.order_items || []).map((li: any) => ({
+        product_name: li.product_name,
+        quantity: Number(li.quantity || 0),
+        unit_price: Number(li.unit_price || 0),
+        total_price: Number(li.total_price || 0),
+        offer_name: li.offer_name || null,
+      })),
+      subtotal: Number(o.subtotal || 0),
+      discount: Number(o.discount || 0),
+      delivery_fee: Number(o.delivery_fee || 0),
+      total: Number(o.total ?? 0),
+    });
+  };
+
+  const deleteOutletOrder = async (o: any) => {
+    if (!isGeneralManager) {
+      toast({ title: "غير مسموح", description: "حذف الطلبات من صلاحيات المدير العام فقط", variant: "destructive" });
+      return;
+    }
+    if (!window.confirm(`تأكيد حذف الطلب ${o.order_number}؟ لا يمكن التراجع.`)) return;
+    const { error: e1 } = await supabase.from("order_items").delete().eq("order_id", o.id);
+    if (e1) { toast({ title: "خطأ", description: e1.message, variant: "destructive" }); return; }
+    const { error: e2 } = await supabase.from("orders").delete().eq("id", o.id);
+    if (e2) { toast({ title: "خطأ", description: e2.message, variant: "destructive" }); return; }
+    toast({ title: "تم الحذف", description: `الطلب ${o.order_number} تم حذفه` });
+    setOutletOrders((prev) => prev.filter((x) => x.id !== o.id));
+  };
+
   if (loading && !warehouse) {
     return <DashboardLayout><div className="text-center py-12 text-muted-foreground">جارٍ التحميل...</div></DashboardLayout>;
   }
