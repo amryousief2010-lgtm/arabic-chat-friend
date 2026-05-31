@@ -318,6 +318,9 @@ const PrivateDeliveryCollection = () => {
                       <th className="p-2">المُحصِّل</th>
                       <th className="p-2">عدد الأوردرات</th>
                       <th className="p-2">المطلوب</th>
+                      <th className="p-2">نقدي</th>
+                      <th className="p-2">فودافون</th>
+                      <th className="p-2">انستا باى</th>
                       <th className="p-2">المحصّل</th>
                       <th className="p-2">الفرق / السبب</th>
                       <th className="p-2">ملاحظات</th>
@@ -333,6 +336,9 @@ const PrivateDeliveryCollection = () => {
                           <td className="p-2 text-xs">{b.collector_name}</td>
                           <td className="p-2">{b.delivery_collection_batch_orders?.length || 0}</td>
                           <td className="p-2">{fmt(b.expected_total)} ج</td>
+                          <td className="p-2 text-xs">{fmt(b.cash_amount || 0)}</td>
+                          <td className="p-2 text-xs">{fmt(b.vodafone_cash_amount || 0)}</td>
+                          <td className="p-2 text-xs">{fmt(b.instapay_amount || 0)}</td>
                           <td className="p-2 font-semibold">{fmt(b.actual_total)} ج</td>
                           <td className="p-2 text-xs">
                             {Math.abs(v) > 0.001 ? (
@@ -346,7 +352,7 @@ const PrivateDeliveryCollection = () => {
                       );
                     })}
                     {history.length === 0 && (
-                      <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">
+                      <tr><td colSpan={11} className="p-8 text-center text-muted-foreground">
                         {historyLoading ? "جارٍ التحميل..." : "لا توجد دفعات سابقة"}
                       </td></tr>
                     )}
