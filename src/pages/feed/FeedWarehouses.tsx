@@ -1043,6 +1043,11 @@ function TreasuryDialog({ open, onOpenChange, onSaved }: { open: boolean; onOpen
                 <SelectItem value="manual_in">إيداع يدوي</SelectItem>
                 <SelectItem value="manual_out">سحب يدوي / مصروف</SelectItem>
                 <SelectItem value="opening_balance">رصيد افتتاحي</SelectItem>
+                <SelectItem value="custody_shoala">عهدة على كاش شعله (سحب)</SelectItem>
+                <SelectItem value="custody_gamal">عهدة على كاش أحمد الجمل (سحب)</SelectItem>
+                <SelectItem value="general_expense">مصروفات عامة</SelectItem>
+                <SelectItem value="tobacco_expense">مصروف دخان</SelectItem>
+                <SelectItem value="transport_expense">مصروف نقل</SelectItem>
                 <SelectItem value="other">أخرى</SelectItem>
               </SelectContent>
             </Select>
