@@ -103,7 +103,7 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false }: Props) => {
         while (true) {
           const { data: chunk } = await supabase
             .from("order_items")
-            .select("order_id, product_id, product_name, quantity")
+            .select("order_id, product_id, product_name, quantity, unit_price, total_price")
             .in("order_id", slice)
             .range(from, from + PAGE - 1);
           if (!chunk || chunk.length === 0) break;
