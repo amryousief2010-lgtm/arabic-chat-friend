@@ -434,6 +434,41 @@ export default function FeedWarehouses() {
             </Card>
           </TabsContent>
 
+          {/* PRODUCTION INVOICES */}
+          <TabsContent value="production">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
+                <div><CardTitle>فواتير تصنيع العلف</CardTitle><CardDescription>تصنيع علف بادي / تسمين / بياض — يخصم الخامات تلقائياً ويضيف الناتج للجاهز بمتوسط التكلفة</CardDescription></div>
+                <div className="flex gap-2">
+                  {canProduce && <Button onClick={() => setProductionOpen(true)}><Plus className="h-4 w-4 ml-1" />فاتورة تصنيع</Button>}
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader><TableRow><TableHead>الرقم</TableHead><TableHead>التاريخ</TableHead><TableHead>المنتج</TableHead><TableHead>الكمية المنتجة</TableHead><TableHead>عدد الشكاير</TableHead><TableHead>إجمالي التكلفة</TableHead><TableHead>تكلفة الكيلو</TableHead><TableHead>الخامات</TableHead>{canManageAll && <TableHead className="w-16">حذف</TableHead>}</TableRow></TableHeader>
+                  <TableBody>
+                    {(prodInvQ.data || []).map((p: any) => (
+                      <TableRow key={p.id}>
+                        <TableCell className="font-mono text-xs">{p.prod_no}</TableCell>
+                        <TableCell>{p.prod_date}</TableCell>
+                        <TableCell className="font-medium">{p.feed_products?.name} <Badge variant="outline" className="text-[10px] mr-1">{p.feed_products?.stage}</Badge></TableCell>
+                        <TableCell>{fmt(p.qty_produced)} كجم</TableCell>
+                        <TableCell>{fmt(p.bags)}</TableCell>
+                        <TableCell className="font-bold">{fmt(p.total_cost)} ج.م</TableCell>
+                        <TableCell>{fmt(p.unit_cost)} ج/كجم</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{(p.feed_production_invoice_items||[]).map((i:any)=>`${i.feed_raw_materials?.name||''} ${fmt(i.quantity)}`).join(" • ")}</TableCell>
+                        {canManageAll && <TableCell><Button size="icon" variant="ghost" className="text-destructive" onClick={() => delProduction(p)}><Trash2 className="h-4 w-4" /></Button></TableCell>}
+                      </TableRow>
+                    ))}
+                    {!prodInvQ.data?.length && <TableRow><TableCell colSpan={canManageAll ? 9 : 8} className="text-center text-muted-foreground py-6">لا توجد فواتير تصنيع بعد</TableCell></TableRow>}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+
+
           {/* SALES */}
           <TabsContent value="sales">
             <Card>
