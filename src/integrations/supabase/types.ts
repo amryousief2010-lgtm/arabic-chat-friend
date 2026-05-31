@@ -1111,42 +1111,51 @@ export type Database = {
       delivery_collection_batches: {
         Row: {
           actual_total: number
+          cash_amount: number
           collected_at: string
           collector_id: string
           created_at: string
           expected_total: number
           id: string
+          instapay_amount: number
           notes: string | null
           rep_name: string
           rep_user_id: string | null
           variance_amount: number | null
           variance_reason: string | null
+          vodafone_cash_amount: number
         }
         Insert: {
           actual_total?: number
+          cash_amount?: number
           collected_at?: string
           collector_id: string
           created_at?: string
           expected_total?: number
           id?: string
+          instapay_amount?: number
           notes?: string | null
           rep_name: string
           rep_user_id?: string | null
           variance_amount?: number | null
           variance_reason?: string | null
+          vodafone_cash_amount?: number
         }
         Update: {
           actual_total?: number
+          cash_amount?: number
           collected_at?: string
           collector_id?: string
           created_at?: string
           expected_total?: number
           id?: string
+          instapay_amount?: number
           notes?: string | null
           rep_name?: string
           rep_user_id?: string | null
           variance_amount?: number | null
           variance_reason?: string | null
+          vodafone_cash_amount?: number
         }
         Relationships: []
       }

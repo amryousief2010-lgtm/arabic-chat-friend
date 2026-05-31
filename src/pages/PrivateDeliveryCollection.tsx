@@ -36,7 +36,9 @@ const PrivateDeliveryCollection = () => {
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [activeRep, setActiveRep] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [actualAmount, setActualAmount] = useState("");
+  const [cashAmount, setCashAmount] = useState("");
+  const [vodafoneAmount, setVodafoneAmount] = useState("");
+  const [instapayAmount, setInstapayAmount] = useState("");
   const [reason, setReason] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
@@ -83,7 +85,7 @@ const PrivateDeliveryCollection = () => {
     try {
       const { data } = await supabase
         .from("delivery_collection_batches")
-        .select("id, rep_name, expected_total, actual_total, variance_reason, notes, collected_at, collector_id, delivery_collection_batch_orders(order_id, order_total)")
+        .select("id, rep_name, expected_total, actual_total, cash_amount, vodafone_cash_amount, instapay_amount, variance_reason, notes, collected_at, collector_id, delivery_collection_batch_orders(order_id, order_total)")
         .order("collected_at", { ascending: false })
         .limit(200);
       const list = (data || []) as any[];
@@ -117,13 +119,19 @@ const PrivateDeliveryCollection = () => {
 
   const openCollect = () => {
     if (selectedOrders.length === 0) { toast.error("اختر طلبات أولاً"); return; }
-    setActualAmount(String(expectedTotal));
+    setCashAmount(String(expectedTotal));
+    setVodafoneAmount("");
+    setInstapayAmount("");
     setReason("");
     setNotes("");
     setDialogOpen(true);
   };
 
-  const variance = (Number(actualAmount) || 0) - expectedTotal;
+  const cashNum = Number(cashAmount) || 0;
+  const vodafoneNum = Number(vodafoneAmount) || 0;
+  const instapayNum = Number(instapayAmount) || 0;
+  const actualTotal = cashNum + vodafoneNum + instapayNum;
+  const variance = actualTotal - expectedTotal;
   const needsReason = Math.abs(variance) > 0.001;
 
   const submit = async (doPrint: boolean) => {
@@ -138,10 +146,13 @@ const PrivateDeliveryCollection = () => {
           rep_name: repName,
           collector_id: user.id,
           expected_total: expectedTotal,
-          actual_total: Number(actualAmount) || 0,
+          actual_total: actualTotal,
+          cash_amount: cashNum,
+          vodafone_cash_amount: vodafoneNum,
+          instapay_amount: instapayNum,
           variance_reason: needsReason ? reason.trim() : null,
           notes: notes.trim() || null,
-        })
+        } as any)
         .select("id, collected_at")
         .single();
       if (bErr || !batch) throw bErr || new Error("failed");
@@ -173,7 +184,10 @@ const PrivateDeliveryCollection = () => {
         rep: repName,
         orders: selectedOrders,
         expected: expectedTotal,
-        actual: Number(actualAmount) || 0,
+        actual: actualTotal,
+        cash: cashNum,
+        vodafone: vodafoneNum,
+        instapay: instapayNum,
         variance,
         reason: needsReason ? reason.trim() : "",
         notes: notes.trim(),
@@ -304,6 +318,9 @@ const PrivateDeliveryCollection = () => {
                       <th className="p-2">المُحصِّل</th>
                       <th className="p-2">عدد الأوردرات</th>
                       <th className="p-2">المطلوب</th>
+                      <th className="p-2">نقدي</th>
+                      <th className="p-2">فودافون</th>
+                      <th className="p-2">انستا باى</th>
                       <th className="p-2">المحصّل</th>
                       <th className="p-2">الفرق / السبب</th>
                       <th className="p-2">ملاحظات</th>
@@ -319,6 +336,9 @@ const PrivateDeliveryCollection = () => {
                           <td className="p-2 text-xs">{b.collector_name}</td>
                           <td className="p-2">{b.delivery_collection_batch_orders?.length || 0}</td>
                           <td className="p-2">{fmt(b.expected_total)} ج</td>
+                          <td className="p-2 text-xs">{fmt(b.cash_amount || 0)}</td>
+                          <td className="p-2 text-xs">{fmt(b.vodafone_cash_amount || 0)}</td>
+                          <td className="p-2 text-xs">{fmt(b.instapay_amount || 0)}</td>
                           <td className="p-2 font-semibold">{fmt(b.actual_total)} ج</td>
                           <td className="p-2 text-xs">
                             {Math.abs(v) > 0.001 ? (
@@ -332,7 +352,7 @@ const PrivateDeliveryCollection = () => {
                       );
                     })}
                     {history.length === 0 && (
-                      <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">
+                      <tr><td colSpan={11} className="p-8 text-center text-muted-foreground">
                         {historyLoading ? "جارٍ التحميل..." : "لا توجد دفعات سابقة"}
                       </td></tr>
                     )}
@@ -359,14 +379,23 @@ const PrivateDeliveryCollection = () => {
               <span>المبلغ المطلوب</span>
               <span className="font-bold">{fmt(expectedTotal)} ج</span>
             </div>
-            <div>
-              <label className="text-xs font-medium">المبلغ الفعلي المحصّل</label>
-              <Input
-                type="number"
-                value={actualAmount}
-                onChange={(e) => setActualAmount(e.target.value)}
-                className="mt-1"
-              />
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <label className="text-xs font-medium">نقدي</label>
+                <Input type="number" value={cashAmount} onChange={(e) => setCashAmount(e.target.value)} className="mt-1" />
+              </div>
+              <div>
+                <label className="text-xs font-medium">فودافون كاش</label>
+                <Input type="number" value={vodafoneAmount} onChange={(e) => setVodafoneAmount(e.target.value)} className="mt-1" />
+              </div>
+              <div>
+                <label className="text-xs font-medium">انستا باى</label>
+                <Input type="number" value={instapayAmount} onChange={(e) => setInstapayAmount(e.target.value)} className="mt-1" />
+              </div>
+            </div>
+            <div className="flex justify-between p-3 rounded bg-primary/10">
+              <span className="font-semibold">إجمالي المحصّل</span>
+              <span className="font-bold">{fmt(actualTotal)} ج</span>
             </div>
             {needsReason && (
               <div className={`p-2 rounded ${variance > 0 ? "bg-orange-50 border border-orange-200" : "bg-green-50 border border-green-200"}`}>
@@ -409,6 +438,9 @@ interface ReceiptData {
   orders: OrderRow[];
   expected: number;
   actual: number;
+  cash: number;
+  vodafone: number;
+  instapay: number;
   variance: number;
   reason: string;
   notes: string;
@@ -454,12 +486,15 @@ const printReceipt = (d: ReceiptData) => {
   <div class="totals">
     <div class="row"><span>عدد الأوردرات</span><b>${d.orders.length}</b></div>
     <div class="row"><span>المبلغ المطلوب</span><b>${d.expected.toLocaleString("en-US")} ج</b></div>
-    <div class="row"><span>المبلغ المحصّل</span><b>${d.actual.toLocaleString("en-US")} ج</b></div>
+    <div class="row"><span>نقدي</span><b>${d.cash.toLocaleString("en-US")} ج</b></div>
+    <div class="row"><span>فودافون كاش</span><b>${d.vodafone.toLocaleString("en-US")} ج</b></div>
+    <div class="row"><span>انستا باى</span><b>${d.instapay.toLocaleString("en-US")} ج</b></div>
     ${variantRow}
     <div class="row grand"><span>الإجمالي المحصّل</span><b>${d.actual.toLocaleString("en-US")} ج</b></div>
   </div>
   ${d.notes ? `<div style="margin-top:14px;padding:8px;background:#fff7ed;border-right:3px solid #f97316;font-size:12px;"><b>ملاحظات:</b> ${d.notes}</div>` : ""}
   <div class="sig">
+
     <div>توقيع المندوب</div>
     <div>توقيع المُحصِّل</div>
   </div>
