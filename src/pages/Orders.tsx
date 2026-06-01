@@ -1073,16 +1073,18 @@ const Orders = () => {
                 <TableHead className="text-right">التوقيت</TableHead>
                 <TableHead className="text-right">تاريخ التسليم</TableHead>
                 <TableHead className="text-right">مدة التسليم</TableHead>
+                {isPrivateDeliveryRep && <TableHead className="text-right">العنوان</TableHead>}
                 <TableHead className="text-right">الإجراءات</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredOrders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={16} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={isPrivateDeliveryRep ? 17 : 16} className="text-center py-8 text-muted-foreground">
                     لا توجد طلبات
                   </TableCell>
                 </TableRow>
+
               ) : (
                 filteredOrders.map((order) => (
                   <TableRow key={order.id} className="table-row-hover">
