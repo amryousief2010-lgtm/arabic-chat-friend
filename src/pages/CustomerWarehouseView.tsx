@@ -1174,6 +1174,9 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
                               <Button variant="ghost" size="icon" onClick={() => openInvoice(inv)} title="عرض الفاتورة">
                                 <Eye className="w-4 h-4" />
                               </Button>
+                              <Button variant="ghost" size="icon" onClick={() => openInvoice(inv)} title="طباعة الفاتورة">
+                                <Printer className="w-4 h-4" />
+                              </Button>
                               {canEditMovements && (
                                 <Button variant="ghost" size="icon" onClick={() => openEditInvoice(inv)} title="تعديل الفاتورة">
                                   <Pencil className="w-4 h-4" />
