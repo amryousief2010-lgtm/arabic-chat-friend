@@ -137,7 +137,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        
+
+        // Skip INITIAL_SESSION — handled by getSession() below to avoid duplicate
+        // role/profile fetches (4 extra round-trips on every page load).
+        if (event === 'INITIAL_SESSION') return;
+
         // Defer role fetch with setTimeout to prevent deadlock
         if (session?.user) {
           setTimeout(() => {
