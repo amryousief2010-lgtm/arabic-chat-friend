@@ -1203,6 +1203,11 @@ const WarehouseDetail = () => {
             </Card>
           </TabsContent>
 
+          {isMain && (
+            <TabsContent value="inbound" className="space-y-4">
+              <InboundSupplyTab warehouseId={id!} warehouseName={warehouse.name} />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
 
