@@ -65,7 +65,7 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
 
   const { data, isLoading } = useQuery({
     queryKey: ["moderators-aggregate-summary", viewYear, viewMonth],
-    refetchInterval: 60_000,
+    refetchInterval: 5 * 60_000,
     queryFn: async () => {
       const startOfMonth = new Date(Date.UTC(viewYear, viewMonth, 1, 0, 0, 0, 0));
       const startOfNextMonth = new Date(Date.UTC(viewYear, viewMonth + 1, 1, 0, 0, 0, 0));
