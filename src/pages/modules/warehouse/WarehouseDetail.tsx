@@ -15,6 +15,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { formatDateTime } from "@/lib/dateFormat";
 import { printSupplyRequest, printOrderInvoice } from "@/lib/printUtils";
+import InboundSupplyTab from "@/components/warehouse/InboundSupplyTab";
 
 import * as XLSX from "xlsx";
 
@@ -713,6 +714,11 @@ const WarehouseDetail = () => {
               <FileSpreadsheet className="w-4 h-4" />طلبات المنفذ
               {outletOrders.length > 0 && <Badge variant="secondary" className="mr-1">{outletOrders.length}</Badge>}
             </TabsTrigger>
+            {isMain && (
+              <TabsTrigger value="inbound" className="gap-1">
+                <Truck className="w-4 h-4" />توريدات واردة
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="approvals" className="space-y-4">
@@ -1197,6 +1203,11 @@ const WarehouseDetail = () => {
             </Card>
           </TabsContent>
 
+          {isMain && (
+            <TabsContent value="inbound" className="space-y-4">
+              <InboundSupplyTab warehouseId={id!} warehouseName={warehouse.name} />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
 
