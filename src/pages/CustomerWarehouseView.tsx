@@ -96,6 +96,9 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
   const [lines, setLines] = useState<Line[]>([{ name: "", qty: "" }]);
   const [notes, setNotes] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
+  // وضع المرتجع: هل نخصم من مخزون العميل (هيلثي تيست) أم نوّرد للمخزن الرئيسي فقط
+  // (للمنتجات القديمة اللي مكنتش مسجلة في السيستم أصلاً).
+  const [deductFromCustomer, setDeductFromCustomer] = useState<boolean>(true);
 
   // edit movement dialog
   const [editMov, setEditMov] = useState<Movement | null>(null);
@@ -330,11 +333,18 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
   // Deduplicate by trimmed name — لو فى أكثر من صنف بنفس الاسم (مثلاً "اطباق" مرة بالقطعة ومرة بالكجم)
   // نختار الصف صاحب الرصيد الأكبر ونتجاهل التكرار الصفري.
   const pickList = (() => {
-    const source = openDialog === "supply" ? mainItems : items;
+    // في وضع "مرتجع بدون خصم": نختار من منتجات المخزن الرئيسي (للحصول على
+    // الوحدة و product_id) لأن مخزون العميل قد يكون 0 لهذه المنتجات القديمة.
+    const source =
+      openDialog === "supply" || (openDialog === "return" && !deductFromCustomer)
+        ? mainItems
+        : items;
     const byName = new Map<string, typeof source[number]>();
     for (const it of source) {
       const stock = Number(it.stock) || 0;
-      if (stock <= 0) continue;
+      // في وضع "بدون خصم" لا نشترط رصيد > 0 لأن المنتج قد يكون نفد من الرئيسي
+      if (deductFromCustomer && openDialog === "return" && stock <= 0) continue;
+      if (openDialog === "supply" && stock <= 0) continue;
       const key = (it.name || "").trim();
       if (openDialog === "supply" && sellableProductNames.size > 0 && !sellableProductNames.has(key)) continue;
       const prev = byName.get(key);
@@ -346,6 +356,7 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
   const resetDialog = () => {
     setLines([{ name: "", qty: "" }]);
     setNotes("");
+    setDeductFromCustomer(true);
   };
 
   const updateLine = (idx: number, patch: Partial<Line>) => {
@@ -361,7 +372,9 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
       toast.error("لم يتم تحديد المخزن الرئيسي أو مخزن العميل");
       return;
     }
-    const sourcePool = openDialog === "supply" ? mainItems : items;
+    // وضع "مرتجع بدون خصم" نختار من منتجات المخزن الرئيسي للحصول على بيانات المنتج
+    const skipCustomerSide = openDialog === "return" && !deductFromCustomer;
+    const sourcePool = openDialog === "supply" || skipCustomerSide ? mainItems : items;
 
     // حوّل المدخلات: للأصناف الموزونة المدخل بالعبوة (نص كيلو) -> كيلو
     const valid = lines
@@ -397,15 +410,24 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
       const destPool = openDialog === "supply" ? items : mainItems;
       const refType = openDialog === "supply" ? "customer_supply" : "customer_return";
       const partyLabel = warehouseName;
-      const baseNote = notes || (openDialog === "supply" ? "توريد إلى عميل" : "مرتجع من عميل");
+      const baseNote =
+        notes ||
+        (openDialog === "supply"
+          ? "توريد إلى عميل"
+          : skipCustomerSide
+            ? "مرتجع قديم بدون خصم من مخزن العميل"
+            : "مرتجع من عميل");
 
-      // تحقق الرصيد قبل الخصم
-      for (const v of valid) {
-        const si = sourcePool.find((i) => i.name === v.name)!;
-        if (Number(si.stock) < v.qty) {
-          throw new Error(`الكمية المتاحة لـ "${v.name}" (${si.stock} ${si.unit}) أقل من المطلوب (${v.qty} ${v.unit})`);
+      // تحقق الرصيد قبل الخصم — يتجاوز في وضع "بدون خصم" لأن الجانب المصدري لن يُخصم
+      if (!skipCustomerSide) {
+        for (const v of valid) {
+          const si = sourcePool.find((i) => i.name === v.name)!;
+          if (Number(si.stock) < v.qty) {
+            throw new Error(`الكمية المتاحة لـ "${v.name}" (${si.stock} ${si.unit}) أقل من المطلوب (${v.qty} ${v.unit})`);
+          }
         }
       }
+
 
       const movRows: any[] = [];
 
@@ -428,11 +450,14 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
           destItem = newRow as InventoryItem;
         }
 
-        const { error: decErr } = await supabase
-          .from("inventory_items")
-          .update({ stock: Number(sourceItem.stock) - v.qty })
-          .eq("id", sourceItem.id);
-        if (decErr) throw decErr;
+        // في وضع "مرتجع بدون خصم": لا نخصم من مخزن العميل (المصدر) ونوّرد للمخزن الرئيسي فقط
+        if (!skipCustomerSide) {
+          const { error: decErr } = await supabase
+            .from("inventory_items")
+            .update({ stock: Number(sourceItem.stock) - v.qty })
+            .eq("id", sourceItem.id);
+          if (decErr) throw decErr;
+        }
 
         const { error: incErr } = await supabase
           .from("inventory_items")
@@ -440,8 +465,8 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
           .eq("id", destItem.id);
         if (incErr) throw incErr;
 
-        movRows.push(
-          {
+        if (!skipCustomerSide) {
+          movRows.push({
             item_id: sourceItem.id,
             warehouse_id: sourceWh,
             destination_warehouse_id: destWh,
@@ -453,21 +478,21 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
             reference_type: refType,
             performed_by: user?.id ?? null,
             product_id: sourceItem.product_id,
-          },
-          {
-            item_id: destItem.id,
-            warehouse_id: destWh,
-            source_warehouse_id: sourceWh,
-            destination_warehouse_id: destWh,
-            movement_type: "in",
-            quantity: v.qty,
-            notes: baseNote,
-            party: partyLabel,
-            reference_type: refType,
-            performed_by: user?.id ?? null,
-            product_id: sourceItem.product_id,
-          },
-        );
+          });
+        }
+        movRows.push({
+          item_id: destItem.id,
+          warehouse_id: destWh,
+          source_warehouse_id: skipCustomerSide ? null : sourceWh,
+          destination_warehouse_id: destWh,
+          movement_type: "in",
+          quantity: v.qty,
+          notes: baseNote,
+          party: partyLabel,
+          reference_type: refType,
+          performed_by: user?.id ?? null,
+          product_id: sourceItem.product_id,
+        });
       }
 
       const { error: movErr } = await supabase.from("inventory_movements").insert(movRows);
@@ -1137,7 +1162,34 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
               {openDialog === "supply" ? `توريد جديد إلى ${warehouseName}` : `تسجيل مرتجع من ${warehouseName}`}
             </DialogTitle>
           </DialogHeader>
+          {openDialog === "return" && (
+            <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+              <div className="text-xs font-medium text-muted-foreground">طريقة الخصم من المخزون</div>
+              <div className="inline-flex rounded-md border bg-background overflow-hidden text-xs">
+                <button
+                  type="button"
+                  onClick={() => setDeductFromCustomer(true)}
+                  className={`px-3 py-1.5 transition ${deductFromCustomer ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                >
+                  خصم من مخزون {warehouseName}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeductFromCustomer(false)}
+                  className={`px-3 py-1.5 border-r transition ${!deductFromCustomer ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                >
+                  بدون خصم (مرتجع قديم)
+                </button>
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                {deductFromCustomer
+                  ? "هيتم خصم الكمية من مخزون العميل وإضافتها للمخزن الرئيسي."
+                  : "هتُضاف الكمية للمخزن الرئيسي فقط بدون أي خصم من مخزون العميل — للمنتجات القديمة اللي مكنتش مسجلة على السيستم."}
+              </p>
+            </div>
+          )}
           <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+
             <div className="space-y-2">
               {lines.map((line, idx) => {
                 const chosenElsewhere = new Set(
