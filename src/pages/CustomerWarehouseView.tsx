@@ -87,7 +87,7 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
   const [mainWhId, setMainWhId] = useState<string | null>(null);
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [mainItems, setMainItems] = useState<InventoryItem[]>([]);
-  const [sellableProductNames, setSellableProductNames] = useState<Set<string>>(new Set());
+  const [warehouseProductNames, setWarehouseProductNames] = useState<Set<string>>(new Set());
   const [movements, setMovements] = useState<Movement[]>([]);
 
   // dialog state
@@ -257,11 +257,9 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
         setMainItems((mItems || []) as InventoryItem[]);
       }
 
-      const { data: prodRows } = await supabase
-        .from("products")
-        .select("name")
-        .eq("is_active", true);
-      setSellableProductNames(new Set((prodRows || []).map((p: any) => (p.name || "").trim())));
+      const customerNames = new Set((itemsRes?.data || []).map((i: any) => (i.name || "").trim()).filter(Boolean));
+      const mainNames = new Set((mItems || []).map((i: any) => (i.name || "").trim()).filter(Boolean));
+      setWarehouseProductNames(new Set([...customerNames, ...mainNames]));
     } catch (e: any) {
       toast.error("تعذّر تحميل بيانات المخزن: " + (e?.message || ""));
     } finally {
@@ -349,7 +347,7 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
       if (deductFromCustomer && openDialog === "return" && stock <= 0) continue;
       if (openDialog === "supply" && stock <= 0) continue;
       const key = (it.name || "").trim();
-      if (openDialog === "supply" && sellableProductNames.size > 0 && !sellableProductNames.has(key)) continue;
+      if (openDialog === "supply" && warehouseProductNames.size > 0 && !warehouseProductNames.has(key)) continue;
       // فلتر المرتجع: يجب أن يكون المنتج موجوداً في المخزن الرئيسي
       if (openDialog === "return" && mainNames.size > 0 && !mainNames.has(key)) continue;
       const prev = byName.get(key);
