@@ -748,8 +748,14 @@ const Slaughterhouse = () => {
                           <>
                             <Button size="sm" variant="outline" onClick={() => exportBatchPDF(b)} title="طباعة / تصدير PDF" className="text-red-600 hover:bg-red-50"><Printer className="w-4 h-4" /></Button>
                             <Button size="sm" variant="outline" onClick={() => exportBatchExcel(b)} title="تصدير Excel" className="text-emerald-600 hover:bg-emerald-50"><FileSpreadsheet className="w-4 h-4" /></Button>
+                            {canManageBatch && (
+                              <Button size="sm" variant="outline" onClick={() => setConfirmSendBatch(b)} title="إرسال التقسيمة إلى المخزن الرئيسي" className="text-primary hover:bg-primary/10">
+                                <Truck className="w-4 h-4 ml-1" />للمخزن الرئيسي
+                              </Button>
+                            )}
                           </>
                         )}
+
                         {canManageBatch && (
                           <>
                             <Button size="sm" variant="outline" onClick={() => setEditBatch(b)} title="تعديل بيانات الدفعة"><SettingsIcon className="w-4 h-4" /></Button>
