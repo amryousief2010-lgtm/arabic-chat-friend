@@ -15,6 +15,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { formatDateTime } from "@/lib/dateFormat";
 import { printSupplyRequest, printOrderInvoice } from "@/lib/printUtils";
+import InboundSupplyTab from "@/components/warehouse/InboundSupplyTab";
 
 import * as XLSX from "xlsx";
 
