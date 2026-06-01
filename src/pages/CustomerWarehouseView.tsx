@@ -676,17 +676,23 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
                           )}
                         </div>
 
-                        <div className="flex items-end gap-2">
-                          <div className="text-2xl font-extrabold text-foreground">{stock.toLocaleString("ar-EG")}</div>
-                          <div className="text-sm text-muted-foreground mb-1">{it.unit}</div>
-                        </div>
-
-                        {weight && packages !== null && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Badge variant="outline" className="text-xs bg-muted/50">
-                              = {packages} عبوة {packages === 1 ? "" : ""}
-                            </Badge>
-                            <span className="text-xs text-muted-foreground">(نص كيلو للعبوة)</span>
+                        {weight ? (
+                          <>
+                            <div className="flex items-end gap-2">
+                              <div className="text-2xl font-extrabold text-foreground">{(packages ?? 0).toLocaleString("ar-EG")}</div>
+                              <div className="text-sm text-muted-foreground mb-1">عبوة</div>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm">
+                              <Badge variant="outline" className="text-xs bg-muted/50">
+                                = {stock.toLocaleString("ar-EG")} كجم
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">(نص كيلو للعبوة)</span>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex items-end gap-2">
+                            <div className="text-2xl font-extrabold text-foreground">{stock.toLocaleString("ar-EG")}</div>
+                            <div className="text-sm text-muted-foreground mb-1">{it.unit}</div>
                           </div>
                         )}
 
