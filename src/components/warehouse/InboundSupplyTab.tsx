@@ -399,10 +399,14 @@ export default function InboundSupplyTab({ warehouseId, warehouseName }: Props) 
                 </SelectContent>
               </Select>
               <Input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="w-40" />
+              <Button size="sm" variant="outline" onClick={printAll} disabled={filtered.length === 0} className="gap-1">
+                <Printer className="w-4 h-4" /> طباعة
+              </Button>
               <Button size="sm" variant="outline" onClick={exportExcel} disabled={filtered.length === 0} className="gap-1">
                 <FileSpreadsheet className="w-4 h-4" /> Excel
               </Button>
             </div>
+
           </div>
         </CardHeader>
         <CardContent className="p-0">
