@@ -4,6 +4,11 @@ import { supabase } from '@/integrations/supabase/client';
 // Keep in sync with src/pages/Notifications.tsx requiresImmediateReply().
 const INFORMATIONAL_TYPES = new Set(['low_stock', 'production_needed']);
 const ALWAYS_URGENT_TYPES = new Set(['farm_shipment', 'farm_shipment_receipt']);
+const ALWAYS_URGENT_LIST = Array.from(ALWAYS_URGENT_TYPES);
+const EXCLUDED_ORDER_URGENT_TYPES = Array.from(new Set([...INFORMATIONAL_TYPES, ...ALWAYS_URGENT_TYPES]));
+
+const toPostgrestInList = (values: string[]) => `(${values.map((value) => JSON.stringify(value)).join(',')})`;
+
 const isUrgent = (n: { type?: string | null; order_id?: string | null }) =>
   ALWAYS_URGENT_TYPES.has(n.type ?? '') ||
   (!!n.order_id && !INFORMATIONAL_TYPES.has(n.type ?? ''));
@@ -56,15 +61,43 @@ const fetchUnreadCount = async () => {
   if (fetchInFlight) return fetchInFlight;
 
   fetchInFlight = (async () => {
-    const { data, error } = await supabase
+    const unreadBase = supabase
       .from('notifications')
-      .select('id, type, order_id')
+      .select('id', { count: 'exact', head: true })
       .eq('is_read', false);
 
-    if (!error && data) {
-      const urgent = data.filter(isUrgent).length;
+    const [totalRes, alwaysUrgentRes, orderUrgentTypedRes, orderUrgentNullTypeRes] = await Promise.all([
+      unreadBase,
+      supabase
+        .from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('is_read', false)
+        .in('type', ALWAYS_URGENT_LIST),
+      supabase
+        .from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('is_read', false)
+        .not('order_id', 'is', null)
+        .not('type', 'is', null)
+        .filter('type', 'not.in', toPostgrestInList(EXCLUDED_ORDER_URGENT_TYPES)),
+      supabase
+        .from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('is_read', false)
+        .not('order_id', 'is', null)
+        .is('type', null),
+    ]);
+
+    const hasError = totalRes.error || alwaysUrgentRes.error || orderUrgentTypedRes.error || orderUrgentNullTypeRes.error;
+
+    if (!hasError) {
+      const urgent =
+        Number(alwaysUrgentRes.count || 0) +
+        Number(orderUrgentTypedRes.count || 0) +
+        Number(orderUrgentNullTypeRes.count || 0);
+
       notifyListeners({
-        unreadCount: data.length,
+        unreadCount: Number(totalRes.count || 0),
         urgentUnreadCount: urgent,
         lastUrgentAt: cache.lastUrgentAt,
       });
