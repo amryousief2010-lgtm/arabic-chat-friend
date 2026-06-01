@@ -106,6 +106,7 @@ const StockSnapshotReview = lazy(() => import("@/pages/modules/shared/StockSnaps
 const StockReconciliation = lazy(() => import("@/pages/StockReconciliation"));
 const PrivateDeliveryCollection = lazy(() => import("@/pages/PrivateDeliveryCollection"));
 const ChickOrders = lazy(() => import("@/pages/ChickOrders"));
+const MainWarehouseActivity = lazy(() => import("@/pages/MainWarehouseActivity"));
 
 const RedirectWithQuery = ({ to }: { to: string }) => {
   const location = useLocation();
@@ -575,6 +576,11 @@ const AnimatedRoutes = () => {
           <Route path="/modules/stock-snapshots" element={
             <ProtectedRoute allowedRoles={['general_manager','executive_manager','warehouse_supervisor']}>
               <PageTransition><StockSnapshotReview /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/main-warehouse-activity" element={
+            <ProtectedRoute allowedRoles={['general_manager','executive_manager','warehouse_supervisor']}>
+              <PageTransition><MainWarehouseActivity /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/unauthorized" element={
