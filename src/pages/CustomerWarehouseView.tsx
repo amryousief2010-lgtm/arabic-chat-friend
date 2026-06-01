@@ -477,21 +477,6 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
           destItem = newRow as InventoryItem;
         }
 
-        // في وضع "مرتجع بدون خصم": لا نخصم من مخزن العميل (المصدر) ونوّرد للمخزن الرئيسي فقط
-        if (!skipCustomerSide) {
-          const { error: decErr } = await supabase
-            .from("inventory_items")
-            .update({ stock: Number(sourceItem.stock) - v.qty })
-            .eq("id", sourceItem.id);
-          if (decErr) throw decErr;
-        }
-
-        const { error: incErr } = await supabase
-          .from("inventory_items")
-          .update({ stock: Number(destItem.stock) + v.qty })
-          .eq("id", destItem.id);
-        if (incErr) throw incErr;
-
         if (!skipCustomerSide) {
           movRows.push({
             item_id: sourceItem.id,
