@@ -1205,6 +1205,9 @@ const NewOrder = () => {
                       onChange={(e) => setCustomerSearch(e.target.value)}
                     />
                   </div>
+                    {searchingCustomers && (
+                      <p className="mt-2 text-xs text-muted-foreground">جاري البحث عن العملاء...</p>
+                    )}
                   <Dialog
                     open={isNewCustomerOpen}
                     onOpenChange={(open) => {
@@ -1416,6 +1419,21 @@ const NewOrder = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
+                {pageShellLoading && (
+                  <div className="space-y-3 mb-4">
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-24 w-full" />
+                  </div>
+                )}
+                {(productsError || offersError || warehousesError || inventoryError || offerContentsError) && (
+                  <div className="mb-4 space-y-1 rounded-lg border border-amber-200 bg-amber-50/70 dark:bg-amber-950/20 p-3 text-xs text-amber-800 dark:text-amber-300">
+                    {productsError && <p>المنتجات: {productsError}</p>}
+                    {offersError && <p>العروض: {offersError}</p>}
+                    {warehousesError && <p>المخازن: {warehousesError}</p>}
+                    {inventoryError && <p>المخزون: {inventoryError}</p>}
+                    {offerContentsError && <p>محتويات البوكسات: {offerContentsError}</p>}
+                  </div>
+                )}
                 <Tabs defaultValue="products" className="w-full">
                   <TabsList className="grid w-full grid-cols-2 mb-4">
                     <TabsTrigger value="products" className="gap-2">
@@ -1434,6 +1452,11 @@ const NewOrder = () => {
                   </TabsList>
 
                   <TabsContent value="products" className="mt-0">
+                    <div className="mb-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                      <Badge variant="outline">المنتجات: {productsLoading ? 'جاري التحميل' : `${products.length} عنصر`}</Badge>
+                      <Badge variant="outline">المخازن: {warehousesLoading ? 'جاري التحميل' : `${warehousesList.length} مخزن`}</Badge>
+                      <Badge variant="outline">المخزون: {inventoryLoading ? 'جاري التحميل' : 'محمّل'}</Badge>
+                    </div>
                     <div className="relative mb-4">
                       <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <Input
@@ -1441,8 +1464,17 @@ const NewOrder = () => {
                         className="pr-10"
                         value={productSearch}
                         onChange={(e) => setProductSearch(e.target.value)}
+                        disabled={productsLoading && products.length === 0}
                       />
                     </div>
+
+                    {productsLoading && products.length === 0 ? (
+                      <div className="space-y-3">
+                        {Array.from({ length: 6 }).map((_, index) => (
+                          <Skeleton key={index} className="h-16 w-full" />
+                        ))}
+                      </div>
+                    ) : (
 
                     {/* Desktop/tablet table view */}
                     <div className="hidden md:block border rounded-lg overflow-x-auto">
@@ -1642,10 +1674,21 @@ const NewOrder = () => {
                         );
                       })}
                     </div>
+                    )}
                   </TabsContent>
 
                   <TabsContent value="offers" className="mt-0">
-                    {offerBoxes.length === 0 ? (
+                    <div className="mb-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                      <Badge variant="outline">العروض: {offersLoading ? 'جاري التحميل' : `${offerBoxes.length} عرض`}</Badge>
+                      <Badge variant="outline">محتويات البوكسات: {offerContentsLoading ? 'جاري التحميل' : 'محمّلة'}</Badge>
+                    </div>
+                    {offersLoading && offerBoxes.length === 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {Array.from({ length: 4 }).map((_, index) => (
+                          <Skeleton key={index} className="h-32 w-full" />
+                        ))}
+                      </div>
+                    ) : offerBoxes.length === 0 ? (
                       <div className="text-center py-8 text-muted-foreground">
                         <Gift className="h-12 w-12 mx-auto mb-2 opacity-50" />
                         <p>لا توجد عروض متاحة حالياً</p>
@@ -1669,6 +1712,8 @@ const NewOrder = () => {
                               <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
                                 {offerContentsById[offer.id].join(' + ')}
                               </p>
+                            ) : offerContentsLoading ? (
+                              <p className="mt-2 text-xs text-muted-foreground">جاري تحميل محتويات البوكس...</p>
                             ) : null}
                             <Badge className="mt-2 bg-green-100 text-green-700 hover:bg-green-100">
                               اضغط لعرض التفاصيل
