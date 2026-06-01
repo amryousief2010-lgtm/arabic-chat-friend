@@ -127,16 +127,30 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
   const pickList = openDialog === "supply" ? mainItems : items;
 
   const resetDialog = () => {
-    setSelectedProductName("");
-    setQty("");
+    setLines([{ name: "", qty: "" }]);
     setNotes("");
   };
 
+  const updateLine = (idx: number, patch: Partial<Line>) => {
+    setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
+  };
+  const addLine = () => setLines((prev) => [...prev, { name: "", qty: "" }]);
+  const removeLine = (idx: number) =>
+    setLines((prev) => (prev.length === 1 ? prev : prev.filter((_, i) => i !== idx)));
+
   const submit = async () => {
     if (!openDialog) return;
-    const qtyNum = Number(qty);
-    if (!selectedProductName || !qtyNum || qtyNum <= 0) {
-      toast.error("اختر المنتج وادخل كمية صحيحة");
+    const valid = lines
+      .map((l) => ({ name: l.name, qty: Number(l.qty) }))
+      .filter((l) => l.name && l.qty > 0);
+    if (valid.length === 0) {
+      toast.error("اختر منتجاً واحداً على الأقل وادخل كمية صحيحة");
+      return;
+    }
+    // detect duplicate product selections
+    const names = valid.map((v) => v.name);
+    if (new Set(names).size !== names.length) {
+      toast.error("هناك منتج مكرر في القائمة");
       return;
     }
     if (!whId || !mainWhId) {
@@ -149,86 +163,92 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
       const destWh = openDialog === "supply" ? whId : mainWhId;
       const sourcePool = openDialog === "supply" ? mainItems : items;
       const destPool = openDialog === "supply" ? items : mainItems;
-      const sourceItem = sourcePool.find((i) => i.name === selectedProductName);
-      if (!sourceItem) {
-        toast.error("المنتج غير موجود في مخزن المصدر");
-        setSubmitting(false);
-        return;
-      }
-      if (Number(sourceItem.stock) < qtyNum) {
-        toast.error(`الكمية المتاحة (${sourceItem.stock}) أقل من المطلوب`);
-        setSubmitting(false);
-        return;
-      }
-
-      // Ensure destination inventory_items row exists
-      let destItem = destPool.find((i) => i.name === selectedProductName);
-      if (!destItem) {
-        const { data: newRow, error: insErr } = await supabase
-          .from("inventory_items")
-          .insert({
-            warehouse_id: destWh,
-            name: selectedProductName,
-            unit: sourceItem.unit,
-            stock: 0,
-            product_id: sourceItem.product_id,
-          })
-          .select("id, name, unit, stock, product_id")
-          .single();
-        if (insErr || !newRow) throw insErr || new Error("تعذّر إنشاء صنف الوجهة");
-        destItem = newRow as InventoryItem;
-      }
-
-      // Decrement source
-      const { error: decErr } = await supabase
-        .from("inventory_items")
-        .update({ stock: Number(sourceItem.stock) - qtyNum })
-        .eq("id", sourceItem.id);
-      if (decErr) throw decErr;
-
-      // Increment destination
-      const { error: incErr } = await supabase
-        .from("inventory_items")
-        .update({ stock: Number(destItem.stock) + qtyNum })
-        .eq("id", destItem.id);
-      if (incErr) throw incErr;
-
-      // Log two movements (out from source, in to destination)
       const refType = openDialog === "supply" ? "customer_supply" : "customer_return";
       const partyLabel = warehouseName;
       const baseNote = notes || (openDialog === "supply" ? "توريد إلى عميل" : "مرتجع من عميل");
-      const movRows = [
-        {
-          item_id: sourceItem.id,
-          warehouse_id: sourceWh,
-          destination_warehouse_id: destWh,
-          source_warehouse_id: sourceWh,
-          movement_type: "out",
-          quantity: qtyNum,
-          notes: baseNote,
-          party: partyLabel,
-          reference_type: refType,
-          performed_by: user?.id ?? null,
-          product_id: sourceItem.product_id,
-        },
-        {
-          item_id: destItem.id,
-          warehouse_id: destWh,
-          source_warehouse_id: sourceWh,
-          destination_warehouse_id: destWh,
-          movement_type: "in",
-          quantity: qtyNum,
-          notes: baseNote,
-          party: partyLabel,
-          reference_type: refType,
-          performed_by: user?.id ?? null,
-          product_id: sourceItem.product_id,
-        },
-      ];
+
+      // Pre-validate stock for all lines
+      for (const v of valid) {
+        const si = sourcePool.find((i) => i.name === v.name);
+        if (!si) throw new Error(`المنتج "${v.name}" غير موجود في مخزن المصدر`);
+        if (Number(si.stock) < v.qty) {
+          throw new Error(`الكمية المتاحة لـ "${v.name}" (${si.stock}) أقل من المطلوب`);
+        }
+      }
+
+      const movRows: any[] = [];
+
+      for (const v of valid) {
+        const sourceItem = sourcePool.find((i) => i.name === v.name)!;
+
+        // Ensure destination row exists
+        let destItem = destPool.find((i) => i.name === v.name);
+        if (!destItem) {
+          const { data: newRow, error: insErr } = await supabase
+            .from("inventory_items")
+            .insert({
+              warehouse_id: destWh,
+              name: v.name,
+              unit: sourceItem.unit,
+              stock: 0,
+              product_id: sourceItem.product_id,
+            })
+            .select("id, name, unit, stock, product_id")
+            .single();
+          if (insErr || !newRow) throw insErr || new Error("تعذّر إنشاء صنف الوجهة");
+          destItem = newRow as InventoryItem;
+        }
+
+        const { error: decErr } = await supabase
+          .from("inventory_items")
+          .update({ stock: Number(sourceItem.stock) - v.qty })
+          .eq("id", sourceItem.id);
+        if (decErr) throw decErr;
+
+        const { error: incErr } = await supabase
+          .from("inventory_items")
+          .update({ stock: Number(destItem.stock) + v.qty })
+          .eq("id", destItem.id);
+        if (incErr) throw incErr;
+
+        movRows.push(
+          {
+            item_id: sourceItem.id,
+            warehouse_id: sourceWh,
+            destination_warehouse_id: destWh,
+            source_warehouse_id: sourceWh,
+            movement_type: "out",
+            quantity: v.qty,
+            notes: baseNote,
+            party: partyLabel,
+            reference_type: refType,
+            performed_by: user?.id ?? null,
+            product_id: sourceItem.product_id,
+          },
+          {
+            item_id: destItem.id,
+            warehouse_id: destWh,
+            source_warehouse_id: sourceWh,
+            destination_warehouse_id: destWh,
+            movement_type: "in",
+            quantity: v.qty,
+            notes: baseNote,
+            party: partyLabel,
+            reference_type: refType,
+            performed_by: user?.id ?? null,
+            product_id: sourceItem.product_id,
+          },
+        );
+      }
+
       const { error: movErr } = await supabase.from("inventory_movements").insert(movRows);
       if (movErr) throw movErr;
 
-      toast.success(openDialog === "supply" ? "تم تسجيل التوريد بنجاح" : "تم تسجيل المرتجع بنجاح");
+      toast.success(
+        openDialog === "supply"
+          ? `تم تسجيل التوريد (${valid.length} صنف) بنجاح`
+          : `تم تسجيل المرتجع (${valid.length} صنف) بنجاح`,
+      );
       setOpenDialog(null);
       resetDialog();
       await fetchAll();
