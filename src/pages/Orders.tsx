@@ -984,6 +984,13 @@ const Orders = () => {
                         <MapPin className="w-3 h-3" /> {order.governorate}
                       </div>
                     )}
+                    {isPrivateDeliveryRep && order.delivery_address && (
+                      <div className="text-xs bg-primary/5 border border-primary/20 rounded px-2 py-1 break-words">
+                        <span className="font-semibold text-primary">العنوان: </span>
+                        {order.delivery_address}
+                      </div>
+                    )}
+
                     {(order.source_warehouse_name || order.fulfillment_type || order.shipping_company) && (
                       <div className="text-[11px]">
                         <Badge variant="outline" className="text-[10px]">
@@ -1073,16 +1080,18 @@ const Orders = () => {
                 <TableHead className="text-right">التوقيت</TableHead>
                 <TableHead className="text-right">تاريخ التسليم</TableHead>
                 <TableHead className="text-right">مدة التسليم</TableHead>
+                {isPrivateDeliveryRep && <TableHead className="text-right">العنوان</TableHead>}
                 <TableHead className="text-right">الإجراءات</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredOrders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={16} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={isPrivateDeliveryRep ? 17 : 16} className="text-center py-8 text-muted-foreground">
                     لا توجد طلبات
                   </TableCell>
                 </TableRow>
+
               ) : (
                 filteredOrders.map((order) => (
                   <TableRow key={order.id} className="table-row-hover">
@@ -1264,7 +1273,20 @@ const Orders = () => {
                         <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
+                    {isPrivateDeliveryRep && (
+                      <TableCell className="max-w-[240px]">
+                        <div className="text-xs whitespace-normal break-words">
+                          {order.governorate && (
+                            <div className="flex items-center gap-1 text-muted-foreground mb-1">
+                              <MapPin className="w-3 h-3" /> {order.governorate}
+                            </div>
+                          )}
+                          <span>{order.delivery_address || '-'}</span>
+                        </div>
+                      </TableCell>
+                    )}
                     <TableCell>
+
                       <div className="flex items-center gap-1">
                         <Button
                           variant="ghost"
