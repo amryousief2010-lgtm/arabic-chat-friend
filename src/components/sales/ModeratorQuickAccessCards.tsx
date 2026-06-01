@@ -66,8 +66,8 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false, month, year }:
 
   const { data, isLoading } = useQuery({
     queryKey: ["moderator-quick-access-v2", privateDeliveryOnly, viewYear, viewMonth],
-    refetchInterval: 15_000,
-    refetchOnWindowFocus: true,
+    refetchInterval: 5 * 60_000,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const startOfMonth = new Date(Date.UTC(viewYear, viewMonth, 1, 0, 0, 0, 0));
       const startOfNextMonth = new Date(Date.UTC(viewYear, viewMonth + 1, 1, 0, 0, 0, 0));
