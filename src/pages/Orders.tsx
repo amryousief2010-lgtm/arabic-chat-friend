@@ -270,103 +270,53 @@ const Orders = () => {
         endDate = new Date(Date.UTC(2026, 0, 1)).toISOString();
       }
 
-      let ordersData: any[] = [];
-      const ORDERS_PAGE = 1000;
-      let oPage = 0;
-      while (true) {
-        let q = supabase
-          .from('orders')
-          .select(`*, customers (name, phone, governorate), order_items (*)`)
-          .order('created_at', { ascending: false })
-          .range(oPage * ORDERS_PAGE, (oPage + 1) * ORDERS_PAGE - 1);
-        if (startDate) q = q.gte('created_at', startDate);
-        if (endDate) q = q.lt('created_at', endDate);
-        const { data, error: ordersError } = await q;
-        if (ordersError) throw ordersError;
-        if (!data || data.length === 0) break;
-        ordersData = ordersData.concat(data);
-        if (data.length < ORDERS_PAGE) break;
-        oPage++;
-      }
+      // أعمدة محددة بدلاً من * لتقليل الحمولة (نفس البيانات المستعملة في الواجهة فقط)
+      const ORDER_COLS = [
+        'id','order_number','customer_id','status','payment_method','payment_status',
+        'collection_status','subtotal','discount','delivery_fee','total','notes',
+        'delivery_address','created_at','delivered_at','created_by','moderator',
+        'shipping_company','fulfillment_type','source_warehouse_id',
+      ].join(',');
+      const ITEM_COLS = 'id,order_id,product_id,product_name,quantity,unit_price,total_price,offer_name';
 
-      const itemsData: any[] = (ordersData || []).flatMap((o: any) =>
-        ((o.order_items as any[]) || []).map((it) => ({ ...it, order_id: o.id }))
-      );
+      // الخرائط المساعدة تُبنى بشكل تراكمي حتى يظهر الجدول بسرعة
+      const profilesMap: Record<string, string> = {};
+      const productsMap: Record<string, string> = {};
+      const warehousesMap: Record<string, string> = {};
+      const productNamesSet = new Set<string>();
 
-      const creatorIds = Array.from(
-        new Set((ordersData || []).map((o: any) => o.created_by).filter(Boolean))
-      );
-      let profilesMap: Record<string, string> = {};
-      if (creatorIds.length > 0) {
-        const { data: profilesData } = await supabase
-          .from('profiles')
-          .select('id, full_name')
-          .in('id', creatorIds as string[]);
-        profilesMap = Object.fromEntries(
-          (profilesData || []).map((p: any) => [p.id, p.full_name])
-        );
-      }
-
-      const productIds = Array.from(
-        new Set((itemsData || []).map((it: any) => it.product_id).filter(Boolean))
-      );
-      let productsMap: Record<string, string> = {};
-      if (productIds.length > 0) {
-        const { data: productsData } = await supabase
-          .from('products')
-          .select('id, unit')
-          .in('id', productIds as string[]);
-        productsMap = Object.fromEntries(
-          (productsData || []).map((p: any) => [p.id, p.unit])
-        );
-      }
-
-      // Map warehouse ids → names for "مصدر التنفيذ"
-      const warehouseIds = Array.from(
-        new Set((ordersData || []).map((o: any) => o.source_warehouse_id).filter(Boolean))
-      );
-      let warehousesMap: Record<string, string> = {};
-      if (warehouseIds.length > 0) {
-        const { data: whData } = await supabase
-          .from('warehouses')
-          .select('id, name')
-          .in('id', warehouseIds as string[]);
-        warehousesMap = Object.fromEntries(
-          (whData || []).map((w: any) => [w.id, w.name])
-        );
-      }
-
-      const formattedOrders: Order[] = (ordersData || []).map(order => ({
-        id: order.id,
-        order_number: order.order_number,
-        customer_id: order.customer_id,
-        customer_name: order.customers?.name || 'عميل غير معروف',
-        customer_phone: order.customers?.phone || '',
-        status: order.status as OrderStatus,
-        payment_method: order.payment_method,
-        payment_status: order.payment_status,
-        collection_status: (order as any).collection_status || 'not_collected',
-        subtotal: Number(order.subtotal),
-        discount: Number(order.discount),
-        delivery_fee: Number(order.delivery_fee),
-        total: Number(order.total),
-        notes: order.notes,
-        delivery_address: order.delivery_address,
-        created_at: order.created_at,
-        delivered_at: (order as any).delivered_at ?? null,
-        created_by: order.created_by,
-        moderator_name:
-          (order.created_by && profilesMap[order.created_by]) ||
-          order.moderator ||
-          '-',
-        governorate: (order.customers as any)?.governorate ?? null,
-        shipping_company: order.shipping_company ?? null,
-        fulfillment_type: (order as any).fulfillment_type ?? null,
-        source_warehouse_id: (order as any).source_warehouse_id ?? null,
-        source_warehouse_name: (order as any).source_warehouse_id ? (warehousesMap[(order as any).source_warehouse_id] ?? null) : null,
-        items: (itemsData || [])
-          .filter(item => item.order_id === order.id)
-          .map(item => ({
+      const formatBatch = (ordersData: any[], itemsByOrder: Record<string, any[]>): Order[] =>
+        ordersData.map((order: any) => ({
+          id: order.id,
+          order_number: order.order_number,
+          customer_id: order.customer_id,
+          customer_name: order.customers?.name || 'عميل غير معروف',
+          customer_phone: order.customers?.phone || '',
+          status: order.status as OrderStatus,
+          payment_method: order.payment_method,
+          payment_status: order.payment_status,
+          collection_status: (order as any).collection_status || 'not_collected',
+          subtotal: Number(order.subtotal),
+          discount: Number(order.discount),
+          delivery_fee: Number(order.delivery_fee),
+          total: Number(order.total),
+          notes: order.notes,
+          delivery_address: order.delivery_address,
+          created_at: order.created_at,
+          delivered_at: (order as any).delivered_at ?? null,
+          created_by: order.created_by,
+          moderator_name:
+            (order.created_by && profilesMap[order.created_by]) ||
+            order.moderator ||
+            '-',
+          governorate: (order.customers as any)?.governorate ?? null,
+          shipping_company: order.shipping_company ?? null,
+          fulfillment_type: (order as any).fulfillment_type ?? null,
+          source_warehouse_id: (order as any).source_warehouse_id ?? null,
+          source_warehouse_name: (order as any).source_warehouse_id
+            ? (warehousesMap[(order as any).source_warehouse_id] ?? null)
+            : null,
+          items: (itemsByOrder[order.id] || []).map((item: any) => ({
             id: item.id,
             product_id: item.product_id ?? null,
             product_name: item.product_name,
@@ -376,15 +326,90 @@ const Orders = () => {
             unit: (item.product_id && productsMap[item.product_id]) || 'كجم',
             offer_name: (item as any).offer_name ?? null,
           })),
-      }));
+        }));
 
-      setOrders(formattedOrders);
+      const loadLookups = async (orders: any[], items: any[]) => {
+        const newCreators = Array.from(new Set(
+          orders.map((o: any) => o.created_by).filter((id: string) => id && !profilesMap[id])
+        )) as string[];
+        const newProducts = Array.from(new Set(
+          items.map((it: any) => it.product_id).filter((id: string) => id && !productsMap[id])
+        )) as string[];
+        const newWarehouses = Array.from(new Set(
+          orders.map((o: any) => o.source_warehouse_id).filter((id: string) => id && !warehousesMap[id])
+        )) as string[];
 
-      // استخراج قائمة المنتجات الفريدة
-      const productNames = Array.from(
-        new Set(itemsData.map((it: any) => it.product_name).filter(Boolean))
-      ).sort((a: string, b: string) => a.localeCompare(b, 'ar'));
-      setAvailableProducts(productNames);
+        await Promise.all([
+          newCreators.length > 0
+            ? supabase.from('profiles').select('id, full_name').in('id', newCreators).then(({ data }) => {
+                (data || []).forEach((p: any) => { profilesMap[p.id] = p.full_name; });
+              })
+            : Promise.resolve(),
+          newProducts.length > 0
+            ? supabase.from('products').select('id, unit').in('id', newProducts).then(({ data }) => {
+                (data || []).forEach((p: any) => { productsMap[p.id] = p.unit; });
+              })
+            : Promise.resolve(),
+          newWarehouses.length > 0
+            ? supabase.from('warehouses').select('id, name').in('id', newWarehouses).then(({ data }) => {
+                (data || []).forEach((w: any) => { warehousesMap[w.id] = w.name; });
+              })
+            : Promise.resolve(),
+        ]);
+      };
+
+      // الصفحة الأولى: نعرضها فوراً ثم نكمل باقى الصفحات فى الخلفية
+      const ORDERS_PAGE = 500;
+      let oPage = 0;
+      let accumulated: Order[] = [];
+
+      const fetchPage = async (page: number) => {
+        let q = supabase
+          .from('orders')
+          .select(`${ORDER_COLS}, customers (name, phone, governorate), order_items (${ITEM_COLS})`)
+          .order('created_at', { ascending: false })
+          .range(page * ORDERS_PAGE, (page + 1) * ORDERS_PAGE - 1);
+        if (startDate) q = q.gte('created_at', startDate);
+        if (endDate) q = q.lt('created_at', endDate);
+        const { data, error } = await q;
+        if (error) throw error;
+        return (data || []) as any[];
+      };
+
+      const firstBatch = await fetchPage(oPage);
+      const firstItems = firstBatch.flatMap((o: any) =>
+        ((o.order_items as any[]) || []).map((it) => ({ ...it, order_id: o.id }))
+      );
+      await loadLookups(firstBatch, firstItems);
+      const itemsByOrder1: Record<string, any[]> = {};
+      firstBatch.forEach((o: any) => { itemsByOrder1[o.id] = (o.order_items as any[]) || []; });
+      accumulated = formatBatch(firstBatch, itemsByOrder1);
+      firstItems.forEach((it: any) => { if (it.product_name) productNamesSet.add(it.product_name); });
+      setOrders(accumulated);
+      setAvailableProducts(Array.from(productNamesSet).sort((a, b) => a.localeCompare(b, 'ar')));
+      setLoading(false);
+
+      // باقى الصفحات تُحمَّل فى الخلفية دون أن تحجب الواجهة
+      if (firstBatch.length === ORDERS_PAGE) {
+        oPage = 1;
+        while (true) {
+          const batch = await fetchPage(oPage);
+          if (batch.length === 0) break;
+          const batchItems = batch.flatMap((o: any) =>
+            ((o.order_items as any[]) || []).map((it) => ({ ...it, order_id: o.id }))
+          );
+          await loadLookups(batch, batchItems);
+          const itemsByOrder: Record<string, any[]> = {};
+          batch.forEach((o: any) => { itemsByOrder[o.id] = (o.order_items as any[]) || []; });
+          const formatted = formatBatch(batch, itemsByOrder);
+          batchItems.forEach((it: any) => { if (it.product_name) productNamesSet.add(it.product_name); });
+          accumulated = accumulated.concat(formatted);
+          setOrders([...accumulated]);
+          setAvailableProducts(Array.from(productNamesSet).sort((a, b) => a.localeCompare(b, 'ar')));
+          if (batch.length < ORDERS_PAGE) break;
+          oPage++;
+        }
+      }
     } catch (error) {
       console.error('Error fetching orders:', error);
       toast.error('حدث خطأ أثناء جلب الطلبات');
@@ -392,6 +417,7 @@ const Orders = () => {
       setLoading(false);
     }
   };
+
 
   const filteredOrders = orders.filter((order) => {
     const matchesStatus =
