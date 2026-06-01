@@ -783,6 +783,114 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
             </Button>
           </DialogFooter>
         </DialogContent>
+
+      {/* إيصال آخر عملية: طباعة + تصدير اكسيل */}
+      <Dialog open={!!receipt} onOpenChange={(o) => { if (!o) setReceipt(null); }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {receipt?.kind === "supply" ? "إيصال توريد" : "إيصال مرتجع"} — {warehouseName}
+            </DialogTitle>
+          </DialogHeader>
+          {receipt && (
+            <div id="receipt-print-area" className="space-y-3">
+              <div className="text-sm text-muted-foreground flex flex-wrap gap-x-6 gap-y-1">
+                <span>التاريخ: {new Date(receipt.at).toLocaleString("ar-EG")}</span>
+                <span>عدد الأصناف: {receipt.lines.length}</span>
+                {receipt.notes && <span>ملاحظات: {receipt.notes}</span>}
+              </div>
+              <div className="border rounded-md overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted">
+                    <tr>
+                      <th className="p-2 text-right">المنتج</th>
+                      <th className="p-2 text-right">المُدخل</th>
+                      <th className="p-2 text-right">الوحدة</th>
+                      <th className="p-2 text-right">المخصوم من الرئيسي</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {receipt.lines.map((l, i) => (
+                      <tr key={i} className="border-t">
+                        <td className="p-2 font-medium">{l.name}</td>
+                        <td className="p-2">{l.inputQty.toLocaleString("ar-EG")}</td>
+                        <td className="p-2">{l.inputUnit}</td>
+                        <td className="p-2">{l.deductedQty.toLocaleString("ar-EG")} {l.deductedUnit}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReceipt(null)}>إغلاق</Button>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => {
+                if (!receipt) return;
+                const rows = receipt.lines.map((l) => ({
+                  "المنتج": l.name,
+                  "الكمية المُدخلة": l.inputQty,
+                  "وحدة الإدخال": l.inputUnit,
+                  "المخصوم من المخزن الرئيسي": l.deductedQty,
+                  "وحدة الخصم": l.deductedUnit,
+                }));
+                const ws = XLSX.utils.json_to_sheet(rows);
+                const wb = XLSX.utils.book_new();
+                const sheetName = receipt.kind === "supply" ? "توريد" : "مرتجع";
+                XLSX.utils.book_append_sheet(wb, ws, sheetName);
+                const ts = new Date(receipt.at).toISOString().replace(/[:.]/g, "-").slice(0, 19);
+                XLSX.writeFile(wb, `${sheetName}_${warehouseName}_${ts}.xlsx`);
+              }}
+            >
+              <FileSpreadsheet className="w-4 h-4" /> تصدير Excel
+            </Button>
+            <Button
+              className="gap-2"
+              onClick={() => {
+                if (!receipt) return;
+                const w = window.open("", "_blank", "width=900,height=700");
+                if (!w) return;
+                const title = receipt.kind === "supply" ? "إيصال توريد" : "إيصال مرتجع";
+                const rows = receipt.lines.map((l) => `
+                  <tr>
+                    <td>${l.name}</td>
+                    <td>${l.inputQty.toLocaleString("ar-EG")}</td>
+                    <td>${l.inputUnit}</td>
+                    <td>${l.deductedQty.toLocaleString("ar-EG")} ${l.deductedUnit}</td>
+                  </tr>`).join("");
+                w.document.write(`
+                  <html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>${title}</title>
+                  <style>
+                    body{font-family:Tahoma,Arial,sans-serif;padding:20px;direction:rtl;}
+                    h2{margin:0 0 6px;} .meta{color:#555;font-size:13px;margin-bottom:12px;}
+                    table{width:100%;border-collapse:collapse;font-size:14px;}
+                    th,td{border:1px solid #ccc;padding:6px 8px;text-align:right;}
+                    th{background:#f1f1f1;}
+                  </style></head><body>
+                  <h2>${title} — ${warehouseName}</h2>
+                  <div class="meta">
+                    التاريخ: ${new Date(receipt.at).toLocaleString("ar-EG")}
+                    &nbsp;•&nbsp; عدد الأصناف: ${receipt.lines.length}
+                    ${receipt.notes ? `&nbsp;•&nbsp; ملاحظات: ${receipt.notes}` : ""}
+                  </div>
+                  <table>
+                    <thead><tr>
+                      <th>المنتج</th><th>المُدخل</th><th>الوحدة</th><th>المخصوم من الرئيسي</th>
+                    </tr></thead>
+                    <tbody>${rows}</tbody>
+                  </table>
+                  <script>window.onload=()=>{window.print();}</script>
+                  </body></html>`);
+                w.document.close();
+              }}
+            >
+              <Printer className="w-4 h-4" /> طباعة
+            </Button>
+          </DialogFooter>
+        </DialogContent>
       </Dialog>
     </DashboardLayout>
   );
