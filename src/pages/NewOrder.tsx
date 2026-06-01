@@ -56,6 +56,7 @@ import {
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { normalizePhone } from '@/lib/normalizePhone';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface Product {
   id: string;
@@ -127,6 +128,35 @@ const isKgUnit = (unit: string) => {
   return /^(كجم|كيلو|كيلوجرام|كيلوغرام|كغم|كغ|kg|kgs|kilogram|kilogramme|kilo)$/i.test(u);
 };
 
+const QUERY_TIMEOUT_MS = 12000;
+
+const getErrorMessage = (error: unknown, timeoutFallback: string) => {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  if (message.startsWith('TIMEOUT:')) return timeoutFallback;
+  return message || timeoutFallback;
+};
+
+const withTimedQuery = async <T,>(
+  label: string,
+  query: () => T | PromiseLike<T>,
+  timeoutMs = QUERY_TIMEOUT_MS,
+): Promise<T> => {
+  console.time(label);
+  let timeoutId: number | undefined;
+
+  try {
+    return await Promise.race([
+      Promise.resolve(query()),
+      new Promise<T>((_, reject) => {
+        timeoutId = window.setTimeout(() => reject(new Error(`TIMEOUT:${label}`)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+    console.timeEnd(label);
+  }
+};
+
 const NewOrder = () => {
   const navigate = useNavigate();
   const { user, isSalesModerator } = useAuth();
@@ -145,9 +175,16 @@ const NewOrder = () => {
     }
     (async () => {
       if (!user) return;
-      const { data } = await supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle();
-      const m = findModeratorByName(data?.full_name);
-      if (m) setModeratorName(m.canonicalModerator);
+      try {
+        const profileRes: any = await withTimedQuery(
+          '[NewOrder] moderator profile query',
+          () => supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle(),
+        );
+        const m = findModeratorByName(profileRes?.data?.full_name);
+        if (m) setModeratorName(m.canonicalModerator);
+      } catch (error) {
+        console.error('Moderator profile query failed:', error);
+      }
     })();
   }, [user, searchParams]);
 
@@ -155,7 +192,17 @@ const NewOrder = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [offerBoxes, setOfferBoxes] = useState<OfferBox[]>([]);
   const [offerContentsById, setOfferContentsById] = useState<Record<string, string[]>>({});
-  const [loading, setLoading] = useState(true);
+  const [pageShellLoading, setPageShellLoading] = useState(true);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [offersLoading, setOffersLoading] = useState(true);
+  const [warehousesLoading, setWarehousesLoading] = useState(true);
+  const [inventoryLoading, setInventoryLoading] = useState(false);
+  const [offerContentsLoading, setOfferContentsLoading] = useState(false);
+  const [productsError, setProductsError] = useState<string | null>(null);
+  const [offersError, setOffersError] = useState<string | null>(null);
+  const [warehousesError, setWarehousesError] = useState<string | null>(null);
+  const [inventoryError, setInventoryError] = useState<string | null>(null);
+  const [offerContentsError, setOfferContentsError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   
   // Cart state
@@ -214,104 +261,189 @@ const NewOrder = () => {
   const [newCustomerShippingCustom, setNewCustomerShippingCustom] = useState('');
 
   useEffect(() => {
+    console.time('[NewOrder] page shell visible');
+    const firstFrame = window.requestAnimationFrame(() => {
+      const secondFrame = window.requestAnimationFrame(() => {
+        setPageShellLoading(false);
+        console.timeEnd('[NewOrder] page shell visible');
+      });
+
+      return () => window.cancelAnimationFrame(secondFrame);
+    });
+
     fetchData();
+
+    return () => window.cancelAnimationFrame(firstFrame);
   }, []);
 
-  const fetchData = async () => {
+  const fetchData = () => {
     setCustomers([]);
-    try {
-      console.time('[NewOrder] core fetch (products+offers+warehouses)');
-      const [productsRes, offersRes, whRes] = await Promise.all([
-        supabase.from('products').select('*').eq('is_active', true),
-        supabase.from('offer_boxes').select('*').eq('is_active', true),
-        supabase.from('warehouses').select('id, name').eq('is_active', true),
-      ]);
-      console.timeEnd('[NewOrder] core fetch (products+offers+warehouses)');
+    setProductsLoading(true);
+    setOffersLoading(true);
+    setWarehousesLoading(true);
+    setInventoryLoading(false);
+    setOfferContentsLoading(false);
+    setProductsError(null);
+    setOffersError(null);
+    setWarehousesError(null);
+    setInventoryError(null);
+    setOfferContentsError(null);
+    setOfferContentsById({});
 
-      if (productsRes.error) throw productsRes.error;
-      if (offersRes.error) throw offersRes.error;
-      const whs = whRes.data || [];
-      setWarehousesList(whs);
+    const loadProducts = async () => {
+      try {
+        const productsRes: any = await withTimedQuery(
+          '[NewOrder] products query',
+          () => supabase.from('products').select('*').eq('is_active', true),
+        );
+        if (productsRes.error) throw productsRes.error;
+        setProducts(productsRes.data || []);
+      } catch (error) {
+        console.error('Products fetch failed:', error);
+        setProductsError(getErrorMessage(error, 'استغرق تحميل المنتجات وقتًا أطول من المتوقع.'));
+      } finally {
+        setProductsLoading(false);
+      }
+    };
 
-      const productsData = productsRes.data || [];
-      setProducts(productsData);
+    const loadOffers = async () => {
+      try {
+        const offersRes: any = await withTimedQuery(
+          '[NewOrder] offers query',
+          () => supabase.from('offer_boxes').select('*').eq('is_active', true),
+        );
+        if (offersRes.error) throw offersRes.error;
 
-      // Filter out expired offers and not-yet-started offers
-      const now = new Date();
-      const activeOffers = (offersRes.data || []).filter((offer: any) => {
-        if (offer.expires_at && new Date(offer.expires_at) <= now) return false;
-        if (offer.starts_at && new Date(offer.starts_at) > now) return false;
-        return true;
-      });
-      setOfferBoxes(activeOffers);
+        const now = new Date();
+        const activeOffers = (offersRes.data || []).filter((offer: any) => {
+          if (offer.expires_at && new Date(offer.expires_at) <= now) return false;
+          if (offer.starts_at && new Date(offer.starts_at) > now) return false;
+          return true;
+        });
 
-      // Release the UI as soon as the core data is ready.
-      setLoading(false);
+        setOfferBoxes(activeOffers);
+        return activeOffers as OfferBox[];
+      } catch (error) {
+        console.error('Offers fetch failed:', error);
+        setOffersError(getErrorMessage(error, 'استغرق تحميل العروض وقتًا أطول من المتوقع.'));
+        return [] as OfferBox[];
+      } finally {
+        setOffersLoading(false);
+      }
+    };
 
-      // Background: warehouse stock for Agouza & Main (non-blocking)
-      const agouza = whs.find((w: any) => w.name?.includes('العجوزة'));
-      const main = whs.find((w: any) => w.name?.includes('الرئيسي') || w.name?.includes('المقر'));
+    const loadWarehouses = async () => {
+      try {
+        const whRes: any = await withTimedQuery(
+          '[NewOrder] warehouses query',
+          () => supabase.from('warehouses').select('id, name').eq('is_active', true),
+        );
+        if (whRes.error) throw whRes.error;
+        const whs = whRes.data || [];
+        setWarehousesList(whs);
+        return whs as Array<{ id: string; name: string }>;
+      } catch (error) {
+        console.error('Warehouses fetch failed:', error);
+        setWarehousesError(getErrorMessage(error, 'استغرق تحميل المخازن وقتًا أطول من المتوقع.'));
+        return [] as Array<{ id: string; name: string }>;
+      } finally {
+        setWarehousesLoading(false);
+      }
+    };
+
+    void loadProducts();
+
+    void loadWarehouses().then(async (whs) => {
+      const agouza = whs.find((w) => w.name?.includes('العجوزة'));
+      const main = whs.find((w) => w.name?.includes('الرئيسي') || w.name?.includes('المقر'));
       const whIds = [agouza?.id, main?.id].filter(Boolean) as string[];
-      if (whIds.length > 0) {
-        (async () => {
-          console.time('[NewOrder] inventory stock');
-          const { data: invRows } = await supabase
+
+      if (whIds.length === 0) {
+        setAgouzaStock({});
+        setMainStock({});
+        return;
+      }
+
+      setInventoryLoading(true);
+      try {
+        const inventoryRes: any = await withTimedQuery(
+          '[NewOrder] inventory_items query',
+          () => supabase
             .from('inventory_items')
             .select('warehouse_id, product_id, stock, reserved_qty, blocked_qty')
             .in('warehouse_id', whIds)
-            .not('product_id', 'is', null);
-          console.timeEnd('[NewOrder] inventory stock');
-          const ag: Record<string, number> = {};
-          const mn: Record<string, number> = {};
-          (invRows || []).forEach((r: any) => {
-            const avail = Number(r.stock || 0) - Number(r.reserved_qty || 0) - Number(r.blocked_qty || 0);
-            if (r.warehouse_id === agouza?.id) ag[r.product_id] = (ag[r.product_id] || 0) + avail;
-            if (r.warehouse_id === main?.id) mn[r.product_id] = (mn[r.product_id] || 0) + avail;
-          });
-          setAgouzaStock(ag);
-          setMainStock(mn);
-        })().catch((e) => console.error('inventory stock fetch failed', e));
+            .not('product_id', 'is', null),
+        );
+        const invRows = inventoryRes?.data || [];
+        if (inventoryRes?.error) throw inventoryRes.error;
+
+        const ag: Record<string, number> = {};
+        const mn: Record<string, number> = {};
+        (invRows || []).forEach((r: any) => {
+          const avail = Number(r.stock || 0) - Number(r.reserved_qty || 0) - Number(r.blocked_qty || 0);
+          if (r.warehouse_id === agouza?.id) ag[r.product_id] = (ag[r.product_id] || 0) + avail;
+          if (r.warehouse_id === main?.id) mn[r.product_id] = (mn[r.product_id] || 0) + avail;
+        });
+        setAgouzaStock(ag);
+        setMainStock(mn);
+      } catch (error) {
+        console.error('Inventory fetch failed:', error);
+        setInventoryError(getErrorMessage(error, 'استغرق تحميل المخزون وقتًا أطول من المتوقع.'));
+      } finally {
+        setInventoryLoading(false);
       }
+    });
 
-      // Background: offer contents preview (non-blocking)
-      if (activeOffers.length > 0) {
-        (async () => {
-          try {
-            console.time('[NewOrder] offer contents');
-            const { data: offerItemsRes, error: offerItemsError } = await supabase
-              .from('offer_box_items')
-              .select('offer_box_id, product_id, quantity')
-              .in('offer_box_id', activeOffers.map((offer) => offer.id));
-            if (offerItemsError) throw offerItemsError;
-
-            const productIds = Array.from(new Set((offerItemsRes || []).map((item) => item.product_id).filter(Boolean)));
-            const { data: offerProductsRes, error: offerProductsError } = productIds.length === 0
-              ? { data: [], error: null }
-              : await supabase.from('products').select('id, name').in('id', productIds);
-            if (offerProductsError) throw offerProductsError;
-
-            const productNameById = new Map((offerProductsRes || []).map((product: any) => [product.id, product.name]));
-            const nextContents = (offerItemsRes || []).reduce((acc, item: any) => {
-              const productName = productNameById.get(item.product_id);
-              if (!productName) return acc;
-              const line = `${Number(item.quantity || 0).toLocaleString()} × ${productName}`;
-              acc[item.offer_box_id] = [...(acc[item.offer_box_id] || []), line];
-              return acc;
-            }, {} as Record<string, string[]>);
-            setOfferContentsById(nextContents);
-            console.timeEnd('[NewOrder] offer contents');
-          } catch (e) {
-            console.error('offer contents fetch failed', e);
-          }
-        })();
-      } else {
+    void loadOffers().then(async (activeOffers) => {
+      if (activeOffers.length === 0) {
         setOfferContentsById({});
+        return;
       }
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      toast.error('حدث خطأ أثناء جلب البيانات');
-      setLoading(false);
-    }
+
+      setOfferContentsLoading(true);
+      try {
+        const offerItemsResponse: any = await withTimedQuery(
+          '[NewOrder] offer_box_items query',
+          () => supabase
+            .from('offer_box_items')
+            .select('offer_box_id, product_id, quantity')
+            .in('offer_box_id', activeOffers.map((offer) => offer.id)),
+        );
+        const offerItemsRes = offerItemsResponse?.data || [];
+        if (offerItemsResponse?.error) throw offerItemsResponse.error;
+
+        const productIds: string[] = Array.from(
+          new Set(
+            (offerItemsRes || [])
+              .map((item: any) => item.product_id)
+              .filter((id: unknown): id is string => typeof id === 'string' && id.length > 0)
+          )
+        ) as string[];
+        const offerProductsRes: any = productIds.length === 0
+          ? { data: [], error: null }
+          : await withTimedQuery(
+              '[NewOrder] offer content products query',
+              () => supabase.from('products').select('id, name').in('id', productIds),
+            );
+        if (offerProductsRes.error) throw offerProductsRes.error;
+
+        const productNameById = new Map((offerProductsRes.data || []).map((product: any) => [product.id, product.name]));
+        const nextContents = (offerItemsRes || []).reduce((acc, item: any) => {
+          const productName = productNameById.get(item.product_id);
+          if (!productName) return acc;
+          const line = `${Number(item.quantity || 0).toLocaleString()} × ${productName}`;
+          acc[item.offer_box_id] = [...(acc[item.offer_box_id] || []), line];
+          return acc;
+        }, {} as Record<string, string[]>);
+
+        setOfferContentsById(nextContents);
+      } catch (error) {
+        console.error('Offer contents fetch failed:', error);
+        setOfferContentsError(getErrorMessage(error, 'استغرق تحميل محتويات البوكسات وقتًا أطول من المتوقع.'));
+      } finally {
+        setOfferContentsLoading(false);
+      }
+    });
   };
 
   useEffect(() => {
@@ -1048,16 +1180,6 @@ const NewOrder = () => {
     toast.success(`تم اختيار العميل: ${existingCustomerMatch.name}`);
   };
 
-  if (loading) {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-        </div>
-      </DashboardLayout>
-    );
-  }
-
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -1091,6 +1213,9 @@ const NewOrder = () => {
                       onChange={(e) => setCustomerSearch(e.target.value)}
                     />
                   </div>
+                    {searchingCustomers && (
+                      <p className="mt-2 text-xs text-muted-foreground">جاري البحث عن العملاء...</p>
+                    )}
                   <Dialog
                     open={isNewCustomerOpen}
                     onOpenChange={(open) => {
@@ -1302,6 +1427,21 @@ const NewOrder = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
+                {pageShellLoading && (
+                  <div className="space-y-3 mb-4">
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-24 w-full" />
+                  </div>
+                )}
+                {(productsError || offersError || warehousesError || inventoryError || offerContentsError) && (
+                  <div className="mb-4 space-y-1 rounded-lg border border-amber-200 bg-amber-50/70 dark:bg-amber-950/20 p-3 text-xs text-amber-800 dark:text-amber-300">
+                    {productsError && <p>المنتجات: {productsError}</p>}
+                    {offersError && <p>العروض: {offersError}</p>}
+                    {warehousesError && <p>المخازن: {warehousesError}</p>}
+                    {inventoryError && <p>المخزون: {inventoryError}</p>}
+                    {offerContentsError && <p>محتويات البوكسات: {offerContentsError}</p>}
+                  </div>
+                )}
                 <Tabs defaultValue="products" className="w-full">
                   <TabsList className="grid w-full grid-cols-2 mb-4">
                     <TabsTrigger value="products" className="gap-2">
@@ -1320,6 +1460,11 @@ const NewOrder = () => {
                   </TabsList>
 
                   <TabsContent value="products" className="mt-0">
+                    <div className="mb-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                      <Badge variant="outline">المنتجات: {productsLoading ? 'جاري التحميل' : `${products.length} عنصر`}</Badge>
+                      <Badge variant="outline">المخازن: {warehousesLoading ? 'جاري التحميل' : `${warehousesList.length} مخزن`}</Badge>
+                      <Badge variant="outline">المخزون: {inventoryLoading ? 'جاري التحميل' : 'محمّل'}</Badge>
+                    </div>
                     <div className="relative mb-4">
                       <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <Input
@@ -1327,9 +1472,18 @@ const NewOrder = () => {
                         className="pr-10"
                         value={productSearch}
                         onChange={(e) => setProductSearch(e.target.value)}
+                        disabled={productsLoading && products.length === 0}
                       />
                     </div>
 
+                    {productsLoading && products.length === 0 ? (
+                      <div className="space-y-3">
+                        {Array.from({ length: 6 }).map((_, index) => (
+                          <Skeleton key={index} className="h-16 w-full" />
+                        ))}
+                      </div>
+                    ) : (
+                      <>
                     {/* Desktop/tablet table view */}
                     <div className="hidden md:block border rounded-lg overflow-x-auto">
                       <table className="w-full min-w-[640px] text-right text-sm">
@@ -1528,10 +1682,22 @@ const NewOrder = () => {
                         );
                       })}
                     </div>
+                      </>
+                    )}
                   </TabsContent>
 
                   <TabsContent value="offers" className="mt-0">
-                    {offerBoxes.length === 0 ? (
+                    <div className="mb-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                      <Badge variant="outline">العروض: {offersLoading ? 'جاري التحميل' : `${offerBoxes.length} عرض`}</Badge>
+                      <Badge variant="outline">محتويات البوكسات: {offerContentsLoading ? 'جاري التحميل' : 'محمّلة'}</Badge>
+                    </div>
+                    {offersLoading && offerBoxes.length === 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {Array.from({ length: 4 }).map((_, index) => (
+                          <Skeleton key={index} className="h-32 w-full" />
+                        ))}
+                      </div>
+                    ) : offerBoxes.length === 0 ? (
                       <div className="text-center py-8 text-muted-foreground">
                         <Gift className="h-12 w-12 mx-auto mb-2 opacity-50" />
                         <p>لا توجد عروض متاحة حالياً</p>
@@ -1555,6 +1721,8 @@ const NewOrder = () => {
                               <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
                                 {offerContentsById[offer.id].join(' + ')}
                               </p>
+                            ) : offerContentsLoading ? (
+                              <p className="mt-2 text-xs text-muted-foreground">جاري تحميل محتويات البوكس...</p>
                             ) : null}
                             <Badge className="mt-2 bg-green-100 text-green-700 hover:bg-green-100">
                               اضغط لعرض التفاصيل
