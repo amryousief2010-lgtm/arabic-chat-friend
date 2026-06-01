@@ -287,9 +287,21 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
                   <label className="text-xs text-muted-foreground">الكمية</label>
                   <Input
                     type="number"
-                    min={1}
+                    min={0}
+                    step="any"
                     value={it.quantity}
-                    onChange={(e) => updateItem(realIdx, { quantity: Number(e.target.value) })}
+                    onChange={(e) => {
+                      const newQty = Number(e.target.value);
+                      // Auto-scale unit_price proportionally to the quantity change
+                      // so changing 1 كيلو سجق → 0.5 يخفّض السعر تلقائيًا.
+                      const baseQty = Number(it._original?.quantity) || Number(it.quantity) || 0;
+                      const baseUnit = Number(it._original?.unit_price) || Number(it.unit_price) || 0;
+                      let newUnit = it.unit_price;
+                      if (baseQty > 0 && baseUnit > 0 && Number.isFinite(newQty)) {
+                        newUnit = Number(((baseUnit * newQty) / baseQty).toFixed(2));
+                      }
+                      updateItem(realIdx, { quantity: newQty, unit_price: newUnit });
+                    }}
                   />
                 </div>
                 <div className="col-span-4 md:col-span-2">

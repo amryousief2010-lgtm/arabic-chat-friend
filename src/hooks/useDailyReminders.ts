@@ -16,11 +16,14 @@ const toMin = (hhmm: string) => {
  * Checks every 60s and fires daily/weekly toasts when the configured time has passed,
  * once per day / per ISO week, respecting enable toggles in reminder prefs.
  */
+const SUPPRESSED_ROLES = new Set(["sales_moderator", "marketing_sales_manager"]);
+
 export function useDailyReminders() {
   const { user, role } = useAuth();
 
   useEffect(() => {
     if (!user || !role) return;
+    if (SUPPRESSED_ROLES.has(role)) return;
     const guide = getGuideForRole(role);
     if (!guide) return;
 
