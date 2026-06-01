@@ -1175,3 +1175,72 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
     </DashboardLayout>
   );
 }
+
+interface ProductPickerProps {
+  items: Array<{ id: string; name: string; unit: string; stock: number }>;
+  value: string;
+  onChange: (name: string) => void;
+  disabledNames: Set<string>;
+  emptyMessage: string;
+}
+
+function ProductPicker({ items, value, onChange, disabledNames, emptyMessage }: ProductPickerProps) {
+  const [open, setOpen] = useState(false);
+  const selected = items.find((i) => i.name === value);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between font-normal"
+        >
+          <span className="truncate text-right">
+            {selected ? selected.name : "اختر منتجاً من المخزن الرئيسي"}
+          </span>
+          <ChevronsUpDown className="w-4 h-4 opacity-50 shrink-0" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[min(420px,90vw)] p-0" align="start">
+        <Command
+          filter={(val, search) => (val.includes(search.trim()) ? 1 : 0)}
+        >
+          <CommandInput placeholder="ابحث باسم المنتج..." />
+          <CommandList className="max-h-[300px]">
+            <CommandEmpty>{items.length === 0 ? emptyMessage : "لا يوجد منتج مطابق"}</CommandEmpty>
+            <CommandGroup>
+              {items.map((i) => {
+                const w = isWeightUnit(i.unit);
+                const kg = Number(i.stock) || 0;
+                const isDisabled = disabledNames.has(i.name);
+                return (
+                  <CommandItem
+                    key={i.id}
+                    value={i.name}
+                    disabled={isDisabled}
+                    onSelect={(v) => {
+                      onChange(v);
+                      setOpen(false);
+                    }}
+                    className="flex items-center justify-between gap-2"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Check className={`w-4 h-4 shrink-0 ${value === i.name ? "opacity-100" : "opacity-0"}`} />
+                      <span className="truncate font-medium">{i.name}</span>
+                    </div>
+                    <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                      {kg.toLocaleString("ar-EG")} {i.unit}
+                      {w ? ` • ${toPackages(kg).toLocaleString("ar-EG")} عبوة` : ""}
+                    </span>
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
