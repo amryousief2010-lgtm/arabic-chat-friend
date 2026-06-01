@@ -233,6 +233,11 @@ const Orders = () => {
     setSearchParams(next, { replace: true });
   };
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 350);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
   const now = new Date();
   const [filterMonth, setFilterMonth] = useState<string>("all");
   const [filterYear, setFilterYear] = useState<string>("all");
@@ -243,10 +248,18 @@ const Orders = () => {
     currentTotal: number;
   } | null>(null);
 
+  // افتراضياً نحمّل طلبات الشهر الحالي فقط لتسريع الواجهة.
+  // عند البحث أو اختيار شهر/سنة محددة يتم تجاوز هذا التقييد لجلب كل المطابقات.
+  const restrictToCurrentMonth =
+    !debouncedSearch &&
+    filterMonth === "all" &&
+    filterYear === "all" &&
+    yearGroup === "all";
+
   useEffect(() => {
     fetchOrders();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterMonth, filterYear, yearGroup]);
+  }, [filterMonth, filterYear, yearGroup, debouncedSearch]);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -270,6 +283,11 @@ const Orders = () => {
         startDate = new Date(Date.UTC(2026, 0, 1)).toISOString();
       } else if (yearGroup === 'pre2026') {
         endDate = new Date(Date.UTC(2026, 0, 1)).toISOString();
+      } else if (restrictToCurrentMonth) {
+        const y = now.getUTCFullYear();
+        const m = now.getUTCMonth();
+        startDate = new Date(Date.UTC(y, m, 1)).toISOString();
+        endDate = new Date(Date.UTC(y, m + 1, 1)).toISOString();
       }
 
       // أعمدة محددة بدلاً من * لتقليل الحمولة (نفس البيانات المستعملة في الواجهة فقط)
@@ -743,9 +761,14 @@ const Orders = () => {
 
       <Card className="glass-card">
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 flex-wrap">
             <ShoppingCart className="w-5 h-5 text-primary" />
             قائمة الطلبات ({filteredOrders.length})
+            {restrictToCurrentMonth && (
+              <Badge variant="outline" className="text-xs font-normal">
+                عرض طلبات {monthNames[now.getMonth()]} فقط — اكتب فى البحث لرؤية كل الشهور
+              </Badge>
+            )}
           </CardTitle>
           <div className="flex flex-wrap items-center gap-3">
             <Input
