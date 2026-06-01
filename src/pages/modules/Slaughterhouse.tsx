@@ -935,6 +935,101 @@ const Slaughterhouse = () => {
             />
           )}
 
+          {/* Receipt details dialog with PDF + Excel export */}
+          <Dialog open={!!detailReceipt} onOpenChange={(o) => !o && setDetailReceipt(null)}>
+            <DialogContent dir="rtl" className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>تفاصيل الاستلام — {detailReceipt?.receipt_number}</DialogTitle>
+              </DialogHeader>
+              {detailReceipt && (() => {
+                const r = detailReceipt;
+                const recBirds = birds.filter(b => b.receipt_id === r.id);
+                const totalCost = recBirds.reduce((s, b) => s + Number(b.purchase_cost || 0) + Number(b.feed_cost || 0), 0) || Number(r.total_cost || 0);
+                return (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                      <div className="p-2 bg-muted/40 rounded"><div className="text-xs text-muted-foreground">التاريخ</div><b>{r.receipt_date}</b></div>
+                      <div className="p-2 bg-muted/40 rounded"><div className="text-xs text-muted-foreground">المصدر</div><b>{r.source_type === "internal_farm" ? "🏡 داخلي" : "🚚 خارجي"}</b></div>
+                      <div className="p-2 bg-muted/40 rounded"><div className="text-xs text-muted-foreground">اسم المورد</div><b>{r.source_name || "-"}</b></div>
+                      <div className="p-2 bg-muted/40 rounded"><div className="text-xs text-muted-foreground">الحالة</div><b>{r.status}</b></div>
+                      <div className="p-2 bg-primary/10 rounded"><div className="text-xs text-muted-foreground">عدد الطيور</div><b>{r.bird_count}</b></div>
+                      <div className="p-2 bg-primary/10 rounded"><div className="text-xs text-muted-foreground">الوزن الإجمالي</div><b>{Number(r.total_weight_kg).toFixed(1)} كجم</b></div>
+                      <div className="p-2 bg-primary/10 rounded"><div className="text-xs text-muted-foreground">متوسط الوزن</div><b>{Number(r.avg_weight_kg || 0).toFixed(2)} كجم</b></div>
+                      <div className="p-2 bg-red-500/10 rounded"><div className="text-xs text-muted-foreground">نافق عند الوصول</div><b className="text-red-600">{r.dead_on_arrival}</b></div>
+                      <div className="p-2 bg-emerald-500/10 rounded"><div className="text-xs text-muted-foreground">السعر/كجم</div><b>{Number(r.price_per_kg || 0).toFixed(2)} ج.م</b></div>
+                      <div className="p-2 bg-emerald-500/10 rounded col-span-2 md:col-span-3"><div className="text-xs text-muted-foreground">إجمالي التكلفة</div><b className="text-emerald-700 text-lg">{totalCost.toFixed(2)} ج.م</b></div>
+                    </div>
+                    {recBirds.length > 0 && (
+                      <div className="overflow-x-auto">
+                        <div className="text-sm font-semibold mb-2">تفاصيل الطيور ({recBirds.length})</div>
+                        <Table>
+                          <TableHeader><TableRow>
+                            <TableHead>م</TableHead><TableHead>رقم</TableHead><TableHead>الوزن الحي</TableHead>
+                            <TableHead>وزن الذبح</TableHead><TableHead>تكلفة الشراء</TableHead><TableHead>تكلفة العلف</TableHead><TableHead>ملاحظات</TableHead>
+                          </TableRow></TableHeader>
+                          <TableBody>
+                            {recBirds.map((b, i) => (
+                              <TableRow key={b.id}>
+                                <TableCell>{i + 1}</TableCell>
+                                <TableCell>{b.bird_index}</TableCell>
+                                <TableCell>{Number(b.live_weight_kg || 0).toFixed(2)}</TableCell>
+                                <TableCell>{Number(b.slaughter_weight_kg || 0).toFixed(2)}</TableCell>
+                                <TableCell>{Number(b.purchase_cost || 0).toFixed(2)}</TableCell>
+                                <TableCell>{Number(b.feed_cost || 0).toFixed(2)}</TableCell>
+                                <TableCell className="text-xs">{b.notes || "-"}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+              <DialogFooter className="gap-2 flex-row">
+                {detailReceipt && (
+                  <>
+                    <Button variant="outline" onClick={() => exportReceiptPDF(detailReceipt)} className="text-red-600 hover:bg-red-50">
+                      <Printer className="w-4 h-4 ml-1" />طباعة / PDF
+                    </Button>
+                    <Button variant="outline" onClick={() => exportReceiptExcel(detailReceipt)} className="text-emerald-600 hover:bg-emerald-50">
+                      <FileSpreadsheet className="w-4 h-4 ml-1" />تصدير Excel
+                    </Button>
+                    <Button variant="ghost" onClick={() => { setBirdsReceiptId(detailReceipt.id); setDetailReceipt(null); }}>
+                      <Bird className="w-4 h-4 ml-1" />إدارة الطيور
+                    </Button>
+                  </>
+                )}
+                <Button variant="ghost" onClick={() => setDetailReceipt(null)}>إغلاق</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Confirm sending a completed batch to the Main Warehouse */}
+          <AlertDialog open={!!confirmSendBatch} onOpenChange={(o) => !o && setConfirmSendBatch(null)}>
+            <AlertDialogContent dir="rtl">
+              <AlertDialogHeader>
+                <AlertDialogTitle>إرسال التقسيمة إلى المخزن الرئيسي</AlertDialogTitle>
+                <AlertDialogDescription>
+                  سيتم إضافة جميع أصناف التقسيمة المقبولة من الدفعة <b>{confirmSendBatch?.batch_number}</b> إلى رصيد المخزن الرئيسي تلقائيًا.
+                  الأصناف المستلمة مسبقًا سيتم تخطيها.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter className="gap-2">
+                <AlertDialogCancel disabled={sendingBatch}>إلغاء</AlertDialogCancel>
+                <AlertDialogAction
+                  disabled={sendingBatch}
+                  onClick={(e) => { e.preventDefault(); confirmSendBatch && sendBatchToMainWarehouse(confirmSendBatch); }}
+                  className="bg-gradient-to-r from-primary to-accent"
+                >
+                  {sendingBatch ? "جاري الإرسال..." : "تأكيد الإرسال"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+
+
           <Dialog open={!!editReceipt} onOpenChange={(o) => { if (!o) { setEditReceipt(null); setEditReceiptForm({}); } }}>
             <DialogContent dir="rtl" className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
