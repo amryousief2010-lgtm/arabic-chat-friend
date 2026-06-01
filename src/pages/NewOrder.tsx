@@ -91,6 +91,7 @@ interface OfferBox {
   name: string;
   description: string | null;
   is_active: boolean;
+  starts_at?: string | null;
   expires_at: string | null;
   shipping_cost?: number | null;
 }
@@ -294,7 +295,7 @@ const NewOrder = () => {
       try {
         const productsRes: any = await withTimedQuery(
           '[NewOrder] products query',
-          () => supabase.from('products').select('*').eq('is_active', true),
+          () => supabase.from('products').select('id, name, price, unit, category').eq('is_active', true),
         );
         if (productsRes.error) throw productsRes.error;
         setProducts(productsRes.data || []);
@@ -310,7 +311,7 @@ const NewOrder = () => {
       try {
         const offersRes: any = await withTimedQuery(
           '[NewOrder] offers query',
-          () => supabase.from('offer_boxes').select('*').eq('is_active', true),
+          () => supabase.from('offer_boxes').select('id, name, description, is_active, starts_at, expires_at, shipping_cost').eq('is_active', true),
         );
         if (offersRes.error) throw offersRes.error;
 
@@ -541,7 +542,7 @@ const NewOrder = () => {
     try {
       const { data: items, error } = await supabase
         .from('offer_box_items')
-        .select('*')
+        .select('id, product_id, custom_price, quantity, is_gift')
         .eq('offer_box_id', offerBox.id);
       if (error) throw error;
       if (!items || items.length === 0) {
@@ -551,7 +552,7 @@ const NewOrder = () => {
       const productIds = items.map(i => i.product_id);
       const { data: productData } = await supabase
         .from('products')
-        .select('*')
+        .select('id, name, price, unit, category')
         .in('id', productIds);
 
       const previewItems: OfferPreviewItem[] = items.map(it => ({
