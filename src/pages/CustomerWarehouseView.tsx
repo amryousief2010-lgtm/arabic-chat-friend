@@ -87,6 +87,7 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
   const [mainWhId, setMainWhId] = useState<string | null>(null);
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [mainItems, setMainItems] = useState<InventoryItem[]>([]);
+  const [sellableProductNames, setSellableProductNames] = useState<Set<string>>(new Set());
   const [movements, setMovements] = useState<Movement[]>([]);
 
   // dialog state
