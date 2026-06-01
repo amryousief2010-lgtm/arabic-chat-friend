@@ -87,6 +87,7 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
   const [mainWhId, setMainWhId] = useState<string | null>(null);
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [mainItems, setMainItems] = useState<InventoryItem[]>([]);
+  const [sellableProductNames, setSellableProductNames] = useState<Set<string>>(new Set());
   const [movements, setMovements] = useState<Movement[]>([]);
 
   // dialog state
@@ -252,6 +253,12 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
           .order("name");
         setMainItems((mItems || []) as InventoryItem[]);
       }
+
+      const { data: prodRows } = await supabase
+        .from("products")
+        .select("name")
+        .eq("is_active", true);
+      setSellableProductNames(new Set((prodRows || []).map((p: any) => (p.name || "").trim())));
     } catch (e: any) {
       toast.error("تعذّر تحميل بيانات المخزن: " + (e?.message || ""));
     } finally {
@@ -329,6 +336,7 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
       const stock = Number(it.stock) || 0;
       if (stock <= 0) continue;
       const key = (it.name || "").trim();
+      if (openDialog === "supply" && sellableProductNames.size > 0 && !sellableProductNames.has(key)) continue;
       const prev = byName.get(key);
       if (!prev || Number(prev.stock) < stock) byName.set(key, it);
     }
@@ -712,11 +720,12 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
       const stock = Number(it.stock) || 0;
       if (stock <= 0) continue;
       const key = (it.name || "").trim();
+      if (editInvoice?.kind === "supply" && sellableProductNames.size > 0 && !sellableProductNames.has(key)) continue;
       const prev = byName.get(key);
       if (!prev || Number(prev.stock) < stock) byName.set(key, it);
     }
     return Array.from(byName.values());
-  }, [editInvoice?.kind, items, mainItems]);
+  }, [editInvoice?.kind, items, mainItems, sellableProductNames]);
 
   const openEditInvoice = (inv: Invoice) => {
     setEditInvoice(inv);
