@@ -53,8 +53,8 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
 
   // dialog state
   const [openDialog, setOpenDialog] = useState<null | "supply" | "return">(null);
-  const [selectedProductName, setSelectedProductName] = useState<string>("");
-  const [qty, setQty] = useState<string>("");
+  type Line = { name: string; qty: string };
+  const [lines, setLines] = useState<Line[]>([{ name: "", qty: "" }]);
   const [notes, setNotes] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
 
