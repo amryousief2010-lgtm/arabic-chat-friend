@@ -6057,6 +6057,11 @@ export type Database = {
           end_time: string | null
           id: string
           live_receipt_id: string | null
+          low_yield_approval_at: string | null
+          low_yield_approval_by: string | null
+          low_yield_approval_note: string | null
+          low_yield_requested_at: string | null
+          low_yield_requested_by: string | null
           notes: string | null
           pre_slaughter_dead: number
           rejected_birds: number
@@ -6067,6 +6072,7 @@ export type Database = {
           total_live_weight_kg: number
           total_meat_kg: number
           total_waste_kg: number
+          transfer_status: string | null
           updated_at: string
         }
         Insert: {
@@ -6079,6 +6085,11 @@ export type Database = {
           end_time?: string | null
           id?: string
           live_receipt_id?: string | null
+          low_yield_approval_at?: string | null
+          low_yield_approval_by?: string | null
+          low_yield_approval_note?: string | null
+          low_yield_requested_at?: string | null
+          low_yield_requested_by?: string | null
           notes?: string | null
           pre_slaughter_dead?: number
           rejected_birds?: number
@@ -6089,6 +6100,7 @@ export type Database = {
           total_live_weight_kg?: number
           total_meat_kg?: number
           total_waste_kg?: number
+          transfer_status?: string | null
           updated_at?: string
         }
         Update: {
@@ -6101,6 +6113,11 @@ export type Database = {
           end_time?: string | null
           id?: string
           live_receipt_id?: string | null
+          low_yield_approval_at?: string | null
+          low_yield_approval_by?: string | null
+          low_yield_approval_note?: string | null
+          low_yield_requested_at?: string | null
+          low_yield_requested_by?: string | null
           notes?: string | null
           pre_slaughter_dead?: number
           rejected_birds?: number
@@ -6111,6 +6128,7 @@ export type Database = {
           total_live_weight_kg?: number
           total_meat_kg?: number
           total_waste_kg?: number
+          transfer_status?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -6515,6 +6533,7 @@ export type Database = {
           id: string
           is_active: boolean
           material_code: string | null
+          min_acceptable_yield_pct: number | null
           notes: string | null
           package_size_kg: number | null
           price_per_kg: number | null
@@ -6532,6 +6551,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           material_code?: string | null
+          min_acceptable_yield_pct?: number | null
           notes?: string | null
           package_size_kg?: number | null
           price_per_kg?: number | null
@@ -6549,6 +6569,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           material_code?: string | null
+          min_acceptable_yield_pct?: number | null
           notes?: string | null
           package_size_kg?: number | null
           price_per_kg?: number | null
@@ -7301,6 +7322,10 @@ export type Database = {
         }
         Returns: string
       }
+      approve_low_yield_transfer: {
+        Args: { p_batch_id: string; p_note?: string; p_warehouse_id: string }
+        Returns: Json
+      }
       approve_meat_batch_cost: {
         Args: { p_batch_id: string; p_notes?: string; p_warehouse_id: string }
         Returns: Json
@@ -7639,6 +7664,10 @@ export type Database = {
         Args: { p_from?: string; p_to?: string }
         Returns: Json
       }
+      get_slaughterhouse_summary: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: Json
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -7793,6 +7822,10 @@ export type Database = {
       }
       recompute_feed_batch_cost: { Args: { p_batch: string }; Returns: number }
       recompute_meat_batch_cost: { Args: { p_batch_id: string }; Returns: Json }
+      reject_low_yield_transfer: {
+        Args: { p_batch_id: string; p_reason: string }
+        Returns: Json
+      }
       reject_proposal: {
         Args: { p_id: string; p_note?: string }
         Returns: {
@@ -7888,6 +7921,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      request_slaughter_transfer_to_main: {
+        Args: { p_batch_id: string; p_warehouse_id: string }
+        Returns: Json
+      }
       request_warehouse_transfer: {
         Args: {
           p_destination_warehouse_id: string
@@ -7948,6 +7985,10 @@ export type Database = {
       suggest_hatch_batch_for_shipment: {
         Args: { p_shipment_id: string }
         Returns: string
+      }
+      transfer_outputs_to_meat_factory: {
+        Args: { p_batch_id: string; p_items: Json; p_meat_warehouse_id: string }
+        Returns: Json
       }
       update_transfer_request_quantities: {
         Args: { p_lines: Json; p_transfer_id: string }

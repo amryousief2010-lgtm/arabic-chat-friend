@@ -146,6 +146,19 @@ const Slaughterhouse = () => {
   const birdsToday = batches.filter(b => b.slaughter_date === today).reduce((s, b) => s + b.birds_slaughtered, 0);
   const meatToday = batches.filter(b => b.slaughter_date === today).reduce((s, b) => s + Number(b.total_meat_kg || 0), 0);
   const meatMonth = batches.filter(b => b.slaughter_date >= monthStartStr).reduce((s, b) => s + Number(b.total_meat_kg || 0), 0);
+  const birdsSlaughteredMonth = batches
+    .filter(b => b.slaughter_date >= monthStartStr && b.status !== "cancelled")
+    .reduce((s, b) => s + (b.birds_slaughtered || 0), 0);
+  // النعام القائم = المُستلم - النافق - المذبوح - النافق قبل الذبح - المرفوض
+  const liveBalance = (() => {
+    const received = receipts.reduce((s, r) => s + (r.bird_count || 0), 0);
+    const doa = receipts.reduce((s, r) => s + (r.dead_on_arrival || 0), 0);
+    const active = batches.filter(b => b.status !== "cancelled");
+    const slaughtered = active.reduce((s, b) => s + (b.birds_slaughtered || 0), 0);
+    const preDead = active.reduce((s, b) => s + (b.pre_slaughter_dead || 0), 0);
+    const rejected = active.reduce((s, b) => s + (b.rejected_birds || 0), 0);
+    return Math.max(received - doa - slaughtered - preDead - rejected, 0);
+  })();
   const yieldToday = (() => {
     const todays = batches.filter(b => b.slaughter_date === today && b.actual_yield_pct > 0);
     if (!todays.length) return 0;
@@ -156,6 +169,8 @@ const Slaughterhouse = () => {
     if (!recent.length) return 0;
     return recent.reduce((s, b) => s + Number(b.cost_per_kg_meat), 0) / recent.length;
   })();
+  const isExecManager = role === "general_manager" || role === "executive_manager";
+  const pendingApprovalBatches = batches.filter(b => (b as any).transfer_status === "pending_approval");
 
   const validateReceiptDate = (d: string): string | null => {
     if (!d) return "تاريخ التوريد مطلوب";
@@ -320,32 +335,72 @@ const Slaughterhouse = () => {
     fetchAll();
   };
 
-  // Send a completed batch's outputs to the Main Warehouse using existing RPC
+  // Send a completed batch's outputs to the Main Warehouse using the gated RPC
   const [confirmSendBatch, setConfirmSendBatch] = useState<Batch | null>(null);
   const [sendingBatch, setSendingBatch] = useState(false);
+  const [meatTransferBatch, setMeatTransferBatch] = useState<Batch | null>(null);
+  const [approvalNote, setApprovalNote] = useState("");
+
+  const findWarehouseByName = async (pattern: string) => {
+    const { data } = await supabase
+      .from("warehouses" as any)
+      .select("id,name")
+      .ilike("name", pattern)
+      .limit(1)
+      .maybeSingle();
+    return data as any;
+  };
+
   const sendBatchToMainWarehouse = async (b: Batch) => {
     setSendingBatch(true);
     try {
-      const { data: wh, error: whErr } = await supabase
-        .from("warehouses" as any)
-        .select("id,name")
-        .ilike("name", "%رئيسي%")
-        .limit(1)
-        .maybeSingle();
-      if (whErr || !wh) { toast.error("لم يتم العثور على المخزن الرئيسي"); return; }
-      const { data, error } = await supabase.rpc("receive_slaughter_batch" as any, {
+      const wh = await findWarehouseByName("%رئيسي%");
+      if (!wh) { toast.error("لم يتم العثور على المخزن الرئيسي"); return; }
+      const { data, error } = await supabase.rpc("request_slaughter_transfer_to_main" as any, {
         p_batch_id: b.id,
-        p_warehouse_id: (wh as any).id,
+        p_warehouse_id: wh.id,
       });
       if (error) { toast.error(error.message); return; }
       const d: any = data || {};
-      toast.success(`تم إرسال ${d.added_to_stock || 0} صنف إلى المخزن الرئيسي (${Number(d.total_kg || 0).toFixed(1)} كجم)`);
+      if (d.needs_approval) {
+        toast.warning(
+          `التصافي ${Number(d.actual_yield_pct).toFixed(1)}% أقل من الحد المسموح ${Number(d.min_required_pct).toFixed(1)}% — تم إرسال طلب موافقة للإدارة`,
+          { duration: 6000 }
+        );
+      } else {
+        const rec = d.receive || {};
+        toast.success(`تم إرسال ${rec.added_to_stock || 0} صنف إلى المخزن الرئيسي (${Number(rec.total_kg || 0).toFixed(1)} كجم)`);
+      }
       setConfirmSendBatch(null);
       fetchAll();
     } finally {
       setSendingBatch(false);
     }
   };
+
+  const approveLowYield = async (b: Batch) => {
+    const wh = await findWarehouseByName("%رئيسي%");
+    if (!wh) { toast.error("لم يتم العثور على المخزن الرئيسي"); return; }
+    const { error } = await supabase.rpc("approve_low_yield_transfer" as any, {
+      p_batch_id: b.id, p_warehouse_id: wh.id, p_note: approvalNote || null,
+    });
+    if (error) { toast.error(error.message); return; }
+    toast.success("تمت الموافقة وتم التحويل للمخزن الرئيسي");
+    setApprovalNote("");
+    fetchAll();
+  };
+
+  const rejectLowYield = async (b: Batch) => {
+    const reason = window.prompt("سبب الرفض:");
+    if (!reason) return;
+    const { error } = await supabase.rpc("reject_low_yield_transfer" as any, {
+      p_batch_id: b.id, p_reason: reason,
+    });
+    if (error) { toast.error(error.message); return; }
+    toast.success("تم رفض التحويل");
+    fetchAll();
+  };
+
 
   // Receipt details + export
   const [detailReceipt, setDetailReceipt] = useState<Receipt | null>(null);
@@ -658,28 +713,71 @@ const Slaughterhouse = () => {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-        <Card><CardContent className="p-4 flex items-center justify-between">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
+        <Card className="border-primary/40 bg-primary/5"><CardContent className="p-3 flex items-center justify-between">
+          <div><p className="text-xs text-muted-foreground">النعام القائم 🐦</p><p className="text-2xl font-bold text-primary">{liveBalance}</p></div>
+          <Bird className="w-7 h-7 text-primary/60" />
+        </CardContent></Card>
+        <Card className="border-orange-400/40 bg-orange-50/40 dark:bg-orange-950/10"><CardContent className="p-3 flex items-center justify-between">
+          <div><p className="text-xs text-muted-foreground">مذبوح هذا الشهر</p><p className="text-2xl font-bold text-orange-600">{birdsSlaughteredMonth}</p></div>
+          <Beef className="w-7 h-7 text-orange-500/60" />
+        </CardContent></Card>
+        <Card><CardContent className="p-3 flex items-center justify-between">
           <div><p className="text-xs text-muted-foreground">طيور اليوم</p><p className="text-2xl font-bold">{birdsToday}</p></div>
-          <Beef className="w-8 h-8 text-primary/40" />
+          <Beef className="w-7 h-7 text-primary/40" />
         </CardContent></Card>
-        <Card><CardContent className="p-4 flex items-center justify-between">
+        <Card><CardContent className="p-3 flex items-center justify-between">
           <div><p className="text-xs text-muted-foreground">لحوم اليوم (كجم)</p><p className="text-2xl font-bold">{meatToday.toFixed(1)}</p></div>
-          <Scale className="w-8 h-8 text-accent/40" />
+          <Scale className="w-7 h-7 text-accent/40" />
         </CardContent></Card>
-        <Card><CardContent className="p-4 flex items-center justify-between">
+        <Card><CardContent className="p-3 flex items-center justify-between">
           <div><p className="text-xs text-muted-foreground">إنتاج الشهر (كجم)</p><p className="text-2xl font-bold">{meatMonth.toFixed(0)}</p></div>
-          <Package className="w-8 h-8 text-emerald-500/40" />
+          <Package className="w-7 h-7 text-emerald-500/40" />
         </CardContent></Card>
-        <Card><CardContent className="p-4 flex items-center justify-between">
+        <Card><CardContent className="p-3 flex items-center justify-between">
           <div><p className="text-xs text-muted-foreground">التصافي اليوم</p><p className={`text-2xl font-bold ${yieldToday < 40 ? "text-red-600" : "text-emerald-600"}`}>{yieldToday.toFixed(1)}%</p></div>
-          <TrendingUp className="w-8 h-8 text-blue-500/40" />
+          <TrendingUp className="w-7 h-7 text-blue-500/40" />
         </CardContent></Card>
-        <Card><CardContent className="p-4 flex items-center justify-between">
+        <Card><CardContent className="p-3 flex items-center justify-between">
           <div><p className="text-xs text-muted-foreground">تكلفة الكيلو</p><p className="text-2xl font-bold">{avgCost.toFixed(0)} ر.س</p></div>
-          <ClipboardCheck className="w-8 h-8 text-amber-500/40" />
+          <ClipboardCheck className="w-7 h-7 text-amber-500/40" />
         </CardContent></Card>
       </div>
+
+      {/* Pending low-yield approval banner (managers only) */}
+      {isExecManager && pendingApprovalBatches.length > 0 && (
+        <Card className="mb-4 border-amber-500/50 bg-amber-50/60 dark:bg-amber-950/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
+              <AlertTriangle className="w-5 h-5" />
+              موافقات تصافي منخفض بانتظارك ({pendingApprovalBatches.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {pendingApprovalBatches.map(b => (
+              <div key={b.id} className="flex flex-wrap items-center justify-between gap-2 p-3 bg-background rounded border">
+                <div className="text-sm">
+                  <b>{b.batch_number}</b> · {b.slaughter_date} · طيور: {b.birds_slaughtered} ·
+                  وزن حي: {Number(b.total_live_weight_kg).toFixed(1)} كجم ·
+                  لحم: {Number(b.total_meat_kg || 0).toFixed(1)} كجم ·
+                  <span className="text-red-600 font-bold mx-1">تصافي {Number(b.actual_yield_pct || 0).toFixed(1)}%</span>
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="ملاحظة (اختياري)"
+                    className="h-8 w-48 text-xs"
+                    onChange={e => setApprovalNote(e.target.value)}
+                  />
+                  <Button size="sm" onClick={() => approveLowYield(b)} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                    <CheckCircle2 className="w-4 h-4 ml-1" />موافقة وتحويل
+                  </Button>
+                  <Button size="sm" variant="destructive" onClick={() => rejectLowYield(b)}>رفض</Button>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       <Tabs defaultValue="daily" dir="rtl">
         <div className="w-full overflow-x-auto -mx-1 px-1 mb-2">
@@ -873,7 +971,7 @@ const Slaughterhouse = () => {
                 <TableHeader><TableRow>
                   <TableHead>الرقم</TableHead><TableHead>التاريخ</TableHead><TableHead>المصدر</TableHead>
                   <TableHead>عدد</TableHead><TableHead>وزن (كجم)</TableHead><TableHead>متوسط</TableHead>
-                  <TableHead>تكلفة (إجمالي)</TableHead><TableHead>نافق</TableHead><TableHead>الحالة</TableHead><TableHead>الطيور</TableHead>{canEditReceiptData && <TableHead>تعديل</TableHead>}
+                  <TableHead>تكلفة (إجمالي)</TableHead><TableHead>نافق</TableHead><TableHead>الحالة</TableHead><TableHead>الطيور</TableHead><TableHead>إجراءات</TableHead>{canEditReceiptData && <TableHead>تعديل</TableHead>}
                 </TableRow></TableHeader>
                 <TableBody>
                   {receipts.filter(r => (!receiptDateFrom || r.receipt_date >= receiptDateFrom) && (!receiptDateTo || r.receipt_date <= receiptDateTo)).map(r => {
