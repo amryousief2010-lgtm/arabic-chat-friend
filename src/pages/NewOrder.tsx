@@ -176,11 +176,11 @@ const NewOrder = () => {
     (async () => {
       if (!user) return;
       try {
-        const { data } = await withTimedQuery(
+        const profileRes: any = await withTimedQuery(
           '[NewOrder] moderator profile query',
           () => supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle(),
         );
-        const m = findModeratorByName(data?.full_name);
+        const m = findModeratorByName(profileRes?.data?.full_name);
         if (m) setModeratorName(m.canonicalModerator);
       } catch (error) {
         console.error('Moderator profile query failed:', error);
@@ -292,7 +292,7 @@ const NewOrder = () => {
 
     const loadProducts = async () => {
       try {
-        const productsRes = await withTimedQuery(
+        const productsRes: any = await withTimedQuery(
           '[NewOrder] products query',
           () => supabase.from('products').select('*').eq('is_active', true),
         );
@@ -308,7 +308,7 @@ const NewOrder = () => {
 
     const loadOffers = async () => {
       try {
-        const offersRes = await withTimedQuery(
+        const offersRes: any = await withTimedQuery(
           '[NewOrder] offers query',
           () => supabase.from('offer_boxes').select('*').eq('is_active', true),
         );
@@ -334,7 +334,7 @@ const NewOrder = () => {
 
     const loadWarehouses = async () => {
       try {
-        const whRes = await withTimedQuery(
+        const whRes: any = await withTimedQuery(
           '[NewOrder] warehouses query',
           () => supabase.from('warehouses').select('id, name').eq('is_active', true),
         );
@@ -366,7 +366,7 @@ const NewOrder = () => {
 
       setInventoryLoading(true);
       try {
-        const { data: invRows, error } = await withTimedQuery(
+        const inventoryRes: any = await withTimedQuery(
           '[NewOrder] inventory_items query',
           () => supabase
             .from('inventory_items')
@@ -374,7 +374,8 @@ const NewOrder = () => {
             .in('warehouse_id', whIds)
             .not('product_id', 'is', null),
         );
-        if (error) throw error;
+        const invRows = inventoryRes?.data || [];
+        if (inventoryRes?.error) throw inventoryRes.error;
 
         const ag: Record<string, number> = {};
         const mn: Record<string, number> = {};
@@ -401,17 +402,18 @@ const NewOrder = () => {
 
       setOfferContentsLoading(true);
       try {
-        const { data: offerItemsRes, error: offerItemsError } = await withTimedQuery(
+        const offerItemsResponse: any = await withTimedQuery(
           '[NewOrder] offer_box_items query',
           () => supabase
             .from('offer_box_items')
             .select('offer_box_id, product_id, quantity')
             .in('offer_box_id', activeOffers.map((offer) => offer.id)),
         );
-        if (offerItemsError) throw offerItemsError;
+        const offerItemsRes = offerItemsResponse?.data || [];
+        if (offerItemsResponse?.error) throw offerItemsResponse.error;
 
         const productIds = Array.from(new Set((offerItemsRes || []).map((item) => item.product_id).filter(Boolean)));
-        const offerProductsRes = productIds.length === 0
+        const offerProductsRes: any = productIds.length === 0
           ? { data: [], error: null }
           : await withTimedQuery(
               '[NewOrder] offer content products query',
