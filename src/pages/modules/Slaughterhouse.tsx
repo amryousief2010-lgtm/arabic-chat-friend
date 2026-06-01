@@ -320,6 +320,146 @@ const Slaughterhouse = () => {
     fetchAll();
   };
 
+  // Send a completed batch's outputs to the Main Warehouse using existing RPC
+  const [confirmSendBatch, setConfirmSendBatch] = useState<Batch | null>(null);
+  const [sendingBatch, setSendingBatch] = useState(false);
+  const sendBatchToMainWarehouse = async (b: Batch) => {
+    setSendingBatch(true);
+    try {
+      const { data: wh, error: whErr } = await supabase
+        .from("warehouses" as any)
+        .select("id,name")
+        .ilike("name", "%رئيسي%")
+        .limit(1)
+        .maybeSingle();
+      if (whErr || !wh) { toast.error("لم يتم العثور على المخزن الرئيسي"); return; }
+      const { data, error } = await supabase.rpc("receive_slaughter_batch" as any, {
+        p_batch_id: b.id,
+        p_warehouse_id: (wh as any).id,
+      });
+      if (error) { toast.error(error.message); return; }
+      const d: any = data || {};
+      toast.success(`تم إرسال ${d.added_to_stock || 0} صنف إلى المخزن الرئيسي (${Number(d.total_kg || 0).toFixed(1)} كجم)`);
+      setConfirmSendBatch(null);
+      fetchAll();
+    } finally {
+      setSendingBatch(false);
+    }
+  };
+
+  // Receipt details + export
+  const [detailReceipt, setDetailReceipt] = useState<Receipt | null>(null);
+  const exportReceiptExcel = (r: Receipt) => {
+    const recBirds = birds.filter(b => b.receipt_id === r.id);
+    const summary = [
+      ["شركة نعام العاصمة - تفاصيل استلام طيور حية"],
+      [],
+      ["رقم الاستلام", r.receipt_number],
+      ["التاريخ", r.receipt_date],
+      ["المصدر", r.source_type === "internal_farm" ? "المزرعة الداخلية" : "مورد خارجي"],
+      ["اسم المصدر", r.source_name || "-"],
+      ["عدد الطيور", r.bird_count],
+      ["الوزن الإجمالي (كجم)", Number(r.total_weight_kg || 0).toFixed(2)],
+      ["متوسط الوزن (كجم)", Number(r.avg_weight_kg || 0).toFixed(2)],
+      ["السعر/كجم", Number(r.price_per_kg || 0).toFixed(2)],
+      ["إجمالي التكلفة", Number(r.total_cost || 0).toFixed(2)],
+      ["نافق عند الوصول", r.dead_on_arrival],
+      ["الحالة", r.status],
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summary), "ملخص الاستلام");
+    if (recBirds.length) {
+      const rows = recBirds.map((b, i) => ({
+        "م": i + 1,
+        "رقم الطائر": b.bird_index,
+        "الوزن الحي (كجم)": Number(b.live_weight_kg || 0).toFixed(2),
+        "وزن الذبح (كجم)": Number(b.slaughter_weight_kg || 0).toFixed(2),
+        "تكلفة الشراء": Number(b.purchase_cost || 0).toFixed(2),
+        "تكلفة العلف": Number(b.feed_cost || 0).toFixed(2),
+        "وقت الشراء": b.purchase_time || "-",
+        "ملاحظات": b.notes || "-",
+      }));
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws["!cols"] = [{ wch: 4 }, { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 24 }];
+      XLSX.utils.book_append_sheet(wb, ws, "تفاصيل الطيور");
+    }
+    XLSX.writeFile(wb, `استلام-${r.receipt_number}.xlsx`);
+    toast.success("تم تصدير ملف Excel");
+  };
+
+  const exportReceiptPDF = (r: Receipt) => {
+    const recBirds = birds.filter(b => b.receipt_id === r.id);
+    const totalCost = recBirds.reduce((s, b) => s + Number(b.purchase_cost || 0) + Number(b.feed_cost || 0), 0) || Number(r.total_cost || 0);
+    const logoUrl = `${window.location.origin}${companyLogo}`;
+    const esc = (s: unknown) =>
+      String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+    const birdRows = recBirds.map((b, i) => `<tr>
+      <td>${i + 1}</td>
+      <td>${b.bird_index}</td>
+      <td>${Number(b.live_weight_kg || 0).toFixed(2)}</td>
+      <td>${Number(b.slaughter_weight_kg || 0).toFixed(2)}</td>
+      <td>${Number(b.purchase_cost || 0).toFixed(2)}</td>
+      <td>${Number(b.feed_cost || 0).toFixed(2)}</td>
+      <td style="font-size:10px">${esc(b.notes || "-")}</td>
+    </tr>`).join("");
+    const html = `<!DOCTYPE html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8"/>
+<title>استلام ${esc(r.receipt_number)}</title>
+<style>
+  @page { size: A4; margin: 10mm; }
+  body { font-family: "Segoe UI", Tahoma, Arial, sans-serif; margin: 0; padding: 12px; color: #111; }
+  .header { display:flex; align-items:center; gap:16px; border-bottom:3px double #7c3aed; padding-bottom:10px; margin-bottom:12px; }
+  .header img { width:90px; height:90px; object-fit:contain; }
+  .header .titles { flex:1; text-align:center; }
+  .header h1 { margin:0; font-size:22px; color:#7c3aed; }
+  .header p { margin:2px 0; font-size:11px; color:#555; }
+  .report-title { text-align:center; font-size:16px; font-weight:700; background:linear-gradient(90deg,#7c3aed,#f97316); color:white; padding:8px; border-radius:6px; margin-bottom:12px; }
+  .meta { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-bottom:12px; font-size:12px; }
+  .meta div { border:1px solid #ddd; padding:6px 8px; border-radius:4px; background:#f9fafb; }
+  .meta strong { color:#7c3aed; display:block; font-size:10px; }
+  table { width:100%; border-collapse:collapse; font-size:11px; margin-top:8px; }
+  th { background:#7c3aed; color:white; padding:6px 4px; border:1px solid #6d28d9; text-align:center; }
+  td { border:1px solid #ddd; padding:5px 4px; text-align:center; }
+  tbody tr:nth-child(even) { background:#faf5ff; }
+  .toolbar { text-align:center; margin-bottom:10px; }
+  .toolbar button { padding:8px 18px; background:#7c3aed; color:white; border:none; border-radius:4px; cursor:pointer; font-size:13px; }
+  @media print { .toolbar { display:none; } body { padding:0; } }
+</style></head>
+<body>
+  <div class="toolbar"><button onclick="window.print()">🖨️ طباعة / حفظ PDF</button></div>
+  <div class="header">
+    <img src="${logoUrl}" alt="شعار الشركة"/>
+    <div class="titles">
+      <h1>شركة نعام العاصمة</h1>
+      <p>تقرير استلام طيور حية</p>
+    </div>
+  </div>
+  <div class="report-title">إيصال استلام — ${esc(r.receipt_number)}</div>
+  <div class="meta">
+    <div><strong>تاريخ التوريد</strong>${esc(r.receipt_date)}</div>
+    <div><strong>المصدر</strong>${r.source_type === "internal_farm" ? "🏡 داخلي" : "🚚 خارجي"}</div>
+    <div><strong>اسم المورد</strong>${esc(r.source_name || "-")}</div>
+    <div><strong>الحالة</strong>${esc(r.status)}</div>
+    <div><strong>عدد الطيور</strong>${r.bird_count}</div>
+    <div><strong>الوزن الإجمالي</strong>${Number(r.total_weight_kg || 0).toFixed(1)} كجم</div>
+    <div><strong>متوسط الوزن</strong>${Number(r.avg_weight_kg || 0).toFixed(2)} كجم</div>
+    <div><strong>نافق عند الوصول</strong>${r.dead_on_arrival}</div>
+    <div><strong>السعر/كجم</strong>${Number(r.price_per_kg || 0).toFixed(2)} ج.م</div>
+    <div><strong>إجمالي التكلفة</strong>${totalCost.toFixed(2)} ج.م</div>
+  </div>
+  ${recBirds.length ? `<table>
+    <thead><tr><th>م</th><th>رقم الطائر</th><th>الوزن الحي</th><th>وزن الذبح</th><th>تكلفة الشراء</th><th>تكلفة العلف</th><th>ملاحظات</th></tr></thead>
+    <tbody>${birdRows}</tbody>
+  </table>` : '<p style="text-align:center;color:#888;padding:12px">لا توجد بيانات تفصيلية للطيور</p>'}
+</body></html>`;
+    const w = window.open("", "_blank");
+    if (!w) { toast.error("افتح المتصفح للطباعة"); return; }
+    w.document.write(html);
+    w.document.close();
+  };
+
+
+
   const exportBatchExcel = (b: Batch) => {
     const items = outputs.filter(o => o.batch_id === b.id);
     if (!items.length) { toast.error("لا توجد تقسيمة لهذه الدفعة"); return; }
