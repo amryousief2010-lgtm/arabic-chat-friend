@@ -372,8 +372,9 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
       if (openDialog === "supply" && stock <= 0) continue;
       const key = (it.name || "").trim();
       if (openDialog === "supply" && warehouseProductNames.size > 0 && !warehouseProductNames.has(key)) continue;
-      // فلتر المرتجع: يجب أن يكون المنتج موجوداً في المخزن الرئيسي
+      // فلتر المرتجع: يجب أن يكون المنتج موجوداً في المخزن الرئيسي ومسموحاً لهذا المخزن العميل
       if (openDialog === "return" && mainNames.size > 0 && !mainNames.has(key)) continue;
+      if (openDialog === "return" && warehouseProductNames.size > 0 && !warehouseProductNames.has(key)) continue;
       const prev = byName.get(key);
       if (!prev || Number(prev.stock) < stock) byName.set(key, it);
     }
