@@ -880,8 +880,18 @@ const Slaughterhouse = () => {
                     const recBirds = birds.filter(b => b.receipt_id === r.id);
                     const totalCost = recBirds.reduce((s, b) => s + Number(b.purchase_cost || 0) + Number(b.feed_cost || 0), 0) || Number(r.total_cost || 0);
                     return (
-                      <TableRow key={r.id}>
-                        <TableCell className="font-mono text-xs">{r.receipt_number}</TableCell>
+                      <TableRow key={r.id} className="hover:bg-primary/5">
+                        <TableCell className="font-mono text-xs">
+                          <button
+                            type="button"
+                            onClick={() => setDetailReceipt(r)}
+                            className="text-primary hover:underline font-semibold"
+                            title="عرض التفاصيل والطباعة والتصدير"
+                          >
+                            {r.receipt_number}
+                          </button>
+                        </TableCell>
+
                         <TableCell>{canEditReceiptDate ? (
                           <Input type="date" max={todayStr} value={r.receipt_date} onChange={e => updateReceiptDate(r.id, e.target.value)} className="h-8 w-36 text-xs" title="تعديل تاريخ التوريد (يُسجَّل في سجل التدقيق)" />
                         ) : (
