@@ -691,6 +691,16 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
               </Card>
             </div>
 
+            {/* أدوات الطباعة والتصدير */}
+            <div className="flex flex-wrap gap-2 justify-end">
+              <Button variant="outline" size="sm" className="gap-2" onClick={printStock} disabled={!filteredItems.length}>
+                <Printer className="w-4 h-4" /> طباعة الرصيد
+              </Button>
+              <Button variant="outline" size="sm" className="gap-2" onClick={exportStockExcel} disabled={!filteredItems.length}>
+                <FileSpreadsheet className="w-4 h-4" /> تصدير Excel
+              </Button>
+            </div>
+
             {/* عرض المنتجات كبطاقات */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {filteredItems.length === 0 ? (
