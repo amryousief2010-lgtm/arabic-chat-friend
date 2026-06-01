@@ -714,6 +714,11 @@ const WarehouseDetail = () => {
               <FileSpreadsheet className="w-4 h-4" />طلبات المنفذ
               {outletOrders.length > 0 && <Badge variant="secondary" className="mr-1">{outletOrders.length}</Badge>}
             </TabsTrigger>
+            {isMain && (
+              <TabsTrigger value="inbound" className="gap-1">
+                <Truck className="w-4 h-4" />توريدات واردة
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="approvals" className="space-y-4">
