@@ -316,8 +316,11 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
     w.document.close();
   };
 
-  // For supply: pick from main items. For return: pick from this warehouse's items.
-  const pickList = openDialog === "supply" ? mainItems : items;
+  // For supply: pick from main items (only items with actual stock — last inventory snapshot).
+  // For return: pick from this warehouse's items.
+  const pickList = (openDialog === "supply" ? mainItems : items).filter(
+    (i) => Number(i.stock) > 0,
+  );
 
   const resetDialog = () => {
     setLines([{ name: "", qty: "" }]);
