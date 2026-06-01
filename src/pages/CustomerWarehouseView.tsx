@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, RefreshCw, ArrowUpRight, ArrowDownLeft, Loader2 } from "lucide-react";
+import { Search, RefreshCw, ArrowUpRight, ArrowDownLeft, Loader2, Plus, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -53,8 +53,8 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
 
   // dialog state
   const [openDialog, setOpenDialog] = useState<null | "supply" | "return">(null);
-  const [selectedProductName, setSelectedProductName] = useState<string>("");
-  const [qty, setQty] = useState<string>("");
+  type Line = { name: string; qty: string };
+  const [lines, setLines] = useState<Line[]>([{ name: "", qty: "" }]);
   const [notes, setNotes] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -127,16 +127,30 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
   const pickList = openDialog === "supply" ? mainItems : items;
 
   const resetDialog = () => {
-    setSelectedProductName("");
-    setQty("");
+    setLines([{ name: "", qty: "" }]);
     setNotes("");
   };
 
+  const updateLine = (idx: number, patch: Partial<Line>) => {
+    setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
+  };
+  const addLine = () => setLines((prev) => [...prev, { name: "", qty: "" }]);
+  const removeLine = (idx: number) =>
+    setLines((prev) => (prev.length === 1 ? prev : prev.filter((_, i) => i !== idx)));
+
   const submit = async () => {
     if (!openDialog) return;
-    const qtyNum = Number(qty);
-    if (!selectedProductName || !qtyNum || qtyNum <= 0) {
-      toast.error("اختر المنتج وادخل كمية صحيحة");
+    const valid = lines
+      .map((l) => ({ name: l.name, qty: Number(l.qty) }))
+      .filter((l) => l.name && l.qty > 0);
+    if (valid.length === 0) {
+      toast.error("اختر منتجاً واحداً على الأقل وادخل كمية صحيحة");
+      return;
+    }
+    // detect duplicate product selections
+    const names = valid.map((v) => v.name);
+    if (new Set(names).size !== names.length) {
+      toast.error("هناك منتج مكرر في القائمة");
       return;
     }
     if (!whId || !mainWhId) {
@@ -149,86 +163,92 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
       const destWh = openDialog === "supply" ? whId : mainWhId;
       const sourcePool = openDialog === "supply" ? mainItems : items;
       const destPool = openDialog === "supply" ? items : mainItems;
-      const sourceItem = sourcePool.find((i) => i.name === selectedProductName);
-      if (!sourceItem) {
-        toast.error("المنتج غير موجود في مخزن المصدر");
-        setSubmitting(false);
-        return;
-      }
-      if (Number(sourceItem.stock) < qtyNum) {
-        toast.error(`الكمية المتاحة (${sourceItem.stock}) أقل من المطلوب`);
-        setSubmitting(false);
-        return;
-      }
-
-      // Ensure destination inventory_items row exists
-      let destItem = destPool.find((i) => i.name === selectedProductName);
-      if (!destItem) {
-        const { data: newRow, error: insErr } = await supabase
-          .from("inventory_items")
-          .insert({
-            warehouse_id: destWh,
-            name: selectedProductName,
-            unit: sourceItem.unit,
-            stock: 0,
-            product_id: sourceItem.product_id,
-          })
-          .select("id, name, unit, stock, product_id")
-          .single();
-        if (insErr || !newRow) throw insErr || new Error("تعذّر إنشاء صنف الوجهة");
-        destItem = newRow as InventoryItem;
-      }
-
-      // Decrement source
-      const { error: decErr } = await supabase
-        .from("inventory_items")
-        .update({ stock: Number(sourceItem.stock) - qtyNum })
-        .eq("id", sourceItem.id);
-      if (decErr) throw decErr;
-
-      // Increment destination
-      const { error: incErr } = await supabase
-        .from("inventory_items")
-        .update({ stock: Number(destItem.stock) + qtyNum })
-        .eq("id", destItem.id);
-      if (incErr) throw incErr;
-
-      // Log two movements (out from source, in to destination)
       const refType = openDialog === "supply" ? "customer_supply" : "customer_return";
       const partyLabel = warehouseName;
       const baseNote = notes || (openDialog === "supply" ? "توريد إلى عميل" : "مرتجع من عميل");
-      const movRows = [
-        {
-          item_id: sourceItem.id,
-          warehouse_id: sourceWh,
-          destination_warehouse_id: destWh,
-          source_warehouse_id: sourceWh,
-          movement_type: "out",
-          quantity: qtyNum,
-          notes: baseNote,
-          party: partyLabel,
-          reference_type: refType,
-          performed_by: user?.id ?? null,
-          product_id: sourceItem.product_id,
-        },
-        {
-          item_id: destItem.id,
-          warehouse_id: destWh,
-          source_warehouse_id: sourceWh,
-          destination_warehouse_id: destWh,
-          movement_type: "in",
-          quantity: qtyNum,
-          notes: baseNote,
-          party: partyLabel,
-          reference_type: refType,
-          performed_by: user?.id ?? null,
-          product_id: sourceItem.product_id,
-        },
-      ];
+
+      // Pre-validate stock for all lines
+      for (const v of valid) {
+        const si = sourcePool.find((i) => i.name === v.name);
+        if (!si) throw new Error(`المنتج "${v.name}" غير موجود في مخزن المصدر`);
+        if (Number(si.stock) < v.qty) {
+          throw new Error(`الكمية المتاحة لـ "${v.name}" (${si.stock}) أقل من المطلوب`);
+        }
+      }
+
+      const movRows: any[] = [];
+
+      for (const v of valid) {
+        const sourceItem = sourcePool.find((i) => i.name === v.name)!;
+
+        // Ensure destination row exists
+        let destItem = destPool.find((i) => i.name === v.name);
+        if (!destItem) {
+          const { data: newRow, error: insErr } = await supabase
+            .from("inventory_items")
+            .insert({
+              warehouse_id: destWh,
+              name: v.name,
+              unit: sourceItem.unit,
+              stock: 0,
+              product_id: sourceItem.product_id,
+            })
+            .select("id, name, unit, stock, product_id")
+            .single();
+          if (insErr || !newRow) throw insErr || new Error("تعذّر إنشاء صنف الوجهة");
+          destItem = newRow as InventoryItem;
+        }
+
+        const { error: decErr } = await supabase
+          .from("inventory_items")
+          .update({ stock: Number(sourceItem.stock) - v.qty })
+          .eq("id", sourceItem.id);
+        if (decErr) throw decErr;
+
+        const { error: incErr } = await supabase
+          .from("inventory_items")
+          .update({ stock: Number(destItem.stock) + v.qty })
+          .eq("id", destItem.id);
+        if (incErr) throw incErr;
+
+        movRows.push(
+          {
+            item_id: sourceItem.id,
+            warehouse_id: sourceWh,
+            destination_warehouse_id: destWh,
+            source_warehouse_id: sourceWh,
+            movement_type: "out",
+            quantity: v.qty,
+            notes: baseNote,
+            party: partyLabel,
+            reference_type: refType,
+            performed_by: user?.id ?? null,
+            product_id: sourceItem.product_id,
+          },
+          {
+            item_id: destItem.id,
+            warehouse_id: destWh,
+            source_warehouse_id: sourceWh,
+            destination_warehouse_id: destWh,
+            movement_type: "in",
+            quantity: v.qty,
+            notes: baseNote,
+            party: partyLabel,
+            reference_type: refType,
+            performed_by: user?.id ?? null,
+            product_id: sourceItem.product_id,
+          },
+        );
+      }
+
       const { error: movErr } = await supabase.from("inventory_movements").insert(movRows);
       if (movErr) throw movErr;
 
-      toast.success(openDialog === "supply" ? "تم تسجيل التوريد بنجاح" : "تم تسجيل المرتجع بنجاح");
+      toast.success(
+        openDialog === "supply"
+          ? `تم تسجيل التوريد (${valid.length} صنف) بنجاح`
+          : `تم تسجيل المرتجع (${valid.length} صنف) بنجاح`,
+      );
       setOpenDialog(null);
       resetDialog();
       await fetchAll();
@@ -358,27 +378,57 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
               {openDialog === "supply" ? `توريد جديد إلى ${warehouseName}` : `تسجيل مرتجع من ${warehouseName}`}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <label className="text-sm font-medium">المنتج</label>
-              <Select value={selectedProductName} onValueChange={setSelectedProductName}>
-                <SelectTrigger><SelectValue placeholder="اختر منتجاً" /></SelectTrigger>
-                <SelectContent>
-                  {pickList.length === 0 ? (
-                    <div className="p-3 text-sm text-muted-foreground">
-                      {openDialog === "supply" ? "المخزن الرئيسي فارغ" : "لا توجد منتجات في هذا المخزن"}
+          <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+            <div className="space-y-2">
+              {lines.map((line, idx) => {
+                const chosenElsewhere = new Set(
+                  lines.filter((_, i) => i !== idx).map((l) => l.name).filter(Boolean),
+                );
+                return (
+                  <div key={idx} className="flex items-start gap-2 p-2 rounded-md border bg-muted/30">
+                    <div className="flex-1 space-y-1">
+                      <label className="text-xs font-medium text-muted-foreground">المنتج</label>
+                      <Select value={line.name} onValueChange={(v) => updateLine(idx, { name: v })}>
+                        <SelectTrigger><SelectValue placeholder="اختر منتجاً" /></SelectTrigger>
+                        <SelectContent>
+                          {pickList.length === 0 ? (
+                            <div className="p-3 text-sm text-muted-foreground">
+                              {openDialog === "supply" ? "المخزن الرئيسي فارغ" : "لا توجد منتجات في هذا المخزن"}
+                            </div>
+                          ) : pickList.map((i) => (
+                            <SelectItem key={i.id} value={i.name} disabled={chosenElsewhere.has(i.name)}>
+                              {i.name} — متاح: {Number(i.stock).toLocaleString("ar-EG")} {i.unit}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                  ) : pickList.map((i) => (
-                    <SelectItem key={i.id} value={i.name}>
-                      {i.name} — متاح: {Number(i.stock).toLocaleString("ar-EG")} {i.unit}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-sm font-medium">الكمية</label>
-              <Input type="number" min="0" step="0.01" value={qty} onChange={(e) => setQty(e.target.value)} />
+                    <div className="w-28 space-y-1">
+                      <label className="text-xs font-medium text-muted-foreground">الكمية</label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={line.qty}
+                        onChange={(e) => updateLine(idx, { qty: e.target.value })}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="mt-5 text-destructive"
+                      onClick={() => removeLine(idx)}
+                      disabled={lines.length === 1}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                );
+              })}
+              <Button type="button" variant="outline" size="sm" onClick={addLine} className="gap-1">
+                <Plus className="w-4 h-4" /> إضافة منتج
+              </Button>
             </div>
             <div>
               <label className="text-sm font-medium">ملاحظات (اختياري)</label>
