@@ -85,6 +85,9 @@ const Slaughterhouse = () => {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
+  const [adjustments, setAdjustments] = useState<Array<{ id: string; adjustment_date: string; new_balance: number; delta: number; reason: string | null; created_by: string | null; created_at: string }>>([]);
+  const [adjustOpen, setAdjustOpen] = useState(false);
+  const [adjustForm, setAdjustForm] = useState({ new_balance: 0, reason: "", adjustment_date: new Date().toISOString().slice(0, 10) });
   const [loading, setLoading] = useState(true);
 
   // Dialogs
