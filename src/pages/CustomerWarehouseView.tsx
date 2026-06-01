@@ -503,6 +503,72 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
     }
   };
 
+  // تجميع الحركات على شكل فواتير (كل عملية توريد/مرتجع = فاتورة واحدة)
+  type Invoice = { key: string; at: string; kind: "supply" | "return"; notes: string | null; movements: Movement[] };
+  const invoices: Invoice[] = useMemo(() => {
+    const map = new Map<string, Invoice>();
+    for (const m of movements) {
+      const isSupply = m.reference_type === "customer_supply";
+      const isReturn = m.reference_type === "customer_return";
+      if (!isSupply && !isReturn) continue;
+      // لتفادي التكرار: نأخذ جهة واحدة فقط من كل عملية
+      if (isSupply && m.movement_type !== "in") continue;
+      if (isReturn && m.movement_type !== "out") continue;
+      const key = `${m.performed_at}|${m.reference_type}`;
+      if (!map.has(key)) {
+        map.set(key, { key, at: m.performed_at, kind: isSupply ? "supply" : "return", notes: m.notes, movements: [] });
+      }
+      map.get(key)!.movements.push(m);
+    }
+    return Array.from(map.values()).sort((a, b) => b.at.localeCompare(a.at));
+  }, [movements]);
+
+  const openInvoice = (inv: Invoice) => {
+    const lines: ReceiptLine[] = inv.movements.map((m) => {
+      const it = items.find((i) => i.id === m.item_id);
+      const unit = it?.unit || "";
+      const weight = isWeightUnit(unit);
+      const qty = Number(m.quantity);
+      return {
+        name: m.item_name || "—",
+        unit,
+        inputQty: weight ? qty / PACKAGE_KG : qty,
+        inputUnit: weight ? "عبوة" : (unit || "قطعة"),
+        deductedQty: qty,
+        deductedUnit: unit,
+      };
+    });
+    setReceipt({ kind: inv.kind, at: inv.at, notes: inv.notes || "", lines });
+  };
+
+  const handleDeleteInvoice = async (inv: Invoice) => {
+    if (!canEditMovements) return;
+    if (!confirm(`حذف الفاتورة بتاريخ ${new Date(inv.at).toLocaleString("ar-EG")} (${inv.movements.length} صنف)؟ سيتم عكس الحركات.`)) return;
+    try {
+      for (const m of inv.movements) {
+        const pair = await findPair(m);
+        const thisItem = (await supabase.from("inventory_items").select("id, stock").eq("id", m.item_id).single()).data as any;
+        if (thisItem) {
+          const delta = m.movement_type === "in" ? -Number(m.quantity) : Number(m.quantity);
+          await supabase.from("inventory_items").update({ stock: Number(thisItem.stock) + delta }).eq("id", m.item_id);
+        }
+        if (pair) {
+          const pItem = (await supabase.from("inventory_items").select("id, stock").eq("id", pair.item_id).single()).data as any;
+          if (pItem) {
+            const d = pair.movement_type === "in" ? -Number(pair.quantity) : Number(pair.quantity);
+            await supabase.from("inventory_items").update({ stock: Number(pItem.stock) + d }).eq("id", pair.item_id);
+          }
+          await supabase.from("inventory_movements").delete().eq("id", pair.id);
+        }
+        await supabase.from("inventory_movements").delete().eq("id", m.id);
+      }
+      toast.success("تم حذف الفاتورة وعكس حركاتها");
+      await fetchAll();
+    } catch (e: any) {
+      toast.error("فشل الحذف: " + (e?.message || ""));
+    }
+  };
+
   return (
     <DashboardLayout>
       <Header title={pageTitle} subtitle={pageSubtitle} />
