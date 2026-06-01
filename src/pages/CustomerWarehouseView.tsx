@@ -783,6 +783,9 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
             </Button>
           </DialogFooter>
         </DialogContent>
+      </Dialog>
+
+
 
       {/* إيصال آخر عملية: طباعة + تصدير اكسيل */}
       <Dialog open={!!receipt} onOpenChange={(o) => { if (!o) setReceipt(null); }}>
