@@ -372,7 +372,9 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
       toast.error("لم يتم تحديد المخزن الرئيسي أو مخزن العميل");
       return;
     }
-    const sourcePool = openDialog === "supply" ? mainItems : items;
+    // وضع "مرتجع بدون خصم" نختار من منتجات المخزن الرئيسي للحصول على بيانات المنتج
+    const skipCustomerSide = openDialog === "return" && !deductFromCustomer;
+    const sourcePool = openDialog === "supply" || skipCustomerSide ? mainItems : items;
 
     // حوّل المدخلات: للأصناف الموزونة المدخل بالعبوة (نص كيلو) -> كيلو
     const valid = lines
@@ -408,15 +410,24 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
       const destPool = openDialog === "supply" ? items : mainItems;
       const refType = openDialog === "supply" ? "customer_supply" : "customer_return";
       const partyLabel = warehouseName;
-      const baseNote = notes || (openDialog === "supply" ? "توريد إلى عميل" : "مرتجع من عميل");
+      const baseNote =
+        notes ||
+        (openDialog === "supply"
+          ? "توريد إلى عميل"
+          : skipCustomerSide
+            ? "مرتجع قديم بدون خصم من مخزن العميل"
+            : "مرتجع من عميل");
 
-      // تحقق الرصيد قبل الخصم
-      for (const v of valid) {
-        const si = sourcePool.find((i) => i.name === v.name)!;
-        if (Number(si.stock) < v.qty) {
-          throw new Error(`الكمية المتاحة لـ "${v.name}" (${si.stock} ${si.unit}) أقل من المطلوب (${v.qty} ${v.unit})`);
+      // تحقق الرصيد قبل الخصم — يتجاوز في وضع "بدون خصم" لأن الجانب المصدري لن يُخصم
+      if (!skipCustomerSide) {
+        for (const v of valid) {
+          const si = sourcePool.find((i) => i.name === v.name)!;
+          if (Number(si.stock) < v.qty) {
+            throw new Error(`الكمية المتاحة لـ "${v.name}" (${si.stock} ${si.unit}) أقل من المطلوب (${v.qty} ${v.unit})`);
+          }
         }
       }
+
 
       const movRows: any[] = [];
 
