@@ -216,7 +216,12 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
       // For offer orders, the bundled shipping lives inside order_items, so
       // delivery_fee on the order row stays 0 (and is forced to 0 if the
       // last offer item was removed).
-      const update: Record<string, number> = {
+      const update: {
+        subtotal: number;
+        discount: number;
+        total: number;
+        delivery_fee?: number;
+      } = {
         subtotal: finalTotals.subtotal,
         discount: Number(discount) || 0,
         total: finalTotals.total,
