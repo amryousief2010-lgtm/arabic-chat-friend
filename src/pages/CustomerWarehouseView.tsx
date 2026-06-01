@@ -984,6 +984,11 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
                                 <Eye className="w-4 h-4" />
                               </Button>
                               {canEditMovements && (
+                                <Button variant="ghost" size="icon" onClick={() => openEditInvoice(inv)} title="تعديل الفاتورة">
+                                  <Pencil className="w-4 h-4" />
+                                </Button>
+                              )}
+                              {canEditMovements && (
                                 <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteInvoice(inv)} title="حذف الفاتورة">
                                   <Trash2 className="w-4 h-4" />
                                 </Button>
