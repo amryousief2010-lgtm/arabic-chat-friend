@@ -439,11 +439,12 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
                       <TableHead>المنتج</TableHead>
                       <TableHead className="text-left">الكمية</TableHead>
                       <TableHead>ملاحظات</TableHead>
+                      {canEditMovements && <TableHead className="text-left">إجراءات</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {movements.length === 0 ? (
-                      <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">لا توجد حركات</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={canEditMovements ? 6 : 5} className="text-center text-muted-foreground">لا توجد حركات</TableCell></TableRow>
                     ) : movements.map((m) => {
                       const isIn = m.movement_type === "in" || m.movement_type === "transfer_in";
                       return (
@@ -457,6 +458,18 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
                           <TableCell>{m.item_name}</TableCell>
                           <TableCell className="text-left font-semibold">{Number(m.quantity).toLocaleString("ar-EG")}</TableCell>
                           <TableCell className="text-xs text-muted-foreground">{m.notes || "—"}</TableCell>
+                          {canEditMovements && (
+                            <TableCell className="text-left">
+                              <div className="flex gap-1 justify-end">
+                                <Button variant="ghost" size="icon" onClick={() => openEdit(m)} title="تعديل">
+                                  <Pencil className="w-4 h-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteMovement(m)} title="حذف">
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          )}
                         </TableRow>
                       );
                     })}
