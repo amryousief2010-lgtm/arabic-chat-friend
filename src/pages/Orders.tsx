@@ -361,22 +361,36 @@ const Orders = () => {
       };
 
       // الصفحة الأولى: نعرضها فوراً ثم نكمل باقى الصفحات فى الخلفية
-      const ORDERS_PAGE = 200;
+      const ORDERS_PAGE = 100;
       let oPage = 0;
       let accumulated: Order[] = [];
 
       const fetchPage = async (page: number) => {
         let q = supabase
           .from('orders')
-          .select(`${ORDER_COLS}, customers (name, phone, governorate), order_items (${ITEM_COLS})`)
+          .select(`${ORDER_COLS}, customers (name, phone, governorate)`)
           .order('created_at', { ascending: false })
           .range(page * ORDERS_PAGE, (page + 1) * ORDERS_PAGE - 1);
         if (startDate) q = q.gte('created_at', startDate);
         if (endDate) q = q.lt('created_at', endDate);
         const { data, error } = await q;
         if (error) throw error;
-        return (data || []) as any[];
+        const ords = (data || []) as any[];
+        if (ords.length === 0) return ords;
+        const ids = ords.map((o) => o.id);
+        const { data: itemsData, error: itemsErr } = await supabase
+          .from('order_items')
+          .select(ITEM_COLS)
+          .in('order_id', ids);
+        if (itemsErr) throw itemsErr;
+        const byOrder: Record<string, any[]> = {};
+        (itemsData || []).forEach((it: any) => {
+          (byOrder[it.order_id] ||= []).push(it);
+        });
+        ords.forEach((o: any) => { o.order_items = byOrder[o.id] || []; });
+        return ords;
       };
+
 
       const firstBatch = await fetchPage(oPage);
       const firstItems = firstBatch.flatMap((o: any) =>
