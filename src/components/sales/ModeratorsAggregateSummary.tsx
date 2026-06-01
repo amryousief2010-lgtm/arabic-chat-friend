@@ -145,7 +145,7 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
         girlsOrders.map((o: any) => [o.id, o]),
       );
 
-      const month = emptyAgg();
+      const monthAgg = emptyAgg();
       const today = emptyAgg();
       monthAgg.orders = girlsOrders.length;
       today.orders = girlsOrders.filter((o: any) =>
@@ -172,7 +172,7 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
         if (o.created_at.slice(0, 10) === todayStr) today.weight[cat] += qty;
       }
 
-      return { month, today };
+      return { month: monthAgg, today };
     },
   });
 
