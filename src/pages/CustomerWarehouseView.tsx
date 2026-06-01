@@ -1028,63 +1028,33 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
               ) : (
                 filteredItems.map((it) => {
                   const stock = Number(it.stock);
-                  const weight = isWeightUnit(it.unit);
-                  const packages = weight ? toPackages(stock) : null;
                   const isLow = stock <= 0;
-                  const isMedium = !isLow && (weight ? (packages ?? 0) < 10 : stock < 10);
+                  const isMedium = !isLow && stock < 10;
+                  const unitLabel = it.unit || "كجم";
                   return (
                     <Card key={it.id} className={`overflow-hidden border-l-4 transition-all duration-200 hover:shadow-lg ${isLow ? "border-l-destructive" : isMedium ? "border-l-warning" : "border-l-success"}`}>
-                      <CardContent className="p-4 space-y-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-bold text-foreground truncate" title={it.name}>{it.name}</h4>
-                            <span className="text-xs text-muted-foreground">{it.unit}</span>
-                          </div>
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between gap-2">
+                          <h4 className="font-bold text-foreground truncate flex-1" title={it.name}>{it.name}</h4>
                           {canEditMovements && (
                             <div className="flex gap-1 shrink-0">
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openItemEdit(it)} title="تعديل الرصيد">
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openItemEdit(it)} title="تعديل الرصيد">
                                 <Pencil className="w-3.5 h-3.5" />
                               </Button>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteItem(it)} title="حذف وإرجاع للرئيسي">
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteItem(it)} title="حذف وإرجاع للرئيسي">
                                 <Trash2 className="w-3.5 h-3.5" />
                               </Button>
                             </div>
                           )}
                         </div>
 
-                        {weight ? (
-                          <>
-                            <div className="flex items-end gap-2">
-                              <div className="text-2xl font-extrabold text-foreground">{(packages ?? 0).toLocaleString("ar-EG")}</div>
-                              <div className="text-sm text-muted-foreground mb-1">عبوة</div>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm">
-                              <Badge variant="outline" className="text-xs bg-muted/50">
-                                = {stock.toLocaleString("ar-EG")} كجم
-                              </Badge>
-                              <span className="text-xs text-muted-foreground">(نص كيلو للعبوة)</span>
-                            </div>
-                          </>
-                        ) : (
-                          <div className="flex items-end gap-2">
-                            <div className="text-2xl font-extrabold text-foreground">{stock.toLocaleString("ar-EG")}</div>
-                            <div className="text-sm text-muted-foreground mb-1">{it.unit}</div>
-                          </div>
-                        )}
+                        <div className="mt-3 flex items-baseline gap-2">
+                          <div className="text-3xl font-extrabold text-foreground">{stock.toLocaleString("ar-EG")}</div>
+                          <div className="text-sm text-muted-foreground">{unitLabel}</div>
+                        </div>
 
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-xs">
-                            <span className="text-muted-foreground">حالة الرصيد</span>
-                            <span className={`font-semibold ${isLow ? "text-destructive" : isMedium ? "text-warning" : "text-success"}`}>
-                              {isLow ? "نفذت الكمية" : isMedium ? "رصيد متوسط" : "رصيد جيد"}
-                            </span>
-                          </div>
-                          <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
-                            <div
-                              className={`h-full rounded-full transition-all duration-500 ${isLow ? "bg-destructive" : isMedium ? "bg-warning" : "bg-success"}`}
-                              style={{ width: `${Math.min(100, isLow ? 0 : weight ? (stock / 20) * 100 : (stock / 50) * 100)}%` }}
-                            />
-                          </div>
+                        <div className={`mt-2 text-xs font-semibold ${isLow ? "text-destructive" : isMedium ? "text-warning" : "text-success"}`}>
+                          {isLow ? "نفذت الكمية" : isMedium ? "رصيد متوسط" : "رصيد جيد"}
                         </div>
                       </CardContent>
                     </Card>
