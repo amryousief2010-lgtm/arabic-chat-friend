@@ -9,10 +9,29 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, RefreshCw, ArrowUpRight, ArrowDownLeft, Loader2, Plus, Trash2, Pencil } from "lucide-react";
+import { Search, RefreshCw, ArrowUpRight, ArrowDownLeft, Loader2, Plus, Trash2, Pencil, Printer, FileSpreadsheet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import * as XLSX from "xlsx";
+
+// كل عبوة = نص كيلو للأصناف الموزونة
+const PACKAGE_KG = 0.5;
+const isWeightUnit = (u?: string | null) => {
+  const s = (u || "").toLowerCase();
+  return s.includes("كيلو") || s.includes("كجم") || s.includes("kg");
+};
+// كم عبوة (نص كيلو) في الرصيد
+const toPackages = (kg: number) => Math.floor((Number(kg) || 0) / PACKAGE_KG);
+
+type ReceiptLine = {
+  name: string;
+  unit: string;
+  inputQty: number;        // ما أدخله المستخدم (عبوة أو قطعة)
+  inputUnit: string;       // "عبوة" أو الوحدة الأصلية
+  deductedQty: number;     // ما خُصم فعلياً من المخزن الرئيسي بنفس وحدة الصنف
+  deductedUnit: string;
+};
 
 interface Props {
   warehouseName: string; // exact warehouse name in DB
