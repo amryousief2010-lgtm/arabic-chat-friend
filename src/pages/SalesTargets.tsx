@@ -280,12 +280,58 @@ const SalesTargets = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {/* فلتر الشهر والسنة (يطبّق على كل الجداول والتقارير في الصفحة) */}
+        <Card className="sticky top-0 z-20 border-primary/30 bg-card/95 backdrop-blur">
+          <CardContent className="py-3">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Target className="h-5 w-5 text-primary" />
+                <span className="font-semibold">
+                  الفترة: {months.find(m => m.value === selectedMonth)?.label} {selectedYear}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Label className="text-xs">الشهر</Label>
+                <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(Number(v))}>
+                  <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {months.map((m) => (
+                      <SelectItem key={m.value} value={m.value.toString()}>{m.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Label className="text-xs">السنة</Label>
+                <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
+                  <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {[currentYear - 2, currentYear - 1, currentYear, currentYear + 1].map((y) => (
+                      <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    await queryClient.invalidateQueries();
+                    toast({ title: 'تم التحديث' });
+                  }}
+                  title="تحديث"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <ModeratorQuickAccessCards month={selectedMonth} year={selectedYear} />
         {!isModerator && <ModeratorsAggregateSummary month={selectedMonth} year={selectedYear} />}
         {!isModerator && <MonthlyTargetTable />}
         <ModeratorOrdersBreakdown month={selectedMonth} year={selectedYear} />
         {!isModerator && <GirlsSalesQuantityTable month={selectedMonth} year={selectedYear} />}
         {!isModerator && <ModeratorPayrollTable month={selectedMonth} year={selectedYear} />}
+
 
         {/* Header */}
         <div className="flex items-center justify-between">
