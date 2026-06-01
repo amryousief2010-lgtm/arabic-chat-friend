@@ -352,16 +352,21 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
           <div className="pt-2 border-t space-y-3">
             {hasOfferItems && (
               <div className="rounded-md border border-amber-300 bg-amber-50 text-amber-900 text-xs p-2">
-                هذا الطلب يحتوي على عرض بسعر ثابت. تعديل الأصناف هنا لن يغير سعر العرض الأصلي ولا رسوم التوصيل المسجلة.
+                هذا الطلب يحتوي على عرض. تكلفة الشحن المضمنة داخل العرض ({includedShipping.toLocaleString()} ج.م) محفوظة تلقائيًا. تعديل أو استبدال أصناف العرض سيُعيد حساب الإجمالي على أساس الأسعار الجديدة.
               </div>
             )}
 
-            {!hasOfferItems && (
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">المجموع الفرعي الجديد</span>
-                <span className="text-lg font-bold">
-                  {newSubtotal.toLocaleString()} ج.م
-                </span>
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">المجموع الفرعي للأصناف</span>
+              <span className="text-lg font-bold">
+                {newSubtotal.toLocaleString()} ج.م
+              </span>
+            </div>
+
+            {hasOfferItems && includedShipping > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">تكلفة الشحن المضمنة بالعرض</span>
+                <span>{includedShipping.toLocaleString()} ج.م</span>
               </div>
             )}
 
@@ -386,21 +391,19 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
               </div>
             )}
 
-            {!hasOfferItems && Number(discount) > 0 && (
+            {Number(discount) > 0 && (
               <div className="flex justify-between text-sm text-green-600">
                 <span>الخصم</span>
                 <span>- {Number(discount).toLocaleString()} ج.م</span>
               </div>
             )}
 
-            {!hasOfferItems && (
-              <div className="flex justify-between items-center pt-2 border-t">
-                <span className="font-semibold">الإجمالي بعد الخصم</span>
-                <span className="text-xl font-bold text-primary">
-                  {newTotalPreview.toLocaleString()} ج.م
-                </span>
-              </div>
-            )}
+            <div className="flex justify-between items-center pt-2 border-t">
+              <span className="font-semibold">الإجمالي بعد الخصم</span>
+              <span className="text-xl font-bold text-primary">
+                {newTotalPreview.toLocaleString()} ج.م
+              </span>
+            </div>
           </div>
         </div>
 
