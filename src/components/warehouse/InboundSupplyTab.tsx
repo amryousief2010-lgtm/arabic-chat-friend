@@ -58,7 +58,7 @@ export default function InboundSupplyTab({ warehouseId, warehouseName }: Props) 
     const [itRes, mvRes] = await Promise.all([
       supabase.from("inventory_items").select("id, name, unit, stock").eq("warehouse_id", warehouseId).order("name"),
       supabase.from("inventory_movements")
-        .select("id, performed_at, quantity, unit_cost, total_cost, party, notes, reference, item:inventory_items(name, unit), performer:profiles!inventory_movements_performed_by_fkey(full_name)")
+        .select("id, performed_at, quantity, unit_cost, total_cost, party, notes, reference, item:inventory_items(name, unit)")
         .eq("warehouse_id", warehouseId)
         .eq("reference_type", "external_supply")
         .order("performed_at", { ascending: false })
