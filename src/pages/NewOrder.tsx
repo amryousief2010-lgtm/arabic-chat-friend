@@ -80,6 +80,11 @@ interface Customer {
   total_spent?: number | null;
 }
 
+type CustomerSearchRow = Pick<
+  Customer,
+  'id' | 'name' | 'phone' | 'phone2' | 'address' | 'city' | 'governorate' | 'source' | 'shipping_company' | 'total_orders' | 'total_spent'
+>;
+
 interface OfferBox {
   id: string;
   name: string;
@@ -192,6 +197,7 @@ const NewOrder = () => {
   const [productSearch, setProductSearch] = useState('');
   const [customQty, setCustomQty] = useState<Record<string, string>>({});
   const [customerSearch, setCustomerSearch] = useState('');
+  const [searchingCustomers, setSearchingCustomers] = useState(false);
   
   // New/Edit customer dialog
   const [isNewCustomerOpen, setIsNewCustomerOpen] = useState(false);
@@ -248,21 +254,7 @@ const NewOrder = () => {
         setMainStock(mn);
       }
 
-      // تحميل كل العملاء على دفعات 1000 لتجاوز حد Supabase الافتراضي
-      const allCustomers: any[] = [];
-      const PAGE = 1000;
-      for (let from = 0; ; from += PAGE) {
-        const { data, error } = await supabase
-          .from('customers')
-          .select('*')
-          .order('name')
-          .range(from, from + PAGE - 1);
-        if (error) throw error;
-        if (!data || data.length === 0) break;
-        allCustomers.push(...data);
-        if (data.length < PAGE) break;
-      }
-      setCustomers(allCustomers);
+      setCustomers([]);
 
       
       // Filter out expired offers and not-yet-started offers
@@ -312,6 +304,49 @@ const NewOrder = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const query = customerSearch.trim();
+    const normalized = normalizePhone(query);
+
+    if (!query) {
+      setCustomers([]);
+      setSearchingCustomers(false);
+      return;
+    }
+
+    const timer = window.setTimeout(async () => {
+      setSearchingCustomers(true);
+      try {
+        const CUSTOMER_COLS = 'id,name,phone,phone2,address,city,governorate,source,shipping_company,total_orders,total_spent';
+        const terms = Array.from(new Set([query, normalized].filter(Boolean)));
+        const collected = new Map<string, CustomerSearchRow>();
+
+        const requests = terms.slice(0, 2).map((term) =>
+          supabase
+            .from('customers')
+            .select(CUSTOMER_COLS)
+            .or(`name.ilike.%${term}%,phone.ilike.%${term}%,phone2.ilike.%${term}%`)
+            .order('name')
+            .limit(25)
+        );
+
+        const results = await Promise.all(requests);
+        for (const res of results) {
+          if (res.error) throw res.error;
+          (res.data || []).forEach((customer: any) => collected.set(customer.id, customer));
+        }
+
+        setCustomers(Array.from(collected.values()));
+      } catch (error) {
+        console.error('Error searching customers:', error);
+      } finally {
+        setSearchingCustomers(false);
+      }
+    }, 250);
+
+    return () => window.clearTimeout(timer);
+  }, [customerSearch]);
 
   const genCartId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
