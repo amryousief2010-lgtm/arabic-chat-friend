@@ -67,6 +67,98 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
   const [editQty, setEditQty] = useState<string>("");
   const [editBusy, setEditBusy] = useState(false);
 
+  // edit/delete stock item dialog
+  const [editItem, setEditItem] = useState<InventoryItem | null>(null);
+  const [editStock, setEditStock] = useState<string>("");
+  const [itemBusy, setItemBusy] = useState(false);
+
+  const adjustMainForItem = async (itemName: string, unit: string, productId: string | null, delta: number) => {
+    // delta > 0 -> add to main, delta < 0 -> subtract from main
+    if (!mainWhId || delta === 0) return;
+    let mainItem = mainItems.find((i) => i.name === itemName);
+    if (!mainItem) {
+      const { data: newRow, error } = await supabase
+        .from("inventory_items")
+        .insert({ warehouse_id: mainWhId, name: itemName, unit, stock: 0, product_id: productId })
+        .select("id, name, unit, stock, product_id")
+        .single();
+      if (error || !newRow) throw error || new Error("تعذّر إنشاء صنف في المخزن الرئيسي");
+      mainItem = newRow as InventoryItem;
+    }
+    const newStock = Number(mainItem.stock) + delta;
+    if (newStock < 0) throw new Error("لا يمكن خصم كمية أكبر من رصيد المخزن الرئيسي");
+    await supabase.from("inventory_items").update({ stock: newStock }).eq("id", mainItem.id);
+  };
+
+  const openItemEdit = (it: InventoryItem) => {
+    setEditItem(it);
+    setEditStock(String(it.stock));
+  };
+
+  const submitItemEdit = async () => {
+    if (!editItem) return;
+    const newStock = Number(editStock);
+    if (!(newStock >= 0)) { toast.error("ادخل رصيداً صحيحاً"); return; }
+    const diff = newStock - Number(editItem.stock);
+    if (diff === 0) { setEditItem(null); return; }
+    setItemBusy(true);
+    try {
+      // diff > 0: stock increased here -> deduct from main; diff < 0: returned to main
+      await adjustMainForItem(editItem.name, editItem.unit, editItem.product_id, -diff);
+      await supabase.from("inventory_items").update({ stock: newStock }).eq("id", editItem.id);
+      // Log a correction movement
+      await supabase.from("inventory_movements").insert({
+        item_id: editItem.id,
+        warehouse_id: whId,
+        source_warehouse_id: diff > 0 ? mainWhId : whId,
+        destination_warehouse_id: diff > 0 ? whId : mainWhId,
+        movement_type: diff > 0 ? "in" : "out",
+        quantity: Math.abs(diff),
+        notes: "تعديل رصيد يدوي",
+        party: warehouseName,
+        reference_type: diff > 0 ? "customer_supply" : "customer_return",
+        performed_by: user?.id ?? null,
+        product_id: editItem.product_id,
+      });
+      toast.success("تم تعديل الرصيد");
+      setEditItem(null);
+      await fetchAll();
+    } catch (e: any) {
+      toast.error("فشل التعديل: " + (e?.message || ""));
+    } finally {
+      setItemBusy(false);
+    }
+  };
+
+  const handleDeleteItem = async (it: InventoryItem) => {
+    if (!canEditMovements) return;
+    if (!confirm(`حذف "${it.name}" من ${warehouseName}؟ سيتم إرجاع الرصيد (${it.stock}) إلى المخزن الرئيسي.`)) return;
+    try {
+      const qty = Number(it.stock);
+      if (qty > 0) {
+        await adjustMainForItem(it.name, it.unit, it.product_id, qty);
+        await supabase.from("inventory_movements").insert({
+          item_id: it.id,
+          warehouse_id: whId,
+          source_warehouse_id: whId,
+          destination_warehouse_id: mainWhId,
+          movement_type: "out",
+          quantity: qty,
+          notes: "حذف صنف وإرجاع للمخزن الرئيسي",
+          party: warehouseName,
+          reference_type: "customer_return",
+          performed_by: user?.id ?? null,
+          product_id: it.product_id,
+        });
+      }
+      await supabase.from("inventory_items").update({ stock: 0, is_active: false }).eq("id", it.id);
+      toast.success("تم حذف الصنف وإرجاع الرصيد");
+      await fetchAll();
+    } catch (e: any) {
+      toast.error("فشل الحذف: " + (e?.message || ""));
+    }
+  };
+
   const fetchAll = async () => {
     setLoading(true);
     try {
@@ -405,11 +497,12 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
                       <TableHead>المنتج</TableHead>
                       <TableHead>الوحدة</TableHead>
                       <TableHead className="text-left">الرصيد</TableHead>
+                      {canEditMovements && <TableHead className="text-left">إجراءات</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredItems.length === 0 ? (
-                      <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground">
+                      <TableRow><TableCell colSpan={canEditMovements ? 4 : 3} className="text-center text-muted-foreground">
                         {loading ? "جاري التحميل..." : "لا توجد منتجات بعد. ابدأ بتسجيل أول توريد."}
                       </TableCell></TableRow>
                     ) : filteredItems.map((it) => (
@@ -417,6 +510,18 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
                         <TableCell>{it.name}</TableCell>
                         <TableCell>{it.unit}</TableCell>
                         <TableCell className="text-left font-semibold">{Number(it.stock).toLocaleString("ar-EG")}</TableCell>
+                        {canEditMovements && (
+                          <TableCell className="text-left">
+                            <div className="flex gap-1 justify-end">
+                              <Button variant="ghost" size="icon" onClick={() => openItemEdit(it)} title="تعديل الرصيد">
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteItem(it)} title="حذف وإرجاع للرئيسي">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                   </TableBody>
@@ -573,6 +678,32 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
             <Button variant="outline" onClick={() => setEditMov(null)}>إلغاء</Button>
             <Button onClick={submitEdit} disabled={editBusy}>
               {editBusy && <Loader2 className="w-4 h-4 ml-2 animate-spin" />}
+              حفظ
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!editItem} onOpenChange={(o) => { if (!o) setEditItem(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>تعديل رصيد الصنف</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="text-sm text-muted-foreground">
+              المنتج: <span className="font-medium text-foreground">{editItem?.name}</span> — الرصيد الحالي: {editItem?.stock}
+            </div>
+            <div>
+              <label className="text-sm font-medium">الرصيد الجديد</label>
+              <Input type="number" min="0" step="0.01" value={editStock} onChange={(e) => setEditStock(e.target.value)} />
+              <p className="text-xs text-muted-foreground mt-1">
+                الفرق سيُخصم من المخزن الرئيسي أو يُضاف إليه تلقائيًا.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditItem(null)}>إلغاء</Button>
+            <Button onClick={submitItemEdit} disabled={itemBusy}>
+              {itemBusy && <Loader2 className="w-4 h-4 ml-2 animate-spin" />}
               حفظ
             </Button>
           </DialogFooter>
