@@ -280,8 +280,8 @@ const SalesTargets = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <ModeratorQuickAccessCards />
-        {!isModerator && <ModeratorsAggregateSummary />}
+        <ModeratorQuickAccessCards month={selectedMonth} year={selectedYear} />
+        {!isModerator && <ModeratorsAggregateSummary month={selectedMonth} year={selectedYear} />}
         {!isModerator && <MonthlyTargetTable />}
         <ModeratorOrdersBreakdown month={selectedMonth} year={selectedYear} />
         {!isModerator && <GirlsSalesQuantityTable month={selectedMonth} year={selectedYear} />}

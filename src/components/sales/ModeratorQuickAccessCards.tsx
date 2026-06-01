@@ -39,9 +39,13 @@ interface Props {
    * When true, only count orders whose shipping_company is "مندوب خاص".
    */
   privateDeliveryOnly?: boolean;
+  /** 1-based month (1..12). Defaults to current month. */
+  month?: number;
+  /** Full year (e.g. 2026). Defaults to current year. */
+  year?: number;
 }
 
-const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false }: Props) => {
+const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false, month, year }: Props) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user, profile, isGeneralManager, isExecutiveManager, isSalesManager } = useAuth();
@@ -50,18 +54,23 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false }: Props) => {
   const visibleModerators = canSeeAll ? MODERATORS : (ownMod ? [ownMod] : []);
   const visibleSlugs = new Set(visibleModerators.map((m) => m.slug));
 
+  const nowRef = new Date();
+  const viewYear = year ?? nowRef.getUTCFullYear();
+  const viewMonth = (month ?? nowRef.getUTCMonth() + 1) - 1; // 0-based
+  const isCurrentMonth =
+    viewYear === nowRef.getUTCFullYear() && viewMonth === nowRef.getUTCMonth();
+  const monthLabel = new Date(Date.UTC(viewYear, viewMonth, 1)).toLocaleDateString(
+    "en-GB",
+    { month: "long", year: "numeric" },
+  );
+
   const { data, isLoading } = useQuery({
-    queryKey: ["moderator-quick-access-v2", privateDeliveryOnly],
+    queryKey: ["moderator-quick-access-v2", privateDeliveryOnly, viewYear, viewMonth],
     refetchInterval: 15_000,
     refetchOnWindowFocus: true,
     queryFn: async () => {
-      const now = new Date();
-      const startOfMonth = new Date(
-        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0),
-      );
-      const startOfNextMonth = new Date(
-        Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0, 0),
-      );
+      const startOfMonth = new Date(Date.UTC(viewYear, viewMonth, 1, 0, 0, 0, 0));
+      const startOfNextMonth = new Date(Date.UTC(viewYear, viewMonth + 1, 1, 0, 0, 0, 0));
 
       let q = supabase
         .from("orders")
@@ -203,7 +212,7 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false }: Props) => {
               {privateDeliveryOnly ? "طلبات المسوقات المخصصة للمندوب الخاص" : "سجلات المسوقات"}
             </h3>
             <Badge variant="outline" className="text-[10px]">
-              {new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" })}
+              {monthLabel}
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground">

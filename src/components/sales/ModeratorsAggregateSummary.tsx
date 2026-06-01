@@ -47,18 +47,28 @@ const emptyAgg = (): AggRow => ({
   weight: { meat: 0, bone: 0, processed: 0 },
 });
 
-const ModeratorsAggregateSummary = () => {
+interface Props {
+  /** 1-based month (1..12). Defaults to current month. */
+  month?: number;
+  /** Full year. Defaults to current year. */
+  year?: number;
+}
+
+const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
+  const nowRef = new Date();
+  const viewYear = year ?? nowRef.getUTCFullYear();
+  const viewMonth = (month ?? nowRef.getUTCMonth() + 1) - 1;
+  const monthLabel = new Date(Date.UTC(viewYear, viewMonth, 1)).toLocaleDateString(
+    "en-GB",
+    { month: "long", year: "numeric" },
+  );
+
   const { data, isLoading } = useQuery({
-    queryKey: ["moderators-aggregate-summary"],
+    queryKey: ["moderators-aggregate-summary", viewYear, viewMonth],
     refetchInterval: 60_000,
     queryFn: async () => {
-      const now = new Date();
-      const startOfMonth = new Date(
-        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0),
-      );
-      const startOfNextMonth = new Date(
-        Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0, 0),
-      );
+      const startOfMonth = new Date(Date.UTC(viewYear, viewMonth, 1, 0, 0, 0, 0));
+      const startOfNextMonth = new Date(Date.UTC(viewYear, viewMonth + 1, 1, 0, 0, 0, 0));
 
       // 1) Orders for this month (UTC boundaries — created_at is UTC)
       const { data: orders, error } = await supabase
@@ -135,13 +145,13 @@ const ModeratorsAggregateSummary = () => {
         girlsOrders.map((o: any) => [o.id, o]),
       );
 
-      const month = emptyAgg();
+      const monthAgg = emptyAgg();
       const today = emptyAgg();
-      month.orders = girlsOrders.length;
+      monthAgg.orders = girlsOrders.length;
       today.orders = girlsOrders.filter((o: any) =>
         o.created_at.slice(0, 10) === todayStr,
       ).length;
-      month.sales = girlsOrders.reduce(
+      monthAgg.sales = girlsOrders.reduce(
         (s: number, o: any) => s + Number(o.total || 0),
         0,
       );
@@ -158,16 +168,16 @@ const ModeratorsAggregateSummary = () => {
         );
         if (cat === "other") continue;
         const qty = Number(it.quantity || 0);
-        month.weight[cat] += qty;
+        monthAgg.weight[cat] += qty;
         if (o.created_at.slice(0, 10) === todayStr) today.weight[cat] += qty;
       }
 
-      return { month, today };
+      return { month: monthAgg, today };
     },
   });
 
   const today = data?.today ?? emptyAgg();
-  const month = data?.month ?? emptyAgg();
+  const monthAgg = data?.month ?? emptyAgg();
   const fmt = (n: number) =>
     Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
 
@@ -181,10 +191,7 @@ const ModeratorsAggregateSummary = () => {
               إجمالي مبيعات البنات الأربع (آية، نورا، سارة، منال)
             </h3>
             <Badge variant="outline" className="text-[10px]">
-              {new Date().toLocaleDateString("en-GB", {
-                month: "long",
-                year: "numeric",
-              })}
+              {monthLabel}
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground">
@@ -244,10 +251,10 @@ const ModeratorsAggregateSummary = () => {
               <div>
                 <p className="text-xs opacity-80">إجمالي الشهر</p>
                 <h4 className="text-xl font-bold">
-                  {isLoading ? "…" : `${fmt(month.sales)} ج.م`}
+                  {isLoading ? "…" : `${fmt(monthAgg.sales)} ج.م`}
                 </h4>
                 <p className="text-[11px] opacity-80 mt-0.5">
-                  {isLoading ? "…" : `${month.orders} طلب`}
+                  {isLoading ? "…" : `${monthAgg.orders} طلب`}
                 </p>
               </div>
               <div className="w-10 h-10 rounded-xl bg-white/20 ring-2 ring-white/40 flex items-center justify-center">
@@ -260,7 +267,7 @@ const ModeratorsAggregateSummary = () => {
                   <Beef className="w-3.5 h-3.5" /> لحوم
                 </div>
                 <p className="font-bold text-base mt-1">
-                  {isLoading ? "…" : `${fmt(month.weight.meat)} كجم`}
+                  {isLoading ? "…" : `${fmt(monthAgg.weight.meat)} كجم`}
                 </p>
               </div>
               <div className="bg-white/15 rounded-lg p-2">
@@ -268,7 +275,7 @@ const ModeratorsAggregateSummary = () => {
                   <Drumstick className="w-3.5 h-3.5" /> بالعظم
                 </div>
                 <p className="font-bold text-base mt-1">
-                  {isLoading ? "…" : `${fmt(month.weight.bone)} كجم`}
+                  {isLoading ? "…" : `${fmt(monthAgg.weight.bone)} كجم`}
                 </p>
               </div>
               <div className="bg-white/15 rounded-lg p-2">
@@ -276,7 +283,7 @@ const ModeratorsAggregateSummary = () => {
                   <Flame className="w-3.5 h-3.5" /> مصنعات
                 </div>
                 <p className="font-bold text-base mt-1">
-                  {isLoading ? "…" : `${fmt(month.weight.processed)} كجم`}
+                  {isLoading ? "…" : `${fmt(monthAgg.weight.processed)} كجم`}
                 </p>
               </div>
             </div>
