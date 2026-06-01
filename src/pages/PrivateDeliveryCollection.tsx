@@ -54,14 +54,16 @@ const PrivateDeliveryCollection = () => {
       setMainWhId(main?.id ?? null);
       if (!main?.id) { setOrders([]); return; }
 
+      // يظهر الأوردر فور تسجيله من المخزن الرئيسي للمندوب الخاص،
+      // ويختفي بعد تأكيد التحصيل (paid) أو إلغاء الأوردر.
       const { data: ords } = await supabase
         .from("orders")
-        .select("id, order_number, total, created_at, delivered_at, payment_method, moderator, customer_id")
+        .select("id, order_number, total, created_at, delivered_at, payment_method, moderator, customer_id, status")
         .eq("source_warehouse_id", main.id)
         .eq("shipping_company", "مندوب خاص")
-        .eq("status", "delivered")
+        .neq("status", "cancelled")
         .neq("payment_status", "paid")
-        .order("delivered_at", { ascending: false })
+        .order("created_at", { ascending: false })
         .limit(1000);
 
       const list = (ords || []) as any[];
