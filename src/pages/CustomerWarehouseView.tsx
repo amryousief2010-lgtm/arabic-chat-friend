@@ -268,39 +268,53 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
 
   const submit = async () => {
     if (!openDialog) return;
+    if (!whId || !mainWhId) {
+      toast.error("لم يتم تحديد المخزن الرئيسي أو مخزن العميل");
+      return;
+    }
+    const sourcePool = openDialog === "supply" ? mainItems : items;
+
+    // حوّل المدخلات: للأصناف الموزونة المدخل بالعبوة (نص كيلو) -> كيلو
     const valid = lines
-      .map((l) => ({ name: l.name, qty: Number(l.qty) }))
-      .filter((l) => l.name && l.qty > 0);
+      .map((l) => {
+        const inputQty = Number(l.qty);
+        const src = sourcePool.find((i) => i.name === l.name);
+        if (!l.name || !(inputQty > 0) || !src) return null;
+        const weight = isWeightUnit(src.unit);
+        const realQty = weight ? inputQty * PACKAGE_KG : inputQty;
+        return {
+          name: l.name,
+          inputQty,
+          inputUnit: weight ? "عبوة" : (src.unit || "قطعة"),
+          qty: realQty, // ما يُخصم فعلياً بوحدة الصنف
+          unit: src.unit || "",
+        };
+      })
+      .filter(Boolean) as Array<{ name: string; inputQty: number; inputUnit: string; qty: number; unit: string }>;
+
     if (valid.length === 0) {
       toast.error("اختر منتجاً واحداً على الأقل وادخل كمية صحيحة");
       return;
     }
-    // detect duplicate product selections
     const names = valid.map((v) => v.name);
     if (new Set(names).size !== names.length) {
       toast.error("هناك منتج مكرر في القائمة");
-      return;
-    }
-    if (!whId || !mainWhId) {
-      toast.error("لم يتم تحديد المخزن الرئيسي أو مخزن العميل");
       return;
     }
     setSubmitting(true);
     try {
       const sourceWh = openDialog === "supply" ? mainWhId : whId;
       const destWh = openDialog === "supply" ? whId : mainWhId;
-      const sourcePool = openDialog === "supply" ? mainItems : items;
       const destPool = openDialog === "supply" ? items : mainItems;
       const refType = openDialog === "supply" ? "customer_supply" : "customer_return";
       const partyLabel = warehouseName;
       const baseNote = notes || (openDialog === "supply" ? "توريد إلى عميل" : "مرتجع من عميل");
 
-      // Pre-validate stock for all lines
+      // تحقق الرصيد قبل الخصم
       for (const v of valid) {
-        const si = sourcePool.find((i) => i.name === v.name);
-        if (!si) throw new Error(`المنتج "${v.name}" غير موجود في مخزن المصدر`);
+        const si = sourcePool.find((i) => i.name === v.name)!;
         if (Number(si.stock) < v.qty) {
-          throw new Error(`الكمية المتاحة لـ "${v.name}" (${si.stock}) أقل من المطلوب`);
+          throw new Error(`الكمية المتاحة لـ "${v.name}" (${si.stock} ${si.unit}) أقل من المطلوب (${v.qty} ${v.unit})`);
         }
       }
 
@@ -308,8 +322,6 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
 
       for (const v of valid) {
         const sourceItem = sourcePool.find((i) => i.name === v.name)!;
-
-        // Ensure destination row exists
         let destItem = destPool.find((i) => i.name === v.name);
         if (!destItem) {
           const { data: newRow, error: insErr } = await supabase
@@ -371,6 +383,21 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
 
       const { error: movErr } = await supabase.from("inventory_movements").insert(movRows);
       if (movErr) throw movErr;
+
+      // احفظ إيصال آخر عملية للطباعة/التصدير
+      setReceipt({
+        kind: openDialog,
+        at: new Date().toISOString(),
+        notes: baseNote,
+        lines: valid.map((v) => ({
+          name: v.name,
+          unit: v.unit,
+          inputQty: v.inputQty,
+          inputUnit: v.inputUnit,
+          deductedQty: v.qty,
+          deductedUnit: v.unit,
+        })),
+      });
 
       toast.success(
         openDialog === "supply"
