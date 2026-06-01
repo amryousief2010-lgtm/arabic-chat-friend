@@ -51,6 +51,7 @@ interface InventoryItem {
 
 interface Movement {
   id: string;
+  warehouse_id?: string;
   performed_at: string;
   movement_type: string;
   quantity: number;
@@ -499,15 +500,36 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
     if (!m.source_warehouse_id || !m.destination_warehouse_id) return null;
     let q = supabase
       .from("inventory_movements")
-      .select("id, item_id, product_id, warehouse_id, movement_type, quantity")
+      .select("id, item_id, product_id, warehouse_id, movement_type, quantity, source_warehouse_id, destination_warehouse_id, reference_type, performed_at")
       .eq("source_warehouse_id", m.source_warehouse_id)
       .eq("destination_warehouse_id", m.destination_warehouse_id)
       .eq("performed_at", m.performed_at)
-      .eq("quantity", m.quantity);
+      .eq("quantity", m.quantity)
+      .eq("reference_type", m.reference_type || "");
     if (m.product_id) q = q.eq("product_id", m.product_id);
     const { data } = await q;
     const rows = (data || []) as any[];
-    return rows.find((r) => r.id !== m.id) || null;
+    return rows.find((r) => r.id !== m.id && r.item_id !== m.item_id && r.movement_type !== m.movement_type && r.warehouse_id !== m.warehouse_id) || null;
+  };
+
+  const getInvoiceMovementRows = async (inv: Invoice) => {
+    const seed = inv.movements[0];
+    if (!seed?.source_warehouse_id || !seed?.destination_warehouse_id) return inv.movements;
+
+    let q = supabase
+      .from("inventory_movements")
+      .select("id, warehouse_id, performed_at, movement_type, quantity, notes, party, item_id, product_id, source_warehouse_id, destination_warehouse_id, reference_type")
+      .eq("performed_at", inv.at)
+      .eq("reference_type", inv.kind === "supply" ? "customer_supply" : "customer_return")
+      .eq("source_warehouse_id", seed.source_warehouse_id)
+      .eq("destination_warehouse_id", seed.destination_warehouse_id)
+      .eq("party", warehouseName);
+
+    if (inv.notes) q = q.eq("notes", inv.notes);
+
+    const { data, error } = await q;
+    if (error) throw error;
+    return (data || []) as Movement[];
   };
 
   const handleDeleteMovement = async (m: Movement) => {
@@ -643,36 +665,32 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
     if (!canEditMovements) return;
     if (!confirm(`حذف الفاتورة بتاريخ ${new Date(inv.at).toLocaleString("ar-EG")} (${inv.movements.length} صنف)؟ سيتم عكس الحركات.`)) return;
     try {
-      for (const m of inv.movements) {
-        const pair = await findPair(m);
-        const thisItem = (await supabase.from("inventory_items").select("id, stock").eq("id", m.item_id).single()).data as any;
-        if (thisItem) {
-          const delta = m.movement_type === "in" ? -Number(m.quantity) : Number(m.quantity);
-          const { error: thisItemError } = await supabase
-            .from("inventory_items")
-            .update({ stock: Number(thisItem.stock) + delta })
-            .eq("id", m.item_id);
-          if (thisItemError) throw thisItemError;
-        }
-        if (pair) {
-          const pItem = (await supabase.from("inventory_items").select("id, stock").eq("id", pair.item_id).single()).data as any;
-          if (pItem) {
-            const d = pair.movement_type === "in" ? -Number(pair.quantity) : Number(pair.quantity);
-            const { error: pairItemError } = await supabase
-              .from("inventory_items")
-              .update({ stock: Number(pItem.stock) + d })
-              .eq("id", pair.item_id);
-            if (pairItemError) throw pairItemError;
-          }
-          // tolerate already-deleted pair
-          await supabase.from("inventory_movements").delete().eq("id", pair.id);
-        }
-        const { error: deleteError, count: deletedCount } = await supabase
-          .from("inventory_movements")
-          .delete({ count: "exact" })
-          .eq("id", m.id);
-        ensureMutationSucceeded(deleteError, deletedCount, "تعذّر حذف إحدى حركات الفاتورة (تحقق من الصلاحيات)");
+      const relatedRows = await getInvoiceMovementRows(inv);
+      if (relatedRows.length === 0) {
+        throw new Error("الفاتورة غير موجودة حالياً أو تم حذفها بالفعل");
       }
+
+      for (const m of relatedRows) {
+        const itemRow = (await supabase.from("inventory_items").select("id, stock").eq("id", m.item_id).single()).data as any;
+        if (!itemRow) continue;
+
+        const delta = m.movement_type === "in" ? -Number(m.quantity) : Number(m.quantity);
+        const { error: itemError, count: itemCount } = await supabase
+          .from("inventory_items")
+          .update({ stock: Number(itemRow.stock) + delta }, { count: "exact" })
+          .eq("id", m.item_id);
+        ensureMutationSucceeded(itemError, itemCount, `تعذّر عكس رصيد الصنف المرتبط بالفاتورة`);
+      }
+
+      const { error: deleteError, count: deletedCount } = await supabase
+        .from("inventory_movements")
+        .delete({ count: "exact" })
+        .in("id", relatedRows.map((m) => m.id));
+      if (deleteError) throw deleteError;
+      if ((deletedCount || 0) < relatedRows.length) {
+        throw new Error("لم يتم حذف كل حركات الفاتورة");
+      }
+
       toast.success("تم حذف الفاتورة وعكس حركاتها");
       await fetchAll();
     } catch (e: any) {
