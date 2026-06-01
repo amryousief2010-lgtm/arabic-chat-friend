@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, RefreshCw, ArrowUpRight, ArrowDownLeft, Loader2, Plus, Trash2, Pencil, Printer, FileSpreadsheet } from "lucide-react";
+import { Search, RefreshCw, ArrowUpRight, ArrowDownLeft, Loader2, Plus, Trash2, Pencil, Printer, FileSpreadsheet, FileText, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -503,6 +503,72 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
     }
   };
 
+  // تجميع الحركات على شكل فواتير (كل عملية توريد/مرتجع = فاتورة واحدة)
+  type Invoice = { key: string; at: string; kind: "supply" | "return"; notes: string | null; movements: Movement[] };
+  const invoices: Invoice[] = useMemo(() => {
+    const map = new Map<string, Invoice>();
+    for (const m of movements) {
+      const isSupply = m.reference_type === "customer_supply";
+      const isReturn = m.reference_type === "customer_return";
+      if (!isSupply && !isReturn) continue;
+      // لتفادي التكرار: نأخذ جهة واحدة فقط من كل عملية
+      if (isSupply && m.movement_type !== "in") continue;
+      if (isReturn && m.movement_type !== "out") continue;
+      const key = `${m.performed_at}|${m.reference_type}`;
+      if (!map.has(key)) {
+        map.set(key, { key, at: m.performed_at, kind: isSupply ? "supply" : "return", notes: m.notes, movements: [] });
+      }
+      map.get(key)!.movements.push(m);
+    }
+    return Array.from(map.values()).sort((a, b) => b.at.localeCompare(a.at));
+  }, [movements]);
+
+  const openInvoice = (inv: Invoice) => {
+    const lines: ReceiptLine[] = inv.movements.map((m) => {
+      const it = items.find((i) => i.id === m.item_id);
+      const unit = it?.unit || "";
+      const weight = isWeightUnit(unit);
+      const qty = Number(m.quantity);
+      return {
+        name: m.item_name || "—",
+        unit,
+        inputQty: weight ? qty / PACKAGE_KG : qty,
+        inputUnit: weight ? "عبوة" : (unit || "قطعة"),
+        deductedQty: qty,
+        deductedUnit: unit,
+      };
+    });
+    setReceipt({ kind: inv.kind, at: inv.at, notes: inv.notes || "", lines });
+  };
+
+  const handleDeleteInvoice = async (inv: Invoice) => {
+    if (!canEditMovements) return;
+    if (!confirm(`حذف الفاتورة بتاريخ ${new Date(inv.at).toLocaleString("ar-EG")} (${inv.movements.length} صنف)؟ سيتم عكس الحركات.`)) return;
+    try {
+      for (const m of inv.movements) {
+        const pair = await findPair(m);
+        const thisItem = (await supabase.from("inventory_items").select("id, stock").eq("id", m.item_id).single()).data as any;
+        if (thisItem) {
+          const delta = m.movement_type === "in" ? -Number(m.quantity) : Number(m.quantity);
+          await supabase.from("inventory_items").update({ stock: Number(thisItem.stock) + delta }).eq("id", m.item_id);
+        }
+        if (pair) {
+          const pItem = (await supabase.from("inventory_items").select("id, stock").eq("id", pair.item_id).single()).data as any;
+          if (pItem) {
+            const d = pair.movement_type === "in" ? -Number(pair.quantity) : Number(pair.quantity);
+            await supabase.from("inventory_items").update({ stock: Number(pItem.stock) + d }).eq("id", pair.item_id);
+          }
+          await supabase.from("inventory_movements").delete().eq("id", pair.id);
+        }
+        await supabase.from("inventory_movements").delete().eq("id", m.id);
+      }
+      toast.success("تم حذف الفاتورة وعكس حركاتها");
+      await fetchAll();
+    } catch (e: any) {
+      toast.error("فشل الحذف: " + (e?.message || ""));
+    }
+  };
+
   return (
     <DashboardLayout>
       <Header title={pageTitle} subtitle={pageSubtitle} />
@@ -587,7 +653,7 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
           <TabsContent value="movements">
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">آخر 200 حركة</CardTitle>
+                <CardTitle className="text-base">الفواتير (آخر العمليات)</CardTitle>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -595,40 +661,44 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
                     <TableRow>
                       <TableHead>التاريخ</TableHead>
                       <TableHead>النوع</TableHead>
-                      <TableHead>المنتج</TableHead>
-                      <TableHead className="text-left">الكمية</TableHead>
+                      <TableHead className="text-left">عدد الأصناف</TableHead>
+                      <TableHead className="text-left">إجمالي الكميات</TableHead>
                       <TableHead>ملاحظات</TableHead>
-                      {canEditMovements && <TableHead className="text-left">إجراءات</TableHead>}
+                      <TableHead className="text-left">إجراءات</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {movements.length === 0 ? (
-                      <TableRow><TableCell colSpan={canEditMovements ? 6 : 5} className="text-center text-muted-foreground">لا توجد حركات</TableCell></TableRow>
-                    ) : movements.map((m) => {
-                      const isIn = m.movement_type === "in" || m.movement_type === "transfer_in";
+                    {invoices.length === 0 ? (
+                      <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">لا توجد فواتير</TableCell></TableRow>
+                    ) : invoices.map((inv) => {
+                      const totalQty = inv.movements.reduce((s, m) => s + Number(m.quantity), 0);
                       return (
-                        <TableRow key={m.id}>
-                          <TableCell className="text-xs">{new Date(m.performed_at).toLocaleString("ar-EG")}</TableCell>
+                        <TableRow
+                          key={inv.key}
+                          className="cursor-pointer hover:bg-muted/60"
+                          onClick={() => openInvoice(inv)}
+                        >
+                          <TableCell className="text-xs">{new Date(inv.at).toLocaleString("ar-EG")}</TableCell>
                           <TableCell>
-                            <Badge variant={isIn ? "default" : "secondary"}>
-                              {isIn ? "توريد (دخول)" : "مرتجع (خروج)"}
+                            <Badge variant={inv.kind === "supply" ? "default" : "secondary"}>
+                              {inv.kind === "supply" ? "توريد" : "مرتجع"}
                             </Badge>
                           </TableCell>
-                          <TableCell>{m.item_name}</TableCell>
-                          <TableCell className="text-left font-semibold">{Number(m.quantity).toLocaleString("ar-EG")}</TableCell>
-                          <TableCell className="text-xs text-muted-foreground">{m.notes || "—"}</TableCell>
-                          {canEditMovements && (
-                            <TableCell className="text-left">
-                              <div className="flex gap-1 justify-end">
-                                <Button variant="ghost" size="icon" onClick={() => openEdit(m)} title="تعديل">
-                                  <Pencil className="w-4 h-4" />
-                                </Button>
-                                <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteMovement(m)} title="حذف">
+                          <TableCell className="text-left font-semibold">{inv.movements.length}</TableCell>
+                          <TableCell className="text-left">{totalQty.toLocaleString("ar-EG")}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{inv.notes || "—"}</TableCell>
+                          <TableCell className="text-left" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex gap-1 justify-end">
+                              <Button variant="ghost" size="icon" onClick={() => openInvoice(inv)} title="عرض الفاتورة">
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                              {canEditMovements && (
+                                <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteInvoice(inv)} title="حذف الفاتورة">
                                   <Trash2 className="w-4 h-4" />
                                 </Button>
-                              </div>
-                            </TableCell>
-                          )}
+                              )}
+                            </div>
+                          </TableCell>
                         </TableRow>
                       );
                     })}
@@ -849,6 +919,50 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
               }}
             >
               <FileSpreadsheet className="w-4 h-4" /> تصدير Excel
+            </Button>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => {
+                if (!receipt) return;
+                const w = window.open("", "_blank", "width=900,height=700");
+                if (!w) return;
+                const title = receipt.kind === "supply" ? "إيصال توريد" : "إيصال مرتجع";
+                const rows = receipt.lines.map((l) => `
+                  <tr>
+                    <td>${l.name}</td>
+                    <td>${l.inputQty.toLocaleString("ar-EG")}</td>
+                    <td>${l.inputUnit}</td>
+                    <td>${l.deductedQty.toLocaleString("ar-EG")} ${l.deductedUnit}</td>
+                  </tr>`).join("");
+                w.document.write(`
+                  <html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>${title}</title>
+                  <style>
+                    body{font-family:Tahoma,Arial,sans-serif;padding:20px;direction:rtl;}
+                    h2{margin:0 0 6px;} .meta{color:#555;font-size:13px;margin-bottom:12px;}
+                    table{width:100%;border-collapse:collapse;font-size:14px;}
+                    th,td{border:1px solid #ccc;padding:6px 8px;text-align:right;}
+                    th{background:#f1f1f1;}
+                    @media print { .noprint{display:none;} }
+                  </style></head><body>
+                  <h2>${title} — ${warehouseName}</h2>
+                  <div class="meta">
+                    التاريخ: ${new Date(receipt.at).toLocaleString("ar-EG")}
+                    &nbsp;•&nbsp; عدد الأصناف: ${receipt.lines.length}
+                    ${receipt.notes ? `&nbsp;•&nbsp; ملاحظات: ${receipt.notes}` : ""}
+                  </div>
+                  <table>
+                    <thead><tr>
+                      <th>المنتج</th><th>المُدخل</th><th>الوحدة</th><th>المخصوم من الرئيسي</th>
+                    </tr></thead>
+                    <tbody>${rows}</tbody>
+                  </table>
+                  <script>window.onload=()=>{setTimeout(()=>window.print(),300);}</script>
+                  </body></html>`);
+                w.document.close();
+              }}
+            >
+              <FileText className="w-4 h-4" /> حفظ PDF
             </Button>
             <Button
               className="gap-2"
