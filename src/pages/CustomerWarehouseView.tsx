@@ -653,7 +653,7 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
           <TabsContent value="movements">
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">آخر 200 حركة</CardTitle>
+                <CardTitle className="text-base">الفواتير (آخر العمليات)</CardTitle>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -661,40 +661,44 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
                     <TableRow>
                       <TableHead>التاريخ</TableHead>
                       <TableHead>النوع</TableHead>
-                      <TableHead>المنتج</TableHead>
-                      <TableHead className="text-left">الكمية</TableHead>
+                      <TableHead className="text-left">عدد الأصناف</TableHead>
+                      <TableHead className="text-left">إجمالي الكميات</TableHead>
                       <TableHead>ملاحظات</TableHead>
-                      {canEditMovements && <TableHead className="text-left">إجراءات</TableHead>}
+                      <TableHead className="text-left">إجراءات</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {movements.length === 0 ? (
-                      <TableRow><TableCell colSpan={canEditMovements ? 6 : 5} className="text-center text-muted-foreground">لا توجد حركات</TableCell></TableRow>
-                    ) : movements.map((m) => {
-                      const isIn = m.movement_type === "in" || m.movement_type === "transfer_in";
+                    {invoices.length === 0 ? (
+                      <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">لا توجد فواتير</TableCell></TableRow>
+                    ) : invoices.map((inv) => {
+                      const totalQty = inv.movements.reduce((s, m) => s + Number(m.quantity), 0);
                       return (
-                        <TableRow key={m.id}>
-                          <TableCell className="text-xs">{new Date(m.performed_at).toLocaleString("ar-EG")}</TableCell>
+                        <TableRow
+                          key={inv.key}
+                          className="cursor-pointer hover:bg-muted/60"
+                          onClick={() => openInvoice(inv)}
+                        >
+                          <TableCell className="text-xs">{new Date(inv.at).toLocaleString("ar-EG")}</TableCell>
                           <TableCell>
-                            <Badge variant={isIn ? "default" : "secondary"}>
-                              {isIn ? "توريد (دخول)" : "مرتجع (خروج)"}
+                            <Badge variant={inv.kind === "supply" ? "default" : "secondary"}>
+                              {inv.kind === "supply" ? "توريد" : "مرتجع"}
                             </Badge>
                           </TableCell>
-                          <TableCell>{m.item_name}</TableCell>
-                          <TableCell className="text-left font-semibold">{Number(m.quantity).toLocaleString("ar-EG")}</TableCell>
-                          <TableCell className="text-xs text-muted-foreground">{m.notes || "—"}</TableCell>
-                          {canEditMovements && (
-                            <TableCell className="text-left">
-                              <div className="flex gap-1 justify-end">
-                                <Button variant="ghost" size="icon" onClick={() => openEdit(m)} title="تعديل">
-                                  <Pencil className="w-4 h-4" />
-                                </Button>
-                                <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteMovement(m)} title="حذف">
+                          <TableCell className="text-left font-semibold">{inv.movements.length}</TableCell>
+                          <TableCell className="text-left">{totalQty.toLocaleString("ar-EG")}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{inv.notes || "—"}</TableCell>
+                          <TableCell className="text-left" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex gap-1 justify-end">
+                              <Button variant="ghost" size="icon" onClick={() => openInvoice(inv)} title="عرض الفاتورة">
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                              {canEditMovements && (
+                                <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteInvoice(inv)} title="حذف الفاتورة">
                                   <Trash2 className="w-4 h-4" />
                                 </Button>
-                              </div>
-                            </TableCell>
-                          )}
+                              )}
+                            </div>
+                          </TableCell>
                         </TableRow>
                       );
                     })}
