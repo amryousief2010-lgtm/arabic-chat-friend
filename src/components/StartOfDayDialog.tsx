@@ -13,6 +13,9 @@ import { todayKey, useTaskProgress } from "@/hooks/useTaskProgress";
  * "Start of Day" modal — appears once per day on first authenticated render.
  * Shows the user's role-specific daily tasks with quick check-off + deep links.
  */
+// Roles that should NOT receive the start-of-day tasks dialog
+const SUPPRESSED_ROLES = new Set(["sales_moderator", "marketing_sales_manager"]);
+
 const StartOfDayDialog = () => {
   const { user, role, profile } = useAuth();
   const guide = getGuideForRole(role);
@@ -21,6 +24,7 @@ const StartOfDayDialog = () => {
 
   useEffect(() => {
     if (!user || !guide) return;
+    if (role && SUPPRESSED_ROLES.has(role)) return;
     const flag = `start-of-day:${user.id}:${todayKey()}`;
     try {
       if (!localStorage.getItem(flag)) {
