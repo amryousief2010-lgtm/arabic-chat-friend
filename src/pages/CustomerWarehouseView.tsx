@@ -96,6 +96,9 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
   const [lines, setLines] = useState<Line[]>([{ name: "", qty: "" }]);
   const [notes, setNotes] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
+  // وضع المرتجع: هل نخصم من مخزون العميل (هيلثي تيست) أم نوّرد للمخزن الرئيسي فقط
+  // (للمنتجات القديمة اللي مكنتش مسجلة في السيستم أصلاً).
+  const [deductFromCustomer, setDeductFromCustomer] = useState<boolean>(true);
 
   // edit movement dialog
   const [editMov, setEditMov] = useState<Movement | null>(null);
