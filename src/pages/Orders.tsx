@@ -233,6 +233,11 @@ const Orders = () => {
     setSearchParams(next, { replace: true });
   };
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 350);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
   const now = new Date();
   const [filterMonth, setFilterMonth] = useState<string>("all");
   const [filterYear, setFilterYear] = useState<string>("all");
@@ -243,10 +248,18 @@ const Orders = () => {
     currentTotal: number;
   } | null>(null);
 
+  // افتراضياً نحمّل طلبات الشهر الحالي فقط لتسريع الواجهة.
+  // عند البحث أو اختيار شهر/سنة محددة يتم تجاوز هذا التقييد لجلب كل المطابقات.
+  const restrictToCurrentMonth =
+    !debouncedSearch &&
+    filterMonth === "all" &&
+    filterYear === "all" &&
+    yearGroup === "all";
+
   useEffect(() => {
     fetchOrders();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterMonth, filterYear, yearGroup]);
+  }, [filterMonth, filterYear, yearGroup, debouncedSearch]);
 
   const fetchOrders = async () => {
     setLoading(true);
