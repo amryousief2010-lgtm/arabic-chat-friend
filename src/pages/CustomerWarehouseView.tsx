@@ -203,7 +203,7 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
           warehouse_id: sourceWh,
           destination_warehouse_id: destWh,
           source_warehouse_id: sourceWh,
-          movement_type: "transfer_out",
+          movement_type: "out",
           quantity: qtyNum,
           notes: baseNote,
           party: partyLabel,
