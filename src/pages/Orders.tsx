@@ -283,6 +283,11 @@ const Orders = () => {
         startDate = new Date(Date.UTC(2026, 0, 1)).toISOString();
       } else if (yearGroup === 'pre2026') {
         endDate = new Date(Date.UTC(2026, 0, 1)).toISOString();
+      } else if (restrictToCurrentMonth) {
+        const y = now.getUTCFullYear();
+        const m = now.getUTCMonth();
+        startDate = new Date(Date.UTC(y, m, 1)).toISOString();
+        endDate = new Date(Date.UTC(y, m + 1, 1)).toISOString();
       }
 
       // أعمدة محددة بدلاً من * لتقليل الحمولة (نفس البيانات المستعملة في الواجهة فقط)
