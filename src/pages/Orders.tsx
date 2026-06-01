@@ -1266,7 +1266,20 @@ const Orders = () => {
                         <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
+                    {isPrivateDeliveryRep && (
+                      <TableCell className="max-w-[240px]">
+                        <div className="text-xs whitespace-normal break-words">
+                          {order.governorate && (
+                            <div className="flex items-center gap-1 text-muted-foreground mb-1">
+                              <MapPin className="w-3 h-3" /> {order.governorate}
+                            </div>
+                          )}
+                          <span>{order.delivery_address || '-'}</span>
+                        </div>
+                      </TableCell>
+                    )}
                     <TableCell>
+
                       <div className="flex items-center gap-1">
                         <Button
                           variant="ghost"
