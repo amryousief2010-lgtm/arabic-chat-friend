@@ -253,6 +253,12 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
           .order("name");
         setMainItems((mItems || []) as InventoryItem[]);
       }
+
+      const { data: prodRows } = await supabase
+        .from("products")
+        .select("name")
+        .eq("is_active", true);
+      setSellableProductNames(new Set((prodRows || []).map((p: any) => (p.name || "").trim())));
     } catch (e: any) {
       toast.error("تعذّر تحميل بيانات المخزن: " + (e?.message || ""));
     } finally {
