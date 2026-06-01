@@ -101,10 +101,12 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
   const handleProductChange = (idx: number, productId: string) => {
     const p = products.find((x) => x.id === productId);
     if (!p) return;
+    // Always pick up the NEW product's current price when the product changes,
+    // so e.g. swapping kofta(290) → meat(500) inside an offer recalculates correctly.
     updateItem(idx, {
       product_id: p.id,
       product_name: p.name,
-      unit_price: items[idx].unit_price || Number(p.price),
+      unit_price: Number(p.price),
     });
   };
 
