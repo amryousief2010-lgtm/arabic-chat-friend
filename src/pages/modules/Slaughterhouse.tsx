@@ -155,6 +155,7 @@ const Slaughterhouse = () => {
     .filter(b => b.slaughter_date >= monthStartStr && b.status !== "cancelled")
     .reduce((s, b) => s + (b.birds_slaughtered || 0), 0);
   // النعام القائم = المُستلم - النافق - المذبوح - النافق قبل الذبح - المرفوض
+  const adjustmentsSum = adjustments.reduce((s, a) => s + (a.delta || 0), 0);
   const liveBalance = (() => {
     const received = receipts.reduce((s, r) => s + (r.bird_count || 0), 0);
     const doa = receipts.reduce((s, r) => s + (r.dead_on_arrival || 0), 0);
@@ -162,7 +163,7 @@ const Slaughterhouse = () => {
     const slaughtered = active.reduce((s, b) => s + (b.birds_slaughtered || 0), 0);
     const preDead = active.reduce((s, b) => s + (b.pre_slaughter_dead || 0), 0);
     const rejected = active.reduce((s, b) => s + (b.rejected_birds || 0), 0);
-    return Math.max(received - doa - slaughtered - preDead - rejected, 0);
+    return Math.max(received - doa - slaughtered - preDead - rejected + adjustmentsSum, 0);
   })();
   const yieldToday = (() => {
     const todays = batches.filter(b => b.slaughter_date === today && b.actual_yield_pct > 0);
