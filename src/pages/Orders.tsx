@@ -359,7 +359,7 @@ const Orders = () => {
       };
 
       // الصفحة الأولى: نعرضها فوراً ثم نكمل باقى الصفحات فى الخلفية
-      const ORDERS_PAGE = 500;
+      const ORDERS_PAGE = 200;
       let oPage = 0;
       let accumulated: Order[] = [];
 
