@@ -18,6 +18,7 @@ import {
 import { Trash2, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { computeOrderTotals, isOfferShippingLine } from "@/lib/orderTotals";
 
 interface Product {
   id: string;
@@ -100,10 +101,12 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
   const handleProductChange = (idx: number, productId: string) => {
     const p = products.find((x) => x.id === productId);
     if (!p) return;
+    // Always pick up the NEW product's current price when the product changes,
+    // so e.g. swapping kofta(290) → meat(500) inside an offer recalculates correctly.
     updateItem(idx, {
       product_id: p.id,
       product_name: p.name,
-      unit_price: items[idx].unit_price || Number(p.price),
+      unit_price: Number(p.price),
     });
   };
 
@@ -125,9 +128,10 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
   };
 
   const handleSave = async () => {
-    // Validate
+    // Validate (skip synthetic shipping lines — they have no product_id by design)
     for (const it of items) {
       if (it._deleted) continue;
+      if (isOfferShippingLine(it)) continue;
       if (!it.product_id) {
         toast.error("اختر المنتج لكل صف");
         return;
@@ -144,15 +148,31 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
 
     setSaving(true);
     try {
+      // Compute final totals from the SAME state the UI shows (preview === save).
+      const finalTotals = computeOrderTotals(items, {
+        discount,
+        extraDeliveryFee: initialDeliveryFee,
+      });
+
+      // If no real offer item remains, also drop the bundled shipping line.
+      let itemsForWrite = items;
+      if (!finalTotals.hasOfferItems) {
+        itemsForWrite = items.map((it) =>
+          isOfferShippingLine(it) && it.id ? { ...it, _deleted: true } : it
+        );
+      }
+
       // Deletes
-      const toDelete = items.filter((it) => it.id && it._deleted).map((it) => it.id!);
+      const toDelete = itemsForWrite
+        .filter((it) => it.id && it._deleted)
+        .map((it) => it.id!);
       if (toDelete.length) {
         const { error } = await supabase.from("order_items").delete().in("id", toDelete);
         if (error) throw error;
       }
 
       // Updates (existing not deleted, with changes)
-      const toUpdate = items.filter(
+      const toUpdate = itemsForWrite.filter(
         (it) =>
           it.id &&
           !it._deleted &&
@@ -177,7 +197,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
       }
 
       // Inserts
-      const toInsert = items
+      const toInsert = itemsForWrite
         .filter((it) => !it.id && !it._deleted)
         .map((it) => ({
           order_id: orderId,
@@ -192,42 +212,31 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
         if (error) throw error;
       }
 
-      const hasOfferItems = initialItems.some((it) => it.offer_name);
-
-      if (hasOfferItems) {
-        // Order contains an offer bundle with a fixed price.
-        // Do NOT recompute subtotal/total from individual item prices,
-        // otherwise the offer's bundle price (and delivery fee) get lost.
-        // Only update discount if the user changed it.
-        if (Number(discount) !== Number(originalDiscount)) {
-          const { error: uerr } = await supabase
-            .from("orders")
-            .update({ discount: Number(discount) || 0 })
-            .eq("id", orderId);
-          if (uerr) throw uerr;
-        }
-      } else {
-        // Regular order — recompute subtotal & total from final items list
-        const { data: ord, error: oerr } = await supabase
-          .from("orders")
-          .select("delivery_fee")
-          .eq("id", orderId)
-          .single();
-        if (oerr) throw oerr;
-        const finalSubtotal = items
-          .filter((it) => !it._deleted)
-          .reduce((s, it) => s + Number(it.quantity) * Number(it.unit_price), 0);
-        const newTotal = finalSubtotal - Number(discount || 0) + Number(ord.delivery_fee || 0);
-        const { error: uerr } = await supabase
-          .from("orders")
-          .update({
-            subtotal: finalSubtotal,
-            discount: Number(discount) || 0,
-            total: newTotal,
-          })
-          .eq("id", orderId);
-        if (uerr) throw uerr;
+      // Always persist totals — UI preview and DB row must agree.
+      // For offer orders, the bundled shipping lives inside order_items, so
+      // delivery_fee on the order row stays 0 (and is forced to 0 if the
+      // last offer item was removed).
+      const update: {
+        subtotal: number;
+        discount: number;
+        total: number;
+        delivery_fee?: number;
+      } = {
+        subtotal: finalTotals.subtotal,
+        discount: Number(discount) || 0,
+        total: finalTotals.total,
+      };
+      if (finalTotals.hasOfferItems) {
+        update.delivery_fee = 0;
+      } else if (initialItems.some((it) => it.offer_name)) {
+        // We just removed the last offer line → clear any residual delivery fee.
+        update.delivery_fee = 0;
       }
+      const { error: uerr } = await supabase
+        .from("orders")
+        .update(update)
+        .eq("id", orderId);
+      if (uerr) throw uerr;
 
 
       toast.success("تم تحديث منتجات الطلب وإعادة حساب المجموع");
@@ -241,14 +250,19 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
     }
   };
 
-  const visibleItems = items.filter((it) => !it._deleted);
-  const hasOfferItems = initialItems.some((it) => it.offer_name);
-  const newSubtotal = visibleItems.reduce(
-    (sum, it) => sum + Number(it.quantity) * Number(it.unit_price),
-    0
+  // Hide the synthetic offer shipping line from the editable list —
+  // it's preserved automatically and shown in the totals breakdown.
+  const visibleItems = items.filter(
+    (it) => !it._deleted && !isOfferShippingLine(it)
   );
-  const newTotalPreview =
-    newSubtotal - Number(discount || 0) + (hasOfferItems ? Number(initialDeliveryFee || 0) : 0);
+  const previewTotals = computeOrderTotals(items, {
+    discount,
+    extraDeliveryFee: initialDeliveryFee,
+  });
+  const newSubtotal = previewTotals.subtotal;
+  const hasOfferItems = previewTotals.hasOfferItems;
+  const includedShipping = previewTotals.includedShippingCost;
+  const newTotalPreview = previewTotals.total;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -338,16 +352,21 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
           <div className="pt-2 border-t space-y-3">
             {hasOfferItems && (
               <div className="rounded-md border border-amber-300 bg-amber-50 text-amber-900 text-xs p-2">
-                هذا الطلب يحتوي على عرض بسعر ثابت. تعديل الأصناف هنا لن يغير سعر العرض الأصلي ولا رسوم التوصيل المسجلة.
+                هذا الطلب يحتوي على عرض. تكلفة الشحن المضمنة داخل العرض ({includedShipping.toLocaleString()} ج.م) محفوظة تلقائيًا. تعديل أو استبدال أصناف العرض سيُعيد حساب الإجمالي على أساس الأسعار الجديدة.
               </div>
             )}
 
-            {!hasOfferItems && (
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">المجموع الفرعي الجديد</span>
-                <span className="text-lg font-bold">
-                  {newSubtotal.toLocaleString()} ج.م
-                </span>
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">المجموع الفرعي للأصناف</span>
+              <span className="text-lg font-bold">
+                {newSubtotal.toLocaleString()} ج.م
+              </span>
+            </div>
+
+            {hasOfferItems && includedShipping > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">تكلفة الشحن المضمنة بالعرض</span>
+                <span>{includedShipping.toLocaleString()} ج.م</span>
               </div>
             )}
 
@@ -372,21 +391,19 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
               </div>
             )}
 
-            {!hasOfferItems && Number(discount) > 0 && (
+            {Number(discount) > 0 && (
               <div className="flex justify-between text-sm text-green-600">
                 <span>الخصم</span>
                 <span>- {Number(discount).toLocaleString()} ج.م</span>
               </div>
             )}
 
-            {!hasOfferItems && (
-              <div className="flex justify-between items-center pt-2 border-t">
-                <span className="font-semibold">الإجمالي بعد الخصم</span>
-                <span className="text-xl font-bold text-primary">
-                  {newTotalPreview.toLocaleString()} ج.م
-                </span>
-              </div>
-            )}
+            <div className="flex justify-between items-center pt-2 border-t">
+              <span className="font-semibold">الإجمالي بعد الخصم</span>
+              <span className="text-xl font-bold text-primary">
+                {newTotalPreview.toLocaleString()} ج.م
+              </span>
+            </div>
           </div>
         </div>
 
