@@ -1477,7 +1477,7 @@ const NewOrder = () => {
                         ))}
                       </div>
                     ) : (
-
+                      <>
                     {/* Desktop/tablet table view */}
                     <div className="hidden md:block border rounded-lg overflow-x-auto">
                       <table className="w-full min-w-[640px] text-right text-sm">
@@ -1676,6 +1676,7 @@ const NewOrder = () => {
                         );
                       })}
                     </div>
+                      </>
                     )}
                   </TabsContent>
 
