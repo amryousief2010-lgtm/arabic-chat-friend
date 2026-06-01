@@ -761,9 +761,14 @@ const Orders = () => {
 
       <Card className="glass-card">
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 flex-wrap">
             <ShoppingCart className="w-5 h-5 text-primary" />
             قائمة الطلبات ({filteredOrders.length})
+            {restrictToCurrentMonth && (
+              <Badge variant="outline" className="text-xs font-normal">
+                عرض طلبات {monthNames[now.getMonth()]} فقط — اكتب فى البحث لرؤية كل الشهور
+              </Badge>
+            )}
           </CardTitle>
           <div className="flex flex-wrap items-center gap-3">
             <Input
