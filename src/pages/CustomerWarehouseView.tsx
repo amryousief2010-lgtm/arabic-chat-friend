@@ -722,7 +722,7 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
 
   const openInvoice = (inv: Invoice) => {
     const lines: ReceiptLine[] = inv.movements.map((m) => {
-      const it = items.find((i) => i.id === m.item_id);
+      const it = items.find((i) => i.id === m.item_id) || mainItems.find((i) => i.id === m.item_id);
       const unit = it?.unit || "";
       const weight = isWeightUnit(unit);
       const qty = Number(m.quantity);
