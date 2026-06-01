@@ -199,6 +199,28 @@ const Slaughterhouse = () => {
     fetchAll();
   };
 
+  const saveLiveStockAdjustment = async () => {
+    if (!isExecManager) { toast.error("غير مصرح لك بتعديل رصيد النعام القائم"); return; }
+    const newBal = Number(adjustForm.new_balance);
+    if (!Number.isFinite(newBal) || newBal < 0) { toast.error("أدخل رصيد صحيح (0 أو أكثر)"); return; }
+    const delta = newBal - liveBalance;
+    if (delta === 0) { toast.error("الرصيد الجديد مطابق للحالي"); return; }
+    if (!adjustForm.reason.trim()) { toast.error("اكتب سبب التعديل"); return; }
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase.from("slaughter_live_stock_adjustments" as any).insert({
+      adjustment_date: adjustForm.adjustment_date,
+      new_balance: newBal,
+      delta,
+      reason: adjustForm.reason.trim(),
+      created_by: user?.id,
+    });
+    if (error) { toast.error(error.message); return; }
+    toast.success(`تم ضبط الرصيد إلى ${newBal} نعامة`);
+    setAdjustOpen(false);
+    setAdjustForm({ new_balance: 0, reason: "", adjustment_date: todayStr });
+    fetchAll();
+  };
+
   const updateReceiptDate = async (id: string, newDate: string) => {
     if (!canEditReceiptDate) { toast.error("غير مصرح لك بتعديل تاريخ التوريد"); return; }
     const dateErr = validateReceiptDate(newDate);
