@@ -218,12 +218,15 @@ const NewOrder = () => {
   }, []);
 
   const fetchData = async () => {
+    setCustomers([]);
     try {
+      console.time('[NewOrder] core fetch (products+offers+warehouses)');
       const [productsRes, offersRes, whRes] = await Promise.all([
         supabase.from('products').select('*').eq('is_active', true),
         supabase.from('offer_boxes').select('*').eq('is_active', true),
         supabase.from('warehouses').select('id, name').eq('is_active', true),
       ]);
+      console.timeEnd('[NewOrder] core fetch (products+offers+warehouses)');
 
       if (productsRes.error) throw productsRes.error;
       if (offersRes.error) throw offersRes.error;
@@ -233,30 +236,6 @@ const NewOrder = () => {
       const productsData = productsRes.data || [];
       setProducts(productsData);
 
-      // Fetch available stock for Agouza & Main warehouses
-      const agouza = whs.find((w: any) => w.name?.includes('العجوزة'));
-      const main = whs.find((w: any) => w.name?.includes('الرئيسي') || w.name?.includes('المقر'));
-      const whIds = [agouza?.id, main?.id].filter(Boolean) as string[];
-      if (whIds.length > 0) {
-        const { data: invRows } = await supabase
-          .from('inventory_items')
-          .select('warehouse_id, product_id, stock, reserved_qty, blocked_qty')
-          .in('warehouse_id', whIds)
-          .not('product_id', 'is', null);
-        const ag: Record<string, number> = {};
-        const mn: Record<string, number> = {};
-        (invRows || []).forEach((r: any) => {
-          const avail = Number(r.stock || 0) - Number(r.reserved_qty || 0) - Number(r.blocked_qty || 0);
-          if (r.warehouse_id === agouza?.id) ag[r.product_id] = (ag[r.product_id] || 0) + avail;
-          if (r.warehouse_id === main?.id) mn[r.product_id] = (mn[r.product_id] || 0) + avail;
-        });
-        setAgouzaStock(ag);
-        setMainStock(mn);
-      }
-
-      setCustomers([]);
-
-      
       // Filter out expired offers and not-yet-started offers
       const now = new Date();
       const activeOffers = (offersRes.data || []).filter((offer: any) => {
@@ -266,41 +245,71 @@ const NewOrder = () => {
       });
       setOfferBoxes(activeOffers);
 
+      // Release the UI as soon as the core data is ready.
+      setLoading(false);
+
+      // Background: warehouse stock for Agouza & Main (non-blocking)
+      const agouza = whs.find((w: any) => w.name?.includes('العجوزة'));
+      const main = whs.find((w: any) => w.name?.includes('الرئيسي') || w.name?.includes('المقر'));
+      const whIds = [agouza?.id, main?.id].filter(Boolean) as string[];
+      if (whIds.length > 0) {
+        (async () => {
+          console.time('[NewOrder] inventory stock');
+          const { data: invRows } = await supabase
+            .from('inventory_items')
+            .select('warehouse_id, product_id, stock, reserved_qty, blocked_qty')
+            .in('warehouse_id', whIds)
+            .not('product_id', 'is', null);
+          console.timeEnd('[NewOrder] inventory stock');
+          const ag: Record<string, number> = {};
+          const mn: Record<string, number> = {};
+          (invRows || []).forEach((r: any) => {
+            const avail = Number(r.stock || 0) - Number(r.reserved_qty || 0) - Number(r.blocked_qty || 0);
+            if (r.warehouse_id === agouza?.id) ag[r.product_id] = (ag[r.product_id] || 0) + avail;
+            if (r.warehouse_id === main?.id) mn[r.product_id] = (mn[r.product_id] || 0) + avail;
+          });
+          setAgouzaStock(ag);
+          setMainStock(mn);
+        })().catch((e) => console.error('inventory stock fetch failed', e));
+      }
+
+      // Background: offer contents preview (non-blocking)
       if (activeOffers.length > 0) {
-        const { data: offerItemsRes, error: offerItemsError } = await supabase
-          .from('offer_box_items')
-          .select('offer_box_id, product_id, quantity')
-          .in('offer_box_id', activeOffers.map((offer) => offer.id));
+        (async () => {
+          try {
+            console.time('[NewOrder] offer contents');
+            const { data: offerItemsRes, error: offerItemsError } = await supabase
+              .from('offer_box_items')
+              .select('offer_box_id, product_id, quantity')
+              .in('offer_box_id', activeOffers.map((offer) => offer.id));
+            if (offerItemsError) throw offerItemsError;
 
-        if (offerItemsError) throw offerItemsError;
+            const productIds = Array.from(new Set((offerItemsRes || []).map((item) => item.product_id).filter(Boolean)));
+            const { data: offerProductsRes, error: offerProductsError } = productIds.length === 0
+              ? { data: [], error: null }
+              : await supabase.from('products').select('id, name').in('id', productIds);
+            if (offerProductsError) throw offerProductsError;
 
-        const productIds = Array.from(new Set((offerItemsRes || []).map((item) => item.product_id).filter(Boolean)));
-        const { data: offerProductsRes, error: offerProductsError } = productIds.length === 0
-          ? { data: [], error: null }
-          : await supabase
-              .from('products')
-              .select('id, name')
-              .in('id', productIds);
-
-        if (offerProductsError) throw offerProductsError;
-
-        const productNameById = new Map((offerProductsRes || []).map((product: any) => [product.id, product.name]));
-        const nextContents = (offerItemsRes || []).reduce((acc, item: any) => {
-          const productName = productNameById.get(item.product_id);
-          if (!productName) return acc;
-          const line = `${Number(item.quantity || 0).toLocaleString()} × ${productName}`;
-          acc[item.offer_box_id] = [...(acc[item.offer_box_id] || []), line];
-          return acc;
-        }, {} as Record<string, string[]>);
-
-        setOfferContentsById(nextContents);
+            const productNameById = new Map((offerProductsRes || []).map((product: any) => [product.id, product.name]));
+            const nextContents = (offerItemsRes || []).reduce((acc, item: any) => {
+              const productName = productNameById.get(item.product_id);
+              if (!productName) return acc;
+              const line = `${Number(item.quantity || 0).toLocaleString()} × ${productName}`;
+              acc[item.offer_box_id] = [...(acc[item.offer_box_id] || []), line];
+              return acc;
+            }, {} as Record<string, string[]>);
+            setOfferContentsById(nextContents);
+            console.timeEnd('[NewOrder] offer contents');
+          } catch (e) {
+            console.error('offer contents fetch failed', e);
+          }
+        })();
       } else {
         setOfferContentsById({});
       }
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('حدث خطأ أثناء جلب البيانات');
-    } finally {
       setLoading(false);
     }
   };
