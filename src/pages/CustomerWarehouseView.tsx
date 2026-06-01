@@ -921,6 +921,50 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
               <FileSpreadsheet className="w-4 h-4" /> تصدير Excel
             </Button>
             <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => {
+                if (!receipt) return;
+                const w = window.open("", "_blank", "width=900,height=700");
+                if (!w) return;
+                const title = receipt.kind === "supply" ? "إيصال توريد" : "إيصال مرتجع";
+                const rows = receipt.lines.map((l) => `
+                  <tr>
+                    <td>${l.name}</td>
+                    <td>${l.inputQty.toLocaleString("ar-EG")}</td>
+                    <td>${l.inputUnit}</td>
+                    <td>${l.deductedQty.toLocaleString("ar-EG")} ${l.deductedUnit}</td>
+                  </tr>`).join("");
+                w.document.write(`
+                  <html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>${title}</title>
+                  <style>
+                    body{font-family:Tahoma,Arial,sans-serif;padding:20px;direction:rtl;}
+                    h2{margin:0 0 6px;} .meta{color:#555;font-size:13px;margin-bottom:12px;}
+                    table{width:100%;border-collapse:collapse;font-size:14px;}
+                    th,td{border:1px solid #ccc;padding:6px 8px;text-align:right;}
+                    th{background:#f1f1f1;}
+                    @media print { .noprint{display:none;} }
+                  </style></head><body>
+                  <h2>${title} — ${warehouseName}</h2>
+                  <div class="meta">
+                    التاريخ: ${new Date(receipt.at).toLocaleString("ar-EG")}
+                    &nbsp;•&nbsp; عدد الأصناف: ${receipt.lines.length}
+                    ${receipt.notes ? `&nbsp;•&nbsp; ملاحظات: ${receipt.notes}` : ""}
+                  </div>
+                  <table>
+                    <thead><tr>
+                      <th>المنتج</th><th>المُدخل</th><th>الوحدة</th><th>المخصوم من الرئيسي</th>
+                    </tr></thead>
+                    <tbody>${rows}</tbody>
+                  </table>
+                  <script>window.onload=()=>{setTimeout(()=>window.print(),300);}</script>
+                  </body></html>`);
+                w.document.close();
+              }}
+            >
+              <FileText className="w-4 h-4" /> حفظ PDF
+            </Button>
+            <Button
               className="gap-2"
               onClick={() => {
                 if (!receipt) return;
