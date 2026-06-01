@@ -138,6 +138,7 @@ const Slaughterhouse = () => {
     const pm: Record<string, string> = {};
     ((pr.data as any) || []).forEach((p: any) => { pm[p.id] = p.full_name; });
     setProfiles(pm);
+    setAdjustments((adj.data as any) || []);
     setLoading(false);
   };
 
