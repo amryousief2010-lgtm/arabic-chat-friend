@@ -203,7 +203,7 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
           warehouse_id: sourceWh,
           destination_warehouse_id: destWh,
           source_warehouse_id: sourceWh,
-          movement_type: "transfer_out",
+          movement_type: "out",
           quantity: qtyNum,
           notes: baseNote,
           party: partyLabel,
@@ -216,7 +216,7 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
           warehouse_id: destWh,
           source_warehouse_id: sourceWh,
           destination_warehouse_id: destWh,
-          movement_type: "transfer_in",
+          movement_type: "in",
           quantity: qtyNum,
           notes: baseNote,
           party: partyLabel,
@@ -327,7 +327,7 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
                     {movements.length === 0 ? (
                       <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">لا توجد حركات</TableCell></TableRow>
                     ) : movements.map((m) => {
-                      const isIn = m.movement_type === "transfer_in";
+                      const isIn = m.movement_type === "in" || m.movement_type === "transfer_in";
                       return (
                         <TableRow key={m.id}>
                           <TableCell className="text-xs">{new Date(m.performed_at).toLocaleString("ar-EG")}</TableCell>
