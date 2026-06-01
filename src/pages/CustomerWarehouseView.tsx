@@ -378,27 +378,57 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
               {openDialog === "supply" ? `توريد جديد إلى ${warehouseName}` : `تسجيل مرتجع من ${warehouseName}`}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <label className="text-sm font-medium">المنتج</label>
-              <Select value={selectedProductName} onValueChange={setSelectedProductName}>
-                <SelectTrigger><SelectValue placeholder="اختر منتجاً" /></SelectTrigger>
-                <SelectContent>
-                  {pickList.length === 0 ? (
-                    <div className="p-3 text-sm text-muted-foreground">
-                      {openDialog === "supply" ? "المخزن الرئيسي فارغ" : "لا توجد منتجات في هذا المخزن"}
+          <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+            <div className="space-y-2">
+              {lines.map((line, idx) => {
+                const chosenElsewhere = new Set(
+                  lines.filter((_, i) => i !== idx).map((l) => l.name).filter(Boolean),
+                );
+                return (
+                  <div key={idx} className="flex items-start gap-2 p-2 rounded-md border bg-muted/30">
+                    <div className="flex-1 space-y-1">
+                      <label className="text-xs font-medium text-muted-foreground">المنتج</label>
+                      <Select value={line.name} onValueChange={(v) => updateLine(idx, { name: v })}>
+                        <SelectTrigger><SelectValue placeholder="اختر منتجاً" /></SelectTrigger>
+                        <SelectContent>
+                          {pickList.length === 0 ? (
+                            <div className="p-3 text-sm text-muted-foreground">
+                              {openDialog === "supply" ? "المخزن الرئيسي فارغ" : "لا توجد منتجات في هذا المخزن"}
+                            </div>
+                          ) : pickList.map((i) => (
+                            <SelectItem key={i.id} value={i.name} disabled={chosenElsewhere.has(i.name)}>
+                              {i.name} — متاح: {Number(i.stock).toLocaleString("ar-EG")} {i.unit}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                  ) : pickList.map((i) => (
-                    <SelectItem key={i.id} value={i.name}>
-                      {i.name} — متاح: {Number(i.stock).toLocaleString("ar-EG")} {i.unit}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-sm font-medium">الكمية</label>
-              <Input type="number" min="0" step="0.01" value={qty} onChange={(e) => setQty(e.target.value)} />
+                    <div className="w-28 space-y-1">
+                      <label className="text-xs font-medium text-muted-foreground">الكمية</label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={line.qty}
+                        onChange={(e) => updateLine(idx, { qty: e.target.value })}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="mt-5 text-destructive"
+                      onClick={() => removeLine(idx)}
+                      disabled={lines.length === 1}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                );
+              })}
+              <Button type="button" variant="outline" size="sm" onClick={addLine} className="gap-1">
+                <Plus className="w-4 h-4" /> إضافة منتج
+              </Button>
             </div>
             <div>
               <label className="text-sm font-medium">ملاحظات (اختياري)</label>
