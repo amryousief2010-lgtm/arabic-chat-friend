@@ -251,6 +251,54 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
     return items.filter((i) => i.name.includes(q));
   }, [items, search]);
 
+  // تصدير الرصيد الحالي إلى Excel
+  const exportStockExcel = () => {
+    const rows = filteredItems.map((it) => {
+      const stock = Number(it.stock) || 0;
+      const weight = isWeightUnit(it.unit);
+      return {
+        "المنتج": it.name,
+        "الوحدة": weight ? "عبوة (نص كيلو)" : it.unit,
+        "الكمية (عبوة)": weight ? toPackages(stock) : "—",
+        "الكمية (كجم)": weight ? stock : "—",
+        "الكمية (قطعة/وحدة)": weight ? "—" : stock,
+      };
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "الرصيد الحالي");
+    XLSX.writeFile(wb, `الرصيد-${warehouseName}-${new Date().toISOString().slice(0,10)}.xlsx`);
+  };
+
+  // طباعة الرصيد الحالي
+  const printStock = () => {
+    const w = window.open("", "_blank", "width=900,height=700");
+    if (!w) return;
+    const rowsHtml = filteredItems.map((it) => {
+      const stock = Number(it.stock) || 0;
+      const weight = isWeightUnit(it.unit);
+      const qty = weight ? `${toPackages(stock)} عبوة (= ${stock} كجم)` : `${stock} ${it.unit}`;
+      return `<tr><td>${it.name}</td><td>${weight ? "عبوة (نص كيلو)" : it.unit}</td><td>${qty}</td></tr>`;
+    }).join("");
+    w.document.write(`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>الرصيد الحالي - ${warehouseName}</title>
+      <style>
+        body{font-family:'Segoe UI',Tahoma,sans-serif;padding:24px;color:#111}
+        h1{font-size:20px;margin:0 0 4px}
+        .sub{color:#666;font-size:12px;margin-bottom:16px}
+        table{width:100%;border-collapse:collapse;font-size:13px}
+        th,td{border:1px solid #ccc;padding:8px;text-align:right}
+        th{background:#f3f4f6}
+        tfoot td{font-weight:bold;background:#fafafa}
+      </style></head><body>
+      <h1>الرصيد الحالي — ${warehouseName}</h1>
+      <div class="sub">تاريخ الطباعة: ${new Date().toLocaleString("ar-EG")} — عدد الأصناف: ${filteredItems.length}</div>
+      <table><thead><tr><th>المنتج</th><th>الوحدة</th><th>الكمية</th></tr></thead>
+      <tbody>${rowsHtml || `<tr><td colspan="3" style="text-align:center">لا توجد أصناف</td></tr>`}</tbody></table>
+      <script>window.onload=()=>{setTimeout(()=>window.print(),300);}</script>
+      </body></html>`);
+    w.document.close();
+  };
+
   // For supply: pick from main items. For return: pick from this warehouse's items.
   const pickList = openDialog === "supply" ? mainItems : items;
 
@@ -643,6 +691,16 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
               </Card>
             </div>
 
+            {/* أدوات الطباعة والتصدير */}
+            <div className="flex flex-wrap gap-2 justify-end">
+              <Button variant="outline" size="sm" className="gap-2" onClick={printStock} disabled={!filteredItems.length}>
+                <Printer className="w-4 h-4" /> طباعة الرصيد
+              </Button>
+              <Button variant="outline" size="sm" className="gap-2" onClick={exportStockExcel} disabled={!filteredItems.length}>
+                <FileSpreadsheet className="w-4 h-4" /> تصدير Excel
+              </Button>
+            </div>
+
             {/* عرض المنتجات كبطاقات */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {filteredItems.length === 0 ? (
@@ -655,7 +713,7 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
                   const weight = isWeightUnit(it.unit);
                   const packages = weight ? toPackages(stock) : null;
                   const isLow = stock <= 0;
-                  const isMedium = !isLow && weight ? stock < 5 : stock < 10;
+                  const isMedium = !isLow && (weight ? (packages ?? 0) < 10 : stock < 10);
                   return (
                     <Card key={it.id} className={`overflow-hidden border-l-4 transition-all duration-200 hover:shadow-lg ${isLow ? "border-l-destructive" : isMedium ? "border-l-warning" : "border-l-success"}`}>
                       <CardContent className="p-4 space-y-3">
@@ -676,17 +734,23 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
                           )}
                         </div>
 
-                        <div className="flex items-end gap-2">
-                          <div className="text-2xl font-extrabold text-foreground">{stock.toLocaleString("ar-EG")}</div>
-                          <div className="text-sm text-muted-foreground mb-1">{it.unit}</div>
-                        </div>
-
-                        {weight && packages !== null && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Badge variant="outline" className="text-xs bg-muted/50">
-                              = {packages} عبوة {packages === 1 ? "" : ""}
-                            </Badge>
-                            <span className="text-xs text-muted-foreground">(نص كيلو للعبوة)</span>
+                        {weight ? (
+                          <>
+                            <div className="flex items-end gap-2">
+                              <div className="text-2xl font-extrabold text-foreground">{(packages ?? 0).toLocaleString("ar-EG")}</div>
+                              <div className="text-sm text-muted-foreground mb-1">عبوة</div>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm">
+                              <Badge variant="outline" className="text-xs bg-muted/50">
+                                = {stock.toLocaleString("ar-EG")} كجم
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">(نص كيلو للعبوة)</span>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex items-end gap-2">
+                            <div className="text-2xl font-extrabold text-foreground">{stock.toLocaleString("ar-EG")}</div>
+                            <div className="text-sm text-muted-foreground mb-1">{it.unit}</div>
                           </div>
                         )}
 
