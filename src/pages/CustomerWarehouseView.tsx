@@ -268,6 +268,95 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
     }
   };
 
+  // Find the paired movement (other side of supply/return) for a given movement
+  const findPair = async (m: Movement) => {
+    if (!m.source_warehouse_id || !m.destination_warehouse_id) return null;
+    const { data } = await supabase
+      .from("inventory_movements")
+      .select("id, item_id, warehouse_id, movement_type, quantity")
+      .eq("source_warehouse_id", m.source_warehouse_id)
+      .eq("destination_warehouse_id", m.destination_warehouse_id)
+      .eq("performed_at", m.performed_at)
+      .eq("quantity", m.quantity);
+    const rows = (data || []) as any[];
+    return rows.find((r) => r.id !== m.id) || null;
+  };
+
+  const handleDeleteMovement = async (m: Movement) => {
+    if (!canEditMovements) return;
+    if (!confirm("هل أنت متأكد من حذف هذه الحركة؟ سيتم عكس تأثيرها على الرصيد.")) return;
+    try {
+      const pair = await findPair(m);
+      // Reverse stock for this side
+      const thisItem = (await supabase.from("inventory_items").select("id, stock").eq("id", m.item_id).single()).data as any;
+      if (thisItem) {
+        const delta = m.movement_type === "in" ? -Number(m.quantity) : Number(m.quantity);
+        await supabase.from("inventory_items").update({ stock: Number(thisItem.stock) + delta }).eq("id", m.item_id);
+      }
+      if (pair) {
+        const pItem = (await supabase.from("inventory_items").select("id, stock").eq("id", pair.item_id).single()).data as any;
+        if (pItem) {
+          const delta = pair.movement_type === "in" ? -Number(pair.quantity) : Number(pair.quantity);
+          await supabase.from("inventory_items").update({ stock: Number(pItem.stock) + delta }).eq("id", pair.item_id);
+        }
+        await supabase.from("inventory_movements").delete().eq("id", pair.id);
+      }
+      await supabase.from("inventory_movements").delete().eq("id", m.id);
+      toast.success("تم حذف الحركة");
+      await fetchAll();
+    } catch (e: any) {
+      toast.error("فشل الحذف: " + (e?.message || ""));
+    }
+  };
+
+  const openEdit = (m: Movement) => {
+    setEditMov(m);
+    setEditQty(String(m.quantity));
+  };
+
+  const submitEdit = async () => {
+    if (!editMov) return;
+    const newQty = Number(editQty);
+    if (!(newQty > 0)) {
+      toast.error("ادخل كمية صحيحة");
+      return;
+    }
+    const oldQty = Number(editMov.quantity);
+    const diff = newQty - oldQty;
+    if (diff === 0) {
+      setEditMov(null);
+      return;
+    }
+    setEditBusy(true);
+    try {
+      const pair = await findPair(editMov);
+      // Adjust stock for this side
+      const thisItem = (await supabase.from("inventory_items").select("id, stock").eq("id", editMov.item_id).single()).data as any;
+      if (thisItem) {
+        const delta = editMov.movement_type === "in" ? diff : -diff;
+        if (Number(thisItem.stock) + delta < 0) throw new Error("الكمية الجديدة تُخفّض الرصيد لأقل من صفر");
+        await supabase.from("inventory_items").update({ stock: Number(thisItem.stock) + delta }).eq("id", editMov.item_id);
+      }
+      if (pair) {
+        const pItem = (await supabase.from("inventory_items").select("id, stock").eq("id", pair.item_id).single()).data as any;
+        if (pItem) {
+          const delta = pair.movement_type === "in" ? diff : -diff;
+          if (Number(pItem.stock) + delta < 0) throw new Error("الكمية الجديدة تُخفّض رصيد المخزن الآخر لأقل من صفر");
+          await supabase.from("inventory_items").update({ stock: Number(pItem.stock) + delta }).eq("id", pair.item_id);
+        }
+        await supabase.from("inventory_movements").update({ quantity: newQty }).eq("id", pair.id);
+      }
+      await supabase.from("inventory_movements").update({ quantity: newQty }).eq("id", editMov.id);
+      toast.success("تم تعديل الحركة");
+      setEditMov(null);
+      await fetchAll();
+    } catch (e: any) {
+      toast.error("فشل التعديل: " + (e?.message || ""));
+    } finally {
+      setEditBusy(false);
+    }
+  };
+
   return (
     <DashboardLayout>
       <Header title={pageTitle} subtitle={pageSubtitle} />
