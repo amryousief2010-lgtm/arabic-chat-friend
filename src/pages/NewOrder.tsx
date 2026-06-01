@@ -138,7 +138,7 @@ const getErrorMessage = (error: unknown, timeoutFallback: string) => {
 
 const withTimedQuery = async <T,>(
   label: string,
-  query: () => Promise<T>,
+  query: () => T | PromiseLike<T>,
   timeoutMs = QUERY_TIMEOUT_MS,
 ): Promise<T> => {
   console.time(label);
@@ -146,7 +146,7 @@ const withTimedQuery = async <T,>(
 
   try {
     return await Promise.race([
-      query(),
+      Promise.resolve(query()),
       new Promise<T>((_, reject) => {
         timeoutId = window.setTimeout(() => reject(new Error(`TIMEOUT:${label}`)), timeoutMs);
       }),
@@ -1171,16 +1171,6 @@ const NewOrder = () => {
     resetCustomerForm();
     toast.success(`تم اختيار العميل: ${existingCustomerMatch.name}`);
   };
-
-  if (loading) {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-        </div>
-      </DashboardLayout>
-    );
-  }
 
   return (
     <DashboardLayout>
