@@ -1162,7 +1162,34 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
               {openDialog === "supply" ? `توريد جديد إلى ${warehouseName}` : `تسجيل مرتجع من ${warehouseName}`}
             </DialogTitle>
           </DialogHeader>
+          {openDialog === "return" && (
+            <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+              <div className="text-xs font-medium text-muted-foreground">طريقة الخصم من المخزون</div>
+              <div className="inline-flex rounded-md border bg-background overflow-hidden text-xs">
+                <button
+                  type="button"
+                  onClick={() => setDeductFromCustomer(true)}
+                  className={`px-3 py-1.5 transition ${deductFromCustomer ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                >
+                  خصم من مخزون {warehouseName}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeductFromCustomer(false)}
+                  className={`px-3 py-1.5 border-r transition ${!deductFromCustomer ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                >
+                  بدون خصم (مرتجع قديم)
+                </button>
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                {deductFromCustomer
+                  ? "هيتم خصم الكمية من مخزون العميل وإضافتها للمخزن الرئيسي."
+                  : "هتُضاف الكمية للمخزن الرئيسي فقط بدون أي خصم من مخزون العميل — للمنتجات القديمة اللي مكنتش مسجلة على السيستم."}
+              </p>
+            </div>
+          )}
           <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+
             <div className="space-y-2">
               {lines.map((line, idx) => {
                 const chosenElsewhere = new Set(
