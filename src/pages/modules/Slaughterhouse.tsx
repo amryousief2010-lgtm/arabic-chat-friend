@@ -320,6 +320,146 @@ const Slaughterhouse = () => {
     fetchAll();
   };
 
+  // Send a completed batch's outputs to the Main Warehouse using existing RPC
+  const [confirmSendBatch, setConfirmSendBatch] = useState<Batch | null>(null);
+  const [sendingBatch, setSendingBatch] = useState(false);
+  const sendBatchToMainWarehouse = async (b: Batch) => {
+    setSendingBatch(true);
+    try {
+      const { data: wh, error: whErr } = await supabase
+        .from("warehouses" as any)
+        .select("id,name")
+        .ilike("name", "%رئيسي%")
+        .limit(1)
+        .maybeSingle();
+      if (whErr || !wh) { toast.error("لم يتم العثور على المخزن الرئيسي"); return; }
+      const { data, error } = await supabase.rpc("receive_slaughter_batch" as any, {
+        p_batch_id: b.id,
+        p_warehouse_id: (wh as any).id,
+      });
+      if (error) { toast.error(error.message); return; }
+      const d: any = data || {};
+      toast.success(`تم إرسال ${d.added_to_stock || 0} صنف إلى المخزن الرئيسي (${Number(d.total_kg || 0).toFixed(1)} كجم)`);
+      setConfirmSendBatch(null);
+      fetchAll();
+    } finally {
+      setSendingBatch(false);
+    }
+  };
+
+  // Receipt details + export
+  const [detailReceipt, setDetailReceipt] = useState<Receipt | null>(null);
+  const exportReceiptExcel = (r: Receipt) => {
+    const recBirds = birds.filter(b => b.receipt_id === r.id);
+    const summary = [
+      ["شركة نعام العاصمة - تفاصيل استلام طيور حية"],
+      [],
+      ["رقم الاستلام", r.receipt_number],
+      ["التاريخ", r.receipt_date],
+      ["المصدر", r.source_type === "internal_farm" ? "المزرعة الداخلية" : "مورد خارجي"],
+      ["اسم المصدر", r.source_name || "-"],
+      ["عدد الطيور", r.bird_count],
+      ["الوزن الإجمالي (كجم)", Number(r.total_weight_kg || 0).toFixed(2)],
+      ["متوسط الوزن (كجم)", Number(r.avg_weight_kg || 0).toFixed(2)],
+      ["السعر/كجم", Number(r.price_per_kg || 0).toFixed(2)],
+      ["إجمالي التكلفة", Number(r.total_cost || 0).toFixed(2)],
+      ["نافق عند الوصول", r.dead_on_arrival],
+      ["الحالة", r.status],
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summary), "ملخص الاستلام");
+    if (recBirds.length) {
+      const rows = recBirds.map((b, i) => ({
+        "م": i + 1,
+        "رقم الطائر": b.bird_index,
+        "الوزن الحي (كجم)": Number(b.live_weight_kg || 0).toFixed(2),
+        "وزن الذبح (كجم)": Number(b.slaughter_weight_kg || 0).toFixed(2),
+        "تكلفة الشراء": Number(b.purchase_cost || 0).toFixed(2),
+        "تكلفة العلف": Number(b.feed_cost || 0).toFixed(2),
+        "وقت الشراء": b.purchase_time || "-",
+        "ملاحظات": b.notes || "-",
+      }));
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws["!cols"] = [{ wch: 4 }, { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 24 }];
+      XLSX.utils.book_append_sheet(wb, ws, "تفاصيل الطيور");
+    }
+    XLSX.writeFile(wb, `استلام-${r.receipt_number}.xlsx`);
+    toast.success("تم تصدير ملف Excel");
+  };
+
+  const exportReceiptPDF = (r: Receipt) => {
+    const recBirds = birds.filter(b => b.receipt_id === r.id);
+    const totalCost = recBirds.reduce((s, b) => s + Number(b.purchase_cost || 0) + Number(b.feed_cost || 0), 0) || Number(r.total_cost || 0);
+    const logoUrl = `${window.location.origin}${companyLogo}`;
+    const esc = (s: unknown) =>
+      String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+    const birdRows = recBirds.map((b, i) => `<tr>
+      <td>${i + 1}</td>
+      <td>${b.bird_index}</td>
+      <td>${Number(b.live_weight_kg || 0).toFixed(2)}</td>
+      <td>${Number(b.slaughter_weight_kg || 0).toFixed(2)}</td>
+      <td>${Number(b.purchase_cost || 0).toFixed(2)}</td>
+      <td>${Number(b.feed_cost || 0).toFixed(2)}</td>
+      <td style="font-size:10px">${esc(b.notes || "-")}</td>
+    </tr>`).join("");
+    const html = `<!DOCTYPE html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8"/>
+<title>استلام ${esc(r.receipt_number)}</title>
+<style>
+  @page { size: A4; margin: 10mm; }
+  body { font-family: "Segoe UI", Tahoma, Arial, sans-serif; margin: 0; padding: 12px; color: #111; }
+  .header { display:flex; align-items:center; gap:16px; border-bottom:3px double #7c3aed; padding-bottom:10px; margin-bottom:12px; }
+  .header img { width:90px; height:90px; object-fit:contain; }
+  .header .titles { flex:1; text-align:center; }
+  .header h1 { margin:0; font-size:22px; color:#7c3aed; }
+  .header p { margin:2px 0; font-size:11px; color:#555; }
+  .report-title { text-align:center; font-size:16px; font-weight:700; background:linear-gradient(90deg,#7c3aed,#f97316); color:white; padding:8px; border-radius:6px; margin-bottom:12px; }
+  .meta { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-bottom:12px; font-size:12px; }
+  .meta div { border:1px solid #ddd; padding:6px 8px; border-radius:4px; background:#f9fafb; }
+  .meta strong { color:#7c3aed; display:block; font-size:10px; }
+  table { width:100%; border-collapse:collapse; font-size:11px; margin-top:8px; }
+  th { background:#7c3aed; color:white; padding:6px 4px; border:1px solid #6d28d9; text-align:center; }
+  td { border:1px solid #ddd; padding:5px 4px; text-align:center; }
+  tbody tr:nth-child(even) { background:#faf5ff; }
+  .toolbar { text-align:center; margin-bottom:10px; }
+  .toolbar button { padding:8px 18px; background:#7c3aed; color:white; border:none; border-radius:4px; cursor:pointer; font-size:13px; }
+  @media print { .toolbar { display:none; } body { padding:0; } }
+</style></head>
+<body>
+  <div class="toolbar"><button onclick="window.print()">🖨️ طباعة / حفظ PDF</button></div>
+  <div class="header">
+    <img src="${logoUrl}" alt="شعار الشركة"/>
+    <div class="titles">
+      <h1>شركة نعام العاصمة</h1>
+      <p>تقرير استلام طيور حية</p>
+    </div>
+  </div>
+  <div class="report-title">إيصال استلام — ${esc(r.receipt_number)}</div>
+  <div class="meta">
+    <div><strong>تاريخ التوريد</strong>${esc(r.receipt_date)}</div>
+    <div><strong>المصدر</strong>${r.source_type === "internal_farm" ? "🏡 داخلي" : "🚚 خارجي"}</div>
+    <div><strong>اسم المورد</strong>${esc(r.source_name || "-")}</div>
+    <div><strong>الحالة</strong>${esc(r.status)}</div>
+    <div><strong>عدد الطيور</strong>${r.bird_count}</div>
+    <div><strong>الوزن الإجمالي</strong>${Number(r.total_weight_kg || 0).toFixed(1)} كجم</div>
+    <div><strong>متوسط الوزن</strong>${Number(r.avg_weight_kg || 0).toFixed(2)} كجم</div>
+    <div><strong>نافق عند الوصول</strong>${r.dead_on_arrival}</div>
+    <div><strong>السعر/كجم</strong>${Number(r.price_per_kg || 0).toFixed(2)} ج.م</div>
+    <div><strong>إجمالي التكلفة</strong>${totalCost.toFixed(2)} ج.م</div>
+  </div>
+  ${recBirds.length ? `<table>
+    <thead><tr><th>م</th><th>رقم الطائر</th><th>الوزن الحي</th><th>وزن الذبح</th><th>تكلفة الشراء</th><th>تكلفة العلف</th><th>ملاحظات</th></tr></thead>
+    <tbody>${birdRows}</tbody>
+  </table>` : '<p style="text-align:center;color:#888;padding:12px">لا توجد بيانات تفصيلية للطيور</p>'}
+</body></html>`;
+    const w = window.open("", "_blank");
+    if (!w) { toast.error("افتح المتصفح للطباعة"); return; }
+    w.document.write(html);
+    w.document.close();
+  };
+
+
+
   const exportBatchExcel = (b: Batch) => {
     const items = outputs.filter(o => o.batch_id === b.id);
     if (!items.length) { toast.error("لا توجد تقسيمة لهذه الدفعة"); return; }
@@ -608,8 +748,14 @@ const Slaughterhouse = () => {
                           <>
                             <Button size="sm" variant="outline" onClick={() => exportBatchPDF(b)} title="طباعة / تصدير PDF" className="text-red-600 hover:bg-red-50"><Printer className="w-4 h-4" /></Button>
                             <Button size="sm" variant="outline" onClick={() => exportBatchExcel(b)} title="تصدير Excel" className="text-emerald-600 hover:bg-emerald-50"><FileSpreadsheet className="w-4 h-4" /></Button>
+                            {canManageBatch && (
+                              <Button size="sm" variant="outline" onClick={() => setConfirmSendBatch(b)} title="إرسال التقسيمة إلى المخزن الرئيسي" className="text-primary hover:bg-primary/10">
+                                <Truck className="w-4 h-4 ml-1" />للمخزن الرئيسي
+                              </Button>
+                            )}
                           </>
                         )}
+
                         {canManageBatch && (
                           <>
                             <Button size="sm" variant="outline" onClick={() => setEditBatch(b)} title="تعديل بيانات الدفعة"><SettingsIcon className="w-4 h-4" /></Button>
@@ -734,8 +880,18 @@ const Slaughterhouse = () => {
                     const recBirds = birds.filter(b => b.receipt_id === r.id);
                     const totalCost = recBirds.reduce((s, b) => s + Number(b.purchase_cost || 0) + Number(b.feed_cost || 0), 0) || Number(r.total_cost || 0);
                     return (
-                      <TableRow key={r.id}>
-                        <TableCell className="font-mono text-xs">{r.receipt_number}</TableCell>
+                      <TableRow key={r.id} className="hover:bg-primary/5">
+                        <TableCell className="font-mono text-xs">
+                          <button
+                            type="button"
+                            onClick={() => setDetailReceipt(r)}
+                            className="text-primary hover:underline font-semibold"
+                            title="عرض التفاصيل والطباعة والتصدير"
+                          >
+                            {r.receipt_number}
+                          </button>
+                        </TableCell>
+
                         <TableCell>{canEditReceiptDate ? (
                           <Input type="date" max={todayStr} value={r.receipt_date} onChange={e => updateReceiptDate(r.id, e.target.value)} className="h-8 w-36 text-xs" title="تعديل تاريخ التوريد (يُسجَّل في سجل التدقيق)" />
                         ) : (
@@ -778,6 +934,101 @@ const Slaughterhouse = () => {
               onUpdate={fetchAll}
             />
           )}
+
+          {/* Receipt details dialog with PDF + Excel export */}
+          <Dialog open={!!detailReceipt} onOpenChange={(o) => !o && setDetailReceipt(null)}>
+            <DialogContent dir="rtl" className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>تفاصيل الاستلام — {detailReceipt?.receipt_number}</DialogTitle>
+              </DialogHeader>
+              {detailReceipt && (() => {
+                const r = detailReceipt;
+                const recBirds = birds.filter(b => b.receipt_id === r.id);
+                const totalCost = recBirds.reduce((s, b) => s + Number(b.purchase_cost || 0) + Number(b.feed_cost || 0), 0) || Number(r.total_cost || 0);
+                return (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                      <div className="p-2 bg-muted/40 rounded"><div className="text-xs text-muted-foreground">التاريخ</div><b>{r.receipt_date}</b></div>
+                      <div className="p-2 bg-muted/40 rounded"><div className="text-xs text-muted-foreground">المصدر</div><b>{r.source_type === "internal_farm" ? "🏡 داخلي" : "🚚 خارجي"}</b></div>
+                      <div className="p-2 bg-muted/40 rounded"><div className="text-xs text-muted-foreground">اسم المورد</div><b>{r.source_name || "-"}</b></div>
+                      <div className="p-2 bg-muted/40 rounded"><div className="text-xs text-muted-foreground">الحالة</div><b>{r.status}</b></div>
+                      <div className="p-2 bg-primary/10 rounded"><div className="text-xs text-muted-foreground">عدد الطيور</div><b>{r.bird_count}</b></div>
+                      <div className="p-2 bg-primary/10 rounded"><div className="text-xs text-muted-foreground">الوزن الإجمالي</div><b>{Number(r.total_weight_kg).toFixed(1)} كجم</b></div>
+                      <div className="p-2 bg-primary/10 rounded"><div className="text-xs text-muted-foreground">متوسط الوزن</div><b>{Number(r.avg_weight_kg || 0).toFixed(2)} كجم</b></div>
+                      <div className="p-2 bg-red-500/10 rounded"><div className="text-xs text-muted-foreground">نافق عند الوصول</div><b className="text-red-600">{r.dead_on_arrival}</b></div>
+                      <div className="p-2 bg-emerald-500/10 rounded"><div className="text-xs text-muted-foreground">السعر/كجم</div><b>{Number(r.price_per_kg || 0).toFixed(2)} ج.م</b></div>
+                      <div className="p-2 bg-emerald-500/10 rounded col-span-2 md:col-span-3"><div className="text-xs text-muted-foreground">إجمالي التكلفة</div><b className="text-emerald-700 text-lg">{totalCost.toFixed(2)} ج.م</b></div>
+                    </div>
+                    {recBirds.length > 0 && (
+                      <div className="overflow-x-auto">
+                        <div className="text-sm font-semibold mb-2">تفاصيل الطيور ({recBirds.length})</div>
+                        <Table>
+                          <TableHeader><TableRow>
+                            <TableHead>م</TableHead><TableHead>رقم</TableHead><TableHead>الوزن الحي</TableHead>
+                            <TableHead>وزن الذبح</TableHead><TableHead>تكلفة الشراء</TableHead><TableHead>تكلفة العلف</TableHead><TableHead>ملاحظات</TableHead>
+                          </TableRow></TableHeader>
+                          <TableBody>
+                            {recBirds.map((b, i) => (
+                              <TableRow key={b.id}>
+                                <TableCell>{i + 1}</TableCell>
+                                <TableCell>{b.bird_index}</TableCell>
+                                <TableCell>{Number(b.live_weight_kg || 0).toFixed(2)}</TableCell>
+                                <TableCell>{Number(b.slaughter_weight_kg || 0).toFixed(2)}</TableCell>
+                                <TableCell>{Number(b.purchase_cost || 0).toFixed(2)}</TableCell>
+                                <TableCell>{Number(b.feed_cost || 0).toFixed(2)}</TableCell>
+                                <TableCell className="text-xs">{b.notes || "-"}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+              <DialogFooter className="gap-2 flex-row">
+                {detailReceipt && (
+                  <>
+                    <Button variant="outline" onClick={() => exportReceiptPDF(detailReceipt)} className="text-red-600 hover:bg-red-50">
+                      <Printer className="w-4 h-4 ml-1" />طباعة / PDF
+                    </Button>
+                    <Button variant="outline" onClick={() => exportReceiptExcel(detailReceipt)} className="text-emerald-600 hover:bg-emerald-50">
+                      <FileSpreadsheet className="w-4 h-4 ml-1" />تصدير Excel
+                    </Button>
+                    <Button variant="ghost" onClick={() => { setBirdsReceiptId(detailReceipt.id); setDetailReceipt(null); }}>
+                      <Bird className="w-4 h-4 ml-1" />إدارة الطيور
+                    </Button>
+                  </>
+                )}
+                <Button variant="ghost" onClick={() => setDetailReceipt(null)}>إغلاق</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Confirm sending a completed batch to the Main Warehouse */}
+          <AlertDialog open={!!confirmSendBatch} onOpenChange={(o) => !o && setConfirmSendBatch(null)}>
+            <AlertDialogContent dir="rtl">
+              <AlertDialogHeader>
+                <AlertDialogTitle>إرسال التقسيمة إلى المخزن الرئيسي</AlertDialogTitle>
+                <AlertDialogDescription>
+                  سيتم إضافة جميع أصناف التقسيمة المقبولة من الدفعة <b>{confirmSendBatch?.batch_number}</b> إلى رصيد المخزن الرئيسي تلقائيًا.
+                  الأصناف المستلمة مسبقًا سيتم تخطيها.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter className="gap-2">
+                <AlertDialogCancel disabled={sendingBatch}>إلغاء</AlertDialogCancel>
+                <AlertDialogAction
+                  disabled={sendingBatch}
+                  onClick={(e) => { e.preventDefault(); confirmSendBatch && sendBatchToMainWarehouse(confirmSendBatch); }}
+                  className="bg-gradient-to-r from-primary to-accent"
+                >
+                  {sendingBatch ? "جاري الإرسال..." : "تأكيد الإرسال"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+
 
           <Dialog open={!!editReceipt} onOpenChange={(o) => { if (!o) { setEditReceipt(null); setEditReceiptForm({}); } }}>
             <DialogContent dir="rtl" className="max-w-2xl max-h-[90vh] overflow-y-auto">
