@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, RefreshCw, ArrowUpRight, ArrowDownLeft, Loader2, Plus, Trash2 } from "lucide-react";
+import { Search, RefreshCw, ArrowUpRight, ArrowDownLeft, Loader2, Plus, Trash2, Pencil } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -36,13 +36,17 @@ interface Movement {
   notes: string | null;
   party: string | null;
   item_id: string;
+  source_warehouse_id?: string | null;
+  destination_warehouse_id?: string | null;
+  reference_type?: string | null;
   item_name?: string;
 }
 
 const MAIN_WAREHOUSE_NAME_HINTS = ["الرئيسي", "المقر"];
 
 export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSubtitle }: Props) {
-  const { user, isGeneralManager, isExecutiveManager } = useAuth();
+  const { user, isGeneralManager, isExecutiveManager, isWarehouseSupervisor } = useAuth();
+  const canEditMovements = isGeneralManager || isExecutiveManager || isWarehouseSupervisor;
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [whId, setWhId] = useState<string | null>(null);
@@ -57,6 +61,11 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
   const [lines, setLines] = useState<Line[]>([{ name: "", qty: "" }]);
   const [notes, setNotes] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
+
+  // edit movement dialog
+  const [editMov, setEditMov] = useState<Movement | null>(null);
+  const [editQty, setEditQty] = useState<string>("");
+  const [editBusy, setEditBusy] = useState(false);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -84,7 +93,7 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
             .order("name"),
           supabase
             .from("inventory_movements")
-            .select("id, performed_at, movement_type, quantity, notes, party, item_id")
+            .select("id, performed_at, movement_type, quantity, notes, party, item_id, source_warehouse_id, destination_warehouse_id, reference_type")
             .eq("warehouse_id", targetId)
             .order("performed_at", { ascending: false })
             .limit(200),
@@ -259,6 +268,95 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
     }
   };
 
+  // Find the paired movement (other side of supply/return) for a given movement
+  const findPair = async (m: Movement) => {
+    if (!m.source_warehouse_id || !m.destination_warehouse_id) return null;
+    const { data } = await supabase
+      .from("inventory_movements")
+      .select("id, item_id, warehouse_id, movement_type, quantity")
+      .eq("source_warehouse_id", m.source_warehouse_id)
+      .eq("destination_warehouse_id", m.destination_warehouse_id)
+      .eq("performed_at", m.performed_at)
+      .eq("quantity", m.quantity);
+    const rows = (data || []) as any[];
+    return rows.find((r) => r.id !== m.id) || null;
+  };
+
+  const handleDeleteMovement = async (m: Movement) => {
+    if (!canEditMovements) return;
+    if (!confirm("هل أنت متأكد من حذف هذه الحركة؟ سيتم عكس تأثيرها على الرصيد.")) return;
+    try {
+      const pair = await findPair(m);
+      // Reverse stock for this side
+      const thisItem = (await supabase.from("inventory_items").select("id, stock").eq("id", m.item_id).single()).data as any;
+      if (thisItem) {
+        const delta = m.movement_type === "in" ? -Number(m.quantity) : Number(m.quantity);
+        await supabase.from("inventory_items").update({ stock: Number(thisItem.stock) + delta }).eq("id", m.item_id);
+      }
+      if (pair) {
+        const pItem = (await supabase.from("inventory_items").select("id, stock").eq("id", pair.item_id).single()).data as any;
+        if (pItem) {
+          const delta = pair.movement_type === "in" ? -Number(pair.quantity) : Number(pair.quantity);
+          await supabase.from("inventory_items").update({ stock: Number(pItem.stock) + delta }).eq("id", pair.item_id);
+        }
+        await supabase.from("inventory_movements").delete().eq("id", pair.id);
+      }
+      await supabase.from("inventory_movements").delete().eq("id", m.id);
+      toast.success("تم حذف الحركة");
+      await fetchAll();
+    } catch (e: any) {
+      toast.error("فشل الحذف: " + (e?.message || ""));
+    }
+  };
+
+  const openEdit = (m: Movement) => {
+    setEditMov(m);
+    setEditQty(String(m.quantity));
+  };
+
+  const submitEdit = async () => {
+    if (!editMov) return;
+    const newQty = Number(editQty);
+    if (!(newQty > 0)) {
+      toast.error("ادخل كمية صحيحة");
+      return;
+    }
+    const oldQty = Number(editMov.quantity);
+    const diff = newQty - oldQty;
+    if (diff === 0) {
+      setEditMov(null);
+      return;
+    }
+    setEditBusy(true);
+    try {
+      const pair = await findPair(editMov);
+      // Adjust stock for this side
+      const thisItem = (await supabase.from("inventory_items").select("id, stock").eq("id", editMov.item_id).single()).data as any;
+      if (thisItem) {
+        const delta = editMov.movement_type === "in" ? diff : -diff;
+        if (Number(thisItem.stock) + delta < 0) throw new Error("الكمية الجديدة تُخفّض الرصيد لأقل من صفر");
+        await supabase.from("inventory_items").update({ stock: Number(thisItem.stock) + delta }).eq("id", editMov.item_id);
+      }
+      if (pair) {
+        const pItem = (await supabase.from("inventory_items").select("id, stock").eq("id", pair.item_id).single()).data as any;
+        if (pItem) {
+          const delta = pair.movement_type === "in" ? diff : -diff;
+          if (Number(pItem.stock) + delta < 0) throw new Error("الكمية الجديدة تُخفّض رصيد المخزن الآخر لأقل من صفر");
+          await supabase.from("inventory_items").update({ stock: Number(pItem.stock) + delta }).eq("id", pair.item_id);
+        }
+        await supabase.from("inventory_movements").update({ quantity: newQty }).eq("id", pair.id);
+      }
+      await supabase.from("inventory_movements").update({ quantity: newQty }).eq("id", editMov.id);
+      toast.success("تم تعديل الحركة");
+      setEditMov(null);
+      await fetchAll();
+    } catch (e: any) {
+      toast.error("فشل التعديل: " + (e?.message || ""));
+    } finally {
+      setEditBusy(false);
+    }
+  };
+
   return (
     <DashboardLayout>
       <Header title={pageTitle} subtitle={pageSubtitle} />
@@ -341,11 +439,12 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
                       <TableHead>المنتج</TableHead>
                       <TableHead className="text-left">الكمية</TableHead>
                       <TableHead>ملاحظات</TableHead>
+                      {canEditMovements && <TableHead className="text-left">إجراءات</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {movements.length === 0 ? (
-                      <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">لا توجد حركات</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={canEditMovements ? 6 : 5} className="text-center text-muted-foreground">لا توجد حركات</TableCell></TableRow>
                     ) : movements.map((m) => {
                       const isIn = m.movement_type === "in" || m.movement_type === "transfer_in";
                       return (
@@ -359,6 +458,18 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
                           <TableCell>{m.item_name}</TableCell>
                           <TableCell className="text-left font-semibold">{Number(m.quantity).toLocaleString("ar-EG")}</TableCell>
                           <TableCell className="text-xs text-muted-foreground">{m.notes || "—"}</TableCell>
+                          {canEditMovements && (
+                            <TableCell className="text-left">
+                              <div className="flex gap-1 justify-end">
+                                <Button variant="ghost" size="icon" onClick={() => openEdit(m)} title="تعديل">
+                                  <Pencil className="w-4 h-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteMovement(m)} title="حذف">
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          )}
                         </TableRow>
                       );
                     })}
@@ -440,6 +551,29 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
             <Button onClick={submit} disabled={submitting}>
               {submitting && <Loader2 className="w-4 h-4 ml-2 animate-spin" />}
               تأكيد
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!editMov} onOpenChange={(o) => { if (!o) setEditMov(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>تعديل كمية الحركة</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="text-sm text-muted-foreground">
+              المنتج: <span className="font-medium text-foreground">{editMov?.item_name}</span>
+            </div>
+            <div>
+              <label className="text-sm font-medium">الكمية الجديدة</label>
+              <Input type="number" min="0" step="0.01" value={editQty} onChange={(e) => setEditQty(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditMov(null)}>إلغاء</Button>
+            <Button onClick={submitEdit} disabled={editBusy}>
+              {editBusy && <Loader2 className="w-4 h-4 ml-2 animate-spin" />}
+              حفظ
             </Button>
           </DialogFooter>
         </DialogContent>
