@@ -333,11 +333,18 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
   // Deduplicate by trimmed name — لو فى أكثر من صنف بنفس الاسم (مثلاً "اطباق" مرة بالقطعة ومرة بالكجم)
   // نختار الصف صاحب الرصيد الأكبر ونتجاهل التكرار الصفري.
   const pickList = (() => {
-    const source = openDialog === "supply" ? mainItems : items;
+    // في وضع "مرتجع بدون خصم": نختار من منتجات المخزن الرئيسي (للحصول على
+    // الوحدة و product_id) لأن مخزون العميل قد يكون 0 لهذه المنتجات القديمة.
+    const source =
+      openDialog === "supply" || (openDialog === "return" && !deductFromCustomer)
+        ? mainItems
+        : items;
     const byName = new Map<string, typeof source[number]>();
     for (const it of source) {
       const stock = Number(it.stock) || 0;
-      if (stock <= 0) continue;
+      // في وضع "بدون خصم" لا نشترط رصيد > 0 لأن المنتج قد يكون نفد من الرئيسي
+      if (deductFromCustomer && openDialog === "return" && stock <= 0) continue;
+      if (openDialog === "supply" && stock <= 0) continue;
       const key = (it.name || "").trim();
       if (openDialog === "supply" && sellableProductNames.size > 0 && !sellableProductNames.has(key)) continue;
       const prev = byName.get(key);
@@ -349,6 +356,7 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
   const resetDialog = () => {
     setLines([{ name: "", qty: "" }]);
     setNotes("");
+    setDeductFromCustomer(true);
   };
 
   const updateLine = (idx: number, patch: Partial<Line>) => {
