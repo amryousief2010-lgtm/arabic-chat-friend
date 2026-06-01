@@ -654,34 +654,55 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
                 const chosenElsewhere = new Set(
                   lines.filter((_, i) => i !== idx).map((l) => l.name).filter(Boolean),
                 );
+                const selected = pickList.find((i) => i.name === line.name);
+                const weight = selected ? isWeightUnit(selected.unit) : false;
+                const inputQty = Number(line.qty) || 0;
+                const realQty = weight ? inputQty * PACKAGE_KG : inputQty;
+                const inputLabel = selected
+                  ? (weight ? "الكمية (عبوة نص كيلو)" : `الكمية (${selected.unit || "قطعة"})`)
+                  : "الكمية";
                 return (
                   <div key={idx} className="flex items-start gap-2 p-2 rounded-md border bg-muted/30">
                     <div className="flex-1 space-y-1">
                       <label className="text-xs font-medium text-muted-foreground">المنتج</label>
                       <Select value={line.name} onValueChange={(v) => updateLine(idx, { name: v })}>
-                        <SelectTrigger><SelectValue placeholder="اختر منتجاً" /></SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder="اختر منتجاً من المخزن الرئيسي" /></SelectTrigger>
                         <SelectContent>
                           {pickList.length === 0 ? (
                             <div className="p-3 text-sm text-muted-foreground">
                               {openDialog === "supply" ? "المخزن الرئيسي فارغ" : "لا توجد منتجات في هذا المخزن"}
                             </div>
-                          ) : pickList.map((i) => (
-                            <SelectItem key={i.id} value={i.name} disabled={chosenElsewhere.has(i.name)}>
-                              {i.name} — متاح: {Number(i.stock).toLocaleString("ar-EG")} {i.unit}
-                            </SelectItem>
-                          ))}
+                          ) : pickList.map((i) => {
+                            const w = isWeightUnit(i.unit);
+                            const kg = Number(i.stock) || 0;
+                            return (
+                              <SelectItem key={i.id} value={i.name} disabled={chosenElsewhere.has(i.name)}>
+                                {i.name} — متاح: {kg.toLocaleString("ar-EG")} {i.unit}
+                                {w ? ` (${toPackages(kg).toLocaleString("ar-EG")} عبوة)` : ""}
+                              </SelectItem>
+                            );
+                          })}
                         </SelectContent>
                       </Select>
+                      {selected && (
+                        <p className="text-[11px] text-muted-foreground">
+                          المتاح: {Number(selected.stock).toLocaleString("ar-EG")} {selected.unit}
+                          {weight ? ` • ${toPackages(Number(selected.stock)).toLocaleString("ar-EG")} عبوة (نص كيلو)` : ""}
+                        </p>
+                      )}
                     </div>
-                    <div className="w-28 space-y-1">
-                      <label className="text-xs font-medium text-muted-foreground">الكمية</label>
+                    <div className="w-32 space-y-1">
+                      <label className="text-xs font-medium text-muted-foreground">{inputLabel}</label>
                       <Input
                         type="number"
                         min="0"
-                        step="0.01"
+                        step={weight ? "1" : "0.01"}
                         value={line.qty}
                         onChange={(e) => updateLine(idx, { qty: e.target.value })}
                       />
+                      {weight && inputQty > 0 && (
+                        <p className="text-[11px] text-muted-foreground">= {realQty.toLocaleString("ar-EG")} كيلو</p>
+                      )}
                     </div>
                     <Button
                       type="button"
