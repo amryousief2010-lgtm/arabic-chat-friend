@@ -677,6 +677,7 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
       await fetchAll();
     } catch (e: any) {
       toast.error("فشل الحذف: " + (e?.message || ""));
+      await fetchAll();
     }
   };
 
