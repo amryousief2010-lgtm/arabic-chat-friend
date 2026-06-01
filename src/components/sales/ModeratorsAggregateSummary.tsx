@@ -47,18 +47,28 @@ const emptyAgg = (): AggRow => ({
   weight: { meat: 0, bone: 0, processed: 0 },
 });
 
-const ModeratorsAggregateSummary = () => {
+interface Props {
+  /** 1-based month (1..12). Defaults to current month. */
+  month?: number;
+  /** Full year. Defaults to current year. */
+  year?: number;
+}
+
+const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
+  const nowRef = new Date();
+  const viewYear = year ?? nowRef.getUTCFullYear();
+  const viewMonth = (month ?? nowRef.getUTCMonth() + 1) - 1;
+  const monthLabel = new Date(Date.UTC(viewYear, viewMonth, 1)).toLocaleDateString(
+    "en-GB",
+    { month: "long", year: "numeric" },
+  );
+
   const { data, isLoading } = useQuery({
-    queryKey: ["moderators-aggregate-summary"],
+    queryKey: ["moderators-aggregate-summary", viewYear, viewMonth],
     refetchInterval: 60_000,
     queryFn: async () => {
-      const now = new Date();
-      const startOfMonth = new Date(
-        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0),
-      );
-      const startOfNextMonth = new Date(
-        Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0, 0),
-      );
+      const startOfMonth = new Date(Date.UTC(viewYear, viewMonth, 1, 0, 0, 0, 0));
+      const startOfNextMonth = new Date(Date.UTC(viewYear, viewMonth + 1, 1, 0, 0, 0, 0));
 
       // 1) Orders for this month (UTC boundaries — created_at is UTC)
       const { data: orders, error } = await supabase
