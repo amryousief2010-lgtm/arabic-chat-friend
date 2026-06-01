@@ -129,69 +129,134 @@ const PrivateDeliveryPricing = () => {
               <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary"></div>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50">
-                  <TableHead className="text-right">المحافظة</TableHead>
-                  <TableHead className="text-right">المنطقة</TableHead>
-                  <TableHead className="text-right">السعر (ج.م)</TableHead>
-                  <TableHead className="text-right">ملاحظات</TableHead>
-                  {canEdit && <TableHead className="text-right">إجراءات</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Mobile cards */}
+              <div className="md:hidden space-y-3">
                 {filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">لا توجد بيانات</TableCell></TableRow>
+                  <div className="text-center py-8 text-muted-foreground">لا توجد بيانات</div>
                 ) : filtered.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell>
-                      {canEdit ? (
-                        <Input
-                          defaultValue={r.governorate || ""}
-                          onBlur={(e) => e.target.value !== (r.governorate || "") && updateField(r.id, { governorate: e.target.value || null })}
-                          className="w-32"
-                        />
-                      ) : (r.governorate || "-")}
-                    </TableCell>
-                    <TableCell>
+                  <Card key={r.id} className="p-3 space-y-2 border border-border/50">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs text-muted-foreground mb-1">المحافظة</div>
+                        {canEdit ? (
+                          <Input
+                            defaultValue={r.governorate || ""}
+                            onBlur={(e) => e.target.value !== (r.governorate || "") && updateField(r.id, { governorate: e.target.value || null })}
+                            className="h-8 text-sm"
+                          />
+                        ) : <div className="text-sm font-medium">{r.governorate || "-"}</div>}
+                      </div>
+                      {canEdit && (
+                        <Button variant="ghost" size="icon" onClick={() => removeRow(r.id)} className="text-destructive h-8 w-8 shrink-0 mt-4">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground mb-1">المنطقة</div>
                       {canEdit ? (
                         <Input
                           defaultValue={r.location}
                           onBlur={(e) => e.target.value && e.target.value !== r.location && updateField(r.id, { location: e.target.value })}
-                          className="w-40"
+                          className="h-8 text-sm"
                         />
-                      ) : r.location}
-                    </TableCell>
-                    <TableCell>
-                      {canEdit ? (
-                        <Input
-                          type="number"
-                          defaultValue={r.price}
-                          onBlur={(e) => Number(e.target.value) !== r.price && updateField(r.id, { price: Number(e.target.value) })}
-                          className="w-24 font-bold"
-                        />
-                      ) : <span className="font-bold">{r.price}</span>}
-                    </TableCell>
-                    <TableCell>
-                      {canEdit ? (
-                        <Input
-                          defaultValue={r.notes || ""}
-                          onBlur={(e) => e.target.value !== (r.notes || "") && updateField(r.id, { notes: e.target.value || null })}
-                          className="w-64"
-                        />
-                      ) : (r.notes || "-")}
-                    </TableCell>
-                    {canEdit && (
-                      <TableCell>
-                        <Button variant="ghost" size="icon" onClick={() => removeRow(r.id)} className="text-destructive">
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </TableCell>
-                    )}
-                  </TableRow>
+                      ) : <div className="text-sm font-medium">{r.location}</div>}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <div className="text-xs text-muted-foreground mb-1">السعر (ج.م)</div>
+                        {canEdit ? (
+                          <Input
+                            type="number"
+                            defaultValue={r.price}
+                            onBlur={(e) => Number(e.target.value) !== r.price && updateField(r.id, { price: Number(e.target.value) })}
+                            className="h-8 text-sm font-bold"
+                          />
+                        ) : <div className="text-sm font-bold">{r.price}</div>}
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground mb-1">ملاحظات</div>
+                        {canEdit ? (
+                          <Input
+                            defaultValue={r.notes || ""}
+                            onBlur={(e) => e.target.value !== (r.notes || "") && updateField(r.id, { notes: e.target.value || null })}
+                            className="h-8 text-sm"
+                          />
+                        ) : <div className="text-sm">{r.notes || "-"}</div>}
+                      </div>
+                    </div>
+                  </Card>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+
+              {/* Desktop table */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead className="text-right">المحافظة</TableHead>
+                      <TableHead className="text-right">المنطقة</TableHead>
+                      <TableHead className="text-right">السعر (ج.م)</TableHead>
+                      <TableHead className="text-right">ملاحظات</TableHead>
+                      {canEdit && <TableHead className="text-right">إجراءات</TableHead>}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.length === 0 ? (
+                      <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">لا توجد بيانات</TableCell></TableRow>
+                    ) : filtered.map((r) => (
+                      <TableRow key={r.id}>
+                        <TableCell>
+                          {canEdit ? (
+                            <Input
+                              defaultValue={r.governorate || ""}
+                              onBlur={(e) => e.target.value !== (r.governorate || "") && updateField(r.id, { governorate: e.target.value || null })}
+                              className="w-32"
+                            />
+                          ) : (r.governorate || "-")}
+                        </TableCell>
+                        <TableCell>
+                          {canEdit ? (
+                            <Input
+                              defaultValue={r.location}
+                              onBlur={(e) => e.target.value && e.target.value !== r.location && updateField(r.id, { location: e.target.value })}
+                              className="w-40"
+                            />
+                          ) : r.location}
+                        </TableCell>
+                        <TableCell>
+                          {canEdit ? (
+                            <Input
+                              type="number"
+                              defaultValue={r.price}
+                              onBlur={(e) => Number(e.target.value) !== r.price && updateField(r.id, { price: Number(e.target.value) })}
+                              className="w-24 font-bold"
+                            />
+                          ) : <span className="font-bold">{r.price}</span>}
+                        </TableCell>
+                        <TableCell>
+                          {canEdit ? (
+                            <Input
+                              defaultValue={r.notes || ""}
+                              onBlur={(e) => e.target.value !== (r.notes || "") && updateField(r.id, { notes: e.target.value || null })}
+                              className="w-64"
+                            />
+                          ) : (r.notes || "-")}
+                        </TableCell>
+                        {canEdit && (
+                          <TableCell>
+                            <Button variant="ghost" size="icon" onClick={() => removeRow(r.id)} className="text-destructive">
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
