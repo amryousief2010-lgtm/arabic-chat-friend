@@ -36,6 +36,9 @@ interface Movement {
   notes: string | null;
   party: string | null;
   item_id: string;
+  source_warehouse_id?: string | null;
+  destination_warehouse_id?: string | null;
+  reference_type?: string | null;
   item_name?: string;
 }
 
