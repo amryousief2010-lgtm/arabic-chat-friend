@@ -212,6 +212,8 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
   const fetchAll = async () => {
     setLoading(true);
     try {
+      let customerInventory: InventoryItem[] = [];
+      let mainInventory: InventoryItem[] = [];
       const { data: whs } = await supabase
         .from("warehouses")
         .select("id, name")
@@ -241,6 +243,7 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
             .limit(200),
         ]);
         const its = (itemsRes.data || []) as InventoryItem[];
+        customerInventory = its;
         setItems(its);
         const movs = (movRes.data || []) as Movement[];
         const nameMap = new Map(its.map((i) => [i.id, i.name]));
@@ -254,11 +257,12 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
           .eq("warehouse_id", mainId)
           .eq("is_active", true)
           .order("name");
-        setMainItems((mItems || []) as InventoryItem[]);
+        mainInventory = (mItems || []) as InventoryItem[];
+        setMainItems(mainInventory);
       }
 
-      const customerNames = new Set((itemsRes?.data || []).map((i: any) => (i.name || "").trim()).filter(Boolean));
-      const mainNames = new Set((mItems || []).map((i: any) => (i.name || "").trim()).filter(Boolean));
+      const customerNames = new Set(customerInventory.map((i) => (i.name || "").trim()).filter(Boolean));
+      const mainNames = new Set(mainInventory.map((i) => (i.name || "").trim()).filter(Boolean));
       setWarehouseProductNames(new Set([...customerNames, ...mainNames]));
     } catch (e: any) {
       toast.error("تعذّر تحميل بيانات المخزن: " + (e?.message || ""));
@@ -748,12 +752,12 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
       const stock = Number(it.stock) || 0;
       if (stock <= 0) continue;
       const key = (it.name || "").trim();
-      if (editInvoice?.kind === "supply" && sellableProductNames.size > 0 && !sellableProductNames.has(key)) continue;
+      if (editInvoice?.kind === "supply" && warehouseProductNames.size > 0 && !warehouseProductNames.has(key)) continue;
       const prev = byName.get(key);
       if (!prev || Number(prev.stock) < stock) byName.set(key, it);
     }
     return Array.from(byName.values());
-  }, [editInvoice?.kind, items, mainItems, sellableProductNames]);
+  }, [editInvoice?.kind, items, mainItems, warehouseProductNames]);
 
   const openEditInvoice = (inv: Invoice) => {
     setEditInvoice(inv);
