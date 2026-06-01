@@ -497,13 +497,15 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
   // Find the paired movement (other side of supply/return) for a given movement
   const findPair = async (m: Movement) => {
     if (!m.source_warehouse_id || !m.destination_warehouse_id) return null;
-    const { data } = await supabase
+    let q = supabase
       .from("inventory_movements")
-      .select("id, item_id, warehouse_id, movement_type, quantity")
+      .select("id, item_id, product_id, warehouse_id, movement_type, quantity")
       .eq("source_warehouse_id", m.source_warehouse_id)
       .eq("destination_warehouse_id", m.destination_warehouse_id)
       .eq("performed_at", m.performed_at)
       .eq("quantity", m.quantity);
+    if (m.product_id) q = q.eq("product_id", m.product_id);
+    const { data } = await q;
     const rows = (data || []) as any[];
     return rows.find((r) => r.id !== m.id) || null;
   };
