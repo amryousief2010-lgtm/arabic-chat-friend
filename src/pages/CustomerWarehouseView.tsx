@@ -910,25 +910,13 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
                   <div key={idx} className="flex items-start gap-2 p-2 rounded-md border bg-muted/30">
                     <div className="flex-1 space-y-1">
                       <label className="text-xs font-medium text-muted-foreground">المنتج</label>
-                      <Select value={line.name} onValueChange={(v) => updateLine(idx, { name: v })}>
-                        <SelectTrigger><SelectValue placeholder="اختر منتجاً من المخزن الرئيسي" /></SelectTrigger>
-                        <SelectContent>
-                          {pickList.length === 0 ? (
-                            <div className="p-3 text-sm text-muted-foreground">
-                              {openDialog === "supply" ? "المخزن الرئيسي فارغ" : "لا توجد منتجات في هذا المخزن"}
-                            </div>
-                          ) : pickList.map((i) => {
-                            const w = isWeightUnit(i.unit);
-                            const kg = Number(i.stock) || 0;
-                            return (
-                              <SelectItem key={i.id} value={i.name} disabled={chosenElsewhere.has(i.name)}>
-                                {i.name} — متاح: {kg.toLocaleString("ar-EG")} {i.unit}
-                                {w ? ` (${toPackages(kg).toLocaleString("ar-EG")} عبوة)` : ""}
-                              </SelectItem>
-                            );
-                          })}
-                        </SelectContent>
-                      </Select>
+                      <ProductPicker
+                        items={pickList}
+                        value={line.name}
+                        onChange={(v) => updateLine(idx, { name: v })}
+                        disabledNames={chosenElsewhere}
+                        emptyMessage={openDialog === "supply" ? "المخزن الرئيسي فارغ" : "لا توجد منتجات في هذا المخزن"}
+                      />
                       {selected && (
                         <p className="text-[11px] text-muted-foreground">
                           المتاح: {Number(selected.stock).toLocaleString("ar-EG")} {selected.unit}
