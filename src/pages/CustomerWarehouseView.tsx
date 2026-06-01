@@ -318,9 +318,20 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
 
   // For supply: pick from main items (only items with actual stock — last inventory snapshot).
   // For return: pick from this warehouse's items.
-  const pickList = (openDialog === "supply" ? mainItems : items).filter(
-    (i) => Number(i.stock) > 0,
-  );
+  // Deduplicate by trimmed name — لو فى أكثر من صنف بنفس الاسم (مثلاً "اطباق" مرة بالقطعة ومرة بالكجم)
+  // نختار الصف صاحب الرصيد الأكبر ونتجاهل التكرار الصفري.
+  const pickList = (() => {
+    const source = openDialog === "supply" ? mainItems : items;
+    const byName = new Map<string, typeof source[number]>();
+    for (const it of source) {
+      const stock = Number(it.stock) || 0;
+      if (stock <= 0) continue;
+      const key = (it.name || "").trim();
+      const prev = byName.get(key);
+      if (!prev || Number(prev.stock) < stock) byName.set(key, it);
+    }
+    return Array.from(byName.values());
+  })();
 
   const resetDialog = () => {
     setLines([{ name: "", qty: "" }]);
