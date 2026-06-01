@@ -177,7 +177,7 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
   });
 
   const today = data?.today ?? emptyAgg();
-  const month = data?.month ?? emptyAgg();
+  const monthAgg = data?.month ?? emptyAgg();
   const fmt = (n: number) =>
     Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
 
@@ -191,10 +191,7 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
               إجمالي مبيعات البنات الأربع (آية، نورا، سارة، منال)
             </h3>
             <Badge variant="outline" className="text-[10px]">
-              {new Date().toLocaleDateString("en-GB", {
-                month: "long",
-                year: "numeric",
-              })}
+              {monthLabel}
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground">
