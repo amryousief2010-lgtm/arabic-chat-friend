@@ -56,6 +56,7 @@ import {
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { normalizePhone } from '@/lib/normalizePhone';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface Product {
   id: string;
@@ -127,6 +128,35 @@ const isKgUnit = (unit: string) => {
   return /^(كجم|كيلو|كيلوجرام|كيلوغرام|كغم|كغ|kg|kgs|kilogram|kilogramme|kilo)$/i.test(u);
 };
 
+const QUERY_TIMEOUT_MS = 12000;
+
+const getErrorMessage = (error: unknown, timeoutFallback: string) => {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  if (message.startsWith('TIMEOUT:')) return timeoutFallback;
+  return message || timeoutFallback;
+};
+
+const withTimedQuery = async <T,>(
+  label: string,
+  query: () => Promise<T>,
+  timeoutMs = QUERY_TIMEOUT_MS,
+): Promise<T> => {
+  console.time(label);
+  let timeoutId: number | undefined;
+
+  try {
+    return await Promise.race([
+      query(),
+      new Promise<T>((_, reject) => {
+        timeoutId = window.setTimeout(() => reject(new Error(`TIMEOUT:${label}`)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+    console.timeEnd(label);
+  }
+};
+
 const NewOrder = () => {
   const navigate = useNavigate();
   const { user, isSalesModerator } = useAuth();
@@ -155,7 +185,17 @@ const NewOrder = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [offerBoxes, setOfferBoxes] = useState<OfferBox[]>([]);
   const [offerContentsById, setOfferContentsById] = useState<Record<string, string[]>>({});
-  const [loading, setLoading] = useState(true);
+  const [pageShellLoading, setPageShellLoading] = useState(true);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [offersLoading, setOffersLoading] = useState(true);
+  const [warehousesLoading, setWarehousesLoading] = useState(true);
+  const [inventoryLoading, setInventoryLoading] = useState(false);
+  const [offerContentsLoading, setOfferContentsLoading] = useState(false);
+  const [productsError, setProductsError] = useState<string | null>(null);
+  const [offersError, setOffersError] = useState<string | null>(null);
+  const [warehousesError, setWarehousesError] = useState<string | null>(null);
+  const [inventoryError, setInventoryError] = useState<string | null>(null);
+  const [offerContentsError, setOfferContentsError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   
   // Cart state
