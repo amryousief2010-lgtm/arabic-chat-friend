@@ -648,38 +648,137 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
         const thisItem = (await supabase.from("inventory_items").select("id, stock").eq("id", m.item_id).single()).data as any;
         if (thisItem) {
           const delta = m.movement_type === "in" ? -Number(m.quantity) : Number(m.quantity);
-          const { error: thisItemError, count: thisItemCount } = await supabase
+          const { error: thisItemError } = await supabase
             .from("inventory_items")
-            .update({ stock: Number(thisItem.stock) + delta }, { count: "exact" })
+            .update({ stock: Number(thisItem.stock) + delta })
             .eq("id", m.item_id);
-          ensureMutationSucceeded(thisItemError, thisItemCount, "تعذّر عكس رصيد أحد أصناف الفاتورة");
+          if (thisItemError) throw thisItemError;
         }
         if (pair) {
           const pItem = (await supabase.from("inventory_items").select("id, stock").eq("id", pair.item_id).single()).data as any;
           if (pItem) {
             const d = pair.movement_type === "in" ? -Number(pair.quantity) : Number(pair.quantity);
-            const { error: pairItemError, count: pairItemCount } = await supabase
+            const { error: pairItemError } = await supabase
               .from("inventory_items")
-              .update({ stock: Number(pItem.stock) + d }, { count: "exact" })
+              .update({ stock: Number(pItem.stock) + d })
               .eq("id", pair.item_id);
-            ensureMutationSucceeded(pairItemError, pairItemCount, "تعذّر عكس رصيد الصنف المقابل");
+            if (pairItemError) throw pairItemError;
           }
-          const { error: pairDeleteError, count: pairDeleteCount } = await supabase
-            .from("inventory_movements")
-            .delete({ count: "exact" })
-            .eq("id", pair.id);
-          ensureMutationSucceeded(pairDeleteError, pairDeleteCount, "لم يتم حذف الحركة المقابلة داخل الفاتورة");
+          // tolerate already-deleted pair
+          await supabase.from("inventory_movements").delete().eq("id", pair.id);
         }
         const { error: deleteError, count: deletedCount } = await supabase
           .from("inventory_movements")
           .delete({ count: "exact" })
           .eq("id", m.id);
-        ensureMutationSucceeded(deleteError, deletedCount, "لم يتم حذف إحدى حركات الفاتورة");
+        ensureMutationSucceeded(deleteError, deletedCount, "تعذّر حذف إحدى حركات الفاتورة (تحقق من الصلاحيات)");
       }
       toast.success("تم حذف الفاتورة وعكس حركاتها");
       await fetchAll();
     } catch (e: any) {
       toast.error("فشل الحذف: " + (e?.message || ""));
+    }
+  };
+
+  // ===== تعديل فاتورة كاملة (تعديل كميات الأصناف أو حذف سطر) =====
+  type EditInvLine = { movId: string; itemId: string; name: string; unit: string; originalQty: number; qty: string; remove: boolean };
+  const [editInvoice, setEditInvoice] = useState<Invoice | null>(null);
+  const [editInvLines, setEditInvLines] = useState<EditInvLine[]>([]);
+  const [editInvBusy, setEditInvBusy] = useState(false);
+
+  const openEditInvoice = (inv: Invoice) => {
+    setEditInvoice(inv);
+    setEditInvLines(inv.movements.map((m) => {
+      const it = items.find((i) => i.id === m.item_id);
+      const unit = it?.unit || "";
+      const weight = isWeightUnit(unit);
+      const qty = Number(m.quantity);
+      const display = weight ? qty / PACKAGE_KG : qty;
+      return {
+        movId: m.id,
+        itemId: m.item_id,
+        name: m.item_name || "—",
+        unit,
+        originalQty: qty,
+        qty: String(display),
+        remove: false,
+      };
+    }));
+  };
+
+  const applyMovementQtyChange = async (m: Movement, newQty: number) => {
+    const oldQty = Number(m.quantity);
+    const diff = newQty - oldQty;
+    if (diff === 0) return;
+    const pair = await findPair(m);
+    const thisItem = (await supabase.from("inventory_items").select("id, stock").eq("id", m.item_id).single()).data as any;
+    if (thisItem) {
+      const delta = m.movement_type === "in" ? diff : -diff;
+      if (Number(thisItem.stock) + delta < 0) throw new Error(`الكمية الجديدة تُخفّض رصيد "${m.item_name}" لأقل من صفر`);
+      const { error } = await supabase.from("inventory_items").update({ stock: Number(thisItem.stock) + delta }).eq("id", m.item_id);
+      if (error) throw error;
+    }
+    if (pair) {
+      const pItem = (await supabase.from("inventory_items").select("id, stock").eq("id", pair.item_id).single()).data as any;
+      if (pItem) {
+        const delta = pair.movement_type === "in" ? diff : -diff;
+        if (Number(pItem.stock) + delta < 0) throw new Error("الكمية الجديدة تُخفّض رصيد المخزن المقابل لأقل من صفر");
+        const { error } = await supabase.from("inventory_items").update({ stock: Number(pItem.stock) + delta }).eq("id", pair.item_id);
+        if (error) throw error;
+      }
+      await supabase.from("inventory_movements").update({ quantity: newQty }).eq("id", pair.id);
+    }
+    const { error: upErr } = await supabase.from("inventory_movements").update({ quantity: newQty }).eq("id", m.id);
+    if (upErr) throw upErr;
+  };
+
+  const applyMovementDelete = async (m: Movement) => {
+    const pair = await findPair(m);
+    const thisItem = (await supabase.from("inventory_items").select("id, stock").eq("id", m.item_id).single()).data as any;
+    if (thisItem) {
+      const delta = m.movement_type === "in" ? -Number(m.quantity) : Number(m.quantity);
+      const { error } = await supabase.from("inventory_items").update({ stock: Number(thisItem.stock) + delta }).eq("id", m.item_id);
+      if (error) throw error;
+    }
+    if (pair) {
+      const pItem = (await supabase.from("inventory_items").select("id, stock").eq("id", pair.item_id).single()).data as any;
+      if (pItem) {
+        const d = pair.movement_type === "in" ? -Number(pair.quantity) : Number(pair.quantity);
+        const { error } = await supabase.from("inventory_items").update({ stock: Number(pItem.stock) + d }).eq("id", pair.item_id);
+        if (error) throw error;
+      }
+      await supabase.from("inventory_movements").delete().eq("id", pair.id);
+    }
+    const { error: delErr, count } = await supabase.from("inventory_movements").delete({ count: "exact" }).eq("id", m.id);
+    ensureMutationSucceeded(delErr, count, "تعذّر حذف السطر (تحقق من الصلاحيات)");
+  };
+
+  const submitInvoiceEdit = async () => {
+    if (!editInvoice) return;
+    setEditInvBusy(true);
+    try {
+      for (const line of editInvLines) {
+        const m = editInvoice.movements.find((mm) => mm.id === line.movId);
+        if (!m) continue;
+        if (line.remove) {
+          await applyMovementDelete(m);
+          continue;
+        }
+        const inputQty = Number(line.qty);
+        if (!(inputQty > 0)) throw new Error(`كمية غير صحيحة لـ "${line.name}"`);
+        const weight = isWeightUnit(line.unit);
+        const realQty = weight ? inputQty * PACKAGE_KG : inputQty;
+        if (realQty !== line.originalQty) {
+          await applyMovementQtyChange(m, realQty);
+        }
+      }
+      toast.success("تم حفظ تعديلات الفاتورة");
+      setEditInvoice(null);
+      await fetchAll();
+    } catch (e: any) {
+      toast.error("فشل التعديل: " + (e?.message || ""));
+    } finally {
+      setEditInvBusy(false);
     }
   };
 
