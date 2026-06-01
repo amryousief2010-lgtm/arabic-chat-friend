@@ -683,6 +683,32 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Dialog open={!!editItem} onOpenChange={(o) => { if (!o) setEditItem(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>تعديل رصيد الصنف</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="text-sm text-muted-foreground">
+              المنتج: <span className="font-medium text-foreground">{editItem?.name}</span> — الرصيد الحالي: {editItem?.stock}
+            </div>
+            <div>
+              <label className="text-sm font-medium">الرصيد الجديد</label>
+              <Input type="number" min="0" step="0.01" value={editStock} onChange={(e) => setEditStock(e.target.value)} />
+              <p className="text-xs text-muted-foreground mt-1">
+                الفرق سيُخصم من المخزن الرئيسي أو يُضاف إليه تلقائيًا.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditItem(null)}>إلغاء</Button>
+            <Button onClick={submitItemEdit} disabled={itemBusy}>
+              {itemBusy && <Loader2 className="w-4 h-4 ml-2 animate-spin" />}
+              حفظ
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
