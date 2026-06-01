@@ -230,7 +230,7 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
             .order("name"),
           supabase
             .from("inventory_movements")
-            .select("id, performed_at, movement_type, quantity, notes, party, item_id, source_warehouse_id, destination_warehouse_id, reference_type")
+            .select("id, performed_at, movement_type, quantity, notes, party, item_id, product_id, source_warehouse_id, destination_warehouse_id, reference_type")
             .eq("warehouse_id", targetId)
             .order("performed_at", { ascending: false })
             .limit(200),
