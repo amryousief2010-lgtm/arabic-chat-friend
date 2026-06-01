@@ -1399,6 +1399,59 @@ const Slaughterhouse = () => {
           <SettingsTab settings={settings} onSave={saveSettings} />
         </TabsContent>
       </Tabs>
+
+      {/* Adjust Live Stock Dialog */}
+      <Dialog open={adjustOpen} onOpenChange={setAdjustOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>تعديل رصيد النعام القائم</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <div className="p-3 rounded bg-muted/40 text-xs leading-relaxed">
+              الرصيد المحسوب حاليًا: <b className="text-primary">{liveBalance}</b> نعامة.
+              <br />هذا التعديل يُسجَّل كقيد افتتاحي/تسوية يدوية ولا يحذف أي توريد أو دفعة دبح.
+            </div>
+            <div className="space-y-1">
+              <Label>تاريخ التسوية</Label>
+              <Input type="date" value={adjustForm.adjustment_date}
+                onChange={(e) => setAdjustForm(f => ({ ...f, adjustment_date: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <Label>الرصيد الجديد (عدد النعام القائم)</Label>
+              <Input type="number" min={0} value={adjustForm.new_balance}
+                onChange={(e) => setAdjustForm(f => ({ ...f, new_balance: Number(e.target.value) }))} />
+              <p className="text-[11px] text-muted-foreground">
+                الفرق: <b className={Number(adjustForm.new_balance) - liveBalance >= 0 ? "text-emerald-600" : "text-red-600"}>
+                  {Number(adjustForm.new_balance) - liveBalance >= 0 ? "+" : ""}{Number(adjustForm.new_balance) - liveBalance}
+                </b>
+              </p>
+            </div>
+            <div className="space-y-1">
+              <Label>سبب التعديل *</Label>
+              <Textarea rows={3} placeholder="مثال: قيد افتتاحي لشهر 6 / تسوية جرد فعلي..."
+                value={adjustForm.reason}
+                onChange={(e) => setAdjustForm(f => ({ ...f, reason: e.target.value }))} />
+            </div>
+            {adjustments.length > 0 && (
+              <div className="border-t pt-2">
+                <p className="text-xs font-semibold mb-1">آخر التسويات:</p>
+                <div className="max-h-40 overflow-auto space-y-1">
+                  {adjustments.slice(0, 5).map(a => (
+                    <div key={a.id} className="text-[11px] flex justify-between gap-2 p-1.5 rounded bg-muted/30">
+                      <span>{a.adjustment_date} — <b>{a.new_balance}</b> ({a.delta >= 0 ? "+" : ""}{a.delta})</span>
+                      <span className="text-muted-foreground truncate max-w-[180px]" title={a.reason || ""}>{a.reason}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAdjustOpen(false)}>إلغاء</Button>
+            <Button onClick={saveLiveStockAdjustment}>حفظ التسوية</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };
