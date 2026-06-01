@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, RefreshCw, ArrowUpRight, ArrowDownLeft, Loader2, Plus, Trash2, Pencil, Printer, FileSpreadsheet, FileText, Eye } from "lucide-react";
+import { Search, RefreshCw, ArrowUpRight, ArrowDownLeft, Loader2, Plus, Trash2, Pencil, Printer, FileSpreadsheet, FileText, Eye, Package, CheckCircle2, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -605,49 +605,111 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
             <TabsTrigger value="movements">سجل التوريد والمرتجع</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="stock">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">المنتجات في {warehouseName}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>المنتج</TableHead>
-                      <TableHead>الوحدة</TableHead>
-                      <TableHead className="text-left">الرصيد</TableHead>
-                      {canEditMovements && <TableHead className="text-left">إجراءات</TableHead>}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredItems.length === 0 ? (
-                      <TableRow><TableCell colSpan={canEditMovements ? 4 : 3} className="text-center text-muted-foreground">
-                        {loading ? "جاري التحميل..." : "لا توجد منتجات بعد. ابدأ بتسجيل أول توريد."}
-                      </TableCell></TableRow>
-                    ) : filteredItems.map((it) => (
-                      <TableRow key={it.id}>
-                        <TableCell>{it.name}</TableCell>
-                        <TableCell>{it.unit}</TableCell>
-                        <TableCell className="text-left font-semibold">{Number(it.stock).toLocaleString("ar-EG")}</TableCell>
-                        {canEditMovements && (
-                          <TableCell className="text-left">
-                            <div className="flex gap-1 justify-end">
-                              <Button variant="ghost" size="icon" onClick={() => openItemEdit(it)} title="تعديل الرصيد">
-                                <Pencil className="w-4 h-4" />
+          <TabsContent value="stock" className="space-y-4">
+            {/* ملخص الرصيد */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                    <Package className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">عدد الأصناف</p>
+                    <p className="text-xl font-bold text-primary">{filteredItems.length}</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-gradient-to-br from-success/10 to-success/5 border-success/20">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-success/20 flex items-center justify-center">
+                    <CheckCircle2 className="w-5 h-5 text-success" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">بها رصيد</p>
+                    <p className="text-xl font-bold text-success">{filteredItems.filter((i) => Number(i.stock) > 0).length}</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-gradient-to-br from-secondary/10 to-secondary/5 border-secondary/20">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-secondary/20 flex items-center justify-center">
+                    <AlertTriangle className="w-5 h-5 text-secondary" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">نفذ رصيدها</p>
+                    <p className="text-xl font-bold text-secondary">{filteredItems.filter((i) => Number(i.stock) <= 0).length}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* عرض المنتجات كبطاقات */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {filteredItems.length === 0 ? (
+                <div className="col-span-full text-center py-12 text-muted-foreground">
+                  {loading ? "جاري التحميل..." : "لا توجد منتجات بعد. ابدأ بتسجيل أول توريد."}
+                </div>
+              ) : (
+                filteredItems.map((it) => {
+                  const stock = Number(it.stock);
+                  const weight = isWeightUnit(it.unit);
+                  const packages = weight ? toPackages(stock) : null;
+                  const isLow = stock <= 0;
+                  const isMedium = !isLow && weight ? stock < 5 : stock < 10;
+                  return (
+                    <Card key={it.id} className={`overflow-hidden border-l-4 transition-all duration-200 hover:shadow-lg ${isLow ? "border-l-destructive" : isMedium ? "border-l-warning" : "border-l-success"}`}>
+                      <CardContent className="p-4 space-y-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-bold text-foreground truncate" title={it.name}>{it.name}</h4>
+                            <span className="text-xs text-muted-foreground">{it.unit}</span>
+                          </div>
+                          {canEditMovements && (
+                            <div className="flex gap-1 shrink-0">
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openItemEdit(it)} title="تعديل الرصيد">
+                                <Pencil className="w-3.5 h-3.5" />
                               </Button>
-                              <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteItem(it)} title="حذف وإرجاع للرئيسي">
-                                <Trash2 className="w-4 h-4" />
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteItem(it)} title="حذف وإرجاع للرئيسي">
+                                <Trash2 className="w-3.5 h-3.5" />
                               </Button>
                             </div>
-                          </TableCell>
+                          )}
+                        </div>
+
+                        <div className="flex items-end gap-2">
+                          <div className="text-2xl font-extrabold text-foreground">{stock.toLocaleString("ar-EG")}</div>
+                          <div className="text-sm text-muted-foreground mb-1">{it.unit}</div>
+                        </div>
+
+                        {weight && packages !== null && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <Badge variant="outline" className="text-xs bg-muted/50">
+                              = {packages} عبوة {packages === 1 ? "" : ""}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">(نص كيلو للعبوة)</span>
+                          </div>
                         )}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-xs">
+                            <span className="text-muted-foreground">حالة الرصيد</span>
+                            <span className={`font-semibold ${isLow ? "text-destructive" : isMedium ? "text-warning" : "text-success"}`}>
+                              {isLow ? "نفذت الكمية" : isMedium ? "رصيد متوسط" : "رصيد جيد"}
+                            </span>
+                          </div>
+                          <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${isLow ? "bg-destructive" : isMedium ? "bg-warning" : "bg-success"}`}
+                              style={{ width: `${Math.min(100, isLow ? 0 : weight ? (stock / 20) * 100 : (stock / 50) * 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              )}
+            </div>
           </TabsContent>
 
           <TabsContent value="movements">
