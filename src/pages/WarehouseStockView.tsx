@@ -101,11 +101,15 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
 
         // الطلبات الجارية المحجوزة على كل مخزن — أي أوردر لم يُسلَّم/يُلغَ
         // يُخصم من المتاح، بصرف النظر عن تاريخه (يشمل الـ 16 أوردر القديمة المعلقة).
+        // نطرح فقط الأوردرات اللي لسه ما اتخصمتش من الرصيد فعلياً.
+        // الأوردر اللي stock_status='dispatched' يبقى الرصيد اتخصم منه عبر sales_dispatch
+        // فلو طرحناه تاني هيبقى خصم مزدوج (30 ك في الرصيد ثم -12 ك = 18 ك بدل 30 ك).
         const { data: pendOrders } = await supabase
           .from("orders")
-          .select("id, source_warehouse_id, status")
+          .select("id, source_warehouse_id, status, stock_status")
           .in("source_warehouse_id", whIds)
-          .not("status", "in", "(delivered,cancelled)");
+          .not("status", "in", "(delivered,cancelled)")
+          .or("stock_status.is.null,stock_status.neq.dispatched");
 
         const orderIds = (pendOrders || []).map((o: any) => o.id);
         const whByOrder: Record<string, string> = Object.fromEntries(
