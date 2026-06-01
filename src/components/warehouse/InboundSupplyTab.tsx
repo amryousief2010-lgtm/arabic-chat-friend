@@ -424,13 +424,14 @@ export default function InboundSupplyTab({ warehouseId, warehouseName }: Props) 
                   <TableHead>المصدر</TableHead>
                   <TableHead>التكلفة</TableHead>
                   <TableHead>ملاحظات</TableHead>
+                  <TableHead className="w-16">إجراءات</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
                   {filtered.map((h: any) => {
                     const weight = isWeightUnit(h.item?.unit);
                     const kg = Number(h.quantity || 0);
                     return (
-                      <TableRow key={h.id}>
+                      <TableRow key={h.id} className="cursor-pointer hover:bg-muted/50" onClick={() => openDetail(h)}>
                         <TableCell className="whitespace-nowrap text-xs">{formatDateTime(h.performed_at)}</TableCell>
                         <TableCell className="font-medium">{h.item?.name || "—"}</TableCell>
                         <TableCell>
@@ -440,7 +441,12 @@ export default function InboundSupplyTab({ warehouseId, warehouseName }: Props) 
                         </TableCell>
                         <TableCell className="text-xs">{h.party || "—"}</TableCell>
                         <TableCell className="text-xs">{h.total_cost ? `${Number(h.total_cost).toFixed(2)} ج` : "—"}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{h.notes || "—"}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">{h.notes || "—"}</TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <Button size="icon" variant="ghost" onClick={() => openDetail(h)} title="عرض / تعديل">
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     );
                   })}
@@ -450,6 +456,89 @@ export default function InboundSupplyTab({ warehouseId, warehouseName }: Props) 
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!detail} onOpenChange={(v) => { if (!v) { setDetail(null); setEditMode(false); } }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>تفاصيل التوريد</DialogTitle></DialogHeader>
+          {detail && (() => {
+            const weight = isWeightUnit(detail.item?.unit);
+            const kg = Number(detail.quantity || 0);
+            return (
+              <div className="space-y-3 text-sm">
+                <Row label="التاريخ" value={formatDateTime(detail.performed_at)} />
+                <Row label="المنتج" value={detail.item?.name || "—"} />
+                {editMode ? (
+                  <>
+                    <Field label={`الكمية ${weight ? "(عبوة نص كيلو)" : `(${detail.item?.unit || "وحدة"})`}`}>
+                      <Input type="number" min="0" step="any" value={editQty} onChange={e => setEditQty(e.target.value)} />
+                    </Field>
+                    <Field label="سعر الوحدة (ج)">
+                      <Input type="number" min="0" step="any" value={editUnitCost} onChange={e => setEditUnitCost(e.target.value)} />
+                    </Field>
+                    <Field label="المصدر / الجهة">
+                      <Input value={editParty} onChange={e => setEditParty(e.target.value)} />
+                    </Field>
+                    <Field label="رقم الفاتورة">
+                      <Input value={editRef} onChange={e => setEditRef(e.target.value)} />
+                    </Field>
+                    <Field label="ملاحظات">
+                      <Textarea rows={3} value={editNotes} onChange={e => setEditNotes(e.target.value)} />
+                    </Field>
+                  </>
+                ) : (
+                  <>
+                    <Row label="الكمية" value={weight ? `${Math.round(kg / PACKAGE_KG)} عبوة (${kg} كجم)` : `${kg} ${detail.item?.unit || ""}`} />
+                    <Row label="المصدر" value={detail.party || "—"} />
+                    <Row label="رقم الفاتورة" value={detail.reference || "—"} />
+                    <Row label="سعر الوحدة" value={detail.unit_cost ? `${Number(detail.unit_cost).toFixed(2)} ج` : "—"} />
+                    <Row label="إجمالي التكلفة" value={detail.total_cost ? `${Number(detail.total_cost).toFixed(2)} ج` : "—"} />
+                    <Row label="ملاحظات" value={detail.notes || "—"} />
+                  </>
+                )}
+              </div>
+            );
+          })()}
+          <DialogFooter className="gap-2 flex-wrap">
+            <Button variant="outline" onClick={printDetail} className="gap-1">
+              <Printer className="w-4 h-4" /> طباعة
+            </Button>
+            {canEdit && !editMode && (
+              <>
+                <Button variant="outline" onClick={() => setEditMode(true)} className="gap-1">
+                  <Pencil className="w-4 h-4" /> تعديل
+                </Button>
+                <Button variant="destructive" onClick={deleteMovement} disabled={deleting} className="gap-1">
+                  <Trash2 className="w-4 h-4" /> {deleting ? "جارٍ الحذف…" : "حذف"}
+                </Button>
+              </>
+            )}
+            {editMode && (
+              <>
+                <Button variant="ghost" onClick={() => setEditMode(false)}>إلغاء</Button>
+                <Button onClick={saveEdit} disabled={savingEdit}>{savingEdit ? "جارٍ الحفظ…" : "حفظ التعديلات"}</Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-3 border-b pb-2">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium text-right">{value}</span>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="text-xs text-muted-foreground mb-1 block">{label}</label>
+      {children}
     </div>
   );
 }
