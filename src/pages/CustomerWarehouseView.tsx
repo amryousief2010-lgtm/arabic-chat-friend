@@ -216,7 +216,7 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
           warehouse_id: destWh,
           source_warehouse_id: sourceWh,
           destination_warehouse_id: destWh,
-          movement_type: "transfer_in",
+          movement_type: "in",
           quantity: qtyNum,
           notes: baseNote,
           party: partyLabel,
