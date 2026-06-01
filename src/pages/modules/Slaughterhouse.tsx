@@ -146,6 +146,19 @@ const Slaughterhouse = () => {
   const birdsToday = batches.filter(b => b.slaughter_date === today).reduce((s, b) => s + b.birds_slaughtered, 0);
   const meatToday = batches.filter(b => b.slaughter_date === today).reduce((s, b) => s + Number(b.total_meat_kg || 0), 0);
   const meatMonth = batches.filter(b => b.slaughter_date >= monthStartStr).reduce((s, b) => s + Number(b.total_meat_kg || 0), 0);
+  const birdsSlaughteredMonth = batches
+    .filter(b => b.slaughter_date >= monthStartStr && b.status !== "cancelled")
+    .reduce((s, b) => s + (b.birds_slaughtered || 0), 0);
+  // النعام القائم = المُستلم - النافق - المذبوح - النافق قبل الذبح - المرفوض
+  const liveBalance = (() => {
+    const received = receipts.reduce((s, r) => s + (r.bird_count || 0), 0);
+    const doa = receipts.reduce((s, r) => s + (r.dead_on_arrival || 0), 0);
+    const active = batches.filter(b => b.status !== "cancelled");
+    const slaughtered = active.reduce((s, b) => s + (b.birds_slaughtered || 0), 0);
+    const preDead = active.reduce((s, b) => s + (b.pre_slaughter_dead || 0), 0);
+    const rejected = active.reduce((s, b) => s + (b.rejected_birds || 0), 0);
+    return Math.max(received - doa - slaughtered - preDead - rejected, 0);
+  })();
   const yieldToday = (() => {
     const todays = batches.filter(b => b.slaughter_date === today && b.actual_yield_pct > 0);
     if (!todays.length) return 0;
@@ -156,6 +169,8 @@ const Slaughterhouse = () => {
     if (!recent.length) return 0;
     return recent.reduce((s, b) => s + Number(b.cost_per_kg_meat), 0) / recent.length;
   })();
+  const isExecManager = role === "general_manager" || role === "executive_manager";
+  const pendingApprovalBatches = batches.filter(b => (b as any).transfer_status === "pending_approval");
 
   const validateReceiptDate = (d: string): string | null => {
     if (!d) return "تاريخ التوريد مطلوب";
