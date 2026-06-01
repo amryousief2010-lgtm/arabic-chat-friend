@@ -335,32 +335,72 @@ const Slaughterhouse = () => {
     fetchAll();
   };
 
-  // Send a completed batch's outputs to the Main Warehouse using existing RPC
+  // Send a completed batch's outputs to the Main Warehouse using the gated RPC
   const [confirmSendBatch, setConfirmSendBatch] = useState<Batch | null>(null);
   const [sendingBatch, setSendingBatch] = useState(false);
+  const [meatTransferBatch, setMeatTransferBatch] = useState<Batch | null>(null);
+  const [approvalNote, setApprovalNote] = useState("");
+
+  const findWarehouseByName = async (pattern: string) => {
+    const { data } = await supabase
+      .from("warehouses" as any)
+      .select("id,name")
+      .ilike("name", pattern)
+      .limit(1)
+      .maybeSingle();
+    return data as any;
+  };
+
   const sendBatchToMainWarehouse = async (b: Batch) => {
     setSendingBatch(true);
     try {
-      const { data: wh, error: whErr } = await supabase
-        .from("warehouses" as any)
-        .select("id,name")
-        .ilike("name", "%رئيسي%")
-        .limit(1)
-        .maybeSingle();
-      if (whErr || !wh) { toast.error("لم يتم العثور على المخزن الرئيسي"); return; }
-      const { data, error } = await supabase.rpc("receive_slaughter_batch" as any, {
+      const wh = await findWarehouseByName("%رئيسي%");
+      if (!wh) { toast.error("لم يتم العثور على المخزن الرئيسي"); return; }
+      const { data, error } = await supabase.rpc("request_slaughter_transfer_to_main" as any, {
         p_batch_id: b.id,
-        p_warehouse_id: (wh as any).id,
+        p_warehouse_id: wh.id,
       });
       if (error) { toast.error(error.message); return; }
       const d: any = data || {};
-      toast.success(`تم إرسال ${d.added_to_stock || 0} صنف إلى المخزن الرئيسي (${Number(d.total_kg || 0).toFixed(1)} كجم)`);
+      if (d.needs_approval) {
+        toast.warning(
+          `التصافي ${Number(d.actual_yield_pct).toFixed(1)}% أقل من الحد المسموح ${Number(d.min_required_pct).toFixed(1)}% — تم إرسال طلب موافقة للإدارة`,
+          { duration: 6000 }
+        );
+      } else {
+        const rec = d.receive || {};
+        toast.success(`تم إرسال ${rec.added_to_stock || 0} صنف إلى المخزن الرئيسي (${Number(rec.total_kg || 0).toFixed(1)} كجم)`);
+      }
       setConfirmSendBatch(null);
       fetchAll();
     } finally {
       setSendingBatch(false);
     }
   };
+
+  const approveLowYield = async (b: Batch) => {
+    const wh = await findWarehouseByName("%رئيسي%");
+    if (!wh) { toast.error("لم يتم العثور على المخزن الرئيسي"); return; }
+    const { error } = await supabase.rpc("approve_low_yield_transfer" as any, {
+      p_batch_id: b.id, p_warehouse_id: wh.id, p_note: approvalNote || null,
+    });
+    if (error) { toast.error(error.message); return; }
+    toast.success("تمت الموافقة وتم التحويل للمخزن الرئيسي");
+    setApprovalNote("");
+    fetchAll();
+  };
+
+  const rejectLowYield = async (b: Batch) => {
+    const reason = window.prompt("سبب الرفض:");
+    if (!reason) return;
+    const { error } = await supabase.rpc("reject_low_yield_transfer" as any, {
+      p_batch_id: b.id, p_reason: reason,
+    });
+    if (error) { toast.error(error.message); return; }
+    toast.success("تم رفض التحويل");
+    fetchAll();
+  };
+
 
   // Receipt details + export
   const [detailReceipt, setDetailReceipt] = useState<Receipt | null>(null);
