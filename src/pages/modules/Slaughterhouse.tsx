@@ -743,7 +743,19 @@ const Slaughterhouse = () => {
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
         <Card className="border-primary/40 bg-primary/5"><CardContent className="p-3 flex items-center justify-between">
-          <div><p className="text-xs text-muted-foreground">النعام القائم 🐦</p><p className="text-2xl font-bold text-primary">{liveBalance}</p></div>
+          <div>
+            <p className="text-xs text-muted-foreground">النعام القائم 🐦</p>
+            <p className="text-2xl font-bold text-primary">{liveBalance}</p>
+            {isExecManager && (
+              <button
+                type="button"
+                onClick={() => { setAdjustForm({ new_balance: liveBalance, reason: "", adjustment_date: todayStr }); setAdjustOpen(true); }}
+                className="mt-1 text-[10px] text-primary underline hover:opacity-80"
+              >
+                تعديل الرصيد
+              </button>
+            )}
+          </div>
           <Bird className="w-7 h-7 text-primary/60" />
         </CardContent></Card>
         <Card className="border-orange-400/40 bg-orange-50/40 dark:bg-orange-950/10"><CardContent className="p-3 flex items-center justify-between">
