@@ -1152,6 +1152,7 @@ function ProductionDialog({ open, onOpenChange, rawMaterials, products, onSaved 
   const [productId, setProductId] = useState<string>("");
   const [qtyProduced, setQtyProduced] = useState<number>(0);
   const [bags, setBags] = useState<number>(0);
+  const [laborCost, setLaborCost] = useState<number>(0);
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<ProdLine[]>([newProdLine()]);
   const [saving, setSaving] = useState(false);
@@ -1159,7 +1160,7 @@ function ProductionDialog({ open, onOpenChange, rawMaterials, products, onSaved 
   useEffect(() => {
     if (open) {
       setDate(new Date().toISOString().slice(0, 10));
-      setProductId(""); setQtyProduced(0); setBags(0); setNotes("");
+      setProductId(""); setQtyProduced(0); setBags(0); setLaborCost(0); setNotes("");
       setLines([newProdLine()]);
     }
   }, [open]);
@@ -1171,10 +1172,11 @@ function ProductionDialog({ open, onOpenChange, rawMaterials, products, onSaved 
     if (bagKg > 0 && qtyProduced > 0) setBags(Math.round((qtyProduced / bagKg) * 100) / 100);
   }, [productId, qtyProduced, products]);
 
-  const estTotalCost = useMemo(() => lines.reduce((s, l) => {
+  const estMaterialsCost = useMemo(() => lines.reduce((s, l) => {
     const m = rawMaterials.find((r: any) => r.id === l.raw_id);
     return s + (Number(m?.unit_cost || 0) * Number(l.qty || 0));
   }, 0), [lines, rawMaterials]);
+  const estTotalCost = estMaterialsCost + Number(laborCost || 0);
   const estUnitCost = qtyProduced > 0 ? estTotalCost / qtyProduced : 0;
 
   const save = async () => {
@@ -1188,7 +1190,7 @@ function ProductionDialog({ open, onOpenChange, rawMaterials, products, onSaved 
       const { data: { user } } = await supabase.auth.getUser();
       const { data: head, error: e1 } = await (supabase as any).from("feed_production_invoices").insert({
         prod_date: date, product_id: productId, qty_produced: qtyProduced,
-        bags, notes, created_by: user?.id,
+        bags, labor_cost: Number(laborCost || 0), notes, created_by: user?.id,
       }).select("id").single();
       if (e1) throw e1;
       const { error: e2 } = await (supabase as any).from("feed_production_invoice_items").insert(
@@ -1219,6 +1221,7 @@ function ProductionDialog({ open, onOpenChange, rawMaterials, products, onSaved 
           <div><Label>التاريخ</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
           <div><Label>الكمية المنتجة (كجم)</Label><Input type="number" value={qtyProduced || ""} onChange={(e) => setQtyProduced(Number(e.target.value))} /></div>
           <div><Label>عدد الشكاير</Label><Input type="number" value={bags || ""} onChange={(e) => setBags(Number(e.target.value))} /></div>
+          <div><Label>أجرة التصنيع (ج.م)</Label><Input type="number" value={laborCost || ""} onChange={(e) => setLaborCost(Number(e.target.value))} placeholder="0" /></div>
         </div>
         <div className="space-y-2">
           <div className="flex items-center justify-between"><Label>الخامات المستهلكة</Label><Button size="sm" variant="outline" onClick={() => setLines([...lines, newProdLine()])}><Plus className="h-3 w-3 ml-1" />خامة</Button></div>
@@ -1248,7 +1251,9 @@ function ProductionDialog({ open, onOpenChange, rawMaterials, products, onSaved 
         </div>
         <div><Label>ملاحظات</Label><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} /></div>
         <div className="border-t pt-3 flex items-center justify-between flex-wrap gap-3">
-          <div className="text-sm">إجمالي تكلفة الخامات: <b>{fmt(estTotalCost)}</b> ج.م</div>
+          <div className="text-sm">تكلفة الخامات: <b>{fmt(estMaterialsCost)}</b> ج.م</div>
+          <div className="text-sm">أجرة التصنيع: <b>{fmt(Number(laborCost || 0))}</b> ج.م</div>
+          <div className="text-sm">الإجمالي: <b>{fmt(estTotalCost)}</b> ج.م</div>
           <div className="text-sm">تكلفة الكيلو المنتج: <b className="text-primary">{fmt(estUnitCost)}</b> ج/كجم</div>
         </div>
         <DialogFooter><Button onClick={save} disabled={saving}>{saving ? "جاري التصنيع..." : "حفظ فاتورة التصنيع"}</Button></DialogFooter>
