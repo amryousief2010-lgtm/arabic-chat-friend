@@ -9,10 +9,29 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, RefreshCw, ArrowUpRight, ArrowDownLeft, Loader2, Plus, Trash2, Pencil } from "lucide-react";
+import { Search, RefreshCw, ArrowUpRight, ArrowDownLeft, Loader2, Plus, Trash2, Pencil, Printer, FileSpreadsheet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import * as XLSX from "xlsx";
+
+// كل عبوة = نص كيلو للأصناف الموزونة
+const PACKAGE_KG = 0.5;
+const isWeightUnit = (u?: string | null) => {
+  const s = (u || "").toLowerCase();
+  return s.includes("كيلو") || s.includes("كجم") || s.includes("kg");
+};
+// كم عبوة (نص كيلو) في الرصيد
+const toPackages = (kg: number) => Math.floor((Number(kg) || 0) / PACKAGE_KG);
+
+type ReceiptLine = {
+  name: string;
+  unit: string;
+  inputQty: number;        // ما أدخله المستخدم (عبوة أو قطعة)
+  inputUnit: string;       // "عبوة" أو الوحدة الأصلية
+  deductedQty: number;     // ما خُصم فعلياً من المخزن الرئيسي بنفس وحدة الصنف
+  deductedUnit: string;
+};
 
 interface Props {
   warehouseName: string; // exact warehouse name in DB
@@ -71,6 +90,14 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
   const [editItem, setEditItem] = useState<InventoryItem | null>(null);
   const [editStock, setEditStock] = useState<string>("");
   const [itemBusy, setItemBusy] = useState(false);
+
+  // receipt (آخر عملية توريد/مرتجع) for print + excel
+  const [receipt, setReceipt] = useState<{
+    kind: "supply" | "return";
+    at: string;
+    notes: string;
+    lines: ReceiptLine[];
+  } | null>(null);
 
   const adjustMainForItem = async (itemName: string, unit: string, productId: string | null, delta: number) => {
     // delta > 0 -> add to main, delta < 0 -> subtract from main
@@ -241,39 +268,53 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
 
   const submit = async () => {
     if (!openDialog) return;
+    if (!whId || !mainWhId) {
+      toast.error("لم يتم تحديد المخزن الرئيسي أو مخزن العميل");
+      return;
+    }
+    const sourcePool = openDialog === "supply" ? mainItems : items;
+
+    // حوّل المدخلات: للأصناف الموزونة المدخل بالعبوة (نص كيلو) -> كيلو
     const valid = lines
-      .map((l) => ({ name: l.name, qty: Number(l.qty) }))
-      .filter((l) => l.name && l.qty > 0);
+      .map((l) => {
+        const inputQty = Number(l.qty);
+        const src = sourcePool.find((i) => i.name === l.name);
+        if (!l.name || !(inputQty > 0) || !src) return null;
+        const weight = isWeightUnit(src.unit);
+        const realQty = weight ? inputQty * PACKAGE_KG : inputQty;
+        return {
+          name: l.name,
+          inputQty,
+          inputUnit: weight ? "عبوة" : (src.unit || "قطعة"),
+          qty: realQty, // ما يُخصم فعلياً بوحدة الصنف
+          unit: src.unit || "",
+        };
+      })
+      .filter(Boolean) as Array<{ name: string; inputQty: number; inputUnit: string; qty: number; unit: string }>;
+
     if (valid.length === 0) {
       toast.error("اختر منتجاً واحداً على الأقل وادخل كمية صحيحة");
       return;
     }
-    // detect duplicate product selections
     const names = valid.map((v) => v.name);
     if (new Set(names).size !== names.length) {
       toast.error("هناك منتج مكرر في القائمة");
-      return;
-    }
-    if (!whId || !mainWhId) {
-      toast.error("لم يتم تحديد المخزن الرئيسي أو مخزن العميل");
       return;
     }
     setSubmitting(true);
     try {
       const sourceWh = openDialog === "supply" ? mainWhId : whId;
       const destWh = openDialog === "supply" ? whId : mainWhId;
-      const sourcePool = openDialog === "supply" ? mainItems : items;
       const destPool = openDialog === "supply" ? items : mainItems;
       const refType = openDialog === "supply" ? "customer_supply" : "customer_return";
       const partyLabel = warehouseName;
       const baseNote = notes || (openDialog === "supply" ? "توريد إلى عميل" : "مرتجع من عميل");
 
-      // Pre-validate stock for all lines
+      // تحقق الرصيد قبل الخصم
       for (const v of valid) {
-        const si = sourcePool.find((i) => i.name === v.name);
-        if (!si) throw new Error(`المنتج "${v.name}" غير موجود في مخزن المصدر`);
+        const si = sourcePool.find((i) => i.name === v.name)!;
         if (Number(si.stock) < v.qty) {
-          throw new Error(`الكمية المتاحة لـ "${v.name}" (${si.stock}) أقل من المطلوب`);
+          throw new Error(`الكمية المتاحة لـ "${v.name}" (${si.stock} ${si.unit}) أقل من المطلوب (${v.qty} ${v.unit})`);
         }
       }
 
@@ -281,8 +322,6 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
 
       for (const v of valid) {
         const sourceItem = sourcePool.find((i) => i.name === v.name)!;
-
-        // Ensure destination row exists
         let destItem = destPool.find((i) => i.name === v.name);
         if (!destItem) {
           const { data: newRow, error: insErr } = await supabase
@@ -344,6 +383,21 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
 
       const { error: movErr } = await supabase.from("inventory_movements").insert(movRows);
       if (movErr) throw movErr;
+
+      // احفظ إيصال آخر عملية للطباعة/التصدير
+      setReceipt({
+        kind: openDialog,
+        at: new Date().toISOString(),
+        notes: baseNote,
+        lines: valid.map((v) => ({
+          name: v.name,
+          unit: v.unit,
+          inputQty: v.inputQty,
+          inputUnit: v.inputUnit,
+          deductedQty: v.qty,
+          deductedUnit: v.unit,
+        })),
+      });
 
       toast.success(
         openDialog === "supply"
@@ -600,34 +654,55 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
                 const chosenElsewhere = new Set(
                   lines.filter((_, i) => i !== idx).map((l) => l.name).filter(Boolean),
                 );
+                const selected = pickList.find((i) => i.name === line.name);
+                const weight = selected ? isWeightUnit(selected.unit) : false;
+                const inputQty = Number(line.qty) || 0;
+                const realQty = weight ? inputQty * PACKAGE_KG : inputQty;
+                const inputLabel = selected
+                  ? (weight ? "الكمية (عبوة نص كيلو)" : `الكمية (${selected.unit || "قطعة"})`)
+                  : "الكمية";
                 return (
                   <div key={idx} className="flex items-start gap-2 p-2 rounded-md border bg-muted/30">
                     <div className="flex-1 space-y-1">
                       <label className="text-xs font-medium text-muted-foreground">المنتج</label>
                       <Select value={line.name} onValueChange={(v) => updateLine(idx, { name: v })}>
-                        <SelectTrigger><SelectValue placeholder="اختر منتجاً" /></SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder="اختر منتجاً من المخزن الرئيسي" /></SelectTrigger>
                         <SelectContent>
                           {pickList.length === 0 ? (
                             <div className="p-3 text-sm text-muted-foreground">
                               {openDialog === "supply" ? "المخزن الرئيسي فارغ" : "لا توجد منتجات في هذا المخزن"}
                             </div>
-                          ) : pickList.map((i) => (
-                            <SelectItem key={i.id} value={i.name} disabled={chosenElsewhere.has(i.name)}>
-                              {i.name} — متاح: {Number(i.stock).toLocaleString("ar-EG")} {i.unit}
-                            </SelectItem>
-                          ))}
+                          ) : pickList.map((i) => {
+                            const w = isWeightUnit(i.unit);
+                            const kg = Number(i.stock) || 0;
+                            return (
+                              <SelectItem key={i.id} value={i.name} disabled={chosenElsewhere.has(i.name)}>
+                                {i.name} — متاح: {kg.toLocaleString("ar-EG")} {i.unit}
+                                {w ? ` (${toPackages(kg).toLocaleString("ar-EG")} عبوة)` : ""}
+                              </SelectItem>
+                            );
+                          })}
                         </SelectContent>
                       </Select>
+                      {selected && (
+                        <p className="text-[11px] text-muted-foreground">
+                          المتاح: {Number(selected.stock).toLocaleString("ar-EG")} {selected.unit}
+                          {weight ? ` • ${toPackages(Number(selected.stock)).toLocaleString("ar-EG")} عبوة (نص كيلو)` : ""}
+                        </p>
+                      )}
                     </div>
-                    <div className="w-28 space-y-1">
-                      <label className="text-xs font-medium text-muted-foreground">الكمية</label>
+                    <div className="w-32 space-y-1">
+                      <label className="text-xs font-medium text-muted-foreground">{inputLabel}</label>
                       <Input
                         type="number"
                         min="0"
-                        step="0.01"
+                        step={weight ? "1" : "0.01"}
                         value={line.qty}
                         onChange={(e) => updateLine(idx, { qty: e.target.value })}
                       />
+                      {weight && inputQty > 0 && (
+                        <p className="text-[11px] text-muted-foreground">= {realQty.toLocaleString("ar-EG")} كيلو</p>
+                      )}
                     </div>
                     <Button
                       type="button"
@@ -705,6 +780,117 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
             <Button onClick={submitItemEdit} disabled={itemBusy}>
               {itemBusy && <Loader2 className="w-4 h-4 ml-2 animate-spin" />}
               حفظ
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
+
+      {/* إيصال آخر عملية: طباعة + تصدير اكسيل */}
+      <Dialog open={!!receipt} onOpenChange={(o) => { if (!o) setReceipt(null); }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {receipt?.kind === "supply" ? "إيصال توريد" : "إيصال مرتجع"} — {warehouseName}
+            </DialogTitle>
+          </DialogHeader>
+          {receipt && (
+            <div id="receipt-print-area" className="space-y-3">
+              <div className="text-sm text-muted-foreground flex flex-wrap gap-x-6 gap-y-1">
+                <span>التاريخ: {new Date(receipt.at).toLocaleString("ar-EG")}</span>
+                <span>عدد الأصناف: {receipt.lines.length}</span>
+                {receipt.notes && <span>ملاحظات: {receipt.notes}</span>}
+              </div>
+              <div className="border rounded-md overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted">
+                    <tr>
+                      <th className="p-2 text-right">المنتج</th>
+                      <th className="p-2 text-right">المُدخل</th>
+                      <th className="p-2 text-right">الوحدة</th>
+                      <th className="p-2 text-right">المخصوم من الرئيسي</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {receipt.lines.map((l, i) => (
+                      <tr key={i} className="border-t">
+                        <td className="p-2 font-medium">{l.name}</td>
+                        <td className="p-2">{l.inputQty.toLocaleString("ar-EG")}</td>
+                        <td className="p-2">{l.inputUnit}</td>
+                        <td className="p-2">{l.deductedQty.toLocaleString("ar-EG")} {l.deductedUnit}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReceipt(null)}>إغلاق</Button>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => {
+                if (!receipt) return;
+                const rows = receipt.lines.map((l) => ({
+                  "المنتج": l.name,
+                  "الكمية المُدخلة": l.inputQty,
+                  "وحدة الإدخال": l.inputUnit,
+                  "المخصوم من المخزن الرئيسي": l.deductedQty,
+                  "وحدة الخصم": l.deductedUnit,
+                }));
+                const ws = XLSX.utils.json_to_sheet(rows);
+                const wb = XLSX.utils.book_new();
+                const sheetName = receipt.kind === "supply" ? "توريد" : "مرتجع";
+                XLSX.utils.book_append_sheet(wb, ws, sheetName);
+                const ts = new Date(receipt.at).toISOString().replace(/[:.]/g, "-").slice(0, 19);
+                XLSX.writeFile(wb, `${sheetName}_${warehouseName}_${ts}.xlsx`);
+              }}
+            >
+              <FileSpreadsheet className="w-4 h-4" /> تصدير Excel
+            </Button>
+            <Button
+              className="gap-2"
+              onClick={() => {
+                if (!receipt) return;
+                const w = window.open("", "_blank", "width=900,height=700");
+                if (!w) return;
+                const title = receipt.kind === "supply" ? "إيصال توريد" : "إيصال مرتجع";
+                const rows = receipt.lines.map((l) => `
+                  <tr>
+                    <td>${l.name}</td>
+                    <td>${l.inputQty.toLocaleString("ar-EG")}</td>
+                    <td>${l.inputUnit}</td>
+                    <td>${l.deductedQty.toLocaleString("ar-EG")} ${l.deductedUnit}</td>
+                  </tr>`).join("");
+                w.document.write(`
+                  <html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>${title}</title>
+                  <style>
+                    body{font-family:Tahoma,Arial,sans-serif;padding:20px;direction:rtl;}
+                    h2{margin:0 0 6px;} .meta{color:#555;font-size:13px;margin-bottom:12px;}
+                    table{width:100%;border-collapse:collapse;font-size:14px;}
+                    th,td{border:1px solid #ccc;padding:6px 8px;text-align:right;}
+                    th{background:#f1f1f1;}
+                  </style></head><body>
+                  <h2>${title} — ${warehouseName}</h2>
+                  <div class="meta">
+                    التاريخ: ${new Date(receipt.at).toLocaleString("ar-EG")}
+                    &nbsp;•&nbsp; عدد الأصناف: ${receipt.lines.length}
+                    ${receipt.notes ? `&nbsp;•&nbsp; ملاحظات: ${receipt.notes}` : ""}
+                  </div>
+                  <table>
+                    <thead><tr>
+                      <th>المنتج</th><th>المُدخل</th><th>الوحدة</th><th>المخصوم من الرئيسي</th>
+                    </tr></thead>
+                    <tbody>${rows}</tbody>
+                  </table>
+                  <script>window.onload=()=>{window.print();}</script>
+                  </body></html>`);
+                w.document.close();
+              }}
+            >
+              <Printer className="w-4 h-4" /> طباعة
             </Button>
           </DialogFooter>
         </DialogContent>
