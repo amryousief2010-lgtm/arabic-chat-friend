@@ -51,6 +51,7 @@ interface InventoryItem {
 
 interface Movement {
   id: string;
+  warehouse_id?: string;
   performed_at: string;
   movement_type: string;
   quantity: number;
@@ -230,7 +231,7 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
             .order("name"),
           supabase
             .from("inventory_movements")
-            .select("id, performed_at, movement_type, quantity, notes, party, item_id, product_id, source_warehouse_id, destination_warehouse_id, reference_type")
+            .select("id, warehouse_id, performed_at, movement_type, quantity, notes, party, item_id, product_id, source_warehouse_id, destination_warehouse_id, reference_type")
             .eq("warehouse_id", targetId)
             .order("performed_at", { ascending: false })
             .limit(200),
@@ -499,15 +500,36 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
     if (!m.source_warehouse_id || !m.destination_warehouse_id) return null;
     let q = supabase
       .from("inventory_movements")
-      .select("id, item_id, product_id, warehouse_id, movement_type, quantity")
+      .select("id, item_id, product_id, warehouse_id, movement_type, quantity, source_warehouse_id, destination_warehouse_id, reference_type, performed_at")
       .eq("source_warehouse_id", m.source_warehouse_id)
       .eq("destination_warehouse_id", m.destination_warehouse_id)
       .eq("performed_at", m.performed_at)
-      .eq("quantity", m.quantity);
+      .eq("quantity", m.quantity)
+      .eq("reference_type", m.reference_type || "");
     if (m.product_id) q = q.eq("product_id", m.product_id);
     const { data } = await q;
     const rows = (data || []) as any[];
-    return rows.find((r) => r.id !== m.id) || null;
+    return rows.find((r) => r.id !== m.id && r.item_id !== m.item_id && r.movement_type !== m.movement_type && r.warehouse_id !== m.warehouse_id) || null;
+  };
+
+  const getInvoiceMovementRows = async (inv: Invoice) => {
+    const seed = inv.movements[0];
+    if (!seed?.source_warehouse_id || !seed?.destination_warehouse_id) return inv.movements;
+
+    let q = supabase
+      .from("inventory_movements")
+      .select("id, warehouse_id, performed_at, movement_type, quantity, notes, party, item_id, product_id, source_warehouse_id, destination_warehouse_id, reference_type")
+      .eq("performed_at", inv.at)
+      .eq("reference_type", inv.kind === "supply" ? "customer_supply" : "customer_return")
+      .eq("source_warehouse_id", seed.source_warehouse_id)
+      .eq("destination_warehouse_id", seed.destination_warehouse_id)
+      .eq("party", warehouseName);
+
+    if (inv.notes) q = q.eq("notes", inv.notes);
+
+    const { data, error } = await q;
+    if (error) throw error;
+    return (data || []) as Movement[];
   };
 
   const handleDeleteMovement = async (m: Movement) => {
@@ -643,36 +665,32 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
     if (!canEditMovements) return;
     if (!confirm(`حذف الفاتورة بتاريخ ${new Date(inv.at).toLocaleString("ar-EG")} (${inv.movements.length} صنف)؟ سيتم عكس الحركات.`)) return;
     try {
-      for (const m of inv.movements) {
-        const pair = await findPair(m);
-        const thisItem = (await supabase.from("inventory_items").select("id, stock").eq("id", m.item_id).single()).data as any;
-        if (thisItem) {
-          const delta = m.movement_type === "in" ? -Number(m.quantity) : Number(m.quantity);
-          const { error: thisItemError } = await supabase
-            .from("inventory_items")
-            .update({ stock: Number(thisItem.stock) + delta })
-            .eq("id", m.item_id);
-          if (thisItemError) throw thisItemError;
-        }
-        if (pair) {
-          const pItem = (await supabase.from("inventory_items").select("id, stock").eq("id", pair.item_id).single()).data as any;
-          if (pItem) {
-            const d = pair.movement_type === "in" ? -Number(pair.quantity) : Number(pair.quantity);
-            const { error: pairItemError } = await supabase
-              .from("inventory_items")
-              .update({ stock: Number(pItem.stock) + d })
-              .eq("id", pair.item_id);
-            if (pairItemError) throw pairItemError;
-          }
-          // tolerate already-deleted pair
-          await supabase.from("inventory_movements").delete().eq("id", pair.id);
-        }
-        const { error: deleteError, count: deletedCount } = await supabase
-          .from("inventory_movements")
-          .delete({ count: "exact" })
-          .eq("id", m.id);
-        ensureMutationSucceeded(deleteError, deletedCount, "تعذّر حذف إحدى حركات الفاتورة (تحقق من الصلاحيات)");
+      const relatedRows = await getInvoiceMovementRows(inv);
+      if (relatedRows.length === 0) {
+        throw new Error("الفاتورة غير موجودة حالياً أو تم حذفها بالفعل");
       }
+
+      for (const m of relatedRows) {
+        const itemRow = (await supabase.from("inventory_items").select("id, stock").eq("id", m.item_id).single()).data as any;
+        if (!itemRow) continue;
+
+        const delta = m.movement_type === "in" ? -Number(m.quantity) : Number(m.quantity);
+        const { error: itemError, count: itemCount } = await supabase
+          .from("inventory_items")
+          .update({ stock: Number(itemRow.stock) + delta }, { count: "exact" })
+          .eq("id", m.item_id);
+        ensureMutationSucceeded(itemError, itemCount, `تعذّر عكس رصيد الصنف المرتبط بالفاتورة`);
+      }
+
+      const { error: deleteError, count: deletedCount } = await supabase
+        .from("inventory_movements")
+        .delete({ count: "exact" })
+        .in("id", relatedRows.map((m) => m.id));
+      if (deleteError) throw deleteError;
+      if ((deletedCount || 0) < relatedRows.length) {
+        throw new Error("لم يتم حذف كل حركات الفاتورة");
+      }
+
       toast.success("تم حذف الفاتورة وعكس حركاتها");
       await fetchAll();
     } catch (e: any) {
@@ -682,10 +700,23 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
   };
 
   // ===== تعديل فاتورة كاملة (تعديل كميات الأصناف أو حذف سطر) =====
-  type EditInvLine = { movId: string; itemId: string; name: string; unit: string; originalQty: number; qty: string; remove: boolean };
+  type EditInvLine = { movId: string; itemId: string; name: string; unit: string; originalQty: number; qty: string; remove: boolean; isNew?: boolean };
   const [editInvoice, setEditInvoice] = useState<Invoice | null>(null);
   const [editInvLines, setEditInvLines] = useState<EditInvLine[]>([]);
   const [editInvBusy, setEditInvBusy] = useState(false);
+
+  const editInvoicePickList = useMemo(() => {
+    const source = editInvoice?.kind === "supply" ? mainItems : items;
+    const byName = new Map<string, typeof source[number]>();
+    for (const it of source) {
+      const stock = Number(it.stock) || 0;
+      if (stock <= 0) continue;
+      const key = (it.name || "").trim();
+      const prev = byName.get(key);
+      if (!prev || Number(prev.stock) < stock) byName.set(key, it);
+    }
+    return Array.from(byName.values());
+  }, [editInvoice?.kind, items, mainItems]);
 
   const openEditInvoice = (inv: Invoice) => {
     setEditInvoice(inv);
@@ -705,6 +736,22 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
         remove: false,
       };
     }));
+  };
+
+  const addEditInvoiceLine = () => {
+    setEditInvLines((prev) => [
+      ...prev,
+      {
+        movId: `new-${Date.now()}-${prev.length}`,
+        itemId: "",
+        name: "",
+        unit: "",
+        originalQty: 0,
+        qty: "",
+        remove: false,
+        isNew: true,
+      },
+    ]);
   };
 
   const applyMovementQtyChange = async (m: Movement, newQty: number) => {
@@ -754,11 +801,107 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
     ensureMutationSucceeded(delErr, count, "تعذّر حذف السطر (تحقق من الصلاحيات)");
   };
 
+  const addInvoiceMovementLine = async (line: EditInvLine) => {
+    if (!editInvoice || !whId || !mainWhId) throw new Error("بيانات المخازن غير مكتملة");
+    if (!line.name) throw new Error("اختر المنتج الجديد أولاً");
+
+    const sourcePool = editInvoice.kind === "supply" ? mainItems : items;
+    const destPool = editInvoice.kind === "supply" ? items : mainItems;
+    const sourceWh = editInvoice.kind === "supply" ? mainWhId : whId;
+    const destWh = editInvoice.kind === "supply" ? whId : mainWhId;
+    const refType = editInvoice.kind === "supply" ? "customer_supply" : "customer_return";
+    const baseNote = editInvoice.notes || (editInvoice.kind === "supply" ? "توريد إلى عميل" : "مرتجع من عميل");
+
+    const sourceItem = sourcePool.find((i) => i.name === line.name);
+    if (!sourceItem) throw new Error(`الصنف "${line.name}" غير متاح حالياً`);
+
+    const inputQty = Number(line.qty);
+    if (!(inputQty > 0)) throw new Error(`كمية غير صحيحة لـ "${line.name}"`);
+
+    const weight = isWeightUnit(sourceItem.unit);
+    const realQty = weight ? inputQty * PACKAGE_KG : inputQty;
+    if (Number(sourceItem.stock) < realQty) {
+      throw new Error(`الكمية المتاحة لـ "${line.name}" أقل من المطلوب`);
+    }
+
+    let destItem = destPool.find((i) => i.name === line.name);
+    if (!destItem) {
+      const { data: newRow, error: insErr } = await supabase
+        .from("inventory_items")
+        .insert({
+          warehouse_id: destWh,
+          name: line.name,
+          unit: sourceItem.unit,
+          stock: 0,
+          product_id: sourceItem.product_id,
+        })
+        .select("id, name, unit, stock, product_id")
+        .single();
+      if (insErr || !newRow) throw insErr || new Error("تعذّر إنشاء الصنف الجديد في المخزن المقابل");
+      destItem = newRow as InventoryItem;
+    }
+
+    const { error: sourceErr } = await supabase
+      .from("inventory_items")
+      .update({ stock: Number(sourceItem.stock) - realQty })
+      .eq("id", sourceItem.id);
+    if (sourceErr) throw sourceErr;
+
+    const { error: destErr } = await supabase
+      .from("inventory_items")
+      .update({ stock: Number(destItem.stock) + realQty })
+      .eq("id", destItem.id);
+    if (destErr) throw destErr;
+
+    const { error: movErr } = await supabase.from("inventory_movements").insert([
+      {
+        item_id: sourceItem.id,
+        warehouse_id: sourceWh,
+        source_warehouse_id: sourceWh,
+        destination_warehouse_id: destWh,
+        movement_type: "out",
+        quantity: realQty,
+        notes: baseNote,
+        party: warehouseName,
+        reference_type: refType,
+        performed_by: user?.id ?? null,
+        product_id: sourceItem.product_id,
+        performed_at: editInvoice.at,
+      },
+      {
+        item_id: destItem.id,
+        warehouse_id: destWh,
+        source_warehouse_id: sourceWh,
+        destination_warehouse_id: destWh,
+        movement_type: "in",
+        quantity: realQty,
+        notes: baseNote,
+        party: warehouseName,
+        reference_type: refType,
+        performed_by: user?.id ?? null,
+        product_id: sourceItem.product_id,
+        performed_at: editInvoice.at,
+      },
+    ]);
+    if (movErr) throw movErr;
+  };
+
   const submitInvoiceEdit = async () => {
     if (!editInvoice) return;
     setEditInvBusy(true);
     try {
+      const activeNames = editInvLines.filter((l) => !l.remove).map((l) => l.name).filter(Boolean);
+      if (new Set(activeNames).size !== activeNames.length) {
+        throw new Error("لا يمكن تكرار نفس المنتج داخل الفاتورة");
+      }
+
       for (const line of editInvLines) {
+        if (line.isNew) {
+          if (line.remove || !line.name) continue;
+          await addInvoiceMovementLine(line);
+          continue;
+        }
+
         const m = editInvoice.movements.find((mm) => mm.id === line.movId);
         if (!m) continue;
         if (line.remove) {
@@ -1152,14 +1295,48 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
             {editInvLines.length === 0 ? (
               <p className="text-sm text-muted-foreground">لا توجد أصناف</p>
             ) : editInvLines.map((l, idx) => {
-              const weight = isWeightUnit(l.unit);
+              const selectedItem = l.isNew ? editInvoicePickList.find((i) => i.name === l.name) : null;
+              const currentUnit = l.isNew ? (selectedItem?.unit || l.unit) : l.unit;
+              const weight = isWeightUnit(currentUnit);
+              const chosenElsewhere = new Set(
+                editInvLines
+                  .filter((_, i) => i !== idx)
+                  .map((x) => x.name)
+                  .filter(Boolean),
+              );
               return (
                 <div key={l.movId} className={`flex items-center gap-2 p-2 rounded border ${l.remove ? "opacity-50 line-through" : ""}`}>
                   <div className="flex-1">
-                    <div className="text-sm font-medium">{l.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {weight ? "عبوة (نص كيلو)" : (l.unit || "قطعة")} — الكمية الأصلية: {weight ? l.originalQty / PACKAGE_KG : l.originalQty}
-                    </div>
+                    {l.isNew ? (
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-muted-foreground">المنتج الجديد</label>
+                        <ProductPicker
+                          items={editInvoicePickList}
+                          value={l.name}
+                          onChange={(v) => setEditInvLines((prev) => prev.map((x, i) => i === idx ? {
+                            ...x,
+                            name: v,
+                            itemId: editInvoicePickList.find((it) => it.name === v)?.id || "",
+                            unit: editInvoicePickList.find((it) => it.name === v)?.unit || "",
+                          } : x))}
+                          disabledNames={chosenElsewhere}
+                          emptyMessage={editInvoice?.kind === "supply" ? "المخزن الرئيسي فارغ" : "لا توجد منتجات في هذا المخزن"}
+                        />
+                        {selectedItem && (
+                          <div className="text-[11px] text-muted-foreground">
+                            المتاح: {Number(selectedItem.stock).toLocaleString("ar-EG")} {selectedItem.unit}
+                            {weight ? ` • ${toPackages(Number(selectedItem.stock)).toLocaleString("ar-EG")} عبوة` : ""}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        <div className="text-sm font-medium">{l.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {weight ? "عبوة (نص كيلو)" : (currentUnit || "قطعة")} — الكمية الأصلية: {weight ? l.originalQty / PACKAGE_KG : l.originalQty}
+                        </div>
+                      </>
+                    )}
                   </div>
                   <Input
                     type="number"
@@ -1182,8 +1359,11 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
                 </div>
               );
             })}
+            <Button type="button" variant="outline" size="sm" onClick={addEditInvoiceLine} className="gap-1 w-fit">
+              <Plus className="w-4 h-4" /> إضافة منتج جديد
+            </Button>
             <p className="text-xs text-muted-foreground">
-              عند الحفظ: الفرق في الكميات يُعكس تلقائياً على المخزن المقابل، والأسطر المحذوفة تُرجع كمياتها بالكامل.
+              عند الحفظ: يمكنك تعديل الكمية، حذف سطر، أو إضافة صنف جديد داخل نفس الفاتورة، وسيتم عكس الأرصدة تلقائياً بين المخزنين.
             </p>
           </div>
           <DialogFooter>
