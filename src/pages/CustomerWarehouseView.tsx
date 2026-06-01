@@ -91,6 +91,14 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
   const [editStock, setEditStock] = useState<string>("");
   const [itemBusy, setItemBusy] = useState(false);
 
+  // receipt (آخر عملية توريد/مرتجع) for print + excel
+  const [receipt, setReceipt] = useState<{
+    kind: "supply" | "return";
+    at: string;
+    notes: string;
+    lines: ReceiptLine[];
+  } | null>(null);
+
   const adjustMainForItem = async (itemName: string, unit: string, productId: string | null, delta: number) => {
     // delta > 0 -> add to main, delta < 0 -> subtract from main
     if (!mainWhId || delta === 0) return;
