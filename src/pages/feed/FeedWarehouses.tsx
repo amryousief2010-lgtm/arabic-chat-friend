@@ -814,6 +814,8 @@ const newSaleLine = (): SaleLine => ({ id: crypto.randomUUID(), kind: "finished"
 function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale }: any) {
   const isEdit = !!editSale?.id;
   const [customer, setCustomer] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [salesperson, setSalesperson] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<SaleLine[]>([newSaleLine()]);
@@ -823,6 +825,8 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
   useEffect(() => {
     if (editSale?.id) {
       setCustomer(editSale.customer || "");
+      setCustomerPhone(editSale.customer_phone || "");
+      setSalesperson(editSale.salesperson || "");
       setDate(editSale.sale_date || new Date().toISOString().slice(0, 10));
       setNotes(editSale.notes || "");
       const items = editSale.feed_sale_items || [];
@@ -836,7 +840,7 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
           }))
         : [newSaleLine()]);
     } else if (open) {
-      setCustomer(""); setNotes(""); setDate(new Date().toISOString().slice(0, 10)); setLines([newSaleLine()]);
+      setCustomer(""); setCustomerPhone(""); setSalesperson(""); setNotes(""); setDate(new Date().toISOString().slice(0, 10)); setLines([newSaleLine()]);
     }
   }, [editSale?.id, open]);
 
@@ -854,13 +858,13 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
         const { error: eDel } = await supabase.from("feed_sale_items").delete().eq("sale_id", saleId);
         if (eDel) throw eDel;
         const { error: eUpd } = await supabase.from("feed_sales").update({
-          customer, sale_date: date, notes,
-        }).eq("id", saleId);
+          customer, customer_phone: customerPhone || null, salesperson: salesperson || null, sale_date: date, notes,
+        } as any).eq("id", saleId);
         if (eUpd) throw eUpd;
       } else {
         const { data: head, error: e1 } = await supabase.from("feed_sales").insert({
-          customer, sale_date: date, notes, created_by: user?.id,
-        }).select("id").single();
+          customer, customer_phone: customerPhone || null, salesperson: salesperson || null, sale_date: date, notes, created_by: user?.id,
+        } as any).select("id").single();
         if (e1) throw e1;
         saleId = head.id;
       }
@@ -881,8 +885,10 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl" dir="rtl">
         <DialogHeader><DialogTitle>{isEdit ? `تعديل فاتورة بيع ${editSale?.sale_no || ""}` : "فاتورة بيع — علف جاهز أو خامات (بريمكس / دريس...)"}</DialogTitle></DialogHeader>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div><Label>العميل</Label><Input value={customer} onChange={(e) => setCustomer(e.target.value)} /></div>
+          <div><Label>رقم العميل</Label><Input type="tel" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="01xxxxxxxxx" /></div>
+          <div><Label>اسم البائع</Label><Input value={salesperson} onChange={(e) => setSalesperson(e.target.value)} /></div>
           <div><Label>التاريخ</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
         </div>
         <div className="space-y-2">
