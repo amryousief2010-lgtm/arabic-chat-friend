@@ -57,6 +57,7 @@ interface Movement {
   notes: string | null;
   party: string | null;
   item_id: string;
+  product_id?: string | null;
   source_warehouse_id?: string | null;
   destination_warehouse_id?: string | null;
   reference_type?: string | null;
@@ -229,7 +230,7 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
             .order("name"),
           supabase
             .from("inventory_movements")
-            .select("id, performed_at, movement_type, quantity, notes, party, item_id, source_warehouse_id, destination_warehouse_id, reference_type")
+            .select("id, performed_at, movement_type, quantity, notes, party, item_id, product_id, source_warehouse_id, destination_warehouse_id, reference_type")
             .eq("warehouse_id", targetId)
             .order("performed_at", { ascending: false })
             .limit(200),
@@ -496,13 +497,15 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
   // Find the paired movement (other side of supply/return) for a given movement
   const findPair = async (m: Movement) => {
     if (!m.source_warehouse_id || !m.destination_warehouse_id) return null;
-    const { data } = await supabase
+    let q = supabase
       .from("inventory_movements")
-      .select("id, item_id, warehouse_id, movement_type, quantity")
+      .select("id, item_id, product_id, warehouse_id, movement_type, quantity")
       .eq("source_warehouse_id", m.source_warehouse_id)
       .eq("destination_warehouse_id", m.destination_warehouse_id)
       .eq("performed_at", m.performed_at)
       .eq("quantity", m.quantity);
+    if (m.product_id) q = q.eq("product_id", m.product_id);
+    const { data } = await q;
     const rows = (data || []) as any[];
     return rows.find((r) => r.id !== m.id) || null;
   };
@@ -645,38 +648,137 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
         const thisItem = (await supabase.from("inventory_items").select("id, stock").eq("id", m.item_id).single()).data as any;
         if (thisItem) {
           const delta = m.movement_type === "in" ? -Number(m.quantity) : Number(m.quantity);
-          const { error: thisItemError, count: thisItemCount } = await supabase
+          const { error: thisItemError } = await supabase
             .from("inventory_items")
-            .update({ stock: Number(thisItem.stock) + delta }, { count: "exact" })
+            .update({ stock: Number(thisItem.stock) + delta })
             .eq("id", m.item_id);
-          ensureMutationSucceeded(thisItemError, thisItemCount, "تعذّر عكس رصيد أحد أصناف الفاتورة");
+          if (thisItemError) throw thisItemError;
         }
         if (pair) {
           const pItem = (await supabase.from("inventory_items").select("id, stock").eq("id", pair.item_id).single()).data as any;
           if (pItem) {
             const d = pair.movement_type === "in" ? -Number(pair.quantity) : Number(pair.quantity);
-            const { error: pairItemError, count: pairItemCount } = await supabase
+            const { error: pairItemError } = await supabase
               .from("inventory_items")
-              .update({ stock: Number(pItem.stock) + d }, { count: "exact" })
+              .update({ stock: Number(pItem.stock) + d })
               .eq("id", pair.item_id);
-            ensureMutationSucceeded(pairItemError, pairItemCount, "تعذّر عكس رصيد الصنف المقابل");
+            if (pairItemError) throw pairItemError;
           }
-          const { error: pairDeleteError, count: pairDeleteCount } = await supabase
-            .from("inventory_movements")
-            .delete({ count: "exact" })
-            .eq("id", pair.id);
-          ensureMutationSucceeded(pairDeleteError, pairDeleteCount, "لم يتم حذف الحركة المقابلة داخل الفاتورة");
+          // tolerate already-deleted pair
+          await supabase.from("inventory_movements").delete().eq("id", pair.id);
         }
         const { error: deleteError, count: deletedCount } = await supabase
           .from("inventory_movements")
           .delete({ count: "exact" })
           .eq("id", m.id);
-        ensureMutationSucceeded(deleteError, deletedCount, "لم يتم حذف إحدى حركات الفاتورة");
+        ensureMutationSucceeded(deleteError, deletedCount, "تعذّر حذف إحدى حركات الفاتورة (تحقق من الصلاحيات)");
       }
       toast.success("تم حذف الفاتورة وعكس حركاتها");
       await fetchAll();
     } catch (e: any) {
       toast.error("فشل الحذف: " + (e?.message || ""));
+    }
+  };
+
+  // ===== تعديل فاتورة كاملة (تعديل كميات الأصناف أو حذف سطر) =====
+  type EditInvLine = { movId: string; itemId: string; name: string; unit: string; originalQty: number; qty: string; remove: boolean };
+  const [editInvoice, setEditInvoice] = useState<Invoice | null>(null);
+  const [editInvLines, setEditInvLines] = useState<EditInvLine[]>([]);
+  const [editInvBusy, setEditInvBusy] = useState(false);
+
+  const openEditInvoice = (inv: Invoice) => {
+    setEditInvoice(inv);
+    setEditInvLines(inv.movements.map((m) => {
+      const it = items.find((i) => i.id === m.item_id);
+      const unit = it?.unit || "";
+      const weight = isWeightUnit(unit);
+      const qty = Number(m.quantity);
+      const display = weight ? qty / PACKAGE_KG : qty;
+      return {
+        movId: m.id,
+        itemId: m.item_id,
+        name: m.item_name || "—",
+        unit,
+        originalQty: qty,
+        qty: String(display),
+        remove: false,
+      };
+    }));
+  };
+
+  const applyMovementQtyChange = async (m: Movement, newQty: number) => {
+    const oldQty = Number(m.quantity);
+    const diff = newQty - oldQty;
+    if (diff === 0) return;
+    const pair = await findPair(m);
+    const thisItem = (await supabase.from("inventory_items").select("id, stock").eq("id", m.item_id).single()).data as any;
+    if (thisItem) {
+      const delta = m.movement_type === "in" ? diff : -diff;
+      if (Number(thisItem.stock) + delta < 0) throw new Error(`الكمية الجديدة تُخفّض رصيد "${m.item_name}" لأقل من صفر`);
+      const { error } = await supabase.from("inventory_items").update({ stock: Number(thisItem.stock) + delta }).eq("id", m.item_id);
+      if (error) throw error;
+    }
+    if (pair) {
+      const pItem = (await supabase.from("inventory_items").select("id, stock").eq("id", pair.item_id).single()).data as any;
+      if (pItem) {
+        const delta = pair.movement_type === "in" ? diff : -diff;
+        if (Number(pItem.stock) + delta < 0) throw new Error("الكمية الجديدة تُخفّض رصيد المخزن المقابل لأقل من صفر");
+        const { error } = await supabase.from("inventory_items").update({ stock: Number(pItem.stock) + delta }).eq("id", pair.item_id);
+        if (error) throw error;
+      }
+      await supabase.from("inventory_movements").update({ quantity: newQty }).eq("id", pair.id);
+    }
+    const { error: upErr } = await supabase.from("inventory_movements").update({ quantity: newQty }).eq("id", m.id);
+    if (upErr) throw upErr;
+  };
+
+  const applyMovementDelete = async (m: Movement) => {
+    const pair = await findPair(m);
+    const thisItem = (await supabase.from("inventory_items").select("id, stock").eq("id", m.item_id).single()).data as any;
+    if (thisItem) {
+      const delta = m.movement_type === "in" ? -Number(m.quantity) : Number(m.quantity);
+      const { error } = await supabase.from("inventory_items").update({ stock: Number(thisItem.stock) + delta }).eq("id", m.item_id);
+      if (error) throw error;
+    }
+    if (pair) {
+      const pItem = (await supabase.from("inventory_items").select("id, stock").eq("id", pair.item_id).single()).data as any;
+      if (pItem) {
+        const d = pair.movement_type === "in" ? -Number(pair.quantity) : Number(pair.quantity);
+        const { error } = await supabase.from("inventory_items").update({ stock: Number(pItem.stock) + d }).eq("id", pair.item_id);
+        if (error) throw error;
+      }
+      await supabase.from("inventory_movements").delete().eq("id", pair.id);
+    }
+    const { error: delErr, count } = await supabase.from("inventory_movements").delete({ count: "exact" }).eq("id", m.id);
+    ensureMutationSucceeded(delErr, count, "تعذّر حذف السطر (تحقق من الصلاحيات)");
+  };
+
+  const submitInvoiceEdit = async () => {
+    if (!editInvoice) return;
+    setEditInvBusy(true);
+    try {
+      for (const line of editInvLines) {
+        const m = editInvoice.movements.find((mm) => mm.id === line.movId);
+        if (!m) continue;
+        if (line.remove) {
+          await applyMovementDelete(m);
+          continue;
+        }
+        const inputQty = Number(line.qty);
+        if (!(inputQty > 0)) throw new Error(`كمية غير صحيحة لـ "${line.name}"`);
+        const weight = isWeightUnit(line.unit);
+        const realQty = weight ? inputQty * PACKAGE_KG : inputQty;
+        if (realQty !== line.originalQty) {
+          await applyMovementQtyChange(m, realQty);
+        }
+      }
+      toast.success("تم حفظ تعديلات الفاتورة");
+      setEditInvoice(null);
+      await fetchAll();
+    } catch (e: any) {
+      toast.error("فشل التعديل: " + (e?.message || ""));
+    } finally {
+      setEditInvBusy(false);
     }
   };
 
@@ -882,6 +984,11 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
                                 <Eye className="w-4 h-4" />
                               </Button>
                               {canEditMovements && (
+                                <Button variant="ghost" size="icon" onClick={() => openEditInvoice(inv)} title="تعديل الفاتورة">
+                                  <Pencil className="w-4 h-4" />
+                                </Button>
+                              )}
+                              {canEditMovements && (
                                 <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteInvoice(inv)} title="حذف الفاتورة">
                                   <Trash2 className="w-4 h-4" />
                                 </Button>
@@ -1031,6 +1138,63 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* تعديل فاتورة كاملة */}
+      <Dialog open={!!editInvoice} onOpenChange={(o) => { if (!o) setEditInvoice(null); }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              تعديل {editInvoice?.kind === "supply" ? "فاتورة توريد" : "فاتورة مرتجع"} — {editInvoice ? new Date(editInvoice.at).toLocaleString("ar-EG") : ""}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+            {editInvLines.length === 0 ? (
+              <p className="text-sm text-muted-foreground">لا توجد أصناف</p>
+            ) : editInvLines.map((l, idx) => {
+              const weight = isWeightUnit(l.unit);
+              return (
+                <div key={l.movId} className={`flex items-center gap-2 p-2 rounded border ${l.remove ? "opacity-50 line-through" : ""}`}>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium">{l.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {weight ? "عبوة (نص كيلو)" : (l.unit || "قطعة")} — الكمية الأصلية: {weight ? l.originalQty / PACKAGE_KG : l.originalQty}
+                    </div>
+                  </div>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={l.qty}
+                    disabled={l.remove}
+                    onChange={(e) => setEditInvLines((prev) => prev.map((x, i) => i === idx ? { ...x, qty: e.target.value } : x))}
+                    className="w-28"
+                  />
+                  <Button
+                    variant={l.remove ? "outline" : "ghost"}
+                    size="icon"
+                    className={l.remove ? "" : "text-destructive"}
+                    title={l.remove ? "تراجع" : "حذف هذا السطر"}
+                    onClick={() => setEditInvLines((prev) => prev.map((x, i) => i === idx ? { ...x, remove: !x.remove } : x))}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              );
+            })}
+            <p className="text-xs text-muted-foreground">
+              عند الحفظ: الفرق في الكميات يُعكس تلقائياً على المخزن المقابل، والأسطر المحذوفة تُرجع كمياتها بالكامل.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditInvoice(null)} disabled={editInvBusy}>إلغاء</Button>
+            <Button onClick={submitInvoiceEdit} disabled={editInvBusy}>
+              {editInvBusy && <Loader2 className="w-4 h-4 ml-2 animate-spin" />}
+              حفظ التعديلات
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
 
 
