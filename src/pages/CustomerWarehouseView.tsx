@@ -555,6 +555,29 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Dialog open={!!editMov} onOpenChange={(o) => { if (!o) setEditMov(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>تعديل كمية الحركة</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="text-sm text-muted-foreground">
+              المنتج: <span className="font-medium text-foreground">{editMov?.item_name}</span>
+            </div>
+            <div>
+              <label className="text-sm font-medium">الكمية الجديدة</label>
+              <Input type="number" min="0" step="0.01" value={editQty} onChange={(e) => setEditQty(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditMov(null)}>إلغاء</Button>
+            <Button onClick={submitEdit} disabled={editBusy}>
+              {editBusy && <Loader2 className="w-4 h-4 ml-2 animate-spin" />}
+              حفظ
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
