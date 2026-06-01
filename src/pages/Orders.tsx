@@ -435,7 +435,7 @@ const Orders = () => {
   };
 
 
-  const filteredOrders = orders.filter((order) => {
+  const filteredOrders = useMemo(() => orders.filter((order) => {
     const matchesStatus =
       filterStatus === "all" || order.status === filterStatus;
     const q = searchQuery.trim().toLowerCase();
@@ -483,7 +483,7 @@ const Orders = () => {
     const matchesWarehouseScope =
       !isWarehouseSupervisor || fulfillmentKey === 'pickup_main' || fulfillmentKey === 'delivery_main';
     return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment && matchesWarehouseScope;
-  });
+  }), [orders, filterStatus, searchQuery, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, filterFulfillment, isWarehouseSupervisor]);
 
   const availableGovernorates = Array.from(
     new Set(orders.map(o => (o.governorate || "").trim()).filter(Boolean))
