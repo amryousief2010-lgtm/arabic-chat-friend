@@ -165,7 +165,6 @@ export default function InboundSupplyTab({ warehouseId, warehouseName }: Props) 
       "المصدر": h.party || "",
       "رقم الفاتورة": h.reference || "",
       "ملاحظات": h.notes || "",
-      "بواسطة": h.performer?.full_name || "",
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
