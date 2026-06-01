@@ -234,8 +234,8 @@ const Orders = () => {
   };
   const [searchQuery, setSearchQuery] = useState("");
   const now = new Date();
-  const [filterMonth, setFilterMonth] = useState<string>(String(now.getUTCMonth() + 1));
-  const [filterYear, setFilterYear] = useState<string>(String(now.getUTCFullYear()));
+  const [filterMonth, setFilterMonth] = useState<string>("all");
+  const [filterYear, setFilterYear] = useState<string>("all");
   const [collectionMismatch, setCollectionMismatch] = useState<{
     orderId: string;
     orderNumber: string;
@@ -251,7 +251,9 @@ const Orders = () => {
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      // حساب نطاق التواريخ على الخادم لتقليل البيانات (افتراضياً الشهر/السنة الحاليان)
+      // طبّق فلتر التاريخ على الخادم فقط عندما يختاره المستخدم صراحةً.
+      // إبقاء الصفحة على "الكل" افتراضياً يمنع ظهور قائمة فارغة عند بداية شهر جديد
+      // أو عند عدم وجود طلبات في الشهر الحالي رغم وجود طلبات سابقة.
       let startDate: string | null = null;
       let endDate: string | null = null;
       if (filterYear !== 'all') {
