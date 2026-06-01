@@ -85,6 +85,9 @@ const Slaughterhouse = () => {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
+  const [adjustments, setAdjustments] = useState<Array<{ id: string; adjustment_date: string; new_balance: number; delta: number; reason: string | null; created_by: string | null; created_at: string }>>([]);
+  const [adjustOpen, setAdjustOpen] = useState(false);
+  const [adjustForm, setAdjustForm] = useState({ new_balance: 0, reason: "", adjustment_date: new Date().toISOString().slice(0, 10) });
   const [loading, setLoading] = useState(true);
 
   // Dialogs
@@ -106,7 +109,7 @@ const Slaughterhouse = () => {
 
   const fetchAll = async () => {
     setLoading(true);
-    const [r, b, y, o, w, q, br, bd, tr, st, au, pr] = await Promise.all([
+    const [r, b, y, o, w, q, br, bd, tr, st, au, pr, adj] = await Promise.all([
       supabase.from("slaughter_live_receipts" as any).select("*").order("receipt_date", { ascending: false }).limit(500),
       supabase.from("slaughter_batches" as any).select("*").order("slaughter_date", { ascending: false }).limit(500),
       supabase.from("slaughter_yield_standards" as any).select("*").order("display_order"),
@@ -119,6 +122,7 @@ const Slaughterhouse = () => {
       supabase.from("slaughter_settings" as any).select("*").limit(1).maybeSingle(),
       supabase.from("slaughter_audit_log" as any).select("*").order("performed_at", { ascending: false }).limit(500),
       supabase.from("profiles" as any).select("id, full_name").limit(1000),
+      supabase.from("slaughter_live_stock_adjustments" as any).select("*").order("created_at", { ascending: false }).limit(200),
     ]);
     setReceipts((r.data as any) || []);
     setBatches((b.data as any) || []);
@@ -134,6 +138,7 @@ const Slaughterhouse = () => {
     const pm: Record<string, string> = {};
     ((pr.data as any) || []).forEach((p: any) => { pm[p.id] = p.full_name; });
     setProfiles(pm);
+    setAdjustments((adj.data as any) || []);
     setLoading(false);
   };
 
@@ -150,6 +155,7 @@ const Slaughterhouse = () => {
     .filter(b => b.slaughter_date >= monthStartStr && b.status !== "cancelled")
     .reduce((s, b) => s + (b.birds_slaughtered || 0), 0);
   // النعام القائم = المُستلم - النافق - المذبوح - النافق قبل الذبح - المرفوض
+  const adjustmentsSum = adjustments.reduce((s, a) => s + (a.delta || 0), 0);
   const liveBalance = (() => {
     const received = receipts.reduce((s, r) => s + (r.bird_count || 0), 0);
     const doa = receipts.reduce((s, r) => s + (r.dead_on_arrival || 0), 0);
@@ -157,7 +163,7 @@ const Slaughterhouse = () => {
     const slaughtered = active.reduce((s, b) => s + (b.birds_slaughtered || 0), 0);
     const preDead = active.reduce((s, b) => s + (b.pre_slaughter_dead || 0), 0);
     const rejected = active.reduce((s, b) => s + (b.rejected_birds || 0), 0);
-    return Math.max(received - doa - slaughtered - preDead - rejected, 0);
+    return Math.max(received - doa - slaughtered - preDead - rejected + adjustmentsSum, 0);
   })();
   const yieldToday = (() => {
     const todays = batches.filter(b => b.slaughter_date === today && b.actual_yield_pct > 0);
@@ -190,6 +196,28 @@ const Slaughterhouse = () => {
     toast.success("تم تسجيل الاستلام — أضف وزن كل طائر منفصلًا الآن");
     setReceiptOpen(false);
     setReceiptForm({ source_type: "internal_farm", source_name: "", bird_count: 0, total_weight_kg: 0, avg_age_days: 0, price_per_kg: 0, dead_on_arrival: 0, notes: "", receipt_date: todayStr });
+    fetchAll();
+  };
+
+  const saveLiveStockAdjustment = async () => {
+    if (!isExecManager) { toast.error("غير مصرح لك بتعديل رصيد النعام القائم"); return; }
+    const newBal = Number(adjustForm.new_balance);
+    if (!Number.isFinite(newBal) || newBal < 0) { toast.error("أدخل رصيد صحيح (0 أو أكثر)"); return; }
+    const delta = newBal - liveBalance;
+    if (delta === 0) { toast.error("الرصيد الجديد مطابق للحالي"); return; }
+    if (!adjustForm.reason.trim()) { toast.error("اكتب سبب التعديل"); return; }
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase.from("slaughter_live_stock_adjustments" as any).insert({
+      adjustment_date: adjustForm.adjustment_date,
+      new_balance: newBal,
+      delta,
+      reason: adjustForm.reason.trim(),
+      created_by: user?.id,
+    });
+    if (error) { toast.error(error.message); return; }
+    toast.success(`تم ضبط الرصيد إلى ${newBal} نعامة`);
+    setAdjustOpen(false);
+    setAdjustForm({ new_balance: 0, reason: "", adjustment_date: todayStr });
     fetchAll();
   };
 
@@ -715,7 +743,19 @@ const Slaughterhouse = () => {
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
         <Card className="border-primary/40 bg-primary/5"><CardContent className="p-3 flex items-center justify-between">
-          <div><p className="text-xs text-muted-foreground">النعام القائم 🐦</p><p className="text-2xl font-bold text-primary">{liveBalance}</p></div>
+          <div>
+            <p className="text-xs text-muted-foreground">النعام القائم 🐦</p>
+            <p className="text-2xl font-bold text-primary">{liveBalance}</p>
+            {isExecManager && (
+              <button
+                type="button"
+                onClick={() => { setAdjustForm({ new_balance: liveBalance, reason: "", adjustment_date: todayStr }); setAdjustOpen(true); }}
+                className="mt-1 text-[10px] text-primary underline hover:opacity-80"
+              >
+                تعديل الرصيد
+              </button>
+            )}
+          </div>
           <Bird className="w-7 h-7 text-primary/60" />
         </CardContent></Card>
         <Card className="border-orange-400/40 bg-orange-50/40 dark:bg-orange-950/10"><CardContent className="p-3 flex items-center justify-between">
@@ -1359,6 +1399,59 @@ const Slaughterhouse = () => {
           <SettingsTab settings={settings} onSave={saveSettings} />
         </TabsContent>
       </Tabs>
+
+      {/* Adjust Live Stock Dialog */}
+      <Dialog open={adjustOpen} onOpenChange={setAdjustOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>تعديل رصيد النعام القائم</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <div className="p-3 rounded bg-muted/40 text-xs leading-relaxed">
+              الرصيد المحسوب حاليًا: <b className="text-primary">{liveBalance}</b> نعامة.
+              <br />هذا التعديل يُسجَّل كقيد افتتاحي/تسوية يدوية ولا يحذف أي توريد أو دفعة دبح.
+            </div>
+            <div className="space-y-1">
+              <Label>تاريخ التسوية</Label>
+              <Input type="date" value={adjustForm.adjustment_date}
+                onChange={(e) => setAdjustForm(f => ({ ...f, adjustment_date: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <Label>الرصيد الجديد (عدد النعام القائم)</Label>
+              <Input type="number" min={0} value={adjustForm.new_balance}
+                onChange={(e) => setAdjustForm(f => ({ ...f, new_balance: Number(e.target.value) }))} />
+              <p className="text-[11px] text-muted-foreground">
+                الفرق: <b className={Number(adjustForm.new_balance) - liveBalance >= 0 ? "text-emerald-600" : "text-red-600"}>
+                  {Number(adjustForm.new_balance) - liveBalance >= 0 ? "+" : ""}{Number(adjustForm.new_balance) - liveBalance}
+                </b>
+              </p>
+            </div>
+            <div className="space-y-1">
+              <Label>سبب التعديل *</Label>
+              <Textarea rows={3} placeholder="مثال: قيد افتتاحي لشهر 6 / تسوية جرد فعلي..."
+                value={adjustForm.reason}
+                onChange={(e) => setAdjustForm(f => ({ ...f, reason: e.target.value }))} />
+            </div>
+            {adjustments.length > 0 && (
+              <div className="border-t pt-2">
+                <p className="text-xs font-semibold mb-1">آخر التسويات:</p>
+                <div className="max-h-40 overflow-auto space-y-1">
+                  {adjustments.slice(0, 5).map(a => (
+                    <div key={a.id} className="text-[11px] flex justify-between gap-2 p-1.5 rounded bg-muted/30">
+                      <span>{a.adjustment_date} — <b>{a.new_balance}</b> ({a.delta >= 0 ? "+" : ""}{a.delta})</span>
+                      <span className="text-muted-foreground truncate max-w-[180px]" title={a.reason || ""}>{a.reason}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAdjustOpen(false)}>إلغاء</Button>
+            <Button onClick={saveLiveStockAdjustment}>حفظ التسوية</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };

@@ -6327,6 +6327,36 @@ export type Database = {
         }
         Relationships: []
       }
+      slaughter_live_stock_adjustments: {
+        Row: {
+          adjustment_date: string
+          created_at: string
+          created_by: string | null
+          delta: number
+          id: string
+          new_balance: number
+          reason: string | null
+        }
+        Insert: {
+          adjustment_date?: string
+          created_at?: string
+          created_by?: string | null
+          delta: number
+          id?: string
+          new_balance: number
+          reason?: string | null
+        }
+        Update: {
+          adjustment_date?: string
+          created_at?: string
+          created_by?: string | null
+          delta?: number
+          id?: string
+          new_balance?: number
+          reason?: string | null
+        }
+        Relationships: []
+      }
       slaughter_quality_checks: {
         Row: {
           check_date: string
