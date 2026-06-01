@@ -231,7 +231,7 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
             .order("name"),
           supabase
             .from("inventory_movements")
-            .select("id, performed_at, movement_type, quantity, notes, party, item_id, product_id, source_warehouse_id, destination_warehouse_id, reference_type")
+            .select("id, warehouse_id, performed_at, movement_type, quantity, notes, party, item_id, product_id, source_warehouse_id, destination_warehouse_id, reference_type")
             .eq("warehouse_id", targetId)
             .order("performed_at", { ascending: false })
             .limit(200),
@@ -700,10 +700,23 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
   };
 
   // ===== تعديل فاتورة كاملة (تعديل كميات الأصناف أو حذف سطر) =====
-  type EditInvLine = { movId: string; itemId: string; name: string; unit: string; originalQty: number; qty: string; remove: boolean };
+  type EditInvLine = { movId: string; itemId: string; name: string; unit: string; originalQty: number; qty: string; remove: boolean; isNew?: boolean };
   const [editInvoice, setEditInvoice] = useState<Invoice | null>(null);
   const [editInvLines, setEditInvLines] = useState<EditInvLine[]>([]);
   const [editInvBusy, setEditInvBusy] = useState(false);
+
+  const editInvoicePickList = useMemo(() => {
+    const source = editInvoice?.kind === "supply" ? mainItems : items;
+    const byName = new Map<string, typeof source[number]>();
+    for (const it of source) {
+      const stock = Number(it.stock) || 0;
+      if (stock <= 0) continue;
+      const key = (it.name || "").trim();
+      const prev = byName.get(key);
+      if (!prev || Number(prev.stock) < stock) byName.set(key, it);
+    }
+    return Array.from(byName.values());
+  }, [editInvoice?.kind, items, mainItems]);
 
   const openEditInvoice = (inv: Invoice) => {
     setEditInvoice(inv);
@@ -723,6 +736,22 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
         remove: false,
       };
     }));
+  };
+
+  const addEditInvoiceLine = () => {
+    setEditInvLines((prev) => [
+      ...prev,
+      {
+        movId: `new-${Date.now()}-${prev.length}`,
+        itemId: "",
+        name: "",
+        unit: "",
+        originalQty: 0,
+        qty: "",
+        remove: false,
+        isNew: true,
+      },
+    ]);
   };
 
   const applyMovementQtyChange = async (m: Movement, newQty: number) => {
@@ -770,6 +799,91 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
     }
     const { error: delErr, count } = await supabase.from("inventory_movements").delete({ count: "exact" }).eq("id", m.id);
     ensureMutationSucceeded(delErr, count, "تعذّر حذف السطر (تحقق من الصلاحيات)");
+  };
+
+  const addInvoiceMovementLine = async (line: EditInvLine) => {
+    if (!editInvoice || !whId || !mainWhId) throw new Error("بيانات المخازن غير مكتملة");
+    if (!line.name) throw new Error("اختر المنتج الجديد أولاً");
+
+    const sourcePool = editInvoice.kind === "supply" ? mainItems : items;
+    const destPool = editInvoice.kind === "supply" ? items : mainItems;
+    const sourceWh = editInvoice.kind === "supply" ? mainWhId : whId;
+    const destWh = editInvoice.kind === "supply" ? whId : mainWhId;
+    const refType = editInvoice.kind === "supply" ? "customer_supply" : "customer_return";
+    const baseNote = editInvoice.notes || (editInvoice.kind === "supply" ? "توريد إلى عميل" : "مرتجع من عميل");
+
+    const sourceItem = sourcePool.find((i) => i.name === line.name);
+    if (!sourceItem) throw new Error(`الصنف "${line.name}" غير متاح حالياً`);
+
+    const inputQty = Number(line.qty);
+    if (!(inputQty > 0)) throw new Error(`كمية غير صحيحة لـ "${line.name}"`);
+
+    const weight = isWeightUnit(sourceItem.unit);
+    const realQty = weight ? inputQty * PACKAGE_KG : inputQty;
+    if (Number(sourceItem.stock) < realQty) {
+      throw new Error(`الكمية المتاحة لـ "${line.name}" أقل من المطلوب`);
+    }
+
+    let destItem = destPool.find((i) => i.name === line.name);
+    if (!destItem) {
+      const { data: newRow, error: insErr } = await supabase
+        .from("inventory_items")
+        .insert({
+          warehouse_id: destWh,
+          name: line.name,
+          unit: sourceItem.unit,
+          stock: 0,
+          product_id: sourceItem.product_id,
+        })
+        .select("id, name, unit, stock, product_id")
+        .single();
+      if (insErr || !newRow) throw insErr || new Error("تعذّر إنشاء الصنف الجديد في المخزن المقابل");
+      destItem = newRow as InventoryItem;
+    }
+
+    const { error: sourceErr } = await supabase
+      .from("inventory_items")
+      .update({ stock: Number(sourceItem.stock) - realQty })
+      .eq("id", sourceItem.id);
+    if (sourceErr) throw sourceErr;
+
+    const { error: destErr } = await supabase
+      .from("inventory_items")
+      .update({ stock: Number(destItem.stock) + realQty })
+      .eq("id", destItem.id);
+    if (destErr) throw destErr;
+
+    const { error: movErr } = await supabase.from("inventory_movements").insert([
+      {
+        item_id: sourceItem.id,
+        warehouse_id: sourceWh,
+        source_warehouse_id: sourceWh,
+        destination_warehouse_id: destWh,
+        movement_type: "out",
+        quantity: realQty,
+        notes: baseNote,
+        party: warehouseName,
+        reference_type: refType,
+        performed_by: user?.id ?? null,
+        product_id: sourceItem.product_id,
+        performed_at: editInvoice.at,
+      },
+      {
+        item_id: destItem.id,
+        warehouse_id: destWh,
+        source_warehouse_id: sourceWh,
+        destination_warehouse_id: destWh,
+        movement_type: "in",
+        quantity: realQty,
+        notes: baseNote,
+        party: warehouseName,
+        reference_type: refType,
+        performed_by: user?.id ?? null,
+        product_id: sourceItem.product_id,
+        performed_at: editInvoice.at,
+      },
+    ]);
+    if (movErr) throw movErr;
   };
 
   const submitInvoiceEdit = async () => {
