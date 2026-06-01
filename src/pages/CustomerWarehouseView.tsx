@@ -890,7 +890,18 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
     if (!editInvoice) return;
     setEditInvBusy(true);
     try {
+      const activeNames = editInvLines.filter((l) => !l.remove).map((l) => l.name).filter(Boolean);
+      if (new Set(activeNames).size !== activeNames.length) {
+        throw new Error("لا يمكن تكرار نفس المنتج داخل الفاتورة");
+      }
+
       for (const line of editInvLines) {
+        if (line.isNew) {
+          if (line.remove || !line.name) continue;
+          await addInvoiceMovementLine(line);
+          continue;
+        }
+
         const m = editInvoice.movements.find((mm) => mm.id === line.movId);
         if (!m) continue;
         if (line.remove) {
@@ -1284,14 +1295,48 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
             {editInvLines.length === 0 ? (
               <p className="text-sm text-muted-foreground">لا توجد أصناف</p>
             ) : editInvLines.map((l, idx) => {
-              const weight = isWeightUnit(l.unit);
+              const selectedItem = l.isNew ? editInvoicePickList.find((i) => i.name === l.name) : null;
+              const currentUnit = l.isNew ? (selectedItem?.unit || l.unit) : l.unit;
+              const weight = isWeightUnit(currentUnit);
+              const chosenElsewhere = new Set(
+                editInvLines
+                  .filter((_, i) => i !== idx)
+                  .map((x) => x.name)
+                  .filter(Boolean),
+              );
               return (
                 <div key={l.movId} className={`flex items-center gap-2 p-2 rounded border ${l.remove ? "opacity-50 line-through" : ""}`}>
                   <div className="flex-1">
-                    <div className="text-sm font-medium">{l.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {weight ? "عبوة (نص كيلو)" : (l.unit || "قطعة")} — الكمية الأصلية: {weight ? l.originalQty / PACKAGE_KG : l.originalQty}
-                    </div>
+                    {l.isNew ? (
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-muted-foreground">المنتج الجديد</label>
+                        <ProductPicker
+                          items={editInvoicePickList}
+                          value={l.name}
+                          onChange={(v) => setEditInvLines((prev) => prev.map((x, i) => i === idx ? {
+                            ...x,
+                            name: v,
+                            itemId: editInvoicePickList.find((it) => it.name === v)?.id || "",
+                            unit: editInvoicePickList.find((it) => it.name === v)?.unit || "",
+                          } : x))}
+                          disabledNames={chosenElsewhere}
+                          emptyMessage={editInvoice?.kind === "supply" ? "المخزن الرئيسي فارغ" : "لا توجد منتجات في هذا المخزن"}
+                        />
+                        {selectedItem && (
+                          <div className="text-[11px] text-muted-foreground">
+                            المتاح: {Number(selectedItem.stock).toLocaleString("ar-EG")} {selectedItem.unit}
+                            {weight ? ` • ${toPackages(Number(selectedItem.stock)).toLocaleString("ar-EG")} عبوة` : ""}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        <div className="text-sm font-medium">{l.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {weight ? "عبوة (نص كيلو)" : (currentUnit || "قطعة")} — الكمية الأصلية: {weight ? l.originalQty / PACKAGE_KG : l.originalQty}
+                        </div>
+                      </>
+                    )}
                   </div>
                   <Input
                     type="number"
@@ -1314,8 +1359,11 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
                 </div>
               );
             })}
+            <Button type="button" variant="outline" size="sm" onClick={addEditInvoiceLine} className="gap-1 w-fit">
+              <Plus className="w-4 h-4" /> إضافة منتج جديد
+            </Button>
             <p className="text-xs text-muted-foreground">
-              عند الحفظ: الفرق في الكميات يُعكس تلقائياً على المخزن المقابل، والأسطر المحذوفة تُرجع كمياتها بالكامل.
+              عند الحفظ: يمكنك تعديل الكمية، حذف سطر، أو إضافة صنف جديد داخل نفس الفاتورة، وسيتم عكس الأرصدة تلقائياً بين المخزنين.
             </p>
           </div>
           <DialogFooter>
