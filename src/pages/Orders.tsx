@@ -984,6 +984,13 @@ const Orders = () => {
                         <MapPin className="w-3 h-3" /> {order.governorate}
                       </div>
                     )}
+                    {isPrivateDeliveryRep && order.delivery_address && (
+                      <div className="text-xs bg-primary/5 border border-primary/20 rounded px-2 py-1 break-words">
+                        <span className="font-semibold text-primary">العنوان: </span>
+                        {order.delivery_address}
+                      </div>
+                    )}
+
                     {(order.source_warehouse_name || order.fulfillment_type || order.shipping_company) && (
                       <div className="text-[11px]">
                         <Badge variant="outline" className="text-[10px]">
