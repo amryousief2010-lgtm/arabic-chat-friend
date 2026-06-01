@@ -106,6 +106,7 @@ const StockSnapshotReview = lazy(() => import("@/pages/modules/shared/StockSnaps
 const StockReconciliation = lazy(() => import("@/pages/StockReconciliation"));
 const PrivateDeliveryCollection = lazy(() => import("@/pages/PrivateDeliveryCollection"));
 const ChickOrders = lazy(() => import("@/pages/ChickOrders"));
+const MainWarehouseActivity = lazy(() => import("@/pages/MainWarehouseActivity"));
 
 const RedirectWithQuery = ({ to }: { to: string }) => {
   const location = useLocation();
