@@ -2259,6 +2259,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          labor_cost: number
           notes: string | null
           prod_date: string
           prod_no: string
@@ -2273,6 +2274,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          labor_cost?: number
           notes?: string | null
           prod_date?: string
           prod_no?: string
@@ -2287,6 +2289,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          labor_cost?: number
           notes?: string | null
           prod_date?: string
           prod_no?: string
@@ -2879,11 +2882,13 @@ export type Database = {
           created_at: string
           created_by: string | null
           customer: string | null
+          customer_phone: string | null
           id: string
           notes: string | null
           profit: number
           sale_date: string
           sale_no: string
+          salesperson: string | null
           total_amount: number
           total_cost: number
           updated_at: string
@@ -2892,11 +2897,13 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           customer?: string | null
+          customer_phone?: string | null
           id?: string
           notes?: string | null
           profit?: number
           sale_date?: string
           sale_no?: string
+          salesperson?: string | null
           total_amount?: number
           total_cost?: number
           updated_at?: string
@@ -2905,11 +2912,13 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           customer?: string | null
+          customer_phone?: string | null
           id?: string
           notes?: string | null
           profit?: number
           sale_date?: string
           sale_no?: string
+          salesperson?: string | null
           total_amount?: number
           total_cost?: number
           updated_at?: string
