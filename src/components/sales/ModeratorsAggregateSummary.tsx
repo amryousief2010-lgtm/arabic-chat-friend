@@ -147,11 +147,11 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
 
       const month = emptyAgg();
       const today = emptyAgg();
-      month.orders = girlsOrders.length;
+      monthAgg.orders = girlsOrders.length;
       today.orders = girlsOrders.filter((o: any) =>
         o.created_at.slice(0, 10) === todayStr,
       ).length;
-      month.sales = girlsOrders.reduce(
+      monthAgg.sales = girlsOrders.reduce(
         (s: number, o: any) => s + Number(o.total || 0),
         0,
       );
@@ -168,7 +168,7 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
         );
         if (cat === "other") continue;
         const qty = Number(it.quantity || 0);
-        month.weight[cat] += qty;
+        monthAgg.weight[cat] += qty;
         if (o.created_at.slice(0, 10) === todayStr) today.weight[cat] += qty;
       }
 
@@ -251,10 +251,10 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
               <div>
                 <p className="text-xs opacity-80">إجمالي الشهر</p>
                 <h4 className="text-xl font-bold">
-                  {isLoading ? "…" : `${fmt(month.sales)} ج.م`}
+                  {isLoading ? "…" : `${fmt(monthAgg.sales)} ج.م`}
                 </h4>
                 <p className="text-[11px] opacity-80 mt-0.5">
-                  {isLoading ? "…" : `${month.orders} طلب`}
+                  {isLoading ? "…" : `${monthAgg.orders} طلب`}
                 </p>
               </div>
               <div className="w-10 h-10 rounded-xl bg-white/20 ring-2 ring-white/40 flex items-center justify-center">
@@ -267,7 +267,7 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
                   <Beef className="w-3.5 h-3.5" /> لحوم
                 </div>
                 <p className="font-bold text-base mt-1">
-                  {isLoading ? "…" : `${fmt(month.weight.meat)} كجم`}
+                  {isLoading ? "…" : `${fmt(monthAgg.weight.meat)} كجم`}
                 </p>
               </div>
               <div className="bg-white/15 rounded-lg p-2">
@@ -275,7 +275,7 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
                   <Drumstick className="w-3.5 h-3.5" /> بالعظم
                 </div>
                 <p className="font-bold text-base mt-1">
-                  {isLoading ? "…" : `${fmt(month.weight.bone)} كجم`}
+                  {isLoading ? "…" : `${fmt(monthAgg.weight.bone)} كجم`}
                 </p>
               </div>
               <div className="bg-white/15 rounded-lg p-2">
@@ -283,7 +283,7 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
                   <Flame className="w-3.5 h-3.5" /> مصنعات
                 </div>
                 <p className="font-bold text-base mt-1">
-                  {isLoading ? "…" : `${fmt(month.weight.processed)} كجم`}
+                  {isLoading ? "…" : `${fmt(monthAgg.weight.processed)} كجم`}
                 </p>
               </div>
             </div>
