@@ -87,7 +87,7 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
   const [mainWhId, setMainWhId] = useState<string | null>(null);
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [mainItems, setMainItems] = useState<InventoryItem[]>([]);
-  const [sellableProductNames, setSellableProductNames] = useState<Set<string>>(new Set());
+  const [warehouseProductNames, setWarehouseProductNames] = useState<Set<string>>(new Set());
   const [movements, setMovements] = useState<Movement[]>([]);
 
   // dialog state
@@ -212,6 +212,8 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
   const fetchAll = async () => {
     setLoading(true);
     try {
+      let customerInventory: InventoryItem[] = [];
+      let mainInventory: InventoryItem[] = [];
       const { data: whs } = await supabase
         .from("warehouses")
         .select("id, name")
@@ -241,6 +243,7 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
             .limit(200),
         ]);
         const its = (itemsRes.data || []) as InventoryItem[];
+        customerInventory = its;
         setItems(its);
         const movs = (movRes.data || []) as Movement[];
         const nameMap = new Map(its.map((i) => [i.id, i.name]));
@@ -254,14 +257,33 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
           .eq("warehouse_id", mainId)
           .eq("is_active", true)
           .order("name");
-        setMainItems((mItems || []) as InventoryItem[]);
+        mainInventory = (mItems || []) as InventoryItem[];
+        setMainItems(mainInventory);
       }
 
-      const { data: prodRows } = await supabase
-        .from("products")
-        .select("name")
-        .eq("is_active", true);
-      setSellableProductNames(new Set((prodRows || []).map((p: any) => (p.name || "").trim())));
+      const customerNames = new Set(customerInventory.map((i) => (i.name || "").trim()).filter(Boolean));
+      const historyNames = new Set<string>();
+      const { data: historyRows } = await supabase
+        .from("inventory_movements")
+        .select("item_id")
+        .eq("party", warehouseName)
+        .in("reference_type", ["customer_supply", "customer_return"])
+        .limit(1000);
+
+      const historicItemIds = Array.from(new Set((historyRows || []).map((row: any) => row.item_id).filter(Boolean)));
+      for (let i = 0; i < historicItemIds.length; i += 500) {
+        const slice = historicItemIds.slice(i, i + 500);
+        const { data: historicItems } = await supabase
+          .from("inventory_items")
+          .select("name")
+          .in("id", slice);
+        (historicItems || []).forEach((item: any) => {
+          const name = (item.name || "").trim();
+          if (name) historyNames.add(name);
+        });
+      }
+
+      setWarehouseProductNames(new Set([...customerNames, ...historyNames]));
     } catch (e: any) {
       toast.error("تعذّر تحميل بيانات المخزن: " + (e?.message || ""));
     } finally {
@@ -349,9 +371,9 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
       if (deductFromCustomer && openDialog === "return" && stock <= 0) continue;
       if (openDialog === "supply" && stock <= 0) continue;
       const key = (it.name || "").trim();
-      if (openDialog === "supply" && sellableProductNames.size > 0 && !sellableProductNames.has(key)) continue;
-      // فلتر المرتجع: يجب أن يكون المنتج موجوداً في المخزن الرئيسي
+      // فلتر المرتجع: يجب أن يكون المنتج موجوداً في المخزن الرئيسي ومسموحاً لهذا المخزن العميل
       if (openDialog === "return" && mainNames.size > 0 && !mainNames.has(key)) continue;
+      if (openDialog === "return" && warehouseProductNames.size > 0 && !warehouseProductNames.has(key)) continue;
       const prev = byName.get(key);
       if (!prev || Number(prev.stock) < stock) byName.set(key, it);
     }
@@ -454,21 +476,6 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
           if (insErr || !newRow) throw insErr || new Error("تعذّر إنشاء صنف الوجهة");
           destItem = newRow as InventoryItem;
         }
-
-        // في وضع "مرتجع بدون خصم": لا نخصم من مخزن العميل (المصدر) ونوّرد للمخزن الرئيسي فقط
-        if (!skipCustomerSide) {
-          const { error: decErr } = await supabase
-            .from("inventory_items")
-            .update({ stock: Number(sourceItem.stock) - v.qty })
-            .eq("id", sourceItem.id);
-          if (decErr) throw decErr;
-        }
-
-        const { error: incErr } = await supabase
-          .from("inventory_items")
-          .update({ stock: Number(destItem.stock) + v.qty })
-          .eq("id", destItem.id);
-        if (incErr) throw incErr;
 
         if (!skipCustomerSide) {
           movRows.push({
@@ -750,12 +757,11 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
       const stock = Number(it.stock) || 0;
       if (stock <= 0) continue;
       const key = (it.name || "").trim();
-      if (editInvoice?.kind === "supply" && sellableProductNames.size > 0 && !sellableProductNames.has(key)) continue;
       const prev = byName.get(key);
       if (!prev || Number(prev.stock) < stock) byName.set(key, it);
     }
     return Array.from(byName.values());
-  }, [editInvoice?.kind, items, mainItems, sellableProductNames]);
+  }, [editInvoice?.kind, items, mainItems, warehouseProductNames]);
 
   const openEditInvoice = (inv: Invoice) => {
     setEditInvoice(inv);
