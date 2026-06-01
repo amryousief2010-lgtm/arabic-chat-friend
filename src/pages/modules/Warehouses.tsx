@@ -983,25 +983,95 @@ const Warehouses = () => {
       <Dialog open={itemDialog} onOpenChange={setItemDialog}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editItem ? "تعديل الصنف" : "صنف جديد"}</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <Label>المخزن</Label>
-              <Select value={itemForm.warehouse_id} onValueChange={v => setItemForm({ ...itemForm, warehouse_id: v })}>
-                <SelectTrigger><SelectValue placeholder="اختر مخزناً" /></SelectTrigger>
-                <SelectContent>{warehouses.map(w => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>الاسم</Label><Input value={itemForm.name} onChange={e => setItemForm({ ...itemForm, name: e.target.value })} /></div>
-              <div><Label>SKU</Label><Input value={itemForm.sku} onChange={e => setItemForm({ ...itemForm, sku: e.target.value })} /></div>
-              <div><Label>الفئة</Label><Input value={itemForm.category} onChange={e => setItemForm({ ...itemForm, category: e.target.value })} /></div>
-              <div><Label>الوحدة</Label><Input value={itemForm.unit} onChange={e => setItemForm({ ...itemForm, unit: e.target.value })} /></div>
-              <div><Label>الرصيد الحالي</Label><Input type="number" value={itemForm.stock} onChange={e => setItemForm({ ...itemForm, stock: Number(e.target.value) })} /></div>
-              <div><Label>الحد الأدنى</Label><Input type="number" value={itemForm.low_stock_threshold} onChange={e => setItemForm({ ...itemForm, low_stock_threshold: Number(e.target.value) })} /></div>
-              <div><Label>تكلفة الوحدة</Label><Input type="number" step="0.01" value={itemForm.unit_cost} onChange={e => setItemForm({ ...itemForm, unit_cost: Number(e.target.value) })} /></div>
-              <div><Label>تاريخ الصلاحية</Label><Input type="date" value={itemForm.expiry_date} onChange={e => setItemForm({ ...itemForm, expiry_date: e.target.value })} /></div>
-            </div>
-          </div>
+          {(() => {
+            const selectedWh = warehouses.find(w => w.id === itemForm.warehouse_id);
+            const whType = selectedWh?.type;
+            const sameTypeWhIds = new Set(warehouses.filter(w => w.type === whType).map(w => w.id));
+            const catalogMap = new Map<string, InventoryItem>();
+            for (const it of items) {
+              if (!sameTypeWhIds.has(it.warehouse_id)) continue;
+              const key = (it.name || "").trim().toLowerCase();
+              if (!key || catalogMap.has(key)) continue;
+              catalogMap.set(key, it);
+            }
+            const catalog = Array.from(catalogMap.values()).sort((a, b) => a.name.localeCompare(b.name, "ar"));
+            const listId = `catalog-${whType || "all"}`;
+            return (
+              <div className="space-y-3">
+                <div>
+                  <Label>المخزن</Label>
+                  <Select value={itemForm.warehouse_id} onValueChange={v => setItemForm({ ...itemForm, warehouse_id: v })}>
+                    <SelectTrigger><SelectValue placeholder="اختر مخزناً" /></SelectTrigger>
+                    <SelectContent>{warehouses.map(w => <SelectItem key={w.id} value={w.id}>{w.name} — {warehouseTypes[w.type] || w.type}</SelectItem>)}</SelectContent>
+                  </Select>
+                  {whType && (
+                    <div className="text-xs text-muted-foreground mt-1">
+                      نوع المخزن: <span className="font-semibold">{warehouseTypes[whType] || whType}</span> — يُعرض فقط أصناف هذا النوع ({catalog.length})
+                    </div>
+                  )}
+                </div>
+                {!editItem && itemForm.warehouse_id && (
+                  <div>
+                    <Label>اختر من الأصناف الموجودة (نفس نوع المخزن)</Label>
+                    <Select
+                      value=""
+                      onValueChange={(v) => {
+                        const picked = catalog.find(c => c.id === v);
+                        if (!picked) return;
+                        setItemForm({
+                          ...itemForm,
+                          name: picked.name,
+                          category: picked.category || "",
+                          sku: picked.sku || "",
+                          unit: picked.unit,
+                          unit_cost: Number(picked.unit_cost) || 0,
+                        });
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={catalog.length ? `اختر من ${catalog.length} صنف...` : "لا توجد أصناف من نفس النوع — اكتب اسماً جديداً بالأسفل"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {catalog.map(c => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.name}{c.sku ? ` (${c.sku})` : ""} — {c.unit}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>الاسم</Label>
+                    <Input
+                      list={listId}
+                      value={itemForm.name}
+                      onChange={e => {
+                        const name = e.target.value;
+                        const match = catalog.find(c => c.name === name);
+                        if (match) {
+                          setItemForm({ ...itemForm, name, category: match.category || itemForm.category, sku: match.sku || itemForm.sku, unit: match.unit, unit_cost: Number(match.unit_cost) || itemForm.unit_cost });
+                        } else {
+                          setItemForm({ ...itemForm, name });
+                        }
+                      }}
+                    />
+                    <datalist id={listId}>
+                      {catalog.map(c => <option key={c.id} value={c.name} />)}
+                    </datalist>
+                  </div>
+                  <div><Label>SKU</Label><Input value={itemForm.sku} onChange={e => setItemForm({ ...itemForm, sku: e.target.value })} /></div>
+                  <div><Label>الفئة</Label><Input value={itemForm.category} onChange={e => setItemForm({ ...itemForm, category: e.target.value })} /></div>
+                  <div><Label>الوحدة</Label><Input value={itemForm.unit} onChange={e => setItemForm({ ...itemForm, unit: e.target.value })} /></div>
+                  <div><Label>الرصيد الحالي</Label><Input type="number" value={itemForm.stock} onChange={e => setItemForm({ ...itemForm, stock: Number(e.target.value) })} /></div>
+                  <div><Label>الحد الأدنى</Label><Input type="number" value={itemForm.low_stock_threshold} onChange={e => setItemForm({ ...itemForm, low_stock_threshold: Number(e.target.value) })} /></div>
+                  <div><Label>تكلفة الوحدة</Label><Input type="number" step="0.01" value={itemForm.unit_cost} onChange={e => setItemForm({ ...itemForm, unit_cost: Number(e.target.value) })} /></div>
+                  <div><Label>تاريخ الصلاحية</Label><Input type="date" value={itemForm.expiry_date} onChange={e => setItemForm({ ...itemForm, expiry_date: e.target.value })} /></div>
+                </div>
+              </div>
+            );
+          })()}
           <DialogFooter>
             <Button variant="outline" onClick={() => setItemDialog(false)}>إلغاء</Button>
             <Button onClick={saveItem}>حفظ</Button>
