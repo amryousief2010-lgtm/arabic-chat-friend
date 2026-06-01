@@ -655,7 +655,7 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
                   const weight = isWeightUnit(it.unit);
                   const packages = weight ? toPackages(stock) : null;
                   const isLow = stock <= 0;
-                  const isMedium = !isLow && weight ? stock < 5 : stock < 10;
+                  const isMedium = !isLow && (weight ? (packages ?? 0) < 10 : stock < 10);
                   return (
                     <Card key={it.id} className={`overflow-hidden border-l-4 transition-all duration-200 hover:shadow-lg ${isLow ? "border-l-destructive" : isMedium ? "border-l-warning" : "border-l-success"}`}>
                       <CardContent className="p-4 space-y-3">
