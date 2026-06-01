@@ -497,11 +497,12 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
                       <TableHead>المنتج</TableHead>
                       <TableHead>الوحدة</TableHead>
                       <TableHead className="text-left">الرصيد</TableHead>
+                      {canEditMovements && <TableHead className="text-left">إجراءات</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredItems.length === 0 ? (
-                      <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground">
+                      <TableRow><TableCell colSpan={canEditMovements ? 4 : 3} className="text-center text-muted-foreground">
                         {loading ? "جاري التحميل..." : "لا توجد منتجات بعد. ابدأ بتسجيل أول توريد."}
                       </TableCell></TableRow>
                     ) : filteredItems.map((it) => (
@@ -509,6 +510,18 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
                         <TableCell>{it.name}</TableCell>
                         <TableCell>{it.unit}</TableCell>
                         <TableCell className="text-left font-semibold">{Number(it.stock).toLocaleString("ar-EG")}</TableCell>
+                        {canEditMovements && (
+                          <TableCell className="text-left">
+                            <div className="flex gap-1 justify-end">
+                              <Button variant="ghost" size="icon" onClick={() => openItemEdit(it)} title="تعديل الرصيد">
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteItem(it)} title="حذف وإرجاع للرئيسي">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                   </TableBody>
