@@ -339,6 +339,9 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
       openDialog === "supply" || (openDialog === "return" && !deductFromCustomer)
         ? mainItems
         : items;
+    // عند المرتجع: نعرض فقط المنتجات الموجودة فعلياً في المخزن الرئيسي
+    // (عشان ميظهرش بصل وثوم ومنتجات تخص مخازن تانية).
+    const mainNames = new Set(mainItems.map((i) => (i.name || "").trim()));
     const byName = new Map<string, typeof source[number]>();
     for (const it of source) {
       const stock = Number(it.stock) || 0;
@@ -347,6 +350,8 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
       if (openDialog === "supply" && stock <= 0) continue;
       const key = (it.name || "").trim();
       if (openDialog === "supply" && sellableProductNames.size > 0 && !sellableProductNames.has(key)) continue;
+      // فلتر المرتجع: يجب أن يكون المنتج موجوداً في المخزن الرئيسي
+      if (openDialog === "return" && mainNames.size > 0 && !mainNames.has(key)) continue;
       const prev = byName.get(key);
       if (!prev || Number(prev.stock) < stock) byName.set(key, it);
     }
