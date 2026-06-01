@@ -450,11 +450,14 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
           destItem = newRow as InventoryItem;
         }
 
-        const { error: decErr } = await supabase
-          .from("inventory_items")
-          .update({ stock: Number(sourceItem.stock) - v.qty })
-          .eq("id", sourceItem.id);
-        if (decErr) throw decErr;
+        // في وضع "مرتجع بدون خصم": لا نخصم من مخزن العميل (المصدر) ونوّرد للمخزن الرئيسي فقط
+        if (!skipCustomerSide) {
+          const { error: decErr } = await supabase
+            .from("inventory_items")
+            .update({ stock: Number(sourceItem.stock) - v.qty })
+            .eq("id", sourceItem.id);
+          if (decErr) throw decErr;
+        }
 
         const { error: incErr } = await supabase
           .from("inventory_items")
@@ -462,8 +465,8 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
           .eq("id", destItem.id);
         if (incErr) throw incErr;
 
-        movRows.push(
-          {
+        if (!skipCustomerSide) {
+          movRows.push({
             item_id: sourceItem.id,
             warehouse_id: sourceWh,
             destination_warehouse_id: destWh,
@@ -475,21 +478,21 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
             reference_type: refType,
             performed_by: user?.id ?? null,
             product_id: sourceItem.product_id,
-          },
-          {
-            item_id: destItem.id,
-            warehouse_id: destWh,
-            source_warehouse_id: sourceWh,
-            destination_warehouse_id: destWh,
-            movement_type: "in",
-            quantity: v.qty,
-            notes: baseNote,
-            party: partyLabel,
-            reference_type: refType,
-            performed_by: user?.id ?? null,
-            product_id: sourceItem.product_id,
-          },
-        );
+          });
+        }
+        movRows.push({
+          item_id: destItem.id,
+          warehouse_id: destWh,
+          source_warehouse_id: skipCustomerSide ? null : sourceWh,
+          destination_warehouse_id: destWh,
+          movement_type: "in",
+          quantity: v.qty,
+          notes: baseNote,
+          party: partyLabel,
+          reference_type: refType,
+          performed_by: user?.id ?? null,
+          product_id: sourceItem.product_id,
+        });
       }
 
       const { error: movErr } = await supabase.from("inventory_movements").insert(movRows);
