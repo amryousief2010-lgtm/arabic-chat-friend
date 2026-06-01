@@ -720,11 +720,12 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
       const stock = Number(it.stock) || 0;
       if (stock <= 0) continue;
       const key = (it.name || "").trim();
+      if (editInvoice?.kind === "supply" && sellableProductNames.size > 0 && !sellableProductNames.has(key)) continue;
       const prev = byName.get(key);
       if (!prev || Number(prev.stock) < stock) byName.set(key, it);
     }
     return Array.from(byName.values());
-  }, [editInvoice?.kind, items, mainItems]);
+  }, [editInvoice?.kind, items, mainItems, sellableProductNames]);
 
   const openEditInvoice = (inv: Invoice) => {
     setEditInvoice(inv);
