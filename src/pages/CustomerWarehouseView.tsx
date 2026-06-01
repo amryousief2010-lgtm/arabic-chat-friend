@@ -262,8 +262,28 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
       }
 
       const customerNames = new Set(customerInventory.map((i) => (i.name || "").trim()).filter(Boolean));
-      const mainNames = new Set(mainInventory.map((i) => (i.name || "").trim()).filter(Boolean));
-      setWarehouseProductNames(new Set([...customerNames, ...mainNames]));
+      const historyNames = new Set<string>();
+      const { data: historyRows } = await supabase
+        .from("inventory_movements")
+        .select("item_id")
+        .eq("party", warehouseName)
+        .in("reference_type", ["customer_supply", "customer_return"])
+        .limit(1000);
+
+      const historicItemIds = Array.from(new Set((historyRows || []).map((row: any) => row.item_id).filter(Boolean)));
+      for (let i = 0; i < historicItemIds.length; i += 500) {
+        const slice = historicItemIds.slice(i, i + 500);
+        const { data: historicItems } = await supabase
+          .from("inventory_items")
+          .select("name")
+          .in("id", slice);
+        (historicItems || []).forEach((item: any) => {
+          const name = (item.name || "").trim();
+          if (name) historyNames.add(name);
+        });
+      }
+
+      setWarehouseProductNames(new Set([...customerNames, ...historyNames]));
     } catch (e: any) {
       toast.error("تعذّر تحميل بيانات المخزن: " + (e?.message || ""));
     } finally {
