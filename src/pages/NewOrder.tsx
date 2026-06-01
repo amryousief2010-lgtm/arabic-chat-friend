@@ -175,9 +175,16 @@ const NewOrder = () => {
     }
     (async () => {
       if (!user) return;
-      const { data } = await supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle();
-      const m = findModeratorByName(data?.full_name);
-      if (m) setModeratorName(m.canonicalModerator);
+      try {
+        const { data } = await withTimedQuery(
+          '[NewOrder] moderator profile query',
+          () => supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle(),
+        );
+        const m = findModeratorByName(data?.full_name);
+        if (m) setModeratorName(m.canonicalModerator);
+      } catch (error) {
+        console.error('Moderator profile query failed:', error);
+      }
     })();
   }, [user, searchParams]);
 
@@ -254,104 +261,181 @@ const NewOrder = () => {
   const [newCustomerShippingCustom, setNewCustomerShippingCustom] = useState('');
 
   useEffect(() => {
+    console.time('[NewOrder] page shell visible');
+    const firstFrame = window.requestAnimationFrame(() => {
+      const secondFrame = window.requestAnimationFrame(() => {
+        setPageShellLoading(false);
+        console.timeEnd('[NewOrder] page shell visible');
+      });
+
+      return () => window.cancelAnimationFrame(secondFrame);
+    });
+
     fetchData();
+
+    return () => window.cancelAnimationFrame(firstFrame);
   }, []);
 
-  const fetchData = async () => {
+  const fetchData = () => {
     setCustomers([]);
-    try {
-      console.time('[NewOrder] core fetch (products+offers+warehouses)');
-      const [productsRes, offersRes, whRes] = await Promise.all([
-        supabase.from('products').select('*').eq('is_active', true),
-        supabase.from('offer_boxes').select('*').eq('is_active', true),
-        supabase.from('warehouses').select('id, name').eq('is_active', true),
-      ]);
-      console.timeEnd('[NewOrder] core fetch (products+offers+warehouses)');
+    setProductsLoading(true);
+    setOffersLoading(true);
+    setWarehousesLoading(true);
+    setInventoryLoading(false);
+    setOfferContentsLoading(false);
+    setProductsError(null);
+    setOffersError(null);
+    setWarehousesError(null);
+    setInventoryError(null);
+    setOfferContentsError(null);
+    setOfferContentsById({});
 
-      if (productsRes.error) throw productsRes.error;
-      if (offersRes.error) throw offersRes.error;
-      const whs = whRes.data || [];
-      setWarehousesList(whs);
+    const loadProducts = async () => {
+      try {
+        const productsRes = await withTimedQuery(
+          '[NewOrder] products query',
+          () => supabase.from('products').select('*').eq('is_active', true),
+        );
+        if (productsRes.error) throw productsRes.error;
+        setProducts(productsRes.data || []);
+      } catch (error) {
+        console.error('Products fetch failed:', error);
+        setProductsError(getErrorMessage(error, 'استغرق تحميل المنتجات وقتًا أطول من المتوقع.'));
+      } finally {
+        setProductsLoading(false);
+      }
+    };
 
-      const productsData = productsRes.data || [];
-      setProducts(productsData);
+    const loadOffers = async () => {
+      try {
+        const offersRes = await withTimedQuery(
+          '[NewOrder] offers query',
+          () => supabase.from('offer_boxes').select('*').eq('is_active', true),
+        );
+        if (offersRes.error) throw offersRes.error;
 
-      // Filter out expired offers and not-yet-started offers
-      const now = new Date();
-      const activeOffers = (offersRes.data || []).filter((offer: any) => {
-        if (offer.expires_at && new Date(offer.expires_at) <= now) return false;
-        if (offer.starts_at && new Date(offer.starts_at) > now) return false;
-        return true;
-      });
-      setOfferBoxes(activeOffers);
+        const now = new Date();
+        const activeOffers = (offersRes.data || []).filter((offer: any) => {
+          if (offer.expires_at && new Date(offer.expires_at) <= now) return false;
+          if (offer.starts_at && new Date(offer.starts_at) > now) return false;
+          return true;
+        });
 
-      // Release the UI as soon as the core data is ready.
-      setLoading(false);
+        setOfferBoxes(activeOffers);
+        return activeOffers as OfferBox[];
+      } catch (error) {
+        console.error('Offers fetch failed:', error);
+        setOffersError(getErrorMessage(error, 'استغرق تحميل العروض وقتًا أطول من المتوقع.'));
+        return [] as OfferBox[];
+      } finally {
+        setOffersLoading(false);
+      }
+    };
 
-      // Background: warehouse stock for Agouza & Main (non-blocking)
-      const agouza = whs.find((w: any) => w.name?.includes('العجوزة'));
-      const main = whs.find((w: any) => w.name?.includes('الرئيسي') || w.name?.includes('المقر'));
+    const loadWarehouses = async () => {
+      try {
+        const whRes = await withTimedQuery(
+          '[NewOrder] warehouses query',
+          () => supabase.from('warehouses').select('id, name').eq('is_active', true),
+        );
+        if (whRes.error) throw whRes.error;
+        const whs = whRes.data || [];
+        setWarehousesList(whs);
+        return whs as Array<{ id: string; name: string }>;
+      } catch (error) {
+        console.error('Warehouses fetch failed:', error);
+        setWarehousesError(getErrorMessage(error, 'استغرق تحميل المخازن وقتًا أطول من المتوقع.'));
+        return [] as Array<{ id: string; name: string }>;
+      } finally {
+        setWarehousesLoading(false);
+      }
+    };
+
+    void loadProducts();
+
+    void loadWarehouses().then(async (whs) => {
+      const agouza = whs.find((w) => w.name?.includes('العجوزة'));
+      const main = whs.find((w) => w.name?.includes('الرئيسي') || w.name?.includes('المقر'));
       const whIds = [agouza?.id, main?.id].filter(Boolean) as string[];
-      if (whIds.length > 0) {
-        (async () => {
-          console.time('[NewOrder] inventory stock');
-          const { data: invRows } = await supabase
+
+      if (whIds.length === 0) {
+        setAgouzaStock({});
+        setMainStock({});
+        return;
+      }
+
+      setInventoryLoading(true);
+      try {
+        const { data: invRows, error } = await withTimedQuery(
+          '[NewOrder] inventory_items query',
+          () => supabase
             .from('inventory_items')
             .select('warehouse_id, product_id, stock, reserved_qty, blocked_qty')
             .in('warehouse_id', whIds)
-            .not('product_id', 'is', null);
-          console.timeEnd('[NewOrder] inventory stock');
-          const ag: Record<string, number> = {};
-          const mn: Record<string, number> = {};
-          (invRows || []).forEach((r: any) => {
-            const avail = Number(r.stock || 0) - Number(r.reserved_qty || 0) - Number(r.blocked_qty || 0);
-            if (r.warehouse_id === agouza?.id) ag[r.product_id] = (ag[r.product_id] || 0) + avail;
-            if (r.warehouse_id === main?.id) mn[r.product_id] = (mn[r.product_id] || 0) + avail;
-          });
-          setAgouzaStock(ag);
-          setMainStock(mn);
-        })().catch((e) => console.error('inventory stock fetch failed', e));
+            .not('product_id', 'is', null),
+        );
+        if (error) throw error;
+
+        const ag: Record<string, number> = {};
+        const mn: Record<string, number> = {};
+        (invRows || []).forEach((r: any) => {
+          const avail = Number(r.stock || 0) - Number(r.reserved_qty || 0) - Number(r.blocked_qty || 0);
+          if (r.warehouse_id === agouza?.id) ag[r.product_id] = (ag[r.product_id] || 0) + avail;
+          if (r.warehouse_id === main?.id) mn[r.product_id] = (mn[r.product_id] || 0) + avail;
+        });
+        setAgouzaStock(ag);
+        setMainStock(mn);
+      } catch (error) {
+        console.error('Inventory fetch failed:', error);
+        setInventoryError(getErrorMessage(error, 'استغرق تحميل المخزون وقتًا أطول من المتوقع.'));
+      } finally {
+        setInventoryLoading(false);
       }
+    });
 
-      // Background: offer contents preview (non-blocking)
-      if (activeOffers.length > 0) {
-        (async () => {
-          try {
-            console.time('[NewOrder] offer contents');
-            const { data: offerItemsRes, error: offerItemsError } = await supabase
-              .from('offer_box_items')
-              .select('offer_box_id, product_id, quantity')
-              .in('offer_box_id', activeOffers.map((offer) => offer.id));
-            if (offerItemsError) throw offerItemsError;
-
-            const productIds = Array.from(new Set((offerItemsRes || []).map((item) => item.product_id).filter(Boolean)));
-            const { data: offerProductsRes, error: offerProductsError } = productIds.length === 0
-              ? { data: [], error: null }
-              : await supabase.from('products').select('id, name').in('id', productIds);
-            if (offerProductsError) throw offerProductsError;
-
-            const productNameById = new Map((offerProductsRes || []).map((product: any) => [product.id, product.name]));
-            const nextContents = (offerItemsRes || []).reduce((acc, item: any) => {
-              const productName = productNameById.get(item.product_id);
-              if (!productName) return acc;
-              const line = `${Number(item.quantity || 0).toLocaleString()} × ${productName}`;
-              acc[item.offer_box_id] = [...(acc[item.offer_box_id] || []), line];
-              return acc;
-            }, {} as Record<string, string[]>);
-            setOfferContentsById(nextContents);
-            console.timeEnd('[NewOrder] offer contents');
-          } catch (e) {
-            console.error('offer contents fetch failed', e);
-          }
-        })();
-      } else {
+    void loadOffers().then(async (activeOffers) => {
+      if (activeOffers.length === 0) {
         setOfferContentsById({});
+        return;
       }
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      toast.error('حدث خطأ أثناء جلب البيانات');
-      setLoading(false);
-    }
+
+      setOfferContentsLoading(true);
+      try {
+        const { data: offerItemsRes, error: offerItemsError } = await withTimedQuery(
+          '[NewOrder] offer_box_items query',
+          () => supabase
+            .from('offer_box_items')
+            .select('offer_box_id, product_id, quantity')
+            .in('offer_box_id', activeOffers.map((offer) => offer.id)),
+        );
+        if (offerItemsError) throw offerItemsError;
+
+        const productIds = Array.from(new Set((offerItemsRes || []).map((item) => item.product_id).filter(Boolean)));
+        const offerProductsRes = productIds.length === 0
+          ? { data: [], error: null }
+          : await withTimedQuery(
+              '[NewOrder] offer content products query',
+              () => supabase.from('products').select('id, name').in('id', productIds),
+            );
+        if (offerProductsRes.error) throw offerProductsRes.error;
+
+        const productNameById = new Map((offerProductsRes.data || []).map((product: any) => [product.id, product.name]));
+        const nextContents = (offerItemsRes || []).reduce((acc, item: any) => {
+          const productName = productNameById.get(item.product_id);
+          if (!productName) return acc;
+          const line = `${Number(item.quantity || 0).toLocaleString()} × ${productName}`;
+          acc[item.offer_box_id] = [...(acc[item.offer_box_id] || []), line];
+          return acc;
+        }, {} as Record<string, string[]>);
+
+        setOfferContentsById(nextContents);
+      } catch (error) {
+        console.error('Offer contents fetch failed:', error);
+        setOfferContentsError(getErrorMessage(error, 'استغرق تحميل محتويات البوكسات وقتًا أطول من المتوقع.'));
+      } finally {
+        setOfferContentsLoading(false);
+      }
+    });
   };
 
   useEffect(() => {
