@@ -246,8 +246,33 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
         customerInventory = its;
         setItems(its);
         const movs = (movRes.data || []) as Movement[];
+
+        // حركات مسجلة على المخزن الرئيسي فقط للعميل (مرتجع بدون خصم)
+        let mainSideMovs: Movement[] = [];
+        if (mainId) {
+          const { data: mainMovs } = await supabase
+            .from("inventory_movements")
+            .select("id, warehouse_id, performed_at, movement_type, quantity, notes, party, item_id, product_id, source_warehouse_id, destination_warehouse_id, reference_type")
+            .eq("warehouse_id", mainId)
+            .eq("party", warehouseName)
+            .in("reference_type", ["customer_supply", "customer_return"])
+            .order("performed_at", { ascending: false })
+            .limit(400);
+          mainSideMovs = (mainMovs || []) as Movement[];
+        }
+
         const nameMap = new Map(its.map((i) => [i.id, i.name]));
-        setMovements(movs.map((m) => ({ ...m, item_name: nameMap.get(m.item_id) || "—" })));
+        const missingIds = Array.from(new Set(mainSideMovs.map((m) => m.item_id).filter((id) => id && !nameMap.has(id))));
+        if (missingIds.length > 0) {
+          const { data: mItemRows } = await supabase
+            .from("inventory_items")
+            .select("id, name")
+            .in("id", missingIds);
+          (mItemRows || []).forEach((r: any) => nameMap.set(r.id, r.name));
+        }
+
+        const combined = [...movs, ...mainSideMovs].map((m) => ({ ...m, item_name: nameMap.get(m.item_id) || "—" }));
+        setMovements(combined);
       }
 
       if (mainId) {
