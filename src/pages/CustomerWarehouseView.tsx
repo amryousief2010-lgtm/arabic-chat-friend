@@ -42,7 +42,8 @@ interface Movement {
 const MAIN_WAREHOUSE_NAME_HINTS = ["الرئيسي", "المقر"];
 
 export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSubtitle }: Props) {
-  const { user, isGeneralManager, isExecutiveManager } = useAuth();
+  const { user, isGeneralManager, isExecutiveManager, isWarehouseSupervisor } = useAuth();
+  const canEditMovements = isGeneralManager || isExecutiveManager || isWarehouseSupervisor;
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [whId, setWhId] = useState<string | null>(null);
@@ -57,6 +58,11 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
   const [lines, setLines] = useState<Line[]>([{ name: "", qty: "" }]);
   const [notes, setNotes] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
+
+  // edit movement dialog
+  const [editMov, setEditMov] = useState<Movement | null>(null);
+  const [editQty, setEditQty] = useState<string>("");
+  const [editBusy, setEditBusy] = useState(false);
 
   const fetchAll = async () => {
     setLoading(true);
