@@ -246,8 +246,33 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
         customerInventory = its;
         setItems(its);
         const movs = (movRes.data || []) as Movement[];
+
+        // حركات مسجلة على المخزن الرئيسي فقط للعميل (مرتجع بدون خصم)
+        let mainSideMovs: Movement[] = [];
+        if (mainId) {
+          const { data: mainMovs } = await supabase
+            .from("inventory_movements")
+            .select("id, warehouse_id, performed_at, movement_type, quantity, notes, party, item_id, product_id, source_warehouse_id, destination_warehouse_id, reference_type")
+            .eq("warehouse_id", mainId)
+            .eq("party", warehouseName)
+            .in("reference_type", ["customer_supply", "customer_return"])
+            .order("performed_at", { ascending: false })
+            .limit(400);
+          mainSideMovs = (mainMovs || []) as Movement[];
+        }
+
         const nameMap = new Map(its.map((i) => [i.id, i.name]));
-        setMovements(movs.map((m) => ({ ...m, item_name: nameMap.get(m.item_id) || "—" })));
+        const missingIds = Array.from(new Set(mainSideMovs.map((m) => m.item_id).filter((id) => id && !nameMap.has(id))));
+        if (missingIds.length > 0) {
+          const { data: mItemRows } = await supabase
+            .from("inventory_items")
+            .select("id, name")
+            .in("id", missingIds);
+          (mItemRows || []).forEach((r: any) => nameMap.set(r.id, r.name));
+        }
+
+        const combined = [...movs, ...mainSideMovs].map((m) => ({ ...m, item_name: nameMap.get(m.item_id) || "—" }));
+        setMovements(combined);
       }
 
       if (mainId) {
@@ -671,26 +696,33 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
   // تجميع الحركات على شكل فواتير (كل عملية توريد/مرتجع = فاتورة واحدة)
   type Invoice = { key: string; at: string; kind: "supply" | "return"; notes: string | null; movements: Movement[] };
   const invoices: Invoice[] = useMemo(() => {
-    const map = new Map<string, Invoice>();
+    const map = new Map<string, { key: string; at: string; kind: "supply" | "return"; notes: string | null; byItem: Map<string, Movement> }>();
     for (const m of movements) {
       const isSupply = m.reference_type === "customer_supply";
       const isReturn = m.reference_type === "customer_return";
       if (!isSupply && !isReturn) continue;
-      // لتفادي التكرار: نأخذ جهة واحدة فقط من كل عملية
-      if (isSupply && m.movement_type !== "in") continue;
-      if (isReturn && m.movement_type !== "out") continue;
+      // الفاتورة = نفس التوقيت + نفس النوع
       const key = `${m.performed_at}|${m.reference_type}`;
       if (!map.has(key)) {
-        map.set(key, { key, at: m.performed_at, kind: isSupply ? "supply" : "return", notes: m.notes, movements: [] });
+        map.set(key, { key, at: m.performed_at, kind: isSupply ? "supply" : "return", notes: m.notes, byItem: new Map() });
       }
-      map.get(key)!.movements.push(m);
+      const bucket = map.get(key)!;
+      // نخزن سطر واحد لكل صنف داخل الفاتورة (نفضّل جانب العميل: out للمرتجع، in للتوريد)
+      const existing = bucket.byItem.get(m.item_id);
+      const preferred =
+        isReturn ? (m.movement_type === "out") : (m.movement_type === "in");
+      if (!existing || preferred) {
+        bucket.byItem.set(m.item_id, m);
+      }
     }
-    return Array.from(map.values()).sort((a, b) => b.at.localeCompare(a.at));
+    return Array.from(map.values())
+      .map((b) => ({ key: b.key, at: b.at, kind: b.kind, notes: b.notes, movements: Array.from(b.byItem.values()) }))
+      .sort((a, b) => b.at.localeCompare(a.at));
   }, [movements]);
 
   const openInvoice = (inv: Invoice) => {
     const lines: ReceiptLine[] = inv.movements.map((m) => {
-      const it = items.find((i) => i.id === m.item_id);
+      const it = items.find((i) => i.id === m.item_id) || mainItems.find((i) => i.id === m.item_id);
       const unit = it?.unit || "";
       const weight = isWeightUnit(unit);
       const qty = Number(m.quantity);
@@ -1141,6 +1173,9 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
                             <div className="flex gap-1 justify-end">
                               <Button variant="ghost" size="icon" onClick={() => openInvoice(inv)} title="عرض الفاتورة">
                                 <Eye className="w-4 h-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => openInvoice(inv)} title="طباعة الفاتورة">
+                                <Printer className="w-4 h-4" />
                               </Button>
                               {canEditMovements && (
                                 <Button variant="ghost" size="icon" onClick={() => openEditInvoice(inv)} title="تعديل الفاتورة">
