@@ -412,7 +412,13 @@ const NewOrder = () => {
         const offerItemsRes = offerItemsResponse?.data || [];
         if (offerItemsResponse?.error) throw offerItemsResponse.error;
 
-        const productIds = Array.from(new Set((offerItemsRes || []).map((item) => item.product_id).filter(Boolean)));
+        const productIds = Array.from(
+          new Set(
+            (offerItemsRes || [])
+              .map((item: any) => item.product_id)
+              .filter((id: unknown): id is string => typeof id === 'string' && id.length > 0)
+          )
+        );
         const offerProductsRes: any = productIds.length === 0
           ? { data: [], error: null }
           : await withTimedQuery(
