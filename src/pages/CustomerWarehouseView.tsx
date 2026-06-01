@@ -1139,6 +1139,63 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
         </DialogContent>
       </Dialog>
 
+      {/* تعديل فاتورة كاملة */}
+      <Dialog open={!!editInvoice} onOpenChange={(o) => { if (!o) setEditInvoice(null); }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              تعديل {editInvoice?.kind === "supply" ? "فاتورة توريد" : "فاتورة مرتجع"} — {editInvoice ? new Date(editInvoice.at).toLocaleString("ar-EG") : ""}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+            {editInvLines.length === 0 ? (
+              <p className="text-sm text-muted-foreground">لا توجد أصناف</p>
+            ) : editInvLines.map((l, idx) => {
+              const weight = isWeightUnit(l.unit);
+              return (
+                <div key={l.movId} className={`flex items-center gap-2 p-2 rounded border ${l.remove ? "opacity-50 line-through" : ""}`}>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium">{l.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {weight ? "عبوة (نص كيلو)" : (l.unit || "قطعة")} — الكمية الأصلية: {weight ? l.originalQty / PACKAGE_KG : l.originalQty}
+                    </div>
+                  </div>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={l.qty}
+                    disabled={l.remove}
+                    onChange={(e) => setEditInvLines((prev) => prev.map((x, i) => i === idx ? { ...x, qty: e.target.value } : x))}
+                    className="w-28"
+                  />
+                  <Button
+                    variant={l.remove ? "outline" : "ghost"}
+                    size="icon"
+                    className={l.remove ? "" : "text-destructive"}
+                    title={l.remove ? "تراجع" : "حذف هذا السطر"}
+                    onClick={() => setEditInvLines((prev) => prev.map((x, i) => i === idx ? { ...x, remove: !x.remove } : x))}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              );
+            })}
+            <p className="text-xs text-muted-foreground">
+              عند الحفظ: الفرق في الكميات يُعكس تلقائياً على المخزن المقابل، والأسطر المحذوفة تُرجع كمياتها بالكامل.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditInvoice(null)} disabled={editInvBusy}>إلغاء</Button>
+            <Button onClick={submitInvoiceEdit} disabled={editInvBusy}>
+              {editInvBusy && <Loader2 className="w-4 h-4 ml-2 animate-spin" />}
+              حفظ التعديلات
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
 
 
       {/* إيصال آخر عملية: طباعة + تصدير اكسيل */}
