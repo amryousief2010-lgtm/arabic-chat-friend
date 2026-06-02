@@ -195,6 +195,36 @@ export default function MainWarehouseActivity() {
         subtitle="كل وارد وصادر بعد تثبيت الـ Opening Balance — مع المستخدم المنفذ ومصدر الحركة"
       />
 
+      {openingAt && (
+        <Card className={`mb-3 ${showArchive ? "border-amber-500/40 bg-amber-500/5" : "border-primary/30 bg-primary/5"}`}>
+          <CardContent className="p-3 flex flex-col sm:flex-row sm:items-center gap-3 text-sm">
+            <div className={`p-2 rounded-md ${showArchive ? "bg-amber-500/15 text-amber-700" : "bg-primary/15 text-primary"}`}>
+              <PackageCheck className="w-4 h-4" />
+            </div>
+            <div className="flex-1">
+              <div className="font-semibold">
+                {showArchive
+                  ? "وضع الأرشيف: يتم عرض الحركات القديمة قبل تثبيت الرصيد الافتتاحي (للمراجعة فقط — لا تؤثر على الرصيد الحالي)"
+                  : "العرض الافتراضي: الحركات من تاريخ الـ Opening Balance فقط"}
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                Opening Balance: {new Date(openingAt).toLocaleString("ar-EG", { dateStyle: "medium", timeStyle: "short" })}
+                {" — "}
+                الحركات الأقدم محفوظة في القاعدة كأرشيف ولا تدخل في حساب الرصيد الفعلي/المحجوز/المتاح للبيع.
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant={showArchive ? "default" : "outline"}
+              onClick={() => setShowArchive((v) => !v)}
+            >
+              {showArchive ? "العودة للعرض الحالي" : "عرض الأرشيف القديم"}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         <Card><CardContent className="p-4 flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center">
