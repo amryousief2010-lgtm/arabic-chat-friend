@@ -570,6 +570,18 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
           </div>
         </CardContent>
       </Card>
+
+      {reservedDlg && (
+        <ReservedDetailsDialog
+          open={!!reservedDlg}
+          onOpenChange={(o) => { if (!o) setReservedDlg(null); }}
+          warehouseId={(reservedDlg.wh === "agouza" ? agouzaWhId : mainWhId) || ""}
+          warehouseName={reservedDlg.wh === "agouza" ? "مخزن العجوزة" : "المخزن الرئيسي"}
+          productId={reservedDlg.productId}
+          productName={reservedDlg.productName}
+          totalReservedKg={reservedDlg.total}
+        />
+      )}
     </DashboardLayout>
   );
 };
