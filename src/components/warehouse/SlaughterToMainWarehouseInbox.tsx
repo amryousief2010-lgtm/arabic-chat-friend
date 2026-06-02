@@ -41,21 +41,39 @@ export function SlaughterToMainWarehouseInbox({ defaultWarehouseId }: Props) {
 
   const fetchAll = async () => {
     setLoading(true);
-    const [s, w] = await Promise.all([
+    const w = await supabase.from("warehouses")
+      .select("id, name, type")
+      .eq("type", "finished_goods")
+      .order("name");
+    const fgIds = (w.data || []).map((x: any) => x.id);
+    const selectCols = "id, batch_id, cut_name_ar, actual_weight_kg, unit_cost, quality_status, received_status, received_at, received_warehouse_id, destination, batch:slaughter_batches(batch_number, slaughter_date, status)";
+    // Pending: any output not yet received that targets the main warehouse path.
+    // We accept both destination='warehouse' (new flow) and 'branch' (legacy
+    // flow used by transfer_slaughter_partial) so old transfers are backfilled.
+    // Received: any output already received in a finished-goods warehouse, so
+    // historical transfers show up as "تم الاستلام" without being duplicated.
+    const [pendingRes, receivedRes] = await Promise.all([
       supabase.from("slaughter_batch_outputs")
-        .select("id, batch_id, cut_name_ar, actual_weight_kg, unit_cost, quality_status, received_status, received_at, received_warehouse_id, destination, batch:slaughter_batches(batch_number, slaughter_date, status)")
-        .eq("destination", "warehouse")
+        .select(selectCols)
+        .in("destination", ["warehouse", "branch"])
+        .neq("received_status", "received")
         .order("created_at", { ascending: false })
         .limit(500),
-      supabase.from("warehouses")
-        .select("id, name, type")
-        .eq("type", "finished_goods")
-        .order("name"),
+      fgIds.length
+        ? supabase.from("slaughter_batch_outputs")
+            .select(selectCols)
+            .eq("received_status", "received")
+            .in("received_warehouse_id", fgIds)
+            .order("received_at", { ascending: false })
+            .limit(200)
+        : Promise.resolve({ data: [] as any[] } as any),
     ]);
-    if (s.data) setOutputs(s.data);
+    const merged = [...((pendingRes as any).data || []), ...((receivedRes as any).data || [])];
+    setOutputs(merged);
     if (w.data) setWarehouses(w.data);
     setLoading(false);
   };
+
 
   useEffect(() => { fetchAll(); }, []);
 
