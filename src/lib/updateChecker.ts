@@ -104,15 +104,11 @@ export const fetchRemoteVersion = async (
   }
 };
 
-let reloading = false;
-
 export const triggerReload = async (
   reason: ReloadReason,
   remoteVersion: string,
 ) => {
-  if (reloading) return;
-  reloading = true;
-
+  // ⚠️ لم نعد نعيد التحميل تلقائياً — فقط نُعلم المستخدم عبر Toast
   const entry: ReloadLogEntry = {
     at: new Date().toISOString(),
     reason,
@@ -121,12 +117,9 @@ export const triggerReload = async (
   };
   pushLog(entry);
   console.info(
-    `[update] reload (${reason}): ${entry.oldVersion} → ${entry.newVersion} @ ${entry.at}`,
+    `[update] available (${reason}): ${entry.oldVersion} → ${entry.newVersion} @ ${entry.at}`,
   );
-
-  await clearAllCachesAndSW();
-  sessionStorage.setItem(RELOAD_GUARD_KEY, "1");
-  window.location.reload();
+  notifyUpdateAvailable(remoteVersion);
 };
 
 /** آخر نتيجة فحص — لعرضها في واجهة الـ badge */
