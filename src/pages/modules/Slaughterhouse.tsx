@@ -184,6 +184,31 @@ const Slaughterhouse = () => {
   const isExecManager = role === "general_manager" || role === "executive_manager";
   const pendingApprovalBatches = batches.filter(b => (b as any).transfer_status === "pending_approval");
 
+  // ===== نعام نافق (شهري) =====
+  const mm = String(deadMonth).padStart(2, "0");
+  const monthPrefix = `${deadYear}-${mm}`; // YYYY-MM
+  const deadInMonth = useMemo(() => {
+    const doa = receipts
+      .filter(r => (r.receipt_date || "").startsWith(monthPrefix))
+      .reduce((s, r) => s + (r.dead_on_arrival || 0), 0);
+    const activeB = batches.filter(b => b.status !== "cancelled" && (b.slaughter_date || "").startsWith(monthPrefix));
+    const preDead = activeB.reduce((s, b) => s + (b.pre_slaughter_dead || 0), 0);
+    const rejected = activeB.reduce((s, b) => s + (b.rejected_birds || 0), 0);
+    const adjLoss = adjustments
+      .filter(a => (a.adjustment_date || "").startsWith(monthPrefix) && (a.delta || 0) < 0)
+      .reduce((s, a) => s + Math.abs(a.delta || 0), 0);
+    return { doa, preDead, rejected, adjLoss, total: doa + preDead + rejected + adjLoss };
+  }, [receipts, batches, adjustments, monthPrefix]);
+  // Years list from data
+  const yearsAvailable = useMemo(() => {
+    const set = new Set<number>();
+    receipts.forEach(r => r.receipt_date && set.add(Number(r.receipt_date.slice(0, 4))));
+    batches.forEach(b => b.slaughter_date && set.add(Number(b.slaughter_date.slice(0, 4))));
+    set.add(now.getFullYear());
+    return Array.from(set).filter(y => y > 2000).sort((a, b) => b - a);
+  }, [receipts, batches]);
+  const monthNamesAr = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+
   const validateReceiptDate = (d: string): string | null => {
     if (!d) return "تاريخ التوريد مطلوب";
     if (d > todayStr) return "لا يمكن استخدام تاريخ في المستقبل";
