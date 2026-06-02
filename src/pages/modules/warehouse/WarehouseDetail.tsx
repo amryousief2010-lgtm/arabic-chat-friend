@@ -132,7 +132,7 @@ const WarehouseDetail = () => {
     const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
     const { data: ords } = await supabase
       .from("orders")
-      .select("id, order_number, created_at, status, fulfillment_type, total, subtotal, discount, delivery_fee, notes, delivery_address, payment_status, payment_method, source_warehouse_id, source:warehouses!orders_source_warehouse_id_fkey(name), customer:customers(name, phone, governorate), order_items(product_name, quantity, unit_price, total_price, offer_name)")
+      .select("id, order_number, created_at, status, fulfillment_type, total, subtotal, discount, delivery_fee, notes, delivery_address, payment_status, payment_method, source_warehouse_id, shipping_company, delivered_at, delivered_by, source:warehouses!orders_source_warehouse_id_fkey(name), customer:customers(name, phone, governorate), order_items(product_name, quantity, unit_price, total_price, offer_name)")
       .in("source_warehouse_id", orderSourceIds)
       .gte("created_at", fiveDaysAgo)
       .order("created_at", { ascending: false })
@@ -429,14 +429,18 @@ const WarehouseDetail = () => {
   };
 
 
-  // طلبات الاستلام من المخزن الرئيسي — لمسؤول المخزن (هادى) ولأحمد خاطر فى العجوزة (عرض)
+  // طلبات للتجهيز والتسليم من المخزن — يشمل:
+  //  • استلام العميل من المخزن (fulfillment_type='pickup')
+  //  • توصيل بمندوب خاص يستلم من المخزن (fulfillment_type='delivery' + shipping_company='مندوب خاص')
+  // كلها نسخة View من نفس order_id الأصلي — لا تنشئ طلب جديد ولا تخصم/تحجز مرتين.
   const pickupOrders = useMemo(() => {
     if (!isMain && !isAgouza) return [];
     return outletOrders.filter((o: any) => {
-      if (o.fulfillment_type !== "pickup") return false;
       if (["delivered", "cancelled", "returned"].includes(o.status)) return false;
+      const isPickup = o.fulfillment_type === "pickup";
+      const isPrivateDelivery = o.fulfillment_type === "delivery" && o.shipping_company === "مندوب خاص";
+      if (!isPickup && !isPrivateDelivery) return false;
       if (isMain) return o.source_warehouse_id === id;
-      // isAgouza: show pickup orders from main warehouse
       return o.source_warehouse_id && o.source_warehouse_id !== id;
     });
   }, [outletOrders, isMain, isAgouza, id]);
@@ -1456,10 +1460,10 @@ const WarehouseDetail = () => {
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Package className="w-5 h-5 text-primary" />
-                  طلبات استلام من المخزن الرئيسي
+                  طلبات للتجهيز والتسليم من المخزن
                 </CardTitle>
                 <CardDescription>
-                  الأوردرات اللى العميل هيستلمها من المخزن — جهّز الفاتورة والأصناف قبل وصوله • إجمالى {pickupOrders.length}
+                  استلام عميل + مندوب خاص + توصيل من المخزن — جهّز الفاتورة والأصناف قبل التسليم • إجمالى {pickupOrders.length}
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-0">
@@ -1477,6 +1481,11 @@ const WarehouseDetail = () => {
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="font-mono text-sm font-semibold">{o.order_number}</span>
                                 <Badge variant="outline">{statusArLabel(o.status)}</Badge>
+                                {o.fulfillment_type === "delivery" && o.shipping_company === "مندوب خاص" ? (
+                                  <Badge className="bg-orange-100 text-orange-800 border-orange-300">مندوب خاص</Badge>
+                                ) : (
+                                  <Badge className="bg-primary/10 text-primary border-primary/30">استلام عميل</Badge>
+                                )}
                                 <Badge variant={o.payment_status === "paid" ? "default" : "secondary"}>
                                   {o.payment_status === "paid" ? "مدفوع" : "غير مدفوع"} • {o.payment_method || "-"}
                                 </Badge>
