@@ -508,8 +508,9 @@ const MeatFactory = () => {
           <Button size="sm" onClick={openCreateBatch}><Plus className="w-4 h-4 ml-1" />أمر إنتاج جديد</Button>
         </div>
 
-        <Tabs defaultValue="costing" className="w-full">
-          <TabsList className="grid w-full grid-cols-8">
+        <Tabs defaultValue="incoming" className="w-full">
+          <TabsList className="grid w-full grid-cols-9">
+            <TabsTrigger value="incoming"><ArrowDownToLine className="w-4 h-4 ml-1" />وارد المجزر</TabsTrigger>
             <TabsTrigger value="costing"><Coins className="w-4 h-4 ml-1" />التكلفة والاعتماد</TabsTrigger>
             <TabsTrigger value="batches"><Factory className="w-4 h-4 ml-1" />الدفعات</TabsTrigger>
             <TabsTrigger value="consumption"><History className="w-4 h-4 ml-1" />الاستهلاك</TabsTrigger>
@@ -520,9 +521,14 @@ const MeatFactory = () => {
             <TabsTrigger value="recipes"><Layers className="w-4 h-4 ml-1" />الوصفات</TabsTrigger>
           </TabsList>
 
+          <TabsContent value="incoming">
+            <SlaughterToMeatInbox />
+          </TabsContent>
+
           <TabsContent value="costing">
             <MeatCostApprovalPanel onChanged={fetchAll} />
           </TabsContent>
+
 
           {/* BATCHES */}
           <TabsContent value="batches">
