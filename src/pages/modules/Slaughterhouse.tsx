@@ -724,9 +724,10 @@ const Slaughterhouse = () => {
     <div><strong>تاريخ الذبح</strong>${esc(b.slaughter_date)}</div>
     <div><strong>الشيفت</strong>${esc(shiftLabel)}</div>
     <div><strong>عدد الطيور</strong>${b.birds_slaughtered}</div>
-    <div><strong>الوزن الحي (كجم)</strong>${Number(b.total_live_weight_kg || 0).toFixed(1)}</div>
+    <div><strong>الوزن الحي (كجم)</strong>${liveW.toFixed(1)}</div>
     <div><strong>إجمالي اللحم (كجم)</strong>${Number(b.total_meat_kg || 0).toFixed(1)}</div>
-    <div><strong>نسبة التصافي</strong>${Number(b.actual_yield_pct || 0).toFixed(1)}%</div>
+    <div><strong>نسبة التصافي الإجمالية</strong>${Number(b.actual_yield_pct || 0).toFixed(1)}%</div>
+    <div style="background:#ecfdf5;border-color:#10b981"><strong style="color:#047857">نسبة تصافي اللحم فقط</strong><span style="color:#047857;font-weight:700">${meatYieldPct.toFixed(1)}%</span><div style="font-size:9px;color:#666">(${meatOnlyKg.toFixed(1)} كجم لحم ÷ ${liveW.toFixed(1)} كجم حي)</div></div>
     <div><strong>تكلفة الكيلو</strong>${Number(b.cost_per_kg_meat || 0).toFixed(0)} ج.م</div>
   </div>
 
@@ -734,6 +735,7 @@ const Slaughterhouse = () => {
     <thead><tr>
       <th>م</th><th>اسم القطعية</th><th>الباركود</th>
       <th>الوزن الفعلي</th><th>الوزن القياسي</th><th>الانحراف %</th>
+      <th>% من الوزن الحي</th>
       <th>العبوات</th><th>تالف</th><th>تكلفة الوحدة</th><th>إجمالي التكلفة</th><th>الوجهة</th>
     </tr></thead>
     <tbody>${rowsHtml}</tbody>
@@ -741,6 +743,7 @@ const Slaughterhouse = () => {
       <td colspan="3">الإجمالي</td>
       <td>${totalActual.toFixed(2)}</td>
       <td>-</td><td>-</td>
+      <td style="color:#7c3aed;font-weight:700">${totalPctOfLive.toFixed(2)}%</td>
       <td>${totalPackages}</td>
       <td>${totalDamaged.toFixed(2)}</td>
       <td>-</td>
