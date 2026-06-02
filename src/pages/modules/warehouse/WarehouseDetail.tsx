@@ -1874,38 +1874,10 @@ const WarehouseDetail = () => {
               </TableBody>
             </Table>
 
-            <div className="border rounded-md p-3 bg-muted/30">
-              <div className="text-sm font-medium mb-2 flex items-center gap-1"><Plus className="w-4 h-4" /> إضافة صنف لهذه الدفعة</div>
-              <div className="flex gap-2 items-center flex-wrap">
-                {(() => {
-                  const MEAT_KW = ["نعام","نعامة","فخدة","ذبيحة","كاملة","صندوق","لحم","استيك","ستيك","كباب","كفته","كفتة","برجر","شيش","تربيانكو","اسكالوب","رول","سجق","موزة","موزه","فراشة","كبدة","كبده","قلب","قوانص","رقاب","كوارع","دهن","قطعية","دبوس","بانيه","نجتس","ميت بول","فيليه","طبق","شاورما"];
-                  const EXCLUDE_KW = ["بقسماط","بيض","علف","ذرة","صويا","كرتون","كيس","شيكارة","توابل","تتبيلة","تتبيله","بهارات","صوص","ملح","فلفل","زيت","دقيق","سكر","خل","ثوم","بصل","ماء","عبوة","عبوه","غلاف","ستيكر","ليبل","ملصق","فويل","نايلون","بلاستيك"];
-                  const slaughterItems = items.filter((it: any) => {
-                    const n = String(it.name || "");
-                    if (EXCLUDE_KW.some(k => n.includes(k))) return false;
-                    return MEAT_KW.some(k => n.includes(k));
-                  });
-                  return (
-                    <Select value={addItemId} onValueChange={setAddItemId}>
-                      <SelectTrigger className="w-64"><SelectValue placeholder="اختر الصنف" /></SelectTrigger>
-                      <SelectContent>
-                        {slaughterItems.length === 0 && (
-                          <div className="px-2 py-1 text-xs text-muted-foreground">لا توجد منتجات لحوم في المخزن الرئيسي</div>
-                        )}
-                        {slaughterItems.map((it: any) => (
-                          <SelectItem key={it.id} value={it.id}>{it.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  );
-                })()}
-                <Input type="number" step="0.01" className="w-28" placeholder="الكمية"
-                  value={addItemQty || ""} onChange={(e) => setAddItemQty(Number(e.target.value))} />
-                <Button onClick={handleAddSlaughterItem} disabled={!addItemId || addItemQty <= 0}>
-                  <Plus className="w-4 h-4 ml-1" /> إضافة
-                </Button>
-              </div>
+            <div className="text-xs text-muted-foreground border-r-2 border-orange-300 pr-2">
+              💡 الكميات جاية كاملة من المجزر. لو فيه نقص فى أى صنف اضغط على زر التعديل ✏️ بجانب الصنف.
             </div>
+
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={printSlaughterBatch}><Printer className="w-4 h-4 ml-1" />طباعة</Button>
