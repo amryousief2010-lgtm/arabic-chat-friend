@@ -1460,10 +1460,10 @@ const WarehouseDetail = () => {
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Package className="w-5 h-5 text-primary" />
-                  طلبات استلام من المخزن الرئيسي
+                  طلبات للتجهيز والتسليم من المخزن
                 </CardTitle>
                 <CardDescription>
-                  الأوردرات اللى العميل هيستلمها من المخزن — جهّز الفاتورة والأصناف قبل وصوله • إجمالى {pickupOrders.length}
+                  استلام عميل + مندوب خاص + توصيل من المخزن — جهّز الفاتورة والأصناف قبل التسليم • إجمالى {pickupOrders.length}
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-0">
