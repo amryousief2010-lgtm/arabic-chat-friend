@@ -451,6 +451,11 @@ const AnimatedRoutes = () => {
               <PageTransition><FarmShipmentsLog /></PageTransition>
             </ProtectedRoute>
           } />
+          <Route path="/farm-egg-waste" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'farm_manager', 'production_manager', 'quality_manager']}>
+              <PageTransition><FarmEggWaste /></PageTransition>
+            </ProtectedRoute>
+          } />
           <Route path="/farm-production-import" element={
             <ProtectedRoute allowedRoles={['general_manager']}>
               <PageTransition><FarmProductionImport /></PageTransition>
