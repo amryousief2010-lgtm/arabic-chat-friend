@@ -96,7 +96,8 @@ function exportBatchExcel(b: any) {
 }
 
 export function SlaughterToMeatInbox() {
-  const { canManageMeatFactory } = useAuth();
+  const { canManageMeatFactory, canManageWarehouses } = useAuth();
+  const canReceive = canManageMeatFactory || canManageWarehouses;
   const [outputs, setOutputs] = useState<any[]>([]);
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [receiveBatch, setReceiveBatch] = useState<any | null>(null);
@@ -212,7 +213,7 @@ export function SlaughterToMeatInbox() {
                       <Button variant="outline" size="sm" onClick={() => exportBatchExcel(b)}>
                         <FileSpreadsheet className="w-4 h-4 ml-1 text-emerald-600" /> Excel
                       </Button>
-                      {canManageMeatFactory && (
+                      {canReceive && (
                         <Button onClick={() => openReceive(b)} className="bg-orange-600 hover:bg-orange-700">
                           <Edit className="w-4 h-4 ml-1" /> تعديل / استلام
                         </Button>
