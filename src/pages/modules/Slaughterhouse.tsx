@@ -1049,6 +1049,29 @@ const Slaughterhouse = () => {
                             <Bird className="w-3 h-3 ml-1" />{recBirds.length}
                           </Button>
                         </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button size="sm" variant="outline" className="gap-1" title="فاتورة الشراء">
+                                <ReceiptIcon className="w-3.5 h-3.5" />
+                                <MoreHorizontal className="w-3 h-3" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" dir="rtl" className="min-w-[180px]">
+                              <DropdownMenuLabel className="text-xs">{r.receipt_number}</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => setDetailReceipt(r)}>
+                                <ReceiptIcon className="w-4 h-4 ml-2" /> عرض فاتورة الشراء
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => exportReceiptPDF(r)} className="text-red-600">
+                                <Printer className="w-4 h-4 ml-2" /> طباعة / PDF
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => exportReceiptExcel(r)} className="text-emerald-700">
+                                <FileSpreadsheet className="w-4 h-4 ml-2" /> تصدير Excel
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
                         {canEditReceiptData && (
                           <TableCell>
                             <Button size="sm" variant="secondary" onClick={() => { setEditReceipt(r); setEditReceiptForm({}); }} title="تعديل بيانات الدفعة">
