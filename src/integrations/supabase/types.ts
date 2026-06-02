@@ -777,6 +777,7 @@ export type Database = {
           outgoing: number
           sold: number
           source: string
+          source_batch_id: string | null
           unit_price: number
         }
         Insert: {
@@ -790,6 +791,7 @@ export type Database = {
           outgoing?: number
           sold?: number
           source: string
+          source_batch_id?: string | null
           unit_price?: number
         }
         Update: {
@@ -803,6 +805,7 @@ export type Database = {
           outgoing?: number
           sold?: number
           source?: string
+          source_batch_id?: string | null
           unit_price?: number
         }
         Relationships: []
@@ -3106,6 +3109,7 @@ export type Database = {
           pickup_date: string | null
           receive_date: string
           received_eggs: number
+          source_shipment_id: string | null
           status: string
           updated_at: string
         }
@@ -3133,6 +3137,7 @@ export type Database = {
           pickup_date?: string | null
           receive_date: string
           received_eggs?: number
+          source_shipment_id?: string | null
           status?: string
           updated_at?: string
         }
@@ -3160,6 +3165,7 @@ export type Database = {
           pickup_date?: string | null
           receive_date?: string
           received_eggs?: number
+          source_shipment_id?: string | null
           status?: string
           updated_at?: string
         }

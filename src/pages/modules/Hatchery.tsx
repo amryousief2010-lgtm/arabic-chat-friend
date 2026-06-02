@@ -612,9 +612,15 @@ const BatchesTab = ({ batches, customers, qc }: any) => {
                 <TableCell className="text-emerald-600">{fertility(b)}</TableCell>
                 <TableCell className="text-purple-600">{conversion(b)}</TableCell>
                 <TableCell>
-                  <Badge variant={b.status === "completed" ? "default" : "secondary"}>
-                    {b.status === "completed" ? "مكتملة" : b.status === "incubating" ? "تحضين" : b.status === "hatching" ? "هاتشر" : "انتظار"}
-                  </Badge>
+                  {b.source_shipment_id && !b.entry_date && !b.candle1_fertile && !b.candle1_infertile && b.status !== "completed" ? (
+                    <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300">
+                      بانتظار متابعة المعمل
+                    </Badge>
+                  ) : (
+                    <Badge variant={b.status === "completed" ? "default" : "secondary"}>
+                      {b.status === "completed" ? "مكتملة" : b.status === "incubating" ? "تحضين" : b.status === "hatching" ? "هاتشر" : "انتظار"}
+                    </Badge>
+                  )}
                 </TableCell>
                 <TableCell>
                   <Button size="icon" variant="ghost" onClick={() => openEdit(b)}><Pencil className="w-4 h-4" /></Button>
