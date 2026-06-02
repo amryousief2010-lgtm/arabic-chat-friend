@@ -63,7 +63,7 @@ export const clearReloadLog = () => {
   }
 };
 
-const clearAllCachesAndSW = async () => {
+export const clearAllCachesAndSW = async () => {
   try {
     if ("caches" in window) {
       const keys = await caches.keys();
@@ -142,6 +142,24 @@ export const getLastCheck = () => lastCheck;
 export const subscribeToChecks = (fn: (s: LastCheckState) => void) => {
   listeners.add(fn);
   return () => listeners.delete(fn);
+};
+
+/** listeners للتحديثات المتاحة (لا إعادة تحميل تلقائية) */
+export interface UpdateAvailableInfo {
+  remoteVersion: string;
+  currentVersion: string;
+}
+const updateAvailableListeners = new Set<(info: UpdateAvailableInfo) => void>();
+export const subscribeToUpdateAvailable = (fn: (info: UpdateAvailableInfo) => void) => {
+  updateAvailableListeners.add(fn);
+  return () => updateAvailableListeners.delete(fn);
+};
+export const notifyUpdateAvailable = (remoteVersion: string) => {
+  const info: UpdateAvailableInfo = {
+    remoteVersion,
+    currentVersion: CURRENT_VERSION,
+  };
+  updateAvailableListeners.forEach((fn) => fn(info));
 };
 
 /** فحص + إعادة تحميل إن لزم. يُرجع true لو سيُعاد التحميل. */
