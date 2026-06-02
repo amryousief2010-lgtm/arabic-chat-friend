@@ -59,6 +59,8 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  const [mainOpeningAt, setMainOpeningAt] = useState<string | null>(null);
+
 
   const fetchAll = async () => {
     setLoading(true);
@@ -127,11 +129,24 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
         }
         setAgouzaPending(agPend);
         setMainPending(mnPend);
+
+        // آخر تاريخ Opening Balance للمخزن الرئيسي
+        if (main?.id) {
+          const { data: ob } = await supabase
+            .from("warehouse_opening_balances")
+            .select("opened_at")
+            .eq("warehouse_id", main.id)
+            .order("opened_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          setMainOpeningAt((ob as any)?.opened_at ?? null);
+        }
       }
     } finally {
       setLoading(false);
     }
   };
+
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -141,6 +156,29 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
     const whId = wh === "agouza" ? agouzaWhId : mainWhId;
     if (!whId) return;
     const itemId = (wh === "agouza" ? agouzaItemIds : mainItemIds)[productId];
+
+    // المخزن الرئيسي: لازم سبب + يمر عبر RPC مدقَّق يسجل حركة تعديل جرد
+    if (wh === "main") {
+      if (!itemId) { toast.error("الصنف غير موجود في الجرد، أضِفه أولاً"); return; }
+      const reason = window.prompt("سبب تعديل الجرد (إلزامي):", "تعديل جرد يدوي");
+      if (!reason || reason.trim().length < 3) { toast.error("لازم تكتب سبب"); return; }
+      setSaving(true);
+      try {
+        const { error } = await supabase.rpc("adjust_main_warehouse_stock", {
+          p_item_id: itemId,
+          p_new_qty: newActualKg,
+          p_reason: reason.trim(),
+        });
+        if (error) throw error;
+        setMainStock((s) => ({ ...s, [productId]: newActualKg }));
+        toast.success("تم تعديل الجرد وتسجيل الحركة");
+        setEditingKey(null);
+      } catch (e: any) {
+        toast.error(e.message || "تعذّر الحفظ");
+      } finally { setSaving(false); }
+      return;
+    }
+
     setSaving(true);
     try {
       if (itemId) {
@@ -156,13 +194,12 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
           .select("id")
           .single();
         if (error) throw error;
-        if (wh === "agouza") setAgouzaItemIds((m) => ({ ...m, [productId]: data!.id }));
-        else setMainItemIds((m) => ({ ...m, [productId]: data!.id }));
+        setAgouzaItemIds((m) => ({ ...m, [productId]: data!.id }));
       }
-      if (wh === "agouza") setAgouzaStock((s) => ({ ...s, [productId]: newActualKg }));
-      else setMainStock((s) => ({ ...s, [productId]: newActualKg }));
+      setAgouzaStock((s) => ({ ...s, [productId]: newActualKg }));
       toast.success("تم تحديث الرصيد الفعلي");
       setEditingKey(null);
+
     } catch (e: any) {
       toast.error(e.message || "تعذّر الحفظ");
     } finally {
@@ -300,6 +337,28 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
   return (
     <DashboardLayout>
       <Header title={title} subtitle={subtitle} />
+
+      {scope === "main" && mainOpeningAt && (
+        <Card className="mb-3 border-primary/30 bg-primary/5">
+          <CardContent className="p-3 flex items-center gap-3 text-sm">
+            <div className="p-2 rounded-md bg-primary/15 text-primary">
+              <PackageCheck className="w-4 h-4" />
+            </div>
+            <div className="flex-1">
+              <div className="text-xs text-muted-foreground">رصيد افتتاحي معتمد (Zero-base)</div>
+              <div className="font-semibold">
+                تم تثبيت الجرد الحالي كنقطة صفر بتاريخ{" "}
+                {new Date(mainOpeningAt).toLocaleString("ar-EG", { dateStyle: "medium", timeStyle: "short" })}
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                أي تغيير بعد ذلك يكون عبر: توريد دبح/مصنع، مرتجعات معتمدة، صرف طلبات، تحويلات، أو تعديل جرد بصلاحية المدير.
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+
 
       {/* ملخص سريع */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">

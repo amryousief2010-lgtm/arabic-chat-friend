@@ -6969,6 +6969,39 @@ export type Database = {
         }
         Relationships: []
       }
+      warehouse_opening_balances: {
+        Row: {
+          id: string
+          item_id: string
+          notes: string | null
+          opened_at: string
+          opened_by: string | null
+          product_id: string | null
+          qty: number
+          warehouse_id: string
+        }
+        Insert: {
+          id?: string
+          item_id: string
+          notes?: string | null
+          opened_at?: string
+          opened_by?: string | null
+          product_id?: string | null
+          qty?: number
+          warehouse_id: string
+        }
+        Update: {
+          id?: string
+          item_id?: string
+          notes?: string | null
+          opened_at?: string
+          opened_by?: string | null
+          product_id?: string | null
+          qty?: number
+          warehouse_id?: string
+        }
+        Relationships: []
+      }
       warehouse_transfer_items: {
         Row: {
           approved_qty: number | null
@@ -7381,6 +7414,10 @@ export type Database = {
       }
       activate_meat_bom: {
         Args: { p_notes?: string; p_product_code: string; p_version: number }
+        Returns: Json
+      }
+      adjust_main_warehouse_stock: {
+        Args: { p_item_id: string; p_new_qty: number; p_reason: string }
         Returns: Json
       }
       apply_feed_stock_count: {
