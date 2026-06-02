@@ -129,11 +129,24 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
         }
         setAgouzaPending(agPend);
         setMainPending(mnPend);
+
+        // آخر تاريخ Opening Balance للمخزن الرئيسي
+        if (main?.id) {
+          const { data: ob } = await supabase
+            .from("warehouse_opening_balances")
+            .select("opened_at")
+            .eq("warehouse_id", main.id)
+            .order("opened_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          setMainOpeningAt((ob as any)?.opened_at ?? null);
+        }
       }
     } finally {
       setLoading(false);
     }
   };
+
 
   useEffect(() => { fetchAll(); }, []);
 
