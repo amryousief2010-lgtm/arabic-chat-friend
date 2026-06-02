@@ -1385,6 +1385,47 @@ export type Database = {
           },
         ]
       }
+      farm_egg_waste: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          egg_count: number
+          family_id: string | null
+          id: string
+          notes: string | null
+          reason: string | null
+          waste_date: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          egg_count: number
+          family_id?: string | null
+          id?: string
+          notes?: string | null
+          reason?: string | null
+          waste_date: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          egg_count?: number
+          family_id?: string | null
+          id?: string
+          notes?: string | null
+          reason?: string | null
+          waste_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "farm_egg_waste_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "farm_families"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       farm_families: {
         Row: {
           created_at: string
