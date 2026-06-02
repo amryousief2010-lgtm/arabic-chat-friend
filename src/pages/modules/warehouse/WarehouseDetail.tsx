@@ -1795,6 +1795,7 @@ const WarehouseDetail = () => {
             </div>
           </div>
           <DialogFooter>
+            <Button variant="outline" onClick={printSlaughterBatch}><Printer className="w-4 h-4 ml-1" />طباعة</Button>
             <Button variant="outline" onClick={() => setSlaughterDialog(null)}>إغلاق</Button>
           </DialogFooter>
         </DialogContent>
