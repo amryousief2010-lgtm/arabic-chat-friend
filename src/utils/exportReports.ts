@@ -1,6 +1,5 @@
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
+import { openPrintWindow, escapeHtml, fmtNum, fmtDate, COMPANY_AR } from "@/lib/printPdf";
 
 interface ExportData {
   totalSales: number;
@@ -16,140 +15,162 @@ interface ExportData {
   periodLabel: string;
 }
 
+function buildTable(title: string, headers: string[], rows: (string | number)[][]) {
+  if (rows.length === 0) return "";
+  return `
+    <h2>${escapeHtml(title)}</h2>
+    <table>
+      <thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr></thead>
+      <tbody>
+        ${rows
+          .map(
+            (r) =>
+              `<tr>${r
+                .map((c) => `<td class="num">${escapeHtml(c)}</td>`)
+                .join("")}</tr>`,
+          )
+          .join("")}
+      </tbody>
+    </table>`;
+}
+
 export function exportToPDF(data: ExportData) {
-  const doc = new jsPDF({ orientation: "landscape" });
+  const body = `
+    <header>
+      <div>
+        <h1>${COMPANY_AR}</h1>
+        <div class="en">تقرير المبيعات — ${escapeHtml(data.periodLabel)}</div>
+      </div>
+      <div class="meta">
+        <div>تاريخ الإصدار: ${fmtDate(new Date())}</div>
+      </div>
+    </header>
 
-  // Title
-  doc.setFontSize(18);
-  doc.text(`Sales Report - ${data.periodLabel}`, 14, 20);
+    <div class="stats">
+      <div class="stat"><div class="k">إجمالي الإيرادات</div><div class="v">${fmtNum(data.totalSales)} ج.م</div></div>
+      <div class="stat"><div class="k">إجمالي الطلبات</div><div class="v">${fmtNum(data.totalOrders)}</div></div>
+      <div class="stat"><div class="k">متوسط قيمة الطلب</div><div class="v">${fmtNum(data.avgOrderValue)} ج.م</div></div>
+      <div class="stat"><div class="k">العملاء</div><div class="v">${fmtNum(data.totalCustomers)}</div></div>
+    </div>
 
-  // Summary
-  doc.setFontSize(11);
-  doc.text(`Total Revenue: ${data.totalSales.toLocaleString()} EGP`, 14, 32);
-  doc.text(`Total Orders: ${data.totalOrders.toLocaleString()}`, 14, 39);
-  doc.text(`Avg Order Value: ${data.avgOrderValue.toLocaleString()} EGP`, 14, 46);
-  doc.text(`Customers: ${data.totalCustomers.toLocaleString()}`, 14, 53);
+    ${buildTable(
+      "المبيعات الشهرية",
+      ["الشهر", "المبيعات (ج.م)", "الطلبات", "النمو الشهري %"],
+      data.monthlySales.map((r) => [r.month, fmtNum(r.sales), fmtNum(r.orders), `${r.momPercent}%`]),
+    )}
 
-  let y = 62;
+    ${buildTable(
+      "المبيعات حسب المحافظة",
+      ["المحافظة", "المبيعات (ج.م)", "الطلبات"],
+      data.governorateData.map((r) => [r.name, fmtNum(r.sales), fmtNum(r.orders)]),
+    )}
 
-  // Monthly Sales
-  if (data.monthlySales.length > 0) {
-    doc.setFontSize(13);
-    doc.text("Monthly Sales", 14, y);
-    autoTable(doc, {
-      startY: y + 4,
-      head: [["Month", "Sales (EGP)", "Orders", "MoM %"]],
-      body: data.monthlySales.map((r) => [r.month, r.sales.toLocaleString(), r.orders, `${r.momPercent}%`]),
-      styles: { fontSize: 9 },
-    });
-    y = (doc as any).lastAutoTable.finalY + 10;
-  }
+    ${buildTable(
+      "مصادر العملاء",
+      ["المصدر", "النسبة %", "الطلبات"],
+      data.sourceData.map((r) => [r.name, `${r.value}%`, fmtNum(r.orders)]),
+    )}
 
-  // Governorate
-  if (data.governorateData.length > 0) {
-    if (y > 170) { doc.addPage(); y = 20; }
-    doc.setFontSize(13);
-    doc.text("Sales by Governorate", 14, y);
-    autoTable(doc, {
-      startY: y + 4,
-      head: [["Governorate", "Sales (EGP)", "Orders"]],
-      body: data.governorateData.map((r) => [r.name, r.sales.toLocaleString(), r.orders]),
-      styles: { fontSize: 9 },
-    });
-    y = (doc as any).lastAutoTable.finalY + 10;
-  }
+    ${buildTable(
+      "شركات الشحن",
+      ["الشركة", "النسبة %", "الطلبات"],
+      data.shippingData.map((r) => [r.name, `${r.value}%`, fmtNum(r.orders)]),
+    )}
 
-  // Moderator
-  if (data.moderatorData.length > 0) {
-    if (y > 170) { doc.addPage(); y = 20; }
-    doc.setFontSize(13);
-    doc.text("Moderator Performance", 14, y);
-    autoTable(doc, {
-      startY: y + 4,
-      head: [["Moderator", "Sales (EGP)", "Orders", "Share %"]],
-      body: data.moderatorData.map((r) => [r.name, r.sales.toLocaleString(), r.orders, `${r.percent}%`]),
-      styles: { fontSize: 9 },
-    });
-    y = (doc as any).lastAutoTable.finalY + 10;
-  }
+    ${buildTable(
+      "أداء الموديراتور",
+      ["الموديراتور", "المبيعات (ج.م)", "الطلبات", "النسبة %"],
+      data.moderatorData.map((r) => [r.name, fmtNum(r.sales), fmtNum(r.orders), `${r.percent}%`]),
+    )}
 
-  // Products
-  if (data.productData.length > 0) {
-    if (y > 170) { doc.addPage(); y = 20; }
-    doc.setFontSize(13);
-    doc.text("Top Products", 14, y);
-    autoTable(doc, {
-      startY: y + 4,
-      head: [["Product", "Quantity"]],
-      body: data.productData.map((r) => [r.name, r.quantity.toLocaleString()]),
-      styles: { fontSize: 9 },
-    });
-  }
-
-  doc.save(`sales-report-${data.periodLabel}.pdf`);
+    ${buildTable(
+      "أفضل المنتجات (بالكمية)",
+      ["المنتج", "الكمية"],
+      data.productData.map((r) => [r.name, fmtNum(r.quantity)]),
+    )}
+  `;
+  openPrintWindow(`تقرير المبيعات — ${data.periodLabel}`, body);
 }
 
 export function exportToExcel(data: ExportData) {
   const wb = XLSX.utils.book_new();
 
-  // Summary sheet
   const summary = [
-    ["Sales Report", data.periodLabel],
+    ["تقرير المبيعات", data.periodLabel],
     [],
-    ["Total Revenue (EGP)", data.totalSales],
-    ["Total Orders", data.totalOrders],
-    ["Avg Order Value (EGP)", data.avgOrderValue],
-    ["Total Customers", data.totalCustomers],
+    ["إجمالي الإيرادات (ج.م)", data.totalSales],
+    ["إجمالي الطلبات", data.totalOrders],
+    ["متوسط قيمة الطلب (ج.م)", data.avgOrderValue],
+    ["إجمالي العملاء", data.totalCustomers],
   ];
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summary), "Summary");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summary), "ملخص");
 
-  // Monthly
   if (data.monthlySales.length > 0) {
-    const ws = XLSX.utils.json_to_sheet(data.monthlySales.map((r) => ({
-      Month: r.month, "Sales (EGP)": r.sales, Orders: r.orders, "MoM %": r.momPercent,
-    })));
-    XLSX.utils.book_append_sheet(wb, ws, "Monthly Sales");
+    const ws = XLSX.utils.json_to_sheet(
+      data.monthlySales.map((r) => ({
+        "الشهر": r.month,
+        "المبيعات (ج.م)": r.sales,
+        "الطلبات": r.orders,
+        "النمو %": r.momPercent,
+      })),
+    );
+    XLSX.utils.book_append_sheet(wb, ws, "المبيعات الشهرية");
   }
 
-  // Governorate
   if (data.governorateData.length > 0) {
-    const ws = XLSX.utils.json_to_sheet(data.governorateData.map((r) => ({
-      Governorate: r.name, "Sales (EGP)": r.sales, Orders: r.orders,
-    })));
-    XLSX.utils.book_append_sheet(wb, ws, "Governorates");
+    const ws = XLSX.utils.json_to_sheet(
+      data.governorateData.map((r) => ({
+        "المحافظة": r.name,
+        "المبيعات (ج.م)": r.sales,
+        "الطلبات": r.orders,
+      })),
+    );
+    XLSX.utils.book_append_sheet(wb, ws, "المحافظات");
   }
 
-  // Sources
   if (data.sourceData.length > 0) {
-    const ws = XLSX.utils.json_to_sheet(data.sourceData.map((r) => ({
-      Source: r.name, "Share %": r.value, Orders: r.orders,
-    })));
-    XLSX.utils.book_append_sheet(wb, ws, "Sources");
+    const ws = XLSX.utils.json_to_sheet(
+      data.sourceData.map((r) => ({
+        "المصدر": r.name,
+        "النسبة %": r.value,
+        "الطلبات": r.orders,
+      })),
+    );
+    XLSX.utils.book_append_sheet(wb, ws, "المصادر");
   }
 
-  // Shipping
   if (data.shippingData.length > 0) {
-    const ws = XLSX.utils.json_to_sheet(data.shippingData.map((r) => ({
-      Company: r.name, "Share %": r.value, Orders: r.orders,
-    })));
-    XLSX.utils.book_append_sheet(wb, ws, "Shipping");
+    const ws = XLSX.utils.json_to_sheet(
+      data.shippingData.map((r) => ({
+        "الشركة": r.name,
+        "النسبة %": r.value,
+        "الطلبات": r.orders,
+      })),
+    );
+    XLSX.utils.book_append_sheet(wb, ws, "شركات الشحن");
   }
 
-  // Moderators
   if (data.moderatorData.length > 0) {
-    const ws = XLSX.utils.json_to_sheet(data.moderatorData.map((r) => ({
-      Moderator: r.name, "Sales (EGP)": r.sales, Orders: r.orders, "Share %": r.percent,
-    })));
-    XLSX.utils.book_append_sheet(wb, ws, "Moderators");
+    const ws = XLSX.utils.json_to_sheet(
+      data.moderatorData.map((r) => ({
+        "الموديراتور": r.name,
+        "المبيعات (ج.م)": r.sales,
+        "الطلبات": r.orders,
+        "النسبة %": r.percent,
+      })),
+    );
+    XLSX.utils.book_append_sheet(wb, ws, "الموديراتور");
   }
 
-  // Products
   if (data.productData.length > 0) {
-    const ws = XLSX.utils.json_to_sheet(data.productData.map((r) => ({
-      Product: r.name, Quantity: r.quantity,
-    })));
-    XLSX.utils.book_append_sheet(wb, ws, "Products");
+    const ws = XLSX.utils.json_to_sheet(
+      data.productData.map((r) => ({
+        "المنتج": r.name,
+        "الكمية": r.quantity,
+      })),
+    );
+    XLSX.utils.book_append_sheet(wb, ws, "المنتجات");
   }
 
-  XLSX.writeFile(wb, `sales-report-${data.periodLabel}.xlsx`);
+  XLSX.writeFile(wb, `تقرير-المبيعات-${data.periodLabel}.xlsx`);
 }

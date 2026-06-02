@@ -1,6 +1,5 @@
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
+import { openPrintWindow, escapeHtml, fmtNum, fmtDate, COMPANY_AR } from "@/lib/printPdf";
 
 export interface OrderExportRow {
   order_number: string;
@@ -16,22 +15,22 @@ export interface OrderExportRow {
 }
 
 const statusAR: Record<string, string> = {
-  pending: "Pending",
-  processing: "Processing",
-  shipped: "Shipped",
-  delivered: "Delivered",
-  cancelled: "Cancelled",
+  pending: "قيد الانتظار",
+  processing: "قيد التنفيذ",
+  shipped: "تم الشحن",
+  delivered: "تم التسليم",
+  cancelled: "ملغي",
 };
 
-const paymentAR: Record<string, string> = {
-  paid: "Paid",
-  pending: "Pending",
-  failed: "Failed",
+const paymentStatusAR: Record<string, string> = {
+  paid: "مدفوع",
+  pending: "قيد الانتظار",
+  failed: "فشل",
 };
 
 const collectionAR: Record<string, string> = {
-  collected: "Collected",
-  not_collected: "Not Collected",
+  collected: "تم التحصيل",
+  not_collected: "لم يتم التحصيل",
 };
 
 export function exportOrdersToCSV(rows: OrderExportRow[], filename = "orders.csv") {
@@ -55,9 +54,9 @@ export function exportOrdersToCSV(rows: OrderExportRow[], filename = "orders.csv
       `"${(r.moderator_name || "").replace(/"/g, '""')}"`,
       r.total,
       r.payment_method === "cash" ? "نقدي" : "إلكتروني",
-      r.payment_status === "paid" ? "مدفوع" : r.payment_status === "failed" ? "فشل" : "قيد الانتظار",
-      r.collection_status === "collected" ? "تم التحصيل" : "لم يتم التحصيل",
-      r.status,
+      paymentStatusAR[r.payment_status] || r.payment_status,
+      collectionAR[r.collection_status] || r.collection_status,
+      statusAR[r.status] || r.status,
       new Date(r.created_at).toLocaleString("ar-EG"),
       r.delivered_at ? new Date(r.delivered_at).toLocaleString("ar-EG") : "-",
     ];
@@ -79,54 +78,80 @@ export function exportOrdersToXLSX(rows: OrderExportRow[], filename = `orders-${
     "الموديريتور": r.moderator_name || "",
     "الإجمالي": r.total,
     "طريقة الدفع": r.payment_method === "cash" ? "نقدي" : "إلكتروني",
-    "حالة الدفع": r.payment_status === "paid" ? "مدفوع" : r.payment_status === "failed" ? "فشل" : "قيد الانتظار",
-    "حالة التحصيل": r.collection_status === "collected" ? "تم التحصيل" : "لم يتم التحصيل",
-    "حالة الطلب": r.status,
+    "حالة الدفع": paymentStatusAR[r.payment_status] || r.payment_status,
+    "حالة التحصيل": collectionAR[r.collection_status] || r.collection_status,
+    "حالة الطلب": statusAR[r.status] || r.status,
     "تاريخ الإنشاء": new Date(r.created_at).toLocaleString("ar-EG"),
     "تاريخ التسليم": r.delivered_at ? new Date(r.delivered_at).toLocaleString("ar-EG") : "-",
   }));
   const ws = XLSX.utils.json_to_sheet(data);
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Orders");
+  XLSX.utils.book_append_sheet(wb, ws, "الطلبات");
   XLSX.writeFile(wb, filename, { bookType: "xlsx" });
 }
 
-export function exportOrdersToPDF(rows: OrderExportRow[], periodLabel = "All Orders") {
-  const doc = new jsPDF({ orientation: "landscape" });
-  doc.setFontSize(16);
-  doc.text(`Orders Report - ${periodLabel}`, 14, 16);
-  doc.setFontSize(10);
-  doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 23);
-  doc.text(`Total: ${rows.length} orders`, 14, 29);
-
-  const totalSum = rows.reduce((s, r) => s + r.total, 0);
+export function exportOrdersToPDF(rows: OrderExportRow[], periodLabel = "كل الطلبات") {
+  const totalSum = rows.reduce((s, r) => s + Number(r.total || 0), 0);
   const collectedSum = rows
     .filter((r) => r.collection_status === "collected")
-    .reduce((s, r) => s + r.total, 0);
-  const paidSum = rows.filter((r) => r.payment_status === "paid").reduce((s, r) => s + r.total, 0);
+    .reduce((s, r) => s + Number(r.total || 0), 0);
+  const paidSum = rows
+    .filter((r) => r.payment_status === "paid")
+    .reduce((s, r) => s + Number(r.total || 0), 0);
 
-  doc.text(`Total Value: ${totalSum.toLocaleString()} EGP`, 14, 35);
-  doc.text(`Collected: ${collectedSum.toLocaleString()} EGP`, 110, 35);
-  doc.text(`Paid: ${paidSum.toLocaleString()} EGP`, 210, 35);
+  const body = `
+    <header>
+      <div>
+        <h1>${COMPANY_AR}</h1>
+        <div class="en">تقرير الطلبات — ${escapeHtml(periodLabel)}</div>
+      </div>
+      <div class="meta">
+        <div>تاريخ الإصدار: ${fmtDate(new Date())}</div>
+        <div>عدد الطلبات: <b>${fmtNum(rows.length)}</b></div>
+      </div>
+    </header>
 
-  autoTable(doc, {
-    startY: 42,
-    head: [["#", "Customer", "Moderator", "Total", "Pay Method", "Pay Status", "Collection", "Status", "Created", "Delivered"]],
-    body: rows.map((r) => [
-      r.order_number,
-      r.customer_name,
-      r.moderator_name || "-",
-      r.total.toLocaleString(),
-      r.payment_method === "cash" ? "Cash" : "Online",
-      paymentAR[r.payment_status] || r.payment_status,
-      collectionAR[r.collection_status] || r.collection_status,
-      statusAR[r.status] || r.status,
-      new Date(r.created_at).toLocaleDateString(),
-      r.delivered_at ? new Date(r.delivered_at).toLocaleDateString() : "-",
-    ]),
-    styles: { fontSize: 8 },
-    headStyles: { fillColor: [76, 29, 149] },
-  });
+    <div class="stats">
+      <div class="stat"><div class="k">إجمالي القيمة</div><div class="v">${fmtNum(totalSum)} ج.م</div></div>
+      <div class="stat"><div class="k">المُحصّل</div><div class="v">${fmtNum(collectedSum)} ج.م</div></div>
+      <div class="stat"><div class="k">المدفوع</div><div class="v">${fmtNum(paidSum)} ج.م</div></div>
+      <div class="stat"><div class="k">عدد الطلبات</div><div class="v">${fmtNum(rows.length)}</div></div>
+    </div>
 
-  doc.save(`orders-${Date.now()}.pdf`);
+    <table>
+      <thead>
+        <tr>
+          <th>رقم الطلب</th>
+          <th>العميل</th>
+          <th>الموديريتور</th>
+          <th>الإجمالي</th>
+          <th>طريقة الدفع</th>
+          <th>حالة الدفع</th>
+          <th>التحصيل</th>
+          <th>الحالة</th>
+          <th>تاريخ الإنشاء</th>
+          <th>تاريخ التسليم</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows
+          .map(
+            (r) => `<tr>
+              <td>${escapeHtml(r.order_number)}</td>
+              <td>${escapeHtml(r.customer_name)}</td>
+              <td>${escapeHtml(r.moderator_name || "—")}</td>
+              <td class="num">${fmtNum(r.total)}</td>
+              <td>${r.payment_method === "cash" ? "نقدي" : "إلكتروني"}</td>
+              <td>${escapeHtml(paymentStatusAR[r.payment_status] || r.payment_status)}</td>
+              <td>${escapeHtml(collectionAR[r.collection_status] || r.collection_status)}</td>
+              <td>${escapeHtml(statusAR[r.status] || r.status)}</td>
+              <td>${escapeHtml(new Date(r.created_at).toLocaleDateString("ar-EG-u-nu-latn"))}</td>
+              <td>${r.delivered_at ? escapeHtml(new Date(r.delivered_at).toLocaleDateString("ar-EG-u-nu-latn")) : "—"}</td>
+            </tr>`,
+          )
+          .join("")}
+      </tbody>
+    </table>
+  `;
+  openPrintWindow(`تقرير الطلبات — ${periodLabel}`, body);
 }
