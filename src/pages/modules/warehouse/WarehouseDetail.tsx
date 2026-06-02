@@ -1092,6 +1092,9 @@ const WarehouseDetail = () => {
                 </SelectContent>
               </Select>
               <div className="flex-1" />
+              <Button size="sm" onClick={() => setAddMovOpen(true)} className="bg-emerald-600 hover:bg-emerald-700">
+                <Plus className="w-4 h-4 ml-1" /> إضافة حركة
+              </Button>
               <Button size="sm" variant="outline" onClick={printMovementsLog}>
                 <Printer className="w-4 h-4 ml-1" /> طباعة السجل
               </Button>
