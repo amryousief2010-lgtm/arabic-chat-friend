@@ -232,7 +232,7 @@ const Warehouses = () => {
       supabase.from("inventory_movements").select("*, item:inventory_items(name, unit), warehouse:warehouses!inventory_movements_warehouse_id_fkey(name), destination:warehouses!inventory_movements_destination_warehouse_id_fkey(name)").order("performed_at", { ascending: false }).limit(200),
       supabase.from("slaughter_batch_outputs")
         .select("id, batch_id, cut_name_ar, actual_weight_kg, unit_cost, quality_status, received_status, received_at, received_warehouse_id, batch:slaughter_batches(batch_number, slaughter_date, status)")
-        .in("destination", ["warehouse", "branch", "meat_factory"])
+        .in("destination", ["warehouse", "branch"]) // مسؤول المخزن الرئيسي يرى فقط ما هو موجه إليه — أوارد مصنع اللحوم تظهر داخل صفحة مصنع اللحوم
         .order("created_at", { ascending: false })
         .limit(300),
       supabase.from("orders")

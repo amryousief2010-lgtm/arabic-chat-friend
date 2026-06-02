@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Factory, Package, ClipboardList, Boxes, Coins, Layers, Eye, Plus, FileSpreadsheet, FileText, CheckCircle2, XCircle, PlayCircle, History, AlertTriangle, FileDown } from "lucide-react";
+import { Factory, Package, ClipboardList, Boxes, Coins, Layers, Eye, Plus, FileSpreadsheet, FileText, CheckCircle2, XCircle, PlayCircle, History, AlertTriangle, FileDown, ArrowDownToLine } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -21,6 +21,7 @@ import autoTable from "jspdf-autotable";
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import { ProductionDispatchInbox } from "@/components/production/ProductionDispatchInbox";
 import { MeatCostApprovalPanel } from "@/components/meat/MeatCostApprovalPanel";
+import { SlaughterToMeatInbox } from "@/components/meat/SlaughterToMeatInbox";
 
 type Product = { id: string; product_code: string | null; barcode: string | null; name_ar: string; functional_name_ar: string | null; package_qty: number; package_unit: string; base_cost_unit: string | null; cost_per_base_unit: number | null; cost_price: number | null; sale_price: number | null; cost_status: string | null; source_document: string | null; source_date: string | null; notes: string | null; is_active: boolean; };
 type RawMaterial = { id: string; material_code: string; name_ar: string; default_unit: string; avg_unit_cost: number; category: string; is_active: boolean; stock: number; low_stock_threshold: number; };
@@ -508,8 +509,9 @@ const MeatFactory = () => {
           <Button size="sm" onClick={openCreateBatch}><Plus className="w-4 h-4 ml-1" />أمر إنتاج جديد</Button>
         </div>
 
-        <Tabs defaultValue="costing" className="w-full">
-          <TabsList className="grid w-full grid-cols-8">
+        <Tabs defaultValue="incoming" className="w-full">
+          <TabsList className="grid w-full grid-cols-9">
+            <TabsTrigger value="incoming"><ArrowDownToLine className="w-4 h-4 ml-1" />وارد المجزر</TabsTrigger>
             <TabsTrigger value="costing"><Coins className="w-4 h-4 ml-1" />التكلفة والاعتماد</TabsTrigger>
             <TabsTrigger value="batches"><Factory className="w-4 h-4 ml-1" />الدفعات</TabsTrigger>
             <TabsTrigger value="consumption"><History className="w-4 h-4 ml-1" />الاستهلاك</TabsTrigger>
@@ -520,9 +522,14 @@ const MeatFactory = () => {
             <TabsTrigger value="recipes"><Layers className="w-4 h-4 ml-1" />الوصفات</TabsTrigger>
           </TabsList>
 
+          <TabsContent value="incoming">
+            <SlaughterToMeatInbox />
+          </TabsContent>
+
           <TabsContent value="costing">
             <MeatCostApprovalPanel onChanged={fetchAll} />
           </TabsContent>
+
 
           {/* BATCHES */}
           <TabsContent value="batches">
