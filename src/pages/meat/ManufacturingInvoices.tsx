@@ -187,6 +187,7 @@ export default function ManufacturingInvoices() {
   };
 
   return (
+    <DashboardLayout>
     <div className="p-4 md:p-6 space-y-4" dir="rtl">
       <div className="flex items-center gap-3">
         <Factory className="w-7 h-7 text-purple-600" />
