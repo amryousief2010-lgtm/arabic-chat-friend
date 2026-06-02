@@ -1877,14 +1877,28 @@ const WarehouseDetail = () => {
             <div className="border rounded-md p-3 bg-muted/30">
               <div className="text-sm font-medium mb-2 flex items-center gap-1"><Plus className="w-4 h-4" /> إضافة صنف لهذه الدفعة</div>
               <div className="flex gap-2 items-center flex-wrap">
-                <Select value={addItemId} onValueChange={setAddItemId}>
-                  <SelectTrigger className="w-64"><SelectValue placeholder="اختر الصنف" /></SelectTrigger>
-                  <SelectContent>
-                    {items.map((it: any) => (
-                      <SelectItem key={it.id} value={it.id}>{it.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {(() => {
+                  const MEAT_KW = ["نعام","نعامة","فخدة","ذبيحة","كاملة","صندوق","لحم","استيك","ستيك","كباب","كفته","كفتة","برجر","شيش","تربيانكو","اسكالوب","رول","سجق","موزة","موزه","فراشة","كبدة","كبده","قلب","قوانص","رقاب","كوارع","دهن","قطعية","دبوس","بانيه","نجتس","ميت بول","فيليه","طبق","شاورما"];
+                  const EXCLUDE_KW = ["بقسماط","بيض","علف","ذرة","صويا","كرتون","كيس","شيكارة"];
+                  const slaughterItems = items.filter((it: any) => {
+                    const n = String(it.name || "");
+                    if (EXCLUDE_KW.some(k => n.includes(k))) return false;
+                    return MEAT_KW.some(k => n.includes(k));
+                  });
+                  return (
+                    <Select value={addItemId} onValueChange={setAddItemId}>
+                      <SelectTrigger className="w-64"><SelectValue placeholder="اختر الصنف" /></SelectTrigger>
+                      <SelectContent>
+                        {slaughterItems.length === 0 && (
+                          <div className="px-2 py-1 text-xs text-muted-foreground">لا توجد منتجات لحوم في المخزن الرئيسي</div>
+                        )}
+                        {slaughterItems.map((it: any) => (
+                          <SelectItem key={it.id} value={it.id}>{it.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  );
+                })()}
                 <Input type="number" step="0.01" className="w-28" placeholder="الكمية"
                   value={addItemQty || ""} onChange={(e) => setAddItemQty(Number(e.target.value))} />
                 <Button onClick={handleAddSlaughterItem} disabled={!addItemId || addItemQty <= 0}>
