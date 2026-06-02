@@ -338,6 +338,28 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
     <DashboardLayout>
       <Header title={title} subtitle={subtitle} />
 
+      {scope === "main" && mainOpeningAt && (
+        <Card className="mb-3 border-primary/30 bg-primary/5">
+          <CardContent className="p-3 flex items-center gap-3 text-sm">
+            <div className="p-2 rounded-md bg-primary/15 text-primary">
+              <PackageCheck className="w-4 h-4" />
+            </div>
+            <div className="flex-1">
+              <div className="text-xs text-muted-foreground">رصيد افتتاحي معتمد (Zero-base)</div>
+              <div className="font-semibold">
+                تم تثبيت الجرد الحالي كنقطة صفر بتاريخ{" "}
+                {new Date(mainOpeningAt).toLocaleString("ar-EG", { dateStyle: "medium", timeStyle: "short" })}
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                أي تغيير بعد ذلك يكون عبر: توريد دبح/مصنع، مرتجعات معتمدة، صرف طلبات، تحويلات، أو تعديل جرد بصلاحية المدير.
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+
+
       {/* ملخص سريع */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
         <Card>
