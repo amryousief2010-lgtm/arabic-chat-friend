@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { printWarehouseStock } from "@/lib/printUtils";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import ReservedDetailsDialog from "@/components/warehouse/ReservedDetailsDialog";
 
 interface Product { id: string; name: string; unit: string; category?: string | null; }
 
