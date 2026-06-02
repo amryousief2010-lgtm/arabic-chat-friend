@@ -1057,7 +1057,7 @@ const Slaughterhouse = () => {
                                 <MoreHorizontal className="w-3 h-3" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" dir="rtl" className="min-w-[180px]">
+                            <DropdownMenuContent align="end" className="min-w-[180px]">
                               <DropdownMenuLabel className="text-xs">{r.receipt_number}</DropdownMenuLabel>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={() => setDetailReceipt(r)}>
