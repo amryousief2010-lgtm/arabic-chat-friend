@@ -1481,6 +1481,11 @@ const WarehouseDetail = () => {
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="font-mono text-sm font-semibold">{o.order_number}</span>
                                 <Badge variant="outline">{statusArLabel(o.status)}</Badge>
+                                {o.fulfillment_type === "delivery" && o.shipping_company === "مندوب خاص" ? (
+                                  <Badge className="bg-orange-100 text-orange-800 border-orange-300">مندوب خاص</Badge>
+                                ) : (
+                                  <Badge className="bg-primary/10 text-primary border-primary/30">استلام عميل</Badge>
+                                )}
                                 <Badge variant={o.payment_status === "paid" ? "default" : "secondary"}>
                                   {o.payment_status === "paid" ? "مدفوع" : "غير مدفوع"} • {o.payment_method || "-"}
                                 </Badge>
