@@ -80,20 +80,32 @@ export function SlaughterToMainWarehouseInbox({ defaultWarehouseId }: Props) {
   const pending = useMemo(() => outputs.filter(o => o.received_status !== 'received'), [outputs]);
   const received = useMemo(() => outputs.filter(o => o.received_status === 'received'), [outputs]);
 
-  const pendingBatches = useMemo(() => Object.values(
-    pending.reduce((acc: Record<string, any>, o: any) => {
+  const groupByBatch = (rows: any[]) => Object.values(
+    rows.reduce((acc: Record<string, any>, o: any) => {
       const key = o.batch_id;
       if (!acc[key]) acc[key] = {
         batch_id: o.batch_id,
         batch_number: o.batch?.batch_number || '—',
         slaughter_date: o.batch?.slaughter_date,
         status: o.batch?.status,
+        received_at: o.received_at,
         outputs: [],
       };
       acc[key].outputs.push(o);
+      if (o.received_at && (!acc[key].received_at || o.received_at > acc[key].received_at)) {
+        acc[key].received_at = o.received_at;
+      }
       return acc;
     }, {})
-  ) as any[], [pending]);
+  ) as any[];
+
+  const pendingBatches = useMemo(() => groupByBatch(pending), [pending]);
+  const receivedBatches = useMemo(
+    () => groupByBatch(received).sort((a: any, b: any) =>
+      String(b.received_at || '').localeCompare(String(a.received_at || ''))
+    ),
+    [received]
+  );
 
   const openReceive = (b: any) => {
     setReceiveBatch(b);
