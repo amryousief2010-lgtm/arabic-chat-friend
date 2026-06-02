@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowRight, Warehouse, Package, AlertTriangle, ArrowDown, ArrowUp, ArrowLeftRight, Settings2, Truck, FileSpreadsheet, Inbox, Send, CheckCircle2, Clock, XCircle, ShieldCheck, ThumbsDown } from "lucide-react";
+import { ArrowRight, Warehouse, Package, AlertTriangle, ArrowDown, ArrowUp, ArrowLeftRight, Settings2, Truck, FileSpreadsheet, Inbox, Send, CheckCircle2, Clock, XCircle, ShieldCheck, ThumbsDown, Beef, Eye, Pencil, Trash2, Plus } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -57,6 +58,13 @@ const WarehouseDetail = () => {
   const [receiveLines, setReceiveLines] = useState<Record<string, { qty: number; notes: string }>>({});
   const [receiveHeaderNotes, setReceiveHeaderNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  // Slaughter-batch grouped movements dialog
+  const [slaughterDialog, setSlaughterDialog] = useState<string | null>(null); // reference key
+  const [editQtyMap, setEditQtyMap] = useState<Record<string, number>>({});
+  const [addItemId, setAddItemId] = useState<string>("");
+  const [addItemQty, setAddItemQty] = useState<number>(0);
+
 
 
   const isAgouza = useMemo(() => !!warehouse && (warehouse.name?.includes("العجوزة") || warehouse.location?.includes("العجوزة")), [warehouse]);
@@ -219,6 +227,93 @@ const WarehouseDetail = () => {
     // 3) ترتيب: المقترح أكتر الأول، بعدين الأكثر متاح بالرئيسي
     return needs.sort((a, b) => (b.suggestedHalf - a.suggestedHalf) || (b.mainStockHalf - a.mainStockHalf) || a.name.localeCompare(b.name, "ar"));
   }, [demandByProduct, items, isAgouza, mainStockByName]);
+
+  // Group slaughter receipts (party='المجزر') by reference (batch number) into one row each
+  const SLAUGHTER_REF_RE = /دفعة ذبح\s+(\S+)/;
+  const groupedMovements = useMemo(() => {
+    type Row =
+      | { kind: "single"; mov: any }
+      | { kind: "slaughter"; reference: string; batchNo: string; date: string; movs: any[]; totalQty: number };
+    const slaughterMap = new Map<string, any[]>();
+    const others: any[] = [];
+    movements.forEach((m: any) => {
+      const isSlaughter = (m.party === "المجزر") && SLAUGHTER_REF_RE.test(m.reference || "");
+      if (isSlaughter) {
+        const key = m.reference;
+        if (!slaughterMap.has(key)) slaughterMap.set(key, []);
+        slaughterMap.get(key)!.push(m);
+      } else {
+        others.push(m);
+      }
+    });
+    const rows: Row[] = others.map(m => ({ kind: "single" as const, mov: m }));
+    slaughterMap.forEach((movs, ref) => {
+      const match = SLAUGHTER_REF_RE.exec(ref);
+      rows.push({
+        kind: "slaughter",
+        reference: ref,
+        batchNo: match?.[1] || "—",
+        date: movs[0]?.performed_at,
+        movs,
+        totalQty: movs.reduce((s, x) => s + Number(x.quantity || 0), 0),
+      });
+    });
+    rows.sort((a, b) => {
+      const da = a.kind === "single" ? a.mov.performed_at : a.date;
+      const db = b.kind === "single" ? b.mov.performed_at : b.date;
+      return new Date(db).getTime() - new Date(da).getTime();
+    });
+    return rows;
+  }, [movements]);
+
+  const slaughterGroup = useMemo(
+    () => groupedMovements.find(r => r.kind === "slaughter" && r.reference === slaughterDialog),
+    [groupedMovements, slaughterDialog]
+  ) as any;
+
+  const adjustStock = async (itemId: string, delta: number) => {
+    if (!itemId || !delta) return;
+    const { data: it } = await supabase.from("inventory_items").select("stock").eq("id", itemId).maybeSingle();
+    const newStock = Number(it?.stock || 0) + delta;
+    await supabase.from("inventory_items").update({ stock: newStock }).eq("id", itemId);
+  };
+
+  const handleEditMovement = async (mov: any, newQty: number) => {
+    const oldQty = Number(mov.quantity || 0);
+    if (newQty === oldQty || newQty < 0) return;
+    const delta = (mov.movement_type === "in" ? 1 : -1) * (newQty - oldQty);
+    const { error } = await supabase.from("inventory_movements").update({ quantity: newQty }).eq("id", mov.id);
+    if (error) { toast({ title: "تعذر التعديل", description: error.message, variant: "destructive" }); return; }
+    await adjustStock(mov.item_id, delta);
+    toast({ title: "تم تعديل الكمية" });
+    fetchAll();
+  };
+
+  const handleDeleteMovement = async (mov: any) => {
+    if (!confirm(`حذف حركة ${mov.item?.name} (${mov.quantity})؟ سيتم خصمها من المخزون.`)) return;
+    const delta = (mov.movement_type === "in" ? -1 : 1) * Number(mov.quantity || 0);
+    const { error } = await supabase.from("inventory_movements").delete().eq("id", mov.id);
+    if (error) { toast({ title: "تعذر الحذف", description: error.message, variant: "destructive" }); return; }
+    await adjustStock(mov.item_id, delta);
+    toast({ title: "تم حذف الحركة" });
+    fetchAll();
+  };
+
+  const handleAddSlaughterItem = async () => {
+    if (!slaughterGroup || !addItemId || addItemQty <= 0) return;
+    const ref = slaughterGroup.reference;
+    const { error } = await supabase.from("inventory_movements").insert({
+      warehouse_id: id, item_id: addItemId, movement_type: "in",
+      quantity: addItemQty, party: "المجزر", reference: ref,
+      performed_by: user?.id, performed_at: new Date().toISOString(),
+    });
+    if (error) { toast({ title: "تعذر الإضافة", description: error.message, variant: "destructive" }); return; }
+    await adjustStock(addItemId, addItemQty);
+    toast({ title: "تمت إضافة الصنف للدفعة" });
+    setAddItemId(""); setAddItemQty(0);
+    fetchAll();
+  };
+
 
   // طلبات الاستلام من المخزن الرئيسي — لمسؤول المخزن (هادى) ولأحمد خاطر فى العجوزة (عرض)
   const pickupOrders = useMemo(() => {
@@ -872,9 +967,34 @@ const WarehouseDetail = () => {
                   <TableHead>المخزن</TableHead><TableHead>الكمية</TableHead><TableHead>الوجهة/الجهة</TableHead><TableHead>المرجع</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
-                  {movements.length === 0 ? (
+                  {groupedMovements.length === 0 ? (
                     <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">لا توجد حركات</TableCell></TableRow>
-                  ) : movements.map(m => {
+                  ) : groupedMovements.map((row: any) => {
+                    if (row.kind === "slaughter") {
+                      const unit = row.movs[0]?.item?.unit || "كجم";
+                      return (
+                        <TableRow key={row.reference} className="bg-purple-50/40">
+                          <TableCell className="text-xs">{formatDateTime(row.date)}</TableCell>
+                          <TableCell>
+                            <Badge className="gap-1 bg-purple-600 hover:bg-purple-700">
+                              <Beef className="w-3 h-3" />وارد المجزر
+                            </Badge>
+                          </TableCell>
+                          <TableCell colSpan={2} className="font-medium">
+                            دفعة ذبح <span className="font-mono">{row.batchNo}</span>
+                            <span className="text-muted-foreground mr-2">({row.movs.length} صنف)</span>
+                          </TableCell>
+                          <TableCell>{row.totalQty.toFixed(2)} {unit}</TableCell>
+                          <TableCell>المجزر</TableCell>
+                          <TableCell>
+                            <Button size="sm" variant="outline" onClick={() => setSlaughterDialog(row.reference)}>
+                              <Eye className="w-4 h-4 ml-1" /> عرض الأوردر
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    }
+                    const m = row.mov;
                     const cfg = moveLabels[m.movement_type] || moveLabels.in;
                     const Icon = cfg.icon;
                     const isIncoming = m.destination_warehouse_id === id;
@@ -899,6 +1019,7 @@ const WarehouseDetail = () => {
                     );
                   })}
                 </TableBody>
+
               </Table>
             </CardContent></Card>
           </TabsContent>
@@ -1445,7 +1566,97 @@ const WarehouseDetail = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Slaughter batch grouped dialog */}
+      <Dialog open={!!slaughterDialog} onOpenChange={(v) => { if (!v) { setSlaughterDialog(null); setEditQtyMap({}); setAddItemId(""); setAddItemQty(0); } }}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Beef className="w-5 h-5 text-purple-600" />
+              تفاصيل دفعة الذبح <span className="font-mono">{slaughterGroup?.batchNo}</span>
+            </DialogTitle>
+            <DialogDescription>
+              {slaughterGroup ? `${slaughterGroup.movs.length} صنف • إجمالي ${slaughterGroup.totalQty.toFixed(2)} كجم • وردت ${formatDateTime(slaughterGroup.date)}` : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>الصنف</TableHead>
+                  <TableHead>الكمية</TableHead>
+                  <TableHead className="w-40">إجراءات</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {slaughterGroup?.movs.map((m: any) => {
+                  const editing = editQtyMap[m.id] !== undefined;
+                  return (
+                    <TableRow key={m.id}>
+                      <TableCell className="font-medium">{m.item?.name || "—"}</TableCell>
+                      <TableCell>
+                        {editing ? (
+                          <Input type="number" step="0.01" className="w-24" value={editQtyMap[m.id]}
+                            onChange={(e) => setEditQtyMap(p => ({ ...p, [m.id]: Number(e.target.value) }))} />
+                        ) : (
+                          <span>{m.quantity} {m.item?.unit || "كجم"}</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          {editing ? (
+                            <>
+                              <Button size="sm" onClick={async () => { await handleEditMovement(m, editQtyMap[m.id]); setEditQtyMap(p => { const n = { ...p }; delete n[m.id]; return n; }); }}>
+                                حفظ
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => setEditQtyMap(p => { const n = { ...p }; delete n[m.id]; return n; })}>
+                                إلغاء
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button size="sm" variant="outline" onClick={() => setEditQtyMap(p => ({ ...p, [m.id]: Number(m.quantity) }))}>
+                                <Pencil className="w-3 h-3" />
+                              </Button>
+                              <Button size="sm" variant="destructive" onClick={() => handleDeleteMovement(m)}>
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+
+            <div className="border rounded-md p-3 bg-muted/30">
+              <div className="text-sm font-medium mb-2 flex items-center gap-1"><Plus className="w-4 h-4" /> إضافة صنف لهذه الدفعة</div>
+              <div className="flex gap-2 items-center flex-wrap">
+                <Select value={addItemId} onValueChange={setAddItemId}>
+                  <SelectTrigger className="w-64"><SelectValue placeholder="اختر الصنف" /></SelectTrigger>
+                  <SelectContent>
+                    {items.map((it: any) => (
+                      <SelectItem key={it.id} value={it.id}>{it.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input type="number" step="0.01" className="w-28" placeholder="الكمية"
+                  value={addItemQty || ""} onChange={(e) => setAddItemQty(Number(e.target.value))} />
+                <Button onClick={handleAddSlaughterItem} disabled={!addItemId || addItemQty <= 0}>
+                  <Plus className="w-4 h-4 ml-1" /> إضافة
+                </Button>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSlaughterDialog(null)}>إغلاق</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
+
   );
 };
 
