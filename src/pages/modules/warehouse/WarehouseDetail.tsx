@@ -1566,7 +1566,97 @@ const WarehouseDetail = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Slaughter batch grouped dialog */}
+      <Dialog open={!!slaughterDialog} onOpenChange={(v) => { if (!v) { setSlaughterDialog(null); setEditQtyMap({}); setAddItemId(""); setAddItemQty(0); } }}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Beef className="w-5 h-5 text-purple-600" />
+              تفاصيل دفعة الذبح <span className="font-mono">{slaughterGroup?.batchNo}</span>
+            </DialogTitle>
+            <DialogDescription>
+              {slaughterGroup ? `${slaughterGroup.movs.length} صنف • إجمالي ${slaughterGroup.totalQty.toFixed(2)} كجم • وردت ${formatDateTime(slaughterGroup.date)}` : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>الصنف</TableHead>
+                  <TableHead>الكمية</TableHead>
+                  <TableHead className="w-40">إجراءات</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {slaughterGroup?.movs.map((m: any) => {
+                  const editing = editQtyMap[m.id] !== undefined;
+                  return (
+                    <TableRow key={m.id}>
+                      <TableCell className="font-medium">{m.item?.name || "—"}</TableCell>
+                      <TableCell>
+                        {editing ? (
+                          <Input type="number" step="0.01" className="w-24" value={editQtyMap[m.id]}
+                            onChange={(e) => setEditQtyMap(p => ({ ...p, [m.id]: Number(e.target.value) }))} />
+                        ) : (
+                          <span>{m.quantity} {m.item?.unit || "كجم"}</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          {editing ? (
+                            <>
+                              <Button size="sm" onClick={async () => { await handleEditMovement(m, editQtyMap[m.id]); setEditQtyMap(p => { const n = { ...p }; delete n[m.id]; return n; }); }}>
+                                حفظ
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => setEditQtyMap(p => { const n = { ...p }; delete n[m.id]; return n; })}>
+                                إلغاء
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button size="sm" variant="outline" onClick={() => setEditQtyMap(p => ({ ...p, [m.id]: Number(m.quantity) }))}>
+                                <Pencil className="w-3 h-3" />
+                              </Button>
+                              <Button size="sm" variant="destructive" onClick={() => handleDeleteMovement(m)}>
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+
+            <div className="border rounded-md p-3 bg-muted/30">
+              <div className="text-sm font-medium mb-2 flex items-center gap-1"><Plus className="w-4 h-4" /> إضافة صنف لهذه الدفعة</div>
+              <div className="flex gap-2 items-center flex-wrap">
+                <Select value={addItemId} onValueChange={setAddItemId}>
+                  <SelectTrigger className="w-64"><SelectValue placeholder="اختر الصنف" /></SelectTrigger>
+                  <SelectContent>
+                    {items.map((it: any) => (
+                      <SelectItem key={it.id} value={it.id}>{it.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input type="number" step="0.01" className="w-28" placeholder="الكمية"
+                  value={addItemQty || ""} onChange={(e) => setAddItemQty(Number(e.target.value))} />
+                <Button onClick={handleAddSlaughterItem} disabled={!addItemId || addItemQty <= 0}>
+                  <Plus className="w-4 h-4 ml-1" /> إضافة
+                </Button>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSlaughterDialog(null)}>إغلاق</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
+
   );
 };
 
