@@ -1464,9 +1464,14 @@ const WarehouseDetail = () => {
                             <div className="text-left">
                               <div className="text-xs text-muted-foreground">الإجمالى</div>
                               <div className="text-xl font-bold text-primary">{total.toLocaleString()} ج.م</div>
-                              <Button size="sm" className="mt-2" onClick={() => handlePrintPickupInvoice(o)}>
-                                <FileSpreadsheet className="w-4 h-4 ml-1" />طباعة الفاتورة
-                              </Button>
+                              <div className="flex flex-col gap-1 mt-2 items-stretch">
+                                <Button size="sm" variant="outline" onClick={() => handlePrintPickupInvoice(o)}>
+                                  <FileSpreadsheet className="w-4 h-4 ml-1" />طباعة الفاتورة
+                                </Button>
+                                <Button size="sm" onClick={() => confirmPickupDelivery(o)} disabled={submitting}>
+                                  <CheckCircle2 className="w-4 h-4 ml-1" />تأكيد التسليم
+                                </Button>
+                              </div>
                             </div>
                           </div>
                           <div className="bg-muted/40 rounded-md overflow-hidden">
