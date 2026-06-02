@@ -1,5 +1,4 @@
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import { openPrintWindow, escapeHtml, fmtNum, fmtDate, COMPANY_AR } from "@/lib/printPdf";
 
 interface ModeratorSummary {
   name: string;
@@ -21,119 +20,135 @@ interface ExportModeratorData {
   totalOrders: number;
 }
 
+const COLORS = ["#3b82f6", "#8b5cf6", "#22c55e", "#fb923c", "#ec4899", "#ef4444", "#eab308"];
+
 export function exportModeratorPDF(data: ExportModeratorData) {
-  const doc = new jsPDF({ orientation: "landscape" });
+  const maxSales = Math.max(...data.moderators.map((m) => m.sales), 1);
 
-  // Title
-  doc.setFontSize(20);
-  doc.text("Moderator Performance Report - 2025", 14, 20);
+  const summaryTable = `
+    <h2>المقارنة الإجمالية</h2>
+    <table>
+      <thead><tr>
+        <th>الموديراتور</th>
+        <th>المبيعات (ج.م)</th>
+        <th>الطلبات</th>
+        <th>متوسط الطلب (ج.م)</th>
+        <th>النسبة %</th>
+      </tr></thead>
+      <tbody>
+        ${data.moderators
+          .map(
+            (m) => `<tr>
+              <td>${escapeHtml(m.name)}</td>
+              <td class="num">${fmtNum(m.sales)}</td>
+              <td class="num">${fmtNum(m.orders)}</td>
+              <td class="num">${fmtNum(m.orders > 0 ? Math.round(m.sales / m.orders) : 0)}</td>
+              <td class="num">${m.percent}%</td>
+            </tr>`,
+          )
+          .join("")}
+      </tbody>
+    </table>`;
 
-  // Summary
-  doc.setFontSize(11);
-  doc.text(`Total Sales: ${data.totalSales.toLocaleString()} EGP`, 14, 32);
-  doc.text(`Total Orders: ${data.totalOrders.toLocaleString()}`, 14, 39);
-  doc.text(`Moderators: ${data.moderators.length}`, 14, 46);
+  const bars = `
+    <h2>توزيع المبيعات</h2>
+    <div class="bars">
+      ${data.moderators
+        .map((m, i) => {
+          const w = (m.sales / maxSales) * 100;
+          const color = COLORS[i % COLORS.length];
+          return `<div class="bar-row">
+            <div class="bar-label">${escapeHtml(m.name)}</div>
+            <div class="bar-track"><div class="bar-fill" style="width:${w}%;background:${color};"></div></div>
+            <div class="bar-val">${(m.sales / 1_000_000).toFixed(2)}M</div>
+          </div>`;
+        })
+        .join("")}
+    </div>`;
 
-  // Overall comparison table
-  doc.setFontSize(14);
-  doc.text("Performance Comparison", 14, 58);
-  autoTable(doc, {
-    startY: 62,
-    head: [["Moderator", "Sales (EGP)", "Orders", "Avg Order (EGP)", "Share %"]],
-    body: data.moderators.map((m) => [
-      m.name,
-      m.sales.toLocaleString(),
-      m.orders.toLocaleString(),
-      Math.round(m.sales / m.orders).toLocaleString(),
-      `${m.percent}%`,
-    ]),
-    styles: { fontSize: 10 },
-    headStyles: { fillColor: [59, 130, 246] },
-  });
+  const monthlySections = data.moderators
+    .map((mod) => {
+      const monthly = data.monthlyData[mod.name];
+      if (!monthly || monthly.length === 0) return "";
+      const maxMonth = Math.max(...monthly.map((r) => r.sales), 1);
+      const color = COLORS[data.moderators.indexOf(mod) % COLORS.length];
+      return `
+        <div class="page-break"></div>
+        <h2 style="color:${color};">${escapeHtml(mod.name)} — التفصيل الشهري</h2>
+        <div class="stats">
+          <div class="stat"><div class="k">إجمالي المبيعات</div><div class="v">${fmtNum(mod.sales)} ج.م</div></div>
+          <div class="stat"><div class="k">إجمالي الطلبات</div><div class="v">${fmtNum(mod.orders)}</div></div>
+          <div class="stat"><div class="k">متوسط الطلب</div><div class="v">${fmtNum(mod.orders > 0 ? Math.round(mod.sales / mod.orders) : 0)} ج.م</div></div>
+          <div class="stat"><div class="k">النسبة من الإجمالي</div><div class="v">${mod.percent}%</div></div>
+        </div>
+        <table>
+          <thead><tr>
+            <th>الشهر</th>
+            <th>المبيعات (ج.م)</th>
+            <th>الطلبات</th>
+            <th>متوسط الطلب</th>
+          </tr></thead>
+          <tbody>
+            ${monthly
+              .map(
+                (r) => `<tr>
+                  <td>${escapeHtml(r.month)}</td>
+                  <td class="num">${fmtNum(r.sales)}</td>
+                  <td class="num">${fmtNum(r.orders)}</td>
+                  <td class="num">${fmtNum(r.orders > 0 ? Math.round(r.sales / r.orders) : 0)}</td>
+                </tr>`,
+              )
+              .join("")}
+          </tbody>
+        </table>
+        <div class="bars">
+          ${monthly
+            .map((r) => {
+              const w = (r.sales / maxMonth) * 100;
+              return `<div class="bar-row">
+                <div class="bar-label">${escapeHtml(r.month)}</div>
+                <div class="bar-track"><div class="bar-fill" style="width:${w}%;background:${color};"></div></div>
+                <div class="bar-val">${(r.sales / 1000).toFixed(0)}K</div>
+              </div>`;
+            })
+            .join("")}
+        </div>`;
+    })
+    .join("");
 
-  // Simple bar chart simulation using colored rectangles
-  let y = (doc as any).lastAutoTable.finalY + 15;
-  if (y > 160) { doc.addPage(); y = 20; }
+  const body = `
+    <header>
+      <div>
+        <h1>${COMPANY_AR}</h1>
+        <div class="en">تقرير أداء الموديراتور — 2025</div>
+      </div>
+      <div class="meta">
+        <div>تاريخ الإصدار: ${fmtDate(new Date())}</div>
+      </div>
+    </header>
 
-  doc.setFontSize(14);
-  doc.text("Sales Distribution (Visual)", 14, y);
-  y += 8;
+    <div class="stats">
+      <div class="stat"><div class="k">إجمالي المبيعات</div><div class="v">${fmtNum(data.totalSales)} ج.م</div></div>
+      <div class="stat"><div class="k">إجمالي الطلبات</div><div class="v">${fmtNum(data.totalOrders)}</div></div>
+      <div class="stat"><div class="k">عدد الموديراتور</div><div class="v">${data.moderators.length}</div></div>
+      <div class="stat"><div class="k">متوسط مبيعات الموديراتور</div><div class="v">${fmtNum(data.moderators.length > 0 ? Math.round(data.totalSales / data.moderators.length) : 0)} ج.م</div></div>
+    </div>
 
-  const maxSales = Math.max(...data.moderators.map((m) => m.sales));
-  const barMaxWidth = 180;
-  const barHeight = 10;
-  const colors: [number, number, number][] = [
-    [59, 130, 246], [139, 92, 246], [34, 197, 94],
-    [251, 146, 60], [236, 72, 153], [239, 68, 68], [234, 179, 8],
-  ];
+    ${summaryTable}
+    ${bars}
+    ${monthlySections}
+  `;
 
-  data.moderators.forEach((m, i) => {
-    const barWidth = (m.sales / maxSales) * barMaxWidth;
-    const color = colors[i % colors.length];
-    doc.setFillColor(color[0], color[1], color[2]);
-    doc.rect(60, y, barWidth, barHeight, "F");
-    doc.setFontSize(9);
-    doc.setTextColor(60, 60, 60);
-    doc.text(m.name, 14, y + 7);
-    doc.text(`${(m.sales / 1000000).toFixed(1)}M`, 60 + barWidth + 3, y + 7);
-    y += barHeight + 4;
-  });
+  const extraCss = `
+    .bars { margin: 8px 0 14px; }
+    .bar-row { display: grid; grid-template-columns: 140px 1fr 80px; gap: 8px;
+               align-items: center; margin-bottom: 4px; font-size: 10px; }
+    .bar-label { text-align: right; }
+    .bar-track { background: #f0f0f0; height: 14px; border-radius: 3px; overflow: hidden; }
+    .bar-fill { height: 100%; }
+    .bar-val { text-align: left; font-weight: bold; }
+    .page-break { page-break-before: always; }
+  `;
 
-  doc.setTextColor(0, 0, 0);
-
-  // Per-moderator monthly breakdown
-  for (const mod of data.moderators) {
-    const monthly = data.monthlyData[mod.name];
-    if (!monthly || monthly.length === 0) continue;
-
-    doc.addPage();
-    doc.setFontSize(16);
-    doc.text(`${mod.name} - Monthly Breakdown`, 14, 20);
-
-    doc.setFontSize(11);
-    doc.text(`Total Sales: ${mod.sales.toLocaleString()} EGP`, 14, 30);
-    doc.text(`Total Orders: ${mod.orders.toLocaleString()}`, 14, 37);
-    doc.text(`Avg Order: ${Math.round(mod.sales / mod.orders).toLocaleString()} EGP`, 14, 44);
-    doc.text(`Share: ${mod.percent}%`, 14, 51);
-
-    // Monthly table
-    autoTable(doc, {
-      startY: 58,
-      head: [["Month", "Sales (EGP)", "Orders", "Avg Order (EGP)"]],
-      body: monthly.map((r) => [
-        r.month,
-        r.sales.toLocaleString(),
-        r.orders.toLocaleString(),
-        Math.round(r.sales / r.orders).toLocaleString(),
-      ]),
-      styles: { fontSize: 10 },
-      headStyles: { fillColor: colors[data.moderators.indexOf(mod) % colors.length] },
-    });
-
-    // Monthly bar chart
-    let chartY = (doc as any).lastAutoTable.finalY + 12;
-    if (chartY > 155) { doc.addPage(); chartY = 20; }
-
-    doc.setFontSize(13);
-    doc.text("Monthly Sales Chart", 14, chartY);
-    chartY += 8;
-
-    const maxMonthSales = Math.max(...monthly.map((r) => r.sales));
-    const color = colors[data.moderators.indexOf(mod) % colors.length];
-
-    monthly.forEach((r) => {
-      const bw = (r.sales / maxMonthSales) * barMaxWidth;
-      doc.setFillColor(color[0], color[1], color[2]);
-      doc.rect(50, chartY, bw, 8, "F");
-      doc.setFontSize(8);
-      doc.setTextColor(60, 60, 60);
-      doc.text(r.month, 14, chartY + 6);
-      doc.text(`${(r.sales / 1000).toFixed(0)}K`, 50 + bw + 2, chartY + 6);
-      chartY += 11;
-    });
-
-    doc.setTextColor(0, 0, 0);
-  }
-
-  doc.save("moderator-performance-2025.pdf");
+  openPrintWindow("تقرير أداء الموديراتور — 2025", body, extraCss);
 }
