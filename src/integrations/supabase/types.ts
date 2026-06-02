@@ -8023,6 +8023,10 @@ export type Database = {
         Args: { p_batch_id: string; p_items: Json; p_meat_warehouse_id: string }
         Returns: Json
       }
+      transfer_slaughter_partial: {
+        Args: { p_batch_id: string; p_items: Json; p_warehouse_id: string }
+        Returns: Json
+      }
       update_transfer_request_quantities: {
         Args: { p_lines: Json; p_transfer_id: string }
         Returns: Json
