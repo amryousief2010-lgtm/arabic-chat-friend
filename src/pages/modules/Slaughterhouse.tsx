@@ -303,6 +303,21 @@ const Slaughterhouse = () => {
     fetchAll();
   };
 
+  const deleteReceipt = async (r: Receipt) => {
+    if (!isExecManager) { toast.error("غير مصرح لك بحذف قسائم الشراء"); return; }
+    if (!window.confirm(`هل تريد حذف قسيمة الشراء ${r.receipt_number}؟ سيتم حذف بيانات الطيور المرتبطة بها.`)) return;
+    const linkedBatches = batches.filter(b => b.live_receipt_id === r.id);
+    if (linkedBatches.length > 0) {
+      toast.error("لا يمكن الحذف: توجد دفعات ذبح مرتبطة بهذه القسيمة. احذف الدفعات أولاً.");
+      return;
+    }
+    await supabase.from("slaughter_live_birds" as any).delete().eq("receipt_id", r.id);
+    const { error } = await supabase.from("slaughter_live_receipts" as any).delete().eq("id", r.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("تم حذف قسيمة الشراء");
+    fetchAll();
+  };
+
   const saveWorker = async () => {
     if (!workerForm.full_name) { toast.error("أدخل اسم العامل"); return; }
     const { error } = await supabase.from("slaughter_workers" as any).insert(workerForm);
