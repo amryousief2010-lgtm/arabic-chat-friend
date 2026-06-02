@@ -3173,6 +3173,47 @@ export type Database = {
           },
         ]
       }
+      hatch_customer_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string
+          customer_id: string
+          id: string
+          notes: string | null
+          payment_date: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string
+          customer_id: string
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string
+          customer_id?: string
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hatch_customer_payments_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "hatch_customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hatch_customers: {
         Row: {
           created_at: string
