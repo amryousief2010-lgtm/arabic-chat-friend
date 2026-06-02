@@ -41,7 +41,7 @@ import RequestCorrectionDialog from "@/components/corrections/RequestCorrectionD
 type Receipt = { id: string; receipt_number: string; receipt_date: string; source_type: string; source_name: string | null; bird_count: number; total_weight_kg: number; avg_weight_kg: number; price_per_kg: number; total_cost: number; dead_on_arrival: number; status: string; };
 type Batch = { id: string; batch_number: string; slaughter_date: string; shift: string; live_receipt_id: string | null; birds_slaughtered: number; total_live_weight_kg: number; total_meat_kg: number; actual_yield_pct: number; cost_per_kg_meat: number; status: string; pre_slaughter_dead: number; rejected_birds: number; };
 type Yield = { id: string; cut_name_ar: string; cut_name_en: string | null; barcode: string | null; standard_yield_pct: number; standard_kg_per_bird: number | null; package_size_kg: number | null; category: string; display_order: number; is_active: boolean; };
-type Output = { id: string; batch_id: string; cut_name_ar: string; barcode: string | null; actual_weight_kg: number; damaged_weight_kg: number; quarantined_weight_kg: number; package_count: number; standard_weight_kg: number; variance_pct: number; unit_cost: number; unit_price: number; total_cost: number; destination: string; branch_id: string | null; quality_status?: string; received_status?: string };
+type Output = { id: string; batch_id: string; cut_name_ar: string; barcode: string | null; actual_weight_kg: number; damaged_weight_kg: number; quarantined_weight_kg: number; package_count: number; standard_weight_kg: number; variance_pct: number; unit_cost: number; unit_price: number; total_cost: number; destination: string; branch_id: string | null; quality_status?: string; received_status?: string; received_warehouse_id?: string | null; received_at?: string | null };
 type Worker = { id: string; full_name: string; role: string; phone: string | null; daily_wage: number; is_active: boolean; };
 type QC = { id: string; check_type: string; check_date: string; inspector_name: string; result: string; temperature_c: number | null; ph_level: number | null; notes: string | null; };
 type Branch = { id: string; code: string; name_ar: string; is_active: boolean };
@@ -82,6 +82,7 @@ const Slaughterhouse = () => {
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [qcs, setQcs] = useState<QC[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [warehouses, setWarehouses] = useState<{ id: string; name: string }[]>([]);
   const [birds, setBirds] = useState<LiveBird[]>([]);
   const [transfers, setTransfers] = useState<Transfer[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -129,6 +130,7 @@ const Slaughterhouse = () => {
       supabase.from("slaughter_audit_log" as any).select("*").order("performed_at", { ascending: false }).limit(500),
       supabase.from("profiles" as any).select("id, full_name").limit(1000),
       supabase.from("slaughter_live_stock_adjustments" as any).select("*").order("created_at", { ascending: false }).limit(200),
+      supabase.from("warehouses" as any).select("id,name").order("name"),
     ]);
     setReceipts((r.data as any) || []);
     setBatches((b.data as any) || []);
