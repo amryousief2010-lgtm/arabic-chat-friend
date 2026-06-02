@@ -22,13 +22,28 @@ const isWeightUnit = (u?: string | null) => {
   return s.includes("كيلو") || s.includes("كجم") || s.includes("kg");
 };
 
-const SOURCES = [
-  { value: "slaughterhouse", label: "المجزر" },
-  { value: "meat_factory", label: "مصنع اللحوم" },
-  { value: "feed_factory", label: "مصنع الأعلاف" },
-  { value: "external_supplier", label: "مورد خارجي" },
-  { value: "other", label: "أخرى" },
+// كل المصادر الممكنة للتوريد/المرتجع — نفلترها لاحقاً حسب نوع المخزن المستهدف
+const ALL_SOURCES = [
+  { value: "slaughterhouse",     label: "دبح المجزر",            kind: "supply"  as const },
+  { value: "meat_factory",       label: "مصنع اللحوم",           kind: "supply"  as const },
+  { value: "feed_factory",       label: "مصنع الأعلاف",          kind: "supply"  as const },
+  { value: "return_healthy",     label: "مرتجع هايبر Healthy Taste", kind: "return" as const },
+  { value: "return_carrefour",   label: "مرتجع كارفور",          kind: "return" as const },
+  { value: "return_agouza",      label: "مرتجع منفذ العجوزة",    kind: "return" as const },
+  { value: "external_supplier",  label: "مورد خارجي",            kind: "supply"  as const },
+  { value: "other",              label: "أخرى",                  kind: "supply"  as const },
 ];
+
+// المصادر المسموحة للمخزن الرئيسي حصراً
+const MAIN_WAREHOUSE_ALLOWED = new Set([
+  "slaughterhouse", "meat_factory",
+  "return_healthy", "return_carrefour", "return_agouza",
+]);
+
+const isMainWarehouseName = (name?: string) => {
+  const n = (name || "").trim();
+  return n.includes("الرئيسي") || n.includes("المقر");
+};
 
 interface Item { id: string; name: string; unit: string; stock: number; }
 interface Line { itemId: string; qty: string; unitCost: string; notes: string; }
@@ -37,6 +52,12 @@ interface Props { warehouseId: string; warehouseName: string; }
 export default function InboundSupplyTab({ warehouseId, warehouseName }: Props) {
   const { user, isGeneralManager, isExecutiveManager, isWarehouseSupervisor } = useAuth();
   const canEdit = isGeneralManager || isExecutiveManager || isWarehouseSupervisor;
+  const isMain = isMainWarehouseName(warehouseName);
+  // فلترة المصادر: للمخزن الرئيسي نسمح فقط بالمصادر المعتمدة، باقي المخازن لها كل المصادر
+  const SOURCES = isMain
+    ? ALL_SOURCES.filter(s => MAIN_WAREHOUSE_ALLOWED.has(s.value))
+    : ALL_SOURCES;
+
   const [items, setItems] = useState<Item[]>([]);
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
