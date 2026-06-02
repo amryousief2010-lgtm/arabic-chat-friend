@@ -830,6 +830,60 @@ const Slaughterhouse = () => {
         </CardContent></Card>
       </div>
 
+      {/* نعام نافق — شهر/سنة */}
+      <Card className="mb-6 border-red-400/40 bg-red-50/30 dark:bg-red-950/10">
+        <CardContent className="p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-red-600" />
+              <h3 className="font-bold text-red-700 dark:text-red-400">نعام نافق — {monthNamesAr[deadMonth - 1]} {deadYear}</h3>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
+                <Label className="text-xs">الشهر</Label>
+                <Select value={String(deadMonth)} onValueChange={(v) => setDeadMonth(Number(v))}>
+                  <SelectTrigger className="h-8 w-28 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {monthNamesAr.map((n, i) => <SelectItem key={i} value={String(i + 1)}>{n}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-1">
+                <Label className="text-xs">السنة</Label>
+                <Select value={String(deadYear)} onValueChange={(v) => setDeadYear(Number(v))}>
+                  <SelectTrigger className="h-8 w-24 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {yearsAvailable.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div className="p-3 rounded bg-red-500/10 border border-red-500/20">
+              <div className="text-[11px] text-muted-foreground">الإجمالي</div>
+              <div className="text-2xl font-bold text-red-700">{deadInMonth.total}</div>
+            </div>
+            <div className="p-3 rounded bg-background border">
+              <div className="text-[11px] text-muted-foreground">نافق عند الوصول</div>
+              <div className="text-xl font-bold">{deadInMonth.doa}</div>
+            </div>
+            <div className="p-3 rounded bg-background border">
+              <div className="text-[11px] text-muted-foreground">نافق قبل الذبح</div>
+              <div className="text-xl font-bold">{deadInMonth.preDead}</div>
+            </div>
+            <div className="p-3 rounded bg-background border">
+              <div className="text-[11px] text-muted-foreground">طيور مرفوضة</div>
+              <div className="text-xl font-bold">{deadInMonth.rejected}</div>
+            </div>
+            <div className="p-3 rounded bg-background border">
+              <div className="text-[11px] text-muted-foreground">نقص بتسوية يدوية</div>
+              <div className="text-xl font-bold">{deadInMonth.adjLoss}</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Pending low-yield approval banner (managers only) */}
       {isExecManager && pendingApprovalBatches.length > 0 && (
         <Card className="mb-4 border-amber-500/50 bg-amber-50/60 dark:bg-amber-950/20">
