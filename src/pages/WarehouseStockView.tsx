@@ -156,6 +156,29 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
     const whId = wh === "agouza" ? agouzaWhId : mainWhId;
     if (!whId) return;
     const itemId = (wh === "agouza" ? agouzaItemIds : mainItemIds)[productId];
+
+    // المخزن الرئيسي: لازم سبب + يمر عبر RPC مدقَّق يسجل حركة تعديل جرد
+    if (wh === "main") {
+      if (!itemId) { toast.error("الصنف غير موجود في الجرد، أضِفه أولاً"); return; }
+      const reason = window.prompt("سبب تعديل الجرد (إلزامي):", "تعديل جرد يدوي");
+      if (!reason || reason.trim().length < 3) { toast.error("لازم تكتب سبب"); return; }
+      setSaving(true);
+      try {
+        const { error } = await supabase.rpc("adjust_main_warehouse_stock", {
+          p_item_id: itemId,
+          p_new_qty: newActualKg,
+          p_reason: reason.trim(),
+        });
+        if (error) throw error;
+        setMainStock((s) => ({ ...s, [productId]: newActualKg }));
+        toast.success("تم تعديل الجرد وتسجيل الحركة");
+        setEditingKey(null);
+      } catch (e: any) {
+        toast.error(e.message || "تعذّر الحفظ");
+      } finally { setSaving(false); }
+      return;
+    }
+
     setSaving(true);
     try {
       if (itemId) {
@@ -171,13 +194,12 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
           .select("id")
           .single();
         if (error) throw error;
-        if (wh === "agouza") setAgouzaItemIds((m) => ({ ...m, [productId]: data!.id }));
-        else setMainItemIds((m) => ({ ...m, [productId]: data!.id }));
+        setAgouzaItemIds((m) => ({ ...m, [productId]: data!.id }));
       }
-      if (wh === "agouza") setAgouzaStock((s) => ({ ...s, [productId]: newActualKg }));
-      else setMainStock((s) => ({ ...s, [productId]: newActualKg }));
+      setAgouzaStock((s) => ({ ...s, [productId]: newActualKg }));
       toast.success("تم تحديث الرصيد الفعلي");
       setEditingKey(null);
+
     } catch (e: any) {
       toast.error(e.message || "تعذّر الحفظ");
     } finally {
