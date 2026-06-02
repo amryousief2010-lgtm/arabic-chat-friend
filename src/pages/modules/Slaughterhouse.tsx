@@ -91,6 +91,10 @@ const Slaughterhouse = () => {
   const [adjustOpen, setAdjustOpen] = useState(false);
   const [adjustForm, setAdjustForm] = useState({ new_balance: 0, reason: "", adjustment_date: new Date().toISOString().slice(0, 10) });
   const [loading, setLoading] = useState(true);
+  // Dead-ostriches month/year filter
+  const now = new Date();
+  const [deadMonth, setDeadMonth] = useState<number>(now.getMonth() + 1);
+  const [deadYear, setDeadYear] = useState<number>(now.getFullYear());
 
   // Dialogs
   const [receiptOpen, setReceiptOpen] = useState(false);
@@ -179,6 +183,31 @@ const Slaughterhouse = () => {
   })();
   const isExecManager = role === "general_manager" || role === "executive_manager";
   const pendingApprovalBatches = batches.filter(b => (b as any).transfer_status === "pending_approval");
+
+  // ===== نعام نافق (شهري) =====
+  const mm = String(deadMonth).padStart(2, "0");
+  const monthPrefix = `${deadYear}-${mm}`; // YYYY-MM
+  const deadInMonth = useMemo(() => {
+    const doa = receipts
+      .filter(r => (r.receipt_date || "").startsWith(monthPrefix))
+      .reduce((s, r) => s + (r.dead_on_arrival || 0), 0);
+    const activeB = batches.filter(b => b.status !== "cancelled" && (b.slaughter_date || "").startsWith(monthPrefix));
+    const preDead = activeB.reduce((s, b) => s + (b.pre_slaughter_dead || 0), 0);
+    const rejected = activeB.reduce((s, b) => s + (b.rejected_birds || 0), 0);
+    const adjLoss = adjustments
+      .filter(a => (a.adjustment_date || "").startsWith(monthPrefix) && (a.delta || 0) < 0)
+      .reduce((s, a) => s + Math.abs(a.delta || 0), 0);
+    return { doa, preDead, rejected, adjLoss, total: doa + preDead + rejected + adjLoss };
+  }, [receipts, batches, adjustments, monthPrefix]);
+  // Years list from data
+  const yearsAvailable = useMemo(() => {
+    const set = new Set<number>();
+    receipts.forEach(r => r.receipt_date && set.add(Number(r.receipt_date.slice(0, 4))));
+    batches.forEach(b => b.slaughter_date && set.add(Number(b.slaughter_date.slice(0, 4))));
+    set.add(now.getFullYear());
+    return Array.from(set).filter(y => y > 2000).sort((a, b) => b - a);
+  }, [receipts, batches]);
+  const monthNamesAr = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
 
   const validateReceiptDate = (d: string): string | null => {
     if (!d) return "تاريخ التوريد مطلوب";
@@ -380,8 +409,9 @@ const Slaughterhouse = () => {
     fetchAll();
   };
 
-  // Send a completed batch's outputs to the Main Warehouse using the gated RPC
+  // Send a completed batch's outputs to a destination warehouse using the gated RPC
   const [confirmSendBatch, setConfirmSendBatch] = useState<Batch | null>(null);
+  const [sendDestination, setSendDestination] = useState<"main" | "meat_factory">("main");
   const [sendingBatch, setSendingBatch] = useState(false);
   const [meatTransferBatch, setMeatTransferBatch] = useState<Batch | null>(null);
   const [approvalNote, setApprovalNote] = useState("");
@@ -396,11 +426,13 @@ const Slaughterhouse = () => {
     return data as any;
   };
 
-  const sendBatchToMainWarehouse = async (b: Batch) => {
+  const sendBatchToWarehouse = async (b: Batch, dest: "main" | "meat_factory") => {
     setSendingBatch(true);
     try {
-      const wh = await findWarehouseByName("%رئيسي%");
-      if (!wh) { toast.error("لم يتم العثور على المخزن الرئيسي"); return; }
+      const pattern = dest === "meat_factory" ? "%مصنع اللحوم%" : "%رئيسي%";
+      const destLabel = dest === "meat_factory" ? "مصنع اللحوم" : "المخزن الرئيسي";
+      const wh = await findWarehouseByName(pattern);
+      if (!wh) { toast.error(`لم يتم العثور على ${destLabel}`); return; }
       const { data, error } = await supabase.rpc("request_slaughter_transfer_to_main" as any, {
         p_batch_id: b.id,
         p_warehouse_id: wh.id,
@@ -414,7 +446,7 @@ const Slaughterhouse = () => {
         );
       } else {
         const rec = d.receive || {};
-        toast.success(`تم إرسال ${rec.added_to_stock || 0} صنف إلى المخزن الرئيسي (${Number(rec.total_kg || 0).toFixed(1)} كجم)`);
+        toast.success(`تم إرسال ${rec.added_to_stock || 0} صنف إلى ${destLabel} (${Number(rec.total_kg || 0).toFixed(1)} كجم)`);
       }
       setConfirmSendBatch(null);
       fetchAll();
@@ -801,6 +833,60 @@ const Slaughterhouse = () => {
         </CardContent></Card>
       </div>
 
+      {/* نعام نافق — شهر/سنة */}
+      <Card className="mb-6 border-red-400/40 bg-red-50/30 dark:bg-red-950/10">
+        <CardContent className="p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-red-600" />
+              <h3 className="font-bold text-red-700 dark:text-red-400">نعام نافق — {monthNamesAr[deadMonth - 1]} {deadYear}</h3>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
+                <Label className="text-xs">الشهر</Label>
+                <Select value={String(deadMonth)} onValueChange={(v) => setDeadMonth(Number(v))}>
+                  <SelectTrigger className="h-8 w-28 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {monthNamesAr.map((n, i) => <SelectItem key={i} value={String(i + 1)}>{n}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-1">
+                <Label className="text-xs">السنة</Label>
+                <Select value={String(deadYear)} onValueChange={(v) => setDeadYear(Number(v))}>
+                  <SelectTrigger className="h-8 w-24 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {yearsAvailable.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div className="p-3 rounded bg-red-500/10 border border-red-500/20">
+              <div className="text-[11px] text-muted-foreground">الإجمالي</div>
+              <div className="text-2xl font-bold text-red-700">{deadInMonth.total}</div>
+            </div>
+            <div className="p-3 rounded bg-background border">
+              <div className="text-[11px] text-muted-foreground">نافق عند الوصول</div>
+              <div className="text-xl font-bold">{deadInMonth.doa}</div>
+            </div>
+            <div className="p-3 rounded bg-background border">
+              <div className="text-[11px] text-muted-foreground">نافق قبل الذبح</div>
+              <div className="text-xl font-bold">{deadInMonth.preDead}</div>
+            </div>
+            <div className="p-3 rounded bg-background border">
+              <div className="text-[11px] text-muted-foreground">طيور مرفوضة</div>
+              <div className="text-xl font-bold">{deadInMonth.rejected}</div>
+            </div>
+            <div className="p-3 rounded bg-background border">
+              <div className="text-[11px] text-muted-foreground">نقص بتسوية يدوية</div>
+              <div className="text-xl font-bold">{deadInMonth.adjLoss}</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Pending low-yield approval banner (managers only) */}
       {isExecManager && pendingApprovalBatches.length > 0 && (
         <Card className="mb-4 border-amber-500/50 bg-amber-50/60 dark:bg-amber-950/20">
@@ -904,9 +990,14 @@ const Slaughterhouse = () => {
                             <Button size="sm" variant="outline" onClick={() => exportBatchPDF(b)} title="طباعة / تصدير PDF" className="text-red-600 hover:bg-red-50"><Printer className="w-4 h-4" /></Button>
                             <Button size="sm" variant="outline" onClick={() => exportBatchExcel(b)} title="تصدير Excel" className="text-emerald-600 hover:bg-emerald-50"><FileSpreadsheet className="w-4 h-4" /></Button>
                             {canManageBatch && (
-                              <Button size="sm" variant="outline" onClick={() => setConfirmSendBatch(b)} title="إرسال التقسيمة إلى المخزن الرئيسي" className="text-primary hover:bg-primary/10">
-                                <Truck className="w-4 h-4 ml-1" />للمخزن الرئيسي
-                              </Button>
+                              <>
+                                <Button size="sm" variant="outline" onClick={() => { setSendDestination("main"); setConfirmSendBatch(b); }} title="إرسال التقسيمة إلى المخزن الرئيسي" className="text-primary hover:bg-primary/10">
+                                  <Truck className="w-4 h-4 ml-1" />للمخزن الرئيسي
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => { setSendDestination("meat_factory"); setConfirmSendBatch(b); }} title="إرسال التقسيمة إلى مصنع اللحوم" className="text-orange-600 hover:bg-orange-50">
+                                  <Truck className="w-4 h-4 ml-1" />لمصنع اللحوم
+                                </Button>
+                              </>
                             )}
                           </>
                         )}
@@ -1195,9 +1286,11 @@ const Slaughterhouse = () => {
           <AlertDialog open={!!confirmSendBatch} onOpenChange={(o) => !o && setConfirmSendBatch(null)}>
             <AlertDialogContent dir="rtl">
               <AlertDialogHeader>
-                <AlertDialogTitle>إرسال التقسيمة إلى المخزن الرئيسي</AlertDialogTitle>
+                <AlertDialogTitle>
+                  إرسال التقسيمة إلى {sendDestination === "meat_factory" ? "مصنع اللحوم" : "المخزن الرئيسي"}
+                </AlertDialogTitle>
                 <AlertDialogDescription>
-                  سيتم إضافة جميع أصناف التقسيمة المقبولة من الدفعة <b>{confirmSendBatch?.batch_number}</b> إلى رصيد المخزن الرئيسي تلقائيًا.
+                  سيتم إضافة جميع أصناف التقسيمة المقبولة من الدفعة <b>{confirmSendBatch?.batch_number}</b> إلى رصيد {sendDestination === "meat_factory" ? "مخزن خامات مصنع اللحوم" : "المخزن الرئيسي"} تلقائيًا.
                   الأصناف المستلمة مسبقًا سيتم تخطيها.
                 </AlertDialogDescription>
               </AlertDialogHeader>
@@ -1205,7 +1298,7 @@ const Slaughterhouse = () => {
                 <AlertDialogCancel disabled={sendingBatch}>إلغاء</AlertDialogCancel>
                 <AlertDialogAction
                   disabled={sendingBatch}
-                  onClick={(e) => { e.preventDefault(); confirmSendBatch && sendBatchToMainWarehouse(confirmSendBatch); }}
+                  onClick={(e) => { e.preventDefault(); confirmSendBatch && sendBatchToWarehouse(confirmSendBatch, sendDestination); }}
                   className="bg-gradient-to-r from-primary to-accent"
                 >
                   {sendingBatch ? "جاري الإرسال..." : "تأكيد الإرسال"}
