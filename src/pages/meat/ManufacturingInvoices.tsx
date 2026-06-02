@@ -400,5 +400,6 @@ export default function ManufacturingInvoices() {
         </DialogContent>
       </Dialog>
     </div>
+    </DashboardLayout>
   );
 }
