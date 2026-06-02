@@ -409,8 +409,9 @@ const Slaughterhouse = () => {
     fetchAll();
   };
 
-  // Send a completed batch's outputs to the Main Warehouse using the gated RPC
+  // Send a completed batch's outputs to a destination warehouse using the gated RPC
   const [confirmSendBatch, setConfirmSendBatch] = useState<Batch | null>(null);
+  const [sendDestination, setSendDestination] = useState<"main" | "meat_factory">("main");
   const [sendingBatch, setSendingBatch] = useState(false);
   const [meatTransferBatch, setMeatTransferBatch] = useState<Batch | null>(null);
   const [approvalNote, setApprovalNote] = useState("");
@@ -425,11 +426,13 @@ const Slaughterhouse = () => {
     return data as any;
   };
 
-  const sendBatchToMainWarehouse = async (b: Batch) => {
+  const sendBatchToWarehouse = async (b: Batch, dest: "main" | "meat_factory") => {
     setSendingBatch(true);
     try {
-      const wh = await findWarehouseByName("%رئيسي%");
-      if (!wh) { toast.error("لم يتم العثور على المخزن الرئيسي"); return; }
+      const pattern = dest === "meat_factory" ? "%مصنع اللحوم%" : "%رئيسي%";
+      const destLabel = dest === "meat_factory" ? "مصنع اللحوم" : "المخزن الرئيسي";
+      const wh = await findWarehouseByName(pattern);
+      if (!wh) { toast.error(`لم يتم العثور على ${destLabel}`); return; }
       const { data, error } = await supabase.rpc("request_slaughter_transfer_to_main" as any, {
         p_batch_id: b.id,
         p_warehouse_id: wh.id,
@@ -443,7 +446,7 @@ const Slaughterhouse = () => {
         );
       } else {
         const rec = d.receive || {};
-        toast.success(`تم إرسال ${rec.added_to_stock || 0} صنف إلى المخزن الرئيسي (${Number(rec.total_kg || 0).toFixed(1)} كجم)`);
+        toast.success(`تم إرسال ${rec.added_to_stock || 0} صنف إلى ${destLabel} (${Number(rec.total_kg || 0).toFixed(1)} كجم)`);
       }
       setConfirmSendBatch(null);
       fetchAll();
