@@ -59,6 +59,13 @@ const WarehouseDetail = () => {
   const [receiveHeaderNotes, setReceiveHeaderNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // Slaughter-batch grouped movements dialog
+  const [slaughterDialog, setSlaughterDialog] = useState<string | null>(null); // reference key
+  const [editQtyMap, setEditQtyMap] = useState<Record<string, number>>({});
+  const [addItemId, setAddItemId] = useState<string>("");
+  const [addItemQty, setAddItemQty] = useState<number>(0);
+
+
 
   const isAgouza = useMemo(() => !!warehouse && (warehouse.name?.includes("العجوزة") || warehouse.location?.includes("العجوزة")), [warehouse]);
   const isMain = useMemo(() => !!warehouse && !isAgouza && (warehouse.name?.includes("الرئيسي") || warehouse.name?.includes("المقر") || warehouse.type === "finished_goods"), [warehouse, isAgouza]);
