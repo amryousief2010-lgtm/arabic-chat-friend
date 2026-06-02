@@ -1071,10 +1071,10 @@ const Slaughterhouse = () => {
                             <Button size="sm" variant="outline" onClick={() => exportBatchExcel(b)} title="تصدير Excel" className="text-emerald-600 hover:bg-emerald-50"><FileSpreadsheet className="w-4 h-4" /></Button>
                             {canManageBatch && (
                               <>
-                                <Button size="sm" variant="outline" onClick={() => { setSendDestination("main"); setConfirmSendBatch(b); }} title="إرسال التقسيمة إلى المخزن الرئيسي" className="text-primary hover:bg-primary/10">
+                                <Button size="sm" variant="outline" onClick={() => openSendDialog(b, "main")} title="إرسال التقسيمة إلى المخزن الرئيسي" className="text-primary hover:bg-primary/10">
                                   <Truck className="w-4 h-4 ml-1" />للمخزن الرئيسي
                                 </Button>
-                                <Button size="sm" variant="outline" onClick={() => { setSendDestination("meat_factory"); setConfirmSendBatch(b); }} title="إرسال التقسيمة إلى مصنع اللحوم" className="text-orange-600 hover:bg-orange-50">
+                                <Button size="sm" variant="outline" onClick={() => openSendDialog(b, "meat_factory")} title="إرسال التقسيمة إلى مصنع اللحوم" className="text-orange-600 hover:bg-orange-50">
                                   <Truck className="w-4 h-4 ml-1" />لمصنع اللحوم
                                 </Button>
                               </>
