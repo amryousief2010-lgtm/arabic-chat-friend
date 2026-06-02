@@ -8,9 +8,9 @@ import RoleLanding from "@/components/RoleLanding";
 // Wrap lazy() so that when a dynamically-imported chunk is missing (e.g. after a
 // new deploy invalidated old chunk hashes), we force a single hard reload instead
 // of crashing the whole app / closing the sidebar.
-const lazy = <T extends { default: any }>(factory: () => Promise<T>) =>
+const lazy: typeof reactLazy = ((factory: any) =>
   reactLazy(() =>
-    factory().catch((err) => {
+    factory().catch((err: any) => {
       const msg = String(err?.message || err || "");
       const isChunkErr =
         msg.includes("dynamically imported module") ||
@@ -22,13 +22,12 @@ const lazy = <T extends { default: any }>(factory: () => Promise<T>) =>
         if (!sessionStorage.getItem(key)) {
           sessionStorage.setItem(key, String(Date.now()));
           window.location.reload();
-          // Return a placeholder while reloading
-          return { default: (() => null) as any } as T;
+          return { default: (() => null) as any };
         }
       }
       throw err;
     })
-  );
+  )) as any;
 
 // All page components are lazy-loaded to dramatically reduce initial bundle size.
 // Each route's JS chunk is only fetched when the user navigates to it.
