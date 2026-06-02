@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, RefreshCw, Warehouse, Printer, Pencil, Check, X, ArrowLeftRight } from "lucide-react";
+import { Search, RefreshCw, Warehouse, Printer, Pencil, Check, X, ArrowLeftRight, AlertTriangle, PackageCheck, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { printWarehouseStock } from "@/lib/printUtils";
 import { useAuth } from "@/hooks/useAuth";
@@ -19,9 +19,9 @@ export type StockScope = "both" | "agouza" | "main";
 interface Props { scope?: StockScope }
 
 const titleMap: Record<StockScope, { title: string; subtitle: string }> = {
-  both: { title: "المتاح في المخازن", subtitle: "رؤية لحظية للكميات المتاحة في مخزن العجوزة والمخزن الرئيسي" },
-  agouza: { title: "مخزن العجوزة", subtitle: "الكميات المتاحة في مخزن العجوزة" },
-  main: { title: "المخزن الرئيسي", subtitle: "الكميات المتاحة في المخزن الرئيسي" },
+  both: { title: "المتاح في المخازن", subtitle: "الفعلي • المحجوز • المتاح للبيع لكل مخزن" },
+  agouza: { title: "مخزن العجوزة", subtitle: "الفعلي • المحجوز • المتاح للبيع" },
+  main: { title: "المخزن الرئيسي", subtitle: "الفعلي (الجرد) • المحجوز للطلبات • المتاح للبيع" },
 };
 
 // كيلوجرامات لكل عبوة بحسب اسم المنتج. الافتراضي 0.5 كجم لكل عبوة (عبوتين/كيلو).
@@ -48,19 +48,14 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [agouzaStock, setAgouzaStock] = useState<Record<string, number>>({});
   const [mainStock, setMainStock] = useState<Record<string, number>>({});
-  // معرّفات صفوف inventory_items لكل (مخزن، منتج) لاستخدامها عند الحفظ
   const [agouzaItemIds, setAgouzaItemIds] = useState<Record<string, string>>({});
   const [mainItemIds, setMainItemIds] = useState<Record<string, string>>({});
   const [agouzaWhId, setAgouzaWhId] = useState<string | null>(null);
   const [mainWhId, setMainWhId] = useState<string | null>(null);
-  // الكميات المحجوزة على طلبات لم تُسلَّم/تُلغَ بعد، حسب مصدر التنفيذ
   const [agouzaPending, setAgouzaPending] = useState<Record<string, number>>({});
   const [mainPending, setMainPending] = useState<Record<string, number>>({});
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
-  // وضع العرض: قبل الطلبات (الكمية الفعلية في المخزن) أو بعد خصم الطلبات الجارية
-  const [mode, setMode] = useState<"raw" | "after_orders">("raw");
-  // حالة التحرير: مفتاح "wh:productId"
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<string>("");
   const [saving, setSaving] = useState(false);
@@ -90,20 +85,17 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
         const agIds: Record<string, string> = {};
         const mnIds: Record<string, string> = {};
         (invRows || []).forEach((r: any) => {
-          const avail = Number(r.stock || 0) - Number(r.reserved_qty || 0) - Number(r.blocked_qty || 0);
-          if (r.warehouse_id === agouza?.id) { ag[r.product_id] = (ag[r.product_id] || 0) + avail; agIds[r.product_id] = r.id; }
-          if (r.warehouse_id === main?.id) { mn[r.product_id] = (mn[r.product_id] || 0) + avail; mnIds[r.product_id] = r.id; }
+          // الرصيد الفعلي = stock (بدون خصم محجوز - المحجوز يُحسب من الأوردرات الجارية)
+          const actual = Number(r.stock || 0) - Number(r.blocked_qty || 0);
+          if (r.warehouse_id === agouza?.id) { ag[r.product_id] = (ag[r.product_id] || 0) + actual; agIds[r.product_id] = r.id; }
+          if (r.warehouse_id === main?.id) { mn[r.product_id] = (mn[r.product_id] || 0) + actual; mnIds[r.product_id] = r.id; }
         });
         setAgouzaStock(ag);
         setMainStock(mn);
         setAgouzaItemIds(agIds);
         setMainItemIds(mnIds);
 
-        // الطلبات الجارية المحجوزة على كل مخزن — أي أوردر لم يُسلَّم/يُلغَ
-        // يُخصم من المتاح، بصرف النظر عن تاريخه (يشمل الـ 16 أوردر القديمة المعلقة).
-        // نطرح فقط الأوردرات اللي لسه ما اتخصمتش من الرصيد فعلياً.
-        // الأوردر اللي stock_status='dispatched' يبقى الرصيد اتخصم منه عبر sales_dispatch
-        // فلو طرحناه تاني هيبقى خصم مزدوج (30 ك في الرصيد ثم -12 ك = 18 ك بدل 30 ك).
+        // المحجوز = أوردرات لم تُسلَّم/تُلغَ ولم تُخصم فعلًا (stock_status != dispatched)
         const { data: pendOrders } = await supabase
           .from("orders")
           .select("id, source_warehouse_id, status, stock_status")
@@ -143,12 +135,9 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
 
   useEffect(() => { fetchAll(); }, []);
 
-  // حفظ تعديل الرصيد لمنتج في مخزن. القيمة المُدخلة بالكيلو وتُفسَّر حسب وضع العرض.
-  const saveStock = async (wh: "agouza" | "main", productId: string, newDisplayKg: number) => {
-    if (isNaN(newDisplayKg) || newDisplayKg < 0) { toast.error("أدخل قيمة صحيحة"); return; }
-    const pending = (wh === "agouza" ? agouzaPending : mainPending)[productId] ?? 0;
-    // عند العرض "بعد الطلبات"، المُدخل هو المتاح بعد الخصم → الرصيد الفعلي = المُدخل + المعلق
-    const newStock = mode === "after_orders" ? newDisplayKg + pending : newDisplayKg;
+  // حفظ تعديل الرصيد الفعلي (الجرد) — لا يأخذ المحجوز في الاعتبار
+  const saveStock = async (wh: "agouza" | "main", productId: string, newActualKg: number) => {
+    if (isNaN(newActualKg) || newActualKg < 0) { toast.error("أدخل قيمة صحيحة"); return; }
     const whId = wh === "agouza" ? agouzaWhId : mainWhId;
     if (!whId) return;
     const itemId = (wh === "agouza" ? agouzaItemIds : mainItemIds)[productId];
@@ -157,22 +146,22 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
       if (itemId) {
         const { error } = await supabase
           .from("inventory_items")
-          .update({ stock: newStock })
+          .update({ stock: newActualKg })
           .eq("id", itemId);
         if (error) throw error;
       } else {
         const { data, error } = await supabase
           .from("inventory_items")
-          .insert({ warehouse_id: whId, product_id: productId, stock: newStock, module: "warehouse" } as any)
+          .insert({ warehouse_id: whId, product_id: productId, stock: newActualKg, module: "warehouse" } as any)
           .select("id")
           .single();
         if (error) throw error;
         if (wh === "agouza") setAgouzaItemIds((m) => ({ ...m, [productId]: data!.id }));
         else setMainItemIds((m) => ({ ...m, [productId]: data!.id }));
       }
-      if (wh === "agouza") setAgouzaStock((s) => ({ ...s, [productId]: newStock }));
-      else setMainStock((s) => ({ ...s, [productId]: newStock }));
-      toast.success("تم تحديث الرصيد");
+      if (wh === "agouza") setAgouzaStock((s) => ({ ...s, [productId]: newActualKg }));
+      else setMainStock((s) => ({ ...s, [productId]: newActualKg }));
+      toast.success("تم تحديث الرصيد الفعلي");
       setEditingKey(null);
     } catch (e: any) {
       toast.error(e.message || "تعذّر الحفظ");
@@ -181,14 +170,10 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
     }
   };
 
-  // خلية عرض الكيلو (للقراءة فقط)
-  const KgCell = ({ value }: { value: number }) => (
-    <Badge variant={value <= 0 ? "destructive" : "outline"}>{value}</Badge>
-  );
+  const canEditFor = (wh: "agouza" | "main") => wh === "agouza" ? canEditAgouza : canEditAll;
 
-  // خلية العبوات: تعرض عدد العبوات، وعند المدير العام/التنفيذي يمكن تحريرها بالعبوة
-  // فيتم تحويلها للكيلو حسب وزن العبوة قبل الحفظ.
-  const PackagesCell = ({ wh, pid, name, kgValue }: { wh: "agouza" | "main"; pid: string; name: string; kgValue: number }) => {
+  // خلية الرصيد الفعلي (قابلة للتعديل) — تعرض عدد العبوات والكيلو
+  const ActualCell = ({ wh, pid, name, kgValue }: { wh: "agouza" | "main"; pid: string; name: string; kgValue: number }) => {
     const per = kgPerPackage(name) || 0.5;
     const key = `${wh}:${pid}`;
     const isEditing = editingKey === key;
@@ -196,7 +181,7 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
       const parsed = parseFloat(editValue.replace(",", "."));
       const previewKg = isNaN(parsed) ? 0 : parsed * per;
       return (
-        <div className="flex items-center gap-1 justify-end">
+        <div className="flex items-center gap-1 justify-end flex-wrap">
           <Input
             type="number"
             step="1"
@@ -210,7 +195,7 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
               if (e.key === "Escape") setEditingKey(null);
             }}
           />
-          <span className="text-[10px] text-muted-foreground whitespace-nowrap">عبوة = {previewKg} كجم</span>
+          <span className="text-[10px] text-muted-foreground whitespace-nowrap">= {previewKg} كجم</span>
           <button className="text-green-600 disabled:opacity-50" disabled={saving} onClick={() => saveStock(wh, pid, previewKg)}>
             <Check className="w-4 h-4" />
           </button>
@@ -222,61 +207,143 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
     }
     const pkgs = per > 0 ? Math.round((kgValue / per) * 100) / 100 : 0;
     return (
-      <div className="flex items-center gap-1 justify-end">
-        <span className="text-xs text-muted-foreground whitespace-nowrap">{pkgs} عبوة</span>
-        {(wh === "agouza" ? canEditAgouza : canEditAll) && (
-          <button
-            className="text-muted-foreground hover:text-primary opacity-60 hover:opacity-100"
-            title="تعديل عدد العبوات"
-            onClick={() => { setEditingKey(key); setEditValue(String(pkgs)); }}
-          >
-            <Pencil className="w-3 h-3" />
-          </button>
-        )}
+      <div className="flex flex-col items-end gap-0.5">
+        <div className="flex items-center gap-1">
+          <Badge variant="outline" className="font-bold">{kgValue} كجم</Badge>
+          {canEditFor(wh) && (
+            <button
+              className="text-muted-foreground hover:text-primary opacity-60 hover:opacity-100"
+              title="تعديل الجرد الفعلي"
+              onClick={() => { setEditingKey(key); setEditValue(String(pkgs)); }}
+            >
+              <Pencil className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+        <span className="text-[10px] text-muted-foreground">{pkgs} عبوة</span>
       </div>
     );
   };
 
+  const ReservedCell = ({ pending, name }: { pending: number; name: string }) => {
+    const per = kgPerPackage(name) || 0.5;
+    const pkgs = per > 0 ? Math.round((pending / per) * 100) / 100 : 0;
+    if (pending <= 0) return <span className="text-xs text-muted-foreground">—</span>;
+    return (
+      <div className="flex flex-col items-end gap-0.5">
+        <Badge className="bg-orange-500/15 text-orange-700 dark:text-orange-300 border border-orange-500/30 hover:bg-orange-500/15">
+          <Lock className="w-3 h-3 ml-1" />
+          {pending} كجم
+        </Badge>
+        <span className="text-[10px] text-muted-foreground">{pkgs} عبوة</span>
+      </div>
+    );
+  };
 
-
-
-  // الكميات الظاهرة (مع/بدون خصم الطلبات الجارية)
-  const displayAgouza = useMemo(() => {
-    if (mode === "raw") return agouzaStock;
-    const out: Record<string, number> = {};
-    Object.keys({ ...agouzaStock, ...agouzaPending }).forEach((id) => {
-      out[id] = (agouzaStock[id] ?? 0) - (agouzaPending[id] ?? 0);
-    });
-    return out;
-  }, [mode, agouzaStock, agouzaPending]);
-  const displayMain = useMemo(() => {
-    if (mode === "raw") return mainStock;
-    const out: Record<string, number> = {};
-    Object.keys({ ...mainStock, ...mainPending }).forEach((id) => {
-      out[id] = (mainStock[id] ?? 0) - (mainPending[id] ?? 0);
-    });
-    return out;
-  }, [mode, mainStock, mainPending]);
+  const AvailableCell = ({ actual, pending, name }: { actual: number; pending: number; name: string }) => {
+    const avail = actual - pending;
+    const per = kgPerPackage(name) || 0.5;
+    const pkgs = per > 0 ? Math.round((avail / per) * 100) / 100 : 0;
+    return (
+      <div className="flex flex-col items-end gap-0.5">
+        <Badge
+          variant={avail < 0 ? "destructive" : "outline"}
+          className={avail > 0 ? "bg-green-500/15 text-green-700 dark:text-green-300 border-green-500/30 font-bold" : avail === 0 ? "" : ""}
+        >
+          {avail} كجم
+        </Badge>
+        <span className={`text-[10px] ${avail < 0 ? "text-destructive" : "text-muted-foreground"}`}>{pkgs} عبوة</span>
+      </div>
+    );
+  };
 
   const filtered = useMemo(() => {
     const q = search.trim();
     const list = q ? products.filter(p => p.name?.includes(q) || p.category?.includes(q)) : products;
-    // نعرض كل المنتجات حتى لو رصيدها صفر — عشان يقدر يدخل ويعدّل عليها (دهن، نخاع، ممبار، صندوق، شغت، فرم…)
     return list;
-  }, [products, search, scope, displayAgouza, displayMain]);
+  }, [products, search]);
+
+  // ملخص أعلى الشاشة (يُحسب على الـ scope الحالي)
+  const summary = useMemo(() => {
+    let itemsWithStock = 0;
+    let totalReservedKg = 0;
+    let belowZero = 0;
+    const stockSrc = scope === "agouza" ? agouzaStock : scope === "main" ? mainStock : null;
+    const pendSrc = scope === "agouza" ? agouzaPending : scope === "main" ? mainPending : null;
+    if (stockSrc && pendSrc) {
+      filtered.forEach((p) => {
+        const a = stockSrc[p.id] ?? 0;
+        const r = pendSrc[p.id] ?? 0;
+        if (a > 0) itemsWithStock++;
+        totalReservedKg += r;
+        if (a - r < 0) belowZero++;
+      });
+    } else {
+      // both
+      filtered.forEach((p) => {
+        const a = (agouzaStock[p.id] ?? 0) + (mainStock[p.id] ?? 0);
+        const r = (agouzaPending[p.id] ?? 0) + (mainPending[p.id] ?? 0);
+        if (a > 0) itemsWithStock++;
+        totalReservedKg += r;
+        if (a - r < 0) belowZero++;
+      });
+    }
+    return { itemsWithStock, totalReservedKg: Math.round(totalReservedKg * 100) / 100, belowZero };
+  }, [filtered, scope, agouzaStock, mainStock, agouzaPending, mainPending]);
 
   const { title, subtitle } = titleMap[scope];
+
+  // أعمدة الجدول حسب الـ scope
+  const renderMainCols = scope !== "agouza";
+  const renderAgouzaCols = scope !== "main";
 
   return (
     <DashboardLayout>
       <Header title={title} subtitle={subtitle} />
+
+      {/* ملخص سريع */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+        <Card>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-md bg-green-500/15 text-green-700 dark:text-green-300">
+              <PackageCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">أصناف لها رصيد فعلي</div>
+              <div className="text-xl font-bold">{summary.itemsWithStock}</div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-md bg-orange-500/15 text-orange-700 dark:text-orange-300">
+              <Lock className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">إجمالي محجوز للطلبات</div>
+              <div className="text-xl font-bold">{summary.totalReservedKg} كجم</div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className={summary.belowZero > 0 ? "border-destructive/40" : ""}>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className={`p-2 rounded-md ${summary.belowZero > 0 ? "bg-destructive/15 text-destructive" : "bg-muted text-muted-foreground"}`}>
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">أصناف محجوز أكثر من الفعلي</div>
+              <div className={`text-xl font-bold ${summary.belowZero > 0 ? "text-destructive" : ""}`}>{summary.belowZero}</div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <CardTitle className="flex items-center gap-2">
               <Warehouse className="w-5 h-5 text-primary" />
-              المنتجات والكميات المتاحة
+              المنتجات والكميات
             </CardTitle>
             <div className="flex gap-2 items-center flex-wrap">
               <div className="relative flex-1 sm:w-64">
@@ -287,25 +354,6 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
                   onChange={(e) => setSearch(e.target.value)}
                   className="pr-9"
                 />
-              </div>
-              {/* مفتاح التبديل: قبل/بعد الطلبات الجارية */}
-              <div className="inline-flex rounded-md border bg-background overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setMode("raw")}
-                  className={`px-3 h-8 text-xs transition ${mode === "raw" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-                  title="المتاح الحالي في المخزن قبل خصم الطلبات الجارية"
-                >
-                  بدون الطلبات
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMode("after_orders")}
-                  className={`px-3 h-8 text-xs border-r transition ${mode === "after_orders" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-                  title="المتاح بعد خصم الطلبات الجارية (غير المُسلَّمة/المُلغاة)"
-                >
-                  بعد الطلبات
-                </button>
               </div>
               <Button size="sm" variant="outline" onClick={fetchAll} disabled={loading}>
                 <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
@@ -324,8 +372,8 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
                 const rows = filtered.map(p => ({
                   name: p.name,
                   unit: p.unit,
-                  agouza: displayAgouza[p.id] ?? 0,
-                  main: displayMain[p.id] ?? 0,
+                  agouza: (agouzaStock[p.id] ?? 0) - (agouzaPending[p.id] ?? 0),
+                  main: (mainStock[p.id] ?? 0) - (mainPending[p.id] ?? 0),
                 }));
                 const filter = search.trim() || undefined;
                 const btn = "inline-flex items-center gap-1 h-8 px-3 text-xs rounded-md border bg-background hover:bg-muted transition";
@@ -359,6 +407,11 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
               })()}
             </div>
           </div>
+          <div className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
+            <span className="inline-flex items-center gap-1 me-3"><Badge variant="outline" className="px-1.5">الفعلي</Badge> الجرد على أرض الواقع</span>
+            <span className="inline-flex items-center gap-1 me-3"><Badge className="bg-orange-500/15 text-orange-700 border border-orange-500/30 hover:bg-orange-500/15 px-1.5">المحجوز</Badge> طلبات لم تُصرف/تُسلَّم بعد</span>
+            <span className="inline-flex items-center gap-1"><Badge className="bg-green-500/15 text-green-700 border-green-500/30 px-1.5">المتاح</Badge> = الفعلي − المحجوز</span>
+          </div>
         </CardHeader>
         <CardContent>
           {/* Desktop table */}
@@ -368,45 +421,35 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
                 <tr>
                   <th className="p-2 font-semibold">المنتج</th>
                   <th className="p-2 font-semibold">الوحدة</th>
-                  {scope !== "main" && <th className="p-2 font-semibold whitespace-nowrap">مخزن العجوزة</th>}
-                  {scope !== "main" && <th className="p-2 font-semibold whitespace-nowrap">عبوات العجوزة</th>}
-                  {scope !== "agouza" && <th className="p-2 font-semibold whitespace-nowrap">المخزن الرئيسي</th>}
-                  {scope !== "agouza" && <th className="p-2 font-semibold whitespace-nowrap">عبوات الرئيسي</th>}
-                  {scope === "both" && <th className="p-2 font-semibold whitespace-nowrap">الإجمالي المتاح</th>}
-                  {scope === "both" && <th className="p-2 font-semibold whitespace-nowrap">إجمالي العبوات</th>}
+                  {renderAgouzaCols && <th className="p-2 font-semibold whitespace-nowrap">العجوزة — الفعلي</th>}
+                  {renderAgouzaCols && <th className="p-2 font-semibold whitespace-nowrap">العجوزة — المحجوز</th>}
+                  {renderAgouzaCols && <th className="p-2 font-semibold whitespace-nowrap">العجوزة — المتاح</th>}
+                  {renderMainCols && <th className="p-2 font-semibold whitespace-nowrap">الرئيسي — الفعلي</th>}
+                  {renderMainCols && <th className="p-2 font-semibold whitespace-nowrap">الرئيسي — المحجوز</th>}
+                  {renderMainCols && <th className="p-2 font-semibold whitespace-nowrap">الرئيسي — المتاح</th>}
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((p) => {
-                  const a = displayAgouza[p.id] ?? 0;
-                  const m = displayMain[p.id] ?? 0;
+                  const aActual = agouzaStock[p.id] ?? 0;
+                  const aPend = agouzaPending[p.id] ?? 0;
+                  const mActual = mainStock[p.id] ?? 0;
+                  const mPend = mainPending[p.id] ?? 0;
                   return (
                     <tr key={p.id} className="border-t hover:bg-muted/30">
                       <td className="p-2 font-bold text-green-600 dark:text-green-400">{p.name}</td>
                       <td className="p-2 text-muted-foreground">{p.unit}</td>
-                      {scope !== "main" && (
-                        <td className="p-2"><KgCell value={a} /></td>
-                      )}
-                      {scope !== "main" && (
-                        <td className="p-2"><PackagesCell wh="agouza" pid={p.id} name={p.name} kgValue={a} /></td>
-                      )}
-                      {scope !== "agouza" && (
-                        <td className="p-2"><KgCell value={m} /></td>
-                      )}
-                      {scope !== "agouza" && (
-                        <td className="p-2"><PackagesCell wh="main" pid={p.id} name={p.name} kgValue={m} /></td>
-                      )}
-                      {scope === "both" && (
-                        <td className="p-2 font-bold text-primary">{a + m}</td>
-                      )}
-                      {scope === "both" && (
-                        <td className="p-2 text-xs text-primary whitespace-nowrap">{formatPackages(a + m, p.name)}</td>
-                      )}
+                      {renderAgouzaCols && <td className="p-2"><ActualCell wh="agouza" pid={p.id} name={p.name} kgValue={aActual} /></td>}
+                      {renderAgouzaCols && <td className="p-2"><ReservedCell pending={aPend} name={p.name} /></td>}
+                      {renderAgouzaCols && <td className="p-2"><AvailableCell actual={aActual} pending={aPend} name={p.name} /></td>}
+                      {renderMainCols && <td className="p-2"><ActualCell wh="main" pid={p.id} name={p.name} kgValue={mActual} /></td>}
+                      {renderMainCols && <td className="p-2"><ReservedCell pending={mPend} name={p.name} /></td>}
+                      {renderMainCols && <td className="p-2"><AvailableCell actual={mActual} pending={mPend} name={p.name} /></td>}
                     </tr>
                   );
                 })}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={5} className="p-6 text-center text-muted-foreground">لا توجد منتجات</td></tr>
+                  <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">لا توجد منتجات</td></tr>
                 )}
               </tbody>
             </table>
@@ -415,35 +458,36 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
           {/* Mobile cards */}
           <div className="md:hidden space-y-2">
             {filtered.map((p) => {
-              const a = displayAgouza[p.id] ?? 0;
-              const m = displayMain[p.id] ?? 0;
+              const aActual = agouzaStock[p.id] ?? 0;
+              const aPend = agouzaPending[p.id] ?? 0;
+              const mActual = mainStock[p.id] ?? 0;
+              const mPend = mainPending[p.id] ?? 0;
               return (
-                <div key={p.id} className="border rounded-lg p-3 bg-card">
-                  <div className="font-bold text-green-600 dark:text-green-400 mb-1">{p.name}</div>
-                  <div className="text-xs text-muted-foreground mb-2">{p.unit}</div>
-                  <div className={`grid ${scope === "both" ? "grid-cols-3" : "grid-cols-1"} gap-2 text-center text-xs`}>
-                    {scope !== "main" && (
-                      <div>
-                        <div className="text-muted-foreground mb-1">العجوزة</div>
-                        <div className="flex justify-center"><KgCell value={a} /></div>
-                        <div className="mt-1 flex justify-center"><PackagesCell wh="agouza" pid={p.id} name={p.name} kgValue={a} /></div>
-                      </div>
-                    )}
-                    {scope !== "agouza" && (
-                      <div>
-                        <div className="text-muted-foreground mb-1">الرئيسي</div>
-                        <div className="flex justify-center"><KgCell value={m} /></div>
-                        <div className="mt-1 flex justify-center"><PackagesCell wh="main" pid={p.id} name={p.name} kgValue={m} /></div>
-                      </div>
-                    )}
-                    {scope === "both" && (
-                      <div>
-                        <div className="text-muted-foreground mb-1">الإجمالي</div>
-                        <Badge className="bg-primary">{a + m}</Badge>
-                        <div className="text-[10px] text-primary mt-1">{formatPackages(a + m, p.name)}</div>
-                      </div>
-                    )}
+                <div key={p.id} className="border rounded-lg p-3 bg-card space-y-2">
+                  <div>
+                    <div className="font-bold text-green-600 dark:text-green-400">{p.name}</div>
+                    <div className="text-xs text-muted-foreground">{p.unit}</div>
                   </div>
+                  {renderAgouzaCols && (
+                    <div className="border-t pt-2">
+                      <div className="text-xs font-semibold mb-1 text-muted-foreground">مخزن العجوزة</div>
+                      <div className="grid grid-cols-3 gap-1 text-[11px]">
+                        <div><div className="text-muted-foreground mb-0.5">الفعلي</div><ActualCell wh="agouza" pid={p.id} name={p.name} kgValue={aActual} /></div>
+                        <div><div className="text-muted-foreground mb-0.5">المحجوز</div><ReservedCell pending={aPend} name={p.name} /></div>
+                        <div><div className="text-muted-foreground mb-0.5">المتاح</div><AvailableCell actual={aActual} pending={aPend} name={p.name} /></div>
+                      </div>
+                    </div>
+                  )}
+                  {renderMainCols && (
+                    <div className="border-t pt-2">
+                      <div className="text-xs font-semibold mb-1 text-muted-foreground">المخزن الرئيسي</div>
+                      <div className="grid grid-cols-3 gap-1 text-[11px]">
+                        <div><div className="text-muted-foreground mb-0.5">الفعلي</div><ActualCell wh="main" pid={p.id} name={p.name} kgValue={mActual} /></div>
+                        <div><div className="text-muted-foreground mb-0.5">المحجوز</div><ReservedCell pending={mPend} name={p.name} /></div>
+                        <div><div className="text-muted-foreground mb-0.5">المتاح</div><AvailableCell actual={mActual} pending={mPend} name={p.name} /></div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
