@@ -429,14 +429,18 @@ const WarehouseDetail = () => {
   };
 
 
-  // طلبات الاستلام من المخزن الرئيسي — لمسؤول المخزن (هادى) ولأحمد خاطر فى العجوزة (عرض)
+  // طلبات للتجهيز والتسليم من المخزن — يشمل:
+  //  • استلام العميل من المخزن (fulfillment_type='pickup')
+  //  • توصيل بمندوب خاص يستلم من المخزن (fulfillment_type='delivery' + shipping_company='مندوب خاص')
+  // كلها نسخة View من نفس order_id الأصلي — لا تنشئ طلب جديد ولا تخصم/تحجز مرتين.
   const pickupOrders = useMemo(() => {
     if (!isMain && !isAgouza) return [];
     return outletOrders.filter((o: any) => {
-      if (o.fulfillment_type !== "pickup") return false;
       if (["delivered", "cancelled", "returned"].includes(o.status)) return false;
+      const isPickup = o.fulfillment_type === "pickup";
+      const isPrivateDelivery = o.fulfillment_type === "delivery" && o.shipping_company === "مندوب خاص";
+      if (!isPickup && !isPrivateDelivery) return false;
       if (isMain) return o.source_warehouse_id === id;
-      // isAgouza: show pickup orders from main warehouse
       return o.source_warehouse_id && o.source_warehouse_id !== id;
     });
   }, [outletOrders, isMain, isAgouza, id]);
