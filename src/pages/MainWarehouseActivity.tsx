@@ -160,7 +160,7 @@ export default function MainWarehouseActivity() {
     }
   };
 
-  useEffect(() => { fetchAll(); /* eslint-disable-next-line */ }, [days]);
+  useEffect(() => { fetchAll(); /* eslint-disable-next-line */ }, [days, showArchive]);
 
   const filtered = useMemo(() => {
     const q = search.trim();
