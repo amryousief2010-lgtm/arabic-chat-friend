@@ -426,6 +426,56 @@ const Slaughterhouse = () => {
     return data as any;
   };
 
+  const [partialQty, setPartialQty] = useState<Record<string, string>>({});
+
+  // Open partial dialog: prefill qty inputs with full available qty for each pending output of this batch
+  const openSendDialog = (b: Batch, dest: "main" | "meat_factory") => {
+    setSendDestination(dest);
+    const rows = outputs.filter(o =>
+      o.batch_id === b.id &&
+      (o.received_status || "pending") !== "received" &&
+      (o.quality_status || "accepted") === "accepted" &&
+      Number(o.actual_weight_kg) > 0
+    );
+    const init: Record<string, string> = {};
+    rows.forEach(o => { init[o.id] = String(Number(o.actual_weight_kg) || 0); });
+    setPartialQty(init);
+    setConfirmSendBatch(b);
+  };
+
+  const printTransferNote = (b: Batch, destLabel: string, lines: { name: string; qty: number }[], totalKg: number) => {
+    const w = window.open("", "_blank", "width=900,height=700");
+    if (!w) return;
+    const rows = lines.map((l, i) => `<tr><td>${i + 1}</td><td>${l.name}</td><td style="text-align:center">${l.qty.toFixed(2)} كجم</td></tr>`).join("");
+    w.document.write(`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>إذن توريد ${b.batch_number}</title>
+      <style>
+        body{font-family:'Tahoma','Cairo',Arial,sans-serif;padding:24px;color:#111}
+        h1{margin:0 0 4px;font-size:22px;color:#5a2a82}
+        .meta{display:flex;justify-content:space-between;margin:12px 0;font-size:14px}
+        table{width:100%;border-collapse:collapse;margin-top:12px;font-size:14px}
+        th,td{border:1px solid #ccc;padding:8px}
+        th{background:#f3eef9;color:#5a2a82}
+        tfoot td{font-weight:bold;background:#fafafa}
+        .sign{display:flex;justify-content:space-between;margin-top:48px;font-size:14px}
+        .sign div{width:30%;border-top:1px solid #333;padding-top:6px;text-align:center}
+      </style></head><body>
+      <h1>إذن توريد من المجزر</h1>
+      <div class="meta">
+        <div><b>رقم الدفعة:</b> ${b.batch_number}</div>
+        <div><b>التاريخ:</b> ${new Date().toLocaleDateString("ar-EG")}</div>
+        <div><b>الجهة:</b> ${destLabel}</div>
+      </div>
+      <table>
+        <thead><tr><th>م</th><th>الصنف</th><th>الكمية</th></tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr><td colspan="2">الإجمالي</td><td style="text-align:center">${totalKg.toFixed(2)} كجم</td></tr></tfoot>
+      </table>
+      <div class="sign"><div>المُسلِّم (المجزر)</div><div>المُستلِم (${destLabel})</div><div>المدير</div></div>
+      <script>window.onload=()=>{window.print();}</script>
+      </body></html>`);
+    w.document.close();
+  };
+
   const sendBatchToWarehouse = async (b: Batch, dest: "main" | "meat_factory") => {
     setSendingBatch(true);
     try {
@@ -433,22 +483,37 @@ const Slaughterhouse = () => {
       const destLabel = dest === "meat_factory" ? "مصنع اللحوم" : "المخزن الرئيسي";
       const wh = await findWarehouseByName(pattern);
       if (!wh) { toast.error(`لم يتم العثور على ${destLabel}`); return; }
-      const { data, error } = await supabase.rpc("request_slaughter_transfer_to_main" as any, {
+
+      // Build items payload from partialQty
+      const itemsPayload: { output_id: string; qty: number }[] = [];
+      const printLines: { name: string; qty: number }[] = [];
+      let totalKg = 0;
+      for (const [outId, val] of Object.entries(partialQty)) {
+        const qty = Number(val);
+        if (!qty || qty <= 0) continue;
+        const o = outputs.find(x => x.id === outId);
+        if (!o) continue;
+        const safeQty = Math.min(qty, Number(o.actual_weight_kg));
+        itemsPayload.push({ output_id: outId, qty: safeQty });
+        printLines.push({ name: o.cut_name_ar, qty: safeQty });
+        totalKg += safeQty;
+      }
+      if (itemsPayload.length === 0) {
+        toast.error("أدخل كمية على الأقل لصنف واحد");
+        return;
+      }
+
+      const { data, error } = await supabase.rpc("transfer_slaughter_partial" as any, {
         p_batch_id: b.id,
         p_warehouse_id: wh.id,
+        p_items: itemsPayload as any,
       });
       if (error) { toast.error(error.message); return; }
       const d: any = data || {};
-      if (d.needs_approval) {
-        toast.warning(
-          `التصافي ${Number(d.actual_yield_pct).toFixed(1)}% أقل من الحد المسموح ${Number(d.min_required_pct).toFixed(1)}% — تم إرسال طلب موافقة للإدارة`,
-          { duration: 6000 }
-        );
-      } else {
-        const rec = d.receive || {};
-        toast.success(`تم إرسال ${rec.added_to_stock || 0} صنف إلى ${destLabel} (${Number(rec.total_kg || 0).toFixed(1)} كجم)`);
-      }
+      toast.success(`تم توريد ${d.received_count || 0} صنف إلى ${destLabel} (${Number(d.total_kg || 0).toFixed(1)} كجم)`);
+      printTransferNote(b, destLabel, printLines, totalKg);
       setConfirmSendBatch(null);
+      setPartialQty({});
       fetchAll();
     } finally {
       setSendingBatch(false);
