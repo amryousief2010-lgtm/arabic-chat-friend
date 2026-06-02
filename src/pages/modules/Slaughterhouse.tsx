@@ -1148,7 +1148,92 @@ const Slaughterhouse = () => {
               </DialogContent>
             </Dialog>
           )}
+
+          {/* Partial transfer dialog: pick how much of each cut to send, remainder stays for the other destination */}
+          <Dialog open={!!confirmSendBatch} onOpenChange={(o) => { if (!o) { setConfirmSendBatch(null); setPartialQty({}); } }}>
+            <DialogContent dir="rtl" className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>
+                  توريد التقسيمة إلى {sendDestination === "meat_factory" ? "مصنع اللحوم" : "المخزن الرئيسي"}
+                </DialogTitle>
+              </DialogHeader>
+              {confirmSendBatch && (() => {
+                const rows = outputs.filter(o =>
+                  o.batch_id === confirmSendBatch.id &&
+                  (o.received_status || "pending") !== "received" &&
+                  (o.quality_status || "accepted") === "accepted" &&
+                  Number(o.actual_weight_kg) > 0
+                );
+                const totalAvail = rows.reduce((s, r) => s + Number(r.actual_weight_kg || 0), 0);
+                const totalSelected = rows.reduce((s, r) => s + (Number(partialQty[r.id]) || 0), 0);
+                return (
+                  <div className="space-y-3 text-sm">
+                    <div className="bg-muted/50 p-3 rounded text-xs leading-6">
+                      دفعة <b>{confirmSendBatch.batch_number}</b> — المتبقي للتوريد: <b>{totalAvail.toFixed(2)} كجم</b>.
+                      أدخل الكمية المراد توريدها إلى <b>{sendDestination === "meat_factory" ? "مصنع اللحوم" : "المخزن الرئيسي"}</b> لكل صنف. الباقي يبقى في الدفعة ويمكن توريده للجهة الأخرى لاحقًا.
+                    </div>
+                    {rows.length === 0 ? (
+                      <div className="text-center text-muted-foreground py-6">لا توجد أصناف متاحة للتوريد — كل المخرجات تم توريدها سابقًا.</div>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>الصنف</TableHead>
+                            <TableHead className="text-center">المتاح (كجم)</TableHead>
+                            <TableHead className="text-center w-40">للتوريد الآن (كجم)</TableHead>
+                            <TableHead className="text-center">إجراء</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {rows.map(r => {
+                            const max = Number(r.actual_weight_kg) || 0;
+                            return (
+                              <TableRow key={r.id}>
+                                <TableCell className="font-medium">{r.cut_name_ar}</TableCell>
+                                <TableCell className="text-center">{max.toFixed(2)}</TableCell>
+                                <TableCell className="text-center">
+                                  <Input
+                                    type="number" min={0} max={max} step="0.01"
+                                    value={partialQty[r.id] ?? ""}
+                                    onChange={e => setPartialQty(p => ({ ...p, [r.id]: e.target.value }))}
+                                    className="h-8 text-center"
+                                  />
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  <div className="flex gap-1 justify-center">
+                                    <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setPartialQty(p => ({ ...p, [r.id]: String(max) }))}>الكل</Button>
+                                    <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setPartialQty(p => ({ ...p, [r.id]: "0" }))}>صفر</Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                          <TableRow>
+                            <TableCell className="font-bold">الإجمالي</TableCell>
+                            <TableCell className="text-center font-bold">{totalAvail.toFixed(2)}</TableCell>
+                            <TableCell className="text-center font-bold text-primary">{totalSelected.toFixed(2)}</TableCell>
+                            <TableCell></TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    )}
+                  </div>
+                );
+              })()}
+              <DialogFooter className="gap-2">
+                <Button variant="outline" disabled={sendingBatch} onClick={() => { setConfirmSendBatch(null); setPartialQty({}); }}>إلغاء</Button>
+                <Button
+                  disabled={sendingBatch}
+                  onClick={() => confirmSendBatch && sendBatchToWarehouse(confirmSendBatch, sendDestination)}
+                  className="bg-gradient-to-r from-primary to-accent"
+                >
+                  {sendingBatch ? "جاري التوريد..." : "تأكيد التوريد + طباعة الإذن"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
+
 
         {/* ========== RECEIPTS ========== */}
         <TabsContent value="receipts">
