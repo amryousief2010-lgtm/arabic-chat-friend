@@ -1520,6 +1520,16 @@ const Slaughterhouse = () => {
           <TransfersTab transfers={transfers} branches={branches} batches={batches} onStatus={updateTransferStatus} />
         </TabsContent>
 
+        {/* ========== WAREHOUSE TRANSFERS LOG (Main + Meat Factory) ========== */}
+        <TabsContent value="warehouse-log">
+          <WarehouseTransfersLog
+            outputs={outputs}
+            batches={batches}
+            warehouses={warehouses}
+            onPrint={printTransferNote}
+          />
+        </TabsContent>
+
         {/* ========== YIELDS ========== */}
         <TabsContent value="yields">
           <Card>
