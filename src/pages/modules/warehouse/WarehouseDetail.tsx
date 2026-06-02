@@ -228,6 +228,93 @@ const WarehouseDetail = () => {
     return needs.sort((a, b) => (b.suggestedHalf - a.suggestedHalf) || (b.mainStockHalf - a.mainStockHalf) || a.name.localeCompare(b.name, "ar"));
   }, [demandByProduct, items, isAgouza, mainStockByName]);
 
+  // Group slaughter receipts (party='المجزر') by reference (batch number) into one row each
+  const SLAUGHTER_REF_RE = /دفعة ذبح\s+(\S+)/;
+  const groupedMovements = useMemo(() => {
+    type Row =
+      | { kind: "single"; mov: any }
+      | { kind: "slaughter"; reference: string; batchNo: string; date: string; movs: any[]; totalQty: number };
+    const slaughterMap = new Map<string, any[]>();
+    const others: any[] = [];
+    movements.forEach((m: any) => {
+      const isSlaughter = (m.party === "المجزر") && SLAUGHTER_REF_RE.test(m.reference || "");
+      if (isSlaughter) {
+        const key = m.reference;
+        if (!slaughterMap.has(key)) slaughterMap.set(key, []);
+        slaughterMap.get(key)!.push(m);
+      } else {
+        others.push(m);
+      }
+    });
+    const rows: Row[] = others.map(m => ({ kind: "single" as const, mov: m }));
+    slaughterMap.forEach((movs, ref) => {
+      const match = SLAUGHTER_REF_RE.exec(ref);
+      rows.push({
+        kind: "slaughter",
+        reference: ref,
+        batchNo: match?.[1] || "—",
+        date: movs[0]?.performed_at,
+        movs,
+        totalQty: movs.reduce((s, x) => s + Number(x.quantity || 0), 0),
+      });
+    });
+    rows.sort((a, b) => {
+      const da = a.kind === "single" ? a.mov.performed_at : a.date;
+      const db = b.kind === "single" ? b.mov.performed_at : b.date;
+      return new Date(db).getTime() - new Date(da).getTime();
+    });
+    return rows;
+  }, [movements]);
+
+  const slaughterGroup = useMemo(
+    () => groupedMovements.find(r => r.kind === "slaughter" && r.reference === slaughterDialog),
+    [groupedMovements, slaughterDialog]
+  ) as any;
+
+  const adjustStock = async (itemId: string, delta: number) => {
+    if (!itemId || !delta) return;
+    const { data: it } = await supabase.from("inventory_items").select("stock").eq("id", itemId).maybeSingle();
+    const newStock = Number(it?.stock || 0) + delta;
+    await supabase.from("inventory_items").update({ stock: newStock }).eq("id", itemId);
+  };
+
+  const handleEditMovement = async (mov: any, newQty: number) => {
+    const oldQty = Number(mov.quantity || 0);
+    if (newQty === oldQty || newQty < 0) return;
+    const delta = (mov.movement_type === "in" ? 1 : -1) * (newQty - oldQty);
+    const { error } = await supabase.from("inventory_movements").update({ quantity: newQty }).eq("id", mov.id);
+    if (error) { toast({ title: "تعذر التعديل", description: error.message, variant: "destructive" }); return; }
+    await adjustStock(mov.item_id, delta);
+    toast({ title: "تم تعديل الكمية" });
+    fetchAll();
+  };
+
+  const handleDeleteMovement = async (mov: any) => {
+    if (!confirm(`حذف حركة ${mov.item?.name} (${mov.quantity})؟ سيتم خصمها من المخزون.`)) return;
+    const delta = (mov.movement_type === "in" ? -1 : 1) * Number(mov.quantity || 0);
+    const { error } = await supabase.from("inventory_movements").delete().eq("id", mov.id);
+    if (error) { toast({ title: "تعذر الحذف", description: error.message, variant: "destructive" }); return; }
+    await adjustStock(mov.item_id, delta);
+    toast({ title: "تم حذف الحركة" });
+    fetchAll();
+  };
+
+  const handleAddSlaughterItem = async () => {
+    if (!slaughterGroup || !addItemId || addItemQty <= 0) return;
+    const ref = slaughterGroup.reference;
+    const { error } = await supabase.from("inventory_movements").insert({
+      warehouse_id: id, item_id: addItemId, movement_type: "in",
+      quantity: addItemQty, party: "المجزر", reference: ref,
+      performed_by: user?.id, performed_at: new Date().toISOString(),
+    });
+    if (error) { toast({ title: "تعذر الإضافة", description: error.message, variant: "destructive" }); return; }
+    await adjustStock(addItemId, addItemQty);
+    toast({ title: "تمت إضافة الصنف للدفعة" });
+    setAddItemId(""); setAddItemQty(0);
+    fetchAll();
+  };
+
+
   // طلبات الاستلام من المخزن الرئيسي — لمسؤول المخزن (هادى) ولأحمد خاطر فى العجوزة (عرض)
   const pickupOrders = useMemo(() => {
     if (!isMain && !isAgouza) return [];
