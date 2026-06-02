@@ -40,7 +40,7 @@ import RequestCorrectionDialog from "@/components/corrections/RequestCorrectionD
 
 type Receipt = { id: string; receipt_number: string; receipt_date: string; source_type: string; source_name: string | null; bird_count: number; total_weight_kg: number; avg_weight_kg: number; price_per_kg: number; total_cost: number; dead_on_arrival: number; status: string; };
 type Batch = { id: string; batch_number: string; slaughter_date: string; shift: string; live_receipt_id: string | null; birds_slaughtered: number; total_live_weight_kg: number; total_meat_kg: number; actual_yield_pct: number; cost_per_kg_meat: number; status: string; pre_slaughter_dead: number; rejected_birds: number; };
-type Yield = { id: string; cut_name_ar: string; cut_name_en: string | null; barcode: string | null; standard_yield_pct: number; package_size_kg: number | null; category: string; display_order: number; is_active: boolean; };
+type Yield = { id: string; cut_name_ar: string; cut_name_en: string | null; barcode: string | null; standard_yield_pct: number; standard_kg_per_bird: number | null; package_size_kg: number | null; category: string; display_order: number; is_active: boolean; };
 type Output = { id: string; batch_id: string; cut_name_ar: string; barcode: string | null; actual_weight_kg: number; damaged_weight_kg: number; quarantined_weight_kg: number; package_count: number; standard_weight_kg: number; variance_pct: number; unit_cost: number; unit_price: number; total_cost: number; destination: string; branch_id: string | null; quality_status?: string };
 type Worker = { id: string; full_name: string; role: string; phone: string | null; daily_wage: number; is_active: boolean; };
 type QC = { id: string; check_type: string; check_date: string; inspector_name: string; result: string; temperature_c: number | null; ph_level: number | null; notes: string | null; };
@@ -61,7 +61,7 @@ export const normalizeCutName = (s: string): string =>
     .replace(/\s+/g, " ")
     .trim();
 
-const DEFAULT_YIELD_CUTS = ["لحمة","استيك","موزة","فراشة","قطعية دبوس","دبوس بالعظم","فخذة","صندوق","تربيانكو","اسكالوب","رول نعام","فرم"];
+const DEFAULT_YIELD_CUTS = ["لحمه","استيك","موزه","فراشه","قطعيه دبوس","دبوس بالعظم","فخده","صندوق","نعامه صندوق","تربيانكو","اسكالوب","رول النعام","فرم نعام"];
 type AuditEntry = { id: string; action: string; target_type: string; target_id: string | null; batch_id: string | null; transfer_id: string | null; performed_by: string | null; performed_at: string; old_value: any; new_value: any; notes: string | null };
 
 const Slaughterhouse = () => {
@@ -1385,7 +1385,7 @@ const Slaughterhouse = () => {
               <Table>
                 <TableHeader><TableRow>
                   <TableHead>القطعة</TableHead><TableHead>EN</TableHead><TableHead>الباركود</TableHead>
-                  <TableHead>% من الوزن الحي</TableHead><TableHead>وزن العبوة</TableHead><TableHead>الفئة</TableHead>
+                  <TableHead>% من الوزن الحي</TableHead><TableHead>كجم/نعامة</TableHead><TableHead>وزن العبوة</TableHead><TableHead>الفئة</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
                   {yields.map(y => (
@@ -1394,6 +1394,7 @@ const Slaughterhouse = () => {
                       <TableCell className="text-muted-foreground text-sm">{y.cut_name_en}</TableCell>
                       <TableCell className="font-mono text-xs">{y.barcode}</TableCell>
                       <TableCell><Badge className="bg-primary/20 text-primary">{Number(y.standard_yield_pct).toFixed(2)}%</Badge></TableCell>
+                      <TableCell>{y.standard_kg_per_bird != null ? <Badge variant="secondary">{Number(y.standard_kg_per_bird).toFixed(2)} كجم</Badge> : <span className="text-muted-foreground text-xs">—</span>}</TableCell>
                       <TableCell>{y.package_size_kg} كجم</TableCell>
                       <TableCell><Badge variant="outline">{y.category === "meat" ? "لحم" : y.category === "offal" ? "أحشاء" : y.category === "waste" ? "مخلفات" : "ناتج ثانوي"}</Badge></TableCell>
                     </TableRow>

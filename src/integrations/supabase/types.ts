@@ -6568,6 +6568,7 @@ export type Database = {
           package_size_kg: number | null
           price_per_kg: number | null
           product_id: string | null
+          standard_kg_per_bird: number | null
           standard_yield_pct: number
           updated_at: string
         }
@@ -6586,6 +6587,7 @@ export type Database = {
           package_size_kg?: number | null
           price_per_kg?: number | null
           product_id?: string | null
+          standard_kg_per_bird?: number | null
           standard_yield_pct?: number
           updated_at?: string
         }
@@ -6604,6 +6606,7 @@ export type Database = {
           package_size_kg?: number | null
           price_per_kg?: number | null
           product_id?: string | null
+          standard_kg_per_bird?: number | null
           standard_yield_pct?: number
           updated_at?: string
         }
