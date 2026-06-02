@@ -1286,9 +1286,11 @@ const Slaughterhouse = () => {
           <AlertDialog open={!!confirmSendBatch} onOpenChange={(o) => !o && setConfirmSendBatch(null)}>
             <AlertDialogContent dir="rtl">
               <AlertDialogHeader>
-                <AlertDialogTitle>إرسال التقسيمة إلى المخزن الرئيسي</AlertDialogTitle>
+                <AlertDialogTitle>
+                  إرسال التقسيمة إلى {sendDestination === "meat_factory" ? "مصنع اللحوم" : "المخزن الرئيسي"}
+                </AlertDialogTitle>
                 <AlertDialogDescription>
-                  سيتم إضافة جميع أصناف التقسيمة المقبولة من الدفعة <b>{confirmSendBatch?.batch_number}</b> إلى رصيد المخزن الرئيسي تلقائيًا.
+                  سيتم إضافة جميع أصناف التقسيمة المقبولة من الدفعة <b>{confirmSendBatch?.batch_number}</b> إلى رصيد {sendDestination === "meat_factory" ? "مخزن خامات مصنع اللحوم" : "المخزن الرئيسي"} تلقائيًا.
                   الأصناف المستلمة مسبقًا سيتم تخطيها.
                 </AlertDialogDescription>
               </AlertDialogHeader>
@@ -1296,7 +1298,7 @@ const Slaughterhouse = () => {
                 <AlertDialogCancel disabled={sendingBatch}>إلغاء</AlertDialogCancel>
                 <AlertDialogAction
                   disabled={sendingBatch}
-                  onClick={(e) => { e.preventDefault(); confirmSendBatch && sendBatchToMainWarehouse(confirmSendBatch); }}
+                  onClick={(e) => { e.preventDefault(); confirmSendBatch && sendBatchToWarehouse(confirmSendBatch, sendDestination); }}
                   className="bg-gradient-to-r from-primary to-accent"
                 >
                   {sendingBatch ? "جاري الإرسال..." : "تأكيد الإرسال"}
