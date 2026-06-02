@@ -431,39 +431,47 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
                 const rows = filtered.map(p => ({
                   name: p.name,
                   unit: p.unit,
+                  // legacy fields = available (للحفاظ على التوافق)
                   agouza: (agouzaStock[p.id] ?? 0) - (agouzaPending[p.id] ?? 0),
                   main: (mainStock[p.id] ?? 0) - (mainPending[p.id] ?? 0),
+                  // الحقول الجديدة: الفعلي والمحجوز
+                  agouza_actual: agouzaStock[p.id] ?? 0,
+                  agouza_reserved: agouzaPending[p.id] ?? 0,
+                  main_actual: mainStock[p.id] ?? 0,
+                  main_reserved: mainPending[p.id] ?? 0,
                 }));
                 const filter = search.trim() || undefined;
                 const btn = "inline-flex items-center gap-1 h-8 px-3 text-xs rounded-md border bg-background hover:bg-muted transition";
-                if (scope === "agouza") {
-                  return (
-                    <button className={btn} onClick={() => printWarehouseStock(rows, { filter, mode: "agouza" })}>
-                      <Printer className="w-4 h-4" /> طباعة المتاح
+                const renderViewButtons = (mode: "agouza" | "main") => (
+                  <>
+                    <button className={btn} title="طباعة الجرد الفعلي قبل المحجوز" onClick={() => printWarehouseStock(rows, { filter, mode, view: "actual" })}>
+                      <Printer className="w-4 h-4" /> الفعلي
                     </button>
-                  );
-                }
-                if (scope === "main") {
-                  return (
-                    <button className={btn} onClick={() => printWarehouseStock(rows, { filter, mode: "main" })}>
-                      <Printer className="w-4 h-4" /> طباعة المتاح
+                    <button className={btn} title="طباعة المتاح للبيع بعد المحجوز" onClick={() => printWarehouseStock(rows, { filter, mode, view: "available" })}>
+                      <Printer className="w-4 h-4" /> المتاح للبيع
                     </button>
-                  );
-                }
+                    <button className={btn} title="طباعة الفعلي والمحجوز والمتاح في 3 أعمدة" onClick={() => printWarehouseStock(rows, { filter, mode, view: "full" })}>
+                      <Printer className="w-4 h-4" /> 3 أعمدة
+                    </button>
+                  </>
+                );
+                if (scope === "agouza") return renderViewButtons("agouza");
+                if (scope === "main") return renderViewButtons("main");
                 return (
                   <>
-                    <button className={btn} onClick={() => printWarehouseStock(rows, { filter, mode: "agouza" })}>
+                    <button className={btn} onClick={() => printWarehouseStock(rows, { filter, mode: "agouza", view: "full" })}>
                       <Printer className="w-4 h-4" /> العجوزة
                     </button>
-                    <button className={btn} onClick={() => printWarehouseStock(rows, { filter, mode: "main" })}>
+                    <button className={btn} onClick={() => printWarehouseStock(rows, { filter, mode: "main", view: "full" })}>
                       <Printer className="w-4 h-4" /> الرئيسي
                     </button>
-                    <button className={btn} onClick={() => printWarehouseStock(rows, { filter, mode: "both" })}>
+                    <button className={btn} onClick={() => printWarehouseStock(rows, { filter, mode: "both", view: "full" })}>
                       <Printer className="w-4 h-4" /> الإجمالي
                     </button>
                   </>
                 );
               })()}
+
             </div>
           </div>
           <div className="text-[11px] text-muted-foreground mt-2 leading-relaxed">

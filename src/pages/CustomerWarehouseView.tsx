@@ -831,52 +831,44 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
     ]);
   };
 
+  // ملاحظة: لا نعدّل inventory_items.stock يدوياً، لأن تريجرات قاعدة البيانات
+  // (apply_inventory_movement / adjust_inventory_movement_on_update / reverse_inventory_movement_on_delete)
+  // تتولى تعديل الرصيد تلقائياً عند INSERT/UPDATE/DELETE على inventory_movements.
+  // أي تعديل يدوي إضافي يسبب تأثير مضاعف (مثل خصم 4 بدل 2 عند حذف مرتجع).
   const applyMovementQtyChange = async (m: Movement, newQty: number) => {
     const oldQty = Number(m.quantity);
-    const diff = newQty - oldQty;
-    if (diff === 0) return;
+    if (newQty === oldQty) return;
     const pair = await findPair(m);
-    const thisItem = (await supabase.from("inventory_items").select("id, stock").eq("id", m.item_id).single()).data as any;
-    if (thisItem) {
-      const delta = m.movement_type === "in" ? diff : -diff;
-      if (Number(thisItem.stock) + delta < 0) throw new Error(`الكمية الجديدة تُخفّض رصيد "${m.item_name}" لأقل من صفر`);
-      const { error } = await supabase.from("inventory_items").update({ stock: Number(thisItem.stock) + delta }).eq("id", m.item_id);
-      if (error) throw error;
-    }
     if (pair) {
-      const pItem = (await supabase.from("inventory_items").select("id, stock").eq("id", pair.item_id).single()).data as any;
-      if (pItem) {
-        const delta = pair.movement_type === "in" ? diff : -diff;
-        if (Number(pItem.stock) + delta < 0) throw new Error("الكمية الجديدة تُخفّض رصيد المخزن المقابل لأقل من صفر");
-        const { error } = await supabase.from("inventory_items").update({ stock: Number(pItem.stock) + delta }).eq("id", pair.item_id);
-        if (error) throw error;
-      }
-      await supabase.from("inventory_movements").update({ quantity: newQty }).eq("id", pair.id);
+      const { error: pErr } = await supabase
+        .from("inventory_movements")
+        .update({ quantity: newQty })
+        .eq("id", pair.id);
+      if (pErr) throw pErr;
     }
-    const { error: upErr } = await supabase.from("inventory_movements").update({ quantity: newQty }).eq("id", m.id);
+    const { error: upErr } = await supabase
+      .from("inventory_movements")
+      .update({ quantity: newQty })
+      .eq("id", m.id);
     if (upErr) throw upErr;
   };
 
   const applyMovementDelete = async (m: Movement) => {
     const pair = await findPair(m);
-    const thisItem = (await supabase.from("inventory_items").select("id, stock").eq("id", m.item_id).single()).data as any;
-    if (thisItem) {
-      const delta = m.movement_type === "in" ? -Number(m.quantity) : Number(m.quantity);
-      const { error } = await supabase.from("inventory_items").update({ stock: Number(thisItem.stock) + delta }).eq("id", m.item_id);
-      if (error) throw error;
-    }
     if (pair) {
-      const pItem = (await supabase.from("inventory_items").select("id, stock").eq("id", pair.item_id).single()).data as any;
-      if (pItem) {
-        const d = pair.movement_type === "in" ? -Number(pair.quantity) : Number(pair.quantity);
-        const { error } = await supabase.from("inventory_items").update({ stock: Number(pItem.stock) + d }).eq("id", pair.item_id);
-        if (error) throw error;
-      }
-      await supabase.from("inventory_movements").delete().eq("id", pair.id);
+      const { error: pairDelErr, count: pairCount } = await supabase
+        .from("inventory_movements")
+        .delete({ count: "exact" })
+        .eq("id", pair.id);
+      ensureMutationSucceeded(pairDelErr, pairCount, "تعذّر حذف الحركة المقابلة (تحقق من الصلاحيات)");
     }
-    const { error: delErr, count } = await supabase.from("inventory_movements").delete({ count: "exact" }).eq("id", m.id);
+    const { error: delErr, count } = await supabase
+      .from("inventory_movements")
+      .delete({ count: "exact" })
+      .eq("id", m.id);
     ensureMutationSucceeded(delErr, count, "تعذّر حذف السطر (تحقق من الصلاحيات)");
   };
+
 
   const addInvoiceMovementLine = async (line: EditInvLine) => {
     if (!editInvoice || !whId || !mainWhId) throw new Error("بيانات المخازن غير مكتملة");
@@ -918,17 +910,9 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
       destItem = newRow as InventoryItem;
     }
 
-    const { error: sourceErr } = await supabase
-      .from("inventory_items")
-      .update({ stock: Number(sourceItem.stock) - realQty })
-      .eq("id", sourceItem.id);
-    if (sourceErr) throw sourceErr;
+    // ملاحظة: لا نعدّل inventory_items.stock يدوياً — تريجر apply_inventory_movement
+    // يقوم بذلك تلقائياً عند إدراج حركات المخزون أدناه.
 
-    const { error: destErr } = await supabase
-      .from("inventory_items")
-      .update({ stock: Number(destItem.stock) + realQty })
-      .eq("id", destItem.id);
-    if (destErr) throw destErr;
 
     const { error: movErr } = await supabase.from("inventory_movements").insert([
       {

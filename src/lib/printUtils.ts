@@ -115,23 +115,34 @@ export const printOrderInvoice = (order: PrintOrderData) => {
 export interface PrintStockRow {
   name: string;
   unit: string;
-  agouza: number;
-  main: number;
+  agouza: number;            // legacy = available value (الفعلي - المحجوز)
+  main: number;              // legacy = available value
+  agouza_actual?: number;
+  agouza_reserved?: number;
+  main_actual?: number;
+  main_reserved?: number;
 }
 
 export type StockPrintMode = "both" | "agouza" | "main";
+export type StockPrintView = "available" | "actual" | "full";
 
 export const printWarehouseStock = (
   rows: PrintStockRow[],
-  opts?: { title?: string; filter?: string; mode?: StockPrintMode }
+  opts?: { title?: string; filter?: string; mode?: StockPrintMode; view?: StockPrintView }
 ) => {
   const mode: StockPrintMode = opts?.mode || "both";
+  const view: StockPrintView = opts?.view || "available";
   const now = new Date().toLocaleString("ar-EG");
-  const title = opts?.title || (
-    mode === "agouza" ? "المتاح في مخزن العجوزة" :
-    mode === "main" ? "المتاح في المخزن الرئيسي" :
-    "المتاح في المخازن"
+  const viewLabel =
+    view === "actual" ? "الجرد الفعلي (قبل المحجوز)" :
+    view === "full" ? "الفعلي + المحجوز + المتاح للبيع" :
+    "المتاح للبيع (بعد المحجوز)";
+  const baseTitle = opts?.title || (
+    mode === "agouza" ? "مخزن العجوزة" :
+    mode === "main" ? "المخزن الرئيسي" :
+    "المخازن"
   );
+  const title = `تقرير ${baseTitle} — ${viewLabel}`;
 
   // عرض كل كمية بالكيلو + عدد العبوات (نص كيلو) للمنتجات التي وحدتها كيلو
   const isKiloUnit = (u?: string) => {
@@ -156,24 +167,56 @@ export const printWarehouseStock = (
   };
   const anyKilo = rows.some((r) => isKiloUnit(r.unit));
 
+  // قِيَم الأعمدة لكل صنف حسب الجانب (عجوزة/رئيسي) والـ view
+  const valuesFor = (r: PrintStockRow, side: "agouza" | "main"): { cols: number[]; labels: string[] } => {
+    const actual = side === "agouza"
+      ? (r.agouza_actual ?? r.agouza)
+      : (r.main_actual ?? r.main);
+    const reserved = side === "agouza" ? (r.agouza_reserved ?? 0) : (r.main_reserved ?? 0);
+    const available = (r.agouza_actual !== undefined || r.main_actual !== undefined)
+      ? actual - reserved
+      : (side === "agouza" ? r.agouza : r.main); // legacy already-available
+    if (view === "actual")    return { cols: [actual],    labels: ["الفعلي"] };
+    if (view === "available") return { cols: [available], labels: ["المتاح للبيع"] };
+    return { cols: [actual, reserved, available], labels: ["الفعلي", "المحجوز", "المتاح"] };
+  };
+
   let headerCols = "";
   let bodyRows = "";
   let footerRow = "";
 
   if (mode === "both") {
-    const totalAg = rows.reduce((s, r) => s + (r.agouza || 0), 0);
-    const totalMn = rows.reduce((s, r) => s + (r.main || 0), 0);
-    headerCols = `<th style="width:80px">الوحدة</th><th style="width:130px">مخزن العجوزة</th><th style="width:130px">المخزن الرئيسي</th><th style="width:130px">الإجمالي</th>`;
-    bodyRows = rows.map((r, i) => `<tr><td>${i + 1}</td><td>${r.name}</td><td>${r.unit || "-"}</td><td>${cellQty(r.agouza, r.unit)}</td><td>${cellQty(r.main, r.unit)}</td><td>${cellQty((r.agouza || 0) + (r.main || 0), r.unit)}</td></tr>`).join("");
-    footerRow = `<tr><td colspan="3">الإجمالي</td><td>${footQty(totalAg, anyKilo)}</td><td>${footQty(totalMn, anyKilo)}</td><td>${footQty(totalAg + totalMn, anyKilo)}</td></tr>`;
+    const sampleR = rows[0] || { name: "", unit: "", agouza: 0, main: 0 } as PrintStockRow;
+    const sample = valuesFor(sampleR, "agouza");
+    const colCount = sample.labels.length;
+    const agHeader = sample.labels.map(l => `<th style="width:110px">العجوزة — ${l}</th>`).join("");
+    const mnHeader = sample.labels.map(l => `<th style="width:110px">الرئيسي — ${l}</th>`).join("");
+    headerCols = `<th style="width:70px">الوحدة</th>${agHeader}${mnHeader}`;
+    const totals = { ag: new Array(colCount).fill(0), mn: new Array(colCount).fill(0) };
+    bodyRows = rows.map((r, i) => {
+      const ag = valuesFor(r, "agouza"); const mn = valuesFor(r, "main");
+      ag.cols.forEach((v, k) => totals.ag[k] += v);
+      mn.cols.forEach((v, k) => totals.mn[k] += v);
+      const agCells = ag.cols.map(v => `<td>${cellQty(v, r.unit)}</td>`).join("");
+      const mnCells = mn.cols.map(v => `<td>${cellQty(v, r.unit)}</td>`).join("");
+      return `<tr><td>${i + 1}</td><td>${r.name}</td><td>${r.unit || "-"}</td>${agCells}${mnCells}</tr>`;
+    }).join("");
+    footerRow = `<tr><td colspan="3">الإجمالي</td>${totals.ag.map(v => `<td>${footQty(v, anyKilo)}</td>`).join("")}${totals.mn.map(v => `<td>${footQty(v, anyKilo)}</td>`).join("")}</tr>`;
   } else {
-    const getVal = (r: PrintStockRow) => mode === "agouza" ? r.agouza : r.main;
-    const label = mode === "agouza" ? "مخزن العجوزة" : "المخزن الرئيسي";
-    const total = rows.reduce((s, r) => s + getVal(r), 0);
-    headerCols = `<th style="width:80px">الوحدة</th><th style="width:160px">${label}</th>`;
-    bodyRows = rows.map((r, i) => `<tr><td>${i + 1}</td><td>${r.name}</td><td>${r.unit || "-"}</td><td>${cellQty(getVal(r), r.unit)}</td></tr>`).join("");
-    footerRow = `<tr><td colspan="3">الإجمالي</td><td>${footQty(total, anyKilo)}</td></tr>`;
+    const side = mode;
+    const sampleR = rows[0] || { name: "", unit: "", agouza: 0, main: 0 } as PrintStockRow;
+    const sample = valuesFor(sampleR, side);
+    const label = side === "agouza" ? "مخزن العجوزة" : "المخزن الرئيسي";
+    headerCols = `<th style="width:70px">الوحدة</th>${sample.labels.map(l => `<th style="width:140px">${label} — ${l}</th>`).join("")}`;
+    const totals = new Array(sample.labels.length).fill(0);
+    bodyRows = rows.map((r, i) => {
+      const v = valuesFor(r, side);
+      v.cols.forEach((x, k) => totals[k] += x);
+      return `<tr><td>${i + 1}</td><td>${r.name}</td><td>${r.unit || "-"}</td>${v.cols.map(x => `<td>${cellQty(x, r.unit)}</td>`).join("")}</tr>`;
+    }).join("");
+    footerRow = `<tr><td colspan="3">الإجمالي</td>${totals.map(v => `<td>${footQty(v, anyKilo)}</td>`).join("")}</tr>`;
   }
+
 
 
   const body = `
