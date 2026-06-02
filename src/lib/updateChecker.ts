@@ -63,7 +63,7 @@ export const clearReloadLog = () => {
   }
 };
 
-const clearAllCachesAndSW = async () => {
+export const clearAllCachesAndSW = async () => {
   try {
     if ("caches" in window) {
       const keys = await caches.keys();
