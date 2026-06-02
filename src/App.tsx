@@ -21,6 +21,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <PWAUpdatePrompt />
+      <UpdateToastNotifier />
       <VersionBadge />
       <BrowserRouter>
         <RouteVersionGuard />
