@@ -549,7 +549,7 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
                       <div className="text-xs font-semibold mb-1 text-muted-foreground">مخزن العجوزة</div>
                       <div className="grid grid-cols-3 gap-1 text-[11px]">
                         <div><div className="text-muted-foreground mb-0.5">الفعلي</div><ActualCell wh="agouza" pid={p.id} name={p.name} kgValue={aActual} /></div>
-                        <div><div className="text-muted-foreground mb-0.5">المحجوز</div><ReservedCell pending={aPend} name={p.name} /></div>
+                        <div><div className="text-muted-foreground mb-0.5">المحجوز</div><ReservedCell pending={aPend} name={p.name} onOpen={() => setReservedDlg({ wh: "agouza", productId: p.id, productName: p.name, total: aPend })} /></div>
                         <div><div className="text-muted-foreground mb-0.5">المتاح</div><AvailableCell actual={aActual} pending={aPend} name={p.name} /></div>
                       </div>
                     </div>
