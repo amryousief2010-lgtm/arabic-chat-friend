@@ -1363,7 +1363,6 @@ const Slaughterhouse = () => {
           </Dialog>
 
           {/* Partial transfer: pick how much of each cut to send, remainder stays in the batch for the other destination */}
-          <Dialog open={!!confirmSendBatch} onOpenChange={(o) => { if (!o) { setConfirmSendBatch(null); setPartialQty({}); } }}>
             <DialogContent dir="rtl" className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
