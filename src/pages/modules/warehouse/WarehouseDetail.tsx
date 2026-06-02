@@ -397,6 +397,37 @@ const WarehouseDetail = () => {
     fetchAll();
   };
 
+  const handleCreateMovement = async () => {
+    if (!newMov.item_id || newMov.quantity <= 0) {
+      toast({ title: "أكمل البيانات", description: "اختر صنف وكمية صحيحة", variant: "destructive" });
+      return;
+    }
+    setSavingMov(true);
+    const { error } = await supabase.from("inventory_movements").insert({
+      warehouse_id: id,
+      item_id: newMov.item_id,
+      movement_type: newMov.movement_type,
+      quantity: newMov.quantity,
+      party: newMov.party || null,
+      reference: newMov.reference || null,
+      notes: newMov.notes || null,
+      performed_by: user?.id,
+      performed_at: new Date().toISOString(),
+    });
+    if (error) {
+      setSavingMov(false);
+      toast({ title: "تعذرت الإضافة", description: error.message, variant: "destructive" });
+      return;
+    }
+    const delta = (newMov.movement_type === "in" ? 1 : -1) * newMov.quantity;
+    await adjustStock(newMov.item_id, delta);
+    setSavingMov(false);
+    setAddMovOpen(false);
+    setNewMov({ item_id: "", movement_type: "in", quantity: 0, party: "", reference: "", notes: "" });
+    toast({ title: "تمت إضافة الحركة" });
+    fetchAll();
+  };
+
 
   // طلبات الاستلام من المخزن الرئيسي — لمسؤول المخزن (هادى) ولأحمد خاطر فى العجوزة (عرض)
   const pickupOrders = useMemo(() => {
