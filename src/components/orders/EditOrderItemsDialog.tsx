@@ -19,6 +19,7 @@ import { Trash2, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { computeOrderTotals, isOfferShippingLine } from "@/lib/orderTotals";
+import { getOfferUnitPriceForReplacement } from "@/lib/offerPriceGroups";
 
 interface Product {
   id: string;
@@ -33,6 +34,7 @@ interface EditableItem {
   product_name: string;
   quantity: number;
   unit_price: number;
+  offer_name?: string | null;
   _deleted?: boolean;
   _original?: { product_id: string | null; quantity: number; unit_price: number };
 }
@@ -70,6 +72,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
         product_name: it.product_name,
         quantity: it.quantity,
         unit_price: it.unit_price,
+        offer_name: it.offer_name ?? null,
         _original: {
           product_id: it.product_id ?? null,
           quantity: it.quantity,
@@ -101,12 +104,18 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
   const handleProductChange = (idx: number, productId: string) => {
     const p = products.find((x) => x.id === productId);
     if (!p) return;
-    // Always pick up the NEW product's current price when the product changes,
-    // so e.g. swapping kofta(290) → meat(500) inside an offer recalculates correctly.
+    const oldItem = items[idx];
+    // For offer items, swapping within the same offer price group must keep
+    // the offer unit price (not the new product's normal catalog price).
+    // For normal items, use the catalog price as before.
+    const siblings = items.filter(
+      (it, i) => i !== idx && !it._deleted && !isOfferShippingLine(it)
+    );
+    const newUnit = getOfferUnitPriceForReplacement(oldItem, p, siblings);
     updateItem(idx, {
       product_id: p.id,
       product_name: p.name,
-      unit_price: Number(p.price),
+      unit_price: Number(newUnit),
     });
   };
 
