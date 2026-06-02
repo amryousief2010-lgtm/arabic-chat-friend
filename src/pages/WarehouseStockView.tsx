@@ -61,6 +61,7 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
   const [editValue, setEditValue] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [mainOpeningAt, setMainOpeningAt] = useState<string | null>(null);
+  const [reservedDlg, setReservedDlg] = useState<{ wh: "agouza" | "main"; productId: string; productName: string; total: number } | null>(null);
 
 
   const fetchAll = async () => {
