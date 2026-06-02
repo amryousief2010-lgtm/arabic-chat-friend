@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { printWarehouseStock } from "@/lib/printUtils";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import ReservedDetailsDialog from "@/components/warehouse/ReservedDetailsDialog";
 
 interface Product { id: string; name: string; unit: string; category?: string | null; }
 
@@ -60,6 +61,7 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
   const [editValue, setEditValue] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [mainOpeningAt, setMainOpeningAt] = useState<string | null>(null);
+  const [reservedDlg, setReservedDlg] = useState<{ wh: "agouza" | "main"; productId: string; productName: string; total: number } | null>(null);
 
 
   const fetchAll = async () => {
@@ -262,16 +264,23 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
     );
   };
 
-  const ReservedCell = ({ pending, name }: { pending: number; name: string }) => {
+  const ReservedCell = ({ pending, name, onOpen }: { pending: number; name: string; onOpen?: () => void }) => {
     const per = kgPerPackage(name) || 0.5;
     const pkgs = per > 0 ? Math.round((pending / per) * 100) / 100 : 0;
     if (pending <= 0) return <span className="text-xs text-muted-foreground">—</span>;
+    const badge = (
+      <Badge className="bg-orange-500/15 text-orange-700 dark:text-orange-300 border border-orange-500/30 hover:bg-orange-500/25 cursor-pointer">
+        <Lock className="w-3 h-3 ml-1" />
+        {pending} كجم
+      </Badge>
+    );
     return (
       <div className="flex flex-col items-end gap-0.5">
-        <Badge className="bg-orange-500/15 text-orange-700 dark:text-orange-300 border border-orange-500/30 hover:bg-orange-500/15">
-          <Lock className="w-3 h-3 ml-1" />
-          {pending} كجم
-        </Badge>
+        {onOpen ? (
+          <button type="button" onClick={onOpen} title="عرض تفاصيل المحجوز (لمن ولأي أوردرات)">
+            {badge}
+          </button>
+        ) : badge}
         <span className="text-[10px] text-muted-foreground">{pkgs} عبوة</span>
       </div>
     );
@@ -507,10 +516,10 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
                       <td className="p-2 font-bold text-green-600 dark:text-green-400">{p.name}</td>
                       <td className="p-2 text-muted-foreground">{p.unit}</td>
                       {renderAgouzaCols && <td className="p-2"><ActualCell wh="agouza" pid={p.id} name={p.name} kgValue={aActual} /></td>}
-                      {renderAgouzaCols && <td className="p-2"><ReservedCell pending={aPend} name={p.name} /></td>}
+                      {renderAgouzaCols && <td className="p-2"><ReservedCell pending={aPend} name={p.name} onOpen={() => setReservedDlg({ wh: "agouza", productId: p.id, productName: p.name, total: aPend })} /></td>}
                       {renderAgouzaCols && <td className="p-2"><AvailableCell actual={aActual} pending={aPend} name={p.name} /></td>}
                       {renderMainCols && <td className="p-2"><ActualCell wh="main" pid={p.id} name={p.name} kgValue={mActual} /></td>}
-                      {renderMainCols && <td className="p-2"><ReservedCell pending={mPend} name={p.name} /></td>}
+                      {renderMainCols && <td className="p-2"><ReservedCell pending={mPend} name={p.name} onOpen={() => setReservedDlg({ wh: "main", productId: p.id, productName: p.name, total: mPend })} /></td>}
                       {renderMainCols && <td className="p-2"><AvailableCell actual={mActual} pending={mPend} name={p.name} /></td>}
                     </tr>
                   );
@@ -540,7 +549,7 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
                       <div className="text-xs font-semibold mb-1 text-muted-foreground">مخزن العجوزة</div>
                       <div className="grid grid-cols-3 gap-1 text-[11px]">
                         <div><div className="text-muted-foreground mb-0.5">الفعلي</div><ActualCell wh="agouza" pid={p.id} name={p.name} kgValue={aActual} /></div>
-                        <div><div className="text-muted-foreground mb-0.5">المحجوز</div><ReservedCell pending={aPend} name={p.name} /></div>
+                        <div><div className="text-muted-foreground mb-0.5">المحجوز</div><ReservedCell pending={aPend} name={p.name} onOpen={() => setReservedDlg({ wh: "agouza", productId: p.id, productName: p.name, total: aPend })} /></div>
                         <div><div className="text-muted-foreground mb-0.5">المتاح</div><AvailableCell actual={aActual} pending={aPend} name={p.name} /></div>
                       </div>
                     </div>
@@ -550,7 +559,7 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
                       <div className="text-xs font-semibold mb-1 text-muted-foreground">المخزن الرئيسي</div>
                       <div className="grid grid-cols-3 gap-1 text-[11px]">
                         <div><div className="text-muted-foreground mb-0.5">الفعلي</div><ActualCell wh="main" pid={p.id} name={p.name} kgValue={mActual} /></div>
-                        <div><div className="text-muted-foreground mb-0.5">المحجوز</div><ReservedCell pending={mPend} name={p.name} /></div>
+                        <div><div className="text-muted-foreground mb-0.5">المحجوز</div><ReservedCell pending={mPend} name={p.name} onOpen={() => setReservedDlg({ wh: "main", productId: p.id, productName: p.name, total: mPend })} /></div>
                         <div><div className="text-muted-foreground mb-0.5">المتاح</div><AvailableCell actual={mActual} pending={mPend} name={p.name} /></div>
                       </div>
                     </div>
@@ -561,6 +570,18 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
           </div>
         </CardContent>
       </Card>
+
+      {reservedDlg && (
+        <ReservedDetailsDialog
+          open={!!reservedDlg}
+          onOpenChange={(o) => { if (!o) setReservedDlg(null); }}
+          warehouseId={(reservedDlg.wh === "agouza" ? agouzaWhId : mainWhId) || ""}
+          warehouseName={reservedDlg.wh === "agouza" ? "مخزن العجوزة" : "المخزن الرئيسي"}
+          productId={reservedDlg.productId}
+          productName={reservedDlg.productName}
+          totalReservedKg={reservedDlg.total}
+        />
+      )}
     </DashboardLayout>
   );
 };
