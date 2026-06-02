@@ -66,6 +66,11 @@ const WarehouseDetail = () => {
   const [editQtyMap, setEditQtyMap] = useState<Record<string, number>>({});
   const [addItemId, setAddItemId] = useState<string>("");
   const [addItemQty, setAddItemQty] = useState<number>(0);
+  // فلتر الحركات بالسنة/الشهر
+  const [movYear, setMovYear] = useState<string>("all");
+  const [movMonth, setMovMonth] = useState<string>("all");
+  // تعديل/حذف الحركات المفردة
+  const [editSingleQty, setEditSingleQty] = useState<Record<string, number>>({});
 
 
 
