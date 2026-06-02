@@ -116,7 +116,7 @@ const Slaughterhouse = () => {
 
   const fetchAll = async () => {
     setLoading(true);
-    const [r, b, y, o, w, q, br, bd, tr, st, au, pr, adj] = await Promise.all([
+    const [r, b, y, o, w, q, br, bd, tr, st, au, pr, adj, wh] = await Promise.all([
       supabase.from("slaughter_live_receipts" as any).select("*").order("receipt_date", { ascending: false }).limit(500),
       supabase.from("slaughter_batches" as any).select("*").order("slaughter_date", { ascending: false }).limit(500),
       supabase.from("slaughter_yield_standards" as any).select("*").order("display_order"),
@@ -147,6 +147,7 @@ const Slaughterhouse = () => {
     ((pr.data as any) || []).forEach((p: any) => { pm[p.id] = p.full_name; });
     setProfiles(pm);
     setAdjustments((adj.data as any) || []);
+    setWarehouses((wh.data as any) || []);
     setLoading(false);
   };
 
