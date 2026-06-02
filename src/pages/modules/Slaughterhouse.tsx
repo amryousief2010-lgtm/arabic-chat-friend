@@ -1084,6 +1084,14 @@ const Slaughterhouse = () => {
                               <DropdownMenuItem onClick={() => exportReceiptExcel(r)} className="text-emerald-700">
                                 <FileSpreadsheet className="w-4 h-4 ml-2" /> تصدير Excel
                               </DropdownMenuItem>
+                              {isExecManager && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => deleteReceipt(r)} className="text-destructive">
+                                    <Trash2 className="w-4 h-4 ml-2" /> حذف القسيمة
+                                  </DropdownMenuItem>
+                                </>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
