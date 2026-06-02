@@ -28,8 +28,17 @@ const UpdateToastNotifier = () => {
             </div>
             <button
               onClick={async () => {
-                await clearAllCachesAndSW();
-                window.location.reload();
+                try {
+                  await clearAllCachesAndSW();
+                } catch {
+                  // ignore
+                }
+                // ⚠️ نستخدم replace مع cache-buster بدل reload لتجنّب أن يخدم
+                // الكاش (أو PWA المثبتة) نسخة index.html القديمة التي تطلب
+                // ملفات JS لم تعد موجودة وتجعل الصفحة تظهر فارغة.
+                const url = new URL(window.location.href);
+                url.searchParams.set("_v", String(Date.now()));
+                window.location.replace(url.toString());
               }}
               className="mt-1 inline-flex items-center justify-center gap-1 rounded-lg bg-orange-500 px-3 py-1.5 text-sm font-bold text-white hover:bg-orange-600 transition-colors"
             >
