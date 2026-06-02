@@ -278,6 +278,78 @@ const WarehouseDetail = () => {
     [groupedMovements, slaughterDialog]
   ) as any;
 
+  // الفلترة بالسنة/الشهر + التجميع للعرض
+  const availableYears = useMemo(() => {
+    const s = new Set<string>();
+    groupedMovements.forEach((r: any) => {
+      const d = r.kind === "single" ? r.mov.performed_at : r.date;
+      if (d) s.add(new Date(d).getFullYear().toString());
+    });
+    return Array.from(s).sort((a, b) => Number(b) - Number(a));
+  }, [groupedMovements]);
+
+  const filteredMovements = useMemo(() => {
+    return groupedMovements.filter((r: any) => {
+      const d = new Date(r.kind === "single" ? r.mov.performed_at : r.date);
+      if (movYear !== "all" && d.getFullYear().toString() !== movYear) return false;
+      if (movMonth !== "all" && (d.getMonth() + 1).toString() !== movMonth) return false;
+      return true;
+    });
+  }, [groupedMovements, movYear, movMonth]);
+
+  // تجميع للعرض: سنة → شهر → صفوف
+  const movementsByYearMonth = useMemo(() => {
+    const map = new Map<string, Map<string, any[]>>();
+    filteredMovements.forEach((r: any) => {
+      const d = new Date(r.kind === "single" ? r.mov.performed_at : r.date);
+      const y = d.getFullYear().toString();
+      const m = (d.getMonth() + 1).toString();
+      if (!map.has(y)) map.set(y, new Map());
+      const inner = map.get(y)!;
+      if (!inner.has(m)) inner.set(m, []);
+      inner.get(m)!.push(r);
+    });
+    return map;
+  }, [filteredMovements]);
+
+  const MONTH_AR = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+
+  const printSlaughterBatch = () => {
+    if (!slaughterGroup) return;
+    const rows = slaughterGroup.movs.map((m: any) =>
+      `<tr><td>${escapeHtml(m.item?.name || "—")}</td><td class="num">${fmtNum(m.quantity, 2)} ${escapeHtml(m.item?.unit || "كجم")}</td></tr>`
+    ).join("");
+    const body = `
+      <header>
+        <div><h1>${COMPANY_AR}</h1><div class="en">تفاصيل دفعة الذبح ${escapeHtml(slaughterGroup.batchNo)}</div></div>
+        <div class="meta"><div>التاريخ: ${fmtDate(slaughterGroup.date)}</div><div>عدد الأصناف: <b>${slaughterGroup.movs.length}</b></div><div>الإجمالي: <b>${fmtNum(slaughterGroup.totalQty, 2)} كجم</b></div></div>
+      </header>
+      <table><thead><tr><th>الصنف</th><th>الكمية</th></tr></thead><tbody>${rows}</tbody></table>`;
+    openPrintWindow(`دفعة ذبح ${slaughterGroup.batchNo}`, body);
+  };
+
+  const printMovementsLog = () => {
+    const title = `سجل حركات المخزن${movYear !== "all" ? " - " + movYear : ""}${movMonth !== "all" ? " / " + MONTH_AR[Number(movMonth) - 1] : ""}`;
+    let sections = "";
+    movementsByYearMonth.forEach((months, year) => {
+      sections += `<h2 style="margin-top:14px;">سنة ${escapeHtml(year)}</h2>`;
+      months.forEach((rows, m) => {
+        const monthRows = rows.map((r: any) => {
+          if (r.kind === "slaughter") {
+            return `<tr><td>${fmtDate(r.date)}</td><td>وارد المجزر</td><td>دفعة ${escapeHtml(r.batchNo)} (${r.movs.length} صنف)</td><td class="num">${fmtNum(r.totalQty, 2)} كجم</td><td>المجزر</td></tr>`;
+          }
+          const x = r.mov;
+          return `<tr><td>${fmtDate(x.performed_at)}</td><td>${escapeHtml(moveLabels[x.movement_type]?.label || x.movement_type)}</td><td>${escapeHtml(x.item?.name || "—")}</td><td class="num">${fmtNum(x.quantity, 2)} ${escapeHtml(x.item?.unit || "")}</td><td>${escapeHtml(x.destination?.name || x.party || "—")}</td></tr>`;
+        }).join("");
+        sections += `<h3 style="margin-top:8px;">${escapeHtml(MONTH_AR[Number(m) - 1])}</h3>
+          <table><thead><tr><th>التاريخ</th><th>النوع</th><th>الصنف</th><th>الكمية</th><th>الوجهة/الجهة</th></tr></thead><tbody>${monthRows}</tbody></table>`;
+      });
+    });
+    const body = `<header><div><h1>${COMPANY_AR}</h1><div class="en">${escapeHtml(title)} - ${escapeHtml(warehouse?.name || "")}</div></div><div class="meta"><div>${fmtDate(new Date())}</div></div></header>${sections}`;
+    openPrintWindow(title, body);
+  };
+
+
   const adjustStock = async (itemId: string, delta: number) => {
     if (!itemId || !delta) return;
     const { data: it } = await supabase.from("inventory_items").select("stock").eq("id", itemId).maybeSingle();
