@@ -11,6 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
+import { MoreHorizontal, Receipt as ReceiptIcon } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -1046,6 +1048,29 @@ const Slaughterhouse = () => {
                           <Button size="sm" variant="outline" onClick={() => setBirdsReceiptId(r.id)}>
                             <Bird className="w-3 h-3 ml-1" />{recBirds.length}
                           </Button>
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button size="sm" variant="outline" className="gap-1" title="فاتورة الشراء">
+                                <ReceiptIcon className="w-3.5 h-3.5" />
+                                <MoreHorizontal className="w-3 h-3" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="min-w-[180px]">
+                              <DropdownMenuLabel className="text-xs">{r.receipt_number}</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => setDetailReceipt(r)}>
+                                <ReceiptIcon className="w-4 h-4 ml-2" /> عرض فاتورة الشراء
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => exportReceiptPDF(r)} className="text-red-600">
+                                <Printer className="w-4 h-4 ml-2" /> طباعة / PDF
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => exportReceiptExcel(r)} className="text-emerald-700">
+                                <FileSpreadsheet className="w-4 h-4 ml-2" /> تصدير Excel
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                         {canEditReceiptData && (
                           <TableCell>
