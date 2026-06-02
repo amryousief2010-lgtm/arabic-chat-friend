@@ -144,6 +144,24 @@ export const subscribeToChecks = (fn: (s: LastCheckState) => void) => {
   return () => listeners.delete(fn);
 };
 
+/** listeners للتحديثات المتاحة (لا إعادة تحميل تلقائية) */
+export interface UpdateAvailableInfo {
+  remoteVersion: string;
+  currentVersion: string;
+}
+const updateAvailableListeners = new Set<(info: UpdateAvailableInfo) => void>();
+export const subscribeToUpdateAvailable = (fn: (info: UpdateAvailableInfo) => void) => {
+  updateAvailableListeners.add(fn);
+  return () => updateAvailableListeners.delete(fn);
+};
+export const notifyUpdateAvailable = (remoteVersion: string) => {
+  const info: UpdateAvailableInfo = {
+    remoteVersion,
+    currentVersion: CURRENT_VERSION,
+  };
+  updateAvailableListeners.forEach((fn) => fn(info));
+};
+
 /** فحص + إعادة تحميل إن لزم. يُرجع true لو سيُعاد التحميل. */
 export const checkAndReloadIfStale = async (
   reason: ReloadReason,
