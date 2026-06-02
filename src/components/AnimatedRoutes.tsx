@@ -1,9 +1,33 @@
-import { lazy, Suspense } from "react";
+import { lazy as reactLazy, Suspense } from "react";
 import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import PageTransition from "@/components/layout/PageTransition";
 import RoleLanding from "@/components/RoleLanding";
+
+// Wrap lazy() so that when a dynamically-imported chunk is missing (e.g. after a
+// new deploy invalidated old chunk hashes), we force a single hard reload instead
+// of crashing the whole app / closing the sidebar.
+const lazy: typeof reactLazy = ((factory: any) =>
+  reactLazy(() =>
+    factory().catch((err: any) => {
+      const msg = String(err?.message || err || "");
+      const isChunkErr =
+        msg.includes("dynamically imported module") ||
+        msg.includes("Failed to fetch dynamically imported") ||
+        msg.includes("Importing a module script failed") ||
+        err?.name === "ChunkLoadError";
+      if (isChunkErr && typeof window !== "undefined") {
+        const key = "__lov_chunk_reload__";
+        if (!sessionStorage.getItem(key)) {
+          sessionStorage.setItem(key, String(Date.now()));
+          window.location.reload();
+          return { default: (() => null) as any };
+        }
+      }
+      throw err;
+    })
+  )) as any;
 
 // All page components are lazy-loaded to dramatically reduce initial bundle size.
 // Each route's JS chunk is only fetched when the user navigates to it.
