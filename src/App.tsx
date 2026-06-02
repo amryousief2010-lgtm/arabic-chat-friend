@@ -8,6 +8,7 @@ import { NotificationSettingsProvider } from "@/hooks/useNotificationSettings";
 import { TestDataProvider } from "@/hooks/useTestDataFilter";
 import AnimatedRoutes from "@/components/AnimatedRoutes";
 import PWAUpdatePrompt from "@/components/PWAUpdatePrompt";
+import UpdateToastNotifier from "@/components/UpdateToastNotifier";
 import VersionBadge from "@/components/VersionBadge";
 import RouteVersionGuard from "@/components/RouteVersionGuard";
 import InstalledIconMismatchAlert from "@/components/InstalledIconMismatchAlert";
