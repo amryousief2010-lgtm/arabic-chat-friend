@@ -264,16 +264,23 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
     );
   };
 
-  const ReservedCell = ({ pending, name }: { pending: number; name: string }) => {
+  const ReservedCell = ({ pending, name, onOpen }: { pending: number; name: string; onOpen?: () => void }) => {
     const per = kgPerPackage(name) || 0.5;
     const pkgs = per > 0 ? Math.round((pending / per) * 100) / 100 : 0;
     if (pending <= 0) return <span className="text-xs text-muted-foreground">—</span>;
+    const badge = (
+      <Badge className="bg-orange-500/15 text-orange-700 dark:text-orange-300 border border-orange-500/30 hover:bg-orange-500/25 cursor-pointer">
+        <Lock className="w-3 h-3 ml-1" />
+        {pending} كجم
+      </Badge>
+    );
     return (
       <div className="flex flex-col items-end gap-0.5">
-        <Badge className="bg-orange-500/15 text-orange-700 dark:text-orange-300 border border-orange-500/30 hover:bg-orange-500/15">
-          <Lock className="w-3 h-3 ml-1" />
-          {pending} كجم
-        </Badge>
+        {onOpen ? (
+          <button type="button" onClick={onOpen} title="عرض تفاصيل المحجوز (لمن ولأي أوردرات)">
+            {badge}
+          </button>
+        ) : badge}
         <span className="text-[10px] text-muted-foreground">{pkgs} عبوة</span>
       </div>
     );
