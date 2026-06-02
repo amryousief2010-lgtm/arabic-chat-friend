@@ -41,7 +41,7 @@ const SendMessage = () => {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
 
-  const canSend = ["general_manager", "executive_manager", "sales_manager", "financial_manager", "accountant"].includes(
+  const canSend = ["general_manager", "executive_manager", "sales_manager", "marketing_sales_manager", "financial_manager", "accountant"].includes(
     role || ""
   );
 
