@@ -305,16 +305,10 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
                     step="any"
                     value={it.quantity}
                     onChange={(e) => {
-                      const newQty = Number(e.target.value);
-                      // Auto-scale unit_price proportionally to the quantity change
-                      // so changing 1 كيلو سجق → 0.5 يخفّض السعر تلقائيًا.
-                      const baseQty = Number(it._original?.quantity) || Number(it.quantity) || 0;
-                      const baseUnit = Number(it._original?.unit_price) || Number(it.unit_price) || 0;
-                      let newUnit = it.unit_price;
-                      if (baseQty > 0 && baseUnit > 0 && Number.isFinite(newQty)) {
-                        newUnit = Number(((baseUnit * newQty) / baseQty).toFixed(2));
-                      }
-                      updateItem(realIdx, { quantity: newQty, unit_price: newUnit });
+                      // Only update quantity. unit_price is the price per ONE unit
+                      // and must never be scaled by quantity (line total is
+                      // computed separately as quantity * unit_price).
+                      updateItem(realIdx, { quantity: Number(e.target.value) });
                     }}
                   />
                 </div>

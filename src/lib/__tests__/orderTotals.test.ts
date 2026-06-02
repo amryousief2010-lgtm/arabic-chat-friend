@@ -101,4 +101,14 @@ describe("computeOrderTotals", () => {
     );
     expect(t.total).toBe(500);
   });
+
+  it("موزة @ 290 with quantity 2 → line total 580 (NOT 1160). unit_price stays 290", () => {
+    const item = { product_id: "mz", product_name: "موزة", quantity: 2, unit_price: 290 };
+    const t = computeOrderTotals([item]);
+    // unit_price must remain the price of ONE unit
+    expect(item.unit_price).toBe(290);
+    // line total = qty * unit_price = 580 (never 1160)
+    expect(t.subtotal).toBe(580);
+    expect(t.total).toBe(580);
+  });
 });
