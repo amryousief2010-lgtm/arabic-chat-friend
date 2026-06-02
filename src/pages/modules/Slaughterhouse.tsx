@@ -1385,7 +1385,7 @@ const Slaughterhouse = () => {
               <Table>
                 <TableHeader><TableRow>
                   <TableHead>القطعة</TableHead><TableHead>EN</TableHead><TableHead>الباركود</TableHead>
-                  <TableHead>% من الوزن الحي</TableHead><TableHead>وزن العبوة</TableHead><TableHead>الفئة</TableHead>
+                  <TableHead>% من الوزن الحي</TableHead><TableHead>كجم/نعامة</TableHead><TableHead>وزن العبوة</TableHead><TableHead>الفئة</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
                   {yields.map(y => (
@@ -1394,6 +1394,7 @@ const Slaughterhouse = () => {
                       <TableCell className="text-muted-foreground text-sm">{y.cut_name_en}</TableCell>
                       <TableCell className="font-mono text-xs">{y.barcode}</TableCell>
                       <TableCell><Badge className="bg-primary/20 text-primary">{Number(y.standard_yield_pct).toFixed(2)}%</Badge></TableCell>
+                      <TableCell>{y.standard_kg_per_bird != null ? <Badge variant="secondary">{Number(y.standard_kg_per_bird).toFixed(2)} كجم</Badge> : <span className="text-muted-foreground text-xs">—</span>}</TableCell>
                       <TableCell>{y.package_size_kg} كجم</TableCell>
                       <TableCell><Badge variant="outline">{y.category === "meat" ? "لحم" : y.category === "offal" ? "أحشاء" : y.category === "waste" ? "مخلفات" : "ناتج ثانوي"}</Badge></TableCell>
                     </TableRow>
