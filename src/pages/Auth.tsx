@@ -75,7 +75,7 @@ const Auth = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-muted/30 to-background p-4 relative overflow-hidden" dir="rtl">
+    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-muted/30 to-background p-4 relative overflow-hidden" dir="rtl">
       {/* decorative background blobs */}
       <div className="pointer-events-none absolute -top-32 -right-32 w-96 h-96 rounded-full bg-primary/10 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-orange-500/10 blur-3xl" />
@@ -95,8 +95,8 @@ const Auth = () => {
               />
             </div>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">شركة نعام العاصمة</h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 tracking-wide">Capital Ostrich Company</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">شركة نعام العاصمة — نظام إدارة العمليات</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 tracking-wide">Capital Ostrich Company — Operations Management</p>
           <p className="text-[11px] sm:text-xs text-muted-foreground/80 mt-2">نظام داخلي — الدخول مقيد للموظفين فقط</p>
         </div>
 
@@ -139,9 +139,11 @@ const Auth = () => {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
+                    aria-pressed={showPassword}
                     className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showPassword ? <EyeOff className="w-4 h-4" aria-hidden="true" /> : <Eye className="w-4 h-4" aria-hidden="true" />}
                   </button>
                 </div>
               </div>
@@ -168,7 +170,7 @@ const Auth = () => {
           © 2024 شركة نعام العاصمة - جميع الحقوق محفوظة
         </p>
       </div>
-    </div>
+    </main>
   );
 };
 
