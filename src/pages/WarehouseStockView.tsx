@@ -516,10 +516,10 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
                       <td className="p-2 font-bold text-green-600 dark:text-green-400">{p.name}</td>
                       <td className="p-2 text-muted-foreground">{p.unit}</td>
                       {renderAgouzaCols && <td className="p-2"><ActualCell wh="agouza" pid={p.id} name={p.name} kgValue={aActual} /></td>}
-                      {renderAgouzaCols && <td className="p-2"><ReservedCell pending={aPend} name={p.name} /></td>}
+                      {renderAgouzaCols && <td className="p-2"><ReservedCell pending={aPend} name={p.name} onOpen={() => setReservedDlg({ wh: "agouza", productId: p.id, productName: p.name, total: aPend })} /></td>}
                       {renderAgouzaCols && <td className="p-2"><AvailableCell actual={aActual} pending={aPend} name={p.name} /></td>}
                       {renderMainCols && <td className="p-2"><ActualCell wh="main" pid={p.id} name={p.name} kgValue={mActual} /></td>}
-                      {renderMainCols && <td className="p-2"><ReservedCell pending={mPend} name={p.name} /></td>}
+                      {renderMainCols && <td className="p-2"><ReservedCell pending={mPend} name={p.name} onOpen={() => setReservedDlg({ wh: "main", productId: p.id, productName: p.name, total: mPend })} /></td>}
                       {renderMainCols && <td className="p-2"><AvailableCell actual={mActual} pending={mPend} name={p.name} /></td>}
                     </tr>
                   );
