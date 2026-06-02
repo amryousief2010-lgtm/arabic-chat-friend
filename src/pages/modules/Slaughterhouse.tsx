@@ -61,7 +61,7 @@ export const normalizeCutName = (s: string): string =>
     .replace(/\s+/g, " ")
     .trim();
 
-const DEFAULT_YIELD_CUTS = ["لحمة","استيك","موزة","فراشة","قطعية دبوس","دبوس بالعظم","فخذة","صندوق","تربيانكو","اسكالوب","رول نعام","فرم"];
+const DEFAULT_YIELD_CUTS = ["لحمه","استيك","موزه","فراشه","قطعيه دبوس","دبوس بالعظم","فخده","صندوق","نعامه صندوق","تربيانكو","اسكالوب","رول النعام","فرم نعام"];
 type AuditEntry = { id: string; action: string; target_type: string; target_id: string | null; batch_id: string | null; transfer_id: string | null; performed_by: string | null; performed_at: string; old_value: any; new_value: any; notes: string | null };
 
 const Slaughterhouse = () => {
