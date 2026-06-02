@@ -96,7 +96,8 @@ function exportBatchExcel(b: any) {
 }
 
 export function SlaughterToMeatInbox() {
-  const { canManageMeatFactory } = useAuth();
+  const { canManageMeatFactory, canManageWarehouses } = useAuth();
+  const canReceive = canManageMeatFactory || canManageWarehouses;
   const [outputs, setOutputs] = useState<any[]>([]);
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [receiveBatch, setReceiveBatch] = useState<any | null>(null);
