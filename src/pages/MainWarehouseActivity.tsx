@@ -72,6 +72,9 @@ export default function MainWarehouseActivity() {
   const [direction, setDirection] = useState<"all" | "in" | "out">("all");
   const [sourceCat, setSourceCat] = useState<string>("all");
   const [days, setDays] = useState<"7" | "30" | "90" | "all">("30");
+  const [openingAt, setOpeningAt] = useState<string | null>(null);
+  // العرض الافتراضي = من Opening Balance فقط. الأرشيف القديم اختياري.
+  const [showArchive, setShowArchive] = useState(false);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -84,6 +87,17 @@ export default function MainWarehouseActivity() {
         .maybeSingle();
       if (!wh) { setRows([]); return; }
 
+      // آخر Opening Balance للمخزن الرئيسي
+      const { data: ob } = await supabase
+        .from("warehouse_opening_balances")
+        .select("opened_at")
+        .eq("warehouse_id", wh.id)
+        .order("opened_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const openAt = (ob as any)?.opened_at as string | undefined;
+      setOpeningAt(openAt ?? null);
+
       let q = supabase
         .from("inventory_movements")
         .select("id, performed_at, movement_type, quantity, notes, reason, party, item_id, source_warehouse_id, destination_warehouse_id, performed_by, reference_type")
@@ -91,13 +105,17 @@ export default function MainWarehouseActivity() {
         .order("performed_at", { ascending: false })
         .limit(1000);
 
-      if (days !== "all") {
+      // فلتر افتراضي: من Opening Balance فقط
+      if (openAt && !showArchive) {
+        q = q.gte("performed_at", openAt);
+      } else if (days !== "all") {
         const since = new Date();
         since.setDate(since.getDate() - Number(days));
         q = q.gte("performed_at", since.toISOString());
       }
       const { data: mvs, error } = await q;
       if (error) throw error;
+
 
       const itemIds = Array.from(new Set((mvs || []).map((m: any) => m.item_id).filter(Boolean)));
       const whIds = Array.from(new Set(
