@@ -132,7 +132,7 @@ const WarehouseDetail = () => {
     const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
     const { data: ords } = await supabase
       .from("orders")
-      .select("id, order_number, created_at, status, fulfillment_type, total, subtotal, discount, delivery_fee, notes, delivery_address, payment_status, payment_method, source_warehouse_id, source:warehouses!orders_source_warehouse_id_fkey(name), customer:customers(name, phone, governorate), order_items(product_name, quantity, unit_price, total_price, offer_name)")
+      .select("id, order_number, created_at, status, fulfillment_type, total, subtotal, discount, delivery_fee, notes, delivery_address, payment_status, payment_method, source_warehouse_id, shipping_company, delivered_at, delivered_by, source:warehouses!orders_source_warehouse_id_fkey(name), customer:customers(name, phone, governorate), order_items(product_name, quantity, unit_price, total_price, offer_name)")
       .in("source_warehouse_id", orderSourceIds)
       .gte("created_at", fiveDaysAgo)
       .order("created_at", { ascending: false })
