@@ -1750,7 +1750,68 @@ const WarehouseDetail = () => {
       </Dialog>
 
       {/* Slaughter batch grouped dialog */}
+      <Dialog open={addMovOpen} onOpenChange={setAddMovOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>إضافة حركة جديدة — {warehouse?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <label className="text-sm font-medium mb-1 block">الصنف (من {warehouse?.name} فقط)</label>
+              <Select value={newMov.item_id} onValueChange={(v) => setNewMov(p => ({ ...p, item_id: v }))}>
+                <SelectTrigger><SelectValue placeholder="اختر الصنف" /></SelectTrigger>
+                <SelectContent>
+                  {items.length === 0 ? (
+                    <div className="p-3 text-sm text-muted-foreground">لا توجد منتجات في هذا المخزن</div>
+                  ) : items.map((it: any) => (
+                    <SelectItem key={it.id} value={it.id}>{it.name} {it.sku ? `(${it.sku})` : ""} — متاح: {Number(it.stock || 0)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-medium mb-1 block">نوع الحركة</label>
+                <Select value={newMov.movement_type} onValueChange={(v) => setNewMov(p => ({ ...p, movement_type: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="in">وارد (إضافة للمخزون)</SelectItem>
+                    <SelectItem value="out">صادر (خصم من المخزون)</SelectItem>
+                    <SelectItem value="adjustment">تسوية</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">الكمية</label>
+                <Input type="number" step="0.01" value={newMov.quantity || ""} onChange={(e) => setNewMov(p => ({ ...p, quantity: Number(e.target.value) }))} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-medium mb-1 block">الجهة (اختياري)</label>
+                <Input value={newMov.party} onChange={(e) => setNewMov(p => ({ ...p, party: e.target.value }))} placeholder="مثال: المجزر، مورد، عميل" />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">المرجع (اختياري)</label>
+                <Input value={newMov.reference} onChange={(e) => setNewMov(p => ({ ...p, reference: e.target.value }))} placeholder="رقم فاتورة / مرجع" />
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">ملاحظات</label>
+              <Input value={newMov.notes} onChange={(e) => setNewMov(p => ({ ...p, notes: e.target.value }))} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddMovOpen(false)}>إلغاء</Button>
+            <Button onClick={handleCreateMovement} disabled={savingMov || !newMov.item_id || newMov.quantity <= 0} className="bg-emerald-600 hover:bg-emerald-700">
+              <Plus className="w-4 h-4 ml-1" /> {savingMov ? "جارٍ الحفظ..." : "إضافة الحركة"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={!!slaughterDialog} onOpenChange={(v) => { if (!v) { setSlaughterDialog(null); setEditQtyMap({}); setAddItemId(""); setAddItemQty(0); } }}>
+
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
