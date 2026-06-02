@@ -1565,6 +1565,7 @@ const Orders = () => {
             product_name: it.product_name,
             quantity: it.quantity,
             unit_price: it.unit_price,
+            offer_name: it.offer_name ?? null,
           }))}
           initialDiscount={editingOrder.discount}
           initialDeliveryFee={editingOrder.delivery_fee}
