@@ -111,9 +111,10 @@ export default function MainWarehouseActivity() {
       const whs = whIds.length
         ? (await supabase.from("warehouses").select("id, name").in("id", whIds)).data || []
         : [];
-      const profs = userIds.length
-        ? (await supabase.from("profiles").select("user_id, full_name").in("user_id", userIds)).data || []
+      const profs: any[] = userIds.length
+        ? ((await (supabase.from("profiles") as any).select("user_id, full_name").in("user_id", userIds)).data || [])
         : [];
+
 
 
       const itemMap = new Map((items || []).map((i: any) => [i.id, i]));
