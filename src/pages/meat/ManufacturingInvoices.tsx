@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Factory, Plus, Trash2, CheckCircle2, Send, Loader2 } from "lucide-react";
+import DashboardLayout from "@/components/layout/DashboardLayout";
 
 type Warehouse = { id: string; name: string; type: string };
 type Item = { id: string; name: string; unit: string; stock: number; unit_cost: number; category: string | null };
