@@ -5270,6 +5270,7 @@ export type Database = {
           created_by: string | null
           customer_id: string | null
           delivered_at: string | null
+          delivered_by: string | null
           delivery_address: string | null
           delivery_fee: number
           deposit_receipt_name: string | null
@@ -5304,6 +5305,7 @@ export type Database = {
           created_by?: string | null
           customer_id?: string | null
           delivered_at?: string | null
+          delivered_by?: string | null
           delivery_address?: string | null
           delivery_fee?: number
           deposit_receipt_name?: string | null
@@ -5338,6 +5340,7 @@ export type Database = {
           created_by?: string | null
           customer_id?: string | null
           delivered_at?: string | null
+          delivered_by?: string | null
           delivery_address?: string | null
           delivery_fee?: number
           deposit_receipt_name?: string | null
