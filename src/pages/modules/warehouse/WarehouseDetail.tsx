@@ -71,6 +71,10 @@ const WarehouseDetail = () => {
   const [movMonth, setMovMonth] = useState<string>("all");
   // تعديل/حذف الحركات المفردة
   const [editSingleQty, setEditSingleQty] = useState<Record<string, number>>({});
+  // إضافة حركة جديدة
+  const [addMovOpen, setAddMovOpen] = useState(false);
+  const [newMov, setNewMov] = useState<{ item_id: string; movement_type: string; quantity: number; party: string; reference: string; notes: string }>({ item_id: "", movement_type: "in", quantity: 0, party: "", reference: "", notes: "" });
+  const [savingMov, setSavingMov] = useState(false);
 
 
 
