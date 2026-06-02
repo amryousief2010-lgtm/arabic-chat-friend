@@ -105,17 +105,16 @@ export default function MainWarehouseActivity() {
       ));
       const userIds = Array.from(new Set((mvs || []).map((m: any) => m.performed_by).filter(Boolean)));
 
-      const [{ data: items }, { data: whs }, { data: profs }] = await Promise.all([
-        itemIds.length
-          ? supabase.from("inventory_items").select("id, name, unit").in("id", itemIds)
-          : Promise.resolve({ data: [] as any[] }),
-        whIds.length
-          ? supabase.from("warehouses").select("id, name").in("id", whIds)
-          : Promise.resolve({ data: [] as any[] }),
-        userIds.length
-          ? supabase.from("profiles").select("user_id, full_name").in("user_id", userIds)
-          : Promise.resolve({ data: [] as any[] }),
-      ]);
+      const items = itemIds.length
+        ? (await supabase.from("inventory_items").select("id, name, unit").in("id", itemIds)).data || []
+        : [];
+      const whs = whIds.length
+        ? (await supabase.from("warehouses").select("id, name").in("id", whIds)).data || []
+        : [];
+      const profs = userIds.length
+        ? (await supabase.from("profiles").select("user_id, full_name").in("user_id", userIds)).data || []
+        : [];
+
 
       const itemMap = new Map((items || []).map((i: any) => [i.id, i]));
       const whMap = new Map((whs || []).map((w: any) => [w.id, w.name]));
