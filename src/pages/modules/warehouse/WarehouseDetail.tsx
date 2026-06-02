@@ -967,9 +967,34 @@ const WarehouseDetail = () => {
                   <TableHead>المخزن</TableHead><TableHead>الكمية</TableHead><TableHead>الوجهة/الجهة</TableHead><TableHead>المرجع</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
-                  {movements.length === 0 ? (
+                  {groupedMovements.length === 0 ? (
                     <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">لا توجد حركات</TableCell></TableRow>
-                  ) : movements.map(m => {
+                  ) : groupedMovements.map((row: any) => {
+                    if (row.kind === "slaughter") {
+                      const unit = row.movs[0]?.item?.unit || "كجم";
+                      return (
+                        <TableRow key={row.reference} className="bg-purple-50/40">
+                          <TableCell className="text-xs">{formatDateTime(row.date)}</TableCell>
+                          <TableCell>
+                            <Badge className="gap-1 bg-purple-600 hover:bg-purple-700">
+                              <Beef className="w-3 h-3" />وارد المجزر
+                            </Badge>
+                          </TableCell>
+                          <TableCell colSpan={2} className="font-medium">
+                            دفعة ذبح <span className="font-mono">{row.batchNo}</span>
+                            <span className="text-muted-foreground mr-2">({row.movs.length} صنف)</span>
+                          </TableCell>
+                          <TableCell>{row.totalQty.toFixed(2)} {unit}</TableCell>
+                          <TableCell>المجزر</TableCell>
+                          <TableCell>
+                            <Button size="sm" variant="outline" onClick={() => setSlaughterDialog(row.reference)}>
+                              <Eye className="w-4 h-4 ml-1" /> عرض الأوردر
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    }
+                    const m = row.mov;
                     const cfg = moveLabels[m.movement_type] || moveLabels.in;
                     const Icon = cfg.icon;
                     const isIncoming = m.destination_warehouse_id === id;
@@ -994,6 +1019,7 @@ const WarehouseDetail = () => {
                     );
                   })}
                 </TableBody>
+
               </Table>
             </CardContent></Card>
           </TabsContent>
