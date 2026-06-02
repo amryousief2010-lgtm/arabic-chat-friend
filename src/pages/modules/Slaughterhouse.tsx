@@ -91,6 +91,10 @@ const Slaughterhouse = () => {
   const [adjustOpen, setAdjustOpen] = useState(false);
   const [adjustForm, setAdjustForm] = useState({ new_balance: 0, reason: "", adjustment_date: new Date().toISOString().slice(0, 10) });
   const [loading, setLoading] = useState(true);
+  // Dead-ostriches month/year filter
+  const now = new Date();
+  const [deadMonth, setDeadMonth] = useState<number>(now.getMonth() + 1);
+  const [deadYear, setDeadYear] = useState<number>(now.getFullYear());
 
   // Dialogs
   const [receiptOpen, setReceiptOpen] = useState(false);
