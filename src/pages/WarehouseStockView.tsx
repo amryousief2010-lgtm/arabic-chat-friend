@@ -59,6 +59,8 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  const [mainOpeningAt, setMainOpeningAt] = useState<string | null>(null);
+
 
   const fetchAll = async () => {
     setLoading(true);
