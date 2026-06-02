@@ -910,17 +910,9 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
       destItem = newRow as InventoryItem;
     }
 
-    const { error: sourceErr } = await supabase
-      .from("inventory_items")
-      .update({ stock: Number(sourceItem.stock) - realQty })
-      .eq("id", sourceItem.id);
-    if (sourceErr) throw sourceErr;
+    // ملاحظة: لا نعدّل inventory_items.stock يدوياً — تريجر apply_inventory_movement
+    // يقوم بذلك تلقائياً عند إدراج حركات المخزون أدناه.
 
-    const { error: destErr } = await supabase
-      .from("inventory_items")
-      .update({ stock: Number(destItem.stock) + realQty })
-      .eq("id", destItem.id);
-    if (destErr) throw destErr;
 
     const { error: movErr } = await supabase.from("inventory_movements").insert([
       {
