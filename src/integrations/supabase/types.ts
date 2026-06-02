@@ -4778,6 +4778,183 @@ export type Database = {
         }
         Relationships: []
       }
+      meat_manufacturing_invoice_lines: {
+        Row: {
+          created_at: string
+          id: string
+          invoice_id: string
+          item_id: string
+          item_name: string
+          line_total: number
+          quantity: number
+          unit: string
+          unit_cost: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invoice_id: string
+          item_id: string
+          item_name: string
+          line_total?: number
+          quantity: number
+          unit: string
+          unit_cost?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          item_id?: string
+          item_name?: string
+          line_total?: number
+          quantity?: number
+          unit?: string
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meat_manufacturing_invoice_lines_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "meat_manufacturing_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meat_manufacturing_invoice_lines_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meat_manufacturing_invoice_lines_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "v_inventory_balances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meat_manufacturing_invoice_lines_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_stock_availability"
+            referencedColumns: ["inventory_item_id"]
+          },
+        ]
+      }
+      meat_manufacturing_invoices: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          created_by: string | null
+          factory_warehouse_id: string
+          finished_item_id: string | null
+          finished_qty: number
+          id: string
+          invoice_no: string
+          materials_total_cost: number
+          notes: string | null
+          product_name: string
+          status: string
+          transfer_id: string | null
+          transfer_no: string | null
+          transferred_at: string | null
+          transferred_by: string | null
+          unit: string
+          unit_cost: number | null
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          factory_warehouse_id: string
+          finished_item_id?: string | null
+          finished_qty: number
+          id?: string
+          invoice_no: string
+          materials_total_cost?: number
+          notes?: string | null
+          product_name: string
+          status?: string
+          transfer_id?: string | null
+          transfer_no?: string | null
+          transferred_at?: string | null
+          transferred_by?: string | null
+          unit?: string
+          unit_cost?: number | null
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          factory_warehouse_id?: string
+          finished_item_id?: string | null
+          finished_qty?: number
+          id?: string
+          invoice_no?: string
+          materials_total_cost?: number
+          notes?: string | null
+          product_name?: string
+          status?: string
+          transfer_id?: string | null
+          transfer_no?: string | null
+          transferred_at?: string | null
+          transferred_by?: string | null
+          unit?: string
+          unit_cost?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meat_manufacturing_invoices_factory_warehouse_id_fkey"
+            columns: ["factory_warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_stock_availability"
+            referencedColumns: ["warehouse_id"]
+          },
+          {
+            foreignKeyName: "meat_manufacturing_invoices_factory_warehouse_id_fkey"
+            columns: ["factory_warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meat_manufacturing_invoices_finished_item_id_fkey"
+            columns: ["finished_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meat_manufacturing_invoices_finished_item_id_fkey"
+            columns: ["finished_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_inventory_balances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meat_manufacturing_invoices_finished_item_id_fkey"
+            columns: ["finished_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_stock_availability"
+            referencedColumns: ["inventory_item_id"]
+          },
+          {
+            foreignKeyName: "meat_manufacturing_invoices_transfer_id_fkey"
+            columns: ["transfer_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_transfers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meat_production_invoice_items: {
         Row: {
           id: string
@@ -7495,6 +7672,10 @@ export type Database = {
         Args: { p_batch_id: string }
         Returns: Json
       }
+      approve_meat_manufacturing_invoice: {
+        Args: { p_invoice_id: string }
+        Returns: Json
+      }
       approve_proposal_for_future: {
         Args: { p_id: string; p_note?: string }
         Returns: {
@@ -7809,6 +7990,7 @@ export type Database = {
         Returns: undefined
       }
       finalize_slaughter_batch: { Args: { p_batch_id: string }; Returns: Json }
+      gen_meat_invoice_no: { Args: never; Returns: string }
       gen_transfer_no: { Args: never; Returns: string }
       generate_order_number: { Args: never; Returns: string }
       generate_stock_reconciliation_proposals: {
@@ -8146,6 +8328,14 @@ export type Database = {
       suggest_hatch_batch_for_shipment: {
         Args: { p_shipment_id: string }
         Returns: string
+      }
+      transfer_meat_invoice_to_warehouse: {
+        Args: {
+          p_destination_warehouse_id: string
+          p_invoice_id: string
+          p_notes?: string
+        }
+        Returns: Json
       }
       transfer_outputs_to_meat_factory: {
         Args: { p_batch_id: string; p_items: Json; p_meat_warehouse_id: string }
