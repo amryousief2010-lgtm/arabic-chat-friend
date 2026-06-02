@@ -17,6 +17,8 @@ import { useToast } from "@/hooks/use-toast";
 import { formatDateTime } from "@/lib/dateFormat";
 import { printSupplyRequest, printOrderInvoice } from "@/lib/printUtils";
 import InboundSupplyTab from "@/components/warehouse/InboundSupplyTab";
+import { openPrintWindow, escapeHtml, fmtNum, fmtDate, COMPANY_AR } from "@/lib/printPdf";
+import { Printer } from "lucide-react";
 
 import * as XLSX from "xlsx";
 
@@ -64,6 +66,11 @@ const WarehouseDetail = () => {
   const [editQtyMap, setEditQtyMap] = useState<Record<string, number>>({});
   const [addItemId, setAddItemId] = useState<string>("");
   const [addItemQty, setAddItemQty] = useState<number>(0);
+  // فلتر الحركات بالسنة/الشهر
+  const [movYear, setMovYear] = useState<string>("all");
+  const [movMonth, setMovMonth] = useState<string>("all");
+  // تعديل/حذف الحركات المفردة
+  const [editSingleQty, setEditSingleQty] = useState<Record<string, number>>({});
 
 
 
@@ -270,6 +277,78 @@ const WarehouseDetail = () => {
     () => groupedMovements.find(r => r.kind === "slaughter" && r.reference === slaughterDialog),
     [groupedMovements, slaughterDialog]
   ) as any;
+
+  // الفلترة بالسنة/الشهر + التجميع للعرض
+  const availableYears = useMemo(() => {
+    const s = new Set<string>();
+    groupedMovements.forEach((r: any) => {
+      const d = r.kind === "single" ? r.mov.performed_at : r.date;
+      if (d) s.add(new Date(d).getFullYear().toString());
+    });
+    return Array.from(s).sort((a, b) => Number(b) - Number(a));
+  }, [groupedMovements]);
+
+  const filteredMovements = useMemo(() => {
+    return groupedMovements.filter((r: any) => {
+      const d = new Date(r.kind === "single" ? r.mov.performed_at : r.date);
+      if (movYear !== "all" && d.getFullYear().toString() !== movYear) return false;
+      if (movMonth !== "all" && (d.getMonth() + 1).toString() !== movMonth) return false;
+      return true;
+    });
+  }, [groupedMovements, movYear, movMonth]);
+
+  // تجميع للعرض: سنة → شهر → صفوف
+  const movementsByYearMonth = useMemo(() => {
+    const map = new Map<string, Map<string, any[]>>();
+    filteredMovements.forEach((r: any) => {
+      const d = new Date(r.kind === "single" ? r.mov.performed_at : r.date);
+      const y = d.getFullYear().toString();
+      const m = (d.getMonth() + 1).toString();
+      if (!map.has(y)) map.set(y, new Map());
+      const inner = map.get(y)!;
+      if (!inner.has(m)) inner.set(m, []);
+      inner.get(m)!.push(r);
+    });
+    return map;
+  }, [filteredMovements]);
+
+  const MONTH_AR = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+
+  const printSlaughterBatch = () => {
+    if (!slaughterGroup) return;
+    const rows = slaughterGroup.movs.map((m: any) =>
+      `<tr><td>${escapeHtml(m.item?.name || "—")}</td><td class="num">${fmtNum(m.quantity, 2)} ${escapeHtml(m.item?.unit || "كجم")}</td></tr>`
+    ).join("");
+    const body = `
+      <header>
+        <div><h1>${COMPANY_AR}</h1><div class="en">تفاصيل دفعة الذبح ${escapeHtml(slaughterGroup.batchNo)}</div></div>
+        <div class="meta"><div>التاريخ: ${fmtDate(slaughterGroup.date)}</div><div>عدد الأصناف: <b>${slaughterGroup.movs.length}</b></div><div>الإجمالي: <b>${fmtNum(slaughterGroup.totalQty, 2)} كجم</b></div></div>
+      </header>
+      <table><thead><tr><th>الصنف</th><th>الكمية</th></tr></thead><tbody>${rows}</tbody></table>`;
+    openPrintWindow(`دفعة ذبح ${slaughterGroup.batchNo}`, body);
+  };
+
+  const printMovementsLog = () => {
+    const title = `سجل حركات المخزن${movYear !== "all" ? " - " + movYear : ""}${movMonth !== "all" ? " / " + MONTH_AR[Number(movMonth) - 1] : ""}`;
+    let sections = "";
+    movementsByYearMonth.forEach((months, year) => {
+      sections += `<h2 style="margin-top:14px;">سنة ${escapeHtml(year)}</h2>`;
+      months.forEach((rows, m) => {
+        const monthRows = rows.map((r: any) => {
+          if (r.kind === "slaughter") {
+            return `<tr><td>${fmtDate(r.date)}</td><td>وارد المجزر</td><td>دفعة ${escapeHtml(r.batchNo)} (${r.movs.length} صنف)</td><td class="num">${fmtNum(r.totalQty, 2)} كجم</td><td>المجزر</td></tr>`;
+          }
+          const x = r.mov;
+          return `<tr><td>${fmtDate(x.performed_at)}</td><td>${escapeHtml(moveLabels[x.movement_type]?.label || x.movement_type)}</td><td>${escapeHtml(x.item?.name || "—")}</td><td class="num">${fmtNum(x.quantity, 2)} ${escapeHtml(x.item?.unit || "")}</td><td>${escapeHtml(x.destination?.name || x.party || "—")}</td></tr>`;
+        }).join("");
+        sections += `<h3 style="margin-top:8px;">${escapeHtml(MONTH_AR[Number(m) - 1])}</h3>
+          <table><thead><tr><th>التاريخ</th><th>النوع</th><th>الصنف</th><th>الكمية</th><th>الوجهة/الجهة</th></tr></thead><tbody>${monthRows}</tbody></table>`;
+      });
+    });
+    const body = `<header><div><h1>${COMPANY_AR}</h1><div class="en">${escapeHtml(title)} - ${escapeHtml(warehouse?.name || "")}</div></div><div class="meta"><div>${fmtDate(new Date())}</div></div></header>${sections}`;
+    openPrintWindow(title, body);
+  };
+
 
   const adjustStock = async (itemId: string, delta: number) => {
     if (!itemId || !delta) return;
@@ -959,70 +1038,135 @@ const WarehouseDetail = () => {
             </CardContent></Card>
           </TabsContent>
 
-          <TabsContent value="movements">
-            <Card><CardContent className="p-0">
-              <Table>
-                <TableHeader><TableRow>
-                  <TableHead>التاريخ</TableHead><TableHead>النوع</TableHead><TableHead>الصنف</TableHead>
-                  <TableHead>المخزن</TableHead><TableHead>الكمية</TableHead><TableHead>الوجهة/الجهة</TableHead><TableHead>المرجع</TableHead>
-                </TableRow></TableHeader>
-                <TableBody>
-                  {groupedMovements.length === 0 ? (
-                    <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">لا توجد حركات</TableCell></TableRow>
-                  ) : groupedMovements.map((row: any) => {
-                    if (row.kind === "slaughter") {
-                      const unit = row.movs[0]?.item?.unit || "كجم";
-                      return (
-                        <TableRow key={row.reference} className="bg-purple-50/40">
-                          <TableCell className="text-xs">{formatDateTime(row.date)}</TableCell>
-                          <TableCell>
-                            <Badge className="gap-1 bg-purple-600 hover:bg-purple-700">
-                              <Beef className="w-3 h-3" />وارد المجزر
-                            </Badge>
-                          </TableCell>
-                          <TableCell colSpan={2} className="font-medium">
-                            دفعة ذبح <span className="font-mono">{row.batchNo}</span>
-                            <span className="text-muted-foreground mr-2">({row.movs.length} صنف)</span>
-                          </TableCell>
-                          <TableCell>{row.totalQty.toFixed(2)} {unit}</TableCell>
-                          <TableCell>المجزر</TableCell>
-                          <TableCell>
-                            <Button size="sm" variant="outline" onClick={() => setSlaughterDialog(row.reference)}>
-                              <Eye className="w-4 h-4 ml-1" /> عرض الأوردر
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    }
-                    const m = row.mov;
-                    const cfg = moveLabels[m.movement_type] || moveLabels.in;
-                    const Icon = cfg.icon;
-                    const isIncoming = m.destination_warehouse_id === id;
-                    const pairedTransfer = transfers.find(t =>
-                      (t.items || []).some((li: any) => li.source_movement_id === m.id || li.destination_movement_id === m.id)
-                    );
-                    return (
-                      <TableRow key={m.id}>
-                        <TableCell className="text-xs">{formatDateTime(m.performed_at)}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1 flex-wrap">
-                            <Badge variant={cfg.variant} className="gap-1"><Icon className="w-3 h-3" />{cfg.label}{isIncoming && m.movement_type === "transfer" ? " (وارد)" : ""}</Badge>
-                            {pairedTransfer && statusBadge(pairedTransfer.status)}
-                          </div>
-                        </TableCell>
-                        <TableCell>{m.item?.name || "—"}</TableCell>
-                        <TableCell>{m.warehouse?.name || "—"}</TableCell>
-                        <TableCell>{m.quantity} {m.item?.unit}</TableCell>
-                        <TableCell>{m.destination?.name || m.party || "—"}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{m.reference || "—"}</TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-
-              </Table>
+          <TabsContent value="movements" className="space-y-3">
+            {/* فلاتر السنة/الشهر + زر طباعة السجل */}
+            <Card><CardContent className="p-3 flex flex-wrap items-center gap-2">
+              <span className="text-sm text-muted-foreground">عرض حسب:</span>
+              <Select value={movYear} onValueChange={(v) => { setMovYear(v); if (v === "all") setMovMonth("all"); }}>
+                <SelectTrigger className="w-32"><SelectValue placeholder="السنة" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">كل السنوات</SelectItem>
+                  {availableYears.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={movMonth} onValueChange={setMovMonth} disabled={movYear === "all"}>
+                <SelectTrigger className="w-32"><SelectValue placeholder="الشهر" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">كل الأشهر</SelectItem>
+                  {MONTH_AR.map((name, i) => <SelectItem key={i+1} value={(i+1).toString()}>{name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <div className="flex-1" />
+              <Button size="sm" variant="outline" onClick={printMovementsLog}>
+                <Printer className="w-4 h-4 ml-1" /> طباعة السجل
+              </Button>
             </CardContent></Card>
+
+            {filteredMovements.length === 0 ? (
+              <Card><CardContent className="py-12 text-center text-muted-foreground">لا توجد حركات</CardContent></Card>
+            ) : Array.from(movementsByYearMonth.entries()).sort((a,b) => Number(b[0]) - Number(a[0])).map(([year, months]) => (
+              <div key={year} className="space-y-2">
+                <div className="sticky top-0 z-10 bg-primary/10 px-3 py-2 rounded-md font-bold text-primary">📅 سنة {year}</div>
+                {Array.from(months.entries()).sort((a,b) => Number(b[0]) - Number(a[0])).map(([mm, rows]) => (
+                  <Card key={`${year}-${mm}`}>
+                    <CardHeader className="py-2 bg-muted/40">
+                      <CardTitle className="text-base">{MONTH_AR[Number(mm)-1]} {year} <span className="text-sm text-muted-foreground mr-2">({rows.length} حركة)</span></CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <Table>
+                        <TableHeader><TableRow>
+                          <TableHead>التاريخ</TableHead><TableHead>النوع</TableHead><TableHead>الصنف</TableHead>
+                          <TableHead>المخزن</TableHead><TableHead>الكمية</TableHead><TableHead>الوجهة/الجهة</TableHead>
+                          <TableHead>المرجع</TableHead><TableHead className="w-32">إجراءات</TableHead>
+                        </TableRow></TableHeader>
+                        <TableBody>
+                          {rows.map((row: any) => {
+                            if (row.kind === "slaughter") {
+                              const unit = row.movs[0]?.item?.unit || "كجم";
+                              return (
+                                <TableRow key={row.reference} className="bg-purple-50/40">
+                                  <TableCell className="text-xs">{formatDateTime(row.date)}</TableCell>
+                                  <TableCell>
+                                    <Badge className="gap-1 bg-purple-600 hover:bg-purple-700">
+                                      <Beef className="w-3 h-3" />وارد المجزر
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell colSpan={2} className="font-medium">
+                                    دفعة ذبح <span className="font-mono">{row.batchNo}</span>
+                                    <span className="text-muted-foreground mr-2">({row.movs.length} صنف)</span>
+                                  </TableCell>
+                                  <TableCell>{row.totalQty.toFixed(2)} {unit}</TableCell>
+                                  <TableCell>المجزر</TableCell>
+                                  <TableCell className="text-xs text-muted-foreground">{row.batchNo}</TableCell>
+                                  <TableCell>
+                                    <Button size="sm" variant="outline" onClick={() => setSlaughterDialog(row.reference)}>
+                                      <Eye className="w-4 h-4 ml-1" /> فتح
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            }
+                            const m = row.mov;
+                            const cfg = moveLabels[m.movement_type] || moveLabels.in;
+                            const Icon = cfg.icon;
+                            const isIncoming = m.destination_warehouse_id === id;
+                            const pairedTransfer = transfers.find(t =>
+                              (t.items || []).some((li: any) => li.source_movement_id === m.id || li.destination_movement_id === m.id)
+                            );
+                            const editing = editSingleQty[m.id] !== undefined;
+                            return (
+                              <TableRow key={m.id}>
+                                <TableCell className="text-xs">{formatDateTime(m.performed_at)}</TableCell>
+                                <TableCell>
+                                  <div className="flex items-center gap-1 flex-wrap">
+                                    <Badge variant={cfg.variant} className="gap-1"><Icon className="w-3 h-3" />{cfg.label}{isIncoming && m.movement_type === "transfer" ? " (وارد)" : ""}</Badge>
+                                    {pairedTransfer && statusBadge(pairedTransfer.status)}
+                                  </div>
+                                </TableCell>
+                                <TableCell>{m.item?.name || "—"}</TableCell>
+                                <TableCell>{m.warehouse?.name || "—"}</TableCell>
+                                <TableCell>
+                                  {editing ? (
+                                    <Input type="number" step="0.01" className="w-24 h-8" value={editSingleQty[m.id]}
+                                      onChange={(e) => setEditSingleQty(p => ({ ...p, [m.id]: Number(e.target.value) }))} />
+                                  ) : (
+                                    <span>{m.quantity} {m.item?.unit}</span>
+                                  )}
+                                </TableCell>
+                                <TableCell>{m.destination?.name || m.party || "—"}</TableCell>
+                                <TableCell className="text-xs text-muted-foreground">{m.reference || "—"}</TableCell>
+                                <TableCell>
+                                  <div className="flex gap-1">
+                                    {editing ? (
+                                      <>
+                                        <Button size="sm" onClick={async () => { await handleEditMovement(m, editSingleQty[m.id]); setEditSingleQty(p => { const n = { ...p }; delete n[m.id]; return n; }); }}>حفظ</Button>
+                                        <Button size="sm" variant="ghost" onClick={() => setEditSingleQty(p => { const n = { ...p }; delete n[m.id]; return n; })}>×</Button>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Button size="sm" variant="outline" onClick={() => setEditSingleQty(p => ({ ...p, [m.id]: Number(m.quantity) }))}>
+                                          <Pencil className="w-3 h-3" />
+                                        </Button>
+                                        <Button size="sm" variant="destructive" onClick={() => handleDeleteMovement(m)}>
+                                          <Trash2 className="w-3 h-3" />
+                                        </Button>
+                                      </>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ))}
           </TabsContent>
+
+
 
           <TabsContent value="low">
             {lowStock.length === 0 ? (
@@ -1651,6 +1795,7 @@ const WarehouseDetail = () => {
             </div>
           </div>
           <DialogFooter>
+            <Button variant="outline" onClick={printSlaughterBatch}><Printer className="w-4 h-4 ml-1" />طباعة</Button>
             <Button variant="outline" onClick={() => setSlaughterDialog(null)}>إغلاق</Button>
           </DialogFooter>
         </DialogContent>
