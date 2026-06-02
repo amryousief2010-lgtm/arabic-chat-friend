@@ -2490,7 +2490,200 @@ const TransfersTab = ({ transfers, branches, batches, onStatus }: {
   );
 };
 
-// ===================== Daily Report Tab (Excel-style + export) =====================
+// ===================== Warehouse Transfers Log (Main + Meat Factory) =====================
+const WarehouseTransfersLog = ({ outputs, batches, warehouses, onPrint }: {
+  outputs: Output[];
+  batches: Batch[];
+  warehouses: { id: string; name: string }[];
+  onPrint: (b: Batch, destLabel: string, lines: { name: string; qty: number }[], totalKg: number) => void;
+}) => {
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  // Identify main warehouse vs meat factory by name
+  const mainWh = warehouses.find(w => /رئيسي/.test(w.name));
+  const meatWh = warehouses.find(w => /مصنع.*لحوم|لحوم/.test(w.name));
+
+  // Build the log: every output that has been received into a warehouse
+  const received = useMemo(() => {
+    return outputs
+      .filter(o => o.received_status === "received" && o.received_warehouse_id)
+      .filter(o => {
+        if (!o.received_at) return true;
+        const d = o.received_at.slice(0, 10);
+        if (dateFrom && d < dateFrom) return false;
+        if (dateTo && d > dateTo) return false;
+        return true;
+      })
+      .sort((a, b) => (b.received_at || "").localeCompare(a.received_at || ""));
+  }, [outputs, dateFrom, dateTo]);
+
+  const mainRows = received.filter(o => mainWh && o.received_warehouse_id === mainWh.id);
+  const meatRows = received.filter(o => meatWh && o.received_warehouse_id === meatWh.id);
+
+  // Group by batch for the "print whole shipment" button
+  const groupByBatch = (rows: Output[]) => {
+    const m = new Map<string, Output[]>();
+    rows.forEach(r => {
+      const arr = m.get(r.batch_id) || [];
+      arr.push(r);
+      m.set(r.batch_id, arr);
+    });
+    return Array.from(m.entries());
+  };
+
+  const renderSection = (title: string, rows: Output[], destLabel: string, colorClass: string) => {
+    const totalKg = rows.reduce((s, r) => s + Number(r.actual_weight_kg || 0), 0);
+    const totalValue = rows.reduce((s, r) => s + Number(r.actual_weight_kg || 0) * Number(r.unit_price || 0), 0);
+    const groups = groupByBatch(rows);
+
+    return (
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <Truck className={`w-5 h-5 ${colorClass}`} />
+            <CardTitle className="text-base">{title}</CardTitle>
+          </div>
+          <div className="flex items-center gap-3 text-xs flex-wrap">
+            <Badge variant="outline" className="text-sm">عدد الأصناف: <b className="mr-1">{rows.length}</b></Badge>
+            <Badge variant="outline" className="text-sm">إجمالي الوزن: <b className="mr-1">{totalKg.toFixed(1)} كجم</b></Badge>
+            <Badge variant="outline" className="text-sm">إجمالي القيمة: <b className="mr-1">{totalValue.toFixed(0)} ج.م</b></Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {rows.length === 0 ? (
+            <div className="text-center text-muted-foreground py-8 text-sm">لا توجد توريدات لهذه الجهة في المدى المحدد</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader><TableRow>
+                  <TableHead className="text-xs">تاريخ الاستلام</TableHead>
+                  <TableHead className="text-xs">رقم الدفعة</TableHead>
+                  <TableHead className="text-xs">الصنف</TableHead>
+                  <TableHead className="text-xs">الكمية (كجم)</TableHead>
+                  <TableHead className="text-xs">السعر/كجم</TableHead>
+                  <TableHead className="text-xs">الإجمالي</TableHead>
+                  <TableHead className="text-xs">طباعة</TableHead>
+                </TableRow></TableHeader>
+                <TableBody>
+                  {rows.map(o => {
+                    const b = batches.find(x => x.id === o.batch_id);
+                    const qty = Number(o.actual_weight_kg || 0);
+                    const price = Number(o.unit_price || 0);
+                    return (
+                      <TableRow key={o.id} className="hover:bg-muted/50">
+                        <TableCell className="text-xs">{o.received_at ? formatDate(o.received_at) : "—"}</TableCell>
+                        <TableCell className="font-mono text-xs">{b?.batch_number || "—"}</TableCell>
+                        <TableCell className="font-semibold">{o.cut_name_ar}</TableCell>
+                        <TableCell>{qty.toFixed(2)}</TableCell>
+                        <TableCell>{price.toFixed(0)}</TableCell>
+                        <TableCell className="font-semibold">{(qty * price).toFixed(0)}</TableCell>
+                        <TableCell>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-red-600 hover:bg-red-50"
+                            title="إعادة طباعة إذن التوريد لهذا الصنف"
+                            onClick={() => b && onPrint(b, destLabel, [{ name: o.cut_name_ar, qty }], qty)}
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+
+          {groups.length > 0 && (
+            <div className="mt-4 pt-3 border-t">
+              <div className="text-xs font-semibold mb-2 text-muted-foreground">📦 طباعة إذن توريد كامل لكل دفعة:</div>
+              <div className="flex flex-wrap gap-2">
+                {groups.map(([batchId, items]) => {
+                  const b = batches.find(x => x.id === batchId);
+                  if (!b) return null;
+                  const total = items.reduce((s, x) => s + Number(x.actual_weight_kg || 0), 0);
+                  const lines = items.map(x => ({ name: x.cut_name_ar, qty: Number(x.actual_weight_kg || 0) }));
+                  return (
+                    <Button
+                      key={batchId}
+                      size="sm"
+                      variant="outline"
+                      className="text-red-600 hover:bg-red-50 gap-1"
+                      onClick={() => onPrint(b, destLabel, lines, total)}
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                      <span className="font-mono text-xs">{b.batch_number}</span>
+                      <span className="text-xs text-muted-foreground">({total.toFixed(1)} كجم)</span>
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Info banner explaining the approval flow */}
+      <Card className="border-primary/30 bg-primary/5">
+        <CardContent className="p-4 text-sm space-y-1.5">
+          <div className="flex items-start gap-2">
+            <ShieldCheck className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+            <div>
+              <b className="text-primary">كيف تصل الكميات لمسؤول المخزن الرئيسي؟</b>
+              <p className="text-muted-foreground mt-1">
+                بمجرد ضغطك زر <b>«للمخزن الرئيسي»</b> أو <b>«لمصنع اللحوم»</b> من شاشة دفعات الذبح:
+              </p>
+              <ul className="list-disc pr-5 mt-1 space-y-1 text-muted-foreground text-xs">
+                <li>تُضاف الكميات <b className="text-foreground">تلقائياً</b> إلى مخزون الجهة المستلِمة (المخزن الرئيسي أو مصنع اللحوم).</li>
+                <li>يراها مسؤول المخزن فوراً في صفحة <b className="text-foreground">«المخازن» ← المخزن الرئيسي ← الأصناف</b> وفي <b className="text-foreground">«حركات المخزون»</b> برمز "استلام من دفعة ذبح رقم XXX".</li>
+                <li>تُسجَّل أيضاً في <b className="text-foreground">«التدقيق»</b> داخل صفحة المسلخ.</li>
+                <li>لا تحتاج موافقة منفصلة لأن من ينفّذ التحويل يكون مدير المسلخ أو المدير العام أو أمين مخزن مفوّض.</li>
+              </ul>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Date filter */}
+      <Card>
+        <CardContent className="p-3 flex flex-wrap items-end gap-2">
+          <div>
+            <Label className="text-xs">من تاريخ</Label>
+            <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="h-9 w-40" />
+          </div>
+          <div>
+            <Label className="text-xs">إلى تاريخ</Label>
+            <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="h-9 w-40" />
+          </div>
+          {(dateFrom || dateTo) && (
+            <Button variant="ghost" size="sm" onClick={() => { setDateFrom(""); setDateTo(""); }}>مسح الفلتر</Button>
+          )}
+        </CardContent>
+      </Card>
+
+      {renderSection(
+        `📦 توريدات المخزن الرئيسي${mainWh ? ` (${mainWh.name})` : ""}`,
+        mainRows,
+        mainWh?.name || "المخزن الرئيسي",
+        "text-primary",
+      )}
+
+      {renderSection(
+        `🥩 توريدات مصنع اللحوم${meatWh ? ` (${meatWh.name})` : ""}`,
+        meatRows,
+        meatWh?.name || "مصنع اللحوم",
+        "text-orange-600",
+      )}
+    </div>
+  );
+};
 const DailyReportTab = ({ reportDate, setReportDate, receipts, birds, batches, outputs, branches, settings }: {
   reportDate: string; setReportDate: (d: string) => void;
   receipts: Receipt[]; birds: LiveBird[]; batches: Batch[]; outputs: Output[]; branches: Branch[];
