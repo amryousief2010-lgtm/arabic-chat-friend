@@ -301,7 +301,8 @@ Deno.serve(async (req) => {
       },
     });
   } catch (e) {
-    return json({ error: (e as Error).message }, 500);
+    console.error("audit-offer-box-pricing error", e);
+    return json({ error: "Internal server error" }, 500);
   }
 });
 
