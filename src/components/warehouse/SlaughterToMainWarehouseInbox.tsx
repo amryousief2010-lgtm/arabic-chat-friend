@@ -218,39 +218,57 @@ export function SlaughterToMainWarehouseInbox({ defaultWarehouseId }: Props) {
         </div>
       )}
 
-      {received.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600" /> سجل المستلم في المخزن الرئيسي
-            </CardTitle>
-            <CardDescription>آخر التقسيمات التي تم استلامها وإضافتها للمخزون</CardDescription>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>الدفعة</TableHead>
-                  <TableHead>الصنف</TableHead>
-                  <TableHead>الكمية (كجم)</TableHead>
-                  <TableHead>تاريخ الاستلام</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {received.slice(0, 50).map((o: any) => (
-                  <TableRow key={o.id}>
-                    <TableCell>{o.batch?.batch_number || '—'}</TableCell>
-                    <TableCell className="font-medium">{o.cut_name_ar}</TableCell>
-                    <TableCell>{Number(o.actual_weight_kg).toFixed(2)}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {o.received_at ? new Date(o.received_at).toLocaleString("ar-EG") : '—'}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+      {receivedBatches.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-sm font-semibold text-emerald-700">
+            <CheckCircle2 className="w-4 h-4" /> دفعات تم استلامها وإضافتها للمخزون الرئيسي
+            <Badge variant="outline" className="text-xs">{receivedBatches.length}</Badge>
+          </div>
+          {receivedBatches.slice(0, 20).map((b: any) => {
+            const totalKg = b.outputs.reduce((s: number, o: any) => s + Number(o.actual_weight_kg || 0), 0);
+            return (
+              <Card key={b.batch_id} className="border-emerald-300 bg-emerald-50/30">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-3 flex-wrap">
+                    <div>
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <Beef className="w-5 h-5 text-emerald-700" /> الدفعة {b.batch_number}
+                        <Badge variant="outline">{b.outputs.length} صنف</Badge>
+                        <Badge className="bg-emerald-600 hover:bg-emerald-700">✅ تم الإضافة للمخزون</Badge>
+                      </CardTitle>
+                      <CardDescription>
+                        تاريخ الذبح: {b.slaughter_date || '—'} • إجمالي {totalKg.toFixed(2)} كجم
+                        {b.received_at && <> • تم الاستلام: {new Date(b.received_at).toLocaleString("ar-EG")}</>}
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>الصنف</TableHead>
+                        <TableHead>الكمية المُضافة (كجم)</TableHead>
+                        <TableHead>الجودة</TableHead>
+                        <TableHead>الحالة</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {b.outputs.map((o: any) => (
+                        <TableRow key={o.id}>
+                          <TableCell className="font-medium">{o.cut_name_ar}</TableCell>
+                          <TableCell className="font-semibold text-emerald-700">+{Number(o.actual_weight_kg).toFixed(2)}</TableCell>
+                          <TableCell><Badge variant="outline">{qualityLabelText[o.quality_status] || "—"}</Badge></TableCell>
+                          <TableCell><Badge variant="outline" className="bg-emerald-100 text-emerald-800 border-emerald-300">في المخزون</Badge></TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
       )}
 
       <Dialog open={!!receiveBatch} onOpenChange={(v) => !v && setReceiveBatch(null)}>
