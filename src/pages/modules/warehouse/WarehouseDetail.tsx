@@ -829,6 +829,32 @@ const WarehouseDetail = () => {
     setOutletOrders((prev) => prev.filter((x) => x.id !== o.id));
   };
 
+  // تأكيد تسليم طلب استلام من المخزن — يحدث status='delivered' فقط
+  // التريجر handle_order_status_stock يخصم المخزون مرة واحدة (مع حارس stock_status<>'dispatched')
+  // التريجر set_order_delivered_at يضبط delivered_at
+  // delivered_by نسجله هنا لتتبع المسؤول الذي أكد التسليم
+  const confirmPickupDelivery = async (o: any) => {
+    if (o.status === "delivered") {
+      toast({ title: "تم بالفعل", description: "الطلب مسلَّم مسبقاً", variant: "destructive" });
+      return;
+    }
+    if (!window.confirm(`تأكيد تسليم الطلب ${o.order_number} للعميل؟ سيتم خصم الكميات من رصيد المخزن.`)) return;
+    setSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from("orders")
+        .update({ status: "delivered", delivered_by: user?.id ?? null } as any)
+        .eq("id", o.id);
+      if (error) throw error;
+      toast({ title: "تم التسليم", description: `الطلب ${o.order_number} — تم خصم المخزون وتسجيل التسليم` });
+      setOutletOrders((prev) => prev.map((x) => x.id === o.id ? { ...x, status: "delivered", delivered_by: user?.id, delivered_at: new Date().toISOString() } : x));
+    } catch (e: any) {
+      toast({ title: "خطأ", description: e.message || "تعذر تأكيد التسليم", variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   if (loading && !warehouse) {
     return <DashboardLayout><div className="text-center py-12 text-muted-foreground">جارٍ التحميل...</div></DashboardLayout>;
   }
