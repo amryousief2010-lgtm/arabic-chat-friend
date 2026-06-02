@@ -120,7 +120,7 @@ export default function MainWarehouseActivity() {
 
       const itemMap = new Map((items || []).map((i: any) => [i.id, i]));
       const whMap = new Map((whs || []).map((w: any) => [w.id, w.name]));
-      const userMap = new Map((profs || []).map((p: any) => [p.user_id, p.full_name]));
+      const userMap = new Map((profs || []).map((p: any) => [p.id, p.full_name]));
 
       setRows((mvs || []).map((m: any) => ({
         id: m.id,
