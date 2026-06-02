@@ -1,0 +1,9 @@
+# شركة نعام العاصمة — Capital Ostrich Company
+
+> نظام إدارة العمليات الداخلي لشركة نعام العاصمة لإدارة المبيعات والمخزون والإنتاج. Internal operations management system for Capital Ostrich Company covering sales, inventory, and production.
+
+This is a private business operations platform. Most pages require employee authentication and are not publicly accessible.
+
+## Pages
+
+- [Home](/): Company landing and sign-in entry point.
