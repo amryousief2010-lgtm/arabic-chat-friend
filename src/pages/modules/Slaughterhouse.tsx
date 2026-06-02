@@ -645,6 +645,14 @@ const Slaughterhouse = () => {
     const totalQuarantined = items.reduce((s, o) => s + Number(o.quarantined_weight_kg || 0), 0);
     const totalPackages = items.reduce((s, o) => s + (o.package_count || 0), 0);
     const totalCost = items.reduce((s, o) => s + Number(o.total_cost || 0), 0);
+    const liveW = Number(b.total_live_weight_kg || 0);
+    // نسبة تصافي اللحم: مجموع أوزان الأصناف المُحتسبة كلحم فقط ÷ الوزن الحي
+    const meatSet = new Set((settings?.yield_cut_names || DEFAULT_YIELD_CUTS).map(normalizeCutName));
+    const meatOnlyKg = items
+      .filter(o => meatSet.has(normalizeCutName(o.cut_name_ar)))
+      .reduce((s, o) => s + Number(o.actual_weight_kg || 0), 0);
+    const meatYieldPct = liveW > 0 ? (meatOnlyKg / liveW) * 100 : 0;
+    const totalPctOfLive = liveW > 0 ? (totalActual / liveW) * 100 : 0;
 
     const esc = (s: unknown) =>
       String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
@@ -652,13 +660,17 @@ const Slaughterhouse = () => {
       const branch = branches.find(br => br.id === o.branch_id);
       const variance = Number(o.variance_pct || 0);
       const varColor = variance < -5 ? "color:#b91c1c;font-weight:700" : variance > 5 ? "color:#15803d;font-weight:700" : "";
+      const actual = Number(o.actual_weight_kg || 0);
+      const pctOfLive = liveW > 0 ? (actual / liveW) * 100 : 0;
+      const isMeat = meatSet.has(normalizeCutName(o.cut_name_ar));
       return `<tr>
         <td>${i + 1}</td>
-        <td style="font-weight:600">${esc(o.cut_name_ar)}</td>
+        <td style="font-weight:600">${esc(o.cut_name_ar)}${isMeat ? ' <span style="color:#15803d;font-size:9px">●لحم</span>' : ''}</td>
         <td style="font-family:monospace;font-size:11px">${esc(o.barcode || "-")}</td>
-        <td>${Number(o.actual_weight_kg || 0).toFixed(2)}</td>
+        <td>${actual.toFixed(2)}</td>
         <td>${Number(o.standard_weight_kg || 0).toFixed(2)}</td>
         <td style="${varColor}">${variance.toFixed(1)}%</td>
+        <td style="font-weight:700;color:#7c3aed">${pctOfLive.toFixed(2)}%</td>
         <td>${o.package_count}</td>
         <td>${Number(o.damaged_weight_kg || 0).toFixed(2)}</td>
         <td>${Number(o.unit_cost || 0).toFixed(2)}</td>
