@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatDateTime } from "@/lib/dateFormat";
 import { printSupplyRequest, printOrderInvoice } from "@/lib/printUtils";
 import InboundSupplyTab from "@/components/warehouse/InboundSupplyTab";
+import { SlaughterToMainWarehouseInbox } from "@/components/warehouse/SlaughterToMainWarehouseInbox";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate, COMPANY_AR } from "@/lib/printPdf";
 import { Printer } from "lucide-react";
 
@@ -958,6 +959,11 @@ const WarehouseDetail = () => {
                 <Truck className="w-4 h-4" />توريدات واردة
               </TabsTrigger>
             )}
+            {isMain && (
+              <TabsTrigger value="slaughter-inbox" className="gap-1">
+                <Beef className="w-4 h-4" />وارد المجزر
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="approvals" className="space-y-4">
@@ -1549,6 +1555,11 @@ const WarehouseDetail = () => {
           {isMain && (
             <TabsContent value="inbound" className="space-y-4">
               <InboundSupplyTab warehouseId={id!} warehouseName={warehouse.name} />
+            </TabsContent>
+          )}
+          {isMain && (
+            <TabsContent value="slaughter-inbox" className="space-y-4">
+              <SlaughterToMainWarehouseInbox defaultWarehouseId={id!} />
             </TabsContent>
           )}
         </Tabs>

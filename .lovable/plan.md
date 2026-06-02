@@ -1,62 +1,89 @@
-# خطة: Opening Balance + ضبط حركات المخزن الرئيسي
+# خطة تنفيذ دورة الدبح ← المخازن ← مصنع اللحوم ← تحويل المنتج النهائي
 
-## ١. تثبيت الأرصدة الحالية كـ Opening Balance
+## الوضع الحالي (ملخص فحص الكود)
 
-- إنشاء snapshot لكل أصناف المخزن الرئيسي بقيمها الحالية في `inventory_items.stock` في جدول جديد `warehouse_opening_balances` (warehouse_id, item_id, qty, opened_at, opened_by, notes).
-- تسجيل حركة افتتاحية في `inventory_movements` نوعها `opening_balance` لكل صنف، عشان سجل الحركات يبدأ من نقطة صفر واضحة.
-- **إيقاف** أي تريجر قديم بيعمل double deduction (شفناهم في التحقيق السابق): حذف التريجر المكرر `trg_order_item_insert` والإبقاء على `trg_deduct_stock_on_order_item` فقط مع تعديل سلوكه (الخطوة ٣).
+- ✅ جدول `slaughter_batch_outputs` فيه عمود `destination` (`warehouse` | `meat_factory` | `direct_sale` | `waste` | `branch`).
+- ✅ شاشة استلام مصنع اللحوم موجودة (`SlaughterToMeatInbox` + RPC `receive_slaughter_batch_verified`).
+- ❌ **لا توجد شاشة استلام للمخزن الرئيسي** لمخرجات الدبح بحالة `destination='warehouse'`. هذه أهم فجوة وراء غياب زر "استلام" الذي أبلغت عنه.
+- ✅ مخزن `مخزن خامات مصنع اللحوم` موجود بالفعل (type=`raw_materials`).
+- ✅ بنية `warehouse_transfers` + `confirm_transfer_receipt` تدعم تحويل بموافقة.
+- ✅ جداول `meat_production_invoices` / `meat_factory_raw_materials` / `meat_factory_products` موجودة لكن شاشة "فاتورة تصنيع" ناقصة الحلقة الكاملة.
 
-## ٢. حركات الوارد المعتمدة فقط للمخزن الرئيسي
+## التغييرات المقترحة
 
-أي زيادة بعد اللحظة دي لازم تمر بحركة موثقة. مصادر الزيادة المسموحة:
+### 1) شاشة استلام وارد الدبح للمخزن الرئيسي (الفجوة الأساسية)
 
-| المصدر | كيفية الإدخال |
-|---|---|
-| دبح المجزر | شاشة "توريد دبح → مخزن رئيسي" (موجودة جزئياً في `SlaughterBatchDialog` / Inbox) — عند الاعتماد: `inventory_movements.movement_type='in'`, `reference_type='slaughter_batch'`, `source='الدبح'` + زيادة `inventory_items.stock` |
-| مصنع اللحوم | شاشة "توريد إنتاج مصنع → مخزن رئيسي" (`MeatCostApprovalPanel` بعد الاعتماد) — `reference_type='meat_batch'`, `source='مصنع اللحوم'` |
-| مرتجعات Healthy Taste / كارفور / العجوزة | حركة `in` بـ `source='مرتجع <جهة>'` |
-| تعديل جرد المدير | `movement_type='adjust'` + سبب إلزامي + `performed_by` |
+ملف جديد: `src/components/warehouse/SlaughterToMainWarehouseInbox.tsx` (مرآة لـ `SlaughterToMeatInbox` لكن بـ `destination='warehouse'`).
 
-كل حركة تكتب: التاريخ، الصنف، الكمية، النوع، المصدر، `performed_by` (اسم المستخدم)، ملاحظات.
+- يعرض كل دفعات الدبح المرسلة للمخزن الرئيسي وبانتظار الاستلام.
+- زر واضح **"تعديل / استلام"** يفتح Dialog لمراجعة الأوزان والجودة.
+- زر تأكيد: **"اعتماد الوارد وإضافة للمخزون"**.
+- يستخدم نفس RPC `receive_slaughter_batch_verified` (موسّع ليقبل أي مخزن من نوع `finished_goods` للمنتج اللحمي، أو نضيف RPC مرادف `receive_slaughter_to_warehouse`).
+- يدرج حركة في `inventory_movements` بـ `party='المجزر'` و `reference_type='slaughter_receipt'` لظهورها في سجل المخزن.
 
-## ٣. حركات الصادر (تأكيد المنطق الصحيح)
+دمج هذا التبويب داخل صفحة المخزن الرئيسي (`WarehouseDetail` / `Warehouses`) كتبويب "وارد المجزر".
 
-- **طلبات المودريتور بمصدر الرئيسي**: حجز فقط (محسوب من `order_items` على الـ fly) — **لا** تخصم من `stock`.
-- **عند `stock_status='dispatched'` أو `status='delivered'`**: تريجر يخصم من `stock` ويسجل `movement_type='out'`, `reference_type='order'`, `source='صرف طلب'`.
-- **إلغاء**: لا حركة، يخرج من المحجوز فقط.
-- **تحويل لمخزن العجوزة**: حركة `transfer` (موجودة).
-- **بيع مباشر / قنوات أخرى**: حركة `out` بمصدر واضح.
+### 2) ضبط تقسيمة الدبح لاختيار الوجهة بوضوح
 
-## ٤. شاشة سجل حركات المخزن الرئيسي
+في `SlaughterBatchDialog` + `Slaughterhouse.tsx`:
+- إضافة عمود "الوجهة" لكل سطر تقسيمة: المخزن الرئيسي / مصنع اللحوم.
+- التحقق أن مجموع الأوزان لكل وجهة لا يتجاوز الناتج الفعلي.
+- عند الحفظ يتم إدراج صفوف `slaughter_batch_outputs` بـ `destination` المناسبة.
 
-تحسين `MainWarehouseActivity.tsx` الموجودة:
-- إضافة عمود **المستخدم المنفذ** (join على `profiles` عبر `performed_by`).
-- إضافة عمود **المصدر/النوع التفصيلي** (دبح / مصنع لحوم / مرتجع / صرف طلب / تحويل / جرد).
-- فلتر حسب نوع المصدر (Source category).
-- إظهار صف "رصيد افتتاحي" بتاريخ التثبيت بلون مميز.
+### 3) شاشة "فاتورة تصنيع" داخل مصنع اللحوم
 
-## ٥. شاشة عرض الرصيد (`WarehouseStockView` scope=main)
+ملف جديد: `src/pages/meat/ManufacturingInvoice.tsx` (route: `/meat-factory/manufacturing-invoice/new`).
 
-- إضافة كارت أعلى الجدول يعرض تاريخ Opening Balance الحالي.
-- زر "تعديل جرد" بصلاحية المدير العام/التنفيذي فقط، يفتح Dialog يطلب: الكمية الجديدة + سبب → يكتب حركة `adjust` ويحدث `stock`.
+نموذج الفاتورة:
+- المنتج النهائي (من `meat_factory_products` أو من `inventory_items` المصنّفة كمصنّعة).
+- الكمية الناتجة، تاريخ التصنيع، الملاحظات، المستخدم (تلقائي).
+- جدول الخامات: اختيار من رصيد `مخزن خامات مصنع اللحوم` فقط مع كمية لكل خامة.
+- زر "اعتماد الفاتورة" يستدعي RPC جديدة `approve_manufacturing_invoice(p_invoice_id)` التي:
+  1. تخصم الخامات من مخزن المصنع (`inventory_movements` out مع `module='meat_factory'`).
+  2. تنشئ كمية المنتج النهائي كرصيد داخل مصنع اللحوم (مخزن وسيط `مخزن منتج تام مصنع اللحوم` نضيفه إن لم يوجد، أو نستخدم `meat_factory_products.current_stock`).
+  3. تعرّف الفاتورة بحالة `approved` ومجهزة للتحويل.
 
-## ٦. ملخص تقني
+سجل الفواتير: تبويب يعرض الفواتير السابقة (موجود جزئيًا في `MeatProductionWarehouses`).
 
-**Migration واحدة:**
-1. إنشاء جدول `warehouse_opening_balances`.
-2. Insert snapshot من `inventory_items` للمخزن الرئيسي.
-3. Insert حركات `opening_balance` في `inventory_movements`.
-4. حذف التريجر المكرر `trg_order_item_insert`.
-5. تعديل `deduct_stock_on_order_item`: ما يخصمش من `stock` على INSERT (يكتفي بالحجز عبر الحساب من `order_items`). الخصم يحصل فقط من تريجر `handle_order_status_stock` لما `stock_status='dispatched'` أو `status='delivered'`.
-6. تنظيف `handle_order_item_update` / `handle_order_item_delete` عشان يلمسوا `inventory_items.stock` بدل `products.stock` فقط لما الطلب يكون متخصم فعلاً (dispatched/delivered).
+### 4) تحويل المنتج النهائي للمخزن الرئيسي بموافقة
 
-**ملفات Frontend:**
-- `src/pages/MainWarehouseActivity.tsx` — إضافة المستخدم وفلتر المصدر.
-- `src/pages/WarehouseStockView.tsx` — كارت Opening Balance + زر تعديل جرد للمدير.
-- إنشاء `src/components/warehouse/AdjustStockDialog.tsx`.
+- زر داخل فاتورة التصنيع المعتمدة: **"تحويل للمخزن الرئيسي"** يفتح حوار يختار المخزن (افتراضي: المخزن الرئيسي - المقر) ويستدعي RPC `create_and_send_transfer` الموجودة بالفعل.
+- يظهر التحويل في شاشة المخزن الرئيسي كـ "وارد بانتظار الاستلام" (تبويب موجود).
+- موافقة مسؤول المخزن الرئيسي تستدعي `confirm_transfer_receipt` فيدخل المنتج في الرصيد.
+- الحركة في سجل المخزن الرئيسي تظهر بـ `party='مصنع اللحوم'` (نمررها في RPC).
 
-**لا migration لبيانات تاريخية**: الأرصدة الحالية في `inventory_items.stock` هي المرجع. كل اللي قبل تاريخ التثبيت يتجاهل لأغراض الحساب الجديد (لكن يفضل ظاهر في السجل التاريخي للمراجعة).
+### 5) ضمان وضوح أزرار الاستلام/الاعتماد
 
-## خارج النطاق
-- إعادة معالجة الحركات التاريخية بأثر رجعي.
-- تنبيهات عند المتاح ≤ 0 (ممكن في خطوة لاحقة).
+مراجعة جميع تبويبات `InboundSupplyTab`/`SlaughterToMeatInbox`/الجديد للتأكد من:
+- زر واضح بنص "**اعتماد الوارد**" أو "**استلام**" حسب السياق.
+- اللون: برتقالي/أخضر حسب الحالة.
+- يظهر فقط للأدوار المخوّلة (`warehouse_supervisor`, `general_manager`, `executive_manager`, `meat_factory_manager`).
+
+## التفاصيل التقنية
+
+- **Migration واحد** يضيف:
+  - RPC `receive_slaughter_to_warehouse` (تقبل أي مخزن `finished_goods`).
+  - RPC `approve_manufacturing_invoice` (خصم خامات + إضافة منتج تام + تسجيل audit).
+  - عمود `source_label` افتراضي في `inventory_movements` ليُضبط من RPC تحويل المنتج النهائي.
+  - مخزن جديد `مخزن منتج تام مصنع اللحوم` (type=`finished_goods`) إن وافقت — أو نتعامل مع `meat_factory_products.current_stock` كرصيد منفصل ولا نضيف مخزنًا جديدًا.
+
+- ملفات جديدة:
+  - `src/components/warehouse/SlaughterToMainWarehouseInbox.tsx`
+  - `src/pages/meat/ManufacturingInvoice.tsx`
+  - `src/pages/meat/ManufacturingInvoicesList.tsx`
+
+- ملفات معدّلة:
+  - `src/components/slaughterhouse/SlaughterBatchDialog.tsx` + `src/pages/modules/Slaughterhouse.tsx` (اختيار الوجهة).
+  - `src/pages/modules/warehouse/WarehouseDetail.tsx` (تبويب وارد المجزر).
+  - `src/components/AnimatedRoutes.tsx` + `SidebarMenuSections.tsx` (المسارات الجديدة).
+
+## النشر
+
+- كل تغييرات قاعدة البيانات تنفّذ عبر `supabase--migration` فتصبح live تلقائيًا.
+- تعديلات الواجهة الأمامية تتطلب ضغطك على **Publish → Update** بعد الانتهاء لرفعها على `coceg.net`/`naam-alasima.lovable.app`.
+
+## نقاط أحتاج قرار بشأنها قبل البدء
+
+1. هل تفضّل إضافة **مخزن منفصل** لمنتج تام مصنع اللحوم، أم نستخدم رصيد `meat_factory_products.current_stock` الموجود؟
+2. هل المنتج النهائي بعد التصنيع يجب أن يظهر في `inventory_items` (كمنتج بيع طبيعي) أم يبقى في `meat_factory_products` فقط حتى التحويل للمخزن الرئيسي؟
+3. هل أزل خيار `direct_sale` من وجهات تقسيمة الدبح، أم أبقيه؟
