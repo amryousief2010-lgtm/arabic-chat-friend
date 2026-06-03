@@ -417,6 +417,7 @@ const Brooding = () => {
                         <TableCell className="font-semibold">{b.batch_number}</TableCell>
                         <TableCell>{b.received_date}</TableCell>
                         <TableCell>{ageLabel(b)}</TableCell>
+                        <TableCell><Badge variant="outline" className={b.rearing_location === "fattening_farm" ? "border-orange-400 text-orange-700" : "border-purple-400 text-purple-700"}>{locationLabel(b.rearing_location)}</Badge></TableCell>
                         <TableCell>{b.original_count}</TableCell>
                         <TableCell className="font-bold text-primary">{b.current_count}</TableCell>
                         <TableCell className="text-red-600">{b.mortality_count}</TableCell>
