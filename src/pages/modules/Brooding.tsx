@@ -847,24 +847,66 @@ const ExpenseForm = ({ batches, onDone, defaultBatchId }: any) => {
   </div>);
 };
 
-const FeedForm = ({ batches, onDone, defaultBatchId }: any) => {
-  const [f, setF] = useState({ batch_id: defaultBatchId || "", issue_date: new Date().toISOString().slice(0, 10), feed_name: "", quantity_kg: 0, unit_cost: 0, total_cost: 0, notes: "" });
-  useEffect(() => { setF(p => ({ ...p, total_cost: p.quantity_kg * p.unit_cost })); }, [f.quantity_kg, f.unit_cost]);
+const FeedForm = ({ batches, feedInventory = [], settings = DEFAULT_SETTINGS, canOverride = false, onDone, defaultBatchId }: { batches: Batch[]; feedInventory?: FeedInventory[]; settings?: BroodingSettings; canOverride?: boolean; onDone: () => void; defaultBatchId?: string }) => {
+  const defaultFeed = feedInventory[0]?.feed_name || "علف كتاكيت نعام";
+  const [f, setF] = useState({ batch_id: defaultBatchId || "", issue_date: new Date().toISOString().slice(0, 10), feed_name: defaultFeed, quantity_kg: 0, unit_cost: 0, total_cost: 0, notes: "" });
+  const [override, setOverride] = useState(false);
+  const batch = batches.find(b => b.id === f.batch_id);
+  const recommendedUnitCost = feedCostForBatch(batch, settings);
+  const inv = feedInventory.find(x => x.feed_name === f.feed_name);
+
+  // Auto-fill unit_cost from settings when not overriding
+  useEffect(() => {
+    if (!override) setF(p => ({ ...p, unit_cost: recommendedUnitCost }));
+    // eslint-disable-next-line
+  }, [recommendedUnitCost, override, f.batch_id]);
+
+  useEffect(() => { setF(p => ({ ...p, total_cost: +(p.quantity_kg * p.unit_cost).toFixed(3) })); }, [f.quantity_kg, f.unit_cost]);
+
   const submit = async () => {
     if (!f.batch_id || !f.feed_name || f.quantity_kg <= 0) { toast.error("أكمل البيانات"); return; }
+    if (inv && f.quantity_kg > Number(inv.current_kg)) {
+      toast.error(`الرصيد المتاح من ${f.feed_name} = ${inv.current_kg} كجم فقط`);
+      return;
+    }
     const { error } = await supabase.from("brooding_feed_issuance").insert(f);
     if (error) { toast.error(error.message); return; }
-    toast.success("تم صرف العلف"); onDone();
+    toast.success("تم صرف العلف وخصمه من المخزون"); onDone();
   };
   return (<div className="space-y-3">
     <div><Label>الدفعة</Label><BatchSelect value={f.batch_id} onChange={(v: string) => setF({ ...f, batch_id: v })} batches={batches} /></div>
     <div><Label>التاريخ</Label><Input type="date" value={f.issue_date} onChange={e => setF({ ...f, issue_date: e.target.value })} /></div>
-    <div><Label>نوع العلف</Label><Input value={f.feed_name} onChange={e => setF({ ...f, feed_name: e.target.value })} /></div>
+    <div>
+      <Label>نوع العلف</Label>
+      {feedInventory.length > 0 ? (
+        <Select value={f.feed_name} onValueChange={v => setF({ ...f, feed_name: v })}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>{feedInventory.map(i => <SelectItem key={i.id} value={i.feed_name}>{i.feed_name} — متاح {fmt(Number(i.current_kg))} كجم</SelectItem>)}</SelectContent>
+        </Select>
+      ) : (
+        <Input value={f.feed_name} onChange={e => setF({ ...f, feed_name: e.target.value })} />
+      )}
+    </div>
+    {batch && (
+      <div className="text-xs text-muted-foreground p-2 rounded bg-emerald-50 border border-emerald-200">
+        💡 السعر الموصى به بناءً على عمر الدفعة: <strong>{fmtMoney(recommendedUnitCost)}/كجم</strong>
+        {inv && <> — الرصيد المتاح: <strong>{fmt(Number(inv.current_kg))} كجم</strong></>}
+      </div>
+    )}
     <div className="grid grid-cols-3 gap-2">
       <div><Label>الكمية (كجم)</Label><Input type="number" value={f.quantity_kg} onChange={e => setF({ ...f, quantity_kg: +e.target.value })} /></div>
-      <div><Label>سعر الكيلو</Label><Input type="number" value={f.unit_cost} onChange={e => setF({ ...f, unit_cost: +e.target.value })} /></div>
-      <div><Label>الإجمالي</Label><Input type="number" value={f.total_cost} onChange={e => setF({ ...f, total_cost: +e.target.value })} /></div>
+      <div>
+        <Label>سعر الكيلو</Label>
+        <Input type="number" step="0.001" disabled={!canOverride || !override} value={f.unit_cost} onChange={e => setF({ ...f, unit_cost: +e.target.value })} />
+      </div>
+      <div><Label>الإجمالي</Label><Input type="number" value={f.total_cost} readOnly /></div>
     </div>
+    {canOverride && (
+      <label className="flex items-center gap-2 text-xs">
+        <input type="checkbox" checked={override} onChange={e => setOverride(e.target.checked)} />
+        تعديل السعر يدويًا (مدير عام/تنفيذي فقط)
+      </label>
+    )}
     <div><Label>ملاحظات</Label><Textarea value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} /></div>
     <Button onClick={submit} className="w-full">حفظ</Button>
   </div>);
