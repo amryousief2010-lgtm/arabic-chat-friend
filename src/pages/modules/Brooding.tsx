@@ -254,7 +254,7 @@ const Brooding = () => {
             </div>
           </div>
           {canManage && (
-            <NewBatchDialog onCreated={loadAll} nextBatchNumber={nextBatchNumber} prominent />
+            <NewBatchDialog onCreated={loadAll} nextBatchNumber={nextBatchNumber} settings={settings} prominent />
           )}
         </div>
 
@@ -270,6 +270,7 @@ const Brooding = () => {
         {/* KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <KPI label="الطيور الحالية" value={fmt(kpis.totalBirds)} icon={<Bird className="w-5 h-5" />} color="from-purple-500 to-purple-700" />
+          <KPI label="قيمة الكتاكيت الحالية" value={fmtMoney(kpis.currentChicksValue)} icon={<Wallet className="w-5 h-5" />} color="from-emerald-600 to-emerald-800" />
           <KPI label="دفعات مفتوحة" value={fmt(kpis.openBatches)} icon={<Package className="w-5 h-5" />} color="from-orange-500 to-orange-700" />
           <KPI label="إجمالي النافق" value={fmt(kpis.totalMortality)} icon={<Skull className="w-5 h-5" />} color="from-red-500 to-red-700" />
           <KPI label="نسبة النفوق" value={`${kpis.mortalityRate.toFixed(1)}%`} icon={<AlertTriangle className="w-5 h-5" />} color="from-amber-500 to-amber-700" />
@@ -277,10 +278,13 @@ const Brooding = () => {
           <KPI label="محوّل للمجزر" value={fmt(kpis.totalTransferred)} icon={<ArrowRightLeft className="w-5 h-5" />} color="from-indigo-500 to-indigo-700" />
           <KPI label="إجمالي التكلفة" value={fmtMoney(kpis.totalCost)} icon={<Wallet className="w-5 h-5" />} color="from-slate-600 to-slate-800" />
           <KPI label="متوسط تكلفة الطائر" value={fmtMoney(kpis.avgCostPerBird)} icon={<TrendingUp className="w-5 h-5" />} color="from-cyan-500 to-cyan-700" />
+          <KPI label="رصيد علف الكتاكيت" value={`${fmt(kpis.feedStockKg)} كجم`} icon={<Wheat className="w-5 h-5" />} color="from-lime-600 to-lime-800" />
+          <KPI label="قيمة رصيد العلف" value={fmtMoney(kpis.feedStockValue)} icon={<Wallet className="w-5 h-5" />} color="from-teal-600 to-teal-800" />
           <KPI label="مصروفات العلف" value={fmtMoney(kpis.feedCost)} icon={<Wheat className="w-5 h-5" />} color="from-yellow-600 to-yellow-800" />
           <KPI label="مصروفات الأدوية" value={fmtMoney(kpis.medCost)} icon={<Pill className="w-5 h-5" />} color="from-pink-500 to-pink-700" />
-          <KPI label="آخر 15 يوم" value={fmtMoney(kpis.last15)} icon={<Wallet className="w-5 h-5" />} color="from-fuchsia-500 to-fuchsia-700" />
+          <KPI label="مصروفات آخر 15 يوم" value={fmtMoney(kpis.last15)} icon={<Wallet className="w-5 h-5" />} color="from-fuchsia-500 to-fuchsia-700" />
           <KPI label="أرباح البيع" value={fmtMoney(kpis.salesProfit)} icon={<TrendingUp className="w-5 h-5" />} color="from-green-500 to-green-700" />
+          <KPI label="تكلفة المحوّل للمجزر" value={fmtMoney(kpis.transferredCost)} icon={<ArrowRightLeft className="w-5 h-5" />} color="from-indigo-600 to-indigo-800" />
         </div>
 
         <Tabs defaultValue="batches" className="space-y-4">
@@ -292,7 +296,10 @@ const Brooding = () => {
             <TabsTrigger value="medicine">صرف أدوية</TabsTrigger>
             <TabsTrigger value="sales">بيع كتاكيت</TabsTrigger>
             <TabsTrigger value="transfers">التحويل للمجزر</TabsTrigger>
+            <TabsTrigger value="feedstock">مخزون العلف</TabsTrigger>
+            {canManage && <TabsTrigger value="settings">الإعدادات</TabsTrigger>}
           </TabsList>
+
 
           {/* BATCHES */}
           <TabsContent value="batches">
