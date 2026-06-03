@@ -960,21 +960,53 @@ const BatchSelect = ({ value, onChange, batches }: any) => (
   </Select>
 );
 
+const MORTALITY_REASONS = [
+  "مرض",
+  "ضعف عام",
+  "خنق / حوادث",
+  "ارتفاع/انخفاض حرارة",
+  "أخرى (اذكر التفاصيل في الملاحظات)",
+];
+
 const MortalityForm = ({ batches, onDone, defaultBatchId }: any) => {
   const [f, setF] = useState({ batch_id: defaultBatchId || "", mortality_date: new Date().toISOString().slice(0, 10), count: 1, reason: "", notes: "" });
+  const [saving, setSaving] = useState(false);
+  const batch = batches.find((b: Batch) => b.id === f.batch_id);
   const submit = async () => {
     if (!f.batch_id) { toast.error("اختر الدفعة"); return; }
-    const { error } = await supabase.from("brooding_mortality").insert(f);
+    const reason = (f.reason || "").trim();
+    if (reason.length < 3) { toast.error("يجب كتابة سبب النافق قبل الحفظ"); return; }
+    if (batch && f.count > batch.current_count) {
+      toast.error(`لا يمكن تسجيل ${f.count} نافق — العدد الحالي بالدفعة ${batch.current_count} فقط`);
+      return;
+    }
+    if (f.count <= 0) { toast.error("العدد يجب أن يكون أكبر من صفر"); return; }
+    setSaving(true);
+    const { error } = await supabase.from("brooding_mortality").insert({ ...f, reason });
+    setSaving(false);
     if (error) { toast.error(error.message); return; }
     toast.success("تم تسجيل النافق"); onDone();
   };
   return (<div className="space-y-3">
     <div><Label>الدفعة</Label><BatchSelect value={f.batch_id} onChange={(v: string) => setF({ ...f, batch_id: v })} batches={batches} /></div>
     <div><Label>التاريخ</Label><Input type="date" value={f.mortality_date} onChange={e => setF({ ...f, mortality_date: e.target.value })} /></div>
-    <div><Label>العدد النافق</Label><Input type="number" value={f.count} onChange={e => setF({ ...f, count: +e.target.value })} /></div>
-    <div><Label>السبب</Label><Input value={f.reason} onChange={e => setF({ ...f, reason: e.target.value })} /></div>
+    <div>
+      <Label>العدد النافق {batch && <span className="text-xs text-muted-foreground">(الحد الأقصى: {batch.current_count})</span>}</Label>
+      <Input type="number" min={1} max={batch?.current_count || undefined} value={f.count} onChange={e => setF({ ...f, count: +e.target.value })} />
+    </div>
+    <div>
+      <Label className="text-red-600">السبب * (إجباري)</Label>
+      <Select value={MORTALITY_REASONS.includes(f.reason) ? f.reason : ""} onValueChange={v => setF({ ...f, reason: v })}>
+        <SelectTrigger><SelectValue placeholder="اختر سببًا أو اكتب يدويًا بالأسفل" /></SelectTrigger>
+        <SelectContent>{MORTALITY_REASONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
+      </Select>
+      <Input className="mt-1" value={f.reason} onChange={e => setF({ ...f, reason: e.target.value })} placeholder="أو اكتب السبب يدويًا" />
+      {(!f.reason || f.reason.trim().length < 3) && (
+        <p className="text-xs text-red-600 mt-1">⚠️ لا يتم حفظ النافق إلا بعد كتابة سبب واضح</p>
+      )}
+    </div>
     <div><Label>ملاحظات</Label><Textarea value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} /></div>
-    <Button onClick={submit} className="w-full">حفظ</Button>
+    <Button onClick={submit} disabled={saving || !f.reason || f.reason.trim().length < 3} className="w-full">{saving ? "..." : "حفظ"}</Button>
   </div>);
 };
 
