@@ -951,7 +951,7 @@ const TransfersTab = ({ fins, warehouses, list, onReload, onPost, onPrint, onExc
     const valid = lines.filter(l => l.finished_id && Number(l.qty) > 0);
     if (!valid.length) return toast.error("أضف صف");
     const { data: { user } } = await supabase.auth.getUser();
-    const { data: inv, error } = await supabase.from("mf_transfers").insert({ destination_warehouse_id: destId, notes, created_by: user?.id }).select().single();
+    const { data: inv, error } = await supabase.from("mf_transfers").insert({ destination_warehouse_id: destId, notes, is_test: isTest, created_by: user?.id }).select().single();
     if (error || !inv) return toast.error(error?.message || "خطأ");
     const itemRows = valid.map(l => ({ transfer_id: inv.id, finished_id: l.finished_id, qty: Number(l.qty) }));
     const { error: e2 } = await supabase.from("mf_transfer_lines").insert(itemRows);
