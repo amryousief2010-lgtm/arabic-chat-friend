@@ -355,6 +355,36 @@ export type Database = {
           },
         ]
       }
+      brooding_feed_inventory: {
+        Row: {
+          created_at: string
+          current_kg: number
+          feed_name: string
+          id: string
+          last_unit_cost: number
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_kg?: number
+          feed_name: string
+          id?: string
+          last_unit_cost?: number
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_kg?: number
+          feed_name?: string
+          id?: string
+          last_unit_cost?: number
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       brooding_feed_issuance: {
         Row: {
           batch_id: string
@@ -401,6 +431,60 @@ export type Database = {
             columns: ["batch_id"]
             isOneToOne: false
             referencedRelation: "brooding_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brooding_feed_stock_movements: {
+        Row: {
+          batch_id: string | null
+          created_at: string
+          created_by: string | null
+          feed_id: string
+          id: string
+          movement_type: string
+          notes: string | null
+          quantity_kg: number
+          total_cost: number
+          unit_cost: number
+        }
+        Insert: {
+          batch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          feed_id: string
+          id?: string
+          movement_type: string
+          notes?: string | null
+          quantity_kg: number
+          total_cost?: number
+          unit_cost?: number
+        }
+        Update: {
+          batch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          feed_id?: string
+          id?: string
+          movement_type?: string
+          notes?: string | null
+          quantity_kg?: number
+          total_cost?: number
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brooding_feed_stock_movements_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "brooding_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brooding_feed_stock_movements_feed_id_fkey"
+            columns: ["feed_id"]
+            isOneToOne: false
+            referencedRelation: "brooding_feed_inventory"
             referencedColumns: ["id"]
           },
         ]
@@ -495,6 +579,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      brooding_settings: {
+        Row: {
+          company_name: string
+          default_chick_price: number
+          feed_cost_per_kg_phase1: number
+          feed_cost_per_kg_phase2: number
+          id: boolean
+          low_feed_alert_kg: number
+          mortality_alert_pct: number
+          phase_split_months: number
+          print_accent_color: string
+          print_header_color: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          company_name?: string
+          default_chick_price?: number
+          feed_cost_per_kg_phase1?: number
+          feed_cost_per_kg_phase2?: number
+          id?: boolean
+          low_feed_alert_kg?: number
+          mortality_alert_pct?: number
+          phase_split_months?: number
+          print_accent_color?: string
+          print_header_color?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          company_name?: string
+          default_chick_price?: number
+          feed_cost_per_kg_phase1?: number
+          feed_cost_per_kg_phase2?: number
+          id?: boolean
+          low_feed_alert_kg?: number
+          mortality_alert_pct?: number
+          phase_split_months?: number
+          print_accent_color?: string
+          print_header_color?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
       }
       brooding_to_slaughter_transfers: {
         Row: {
