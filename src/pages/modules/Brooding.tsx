@@ -141,10 +141,20 @@ const Brooding = () => {
 
   const batchLabel = (id: string) => batches.find(b => b.id === id)?.batch_number || id.slice(0, 6);
 
+  // Auto-suggest next batch number BRD-XXX
+  const nextBatchNumber = useMemo(() => {
+    const nums = batches
+      .map(b => /^BRD-(\d+)$/i.exec(b.batch_number)?.[1])
+      .filter(Boolean)
+      .map(s => parseInt(s as string, 10));
+    const next = (nums.length ? Math.max(...nums) : 0) + 1;
+    return `BRD-${String(next).padStart(3, "0")}`;
+  }, [batches]);
+
   return (
     <DashboardLayout>
       <div className="p-6 space-y-6" dir="rtl">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3">
             <div className="p-3 rounded-2xl bg-gradient-to-br from-primary to-orange-500 text-white">
               <Bird className="w-7 h-7" />
@@ -154,6 +164,9 @@ const Brooding = () => {
               <p className="text-muted-foreground">إدارة دفعات الكتاكيت من الاستلام حتى البيع أو المجزر</p>
             </div>
           </div>
+          {canManage && (
+            <NewBatchDialog onCreated={loadAll} nextBatchNumber={nextBatchNumber} prominent />
+          )}
         </div>
 
         {!canManage && (
