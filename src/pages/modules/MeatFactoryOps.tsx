@@ -642,7 +642,7 @@ const ManufacturingTab = ({ raws, packs, fins, list, onReload, onPost, onPrint, 
     if (!validRaws.length) return toast.error("أضف خامة واحدة على الأقل");
     const validPacks = packLines.filter(l => l.pack_id && Number(l.qty) > 0);
     const { data: { user } } = await supabase.auth.getUser();
-    const { data: inv, error } = await supabase.from("mf_manufacturing").insert({ finished_id: finishedId, produced_qty: Number(producedQty), extra_cost: Number(extraCost || 0), notes, created_by: user?.id }).select().single();
+    const { data: inv, error } = await supabase.from("mf_manufacturing").insert({ finished_id: finishedId, produced_qty: Number(producedQty), extra_cost: Number(extraCost || 0), notes, is_test: isTest, created_by: user?.id }).select().single();
     if (error || !inv) return toast.error(error?.message || "خطأ");
     if (validRaws.length) {
       const { error: e1 } = await supabase.from("mf_mfg_raw_lines").insert(validRaws.map(l => ({ mfg_id: inv.id, raw_id: l.raw_id, qty: Number(l.qty) })));
