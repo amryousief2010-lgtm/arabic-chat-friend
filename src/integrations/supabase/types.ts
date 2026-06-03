@@ -201,6 +201,8 @@ export type Database = {
       }
       brooding_chick_sales: {
         Row: {
+          age_at_sale_days: number | null
+          age_label_snapshot: string | null
           batch_id: string
           cost_at_sale: number
           count: number
@@ -217,6 +219,8 @@ export type Database = {
           unit_price: number
         }
         Insert: {
+          age_at_sale_days?: number | null
+          age_label_snapshot?: string | null
           batch_id: string
           cost_at_sale?: number
           count: number
@@ -233,6 +237,8 @@ export type Database = {
           unit_price: number
         }
         Update: {
+          age_at_sale_days?: number | null
+          age_label_snapshot?: string | null
           batch_id?: string
           cost_at_sale?: number
           count?: number
@@ -548,7 +554,7 @@ export type Database = {
           id: string
           mortality_date: string
           notes: string | null
-          reason: string | null
+          reason: string
         }
         Insert: {
           batch_id: string
@@ -558,7 +564,7 @@ export type Database = {
           id?: string
           mortality_date?: string
           notes?: string | null
-          reason?: string | null
+          reason: string
         }
         Update: {
           batch_id?: string
@@ -568,7 +574,7 @@ export type Database = {
           id?: string
           mortality_date?: string
           notes?: string | null
-          reason?: string | null
+          reason?: string
         }
         Relationships: [
           {
@@ -632,12 +638,15 @@ export type Database = {
           count: number
           created_at: string
           created_by: string | null
+          expected_profit_loss: number
           id: string
+          live_price_per_kg: number
           notes: string | null
           slaughter_reference: string | null
           total_weight_kg: number | null
           transfer_date: string
           transferred_cost: number
+          valuation_amount: number
         }
         Insert: {
           avg_weight_kg?: number | null
@@ -645,12 +654,15 @@ export type Database = {
           count: number
           created_at?: string
           created_by?: string | null
+          expected_profit_loss?: number
           id?: string
+          live_price_per_kg?: number
           notes?: string | null
           slaughter_reference?: string | null
           total_weight_kg?: number | null
           transfer_date?: string
           transferred_cost?: number
+          valuation_amount?: number
         }
         Update: {
           avg_weight_kg?: number | null
@@ -658,12 +670,15 @@ export type Database = {
           count?: number
           created_at?: string
           created_by?: string | null
+          expected_profit_loss?: number
           id?: string
+          live_price_per_kg?: number
           notes?: string | null
           slaughter_reference?: string | null
           total_weight_kg?: number | null
           transfer_date?: string
           transferred_cost?: number
+          valuation_amount?: number
         }
         Relationships: [
           {
