@@ -367,6 +367,7 @@ const Brooding = () => {
             <TabsTrigger value="feedstock">مخزون العلف</TabsTrigger>
             <TabsTrigger value="recipes">تركيبة علف التسمين</TabsTrigger>
             <TabsTrigger value="market_prices">أسعار السوق</TabsTrigger>
+            <TabsTrigger value="movements">سجل الحركات</TabsTrigger>
             {canManage && <TabsTrigger value="settings">الإعدادات</TabsTrigger>}
           </TabsList>
 
