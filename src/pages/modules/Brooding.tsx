@@ -161,11 +161,14 @@ const Brooding = () => {
   const [medicine, setMedicine] = useState<MedIssue[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [transfers, setTransfers] = useState<Transfer[]>([]);
+  const [settings, setSettings] = useState<BroodingSettings>(DEFAULT_SETTINGS);
+  const [feedInventory, setFeedInventory] = useState<FeedInventory[]>([]);
+  const [feedStockMovements, setFeedStockMovements] = useState<FeedStockMovement[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadAll = async () => {
     setLoading(true);
-    const [b, m, e, f, md, s, t] = await Promise.all([
+    const [b, m, e, f, md, s, t, st, fi, fsm] = await Promise.all([
       supabase.from("brooding_batches").select("*").order("received_date", { ascending: false }),
       supabase.from("brooding_mortality").select("*").order("mortality_date", { ascending: false }),
       supabase.from("brooding_expenses").select("*").order("expense_date", { ascending: false }),
@@ -173,6 +176,9 @@ const Brooding = () => {
       supabase.from("brooding_medicine_issuance").select("*").order("issue_date", { ascending: false }),
       supabase.from("brooding_chick_sales").select("*").order("sale_date", { ascending: false }),
       supabase.from("brooding_to_slaughter_transfers").select("*").order("transfer_date", { ascending: false }),
+      supabase.from("brooding_settings" as any).select("*").eq("id", true).maybeSingle(),
+      supabase.from("brooding_feed_inventory" as any).select("*").order("feed_name"),
+      supabase.from("brooding_feed_stock_movements" as any).select("*").order("created_at", { ascending: false }).limit(200),
     ]);
     setBatches((b.data as Batch[]) || []);
     setMortality((m.data as Mortality[]) || []);
@@ -181,6 +187,9 @@ const Brooding = () => {
     setMedicine((md.data as MedIssue[]) || []);
     setSales((s.data as Sale[]) || []);
     setTransfers((t.data as Transfer[]) || []);
+    if (st.data) setSettings({ ...DEFAULT_SETTINGS, ...(st.data as any) });
+    setFeedInventory(((fi.data as any) || []) as FeedInventory[]);
+    setFeedStockMovements(((fsm.data as any) || []) as FeedStockMovement[]);
     setLoading(false);
   };
 
@@ -197,6 +206,12 @@ const Brooding = () => {
     const mortalityRate = totalOriginal > 0 ? (totalMortality / totalOriginal) * 100 : 0;
     const totalCost = batches.reduce((a, b) => a + Number(b.total_cost), 0);
     const avgCostPerBird = totalBirds > 0 ? totalCost / totalBirds : 0;
+    // Current chicks value: per-batch (current_count × cost_per_bird) with
+    // fallback to default chick price when cost_per_bird is 0 (e.g. opening rows).
+    const currentChicksValue = batches.reduce((acc, b) => {
+      const perBird = Number(b.cost_per_bird) > 0 ? Number(b.cost_per_bird) : settings.default_chick_price;
+      return acc + b.current_count * perBird;
+    }, 0);
     const feedCost = feed.reduce((a, x) => a + Number(x.total_cost), 0);
     const medCost = medicine.reduce((a, x) => a + Number(x.total_cost), 0);
     const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 15);
@@ -205,10 +220,14 @@ const Brooding = () => {
       .reduce((a, x: any) => a + Number(x.total_amount), 0);
     const salesProfit = sales.reduce((a, x) => a + Number(x.profit), 0);
     const salesRevenue = sales.reduce((a, x) => a + Number(x.total_amount), 0);
-    return { totalBirds, openBatches, totalMortality, mortalityRate, totalSold, totalTransferred, totalCost, avgCostPerBird, feedCost, medCost, last15, salesProfit, salesRevenue };
-  }, [batches, feed, medicine, expenses, sales]);
+    const transferredCost = transfers.reduce((a, x) => a + Number(x.transferred_cost), 0);
+    const feedStockKg = feedInventory.reduce((a, x) => a + Number(x.current_kg), 0);
+    const feedStockValue = feedInventory.reduce((a, x) => a + Number(x.current_kg) * Number(x.last_unit_cost), 0);
+    return { totalBirds, openBatches, totalMortality, mortalityRate, totalSold, totalTransferred, totalCost, avgCostPerBird, feedCost, medCost, last15, salesProfit, salesRevenue, currentChicksValue, transferredCost, feedStockKg, feedStockValue };
+  }, [batches, feed, medicine, expenses, sales, transfers, feedInventory, settings.default_chick_price]);
 
   const batchLabel = (id: string) => batches.find(b => b.id === id)?.batch_number || id.slice(0, 6);
+  const feedNameById = (id: string | null) => feedInventory.find(f => f.id === id)?.feed_name || '-';
 
   // Auto-suggest next batch number BRD-XXX
   const nextBatchNumber = useMemo(() => {
@@ -219,6 +238,7 @@ const Brooding = () => {
     const next = (nums.length ? Math.max(...nums) : 0) + 1;
     return `BRD-${String(next).padStart(3, "0")}`;
   }, [batches]);
+
 
   return (
     <DashboardLayout>
