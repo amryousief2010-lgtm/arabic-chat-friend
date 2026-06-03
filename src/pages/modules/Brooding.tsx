@@ -1100,6 +1100,16 @@ const EditBatchForm = ({ batch, onDone }: { batch: Batch; onDone: () => void }) 
         <div className="text-base mt-1">العمر الحالي الجديد بعد التعديل: <strong className="text-emerald-700">{newCurrentAge} يوم</strong></div>
       </div>
       <div>
+        <Label>مكان التربية الحالي</Label>
+        <Select value={location} onValueChange={(v: any) => setLocation(v)}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="chick_nursery">حضانات الكتاكيت</SelectItem>
+            <SelectItem value="fattening_farm">مزرعة التسمين</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
         <Label>ملاحظات التصحيح</Label>
         <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="سبب التعديل (سيُحفظ في سجل الدفعة)" />
       </div>
