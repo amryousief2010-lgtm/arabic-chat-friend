@@ -13,7 +13,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Warehouse, Package, ShoppingCart, Banknote, Plus, Trash2, AlertTriangle, Pencil, Printer, ClipboardCheck, Eye, Wallet, FileSpreadsheet, ArrowDownCircle, ArrowUpCircle, Factory } from "lucide-react";
+import { Warehouse, Package, ShoppingCart, Banknote, Plus, Trash2, AlertTriangle, Pencil, Printer, ClipboardCheck, Eye, Wallet, FileSpreadsheet, ArrowDownCircle, ArrowUpCircle, Factory, Undo2 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { exportCSV } from "@/lib/csvExport";
 
