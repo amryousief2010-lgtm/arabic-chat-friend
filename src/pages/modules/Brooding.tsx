@@ -465,31 +465,211 @@ const MovementCard = ({ title, data, canManage, onReload, exportName, columns, f
 };
 
 // ===== Forms =====
-const NewBatchDialog = ({ onCreated }: { onCreated: () => void }) => {
+const SOURCES = [
+  { value: "hatchery", label: "معمل التفريخ" },
+  { value: "opening", label: "إدخال يدوي / رصيد افتتاحي" },
+  { value: "external", label: "شراء خارجي" },
+];
+const AGE_PRESETS = [
+  { label: "يوم", days: 1 },
+  { label: "أسبوع", days: 7 },
+  { label: "شهر", days: 30 },
+  { label: "شهر ونص", days: 45 },
+  { label: "شهرين", days: 60 },
+];
+
+const NewBatchDialog = ({ onCreated, nextBatchNumber, prominent = false }: { onCreated: () => void; nextBatchNumber: string; prominent?: boolean }) => {
   const [open, setOpen] = useState(false);
-  const [f, setF] = useState({ batch_number: "", received_date: new Date().toISOString().slice(0, 10), age_at_receipt_days: 0, original_count: 0, notes: "" });
+  const [saving, setSaving] = useState(false);
+  const initial = () => ({
+    batch_number: nextBatchNumber,
+    received_date: new Date().toISOString().slice(0, 10),
+    source: "hatchery" as "hatchery" | "opening" | "external",
+    age_at_receipt_days: 1,
+    original_count: 0,
+    opening_cost: 0,
+    treasury: "",
+    payment_method: "cash" as "cash" | "credit",
+    status: "active" as "active" | "completed" | "transferred" | "closed",
+    notes: "",
+  });
+  const [f, setF] = useState(initial);
+
+  useEffect(() => { if (open) setF(initial()); /* eslint-disable-next-line */ }, [open, nextBatchNumber]);
+
   const submit = async () => {
-    if (!f.batch_number || f.original_count <= 0) { toast.error("أكمل الحقول المطلوبة"); return; }
-    const { error } = await supabase.from("brooding_batches").insert({ ...f, current_count: f.original_count, source: "معمل التفريخ" });
-    if (error) { toast.error(error.message); return; }
-    await supabase.from("brooding_batch_movements").insert({ batch_id: (await supabase.from("brooding_batches").select("id").eq("batch_number", f.batch_number).single()).data?.id, movement_type: "opening", count_delta: f.original_count, cost_delta: 0, description: "رصيد افتتاحي" });
-    toast.success("تم إنشاء الدفعة");
-    setOpen(false); onCreated();
+    if (!f.batch_number.trim()) { toast.error("أدخل رقم الدفعة"); return; }
+    if (f.original_count <= 0) { toast.error("عدد الكتاكيت يجب أن يكون أكبر من صفر"); return; }
+    if (f.opening_cost < 0) { toast.error("التكلفة لا يمكن أن تكون سالبة"); return; }
+    setSaving(true);
+    const sourceLabel = SOURCES.find(s => s.value === f.source)?.label || "معمل التفريخ";
+    const payload = {
+      batch_number: f.batch_number.trim(),
+      received_date: f.received_date,
+      source: sourceLabel,
+      age_at_receipt_days: f.age_at_receipt_days,
+      original_count: f.original_count,
+      current_count: f.original_count,
+      total_cost: f.opening_cost || 0,
+      cost_per_bird: f.original_count > 0 ? (f.opening_cost || 0) / f.original_count : 0,
+      status: f.status,
+      notes: f.notes || null,
+    };
+    const { data: inserted, error } = await supabase.from("brooding_batches").insert(payload).select("id").single();
+    setSaving(false);
+    if (error) {
+      if ((error as any).code === "23505") toast.error("رقم الدفعة موجود مسبقًا");
+      else toast.error(error.message);
+      return;
+    }
+    const batchId = inserted?.id;
+    // Opening movement
+    if (batchId) {
+      await supabase.from("brooding_batch_movements").insert({
+        batch_id: batchId,
+        movement_type: "opening",
+        count_delta: f.original_count,
+        cost_delta: f.opening_cost || 0,
+        description: `إضافة دفعة كتاكيت جديدة — ${sourceLabel}`,
+      });
+      // External cash purchase → record treasury deduction as opening expense
+      if (f.source === "external" && f.payment_method === "cash" && (f.opening_cost || 0) > 0) {
+        await supabase.from("brooding_expenses").insert({
+          batch_id: batchId,
+          expense_date: f.received_date,
+          expense_type: "other",
+          item_name: "شراء دفعة كتاكيت (افتتاحي)",
+          quantity: f.original_count,
+          unit_price: f.opening_cost / f.original_count,
+          total_amount: f.opening_cost,
+          treasury: f.treasury || null,
+          notes: "خصم تكلفة الشراء من الخزنة",
+        } as any);
+      }
+    }
+    toast.success("تم إنشاء الدفعة بنجاح");
+    setOpen(false);
+    onCreated();
   };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild><Button size="sm" className="bg-primary"><Plus className="w-4 h-4 ml-1" />دفعة جديدة</Button></DialogTrigger>
-      <DialogContent dir="rtl"><DialogHeader><DialogTitle>دفعة كتاكيت جديدة</DialogTitle></DialogHeader>
+      <DialogTrigger asChild>
+        <Button size={prominent ? "lg" : "sm"} className="bg-gradient-to-r from-primary to-orange-500 text-white shadow-md hover:opacity-95">
+          <Plus className="w-4 h-4 ml-1" />إضافة دفعة جديدة
+        </Button>
+      </DialogTrigger>
+      <DialogContent dir="rtl" className="max-w-xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>دفعة كتاكيت جديدة</DialogTitle></DialogHeader>
         <div className="space-y-3">
-          <div><Label>رقم الدفعة</Label><Input value={f.batch_number} onChange={e => setF({ ...f, batch_number: e.target.value })} placeholder="BRD-003" /></div>
-          <div><Label>تاريخ الاستلام</Label><Input type="date" value={f.received_date} onChange={e => setF({ ...f, received_date: e.target.value })} /></div>
-          <div><Label>العمر عند الاستلام (يوم)</Label><Input type="number" value={f.age_at_receipt_days} onChange={e => setF({ ...f, age_at_receipt_days: +e.target.value })} /></div>
-          <div><Label>العدد</Label><Input type="number" value={f.original_count} onChange={e => setF({ ...f, original_count: +e.target.value })} /></div>
+          <div className="grid grid-cols-2 gap-2">
+            <div><Label>رقم الدفعة</Label><Input value={f.batch_number} onChange={e => setF({ ...f, batch_number: e.target.value })} placeholder="BRD-003" /></div>
+            <div><Label>تاريخ الاستلام</Label><Input type="date" value={f.received_date} onChange={e => setF({ ...f, received_date: e.target.value })} /></div>
+          </div>
+
+          <div><Label>مصدر الدفعة</Label>
+            <Select value={f.source} onValueChange={(v: any) => setF({ ...f, source: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>{SOURCES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label>العمر عند الاستلام</Label>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {AGE_PRESETS.map(a => (
+                <Button key={a.days} type="button" size="sm" variant={f.age_at_receipt_days === a.days ? "default" : "outline"} onClick={() => setF({ ...f, age_at_receipt_days: a.days })}>{a.label}</Button>
+              ))}
+            </div>
+            <Input className="mt-2" type="number" min={0} value={f.age_at_receipt_days} onChange={e => setF({ ...f, age_at_receipt_days: +e.target.value })} placeholder="أو إدخال العمر بالأيام" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div><Label>عدد الكتاكيت</Label><Input type="number" min={1} value={f.original_count || ""} onChange={e => setF({ ...f, original_count: +e.target.value })} /></div>
+            <div><Label>الحالة</Label>
+              <Select value={f.status} onValueChange={(v: any) => setF({ ...f, status: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">تحت التحضين / التسمين</SelectItem>
+                  <SelectItem value="completed">مكتملة</SelectItem>
+                  <SelectItem value="transferred">محوّلة للمجزر</SelectItem>
+                  <SelectItem value="closed">مغلقة</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div><Label>التكلفة الافتتاحية (اختياري)</Label><Input type="number" min={0} value={f.opening_cost || ""} onChange={e => setF({ ...f, opening_cost: +e.target.value })} /></div>
+            <div><Label>تكلفة الطائر (محسوبة)</Label><Input readOnly value={f.original_count > 0 ? ((f.opening_cost || 0) / f.original_count).toFixed(2) : "0"} /></div>
+          </div>
+
+          {f.source === "external" && (
+            <div className="grid grid-cols-2 gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200">
+              <div><Label>طريقة الدفع</Label>
+                <Select value={f.payment_method} onValueChange={(v: any) => setF({ ...f, payment_method: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">نقدي (يخصم من الخزنة)</SelectItem>
+                    <SelectItem value="credit">آجل</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div><Label>الخزنة</Label><Input value={f.treasury} onChange={e => setF({ ...f, treasury: e.target.value })} placeholder="اسم الخزنة" /></div>
+            </div>
+          )}
+
           <div><Label>ملاحظات</Label><Textarea value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} /></div>
         </div>
-        <DialogFooter><Button onClick={submit}>حفظ</Button></DialogFooter>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
+          <Button onClick={submit} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ الدفعة"}</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+};
+
+const BATCH_ACTIONS = [
+  { key: "mortality", label: "تسجيل نافق", icon: Skull },
+  { key: "feed", label: "صرف علف", icon: Wheat },
+  { key: "medicine", label: "صرف دواء", icon: Pill },
+  { key: "expense", label: "إضافة مصروف", icon: Wallet },
+  { key: "sale", label: "بيع كتاكيت", icon: ShoppingCart },
+  { key: "transfer", label: "تحويل للمجزر", icon: ArrowRightLeft },
+] as const;
+
+const BatchActionsMenu = ({ batch, batches, onReload }: { batch: Batch; batches: Batch[]; onReload: () => void }) => {
+  const [action, setAction] = useState<string | null>(null);
+  const close = () => { setAction(null); onReload(); };
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button size="sm" variant="outline"><MoreVertical className="w-4 h-4 ml-1" />حركة</Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuLabel>{batch.batch_number}</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          {BATCH_ACTIONS.map(a => (
+            <DropdownMenuItem key={a.key} onClick={() => setAction(a.key)}>
+              <a.icon className="w-4 h-4 ml-2" />{a.label}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <Dialog open={!!action} onOpenChange={(v) => !v && setAction(null)}>
+        <DialogContent dir="rtl" className="max-w-lg">
+          <DialogHeader><DialogTitle>{BATCH_ACTIONS.find(a => a.key === action)?.label} — {batch.batch_number}</DialogTitle></DialogHeader>
+          {action === "mortality" && <MortalityForm batches={batches} defaultBatchId={batch.id} onDone={close} />}
+          {action === "feed" && <FeedForm batches={batches} defaultBatchId={batch.id} onDone={close} />}
+          {action === "medicine" && <MedicineForm batches={batches} defaultBatchId={batch.id} onDone={close} />}
+          {action === "expense" && <ExpenseForm batches={batches} defaultBatchId={batch.id} onDone={close} />}
+          {action === "sale" && <SaleForm batches={batches} defaultBatchId={batch.id} onDone={close} />}
+          {action === "transfer" && <TransferForm batches={batches} defaultBatchId={batch.id} onDone={close} />}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 
