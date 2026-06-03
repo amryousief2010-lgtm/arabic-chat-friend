@@ -92,7 +92,8 @@ const MeatFactoryOps = () => {
     const rawValue = raws.reduce((s, r) => s + r.stock * r.avg_cost, 0);
     const packValue = packs.reduce((s, p) => s + p.stock * p.avg_cost, 0);
     const finValue = fins.reduce((s, f) => s + f.stock * f.avg_prod_cost, 0);
-    const treasuryBalance = treasury.reduce((s, t) => s + (t.direction === "IN" ? Number(t.amount) : -Number(t.amount)), 0);
+    const treasuryF = treasury.filter(t => matchMode(!!t.is_test));
+    const treasuryBalance = treasuryF.reduce((s, t) => s + (t.direction === "IN" ? Number(t.amount) : -Number(t.amount)), 0);
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const monthStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
     const yearStart = new Date(Date.UTC(today.getUTCFullYear(), 0, 1));
@@ -100,10 +101,10 @@ const MeatFactoryOps = () => {
     const inMonth = (d: string) => new Date(d) >= monthStart;
     const inYear = (d: string) => new Date(d) >= yearStart;
 
-    const postedSales = sales.filter(s => s.status === "posted");
-    const postedRP = rawPurchases.filter(p => p.status === "posted");
-    const postedPP = packPurchases.filter(p => p.status === "posted");
-    const postedRet = returns.filter(r => r.status === "posted");
+    const postedSales = sales.filter(s => s.status === "posted" && matchMode(!!s.is_test));
+    const postedRP = rawPurchases.filter(p => p.status === "posted" && matchMode(!!p.is_test));
+    const postedPP = packPurchases.filter(p => p.status === "posted" && matchMode(!!p.is_test));
+    const postedRet = returns.filter(r => r.status === "posted" && matchMode(!!r.is_test));
 
     const salesDay = postedSales.filter(s => inDay(s.posted_at || s.created_at)).reduce((a, s) => a + Number(s.total_amount), 0);
     const salesMonth = postedSales.filter(s => inMonth(s.posted_at || s.created_at)).reduce((a, s) => a + Number(s.total_amount), 0);
@@ -121,7 +122,6 @@ const MeatFactoryOps = () => {
     const totalProfit = postedSales.reduce((a, s) => a + Number(s.profit), 0);
     const netSales = salesYear - retYear;
 
-    // Profit per product (from sale_lines with cost_snapshot)
     const profitByProduct: Record<string, { name: string; profit: number; qty: number }> = {};
     postedSales.forEach(s => {
       (s.lines || []).forEach((l: any) => {
@@ -136,7 +136,10 @@ const MeatFactoryOps = () => {
     const worstProduct = sorted[sorted.length - 1];
 
     return { rawValue, packValue, finValue, treasuryBalance, salesDay, salesMonth, salesYear, purchDay, purchMonth, purchYear, retDay, retMonth, retYear, totalCogs, totalProfit, netSales, topProduct, worstProduct };
-  }, [raws, packs, fins, treasury, sales, rawPurchases, packPurchases, returns]);
+  }, [raws, packs, fins, treasury, sales, rawPurchases, packPurchases, returns, viewMode]);
+
+  const filteredLog = useMemo(() => log.filter(l => matchMode(!!l.is_test)), [log, viewMode]);
+  const filteredTreasury = useMemo(() => treasury.filter(t => matchMode(!!t.is_test)), [treasury, viewMode]);
 
   // ===== Post handlers =====
   async function post(rpc: string, id: string) {
