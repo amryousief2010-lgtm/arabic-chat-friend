@@ -501,6 +501,13 @@ const FeedFactory = () => {
               </CardContent>
             </Card>
           </TabsContent>
+
+          <TabsContent value="movements" className="space-y-4">
+            <MovementsLog
+              source="feed_factory_movements"
+              title="سجل حركات مصنع الأعلاف"
+            />
+          </TabsContent>
         </Tabs>
       </div>
 
