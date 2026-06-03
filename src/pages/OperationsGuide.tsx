@@ -529,7 +529,7 @@ export default function OperationsGuide() {
     container.style.width = "800px";
     document.body.appendChild(container);
     try {
-      await html2pdf()
+      await (html2pdf() as any)
         .set({
           margin: [10, 10, 14, 10],
           filename,
