@@ -1542,4 +1542,148 @@ const SettingsTab = ({ settings, onSaved }: { settings: BroodingSettings; onSave
   );
 };
 
+// ===== Recipes Tab (تركيبة علف التسمين) =====
+type Recipe = { id: string; name: string; feed_type: string; batch_size: number; unit: string; is_active: boolean };
+type RecipeItem = { id: string; recipe_id: string; raw_material_id: string; quantity: number; unit: string | null; unit_cost: number | null; raw_material_name?: string };
+
+const RecipesTab = ({ canManage }: { canManage: boolean }) => {
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [items, setItems] = useState<RecipeItem[]>([]);
+  const [materials, setMaterials] = useState<Record<string, string>>({});
+  const [selected, setSelected] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [savingItemId, setSavingItemId] = useState<string | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    const [r, i, m] = await Promise.all([
+      supabase.from("feed_recipes").select("id,name,feed_type,batch_size,unit,is_active").order("name"),
+      supabase.from("feed_recipe_items").select("id,recipe_id,raw_material_id,quantity,unit,unit_cost"),
+      supabase.from("raw_materials" as any).select("id,name"),
+    ]);
+    const matMap: Record<string, string> = {};
+    ((m.data as any) || []).forEach((x: any) => { matMap[x.id] = x.name; });
+    setMaterials(matMap);
+    setRecipes((r.data as any) || []);
+    setItems(((i.data as any) || []).map((x: any) => ({ ...x, raw_material_name: matMap[x.raw_material_id] })));
+    if (!selected && r.data && r.data.length) setSelected((r.data as any).find((x: any) => x.is_active)?.id || (r.data as any)[0].id);
+    setLoading(false);
+  };
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+
+  const currentRecipe = recipes.find(r => r.id === selected);
+  const currentItems = items.filter(i => i.recipe_id === selected);
+  const totalKg = currentItems.reduce((a, x) => a + Number(x.quantity), 0);
+  const totalCost = currentItems.reduce((a, x) => a + Number(x.quantity) * Number(x.unit_cost || 0), 0);
+  const costPerKg = totalKg > 0 ? totalCost / totalKg : 0;
+  const costPerTon = costPerKg * 1000;
+
+  const updateItem = async (item: RecipeItem, patch: Partial<RecipeItem>) => {
+    setSavingItemId(item.id);
+    const next = { ...item, ...patch };
+    const { error } = await supabase.from("feed_recipe_items").update({
+      quantity: Number(next.quantity),
+      unit_cost: Number(next.unit_cost || 0),
+    }).eq("id", item.id);
+    setSavingItemId(null);
+    if (error) { toast.error(error.message); return; }
+    setItems(prev => prev.map(p => p.id === item.id ? next : p));
+    toast.success("تم تحديث التركيبة — تم إعادة احتساب تكلفة الكيلو. الحركات القديمة لا تتأثر.");
+  };
+
+  const phaseLabel = (t: string) =>
+    t === "starter" ? "بادئ (الكتاكيت 0-2 شهور)" :
+    t === "grower" ? "نامي/تسمين (2 شهر → الذبح)" :
+    t === "layer" ? "بياض" : t;
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
+          <CardTitle>تركيبة علف التسمين</CardTitle>
+          <div className="text-xs text-muted-foreground">
+            {canManage ? "✏️ يمكن للمدير العام/التنفيذي تعديل الكميات والأسعار" : "👁️ عرض فقط — التعديل للمدير العام/التنفيذي"}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            {recipes.map(r => (
+              <Button key={r.id} size="sm" variant={selected === r.id ? "default" : "outline"} onClick={() => setSelected(r.id)}>
+                {r.name} {r.is_active && <Badge variant="secondary" className="mr-2">نشطة</Badge>}
+              </Button>
+            ))}
+            {recipes.length === 0 && !loading && <div className="text-muted-foreground">لا توجد تركيبات. يمكن إضافتها من مصنع الأعلاف.</div>}
+          </div>
+
+          {currentRecipe && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-3 rounded-lg bg-emerald-50 border border-emerald-200">
+              <div><div className="text-xs text-muted-foreground">المرحلة العمرية</div><div className="font-bold">{phaseLabel(currentRecipe.feed_type)}</div></div>
+              <div><div className="text-xs text-muted-foreground">حجم الدفعة (كجم)</div><div className="font-bold">{fmt(Number(currentRecipe.batch_size))}</div></div>
+              <div><div className="text-xs text-muted-foreground">تكلفة الكيلو (تكلفة)</div><div className="font-bold text-emerald-700">{fmtMoney(costPerKg)}</div></div>
+              <div><div className="text-xs text-muted-foreground">تكلفة الطن</div><div className="font-bold text-emerald-700">{fmtMoney(costPerTon)}</div></div>
+            </div>
+          )}
+
+          {currentRecipe && (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>الخامة</TableHead>
+                  <TableHead>الكمية (كجم)</TableHead>
+                  <TableHead>سعر الخامة/كجم</TableHead>
+                  <TableHead>تكلفة الخامة</TableHead>
+                  <TableHead>%</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {currentItems.map(it => {
+                  const lineCost = Number(it.quantity) * Number(it.unit_cost || 0);
+                  const pct = totalKg > 0 ? (Number(it.quantity) / totalKg) * 100 : 0;
+                  return (
+                    <TableRow key={it.id}>
+                      <TableCell className="font-semibold">{it.raw_material_name || materials[it.raw_material_id] || "—"}</TableCell>
+                      <TableCell>
+                        {canManage ? (
+                          <Input type="number" step="0.01" className="w-28" defaultValue={Number(it.quantity)}
+                            onBlur={e => { const v = +e.target.value; if (v !== Number(it.quantity)) updateItem(it, { quantity: v }); }}
+                            disabled={savingItemId === it.id} />
+                        ) : fmt(Number(it.quantity))}
+                      </TableCell>
+                      <TableCell>
+                        {canManage ? (
+                          <Input type="number" step="0.001" className="w-28" defaultValue={Number(it.unit_cost || 0)}
+                            onBlur={e => { const v = +e.target.value; if (v !== Number(it.unit_cost || 0)) updateItem(it, { unit_cost: v }); }}
+                            disabled={savingItemId === it.id} />
+                        ) : fmtMoney(Number(it.unit_cost || 0))}
+                      </TableCell>
+                      <TableCell className="font-bold">{fmtMoney(lineCost)}</TableCell>
+                      <TableCell className="text-muted-foreground">{pct.toFixed(1)}%</TableCell>
+                    </TableRow>
+                  );
+                })}
+                {currentItems.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">لا توجد خامات</TableCell></TableRow>}
+                {currentItems.length > 0 && (
+                  <TableRow className="bg-emerald-50 font-bold">
+                    <TableCell>الإجمالي</TableCell>
+                    <TableCell>{fmt(totalKg)} كجم</TableCell>
+                    <TableCell>—</TableCell>
+                    <TableCell className="text-emerald-700">{fmtMoney(totalCost)}</TableCell>
+                    <TableCell>100%</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
+
+          <div className="text-xs text-amber-700 p-2 rounded bg-amber-50 border border-amber-200">
+            ⚠️ <strong>تنبيه:</strong> أي تعديل في كمية أو سعر خامة يغير تكلفة الكيلو فورًا، ويُستخدم في حركات صرف العلف <u>الجديدة</u> فقط.
+            الحركات القديمة محفوظة بسعرها الأصلي ولا تتغير. الأسعار هنا أسعار <strong>تكلفة</strong> وليست أسعار بيع.
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
 export default Brooding;
+
