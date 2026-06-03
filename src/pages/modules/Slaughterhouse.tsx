@@ -20,7 +20,7 @@ import {
 import {
   Beef, TrendingUp, Package, Scale, Plus, AlertTriangle, CheckCircle2,
   Users, ClipboardCheck, Bird, FileSpreadsheet, FileText, Truck, Trash2,
-  Settings as SettingsIcon, History, Save, Search, Printer, ShieldCheck,
+  Settings as SettingsIcon, History, Save, Search, Printer, ShieldCheck, Pencil,
 } from "lucide-react";
 import companyLogo from "@/assets/company-logo.jpg";
 import { supabase } from "@/integrations/supabase/client";
@@ -923,6 +923,17 @@ const Slaughterhouse = () => {
             <div className="flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-red-600" />
               <h3 className="font-bold text-red-700 dark:text-red-400">نعام نافق — {monthNamesAr[deadMonth - 1]} {deadYear}</h3>
+              {isExecManager && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 gap-1 border-red-400/50 text-red-700 hover:bg-red-50"
+                  onClick={() => { setAdjustForm({ new_balance: liveBalance, reason: "", adjustment_date: todayStr }); setAdjustOpen(true); }}
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  تعديل
+                </Button>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1">
