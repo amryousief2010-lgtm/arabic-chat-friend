@@ -1251,24 +1251,61 @@ const SaleForm = ({ batches, onDone, defaultBatchId }: any) => {
 };
 
 const TransferForm = ({ batches, onDone, defaultBatchId }: any) => {
-  const [f, setF] = useState({ batch_id: defaultBatchId || "", transfer_date: new Date().toISOString().slice(0, 10), count: 1, avg_weight_kg: 0, total_weight_kg: 0, notes: "" });
+  const [f, setF] = useState({ batch_id: defaultBatchId || "", transfer_date: new Date().toISOString().slice(0, 10), count: 1, avg_weight_kg: 0, total_weight_kg: 0, live_price_per_kg: 0, notes: "" });
+  const [saving, setSaving] = useState(false);
+  const batch = batches.find((b: Batch) => b.id === f.batch_id);
+  const costPerBird = batch ? Number(batch.cost_per_bird) : 0;
+  const totalTransferCost = costPerBird * f.count;
+  const valuation = f.total_weight_kg * f.live_price_per_kg;
+  const expectedPL = valuation - totalTransferCost;
+
   useEffect(() => { if (f.count && f.avg_weight_kg) setF(p => ({ ...p, total_weight_kg: +(p.count * p.avg_weight_kg).toFixed(2) })); }, [f.count, f.avg_weight_kg]);
+
   const submit = async () => {
     if (!f.batch_id || f.count <= 0) { toast.error("أكمل البيانات"); return; }
-    const { error } = await supabase.from("brooding_to_slaughter_transfers").insert(f as any);
+    if (batch && f.count > batch.current_count) {
+      toast.error(`لا يمكن تحويل ${f.count} — العدد المتاح ${batch.current_count} فقط`);
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase.from("brooding_to_slaughter_transfers").insert({
+      ...f,
+      valuation_amount: +valuation.toFixed(2),
+      expected_profit_loss: +expectedPL.toFixed(2),
+    } as any);
+    setSaving(false);
     if (error) { toast.error(error.message); return; }
-    toast.success("تم التحويل للمجزر"); onDone();
+    toast.success(`تم التحويل — تكلفة ${fmtMoney(totalTransferCost)} | ${expectedPL >= 0 ? "ربح" : "خسارة"} متوقع: ${fmtMoney(Math.abs(expectedPL))}`);
+    onDone();
   };
   return (<div className="space-y-3">
     <div><Label>الدفعة</Label><BatchSelect value={f.batch_id} onChange={(v: string) => setF({ ...f, batch_id: v })} batches={batches} /></div>
+    {batch && (
+      <div className="text-xs p-2 rounded bg-indigo-50 border border-indigo-200">
+        تكلفة الطائر الحالية: <strong>{fmtMoney(costPerBird)}</strong> | العدد المتاح: <strong>{batch.current_count}</strong>
+      </div>
+    )}
     <div><Label>التاريخ</Label><Input type="date" value={f.transfer_date} onChange={e => setF({ ...f, transfer_date: e.target.value })} /></div>
     <div className="grid grid-cols-3 gap-2">
-      <div><Label>العدد</Label><Input type="number" value={f.count} onChange={e => setF({ ...f, count: +e.target.value })} /></div>
+      <div><Label>العدد</Label><Input type="number" min={1} max={batch?.current_count || undefined} value={f.count} onChange={e => setF({ ...f, count: +e.target.value })} /></div>
       <div><Label>متوسط الوزن (كجم)</Label><Input type="number" step="0.1" value={f.avg_weight_kg} onChange={e => setF({ ...f, avg_weight_kg: +e.target.value })} /></div>
-      <div><Label>إجمالي الوزن</Label><Input type="number" value={f.total_weight_kg} onChange={e => setF({ ...f, total_weight_kg: +e.target.value })} /></div>
+      <div><Label>إجمالي الوزن قائم</Label><Input type="number" step="0.1" value={f.total_weight_kg} onChange={e => setF({ ...f, total_weight_kg: +e.target.value })} /></div>
     </div>
+    <div className="grid grid-cols-2 gap-2">
+      <div><Label>سعر الكيلو قائم</Label><Input type="number" step="0.01" value={f.live_price_per_kg} onChange={e => setF({ ...f, live_price_per_kg: +e.target.value })} /></div>
+      <div><Label>قيمة البيع/التقييم قائم</Label><Input readOnly value={fmt(valuation)} /></div>
+    </div>
+    {batch && f.count > 0 && (
+      <div className="text-xs p-2 rounded bg-slate-50 border space-y-1">
+        <div>إجمالي تكلفة الطيور المحولة: <strong>{fmtMoney(totalTransferCost)}</strong> ({f.count} × {fmtMoney(costPerBird)})</div>
+        <div>إجمالي الوزن قائم: <strong>{fmt(f.total_weight_kg)} كجم</strong> × {fmtMoney(f.live_price_per_kg)} = <strong>{fmtMoney(valuation)}</strong></div>
+        <div className={expectedPL >= 0 ? "text-emerald-700 font-bold" : "text-red-700 font-bold"}>
+          {expectedPL >= 0 ? "الربح المتوقع" : "الخسارة المتوقعة"}: {fmtMoney(Math.abs(expectedPL))}
+        </div>
+      </div>
+    )}
     <div><Label>ملاحظات</Label><Textarea value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} /></div>
-    <Button onClick={submit} className="w-full">حفظ</Button>
+    <Button onClick={submit} disabled={saving} className="w-full">{saving ? "..." : "تأكيد التحويل للمجزر"}</Button>
   </div>);
 };
 
