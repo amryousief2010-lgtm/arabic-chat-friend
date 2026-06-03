@@ -779,7 +779,7 @@ const BatchActionsMenu = ({ batch, batches, feedInventory, settings, canManage, 
         <DialogContent dir="rtl" className="max-w-lg">
           <DialogHeader><DialogTitle>{BATCH_ACTIONS.find(a => a.key === action)?.label} — {batch.batch_number}</DialogTitle></DialogHeader>
           {action === "mortality" && <MortalityForm batches={batches} defaultBatchId={batch.id} onDone={close} />}
-          {action === "feed" && <FeedForm batches={batches} defaultBatchId={batch.id} onDone={close} />}
+          {action === "feed" && <FeedForm batches={batches} feedInventory={feedInventory} settings={settings} canOverride={canManage} defaultBatchId={batch.id} onDone={close} />}
           {action === "medicine" && <MedicineForm batches={batches} defaultBatchId={batch.id} onDone={close} />}
           {action === "expense" && <ExpenseForm batches={batches} defaultBatchId={batch.id} onDone={close} />}
           {action === "sale" && <SaleForm batches={batches} defaultBatchId={batch.id} onDone={close} />}
