@@ -854,6 +854,7 @@ const ReturnsTab = ({ fins, sales, list, onReload, onPost, onPrint, onExcel }: a
   const [originalSale, setOriginalSale] = useState("");
   const [reason, setReason] = useState("");
   const [notes, setNotes] = useState("");
+  const [isTest, setIsTest] = useState(false);
   const [lines, setLines] = useState<{ finished_id: string; qty: string; unit_price: string }[]>([{ finished_id: "", qty: "", unit_price: "" }]);
 
   async function create() {
