@@ -521,8 +521,14 @@ export default function MeatWarehouses() {
                 <div><Label>المنتج النهائي</Label><Select value={mfgItem} onValueChange={setMfgItem}><SelectTrigger><SelectValue placeholder="اختر" /></SelectTrigger><SelectContent>{(finItems as any[]).map(i=><SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>)}</SelectContent></Select></div>
                 <div><Label>الكمية المنتجة</Label><Input type="number" value={mfgQty||""} onChange={(e)=>setMfgQty(Number(e.target.value))} /></div>
               </div>
-              <Label>الخامات المستخدمة (التكلفة تُحتسب من متوسط تكلفة الخامة)</Label>
+              <Label>الخامات الغذائية المستخدمة — من مخزن خامات مصنع اللحوم (التكلفة من متوسط تكلفة الخامة)</Label>
               {renderLineEditor(mfgLines, setMfgLines, rawItems as any[], "تكلفة (تلقائي)")}
+              <Label className="text-orange-700">مواد التغليف والتعبئة المستخدمة — من مخزن التغليف والتعبئة (اختياري)</Label>
+              {renderLineEditor(
+                mfgPkgLines, setMfgPkgLines,
+                (pkgItems as any[]).map((p:any)=>({ id:p.id, name:`${p.name_ar} (متاح: ${fmt(p.stock)})`, unit:p.unit })),
+                "تكلفة (تلقائي)"
+              )}
               <div><Label>ملاحظات</Label><Textarea value={mfgNotes} onChange={(e)=>setMfgNotes(e.target.value)} /></div>
             </div>
             <DialogFooter><Button variant="outline" onClick={resetMfg}>إلغاء</Button><Button variant="secondary" onClick={()=>saveMfg(false)}>حفظ كمسودة</Button><Button onClick={()=>saveMfg(true)}>حفظ واعتماد</Button></DialogFooter>
