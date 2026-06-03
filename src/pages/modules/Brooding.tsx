@@ -680,8 +680,8 @@ const BatchSelect = ({ value, onChange, batches }: any) => (
   </Select>
 );
 
-const MortalityForm = ({ batches, onDone }: any) => {
-  const [f, setF] = useState({ batch_id: "", mortality_date: new Date().toISOString().slice(0, 10), count: 1, reason: "", notes: "" });
+const MortalityForm = ({ batches, onDone, defaultBatchId }: any) => {
+  const [f, setF] = useState({ batch_id: defaultBatchId || "", mortality_date: new Date().toISOString().slice(0, 10), count: 1, reason: "", notes: "" });
   const submit = async () => {
     if (!f.batch_id) { toast.error("اختر الدفعة"); return; }
     const { error } = await supabase.from("brooding_mortality").insert(f);
@@ -698,8 +698,8 @@ const MortalityForm = ({ batches, onDone }: any) => {
   </div>);
 };
 
-const ExpenseForm = ({ batches, onDone }: any) => {
-  const [f, setF] = useState({ batch_id: "", expense_date: new Date().toISOString().slice(0, 10), expense_type: "feed", item_name: "", quantity: 0, unit_price: 0, total_amount: 0, treasury: "", notes: "" });
+const ExpenseForm = ({ batches, onDone, defaultBatchId }: any) => {
+  const [f, setF] = useState({ batch_id: defaultBatchId || "", expense_date: new Date().toISOString().slice(0, 10), expense_type: "feed", item_name: "", quantity: 0, unit_price: 0, total_amount: 0, treasury: "", notes: "" });
   useEffect(() => { if (f.quantity && f.unit_price) setF(p => ({ ...p, total_amount: p.quantity * p.unit_price })); }, [f.quantity, f.unit_price]);
   const submit = async () => {
     if (!f.batch_id || f.total_amount <= 0) { toast.error("أكمل البيانات"); return; }
@@ -730,8 +730,8 @@ const ExpenseForm = ({ batches, onDone }: any) => {
   </div>);
 };
 
-const FeedForm = ({ batches, onDone }: any) => {
-  const [f, setF] = useState({ batch_id: "", issue_date: new Date().toISOString().slice(0, 10), feed_name: "", quantity_kg: 0, unit_cost: 0, total_cost: 0, notes: "" });
+const FeedForm = ({ batches, onDone, defaultBatchId }: any) => {
+  const [f, setF] = useState({ batch_id: defaultBatchId || "", issue_date: new Date().toISOString().slice(0, 10), feed_name: "", quantity_kg: 0, unit_cost: 0, total_cost: 0, notes: "" });
   useEffect(() => { setF(p => ({ ...p, total_cost: p.quantity_kg * p.unit_cost })); }, [f.quantity_kg, f.unit_cost]);
   const submit = async () => {
     if (!f.batch_id || !f.feed_name || f.quantity_kg <= 0) { toast.error("أكمل البيانات"); return; }
@@ -753,8 +753,8 @@ const FeedForm = ({ batches, onDone }: any) => {
   </div>);
 };
 
-const MedicineForm = ({ batches, onDone }: any) => {
-  const [f, setF] = useState({ batch_id: "", issue_date: new Date().toISOString().slice(0, 10), medicine_name: "", quantity: 0, unit: "", unit_cost: 0, total_cost: 0, notes: "" });
+const MedicineForm = ({ batches, onDone, defaultBatchId }: any) => {
+  const [f, setF] = useState({ batch_id: defaultBatchId || "", issue_date: new Date().toISOString().slice(0, 10), medicine_name: "", quantity: 0, unit: "", unit_cost: 0, total_cost: 0, notes: "" });
   useEffect(() => { setF(p => ({ ...p, total_cost: p.quantity * p.unit_cost })); }, [f.quantity, f.unit_cost]);
   const submit = async () => {
     if (!f.batch_id || !f.medicine_name) { toast.error("أكمل البيانات"); return; }
@@ -779,8 +779,8 @@ const MedicineForm = ({ batches, onDone }: any) => {
   </div>);
 };
 
-const SaleForm = ({ batches, onDone }: any) => {
-  const [f, setF] = useState({ batch_id: "", sale_date: new Date().toISOString().slice(0, 10), customer_name: "", count: 1, unit_price: 0, total_amount: 0, payment_method: "cash", treasury: "", notes: "" });
+const SaleForm = ({ batches, onDone, defaultBatchId }: any) => {
+  const [f, setF] = useState({ batch_id: defaultBatchId || "", sale_date: new Date().toISOString().slice(0, 10), customer_name: "", count: 1, unit_price: 0, total_amount: 0, payment_method: "cash", treasury: "", notes: "" });
   useEffect(() => { setF(p => ({ ...p, total_amount: p.count * p.unit_price })); }, [f.count, f.unit_price]);
   const submit = async () => {
     if (!f.batch_id || !f.customer_name || f.count <= 0) { toast.error("أكمل البيانات"); return; }
@@ -811,8 +811,8 @@ const SaleForm = ({ batches, onDone }: any) => {
   </div>);
 };
 
-const TransferForm = ({ batches, onDone }: any) => {
-  const [f, setF] = useState({ batch_id: "", transfer_date: new Date().toISOString().slice(0, 10), count: 1, avg_weight_kg: 0, total_weight_kg: 0, notes: "" });
+const TransferForm = ({ batches, onDone, defaultBatchId }: any) => {
+  const [f, setF] = useState({ batch_id: defaultBatchId || "", transfer_date: new Date().toISOString().slice(0, 10), count: 1, avg_weight_kg: 0, total_weight_kg: 0, notes: "" });
   useEffect(() => { if (f.count && f.avg_weight_kg) setF(p => ({ ...p, total_weight_kg: +(p.count * p.avg_weight_kg).toFixed(2) })); }, [f.count, f.avg_weight_kg]);
   const submit = async () => {
     if (!f.batch_id || f.count <= 0) { toast.error("أكمل البيانات"); return; }
