@@ -36,7 +36,14 @@ type Batch = {
   cost_per_bird: number;
   status: string;
   notes: string | null;
+  rearing_location?: string | null;
 };
+
+const LOCATION_LABELS: Record<string, string> = {
+  chick_nursery: "حضانات الكتاكيت",
+  fattening_farm: "مزرعة التسمين",
+};
+const locationLabel = (v?: string | null) => LOCATION_LABELS[v || "chick_nursery"] || "حضانات الكتاكيت";
 
 type Mortality = { id: string; batch_id: string; mortality_date: string; count: number; reason: string | null; notes: string | null };
 type Expense = { id: string; batch_id: string; expense_date: string; expense_type: string; item_name: string | null; quantity: number | null; unit_price: number | null; total_amount: number; treasury: string | null; notes: string | null };
