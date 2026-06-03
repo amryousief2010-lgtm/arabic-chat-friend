@@ -158,6 +158,8 @@ export default function FeedFactoryDashboard() {
 
       <FactoryFilters value={f} onChange={setF} />
 
+      <FeedPeriodStats />
+
       <Card className="border-primary/40 bg-primary/5">
         <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
