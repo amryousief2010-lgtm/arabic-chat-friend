@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Wheat, AlertTriangle, Package, CheckCircle, Clock, Banknote, Boxes, FileWarning, Warehouse, ShoppingCart } from "lucide-react";
+import { Wheat, AlertTriangle, Package, CheckCircle, Clock, Banknote, Boxes, FileWarning, Warehouse, ShoppingCart, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import StatCard from "@/components/dashboard/StatCard";
 import FactoryFilters, { defaultFilterState, FactoryFilterState } from "@/components/factory/FactoryFilters";
@@ -91,6 +91,19 @@ export default function FeedFactoryDashboard() {
             </div>
           </div>
           <Link to="/feed-factory/warehouses"><Button><ShoppingCart className="h-4 w-4 ml-1" />فتح المخازن</Button></Link>
+        </CardContent>
+      </Card>
+
+      <Card className="border-orange-500/40 bg-orange-500/5">
+        <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Undo2 className="h-5 w-5 text-orange-600" />
+            <div>
+              <div className="font-bold">مرتجع مبيعات الأعلاف</div>
+              <div className="text-xs text-muted-foreground">إرجاع علف من العميل — يزيد المخزون ويخصم من الخزنة تلقائيًا</div>
+            </div>
+          </div>
+          <Link to="/feed-factory/sales-returns"><Button variant="secondary"><Undo2 className="h-4 w-4 ml-1" />فتح المرتجعات</Button></Link>
         </CardContent>
       </Card>
 
