@@ -1001,7 +1001,7 @@ const TransfersTab = ({ fins, warehouses, list, onReload, onPost, onPrint, onExc
           <TableBody>
             {list.map((t: any) => (
               <TableRow key={t.id}>
-                <TableCell className="font-mono text-xs">{t.transfer_no}</TableCell>
+                <TableCell className="font-mono text-xs">{t.transfer_no} {TEST_BADGE(!!t.is_test)}</TableCell>
                 <TableCell className="text-xs">{t.transfer_date}</TableCell>
                 <TableCell>{t.warehouse?.name}</TableCell>
                 <TableCell className="font-bold">{fmt(t.total_value)}</TableCell>
