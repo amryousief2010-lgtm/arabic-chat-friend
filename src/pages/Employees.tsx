@@ -130,6 +130,7 @@ const roleIcons: Record<AppRole, React.ElementType> = {
   shipping_company: Truck,
   private_delivery_rep: Truck,
   agouza_warehouse_keeper: Warehouse,
+  brooding_dashboard_viewer: Users,
 };
 
 const addEmployeeSchema = z.object({
