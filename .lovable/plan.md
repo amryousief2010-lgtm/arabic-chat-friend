@@ -1,78 +1,93 @@
-## شاشة مصنع اللحوم — مرآة لمصنع الأعلاف
+# قسم التحضين والتسمين (Brooding & Fattening)
 
-سأبني صفحة `/meat-factory/warehouses` بنفس بنية `FeedWarehouses` بالضبط، مع جداول و RPCs مستقلة لمصنع اللحوم حتى لا يختلط أي شيء مع مصنع الأعلاف.
+بناء قسم متكامل لإدارة دفعات الكتاكيت من معمل التفريخ حتى البيع أو التحويل للمجزر، مع لوحة تحكم وتقارير، وإضافة دفعتين افتتاحيتين (26 + 25 كتكوت).
 
----
+## 1. قاعدة البيانات (Migration)
 
-### 1) قاعدة البيانات (Migration واحدة)
+سيتم إنشاء الجداول التالية مع RLS وGRANTs:
 
-جداول جديدة (كلها بـ `GRANT` + `RLS` + Policies):
+- **brooding_batches**: رقم الدفعة، تاريخ الاستلام، المصدر، العمر عند الاستلام، العدد الأصلي، العدد الحالي، النافق، المباع، المحول، الحالة، إجمالي التكلفة، تكلفة الطائر، ملاحظات
+- **brooding_mortality**: تسجيل النافق (دفعة، تاريخ، عدد، سبب، ملاحظات، معتمد)
+- **brooding_expenses**: مصروفات (نوع: علف/أدوية/فيتامينات/عمالة/فرشة/كهرباء/أخرى)، صنف، كمية، سعر وحدة، إجمالي، مصدر الصرف، خزنة
+- **brooding_feed_issuance**: صرف علف (مرتبط بمخزون العلف)
+- **brooding_medicine_issuance**: صرف أدوية
+- **brooding_chick_sales**: بيع كتاكيت بالواحدة (عميل، عدد، سعر، إجمالي، طريقة دفع، خزنة، تكلفة، ربح)
+- **brooding_to_slaughter_transfers**: التحويل للمجزر (عدد، متوسط وزن، إجمالي وزن، تكلفة منقولة)
+- **brooding_batch_movements**: سجل حركات شامل (نوع الحركة، مرجع، تأثير على العدد/التكلفة، المستخدم، التاريخ)
+- **brooding_cost_snapshots**: لقطة كل 15 يوم (عدد، تكلفة إجمالية، تكلفة طائر)
 
-```text
-meat_factory_raw_items          (اسم، وحدة، رصيد، متوسط تكلفة، حد تنبيه)
-meat_factory_finished_items     (اسم، وحدة، رصيد، متوسط تكلفة، سعر بيع)
-meat_factory_purchases          (تاريخ، مورد، إجمالي، طريقة دفع، الخزنة، حالة)
-meat_factory_purchase_lines     (الفاتورة، الصنف، كمية، سعر)
-meat_factory_manufacturing      (تاريخ، منتج نهائي، كمية، تكلفة، رقم فاتورة، حالة)
-meat_factory_manufacturing_lines (الفاتورة، خامة، كمية، تكلفة)
-meat_factory_sales              (تاريخ، عميل، إجمالي، دفع، الخزنة، حالة)
-meat_factory_sales_lines        (الفاتورة، منتج، كمية، سعر)
-meat_factory_sales_returns      (مرتجع، فاتورة أصلية، عميل، إجمالي، سبب، حالة، حركة مخزون id، حركة خزنة id)
-meat_factory_sales_return_lines (المرتجع، منتج، كمية، سعر)
-meat_factory_inventory_moves    (نوع الصنف raw/finished، IN/OUT، الكمية، السبب، المرجع)
-meat_factory_treasury_txns      (تاريخ، IN/OUT، مبلغ، السبب، المرجع)
-meat_factory_stocktaking        (تاريخ، نوع، حالة)
-meat_factory_stocktaking_lines  (الصنف، رصيد سيستمي، فعلي، فرق، قيمة)
-```
+**Triggers / Functions**:
+- `recalc_brooding_batch_cost(batch_id)`: يعيد حساب الإجمالي وتكلفة الطائر
+- Trigger على mortality/expenses/sales/transfers يستدعي recalc + يحدّث عدد الدفعة
+- Constraints: منع عدد سالب، منع تجاوز العدد الحالي
+- RLS: `general_manager` و `executive_manager` فقط CRUD كامل، الباقي محجوب
 
-RPCs ذرّية (كل واحدة معاملة كاملة — إما تنجح بالكامل أو تُلغى):
-- `approve_meat_purchase(id)` → IN للخامات + OUT للخزنة (نقدي) + تحديث متوسط التكلفة
-- `approve_meat_manufacturing(id)` → فحص توفر الخامات → OUT للخامات + IN للمنتج النهائي + تحديث التكلفة. منع الاعتماد المزدوج.
-- `approve_meat_sale(id)` → OUT للجاهز + IN للخزنة (نقدي)
-- `approve_meat_sales_return(id)` → IN للجاهز + OUT للخزنة. منع التكرار.
-- `cancel_meat_sales_return(id)` → عكس الحركتين (للمدير العام/التنفيذي فقط).
-- `apply_meat_stocktake(id)` → حركات تسوية مخزون.
+**بذرة افتتاحية**:
+- دفعة #1: 26 كتكوت، تاريخ استلام = اليوم - 60 يوم، عمر عند الاستلام = 0
+- دفعة #2: 25 كتكوت، تاريخ استلام = اليوم - 45 يوم، عمر عند الاستلام = 0
 
-كل RPC تستخدم `SECURITY DEFINER` + فحص `has_role` للأدوار: `general_manager`, `executive_manager`, `meat_factory_manager`, `warehouse_supervisor` حسب العملية.
+## 2. الواجهة (Frontend)
 
-### 2) الواجهة
+### المسارات
+- `/modules/brooding` — Dashboard رئيسية (بدل ModulePlaceholder الحالي)
+- `/modules/brooding/batches` — قائمة الدفعات + إضافة
+- `/modules/brooding/batches/:id` — تفاصيل الدفعة الكاملة (حركات، تكلفة، snapshots)
+- `/modules/brooding/mortality` — تسجيل/تقرير النافق
+- `/modules/brooding/expenses` — مصروفات الدورة
+- `/modules/brooding/feed` — صرف علف
+- `/modules/brooding/medicine` — صرف أدوية
+- `/modules/brooding/sales` — بيع كتاكيت
+- `/modules/brooding/transfers` — تحويل للمجزر
 
-ملف واحد: `src/pages/meat/MeatWarehouses.tsx` — نسخة طبق الأصل من `FeedWarehouses.tsx` مع:
+### Dashboard
+StatCards: إجمالي الطيور الحالية، دفعات مفتوحة، إجمالي النافق، نسبة النفوق، مباع، محول، إجمالي التكلفة، متوسط تكلفة الطائر، مصروفات علف، مصروفات أدوية، مصروفات آخر 15 يوم، أرباح بيع.
 
-- العنوان: "مخازن مصنع اللحوم" والوصف "الخامات، التصنيع، المنتجات الجاهزة، المبيعات، الخزنة، والجرد"
-- 5 كروت علوية: قيمة الخامات / قيمة الجاهز / رصيد الخزنة / مستحق لشركة نعام / عدد الأصناف
-- 9 تبويبات بالترتيب المطلوب:
-  1. الخامات
-  2. المشتريات
-  3. التصنيع
-  4. الجاهز
-  5. المبيعات
-  6. الخزنة
-  7. الجرد
-  8. ↩️ مرتجع مبيعات (برتقالي)
-  9. التقارير (تقارير حركة/مبيعات/مرتجعات/ربحية المنتجات)
-- نفس تصميم RTL، نفس الأيقونات، نفس أزرار الطباعة/Excel، نفس الـ Dialogs.
+Charts (Recharts): تطور التكلفة عبر الوقت، توزيع المصروفات، حالة الدفعات. تنبيهات للنافق العالي والتكلفة المرتفعة.
 
-### 3) الربط بالسيستم
+### تفاصيل الدفعة
+Tabs: نظرة عامة | الحركات | المصروفات | النافق | المبيعات | التحويلات | snapshots كل 15 يوم.
 
-- إضافة المسار `/meat-factory/warehouses` في `AnimatedRoutes.tsx`
-- إضافة بند سايد بار "مخازن مصنع اللحوم — خامات/تصنيع/جاهز/بيع/خزنة/جرد" تحت قسم "مصنع اللحوم" (الصلاحيات: general_manager, executive_manager, meat_factory_manager, warehouse_supervisor, accountant, financial_manager)
-- إضافة كارت سريع في `MeatFactoryDashboard` للوصول للصفحة
-- توسيع صلاحيات قسم مصنع اللحوم في السايد بار لتشمل المحاسب/المالي/مسؤول المخزن
+### الصلاحيات (Frontend Guard)
+ProtectedRoute بأدوار `general_manager` + `executive_manager` فقط.
 
-### 4) ضمانات
+### السايدبار
+استبدال البند الحالي "إدارة التحضين" بمجموعة موسّعة تحت قسم "4. التحضين والتسمين" مع روابط لكل شاشة.
 
-- لا أعدّل أي ملف من مصنع الأعلاف.
-- كل العمليات Atomic عبر RPCs.
-- منع الاعتماد المزدوج عبر check على `status` + أعمدة `*_movement_id` و`*_txn_id`.
-- RLS صارم: قراءة للأدوار المصرحة، كتابة عبر RPC فقط.
+## 3. الطباعة والتصدير
+- زر طباعة (يستخدم `openPrintWindow` من `@/lib/printPdf` لدعم العربية)
+- زر تصدير Excel باستخدام `safeExcel`
+- متاح في: الدفعات، النافق، المصروفات، البيع، التحويلات، تكلفة الدفعة، Dashboard
 
----
+## 4. الترابط مع باقي النظام
+- **معمل التفريخ**: حقل اختياري `source_hatchery_batch_id` على الدفعة
+- **مخزون العلف**: عند صرف علف، خصم من مخزون العلف الجاهز
+- **مخزون الأدوية**: عند صرف دواء، خصم من مخزون الأدوية (إن وُجد جدول، وإلا سجلّ تكلفة فقط)
+- **الخزنة**: حركة قيد على الخزنة المختارة عند مصروف/بيع نقدي
+- **المجزر**: التحويل ينشئ سجل وارد في جدول المجزر (slaughter inbound) مرتبط بـ `brooding_transfer_id` لمنع التكرار
 
-### الحجم
+## 5. القواعد التشغيلية
+- كل اعتماد يتم داخل Transaction واحدة (Postgres function `SECURITY DEFINER`)
+- منع الحذف النهائي للحركات المعتمدة (soft cancel فقط مع سجل)
+- إعادة حساب تكلفة الطائر تلقائيًا = إجمالي تكلفة الدفعة ÷ العدد الحي الحالي
+- تكلفة النافق تبقى ضمن إجمالي الدفعة وتُوزَّع على الحي
 
-- Migration واحدة كبيرة (~600 سطر SQL).
-- ملف صفحة واحد كبير (~1300 سطر — نفس حجم FeedWarehouses).
-- 3 ملفات تُعدّل (Routes, Sidebar, MeatDashboard).
+## تفاصيل تقنية
 
-سأنفذ على دفعتين: (أ) Migration للموافقة، ثم (ب) UI كاملة. هل أبدأ؟
+- جداول Postgres + RLS باستخدام `has_role(auth.uid(), 'general_manager'|'executive_manager')`
+- استخدام `framer-motion` لانتقالات الصفحات
+- RTL/Arabic بالكامل، ألوان البراند Purple/Orange
+- استخدام `Date.UTC` في كل الفلاتر الزمنية
+- جلب البيانات على دفعات 1000 عند الحاجة
+- TanStack Query للـ data fetching مع invalidation بعد كل اعتماد
+
+## مراحل التنفيذ
+1. Migration (جداول + functions + triggers + RLS + seed للدفعتين)
+2. Hooks: `useBroodingBatches`, `useBroodingDashboard`, `useBroodingBatch(id)`
+3. صفحة Dashboard الرئيسية
+4. صفحة قائمة الدفعات + دفعة جديدة + تفاصيل الدفعة
+5. شاشات: النافق، المصروفات، صرف علف/دواء، بيع كتاكيت، تحويل للمجزر
+6. تحديث السايدبار + التوجيه في `App.tsx`
+7. طباعة + تصدير Excel
+8. ربط التحويل بالمجزر
+
+هل أبدأ التنفيذ؟
