@@ -6975,6 +6975,7 @@ export type Database = {
           direction: string
           from_party: string | null
           id: string
+          is_test: boolean
           item_id: string | null
           item_kind: string
           item_name: string | null
@@ -7000,6 +7001,7 @@ export type Database = {
           direction: string
           from_party?: string | null
           id?: string
+          is_test?: boolean
           item_id?: string | null
           item_kind: string
           item_name?: string | null
@@ -7025,6 +7027,7 @@ export type Database = {
           direction?: string
           from_party?: string | null
           id?: string
+          is_test?: boolean
           item_id?: string | null
           item_kind?: string
           item_name?: string | null
@@ -7055,6 +7058,7 @@ export type Database = {
           id: string
           invoice_date: string
           invoice_no: string
+          is_test: boolean
           notes: string | null
           pack_cost: number
           posted_at: string | null
@@ -7074,6 +7078,7 @@ export type Database = {
           id?: string
           invoice_date?: string
           invoice_no?: string
+          is_test?: boolean
           notes?: string | null
           pack_cost?: number
           posted_at?: string | null
@@ -7093,6 +7098,7 @@ export type Database = {
           id?: string
           invoice_date?: string
           invoice_no?: string
+          is_test?: boolean
           notes?: string | null
           pack_cost?: number
           posted_at?: string | null
@@ -7250,6 +7256,7 @@ export type Database = {
           id: string
           invoice_date: string
           invoice_no: string
+          is_test: boolean
           notes: string | null
           payment_method: string
           posted_at: string | null
@@ -7265,6 +7272,7 @@ export type Database = {
           id?: string
           invoice_date?: string
           invoice_no?: string
+          is_test?: boolean
           notes?: string | null
           payment_method: string
           posted_at?: string | null
@@ -7280,6 +7288,7 @@ export type Database = {
           id?: string
           invoice_date?: string
           invoice_no?: string
+          is_test?: boolean
           notes?: string | null
           payment_method?: string
           posted_at?: string | null
@@ -7343,6 +7352,7 @@ export type Database = {
           id: string
           invoice_date: string
           invoice_no: string
+          is_test: boolean
           notes: string | null
           payment_method: string
           posted_at: string | null
@@ -7358,6 +7368,7 @@ export type Database = {
           id?: string
           invoice_date?: string
           invoice_no?: string
+          is_test?: boolean
           notes?: string | null
           payment_method: string
           posted_at?: string | null
@@ -7373,6 +7384,7 @@ export type Database = {
           id?: string
           invoice_date?: string
           invoice_no?: string
+          is_test?: boolean
           notes?: string | null
           payment_method?: string
           posted_at?: string | null
@@ -7432,6 +7444,7 @@ export type Database = {
           created_by: string | null
           customer: string
           id: string
+          is_test: boolean
           notes: string | null
           original_sale_id: string | null
           posted_at: string | null
@@ -7448,6 +7461,7 @@ export type Database = {
           created_by?: string | null
           customer: string
           id?: string
+          is_test?: boolean
           notes?: string | null
           original_sale_id?: string | null
           posted_at?: string | null
@@ -7464,6 +7478,7 @@ export type Database = {
           created_by?: string | null
           customer?: string
           id?: string
+          is_test?: boolean
           notes?: string | null
           original_sale_id?: string | null
           posted_at?: string | null
@@ -7493,6 +7508,7 @@ export type Database = {
           id: string
           invoice_date: string
           invoice_no: string
+          is_test: boolean
           notes: string | null
           payment_method: string
           posted_at: string | null
@@ -7510,6 +7526,7 @@ export type Database = {
           id?: string
           invoice_date?: string
           invoice_no?: string
+          is_test?: boolean
           notes?: string | null
           payment_method: string
           posted_at?: string | null
@@ -7527,6 +7544,7 @@ export type Database = {
           id?: string
           invoice_date?: string
           invoice_no?: string
+          is_test?: boolean
           notes?: string | null
           payment_method?: string
           posted_at?: string | null
@@ -7632,6 +7650,7 @@ export type Database = {
           created_by: string | null
           destination_warehouse_id: string
           id: string
+          is_test: boolean
           notes: string | null
           posted_at: string | null
           posted_by: string | null
@@ -7646,6 +7665,7 @@ export type Database = {
           created_by?: string | null
           destination_warehouse_id: string
           id?: string
+          is_test?: boolean
           notes?: string | null
           posted_at?: string | null
           posted_by?: string | null
@@ -7660,6 +7680,7 @@ export type Database = {
           created_by?: string | null
           destination_warehouse_id?: string
           id?: string
+          is_test?: boolean
           notes?: string | null
           posted_at?: string | null
           posted_by?: string | null
@@ -7693,6 +7714,7 @@ export type Database = {
           created_by: string | null
           direction: string
           id: string
+          is_test: boolean
           notes: string | null
           ref_no: string | null
           source_id: string | null
@@ -7705,6 +7727,7 @@ export type Database = {
           created_by?: string | null
           direction: string
           id?: string
+          is_test?: boolean
           notes?: string | null
           ref_no?: string | null
           source_id?: string | null
@@ -7717,6 +7740,7 @@ export type Database = {
           created_by?: string | null
           direction?: string
           id?: string
+          is_test?: boolean
           notes?: string | null
           ref_no?: string | null
           source_id?: string | null
@@ -10432,6 +10456,10 @@ export type Database = {
         }
       }
       cancel_meat_sales_return: { Args: { p_id: string }; Returns: string }
+      cancel_mf_invoice: {
+        Args: { p_id: string; p_reason: string; p_source_type: string }
+        Returns: undefined
+      }
       cancel_transfer: {
         Args: { p_reason: string; p_transfer_id: string }
         Returns: Json
