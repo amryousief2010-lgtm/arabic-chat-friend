@@ -668,6 +668,11 @@ const Brooding = () => {
             <FeedStockTab inventory={feedInventory} movements={feedStockMovements} batches={batches} canManage={canManage} settings={settings} onReload={loadAll} />
           </TabsContent>
 
+          {/* FEED RECIPES */}
+          <TabsContent value="recipes">
+            <RecipesTab canManage={canManage} />
+          </TabsContent>
+
           {/* SETTINGS */}
           {canManage && (
             <TabsContent value="settings">
