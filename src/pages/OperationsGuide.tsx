@@ -478,9 +478,9 @@ export default function OperationsGuide() {
 
   const buildSectionHtml = (s: Section) => {
     const stepsHtml = s.steps.map((step) => `
-      <div style="margin-bottom:14px; padding:10px; border-right:4px solid #6d28d9; background:#fafafa;">
-        <h3 style="margin:0 0 6px 0;">${escapeHtml(step.title)}</h3>
-        <ol style="margin:0; padding-right:22px;">
+      <div style="margin-bottom:14px; padding:10px; border-right:4px solid #6d28d9; background:#fafafa; page-break-inside:avoid;">
+        <h3 style="margin:0 0 6px 0; color:#4c1d95;">${escapeHtml(step.title)}</h3>
+        <ol style="margin:0; padding-right:22px; line-height:1.9;">
           ${step.points.map((p) => `<li>${escapeHtml(p)}</li>`).join("")}
         </ol>
         ${step.note ? `<div style="margin-top:6px; padding:6px 10px; background:#eff6ff; border-right:3px solid #2563eb;"><b>ملاحظة:</b> ${escapeHtml(step.note)}</div>` : ""}
@@ -488,24 +488,90 @@ export default function OperationsGuide() {
       </div>
     `).join("");
     return `
-      <h1 style="margin:0 0 4px 0;">${escapeHtml(s.title)}</h1>
-      <p style="margin:0 0 14px 0; color:#555;">${escapeHtml(s.subtitle)}</p>
+      <h1 style="margin:0 0 4px 0; color:#6d28d9;">${escapeHtml(s.title)}</h1>
+      <p style="margin:0 0 14px 0; color:#555; font-size:14px;">${escapeHtml(s.subtitle)}</p>
       ${stepsHtml}
-      <h2 style="margin:18px 0 6px 0;">الصلاحيات</h2>
-      <ul>${s.permissions.map((p) => `<li>${escapeHtml(p)}</li>`).join("")}</ul>
-      <h2 style="margin:14px 0 6px 0; color:#b91c1c;">أخطاء ممنوعة</h2>
-      <ul>${s.forbidden.map((p) => `<li>${escapeHtml(p)}</li>`).join("")}</ul>
+      <h2 style="margin:18px 0 6px 0; color:#047857; page-break-after:avoid;">الصلاحيات</h2>
+      <ul style="line-height:1.9;">${s.permissions.map((p) => `<li>${escapeHtml(p)}</li>`).join("")}</ul>
+      <h2 style="margin:14px 0 6px 0; color:#b91c1c; page-break-after:avoid;">أخطاء ممنوعة</h2>
+      <ul style="line-height:1.9;">${s.forbidden.map((p) => `<li>${escapeHtml(p)}</li>`).join("")}</ul>
     `;
+  };
+
+  const today = new Date().toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" });
+
+  const pdfWrapper = (titleHeader: string, bodyHtml: string) => `
+    <div dir="rtl" style="font-family: 'Cairo','Tajawal','Segoe UI',Arial,sans-serif; color:#111; padding:24px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #6d28d9; padding-bottom:10px; margin-bottom:16px;">
+        <div>
+          <div style="font-size:22px; font-weight:800; color:#6d28d9;">نعام العاصمة</div>
+          <div style="font-size:13px; color:#666;">دليل تشغيل الموظفين</div>
+        </div>
+        <div style="text-align:left; font-size:12px; color:#666;">
+          <div>${escapeHtml(titleHeader)}</div>
+          <div>تاريخ التصدير: ${escapeHtml(today)}</div>
+        </div>
+      </div>
+      ${bodyHtml}
+      <div style="margin-top:24px; padding-top:8px; border-top:1px solid #ddd; font-size:11px; color:#888; text-align:center;">
+        نعام العاصمة — دليل تشغيل الموظفين — مستند داخلي
+      </div>
+    </div>
+  `;
+
+  const downloadPdf = async (filename: string, html: string) => {
+    const html2pdf = (await import("html2pdf.js")).default;
+    const container = document.createElement("div");
+    container.innerHTML = html;
+    container.style.position = "fixed";
+    container.style.right = "-10000px";
+    container.style.top = "0";
+    container.style.width = "800px";
+    document.body.appendChild(container);
+    try {
+      await html2pdf()
+        .set({
+          margin: [10, 10, 14, 10],
+          filename,
+          image: { type: "jpeg", quality: 0.95 },
+          html2canvas: { scale: 2, useCORS: true },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+          pagebreak: { mode: ["css", "legacy"] },
+        })
+        .from(container.firstElementChild as HTMLElement)
+        .save();
+    } finally {
+      document.body.removeChild(container);
+    }
   };
 
   const printSection = () => {
     openPrintWindow(`دليل التشغيل — ${active.title}`, buildSectionHtml(active));
   };
 
-  const printAll = () => {
-    const body = visibleSections.map((s) => `<section style="page-break-after:always;">${buildSectionHtml(s)}</section>`).join("");
-    openPrintWindow("دليل تشغيل الموظفين — الدليل الكامل", body);
+  const exportSectionPdf = async () => {
+    const html = pdfWrapper(active.title, buildSectionHtml(active));
+    await downloadPdf(`دليل-تشغيل-${active.title}.pdf`, html);
   };
+
+  const exportFullPdf = async () => {
+    const indexHtml = `
+      <div style="page-break-after:always;">
+        <h1 style="color:#6d28d9; margin-bottom:8px;">دليل تشغيل الموظفين الكامل</h1>
+        <p style="color:#555; margin-bottom:16px;">شركة نعام العاصمة — مستند داخلي للموظفين</p>
+        <h2 style="color:#4c1d95;">الفهرس</h2>
+        <ol style="line-height:2.2; font-size:15px;">
+          ${visibleSections.map((s) => `<li><b>${escapeHtml(s.title)}</b> — ${escapeHtml(s.subtitle)}</li>`).join("")}
+        </ol>
+      </div>
+    `;
+    const body = indexHtml + visibleSections
+      .map((s) => `<div style="page-break-before:always;">${buildSectionHtml(s)}</div>`)
+      .join("");
+    const html = pdfWrapper("الدليل الكامل", body);
+    await downloadPdf("دليل-تشغيل-الموظفين-الكامل.pdf", html);
+  };
+
 
   return (
     <DashboardLayout>
