@@ -6,8 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format, parseISO, differenceInDays, addDays, startOfWeek, startOfMonth, startOfYear } from "date-fns";
-import { Egg, FlaskConical, Users, AlertTriangle, TrendingUp, Bird, Wallet, Printer, FileSpreadsheet } from "lucide-react";
+import { Egg, FlaskConical, Users, AlertTriangle, TrendingUp, Bird, Wallet, Printer, FileSpreadsheet, TestTube } from "lucide-react";
 import { exportCSV } from "@/lib/csvExport";
+import { useTestMode } from "@/hooks/useTestMode";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 const STAGE_EXIT = 42;
 const HATCH_DAYS = 45;
