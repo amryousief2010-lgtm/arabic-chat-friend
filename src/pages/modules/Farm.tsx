@@ -17,11 +17,12 @@ import {
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Egg, Plus, Truck, Wheat, Syringe, Users, Calendar, TrendingUp, Trash2, Search, BarChart3, Download } from "lucide-react";
+import { Egg, Plus, Truck, Wheat, Syringe, Users, Calendar, TrendingUp, Trash2, Search, BarChart3, Download, LayoutDashboard } from "lucide-react";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
+import MotherFarmDashboard from "@/components/farm/MotherFarmDashboard";
 
 const today = () => format(new Date(), "yyyy-MM-dd");
 const monthStart = () => { const d = new Date(); d.setDate(1); return format(d, "yyyy-MM-dd"); };
@@ -118,8 +119,9 @@ const Farm = () => {
           <KPI icon={TrendingUp} label="بيضة/أنثى (شهر)" value={stats.eggsPerFemale} sub={`منقول الشهر: ${stats.monthTransfers}`} color="from-emerald-500 to-emerald-700" />
         </div>
 
-        <Tabs defaultValue="families" dir="rtl">
-          <TabsList className="grid grid-cols-2 md:grid-cols-6 w-full">
+        <Tabs defaultValue="dashboard" dir="rtl">
+          <TabsList className="grid grid-cols-2 md:grid-cols-7 w-full">
+            <TabsTrigger value="dashboard"><LayoutDashboard className="w-4 h-4 ml-1" />لوحة التحكم</TabsTrigger>
             <TabsTrigger value="families"><Users className="w-4 h-4 ml-1" />الأسر</TabsTrigger>
             <TabsTrigger value="eggs"><Egg className="w-4 h-4 ml-1" />الإنتاج اليومي</TabsTrigger>
             <TabsTrigger value="transfers"><Truck className="w-4 h-4 ml-1" />نقل للمعمل</TabsTrigger>
@@ -128,6 +130,7 @@ const Farm = () => {
             <TabsTrigger value="charts"><BarChart3 className="w-4 h-4 ml-1" />تحليلات</TabsTrigger>
           </TabsList>
 
+          <TabsContent value="dashboard"><MotherFarmDashboard families={families} eggs={eggs} transfers={transfers} /></TabsContent>
           <TabsContent value="families"><FamiliesTab families={families} qc={qc} /></TabsContent>
           <TabsContent value="eggs"><EggsTab eggs={eggs} families={families} qc={qc} /></TabsContent>
           <TabsContent value="transfers"><TransfersTab transfers={transfers} families={families} qc={qc} /></TabsContent>
