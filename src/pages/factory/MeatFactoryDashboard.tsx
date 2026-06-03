@@ -99,6 +99,12 @@ export default function MeatFactoryDashboard() {
 
       <FactoryFilters value={f} onChange={setF} />
 
+      <Card className="border-red-300 bg-red-50/40">
+        <CardHeader className="pb-2"><CardTitle className="text-base text-red-700 flex items-center gap-2"><Warehouse className="h-5 w-5" />مخازن مصنع اللحوم (شامل)</CardTitle>
+          <CardDescription>خامات • مشتريات • تصنيع • جاهز • مبيعات • مرتجع • خزنة • جرد • تقارير</CardDescription></CardHeader>
+        <CardContent><Link to="/meat-factory/factory-warehouses" className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm"><Beef className="h-4 w-4" />فتح شاشة المخازن الشاملة</Link></CardContent>
+      </Card>
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard title="إنتاج اليوم" value={`${stats.todayProd.toFixed(1)} كجم`} icon={Factory} iconColor="bg-primary" />
         <StatCard title="إجمالي الإنتاج" value={`${stats.monthProd.toFixed(1)} كجم`} icon={Package} iconColor="bg-secondary" />
