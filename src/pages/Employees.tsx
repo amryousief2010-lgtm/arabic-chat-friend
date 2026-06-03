@@ -82,6 +82,7 @@ const roleLabels: Record<AppRole, string> = {
   shipping_company: 'شركة الشحن',
   private_delivery_rep: 'مندوب شحن خاص',
   agouza_warehouse_keeper: 'مسؤول مخزن العجوزة',
+  brooding_dashboard_viewer: 'مشاهد لوحة التحضين (عرض فقط)',
 };
 
 const roleBadgeVariants: Record<AppRole, 'default' | 'secondary' | 'outline' | 'destructive'> = {
