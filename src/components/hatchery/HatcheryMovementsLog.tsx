@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Printer, FileSpreadsheet, Search } from "lucide-react";
 import { exportCSV } from "@/lib/csvExport";
+import { useTestMode } from "@/hooks/useTestMode";
 
 type Movement = {
   id: string;
@@ -25,25 +26,28 @@ type Movement = {
 };
 
 export default function HatcheryMovementsLog() {
+  const { showTest } = useTestMode();
+  const tf = (q: any) => (showTest ? q : q.eq("is_test", false));
+
   const { data: shipments = [] } = useQuery({
-    queryKey: ["hat_log_shipments"],
-    queryFn: async () => (await supabase.from("farm_to_hatchery_shipments").select("*").order("production_date", { ascending: false }).limit(500)).data || [],
+    queryKey: ["hat_log_shipments", showTest],
+    queryFn: async () => (await tf(supabase.from("farm_to_hatchery_shipments").select("*").order("production_date", { ascending: false }).limit(500))).data || [],
   });
   const { data: batches = [] } = useQuery({
-    queryKey: ["hat_log_batches"],
-    queryFn: async () => (await supabase.from("hatch_batches").select("*").order("receive_date", { ascending: false }).limit(500)).data || [],
+    queryKey: ["hat_log_batches", showTest],
+    queryFn: async () => (await tf(supabase.from("hatch_batches").select("*").order("receive_date", { ascending: false }).limit(500))).data || [],
   });
   const { data: chicks = [] } = useQuery({
-    queryKey: ["hat_log_chicks"],
-    queryFn: async () => (await supabase.from("chick_movements").select("*").order("movement_date", { ascending: false }).limit(500)).data || [],
+    queryKey: ["hat_log_chicks", showTest],
+    queryFn: async () => (await tf(supabase.from("chick_movements").select("*").order("movement_date", { ascending: false }).limit(500))).data || [],
   });
   const { data: treasury = [] } = useQuery({
-    queryKey: ["hat_log_treasury"],
-    queryFn: async () => (await supabase.from("hatchery_treasury_txns").select("*").order("txn_date", { ascending: false }).limit(500)).data || [],
+    queryKey: ["hat_log_treasury", showTest],
+    queryFn: async () => (await tf(supabase.from("hatchery_treasury_txns").select("*").order("txn_date", { ascending: false }).limit(500))).data || [],
   });
   const { data: customers = [] } = useQuery({
-    queryKey: ["hat_log_cust"],
-    queryFn: async () => (await supabase.from("hatch_customers").select("id,name")).data || [],
+    queryKey: ["hat_log_cust", showTest],
+    queryFn: async () => (await tf(supabase.from("hatch_customers").select("id,name"))).data || [],
   });
 
   const custName = (id: string | null) => customers.find((c: any) => c.id === id)?.name || "—";
