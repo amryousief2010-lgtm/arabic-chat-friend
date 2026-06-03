@@ -310,7 +310,7 @@ const Brooding = () => {
                   <Button variant="outline" size="sm" onClick={() => exportXlsx(batches, "brooding_batches")}><FileSpreadsheet className="w-4 h-4 ml-1" />Excel</Button>
                   <Button variant="outline" size="sm" onClick={() => printTable("تقرير الدفعات", ["رقم", "تاريخ الاستلام", "العمر", "الأصلي", "الحالي", "نافق", "مباع", "محوّل", "تكلفة", "تكلفة الطائر", "الحالة"],
                     batches.map(b => [b.batch_number, b.received_date, ageInMonths(b.received_date), b.original_count, b.current_count, b.mortality_count, b.sold_count, b.transferred_count, fmtMoney(Number(b.total_cost)), fmtMoney(Number(b.cost_per_bird)), b.status]))}><Printer className="w-4 h-4 ml-1" />طباعة</Button>
-                  {canManage && <NewBatchDialog onCreated={loadAll} nextBatchNumber={nextBatchNumber} />}
+                  {canManage && <NewBatchDialog onCreated={loadAll} nextBatchNumber={nextBatchNumber} settings={settings} />}
                 </div>
               </CardHeader>
               <CardContent>
