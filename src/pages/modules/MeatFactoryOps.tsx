@@ -546,7 +546,7 @@ const PackPurchaseTab = ({ packs, list, onReload, onPost, onPrint, onExcel }: an
     if (!valid.length) return toast.error("أضف صف");
     const total = valid.reduce((s, l) => s + Number(l.qty) * Number(l.unit_price), 0);
     const { data: { user } } = await supabase.auth.getUser();
-    const { data: inv, error } = await supabase.from("mf_pack_purchases").insert({ supplier, payment_method: pmethod, total_amount: total, notes, created_by: user?.id }).select().single();
+    const { data: inv, error } = await supabase.from("mf_pack_purchases").insert({ supplier, payment_method: pmethod, total_amount: total, notes, is_test: isTest, created_by: user?.id }).select().single();
     if (error || !inv) return toast.error(error?.message || "خطأ");
     const itemRows = valid.map(l => ({ purchase_id: inv.id, pack_id: l.pack_id, qty: Number(l.qty), unit_price: Number(l.unit_price), total: Number(l.qty) * Number(l.unit_price) }));
     const { error: e2 } = await supabase.from("mf_pack_purchase_items").insert(itemRows);
