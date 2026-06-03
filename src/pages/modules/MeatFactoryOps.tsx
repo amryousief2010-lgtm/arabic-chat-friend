@@ -715,7 +715,7 @@ const ManufacturingTab = ({ raws, packs, fins, list, onReload, onPost, onPrint, 
 
                 <div><Label>ملاحظات</Label><Textarea value={notes} onChange={e => setNotes(e.target.value)} /></div>
               </div>
-              <DialogFooter><Button onClick={create}>حفظ كمسودة</Button></DialogFooter>
+              <DialogFooter className="gap-2"><TestToggle value={isTest} onChange={setIsTest} /><Button onClick={create}>حفظ كمسودة</Button></DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
