@@ -89,6 +89,463 @@ export type Database = {
         }
         Relationships: []
       }
+      brooding_batch_movements: {
+        Row: {
+          batch_id: string
+          cost_delta: number
+          count_delta: number
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          movement_date: string
+          movement_type: Database["public"]["Enums"]["brooding_movement_type"]
+          reference_id: string | null
+        }
+        Insert: {
+          batch_id: string
+          cost_delta?: number
+          count_delta?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          movement_date?: string
+          movement_type: Database["public"]["Enums"]["brooding_movement_type"]
+          reference_id?: string | null
+        }
+        Update: {
+          batch_id?: string
+          cost_delta?: number
+          count_delta?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          movement_date?: string
+          movement_type?: Database["public"]["Enums"]["brooding_movement_type"]
+          reference_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brooding_batch_movements_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "brooding_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brooding_batches: {
+        Row: {
+          age_at_receipt_days: number
+          batch_number: string
+          cost_per_bird: number
+          created_at: string
+          created_by: string | null
+          current_count: number
+          id: string
+          mortality_count: number
+          notes: string | null
+          original_count: number
+          received_date: string
+          sold_count: number
+          source: string
+          source_hatchery_batch_id: string | null
+          status: Database["public"]["Enums"]["brooding_batch_status"]
+          total_cost: number
+          transferred_count: number
+          updated_at: string
+        }
+        Insert: {
+          age_at_receipt_days?: number
+          batch_number: string
+          cost_per_bird?: number
+          created_at?: string
+          created_by?: string | null
+          current_count: number
+          id?: string
+          mortality_count?: number
+          notes?: string | null
+          original_count: number
+          received_date: string
+          sold_count?: number
+          source?: string
+          source_hatchery_batch_id?: string | null
+          status?: Database["public"]["Enums"]["brooding_batch_status"]
+          total_cost?: number
+          transferred_count?: number
+          updated_at?: string
+        }
+        Update: {
+          age_at_receipt_days?: number
+          batch_number?: string
+          cost_per_bird?: number
+          created_at?: string
+          created_by?: string | null
+          current_count?: number
+          id?: string
+          mortality_count?: number
+          notes?: string | null
+          original_count?: number
+          received_date?: string
+          sold_count?: number
+          source?: string
+          source_hatchery_batch_id?: string | null
+          status?: Database["public"]["Enums"]["brooding_batch_status"]
+          total_cost?: number
+          transferred_count?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      brooding_chick_sales: {
+        Row: {
+          batch_id: string
+          cost_at_sale: number
+          count: number
+          created_at: string
+          created_by: string | null
+          customer_name: string
+          id: string
+          notes: string | null
+          payment_method: string | null
+          profit: number
+          sale_date: string
+          total_amount: number
+          treasury: string | null
+          unit_price: number
+        }
+        Insert: {
+          batch_id: string
+          cost_at_sale?: number
+          count: number
+          created_at?: string
+          created_by?: string | null
+          customer_name: string
+          id?: string
+          notes?: string | null
+          payment_method?: string | null
+          profit?: number
+          sale_date?: string
+          total_amount: number
+          treasury?: string | null
+          unit_price: number
+        }
+        Update: {
+          batch_id?: string
+          cost_at_sale?: number
+          count?: number
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string
+          id?: string
+          notes?: string | null
+          payment_method?: string | null
+          profit?: number
+          sale_date?: string
+          total_amount?: number
+          treasury?: string | null
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brooding_chick_sales_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "brooding_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brooding_cost_snapshots: {
+        Row: {
+          batch_id: string
+          cost_per_bird: number
+          created_at: string
+          current_count: number
+          id: string
+          notes: string | null
+          snapshot_date: string
+          total_cost: number
+        }
+        Insert: {
+          batch_id: string
+          cost_per_bird: number
+          created_at?: string
+          current_count: number
+          id?: string
+          notes?: string | null
+          snapshot_date?: string
+          total_cost: number
+        }
+        Update: {
+          batch_id?: string
+          cost_per_bird?: number
+          created_at?: string
+          current_count?: number
+          id?: string
+          notes?: string | null
+          snapshot_date?: string
+          total_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brooding_cost_snapshots_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "brooding_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brooding_expenses: {
+        Row: {
+          batch_id: string
+          created_at: string
+          created_by: string | null
+          expense_date: string
+          expense_type: Database["public"]["Enums"]["brooding_expense_type"]
+          id: string
+          item_name: string | null
+          notes: string | null
+          payment_source: string | null
+          quantity: number | null
+          total_amount: number
+          treasury: string | null
+          unit_price: number | null
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          created_by?: string | null
+          expense_date?: string
+          expense_type: Database["public"]["Enums"]["brooding_expense_type"]
+          id?: string
+          item_name?: string | null
+          notes?: string | null
+          payment_source?: string | null
+          quantity?: number | null
+          total_amount: number
+          treasury?: string | null
+          unit_price?: number | null
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          created_by?: string | null
+          expense_date?: string
+          expense_type?: Database["public"]["Enums"]["brooding_expense_type"]
+          id?: string
+          item_name?: string | null
+          notes?: string | null
+          payment_source?: string | null
+          quantity?: number | null
+          total_amount?: number
+          treasury?: string | null
+          unit_price?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brooding_expenses_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "brooding_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brooding_feed_issuance: {
+        Row: {
+          batch_id: string
+          created_at: string
+          created_by: string | null
+          feed_name: string
+          feed_warehouse_product_id: string | null
+          id: string
+          issue_date: string
+          notes: string | null
+          quantity_kg: number
+          total_cost: number
+          unit_cost: number
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          created_by?: string | null
+          feed_name: string
+          feed_warehouse_product_id?: string | null
+          id?: string
+          issue_date?: string
+          notes?: string | null
+          quantity_kg: number
+          total_cost?: number
+          unit_cost?: number
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          created_by?: string | null
+          feed_name?: string
+          feed_warehouse_product_id?: string | null
+          id?: string
+          issue_date?: string
+          notes?: string | null
+          quantity_kg?: number
+          total_cost?: number
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brooding_feed_issuance_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "brooding_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brooding_medicine_issuance: {
+        Row: {
+          batch_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          issue_date: string
+          medicine_name: string
+          notes: string | null
+          quantity: number
+          total_cost: number
+          unit: string | null
+          unit_cost: number
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          issue_date?: string
+          medicine_name: string
+          notes?: string | null
+          quantity: number
+          total_cost?: number
+          unit?: string | null
+          unit_cost?: number
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          issue_date?: string
+          medicine_name?: string
+          notes?: string | null
+          quantity?: number
+          total_cost?: number
+          unit?: string | null
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brooding_medicine_issuance_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "brooding_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brooding_mortality: {
+        Row: {
+          batch_id: string
+          count: number
+          created_at: string
+          created_by: string | null
+          id: string
+          mortality_date: string
+          notes: string | null
+          reason: string | null
+        }
+        Insert: {
+          batch_id: string
+          count: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          mortality_date?: string
+          notes?: string | null
+          reason?: string | null
+        }
+        Update: {
+          batch_id?: string
+          count?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          mortality_date?: string
+          notes?: string | null
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brooding_mortality_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "brooding_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brooding_to_slaughter_transfers: {
+        Row: {
+          avg_weight_kg: number | null
+          batch_id: string
+          count: number
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          slaughter_reference: string | null
+          total_weight_kg: number | null
+          transfer_date: string
+          transferred_cost: number
+        }
+        Insert: {
+          avg_weight_kg?: number | null
+          batch_id: string
+          count: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          slaughter_reference?: string | null
+          total_weight_kg?: number | null
+          transfer_date?: string
+          transferred_cost?: number
+        }
+        Update: {
+          avg_weight_kg?: number | null
+          batch_id?: string
+          count?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          slaughter_reference?: string | null
+          total_weight_kg?: number | null
+          transfer_date?: string
+          transferred_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brooding_to_slaughter_transfers_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "brooding_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       catering_customers: {
         Row: {
           address: string | null
@@ -9179,6 +9636,7 @@ export type Database = {
           read_ct: number
         }[]
       }
+      recalc_brooding_batch: { Args: { _batch_id: string }; Returns: undefined }
       receive_slaughter_batch: {
         Args: { p_batch_id: string; p_warehouse_id: string }
         Returns: Json
@@ -9414,6 +9872,24 @@ export type Database = {
         | "cost_accountant"
         | "private_delivery_rep"
         | "agouza_warehouse_keeper"
+      brooding_batch_status: "active" | "completed" | "transferred" | "closed"
+      brooding_expense_type:
+        | "feed"
+        | "medicine"
+        | "vitamins"
+        | "labor"
+        | "bedding"
+        | "utilities"
+        | "other"
+      brooding_movement_type:
+        | "opening"
+        | "mortality"
+        | "expense"
+        | "feed_issue"
+        | "medicine_issue"
+        | "chick_sale"
+        | "slaughter_transfer"
+        | "adjustment"
       chick_order_status: "pending" | "delivered" | "returned" | "cancelled"
       feed_order_status:
         | "draft"
@@ -9583,6 +10059,26 @@ export const Constants = {
         "cost_accountant",
         "private_delivery_rep",
         "agouza_warehouse_keeper",
+      ],
+      brooding_batch_status: ["active", "completed", "transferred", "closed"],
+      brooding_expense_type: [
+        "feed",
+        "medicine",
+        "vitamins",
+        "labor",
+        "bedding",
+        "utilities",
+        "other",
+      ],
+      brooding_movement_type: [
+        "opening",
+        "mortality",
+        "expense",
+        "feed_issue",
+        "medicine_issue",
+        "chick_sale",
+        "slaughter_transfer",
+        "adjustment",
       ],
       chick_order_status: ["pending", "delivered", "returned", "cancelled"],
       feed_order_status: [

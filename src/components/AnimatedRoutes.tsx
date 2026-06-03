@@ -510,7 +510,7 @@ const AnimatedRoutes = () => {
             </ProtectedRoute>
           } />
           <Route path="/modules/brooding" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'brooding_manager', 'production_manager', 'quality_manager']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager']}>
               <PageTransition><Brooding /></PageTransition>
             </ProtectedRoute>
           } />
