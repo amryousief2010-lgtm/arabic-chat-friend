@@ -816,6 +816,7 @@ const NewBatchDialog = ({ onCreated, nextBatchNumber, settings, prominent = fals
     treasury: "",
     payment_method: "cash" as "cash" | "credit",
     status: "active" as "active" | "completed" | "transferred" | "closed",
+    rearing_location: "chick_nursery" as "chick_nursery" | "fattening_farm",
     notes: "",
   });
   const [f, setF] = useState(initial);
