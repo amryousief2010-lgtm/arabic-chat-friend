@@ -613,8 +613,8 @@ export default function OperationsGuide() {
             </nav>
 
             {isAdmin && (
-              <Button size="sm" variant="outline" className="w-full mt-3" onClick={printAll}>
-                <FileDown className="w-4 h-4 ml-1" />طباعة الدليل الكامل
+              <Button size="sm" variant="outline" className="w-full mt-3" onClick={exportFullPdf}>
+                <FileDown className="w-4 h-4 ml-1" />تصدير الدليل الكامل PDF
               </Button>
             )}
           </Card>
