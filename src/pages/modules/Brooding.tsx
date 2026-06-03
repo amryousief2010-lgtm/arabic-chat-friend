@@ -434,7 +434,7 @@ const Brooding = () => {
                       </TableRow>
                     ))}
                     {batches.length === 0 && !loading && (
-                      <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground">لا توجد دفعات</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={13} className="text-center text-muted-foreground">لا توجد دفعات</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
