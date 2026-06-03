@@ -12,7 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bird, Plus, Skull, Wallet, Wheat, Pill, ShoppingCart, ArrowRightLeft, Printer, FileSpreadsheet, AlertTriangle, TrendingUp, Package } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { Bird, Plus, Skull, Wallet, Wheat, Pill, ShoppingCart, ArrowRightLeft, Printer, FileSpreadsheet, AlertTriangle, TrendingUp, Package, MoreVertical } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { openPrintWindow } from "@/lib/printPdf";
@@ -140,10 +141,20 @@ const Brooding = () => {
 
   const batchLabel = (id: string) => batches.find(b => b.id === id)?.batch_number || id.slice(0, 6);
 
+  // Auto-suggest next batch number BRD-XXX
+  const nextBatchNumber = useMemo(() => {
+    const nums = batches
+      .map(b => /^BRD-(\d+)$/i.exec(b.batch_number)?.[1])
+      .filter(Boolean)
+      .map(s => parseInt(s as string, 10));
+    const next = (nums.length ? Math.max(...nums) : 0) + 1;
+    return `BRD-${String(next).padStart(3, "0")}`;
+  }, [batches]);
+
   return (
     <DashboardLayout>
       <div className="p-6 space-y-6" dir="rtl">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3">
             <div className="p-3 rounded-2xl bg-gradient-to-br from-primary to-orange-500 text-white">
               <Bird className="w-7 h-7" />
@@ -153,6 +164,9 @@ const Brooding = () => {
               <p className="text-muted-foreground">إدارة دفعات الكتاكيت من الاستلام حتى البيع أو المجزر</p>
             </div>
           </div>
+          {canManage && (
+            <NewBatchDialog onCreated={loadAll} nextBatchNumber={nextBatchNumber} prominent />
+          )}
         </div>
 
         {!canManage && (
@@ -200,7 +214,7 @@ const Brooding = () => {
                   <Button variant="outline" size="sm" onClick={() => exportXlsx(batches, "brooding_batches")}><FileSpreadsheet className="w-4 h-4 ml-1" />Excel</Button>
                   <Button variant="outline" size="sm" onClick={() => printTable("تقرير الدفعات", ["رقم", "تاريخ الاستلام", "العمر", "الأصلي", "الحالي", "نافق", "مباع", "محوّل", "تكلفة", "تكلفة الطائر", "الحالة"],
                     batches.map(b => [b.batch_number, b.received_date, ageInMonths(b.received_date), b.original_count, b.current_count, b.mortality_count, b.sold_count, b.transferred_count, fmtMoney(Number(b.total_cost)), fmtMoney(Number(b.cost_per_bird)), b.status]))}><Printer className="w-4 h-4 ml-1" />طباعة</Button>
-                  {canManage && <NewBatchDialog onCreated={loadAll} />}
+                  {canManage && <NewBatchDialog onCreated={loadAll} nextBatchNumber={nextBatchNumber} />}
                 </div>
               </CardHeader>
               <CardContent>
@@ -218,6 +232,7 @@ const Brooding = () => {
                       <TableHead>التكلفة</TableHead>
                       <TableHead>ت. الطائر</TableHead>
                       <TableHead>الحالة</TableHead>
+                      {canManage && <TableHead>حركة</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -234,10 +249,15 @@ const Brooding = () => {
                         <TableCell>{fmtMoney(Number(b.total_cost))}</TableCell>
                         <TableCell>{fmtMoney(Number(b.cost_per_bird))}</TableCell>
                         <TableCell><Badge variant={b.status === "active" ? "default" : "secondary"}>{b.status}</Badge></TableCell>
+                        {canManage && (
+                          <TableCell>
+                            <BatchActionsMenu batch={b} batches={batches} onReload={loadAll} />
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                     {batches.length === 0 && !loading && (
-                      <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground">لا توجد دفعات</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground">لا توجد دفعات</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
@@ -445,31 +465,211 @@ const MovementCard = ({ title, data, canManage, onReload, exportName, columns, f
 };
 
 // ===== Forms =====
-const NewBatchDialog = ({ onCreated }: { onCreated: () => void }) => {
+const SOURCES = [
+  { value: "hatchery", label: "معمل التفريخ" },
+  { value: "opening", label: "إدخال يدوي / رصيد افتتاحي" },
+  { value: "external", label: "شراء خارجي" },
+];
+const AGE_PRESETS = [
+  { label: "يوم", days: 1 },
+  { label: "أسبوع", days: 7 },
+  { label: "شهر", days: 30 },
+  { label: "شهر ونص", days: 45 },
+  { label: "شهرين", days: 60 },
+];
+
+const NewBatchDialog = ({ onCreated, nextBatchNumber, prominent = false }: { onCreated: () => void; nextBatchNumber: string; prominent?: boolean }) => {
   const [open, setOpen] = useState(false);
-  const [f, setF] = useState({ batch_number: "", received_date: new Date().toISOString().slice(0, 10), age_at_receipt_days: 0, original_count: 0, notes: "" });
+  const [saving, setSaving] = useState(false);
+  const initial = () => ({
+    batch_number: nextBatchNumber,
+    received_date: new Date().toISOString().slice(0, 10),
+    source: "hatchery" as "hatchery" | "opening" | "external",
+    age_at_receipt_days: 1,
+    original_count: 0,
+    opening_cost: 0,
+    treasury: "",
+    payment_method: "cash" as "cash" | "credit",
+    status: "active" as "active" | "completed" | "transferred" | "closed",
+    notes: "",
+  });
+  const [f, setF] = useState(initial);
+
+  useEffect(() => { if (open) setF(initial()); /* eslint-disable-next-line */ }, [open, nextBatchNumber]);
+
   const submit = async () => {
-    if (!f.batch_number || f.original_count <= 0) { toast.error("أكمل الحقول المطلوبة"); return; }
-    const { error } = await supabase.from("brooding_batches").insert({ ...f, current_count: f.original_count, source: "معمل التفريخ" });
-    if (error) { toast.error(error.message); return; }
-    await supabase.from("brooding_batch_movements").insert({ batch_id: (await supabase.from("brooding_batches").select("id").eq("batch_number", f.batch_number).single()).data?.id, movement_type: "opening", count_delta: f.original_count, cost_delta: 0, description: "رصيد افتتاحي" });
-    toast.success("تم إنشاء الدفعة");
-    setOpen(false); onCreated();
+    if (!f.batch_number.trim()) { toast.error("أدخل رقم الدفعة"); return; }
+    if (f.original_count <= 0) { toast.error("عدد الكتاكيت يجب أن يكون أكبر من صفر"); return; }
+    if (f.opening_cost < 0) { toast.error("التكلفة لا يمكن أن تكون سالبة"); return; }
+    setSaving(true);
+    const sourceLabel = SOURCES.find(s => s.value === f.source)?.label || "معمل التفريخ";
+    const payload = {
+      batch_number: f.batch_number.trim(),
+      received_date: f.received_date,
+      source: sourceLabel,
+      age_at_receipt_days: f.age_at_receipt_days,
+      original_count: f.original_count,
+      current_count: f.original_count,
+      total_cost: f.opening_cost || 0,
+      cost_per_bird: f.original_count > 0 ? (f.opening_cost || 0) / f.original_count : 0,
+      status: f.status,
+      notes: f.notes || null,
+    };
+    const { data: inserted, error } = await supabase.from("brooding_batches").insert(payload).select("id").single();
+    setSaving(false);
+    if (error) {
+      if ((error as any).code === "23505") toast.error("رقم الدفعة موجود مسبقًا");
+      else toast.error(error.message);
+      return;
+    }
+    const batchId = inserted?.id;
+    // Opening movement
+    if (batchId) {
+      await supabase.from("brooding_batch_movements").insert({
+        batch_id: batchId,
+        movement_type: "opening",
+        count_delta: f.original_count,
+        cost_delta: f.opening_cost || 0,
+        description: `إضافة دفعة كتاكيت جديدة — ${sourceLabel}`,
+      });
+      // External cash purchase → record treasury deduction as opening expense
+      if (f.source === "external" && f.payment_method === "cash" && (f.opening_cost || 0) > 0) {
+        await supabase.from("brooding_expenses").insert({
+          batch_id: batchId,
+          expense_date: f.received_date,
+          expense_type: "other",
+          item_name: "شراء دفعة كتاكيت (افتتاحي)",
+          quantity: f.original_count,
+          unit_price: f.opening_cost / f.original_count,
+          total_amount: f.opening_cost,
+          treasury: f.treasury || null,
+          notes: "خصم تكلفة الشراء من الخزنة",
+        } as any);
+      }
+    }
+    toast.success("تم إنشاء الدفعة بنجاح");
+    setOpen(false);
+    onCreated();
   };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild><Button size="sm" className="bg-primary"><Plus className="w-4 h-4 ml-1" />دفعة جديدة</Button></DialogTrigger>
-      <DialogContent dir="rtl"><DialogHeader><DialogTitle>دفعة كتاكيت جديدة</DialogTitle></DialogHeader>
+      <DialogTrigger asChild>
+        <Button size={prominent ? "lg" : "sm"} className="bg-gradient-to-r from-primary to-orange-500 text-white shadow-md hover:opacity-95">
+          <Plus className="w-4 h-4 ml-1" />إضافة دفعة جديدة
+        </Button>
+      </DialogTrigger>
+      <DialogContent dir="rtl" className="max-w-xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>دفعة كتاكيت جديدة</DialogTitle></DialogHeader>
         <div className="space-y-3">
-          <div><Label>رقم الدفعة</Label><Input value={f.batch_number} onChange={e => setF({ ...f, batch_number: e.target.value })} placeholder="BRD-003" /></div>
-          <div><Label>تاريخ الاستلام</Label><Input type="date" value={f.received_date} onChange={e => setF({ ...f, received_date: e.target.value })} /></div>
-          <div><Label>العمر عند الاستلام (يوم)</Label><Input type="number" value={f.age_at_receipt_days} onChange={e => setF({ ...f, age_at_receipt_days: +e.target.value })} /></div>
-          <div><Label>العدد</Label><Input type="number" value={f.original_count} onChange={e => setF({ ...f, original_count: +e.target.value })} /></div>
+          <div className="grid grid-cols-2 gap-2">
+            <div><Label>رقم الدفعة</Label><Input value={f.batch_number} onChange={e => setF({ ...f, batch_number: e.target.value })} placeholder="BRD-003" /></div>
+            <div><Label>تاريخ الاستلام</Label><Input type="date" value={f.received_date} onChange={e => setF({ ...f, received_date: e.target.value })} /></div>
+          </div>
+
+          <div><Label>مصدر الدفعة</Label>
+            <Select value={f.source} onValueChange={(v: any) => setF({ ...f, source: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>{SOURCES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label>العمر عند الاستلام</Label>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {AGE_PRESETS.map(a => (
+                <Button key={a.days} type="button" size="sm" variant={f.age_at_receipt_days === a.days ? "default" : "outline"} onClick={() => setF({ ...f, age_at_receipt_days: a.days })}>{a.label}</Button>
+              ))}
+            </div>
+            <Input className="mt-2" type="number" min={0} value={f.age_at_receipt_days} onChange={e => setF({ ...f, age_at_receipt_days: +e.target.value })} placeholder="أو إدخال العمر بالأيام" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div><Label>عدد الكتاكيت</Label><Input type="number" min={1} value={f.original_count || ""} onChange={e => setF({ ...f, original_count: +e.target.value })} /></div>
+            <div><Label>الحالة</Label>
+              <Select value={f.status} onValueChange={(v: any) => setF({ ...f, status: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">تحت التحضين / التسمين</SelectItem>
+                  <SelectItem value="completed">مكتملة</SelectItem>
+                  <SelectItem value="transferred">محوّلة للمجزر</SelectItem>
+                  <SelectItem value="closed">مغلقة</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div><Label>التكلفة الافتتاحية (اختياري)</Label><Input type="number" min={0} value={f.opening_cost || ""} onChange={e => setF({ ...f, opening_cost: +e.target.value })} /></div>
+            <div><Label>تكلفة الطائر (محسوبة)</Label><Input readOnly value={f.original_count > 0 ? ((f.opening_cost || 0) / f.original_count).toFixed(2) : "0"} /></div>
+          </div>
+
+          {f.source === "external" && (
+            <div className="grid grid-cols-2 gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200">
+              <div><Label>طريقة الدفع</Label>
+                <Select value={f.payment_method} onValueChange={(v: any) => setF({ ...f, payment_method: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">نقدي (يخصم من الخزنة)</SelectItem>
+                    <SelectItem value="credit">آجل</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div><Label>الخزنة</Label><Input value={f.treasury} onChange={e => setF({ ...f, treasury: e.target.value })} placeholder="اسم الخزنة" /></div>
+            </div>
+          )}
+
           <div><Label>ملاحظات</Label><Textarea value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} /></div>
         </div>
-        <DialogFooter><Button onClick={submit}>حفظ</Button></DialogFooter>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
+          <Button onClick={submit} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ الدفعة"}</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+};
+
+const BATCH_ACTIONS = [
+  { key: "mortality", label: "تسجيل نافق", icon: Skull },
+  { key: "feed", label: "صرف علف", icon: Wheat },
+  { key: "medicine", label: "صرف دواء", icon: Pill },
+  { key: "expense", label: "إضافة مصروف", icon: Wallet },
+  { key: "sale", label: "بيع كتاكيت", icon: ShoppingCart },
+  { key: "transfer", label: "تحويل للمجزر", icon: ArrowRightLeft },
+] as const;
+
+const BatchActionsMenu = ({ batch, batches, onReload }: { batch: Batch; batches: Batch[]; onReload: () => void }) => {
+  const [action, setAction] = useState<string | null>(null);
+  const close = () => { setAction(null); onReload(); };
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button size="sm" variant="outline"><MoreVertical className="w-4 h-4 ml-1" />حركة</Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuLabel>{batch.batch_number}</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          {BATCH_ACTIONS.map(a => (
+            <DropdownMenuItem key={a.key} onClick={() => setAction(a.key)}>
+              <a.icon className="w-4 h-4 ml-2" />{a.label}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <Dialog open={!!action} onOpenChange={(v) => !v && setAction(null)}>
+        <DialogContent dir="rtl" className="max-w-lg">
+          <DialogHeader><DialogTitle>{BATCH_ACTIONS.find(a => a.key === action)?.label} — {batch.batch_number}</DialogTitle></DialogHeader>
+          {action === "mortality" && <MortalityForm batches={batches} defaultBatchId={batch.id} onDone={close} />}
+          {action === "feed" && <FeedForm batches={batches} defaultBatchId={batch.id} onDone={close} />}
+          {action === "medicine" && <MedicineForm batches={batches} defaultBatchId={batch.id} onDone={close} />}
+          {action === "expense" && <ExpenseForm batches={batches} defaultBatchId={batch.id} onDone={close} />}
+          {action === "sale" && <SaleForm batches={batches} defaultBatchId={batch.id} onDone={close} />}
+          {action === "transfer" && <TransferForm batches={batches} defaultBatchId={batch.id} onDone={close} />}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 
@@ -480,8 +680,8 @@ const BatchSelect = ({ value, onChange, batches }: any) => (
   </Select>
 );
 
-const MortalityForm = ({ batches, onDone }: any) => {
-  const [f, setF] = useState({ batch_id: "", mortality_date: new Date().toISOString().slice(0, 10), count: 1, reason: "", notes: "" });
+const MortalityForm = ({ batches, onDone, defaultBatchId }: any) => {
+  const [f, setF] = useState({ batch_id: defaultBatchId || "", mortality_date: new Date().toISOString().slice(0, 10), count: 1, reason: "", notes: "" });
   const submit = async () => {
     if (!f.batch_id) { toast.error("اختر الدفعة"); return; }
     const { error } = await supabase.from("brooding_mortality").insert(f);
@@ -498,8 +698,8 @@ const MortalityForm = ({ batches, onDone }: any) => {
   </div>);
 };
 
-const ExpenseForm = ({ batches, onDone }: any) => {
-  const [f, setF] = useState({ batch_id: "", expense_date: new Date().toISOString().slice(0, 10), expense_type: "feed", item_name: "", quantity: 0, unit_price: 0, total_amount: 0, treasury: "", notes: "" });
+const ExpenseForm = ({ batches, onDone, defaultBatchId }: any) => {
+  const [f, setF] = useState({ batch_id: defaultBatchId || "", expense_date: new Date().toISOString().slice(0, 10), expense_type: "feed", item_name: "", quantity: 0, unit_price: 0, total_amount: 0, treasury: "", notes: "" });
   useEffect(() => { if (f.quantity && f.unit_price) setF(p => ({ ...p, total_amount: p.quantity * p.unit_price })); }, [f.quantity, f.unit_price]);
   const submit = async () => {
     if (!f.batch_id || f.total_amount <= 0) { toast.error("أكمل البيانات"); return; }
@@ -530,8 +730,8 @@ const ExpenseForm = ({ batches, onDone }: any) => {
   </div>);
 };
 
-const FeedForm = ({ batches, onDone }: any) => {
-  const [f, setF] = useState({ batch_id: "", issue_date: new Date().toISOString().slice(0, 10), feed_name: "", quantity_kg: 0, unit_cost: 0, total_cost: 0, notes: "" });
+const FeedForm = ({ batches, onDone, defaultBatchId }: any) => {
+  const [f, setF] = useState({ batch_id: defaultBatchId || "", issue_date: new Date().toISOString().slice(0, 10), feed_name: "", quantity_kg: 0, unit_cost: 0, total_cost: 0, notes: "" });
   useEffect(() => { setF(p => ({ ...p, total_cost: p.quantity_kg * p.unit_cost })); }, [f.quantity_kg, f.unit_cost]);
   const submit = async () => {
     if (!f.batch_id || !f.feed_name || f.quantity_kg <= 0) { toast.error("أكمل البيانات"); return; }
@@ -553,8 +753,8 @@ const FeedForm = ({ batches, onDone }: any) => {
   </div>);
 };
 
-const MedicineForm = ({ batches, onDone }: any) => {
-  const [f, setF] = useState({ batch_id: "", issue_date: new Date().toISOString().slice(0, 10), medicine_name: "", quantity: 0, unit: "", unit_cost: 0, total_cost: 0, notes: "" });
+const MedicineForm = ({ batches, onDone, defaultBatchId }: any) => {
+  const [f, setF] = useState({ batch_id: defaultBatchId || "", issue_date: new Date().toISOString().slice(0, 10), medicine_name: "", quantity: 0, unit: "", unit_cost: 0, total_cost: 0, notes: "" });
   useEffect(() => { setF(p => ({ ...p, total_cost: p.quantity * p.unit_cost })); }, [f.quantity, f.unit_cost]);
   const submit = async () => {
     if (!f.batch_id || !f.medicine_name) { toast.error("أكمل البيانات"); return; }
@@ -579,8 +779,8 @@ const MedicineForm = ({ batches, onDone }: any) => {
   </div>);
 };
 
-const SaleForm = ({ batches, onDone }: any) => {
-  const [f, setF] = useState({ batch_id: "", sale_date: new Date().toISOString().slice(0, 10), customer_name: "", count: 1, unit_price: 0, total_amount: 0, payment_method: "cash", treasury: "", notes: "" });
+const SaleForm = ({ batches, onDone, defaultBatchId }: any) => {
+  const [f, setF] = useState({ batch_id: defaultBatchId || "", sale_date: new Date().toISOString().slice(0, 10), customer_name: "", count: 1, unit_price: 0, total_amount: 0, payment_method: "cash", treasury: "", notes: "" });
   useEffect(() => { setF(p => ({ ...p, total_amount: p.count * p.unit_price })); }, [f.count, f.unit_price]);
   const submit = async () => {
     if (!f.batch_id || !f.customer_name || f.count <= 0) { toast.error("أكمل البيانات"); return; }
@@ -611,8 +811,8 @@ const SaleForm = ({ batches, onDone }: any) => {
   </div>);
 };
 
-const TransferForm = ({ batches, onDone }: any) => {
-  const [f, setF] = useState({ batch_id: "", transfer_date: new Date().toISOString().slice(0, 10), count: 1, avg_weight_kg: 0, total_weight_kg: 0, notes: "" });
+const TransferForm = ({ batches, onDone, defaultBatchId }: any) => {
+  const [f, setF] = useState({ batch_id: defaultBatchId || "", transfer_date: new Date().toISOString().slice(0, 10), count: 1, avg_weight_kg: 0, total_weight_kg: 0, notes: "" });
   useEffect(() => { if (f.count && f.avg_weight_kg) setF(p => ({ ...p, total_weight_kg: +(p.count * p.avg_weight_kg).toFixed(2) })); }, [f.count, f.avg_weight_kg]);
   const submit = async () => {
     if (!f.batch_id || f.count <= 0) { toast.error("أكمل البيانات"); return; }
