@@ -127,9 +127,9 @@ export const moduleSections: ModuleSection[] = [
     id: "brooding",
     icon: Bird,
     label: "4. التحضين والتسمين",
-    roles: ['general_manager', 'executive_manager', 'brooding_manager', 'production_manager', 'quality_manager'],
+    roles: ['general_manager', 'executive_manager'],
     items: [
-      { icon: Bird, label: "إدارة التحضين", path: "/modules/brooding", roles: ['general_manager', 'executive_manager', 'brooding_manager', 'production_manager', 'quality_manager'] },
+      { icon: Bird, label: "لوحة التحضين والتسمين", path: "/modules/brooding", roles: ['general_manager', 'executive_manager'] },
     ],
   },
   {
