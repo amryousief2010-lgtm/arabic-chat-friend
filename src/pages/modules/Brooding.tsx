@@ -848,6 +848,7 @@ const NewBatchDialog = ({ onCreated, nextBatchNumber, settings, prominent = fals
       total_cost: f.opening_cost || 0,
       cost_per_bird: f.original_count > 0 ? (f.opening_cost || 0) / f.original_count : 0,
       status: f.status,
+      rearing_location: f.rearing_location,
       notes: f.notes || null,
     };
     const { data: inserted, error } = await supabase.from("brooding_batches").insert(payload).select("id").single();
