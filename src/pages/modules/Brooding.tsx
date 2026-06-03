@@ -12,7 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bird, Plus, Skull, Wallet, Wheat, Pill, ShoppingCart, ArrowRightLeft, Printer, FileSpreadsheet, AlertTriangle, TrendingUp, Package } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { Bird, Plus, Skull, Wallet, Wheat, Pill, ShoppingCart, ArrowRightLeft, Printer, FileSpreadsheet, AlertTriangle, TrendingUp, Package, MoreVertical } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { openPrintWindow } from "@/lib/printPdf";
