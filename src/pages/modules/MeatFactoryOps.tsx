@@ -943,6 +943,7 @@ const TransfersTab = ({ fins, warehouses, list, onReload, onPost, onPrint, onExc
   const [open, setOpen] = useState(false);
   const [destId, setDestId] = useState("");
   const [notes, setNotes] = useState("");
+  const [isTest, setIsTest] = useState(false);
   const [lines, setLines] = useState<{ finished_id: string; qty: string }[]>([{ finished_id: "", qty: "" }]);
 
   async function create() {
