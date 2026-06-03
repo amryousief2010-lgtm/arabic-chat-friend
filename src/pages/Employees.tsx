@@ -106,6 +106,7 @@ const roleBadgeVariants: Record<AppRole, 'default' | 'secondary' | 'outline' | '
   shipping_company: 'outline',
   private_delivery_rep: 'outline',
   agouza_warehouse_keeper: 'outline',
+  brooding_dashboard_viewer: 'outline',
 };
 
 const roleIcons: Record<AppRole, React.ElementType> = {
