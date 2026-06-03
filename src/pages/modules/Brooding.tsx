@@ -586,14 +586,15 @@ const AGE_PRESETS = [
   { label: "شهرين", days: 60 },
 ];
 
-const NewBatchDialog = ({ onCreated, nextBatchNumber, prominent = false }: { onCreated: () => void; nextBatchNumber: string; prominent?: boolean }) => {
+const NewBatchDialog = ({ onCreated, nextBatchNumber, settings, prominent = false }: { onCreated: () => void; nextBatchNumber: string; settings: BroodingSettings; prominent?: boolean }) => {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [autoPrice, setAutoPrice] = useState(true);
   const initial = () => ({
     batch_number: nextBatchNumber,
     received_date: new Date().toISOString().slice(0, 10),
     source: "hatchery" as "hatchery" | "opening" | "external",
-    age_at_receipt_days: 1,
+    age_at_receipt_days: 7,
     original_count: 0,
     opening_cost: 0,
     treasury: "",
@@ -603,7 +604,16 @@ const NewBatchDialog = ({ onCreated, nextBatchNumber, prominent = false }: { onC
   });
   const [f, setF] = useState(initial);
 
-  useEffect(() => { if (open) setF(initial()); /* eslint-disable-next-line */ }, [open, nextBatchNumber]);
+  useEffect(() => { if (open) { setF(initial()); setAutoPrice(true); } /* eslint-disable-next-line */ }, [open, nextBatchNumber]);
+
+  // Auto-fill cost from hatchery default price when source = hatchery
+  useEffect(() => {
+    if (f.source === "hatchery" && autoPrice) {
+      setF(p => ({ ...p, opening_cost: p.original_count * settings.default_chick_price }));
+    }
+    // eslint-disable-next-line
+  }, [f.source, f.original_count, autoPrice, settings.default_chick_price]);
+
 
   const submit = async () => {
     if (!f.batch_number.trim()) { toast.error("أدخل رقم الدفعة"); return; }
