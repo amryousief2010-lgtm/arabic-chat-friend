@@ -379,7 +379,10 @@ export default function FeedWarehouses() {
                               <CardContent className="p-3 space-y-1">
                                 <div className="flex items-center justify-between">
                                   <div className="font-bold">{r.name}</div>
-                                  <Badge variant="secondary" className="text-xs">{r.unit || "كجم"}</Badge>
+                                  <div className="flex items-center gap-1">
+                                    <Badge variant="secondary" className="text-xs">{r.unit || "كجم"}</Badge>
+                                    {canEditStock && <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditRaw(r)}><Pencil className="h-3.5 w-3.5" /></Button>}
+                                  </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-2 text-sm">
                                   <div><div className="text-xs text-muted-foreground">المتاح</div><div className="font-bold text-lg text-secondary">{fmt(stock)}</div></div>
