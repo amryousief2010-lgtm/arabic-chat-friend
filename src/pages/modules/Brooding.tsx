@@ -498,6 +498,18 @@ const Brooding = () => {
               addLabel="تحويل للمجزر"
             />
           </TabsContent>
+
+          {/* FEED STOCK */}
+          <TabsContent value="feedstock">
+            <FeedStockTab inventory={feedInventory} movements={feedStockMovements} batches={batches} canManage={canManage} settings={settings} onReload={loadAll} />
+          </TabsContent>
+
+          {/* SETTINGS */}
+          {canManage && (
+            <TabsContent value="settings">
+              <SettingsTab settings={settings} onSaved={loadAll} />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </DashboardLayout>
