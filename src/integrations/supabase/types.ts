@@ -8858,6 +8858,23 @@ export type Database = {
       }
       feed_batch_close: { Args: { p_batch_id: string }; Returns: Json }
       feed_batch_submit_review: { Args: { p_batch_id: string }; Returns: Json }
+      feed_factory_dashboard_stats: {
+        Args: never
+        Returns: {
+          net_sales_month: number
+          net_sales_today: number
+          net_sales_year: number
+          purchases_month: number
+          purchases_today: number
+          purchases_year: number
+          returns_month: number
+          returns_today: number
+          returns_year: number
+          sales_month: number
+          sales_today: number
+          sales_year: number
+        }[]
+      }
       finalize_feed_production: {
         Args: { _invoice_id: string }
         Returns: undefined
@@ -8867,6 +8884,42 @@ export type Database = {
         Returns: undefined
       }
       finalize_slaughter_batch: { Args: { p_batch_id: string }; Returns: Json }
+      fix_feed_sales_return_refund: {
+        Args: { p_return_id: string }
+        Returns: {
+          approved_at: string | null
+          approved_by: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          cash_transaction_id: string | null
+          created_at: string
+          created_by: string | null
+          customer: string
+          feed_product_id: string
+          id: string
+          notes: string | null
+          original_sale_id: string | null
+          original_sale_no: string | null
+          quantity_kg: number
+          reason: string | null
+          return_date: string
+          return_no: string
+          reverse_cash_transaction_id: string | null
+          reverse_stock_movement_id: string | null
+          status: string
+          stock_movement_id: string | null
+          total_amount: number | null
+          treasury_account: string
+          unit_price: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "feed_sales_returns"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       gen_meat_invoice_no: { Args: never; Returns: string }
       gen_transfer_no: { Args: never; Returns: string }
       generate_order_number: { Args: never; Returns: string }
