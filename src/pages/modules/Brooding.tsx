@@ -399,6 +399,7 @@ const Brooding = () => {
                       <TableHead>رقم الدفعة</TableHead>
                       <TableHead>تاريخ الاستلام</TableHead>
                       <TableHead>العمر</TableHead>
+                      <TableHead>مكان التربية</TableHead>
                       <TableHead>الأصلي</TableHead>
                       <TableHead>الحالي</TableHead>
                       <TableHead>نافق</TableHead>
