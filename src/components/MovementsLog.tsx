@@ -269,7 +269,10 @@ export function MovementsLog({
       "الحالة": r.status,
       "ملاحظات": r.notes || "",
     }));
-    exportToExcel(data, `${title}-${new Date().toISOString().slice(0, 10)}`);
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Movements");
+    XLSX.writeFile(wb, `${title}-${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
   const distinctTypes = Array.from(new Set(rows.map((r) => r.movement_type)));
