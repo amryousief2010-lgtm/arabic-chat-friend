@@ -1058,6 +1058,36 @@ const FeedForm = ({ batches, feedInventory = [], settings = DEFAULT_SETTINGS, ca
 
   useEffect(() => { setF(p => ({ ...p, total_cost: +(p.quantity_kg * p.unit_cost).toFixed(3) })); }, [f.quantity_kg, f.unit_cost]);
 
+  const printPermit = (saved: typeof f, user: string) => {
+    const html = `
+      <div style="font-family:'Cairo',sans-serif;direction:rtl">
+        <div style="border-bottom:3px solid ${settings.print_header_color};padding-bottom:10px;margin-bottom:15px">
+          <h1 style="margin:0;text-align:center;color:${settings.print_header_color};font-size:26px">${settings.company_name}</h1>
+          <h2 style="margin:4px 0 0;text-align:center;color:#555;font-size:16px;font-weight:normal">القسم: التحضين والتسمين — نوع الحركة: <strong>صرف علف</strong></h2>
+        </div>
+        <h3 style="text-align:center;color:${settings.print_header_color};margin:0 0 12px">إذن صرف علف رقم ${Date.now().toString().slice(-6)}</h3>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;border:1px solid #999">
+          <tr><th style="padding:8px;background:${settings.print_accent_color};border:1px solid #999;text-align:right">رقم الدفعة</th><td style="padding:8px;border:1px solid #ccc">${batch?.batch_number || '-'}</td>
+              <th style="padding:8px;background:${settings.print_accent_color};border:1px solid #999;text-align:right">تاريخ الصرف</th><td style="padding:8px;border:1px solid #ccc">${saved.issue_date}</td></tr>
+          <tr><th style="padding:8px;background:${settings.print_accent_color};border:1px solid #999;text-align:right">نوع العلف</th><td style="padding:8px;border:1px solid #ccc">${saved.feed_name}</td>
+              <th style="padding:8px;background:${settings.print_accent_color};border:1px solid #999;text-align:right">الكمية</th><td style="padding:8px;border:1px solid #ccc"><strong>${saved.quantity_kg} كجم</strong></td></tr>
+          <tr><th style="padding:8px;background:${settings.print_accent_color};border:1px solid #999;text-align:right">سعر الكيلو (تكلفة)</th><td style="padding:8px;border:1px solid #ccc">${saved.unit_cost} ج.م</td>
+              <th style="padding:8px;background:${settings.print_accent_color};border:1px solid #999;text-align:right">إجمالي التكلفة</th><td style="padding:8px;border:1px solid #ccc;font-weight:bold;color:${settings.print_header_color}">${saved.total_cost} ج.م</td></tr>
+          <tr><th style="padding:8px;background:${settings.print_accent_color};border:1px solid #999;text-align:right">المستخدم</th><td colspan="3" style="padding:8px;border:1px solid #ccc">${user}</td></tr>
+          ${saved.notes ? `<tr><th style="padding:8px;background:${settings.print_accent_color};border:1px solid #999;text-align:right">ملاحظات</th><td colspan="3" style="padding:8px;border:1px solid #ccc">${saved.notes}</td></tr>` : ''}
+        </table>
+        <div style="margin-top:50px;display:flex;justify-content:space-between;gap:20px;font-size:13px">
+          <div style="border-top:2px solid #333;padding-top:8px;flex:1;text-align:center">توقيع مسؤول التحضين<br/><span style="color:#888;font-size:11px">................................</span></div>
+          <div style="border-top:2px solid #333;padding-top:8px;flex:1;text-align:center">توقيع مسؤول مصنع الأعلاف<br/><span style="color:#888;font-size:11px">................................</span></div>
+        </div>
+        <p style="margin-top:20px;text-align:center;font-size:11px;color:#888">⚠️ تم إرسال إشعار تلقائي لمسؤول مصنع الأعلاف بهذه الحركة</p>
+      </div>`;
+    openPrintWindow("إذن صرف علف", html);
+  };
+
+  const { profile } = useAuth();
+  const [lastSaved, setLastSaved] = useState<typeof f | null>(null);
+
   const submit = async () => {
     if (!f.batch_id || !f.feed_name || f.quantity_kg <= 0) { toast.error("أكمل البيانات"); return; }
     if (inv && f.quantity_kg > Number(inv.current_kg)) {
@@ -1066,13 +1096,14 @@ const FeedForm = ({ batches, feedInventory = [], settings = DEFAULT_SETTINGS, ca
     }
     const { error } = await supabase.from("brooding_feed_issuance").insert(f);
     if (error) { toast.error(error.message); return; }
-    toast.success("تم صرف العلف وخصمه من المخزون"); onDone();
+    toast.success("تم صرف العلف وخصمه من المخزون — تم إرسال إشعار لمسؤول مصنع الأعلاف");
+    setLastSaved({ ...f });
   };
   return (<div className="space-y-3">
     <div><Label>الدفعة</Label><BatchSelect value={f.batch_id} onChange={(v: string) => setF({ ...f, batch_id: v })} batches={batches} /></div>
     <div><Label>التاريخ</Label><Input type="date" value={f.issue_date} onChange={e => setF({ ...f, issue_date: e.target.value })} /></div>
     <div>
-      <Label>نوع العلف</Label>
+      <Label>نوع العلف (من مخزون علف الكتاكيت)</Label>
       {feedInventory.length > 0 ? (
         <Select value={f.feed_name} onValueChange={v => setF({ ...f, feed_name: v })}>
           <SelectTrigger><SelectValue /></SelectTrigger>
@@ -1084,14 +1115,14 @@ const FeedForm = ({ batches, feedInventory = [], settings = DEFAULT_SETTINGS, ca
     </div>
     {batch && (
       <div className="text-xs text-muted-foreground p-2 rounded bg-emerald-50 border border-emerald-200">
-        💡 السعر الموصى به بناءً على عمر الدفعة: <strong>{fmtMoney(recommendedUnitCost)}/كجم</strong>
-        {inv && <> — الرصيد المتاح: <strong>{fmt(Number(inv.current_kg))} كجم</strong></>}
+        💡 سعر التكلفة الموصى به (حسب عمر الدفعة): <strong>{fmtMoney(recommendedUnitCost)}/كجم</strong> — السعر مأخوذ بالتكلفة وليس البيع
+        {inv && <> | الرصيد المتاح: <strong>{fmt(Number(inv.current_kg))} كجم</strong></>}
       </div>
     )}
     <div className="grid grid-cols-3 gap-2">
       <div><Label>الكمية (كجم)</Label><Input type="number" value={f.quantity_kg} onChange={e => setF({ ...f, quantity_kg: +e.target.value })} /></div>
       <div>
-        <Label>سعر الكيلو</Label>
+        <Label>سعر الكيلو (تكلفة)</Label>
         <Input type="number" step="0.001" disabled={!canOverride || !override} value={f.unit_cost} onChange={e => setF({ ...f, unit_cost: +e.target.value })} />
       </div>
       <div><Label>الإجمالي</Label><Input type="number" value={f.total_cost} readOnly /></div>
@@ -1103,7 +1134,21 @@ const FeedForm = ({ batches, feedInventory = [], settings = DEFAULT_SETTINGS, ca
       </label>
     )}
     <div><Label>ملاحظات</Label><Textarea value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} /></div>
-    <Button onClick={submit} className="w-full">حفظ</Button>
+    {lastSaved ? (
+      <div className="space-y-2">
+        <div className="p-2 rounded bg-emerald-50 border border-emerald-200 text-xs text-emerald-800">
+          ✅ تم الصرف بنجاح. يمكنك طباعة إذن الصرف الآن.
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <Button variant="outline" onClick={() => printPermit(lastSaved, profile?.full_name || "—")}>
+            <Printer className="w-4 h-4 ml-1" />طباعة إذن الصرف
+          </Button>
+          <Button onClick={onDone}>إغلاق</Button>
+        </div>
+      </div>
+    ) : (
+      <Button onClick={submit} className="w-full">حفظ وصرف العلف</Button>
+    )}
   </div>);
 };
 
