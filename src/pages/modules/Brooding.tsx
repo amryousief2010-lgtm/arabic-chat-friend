@@ -206,12 +206,14 @@ const Brooding = () => {
     const mortalityRate = totalOriginal > 0 ? (totalMortality / totalOriginal) * 100 : 0;
     const totalCost = batches.reduce((a, b) => a + Number(b.total_cost), 0);
     const avgCostPerBird = totalBirds > 0 ? totalCost / totalBirds : 0;
-    // Current chicks value: per-batch (current_count × cost_per_bird) with
-    // fallback to default chick price when cost_per_bird is 0 (e.g. opening rows).
-    const currentChicksValue = batches.reduce((acc, b) => {
-      const perBird = Number(b.cost_per_bird) > 0 ? Number(b.cost_per_bird) : settings.default_chick_price;
-      return acc + b.current_count * perBird;
-    }, 0);
+    // Current chicks value: per-batch (current_count × cost_per_bird) from DB.
+    // total_cost stored in DB already includes opening + feed + medicine + expenses,
+    // and cost_per_bird = total_cost / current_count (recomputed after every movement),
+    // so mortality automatically redistributes the cost on the remaining live birds.
+    const currentChicksValue = batches.reduce(
+      (acc, b) => acc + b.current_count * Number(b.cost_per_bird),
+      0,
+    );
     const feedCost = feed.reduce((a, x) => a + Number(x.total_cost), 0);
     const medCost = medicine.reduce((a, x) => a + Number(x.total_cost), 0);
     const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 15);
@@ -359,7 +361,60 @@ const Brooding = () => {
                 </Table>
               </CardContent>
             </Card>
+
+            {/* COST BREAKDOWN PER BATCH */}
+            <Card className="mt-4">
+              <CardHeader>
+                <CardTitle>تفاصيل تكلفة كل دفعة</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>الدفعة</TableHead>
+                      <TableHead>الحالي</TableHead>
+                      <TableHead>تكلفة افتتاحية</TableHead>
+                      <TableHead>علف</TableHead>
+                      <TableHead>أدوية</TableHead>
+                      <TableHead>مصروفات</TableHead>
+                      <TableHead className="font-bold">إجمالي التكلفة</TableHead>
+                      <TableHead className="font-bold">تكلفة الطائر الحالية</TableHead>
+                      <TableHead>نصيب الطائر من العلف</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {batches.map(b => {
+                      const feedSum = feed.filter((x: any) => x.batch_id === b.id).reduce((a, x: any) => a + Number(x.total_cost), 0);
+                      const medSum = medicine.filter((x: any) => x.batch_id === b.id).reduce((a, x: any) => a + Number(x.total_cost), 0);
+                      const expSum = expenses.filter((x: any) => x.batch_id === b.id).reduce((a, x: any) => a + Number(x.total_amount), 0);
+                      const total = Number(b.total_cost);
+                      // opening = total - (feed + medicine + expenses) + sold/transferred cost out
+                      // simpler: subtract what we can derive, remainder is opening (net of sold/transferred)
+                      const opening = Math.max(total - feedSum - medSum - expSum, 0);
+                      const perBirdFeed = b.current_count > 0 ? feedSum / b.current_count : 0;
+                      return (
+                        <TableRow key={b.id}>
+                          <TableCell className="font-semibold">{b.batch_number}</TableCell>
+                          <TableCell className="font-bold text-primary">{b.current_count}</TableCell>
+                          <TableCell>{fmtMoney(opening)}</TableCell>
+                          <TableCell>{fmtMoney(feedSum)}</TableCell>
+                          <TableCell>{fmtMoney(medSum)}</TableCell>
+                          <TableCell>{fmtMoney(expSum)}</TableCell>
+                          <TableCell className="font-bold">{fmtMoney(total)}</TableCell>
+                          <TableCell className="font-bold text-emerald-700">{fmtMoney(Number(b.cost_per_bird))}</TableCell>
+                          <TableCell className="text-muted-foreground">{fmtMoney(perBirdFeed)}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {batches.length === 0 && (
+                      <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground">لا توجد دفعات</TableCell></TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
           </TabsContent>
+
 
           {/* MORTALITY */}
           <TabsContent value="mortality">
