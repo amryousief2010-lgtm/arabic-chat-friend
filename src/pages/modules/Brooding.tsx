@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { openPrintWindow } from "@/lib/printPdf";
 import { MarketProfitabilityCard, MarketPricesTab, useMarketPrices } from "./BroodingMarketPrices";
+import { MovementsLog } from "@/components/MovementsLog";
 
 // ===== Types =====
 type Batch = {
