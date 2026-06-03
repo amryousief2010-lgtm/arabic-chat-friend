@@ -726,7 +726,7 @@ const ManufacturingTab = ({ raws, packs, fins, list, onReload, onPost, onPrint, 
           <TableBody>
             {list.map((m: any) => (
               <TableRow key={m.id}>
-                <TableCell className="font-mono text-xs">{m.invoice_no}</TableCell>
+                <TableCell className="font-mono text-xs">{m.invoice_no} {TEST_BADGE(!!m.is_test)}</TableCell>
                 <TableCell className="text-xs">{m.invoice_date}</TableCell>
                 <TableCell>{m.fin?.name_ar}</TableCell>
                 <TableCell>{fmt(m.produced_qty)}</TableCell>
