@@ -29,6 +29,14 @@ const STATUS_BADGE = (s: string) => {
   if (s === "cancelled") return <Badge variant="destructive">ملغاة</Badge>;
   return <Badge>{s}</Badge>;
 };
+const TEST_BADGE = (isTest: boolean) => isTest ? <Badge className="bg-amber-500 text-white mr-1">اختبار</Badge> : null;
+type ViewMode = "real" | "test" | "all";
+const TestToggle = ({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) => (
+  <label className="flex items-center gap-2 text-sm border rounded px-2 py-1 bg-amber-50">
+    <input type="checkbox" checked={value} onChange={e => onChange(e.target.checked)} />
+    <span>وضع اختبار</span>
+  </label>
+);
 
 const MeatFactoryOps = () => {
   const [raws, setRaws] = useState<Raw[]>([]);
@@ -44,6 +52,8 @@ const MeatFactoryOps = () => {
   const [treasury, setTreasury] = useState<any[]>([]);
   const [log, setLog] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<ViewMode>("real");
+  const matchMode = (isTest: boolean) => viewMode === "all" ? true : viewMode === "test" ? isTest : !isTest;
 
   async function loadAll() {
     setLoading(true);
@@ -82,7 +92,8 @@ const MeatFactoryOps = () => {
     const rawValue = raws.reduce((s, r) => s + r.stock * r.avg_cost, 0);
     const packValue = packs.reduce((s, p) => s + p.stock * p.avg_cost, 0);
     const finValue = fins.reduce((s, f) => s + f.stock * f.avg_prod_cost, 0);
-    const treasuryBalance = treasury.reduce((s, t) => s + (t.direction === "IN" ? Number(t.amount) : -Number(t.amount)), 0);
+    const treasuryF = treasury.filter(t => matchMode(!!t.is_test));
+    const treasuryBalance = treasuryF.reduce((s, t) => s + (t.direction === "IN" ? Number(t.amount) : -Number(t.amount)), 0);
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const monthStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
     const yearStart = new Date(Date.UTC(today.getUTCFullYear(), 0, 1));
@@ -90,10 +101,10 @@ const MeatFactoryOps = () => {
     const inMonth = (d: string) => new Date(d) >= monthStart;
     const inYear = (d: string) => new Date(d) >= yearStart;
 
-    const postedSales = sales.filter(s => s.status === "posted");
-    const postedRP = rawPurchases.filter(p => p.status === "posted");
-    const postedPP = packPurchases.filter(p => p.status === "posted");
-    const postedRet = returns.filter(r => r.status === "posted");
+    const postedSales = sales.filter(s => s.status === "posted" && matchMode(!!s.is_test));
+    const postedRP = rawPurchases.filter(p => p.status === "posted" && matchMode(!!p.is_test));
+    const postedPP = packPurchases.filter(p => p.status === "posted" && matchMode(!!p.is_test));
+    const postedRet = returns.filter(r => r.status === "posted" && matchMode(!!r.is_test));
 
     const salesDay = postedSales.filter(s => inDay(s.posted_at || s.created_at)).reduce((a, s) => a + Number(s.total_amount), 0);
     const salesMonth = postedSales.filter(s => inMonth(s.posted_at || s.created_at)).reduce((a, s) => a + Number(s.total_amount), 0);
@@ -111,7 +122,6 @@ const MeatFactoryOps = () => {
     const totalProfit = postedSales.reduce((a, s) => a + Number(s.profit), 0);
     const netSales = salesYear - retYear;
 
-    // Profit per product (from sale_lines with cost_snapshot)
     const profitByProduct: Record<string, { name: string; profit: number; qty: number }> = {};
     postedSales.forEach(s => {
       (s.lines || []).forEach((l: any) => {
@@ -126,7 +136,10 @@ const MeatFactoryOps = () => {
     const worstProduct = sorted[sorted.length - 1];
 
     return { rawValue, packValue, finValue, treasuryBalance, salesDay, salesMonth, salesYear, purchDay, purchMonth, purchYear, retDay, retMonth, retYear, totalCogs, totalProfit, netSales, topProduct, worstProduct };
-  }, [raws, packs, fins, treasury, sales, rawPurchases, packPurchases, returns]);
+  }, [raws, packs, fins, treasury, sales, rawPurchases, packPurchases, returns, viewMode]);
+
+  const filteredLog = useMemo(() => log.filter(l => matchMode(!!l.is_test)), [log, viewMode]);
+  const filteredTreasury = useMemo(() => treasury.filter(t => matchMode(!!t.is_test)), [treasury, viewMode]);
 
   // ===== Post handlers =====
   async function post(rpc: string, id: string) {
@@ -184,8 +197,23 @@ const MeatFactoryOps = () => {
               <p className="text-sm text-muted-foreground">دورة كاملة: مخازن، فواتير، خزنة، سجل حركات</p>
             </div>
           </div>
-          <Button variant="outline" onClick={loadAll} disabled={loading}><RotateCcw className="h-4 w-4 ml-2" />تحديث</Button>
+          <div className="flex items-center gap-2">
+            <Select value={viewMode} onValueChange={(v: any) => setViewMode(v)}>
+              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="real">حركات حقيقية فقط</SelectItem>
+                <SelectItem value="test">حركات اختبار فقط</SelectItem>
+                <SelectItem value="all">عرض الكل</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" onClick={loadAll} disabled={loading}><RotateCcw className="h-4 w-4 ml-2" />تحديث</Button>
+          </div>
         </div>
+        {viewMode !== "real" && (
+          <div className="bg-amber-100 border border-amber-300 text-amber-900 rounded p-2 text-sm text-center">
+            وضع العرض الحالي: {viewMode === "test" ? "حركات الاختبار فقط — لا تدخل في التقارير الحقيقية" : "كل الحركات (حقيقية + اختبار)"}
+          </div>
+        )}
 
         <Tabs defaultValue="dashboard" className="w-full">
           <TabsList className="flex flex-wrap h-auto">
@@ -299,17 +327,17 @@ const MeatFactoryOps = () => {
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>خزنة مصنع اللحوم — الرصيد: <span className={dashboard.treasuryBalance < 0 ? "text-red-600" : "text-emerald-600"}>{fmt(dashboard.treasuryBalance)} ج.م</span></CardTitle>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => exportSheet("خزنة-اللحوم", treasury)}><FileSpreadsheet className="h-4 w-4 ml-1" />Excel</Button>
-                  <Button size="sm" variant="outline" onClick={() => printDoc("حركات الخزنة", "تقرير خزنة", "TREASURY", "حالي", ["التاريخ", "النوع", "المبلغ", "المصدر", "المرجع", "ملاحظات"], treasury.map(t => [fmtDate(t.txn_date), t.direction === "IN" ? "داخل" : "خارج", fmt(t.amount), t.source_type, t.ref_no || "—", t.notes || "—"]))}><Printer className="h-4 w-4 ml-1" />طباعة</Button>
+                  <Button size="sm" variant="outline" onClick={() => exportSheet("خزنة-اللحوم", filteredTreasury)}><FileSpreadsheet className="h-4 w-4 ml-1" />Excel</Button>
+                  <Button size="sm" variant="outline" onClick={() => printDoc("حركات الخزنة", "تقرير خزنة", "TREASURY", "حالي", ["التاريخ", "النوع", "المبلغ", "المصدر", "المرجع", "ملاحظات"], filteredTreasury.map(t => [fmtDate(t.txn_date), t.direction === "IN" ? "داخل" : "خارج", fmt(t.amount), t.source_type, t.ref_no || "—", t.notes || "—"]))}><Printer className="h-4 w-4 ml-1" />طباعة</Button>
                 </div>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader><TableRow><TableHead>التاريخ</TableHead><TableHead>الاتجاه</TableHead><TableHead>المبلغ</TableHead><TableHead>المصدر</TableHead><TableHead>المرجع</TableHead><TableHead>الملاحظات</TableHead></TableRow></TableHeader>
                   <TableBody>
-                    {treasury.map(t => (
-                      <TableRow key={t.id}>
-                        <TableCell className="text-xs">{fmtDate(t.txn_date)}</TableCell>
+                    {filteredTreasury.map(t => (
+                      <TableRow key={t.id} className={t.is_test ? "bg-amber-50" : ""}>
+                        <TableCell className="text-xs">{fmtDate(t.txn_date)} {TEST_BADGE(!!t.is_test)}</TableCell>
                         <TableCell>{t.direction === "IN" ? <Badge className="bg-emerald-600">داخل</Badge> : <Badge className="bg-orange-600">خارج</Badge>}</TableCell>
                         <TableCell className="font-bold">{fmt(t.amount)}</TableCell>
                         <TableCell className="text-xs">{t.source_type}</TableCell>
@@ -327,19 +355,19 @@ const MeatFactoryOps = () => {
           <TabsContent value="log">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="flex items-center gap-2"><History className="h-5 w-5" />سجل الحركات الموحد ({log.length})</CardTitle>
+                <CardTitle className="flex items-center gap-2"><History className="h-5 w-5" />سجل الحركات الموحد ({filteredLog.length}/{log.length})</CardTitle>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => exportSheet("سجل-حركات-اللحوم", log)}><FileSpreadsheet className="h-4 w-4 ml-1" />Excel</Button>
-                  <Button size="sm" variant="outline" onClick={() => printDoc("سجل حركات مصنع اللحوم", "سجل حركات", "LOG", "—", ["رقم", "التاريخ", "النوع", "اتجاه", "الصنف", "الكمية", "الوحدة", "القيمة", "من", "إلى", "المرجع"], log.map(l => [l.movement_no, fmtDate(l.movement_date), l.movement_type, l.direction, l.item_name || "—", fmt(l.qty), l.unit || "—", fmt(l.total_value), l.from_party || "—", l.to_party || "—", l.ref_no || "—"]))}><Printer className="h-4 w-4 ml-1" />طباعة</Button>
+                  <Button size="sm" variant="outline" onClick={() => exportSheet("سجل-حركات-اللحوم", filteredLog)}><FileSpreadsheet className="h-4 w-4 ml-1" />Excel</Button>
+                  <Button size="sm" variant="outline" onClick={() => printDoc("سجل حركات مصنع اللحوم", "سجل حركات", "LOG", "—", ["رقم", "التاريخ", "النوع", "اتجاه", "اختبار", "الصنف", "الكمية", "الوحدة", "القيمة", "من", "إلى", "المرجع"], filteredLog.map(l => [l.movement_no, fmtDate(l.movement_date), l.movement_type, l.direction, l.is_test ? "نعم" : "—", l.item_name || "—", fmt(l.qty), l.unit || "—", fmt(l.total_value), l.from_party || "—", l.to_party || "—", l.ref_no || "—"]))}><Printer className="h-4 w-4 ml-1" />طباعة</Button>
                 </div>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader><TableRow><TableHead>رقم الحركة</TableHead><TableHead>التاريخ</TableHead><TableHead>النوع</TableHead><TableHead>اتجاه</TableHead><TableHead>الصنف</TableHead><TableHead>الكمية</TableHead><TableHead>القيمة</TableHead><TableHead>من</TableHead><TableHead>إلى</TableHead><TableHead>المرجع</TableHead></TableRow></TableHeader>
                   <TableBody>
-                    {log.map(l => (
-                      <TableRow key={l.id}>
-                        <TableCell className="text-xs font-mono">{l.movement_no}</TableCell>
+                    {filteredLog.map(l => (
+                      <TableRow key={l.id} className={l.is_test ? "bg-amber-50" : l.movement_type?.startsWith("cancel_") ? "bg-red-50" : ""}>
+                        <TableCell className="text-xs font-mono">{l.movement_no} {TEST_BADGE(!!l.is_test)}{l.movement_type?.startsWith("cancel_") && <Badge variant="destructive" className="mr-1">إلغاء</Badge>}</TableCell>
                         <TableCell className="text-xs">{fmtDate(l.movement_date)}</TableCell>
                         <TableCell className="text-xs">{l.movement_type}</TableCell>
                         <TableCell>{l.direction === "IN" ? <Badge className="bg-emerald-600">داخل</Badge> : l.direction === "OUT" ? <Badge className="bg-orange-600">خارج</Badge> : <Badge variant="secondary">—</Badge>}</TableCell>
@@ -351,7 +379,7 @@ const MeatFactoryOps = () => {
                         <TableCell className="text-xs font-mono">{l.ref_no || "—"}</TableCell>
                       </TableRow>
                     ))}
-                    {!log.length && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-6">لا توجد حركات</TableCell></TableRow>}
+                    {!filteredLog.length && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-6">لا توجد حركات بهذا الفلتر</TableCell></TableRow>}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -414,6 +442,7 @@ const RawPurchaseTab = ({ raws, list, onReload, onPost, onPrint, onExcel }: any)
   const [supplier, setSupplier] = useState("");
   const [pmethod, setPmethod] = useState<"cash" | "credit">("cash");
   const [notes, setNotes] = useState("");
+  const [isTest, setIsTest] = useState(false);
   const [lines, setLines] = useState<{ raw_id: string; qty: string; unit_price: string }[]>([{ raw_id: "", qty: "", unit_price: "" }]);
 
   async function create() {
@@ -422,13 +451,13 @@ const RawPurchaseTab = ({ raws, list, onReload, onPost, onPrint, onExcel }: any)
     if (!valid.length) return toast.error("أضف صف واحد على الأقل");
     const total = valid.reduce((s, l) => s + Number(l.qty) * Number(l.unit_price), 0);
     const { data: { user } } = await supabase.auth.getUser();
-    const { data: inv, error } = await supabase.from("mf_raw_purchases").insert({ supplier, payment_method: pmethod, total_amount: total, notes, created_by: user?.id }).select().single();
+    const { data: inv, error } = await supabase.from("mf_raw_purchases").insert({ supplier, payment_method: pmethod, total_amount: total, notes, is_test: isTest, created_by: user?.id }).select().single();
     if (error || !inv) return toast.error(error?.message || "خطأ");
     const itemRows = valid.map(l => ({ purchase_id: inv.id, raw_id: l.raw_id, qty: Number(l.qty), unit_price: Number(l.unit_price), total: Number(l.qty) * Number(l.unit_price) }));
     const { error: e2 } = await supabase.from("mf_raw_purchase_items").insert(itemRows);
     if (e2) return toast.error(e2.message);
-    toast.success("تم إنشاء الفاتورة كمسودة");
-    setOpen(false); setSupplier(""); setNotes(""); setLines([{ raw_id: "", qty: "", unit_price: "" }]);
+    toast.success(isTest ? "تم إنشاء فاتورة اختبار" : "تم إنشاء الفاتورة كمسودة");
+    setOpen(false); setSupplier(""); setNotes(""); setIsTest(false); setLines([{ raw_id: "", qty: "", unit_price: "" }]);
     onReload();
   }
 
@@ -471,7 +500,7 @@ const RawPurchaseTab = ({ raws, list, onReload, onPost, onPrint, onExcel }: any)
                 </div>
                 <div className="text-left font-bold">الإجمالي: {fmt(lines.reduce((s, l) => s + Number(l.qty) * Number(l.unit_price), 0))} ج.م</div>
               </div>
-              <DialogFooter><Button onClick={create}>حفظ كمسودة</Button></DialogFooter>
+              <DialogFooter className="gap-2"><TestToggle value={isTest} onChange={setIsTest} /><Button onClick={create}>حفظ كمسودة</Button></DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
@@ -482,7 +511,7 @@ const RawPurchaseTab = ({ raws, list, onReload, onPost, onPrint, onExcel }: any)
           <TableBody>
             {list.map((p: any) => (
               <TableRow key={p.id}>
-                <TableCell className="font-mono text-xs">{p.invoice_no}</TableCell>
+                <TableCell className="font-mono text-xs">{p.invoice_no} {TEST_BADGE(!!p.is_test)}</TableCell>
                 <TableCell className="text-xs">{p.invoice_date}</TableCell>
                 <TableCell>{p.supplier}</TableCell>
                 <TableCell>{p.payment_method === "cash" ? "نقدي" : "آجل"}</TableCell>
@@ -508,6 +537,7 @@ const PackPurchaseTab = ({ packs, list, onReload, onPost, onPrint, onExcel }: an
   const [supplier, setSupplier] = useState("");
   const [pmethod, setPmethod] = useState<"cash" | "credit">("cash");
   const [notes, setNotes] = useState("");
+  const [isTest, setIsTest] = useState(false);
   const [lines, setLines] = useState<{ pack_id: string; qty: string; unit_price: string }[]>([{ pack_id: "", qty: "", unit_price: "" }]);
 
   async function create() {
@@ -516,7 +546,7 @@ const PackPurchaseTab = ({ packs, list, onReload, onPost, onPrint, onExcel }: an
     if (!valid.length) return toast.error("أضف صف");
     const total = valid.reduce((s, l) => s + Number(l.qty) * Number(l.unit_price), 0);
     const { data: { user } } = await supabase.auth.getUser();
-    const { data: inv, error } = await supabase.from("mf_pack_purchases").insert({ supplier, payment_method: pmethod, total_amount: total, notes, created_by: user?.id }).select().single();
+    const { data: inv, error } = await supabase.from("mf_pack_purchases").insert({ supplier, payment_method: pmethod, total_amount: total, notes, is_test: isTest, created_by: user?.id }).select().single();
     if (error || !inv) return toast.error(error?.message || "خطأ");
     const itemRows = valid.map(l => ({ purchase_id: inv.id, pack_id: l.pack_id, qty: Number(l.qty), unit_price: Number(l.unit_price), total: Number(l.qty) * Number(l.unit_price) }));
     const { error: e2 } = await supabase.from("mf_pack_purchase_items").insert(itemRows);
@@ -565,7 +595,7 @@ const PackPurchaseTab = ({ packs, list, onReload, onPost, onPrint, onExcel }: an
                 </div>
                 <div className="text-left font-bold">الإجمالي: {fmt(lines.reduce((s, l) => s + Number(l.qty) * Number(l.unit_price), 0))}</div>
               </div>
-              <DialogFooter><Button onClick={create}>حفظ كمسودة</Button></DialogFooter>
+              <DialogFooter className="gap-2"><TestToggle value={isTest} onChange={setIsTest} /><Button onClick={create}>حفظ كمسودة</Button></DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
@@ -576,7 +606,7 @@ const PackPurchaseTab = ({ packs, list, onReload, onPost, onPrint, onExcel }: an
           <TableBody>
             {list.map((p: any) => (
               <TableRow key={p.id}>
-                <TableCell className="font-mono text-xs">{p.invoice_no}</TableCell>
+                <TableCell className="font-mono text-xs">{p.invoice_no} {TEST_BADGE(!!p.is_test)}</TableCell>
                 <TableCell className="text-xs">{p.invoice_date}</TableCell>
                 <TableCell>{p.supplier}</TableCell>
                 <TableCell>{p.payment_method === "cash" ? "نقدي" : "آجل"}</TableCell>
@@ -602,6 +632,7 @@ const ManufacturingTab = ({ raws, packs, fins, list, onReload, onPost, onPrint, 
   const [producedQty, setProducedQty] = useState("");
   const [extraCost, setExtraCost] = useState("");
   const [notes, setNotes] = useState("");
+  const [isTest, setIsTest] = useState(false);
   const [rawLines, setRawLines] = useState<{ raw_id: string; qty: string }[]>([{ raw_id: "", qty: "" }]);
   const [packLines, setPackLines] = useState<{ pack_id: string; qty: string }[]>([{ pack_id: "", qty: "" }]);
 
@@ -611,7 +642,7 @@ const ManufacturingTab = ({ raws, packs, fins, list, onReload, onPost, onPrint, 
     if (!validRaws.length) return toast.error("أضف خامة واحدة على الأقل");
     const validPacks = packLines.filter(l => l.pack_id && Number(l.qty) > 0);
     const { data: { user } } = await supabase.auth.getUser();
-    const { data: inv, error } = await supabase.from("mf_manufacturing").insert({ finished_id: finishedId, produced_qty: Number(producedQty), extra_cost: Number(extraCost || 0), notes, created_by: user?.id }).select().single();
+    const { data: inv, error } = await supabase.from("mf_manufacturing").insert({ finished_id: finishedId, produced_qty: Number(producedQty), extra_cost: Number(extraCost || 0), notes, is_test: isTest, created_by: user?.id }).select().single();
     if (error || !inv) return toast.error(error?.message || "خطأ");
     if (validRaws.length) {
       const { error: e1 } = await supabase.from("mf_mfg_raw_lines").insert(validRaws.map(l => ({ mfg_id: inv.id, raw_id: l.raw_id, qty: Number(l.qty) })));
@@ -684,7 +715,7 @@ const ManufacturingTab = ({ raws, packs, fins, list, onReload, onPost, onPrint, 
 
                 <div><Label>ملاحظات</Label><Textarea value={notes} onChange={e => setNotes(e.target.value)} /></div>
               </div>
-              <DialogFooter><Button onClick={create}>حفظ كمسودة</Button></DialogFooter>
+              <DialogFooter className="gap-2"><TestToggle value={isTest} onChange={setIsTest} /><Button onClick={create}>حفظ كمسودة</Button></DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
@@ -695,7 +726,7 @@ const ManufacturingTab = ({ raws, packs, fins, list, onReload, onPost, onPrint, 
           <TableBody>
             {list.map((m: any) => (
               <TableRow key={m.id}>
-                <TableCell className="font-mono text-xs">{m.invoice_no}</TableCell>
+                <TableCell className="font-mono text-xs">{m.invoice_no} {TEST_BADGE(!!m.is_test)}</TableCell>
                 <TableCell className="text-xs">{m.invoice_date}</TableCell>
                 <TableCell>{m.fin?.name_ar}</TableCell>
                 <TableCell>{fmt(m.produced_qty)}</TableCell>
@@ -727,6 +758,7 @@ const SalesTab = ({ fins, list, onReload, onPost, onPrint, onExcel }: any) => {
   const [customer, setCustomer] = useState("");
   const [pmethod, setPmethod] = useState<"cash" | "credit">("cash");
   const [notes, setNotes] = useState("");
+  const [isTest, setIsTest] = useState(false);
   const [lines, setLines] = useState<{ finished_id: string; qty: string; unit_price: string }[]>([{ finished_id: "", qty: "", unit_price: "" }]);
 
   async function create() {
@@ -735,7 +767,7 @@ const SalesTab = ({ fins, list, onReload, onPost, onPrint, onExcel }: any) => {
     if (!valid.length) return toast.error("أضف صف");
     const total = valid.reduce((s, l) => s + Number(l.qty) * Number(l.unit_price), 0);
     const { data: { user } } = await supabase.auth.getUser();
-    const { data: inv, error } = await supabase.from("mf_sales").insert({ customer, payment_method: pmethod, total_amount: total, notes, created_by: user?.id }).select().single();
+    const { data: inv, error } = await supabase.from("mf_sales").insert({ customer, payment_method: pmethod, total_amount: total, notes, is_test: isTest, created_by: user?.id }).select().single();
     if (error || !inv) return toast.error(error?.message || "خطأ");
     const itemRows = valid.map(l => ({ sale_id: inv.id, finished_id: l.finished_id, qty: Number(l.qty), unit_price: Number(l.unit_price), total: Number(l.qty) * Number(l.unit_price) }));
     const { error: e2 } = await supabase.from("mf_sales_lines").insert(itemRows);
@@ -783,7 +815,7 @@ const SalesTab = ({ fins, list, onReload, onPost, onPrint, onExcel }: any) => {
                 </div>
                 <div className="text-left font-bold">الإجمالي: {fmt(lines.reduce((s, l) => s + Number(l.qty) * Number(l.unit_price), 0))}</div>
               </div>
-              <DialogFooter><Button onClick={create}>حفظ كمسودة</Button></DialogFooter>
+              <DialogFooter className="gap-2"><TestToggle value={isTest} onChange={setIsTest} /><Button onClick={create}>حفظ كمسودة</Button></DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
@@ -794,7 +826,7 @@ const SalesTab = ({ fins, list, onReload, onPost, onPrint, onExcel }: any) => {
           <TableBody>
             {list.map((s: any) => (
               <TableRow key={s.id}>
-                <TableCell className="font-mono text-xs">{s.invoice_no}</TableCell>
+                <TableCell className="font-mono text-xs">{s.invoice_no} {TEST_BADGE(!!s.is_test)}</TableCell>
                 <TableCell className="text-xs">{s.invoice_date}</TableCell>
                 <TableCell>{s.customer}</TableCell>
                 <TableCell>{s.payment_method === "cash" ? "نقدي" : "آجل"}</TableCell>
@@ -822,6 +854,7 @@ const ReturnsTab = ({ fins, sales, list, onReload, onPost, onPrint, onExcel }: a
   const [originalSale, setOriginalSale] = useState("");
   const [reason, setReason] = useState("");
   const [notes, setNotes] = useState("");
+  const [isTest, setIsTest] = useState(false);
   const [lines, setLines] = useState<{ finished_id: string; qty: string; unit_price: string }[]>([{ finished_id: "", qty: "", unit_price: "" }]);
 
   async function create() {
@@ -830,7 +863,7 @@ const ReturnsTab = ({ fins, sales, list, onReload, onPost, onPrint, onExcel }: a
     if (!valid.length) return toast.error("أضف صف");
     const total = valid.reduce((s, l) => s + Number(l.qty) * Number(l.unit_price), 0);
     const { data: { user } } = await supabase.auth.getUser();
-    const { data: inv, error } = await supabase.from("mf_returns").insert({ customer, original_sale_id: originalSale || null, reason, notes, total_amount: total, created_by: user?.id }).select().single();
+    const { data: inv, error } = await supabase.from("mf_returns").insert({ customer, original_sale_id: originalSale || null, reason, notes, total_amount: total, is_test: isTest, created_by: user?.id }).select().single();
     if (error || !inv) return toast.error(error?.message || "خطأ");
     const itemRows = valid.map(l => ({ return_id: inv.id, finished_id: l.finished_id, qty: Number(l.qty), unit_price: Number(l.unit_price), total: Number(l.qty) * Number(l.unit_price) }));
     const { error: e2 } = await supabase.from("mf_return_lines").insert(itemRows);
@@ -875,7 +908,7 @@ const ReturnsTab = ({ fins, sales, list, onReload, onPost, onPrint, onExcel }: a
                 <Button size="sm" variant="outline" onClick={() => setLines([...lines, { finished_id: "", qty: "", unit_price: "" }])}><Plus className="h-4 w-4 ml-1" />صف</Button>
                 <Textarea placeholder="ملاحظات" value={notes} onChange={e => setNotes(e.target.value)} />
               </div>
-              <DialogFooter><Button onClick={create}>حفظ كمسودة</Button></DialogFooter>
+              <DialogFooter className="gap-2"><TestToggle value={isTest} onChange={setIsTest} /><Button onClick={create}>حفظ كمسودة</Button></DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
@@ -886,7 +919,7 @@ const ReturnsTab = ({ fins, sales, list, onReload, onPost, onPrint, onExcel }: a
           <TableBody>
             {list.map((r: any) => (
               <TableRow key={r.id}>
-                <TableCell className="font-mono text-xs">{r.return_no}</TableCell>
+                <TableCell className="font-mono text-xs">{r.return_no} {TEST_BADGE(!!r.is_test)}</TableCell>
                 <TableCell className="text-xs">{r.return_date}</TableCell>
                 <TableCell>{r.customer}</TableCell>
                 <TableCell className="text-xs">{r.reason || "—"}</TableCell>
@@ -910,6 +943,7 @@ const TransfersTab = ({ fins, warehouses, list, onReload, onPost, onPrint, onExc
   const [open, setOpen] = useState(false);
   const [destId, setDestId] = useState("");
   const [notes, setNotes] = useState("");
+  const [isTest, setIsTest] = useState(false);
   const [lines, setLines] = useState<{ finished_id: string; qty: string }[]>([{ finished_id: "", qty: "" }]);
 
   async function create() {
@@ -917,7 +951,7 @@ const TransfersTab = ({ fins, warehouses, list, onReload, onPost, onPrint, onExc
     const valid = lines.filter(l => l.finished_id && Number(l.qty) > 0);
     if (!valid.length) return toast.error("أضف صف");
     const { data: { user } } = await supabase.auth.getUser();
-    const { data: inv, error } = await supabase.from("mf_transfers").insert({ destination_warehouse_id: destId, notes, created_by: user?.id }).select().single();
+    const { data: inv, error } = await supabase.from("mf_transfers").insert({ destination_warehouse_id: destId, notes, is_test: isTest, created_by: user?.id }).select().single();
     if (error || !inv) return toast.error(error?.message || "خطأ");
     const itemRows = valid.map(l => ({ transfer_id: inv.id, finished_id: l.finished_id, qty: Number(l.qty) }));
     const { error: e2 } = await supabase.from("mf_transfer_lines").insert(itemRows);
@@ -956,7 +990,7 @@ const TransfersTab = ({ fins, warehouses, list, onReload, onPost, onPrint, onExc
                 <Button size="sm" variant="outline" onClick={() => setLines([...lines, { finished_id: "", qty: "" }])}><Plus className="h-4 w-4 ml-1" />صف</Button>
                 <Textarea placeholder="ملاحظات" value={notes} onChange={e => setNotes(e.target.value)} />
               </div>
-              <DialogFooter><Button onClick={create}>حفظ كمسودة</Button></DialogFooter>
+              <DialogFooter className="gap-2"><TestToggle value={isTest} onChange={setIsTest} /><Button onClick={create}>حفظ كمسودة</Button></DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
@@ -967,7 +1001,7 @@ const TransfersTab = ({ fins, warehouses, list, onReload, onPost, onPrint, onExc
           <TableBody>
             {list.map((t: any) => (
               <TableRow key={t.id}>
-                <TableCell className="font-mono text-xs">{t.transfer_no}</TableCell>
+                <TableCell className="font-mono text-xs">{t.transfer_no} {TEST_BADGE(!!t.is_test)}</TableCell>
                 <TableCell className="text-xs">{t.transfer_date}</TableCell>
                 <TableCell>{t.warehouse?.name}</TableCell>
                 <TableCell className="font-bold">{fmt(t.total_value)}</TableCell>
