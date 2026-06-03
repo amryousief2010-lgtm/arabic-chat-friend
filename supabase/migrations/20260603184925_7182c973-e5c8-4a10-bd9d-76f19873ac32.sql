@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_chick_movements_source_batch ON public.chick_movements(source_batch_id) WHERE source_batch_id IS NOT NULL;
