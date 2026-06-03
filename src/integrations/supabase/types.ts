@@ -4272,6 +4272,63 @@ export type Database = {
         }
         Relationships: []
       }
+      hatchery_treasury_txns: {
+        Row: {
+          amount: number
+          batch_id: string | null
+          category: string
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          direction: string
+          id: string
+          notes: string | null
+          txn_date: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          batch_id?: string | null
+          category: string
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          direction: string
+          id?: string
+          notes?: string | null
+          txn_date?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          batch_id?: string | null
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          direction?: string
+          id?: string
+          notes?: string | null
+          txn_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hatchery_treasury_txns_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "hatch_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hatchery_treasury_txns_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "hatch_customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       import_audit_log: {
         Row: {
           action: string
