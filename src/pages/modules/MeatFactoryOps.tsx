@@ -758,6 +758,7 @@ const SalesTab = ({ fins, list, onReload, onPost, onPrint, onExcel }: any) => {
   const [customer, setCustomer] = useState("");
   const [pmethod, setPmethod] = useState<"cash" | "credit">("cash");
   const [notes, setNotes] = useState("");
+  const [isTest, setIsTest] = useState(false);
   const [lines, setLines] = useState<{ finished_id: string; qty: string; unit_price: string }[]>([{ finished_id: "", qty: "", unit_price: "" }]);
 
   async function create() {
