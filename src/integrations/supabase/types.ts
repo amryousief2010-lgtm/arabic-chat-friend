@@ -209,11 +209,16 @@ export type Database = {
           created_at: string
           created_by: string | null
           customer_name: string
+          expected_sale_value: number | null
           id: string
+          live_price_per_kg: number | null
+          live_weight_kg: number | null
+          market_price_at_sale: number | null
           notes: string | null
           payment_method: string | null
           profit: number
           sale_date: string
+          sale_method: string | null
           total_amount: number
           treasury: string | null
           unit_price: number
@@ -227,11 +232,16 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           customer_name: string
+          expected_sale_value?: number | null
           id?: string
+          live_price_per_kg?: number | null
+          live_weight_kg?: number | null
+          market_price_at_sale?: number | null
           notes?: string | null
           payment_method?: string | null
           profit?: number
           sale_date?: string
+          sale_method?: string | null
           total_amount: number
           treasury?: string | null
           unit_price: number
@@ -245,11 +255,16 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           customer_name?: string
+          expected_sale_value?: number | null
           id?: string
+          live_price_per_kg?: number | null
+          live_weight_kg?: number | null
+          market_price_at_sale?: number | null
           notes?: string | null
           payment_method?: string | null
           profit?: number
           sale_date?: string
+          sale_method?: string | null
           total_amount?: number
           treasury?: string | null
           unit_price?: number
@@ -495,6 +510,51 @@ export type Database = {
           },
         ]
       }
+      brooding_market_prices: {
+        Row: {
+          active: boolean
+          age_from_days: number
+          age_label: string
+          age_to_days: number | null
+          created_at: string
+          id: string
+          live_weight_price_per_kg: number | null
+          market_price_per_bird: number | null
+          sale_method: string
+          sort_order: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          active?: boolean
+          age_from_days: number
+          age_label: string
+          age_to_days?: number | null
+          created_at?: string
+          id?: string
+          live_weight_price_per_kg?: number | null
+          market_price_per_bird?: number | null
+          sale_method?: string
+          sort_order?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          active?: boolean
+          age_from_days?: number
+          age_label?: string
+          age_to_days?: number | null
+          created_at?: string
+          id?: string
+          live_weight_price_per_kg?: number | null
+          market_price_per_bird?: number | null
+          sale_method?: string
+          sort_order?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       brooding_medicine_issuance: {
         Row: {
           batch_id: string
@@ -590,6 +650,7 @@ export type Database = {
         Row: {
           company_name: string
           default_chick_price: number
+          default_live_weight_price_per_kg: number
           feed_cost_per_kg_phase1: number
           feed_cost_per_kg_phase2: number
           id: boolean
@@ -604,6 +665,7 @@ export type Database = {
         Insert: {
           company_name?: string
           default_chick_price?: number
+          default_live_weight_price_per_kg?: number
           feed_cost_per_kg_phase1?: number
           feed_cost_per_kg_phase2?: number
           id?: boolean
@@ -618,6 +680,7 @@ export type Database = {
         Update: {
           company_name?: string
           default_chick_price?: number
+          default_live_weight_price_per_kg?: number
           feed_cost_per_kg_phase1?: number
           feed_cost_per_kg_phase2?: number
           id?: boolean
