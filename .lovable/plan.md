@@ -1,105 +1,73 @@
-# خطة تشغيل مصنع اللحوم بشكل عملي
+# لوحة تحكم المدير التنفيذي
 
-سأبني دورة مصنع اللحوم الكاملة بنفس مستوى مصنع الأعلاف والتحضين، مع اختبار رقمي قبل الانتهاء.
+صفحة واحدة سريعة تجمع ملخصات كل الأقسام للمدير التنفيذي والمدير العام فقط.
 
-## 1. قاعدة البيانات (Migration واحدة شاملة)
+## الصلاحية
+- يظهر الرابط ولوحة التحكم فقط لأدوار: `general_manager` و `executive_manager`.
+- باقي المستخدمين لا يرون الرابط ولا يستطيعون فتح الصفحة (Redirect).
 
-### مخزون مستقل لمصنع اللحوم
-- `meat_raw_inventory` — الخامات الغذائية فقط (لحم نعام، بقري، دهن، بصل، فلفل، صويا، أرز، برغل، توابل، ملح، بهارات، عيش حواوشي…). الأعمدة: `code, name_ar, unit, stock, avg_cost, reorder_level, last_movement_at`.
-- `meat_packaging_inventory` — مستقل تماماً. يبدأ بـ4 أصناف فقط: علب كفتة / برجر / سجق / كفتة رز. نفس الأعمدة + `product_type` (kofta/burger/sausage/kofta_rice) للربط بالمنتج.
-- `meat_finished_inventory` — المنتجات الجاهزة (كفتة، برجر، سجق، مفروم، حواوشي، كفتة رز، برجر جبنة، شاورما، شيش). الأعمدة: `code, name_ar, unit, stock, avg_prod_cost, sale_price, reorder_level`.
+## المسار والقائمة
+- مسار جديد: `/executive-dashboard`
+- لينك في الشريط الجانبي بأعلى القائمة باسم: **لوحة تحكم المدير التنفيذي** بأيقونة مميزة.
 
-### الفواتير
-- `meat_raw_purchases` + `meat_raw_purchase_items` — فاتورة شراء خامات. حقول: `supplier, payment_method (cash/credit), treasury_id, status (draft/posted/cancelled), posted_at, posted_by`. منع post مرتين عبر CHECK + trigger.
-- `meat_packaging_purchases` + `meat_packaging_purchase_items` — نفس البنية لشراء العلب.
-- `meat_manufacturing_orders` + `meat_mfg_raw_lines` + `meat_mfg_packaging_lines` — فاتورة تصنيع بثلاث أقسام (منتج نهائي / خامات غذائية / مواد تعبئة).
-- `meat_sales_invoices` + `meat_sales_lines` — بيع، مع `cost_snapshot` لكل سطر لحساب الربح.
-- `meat_sales_returns` + `meat_sales_return_lines` — مرتجع مبيعات مع ربط بفاتورة أصلية.
-- `meat_to_main_transfers` + `meat_to_main_transfer_lines` — نقل للمخزن الرئيسي. يخصم من `meat_finished_inventory` ويزيد في `inventory_items` للمخزن الرئيسي (warehouse_id = main).
+## الفلاتر العلوية
+- اليوم / الأسبوع / الشهر / السنة / من-إلى (Date range).
+- الفلتر يُمرَّر إلى RPC واحد ويُعاد حساب كل الكروت.
 
-### الخزنة
-- `meat_treasury_txns` — حركات الخزنة (IN/OUT) مع `source_type, source_id, ref_no`.
+## الأقسام المعروضة (كروت مختصرة + زر "عرض التفاصيل" يذهب لـ Dashboard القسم)
 
-### سجل الحركات الموحد
-- `meat_factory_log` — سجل واحد لكل الحركات: شراء خامات، شراء تغليف، تصنيع (3 صفوف: خامات OUT / تغليف OUT / منتج IN)، بيع OUT، مرتجع IN، نقل OUT، حركات خزنة، تسويات. أعمدة: `movement_no (MF-LOG-#####), date, type, direction, item_kind (raw/pack/finished/treasury), item_id, qty, unit, unit_cost, total_value, from_party, to_party, ref_no, linked_id, created_by, status, notes, metadata jsonb`.
-- Trigger `prevent_meat_log_mutation` يمنع UPDATE/DELETE بعد posted (مثل brooding_movements).
+1. **مزرعة الأمهات** — إنتاج البيض (يوم/أسبوع/شهر)، أعلى وأقل ملعب، نسبة الهالك، البيض المنقول للتفريخ.
+2. **معمل التفريخ** — عملاء، بيض داخل، بيض داخل الماكينات، دفعات حالية، أقرب فقس، كتاكيت نعام العاصمة (شهر/سنة)، نسبة الإخصاب، رصيد الخزنة، صافي الربح.
+3. **التحضين والتسمين** — عدد الكتاكيت، التكلفة، القيمة السوقية، الربح المتوقع، النافق ونسبته، رصيد العلف، تكلفة العلف، أقرب دفعة للمجزر.
+4. **مصنع الأعلاف** — مخزون العلف الجاهز وقيمته، مبيعات/مشتريات اليوم والشهر، مرتجعات، رصيد الخزنة، صافي الربح، تنبيهات نقص.
+5. **مصنع اللحوم** — قيمة الخامات والتغليف والمنتجات الجاهزة، مبيعات/مشتريات اليوم والشهر، مرتجعات، رصيد الخزنة، ربح الشهر، آخر أوامر التصنيع، منتجات تحت الحد الأدنى.
+6. **المخزن الرئيسي** — قيمة المخزون، الوارد/الصادر اليوم، التحويلات، المرتجعات، تحت الحد الأدنى، الطلبات المحجوزة.
+7. **المبيعات العامة** — مبيعات اليوم/الشهر/السنة، عدد الطلبات، أعلى منتج، أعلى قناة، مرتجعات، صافي المبيعات.
+8. **الخزن** — أرصدة كل الخزن (أعلاف/لحوم/تفريخ)، إجمالي النقد، داخل/خارج اليوم.
+9. **التنبيهات** — قسم تنبيهات مدمج: أقل ملعب، دفعات قريبة من الفقس/المجزر، نقص علف وخامات وتغليف، خزن سالبة، نافق مرتفع، فواتير آجلة مستحقة.
 
-### Triggers تلقائية
-عند post أي فاتورة:
-1. تحديث الـinventory المعني (stock + avg_cost بصيغة weighted average للشراء، تكلفة تشغيلة للتصنيع).
-2. إدراج صف في `meat_treasury_txns` لو الدفع نقدي.
-3. إدراج صفوف في `meat_factory_log`.
-4. منع post مرتين (`status = 'posted'` check قبل التحديث).
+## التصميم
+- شبكة كروت ملونة (لون مميز لكل قسم باستخدام design tokens).
+- KPI كبيرة بأرقام عربية، شارات اتجاه (▲/▼) عند توفر مقارنة.
+- زر "عرض التفاصيل" على رأس كل قسم → الراوت الموجود حاليًا للقسم.
+- شريط تنبيهات بألوان warning/destructive في الأعلى.
+- Responsive: 1 عمود موبايل، 2 تابلت، 3 ديسكتوب.
+- Skeleton loaders للتحميل السريع.
 
-### الصلاحيات (RLS)
-- `meat_factory_operator` role + الـGM/EM. الحذف ممنوع للجميع. الاعتماد متاح للـoperators. الإلغاء/التسوية للـGM/EM فقط.
-- منح `has_role(auth.uid(), 'meat_factory_operator')` لأحمد خاطر ومحمد شعله.
-- كل CREATE TABLE في public يتبعه GRANT (authenticated + service_role) ثم ENABLE RLS ثم POLICIES.
+## الجانب التقني
 
-## 2. الواجهات (UI)
+### RPC مجمّع
+دالة `public.executive_dashboard_summary(p_from timestamptz, p_to timestamptz)` تُرجِع JSON واحد يحوي كل الأقسام:
+```json
+{ "mother_farm": {...}, "hatchery": {...}, "brooding": {...},
+  "feed_factory": {...}, "meat_factory": {...}, "main_warehouse": {...},
+  "sales": {...}, "treasuries": {...}, "alerts": [...] }
+```
+- داخل الدالة استعلامات Aggregate خفيفة فقط (COUNT/SUM) على الجداول الموجودة:
+  - `farm_egg_production`, `farm_egg_waste`, `farm_to_hatchery_shipments`
+  - `hatch_batches`, `hatch_customers`, `feed_factory_treasury_txns` (للتفريخ إن وجد)
+  - `brooding_batches`, `brooding_mortality`, `brooding_feed_inventory`, `brooding_to_slaughter_transfers`, `brooding_market_prices`
+  - `feed_products`, `feed_sales`, `feed_raw_purchases`, `feed_sales_returns`, `feed_factory_treasury_txns`
+  - `meat_raw_inventory`, `meat_packaging_inventory`, `meat_finished_inventory`, `mf_sales`, `mf_raw_purchases`, `mf_pack_purchases`, `mf_returns`, `mf_treasury`, `mf_manufacturing`, `mf_log`
+  - `inventory_items`, `inventory_movements`
+  - `orders`, `order_items`, `products`
+- `SECURITY DEFINER` + `SET search_path = public` + GRANT EXECUTE للأدوار authenticated، مع فحص الدور داخليًا (raise exception لو ليس general/executive manager).
 
-### صفحة موحدة `/meat-factory` مع تبويبات
-1. **Dashboard** — كل الكروت المطلوبة (قيمة مخزن خامات، تغليف، جاهز، خزنة، مبيعات اليوم/الشهر/السنة، مشتريات، مرتجعات، صافي، تكلفة المباع، ربح، أعلى/أقل منتج ربحية).
-2. **مخزن الخامات الغذائية**
-3. **مخزن التغليف** (4 أصناف فقط)
-4. **مخزن المنتجات الجاهزة**
-5. **فواتير شراء خامات** + Dialog إنشاء/اعتماد + طباعة + Excel
-6. **فواتير شراء تغليف** + نفس الشيء
-7. **فواتير التصنيع** — Dialog بـ3 أقسام (منتج / خامات / تعبئة)
-8. **فواتير البيع** + إنشاء/اعتماد + ربح Snapshot
-9. **مرتجع المبيعات**
-10. **نقل للمخزن الرئيسي**
-11. **الخزنة**
-12. **سجل الحركات** — يستخدم `MovementsLog` المُعاد استخدامه
+### واجهة
+- ملف جديد: `src/pages/ExecutiveDashboard.tsx`
+- مكونات: `src/components/executive/SectionCard.tsx`, `KpiTile.tsx`, `AlertsPanel.tsx`, `RangeFilter.tsx`
+- React Query: `useQuery(['exec-summary', range], ...)` مع `staleTime: 60s`
+- تسجيل الراوت في `src/components/AnimatedRoutes.tsx` مع حارس صلاحية
+- إضافة لينك في `src/components/layout/SidebarMenuSections.tsx` مشروط بالدور
 
-### الطباعة والتصدير
-- استخدام `openPrintWindow` من `@/lib/printPdf` لكل المستندات (دعم العربي).
-- ترويسة موحدة: "نعام العاصمة - مصنع اللحوم" + نوع المستند + الرقم + التاريخ + المستخدم + الحالة + الجدول + الإجماليات + الملاحظات + التوقيعات.
-- Excel عبر `xlsx` لكل تقرير.
+### اختبار
+- تنفيذ الـ RPC مباشرة على القاعدة والتحقق من ظهور جميع المفاتيح بأرقام معقولة.
+- التحقق من أن المستخدم بدور `moderator` يُرفض.
+- التحقق من فتح كل زر "تفاصيل" للراوت الصحيح.
+- التحقق من تطبيق فلتر التاريخ على المبيعات/المشتريات/الإنتاج.
 
-### الملفات المتوقعة
-- `src/pages/modules/MeatFactory.tsx` (إعادة كتابة مع التبويبات الكاملة)
-- `src/components/meat/MeatRawInventory.tsx`
-- `src/components/meat/MeatPackagingInventory.tsx`
-- `src/components/meat/MeatFinishedInventory.tsx`
-- `src/components/meat/MeatRawPurchasesTab.tsx` + Dialog
-- `src/components/meat/MeatPackagingPurchasesTab.tsx` + Dialog
-- `src/components/meat/MeatManufacturingTab.tsx` + Dialog (3 أقسام)
-- `src/components/meat/MeatSalesTab.tsx` + Dialog
-- `src/components/meat/MeatSalesReturnsTab.tsx` + Dialog
-- `src/components/meat/MeatToMainTransferTab.tsx` + Dialog
-- `src/components/meat/MeatTreasuryTab.tsx`
-- `src/components/meat/MeatFactoryDashboardTab.tsx`
-- `src/lib/meatFactoryPrint.ts` — قوالب الطباعة الموحدة
-
-## 3. البيانات الأولية (Seed)
-- 4 أصناف تغليف فقط مع `product_type` المرتبط
-- 10 خامات غذائية شائعة برصيد 0
-- 9 منتجات جاهزة برصيد 0
-- ربط دور `meat_factory_operator` بأحمد خاطر ومحمد شعله
-
-## 4. سيناريو الاختبار (سأنفذه بنفسي بعد البناء)
-
-| # | العملية | قبل | بعد | المخزون | الخزنة | سجل؟ |
-|---|---|---|---|---|---|---|
-| 1 | شراء 50 كجم لحم نعام نقدي @ 200ج | 0 / 5000ج | 50 / 4000ج | +50 | -1000 | نعم |
-| 2 | شراء 20 كجم بقري آجل @ 300ج | 0 | 20 | +20 | 0 | نعم |
-| 3 | شراء 100 علبة كفتة نقدي @ 3ج | 0 / 4000 | 100 / 3700 | +100 | -300 | نعم |
-| 4 | تصنيع 20 كجم كفتة (5 كجم نعام + 30 علبة) | جاهز 0 | جاهز 20 | -5 نعام، -30 علبة، +20 كفتة | 0 | نعم (3 صفوف) |
-| 5 | بيع 10 كجم كفتة نقدي @ 350ج | 20 / 3700 | 10 / 7200 | -10 | +3500 | نعم + ربح snapshot |
-| 6 | بيع 5 كجم آجل @ 350ج | 10 | 5 | -5 | 0 | نعم |
-| 7 | مرتجع 2 كجم من فاتورة 5 | 5 / 7200 | 7 / 6500 | +2 | -700 | نعم |
-| 8 | نقل 3 كجم للمخزن الرئيسي | 7 | 4 | -3 من اللحوم / +3 رئيسي | 0 | نعم في الطرفين |
-| 9 | محاولة post نفس فاتورة الشراء مرتين | — | خطأ "already posted" | — | — | — |
-
-سأطبع نتائج كل خطوة بالأرقام الفعلية من DB، وأتحقق من ظهور Dashboard وعمل أزرار الطباعة والـExcel.
-
-## 5. خارج النطاق (متعمد)
-- لا أكياس فاكيوم/استيكرات/شنط طلبات في تغليف اللحوم (تأجيل).
-- لا تغيير على مصنع الأعلاف أو التحضين.
-- لا حذف بيانات قائمة في `meat_factory_*` الموجودة — جداول جديدة بأسماء مختلفة (`meat_raw_*` للمخزن الجديد الموحّد) لتجنب الكسر.
-
-## 6. ملاحظة تقنية
-الجداول الموجودة `meat_factory_*` كثيرة ومتشعبة (raw_materials, products, purchases, sales, manufacturing…) لكنها غير مكتملة الدورة. الخطة تبني **layer جديد نظيف** فوقها يربط بشكل قاطع: خامات ↔ تغليف ↔ تصنيع ↔ جاهز ↔ بيع ↔ خزنة ↔ سجل، بدون لمس الجداول القديمة (تبقى للقراءة فقط حتى نقرر هجرتها لاحقاً).
+## ملاحظات
+- لن أعدّل أي بيانات أو منطق تشغيل قائم؛ هذه صفحة قراءة فقط.
+- لن أنشئ Views جديدة دائمة لتجنّب تعقيد الصلاحيات؛ كل شيء داخل RPC واحد.
 
 هل أبدأ التنفيذ؟
