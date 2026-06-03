@@ -537,6 +537,7 @@ const PackPurchaseTab = ({ packs, list, onReload, onPost, onPrint, onExcel }: an
   const [supplier, setSupplier] = useState("");
   const [pmethod, setPmethod] = useState<"cash" | "credit">("cash");
   const [notes, setNotes] = useState("");
+  const [isTest, setIsTest] = useState(false);
   const [lines, setLines] = useState<{ pack_id: string; qty: string; unit_price: string }[]>([{ pack_id: "", qty: "", unit_price: "" }]);
 
   async function create() {
