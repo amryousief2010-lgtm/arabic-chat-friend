@@ -24,19 +24,22 @@ function inRange(dateStr: string | null, from: Date) {
 }
 
 export default function HatcheryDashboard() {
+  const { showTest, toggle } = useTestMode();
+  const testFilter = (q: any) => (showTest ? q : q.eq("is_test", false));
+
   const { data: customers = [] } = useQuery({
-    queryKey: ["hatch_customers_dash"],
-    queryFn: async () => (await supabase.from("hatch_customers").select("*")).data || [],
+    queryKey: ["hatch_customers_dash", showTest],
+    queryFn: async () => (await testFilter(supabase.from("hatch_customers").select("*"))).data || [],
   });
   const { data: batches = [] } = useQuery({
-    queryKey: ["hatch_batches_dash"],
+    queryKey: ["hatch_batches_dash", showTest],
     queryFn: async () =>
-      (await supabase.from("hatch_batches").select("*").order("receive_date", { ascending: false }).limit(1000)).data || [],
+      (await testFilter(supabase.from("hatch_batches").select("*").order("receive_date", { ascending: false }).limit(1000))).data || [],
   });
   const { data: treasury = [] } = useQuery({
-    queryKey: ["hatch_treasury_dash"],
+    queryKey: ["hatch_treasury_dash", showTest],
     queryFn: async () =>
-      (await supabase.from("hatchery_treasury_txns").select("*").order("txn_date", { ascending: false }).limit(2000)).data || [],
+      (await testFilter(supabase.from("hatchery_treasury_txns").select("*").order("txn_date", { ascending: false }).limit(2000))).data || [],
   });
 
   const now = new Date();
