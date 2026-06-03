@@ -423,7 +423,7 @@ const Brooding = () => {
                 { key: "unit_cost", label: "سعر الكيلو", render: (v: number) => fmtMoney(v) },
                 { key: "total_cost", label: "الإجمالي", render: (v: number) => fmtMoney(v), className: "font-bold" },
               ]}
-              form={(b, close) => <FeedForm batches={batches} onDone={() => { close(); loadAll(); }} />}
+              form={(b, close) => <FeedForm batches={batches} feedInventory={feedInventory} settings={settings} canOverride={canManage} onDone={() => { close(); loadAll(); }} />}
               addLabel="صرف علف"
             />
           </TabsContent>
