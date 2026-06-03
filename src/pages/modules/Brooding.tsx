@@ -36,7 +36,14 @@ type Batch = {
   cost_per_bird: number;
   status: string;
   notes: string | null;
+  rearing_location?: string | null;
 };
+
+const LOCATION_LABELS: Record<string, string> = {
+  chick_nursery: "حضانات الكتاكيت",
+  fattening_farm: "مزرعة التسمين",
+};
+const locationLabel = (v?: string | null) => LOCATION_LABELS[v || "chick_nursery"] || "حضانات الكتاكيت";
 
 type Mortality = { id: string; batch_id: string; mortality_date: string; count: number; reason: string | null; notes: string | null };
 type Expense = { id: string; batch_id: string; expense_date: string; expense_type: string; item_name: string | null; quantity: number | null; unit_price: number | null; total_amount: number; treasury: string | null; notes: string | null };
@@ -380,8 +387,8 @@ const Brooding = () => {
                 <CardTitle>الدفعات</CardTitle>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" onClick={() => exportXlsx(batches, "brooding_batches")}><FileSpreadsheet className="w-4 h-4 ml-1" />Excel</Button>
-                  <Button variant="outline" size="sm" onClick={() => printTable("تقرير الدفعات", ["رقم", "تاريخ الاستلام", "العمر", "الأصلي", "الحالي", "نافق", "مباع", "محوّل", "تكلفة", "تكلفة الطائر", "الحالة"],
-                    batches.map(b => [b.batch_number, b.received_date, ageLabel(b), b.original_count, b.current_count, b.mortality_count, b.sold_count, b.transferred_count, fmtMoney(Number(b.total_cost)), fmtMoney(Number(b.cost_per_bird)), b.status]))}><Printer className="w-4 h-4 ml-1" />طباعة</Button>
+                  <Button variant="outline" size="sm" onClick={() => printTable("تقرير الدفعات", ["رقم", "تاريخ الاستلام", "العمر", "مكان التربية", "الأصلي", "الحالي", "نافق", "مباع", "محوّل", "تكلفة", "تكلفة الطائر", "الحالة"],
+                    batches.map(b => [b.batch_number, b.received_date, ageLabel(b), locationLabel(b.rearing_location), b.original_count, b.current_count, b.mortality_count, b.sold_count, b.transferred_count, fmtMoney(Number(b.total_cost)), fmtMoney(Number(b.cost_per_bird)), b.status]))}><Printer className="w-4 h-4 ml-1" />طباعة</Button>
                   {canManage && <NewBatchDialog onCreated={loadAll} nextBatchNumber={nextBatchNumber} settings={settings} />}
                 </div>
               </CardHeader>
@@ -392,6 +399,7 @@ const Brooding = () => {
                       <TableHead>رقم الدفعة</TableHead>
                       <TableHead>تاريخ الاستلام</TableHead>
                       <TableHead>العمر</TableHead>
+                      <TableHead>مكان التربية</TableHead>
                       <TableHead>الأصلي</TableHead>
                       <TableHead>الحالي</TableHead>
                       <TableHead>نافق</TableHead>
@@ -409,6 +417,7 @@ const Brooding = () => {
                         <TableCell className="font-semibold">{b.batch_number}</TableCell>
                         <TableCell>{b.received_date}</TableCell>
                         <TableCell>{ageLabel(b)}</TableCell>
+                        <TableCell><Badge variant="outline" className={b.rearing_location === "fattening_farm" ? "border-orange-400 text-orange-700" : "border-purple-400 text-purple-700"}>{locationLabel(b.rearing_location)}</Badge></TableCell>
                         <TableCell>{b.original_count}</TableCell>
                         <TableCell className="font-bold text-primary">{b.current_count}</TableCell>
                         <TableCell className="text-red-600">{b.mortality_count}</TableCell>
@@ -425,7 +434,7 @@ const Brooding = () => {
                       </TableRow>
                     ))}
                     {batches.length === 0 && !loading && (
-                      <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground">لا توجد دفعات</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={13} className="text-center text-muted-foreground">لا توجد دفعات</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
@@ -807,6 +816,7 @@ const NewBatchDialog = ({ onCreated, nextBatchNumber, settings, prominent = fals
     treasury: "",
     payment_method: "cash" as "cash" | "credit",
     status: "active" as "active" | "completed" | "transferred" | "closed",
+    rearing_location: "chick_nursery" as "chick_nursery" | "fattening_farm",
     notes: "",
   });
   const [f, setF] = useState(initial);
@@ -838,6 +848,7 @@ const NewBatchDialog = ({ onCreated, nextBatchNumber, settings, prominent = fals
       total_cost: f.opening_cost || 0,
       cost_per_bird: f.original_count > 0 ? (f.opening_cost || 0) / f.original_count : 0,
       status: f.status,
+      rearing_location: f.rearing_location,
       notes: f.notes || null,
     };
     const { data: inserted, error } = await supabase.from("brooding_batches").insert(payload).select("id").single();
@@ -913,6 +924,17 @@ const NewBatchDialog = ({ onCreated, nextBatchNumber, settings, prominent = fals
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div>
+            <Label>مكان التربية الحالي</Label>
+            <Select value={f.rearing_location} onValueChange={(v: any) => setF({ ...f, rearing_location: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="chick_nursery">حضانات الكتاكيت</SelectItem>
+                <SelectItem value="fattening_farm">مزرعة التسمين</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
@@ -1013,6 +1035,7 @@ const EditBatchForm = ({ batch, onDone }: { batch: Batch; onDone: () => void }) 
   const [ageValue, setAgeValue] = useState(batch.age_at_receipt_days);
   const [ageUnit, setAgeUnit] = useState<'day' | 'week' | 'month'>('day');
   const [notes, setNotes] = useState("");
+  const [location, setLocation] = useState<'chick_nursery' | 'fattening_farm'>((batch.rearing_location as any) || 'chick_nursery');
   const [saving, setSaving] = useState(false);
 
   // Convert input → days
@@ -1035,6 +1058,7 @@ const EditBatchForm = ({ batch, onDone }: { batch: Batch; onDone: () => void }) 
       .update({
         received_date: receivedDate,
         age_at_receipt_days: ageInDays,
+        rearing_location: location,
         notes: ((batch as any).notes ? (batch as any).notes + "\n" : "") + correctionNote,
       })
       .eq("id", batch.id);
@@ -1074,6 +1098,16 @@ const EditBatchForm = ({ batch, onDone }: { batch: Batch; onDone: () => void }) 
         <div>عمر الدخول بالأيام: <strong>{ageInDays} يوم</strong></div>
         <div>المنقضي منذ الدخول: <strong>{elapsed} يوم</strong></div>
         <div className="text-base mt-1">العمر الحالي الجديد بعد التعديل: <strong className="text-emerald-700">{newCurrentAge} يوم</strong></div>
+      </div>
+      <div>
+        <Label>مكان التربية الحالي</Label>
+        <Select value={location} onValueChange={(v: any) => setLocation(v)}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="chick_nursery">حضانات الكتاكيت</SelectItem>
+            <SelectItem value="fattening_farm">مزرعة التسمين</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
       <div>
         <Label>ملاحظات التصحيح</Label>
