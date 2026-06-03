@@ -10,7 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Printer, FileSpreadsheet, ArrowRightLeft, RefreshCw } from "lucide-react";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate } from "@/lib/printPdf";
-import { exportToExcel } from "@/lib/safeExcel";
+import * as XLSX from "xlsx";
 import { toast } from "sonner";
 
 export type MovementSource = "brooding_movements" | "feed_factory_movements";
