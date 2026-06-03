@@ -50,19 +50,28 @@ function FeedPeriodStats() {
   const netMonth = d.salesMonth - d.returnsMonth;
   const netYear = d.salesYear - d.returnsYear;
 
-  const Block = ({ title, icon: Icon, color, items }: any) => (
-    <Card className={`border-${color}-300`}>
-      <CardHeader className="pb-2"><CardTitle className={`text-base flex items-center gap-2 text-${color}-700`}><Icon className="h-5 w-5" />{title}</CardTitle></CardHeader>
-      <CardContent className="grid grid-cols-3 gap-2 text-center">
-        {items.map((it: any) => (
-          <div key={it.label} className={`rounded-md p-2 bg-${color}-50/60`}>
-            <div className="text-[11px] text-muted-foreground flex items-center justify-center gap-1"><Calendar className="h-3 w-3" />{it.label}</div>
-            <div className={`font-bold text-${color}-700 text-sm md:text-base mt-1`}>{isLoading ? "..." : fmt(it.value)}</div>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  );
+  const palette: Record<string, { border: string; title: string; bg: string; val: string }> = {
+    emerald: { border: "border-emerald-300", title: "text-emerald-700", bg: "bg-emerald-50/60", val: "text-emerald-700" },
+    orange: { border: "border-orange-300", title: "text-orange-700", bg: "bg-orange-50/60", val: "text-orange-700" },
+    purple: { border: "border-purple-300", title: "text-purple-700", bg: "bg-purple-50/60", val: "text-purple-700" },
+    blue: { border: "border-blue-300", title: "text-blue-700", bg: "bg-blue-50/60", val: "text-blue-700" },
+  };
+  const Block = ({ title, icon: Icon, color, items }: any) => {
+    const p = palette[color];
+    return (
+      <Card className={p.border}>
+        <CardHeader className="pb-2"><CardTitle className={`text-base flex items-center gap-2 ${p.title}`}><Icon className="h-5 w-5" />{title}</CardTitle></CardHeader>
+        <CardContent className="grid grid-cols-3 gap-2 text-center">
+          {items.map((it: any) => (
+            <div key={it.label} className={`rounded-md p-2 ${p.bg}`}>
+              <div className="text-[11px] text-muted-foreground flex items-center justify-center gap-1"><Calendar className="h-3 w-3" />{it.label}</div>
+              <div className={`font-bold ${p.val} text-sm md:text-base mt-1`}>{isLoading ? "..." : fmt(it.value)}</div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-3">
