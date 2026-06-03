@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,46 +9,60 @@ import FactoryFilters, { defaultFilterState, FactoryFilterState } from "@/compon
 import { useFactoryData } from "@/hooks/useFactoryData";
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 function FeedPeriodStats() {
-  const today = new Date();
-  const todayStr = today.toISOString().slice(0, 10);
-  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
-  const yearStart = new Date(today.getFullYear(), 0, 1).toISOString().slice(0, 10);
+  const qc = useQueryClient();
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("feed-dashboard-stats-live")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "feed_factory_treasury_txns" },
+        () => qc.invalidateQueries({ queryKey: ["feed-period-stats"] }),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "feed_sales_returns" },
+        () => qc.invalidateQueries({ queryKey: ["feed-period-stats"] }),
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [qc]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["feed-period-stats", todayStr],
     queryFn: async () => {
-      const [sales, purchases, returns] = await Promise.all([
-        supabase.from("feed_sales").select("sale_date,total_amount").gte("sale_date", yearStart),
-        supabase.from("feed_raw_purchases").select("purchase_date,total_amount").gte("purchase_date", yearStart),
-        supabase.from("feed_sales_returns").select("return_date,total_amount,status").eq("status", "approved").gte("return_date", yearStart),
-      ]);
-      const sum = (rows: any[] | null, dateKey: string, from: string) =>
-        (rows || []).filter((r) => r[dateKey] >= from).reduce((s, r) => s + Number(r.total_amount || 0), 0);
+      const { data, error } = await supabase.rpc("feed_factory_dashboard_stats");
+      if (error) throw error;
 
+      const row = Array.isArray(data) ? data[0] : data;
       return {
-        salesToday: sum(sales.data, "sale_date", todayStr),
-        salesMonth: sum(sales.data, "sale_date", monthStart),
-        salesYear: sum(sales.data, "sale_date", yearStart),
-        purchasesToday: sum(purchases.data, "purchase_date", todayStr),
-        purchasesMonth: sum(purchases.data, "purchase_date", monthStart),
-        purchasesYear: sum(purchases.data, "purchase_date", yearStart),
-        returnsToday: sum(returns.data, "return_date", todayStr),
-        returnsMonth: sum(returns.data, "return_date", monthStart),
-        returnsYear: sum(returns.data, "return_date", yearStart),
+        salesToday: Number(row?.sales_today || 0),
+        salesMonth: Number(row?.sales_month || 0),
+        salesYear: Number(row?.sales_year || 0),
+        purchasesToday: Number(row?.purchases_today || 0),
+        purchasesMonth: Number(row?.purchases_month || 0),
+        purchasesYear: Number(row?.purchases_year || 0),
+        returnsToday: Number(row?.returns_today || 0),
+        returnsMonth: Number(row?.returns_month || 0),
+        returnsYear: Number(row?.returns_year || 0),
+        netSalesToday: Number(row?.net_sales_today || 0),
+        netSalesMonth: Number(row?.net_sales_month || 0),
+        netSalesYear: Number(row?.net_sales_year || 0),
       };
     },
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
   });
 
   const fmt = (n: number) => `${n.toLocaleString("en-US", { maximumFractionDigits: 0 })} ج.م`;
-  const d = data || { salesToday: 0, salesMonth: 0, salesYear: 0, purchasesToday: 0, purchasesMonth: 0, purchasesYear: 0, returnsToday: 0, returnsMonth: 0, returnsYear: 0 };
-  const netToday = d.salesToday - d.returnsToday;
-  const netMonth = d.salesMonth - d.returnsMonth;
-  const netYear = d.salesYear - d.returnsYear;
+  const d = data || { salesToday: 0, salesMonth: 0, salesYear: 0, purchasesToday: 0, purchasesMonth: 0, purchasesYear: 0, returnsToday: 0, returnsMonth: 0, returnsYear: 0, netSalesToday: 0, netSalesMonth: 0, netSalesYear: 0 };
 
   const palette: Record<string, { border: string; title: string; bg: string; val: string }> = {
     emerald: { border: "border-emerald-300", title: "text-emerald-700", bg: "bg-emerald-50/60", val: "text-emerald-700" },
@@ -80,7 +94,7 @@ function FeedPeriodStats() {
       <Block title="مرتجعات المبيعات" icon={Undo2} color="orange"
         items={[{ label: "اليوم", value: d.returnsToday }, { label: "الشهر", value: d.returnsMonth }, { label: "السنة", value: d.returnsYear }]} />
       <Block title="صافي المبيعات (بعد المرتجعات)" icon={Receipt} color="purple"
-        items={[{ label: "اليوم", value: netToday }, { label: "الشهر", value: netMonth }, { label: "السنة", value: netYear }]} />
+        items={[{ label: "اليوم", value: d.netSalesToday }, { label: "الشهر", value: d.netSalesMonth }, { label: "السنة", value: d.netSalesYear }]} />
       <Block title="المشتريات (خامات)" icon={TrendingDown} color="blue"
         items={[{ label: "اليوم", value: d.purchasesToday }, { label: "الشهر", value: d.purchasesMonth }, { label: "السنة", value: d.purchasesYear }]} />
     </div>
