@@ -511,7 +511,7 @@ const RawPurchaseTab = ({ raws, list, onReload, onPost, onPrint, onExcel }: any)
           <TableBody>
             {list.map((p: any) => (
               <TableRow key={p.id}>
-                <TableCell className="font-mono text-xs">{p.invoice_no}</TableCell>
+                <TableCell className="font-mono text-xs">{p.invoice_no} {TEST_BADGE(!!p.is_test)}</TableCell>
                 <TableCell className="text-xs">{p.invoice_date}</TableCell>
                 <TableCell>{p.supplier}</TableCell>
                 <TableCell>{p.payment_method === "cash" ? "نقدي" : "آجل"}</TableCell>
