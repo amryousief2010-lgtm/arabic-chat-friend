@@ -52,6 +52,8 @@ const MeatFactoryOps = () => {
   const [treasury, setTreasury] = useState<any[]>([]);
   const [log, setLog] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<ViewMode>("real");
+  const matchMode = (isTest: boolean) => viewMode === "all" ? true : viewMode === "test" ? isTest : !isTest;
 
   async function loadAll() {
     setLoading(true);
