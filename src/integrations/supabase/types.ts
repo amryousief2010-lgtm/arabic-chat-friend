@@ -4565,6 +4565,90 @@ export type Database = {
         }
         Relationships: []
       }
+      meat_factory_finished_items: {
+        Row: {
+          avg_cost: number
+          created_at: string
+          current_stock: number
+          id: string
+          low_stock_threshold: number
+          name: string
+          notes: string | null
+          sale_price: number
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          avg_cost?: number
+          created_at?: string
+          current_stock?: number
+          id?: string
+          low_stock_threshold?: number
+          name: string
+          notes?: string | null
+          sale_price?: number
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          avg_cost?: number
+          created_at?: string
+          current_stock?: number
+          id?: string
+          low_stock_threshold?: number
+          name?: string
+          notes?: string | null
+          sale_price?: number
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      meat_factory_inventory_moves: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          direction: string
+          id: string
+          item_id: string
+          item_kind: string
+          item_name: string
+          quantity: number
+          reason: string
+          ref_id: string | null
+          ref_table: string | null
+          unit_cost: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          direction: string
+          id?: string
+          item_id: string
+          item_kind: string
+          item_name: string
+          quantity: number
+          reason: string
+          ref_id?: string | null
+          ref_table?: string | null
+          unit_cost?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          direction?: string
+          id?: string
+          item_id?: string
+          item_kind?: string
+          item_name?: string
+          quantity?: number
+          reason?: string
+          ref_id?: string | null
+          ref_table?: string | null
+          unit_cost?: number
+        }
+        Relationships: []
+      }
       meat_factory_invoices: {
         Row: {
           created_at: string
@@ -4618,6 +4702,116 @@ export type Database = {
           unit_cost?: number | null
         }
         Relationships: []
+      }
+      meat_factory_manufacturing: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          created_by: string | null
+          finished_item_id: string
+          finished_item_name: string
+          id: string
+          invoice_number: string
+          mfg_date: string
+          notes: string | null
+          produced_qty: number
+          status: string
+          total_cost: number
+          unit_cost: number
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          finished_item_id: string
+          finished_item_name: string
+          id?: string
+          invoice_number?: string
+          mfg_date?: string
+          notes?: string | null
+          produced_qty: number
+          status?: string
+          total_cost?: number
+          unit_cost?: number
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          finished_item_id?: string
+          finished_item_name?: string
+          id?: string
+          invoice_number?: string
+          mfg_date?: string
+          notes?: string | null
+          produced_qty?: number
+          status?: string
+          total_cost?: number
+          unit_cost?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meat_factory_manufacturing_finished_item_id_fkey"
+            columns: ["finished_item_id"]
+            isOneToOne: false
+            referencedRelation: "meat_factory_finished_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meat_factory_manufacturing_lines: {
+        Row: {
+          created_at: string
+          id: string
+          line_total: number
+          manufacturing_id: string
+          quantity: number
+          raw_item_id: string
+          raw_item_name: string
+          unit_cost: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          line_total?: number
+          manufacturing_id: string
+          quantity: number
+          raw_item_id: string
+          raw_item_name: string
+          unit_cost?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          line_total?: number
+          manufacturing_id?: string
+          quantity?: number
+          raw_item_id?: string
+          raw_item_name?: string
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meat_factory_manufacturing_lines_manufacturing_id_fkey"
+            columns: ["manufacturing_id"]
+            isOneToOne: false
+            referencedRelation: "meat_factory_manufacturing"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meat_factory_manufacturing_lines_raw_item_id_fkey"
+            columns: ["raw_item_id"]
+            isOneToOne: false
+            referencedRelation: "meat_factory_raw_items"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       meat_factory_products: {
         Row: {
@@ -4722,6 +4916,102 @@ export type Database = {
           },
         ]
       }
+      meat_factory_purchase_lines: {
+        Row: {
+          created_at: string
+          id: string
+          line_total: number
+          purchase_id: string
+          quantity: number
+          raw_item_id: string
+          raw_item_name: string
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          line_total?: number
+          purchase_id: string
+          quantity: number
+          raw_item_id: string
+          raw_item_name: string
+          unit_price: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          line_total?: number
+          purchase_id?: string
+          quantity?: number
+          raw_item_id?: string
+          raw_item_name?: string
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meat_factory_purchase_lines_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "meat_factory_purchases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meat_factory_purchase_lines_raw_item_id_fkey"
+            columns: ["raw_item_id"]
+            isOneToOne: false
+            referencedRelation: "meat_factory_raw_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meat_factory_purchases: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          payment_method: string
+          purchase_date: string
+          status: string
+          supplier: string | null
+          total_amount: number
+          treasury_txn_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          payment_method?: string
+          purchase_date?: string
+          status?: string
+          supplier?: string | null
+          total_amount?: number
+          treasury_txn_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          payment_method?: string
+          purchase_date?: string
+          status?: string
+          supplier?: string | null
+          total_amount?: number
+          treasury_txn_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       meat_factory_quality_log: {
         Row: {
           actual_qty: number | null
@@ -4762,6 +5052,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      meat_factory_raw_items: {
+        Row: {
+          avg_cost: number
+          created_at: string
+          current_stock: number
+          id: string
+          low_stock_threshold: number
+          name: string
+          notes: string | null
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          avg_cost?: number
+          created_at?: string
+          current_stock?: number
+          id?: string
+          low_stock_threshold?: number
+          name: string
+          notes?: string | null
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          avg_cost?: number
+          created_at?: string
+          current_stock?: number
+          id?: string
+          low_stock_threshold?: number
+          name?: string
+          notes?: string | null
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       meat_factory_raw_materials: {
         Row: {
@@ -4902,6 +5228,349 @@ export type Database = {
           unit_cost?: number | null
           version?: number
           warehouse?: string | null
+        }
+        Relationships: []
+      }
+      meat_factory_sales: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          created_by: string | null
+          customer: string | null
+          id: string
+          invoice_number: string
+          notes: string | null
+          payment_method: string
+          sale_date: string
+          status: string
+          total_amount: number
+          treasury_txn_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer?: string | null
+          id?: string
+          invoice_number?: string
+          notes?: string | null
+          payment_method?: string
+          sale_date?: string
+          status?: string
+          total_amount?: number
+          treasury_txn_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer?: string | null
+          id?: string
+          invoice_number?: string
+          notes?: string | null
+          payment_method?: string
+          sale_date?: string
+          status?: string
+          total_amount?: number
+          treasury_txn_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      meat_factory_sales_lines: {
+        Row: {
+          created_at: string
+          finished_item_id: string
+          finished_item_name: string
+          id: string
+          line_total: number
+          quantity: number
+          sale_id: string
+          unit_cost_snapshot: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          finished_item_id: string
+          finished_item_name: string
+          id?: string
+          line_total?: number
+          quantity: number
+          sale_id: string
+          unit_cost_snapshot?: number
+          unit_price: number
+        }
+        Update: {
+          created_at?: string
+          finished_item_id?: string
+          finished_item_name?: string
+          id?: string
+          line_total?: number
+          quantity?: number
+          sale_id?: string
+          unit_cost_snapshot?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meat_factory_sales_lines_finished_item_id_fkey"
+            columns: ["finished_item_id"]
+            isOneToOne: false
+            referencedRelation: "meat_factory_finished_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meat_factory_sales_lines_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "meat_factory_sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meat_factory_sales_return_lines: {
+        Row: {
+          created_at: string
+          finished_item_id: string
+          finished_item_name: string
+          id: string
+          line_total: number
+          quantity: number
+          return_id: string
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          finished_item_id: string
+          finished_item_name: string
+          id?: string
+          line_total?: number
+          quantity: number
+          return_id: string
+          unit_price: number
+        }
+        Update: {
+          created_at?: string
+          finished_item_id?: string
+          finished_item_name?: string
+          id?: string
+          line_total?: number
+          quantity?: number
+          return_id?: string
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meat_factory_sales_return_lines_finished_item_id_fkey"
+            columns: ["finished_item_id"]
+            isOneToOne: false
+            referencedRelation: "meat_factory_finished_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meat_factory_sales_return_lines_return_id_fkey"
+            columns: ["return_id"]
+            isOneToOne: false
+            referencedRelation: "meat_factory_sales_returns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meat_factory_sales_returns: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          cash_transaction_id: string | null
+          created_at: string
+          created_by: string | null
+          customer: string | null
+          id: string
+          notes: string | null
+          original_sale_id: string | null
+          reason: string | null
+          return_date: string
+          return_number: string
+          status: string
+          stock_movement_id: string | null
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          cash_transaction_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer?: string | null
+          id?: string
+          notes?: string | null
+          original_sale_id?: string | null
+          reason?: string | null
+          return_date?: string
+          return_number?: string
+          status?: string
+          stock_movement_id?: string | null
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          cash_transaction_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer?: string | null
+          id?: string
+          notes?: string | null
+          original_sale_id?: string | null
+          reason?: string | null
+          return_date?: string
+          return_number?: string
+          status?: string
+          stock_movement_id?: string | null
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meat_factory_sales_returns_original_sale_id_fkey"
+            columns: ["original_sale_id"]
+            isOneToOne: false
+            referencedRelation: "meat_factory_sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meat_factory_stocktaking: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          item_kind: string
+          notes: string | null
+          status: string
+          taken_date: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          item_kind: string
+          notes?: string | null
+          status?: string
+          taken_date?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          item_kind?: string
+          notes?: string | null
+          status?: string
+          taken_date?: string
+        }
+        Relationships: []
+      }
+      meat_factory_stocktaking_lines: {
+        Row: {
+          actual_qty: number
+          created_at: string
+          diff_qty: number
+          diff_value: number
+          id: string
+          item_id: string
+          item_name: string
+          reason: string | null
+          stocktake_id: string
+          system_qty: number
+        }
+        Insert: {
+          actual_qty: number
+          created_at?: string
+          diff_qty: number
+          diff_value?: number
+          id?: string
+          item_id: string
+          item_name: string
+          reason?: string | null
+          stocktake_id: string
+          system_qty: number
+        }
+        Update: {
+          actual_qty?: number
+          created_at?: string
+          diff_qty?: number
+          diff_value?: number
+          id?: string
+          item_id?: string
+          item_name?: string
+          reason?: string | null
+          stocktake_id?: string
+          system_qty?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meat_factory_stocktaking_lines_stocktake_id_fkey"
+            columns: ["stocktake_id"]
+            isOneToOne: false
+            referencedRelation: "meat_factory_stocktaking"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meat_factory_treasury_txns: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          direction: string
+          id: string
+          notes: string | null
+          reason: string
+          ref_id: string | null
+          ref_table: string | null
+          txn_date: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          direction: string
+          id?: string
+          notes?: string | null
+          reason: string
+          ref_id?: string | null
+          ref_table?: string | null
+          txn_date?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          direction?: string
+          id?: string
+          notes?: string | null
+          reason?: string
+          ref_id?: string | null
+          ref_table?: string | null
+          txn_date?: string
         }
         Relationships: []
       }
@@ -7778,6 +8447,7 @@ export type Database = {
         Args: { _count_id: string }
         Returns: undefined
       }
+      apply_meat_stocktake: { Args: { p_id: string }; Returns: string }
       approve_feed_batch_cost: {
         Args: {
           p_batch: string
@@ -7835,10 +8505,17 @@ export type Database = {
         Args: { p_batch_id: string }
         Returns: Json
       }
+      approve_meat_manufacturing: { Args: { p_id: string }; Returns: string }
       approve_meat_manufacturing_invoice: {
         Args: { p_invoice_id: string }
         Returns: Json
       }
+      approve_meat_purchase: {
+        Args: { p_purchase_id: string }
+        Returns: string
+      }
+      approve_meat_sale: { Args: { p_id: string }; Returns: string }
+      approve_meat_sales_return: { Args: { p_id: string }; Returns: string }
       approve_proposal_for_future: {
         Args: { p_id: string; p_note?: string }
         Returns: {
@@ -7938,6 +8615,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      cancel_meat_sales_return: { Args: { p_id: string }; Returns: string }
       cancel_transfer: {
         Args: { p_reason: string; p_transfer_id: string }
         Returns: Json
