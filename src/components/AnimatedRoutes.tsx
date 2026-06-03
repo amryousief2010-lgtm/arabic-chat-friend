@@ -108,6 +108,7 @@ const InventoryImport = lazy(() => import("@/pages/modules/warehouse/InventoryIm
 const Debug = lazy(() => import("@/pages/Debug"));
 const PwaDiagnostics = lazy(() => import("@/pages/PwaDiagnostics"));
 const ExecutiveDashboards = lazy(() => import("@/pages/ExecutiveDashboards"));
+const ExecutiveDashboard = lazy(() => import("@/pages/ExecutiveDashboard"));
 const CustomerWeightReport = lazy(() => import("@/pages/CustomerWeightReport"));
 const ManufacturingQueue = lazy(() => import("@/pages/ManufacturingQueue"));
 const StockReplenishmentLog = lazy(() => import("@/pages/StockReplenishmentLog"));
@@ -598,6 +599,11 @@ const AnimatedRoutes = () => {
           <Route path="/executive-dashboards" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager', 'financial_manager', 'accountant']}>
               <PageTransition><ExecutiveDashboards /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/executive-dashboard" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager']}>
+              <PageTransition><ExecutiveDashboard /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/private-delivery-pricing" element={

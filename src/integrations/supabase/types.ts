@@ -10611,6 +10611,10 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      executive_dashboard_summary: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: Json
+      }
       fd_activate_bom_v2: { Args: { p_product_code: string }; Returns: Json }
       fd_can_manage: { Args: { _uid: string }; Returns: boolean }
       fd_create_feed_batch_draft: {
