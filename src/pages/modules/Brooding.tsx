@@ -926,6 +926,17 @@ const NewBatchDialog = ({ onCreated, nextBatchNumber, settings, prominent = fals
             </div>
           </div>
 
+          <div>
+            <Label>مكان التربية الحالي</Label>
+            <Select value={f.rearing_location} onValueChange={(v: any) => setF({ ...f, rearing_location: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="chick_nursery">حضانات الكتاكيت</SelectItem>
+                <SelectItem value="fattening_farm">مزرعة التسمين</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="grid grid-cols-2 gap-2">
             <div>
               <Label>التكلفة الافتتاحية {f.source === "hatchery" && autoPrice && <span className="text-xs text-emerald-600">(محسوبة تلقائيًا)</span>}</Label>
