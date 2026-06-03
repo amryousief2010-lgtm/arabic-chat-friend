@@ -273,15 +273,42 @@ export default function FeedWarehouses() {
         </div>
 
         <Tabs defaultValue="raw" dir="rtl">
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="raw"><Package className="h-4 w-4 ml-1" />الخامات</TabsTrigger>
             <TabsTrigger value="finished"><Warehouse className="h-4 w-4 ml-1" />الجاهز</TabsTrigger>
             <TabsTrigger value="purchases"><ShoppingCart className="h-4 w-4 ml-1" />المشتريات</TabsTrigger>
             <TabsTrigger value="production"><Factory className="h-4 w-4 ml-1" />التصنيع</TabsTrigger>
             <TabsTrigger value="sales"><Banknote className="h-4 w-4 ml-1" />المبيعات</TabsTrigger>
+            <TabsTrigger value="returns" className="text-orange-600 data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700"><Undo2 className="h-4 w-4 ml-1" />المرتجعات</TabsTrigger>
             <TabsTrigger value="treasury"><Wallet className="h-4 w-4 ml-1" />الخزنة</TabsTrigger>
             <TabsTrigger value="counts"><ClipboardCheck className="h-4 w-4 ml-1" />الجرد</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="returns">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
+                <div>
+                  <CardTitle className="flex items-center gap-2"><Undo2 className="h-5 w-5 text-orange-600"/>مرتجع مبيعات الأعلاف</CardTitle>
+                  <CardDescription>إرجاع علف من العميل — يزيد رصيد العلف الجاهز ويخصم القيمة من الخزنة تلقائيًا</CardDescription>
+                </div>
+                <Link to="/feed-factory/sales-returns">
+                  <Button className="bg-orange-600 hover:bg-orange-700 text-white"><Undo2 className="h-4 w-4 ml-1"/>فتح صفحة المرتجعات</Button>
+                </Link>
+              </CardHeader>
+              <CardContent>
+                <div className="text-sm text-muted-foreground space-y-2">
+                  <p>تسجيل مرتجعات بيع الأعلاف من العملاء، اعتماد المرتجع وتأثيره التلقائي على المخزون والخزنة، وعرض تقرير شامل بالمرتجعات.</p>
+                  <ul className="list-disc pr-5 space-y-1">
+                    <li>زيادة رصيد العلف الجاهز عند الاعتماد</li>
+                    <li>خصم قيمة المرتجع من الخزنة المختارة</li>
+                    <li>منع تكرار التأثير على الأرصدة</li>
+                    <li>إلغاء المرتجع (للمدير العام/التنفيذي فقط)</li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
 
           {/* RAW STOCK */}
           <TabsContent value="raw">
