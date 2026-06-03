@@ -108,6 +108,7 @@ const InventoryImport = lazy(() => import("@/pages/modules/warehouse/InventoryIm
 const Debug = lazy(() => import("@/pages/Debug"));
 const PwaDiagnostics = lazy(() => import("@/pages/PwaDiagnostics"));
 const ExecutiveDashboards = lazy(() => import("@/pages/ExecutiveDashboards"));
+const ExecutiveDashboard = lazy(() => import("@/pages/ExecutiveDashboard"));
 const CustomerWeightReport = lazy(() => import("@/pages/CustomerWeightReport"));
 const ManufacturingQueue = lazy(() => import("@/pages/ManufacturingQueue"));
 const StockReplenishmentLog = lazy(() => import("@/pages/StockReplenishmentLog"));
