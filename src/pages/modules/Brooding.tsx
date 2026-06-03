@@ -106,13 +106,45 @@ const exportXlsx = (rows: any[], filename: string) => {
   XLSX.writeFile(wb, `${filename}.xlsx`);
 };
 
-const printTable = (title: string, headers: string[], rows: (string | number)[][]) => {
+const printTable = (
+  title: string,
+  headers: string[],
+  rows: (string | number)[][],
+  settings: BroodingSettings = DEFAULT_SETTINGS,
+  meta?: { batchNumber?: string; status?: string; reportType?: string; totals?: { label: string; value: string }[] }
+) => {
+  const header = settings.print_header_color;
+  const accent = settings.print_accent_color;
+  const today = new Date().toLocaleDateString('ar-EG');
+  const metaRows = [
+    meta?.reportType && `<div><strong>نوع التقرير:</strong> ${meta.reportType}</div>`,
+    meta?.batchNumber && `<div><strong>رقم الدفعة/الحركة:</strong> ${meta.batchNumber}</div>`,
+    `<div><strong>التاريخ:</strong> ${today}</div>`,
+    meta?.status && `<div><strong>الحالة:</strong> ${meta.status}</div>`,
+  ].filter(Boolean).join('');
+  const totalsHtml = meta?.totals?.length
+    ? `<table style="width:100%;border-collapse:collapse;margin-top:12px;font-family:'Cairo',sans-serif;border:2px solid ${header}">
+         <tr style="background:${accent}"><th colspan="2" style="padding:8px;color:${header};font-size:14px">الإجماليات</th></tr>
+         ${meta.totals.map(t => `<tr><td style="padding:6px;border:1px solid #ccc;font-weight:bold">${t.label}</td><td style="padding:6px;border:1px solid #ccc;text-align:left">${t.value}</td></tr>`).join('')}
+       </table>` : '';
   const html = `
-    <h1 style="text-align:center;font-family:'Cairo',sans-serif">${title}</h1>
-    <table style="width:100%;border-collapse:collapse;font-family:'Cairo',sans-serif" border="1">
-      <thead><tr>${headers.map(h => `<th style="padding:8px;background:#f3e8ff">${h}</th>`).join("")}</tr></thead>
-      <tbody>${rows.map(r => `<tr>${r.map(c => `<td style="padding:6px">${c}</td>`).join("")}</tr>`).join("")}</tbody>
-    </table>`;
+    <div style="font-family:'Cairo',sans-serif;direction:rtl">
+      <div style="border-bottom:3px solid ${header};padding-bottom:10px;margin-bottom:15px">
+        <h1 style="margin:0;text-align:center;color:${header};font-size:26px">${settings.company_name}</h1>
+        <h2 style="margin:4px 0 0;text-align:center;color:#555;font-size:16px;font-weight:normal">قسم التحضين والتسمين</h2>
+      </div>
+      <h3 style="text-align:center;color:${header};margin:0 0 10px">${title}</h3>
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:8px;background:${accent};border-radius:6px;margin-bottom:12px;font-size:13px">${metaRows}</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;border:1px solid #999">
+        <thead><tr>${headers.map(h => `<th style="padding:8px;background:${accent};color:${header};border:1px solid #999;font-weight:bold">${h}</th>`).join('')}</tr></thead>
+        <tbody>${rows.map((r, i) => `<tr style="background:${i % 2 ? '#fafafa' : '#fff'}">${r.map(c => `<td style="padding:6px;border:1px solid #ccc">${c ?? '-'}</td>`).join('')}</tr>`).join('')}</tbody>
+      </table>
+      ${totalsHtml}
+      <div style="margin-top:40px;display:flex;justify-content:space-between;font-size:13px">
+        <div style="border-top:1px solid #333;padding-top:6px;min-width:180px;text-align:center">توقيع المسؤول</div>
+        <div style="border-top:1px solid #333;padding-top:6px;min-width:180px;text-align:center">توقيع المدير</div>
+      </div>
+    </div>`;
   openPrintWindow(title, html);
 };
 
