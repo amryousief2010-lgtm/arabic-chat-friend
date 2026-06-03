@@ -17,6 +17,7 @@ import { Bird, Plus, Skull, Wallet, Wheat, Pill, ShoppingCart, ArrowRightLeft, P
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { openPrintWindow } from "@/lib/printPdf";
+import { MarketProfitabilityCard, MarketPricesTab, useMarketPrices } from "./BroodingMarketPrices";
 
 // ===== Types =====
 type Batch = {
@@ -187,6 +188,7 @@ const Brooding = () => {
   const [feedStockMovements, setFeedStockMovements] = useState<FeedStockMovement[]>([]);
   const [snapshots, setSnapshots] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const { prices: marketPrices } = useMarketPrices();
 
   const loadAll = async () => {
     setLoading(true);
@@ -338,6 +340,20 @@ const Brooding = () => {
           <KPI label="تكلفة المحوّل للمجزر" value={fmtMoney(kpis.transferredCost)} icon={<ArrowRightLeft className="w-5 h-5" />} color="from-indigo-600 to-indigo-800" />
         </div>
 
+        {/* Market profitability dashboard */}
+        <MarketProfitabilityCard
+          batches={batches.map(b => ({
+            id: b.id,
+            batch_number: b.batch_number,
+            current_count: b.current_count,
+            total_cost: b.total_cost,
+            cost_per_bird: b.cost_per_bird,
+            ageDays: currentAgeDays(b),
+          }))}
+          prices={marketPrices}
+          defaultLiveWeightPricePerKg={(settings as any).default_live_weight_price_per_kg || 180}
+        />
+
         <Tabs defaultValue="batches" className="space-y-4">
           <TabsList className="flex-wrap h-auto">
             <TabsTrigger value="batches">الدفعات</TabsTrigger>
@@ -349,8 +365,10 @@ const Brooding = () => {
             <TabsTrigger value="transfers">التحويل للمجزر</TabsTrigger>
             <TabsTrigger value="feedstock">مخزون العلف</TabsTrigger>
             <TabsTrigger value="recipes">تركيبة علف التسمين</TabsTrigger>
+            <TabsTrigger value="market_prices">أسعار السوق</TabsTrigger>
             {canManage && <TabsTrigger value="settings">الإعدادات</TabsTrigger>}
           </TabsList>
+
 
 
           {/* BATCHES */}
@@ -672,6 +690,13 @@ const Brooding = () => {
           <TabsContent value="recipes">
             <RecipesTab canManage={canManage} />
           </TabsContent>
+
+          {/* MARKET PRICES */}
+          <TabsContent value="market_prices">
+            <MarketPricesTab canEdit={canManage} />
+          </TabsContent>
+
+
 
           {/* SETTINGS */}
           {canManage && (
