@@ -442,6 +442,7 @@ const RawPurchaseTab = ({ raws, list, onReload, onPost, onPrint, onExcel }: any)
   const [supplier, setSupplier] = useState("");
   const [pmethod, setPmethod] = useState<"cash" | "credit">("cash");
   const [notes, setNotes] = useState("");
+  const [isTest, setIsTest] = useState(false);
   const [lines, setLines] = useState<{ raw_id: string; qty: string; unit_price: string }[]>([{ raw_id: "", qty: "", unit_price: "" }]);
 
   async function create() {
@@ -450,13 +451,13 @@ const RawPurchaseTab = ({ raws, list, onReload, onPost, onPrint, onExcel }: any)
     if (!valid.length) return toast.error("أضف صف واحد على الأقل");
     const total = valid.reduce((s, l) => s + Number(l.qty) * Number(l.unit_price), 0);
     const { data: { user } } = await supabase.auth.getUser();
-    const { data: inv, error } = await supabase.from("mf_raw_purchases").insert({ supplier, payment_method: pmethod, total_amount: total, notes, created_by: user?.id }).select().single();
+    const { data: inv, error } = await supabase.from("mf_raw_purchases").insert({ supplier, payment_method: pmethod, total_amount: total, notes, is_test: isTest, created_by: user?.id }).select().single();
     if (error || !inv) return toast.error(error?.message || "خطأ");
     const itemRows = valid.map(l => ({ purchase_id: inv.id, raw_id: l.raw_id, qty: Number(l.qty), unit_price: Number(l.unit_price), total: Number(l.qty) * Number(l.unit_price) }));
     const { error: e2 } = await supabase.from("mf_raw_purchase_items").insert(itemRows);
     if (e2) return toast.error(e2.message);
-    toast.success("تم إنشاء الفاتورة كمسودة");
-    setOpen(false); setSupplier(""); setNotes(""); setLines([{ raw_id: "", qty: "", unit_price: "" }]);
+    toast.success(isTest ? "تم إنشاء فاتورة اختبار" : "تم إنشاء الفاتورة كمسودة");
+    setOpen(false); setSupplier(""); setNotes(""); setIsTest(false); setLines([{ raw_id: "", qty: "", unit_price: "" }]);
     onReload();
   }
 
