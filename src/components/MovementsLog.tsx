@@ -115,7 +115,7 @@ export function MovementsLog({
         toast.error("تعذّر تحميل سجل الحركات: " + error.message);
         break;
       }
-      const chunk = (data || []) as Row[];
+      const chunk = ((data || []) as unknown) as Row[];
       all.push(...chunk);
       if (chunk.length < PAGE) break;
       from += PAGE;
