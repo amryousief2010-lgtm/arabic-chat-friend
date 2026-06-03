@@ -148,6 +148,7 @@ export type Database = {
           mortality_count: number
           notes: string | null
           original_count: number
+          rearing_location: string
           received_date: string
           sold_count: number
           source: string
@@ -168,6 +169,7 @@ export type Database = {
           mortality_count?: number
           notes?: string | null
           original_count: number
+          rearing_location?: string
           received_date: string
           sold_count?: number
           source?: string
@@ -188,6 +190,7 @@ export type Database = {
           mortality_count?: number
           notes?: string | null
           original_count?: number
+          rearing_location?: string
           received_date?: string
           sold_count?: number
           source?: string
