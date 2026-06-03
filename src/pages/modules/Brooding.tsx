@@ -75,7 +75,7 @@ const printTable = (title: string, headers: string[], rows: (string | number)[][
       <thead><tr>${headers.map(h => `<th style="padding:8px;background:#f3e8ff">${h}</th>`).join("")}</tr></thead>
       <tbody>${rows.map(r => `<tr>${r.map(c => `<td style="padding:6px">${c}</td>`).join("")}</tr>`).join("")}</tbody>
     </table>`;
-  openPrintWindow(html, title);
+  openPrintWindow(title, html);
 };
 
 // ===== Component =====
