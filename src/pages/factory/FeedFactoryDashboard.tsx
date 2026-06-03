@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Wheat, AlertTriangle, Package, CheckCircle, Clock, Banknote, Boxes, FileWarning, Warehouse, ShoppingCart } from "lucide-react";
+import { Wheat, AlertTriangle, Package, CheckCircle, Clock, Banknote, Boxes, FileWarning, Warehouse, ShoppingCart, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import StatCard from "@/components/dashboard/StatCard";
 import FactoryFilters, { defaultFilterState, FactoryFilterState } from "@/components/factory/FactoryFilters";
