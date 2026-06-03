@@ -691,6 +691,13 @@ const Brooding = () => {
             <RecipesTab canManage={canManage} />
           </TabsContent>
 
+          {/* MARKET PRICES */}
+          <TabsContent value="market_prices">
+            <MarketPricesTab canEdit={canManage} />
+          </TabsContent>
+
+
+
           {/* SETTINGS */}
           {canManage && (
             <TabsContent value="settings">
