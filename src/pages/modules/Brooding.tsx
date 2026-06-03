@@ -414,21 +414,23 @@ const Brooding = () => {
             {/* COST BREAKDOWN PER BATCH */}
             <Card className="mt-4">
               <CardHeader>
-                <CardTitle>تفاصيل تكلفة كل دفعة</CardTitle>
+                <CardTitle>تفاصيل تكلفة كل دفعة (ديناميكية حسب العمر)</CardTitle>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>الدفعة</TableHead>
+                      <TableHead>العمر الحالي</TableHead>
                       <TableHead>الحالي</TableHead>
+                      <TableHead>ت. الكتكوت عند الدخول</TableHead>
                       <TableHead>تكلفة افتتاحية</TableHead>
                       <TableHead>علف</TableHead>
                       <TableHead>أدوية</TableHead>
                       <TableHead>مصروفات</TableHead>
                       <TableHead className="font-bold">إجمالي التكلفة</TableHead>
-                      <TableHead className="font-bold">تكلفة الطائر الحالية</TableHead>
-                      <TableHead>نصيب الطائر من العلف</TableHead>
+                      <TableHead className="font-bold">ت. الطائر الحالية</TableHead>
+                      <TableHead>سعر علف اليوم</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -437,32 +439,89 @@ const Brooding = () => {
                       const medSum = medicine.filter((x: any) => x.batch_id === b.id).reduce((a, x: any) => a + Number(x.total_cost), 0);
                       const expSum = expenses.filter((x: any) => x.batch_id === b.id).reduce((a, x: any) => a + Number(x.total_amount), 0);
                       const total = Number(b.total_cost);
-                      // opening = total - (feed + medicine + expenses) + sold/transferred cost out
-                      // simpler: subtract what we can derive, remainder is opening (net of sold/transferred)
                       const opening = Math.max(total - feedSum - medSum - expSum, 0);
-                      const perBirdFeed = b.current_count > 0 ? feedSum / b.current_count : 0;
+                      const openingPerBird = b.original_count > 0 ? opening / b.original_count : 0;
+                      const todayFeedPrice = feedCostForBatch(b, settings);
                       return (
                         <TableRow key={b.id}>
                           <TableCell className="font-semibold">{b.batch_number}</TableCell>
+                          <TableCell className="text-amber-700 font-semibold">{ageLabel(b)}</TableCell>
                           <TableCell className="font-bold text-primary">{b.current_count}</TableCell>
+                          <TableCell>{fmtMoney(openingPerBird)}</TableCell>
                           <TableCell>{fmtMoney(opening)}</TableCell>
                           <TableCell>{fmtMoney(feedSum)}</TableCell>
                           <TableCell>{fmtMoney(medSum)}</TableCell>
                           <TableCell>{fmtMoney(expSum)}</TableCell>
                           <TableCell className="font-bold">{fmtMoney(total)}</TableCell>
                           <TableCell className="font-bold text-emerald-700">{fmtMoney(Number(b.cost_per_bird))}</TableCell>
-                          <TableCell className="text-muted-foreground">{fmtMoney(perBirdFeed)}</TableCell>
+                          <TableCell className="text-muted-foreground">{fmtMoney(todayFeedPrice)} / كجم</TableCell>
                         </TableRow>
                       );
                     })}
                     {batches.length === 0 && (
-                      <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground">لا توجد دفعات</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground">لا توجد دفعات</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
               </CardContent>
             </Card>
+
+            {/* 15-DAY COST SNAPSHOTS PER BATCH */}
+            <Card className="mt-4">
+              <CardHeader>
+                <CardTitle>تطور التكلفة (Snapshots كل 15 يوم)</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {batches.map(b => {
+                  const list = snapshots.filter(s => s.batch_id === b.id).sort((a, c) => a.snapshot_date.localeCompare(c.snapshot_date));
+                  if (!list.length) return (
+                    <div key={b.id} className="text-sm text-muted-foreground">
+                      <strong>{b.batch_number}</strong> — لا توجد snapshots بعد. سيتم إنشاء snapshot تلقائيًا.
+                    </div>
+                  );
+                  return (
+                    <div key={b.id}>
+                      <div className="font-semibold mb-2">{b.batch_number} — العمر الحالي: {ageLabel(b)}</div>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>التاريخ</TableHead>
+                            <TableHead>العمر</TableHead>
+                            <TableHead>العدد</TableHead>
+                            <TableHead>إجمالي التكلفة</TableHead>
+                            <TableHead>ت. الطائر</TableHead>
+                            <TableHead>الفرق عن السابق</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {list.map((s, i) => {
+                            const prev = i > 0 ? list[i - 1] : null;
+                            const diff = prev ? Number(s.cost_per_bird) - Number(prev.cost_per_bird) : 0;
+                            return (
+                              <TableRow key={s.id}>
+                                <TableCell>{s.snapshot_date}</TableCell>
+                                <TableCell>{ageOnDateDays(b, s.snapshot_date)} يوم</TableCell>
+                                <TableCell>{s.current_count}</TableCell>
+                                <TableCell>{fmtMoney(Number(s.total_cost))}</TableCell>
+                                <TableCell className="font-semibold">{fmtMoney(Number(s.cost_per_bird))}</TableCell>
+                                <TableCell className={diff > 0 ? "text-red-600" : diff < 0 ? "text-emerald-600" : "text-muted-foreground"}>
+                                  {prev ? (diff >= 0 ? "+" : "") + fmtMoney(diff) : "—"}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  );
+                })}
+                {batches.length === 0 && (
+                  <div className="text-center text-muted-foreground">لا توجد دفعات</div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
+
 
 
           {/* MORTALITY */}
