@@ -355,19 +355,19 @@ const MeatFactoryOps = () => {
           <TabsContent value="log">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="flex items-center gap-2"><History className="h-5 w-5" />سجل الحركات الموحد ({log.length})</CardTitle>
+                <CardTitle className="flex items-center gap-2"><History className="h-5 w-5" />سجل الحركات الموحد ({filteredLog.length}/{log.length})</CardTitle>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => exportSheet("سجل-حركات-اللحوم", log)}><FileSpreadsheet className="h-4 w-4 ml-1" />Excel</Button>
-                  <Button size="sm" variant="outline" onClick={() => printDoc("سجل حركات مصنع اللحوم", "سجل حركات", "LOG", "—", ["رقم", "التاريخ", "النوع", "اتجاه", "الصنف", "الكمية", "الوحدة", "القيمة", "من", "إلى", "المرجع"], log.map(l => [l.movement_no, fmtDate(l.movement_date), l.movement_type, l.direction, l.item_name || "—", fmt(l.qty), l.unit || "—", fmt(l.total_value), l.from_party || "—", l.to_party || "—", l.ref_no || "—"]))}><Printer className="h-4 w-4 ml-1" />طباعة</Button>
+                  <Button size="sm" variant="outline" onClick={() => exportSheet("سجل-حركات-اللحوم", filteredLog)}><FileSpreadsheet className="h-4 w-4 ml-1" />Excel</Button>
+                  <Button size="sm" variant="outline" onClick={() => printDoc("سجل حركات مصنع اللحوم", "سجل حركات", "LOG", "—", ["رقم", "التاريخ", "النوع", "اتجاه", "اختبار", "الصنف", "الكمية", "الوحدة", "القيمة", "من", "إلى", "المرجع"], filteredLog.map(l => [l.movement_no, fmtDate(l.movement_date), l.movement_type, l.direction, l.is_test ? "نعم" : "—", l.item_name || "—", fmt(l.qty), l.unit || "—", fmt(l.total_value), l.from_party || "—", l.to_party || "—", l.ref_no || "—"]))}><Printer className="h-4 w-4 ml-1" />طباعة</Button>
                 </div>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader><TableRow><TableHead>رقم الحركة</TableHead><TableHead>التاريخ</TableHead><TableHead>النوع</TableHead><TableHead>اتجاه</TableHead><TableHead>الصنف</TableHead><TableHead>الكمية</TableHead><TableHead>القيمة</TableHead><TableHead>من</TableHead><TableHead>إلى</TableHead><TableHead>المرجع</TableHead></TableRow></TableHeader>
                   <TableBody>
-                    {log.map(l => (
-                      <TableRow key={l.id}>
-                        <TableCell className="text-xs font-mono">{l.movement_no}</TableCell>
+                    {filteredLog.map(l => (
+                      <TableRow key={l.id} className={l.is_test ? "bg-amber-50" : l.movement_type?.startsWith("cancel_") ? "bg-red-50" : ""}>
+                        <TableCell className="text-xs font-mono">{l.movement_no} {TEST_BADGE(!!l.is_test)}{l.movement_type?.startsWith("cancel_") && <Badge variant="destructive" className="mr-1">إلغاء</Badge>}</TableCell>
                         <TableCell className="text-xs">{fmtDate(l.movement_date)}</TableCell>
                         <TableCell className="text-xs">{l.movement_type}</TableCell>
                         <TableCell>{l.direction === "IN" ? <Badge className="bg-emerald-600">داخل</Badge> : l.direction === "OUT" ? <Badge className="bg-orange-600">خارج</Badge> : <Badge variant="secondary">—</Badge>}</TableCell>
@@ -379,7 +379,7 @@ const MeatFactoryOps = () => {
                         <TableCell className="text-xs font-mono">{l.ref_no || "—"}</TableCell>
                       </TableRow>
                     ))}
-                    {!log.length && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-6">لا توجد حركات</TableCell></TableRow>}
+                    {!filteredLog.length && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-6">لا توجد حركات بهذا الفلتر</TableCell></TableRow>}
                   </TableBody>
                 </Table>
               </CardContent>
