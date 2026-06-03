@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { openPrintWindow } from "@/lib/printPdf";
 import { MarketProfitabilityCard, MarketPricesTab, useMarketPrices } from "./BroodingMarketPrices";
+import { MovementsLog } from "@/components/MovementsLog";
 
 // ===== Types =====
 type Batch = {
@@ -366,6 +367,7 @@ const Brooding = () => {
             <TabsTrigger value="feedstock">مخزون العلف</TabsTrigger>
             <TabsTrigger value="recipes">تركيبة علف التسمين</TabsTrigger>
             <TabsTrigger value="market_prices">أسعار السوق</TabsTrigger>
+            <TabsTrigger value="movements">سجل الحركات</TabsTrigger>
             {canManage && <TabsTrigger value="settings">الإعدادات</TabsTrigger>}
           </TabsList>
 
@@ -695,6 +697,17 @@ const Brooding = () => {
           <TabsContent value="market_prices">
             <MarketPricesTab canEdit={canManage} />
           </TabsContent>
+
+          {/* MOVEMENTS LOG */}
+          <TabsContent value="movements">
+            <MovementsLog
+              source="brooding_movements"
+              title="سجل حركات التحضين والتسمين"
+              batches={batches.map((b) => ({ id: b.id, batch_no: b.batch_number }))}
+            />
+          </TabsContent>
+
+
 
 
 

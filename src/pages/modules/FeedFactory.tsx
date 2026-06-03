@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Plus, Wheat, Trash2, Edit, Play, CheckCircle2, XCircle, Package2, Eye } from "lucide-react";
 import { Link } from "react-router-dom";
+import { MovementsLog } from "@/components/MovementsLog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -338,6 +339,7 @@ const FeedFactory = () => {
             <TabsTrigger value="batches">دفعات الإنتاج</TabsTrigger>
             <TabsTrigger value="recipes">الوصفات (BOM)</TabsTrigger>
             <TabsTrigger value="materials">المواد الخام</TabsTrigger>
+            <TabsTrigger value="movements">سجل الحركات</TabsTrigger>
           </TabsList>
 
           <TabsContent value="costing" className="space-y-4">
@@ -498,6 +500,13 @@ const FeedFactory = () => {
                 </Table>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="movements" className="space-y-4">
+            <MovementsLog
+              source="feed_factory_movements"
+              title="سجل حركات مصنع الأعلاف"
+            />
           </TabsContent>
         </Tabs>
       </div>
