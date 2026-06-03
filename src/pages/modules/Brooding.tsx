@@ -185,11 +185,12 @@ const Brooding = () => {
   const [settings, setSettings] = useState<BroodingSettings>(DEFAULT_SETTINGS);
   const [feedInventory, setFeedInventory] = useState<FeedInventory[]>([]);
   const [feedStockMovements, setFeedStockMovements] = useState<FeedStockMovement[]>([]);
+  const [snapshots, setSnapshots] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadAll = async () => {
     setLoading(true);
-    const [b, m, e, f, md, s, t, st, fi, fsm] = await Promise.all([
+    const [b, m, e, f, md, s, t, st, fi, fsm, sn] = await Promise.all([
       supabase.from("brooding_batches").select("*").order("received_date", { ascending: false }),
       supabase.from("brooding_mortality").select("*").order("mortality_date", { ascending: false }),
       supabase.from("brooding_expenses").select("*").order("expense_date", { ascending: false }),
@@ -200,6 +201,7 @@ const Brooding = () => {
       supabase.from("brooding_settings" as any).select("*").eq("id", true).maybeSingle(),
       supabase.from("brooding_feed_inventory" as any).select("*").order("feed_name"),
       supabase.from("brooding_feed_stock_movements" as any).select("*").order("created_at", { ascending: false }).limit(200),
+      supabase.from("brooding_cost_snapshots" as any).select("*").order("snapshot_date", { ascending: false }),
     ]);
     setBatches((b.data as Batch[]) || []);
     setMortality((m.data as Mortality[]) || []);
@@ -211,10 +213,36 @@ const Brooding = () => {
     if (st.data) setSettings({ ...DEFAULT_SETTINGS, ...(st.data as any) });
     setFeedInventory(((fi.data as any) || []) as FeedInventory[]);
     setFeedStockMovements(((fsm.data as any) || []) as FeedStockMovement[]);
+    setSnapshots(((sn.data as any) || []));
     setLoading(false);
   };
 
   useEffect(() => { loadAll(); }, []);
+
+  // Auto-snapshot every 15 days for active batches (runs once after load)
+  useEffect(() => {
+    if (loading || !batches.length) return;
+    const today = new Date().toISOString().slice(0, 10);
+    (async () => {
+      for (const b of batches) {
+        if (b.status !== "active") continue;
+        const last = snapshots.filter(s => s.batch_id === b.id).sort((a, c) => c.snapshot_date.localeCompare(a.snapshot_date))[0];
+        const days = last ? Math.floor((Date.now() - new Date(last.snapshot_date).getTime()) / 86400000) : 9999;
+        if (days >= 15) {
+          await supabase.from("brooding_cost_snapshots" as any).insert({
+            batch_id: b.id,
+            snapshot_date: today,
+            current_count: b.current_count,
+            total_cost: b.total_cost,
+            cost_per_bird: b.cost_per_bird,
+            notes: `Snapshot تلقائي - العمر ${ageLabel(b)}`,
+          });
+        }
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+
 
   // ===== KPIs =====
   const kpis = useMemo(() => {
