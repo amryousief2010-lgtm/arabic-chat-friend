@@ -756,7 +756,7 @@ const BATCH_ACTIONS = [
   { key: "transfer", label: "تحويل للمجزر", icon: ArrowRightLeft },
 ] as const;
 
-const BatchActionsMenu = ({ batch, batches, onReload }: { batch: Batch; batches: Batch[]; onReload: () => void }) => {
+const BatchActionsMenu = ({ batch, batches, feedInventory, settings, canManage, onReload }: { batch: Batch; batches: Batch[]; feedInventory: FeedInventory[]; settings: BroodingSettings; canManage: boolean; onReload: () => void }) => {
   const [action, setAction] = useState<string | null>(null);
   const close = () => { setAction(null); onReload(); };
   return (
