@@ -4813,6 +4813,54 @@ export type Database = {
           },
         ]
       }
+      meat_factory_manufacturing_packaging_lines: {
+        Row: {
+          created_at: string
+          id: string
+          line_total: number
+          manufacturing_id: string
+          packaging_id: string
+          packaging_name: string
+          quantity: number
+          unit_cost: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          line_total?: number
+          manufacturing_id: string
+          packaging_id: string
+          packaging_name: string
+          quantity: number
+          unit_cost?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          line_total?: number
+          manufacturing_id?: string
+          packaging_id?: string
+          packaging_name?: string
+          quantity?: number
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meat_factory_manufacturing_packaging_line_manufacturing_id_fkey"
+            columns: ["manufacturing_id"]
+            isOneToOne: false
+            referencedRelation: "meat_factory_manufacturing"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meat_factory_manufacturing_packaging_lines_packaging_id_fkey"
+            columns: ["packaging_id"]
+            isOneToOne: false
+            referencedRelation: "packaging_materials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meat_factory_products: {
         Row: {
           barcode: string | null
@@ -6487,6 +6535,56 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_product_stock_availability"
             referencedColumns: ["inventory_item_id"]
+          },
+        ]
+      }
+      packaging_stock_moves: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          direction: string
+          id: string
+          packaging_id: string
+          packaging_name: string
+          quantity: number
+          reason: string | null
+          ref_id: string | null
+          ref_table: string | null
+          unit_cost: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          direction: string
+          id?: string
+          packaging_id: string
+          packaging_name: string
+          quantity: number
+          reason?: string | null
+          ref_id?: string | null
+          ref_table?: string | null
+          unit_cost?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          direction?: string
+          id?: string
+          packaging_id?: string
+          packaging_name?: string
+          quantity?: number
+          reason?: string | null
+          ref_id?: string | null
+          ref_table?: string | null
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "packaging_stock_moves_packaging_id_fkey"
+            columns: ["packaging_id"]
+            isOneToOne: false
+            referencedRelation: "packaging_materials"
+            referencedColumns: ["id"]
           },
         ]
       }
