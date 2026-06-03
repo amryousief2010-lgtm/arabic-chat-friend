@@ -1058,6 +1058,7 @@ const EditBatchForm = ({ batch, onDone }: { batch: Batch; onDone: () => void }) 
       .update({
         received_date: receivedDate,
         age_at_receipt_days: ageInDays,
+        rearing_location: location,
         notes: ((batch as any).notes ? (batch as any).notes + "\n" : "") + correctionNote,
       })
       .eq("id", batch.id);
