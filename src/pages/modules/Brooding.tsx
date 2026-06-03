@@ -43,6 +43,43 @@ type MedIssue = { id: string; batch_id: string; issue_date: string; medicine_nam
 type Sale = { id: string; batch_id: string; sale_date: string; customer_name: string; count: number; unit_price: number; total_amount: number; payment_method: string | null; treasury: string | null; cost_at_sale: number; profit: number; notes: string | null };
 type Transfer = { id: string; batch_id: string; transfer_date: string; count: number; avg_weight_kg: number | null; total_weight_kg: number | null; transferred_cost: number; notes: string | null };
 
+type BroodingSettings = {
+  default_chick_price: number;
+  feed_cost_per_kg_phase1: number;
+  feed_cost_per_kg_phase2: number;
+  phase_split_months: number;
+  low_feed_alert_kg: number;
+  mortality_alert_pct: number;
+  print_header_color: string;
+  print_accent_color: string;
+  company_name: string;
+};
+type FeedInventory = { id: string; feed_name: string; current_kg: number; last_unit_cost: number; notes: string | null };
+type FeedStockMovement = { id: string; feed_id: string; movement_type: string; quantity_kg: number; unit_cost: number; total_cost: number; batch_id: string | null; notes: string | null; created_at: string };
+
+const DEFAULT_SETTINGS: BroodingSettings = {
+  default_chick_price: 1500,
+  feed_cost_per_kg_phase1: 20.238,
+  feed_cost_per_kg_phase2: 18.638,
+  phase_split_months: 4,
+  low_feed_alert_kg: 20,
+  mortality_alert_pct: 5,
+  print_header_color: '#1b5e20',
+  print_accent_color: '#e8f5e9',
+  company_name: 'نعام العاصمة',
+};
+
+// Compute the recommended feed unit cost for a batch based on its age (in months)
+// using the two-phase recipe defined in brooding_settings.
+const feedCostForBatch = (batch: Batch | undefined, settings: BroodingSettings): number => {
+  if (!batch) return settings.feed_cost_per_kg_phase1;
+  const ageMonths = (Date.now() - new Date(batch.received_date).getTime()) / (1000 * 60 * 60 * 24 * 30);
+  const totalMonths = ageMonths + (batch.age_at_receipt_days || 0) / 30;
+  return totalMonths < settings.phase_split_months
+    ? settings.feed_cost_per_kg_phase1
+    : settings.feed_cost_per_kg_phase2;
+};
+
 const EXPENSE_TYPES = [
   { value: "feed", label: "علف" },
   { value: "medicine", label: "أدوية" },
@@ -69,13 +106,45 @@ const exportXlsx = (rows: any[], filename: string) => {
   XLSX.writeFile(wb, `${filename}.xlsx`);
 };
 
-const printTable = (title: string, headers: string[], rows: (string | number)[][]) => {
+const printTable = (
+  title: string,
+  headers: string[],
+  rows: (string | number)[][],
+  settings: BroodingSettings = DEFAULT_SETTINGS,
+  meta?: { batchNumber?: string; status?: string; reportType?: string; totals?: { label: string; value: string }[] }
+) => {
+  const header = settings.print_header_color;
+  const accent = settings.print_accent_color;
+  const today = new Date().toLocaleDateString('ar-EG');
+  const metaRows = [
+    meta?.reportType && `<div><strong>نوع التقرير:</strong> ${meta.reportType}</div>`,
+    meta?.batchNumber && `<div><strong>رقم الدفعة/الحركة:</strong> ${meta.batchNumber}</div>`,
+    `<div><strong>التاريخ:</strong> ${today}</div>`,
+    meta?.status && `<div><strong>الحالة:</strong> ${meta.status}</div>`,
+  ].filter(Boolean).join('');
+  const totalsHtml = meta?.totals?.length
+    ? `<table style="width:100%;border-collapse:collapse;margin-top:12px;font-family:'Cairo',sans-serif;border:2px solid ${header}">
+         <tr style="background:${accent}"><th colspan="2" style="padding:8px;color:${header};font-size:14px">الإجماليات</th></tr>
+         ${meta.totals.map(t => `<tr><td style="padding:6px;border:1px solid #ccc;font-weight:bold">${t.label}</td><td style="padding:6px;border:1px solid #ccc;text-align:left">${t.value}</td></tr>`).join('')}
+       </table>` : '';
   const html = `
-    <h1 style="text-align:center;font-family:'Cairo',sans-serif">${title}</h1>
-    <table style="width:100%;border-collapse:collapse;font-family:'Cairo',sans-serif" border="1">
-      <thead><tr>${headers.map(h => `<th style="padding:8px;background:#f3e8ff">${h}</th>`).join("")}</tr></thead>
-      <tbody>${rows.map(r => `<tr>${r.map(c => `<td style="padding:6px">${c}</td>`).join("")}</tr>`).join("")}</tbody>
-    </table>`;
+    <div style="font-family:'Cairo',sans-serif;direction:rtl">
+      <div style="border-bottom:3px solid ${header};padding-bottom:10px;margin-bottom:15px">
+        <h1 style="margin:0;text-align:center;color:${header};font-size:26px">${settings.company_name}</h1>
+        <h2 style="margin:4px 0 0;text-align:center;color:#555;font-size:16px;font-weight:normal">قسم التحضين والتسمين</h2>
+      </div>
+      <h3 style="text-align:center;color:${header};margin:0 0 10px">${title}</h3>
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:8px;background:${accent};border-radius:6px;margin-bottom:12px;font-size:13px">${metaRows}</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;border:1px solid #999">
+        <thead><tr>${headers.map(h => `<th style="padding:8px;background:${accent};color:${header};border:1px solid #999;font-weight:bold">${h}</th>`).join('')}</tr></thead>
+        <tbody>${rows.map((r, i) => `<tr style="background:${i % 2 ? '#fafafa' : '#fff'}">${r.map(c => `<td style="padding:6px;border:1px solid #ccc">${c ?? '-'}</td>`).join('')}</tr>`).join('')}</tbody>
+      </table>
+      ${totalsHtml}
+      <div style="margin-top:40px;display:flex;justify-content:space-between;font-size:13px">
+        <div style="border-top:1px solid #333;padding-top:6px;min-width:180px;text-align:center">توقيع المسؤول</div>
+        <div style="border-top:1px solid #333;padding-top:6px;min-width:180px;text-align:center">توقيع المدير</div>
+      </div>
+    </div>`;
   openPrintWindow(title, html);
 };
 
@@ -92,11 +161,14 @@ const Brooding = () => {
   const [medicine, setMedicine] = useState<MedIssue[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [transfers, setTransfers] = useState<Transfer[]>([]);
+  const [settings, setSettings] = useState<BroodingSettings>(DEFAULT_SETTINGS);
+  const [feedInventory, setFeedInventory] = useState<FeedInventory[]>([]);
+  const [feedStockMovements, setFeedStockMovements] = useState<FeedStockMovement[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadAll = async () => {
     setLoading(true);
-    const [b, m, e, f, md, s, t] = await Promise.all([
+    const [b, m, e, f, md, s, t, st, fi, fsm] = await Promise.all([
       supabase.from("brooding_batches").select("*").order("received_date", { ascending: false }),
       supabase.from("brooding_mortality").select("*").order("mortality_date", { ascending: false }),
       supabase.from("brooding_expenses").select("*").order("expense_date", { ascending: false }),
@@ -104,6 +176,9 @@ const Brooding = () => {
       supabase.from("brooding_medicine_issuance").select("*").order("issue_date", { ascending: false }),
       supabase.from("brooding_chick_sales").select("*").order("sale_date", { ascending: false }),
       supabase.from("brooding_to_slaughter_transfers").select("*").order("transfer_date", { ascending: false }),
+      supabase.from("brooding_settings" as any).select("*").eq("id", true).maybeSingle(),
+      supabase.from("brooding_feed_inventory" as any).select("*").order("feed_name"),
+      supabase.from("brooding_feed_stock_movements" as any).select("*").order("created_at", { ascending: false }).limit(200),
     ]);
     setBatches((b.data as Batch[]) || []);
     setMortality((m.data as Mortality[]) || []);
@@ -112,6 +187,9 @@ const Brooding = () => {
     setMedicine((md.data as MedIssue[]) || []);
     setSales((s.data as Sale[]) || []);
     setTransfers((t.data as Transfer[]) || []);
+    if (st.data) setSettings({ ...DEFAULT_SETTINGS, ...(st.data as any) });
+    setFeedInventory(((fi.data as any) || []) as FeedInventory[]);
+    setFeedStockMovements(((fsm.data as any) || []) as FeedStockMovement[]);
     setLoading(false);
   };
 
@@ -128,6 +206,12 @@ const Brooding = () => {
     const mortalityRate = totalOriginal > 0 ? (totalMortality / totalOriginal) * 100 : 0;
     const totalCost = batches.reduce((a, b) => a + Number(b.total_cost), 0);
     const avgCostPerBird = totalBirds > 0 ? totalCost / totalBirds : 0;
+    // Current chicks value: per-batch (current_count × cost_per_bird) with
+    // fallback to default chick price when cost_per_bird is 0 (e.g. opening rows).
+    const currentChicksValue = batches.reduce((acc, b) => {
+      const perBird = Number(b.cost_per_bird) > 0 ? Number(b.cost_per_bird) : settings.default_chick_price;
+      return acc + b.current_count * perBird;
+    }, 0);
     const feedCost = feed.reduce((a, x) => a + Number(x.total_cost), 0);
     const medCost = medicine.reduce((a, x) => a + Number(x.total_cost), 0);
     const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 15);
@@ -136,10 +220,14 @@ const Brooding = () => {
       .reduce((a, x: any) => a + Number(x.total_amount), 0);
     const salesProfit = sales.reduce((a, x) => a + Number(x.profit), 0);
     const salesRevenue = sales.reduce((a, x) => a + Number(x.total_amount), 0);
-    return { totalBirds, openBatches, totalMortality, mortalityRate, totalSold, totalTransferred, totalCost, avgCostPerBird, feedCost, medCost, last15, salesProfit, salesRevenue };
-  }, [batches, feed, medicine, expenses, sales]);
+    const transferredCost = transfers.reduce((a, x) => a + Number(x.transferred_cost), 0);
+    const feedStockKg = feedInventory.reduce((a, x) => a + Number(x.current_kg), 0);
+    const feedStockValue = feedInventory.reduce((a, x) => a + Number(x.current_kg) * Number(x.last_unit_cost), 0);
+    return { totalBirds, openBatches, totalMortality, mortalityRate, totalSold, totalTransferred, totalCost, avgCostPerBird, feedCost, medCost, last15, salesProfit, salesRevenue, currentChicksValue, transferredCost, feedStockKg, feedStockValue };
+  }, [batches, feed, medicine, expenses, sales, transfers, feedInventory, settings.default_chick_price]);
 
   const batchLabel = (id: string) => batches.find(b => b.id === id)?.batch_number || id.slice(0, 6);
+  const feedNameById = (id: string | null) => feedInventory.find(f => f.id === id)?.feed_name || '-';
 
   // Auto-suggest next batch number BRD-XXX
   const nextBatchNumber = useMemo(() => {
@@ -150,6 +238,7 @@ const Brooding = () => {
     const next = (nums.length ? Math.max(...nums) : 0) + 1;
     return `BRD-${String(next).padStart(3, "0")}`;
   }, [batches]);
+
 
   return (
     <DashboardLayout>
@@ -165,7 +254,7 @@ const Brooding = () => {
             </div>
           </div>
           {canManage && (
-            <NewBatchDialog onCreated={loadAll} nextBatchNumber={nextBatchNumber} prominent />
+            <NewBatchDialog onCreated={loadAll} nextBatchNumber={nextBatchNumber} settings={settings} prominent />
           )}
         </div>
 
@@ -181,6 +270,7 @@ const Brooding = () => {
         {/* KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <KPI label="الطيور الحالية" value={fmt(kpis.totalBirds)} icon={<Bird className="w-5 h-5" />} color="from-purple-500 to-purple-700" />
+          <KPI label="قيمة الكتاكيت الحالية" value={fmtMoney(kpis.currentChicksValue)} icon={<Wallet className="w-5 h-5" />} color="from-emerald-600 to-emerald-800" />
           <KPI label="دفعات مفتوحة" value={fmt(kpis.openBatches)} icon={<Package className="w-5 h-5" />} color="from-orange-500 to-orange-700" />
           <KPI label="إجمالي النافق" value={fmt(kpis.totalMortality)} icon={<Skull className="w-5 h-5" />} color="from-red-500 to-red-700" />
           <KPI label="نسبة النفوق" value={`${kpis.mortalityRate.toFixed(1)}%`} icon={<AlertTriangle className="w-5 h-5" />} color="from-amber-500 to-amber-700" />
@@ -188,10 +278,13 @@ const Brooding = () => {
           <KPI label="محوّل للمجزر" value={fmt(kpis.totalTransferred)} icon={<ArrowRightLeft className="w-5 h-5" />} color="from-indigo-500 to-indigo-700" />
           <KPI label="إجمالي التكلفة" value={fmtMoney(kpis.totalCost)} icon={<Wallet className="w-5 h-5" />} color="from-slate-600 to-slate-800" />
           <KPI label="متوسط تكلفة الطائر" value={fmtMoney(kpis.avgCostPerBird)} icon={<TrendingUp className="w-5 h-5" />} color="from-cyan-500 to-cyan-700" />
+          <KPI label="رصيد علف الكتاكيت" value={`${fmt(kpis.feedStockKg)} كجم`} icon={<Wheat className="w-5 h-5" />} color="from-lime-600 to-lime-800" />
+          <KPI label="قيمة رصيد العلف" value={fmtMoney(kpis.feedStockValue)} icon={<Wallet className="w-5 h-5" />} color="from-teal-600 to-teal-800" />
           <KPI label="مصروفات العلف" value={fmtMoney(kpis.feedCost)} icon={<Wheat className="w-5 h-5" />} color="from-yellow-600 to-yellow-800" />
           <KPI label="مصروفات الأدوية" value={fmtMoney(kpis.medCost)} icon={<Pill className="w-5 h-5" />} color="from-pink-500 to-pink-700" />
-          <KPI label="آخر 15 يوم" value={fmtMoney(kpis.last15)} icon={<Wallet className="w-5 h-5" />} color="from-fuchsia-500 to-fuchsia-700" />
+          <KPI label="مصروفات آخر 15 يوم" value={fmtMoney(kpis.last15)} icon={<Wallet className="w-5 h-5" />} color="from-fuchsia-500 to-fuchsia-700" />
           <KPI label="أرباح البيع" value={fmtMoney(kpis.salesProfit)} icon={<TrendingUp className="w-5 h-5" />} color="from-green-500 to-green-700" />
+          <KPI label="تكلفة المحوّل للمجزر" value={fmtMoney(kpis.transferredCost)} icon={<ArrowRightLeft className="w-5 h-5" />} color="from-indigo-600 to-indigo-800" />
         </div>
 
         <Tabs defaultValue="batches" className="space-y-4">
@@ -203,7 +296,10 @@ const Brooding = () => {
             <TabsTrigger value="medicine">صرف أدوية</TabsTrigger>
             <TabsTrigger value="sales">بيع كتاكيت</TabsTrigger>
             <TabsTrigger value="transfers">التحويل للمجزر</TabsTrigger>
+            <TabsTrigger value="feedstock">مخزون العلف</TabsTrigger>
+            {canManage && <TabsTrigger value="settings">الإعدادات</TabsTrigger>}
           </TabsList>
+
 
           {/* BATCHES */}
           <TabsContent value="batches">
@@ -214,7 +310,7 @@ const Brooding = () => {
                   <Button variant="outline" size="sm" onClick={() => exportXlsx(batches, "brooding_batches")}><FileSpreadsheet className="w-4 h-4 ml-1" />Excel</Button>
                   <Button variant="outline" size="sm" onClick={() => printTable("تقرير الدفعات", ["رقم", "تاريخ الاستلام", "العمر", "الأصلي", "الحالي", "نافق", "مباع", "محوّل", "تكلفة", "تكلفة الطائر", "الحالة"],
                     batches.map(b => [b.batch_number, b.received_date, ageInMonths(b.received_date), b.original_count, b.current_count, b.mortality_count, b.sold_count, b.transferred_count, fmtMoney(Number(b.total_cost)), fmtMoney(Number(b.cost_per_bird)), b.status]))}><Printer className="w-4 h-4 ml-1" />طباعة</Button>
-                  {canManage && <NewBatchDialog onCreated={loadAll} nextBatchNumber={nextBatchNumber} />}
+                  {canManage && <NewBatchDialog onCreated={loadAll} nextBatchNumber={nextBatchNumber} settings={settings} />}
                 </div>
               </CardHeader>
               <CardContent>
@@ -251,7 +347,7 @@ const Brooding = () => {
                         <TableCell><Badge variant={b.status === "active" ? "default" : "secondary"}>{b.status}</Badge></TableCell>
                         {canManage && (
                           <TableCell>
-                            <BatchActionsMenu batch={b} batches={batches} onReload={loadAll} />
+                            <BatchActionsMenu batch={b} batches={batches} feedInventory={feedInventory} settings={settings} canManage={canManage} onReload={loadAll} />
                           </TableCell>
                         )}
                       </TableRow>
@@ -327,7 +423,7 @@ const Brooding = () => {
                 { key: "unit_cost", label: "سعر الكيلو", render: (v: number) => fmtMoney(v) },
                 { key: "total_cost", label: "الإجمالي", render: (v: number) => fmtMoney(v), className: "font-bold" },
               ]}
-              form={(b, close) => <FeedForm batches={batches} onDone={() => { close(); loadAll(); }} />}
+              form={(b, close) => <FeedForm batches={batches} feedInventory={feedInventory} settings={settings} canOverride={canManage} onDone={() => { close(); loadAll(); }} />}
               addLabel="صرف علف"
             />
           </TabsContent>
@@ -402,6 +498,18 @@ const Brooding = () => {
               addLabel="تحويل للمجزر"
             />
           </TabsContent>
+
+          {/* FEED STOCK */}
+          <TabsContent value="feedstock">
+            <FeedStockTab inventory={feedInventory} movements={feedStockMovements} batches={batches} canManage={canManage} settings={settings} onReload={loadAll} />
+          </TabsContent>
+
+          {/* SETTINGS */}
+          {canManage && (
+            <TabsContent value="settings">
+              <SettingsTab settings={settings} onSaved={loadAll} />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </DashboardLayout>
@@ -478,14 +586,15 @@ const AGE_PRESETS = [
   { label: "شهرين", days: 60 },
 ];
 
-const NewBatchDialog = ({ onCreated, nextBatchNumber, prominent = false }: { onCreated: () => void; nextBatchNumber: string; prominent?: boolean }) => {
+const NewBatchDialog = ({ onCreated, nextBatchNumber, settings, prominent = false }: { onCreated: () => void; nextBatchNumber: string; settings: BroodingSettings; prominent?: boolean }) => {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [autoPrice, setAutoPrice] = useState(true);
   const initial = () => ({
     batch_number: nextBatchNumber,
     received_date: new Date().toISOString().slice(0, 10),
     source: "hatchery" as "hatchery" | "opening" | "external",
-    age_at_receipt_days: 1,
+    age_at_receipt_days: 7,
     original_count: 0,
     opening_cost: 0,
     treasury: "",
@@ -495,7 +604,16 @@ const NewBatchDialog = ({ onCreated, nextBatchNumber, prominent = false }: { onC
   });
   const [f, setF] = useState(initial);
 
-  useEffect(() => { if (open) setF(initial()); /* eslint-disable-next-line */ }, [open, nextBatchNumber]);
+  useEffect(() => { if (open) { setF(initial()); setAutoPrice(true); } /* eslint-disable-next-line */ }, [open, nextBatchNumber]);
+
+  // Auto-fill cost from hatchery default price when source = hatchery
+  useEffect(() => {
+    if (f.source === "hatchery" && autoPrice) {
+      setF(p => ({ ...p, opening_cost: p.original_count * settings.default_chick_price }));
+    }
+    // eslint-disable-next-line
+  }, [f.source, f.original_count, autoPrice, settings.default_chick_price]);
+
 
   const submit = async () => {
     if (!f.batch_number.trim()) { toast.error("أدخل رقم الدفعة"); return; }
@@ -591,9 +709,17 @@ const NewBatchDialog = ({ onCreated, nextBatchNumber, prominent = false }: { onC
           </div>
 
           <div className="grid grid-cols-2 gap-2">
-            <div><Label>التكلفة الافتتاحية (اختياري)</Label><Input type="number" min={0} value={f.opening_cost || ""} onChange={e => setF({ ...f, opening_cost: +e.target.value })} /></div>
+            <div>
+              <Label>التكلفة الافتتاحية {f.source === "hatchery" && autoPrice && <span className="text-xs text-emerald-600">(محسوبة تلقائيًا)</span>}</Label>
+              <Input type="number" min={0} value={f.opening_cost || ""} onChange={e => { setAutoPrice(false); setF({ ...f, opening_cost: +e.target.value }); }} />
+            </div>
             <div><Label>تكلفة الطائر (محسوبة)</Label><Input readOnly value={f.original_count > 0 ? ((f.opening_cost || 0) / f.original_count).toFixed(2) : "0"} /></div>
           </div>
+          {f.source === "hatchery" && (
+            <div className="text-xs text-muted-foreground p-2 rounded bg-emerald-50 border border-emerald-200">
+              💡 سعر الكتكوت من معمل {settings.company_name} = <strong>{fmtMoney(settings.default_chick_price)}</strong> / كتكوت. لا يتم خصم خزنة (دفعة داخلية).
+            </div>
+          )}
 
           {f.source === "external" && (
             <div className="grid grid-cols-2 gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200">
@@ -630,7 +756,7 @@ const BATCH_ACTIONS = [
   { key: "transfer", label: "تحويل للمجزر", icon: ArrowRightLeft },
 ] as const;
 
-const BatchActionsMenu = ({ batch, batches, onReload }: { batch: Batch; batches: Batch[]; onReload: () => void }) => {
+const BatchActionsMenu = ({ batch, batches, feedInventory, settings, canManage, onReload }: { batch: Batch; batches: Batch[]; feedInventory: FeedInventory[]; settings: BroodingSettings; canManage: boolean; onReload: () => void }) => {
   const [action, setAction] = useState<string | null>(null);
   const close = () => { setAction(null); onReload(); };
   return (
@@ -653,7 +779,7 @@ const BatchActionsMenu = ({ batch, batches, onReload }: { batch: Batch; batches:
         <DialogContent dir="rtl" className="max-w-lg">
           <DialogHeader><DialogTitle>{BATCH_ACTIONS.find(a => a.key === action)?.label} — {batch.batch_number}</DialogTitle></DialogHeader>
           {action === "mortality" && <MortalityForm batches={batches} defaultBatchId={batch.id} onDone={close} />}
-          {action === "feed" && <FeedForm batches={batches} defaultBatchId={batch.id} onDone={close} />}
+          {action === "feed" && <FeedForm batches={batches} feedInventory={feedInventory} settings={settings} canOverride={canManage} defaultBatchId={batch.id} onDone={close} />}
           {action === "medicine" && <MedicineForm batches={batches} defaultBatchId={batch.id} onDone={close} />}
           {action === "expense" && <ExpenseForm batches={batches} defaultBatchId={batch.id} onDone={close} />}
           {action === "sale" && <SaleForm batches={batches} defaultBatchId={batch.id} onDone={close} />}
@@ -721,24 +847,66 @@ const ExpenseForm = ({ batches, onDone, defaultBatchId }: any) => {
   </div>);
 };
 
-const FeedForm = ({ batches, onDone, defaultBatchId }: any) => {
-  const [f, setF] = useState({ batch_id: defaultBatchId || "", issue_date: new Date().toISOString().slice(0, 10), feed_name: "", quantity_kg: 0, unit_cost: 0, total_cost: 0, notes: "" });
-  useEffect(() => { setF(p => ({ ...p, total_cost: p.quantity_kg * p.unit_cost })); }, [f.quantity_kg, f.unit_cost]);
+const FeedForm = ({ batches, feedInventory = [], settings = DEFAULT_SETTINGS, canOverride = false, onDone, defaultBatchId }: { batches: Batch[]; feedInventory?: FeedInventory[]; settings?: BroodingSettings; canOverride?: boolean; onDone: () => void; defaultBatchId?: string }) => {
+  const defaultFeed = feedInventory[0]?.feed_name || "علف كتاكيت نعام";
+  const [f, setF] = useState({ batch_id: defaultBatchId || "", issue_date: new Date().toISOString().slice(0, 10), feed_name: defaultFeed, quantity_kg: 0, unit_cost: 0, total_cost: 0, notes: "" });
+  const [override, setOverride] = useState(false);
+  const batch = batches.find(b => b.id === f.batch_id);
+  const recommendedUnitCost = feedCostForBatch(batch, settings);
+  const inv = feedInventory.find(x => x.feed_name === f.feed_name);
+
+  // Auto-fill unit_cost from settings when not overriding
+  useEffect(() => {
+    if (!override) setF(p => ({ ...p, unit_cost: recommendedUnitCost }));
+    // eslint-disable-next-line
+  }, [recommendedUnitCost, override, f.batch_id]);
+
+  useEffect(() => { setF(p => ({ ...p, total_cost: +(p.quantity_kg * p.unit_cost).toFixed(3) })); }, [f.quantity_kg, f.unit_cost]);
+
   const submit = async () => {
     if (!f.batch_id || !f.feed_name || f.quantity_kg <= 0) { toast.error("أكمل البيانات"); return; }
+    if (inv && f.quantity_kg > Number(inv.current_kg)) {
+      toast.error(`الرصيد المتاح من ${f.feed_name} = ${inv.current_kg} كجم فقط`);
+      return;
+    }
     const { error } = await supabase.from("brooding_feed_issuance").insert(f);
     if (error) { toast.error(error.message); return; }
-    toast.success("تم صرف العلف"); onDone();
+    toast.success("تم صرف العلف وخصمه من المخزون"); onDone();
   };
   return (<div className="space-y-3">
     <div><Label>الدفعة</Label><BatchSelect value={f.batch_id} onChange={(v: string) => setF({ ...f, batch_id: v })} batches={batches} /></div>
     <div><Label>التاريخ</Label><Input type="date" value={f.issue_date} onChange={e => setF({ ...f, issue_date: e.target.value })} /></div>
-    <div><Label>نوع العلف</Label><Input value={f.feed_name} onChange={e => setF({ ...f, feed_name: e.target.value })} /></div>
+    <div>
+      <Label>نوع العلف</Label>
+      {feedInventory.length > 0 ? (
+        <Select value={f.feed_name} onValueChange={v => setF({ ...f, feed_name: v })}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>{feedInventory.map(i => <SelectItem key={i.id} value={i.feed_name}>{i.feed_name} — متاح {fmt(Number(i.current_kg))} كجم</SelectItem>)}</SelectContent>
+        </Select>
+      ) : (
+        <Input value={f.feed_name} onChange={e => setF({ ...f, feed_name: e.target.value })} />
+      )}
+    </div>
+    {batch && (
+      <div className="text-xs text-muted-foreground p-2 rounded bg-emerald-50 border border-emerald-200">
+        💡 السعر الموصى به بناءً على عمر الدفعة: <strong>{fmtMoney(recommendedUnitCost)}/كجم</strong>
+        {inv && <> — الرصيد المتاح: <strong>{fmt(Number(inv.current_kg))} كجم</strong></>}
+      </div>
+    )}
     <div className="grid grid-cols-3 gap-2">
       <div><Label>الكمية (كجم)</Label><Input type="number" value={f.quantity_kg} onChange={e => setF({ ...f, quantity_kg: +e.target.value })} /></div>
-      <div><Label>سعر الكيلو</Label><Input type="number" value={f.unit_cost} onChange={e => setF({ ...f, unit_cost: +e.target.value })} /></div>
-      <div><Label>الإجمالي</Label><Input type="number" value={f.total_cost} onChange={e => setF({ ...f, total_cost: +e.target.value })} /></div>
+      <div>
+        <Label>سعر الكيلو</Label>
+        <Input type="number" step="0.001" disabled={!canOverride || !override} value={f.unit_cost} onChange={e => setF({ ...f, unit_cost: +e.target.value })} />
+      </div>
+      <div><Label>الإجمالي</Label><Input type="number" value={f.total_cost} readOnly /></div>
     </div>
+    {canOverride && (
+      <label className="flex items-center gap-2 text-xs">
+        <input type="checkbox" checked={override} onChange={e => setOverride(e.target.checked)} />
+        تعديل السعر يدويًا (مدير عام/تنفيذي فقط)
+      </label>
+    )}
     <div><Label>ملاحظات</Label><Textarea value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} /></div>
     <Button onClick={submit} className="w-full">حفظ</Button>
   </div>);
@@ -822,6 +990,188 @@ const TransferForm = ({ batches, onDone, defaultBatchId }: any) => {
     <div><Label>ملاحظات</Label><Textarea value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} /></div>
     <Button onClick={submit} className="w-full">حفظ</Button>
   </div>);
+};
+
+// ===== Feed Stock Tab =====
+const FeedStockTab = ({ inventory, movements, batches, canManage, settings, onReload }: { inventory: FeedInventory[]; movements: FeedStockMovement[]; batches: Batch[]; canManage: boolean; settings: BroodingSettings; onReload: () => void }) => {
+  const [open, setOpen] = useState(false);
+  const [f, setF] = useState({ feed_id: inventory[0]?.id || "", movement_type: "purchase" as "purchase" | "opening" | "adjustment", quantity_kg: 0, unit_cost: 20.238, notes: "" });
+
+  useEffect(() => { if (open) setF(s => ({ ...s, feed_id: inventory[0]?.id || "" })); }, [open, inventory]);
+
+  const submit = async () => {
+    if (!f.feed_id || f.quantity_kg <= 0) { toast.error("أكمل البيانات"); return; }
+    const { error } = await supabase.from("brooding_feed_stock_movements" as any).insert({
+      feed_id: f.feed_id,
+      movement_type: f.movement_type,
+      quantity_kg: f.quantity_kg,
+      unit_cost: f.unit_cost,
+      total_cost: f.quantity_kg * f.unit_cost,
+      notes: f.notes || null,
+    });
+    if (error) { toast.error(error.message); return; }
+    toast.success("تم تسجيل الحركة");
+    setOpen(false);
+    onReload();
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>مخزون علف الكتاكيت</CardTitle>
+          {canManage && (
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild><Button size="sm"><Plus className="w-4 h-4 ml-1" />حركة مخزون</Button></DialogTrigger>
+              <DialogContent dir="rtl" className="max-w-md">
+                <DialogHeader><DialogTitle>حركة مخزون علف</DialogTitle></DialogHeader>
+                <div className="space-y-3">
+                  <div>
+                    <Label>الصنف</Label>
+                    <Select value={f.feed_id} onValueChange={v => setF({ ...f, feed_id: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>{inventory.map(i => <SelectItem key={i.id} value={i.id}>{i.feed_name}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>نوع الحركة</Label>
+                    <Select value={f.movement_type} onValueChange={(v: any) => setF({ ...f, movement_type: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="purchase">شراء (إضافة للرصيد)</SelectItem>
+                        <SelectItem value="opening">رصيد افتتاحي</SelectItem>
+                        <SelectItem value="adjustment">تسوية (تعيين الرصيد)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div><Label>الكمية (كجم)</Label><Input type="number" value={f.quantity_kg} onChange={e => setF({ ...f, quantity_kg: +e.target.value })} /></div>
+                    <div><Label>سعر الكيلو</Label><Input type="number" step="0.001" value={f.unit_cost} onChange={e => setF({ ...f, unit_cost: +e.target.value })} /></div>
+                  </div>
+                  <div><Label>ملاحظات</Label><Textarea value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} /></div>
+                  <Button onClick={submit} className="w-full">حفظ</Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader><TableRow>
+              <TableHead>الصنف</TableHead><TableHead>الرصيد (كجم)</TableHead><TableHead>آخر سعر/كجم</TableHead><TableHead>القيمة</TableHead>
+            </TableRow></TableHeader>
+            <TableBody>
+              {inventory.map(i => {
+                const low = Number(i.current_kg) <= settings.low_feed_alert_kg;
+                return (
+                  <TableRow key={i.id}>
+                    <TableCell className="font-semibold">{i.feed_name}</TableCell>
+                    <TableCell className={low ? "text-red-600 font-bold" : "font-bold"}>{fmt(Number(i.current_kg))} {low && <Badge variant="destructive" className="mr-2">منخفض</Badge>}</TableCell>
+                    <TableCell>{fmtMoney(Number(i.last_unit_cost))}</TableCell>
+                    <TableCell>{fmtMoney(Number(i.current_kg) * Number(i.last_unit_cost))}</TableCell>
+                  </TableRow>
+                );
+              })}
+              {inventory.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">لا يوجد مخزون</TableCell></TableRow>}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle>سجل حركات المخزون</CardTitle></CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader><TableRow>
+              <TableHead>التاريخ</TableHead><TableHead>النوع</TableHead><TableHead>الكمية</TableHead><TableHead>سعر/كجم</TableHead><TableHead>الإجمالي</TableHead><TableHead>الدفعة</TableHead><TableHead>ملاحظات</TableHead>
+            </TableRow></TableHeader>
+            <TableBody>
+              {movements.map(m => (
+                <TableRow key={m.id}>
+                  <TableCell>{new Date(m.created_at).toLocaleDateString("ar-EG")}</TableCell>
+                  <TableCell><Badge variant={m.movement_type === "consumption" ? "destructive" : "secondary"}>
+                    {m.movement_type === "opening" ? "افتتاحي" : m.movement_type === "purchase" ? "شراء" : m.movement_type === "consumption" ? "صرف" : "تسوية"}
+                  </Badge></TableCell>
+                  <TableCell>{fmt(Number(m.quantity_kg))} كجم</TableCell>
+                  <TableCell>{fmtMoney(Number(m.unit_cost))}</TableCell>
+                  <TableCell className="font-bold">{fmtMoney(Number(m.total_cost))}</TableCell>
+                  <TableCell>{m.batch_id ? batches.find(b => b.id === m.batch_id)?.batch_number || "-" : "-"}</TableCell>
+                  <TableCell className="text-xs">{m.notes || "-"}</TableCell>
+                </TableRow>
+              ))}
+              {movements.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">لا توجد حركات</TableCell></TableRow>}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+// ===== Settings Tab =====
+const SettingsTab = ({ settings, onSaved }: { settings: BroodingSettings; onSaved: () => void }) => {
+  const [s, setS] = useState<BroodingSettings>(settings);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { setS(settings); }, [settings]);
+
+  const save = async () => {
+    setSaving(true);
+    const { error } = await supabase.from("brooding_settings" as any).update({
+      ...s, updated_at: new Date().toISOString(),
+    }).eq("id", true);
+    setSaving(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("تم حفظ الإعدادات");
+    onSaved();
+  };
+
+  const num = (k: keyof BroodingSettings, label: string, step = "0.01") => (
+    <div>
+      <Label>{label}</Label>
+      <Input type="number" step={step} value={(s as any)[k]} onChange={e => setS({ ...s, [k]: +e.target.value } as any)} />
+    </div>
+  );
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>إعدادات قسم التحضين والتسمين</CardTitle>
+        <p className="text-sm text-muted-foreground">للمدير العام والمدير التنفيذي فقط</p>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <section>
+          <h3 className="font-bold text-emerald-700 mb-2">أسعار الكتكوت والعلف</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {num("default_chick_price", "سعر الكتكوت من معمل التفريخ (عمر أسبوع)", "1")}
+            {num("feed_cost_per_kg_phase1", "تركيبة 1: من يوم → 4 شهور (ج/كجم)", "0.001")}
+            {num("feed_cost_per_kg_phase2", "تركيبة 2: من 4 شهور → الذبح (ج/كجم)", "0.001")}
+            {num("phase_split_months", "حد التحول بين التركيبتين (شهور)", "1")}
+          </div>
+        </section>
+
+        <section>
+          <h3 className="font-bold text-emerald-700 mb-2">حدود التنبيهات</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {num("low_feed_alert_kg", "تنبيه انخفاض رصيد العلف (كجم)", "1")}
+            {num("mortality_alert_pct", "تنبيه نسبة النفوق (%)", "0.1")}
+          </div>
+        </section>
+
+        <section>
+          <h3 className="font-bold text-emerald-700 mb-2">شكل الطباعة</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div><Label>اسم الشركة</Label><Input value={s.company_name} onChange={e => setS({ ...s, company_name: e.target.value })} /></div>
+            <div><Label>لون رأس الطباعة</Label><Input type="color" value={s.print_header_color} onChange={e => setS({ ...s, print_header_color: e.target.value })} /></div>
+            <div><Label>لون الإبراز</Label><Input type="color" value={s.print_accent_color} onChange={e => setS({ ...s, print_accent_color: e.target.value })} /></div>
+          </div>
+        </section>
+
+        <div className="flex justify-end">
+          <Button onClick={save} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700">{saving ? "جاري الحفظ..." : "حفظ الإعدادات"}</Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
 };
 
 export default Brooding;
