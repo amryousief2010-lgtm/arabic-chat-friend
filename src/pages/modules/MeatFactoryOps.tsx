@@ -327,17 +327,17 @@ const MeatFactoryOps = () => {
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>خزنة مصنع اللحوم — الرصيد: <span className={dashboard.treasuryBalance < 0 ? "text-red-600" : "text-emerald-600"}>{fmt(dashboard.treasuryBalance)} ج.م</span></CardTitle>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => exportSheet("خزنة-اللحوم", treasury)}><FileSpreadsheet className="h-4 w-4 ml-1" />Excel</Button>
-                  <Button size="sm" variant="outline" onClick={() => printDoc("حركات الخزنة", "تقرير خزنة", "TREASURY", "حالي", ["التاريخ", "النوع", "المبلغ", "المصدر", "المرجع", "ملاحظات"], treasury.map(t => [fmtDate(t.txn_date), t.direction === "IN" ? "داخل" : "خارج", fmt(t.amount), t.source_type, t.ref_no || "—", t.notes || "—"]))}><Printer className="h-4 w-4 ml-1" />طباعة</Button>
+                  <Button size="sm" variant="outline" onClick={() => exportSheet("خزنة-اللحوم", filteredTreasury)}><FileSpreadsheet className="h-4 w-4 ml-1" />Excel</Button>
+                  <Button size="sm" variant="outline" onClick={() => printDoc("حركات الخزنة", "تقرير خزنة", "TREASURY", "حالي", ["التاريخ", "النوع", "المبلغ", "المصدر", "المرجع", "ملاحظات"], filteredTreasury.map(t => [fmtDate(t.txn_date), t.direction === "IN" ? "داخل" : "خارج", fmt(t.amount), t.source_type, t.ref_no || "—", t.notes || "—"]))}><Printer className="h-4 w-4 ml-1" />طباعة</Button>
                 </div>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader><TableRow><TableHead>التاريخ</TableHead><TableHead>الاتجاه</TableHead><TableHead>المبلغ</TableHead><TableHead>المصدر</TableHead><TableHead>المرجع</TableHead><TableHead>الملاحظات</TableHead></TableRow></TableHeader>
                   <TableBody>
-                    {treasury.map(t => (
-                      <TableRow key={t.id}>
-                        <TableCell className="text-xs">{fmtDate(t.txn_date)}</TableCell>
+                    {filteredTreasury.map(t => (
+                      <TableRow key={t.id} className={t.is_test ? "bg-amber-50" : ""}>
+                        <TableCell className="text-xs">{fmtDate(t.txn_date)} {TEST_BADGE(!!t.is_test)}</TableCell>
                         <TableCell>{t.direction === "IN" ? <Badge className="bg-emerald-600">داخل</Badge> : <Badge className="bg-orange-600">خارج</Badge>}</TableCell>
                         <TableCell className="font-bold">{fmt(t.amount)}</TableCell>
                         <TableCell className="text-xs">{t.source_type}</TableCell>
