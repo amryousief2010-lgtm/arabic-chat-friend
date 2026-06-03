@@ -197,8 +197,23 @@ const MeatFactoryOps = () => {
               <p className="text-sm text-muted-foreground">دورة كاملة: مخازن، فواتير، خزنة، سجل حركات</p>
             </div>
           </div>
-          <Button variant="outline" onClick={loadAll} disabled={loading}><RotateCcw className="h-4 w-4 ml-2" />تحديث</Button>
+          <div className="flex items-center gap-2">
+            <Select value={viewMode} onValueChange={(v: any) => setViewMode(v)}>
+              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="real">حركات حقيقية فقط</SelectItem>
+                <SelectItem value="test">حركات اختبار فقط</SelectItem>
+                <SelectItem value="all">عرض الكل</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" onClick={loadAll} disabled={loading}><RotateCcw className="h-4 w-4 ml-2" />تحديث</Button>
+          </div>
         </div>
+        {viewMode !== "real" && (
+          <div className="bg-amber-100 border border-amber-300 text-amber-900 rounded p-2 text-sm text-center">
+            وضع العرض الحالي: {viewMode === "test" ? "حركات الاختبار فقط — لا تدخل في التقارير الحقيقية" : "كل الحركات (حقيقية + اختبار)"}
+          </div>
+        )}
 
         <Tabs defaultValue="dashboard" className="w-full">
           <TabsList className="flex flex-wrap h-auto">
