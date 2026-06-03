@@ -69,13 +69,27 @@ const DEFAULT_SETTINGS: BroodingSettings = {
   company_name: 'نعام العاصمة',
 };
 
-// Compute the recommended feed unit cost for a batch based on its age (in months)
+// Current age of a batch in days = (today - received_date) + age_at_receipt_days.
+// Computed dynamically; no manual editing required.
+const currentAgeDays = (batch: Batch | undefined | null): number => {
+  if (!batch) return 0;
+  const days = Math.floor((Date.now() - new Date(batch.received_date).getTime()) / 86400000);
+  return Math.max(days + (batch.age_at_receipt_days || 0), 0);
+};
+
+// Age on a specific date — used to price feed/medicine on the day it was issued.
+const ageOnDateDays = (batch: Batch | undefined | null, isoDate: string): number => {
+  if (!batch) return 0;
+  const days = Math.floor((new Date(isoDate).getTime() - new Date(batch.received_date).getTime()) / 86400000);
+  return Math.max(days + (batch.age_at_receipt_days || 0), 0);
+};
+
+// Compute the recommended feed unit cost for a batch based on its CURRENT age
 // using the two-phase recipe defined in brooding_settings.
-const feedCostForBatch = (batch: Batch | undefined, settings: BroodingSettings): number => {
+const feedCostForBatch = (batch: Batch | undefined, settings: BroodingSettings, onDate?: string): number => {
   if (!batch) return settings.feed_cost_per_kg_phase1;
-  const ageMonths = (Date.now() - new Date(batch.received_date).getTime()) / (1000 * 60 * 60 * 24 * 30);
-  const totalMonths = ageMonths + (batch.age_at_receipt_days || 0) / 30;
-  return totalMonths < settings.phase_split_months
+  const days = onDate ? ageOnDateDays(batch, onDate) : currentAgeDays(batch);
+  return days < settings.phase_split_months * 30
     ? settings.feed_cost_per_kg_phase1
     : settings.feed_cost_per_kg_phase2;
 };
@@ -90,11 +104,18 @@ const EXPENSE_TYPES = [
   { value: "other", label: "أخرى" },
 ];
 
-const ageInMonths = (received: string): string => {
-  const d = new Date(received);
-  const months = (Date.now() - d.getTime()) / (1000 * 60 * 60 * 24 * 30);
-  return months >= 1 ? `${months.toFixed(1)} شهر` : `${(months * 30).toFixed(0)} يوم`;
+// Pretty current-age label: "45 يوم (شهر ونص)" — dynamic, no manual updates.
+const ageLabel = (batch: Batch | undefined | null): string => {
+  const d = currentAgeDays(batch);
+  if (d < 30) return `${d} يوم`;
+  const months = d / 30;
+  let approx = "";
+  if (Math.abs(months - Math.round(months)) < 0.25) approx = `${Math.round(months)} شهر`;
+  else if (months < 2) approx = "شهر ونص";
+  else approx = `${months.toFixed(1)} شهر`;
+  return `${d} يوم (${approx})`;
 };
+
 
 const fmt = (n: number) => new Intl.NumberFormat("ar-EG", { maximumFractionDigits: 2 }).format(n || 0);
 const fmtMoney = (n: number) => `${fmt(n)} ج.م`;
