@@ -43,6 +43,43 @@ type MedIssue = { id: string; batch_id: string; issue_date: string; medicine_nam
 type Sale = { id: string; batch_id: string; sale_date: string; customer_name: string; count: number; unit_price: number; total_amount: number; payment_method: string | null; treasury: string | null; cost_at_sale: number; profit: number; notes: string | null };
 type Transfer = { id: string; batch_id: string; transfer_date: string; count: number; avg_weight_kg: number | null; total_weight_kg: number | null; transferred_cost: number; notes: string | null };
 
+type BroodingSettings = {
+  default_chick_price: number;
+  feed_cost_per_kg_phase1: number;
+  feed_cost_per_kg_phase2: number;
+  phase_split_months: number;
+  low_feed_alert_kg: number;
+  mortality_alert_pct: number;
+  print_header_color: string;
+  print_accent_color: string;
+  company_name: string;
+};
+type FeedInventory = { id: string; feed_name: string; current_kg: number; last_unit_cost: number; notes: string | null };
+type FeedStockMovement = { id: string; feed_id: string; movement_type: string; quantity_kg: number; unit_cost: number; total_cost: number; batch_id: string | null; notes: string | null; created_at: string };
+
+const DEFAULT_SETTINGS: BroodingSettings = {
+  default_chick_price: 1500,
+  feed_cost_per_kg_phase1: 20.238,
+  feed_cost_per_kg_phase2: 18.638,
+  phase_split_months: 4,
+  low_feed_alert_kg: 20,
+  mortality_alert_pct: 5,
+  print_header_color: '#1b5e20',
+  print_accent_color: '#e8f5e9',
+  company_name: 'نعام العاصمة',
+};
+
+// Compute the recommended feed unit cost for a batch based on its age (in months)
+// using the two-phase recipe defined in brooding_settings.
+const feedCostForBatch = (batch: Batch | undefined, settings: BroodingSettings): number => {
+  if (!batch) return settings.feed_cost_per_kg_phase1;
+  const ageMonths = (Date.now() - new Date(batch.received_date).getTime()) / (1000 * 60 * 60 * 24 * 30);
+  const totalMonths = ageMonths + (batch.age_at_receipt_days || 0) / 30;
+  return totalMonths < settings.phase_split_months
+    ? settings.feed_cost_per_kg_phase1
+    : settings.feed_cost_per_kg_phase2;
+};
+
 const EXPENSE_TYPES = [
   { value: "feed", label: "علف" },
   { value: "medicine", label: "أدوية" },
