@@ -347,7 +347,7 @@ const Brooding = () => {
                         <TableCell><Badge variant={b.status === "active" ? "default" : "secondary"}>{b.status}</Badge></TableCell>
                         {canManage && (
                           <TableCell>
-                            <BatchActionsMenu batch={b} batches={batches} onReload={loadAll} />
+                            <BatchActionsMenu batch={b} batches={batches} feedInventory={feedInventory} settings={settings} canManage={canManage} onReload={loadAll} />
                           </TableCell>
                         )}
                       </TableRow>
