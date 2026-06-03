@@ -162,6 +162,7 @@ export const moduleSections: ModuleSection[] = [
       { icon: Wheat, label: "تصنيع الأعلاف", path: "/modules/feed-factory", roles: ['general_manager', 'executive_manager', 'feed_factory_manager', 'production_manager', 'quality_manager'] },
       { icon: Wheat, label: "لوحة مصنع الأعلاف", path: "/feed-factory/dashboard", roles: ['general_manager', 'executive_manager', 'feed_factory_manager', 'production_manager', 'quality_manager', 'accountant', 'financial_manager'] },
       { icon: Warehouse, label: "مخازن المصنع — خامات/جاهز/شراء/بيع/جرد", path: "/feed-factory/warehouses", roles: ['general_manager', 'executive_manager', 'feed_factory_manager', 'production_manager', 'financial_manager', 'warehouse_supervisor'] },
+      { icon: Wallet, label: "مرتجع مبيعات أعلاف", path: "/feed-factory/sales-returns", roles: ['general_manager', 'executive_manager', 'feed_factory_manager', 'accountant', 'financial_manager'] },
       { icon: Factory, label: "نظرة عامة على المصانع", path: "/factories/overview", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'feed_factory_manager', 'production_manager', 'accountant', 'financial_manager'] },
       { icon: Factory, label: "تقارير المصانع", path: "/factories/reports", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'feed_factory_manager', 'production_manager', 'accountant', 'financial_manager', 'quality_manager'] },
     ],

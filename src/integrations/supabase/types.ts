@@ -2969,6 +2969,133 @@ export type Database = {
         }
         Relationships: []
       }
+      feed_sales_returns: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          cash_transaction_id: string | null
+          created_at: string
+          created_by: string | null
+          customer: string
+          feed_product_id: string
+          id: string
+          notes: string | null
+          original_sale_id: string | null
+          original_sale_no: string | null
+          quantity_kg: number
+          reason: string | null
+          return_date: string
+          return_no: string
+          reverse_cash_transaction_id: string | null
+          reverse_stock_movement_id: string | null
+          status: string
+          stock_movement_id: string | null
+          total_amount: number | null
+          treasury_account: string
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          cash_transaction_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer: string
+          feed_product_id: string
+          id?: string
+          notes?: string | null
+          original_sale_id?: string | null
+          original_sale_no?: string | null
+          quantity_kg: number
+          reason?: string | null
+          return_date?: string
+          return_no?: string
+          reverse_cash_transaction_id?: string | null
+          reverse_stock_movement_id?: string | null
+          status?: string
+          stock_movement_id?: string | null
+          total_amount?: number | null
+          treasury_account?: string
+          unit_price?: number
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          cash_transaction_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer?: string
+          feed_product_id?: string
+          id?: string
+          notes?: string | null
+          original_sale_id?: string | null
+          original_sale_no?: string | null
+          quantity_kg?: number
+          reason?: string | null
+          return_date?: string
+          return_no?: string
+          reverse_cash_transaction_id?: string | null
+          reverse_stock_movement_id?: string | null
+          status?: string
+          stock_movement_id?: string | null
+          total_amount?: number | null
+          treasury_account?: string
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_sales_returns_cash_transaction_id_fkey"
+            columns: ["cash_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "feed_factory_treasury_txns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feed_sales_returns_feed_product_id_fkey"
+            columns: ["feed_product_id"]
+            isOneToOne: false
+            referencedRelation: "feed_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feed_sales_returns_original_sale_id_fkey"
+            columns: ["original_sale_id"]
+            isOneToOne: false
+            referencedRelation: "feed_sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feed_sales_returns_reverse_cash_transaction_id_fkey"
+            columns: ["reverse_cash_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "feed_factory_treasury_txns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feed_sales_returns_reverse_stock_movement_id_fkey"
+            columns: ["reverse_stock_movement_id"]
+            isOneToOne: false
+            referencedRelation: "feed_finished_goods_moves"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feed_sales_returns_stock_movement_id_fkey"
+            columns: ["stock_movement_id"]
+            isOneToOne: false
+            referencedRelation: "feed_finished_goods_moves"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feed_stock_count_items: {
         Row: {
           count_id: string
@@ -7660,6 +7787,42 @@ export type Database = {
         }
         Returns: string
       }
+      approve_feed_sales_return: {
+        Args: { p_return_id: string }
+        Returns: {
+          approved_at: string | null
+          approved_by: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          cash_transaction_id: string | null
+          created_at: string
+          created_by: string | null
+          customer: string
+          feed_product_id: string
+          id: string
+          notes: string | null
+          original_sale_id: string | null
+          original_sale_no: string | null
+          quantity_kg: number
+          reason: string | null
+          return_date: string
+          return_no: string
+          reverse_cash_transaction_id: string | null
+          reverse_stock_movement_id: string | null
+          status: string
+          stock_movement_id: string | null
+          total_amount: number | null
+          treasury_account: string
+          unit_price: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "feed_sales_returns"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       approve_low_yield_transfer: {
         Args: { p_batch_id: string; p_note?: string; p_warehouse_id: string }
         Returns: Json
@@ -7739,6 +7902,42 @@ export type Database = {
       can_manage_meat_batch: { Args: { _uid: string }; Returns: boolean }
       can_manage_review: { Args: { _uid: string }; Returns: boolean }
       can_post_inventory: { Args: { _uid: string }; Returns: boolean }
+      cancel_feed_sales_return: {
+        Args: { p_return_id: string }
+        Returns: {
+          approved_at: string | null
+          approved_by: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          cash_transaction_id: string | null
+          created_at: string
+          created_by: string | null
+          customer: string
+          feed_product_id: string
+          id: string
+          notes: string | null
+          original_sale_id: string | null
+          original_sale_no: string | null
+          quantity_kg: number
+          reason: string | null
+          return_date: string
+          return_no: string
+          reverse_cash_transaction_id: string | null
+          reverse_stock_movement_id: string | null
+          status: string
+          stock_movement_id: string | null
+          total_amount: number | null
+          treasury_account: string
+          unit_price: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "feed_sales_returns"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       cancel_transfer: {
         Args: { p_reason: string; p_transfer_id: string }
         Returns: Json
