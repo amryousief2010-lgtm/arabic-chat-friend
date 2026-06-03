@@ -40,8 +40,8 @@ type Mortality = { id: string; batch_id: string; mortality_date: string; count: 
 type Expense = { id: string; batch_id: string; expense_date: string; expense_type: string; item_name: string | null; quantity: number | null; unit_price: number | null; total_amount: number; treasury: string | null; notes: string | null };
 type FeedIssue = { id: string; batch_id: string; issue_date: string; feed_name: string; quantity_kg: number; unit_cost: number; total_cost: number; notes: string | null };
 type MedIssue = { id: string; batch_id: string; issue_date: string; medicine_name: string; quantity: number; unit: string | null; unit_cost: number; total_cost: number; notes: string | null };
-type Sale = { id: string; batch_id: string; sale_date: string; customer_name: string; count: number; unit_price: number; total_amount: number; payment_method: string | null; treasury: string | null; cost_at_sale: number; profit: number; notes: string | null };
-type Transfer = { id: string; batch_id: string; transfer_date: string; count: number; avg_weight_kg: number | null; total_weight_kg: number | null; transferred_cost: number; notes: string | null };
+type Sale = { id: string; batch_id: string; sale_date: string; customer_name: string; count: number; unit_price: number; total_amount: number; payment_method: string | null; treasury: string | null; cost_at_sale: number; profit: number; notes: string | null; age_at_sale_days?: number | null; age_label_snapshot?: string | null };
+type Transfer = { id: string; batch_id: string; transfer_date: string; count: number; avg_weight_kg: number | null; total_weight_kg: number | null; transferred_cost: number; notes: string | null; live_price_per_kg?: number; valuation_amount?: number; expected_profit_loss?: number };
 
 type BroodingSettings = {
   default_chick_price: number;
