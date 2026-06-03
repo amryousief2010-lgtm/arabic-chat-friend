@@ -633,7 +633,7 @@ export default function OperationsGuide() {
                 <Button size="sm" variant="outline" onClick={printSection}>
                   <Printer className="w-4 h-4 ml-1" />طباعة
                 </Button>
-                <Button size="sm" variant="outline" onClick={printSection}>
+                <Button size="sm" onClick={exportSectionPdf}>
                   <FileDown className="w-4 h-4 ml-1" />تصدير PDF
                 </Button>
               </div>
