@@ -992,4 +992,186 @@ const TransferForm = ({ batches, onDone, defaultBatchId }: any) => {
   </div>);
 };
 
+// ===== Feed Stock Tab =====
+const FeedStockTab = ({ inventory, movements, batches, canManage, settings, onReload }: { inventory: FeedInventory[]; movements: FeedStockMovement[]; batches: Batch[]; canManage: boolean; settings: BroodingSettings; onReload: () => void }) => {
+  const [open, setOpen] = useState(false);
+  const [f, setF] = useState({ feed_id: inventory[0]?.id || "", movement_type: "purchase" as "purchase" | "opening" | "adjustment", quantity_kg: 0, unit_cost: 20.238, notes: "" });
+
+  useEffect(() => { if (open) setF(s => ({ ...s, feed_id: inventory[0]?.id || "" })); }, [open, inventory]);
+
+  const submit = async () => {
+    if (!f.feed_id || f.quantity_kg <= 0) { toast.error("أكمل البيانات"); return; }
+    const { error } = await supabase.from("brooding_feed_stock_movements" as any).insert({
+      feed_id: f.feed_id,
+      movement_type: f.movement_type,
+      quantity_kg: f.quantity_kg,
+      unit_cost: f.unit_cost,
+      total_cost: f.quantity_kg * f.unit_cost,
+      notes: f.notes || null,
+    });
+    if (error) { toast.error(error.message); return; }
+    toast.success("تم تسجيل الحركة");
+    setOpen(false);
+    onReload();
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>مخزون علف الكتاكيت</CardTitle>
+          {canManage && (
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild><Button size="sm"><Plus className="w-4 h-4 ml-1" />حركة مخزون</Button></DialogTrigger>
+              <DialogContent dir="rtl" className="max-w-md">
+                <DialogHeader><DialogTitle>حركة مخزون علف</DialogTitle></DialogHeader>
+                <div className="space-y-3">
+                  <div>
+                    <Label>الصنف</Label>
+                    <Select value={f.feed_id} onValueChange={v => setF({ ...f, feed_id: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>{inventory.map(i => <SelectItem key={i.id} value={i.id}>{i.feed_name}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>نوع الحركة</Label>
+                    <Select value={f.movement_type} onValueChange={(v: any) => setF({ ...f, movement_type: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="purchase">شراء (إضافة للرصيد)</SelectItem>
+                        <SelectItem value="opening">رصيد افتتاحي</SelectItem>
+                        <SelectItem value="adjustment">تسوية (تعيين الرصيد)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div><Label>الكمية (كجم)</Label><Input type="number" value={f.quantity_kg} onChange={e => setF({ ...f, quantity_kg: +e.target.value })} /></div>
+                    <div><Label>سعر الكيلو</Label><Input type="number" step="0.001" value={f.unit_cost} onChange={e => setF({ ...f, unit_cost: +e.target.value })} /></div>
+                  </div>
+                  <div><Label>ملاحظات</Label><Textarea value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} /></div>
+                  <Button onClick={submit} className="w-full">حفظ</Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader><TableRow>
+              <TableHead>الصنف</TableHead><TableHead>الرصيد (كجم)</TableHead><TableHead>آخر سعر/كجم</TableHead><TableHead>القيمة</TableHead>
+            </TableRow></TableHeader>
+            <TableBody>
+              {inventory.map(i => {
+                const low = Number(i.current_kg) <= settings.low_feed_alert_kg;
+                return (
+                  <TableRow key={i.id}>
+                    <TableCell className="font-semibold">{i.feed_name}</TableCell>
+                    <TableCell className={low ? "text-red-600 font-bold" : "font-bold"}>{fmt(Number(i.current_kg))} {low && <Badge variant="destructive" className="mr-2">منخفض</Badge>}</TableCell>
+                    <TableCell>{fmtMoney(Number(i.last_unit_cost))}</TableCell>
+                    <TableCell>{fmtMoney(Number(i.current_kg) * Number(i.last_unit_cost))}</TableCell>
+                  </TableRow>
+                );
+              })}
+              {inventory.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">لا يوجد مخزون</TableCell></TableRow>}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle>سجل حركات المخزون</CardTitle></CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader><TableRow>
+              <TableHead>التاريخ</TableHead><TableHead>النوع</TableHead><TableHead>الكمية</TableHead><TableHead>سعر/كجم</TableHead><TableHead>الإجمالي</TableHead><TableHead>الدفعة</TableHead><TableHead>ملاحظات</TableHead>
+            </TableRow></TableHeader>
+            <TableBody>
+              {movements.map(m => (
+                <TableRow key={m.id}>
+                  <TableCell>{new Date(m.created_at).toLocaleDateString("ar-EG")}</TableCell>
+                  <TableCell><Badge variant={m.movement_type === "consumption" ? "destructive" : "secondary"}>
+                    {m.movement_type === "opening" ? "افتتاحي" : m.movement_type === "purchase" ? "شراء" : m.movement_type === "consumption" ? "صرف" : "تسوية"}
+                  </Badge></TableCell>
+                  <TableCell>{fmt(Number(m.quantity_kg))} كجم</TableCell>
+                  <TableCell>{fmtMoney(Number(m.unit_cost))}</TableCell>
+                  <TableCell className="font-bold">{fmtMoney(Number(m.total_cost))}</TableCell>
+                  <TableCell>{m.batch_id ? batches.find(b => b.id === m.batch_id)?.batch_number || "-" : "-"}</TableCell>
+                  <TableCell className="text-xs">{m.notes || "-"}</TableCell>
+                </TableRow>
+              ))}
+              {movements.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">لا توجد حركات</TableCell></TableRow>}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+// ===== Settings Tab =====
+const SettingsTab = ({ settings, onSaved }: { settings: BroodingSettings; onSaved: () => void }) => {
+  const [s, setS] = useState<BroodingSettings>(settings);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { setS(settings); }, [settings]);
+
+  const save = async () => {
+    setSaving(true);
+    const { error } = await supabase.from("brooding_settings" as any).update({
+      ...s, updated_at: new Date().toISOString(),
+    }).eq("id", true);
+    setSaving(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("تم حفظ الإعدادات");
+    onSaved();
+  };
+
+  const num = (k: keyof BroodingSettings, label: string, step = "0.01") => (
+    <div>
+      <Label>{label}</Label>
+      <Input type="number" step={step} value={(s as any)[k]} onChange={e => setS({ ...s, [k]: +e.target.value } as any)} />
+    </div>
+  );
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>إعدادات قسم التحضين والتسمين</CardTitle>
+        <p className="text-sm text-muted-foreground">للمدير العام والمدير التنفيذي فقط</p>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <section>
+          <h3 className="font-bold text-emerald-700 mb-2">أسعار الكتكوت والعلف</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {num("default_chick_price", "سعر الكتكوت من معمل التفريخ (عمر أسبوع)", "1")}
+            {num("feed_cost_per_kg_phase1", "تركيبة 1: من يوم → 4 شهور (ج/كجم)", "0.001")}
+            {num("feed_cost_per_kg_phase2", "تركيبة 2: من 4 شهور → الذبح (ج/كجم)", "0.001")}
+            {num("phase_split_months", "حد التحول بين التركيبتين (شهور)", "1")}
+          </div>
+        </section>
+
+        <section>
+          <h3 className="font-bold text-emerald-700 mb-2">حدود التنبيهات</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {num("low_feed_alert_kg", "تنبيه انخفاض رصيد العلف (كجم)", "1")}
+            {num("mortality_alert_pct", "تنبيه نسبة النفوق (%)", "0.1")}
+          </div>
+        </section>
+
+        <section>
+          <h3 className="font-bold text-emerald-700 mb-2">شكل الطباعة</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div><Label>اسم الشركة</Label><Input value={s.company_name} onChange={e => setS({ ...s, company_name: e.target.value })} /></div>
+            <div><Label>لون رأس الطباعة</Label><Input type="color" value={s.print_header_color} onChange={e => setS({ ...s, print_header_color: e.target.value })} /></div>
+            <div><Label>لون الإبراز</Label><Input type="color" value={s.print_accent_color} onChange={e => setS({ ...s, print_accent_color: e.target.value })} /></div>
+          </div>
+        </section>
+
+        <div className="flex justify-end">
+          <Button onClick={save} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700">{saving ? "جاري الحفظ..." : "حفظ الإعدادات"}</Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
 export default Brooding;
