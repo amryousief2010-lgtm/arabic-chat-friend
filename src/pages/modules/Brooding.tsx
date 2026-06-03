@@ -962,6 +962,11 @@ const BatchActionsMenu = ({ batch, batches, feedInventory, settings, canManage, 
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>{batch.batch_number}</DropdownMenuLabel>
           <DropdownMenuSeparator />
+          {canManage && (
+            <DropdownMenuItem onClick={() => setAction("edit")} className="text-blue-700">
+              <Plus className="w-4 h-4 ml-2" />تعديل العمر/التاريخ
+            </DropdownMenuItem>
+          )}
           {BATCH_ACTIONS.map(a => (
             <DropdownMenuItem key={a.key} onClick={() => setAction(a.key)}>
               <a.icon className="w-4 h-4 ml-2" />{a.label}
@@ -971,7 +976,12 @@ const BatchActionsMenu = ({ batch, batches, feedInventory, settings, canManage, 
       </DropdownMenu>
       <Dialog open={!!action} onOpenChange={(v) => !v && setAction(null)}>
         <DialogContent dir="rtl" className="max-w-lg">
-          <DialogHeader><DialogTitle>{BATCH_ACTIONS.find(a => a.key === action)?.label} — {batch.batch_number}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>
+              {action === "edit" ? "تعديل بيانات الدفعة" : BATCH_ACTIONS.find(a => a.key === action)?.label} — {batch.batch_number}
+            </DialogTitle>
+          </DialogHeader>
+          {action === "edit" && <EditBatchForm batch={batch} onDone={close} />}
           {action === "mortality" && <MortalityForm batches={batches} defaultBatchId={batch.id} onDone={close} />}
           {action === "feed" && <FeedForm batches={batches} feedInventory={feedInventory} settings={settings} canOverride={canManage} defaultBatchId={batch.id} onDone={close} />}
           {action === "medicine" && <MedicineForm batches={batches} defaultBatchId={batch.id} onDone={close} />}
@@ -983,6 +993,86 @@ const BatchActionsMenu = ({ batch, batches, feedInventory, settings, canManage, 
     </>
   );
 };
+
+// ===== Edit Batch (GM/EM only) — corrects received_date + age_at_receipt =====
+const EditBatchForm = ({ batch, onDone }: { batch: Batch; onDone: () => void }) => {
+  const [receivedDate, setReceivedDate] = useState(batch.received_date);
+  const [ageValue, setAgeValue] = useState(batch.age_at_receipt_days);
+  const [ageUnit, setAgeUnit] = useState<'day' | 'week' | 'month'>('day');
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  // Convert input → days
+  const ageInDays = ageUnit === 'day' ? ageValue : ageUnit === 'week' ? ageValue * 7 : ageValue * 30;
+
+  // Live preview
+  const today = new Date();
+  const recv = new Date(receivedDate);
+  const elapsed = Math.max(0, Math.floor((today.getTime() - recv.getTime()) / 86400000));
+  const newCurrentAge = elapsed + ageInDays;
+
+  const oldCurrentAge = Math.max(0, Math.floor((today.getTime() - new Date(batch.received_date).getTime()) / 86400000) + (batch.age_at_receipt_days || 0));
+
+  const save = async () => {
+    if (ageInDays < 0) { toast.error("العمر لا يمكن أن يكون سالبًا"); return; }
+    setSaving(true);
+    const correctionNote = `[تصحيح ${new Date().toISOString().slice(0, 10)}] العمر السابق وقت الدخول: ${batch.age_at_receipt_days} يوم — التاريخ السابق: ${batch.received_date}. ${notes ? 'السبب: ' + notes : ''}`;
+    const { error } = await supabase
+      .from("brooding_batches")
+      .update({
+        received_date: receivedDate,
+        age_at_receipt_days: ageInDays,
+        notes: ((batch as any).notes ? (batch as any).notes + "\n" : "") + correctionNote,
+      })
+      .eq("id", batch.id);
+    setSaving(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success(`تم التعديل — العمر الحالي الجديد: ${newCurrentAge} يوم`);
+    onDone();
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="p-3 rounded bg-amber-50 border border-amber-200 text-sm text-amber-900">
+        <strong>الوضع الحالي:</strong> دخلت يوم {batch.received_date} بعمر {batch.age_at_receipt_days} يوم — العمر الحالي: <strong>{oldCurrentAge} يوم</strong>
+      </div>
+      <div>
+        <Label>تاريخ دخول الدفعة</Label>
+        <Input type="date" value={receivedDate} onChange={e => setReceivedDate(e.target.value)} />
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <Label>العمر وقت الدخول</Label>
+          <Input type="number" min={0} value={ageValue} onChange={e => setAgeValue(+e.target.value)} />
+        </div>
+        <div>
+          <Label>الوحدة</Label>
+          <Select value={ageUnit} onValueChange={(v: any) => setAgeUnit(v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="day">يوم</SelectItem>
+              <SelectItem value="week">أسبوع</SelectItem>
+              <SelectItem value="month">شهر (30 يوم)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="p-3 rounded bg-emerald-50 border border-emerald-200 text-sm">
+        <div>عمر الدخول بالأيام: <strong>{ageInDays} يوم</strong></div>
+        <div>المنقضي منذ الدخول: <strong>{elapsed} يوم</strong></div>
+        <div className="text-base mt-1">العمر الحالي الجديد بعد التعديل: <strong className="text-emerald-700">{newCurrentAge} يوم</strong></div>
+      </div>
+      <div>
+        <Label>ملاحظات التصحيح</Label>
+        <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="سبب التعديل (سيُحفظ في سجل الدفعة)" />
+      </div>
+      <Button onClick={save} disabled={saving} className="w-full bg-blue-600 hover:bg-blue-700">
+        {saving ? "جاري الحفظ..." : "حفظ التعديل"}
+      </Button>
+    </div>
+  );
+};
+
 
 const BatchSelect = ({ value, onChange, batches }: any) => (
   <Select value={value} onValueChange={onChange}>
