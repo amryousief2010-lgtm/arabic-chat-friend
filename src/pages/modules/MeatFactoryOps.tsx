@@ -826,7 +826,7 @@ const SalesTab = ({ fins, list, onReload, onPost, onPrint, onExcel }: any) => {
           <TableBody>
             {list.map((s: any) => (
               <TableRow key={s.id}>
-                <TableCell className="font-mono text-xs">{s.invoice_no}</TableCell>
+                <TableCell className="font-mono text-xs">{s.invoice_no} {TEST_BADGE(!!s.is_test)}</TableCell>
                 <TableCell className="text-xs">{s.invoice_date}</TableCell>
                 <TableCell>{s.customer}</TableCell>
                 <TableCell>{s.payment_method === "cash" ? "نقدي" : "آجل"}</TableCell>
