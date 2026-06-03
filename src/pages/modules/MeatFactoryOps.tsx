@@ -815,7 +815,7 @@ const SalesTab = ({ fins, list, onReload, onPost, onPrint, onExcel }: any) => {
                 </div>
                 <div className="text-left font-bold">الإجمالي: {fmt(lines.reduce((s, l) => s + Number(l.qty) * Number(l.unit_price), 0))}</div>
               </div>
-              <DialogFooter><Button onClick={create}>حفظ كمسودة</Button></DialogFooter>
+              <DialogFooter className="gap-2"><TestToggle value={isTest} onChange={setIsTest} /><Button onClick={create}>حفظ كمسودة</Button></DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
