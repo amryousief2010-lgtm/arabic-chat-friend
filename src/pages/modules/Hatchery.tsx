@@ -21,6 +21,7 @@ import FarmShipmentsInbox from "@/components/hatchery/FarmShipmentsInbox";
 import HatcheryDashboard from "@/components/hatchery/HatcheryDashboard";
 import HatcheryTreasury from "@/components/hatchery/HatcheryTreasury";
 import HatcheryMovementsLog from "@/components/hatchery/HatcheryMovementsLog";
+import { useTestMode } from "@/hooks/useTestMode";
 import { History } from "lucide-react";
 import { toast } from "sonner";
 import { format, addDays, differenceInDays, parseISO } from "date-fns";
@@ -59,19 +60,21 @@ const autoStatus = (entry: string): "pending" | "incubating" | "hatching" | "com
 
 const Hatchery = () => {
   const qc = useQueryClient();
+  const { showTest } = useTestMode();
+  const tf = (q: any) => (showTest ? q : q.eq("is_test", false));
 
   const { data: customers = [] } = useQuery({
-    queryKey: ["hatch_customers"],
+    queryKey: ["hatch_customers", showTest],
     queryFn: async () => {
-      const { data, error } = await supabase.from("hatch_customers").select("*").order("name");
+      const { data, error } = await tf(supabase.from("hatch_customers").select("*").order("name"));
       if (error) throw error; return data || [];
     },
   });
 
   const { data: batches = [] } = useQuery({
-    queryKey: ["hatch_batches"],
+    queryKey: ["hatch_batches", showTest],
     queryFn: async () => {
-      const { data, error } = await supabase.from("hatch_batches").select("*").order("receive_date", { ascending: false }).limit(1000);
+      const { data, error } = await tf(supabase.from("hatch_batches").select("*").order("receive_date", { ascending: false }).limit(1000));
       if (error) throw error; return data || [];
     },
   });
@@ -93,9 +96,9 @@ const Hatchery = () => {
   });
 
   const { data: chicks = [] } = useQuery({
-    queryKey: ["chick_movements"],
+    queryKey: ["chick_movements", showTest],
     queryFn: async () => {
-      const { data, error } = await supabase.from("chick_movements").select("*").order("movement_date", { ascending: false }).limit(500);
+      const { data, error } = await tf(supabase.from("chick_movements").select("*").order("movement_date", { ascending: false }).limit(500));
       if (error) throw error; return data || [];
     },
   });
