@@ -1,93 +1,132 @@
-# قسم التحضين والتسمين (Brooding & Fattening)
-
-بناء قسم متكامل لإدارة دفعات الكتاكيت من معمل التفريخ حتى البيع أو التحويل للمجزر، مع لوحة تحكم وتقارير، وإضافة دفعتين افتتاحيتين (26 + 25 كتكوت).
+# خطة تطوير Dashboard التحضين والتسمين
 
 ## 1. قاعدة البيانات (Migration)
 
-سيتم إنشاء الجداول التالية مع RLS وGRANTs:
+### جدول جديد: `brooding_settings`
+جدول إعدادات مفرد (single-row) لتخزين كل الإعدادات القابلة للتعديل:
+- `default_chick_price` numeric default `1500` — سعر الكتكوت من معمل نعام العاصمة (عمر أسبوع)
+- `feed_cost_per_kg_phase1` numeric default `20.238` — تركيبة يوم → 4 شهور
+- `feed_cost_per_kg_phase2` numeric default `18.638` — تركيبة 4 شهور → الذبح
+- `phase_split_months` integer default `4` — حد التحول بين التركيبتين
+- `low_feed_alert_kg` numeric default `20`
+- `mortality_alert_pct` numeric default `5`
+- `print_header_color` text default `'#1b5e20'` (أخضر غامق)
+- `print_accent_color` text default `'#e8f5e9'`
+- `company_name` text default `'نعام العاصمة'`
+- `updated_at`, `updated_by`
 
-- **brooding_batches**: رقم الدفعة، تاريخ الاستلام، المصدر، العمر عند الاستلام، العدد الأصلي، العدد الحالي، النافق، المباع، المحول، الحالة، إجمالي التكلفة، تكلفة الطائر، ملاحظات
-- **brooding_mortality**: تسجيل النافق (دفعة، تاريخ، عدد، سبب، ملاحظات، معتمد)
-- **brooding_expenses**: مصروفات (نوع: علف/أدوية/فيتامينات/عمالة/فرشة/كهرباء/أخرى)، صنف، كمية، سعر وحدة، إجمالي، مصدر الصرف، خزنة
-- **brooding_feed_issuance**: صرف علف (مرتبط بمخزون العلف)
-- **brooding_medicine_issuance**: صرف أدوية
-- **brooding_chick_sales**: بيع كتاكيت بالواحدة (عميل، عدد، سعر، إجمالي، طريقة دفع، خزنة، تكلفة، ربح)
-- **brooding_to_slaughter_transfers**: التحويل للمجزر (عدد، متوسط وزن، إجمالي وزن، تكلفة منقولة)
-- **brooding_batch_movements**: سجل حركات شامل (نوع الحركة، مرجع، تأثير على العدد/التكلفة، المستخدم، التاريخ)
-- **brooding_cost_snapshots**: لقطة كل 15 يوم (عدد، تكلفة إجمالية، تكلفة طائر)
+**RLS:**
+- SELECT: كل المستخدمين المسجلين
+- UPDATE: `general_manager` أو `executive_manager` فقط (عبر `has_role`)
+- INSERT: نفس الصلاحية، مع `unique` constraint على صف واحد فقط
 
-**Triggers / Functions**:
-- `recalc_brooding_batch_cost(batch_id)`: يعيد حساب الإجمالي وتكلفة الطائر
-- Trigger على mortality/expenses/sales/transfers يستدعي recalc + يحدّث عدد الدفعة
-- Constraints: منع عدد سالب، منع تجاوز العدد الحالي
-- RLS: `general_manager` و `executive_manager` فقط CRUD كامل، الباقي محجوب
+سيتم إدراج صف افتراضي واحد عبر INSERT في نفس الـ migration.
 
-**بذرة افتتاحية**:
-- دفعة #1: 26 كتكوت، تاريخ استلام = اليوم - 60 يوم، عمر عند الاستلام = 0
-- دفعة #2: 25 كتكوت، تاريخ استلام = اليوم - 45 يوم، عمر عند الاستلام = 0
+### جدول جديد: `brooding_feed_inventory`
+رصيد العلف داخل قسم التحضين:
+- `id`, `feed_name` text (مثلاً `علف كتاكيت نعام`)
+- `current_kg` numeric
+- `unit_cost` numeric (آخر تكلفة كيلو)
+- `updated_at`
 
-## 2. الواجهة (Frontend)
+سيتم إدراج صف افتتاحي: `علف كتاكيت نعام` بـ 80 كيلو.
 
-### المسارات
-- `/modules/brooding` — Dashboard رئيسية (بدل ModulePlaceholder الحالي)
-- `/modules/brooding/batches` — قائمة الدفعات + إضافة
-- `/modules/brooding/batches/:id` — تفاصيل الدفعة الكاملة (حركات، تكلفة، snapshots)
-- `/modules/brooding/mortality` — تسجيل/تقرير النافق
-- `/modules/brooding/expenses` — مصروفات الدورة
-- `/modules/brooding/feed` — صرف علف
-- `/modules/brooding/medicine` — صرف أدوية
-- `/modules/brooding/sales` — بيع كتاكيت
-- `/modules/brooding/transfers` — تحويل للمجزر
+### جدول جديد: `brooding_feed_movements`
+تتبع حركات العلف (إضافة/صرف):
+- `id`, `feed_id` FK
+- `batch_id` FK nullable (للصرف)
+- `movement_type` enum: `opening` | `purchase` | `consumption` | `adjustment`
+- `quantity_kg` numeric
+- `unit_cost` numeric
+- `total_cost` numeric (محسوب)
+- `notes` text, `created_at`, `created_by`
 
-### Dashboard
-StatCards: إجمالي الطيور الحالية، دفعات مفتوحة، إجمالي النافق، نسبة النفوق، مباع، محول، إجمالي التكلفة، متوسط تكلفة الطائر، مصروفات علف، مصروفات أدوية، مصروفات آخر 15 يوم، أرباح بيع.
+**Trigger** على `brooding_feed_movements`:
+- يحدّث `brooding_feed_inventory.current_kg` (يضيف للـ purchase/opening، يخصم للـ consumption)
+- يمنع الصرف إذا الكمية أكبر من المتاح
+- إذا `movement_type='consumption'` ومرتبط بـ `batch_id`، يُنشئ تلقائياً سجل في `brooding_batch_movements` بـ `cost_delta = total_cost` (يضمن أن تكلفة الدفعة تزيد)
 
-Charts (Recharts): تطور التكلفة عبر الوقت، توزيع المصروفات، حالة الدفعات. تنبيهات للنافق العالي والتكلفة المرتفعة.
+### تعديل `brooding_batches`
+لا حاجة لأعمدة جديدة — سيُحسب كل شيء من المصدر. لكن سنضيف عمود محسوب أو view:
+- `current_value` = `current_count * cost_per_bird` (يُحسب في الـ frontend)
 
-### تفاصيل الدفعة
-Tabs: نظرة عامة | الحركات | المصروفات | النافق | المبيعات | التحويلات | snapshots كل 15 يوم.
+## 2. التغييرات في `src/pages/modules/Brooding.tsx`
 
-### الصلاحيات (Frontend Guard)
-ProtectedRoute بأدوار `general_manager` + `executive_manager` فقط.
+### NewBatchDialog
+- عند اختيار المصدر `hatchery`، يتم جلب `default_chick_price` من `brooding_settings` تلقائياً وضرب العدد × السعر = التكلفة الافتتاحية.
+- الحقل قابل للتعديل يدوياً لكنه يُملأ تلقائياً.
+- يضاف نص توضيحي: "تكلفة الكتكوت من معمل نعام العاصمة: 1500 ج/كتكوت"
+- مصدر hatchery → لا يُخصم من خزنة (الموجود حالياً).
 
-### السايدبار
-استبدال البند الحالي "إدارة التحضين" بمجموعة موسّعة تحت قسم "4. التحضين والتسمين" مع روابط لكل شاشة.
+### FeedForm (نموذج صرف العلف)
+- بدلاً من إدخال السعر يدوياً، يُحسب تلقائياً من عمر الدفعة:
+  - عمر < 4 شهور → `feed_cost_per_kg_phase1` (20.238)
+  - عمر ≥ 4 شهور → `feed_cost_per_kg_phase2` (18.638)
+- يسمح للمدير العام/التنفيذي بتعديل السعر يدوياً (override checkbox).
+- يخصم من `brooding_feed_inventory` عبر إنشاء حركة في `brooding_feed_movements` (Trigger يتولى الباقي).
+- يعرض الرصيد المتاح ويمنع الصرف إذا غير كافٍ.
 
-## 3. الطباعة والتصدير
-- زر طباعة (يستخدم `openPrintWindow` من `@/lib/printPdf` لدعم العربية)
-- زر تصدير Excel باستخدام `safeExcel`
-- متاح في: الدفعات، النافق، المصروفات، البيع، التحويلات، تكلفة الدفعة، Dashboard
+### كروت الـ Dashboard الجديدة
+يتم إضافة/تحديث صف الكروت ليعرض:
+1. إجمالي عدد الكتاكيت الحالي (موجود)
+2. **قيمة الكتاكيت الحالية بالجنيه** = Σ(current_count × cost_per_bird) لكل دفعة، مع fallback للسعر الافتراضي (1500) إذا cost_per_bird = 0
+3. إجمالي تكلفة الدفعات
+4. متوسط تكلفة الطائر الحالي
+5. رصيد علف كتاكيت نعام (كجم)
+6. قيمة رصيد العلف الحالي
+7. تكلفة العلف المصروف
+8. تكلفة الأدوية المصروفة
+9. مصروفات آخر 15 يوم
+10. عدد النافق ونسبته
+11. أرباح بيع الكتاكيت
+12. تكلفة الطيور المحولة للمجزر
 
-## 4. الترابط مع باقي النظام
-- **معمل التفريخ**: حقل اختياري `source_hatchery_batch_id` على الدفعة
-- **مخزون العلف**: عند صرف علف، خصم من مخزون العلف الجاهز
-- **مخزون الأدوية**: عند صرف دواء، خصم من مخزون الأدوية (إن وُجد جدول، وإلا سجلّ تكلفة فقط)
-- **الخزنة**: حركة قيد على الخزنة المختارة عند مصروف/بيع نقدي
-- **المجزر**: التحويل ينشئ سجل وارد في جدول المجزر (slaughter inbound) مرتبط بـ `brooding_transfer_id` لمنع التكرار
+### تبويب جديد: "الإعدادات"
+- يظهر **فقط** للمدير العام والمدير التنفيذي (`canEditSettings = isGeneralManager || isExecutiveManager`).
+- يحتوي على فورم لتعديل كل حقول `brooding_settings`.
+- زر حفظ + toast نجاح.
 
-## 5. القواعد التشغيلية
-- كل اعتماد يتم داخل Transaction واحدة (Postgres function `SECURITY DEFINER`)
-- منع الحذف النهائي للحركات المعتمدة (soft cancel فقط مع سجل)
-- إعادة حساب تكلفة الطائر تلقائيًا = إجمالي تكلفة الدفعة ÷ العدد الحي الحالي
-- تكلفة النافق تبقى ضمن إجمالي الدفعة وتُوزَّع على الحي
+### تبويب جديد/قسم: "مخزون العلف"
+- يعرض `brooding_feed_inventory` + سجل `brooding_feed_movements`.
+- زر "إضافة رصيد علف" للمدير العام/التنفيذي.
 
-## تفاصيل تقنية
+## 3. تحسين الطباعة (`src/lib/printPdf.ts` أو ملف جديد)
 
-- جداول Postgres + RLS باستخدام `has_role(auth.uid(), 'general_manager'|'executive_manager')`
-- استخدام `framer-motion` لانتقالات الصفحات
-- RTL/Arabic بالكامل، ألوان البراند Purple/Orange
-- استخدام `Date.UTC` في كل الفلاتر الزمنية
-- جلب البيانات على دفعات 1000 عند الحاجة
-- TanStack Query للـ data fetching مع invalidation بعد كل اعتماد
+- إنشاء helper `printBroodingReport({ title, batchNumber, rows, totals })` يستخدم الألوان من `brooding_settings`.
+- التصميم:
+  - Header: شعار/اسم الشركة (نعام العاصمة) — لون أخضر غامق
+  - العنوان الفرعي: التحضين والتسمين
+  - نوع التقرير + رقم الدفعة/الحركة + التاريخ + الحالة
+  - جدول بحدود واضحة، خلفية رمادية فاتحة للرأس
+  - صف الإجماليات بلون مميز (أخضر فاتح)
+  - تذييل: توقيع المسؤول / توقيع المدير
+- استبدال استدعاءات الطباعة الحالية في Brooding.tsx بهذا الـ helper.
 
-## مراحل التنفيذ
-1. Migration (جداول + functions + triggers + RLS + seed للدفعتين)
-2. Hooks: `useBroodingBatches`, `useBroodingDashboard`, `useBroodingBatch(id)`
-3. صفحة Dashboard الرئيسية
-4. صفحة قائمة الدفعات + دفعة جديدة + تفاصيل الدفعة
-5. شاشات: النافق، المصروفات، صرف علف/دواء، بيع كتاكيت، تحويل للمجزر
-6. تحديث السايدبار + التوجيه في `App.tsx`
-7. طباعة + تصدير Excel
-8. ربط التحويل بالمجزر
+## 4. الصلاحيات
 
-هل أبدأ التنفيذ؟
+- كل إجراءات التعديل (إضافة دفعة، حركات، إعدادات، رصيد علف) محصورة في `canManageBrooding` (موجود).
+- تبويب الإعدادات + تعديل الأسعار/الرصيد الافتتاحي → `isGeneralManager || isExecutiveManager` فقط.
+
+## 5. الاختبار
+
+بعد التطبيق، تنفيذ SQL tests للتأكد من:
+- صف الإعدادات الافتراضي موجود بقيمة 1500
+- رصيد العلف الافتتاحي = 80 كجم
+- محاكاة دفعة hatchery بـ 10 كتاكيت → cost = 15000
+- محاكاة صرف 10 كجم علف → الرصيد = 70، التكلفة المضافة للدفعة = 202.38
+- BRD-001 + BRD-002 قيمتهم الافتتاحية = 76500 (عند cost_per_bird = 0، نستخدم 1500 fallback في الفرونت)
+- مستخدم غير المدير لا يستطيع UPDATE على `brooding_settings`
+
+## التسلسل
+
+1. Migration (settings + feed inventory + movements + triggers + RLS + seed data)
+2. تعديل `Brooding.tsx`: hook لجلب settings، كروت جديدة، تبويب إعدادات، تبويب مخزون علف
+3. تعديل NewBatchDialog و FeedForm لاستخدام الإعدادات
+4. helper الطباعة الجديد + استبدال الاستدعاءات
+5. اختبار شامل
+
+## ملاحظات تقنية
+
+- ملف `Brooding.tsx` كبير حالياً (~1500 سطر). سأقسّم التبويبات الجديدة لمكونات فرعية في نفس الملف أو ملفات منفصلة (`BroodingSettingsTab.tsx`, `BroodingFeedInventoryTab.tsx`) للحفاظ على القراءة.
+- ستحديث `src/integrations/supabase/types.ts` تلقائياً بعد الـ migration.
+- BRD-001 و BRD-002 لن يتم تغيير بياناتهما — fallback في الفرونت يعالج الـ cost_per_bird = 0.
