@@ -2,13 +2,90 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Wheat, AlertTriangle, Package, CheckCircle, Clock, Banknote, Boxes, FileWarning, Warehouse, ShoppingCart, Undo2 } from "lucide-react";
+import { Wheat, AlertTriangle, Package, CheckCircle, Clock, Banknote, Boxes, FileWarning, Warehouse, ShoppingCart, Undo2, TrendingUp, TrendingDown, Receipt, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import StatCard from "@/components/dashboard/StatCard";
 import FactoryFilters, { defaultFilterState, FactoryFilterState } from "@/components/factory/FactoryFilters";
 import { useFactoryData } from "@/hooks/useFactoryData";
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+
+function FeedPeriodStats() {
+  const today = new Date();
+  const todayStr = today.toISOString().slice(0, 10);
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
+  const yearStart = new Date(today.getFullYear(), 0, 1).toISOString().slice(0, 10);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["feed-period-stats", todayStr],
+    queryFn: async () => {
+      const [sales, purchases, returns] = await Promise.all([
+        supabase.from("feed_sales").select("sale_date,total_amount").gte("sale_date", yearStart),
+        supabase.from("feed_raw_purchases").select("purchase_date,total_amount").gte("purchase_date", yearStart),
+        supabase.from("feed_sales_returns").select("return_date,total_amount,status").eq("status", "approved").gte("return_date", yearStart),
+      ]);
+      const sum = (rows: any[] | null, dateKey: string, from: string) =>
+        (rows || []).filter((r) => r[dateKey] >= from).reduce((s, r) => s + Number(r.total_amount || 0), 0);
+
+      return {
+        salesToday: sum(sales.data, "sale_date", todayStr),
+        salesMonth: sum(sales.data, "sale_date", monthStart),
+        salesYear: sum(sales.data, "sale_date", yearStart),
+        purchasesToday: sum(purchases.data, "purchase_date", todayStr),
+        purchasesMonth: sum(purchases.data, "purchase_date", monthStart),
+        purchasesYear: sum(purchases.data, "purchase_date", yearStart),
+        returnsToday: sum(returns.data, "return_date", todayStr),
+        returnsMonth: sum(returns.data, "return_date", monthStart),
+        returnsYear: sum(returns.data, "return_date", yearStart),
+      };
+    },
+    refetchInterval: 60_000,
+  });
+
+  const fmt = (n: number) => `${n.toLocaleString("en-US", { maximumFractionDigits: 0 })} ج.م`;
+  const d = data || { salesToday: 0, salesMonth: 0, salesYear: 0, purchasesToday: 0, purchasesMonth: 0, purchasesYear: 0, returnsToday: 0, returnsMonth: 0, returnsYear: 0 };
+  const netToday = d.salesToday - d.returnsToday;
+  const netMonth = d.salesMonth - d.returnsMonth;
+  const netYear = d.salesYear - d.returnsYear;
+
+  const palette: Record<string, { border: string; title: string; bg: string; val: string }> = {
+    emerald: { border: "border-emerald-300", title: "text-emerald-700", bg: "bg-emerald-50/60", val: "text-emerald-700" },
+    orange: { border: "border-orange-300", title: "text-orange-700", bg: "bg-orange-50/60", val: "text-orange-700" },
+    purple: { border: "border-purple-300", title: "text-purple-700", bg: "bg-purple-50/60", val: "text-purple-700" },
+    blue: { border: "border-blue-300", title: "text-blue-700", bg: "bg-blue-50/60", val: "text-blue-700" },
+  };
+  const Block = ({ title, icon: Icon, color, items }: any) => {
+    const p = palette[color];
+    return (
+      <Card className={p.border}>
+        <CardHeader className="pb-2"><CardTitle className={`text-base flex items-center gap-2 ${p.title}`}><Icon className="h-5 w-5" />{title}</CardTitle></CardHeader>
+        <CardContent className="grid grid-cols-3 gap-2 text-center">
+          {items.map((it: any) => (
+            <div key={it.label} className={`rounded-md p-2 ${p.bg}`}>
+              <div className="text-[11px] text-muted-foreground flex items-center justify-center gap-1"><Calendar className="h-3 w-3" />{it.label}</div>
+              <div className={`font-bold ${p.val} text-sm md:text-base mt-1`}>{isLoading ? "..." : fmt(it.value)}</div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    );
+  };
+
+  return (
+    <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-3">
+      <Block title="المبيعات (إجمالي)" icon={TrendingUp} color="emerald"
+        items={[{ label: "اليوم", value: d.salesToday }, { label: "الشهر", value: d.salesMonth }, { label: "السنة", value: d.salesYear }]} />
+      <Block title="مرتجعات المبيعات" icon={Undo2} color="orange"
+        items={[{ label: "اليوم", value: d.returnsToday }, { label: "الشهر", value: d.returnsMonth }, { label: "السنة", value: d.returnsYear }]} />
+      <Block title="صافي المبيعات (بعد المرتجعات)" icon={Receipt} color="purple"
+        items={[{ label: "اليوم", value: netToday }, { label: "الشهر", value: netMonth }, { label: "السنة", value: netYear }]} />
+      <Block title="المشتريات (خامات)" icon={TrendingDown} color="blue"
+        items={[{ label: "اليوم", value: d.purchasesToday }, { label: "الشهر", value: d.purchasesMonth }, { label: "السنة", value: d.purchasesYear }]} />
+    </div>
+  );
+}
 
 const STATUS_COLORS: Record<string, string> = {
   draft: "#94a3b8", planned: "#06b6d4", under_review: "#f59e0b", approved: "#10b981", closed: "#6366f1", cancelled: "#ef4444",
@@ -80,6 +157,8 @@ export default function FeedFactoryDashboard() {
       </div>
 
       <FactoryFilters value={f} onChange={setF} />
+
+      <FeedPeriodStats />
 
       <Card className="border-primary/40 bg-primary/5">
         <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
