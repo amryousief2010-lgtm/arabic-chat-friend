@@ -709,9 +709,17 @@ const NewBatchDialog = ({ onCreated, nextBatchNumber, settings, prominent = fals
           </div>
 
           <div className="grid grid-cols-2 gap-2">
-            <div><Label>التكلفة الافتتاحية (اختياري)</Label><Input type="number" min={0} value={f.opening_cost || ""} onChange={e => setF({ ...f, opening_cost: +e.target.value })} /></div>
+            <div>
+              <Label>التكلفة الافتتاحية {f.source === "hatchery" && autoPrice && <span className="text-xs text-emerald-600">(محسوبة تلقائيًا)</span>}</Label>
+              <Input type="number" min={0} value={f.opening_cost || ""} onChange={e => { setAutoPrice(false); setF({ ...f, opening_cost: +e.target.value }); }} />
+            </div>
             <div><Label>تكلفة الطائر (محسوبة)</Label><Input readOnly value={f.original_count > 0 ? ((f.opening_cost || 0) / f.original_count).toFixed(2) : "0"} /></div>
           </div>
+          {f.source === "hatchery" && (
+            <div className="text-xs text-muted-foreground p-2 rounded bg-emerald-50 border border-emerald-200">
+              💡 سعر الكتكوت من معمل {settings.company_name} = <strong>{fmtMoney(settings.default_chick_price)}</strong> / كتكوت. لا يتم خصم خزنة (دفعة داخلية).
+            </div>
+          )}
 
           {f.source === "external" && (
             <div className="grid grid-cols-2 gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200">
