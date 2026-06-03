@@ -1,101 +1,73 @@
-# خطة تعديل قسم التحضين والتسمين
+# سجل حركات التحضين ومصنع الأعلاف
 
-سأقسم العمل إلى 7 محاور رئيسية مع تعديلات قاعدة البيانات وواجهة المستخدم.
+## الهدف
+إنشاء سجل حركات شامل وقابل للطباعة والتصدير لكل من قسم التحضين والتسمين وقسم مصنع الأعلاف، مع ربط الحركات المتبادلة بينهما برقم مرجعي موحد.
 
-## 1. فاتورة بيع الكتاكيت حسب العمر
+## 1. قاعدة البيانات
 
-**قاعدة البيانات (`brooding_chick_sales`):**
-- إضافة `age_at_sale_days` (int)
-- إضافة `age_label_snapshot` (text) — مثل "عمر شهر"
-- إضافة `cost_per_bird_at_sale` (numeric) — Snapshot وقت البيع
-- إضافة `total_cost_snapshot` (numeric) = العدد × cost_per_bird_at_sale
-- إضافة `profit_loss` (numeric) = sale_total - total_cost_snapshot
+### جدول `brooding_movements` (سجل حركات التحضين)
+- `movement_no` — رقم الحركة (BRD-MOV-0001) يولّد تلقائياً
+- `movement_type` — نوع الحركة (enum): `batch_add`, `batch_edit`, `mortality`, `feed_issue`, `medicine_issue`, `expense`, `feed_receive`, `chicks_sale`, `slaughter_transfer`, `adjustment`, `reversal`
+- `direction` — IN / OUT / NONE
+- `batch_id` — رقم الدفعة (اختياري)
+- `item_name` — الصنف/البيان
+- `quantity`, `unit`, `unit_cost`, `total_cost`
+- `from_party`, `to_party` — من/إلى
+- `created_by`, `approved_by`, `approved_at`
+- `status` — `posted`, `reversed`, `pending`
+- `linked_movement_id` — ربط بحركة مصنع الأعلاف
+- `reference_no` — رقم مرجعي موحد للحركتين المرتبطتين
+- `notes`, `metadata` (jsonb)
 
-**Trigger:**
-- قبل INSERT: التحقق أن `chicks_sold <= current_count` للدفعة
-- بعد INSERT: خصم العدد من `current_count` + تسجيل movement من نوع `chicks_sale`
-- snapshot التكلفة والعمر تلقائيًا من الدفعة وقت البيع
+### جدول `feed_factory_movements` (سجل حركات مصنع الأعلاف)
+نفس الأعمدة مع `movement_type` الخاص بالمصنع: `raw_purchase`, `feed_production`, `external_sale`, `brooding_supply`, `feed_return`, `inventory_adjustment`, `treasury`, `stock_deduction`, `reversal`.
 
-**واجهة (Brooding.tsx — حوار بيع كتاكيت):**
-- اختيار الدفعة → عرض العمر الحالي والتكلفة الحالية تلقائيًا
-- Select لـ "عمر الكتاكيت وقت البيع": أسبوع / أسبوعين / شهر / شهر ونص / شهرين / **العمر الحالي تلقائيًا** / **يدوي (للمدير فقط)**
-- عرض حساب فوري: قيمة البيع - التكلفة = ربح/خسارة
-- Validation: لا يسمح بعدد أكبر من current_count
+### Triggers
+- Trigger على `brooding_feed_stock_movements` لما `source_party = 'feed_factory'` ينشئ سطرين متلازمين:
+  - في `feed_factory_movements`: OUT `brooding_supply`
+  - في `brooding_movements`: IN `feed_receive`
+  - بنفس `reference_no` (FEED-TR-XXXX) و`linked_movement_id` متبادل
+- Triggers أخرى تسجل تلقائياً: إضافة دفعة، تعديل، نافق، صرف علف على دفعة، بيع، تحويل للمجزر.
 
-## 2. سبب النافق إجباري
+### الحذف ممنوع
+- RLS policies تمنع DELETE كلياً.
+- Trigger `BEFORE UPDATE` يمنع تغيير الحقول الجوهرية بعد `posted`.
+- الإلغاء يتم عبر إنشاء حركة `reversal` تشير للحركة الأصلية.
 
-**قاعدة البيانات (`brooding_mortality`):**
-- جعل `reason` NOT NULL + CHECK length > 3
-- Trigger validation للنصوص الفارغة فقط
+## 2. واجهة المستخدم
 
-**واجهة:**
-- جعل حقل السبب required مع رسالة واضحة
-- Zod validation: `reason: z.string().trim().min(3, "يجب كتابة سبب النافق")`
+### تبويب جديد "سجل الحركات" داخل صفحة التحضين
+- جدول الحركات مع الأعمدة المطلوبة
+- فلاتر: من/إلى تاريخ، نوع الحركة، الدفعة، الصنف، المستخدم، الحالة، من/إلى، رقم الحركة المرتبطة
+- زر طباعة لكل صف (يفتح نافذة طباعة عربية عبر `openPrintWindow`)
+- زر تصدير Excel للسجل بالكامل حسب الفلاتر
+- زر طباعة تقرير الحركات حسب الفلتر
+- زر "إلغاء بحركة عكسية" لمن لديه صلاحية (GM/EM)
 
-## 3. صرف العلف: خصم من مخزون + إشعار + إذن طباعة
+### تبويب جديد "سجل الحركات" داخل صفحة مصنع الأعلاف
+نفس البنية، مع إظهار الحركات المرتبطة بالتحضين وزر الانتقال للحركة المرتبطة.
 
-**قاعدة البيانات:**
-- جدول `chick_feed_stock` (إن لم يوجد) — رصيد علف الكتاكيت
-- جدول `chick_feed_movements` — IN/OUT مع `unit_cost_snapshot` و `source` (purchase / feed_factory / adjustment)
-- Trigger على صرف العلف للدفعة:
-  - يخصم من `chick_feed_stock`
-  - يضيف movement OUT بـ `unit_cost_snapshot` = سعر التكلفة الحالي
-  - ينشئ notification لمحمد خالد (مسؤول مصنع الأعلاف) في جدول `notifications`
+## 3. الملفات
 
-**واجهة:**
-- زر "إذن صرف علف" يفتح `openPrintWindow` (من `@/lib/printPdf`) بكل التفاصيل المطلوبة وتوقيعين
-- بعد الصرف: toast + إشعار تلقائي يظهر في bell icon لمحمد خالد
+### إنشاء/تعديل
+- `supabase/migrations/<ts>_movement_logs.sql` — جداولين + triggers + RLS + sequences
+- `src/pages/modules/BroodingMovements.tsx` — مكون سجل حركات التحضين
+- `src/pages/modules/FeedFactoryMovements.tsx` — مكون سجل حركات المصنع
+- `src/pages/modules/Brooding.tsx` — إضافة تبويب "سجل الحركات"
+- `src/pages/modules/FeedFactory.tsx` — إضافة تبويب "سجل الحركات"
+- `src/lib/movementsExport.ts` — تصدير Excel مشترك
+- `src/integrations/supabase/types.ts` — تحديث تلقائي بعد المايجريشن
 
-## 4. شاشة تركيبة علف التسمين
+## 4. الاختبار
 
-**قاعدة البيانات:**
-- جدول `feed_recipes` (موجود في `feed/Recipes.tsx`) — أتأكد من وجود حقول: name, phase (age_from_days, age_to_days), is_active, computed cost_per_kg, cost_per_ton
-- جدول `feed_recipe_ingredients` — name, quantity_kg, unit_price
-- إضافة المرحلة العمرية + استيراد التركيبة من ملف Excel المرفق سابقًا
+بعد التطبيق، أنفذ السيناريو:
+1. توريد 10 كجم علف من مصنع الأعلاف → التحضين، أتحقق ظهور سطرين مرتبطين بنفس `reference_no`.
+2. صرف 5 كجم على دفعة → يظهر OUT في سجل التحضين فقط مع رقم الدفعة والتكلفة.
+3. التأكد من زر الطباعة العربي يعمل وExcel يصدّر بالفلاتر.
+4. تنظيف بيانات الاختبار بحركات عكسية (لا حذف).
 
-**واجهة (Brooding.tsx tab جديد "تركيبة علف التسمين"):**
-- جدول تركيبات مع زر إضافة/تعديل (للمدير العام/التنفيذي فقط)
-- حساب فوري لتكلفة الطن/الكيلو عند تعديل الكميات أو الأسعار
-- عند صرف علف لدفعة: استخدام `cost_per_kg` الحالي للتركيبة المناسبة للعمر
-- **القديم لا يتغير**: movements تحفظ `unit_cost_snapshot` لحظة الصرف
-
-## 5. العلف من مصنع الأعلاف بسعر التكلفة
-
-- في trigger صرف العلف: استخدام `recipe.cost_per_kg` (تكلفة) وليس `feed_product.sale_price`
-- إضافة عمود `source = 'feed_factory'` في movement
-- العرض في تفاصيل الدفعة: "مصدر العلف: مصنع الأعلاف | سعر الكيلو تكلفة: X"
-
-## 6. التحويل للمجزر مع الوزن القائم
-
-**قاعدة البيانات (`brooding_slaughter_transfers` أو ما يماثلها):**
-- إضافة: `birds_count`, `total_live_weight_kg`, `avg_live_weight_kg` (computed), `live_price_per_kg`, `transferred_cost_per_bird` (snapshot), `total_transfer_cost` (computed), `valuation_amount` (= total_live_weight × live_price), `expected_profit_loss` (computed)
-
-**واجهة:**
-- حوار التحويل للمجزر يطلب: العدد، إجمالي الوزن القائم، سعر الكيلو قائم
-- عرض الحسابات تلقائيًا قبل التأكيد
-- بعد التأكيد: خصم العدد من الدفعة + إنشاء سجل في المجزر `slaughter_live_stock` (in)
-
-## 7. التنفيذ التقني
-
-سيتم تنفيذها على دفعات Migration:
-1. **Migration 1**: تعديل `brooding_chick_sales` + trigger البيع + التحقق من العدد
-2. **Migration 2**: `brooding_mortality.reason NOT NULL` + validation trigger
-3. **Migration 3**: `chick_feed_stock` + `chick_feed_movements` + trigger الإشعار لمحمد خالد
-4. **Migration 4**: `feed_recipes` (تأكد/تعديل) + ingredients + بذر تركيبة Excel
-5. **Migration 5**: `brooding_slaughter_transfers` بحقول الوزن القائم
-
-ثم تعديلات `src/pages/modules/Brooding.tsx` لإضافة:
-- حوار بيع كتاكيت محدّث مع اختيار العمر
-- حوار تسجيل نافق مع validation
-- حوار صرف علف + زر إذن طباعة
-- Tab "تركيبة علف التسمين"
-- حوار التحويل للمجزر مع الوزن القائم
-
-## ملاحظات
-
-- كل العمليات الحسابية الحرجة (snapshot التكلفة، خصم المخزون، الإشعارات) تتم في **DB triggers** لضمان الدقة وعدم التحايل من الـ UI.
-- الطباعة عبر `openPrintWindow` من `@/lib/printPdf` لضمان دعم العربية (مذكور في memory).
-- صلاحيات التعديل في التركيبات: `general_manager` أو `executive_manager` فقط (تحقق في الـ UI + RLS policy).
-- الإشعار لمحمد خالد: نحتاج الـ user_id الخاص به — سأبحث عنه أولًا في profiles قبل كتابة الـ trigger، أو نستخدم الدور `feed_factory_manager`.
-
-هل أمضي بالتنفيذ؟
+## ملاحظات تقنية
+- Sequences منفصلة لـ `brooding_movements` و`feed_factory_movements` و`reference_no` المشترك.
+- الفهارس على `created_at`, `batch_id`, `reference_no`, `movement_type` لسرعة الفلترة.
+- استخدام `openPrintWindow` من `@/lib/printPdf` لطباعة عربية صحيحة (memory).
+- جلب البيانات بحدود 1000 سجل لكل دفعة (memory).
