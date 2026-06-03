@@ -29,6 +29,14 @@ const STATUS_BADGE = (s: string) => {
   if (s === "cancelled") return <Badge variant="destructive">ملغاة</Badge>;
   return <Badge>{s}</Badge>;
 };
+const TEST_BADGE = (isTest: boolean) => isTest ? <Badge className="bg-amber-500 text-white mr-1">اختبار</Badge> : null;
+type ViewMode = "real" | "test" | "all";
+const TestToggle = ({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) => (
+  <label className="flex items-center gap-2 text-sm border rounded px-2 py-1 bg-amber-50">
+    <input type="checkbox" checked={value} onChange={e => onChange(e.target.checked)} />
+    <span>وضع اختبار</span>
+  </label>
+);
 
 const MeatFactoryOps = () => {
   const [raws, setRaws] = useState<Raw[]>([]);
