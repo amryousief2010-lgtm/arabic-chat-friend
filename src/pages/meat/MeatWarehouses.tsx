@@ -55,6 +55,12 @@ export default function MeatWarehouses() {
     queryKey: ["mf-fin"],
     queryFn: async () => (await supabase.from("meat_factory_finished_items" as any).select("*").order("name")).data || [],
   });
+  const { data: pkgItems = [] } = useQuery({
+    queryKey: ["mf-pkg"],
+    queryFn: async () => (await supabase.from("packaging_materials" as any)
+      .select("id,name_ar,unit,stock,unit_cost,module,is_active")
+      .in("module", ["meat", "shared"]).eq("is_active", true).order("name_ar")).data || [],
+  });
   const { data: purchases = [] } = useQuery({
     queryKey: ["mf-pur"],
     queryFn: async () => (await supabase.from("meat_factory_purchases" as any).select("*, meat_factory_purchase_lines(*)").order("purchase_date", { ascending: false })).data || [],
@@ -85,7 +91,7 @@ export default function MeatWarehouses() {
   });
 
   const invalidateAll = () => {
-    ["mf-raw","mf-fin","mf-pur","mf-mfg","mf-sal","mf-ret","mf-txn","mf-mov","mf-stk"].forEach((k)=>qc.invalidateQueries({queryKey:[k]}));
+    ["mf-raw","mf-fin","mf-pkg","mf-pur","mf-mfg","mf-sal","mf-ret","mf-txn","mf-mov","mf-stk"].forEach((k)=>qc.invalidateQueries({queryKey:[k]}));
   };
 
   // ---------- STATS ----------
@@ -151,11 +157,13 @@ export default function MeatWarehouses() {
   const [mfgDate, setMfgDate] = useState(new Date().toISOString().slice(0,10));
   const [mfgItem, setMfgItem] = useState(""); const [mfgQty, setMfgQty] = useState(0); const [mfgNotes, setMfgNotes] = useState("");
   const [mfgLines, setMfgLines] = useState<LineRow[]>([newLine()]);
-  const resetMfg = () => { setMfgOpen(false); setMfgItem(""); setMfgQty(0); setMfgNotes(""); setMfgLines([newLine()]); };
+  const [mfgPkgLines, setMfgPkgLines] = useState<LineRow[]>([newLine()]);
+  const resetMfg = () => { setMfgOpen(false); setMfgItem(""); setMfgQty(0); setMfgNotes(""); setMfgLines([newLine()]); setMfgPkgLines([newLine()]); };
   const saveMfg = async (approve: boolean) => {
     if (!mfgItem || mfgQty<=0) return toast.error("اختر منتجًا وادخل الكمية");
     const lines = mfgLines.filter(l=>l.item_id && l.qty>0);
-    if (!lines.length) return toast.error("أضف خامة واحدة على الأقل");
+    if (!lines.length) return toast.error("أضف خامة غذائية واحدة على الأقل");
+    const pkgLines = mfgPkgLines.filter(l=>l.item_id && l.qty>0);
     const fin = (finItems as any[]).find(x=>x.id===mfgItem);
     const { data: m, error } = await supabase.from("meat_factory_manufacturing" as any).insert({
       mfg_date: mfgDate, finished_item_id: mfgItem, finished_item_name: fin?.name||"", produced_qty: mfgQty, notes: mfgNotes, created_by: user?.id,
@@ -166,10 +174,17 @@ export default function MeatWarehouses() {
     };});
     const { error: e2 } = await supabase.from("meat_factory_manufacturing_lines" as any).insert(lineRows);
     if (e2) return toast.error(e2.message);
+    if (pkgLines.length) {
+      const pkgRows = pkgLines.map((l)=>{const it=(pkgItems as any[]).find(x=>x.id===l.item_id); return {
+        manufacturing_id:(m as any).id, packaging_id:l.item_id, packaging_name:it?.name_ar||"", quantity:l.qty, unit_cost:Number(it?.unit_cost||0), line_total:l.qty*Number(it?.unit_cost||0),
+      };});
+      const { error: ep } = await supabase.from("meat_factory_manufacturing_packaging_lines" as any).insert(pkgRows);
+      if (ep) return toast.error(ep.message);
+    }
     if (approve) {
       const { error: e3 } = await supabase.rpc("approve_meat_manufacturing" as any, { p_id: (m as any).id });
       if (e3) return toast.error(e3.message);
-      toast.success("تم اعتماد التصنيع — تم خصم الخامات وإضافة المنتج");
+      toast.success("تم اعتماد التصنيع — خصم الخامات الغذائية ومواد التغليف وإضافة المنتج");
     } else { toast.success("تم الحفظ كمسودة"); }
     resetMfg(); invalidateAll();
   };
@@ -506,8 +521,14 @@ export default function MeatWarehouses() {
                 <div><Label>المنتج النهائي</Label><Select value={mfgItem} onValueChange={setMfgItem}><SelectTrigger><SelectValue placeholder="اختر" /></SelectTrigger><SelectContent>{(finItems as any[]).map(i=><SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>)}</SelectContent></Select></div>
                 <div><Label>الكمية المنتجة</Label><Input type="number" value={mfgQty||""} onChange={(e)=>setMfgQty(Number(e.target.value))} /></div>
               </div>
-              <Label>الخامات المستخدمة (التكلفة تُحتسب من متوسط تكلفة الخامة)</Label>
+              <Label>الخامات الغذائية المستخدمة — من مخزن خامات مصنع اللحوم (التكلفة من متوسط تكلفة الخامة)</Label>
               {renderLineEditor(mfgLines, setMfgLines, rawItems as any[], "تكلفة (تلقائي)")}
+              <Label className="text-orange-700">مواد التغليف والتعبئة المستخدمة — من مخزن التغليف والتعبئة (اختياري)</Label>
+              {renderLineEditor(
+                mfgPkgLines, setMfgPkgLines,
+                (pkgItems as any[]).map((p:any)=>({ id:p.id, name:`${p.name_ar} (متاح: ${fmt(p.stock)})`, unit:p.unit })),
+                "تكلفة (تلقائي)"
+              )}
               <div><Label>ملاحظات</Label><Textarea value={mfgNotes} onChange={(e)=>setMfgNotes(e.target.value)} /></div>
             </div>
             <DialogFooter><Button variant="outline" onClick={resetMfg}>إلغاء</Button><Button variant="secondary" onClick={()=>saveMfg(false)}>حفظ كمسودة</Button><Button onClick={()=>saveMfg(true)}>حفظ واعتماد</Button></DialogFooter>
