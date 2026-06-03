@@ -1520,6 +1520,7 @@ export type Database = {
           dead: number
           id: string
           incoming: number
+          is_test: boolean
           movement_date: string
           notes: string | null
           outgoing: number
@@ -1534,6 +1535,7 @@ export type Database = {
           dead?: number
           id?: string
           incoming?: number
+          is_test?: boolean
           movement_date: string
           notes?: string | null
           outgoing?: number
@@ -1548,6 +1550,7 @@ export type Database = {
           dead?: number
           id?: string
           incoming?: number
+          is_test?: boolean
           movement_date?: string
           notes?: string | null
           outgoing?: number
@@ -2293,6 +2296,7 @@ export type Database = {
           family_number: string | null
           hatch_batch_id: string | null
           id: string
+          is_test: boolean
           production_date: string
           production_id: string | null
           receipt_notes: string | null
@@ -2312,6 +2316,7 @@ export type Database = {
           family_number?: string | null
           hatch_batch_id?: string | null
           id?: string
+          is_test?: boolean
           production_date: string
           production_id?: string | null
           receipt_notes?: string | null
@@ -2331,6 +2336,7 @@ export type Database = {
           family_number?: string | null
           hatch_batch_id?: string | null
           id?: string
+          is_test?: boolean
           production_date?: string
           production_id?: string | null
           receipt_notes?: string | null
@@ -4056,6 +4062,7 @@ export type Database = {
           hatched_chicks: number | null
           hatcher_dead: number | null
           id: string
+          is_test: boolean
           machine: string | null
           net_eggs: number
           notes: string | null
@@ -4084,6 +4091,7 @@ export type Database = {
           hatched_chicks?: number | null
           hatcher_dead?: number | null
           id?: string
+          is_test?: boolean
           machine?: string | null
           net_eggs?: number
           notes?: string | null
@@ -4112,6 +4120,7 @@ export type Database = {
           hatched_chicks?: number | null
           hatcher_dead?: number | null
           id?: string
+          is_test?: boolean
           machine?: string | null
           net_eggs?: number
           notes?: string | null
@@ -4182,6 +4191,7 @@ export type Database = {
           incubation_price: number
           infertile_price: number
           is_active: boolean
+          is_test: boolean
           name: string
           notes: string | null
           updated_at: string
@@ -4194,6 +4204,7 @@ export type Database = {
           incubation_price?: number
           infertile_price?: number
           is_active?: boolean
+          is_test?: boolean
           name: string
           notes?: string | null
           updated_at?: string
@@ -4206,6 +4217,7 @@ export type Database = {
           incubation_price?: number
           infertile_price?: number
           is_active?: boolean
+          is_test?: boolean
           name?: string
           notes?: string | null
           updated_at?: string
@@ -4282,6 +4294,7 @@ export type Database = {
           customer_id: string | null
           direction: string
           id: string
+          is_test: boolean
           notes: string | null
           txn_date: string
           updated_at: string
@@ -4295,6 +4308,7 @@ export type Database = {
           customer_id?: string | null
           direction: string
           id?: string
+          is_test?: boolean
           notes?: string | null
           txn_date?: string
           updated_at?: string
@@ -4308,6 +4322,7 @@ export type Database = {
           customer_id?: string | null
           direction?: string
           id?: string
+          is_test?: boolean
           notes?: string | null
           txn_date?: string
           updated_at?: string

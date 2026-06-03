@@ -6,8 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format, parseISO, differenceInDays, addDays, startOfWeek, startOfMonth, startOfYear } from "date-fns";
-import { Egg, FlaskConical, Users, AlertTriangle, TrendingUp, Bird, Wallet, Printer, FileSpreadsheet } from "lucide-react";
+import { Egg, FlaskConical, Users, AlertTriangle, TrendingUp, Bird, Wallet, Printer, FileSpreadsheet, TestTube } from "lucide-react";
 import { exportCSV } from "@/lib/csvExport";
+import { useTestMode } from "@/hooks/useTestMode";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 const STAGE_EXIT = 42;
 const HATCH_DAYS = 45;
@@ -21,19 +24,22 @@ function inRange(dateStr: string | null, from: Date) {
 }
 
 export default function HatcheryDashboard() {
+  const { showTest, toggle } = useTestMode();
+  const testFilter = (q: any) => (showTest ? q : q.eq("is_test", false));
+
   const { data: customers = [] } = useQuery({
-    queryKey: ["hatch_customers_dash"],
-    queryFn: async () => (await supabase.from("hatch_customers").select("*")).data || [],
+    queryKey: ["hatch_customers_dash", showTest],
+    queryFn: async () => (await testFilter(supabase.from("hatch_customers").select("*"))).data || [],
   });
   const { data: batches = [] } = useQuery({
-    queryKey: ["hatch_batches_dash"],
+    queryKey: ["hatch_batches_dash", showTest],
     queryFn: async () =>
-      (await supabase.from("hatch_batches").select("*").order("receive_date", { ascending: false }).limit(1000)).data || [],
+      (await testFilter(supabase.from("hatch_batches").select("*").order("receive_date", { ascending: false }).limit(1000))).data || [],
   });
   const { data: treasury = [] } = useQuery({
-    queryKey: ["hatch_treasury_dash"],
+    queryKey: ["hatch_treasury_dash", showTest],
     queryFn: async () =>
-      (await supabase.from("hatchery_treasury_txns").select("*").order("txn_date", { ascending: false }).limit(2000)).data || [],
+      (await testFilter(supabase.from("hatchery_treasury_txns").select("*").order("txn_date", { ascending: false }).limit(2000))).data || [],
   });
 
   const now = new Date();
@@ -175,12 +181,24 @@ export default function HatcheryDashboard() {
   return (
     <div className="space-y-6" dir="rtl">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <h2 className="text-xl font-bold">لوحة إدارة معمل التفريخ</h2>
+        <div className="flex items-center gap-3 flex-wrap">
+          <h2 className="text-xl font-bold">لوحة إدارة معمل التفريخ</h2>
+          <div className={`flex items-center gap-2 px-3 py-1 rounded-md border ${showTest ? "bg-amber-50 border-amber-300" : "bg-muted/30"}`}>
+            <TestTube className="w-4 h-4 text-amber-600" />
+            <Label htmlFor="hatch-test-toggle" className="text-xs cursor-pointer">إظهار بيانات الاختبار</Label>
+            <Switch id="hatch-test-toggle" checked={showTest} onCheckedChange={() => toggle()} />
+          </div>
+        </div>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={() => window.print()}><Printer className="w-4 h-4 ml-1" />طباعة</Button>
           <Button size="sm" variant="outline" onClick={exportDashboard}><FileSpreadsheet className="w-4 h-4 ml-1" />تصدير</Button>
         </div>
       </div>
+      {showTest && (
+        <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          ⚠️ وضع الاختبار مُفعّل — الأرقام أدناه تشمل بيانات تجريبية مميزة بـ <code>is_test</code>. أوقفه للعودة إلى التقارير الحقيقية.
+        </div>
+      )}
 
       {/* Customers + incoming eggs */}
       <section>
