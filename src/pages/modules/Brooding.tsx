@@ -206,12 +206,14 @@ const Brooding = () => {
     const mortalityRate = totalOriginal > 0 ? (totalMortality / totalOriginal) * 100 : 0;
     const totalCost = batches.reduce((a, b) => a + Number(b.total_cost), 0);
     const avgCostPerBird = totalBirds > 0 ? totalCost / totalBirds : 0;
-    // Current chicks value: per-batch (current_count × cost_per_bird) with
-    // fallback to default chick price when cost_per_bird is 0 (e.g. opening rows).
-    const currentChicksValue = batches.reduce((acc, b) => {
-      const perBird = Number(b.cost_per_bird) > 0 ? Number(b.cost_per_bird) : settings.default_chick_price;
-      return acc + b.current_count * perBird;
-    }, 0);
+    // Current chicks value: per-batch (current_count × cost_per_bird) from DB.
+    // total_cost stored in DB already includes opening + feed + medicine + expenses,
+    // and cost_per_bird = total_cost / current_count (recomputed after every movement),
+    // so mortality automatically redistributes the cost on the remaining live birds.
+    const currentChicksValue = batches.reduce(
+      (acc, b) => acc + b.current_count * Number(b.cost_per_bird),
+      0,
+    );
     const feedCost = feed.reduce((a, x) => a + Number(x.total_cost), 0);
     const medCost = medicine.reduce((a, x) => a + Number(x.total_cost), 0);
     const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 15);
