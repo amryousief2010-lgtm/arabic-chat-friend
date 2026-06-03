@@ -646,6 +646,87 @@ export type Database = {
           },
         ]
       }
+      brooding_movements: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          batch_id: string | null
+          created_at: string
+          created_by: string | null
+          direction: string
+          from_party: string | null
+          id: string
+          item_name: string | null
+          linked_movement_id: string | null
+          metadata: Json | null
+          movement_no: string
+          movement_type: string
+          notes: string | null
+          quantity: number | null
+          reference_no: string | null
+          reverses_movement_id: string | null
+          source_id: string | null
+          source_table: string | null
+          status: string
+          to_party: string | null
+          total_cost: number | null
+          unit: string | null
+          unit_cost: number | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          batch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          direction?: string
+          from_party?: string | null
+          id?: string
+          item_name?: string | null
+          linked_movement_id?: string | null
+          metadata?: Json | null
+          movement_no: string
+          movement_type: string
+          notes?: string | null
+          quantity?: number | null
+          reference_no?: string | null
+          reverses_movement_id?: string | null
+          source_id?: string | null
+          source_table?: string | null
+          status?: string
+          to_party?: string | null
+          total_cost?: number | null
+          unit?: string | null
+          unit_cost?: number | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          batch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          direction?: string
+          from_party?: string | null
+          id?: string
+          item_name?: string | null
+          linked_movement_id?: string | null
+          metadata?: Json | null
+          movement_no?: string
+          movement_type?: string
+          notes?: string | null
+          quantity?: number | null
+          reference_no?: string | null
+          reverses_movement_id?: string | null
+          source_id?: string | null
+          source_table?: string | null
+          status?: string
+          to_party?: string | null
+          total_cost?: number | null
+          unit?: string | null
+          unit_cost?: number | null
+        }
+        Relationships: []
+      }
       brooding_settings: {
         Row: {
           company_name: string
@@ -2511,6 +2592,84 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      feed_factory_movements: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          created_by: string | null
+          direction: string
+          from_party: string | null
+          id: string
+          item_name: string | null
+          linked_movement_id: string | null
+          metadata: Json | null
+          movement_no: string
+          movement_type: string
+          notes: string | null
+          quantity: number | null
+          reference_no: string | null
+          reverses_movement_id: string | null
+          source_id: string | null
+          source_table: string | null
+          status: string
+          to_party: string | null
+          total_cost: number | null
+          unit: string | null
+          unit_cost: number | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          direction?: string
+          from_party?: string | null
+          id?: string
+          item_name?: string | null
+          linked_movement_id?: string | null
+          metadata?: Json | null
+          movement_no: string
+          movement_type: string
+          notes?: string | null
+          quantity?: number | null
+          reference_no?: string | null
+          reverses_movement_id?: string | null
+          source_id?: string | null
+          source_table?: string | null
+          status?: string
+          to_party?: string | null
+          total_cost?: number | null
+          unit?: string | null
+          unit_cost?: number | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          direction?: string
+          from_party?: string | null
+          id?: string
+          item_name?: string | null
+          linked_movement_id?: string | null
+          metadata?: Json | null
+          movement_no?: string
+          movement_type?: string
+          notes?: string | null
+          quantity?: number | null
+          reference_no?: string | null
+          reverses_movement_id?: string | null
+          source_id?: string | null
+          source_table?: string | null
+          status?: string
+          to_party?: string | null
+          total_cost?: number | null
+          unit?: string | null
+          unit_cost?: number | null
+        }
+        Relationships: []
       }
       feed_factory_treasury_txns: {
         Row: {
@@ -9826,6 +9985,9 @@ export type Database = {
         }
         Returns: Json
       }
+      next_brooding_movement_no: { Args: never; Returns: string }
+      next_feed_factory_movement_no: { Args: never; Returns: string }
+      next_feed_transfer_ref: { Args: never; Returns: string }
       normalize_ar: { Args: { s: string }; Returns: string }
       order_matches_moderator: {
         Args: { _moderator_text: string; _user_id: string }
