@@ -55,6 +55,12 @@ export default function MeatWarehouses() {
     queryKey: ["mf-fin"],
     queryFn: async () => (await supabase.from("meat_factory_finished_items" as any).select("*").order("name")).data || [],
   });
+  const { data: pkgItems = [] } = useQuery({
+    queryKey: ["mf-pkg"],
+    queryFn: async () => (await supabase.from("packaging_materials" as any)
+      .select("id,name_ar,unit,stock,unit_cost,module,is_active")
+      .in("module", ["meat", "shared"]).eq("is_active", true).order("name_ar")).data || [],
+  });
   const { data: purchases = [] } = useQuery({
     queryKey: ["mf-pur"],
     queryFn: async () => (await supabase.from("meat_factory_purchases" as any).select("*, meat_factory_purchase_lines(*)").order("purchase_date", { ascending: false })).data || [],
