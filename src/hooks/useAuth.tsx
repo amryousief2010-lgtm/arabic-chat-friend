@@ -22,7 +22,8 @@ export type AppRole =
   | 'quality_manager'
   | 'shipping_company'
   | 'private_delivery_rep'
-  | 'agouza_warehouse_keeper';
+  | 'agouza_warehouse_keeper'
+  | 'brooding_dashboard_viewer';
 
 interface UserProfile {
   id: string;
