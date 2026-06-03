@@ -40,8 +40,8 @@ type Mortality = { id: string; batch_id: string; mortality_date: string; count: 
 type Expense = { id: string; batch_id: string; expense_date: string; expense_type: string; item_name: string | null; quantity: number | null; unit_price: number | null; total_amount: number; treasury: string | null; notes: string | null };
 type FeedIssue = { id: string; batch_id: string; issue_date: string; feed_name: string; quantity_kg: number; unit_cost: number; total_cost: number; notes: string | null };
 type MedIssue = { id: string; batch_id: string; issue_date: string; medicine_name: string; quantity: number; unit: string | null; unit_cost: number; total_cost: number; notes: string | null };
-type Sale = { id: string; batch_id: string; sale_date: string; customer_name: string; count: number; unit_price: number; total_amount: number; payment_method: string | null; treasury: string | null; cost_at_sale: number; profit: number; notes: string | null };
-type Transfer = { id: string; batch_id: string; transfer_date: string; count: number; avg_weight_kg: number | null; total_weight_kg: number | null; transferred_cost: number; notes: string | null };
+type Sale = { id: string; batch_id: string; sale_date: string; customer_name: string; count: number; unit_price: number; total_amount: number; payment_method: string | null; treasury: string | null; cost_at_sale: number; profit: number; notes: string | null; age_at_sale_days?: number | null; age_label_snapshot?: string | null };
+type Transfer = { id: string; batch_id: string; transfer_date: string; count: number; avg_weight_kg: number | null; total_weight_kg: number | null; transferred_cost: number; notes: string | null; live_price_per_kg?: number; valuation_amount?: number; expected_profit_loss?: number };
 
 type BroodingSettings = {
   default_chick_price: number;
@@ -348,6 +348,7 @@ const Brooding = () => {
             <TabsTrigger value="sales">بيع كتاكيت</TabsTrigger>
             <TabsTrigger value="transfers">التحويل للمجزر</TabsTrigger>
             <TabsTrigger value="feedstock">مخزون العلف</TabsTrigger>
+            <TabsTrigger value="recipes">تركيبة علف التسمين</TabsTrigger>
             {canManage && <TabsTrigger value="settings">الإعدادات</TabsTrigger>}
           </TabsList>
 
@@ -667,6 +668,11 @@ const Brooding = () => {
             <FeedStockTab inventory={feedInventory} movements={feedStockMovements} batches={batches} canManage={canManage} settings={settings} onReload={loadAll} />
           </TabsContent>
 
+          {/* FEED RECIPES */}
+          <TabsContent value="recipes">
+            <RecipesTab canManage={canManage} />
+          </TabsContent>
+
           {/* SETTINGS */}
           {canManage && (
             <TabsContent value="settings">
@@ -960,21 +966,53 @@ const BatchSelect = ({ value, onChange, batches }: any) => (
   </Select>
 );
 
+const MORTALITY_REASONS = [
+  "مرض",
+  "ضعف عام",
+  "خنق / حوادث",
+  "ارتفاع/انخفاض حرارة",
+  "أخرى (اذكر التفاصيل في الملاحظات)",
+];
+
 const MortalityForm = ({ batches, onDone, defaultBatchId }: any) => {
   const [f, setF] = useState({ batch_id: defaultBatchId || "", mortality_date: new Date().toISOString().slice(0, 10), count: 1, reason: "", notes: "" });
+  const [saving, setSaving] = useState(false);
+  const batch = batches.find((b: Batch) => b.id === f.batch_id);
   const submit = async () => {
     if (!f.batch_id) { toast.error("اختر الدفعة"); return; }
-    const { error } = await supabase.from("brooding_mortality").insert(f);
+    const reason = (f.reason || "").trim();
+    if (reason.length < 3) { toast.error("يجب كتابة سبب النافق قبل الحفظ"); return; }
+    if (batch && f.count > batch.current_count) {
+      toast.error(`لا يمكن تسجيل ${f.count} نافق — العدد الحالي بالدفعة ${batch.current_count} فقط`);
+      return;
+    }
+    if (f.count <= 0) { toast.error("العدد يجب أن يكون أكبر من صفر"); return; }
+    setSaving(true);
+    const { error } = await supabase.from("brooding_mortality").insert({ ...f, reason });
+    setSaving(false);
     if (error) { toast.error(error.message); return; }
     toast.success("تم تسجيل النافق"); onDone();
   };
   return (<div className="space-y-3">
     <div><Label>الدفعة</Label><BatchSelect value={f.batch_id} onChange={(v: string) => setF({ ...f, batch_id: v })} batches={batches} /></div>
     <div><Label>التاريخ</Label><Input type="date" value={f.mortality_date} onChange={e => setF({ ...f, mortality_date: e.target.value })} /></div>
-    <div><Label>العدد النافق</Label><Input type="number" value={f.count} onChange={e => setF({ ...f, count: +e.target.value })} /></div>
-    <div><Label>السبب</Label><Input value={f.reason} onChange={e => setF({ ...f, reason: e.target.value })} /></div>
+    <div>
+      <Label>العدد النافق {batch && <span className="text-xs text-muted-foreground">(الحد الأقصى: {batch.current_count})</span>}</Label>
+      <Input type="number" min={1} max={batch?.current_count || undefined} value={f.count} onChange={e => setF({ ...f, count: +e.target.value })} />
+    </div>
+    <div>
+      <Label className="text-red-600">السبب * (إجباري)</Label>
+      <Select value={MORTALITY_REASONS.includes(f.reason) ? f.reason : ""} onValueChange={v => setF({ ...f, reason: v })}>
+        <SelectTrigger><SelectValue placeholder="اختر سببًا أو اكتب يدويًا بالأسفل" /></SelectTrigger>
+        <SelectContent>{MORTALITY_REASONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
+      </Select>
+      <Input className="mt-1" value={f.reason} onChange={e => setF({ ...f, reason: e.target.value })} placeholder="أو اكتب السبب يدويًا" />
+      {(!f.reason || f.reason.trim().length < 3) && (
+        <p className="text-xs text-red-600 mt-1">⚠️ لا يتم حفظ النافق إلا بعد كتابة سبب واضح</p>
+      )}
+    </div>
     <div><Label>ملاحظات</Label><Textarea value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} /></div>
-    <Button onClick={submit} className="w-full">حفظ</Button>
+    <Button onClick={submit} disabled={saving || !f.reason || f.reason.trim().length < 3} className="w-full">{saving ? "..." : "حفظ"}</Button>
   </div>);
 };
 
@@ -1026,6 +1064,36 @@ const FeedForm = ({ batches, feedInventory = [], settings = DEFAULT_SETTINGS, ca
 
   useEffect(() => { setF(p => ({ ...p, total_cost: +(p.quantity_kg * p.unit_cost).toFixed(3) })); }, [f.quantity_kg, f.unit_cost]);
 
+  const printPermit = (saved: typeof f, user: string) => {
+    const html = `
+      <div style="font-family:'Cairo',sans-serif;direction:rtl">
+        <div style="border-bottom:3px solid ${settings.print_header_color};padding-bottom:10px;margin-bottom:15px">
+          <h1 style="margin:0;text-align:center;color:${settings.print_header_color};font-size:26px">${settings.company_name}</h1>
+          <h2 style="margin:4px 0 0;text-align:center;color:#555;font-size:16px;font-weight:normal">القسم: التحضين والتسمين — نوع الحركة: <strong>صرف علف</strong></h2>
+        </div>
+        <h3 style="text-align:center;color:${settings.print_header_color};margin:0 0 12px">إذن صرف علف رقم ${Date.now().toString().slice(-6)}</h3>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;border:1px solid #999">
+          <tr><th style="padding:8px;background:${settings.print_accent_color};border:1px solid #999;text-align:right">رقم الدفعة</th><td style="padding:8px;border:1px solid #ccc">${batch?.batch_number || '-'}</td>
+              <th style="padding:8px;background:${settings.print_accent_color};border:1px solid #999;text-align:right">تاريخ الصرف</th><td style="padding:8px;border:1px solid #ccc">${saved.issue_date}</td></tr>
+          <tr><th style="padding:8px;background:${settings.print_accent_color};border:1px solid #999;text-align:right">نوع العلف</th><td style="padding:8px;border:1px solid #ccc">${saved.feed_name}</td>
+              <th style="padding:8px;background:${settings.print_accent_color};border:1px solid #999;text-align:right">الكمية</th><td style="padding:8px;border:1px solid #ccc"><strong>${saved.quantity_kg} كجم</strong></td></tr>
+          <tr><th style="padding:8px;background:${settings.print_accent_color};border:1px solid #999;text-align:right">سعر الكيلو (تكلفة)</th><td style="padding:8px;border:1px solid #ccc">${saved.unit_cost} ج.م</td>
+              <th style="padding:8px;background:${settings.print_accent_color};border:1px solid #999;text-align:right">إجمالي التكلفة</th><td style="padding:8px;border:1px solid #ccc;font-weight:bold;color:${settings.print_header_color}">${saved.total_cost} ج.م</td></tr>
+          <tr><th style="padding:8px;background:${settings.print_accent_color};border:1px solid #999;text-align:right">المستخدم</th><td colspan="3" style="padding:8px;border:1px solid #ccc">${user}</td></tr>
+          ${saved.notes ? `<tr><th style="padding:8px;background:${settings.print_accent_color};border:1px solid #999;text-align:right">ملاحظات</th><td colspan="3" style="padding:8px;border:1px solid #ccc">${saved.notes}</td></tr>` : ''}
+        </table>
+        <div style="margin-top:50px;display:flex;justify-content:space-between;gap:20px;font-size:13px">
+          <div style="border-top:2px solid #333;padding-top:8px;flex:1;text-align:center">توقيع مسؤول التحضين<br/><span style="color:#888;font-size:11px">................................</span></div>
+          <div style="border-top:2px solid #333;padding-top:8px;flex:1;text-align:center">توقيع مسؤول مصنع الأعلاف<br/><span style="color:#888;font-size:11px">................................</span></div>
+        </div>
+        <p style="margin-top:20px;text-align:center;font-size:11px;color:#888">⚠️ تم إرسال إشعار تلقائي لمسؤول مصنع الأعلاف بهذه الحركة</p>
+      </div>`;
+    openPrintWindow("إذن صرف علف", html);
+  };
+
+  const { profile } = useAuth();
+  const [lastSaved, setLastSaved] = useState<typeof f | null>(null);
+
   const submit = async () => {
     if (!f.batch_id || !f.feed_name || f.quantity_kg <= 0) { toast.error("أكمل البيانات"); return; }
     if (inv && f.quantity_kg > Number(inv.current_kg)) {
@@ -1034,13 +1102,14 @@ const FeedForm = ({ batches, feedInventory = [], settings = DEFAULT_SETTINGS, ca
     }
     const { error } = await supabase.from("brooding_feed_issuance").insert(f);
     if (error) { toast.error(error.message); return; }
-    toast.success("تم صرف العلف وخصمه من المخزون"); onDone();
+    toast.success("تم صرف العلف وخصمه من المخزون — تم إرسال إشعار لمسؤول مصنع الأعلاف");
+    setLastSaved({ ...f });
   };
   return (<div className="space-y-3">
     <div><Label>الدفعة</Label><BatchSelect value={f.batch_id} onChange={(v: string) => setF({ ...f, batch_id: v })} batches={batches} /></div>
     <div><Label>التاريخ</Label><Input type="date" value={f.issue_date} onChange={e => setF({ ...f, issue_date: e.target.value })} /></div>
     <div>
-      <Label>نوع العلف</Label>
+      <Label>نوع العلف (من مخزون علف الكتاكيت)</Label>
       {feedInventory.length > 0 ? (
         <Select value={f.feed_name} onValueChange={v => setF({ ...f, feed_name: v })}>
           <SelectTrigger><SelectValue /></SelectTrigger>
@@ -1052,14 +1121,14 @@ const FeedForm = ({ batches, feedInventory = [], settings = DEFAULT_SETTINGS, ca
     </div>
     {batch && (
       <div className="text-xs text-muted-foreground p-2 rounded bg-emerald-50 border border-emerald-200">
-        💡 السعر الموصى به بناءً على عمر الدفعة: <strong>{fmtMoney(recommendedUnitCost)}/كجم</strong>
-        {inv && <> — الرصيد المتاح: <strong>{fmt(Number(inv.current_kg))} كجم</strong></>}
+        💡 سعر التكلفة الموصى به (حسب عمر الدفعة): <strong>{fmtMoney(recommendedUnitCost)}/كجم</strong> — السعر مأخوذ بالتكلفة وليس البيع
+        {inv && <> | الرصيد المتاح: <strong>{fmt(Number(inv.current_kg))} كجم</strong></>}
       </div>
     )}
     <div className="grid grid-cols-3 gap-2">
       <div><Label>الكمية (كجم)</Label><Input type="number" value={f.quantity_kg} onChange={e => setF({ ...f, quantity_kg: +e.target.value })} /></div>
       <div>
-        <Label>سعر الكيلو</Label>
+        <Label>سعر الكيلو (تكلفة)</Label>
         <Input type="number" step="0.001" disabled={!canOverride || !override} value={f.unit_cost} onChange={e => setF({ ...f, unit_cost: +e.target.value })} />
       </div>
       <div><Label>الإجمالي</Label><Input type="number" value={f.total_cost} readOnly /></div>
@@ -1071,7 +1140,21 @@ const FeedForm = ({ batches, feedInventory = [], settings = DEFAULT_SETTINGS, ca
       </label>
     )}
     <div><Label>ملاحظات</Label><Textarea value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} /></div>
-    <Button onClick={submit} className="w-full">حفظ</Button>
+    {lastSaved ? (
+      <div className="space-y-2">
+        <div className="p-2 rounded bg-emerald-50 border border-emerald-200 text-xs text-emerald-800">
+          ✅ تم الصرف بنجاح. يمكنك طباعة إذن الصرف الآن.
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <Button variant="outline" onClick={() => printPermit(lastSaved, profile?.full_name || "—")}>
+            <Printer className="w-4 h-4 ml-1" />طباعة إذن الصرف
+          </Button>
+          <Button onClick={onDone}>إغلاق</Button>
+        </div>
+      </div>
+    ) : (
+      <Button onClick={submit} className="w-full">حفظ وصرف العلف</Button>
+    )}
   </div>);
 };
 
@@ -1101,24 +1184,109 @@ const MedicineForm = ({ batches, onDone, defaultBatchId }: any) => {
   </div>);
 };
 
+const SALE_AGE_PRESETS = [
+  { label: "عمر أسبوع", days: 7 },
+  { label: "عمر أسبوعين", days: 14 },
+  { label: "عمر شهر", days: 30 },
+  { label: "عمر شهر ونص", days: 45 },
+  { label: "عمر شهرين", days: 60 },
+];
+
 const SaleForm = ({ batches, onDone, defaultBatchId }: any) => {
+  const { roles, role } = useAuth();
+  const userRoles = roles && roles.length > 0 ? roles : (role ? [role] : []);
+  const canManualAge = userRoles.includes("general_manager") || userRoles.includes("executive_manager");
+
   const [f, setF] = useState({ batch_id: defaultBatchId || "", sale_date: new Date().toISOString().slice(0, 10), customer_name: "", count: 1, unit_price: 0, total_amount: 0, payment_method: "cash", treasury: "", notes: "" });
+  const [ageMode, setAgeMode] = useState<"auto" | "preset" | "manual">("auto");
+  const [ageDays, setAgeDays] = useState<number>(0);
+  const [ageLabelSel, setAgeLabelSel] = useState<string>("");
+  const [saving, setSaving] = useState(false);
+
+  const batch = batches.find((b: Batch) => b.id === f.batch_id);
+  const currentBatchAge = batch ? currentAgeDays(batch) : 0;
+  const currentBatchAgeLabel = batch ? ageLabel(batch) : "";
+  const currentCost = batch ? Number(batch.cost_per_bird) : 0;
+  const totalCostAtSale = currentCost * f.count;
+  const profit = f.total_amount - totalCostAtSale;
+
   useEffect(() => { setF(p => ({ ...p, total_amount: p.count * p.unit_price })); }, [f.count, f.unit_price]);
+  // Default age = current batch age
+  useEffect(() => {
+    if (ageMode === "auto" && batch) {
+      setAgeDays(currentBatchAge);
+      setAgeLabelSel(currentBatchAgeLabel);
+    }
+  }, [ageMode, f.batch_id, batch, currentBatchAge, currentBatchAgeLabel]);
+
   const submit = async () => {
     if (!f.batch_id || !f.customer_name || f.count <= 0) { toast.error("أكمل البيانات"); return; }
-    const { error } = await supabase.from("brooding_chick_sales").insert(f);
+    if (batch && f.count > batch.current_count) {
+      toast.error(`لا يمكن البيع — العدد الحالي بالدفعة ${batch.current_count} فقط`);
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase.from("brooding_chick_sales").insert({
+      ...f,
+      age_at_sale_days: ageDays || currentBatchAge,
+      age_label_snapshot: ageLabelSel || currentBatchAgeLabel,
+    } as any);
+    setSaving(false);
     if (error) { toast.error(error.message); return; }
-    toast.success("تمت الفاتورة"); onDone();
+    toast.success(`تم البيع — تكلفة ${fmtMoney(totalCostAtSale)} | ${profit >= 0 ? "ربح" : "خسارة"}: ${fmtMoney(Math.abs(profit))}`);
+    onDone();
   };
   return (<div className="space-y-3">
     <div><Label>الدفعة</Label><BatchSelect value={f.batch_id} onChange={(v: string) => setF({ ...f, batch_id: v })} batches={batches} /></div>
+    {batch && (
+      <div className="text-xs p-2 rounded bg-emerald-50 border border-emerald-200 space-y-1">
+        <div>📦 <strong>{batch.batch_number}</strong> — العمر الحالي: <strong>{currentBatchAgeLabel}</strong></div>
+        <div>💰 تكلفة الطائر الحالية: <strong>{fmtMoney(currentCost)}</strong> | العدد المتاح: <strong>{batch.current_count}</strong></div>
+      </div>
+    )}
     <div><Label>التاريخ</Label><Input type="date" value={f.sale_date} onChange={e => setF({ ...f, sale_date: e.target.value })} /></div>
     <div><Label>العميل</Label><Input value={f.customer_name} onChange={e => setF({ ...f, customer_name: e.target.value })} /></div>
+
+    <div className="p-3 rounded-lg border bg-amber-50/40 space-y-2">
+      <Label className="font-semibold">عمر الكتاكيت وقت البيع</Label>
+      <div className="flex gap-1 flex-wrap">
+        <Button type="button" size="sm" variant={ageMode === "auto" ? "default" : "outline"} onClick={() => setAgeMode("auto")}>العمر الحالي تلقائيًا</Button>
+        <Button type="button" size="sm" variant={ageMode === "preset" ? "default" : "outline"} onClick={() => setAgeMode("preset")}>اختيار جاهز</Button>
+        {canManualAge && (
+          <Button type="button" size="sm" variant={ageMode === "manual" ? "default" : "outline"} onClick={() => setAgeMode("manual")}>إدخال يدوي (مدير)</Button>
+        )}
+      </div>
+      {ageMode === "preset" && (
+        <Select value={ageLabelSel} onValueChange={v => { const p = SALE_AGE_PRESETS.find(x => x.label === v); setAgeLabelSel(v); setAgeDays(p?.days || 0); }}>
+          <SelectTrigger><SelectValue placeholder="اختر عمر الكتاكيت" /></SelectTrigger>
+          <SelectContent>{SALE_AGE_PRESETS.map(a => <SelectItem key={a.days} value={a.label}>{a.label}</SelectItem>)}</SelectContent>
+        </Select>
+      )}
+      {ageMode === "manual" && canManualAge && (
+        <div className="grid grid-cols-2 gap-2">
+          <Input type="number" min={0} placeholder="العمر بالأيام" value={ageDays} onChange={e => setAgeDays(+e.target.value)} />
+          <Input placeholder="وصف العمر (مثل: عمر شهر)" value={ageLabelSel} onChange={e => setAgeLabelSel(e.target.value)} />
+        </div>
+      )}
+      <div className="text-xs text-muted-foreground">العمر المسجل: <strong>{ageLabelSel || `${ageDays} يوم`}</strong></div>
+    </div>
+
     <div className="grid grid-cols-3 gap-2">
-      <div><Label>العدد</Label><Input type="number" value={f.count} onChange={e => setF({ ...f, count: +e.target.value })} /></div>
+      <div><Label>العدد</Label><Input type="number" min={1} max={batch?.current_count || undefined} value={f.count} onChange={e => setF({ ...f, count: +e.target.value })} /></div>
       <div><Label>سعر الكتكوت</Label><Input type="number" value={f.unit_price} onChange={e => setF({ ...f, unit_price: +e.target.value })} /></div>
       <div><Label>الإجمالي</Label><Input type="number" value={f.total_amount} readOnly /></div>
     </div>
+
+    {batch && f.count > 0 && (
+      <div className="text-xs p-2 rounded bg-slate-50 border space-y-1">
+        <div>تكلفة الكتاكيت المباعة = {f.count} × {fmtMoney(currentCost)} = <strong>{fmtMoney(totalCostAtSale)}</strong></div>
+        <div>إجمالي البيع: <strong>{fmtMoney(f.total_amount)}</strong></div>
+        <div className={profit >= 0 ? "text-emerald-700 font-bold" : "text-red-700 font-bold"}>
+          {profit >= 0 ? "الربح المتوقع" : "الخسارة المتوقعة"}: {fmtMoney(Math.abs(profit))}
+        </div>
+      </div>
+    )}
+
     <div className="grid grid-cols-2 gap-2">
       <div><Label>طريقة الدفع</Label>
         <Select value={f.payment_method} onValueChange={v => setF({ ...f, payment_method: v })}>
@@ -1129,29 +1297,66 @@ const SaleForm = ({ batches, onDone, defaultBatchId }: any) => {
       <div><Label>الخزنة</Label><Input value={f.treasury} onChange={e => setF({ ...f, treasury: e.target.value })} /></div>
     </div>
     <div><Label>ملاحظات</Label><Textarea value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} /></div>
-    <Button onClick={submit} className="w-full">حفظ</Button>
+    <Button onClick={submit} disabled={saving} className="w-full">{saving ? "..." : "حفظ الفاتورة"}</Button>
   </div>);
 };
 
 const TransferForm = ({ batches, onDone, defaultBatchId }: any) => {
-  const [f, setF] = useState({ batch_id: defaultBatchId || "", transfer_date: new Date().toISOString().slice(0, 10), count: 1, avg_weight_kg: 0, total_weight_kg: 0, notes: "" });
+  const [f, setF] = useState({ batch_id: defaultBatchId || "", transfer_date: new Date().toISOString().slice(0, 10), count: 1, avg_weight_kg: 0, total_weight_kg: 0, live_price_per_kg: 0, notes: "" });
+  const [saving, setSaving] = useState(false);
+  const batch = batches.find((b: Batch) => b.id === f.batch_id);
+  const costPerBird = batch ? Number(batch.cost_per_bird) : 0;
+  const totalTransferCost = costPerBird * f.count;
+  const valuation = f.total_weight_kg * f.live_price_per_kg;
+  const expectedPL = valuation - totalTransferCost;
+
   useEffect(() => { if (f.count && f.avg_weight_kg) setF(p => ({ ...p, total_weight_kg: +(p.count * p.avg_weight_kg).toFixed(2) })); }, [f.count, f.avg_weight_kg]);
+
   const submit = async () => {
     if (!f.batch_id || f.count <= 0) { toast.error("أكمل البيانات"); return; }
-    const { error } = await supabase.from("brooding_to_slaughter_transfers").insert(f as any);
+    if (batch && f.count > batch.current_count) {
+      toast.error(`لا يمكن تحويل ${f.count} — العدد المتاح ${batch.current_count} فقط`);
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase.from("brooding_to_slaughter_transfers").insert({
+      ...f,
+      valuation_amount: +valuation.toFixed(2),
+      expected_profit_loss: +expectedPL.toFixed(2),
+    } as any);
+    setSaving(false);
     if (error) { toast.error(error.message); return; }
-    toast.success("تم التحويل للمجزر"); onDone();
+    toast.success(`تم التحويل — تكلفة ${fmtMoney(totalTransferCost)} | ${expectedPL >= 0 ? "ربح" : "خسارة"} متوقع: ${fmtMoney(Math.abs(expectedPL))}`);
+    onDone();
   };
   return (<div className="space-y-3">
     <div><Label>الدفعة</Label><BatchSelect value={f.batch_id} onChange={(v: string) => setF({ ...f, batch_id: v })} batches={batches} /></div>
+    {batch && (
+      <div className="text-xs p-2 rounded bg-indigo-50 border border-indigo-200">
+        تكلفة الطائر الحالية: <strong>{fmtMoney(costPerBird)}</strong> | العدد المتاح: <strong>{batch.current_count}</strong>
+      </div>
+    )}
     <div><Label>التاريخ</Label><Input type="date" value={f.transfer_date} onChange={e => setF({ ...f, transfer_date: e.target.value })} /></div>
     <div className="grid grid-cols-3 gap-2">
-      <div><Label>العدد</Label><Input type="number" value={f.count} onChange={e => setF({ ...f, count: +e.target.value })} /></div>
+      <div><Label>العدد</Label><Input type="number" min={1} max={batch?.current_count || undefined} value={f.count} onChange={e => setF({ ...f, count: +e.target.value })} /></div>
       <div><Label>متوسط الوزن (كجم)</Label><Input type="number" step="0.1" value={f.avg_weight_kg} onChange={e => setF({ ...f, avg_weight_kg: +e.target.value })} /></div>
-      <div><Label>إجمالي الوزن</Label><Input type="number" value={f.total_weight_kg} onChange={e => setF({ ...f, total_weight_kg: +e.target.value })} /></div>
+      <div><Label>إجمالي الوزن قائم</Label><Input type="number" step="0.1" value={f.total_weight_kg} onChange={e => setF({ ...f, total_weight_kg: +e.target.value })} /></div>
     </div>
+    <div className="grid grid-cols-2 gap-2">
+      <div><Label>سعر الكيلو قائم</Label><Input type="number" step="0.01" value={f.live_price_per_kg} onChange={e => setF({ ...f, live_price_per_kg: +e.target.value })} /></div>
+      <div><Label>قيمة البيع/التقييم قائم</Label><Input readOnly value={fmt(valuation)} /></div>
+    </div>
+    {batch && f.count > 0 && (
+      <div className="text-xs p-2 rounded bg-slate-50 border space-y-1">
+        <div>إجمالي تكلفة الطيور المحولة: <strong>{fmtMoney(totalTransferCost)}</strong> ({f.count} × {fmtMoney(costPerBird)})</div>
+        <div>إجمالي الوزن قائم: <strong>{fmt(f.total_weight_kg)} كجم</strong> × {fmtMoney(f.live_price_per_kg)} = <strong>{fmtMoney(valuation)}</strong></div>
+        <div className={expectedPL >= 0 ? "text-emerald-700 font-bold" : "text-red-700 font-bold"}>
+          {expectedPL >= 0 ? "الربح المتوقع" : "الخسارة المتوقعة"}: {fmtMoney(Math.abs(expectedPL))}
+        </div>
+      </div>
+    )}
     <div><Label>ملاحظات</Label><Textarea value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} /></div>
-    <Button onClick={submit} className="w-full">حفظ</Button>
+    <Button onClick={submit} disabled={saving} className="w-full">{saving ? "..." : "تأكيد التحويل للمجزر"}</Button>
   </div>);
 };
 
@@ -1337,4 +1542,148 @@ const SettingsTab = ({ settings, onSaved }: { settings: BroodingSettings; onSave
   );
 };
 
+// ===== Recipes Tab (تركيبة علف التسمين) =====
+type Recipe = { id: string; name: string; feed_type: string; batch_size: number; unit: string; is_active: boolean };
+type RecipeItem = { id: string; recipe_id: string; raw_material_id: string; quantity: number; unit: string | null; unit_cost: number | null; raw_material_name?: string };
+
+const RecipesTab = ({ canManage }: { canManage: boolean }) => {
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [items, setItems] = useState<RecipeItem[]>([]);
+  const [materials, setMaterials] = useState<Record<string, string>>({});
+  const [selected, setSelected] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [savingItemId, setSavingItemId] = useState<string | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    const [r, i, m] = await Promise.all([
+      supabase.from("feed_recipes").select("id,name,feed_type,batch_size,unit,is_active").order("name"),
+      supabase.from("feed_recipe_items").select("id,recipe_id,raw_material_id,quantity,unit,unit_cost"),
+      supabase.from("raw_materials" as any).select("id,name"),
+    ]);
+    const matMap: Record<string, string> = {};
+    ((m.data as any) || []).forEach((x: any) => { matMap[x.id] = x.name; });
+    setMaterials(matMap);
+    setRecipes((r.data as any) || []);
+    setItems(((i.data as any) || []).map((x: any) => ({ ...x, raw_material_name: matMap[x.raw_material_id] })));
+    if (!selected && r.data && r.data.length) setSelected((r.data as any).find((x: any) => x.is_active)?.id || (r.data as any)[0].id);
+    setLoading(false);
+  };
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+
+  const currentRecipe = recipes.find(r => r.id === selected);
+  const currentItems = items.filter(i => i.recipe_id === selected);
+  const totalKg = currentItems.reduce((a, x) => a + Number(x.quantity), 0);
+  const totalCost = currentItems.reduce((a, x) => a + Number(x.quantity) * Number(x.unit_cost || 0), 0);
+  const costPerKg = totalKg > 0 ? totalCost / totalKg : 0;
+  const costPerTon = costPerKg * 1000;
+
+  const updateItem = async (item: RecipeItem, patch: Partial<RecipeItem>) => {
+    setSavingItemId(item.id);
+    const next = { ...item, ...patch };
+    const { error } = await supabase.from("feed_recipe_items").update({
+      quantity: Number(next.quantity),
+      unit_cost: Number(next.unit_cost || 0),
+    }).eq("id", item.id);
+    setSavingItemId(null);
+    if (error) { toast.error(error.message); return; }
+    setItems(prev => prev.map(p => p.id === item.id ? next : p));
+    toast.success("تم تحديث التركيبة — تم إعادة احتساب تكلفة الكيلو. الحركات القديمة لا تتأثر.");
+  };
+
+  const phaseLabel = (t: string) =>
+    t === "starter" ? "بادئ (الكتاكيت 0-2 شهور)" :
+    t === "grower" ? "نامي/تسمين (2 شهر → الذبح)" :
+    t === "layer" ? "بياض" : t;
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
+          <CardTitle>تركيبة علف التسمين</CardTitle>
+          <div className="text-xs text-muted-foreground">
+            {canManage ? "✏️ يمكن للمدير العام/التنفيذي تعديل الكميات والأسعار" : "👁️ عرض فقط — التعديل للمدير العام/التنفيذي"}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            {recipes.map(r => (
+              <Button key={r.id} size="sm" variant={selected === r.id ? "default" : "outline"} onClick={() => setSelected(r.id)}>
+                {r.name} {r.is_active && <Badge variant="secondary" className="mr-2">نشطة</Badge>}
+              </Button>
+            ))}
+            {recipes.length === 0 && !loading && <div className="text-muted-foreground">لا توجد تركيبات. يمكن إضافتها من مصنع الأعلاف.</div>}
+          </div>
+
+          {currentRecipe && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-3 rounded-lg bg-emerald-50 border border-emerald-200">
+              <div><div className="text-xs text-muted-foreground">المرحلة العمرية</div><div className="font-bold">{phaseLabel(currentRecipe.feed_type)}</div></div>
+              <div><div className="text-xs text-muted-foreground">حجم الدفعة (كجم)</div><div className="font-bold">{fmt(Number(currentRecipe.batch_size))}</div></div>
+              <div><div className="text-xs text-muted-foreground">تكلفة الكيلو (تكلفة)</div><div className="font-bold text-emerald-700">{fmtMoney(costPerKg)}</div></div>
+              <div><div className="text-xs text-muted-foreground">تكلفة الطن</div><div className="font-bold text-emerald-700">{fmtMoney(costPerTon)}</div></div>
+            </div>
+          )}
+
+          {currentRecipe && (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>الخامة</TableHead>
+                  <TableHead>الكمية (كجم)</TableHead>
+                  <TableHead>سعر الخامة/كجم</TableHead>
+                  <TableHead>تكلفة الخامة</TableHead>
+                  <TableHead>%</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {currentItems.map(it => {
+                  const lineCost = Number(it.quantity) * Number(it.unit_cost || 0);
+                  const pct = totalKg > 0 ? (Number(it.quantity) / totalKg) * 100 : 0;
+                  return (
+                    <TableRow key={it.id}>
+                      <TableCell className="font-semibold">{it.raw_material_name || materials[it.raw_material_id] || "—"}</TableCell>
+                      <TableCell>
+                        {canManage ? (
+                          <Input type="number" step="0.01" className="w-28" defaultValue={Number(it.quantity)}
+                            onBlur={e => { const v = +e.target.value; if (v !== Number(it.quantity)) updateItem(it, { quantity: v }); }}
+                            disabled={savingItemId === it.id} />
+                        ) : fmt(Number(it.quantity))}
+                      </TableCell>
+                      <TableCell>
+                        {canManage ? (
+                          <Input type="number" step="0.001" className="w-28" defaultValue={Number(it.unit_cost || 0)}
+                            onBlur={e => { const v = +e.target.value; if (v !== Number(it.unit_cost || 0)) updateItem(it, { unit_cost: v }); }}
+                            disabled={savingItemId === it.id} />
+                        ) : fmtMoney(Number(it.unit_cost || 0))}
+                      </TableCell>
+                      <TableCell className="font-bold">{fmtMoney(lineCost)}</TableCell>
+                      <TableCell className="text-muted-foreground">{pct.toFixed(1)}%</TableCell>
+                    </TableRow>
+                  );
+                })}
+                {currentItems.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">لا توجد خامات</TableCell></TableRow>}
+                {currentItems.length > 0 && (
+                  <TableRow className="bg-emerald-50 font-bold">
+                    <TableCell>الإجمالي</TableCell>
+                    <TableCell>{fmt(totalKg)} كجم</TableCell>
+                    <TableCell>—</TableCell>
+                    <TableCell className="text-emerald-700">{fmtMoney(totalCost)}</TableCell>
+                    <TableCell>100%</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
+
+          <div className="text-xs text-amber-700 p-2 rounded bg-amber-50 border border-amber-200">
+            ⚠️ <strong>تنبيه:</strong> أي تعديل في كمية أو سعر خامة يغير تكلفة الكيلو فورًا، ويُستخدم في حركات صرف العلف <u>الجديدة</u> فقط.
+            الحركات القديمة محفوظة بسعرها الأصلي ولا تتغير. الأسعار هنا أسعار <strong>تكلفة</strong> وليست أسعار بيع.
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
 export default Brooding;
+
