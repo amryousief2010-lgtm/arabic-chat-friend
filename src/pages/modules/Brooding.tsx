@@ -1035,6 +1035,7 @@ const EditBatchForm = ({ batch, onDone }: { batch: Batch; onDone: () => void }) 
   const [ageValue, setAgeValue] = useState(batch.age_at_receipt_days);
   const [ageUnit, setAgeUnit] = useState<'day' | 'week' | 'month'>('day');
   const [notes, setNotes] = useState("");
+  const [location, setLocation] = useState<'chick_nursery' | 'fattening_farm'>((batch.rearing_location as any) || 'chick_nursery');
   const [saving, setSaving] = useState(false);
 
   // Convert input → days
