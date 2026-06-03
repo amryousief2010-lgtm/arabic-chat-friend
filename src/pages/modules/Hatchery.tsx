@@ -18,6 +18,10 @@ import {
   Printer, Search, ArrowDownToLine, ArrowUpFromLine, Skull, ShoppingCart, Wallet, Calendar as CalendarIcon, Eye, FileText, Hash,
 } from "lucide-react";
 import FarmShipmentsInbox from "@/components/hatchery/FarmShipmentsInbox";
+import HatcheryDashboard from "@/components/hatchery/HatcheryDashboard";
+import HatcheryTreasury from "@/components/hatchery/HatcheryTreasury";
+import HatcheryMovementsLog from "@/components/hatchery/HatcheryMovementsLog";
+import { History } from "lucide-react";
 import { toast } from "sonner";
 import { format, addDays, differenceInDays, parseISO } from "date-fns";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
@@ -142,8 +146,9 @@ const Hatchery = () => {
           <KPI icon={AlertTriangle} label="نافق هاتشر/شهر" value={stats.monthHatcherDead} color="from-red-500 to-red-700" />
         </div>
 
-        <Tabs defaultValue="incoming" dir="rtl">
-          <TabsList className="grid grid-cols-2 md:grid-cols-8 w-full">
+        <Tabs defaultValue="dashboard" dir="rtl">
+          <TabsList className="grid grid-cols-2 md:grid-cols-11 w-full">
+            <TabsTrigger value="dashboard"><BarChart3 className="w-4 h-4 ml-1" />Dashboard</TabsTrigger>
             <TabsTrigger value="incoming"><Inbox className="w-4 h-4 ml-1" />وارد المزرعة</TabsTrigger>
             <TabsTrigger value="batches"><FlaskConical className="w-4 h-4 ml-1" />الدفعات</TabsTrigger>
             <TabsTrigger value="charts"><BarChart3 className="w-4 h-4 ml-1" />تحليلات</TabsTrigger>
@@ -152,8 +157,11 @@ const Hatchery = () => {
             <TabsTrigger value="ops"><Activity className="w-4 h-4 ml-1" />التشغيل</TabsTrigger>
             <TabsTrigger value="maint"><Wrench className="w-4 h-4 ml-1" />الصيانة</TabsTrigger>
             <TabsTrigger value="chicks"><Bird className="w-4 h-4 ml-1" />الكتاكيت</TabsTrigger>
+            <TabsTrigger value="treasury"><Wallet className="w-4 h-4 ml-1" />الخزنة</TabsTrigger>
+            <TabsTrigger value="log"><History className="w-4 h-4 ml-1" />السجل</TabsTrigger>
           </TabsList>
 
+          <TabsContent value="dashboard"><HatcheryDashboard /></TabsContent>
           <TabsContent value="incoming"><FarmShipmentsInbox /></TabsContent>
           <TabsContent value="batches"><BatchesTab batches={batches} customers={customers} qc={qc} /></TabsContent>
           <TabsContent value="charts"><BatchesChartsTab batches={batches} customers={customers} /></TabsContent>
@@ -162,6 +170,8 @@ const Hatchery = () => {
           <TabsContent value="ops"><OpsTab ops={ops} qc={qc} /></TabsContent>
           <TabsContent value="maint"><MaintTab maint={maint} qc={qc} /></TabsContent>
           <TabsContent value="chicks"><ChicksTab chicks={chicks} qc={qc} /></TabsContent>
+          <TabsContent value="treasury"><HatcheryTreasury /></TabsContent>
+          <TabsContent value="log"><HatcheryMovementsLog /></TabsContent>
         </Tabs>
       </div>
     </DashboardLayout>
