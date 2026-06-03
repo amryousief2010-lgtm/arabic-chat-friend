@@ -632,6 +632,7 @@ const ManufacturingTab = ({ raws, packs, fins, list, onReload, onPost, onPrint, 
   const [producedQty, setProducedQty] = useState("");
   const [extraCost, setExtraCost] = useState("");
   const [notes, setNotes] = useState("");
+  const [isTest, setIsTest] = useState(false);
   const [rawLines, setRawLines] = useState<{ raw_id: string; qty: string }[]>([{ raw_id: "", qty: "" }]);
   const [packLines, setPackLines] = useState<{ pack_id: string; qty: string }[]>([{ pack_id: "", qty: "" }]);
 
