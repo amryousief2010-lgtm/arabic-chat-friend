@@ -908,7 +908,7 @@ const ReturnsTab = ({ fins, sales, list, onReload, onPost, onPrint, onExcel }: a
                 <Button size="sm" variant="outline" onClick={() => setLines([...lines, { finished_id: "", qty: "", unit_price: "" }])}><Plus className="h-4 w-4 ml-1" />صف</Button>
                 <Textarea placeholder="ملاحظات" value={notes} onChange={e => setNotes(e.target.value)} />
               </div>
-              <DialogFooter><Button onClick={create}>حفظ كمسودة</Button></DialogFooter>
+              <DialogFooter className="gap-2"><TestToggle value={isTest} onChange={setIsTest} /><Button onClick={create}>حفظ كمسودة</Button></DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
