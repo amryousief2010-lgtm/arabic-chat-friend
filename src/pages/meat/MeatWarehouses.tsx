@@ -157,11 +157,13 @@ export default function MeatWarehouses() {
   const [mfgDate, setMfgDate] = useState(new Date().toISOString().slice(0,10));
   const [mfgItem, setMfgItem] = useState(""); const [mfgQty, setMfgQty] = useState(0); const [mfgNotes, setMfgNotes] = useState("");
   const [mfgLines, setMfgLines] = useState<LineRow[]>([newLine()]);
-  const resetMfg = () => { setMfgOpen(false); setMfgItem(""); setMfgQty(0); setMfgNotes(""); setMfgLines([newLine()]); };
+  const [mfgPkgLines, setMfgPkgLines] = useState<LineRow[]>([newLine()]);
+  const resetMfg = () => { setMfgOpen(false); setMfgItem(""); setMfgQty(0); setMfgNotes(""); setMfgLines([newLine()]); setMfgPkgLines([newLine()]); };
   const saveMfg = async (approve: boolean) => {
     if (!mfgItem || mfgQty<=0) return toast.error("اختر منتجًا وادخل الكمية");
     const lines = mfgLines.filter(l=>l.item_id && l.qty>0);
-    if (!lines.length) return toast.error("أضف خامة واحدة على الأقل");
+    if (!lines.length) return toast.error("أضف خامة غذائية واحدة على الأقل");
+    const pkgLines = mfgPkgLines.filter(l=>l.item_id && l.qty>0);
     const fin = (finItems as any[]).find(x=>x.id===mfgItem);
     const { data: m, error } = await supabase.from("meat_factory_manufacturing" as any).insert({
       mfg_date: mfgDate, finished_item_id: mfgItem, finished_item_name: fin?.name||"", produced_qty: mfgQty, notes: mfgNotes, created_by: user?.id,
@@ -172,10 +174,17 @@ export default function MeatWarehouses() {
     };});
     const { error: e2 } = await supabase.from("meat_factory_manufacturing_lines" as any).insert(lineRows);
     if (e2) return toast.error(e2.message);
+    if (pkgLines.length) {
+      const pkgRows = pkgLines.map((l)=>{const it=(pkgItems as any[]).find(x=>x.id===l.item_id); return {
+        manufacturing_id:(m as any).id, packaging_id:l.item_id, packaging_name:it?.name_ar||"", quantity:l.qty, unit_cost:Number(it?.unit_cost||0), line_total:l.qty*Number(it?.unit_cost||0),
+      };});
+      const { error: ep } = await supabase.from("meat_factory_manufacturing_packaging_lines" as any).insert(pkgRows);
+      if (ep) return toast.error(ep.message);
+    }
     if (approve) {
       const { error: e3 } = await supabase.rpc("approve_meat_manufacturing" as any, { p_id: (m as any).id });
       if (e3) return toast.error(e3.message);
-      toast.success("تم اعتماد التصنيع — تم خصم الخامات وإضافة المنتج");
+      toast.success("تم اعتماد التصنيع — خصم الخامات الغذائية ومواد التغليف وإضافة المنتج");
     } else { toast.success("تم الحفظ كمسودة"); }
     resetMfg(); invalidateAll();
   };
