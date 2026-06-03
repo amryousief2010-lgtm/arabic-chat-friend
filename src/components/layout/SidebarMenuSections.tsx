@@ -148,6 +148,7 @@ export const moduleSections: ModuleSection[] = [
     label: "6. مصنع اللحوم",
     roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'quality_manager', 'accountant', 'financial_manager', 'warehouse_supervisor'],
     items: [
+      { icon: Factory, label: "⭐ التشغيل الكامل (خامات/تغليف/تصنيع/بيع/خزنة)", path: "/modules/meat-factory/operations", roles: ['general_manager', 'executive_manager', 'meat_factory_manager'] },
       { icon: Factory, label: "تصنيع المنتجات", path: "/modules/meat-factory", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'quality_manager'] },
       { icon: Factory, label: "لوحة مصنع اللحوم", path: "/meat-factory/dashboard", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'quality_manager', 'accountant', 'financial_manager'] },
       

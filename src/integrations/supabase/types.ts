@@ -6448,6 +6448,51 @@ export type Database = {
         }
         Relationships: []
       }
+      meat_finished_inventory: {
+        Row: {
+          avg_prod_cost: number
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          last_movement_at: string | null
+          name_ar: string
+          reorder_level: number
+          sale_price: number
+          stock: number
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          avg_prod_cost?: number
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_movement_at?: string | null
+          name_ar: string
+          reorder_level?: number
+          sale_price?: number
+          stock?: number
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          avg_prod_cost?: number
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_movement_at?: string | null
+          name_ar?: string
+          reorder_level?: number
+          sale_price?: number
+          stock?: number
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       meat_manufacturing_invoice_lines: {
         Row: {
           created_at: string
@@ -6625,6 +6670,51 @@ export type Database = {
           },
         ]
       }
+      meat_packaging_inventory: {
+        Row: {
+          avg_cost: number
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          last_movement_at: string | null
+          name_ar: string
+          product_type: string
+          reorder_level: number
+          stock: number
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          avg_cost?: number
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_movement_at?: string | null
+          name_ar: string
+          product_type: string
+          reorder_level?: number
+          stock?: number
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          avg_cost?: number
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_movement_at?: string | null
+          name_ar?: string
+          product_type?: string
+          reorder_level?: number
+          stock?: number
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       meat_production_invoice_items: {
         Row: {
           id: string
@@ -6791,6 +6881,51 @@ export type Database = {
           },
         ]
       }
+      meat_raw_inventory: {
+        Row: {
+          avg_cost: number
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          last_movement_at: string | null
+          name_ar: string
+          notes: string | null
+          reorder_level: number
+          stock: number
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          avg_cost?: number
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_movement_at?: string | null
+          name_ar: string
+          notes?: string | null
+          reorder_level?: number
+          stock?: number
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          avg_cost?: number
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_movement_at?: string | null
+          name_ar?: string
+          notes?: string | null
+          reorder_level?: number
+          stock?: number
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       meat_recipe_version_status: {
         Row: {
           activated_at: string | null
@@ -6830,6 +6965,763 @@ export type Database = {
           status?: string
           updated_at?: string
           version?: number
+        }
+        Relationships: []
+      }
+      mf_log: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          direction: string
+          from_party: string | null
+          id: string
+          item_id: string | null
+          item_kind: string
+          item_name: string | null
+          linked_id: string | null
+          metadata: Json | null
+          movement_date: string
+          movement_no: string
+          movement_type: string
+          notes: string | null
+          qty: number | null
+          ref_no: string | null
+          source_id: string | null
+          source_type: string | null
+          status: string
+          to_party: string | null
+          total_value: number | null
+          unit: string | null
+          unit_cost: number | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          direction: string
+          from_party?: string | null
+          id?: string
+          item_id?: string | null
+          item_kind: string
+          item_name?: string | null
+          linked_id?: string | null
+          metadata?: Json | null
+          movement_date?: string
+          movement_no?: string
+          movement_type: string
+          notes?: string | null
+          qty?: number | null
+          ref_no?: string | null
+          source_id?: string | null
+          source_type?: string | null
+          status?: string
+          to_party?: string | null
+          total_value?: number | null
+          unit?: string | null
+          unit_cost?: number | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          direction?: string
+          from_party?: string | null
+          id?: string
+          item_id?: string | null
+          item_kind?: string
+          item_name?: string | null
+          linked_id?: string | null
+          metadata?: Json | null
+          movement_date?: string
+          movement_no?: string
+          movement_type?: string
+          notes?: string | null
+          qty?: number | null
+          ref_no?: string | null
+          source_id?: string | null
+          source_type?: string | null
+          status?: string
+          to_party?: string | null
+          total_value?: number | null
+          unit?: string | null
+          unit_cost?: number | null
+        }
+        Relationships: []
+      }
+      mf_manufacturing: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          extra_cost: number
+          finished_id: string
+          id: string
+          invoice_date: string
+          invoice_no: string
+          notes: string | null
+          pack_cost: number
+          posted_at: string | null
+          posted_by: string | null
+          produced_qty: number
+          raw_cost: number
+          status: string
+          total_cost: number
+          unit_cost: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          extra_cost?: number
+          finished_id: string
+          id?: string
+          invoice_date?: string
+          invoice_no?: string
+          notes?: string | null
+          pack_cost?: number
+          posted_at?: string | null
+          posted_by?: string | null
+          produced_qty: number
+          raw_cost?: number
+          status?: string
+          total_cost?: number
+          unit_cost?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          extra_cost?: number
+          finished_id?: string
+          id?: string
+          invoice_date?: string
+          invoice_no?: string
+          notes?: string | null
+          pack_cost?: number
+          posted_at?: string | null
+          posted_by?: string | null
+          produced_qty?: number
+          raw_cost?: number
+          status?: string
+          total_cost?: number
+          unit_cost?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mf_manufacturing_finished_id_fkey"
+            columns: ["finished_id"]
+            isOneToOne: false
+            referencedRelation: "meat_finished_inventory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mf_mfg_pack_lines: {
+        Row: {
+          id: string
+          mfg_id: string
+          pack_id: string
+          qty: number
+          total: number
+          unit_cost: number
+        }
+        Insert: {
+          id?: string
+          mfg_id: string
+          pack_id: string
+          qty: number
+          total?: number
+          unit_cost?: number
+        }
+        Update: {
+          id?: string
+          mfg_id?: string
+          pack_id?: string
+          qty?: number
+          total?: number
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mf_mfg_pack_lines_mfg_id_fkey"
+            columns: ["mfg_id"]
+            isOneToOne: false
+            referencedRelation: "mf_manufacturing"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mf_mfg_pack_lines_pack_id_fkey"
+            columns: ["pack_id"]
+            isOneToOne: false
+            referencedRelation: "meat_packaging_inventory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mf_mfg_raw_lines: {
+        Row: {
+          id: string
+          mfg_id: string
+          qty: number
+          raw_id: string
+          total: number
+          unit_cost: number
+        }
+        Insert: {
+          id?: string
+          mfg_id: string
+          qty: number
+          raw_id: string
+          total?: number
+          unit_cost?: number
+        }
+        Update: {
+          id?: string
+          mfg_id?: string
+          qty?: number
+          raw_id?: string
+          total?: number
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mf_mfg_raw_lines_mfg_id_fkey"
+            columns: ["mfg_id"]
+            isOneToOne: false
+            referencedRelation: "mf_manufacturing"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mf_mfg_raw_lines_raw_id_fkey"
+            columns: ["raw_id"]
+            isOneToOne: false
+            referencedRelation: "meat_raw_inventory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mf_pack_purchase_items: {
+        Row: {
+          created_at: string
+          id: string
+          pack_id: string
+          purchase_id: string
+          qty: number
+          total: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          pack_id: string
+          purchase_id: string
+          qty: number
+          total: number
+          unit_price: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          pack_id?: string
+          purchase_id?: string
+          qty?: number
+          total?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mf_pack_purchase_items_pack_id_fkey"
+            columns: ["pack_id"]
+            isOneToOne: false
+            referencedRelation: "meat_packaging_inventory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mf_pack_purchase_items_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "mf_pack_purchases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mf_pack_purchases: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          invoice_date: string
+          invoice_no: string
+          notes: string | null
+          payment_method: string
+          posted_at: string | null
+          posted_by: string | null
+          status: string
+          supplier: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invoice_date?: string
+          invoice_no?: string
+          notes?: string | null
+          payment_method: string
+          posted_at?: string | null
+          posted_by?: string | null
+          status?: string
+          supplier: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invoice_date?: string
+          invoice_no?: string
+          notes?: string | null
+          payment_method?: string
+          posted_at?: string | null
+          posted_by?: string | null
+          status?: string
+          supplier?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      mf_raw_purchase_items: {
+        Row: {
+          created_at: string
+          id: string
+          purchase_id: string
+          qty: number
+          raw_id: string
+          total: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          purchase_id: string
+          qty: number
+          raw_id: string
+          total: number
+          unit_price: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          purchase_id?: string
+          qty?: number
+          raw_id?: string
+          total?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mf_raw_purchase_items_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "mf_raw_purchases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mf_raw_purchase_items_raw_id_fkey"
+            columns: ["raw_id"]
+            isOneToOne: false
+            referencedRelation: "meat_raw_inventory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mf_raw_purchases: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          invoice_date: string
+          invoice_no: string
+          notes: string | null
+          payment_method: string
+          posted_at: string | null
+          posted_by: string | null
+          status: string
+          supplier: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invoice_date?: string
+          invoice_no?: string
+          notes?: string | null
+          payment_method: string
+          posted_at?: string | null
+          posted_by?: string | null
+          status?: string
+          supplier: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invoice_date?: string
+          invoice_no?: string
+          notes?: string | null
+          payment_method?: string
+          posted_at?: string | null
+          posted_by?: string | null
+          status?: string
+          supplier?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      mf_return_lines: {
+        Row: {
+          finished_id: string
+          id: string
+          qty: number
+          return_id: string
+          total: number
+          unit_price: number
+        }
+        Insert: {
+          finished_id: string
+          id?: string
+          qty: number
+          return_id: string
+          total?: number
+          unit_price: number
+        }
+        Update: {
+          finished_id?: string
+          id?: string
+          qty?: number
+          return_id?: string
+          total?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mf_return_lines_finished_id_fkey"
+            columns: ["finished_id"]
+            isOneToOne: false
+            referencedRelation: "meat_finished_inventory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mf_return_lines_return_id_fkey"
+            columns: ["return_id"]
+            isOneToOne: false
+            referencedRelation: "mf_returns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mf_returns: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          customer: string
+          id: string
+          notes: string | null
+          original_sale_id: string | null
+          posted_at: string | null
+          posted_by: string | null
+          reason: string | null
+          return_date: string
+          return_no: string
+          status: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          customer: string
+          id?: string
+          notes?: string | null
+          original_sale_id?: string | null
+          posted_at?: string | null
+          posted_by?: string | null
+          reason?: string | null
+          return_date?: string
+          return_no?: string
+          status?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          customer?: string
+          id?: string
+          notes?: string | null
+          original_sale_id?: string | null
+          posted_at?: string | null
+          posted_by?: string | null
+          reason?: string | null
+          return_date?: string
+          return_no?: string
+          status?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mf_returns_original_sale_id_fkey"
+            columns: ["original_sale_id"]
+            isOneToOne: false
+            referencedRelation: "mf_sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mf_sales: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          customer: string
+          id: string
+          invoice_date: string
+          invoice_no: string
+          notes: string | null
+          payment_method: string
+          posted_at: string | null
+          posted_by: string | null
+          profit: number
+          status: string
+          total_amount: number
+          total_cost: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          customer: string
+          id?: string
+          invoice_date?: string
+          invoice_no?: string
+          notes?: string | null
+          payment_method: string
+          posted_at?: string | null
+          posted_by?: string | null
+          profit?: number
+          status?: string
+          total_amount?: number
+          total_cost?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          customer?: string
+          id?: string
+          invoice_date?: string
+          invoice_no?: string
+          notes?: string | null
+          payment_method?: string
+          posted_at?: string | null
+          posted_by?: string | null
+          profit?: number
+          status?: string
+          total_amount?: number
+          total_cost?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      mf_sales_lines: {
+        Row: {
+          cost_snapshot: number
+          finished_id: string
+          id: string
+          qty: number
+          sale_id: string
+          total: number
+          unit_price: number
+        }
+        Insert: {
+          cost_snapshot?: number
+          finished_id: string
+          id?: string
+          qty: number
+          sale_id: string
+          total?: number
+          unit_price: number
+        }
+        Update: {
+          cost_snapshot?: number
+          finished_id?: string
+          id?: string
+          qty?: number
+          sale_id?: string
+          total?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mf_sales_lines_finished_id_fkey"
+            columns: ["finished_id"]
+            isOneToOne: false
+            referencedRelation: "meat_finished_inventory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mf_sales_lines_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "mf_sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mf_transfer_lines: {
+        Row: {
+          finished_id: string
+          id: string
+          qty: number
+          total: number
+          transfer_id: string
+          unit_cost: number
+        }
+        Insert: {
+          finished_id: string
+          id?: string
+          qty: number
+          total?: number
+          transfer_id: string
+          unit_cost?: number
+        }
+        Update: {
+          finished_id?: string
+          id?: string
+          qty?: number
+          total?: number
+          transfer_id?: string
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mf_transfer_lines_finished_id_fkey"
+            columns: ["finished_id"]
+            isOneToOne: false
+            referencedRelation: "meat_finished_inventory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mf_transfer_lines_transfer_id_fkey"
+            columns: ["transfer_id"]
+            isOneToOne: false
+            referencedRelation: "mf_transfers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mf_transfers: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          destination_warehouse_id: string
+          id: string
+          notes: string | null
+          posted_at: string | null
+          posted_by: string | null
+          status: string
+          total_value: number
+          transfer_date: string
+          transfer_no: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          destination_warehouse_id: string
+          id?: string
+          notes?: string | null
+          posted_at?: string | null
+          posted_by?: string | null
+          status?: string
+          total_value?: number
+          transfer_date?: string
+          transfer_no?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          destination_warehouse_id?: string
+          id?: string
+          notes?: string | null
+          posted_at?: string | null
+          posted_by?: string | null
+          status?: string
+          total_value?: number
+          transfer_date?: string
+          transfer_no?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mf_transfers_destination_warehouse_id_fkey"
+            columns: ["destination_warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_stock_availability"
+            referencedColumns: ["warehouse_id"]
+          },
+          {
+            foreignKeyName: "mf_transfers_destination_warehouse_id_fkey"
+            columns: ["destination_warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mf_treasury: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          direction: string
+          id: string
+          notes: string | null
+          ref_no: string | null
+          source_id: string | null
+          source_type: string
+          txn_date: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          direction: string
+          id?: string
+          notes?: string | null
+          ref_no?: string | null
+          source_id?: string | null
+          source_type: string
+          txn_date?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          direction?: string
+          id?: string
+          notes?: string | null
+          ref_no?: string | null
+          source_id?: string | null
+          source_type?: string
+          txn_date?: string
         }
         Relationships: []
       }
@@ -9996,6 +10888,12 @@ export type Database = {
         Args: { _moderator_text: string; _user_id: string }
         Returns: boolean
       }
+      post_mf_manufacturing: { Args: { p_id: string }; Returns: undefined }
+      post_mf_pack_purchase: { Args: { p_id: string }; Returns: undefined }
+      post_mf_raw_purchase: { Args: { p_id: string }; Returns: undefined }
+      post_mf_return: { Args: { p_id: string }; Returns: undefined }
+      post_mf_sale: { Args: { p_id: string }; Returns: undefined }
+      post_mf_transfer: { Args: { p_id: string }; Returns: undefined }
       preview_meat_factory_batch_requirements: {
         Args: { p_batch_id: string }
         Returns: Json
