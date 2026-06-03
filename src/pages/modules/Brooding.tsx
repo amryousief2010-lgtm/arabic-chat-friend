@@ -1133,24 +1133,109 @@ const MedicineForm = ({ batches, onDone, defaultBatchId }: any) => {
   </div>);
 };
 
+const SALE_AGE_PRESETS = [
+  { label: "عمر أسبوع", days: 7 },
+  { label: "عمر أسبوعين", days: 14 },
+  { label: "عمر شهر", days: 30 },
+  { label: "عمر شهر ونص", days: 45 },
+  { label: "عمر شهرين", days: 60 },
+];
+
 const SaleForm = ({ batches, onDone, defaultBatchId }: any) => {
+  const { roles, role } = useAuth();
+  const userRoles = roles && roles.length > 0 ? roles : (role ? [role] : []);
+  const canManualAge = userRoles.includes("general_manager") || userRoles.includes("executive_manager");
+
   const [f, setF] = useState({ batch_id: defaultBatchId || "", sale_date: new Date().toISOString().slice(0, 10), customer_name: "", count: 1, unit_price: 0, total_amount: 0, payment_method: "cash", treasury: "", notes: "" });
+  const [ageMode, setAgeMode] = useState<"auto" | "preset" | "manual">("auto");
+  const [ageDays, setAgeDays] = useState<number>(0);
+  const [ageLabelSel, setAgeLabelSel] = useState<string>("");
+  const [saving, setSaving] = useState(false);
+
+  const batch = batches.find((b: Batch) => b.id === f.batch_id);
+  const currentBatchAge = batch ? currentAgeDays(batch) : 0;
+  const currentBatchAgeLabel = batch ? ageLabel(batch) : "";
+  const currentCost = batch ? Number(batch.cost_per_bird) : 0;
+  const totalCostAtSale = currentCost * f.count;
+  const profit = f.total_amount - totalCostAtSale;
+
   useEffect(() => { setF(p => ({ ...p, total_amount: p.count * p.unit_price })); }, [f.count, f.unit_price]);
+  // Default age = current batch age
+  useEffect(() => {
+    if (ageMode === "auto" && batch) {
+      setAgeDays(currentBatchAge);
+      setAgeLabelSel(currentBatchAgeLabel);
+    }
+  }, [ageMode, f.batch_id, batch, currentBatchAge, currentBatchAgeLabel]);
+
   const submit = async () => {
     if (!f.batch_id || !f.customer_name || f.count <= 0) { toast.error("أكمل البيانات"); return; }
-    const { error } = await supabase.from("brooding_chick_sales").insert(f);
+    if (batch && f.count > batch.current_count) {
+      toast.error(`لا يمكن البيع — العدد الحالي بالدفعة ${batch.current_count} فقط`);
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase.from("brooding_chick_sales").insert({
+      ...f,
+      age_at_sale_days: ageDays || currentBatchAge,
+      age_label_snapshot: ageLabelSel || currentBatchAgeLabel,
+    } as any);
+    setSaving(false);
     if (error) { toast.error(error.message); return; }
-    toast.success("تمت الفاتورة"); onDone();
+    toast.success(`تم البيع — تكلفة ${fmtMoney(totalCostAtSale)} | ${profit >= 0 ? "ربح" : "خسارة"}: ${fmtMoney(Math.abs(profit))}`);
+    onDone();
   };
   return (<div className="space-y-3">
     <div><Label>الدفعة</Label><BatchSelect value={f.batch_id} onChange={(v: string) => setF({ ...f, batch_id: v })} batches={batches} /></div>
+    {batch && (
+      <div className="text-xs p-2 rounded bg-emerald-50 border border-emerald-200 space-y-1">
+        <div>📦 <strong>{batch.batch_number}</strong> — العمر الحالي: <strong>{currentBatchAgeLabel}</strong></div>
+        <div>💰 تكلفة الطائر الحالية: <strong>{fmtMoney(currentCost)}</strong> | العدد المتاح: <strong>{batch.current_count}</strong></div>
+      </div>
+    )}
     <div><Label>التاريخ</Label><Input type="date" value={f.sale_date} onChange={e => setF({ ...f, sale_date: e.target.value })} /></div>
     <div><Label>العميل</Label><Input value={f.customer_name} onChange={e => setF({ ...f, customer_name: e.target.value })} /></div>
+
+    <div className="p-3 rounded-lg border bg-amber-50/40 space-y-2">
+      <Label className="font-semibold">عمر الكتاكيت وقت البيع</Label>
+      <div className="flex gap-1 flex-wrap">
+        <Button type="button" size="sm" variant={ageMode === "auto" ? "default" : "outline"} onClick={() => setAgeMode("auto")}>العمر الحالي تلقائيًا</Button>
+        <Button type="button" size="sm" variant={ageMode === "preset" ? "default" : "outline"} onClick={() => setAgeMode("preset")}>اختيار جاهز</Button>
+        {canManualAge && (
+          <Button type="button" size="sm" variant={ageMode === "manual" ? "default" : "outline"} onClick={() => setAgeMode("manual")}>إدخال يدوي (مدير)</Button>
+        )}
+      </div>
+      {ageMode === "preset" && (
+        <Select value={ageLabelSel} onValueChange={v => { const p = SALE_AGE_PRESETS.find(x => x.label === v); setAgeLabelSel(v); setAgeDays(p?.days || 0); }}>
+          <SelectTrigger><SelectValue placeholder="اختر عمر الكتاكيت" /></SelectTrigger>
+          <SelectContent>{SALE_AGE_PRESETS.map(a => <SelectItem key={a.days} value={a.label}>{a.label}</SelectItem>)}</SelectContent>
+        </Select>
+      )}
+      {ageMode === "manual" && canManualAge && (
+        <div className="grid grid-cols-2 gap-2">
+          <Input type="number" min={0} placeholder="العمر بالأيام" value={ageDays} onChange={e => setAgeDays(+e.target.value)} />
+          <Input placeholder="وصف العمر (مثل: عمر شهر)" value={ageLabelSel} onChange={e => setAgeLabelSel(e.target.value)} />
+        </div>
+      )}
+      <div className="text-xs text-muted-foreground">العمر المسجل: <strong>{ageLabelSel || `${ageDays} يوم`}</strong></div>
+    </div>
+
     <div className="grid grid-cols-3 gap-2">
-      <div><Label>العدد</Label><Input type="number" value={f.count} onChange={e => setF({ ...f, count: +e.target.value })} /></div>
+      <div><Label>العدد</Label><Input type="number" min={1} max={batch?.current_count || undefined} value={f.count} onChange={e => setF({ ...f, count: +e.target.value })} /></div>
       <div><Label>سعر الكتكوت</Label><Input type="number" value={f.unit_price} onChange={e => setF({ ...f, unit_price: +e.target.value })} /></div>
       <div><Label>الإجمالي</Label><Input type="number" value={f.total_amount} readOnly /></div>
     </div>
+
+    {batch && f.count > 0 && (
+      <div className="text-xs p-2 rounded bg-slate-50 border space-y-1">
+        <div>تكلفة الكتاكيت المباعة = {f.count} × {fmtMoney(currentCost)} = <strong>{fmtMoney(totalCostAtSale)}</strong></div>
+        <div>إجمالي البيع: <strong>{fmtMoney(f.total_amount)}</strong></div>
+        <div className={profit >= 0 ? "text-emerald-700 font-bold" : "text-red-700 font-bold"}>
+          {profit >= 0 ? "الربح المتوقع" : "الخسارة المتوقعة"}: {fmtMoney(Math.abs(profit))}
+        </div>
+      </div>
+    )}
+
     <div className="grid grid-cols-2 gap-2">
       <div><Label>طريقة الدفع</Label>
         <Select value={f.payment_method} onValueChange={v => setF({ ...f, payment_method: v })}>
@@ -1161,7 +1246,7 @@ const SaleForm = ({ batches, onDone, defaultBatchId }: any) => {
       <div><Label>الخزنة</Label><Input value={f.treasury} onChange={e => setF({ ...f, treasury: e.target.value })} /></div>
     </div>
     <div><Label>ملاحظات</Label><Textarea value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} /></div>
-    <Button onClick={submit} className="w-full">حفظ</Button>
+    <Button onClick={submit} disabled={saving} className="w-full">{saving ? "..." : "حفظ الفاتورة"}</Button>
   </div>);
 };
 
