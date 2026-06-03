@@ -91,7 +91,7 @@ export default function MeatWarehouses() {
   });
 
   const invalidateAll = () => {
-    ["mf-raw","mf-fin","mf-pur","mf-mfg","mf-sal","mf-ret","mf-txn","mf-mov","mf-stk"].forEach((k)=>qc.invalidateQueries({queryKey:[k]}));
+    ["mf-raw","mf-fin","mf-pkg","mf-pur","mf-mfg","mf-sal","mf-ret","mf-txn","mf-mov","mf-stk"].forEach((k)=>qc.invalidateQueries({queryKey:[k]}));
   };
 
   // ---------- STATS ----------
