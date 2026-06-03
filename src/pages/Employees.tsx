@@ -82,6 +82,7 @@ const roleLabels: Record<AppRole, string> = {
   shipping_company: 'شركة الشحن',
   private_delivery_rep: 'مندوب شحن خاص',
   agouza_warehouse_keeper: 'مسؤول مخزن العجوزة',
+  brooding_dashboard_viewer: 'مشاهد لوحة التحضين (عرض فقط)',
 };
 
 const roleBadgeVariants: Record<AppRole, 'default' | 'secondary' | 'outline' | 'destructive'> = {
@@ -105,6 +106,7 @@ const roleBadgeVariants: Record<AppRole, 'default' | 'secondary' | 'outline' | '
   shipping_company: 'outline',
   private_delivery_rep: 'outline',
   agouza_warehouse_keeper: 'outline',
+  brooding_dashboard_viewer: 'outline',
 };
 
 const roleIcons: Record<AppRole, React.ElementType> = {
@@ -128,6 +130,7 @@ const roleIcons: Record<AppRole, React.ElementType> = {
   shipping_company: Truck,
   private_delivery_rep: Truck,
   agouza_warehouse_keeper: Warehouse,
+  brooding_dashboard_viewer: Users,
 };
 
 const addEmployeeSchema = z.object({
