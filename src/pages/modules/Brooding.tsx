@@ -523,29 +523,20 @@ const NewBatchDialog = ({ onCreated, nextBatchNumber, prominent = false }: { onC
       return;
     }
     const batchId = inserted?.id;
-    // Opening movement
+    // Opening movement (cost_delta is the single source of truth for opening cost;
+    // do NOT also insert a brooding_expense row or the trigger will double-count.)
     if (batchId) {
+      const treasuryNote =
+        f.source === "external" && f.payment_method === "cash" && (f.opening_cost || 0) > 0 && f.treasury
+          ? ` — نقدي من خزنة: ${f.treasury}`
+          : "";
       await supabase.from("brooding_batch_movements").insert({
         batch_id: batchId,
         movement_type: "opening",
         count_delta: f.original_count,
         cost_delta: f.opening_cost || 0,
-        description: `إضافة دفعة كتاكيت جديدة — ${sourceLabel}`,
+        description: `إضافة دفعة كتاكيت جديدة — ${sourceLabel}${treasuryNote}`,
       });
-      // External cash purchase → record treasury deduction as opening expense
-      if (f.source === "external" && f.payment_method === "cash" && (f.opening_cost || 0) > 0) {
-        await supabase.from("brooding_expenses").insert({
-          batch_id: batchId,
-          expense_date: f.received_date,
-          expense_type: "other",
-          item_name: "شراء دفعة كتاكيت (افتتاحي)",
-          quantity: f.original_count,
-          unit_price: f.opening_cost / f.original_count,
-          total_amount: f.opening_cost,
-          treasury: f.treasury || null,
-          notes: "خصم تكلفة الشراء من الخزنة",
-        } as any);
-      }
     }
     toast.success("تم إنشاء الدفعة بنجاح");
     setOpen(false);
