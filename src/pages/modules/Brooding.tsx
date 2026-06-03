@@ -698,6 +698,17 @@ const Brooding = () => {
             <MarketPricesTab canEdit={canManage} />
           </TabsContent>
 
+          {/* MOVEMENTS LOG */}
+          <TabsContent value="movements">
+            <MovementsLog
+              source="brooding_movements"
+              title="سجل حركات التحضين والتسمين"
+              batches={batches.map((b) => ({ id: b.id, batch_no: b.batch_number }))}
+            />
+          </TabsContent>
+
+
+
 
 
           {/* SETTINGS */}
