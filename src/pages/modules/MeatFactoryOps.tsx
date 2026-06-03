@@ -919,7 +919,7 @@ const ReturnsTab = ({ fins, sales, list, onReload, onPost, onPrint, onExcel }: a
           <TableBody>
             {list.map((r: any) => (
               <TableRow key={r.id}>
-                <TableCell className="font-mono text-xs">{r.return_no}</TableCell>
+                <TableCell className="font-mono text-xs">{r.return_no} {TEST_BADGE(!!r.is_test)}</TableCell>
                 <TableCell className="text-xs">{r.return_date}</TableCell>
                 <TableCell>{r.customer}</TableCell>
                 <TableCell className="text-xs">{r.reason || "—"}</TableCell>
