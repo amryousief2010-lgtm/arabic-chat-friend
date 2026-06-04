@@ -531,7 +531,7 @@ const Orders = () => {
     // stuck loading (so May orders never appeared for the girls).
     if (isSalesModerator || isPrivateDeliveryRep || isShippingCompany) return;
     (async () => {
-      const cutoff = new Date(Date.UTC(2026, 0, 1)).toISOString();
+      const cutoff = cairoYearStartUTC(2026).toISOString();
       const [allRes, y2026Res, preRes] = await Promise.all([
         supabase.from('orders').select('id', { count: 'exact', head: true }),
         supabase.from('orders').select('id', { count: 'exact', head: true }).gte('created_at', cutoff),
