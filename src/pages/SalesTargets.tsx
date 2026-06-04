@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { cairoMonthStartUTC } from '@/lib/cairoDate';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import DashboardLayout from '@/components/layout/DashboardLayout';
@@ -150,15 +151,17 @@ const SalesTargets = () => {
   const { data: achievedData = [] } = useQuery({
     queryKey: ['achieved-sales', selectedMonth, selectedYear],
     queryFn: async () => {
-      // حدود الشهر بـ UTC لتطابق created_at المخزّن للأوردرات
-      const startDate = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1, 0, 0, 0));
-      const endDate = new Date(Date.UTC(selectedYear, selectedMonth, 0, 23, 59, 59));
+      // حدود الشهر محسوبة بتوقيت القاهرة (UTC+2/+3) لأن أي طلب يُسجَّل
+      // بعد منتصف ليل القاهرة يجب أن يُحسب على الشهر الجديد حتى لو كان
+      // created_at المخزّن بـ UTC لا يزال في الشهر السابق.
+      const startDate = cairoMonthStartUTC(selectedYear, selectedMonth - 1);
+      const endDate = cairoMonthStartUTC(selectedYear, selectedMonth);
 
       const { data, error } = await supabase
         .from('orders')
         .select('created_by, total')
         .gte('created_at', startDate.toISOString())
-        .lte('created_at', endDate.toISOString())
+        .lt('created_at', endDate.toISOString())
         .eq('status', 'delivered');
 
       if (error) throw error;

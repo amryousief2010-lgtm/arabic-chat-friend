@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate, useParams, Navigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { cairoTodayStartUTC, cairoMonthStartUTC, cairoYearStartUTC, currentCairoYearMonth, toCairoDateString } from "@/lib/cairoDate";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import Header from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,19 +47,20 @@ const ModeratorOrdersLog = () => {
 
   if (!moderator) return <Navigate to="/orders" replace />;
 
-  // NOTE: حدود الشهر/السنة تُحسب بتوقيت UTC لتطابق طريقة تخزين
-  // الأوردرات المستوردة (created_at بـ UTC). بدون ذلك، أوردر سُجّل
-  // مساء 30 إبريل UTC يظهر خطأً ضمن مايو بتوقيت القاهرة.
+  // NOTE: حدود اليوم/الشهر/السنة محسوبة بتوقيت القاهرة (UTC+2/+3) حتى أي
+  // طلب يُسجّل بعد منتصف الليل يظهر تحت اليوم/الشهر الجديد الصحيح، ولا
+  // يبقى مرتبطاً بالشهر الميلادي السابق نتيجة تخزين created_at بـ UTC.
   const range = useMemo(() => {
     const now = new Date();
     if (period === "today") {
-      const s = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0));
-      return { from: s, to: now };
+      return { from: cairoTodayStartUTC(now), to: now };
     }
     if (period === "year") {
-      return { from: new Date(Date.UTC(now.getUTCFullYear(), 0, 1)), to: now };
+      const [y] = toCairoDateString(now).split("-").map(Number);
+      return { from: cairoYearStartUTC(y), to: now };
     }
-    return { from: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)), to: now };
+    const { year, monthIndex0 } = currentCairoYearMonth(now);
+    return { from: cairoMonthStartUTC(year, monthIndex0), to: now };
   }, [period]);
 
   const { data, isLoading, refetch } = useQuery({

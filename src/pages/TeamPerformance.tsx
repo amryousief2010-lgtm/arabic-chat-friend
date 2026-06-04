@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { cairoMonthStartUTC, cairoYearStartUTC, currentCairoYearMonth, toCairoDateString } from '@/lib/cairoDate';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import Header from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -127,24 +128,25 @@ const TeamPerformance = () => {
 
       if (profileError) throw profileError;
 
-      // Get date range based on period
+      // Get date range based on period (محسوب بتوقيت القاهرة)
       const now = new Date();
+      const { year: cy, monthIndex0: cm } = currentCairoYearMonth(now);
       let startDate: Date;
       switch (period) {
         case 'week':
           startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
           break;
         case 'month':
-          startDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0));
+          startDate = cairoMonthStartUTC(cy, cm);
           break;
         case 'quarter':
-          startDate = new Date(Date.UTC(now.getUTCFullYear(), Math.floor(now.getUTCMonth() / 3) * 3, 1, 0, 0, 0, 0));
+          startDate = cairoMonthStartUTC(cy, Math.floor(cm / 3) * 3);
           break;
         case 'year':
-          startDate = new Date(Date.UTC(now.getUTCFullYear(), 0, 1, 0, 0, 0, 0));
+          startDate = cairoYearStartUTC(cy);
           break;
         default:
-          startDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0));
+          startDate = cairoMonthStartUTC(cy, cm);
       }
 
       // Get orders for team members
