@@ -142,23 +142,25 @@ export default function InboundSupplyTab({ warehouseId, warehouseName }: Props) 
     }
   };
 
+  const esc = (v: unknown) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
   const printDetail = () => {
     if (!detail) return;
     const weight = isWeightUnit(detail.item?.unit);
     const kg = Number(detail.quantity || 0);
-    const qtyDisplay = weight ? `${Math.round(kg / PACKAGE_KG)} عبوة (${kg} كجم)` : `${kg} ${detail.item?.unit || ""}`;
+    const qtyDisplay = weight ? `${Math.round(kg / PACKAGE_KG)} عبوة (${kg} كجم)` : `${kg} ${esc(detail.item?.unit || "")}`;
     const html = `<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>توريد</title>
       <style>body{font-family:Arial,sans-serif;padding:24px}h1{font-size:20px;margin:0 0 16px}table{width:100%;border-collapse:collapse;margin-top:12px}td,th{border:1px solid #999;padding:8px;text-align:right}th{background:#f3f4f6}</style></head>
-      <body><h1>إيصال توريد وارد - ${warehouseName}</h1>
+      <body><h1>إيصال توريد وارد - ${esc(warehouseName)}</h1>
       <table>
-        <tr><th>التاريخ</th><td>${formatDateTime(detail.performed_at)}</td></tr>
-        <tr><th>المنتج</th><td>${detail.item?.name || "—"}</td></tr>
+        <tr><th>التاريخ</th><td>${esc(formatDateTime(detail.performed_at))}</td></tr>
+        <tr><th>المنتج</th><td>${esc(detail.item?.name || "—")}</td></tr>
         <tr><th>الكمية</th><td>${qtyDisplay}</td></tr>
-        <tr><th>المصدر</th><td>${detail.party || "—"}</td></tr>
-        <tr><th>رقم الفاتورة</th><td>${detail.reference || "—"}</td></tr>
+        <tr><th>المصدر</th><td>${esc(detail.party || "—")}</td></tr>
+        <tr><th>رقم الفاتورة</th><td>${esc(detail.reference || "—")}</td></tr>
         <tr><th>سعر الوحدة</th><td>${detail.unit_cost ? Number(detail.unit_cost).toFixed(2) + " ج" : "—"}</td></tr>
         <tr><th>إجمالي التكلفة</th><td>${detail.total_cost ? Number(detail.total_cost).toFixed(2) + " ج" : "—"}</td></tr>
-        <tr><th>ملاحظات</th><td>${detail.notes || "—"}</td></tr>
+        <tr><th>ملاحظات</th><td>${esc(detail.notes || "—")}</td></tr>
       </table>
       <p style="margin-top:40px">توقيع المستلم: ............................</p>
       <script>window.onload=()=>{window.print();}</script></body></html>`;
@@ -171,12 +173,12 @@ export default function InboundSupplyTab({ warehouseId, warehouseName }: Props) 
     const rowsHtml = filtered.map((h: any) => {
       const weight = isWeightUnit(h.item?.unit);
       const kg = Number(h.quantity || 0);
-      const qty = weight ? `${Math.round(kg / PACKAGE_KG)} عبوة (${kg} كجم)` : `${kg} ${h.item?.unit || ""}`;
-      return `<tr><td>${formatDateTime(h.performed_at)}</td><td>${h.item?.name || "—"}</td><td>${qty}</td><td>${h.party || "—"}</td><td>${h.total_cost ? Number(h.total_cost).toFixed(2) + " ج" : "—"}</td><td>${h.notes || "—"}</td></tr>`;
+      const qty = weight ? `${Math.round(kg / PACKAGE_KG)} عبوة (${kg} كجم)` : `${kg} ${esc(h.item?.unit || "")}`;
+      return `<tr><td>${esc(formatDateTime(h.performed_at))}</td><td>${esc(h.item?.name || "—")}</td><td>${qty}</td><td>${esc(h.party || "—")}</td><td>${h.total_cost ? Number(h.total_cost).toFixed(2) + " ج" : "—"}</td><td>${esc(h.notes || "—")}</td></tr>`;
     }).join("");
     const html = `<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>سجل التوريدات</title>
       <style>body{font-family:Arial,sans-serif;padding:16px}h1{font-size:18px}table{width:100%;border-collapse:collapse;font-size:12px}td,th{border:1px solid #999;padding:6px;text-align:right}th{background:#f3f4f6}</style></head>
-      <body><h1>سجل التوريدات الواردة - ${warehouseName}</h1>
+      <body><h1>سجل التوريدات الواردة - ${esc(warehouseName)}</h1>
       <table><thead><tr><th>التاريخ</th><th>المنتج</th><th>الكمية</th><th>المصدر</th><th>التكلفة</th><th>ملاحظات</th></tr></thead><tbody>${rowsHtml}</tbody></table>
       <script>window.onload=()=>{window.print();}</script></body></html>`;
     const w = window.open("", "_blank", "width=900,height=700");

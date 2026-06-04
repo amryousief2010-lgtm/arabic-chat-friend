@@ -87,17 +87,18 @@ export default function HatcheryTreasury() {
   const printReceipt = (t: any) => {
     const w = window.open("", "_blank");
     if (!w) return;
+    const esc = (v: unknown) => String(v ?? "—").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     const cust = customers.find((c: any) => c.id === t.customer_id)?.name || "—";
     w.document.write(`<html dir="rtl"><head><title>إيصال خزنة معمل التفريخ</title>
       <style>body{font-family:Tahoma;padding:20px}h2{margin:0}table{width:100%;border-collapse:collapse;margin-top:10px}td{padding:6px;border-bottom:1px solid #ddd}</style>
       </head><body>
       <h2>إيصال ${t.direction === "in" ? "قبض" : "صرف"} — خزنة معمل التفريخ</h2>
       <table>
-        <tr><td>التاريخ</td><td>${t.txn_date}</td></tr>
-        <tr><td>التصنيف</td><td>${t.category}</td></tr>
+        <tr><td>التاريخ</td><td>${esc(t.txn_date)}</td></tr>
+        <tr><td>التصنيف</td><td>${esc(t.category)}</td></tr>
         <tr><td>المبلغ</td><td>${Number(t.amount).toLocaleString("ar-EG")} ج.م</td></tr>
-        <tr><td>العميل</td><td>${cust}</td></tr>
-        <tr><td>ملاحظات</td><td>${t.notes || "—"}</td></tr>
+        <tr><td>العميل</td><td>${esc(cust)}</td></tr>
+        <tr><td>ملاحظات</td><td>${esc(t.notes || "—")}</td></tr>
       </table>
       <script>window.print()</script></body></html>`);
   };

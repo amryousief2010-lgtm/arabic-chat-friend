@@ -463,11 +463,11 @@ const Warehouses = () => {
     const rows = (warehouseFilter === 'all' ? items : filteredItems).map((it, i) => `
       <tr>
         <td>${i + 1}</td>
-        <td>${it.name}${it.sku ? ` <span style="color:#666;font-size:11px">(${it.sku})</span>` : ''}</td>
-        <td>${it.warehouse?.name || '—'}</td>
-        <td>${it.category || '—'}</td>
+        <td>${esc(it.name)}${it.sku ? ` <span style="color:#666;font-size:11px">(${esc(it.sku)})</span>` : ''}</td>
+        <td>${esc(it.warehouse?.name || '—')}</td>
+        <td>${esc(it.category || '—')}</td>
         <td>${it.stock}</td>
-        <td>${it.unit}</td>
+        <td>${esc(it.unit)}</td>
         <td>${it.unit_cost.toFixed(2)}</td>
         <td>${(it.stock * it.unit_cost).toFixed(2)}</td>
         <td style="color:${it.stock <= it.low_stock_threshold ? '#c0392b' : '#27ae60'};font-weight:bold">${it.stock <= it.low_stock_threshold ? 'منخفض' : 'جيد'}</td>
