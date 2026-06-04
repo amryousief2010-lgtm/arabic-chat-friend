@@ -1785,11 +1785,14 @@ const NewOrder = () => {
                     )}
                     <div className="space-y-3 max-h-96 overflow-auto">
                       {cart.map((item) => {
-                        const basePrice = item.customPrice ?? item.product.price;
-                        const unitPrice = item.isHalfKg ? basePrice / 2 : basePrice;
-                        const kgEquivalent = isKgUnit(item.product.unit)
-                          ? (item.isHalfKg ? item.quantity / 2 : item.quantity)
-                          : null;
+                        const fullKgPrice = item.customPrice ?? item.product.price;
+                        const halfPacketPrice = fullKgPrice * 0.5; // سعر العبوة (نص كيلو)
+                        const kgEquivalent = item.isHalfKg
+                          ? item.quantity * 0.5
+                          : (isKgUnit(item.product.unit) ? item.quantity : null);
+                        const lineTotal = item.isHalfKg
+                          ? halfPacketPrice * item.quantity
+                          : fullKgPrice * item.quantity;
                         return (
                         <div
                           key={item.cartItemId}
@@ -1813,16 +1816,14 @@ const NewOrder = () => {
                               <p className="text-sm text-muted-foreground">
                                 {item.isHalfKg ? (
                                   <>
-                                    <span className="text-primary font-medium">نصف كيلو</span>
-                                    {item.quantity > 1 && <span> × {item.quantity}</span>}
-                                    {kgEquivalent !== null && (
-                                      <span className="mr-2 text-primary">• {kgEquivalent} كجم</span>
-                                    )}
-                                    <span className="mr-2">— {unitPrice.toLocaleString()} ج.م</span>
+                                    <span className="text-primary font-medium">{kgEquivalent} كجم</span>
+                                    <span className="mr-2">({item.quantity} × نص كيلو)</span>
+                                    <span className="mr-2">— {halfPacketPrice.toLocaleString()} ج.م / عبوة</span>
+                                    <span className="mr-2 font-semibold">= {lineTotal.toLocaleString()} ج.م</span>
                                   </>
                                 ) : (
                                   <>
-                                    {unitPrice.toLocaleString()} × {item.quantity}
+                                    {fullKgPrice.toLocaleString()} × {item.quantity}
                                     {kgEquivalent !== null && (
                                       <span className="mr-2 text-primary">= {kgEquivalent} كجم</span>
                                     )}
