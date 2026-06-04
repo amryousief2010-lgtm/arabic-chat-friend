@@ -104,10 +104,10 @@ export default function CorrectionRequests() {
     );
     if (ids.length > 0) {
       const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, full_name, email")
+        .from("profile_directory")
+        .select("id, full_name")
         .in("id", ids);
-      const map = new Map((profiles ?? []).map((p) => [p.id, p.full_name || p.email]));
+      const map = new Map((profiles ?? []).map((p) => [p.id, p.full_name || p.id]));
       rows.forEach((r) => {
         r.requester_name = map.get(r.requested_by) ?? "موظف";
         if (r.reviewed_by) r.reviewer_name = map.get(r.reviewed_by) ?? "—";
@@ -119,6 +119,7 @@ export default function CorrectionRequests() {
 
   useEffect(() => {
     fetchItems();
+    if (!canReview) return;
     const ch = supabase
       .channel("correction-requests")
       .on(
@@ -131,7 +132,7 @@ export default function CorrectionRequests() {
       supabase.removeChannel(ch);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [canReview]);
 
   const decide = async (status: "resolved" | "rejected") => {
     if (!selected) return;

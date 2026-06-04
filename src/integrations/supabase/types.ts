@@ -8776,6 +8776,32 @@ export type Database = {
           },
         ]
       }
+      profile_directory: {
+        Row: {
+          full_name: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          full_name: string
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          full_name?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_directory_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string

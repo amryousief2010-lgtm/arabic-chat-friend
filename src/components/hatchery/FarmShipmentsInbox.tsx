@@ -57,7 +57,7 @@ const statusBadge = (s: Shipment["status"]) => {
 const esc = (v: any) => String(v ?? "—").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 const FarmShipmentsInbox = () => {
-  const { profile } = useAuth();
+  const { profile, roles } = useAuth();
   const qc = useQueryClient();
   const [showAll, setShowAll] = useState(false);
   const [editing, setEditing] = useState<Shipment | null>(null);
@@ -67,6 +67,13 @@ const FarmShipmentsInbox = () => {
   const [form, setForm] = useState({ received: 0, damaged: 0, dead: 0, notes: "", hatch_batch_id: "" });
   const [confirmMatch, setConfirmMatch] = useState(false);
   const [suggestedId, setSuggestedId] = useState<string | null>(null);
+  const canSubscribeToShipments = roles.some((role) => [
+    "general_manager",
+    "executive_manager",
+    "hatchery_manager",
+    "production_manager",
+    "quality_manager",
+  ].includes(role));
 
   const { data: rows = [], isLoading, refetch } = useQuery({
     queryKey: ["farm-to-hatchery-shipments", showAll],
@@ -109,14 +116,15 @@ const FarmShipmentsInbox = () => {
   }, [allBatches]);
 
   useEffect(() => {
+    if (!canSubscribeToShipments) return;
     const channel = supabase
       .channel("farm-shipments-inbox")
-      .on("postgres_changes", { event: "*", schema: "public", table: "farm_to_hatchery_shipments" }, () => {
+      .on("postgres_changes", { event: "*", schema: "public", table: "farm_to_hatchery_shipments", filter: "is_test=eq.false" }, () => {
         qc.invalidateQueries({ queryKey: ["farm-to-hatchery-shipments"] });
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [qc]);
+  }, [canSubscribeToShipments, qc]);
 
   const pendingCount = rows.filter(r => r.status === "pending").length;
 

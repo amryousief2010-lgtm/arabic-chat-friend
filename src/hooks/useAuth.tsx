@@ -48,6 +48,10 @@ interface AuthContextType {
   isSalesModerator: boolean;
   isAccountant: boolean;
   isWarehouseSupervisor: boolean;
+  isFarmManager: boolean;
+  isHatcheryManager: boolean;
+  isProductionManager: boolean;
+  isQualityManager: boolean;
   isShippingCompany: boolean;
   isPrivateDeliveryRep: boolean;
   isAgouzaWarehouseKeeper: boolean;
@@ -288,6 +292,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     isSalesModerator,
     isAccountant,
     isWarehouseSupervisor,
+    isFarmManager,
+    isHatcheryManager,
+    isProductionManager,
+    isQualityManager,
     isShippingCompany,
     isPrivateDeliveryRep,
     isAgouzaWarehouseKeeper,

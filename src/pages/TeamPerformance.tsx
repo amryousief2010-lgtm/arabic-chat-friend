@@ -69,7 +69,6 @@ import { formatDate } from "@/lib/dateFormat";
 interface TeamMember {
   id: string;
   full_name: string;
-  email: string;
   ordersCount: number;
   totalSales: number;
   deliveredOrders: number;
@@ -79,7 +78,6 @@ interface TeamMember {
 interface AvailableModerator {
   id: string;
   full_name: string;
-  email: string;
 }
 
 const COLORS = [
@@ -123,8 +121,8 @@ const TeamPerformance = () => {
 
       // Get profiles for team members
       const { data: profiles, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, full_name, email')
+        .from('profile_directory')
+        .select('id, full_name')
         .in('id', moderatorIds);
 
       if (profileError) throw profileError;
@@ -164,7 +162,6 @@ const TeamPerformance = () => {
         return {
           id: profile.id,
           full_name: profile.full_name,
-          email: profile.email,
           ordersCount: memberOrders.length,
           totalSales: memberOrders.reduce((sum, o) => sum + (Number(o.total) || 0), 0),
           deliveredOrders: memberOrders.filter(o => o.status === 'delivered').length,
@@ -215,8 +212,8 @@ const TeamPerformance = () => {
 
       // Get profiles for unassigned moderators
       const { data: profiles, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, full_name, email')
+        .from('profile_directory')
+        .select('id, full_name')
         .in('id', unassignedIds);
 
       if (profileError) throw profileError;
@@ -330,7 +327,6 @@ const TeamPerformance = () => {
     // Team performance table
     const tableData = teamMembers.map(member => [
       member.full_name,
-      member.email,
       member.ordersCount.toString(),
       `${member.totalSales.toLocaleString()} EGP`,
       member.deliveredOrders.toString(),
@@ -339,7 +335,7 @@ const TeamPerformance = () => {
     
     autoTable(doc, {
       startY: 95,
-      head: [['Name', 'Email', 'Orders', 'Sales', 'Delivered', 'Pending']],
+      head: [['Name', 'Orders', 'Sales', 'Delivered', 'Pending']],
       body: tableData,
       styles: { fontSize: 9 },
       headStyles: { fillColor: [59, 130, 246] },
@@ -361,10 +357,9 @@ const TeamPerformance = () => {
       [`إجمالي المبيعات: ${totalSales.toLocaleString()} ج.م`],
       [`متوسط قيمة الطلب: ${avgOrderValue.toFixed(0)} ج.م`],
       [],
-      ['الاسم', 'البريد الإلكتروني', 'عدد الطلبات', 'المبيعات', 'تم التوصيل', 'قيد التنفيذ'],
+      ['الاسم', 'عدد الطلبات', 'المبيعات', 'تم التوصيل', 'قيد التنفيذ'],
       ...teamMembers.map(member => [
         member.full_name,
-        member.email,
         member.ordersCount,
         member.totalSales,
         member.deliveredOrders,
@@ -459,7 +454,7 @@ const TeamPerformance = () => {
                   <SelectContent>
                     {availableModerators.map(mod => (
                       <SelectItem key={mod.id} value={mod.id}>
-                        {mod.full_name} - {mod.email}
+                          {mod.full_name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -640,7 +635,6 @@ const TeamPerformance = () => {
                           </div>
                           <div>
                             <p className="font-medium">{member.full_name}</p>
-                            <p className="text-sm text-muted-foreground">{member.email}</p>
                           </div>
                         </div>
                       </TableCell>

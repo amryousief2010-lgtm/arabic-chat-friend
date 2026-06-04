@@ -130,7 +130,7 @@ export default function MainWarehouseActivity() {
         ? (await supabase.from("warehouses").select("id, name").in("id", whIds)).data || []
         : [];
       const profs: any[] = userIds.length
-        ? ((await (supabase.from("profiles") as any).select("id, full_name").in("id", userIds)).data || [])
+        ? ((await (supabase.from("profile_directory") as any).select("id, full_name").in("id", userIds)).data || [])
         : [];
 
 

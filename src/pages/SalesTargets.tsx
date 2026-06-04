@@ -64,7 +64,6 @@ const currentMonth = new Date().getMonth() + 1;
 interface Profile {
   id: string;
   full_name: string;
-  email: string;
 }
 
 interface SalesTarget {
@@ -109,8 +108,8 @@ const SalesTargets = () => {
       if (userIds.length === 0) return [];
 
       const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*')
+        .from('profile_directory')
+        .select('id, full_name')
         .in('id', userIds);
 
       if (profilesError) throw profilesError;
@@ -136,8 +135,8 @@ const SalesTargets = () => {
       if (userIds.length === 0) return [];
 
       const { data: profiles } = await supabase
-        .from('profiles')
-        .select('*')
+        .from('profile_directory')
+        .select('id, full_name')
         .in('id', userIds);
 
       return data.map(target => ({

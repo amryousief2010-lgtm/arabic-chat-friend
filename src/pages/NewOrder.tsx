@@ -179,7 +179,7 @@ const NewOrder = () => {
       try {
         const profileRes: any = await withTimedQuery(
           '[NewOrder] moderator profile query',
-          () => supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle(),
+          () => supabase.from('profile_directory').select('full_name').eq('id', user.id).maybeSingle(),
         );
         const m = findModeratorByName(profileRes?.data?.full_name);
         if (m) setModeratorName(m.canonicalModerator);

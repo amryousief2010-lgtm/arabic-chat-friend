@@ -102,7 +102,7 @@ const MeatFactory = () => {
       supabase.from("meat_factory_batch_consumption" as any).select("*").order("created_at", { ascending: false }),
       supabase.from("meat_factory_quality_log" as any).select("*").order("changed_at", { ascending: false }),
       supabase.from("meat_factory_approval_audit" as any).select("*").order("attempted_at", { ascending: false }).limit(500),
-      supabase.from("profiles").select("id, full_name"),
+      supabase.from("profile_directory").select("id, full_name"),
     ]);
     setProducts((p.data as any) || []);
     setMaterials((m.data as any) || []);

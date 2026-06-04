@@ -15,7 +15,6 @@ import { useAuth } from "@/hooks/useAuth";
 interface UserOption {
   id: string;
   full_name: string | null;
-  email: string;
   role?: string;
 }
 
@@ -49,8 +48,8 @@ const SendMessage = () => {
     queryKey: ["users-for-message"],
     queryFn: async () => {
       const { data: profiles, error } = await supabase
-        .from("profiles")
-        .select("id, full_name, email")
+        .from("profile_directory")
+        .select("id, full_name")
         .order("full_name");
       if (error) throw error;
       const { data: roles } = await supabase.from("user_roles").select("user_id, role");
@@ -131,7 +130,7 @@ const SendMessage = () => {
               <SelectContent>
                 {users.map((u) => (
                   <SelectItem key={u.id} value={u.id}>
-                    {u.full_name || u.email} {u.role ? `— ${u.role}` : ""}
+                    {u.full_name || "موظف"} {u.role ? `— ${u.role}` : ""}
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -72,7 +72,7 @@ export default function CorrectionAuditLog() {
         ? supabase.from("correction_requests").select("id, target_module, target_reference, priority, requested_by").in("id", reqIds)
         : Promise.resolve({ data: [] }),
       actorIds.length
-        ? supabase.from("profiles").select("id, full_name, email").in("id", actorIds)
+        ? supabase.from("profile_directory").select("id, full_name").in("id", actorIds)
         : Promise.resolve({ data: [] }),
     ]);
 
@@ -81,12 +81,12 @@ export default function CorrectionAuditLog() {
       (requests ?? []).map((r: any) => r.requested_by).filter(Boolean)
     )) as string[];
     const { data: requesters } = requesterIds.length
-      ? await supabase.from("profiles").select("id, full_name, email").in("id", requesterIds)
+      ? await supabase.from("profile_directory").select("id, full_name").in("id", requesterIds)
       : { data: [] };
 
     const nameMap = new Map<string, string>();
-    (profiles ?? []).forEach((p: any) => nameMap.set(p.id, p.full_name || p.email));
-    (requesters ?? []).forEach((p: any) => nameMap.set(p.id, p.full_name || p.email));
+    (profiles ?? []).forEach((p: any) => nameMap.set(p.id, p.full_name || p.id));
+    (requesters ?? []).forEach((p: any) => nameMap.set(p.id, p.full_name || p.id));
 
     audit.forEach((a) => {
       const r: any = reqMap.get(a.request_id);

@@ -361,7 +361,7 @@ const Orders = () => {
 
         await Promise.all([
           newCreators.length > 0
-            ? supabase.from('profiles').select('id, full_name').in('id', newCreators).then(({ data }) => {
+            ? supabase.from('profile_directory').select('id, full_name').in('id', newCreators).then(({ data }) => {
                 (data || []).forEach((p: any) => { profilesMap[p.id] = p.full_name; });
               })
             : Promise.resolve(),
