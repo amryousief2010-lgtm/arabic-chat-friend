@@ -19,7 +19,7 @@ import { Trash2, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { computeOrderTotals, isOfferShippingLine } from "@/lib/orderTotals";
-import { getOfferUnitPriceForReplacement } from "@/lib/offerPriceGroups";
+import { getOfferUnitPriceForReplacement, getOfferPriceGroup, type OfferPriceGroup } from "@/lib/offerPriceGroups";
 
 interface Product {
   id: string;
