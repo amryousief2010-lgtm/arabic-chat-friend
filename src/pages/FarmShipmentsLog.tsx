@@ -14,6 +14,7 @@ import { Download, FileSpreadsheet, Inbox, CheckCircle2, AlertTriangle, Ban } fr
 import { BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
 import * as XLSX from "xlsx";
 import { formatDate } from "@/lib/dateFormat";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Shipment {
   id: string;
@@ -61,10 +62,12 @@ const StatCard = ({ icon: Icon, label, value, color = "text-primary" }: any) => 
 );
 
 const FarmShipmentsLog = () => {
+  const { isGeneralManager, isExecutiveManager, isFarmManager, isHatcheryManager, isProductionManager, isQualityManager } = useAuth();
   const [from, setFrom] = useState(monthStartISO());
   const [to, setTo] = useState(todayISO());
   const [status, setStatus] = useState<string>("all");
   const [family, setFamily] = useState("");
+  const canSubscribeToShipments = isGeneralManager || isExecutiveManager || isFarmManager || isHatcheryManager || isProductionManager || isQualityManager;
 
   const { data: rows = [], isLoading, refetch } = useQuery({
     queryKey: ["farm-shipments-log", from, to, status, family],
@@ -90,9 +93,9 @@ const FarmShipmentsLog = () => {
     queryKey: ["receivers", receiverIds.join(",")],
     queryFn: async () => {
       if (receiverIds.length === 0) return {};
-      const { data } = await supabase.from("profiles").select("id, full_name, email").in("id", receiverIds);
+      const { data } = await supabase.from("profile_directory").select("id, full_name").in("id", receiverIds);
       const map: Record<string, string> = {};
-      (data || []).forEach((p: any) => { map[p.id] = p.full_name || p.email || p.id; });
+      (data || []).forEach((p: any) => { map[p.id] = p.full_name || p.id; });
       return map;
     },
     enabled: receiverIds.length > 0,
@@ -112,11 +115,12 @@ const FarmShipmentsLog = () => {
   });
 
   useEffect(() => {
+    if (!canSubscribeToShipments) return;
     const ch = supabase.channel("farm-shipments-log-rt")
       .on("postgres_changes", { event: "*", schema: "public", table: "farm_to_hatchery_shipments" }, () => refetch())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [refetch]);
+  }, [canSubscribeToShipments, refetch]);
 
   // KPI
   const kpi = useMemo(() => {
