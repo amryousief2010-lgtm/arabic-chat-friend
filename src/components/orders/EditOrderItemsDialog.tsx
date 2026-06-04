@@ -35,6 +35,7 @@ interface EditableItem {
   quantity: number;
   unit_price: number;
   offer_name?: string | null;
+  is_half_kg?: boolean;
   _deleted?: boolean;
   _original?: { product_id: string | null; quantity: number; unit_price: number };
 }
@@ -50,6 +51,7 @@ interface Props {
     quantity: number;
     unit_price: number;
     offer_name?: string | null;
+    is_half_kg?: boolean;
   }>;
   initialDiscount?: number;
   initialDeliveryFee?: number;
