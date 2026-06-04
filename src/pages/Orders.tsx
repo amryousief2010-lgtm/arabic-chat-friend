@@ -297,7 +297,7 @@ const Orders = () => {
         'delivery_address','created_at','delivered_at','created_by','moderator',
         'shipping_company','fulfillment_type','source_warehouse_id',
       ].join(',');
-      const ITEM_COLS = 'id,order_id,product_id,product_name,quantity,unit_price,total_price,offer_name';
+      const ITEM_COLS = 'id,order_id,product_id,product_name,quantity,unit_price,total_price,offer_name,is_half_kg';
 
       // الخرائط المساعدة تُبنى بشكل تراكمي حتى يظهر الجدول بسرعة
       const profilesMap: Record<string, string> = {};
