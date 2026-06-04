@@ -11,7 +11,24 @@ const NotFound = () => {
 
   useEffect(() => {
     console.error("404 Error: User attempted to access non-existent route:", location.pathname);
-  }, [location.pathname]);
+
+    // Auto-sanitize: strip invisible/format/control chars and replacement chars
+    // (e.g. links pasted from WhatsApp/Word may contain U+2060, U+FFFD, zero-width spaces).
+    // If the cleaned path differs, redirect to it once.
+    try {
+      const raw = location.pathname;
+      // \p{C} = control/format/surrogate/private/unassigned; also strip U+FFFD and zero-widths
+      const cleaned = raw
+        .replace(/[\u200B-\u200F\u2028-\u202F\u2060-\u206F\uFEFF\uFFFD]/g, "")
+        // eslint-disable-next-line no-control-regex
+        .replace(/[\x00-\x1F\x7F]/g, "");
+      if (cleaned && cleaned !== raw && cleaned !== "/") {
+        navigate(cleaned + location.search + location.hash, { replace: true });
+      }
+    } catch {
+      /* noop */
+    }
+  }, [location.pathname, location.search, location.hash, navigate]);
 
   const handleBack = () => {
     if (window.history.length > 1) {
