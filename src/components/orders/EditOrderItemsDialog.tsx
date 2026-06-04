@@ -90,6 +90,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
     setDiscount(Number(initialDiscount) || 0);
     setOriginalDiscount(Number(initialDiscount) || 0);
     fetchProducts();
+    fetchOfferGroupPrices(initialItems);
     // Only reset on dialog open transition — don't overwrite user edits
     // when parent re-renders due to tab switch / background refetch.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -102,6 +103,38 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
       .eq("is_active", true)
       .order("name");
     if (!error && data) setProducts(data as Product[]);
+  };
+
+  // For every offer referenced by the order, fetch its box items and build a
+  // map of price-group → unit price. Used as a fallback when the user swaps
+  // a product into a DIFFERENT price group than the original.
+  const fetchOfferGroupPrices = async (
+    src: Props["initialItems"]
+  ) => {
+    const offerNames = Array.from(
+      new Set((src || []).map((it) => it.offer_name).filter((x): x is string => !!x))
+    );
+    if (offerNames.length === 0) {
+      setOfferGroupPrices({});
+      return;
+    }
+    const { data, error } = await supabase
+      .from("offer_boxes")
+      .select("name, offer_box_items(custom_price, is_gift, products(name))")
+      .in("name", offerNames);
+    if (error || !data) return;
+    const map: Record<string, Partial<Record<OfferPriceGroup, number>>> = {};
+    for (const box of data as any[]) {
+      const groupMap: Partial<Record<OfferPriceGroup, number>> = {};
+      for (const it of box.offer_box_items || []) {
+        if (it.is_gift) continue;
+        const g = getOfferPriceGroup(it.products?.name);
+        const price = Number(it.custom_price);
+        if (g && price > 0 && groupMap[g] == null) groupMap[g] = price;
+      }
+      map[box.name] = groupMap;
+    }
+    setOfferGroupPrices(map);
   };
 
   const updateItem = (idx: number, patch: Partial<EditableItem>) => {
