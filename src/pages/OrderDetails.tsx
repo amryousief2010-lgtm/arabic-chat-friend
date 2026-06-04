@@ -769,6 +769,7 @@ const OrderDetails = () => {
             quantity: it.quantity,
             unit_price: it.unit_price,
             offer_name: it.offer_name ?? null,
+            is_half_kg: !!it.is_half_kg,
           }))}
           initialDiscount={order.discount}
           initialDeliveryFee={order.delivery_fee}
