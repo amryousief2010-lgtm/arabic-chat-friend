@@ -19,7 +19,7 @@ import { Trash2, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { computeOrderTotals, isOfferShippingLine } from "@/lib/orderTotals";
-import { getOfferUnitPriceForReplacement } from "@/lib/offerPriceGroups";
+import { getOfferUnitPriceForReplacement, getOfferPriceGroup, type OfferPriceGroup } from "@/lib/offerPriceGroups";
 
 interface Product {
   id: string;
@@ -64,6 +64,10 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
   const [discount, setDiscount] = useState<number>(0);
   const [originalDiscount, setOriginalDiscount] = useState<number>(0);
   const [saving, setSaving] = useState(false);
+  // offer_name -> (group -> unit price) derived from offer_boxes
+  const [offerGroupPrices, setOfferGroupPrices] = useState<
+    Record<string, Partial<Record<OfferPriceGroup, number>>>
+  >({});
 
   useEffect(() => {
     if (!open) return;
@@ -86,6 +90,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
     setDiscount(Number(initialDiscount) || 0);
     setOriginalDiscount(Number(initialDiscount) || 0);
     fetchProducts();
+    fetchOfferGroupPrices(initialItems);
     // Only reset on dialog open transition — don't overwrite user edits
     // when parent re-renders due to tab switch / background refetch.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -100,6 +105,38 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
     if (!error && data) setProducts(data as Product[]);
   };
 
+  // For every offer referenced by the order, fetch its box items and build a
+  // map of price-group → unit price. Used as a fallback when the user swaps
+  // a product into a DIFFERENT price group than the original.
+  const fetchOfferGroupPrices = async (
+    src: Props["initialItems"]
+  ) => {
+    const offerNames = Array.from(
+      new Set((src || []).map((it) => it.offer_name).filter((x): x is string => !!x))
+    );
+    if (offerNames.length === 0) {
+      setOfferGroupPrices({});
+      return;
+    }
+    const { data, error } = await supabase
+      .from("offer_boxes")
+      .select("name, offer_box_items(custom_price, is_gift, products(name))")
+      .in("name", offerNames);
+    if (error || !data) return;
+    const map: Record<string, Partial<Record<OfferPriceGroup, number>>> = {};
+    for (const box of data as any[]) {
+      const groupMap: Partial<Record<OfferPriceGroup, number>> = {};
+      for (const it of box.offer_box_items || []) {
+        if (it.is_gift) continue;
+        const g = getOfferPriceGroup(it.products?.name);
+        const price = Number(it.custom_price);
+        if (g && price > 0 && groupMap[g] == null) groupMap[g] = price;
+      }
+      map[box.name] = groupMap;
+    }
+    setOfferGroupPrices(map);
+  };
+
   const updateItem = (idx: number, patch: Partial<EditableItem>) => {
     setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
   };
@@ -109,12 +146,17 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
     if (!p) return;
     const oldItem = items[idx];
     // For offer items, swapping within the same offer price group must keep
-    // the offer unit price (not the new product's normal catalog price).
+    // the offer unit price. When swapping into a DIFFERENT group, use that
+    // group's offer price (sibling line first, then offer-box fallback).
     // For normal items, use the catalog price as before.
     const siblings = items.filter(
       (it, i) => i !== idx && !it._deleted && !isOfferShippingLine(it)
     );
-    const newUnit = getOfferUnitPriceForReplacement(oldItem, p, siblings);
+    const newGroup = getOfferPriceGroup(p.name);
+    const offerName = oldItem.offer_name || "";
+    const fallback =
+      offerName && newGroup ? offerGroupPrices[offerName]?.[newGroup] ?? null : null;
+    const newUnit = getOfferUnitPriceForReplacement(oldItem, p, siblings, fallback);
     updateItem(idx, {
       product_id: p.id,
       product_name: p.name,
