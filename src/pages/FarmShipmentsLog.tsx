@@ -62,12 +62,19 @@ const StatCard = ({ icon: Icon, label, value, color = "text-primary" }: any) => 
 );
 
 const FarmShipmentsLog = () => {
-  const { isGeneralManager, isExecutiveManager, isFarmManager, isHatcheryManager, isProductionManager, isQualityManager } = useAuth();
+  const { roles } = useAuth();
   const [from, setFrom] = useState(monthStartISO());
   const [to, setTo] = useState(todayISO());
   const [status, setStatus] = useState<string>("all");
   const [family, setFamily] = useState("");
-  const canSubscribeToShipments = isGeneralManager || isExecutiveManager || isFarmManager || isHatcheryManager || isProductionManager || isQualityManager;
+  const canSubscribeToShipments = roles.some((role) => [
+    "general_manager",
+    "executive_manager",
+    "farm_manager",
+    "hatchery_manager",
+    "production_manager",
+    "quality_manager",
+  ].includes(role));
 
   const { data: rows = [], isLoading, refetch } = useQuery({
     queryKey: ["farm-shipments-log", from, to, status, family],
