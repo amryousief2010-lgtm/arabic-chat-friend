@@ -117,7 +117,7 @@ const FarmShipmentsLog = () => {
   useEffect(() => {
     if (!canSubscribeToShipments) return;
     const ch = supabase.channel("farm-shipments-log-rt")
-      .on("postgres_changes", { event: "*", schema: "public", table: "farm_to_hatchery_shipments" }, () => refetch())
+      .on("postgres_changes", { event: "*", schema: "public", table: "farm_to_hatchery_shipments", filter: "is_test=eq.false" }, () => refetch())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [canSubscribeToShipments, refetch]);
