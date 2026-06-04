@@ -267,28 +267,31 @@ const Orders = () => {
       // طبّق فلتر التاريخ على الخادم فقط عندما يختاره المستخدم صراحةً.
       // إبقاء الصفحة على "الكل" افتراضياً يمنع ظهور قائمة فارغة عند بداية شهر جديد
       // أو عند عدم وجود طلبات في الشهر الحالي رغم وجود طلبات سابقة.
+      // الحدود محسوبة بتوقيت القاهرة (UTC+2/+3 حسب التوقيت الصيفي) حتى أي طلب
+      // يُسجّل بعد منتصف الليل بتوقيت القاهرة يظهر في الشهر الصحيح، حتى لو
+      // كان created_at المخزّن بـ UTC لا يزال في الشهر السابق.
       let startDate: string | null = null;
       let endDate: string | null = null;
       if (filterYear !== 'all') {
         const y = Number(filterYear);
         if (filterMonth !== 'all') {
           const m = Number(filterMonth);
-          startDate = new Date(Date.UTC(y, m - 1, 1)).toISOString();
-          endDate = new Date(Date.UTC(y, m, 1)).toISOString();
+          startDate = cairoMonthStartUTC(y, m - 1).toISOString();
+          endDate = cairoMonthStartUTC(y, m).toISOString();
         } else {
-          startDate = new Date(Date.UTC(y, 0, 1)).toISOString();
-          endDate = new Date(Date.UTC(y + 1, 0, 1)).toISOString();
+          startDate = cairoYearStartUTC(y).toISOString();
+          endDate = cairoYearStartUTC(y + 1).toISOString();
         }
       } else if (yearGroup === '2026') {
-        startDate = new Date(Date.UTC(2026, 0, 1)).toISOString();
+        startDate = cairoYearStartUTC(2026).toISOString();
       } else if (yearGroup === 'pre2026') {
-        endDate = new Date(Date.UTC(2026, 0, 1)).toISOString();
+        endDate = cairoYearStartUTC(2026).toISOString();
       } else if (restrictToCurrentMonth) {
-        const y = now.getUTCFullYear();
-        const m = now.getUTCMonth();
-        startDate = new Date(Date.UTC(y, m, 1)).toISOString();
-        endDate = new Date(Date.UTC(y, m + 1, 1)).toISOString();
+        const { year, monthIndex0 } = currentCairoYearMonth(now);
+        startDate = cairoMonthStartUTC(year, monthIndex0).toISOString();
+        endDate = cairoMonthStartUTC(year, monthIndex0 + 1).toISOString();
       }
+
 
       // أعمدة محددة بدلاً من * لتقليل الحمولة (نفس البيانات المستعملة في الواجهة فقط)
       const ORDER_COLS = [
