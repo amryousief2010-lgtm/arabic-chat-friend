@@ -317,21 +317,20 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
                   </Select>
                 </div>
                 <div className="col-span-4 md:col-span-2">
-                  <label className="text-xs text-muted-foreground">الكمية</label>
+                  <label className="text-xs text-muted-foreground">
+                    {it.is_half_kg ? "عدد العبوات (نصف كيلو)" : "الكمية"}
+                  </label>
                   <Input
                     type="number"
                     min={0}
                     step="any"
                     value={it.quantity}
                     onChange={(e) => {
-                      // Only update quantity. unit_price is the price per ONE unit
-                      // and must never be scaled by quantity (line total is
-                      // computed separately as quantity * unit_price).
                       updateItem(realIdx, { quantity: Number(e.target.value) });
                     }}
                   />
                   {it.is_half_kg && (
-                    <div className="text-[10px] text-muted-foreground mt-1">
+                    <div className="text-[10px] text-primary font-medium mt-1">
                       = {(Number(it.quantity) * 0.5).toLocaleString()} كجم
                     </div>
                   )}
