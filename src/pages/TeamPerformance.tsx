@@ -69,7 +69,6 @@ import { formatDate } from "@/lib/dateFormat";
 interface TeamMember {
   id: string;
   full_name: string;
-  email: string;
   ordersCount: number;
   totalSales: number;
   deliveredOrders: number;
@@ -79,7 +78,6 @@ interface TeamMember {
 interface AvailableModerator {
   id: string;
   full_name: string;
-  email: string;
 }
 
 const COLORS = [
@@ -123,8 +121,8 @@ const TeamPerformance = () => {
 
       // Get profiles for team members
       const { data: profiles, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, full_name, email')
+        .from('profile_directory')
+        .select('id, full_name')
         .in('id', moderatorIds);
 
       if (profileError) throw profileError;
@@ -164,7 +162,6 @@ const TeamPerformance = () => {
         return {
           id: profile.id,
           full_name: profile.full_name,
-          email: profile.email,
           ordersCount: memberOrders.length,
           totalSales: memberOrders.reduce((sum, o) => sum + (Number(o.total) || 0), 0),
           deliveredOrders: memberOrders.filter(o => o.status === 'delivered').length,
@@ -215,8 +212,8 @@ const TeamPerformance = () => {
 
       // Get profiles for unassigned moderators
       const { data: profiles, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, full_name, email')
+        .from('profile_directory')
+        .select('id, full_name')
         .in('id', unassignedIds);
 
       if (profileError) throw profileError;
