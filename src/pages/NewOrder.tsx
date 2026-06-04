@@ -1016,9 +1016,9 @@ const NewOrder = () => {
 
       if (orderError) throw orderError;
 
-      // Build raw rows (preserving offer/non-offer pricing), then merge same-product lines
-      // so an offer-box item + an extra outside-the-box item of the same product appear as
-      // a single combined line in the order (e.g. نص استيك + نص استيك = 1 كجم استيك)
+      // Build raw rows. For "نصف كيلو" items we store quantity in actual kilograms
+      // (e.g. 1 packet of نصف كيلو => quantity = 0.5) and unit_price = full-kg price,
+      // so total_price = quantity × unit_price always reflects the real total.
       type RawRow = {
         order_id: string;
         product_id: string;
@@ -1028,24 +1028,26 @@ const NewOrder = () => {
         total_price: number;
         is_half_kg: boolean;
         offer_name: string | null;
-        _isKg: boolean;
       };
       const rawRows: RawRow[] = cart.map(item => {
-        const basePrice = item.customPrice ?? item.product.price;
-        const unitPrice = item.isHalfKg ? basePrice / 2 : basePrice;
+        const fullKgPrice = item.customPrice ?? item.product.price;
+        const isHalf = !!item.isHalfKg;
+        // item.quantity for half-kg lines = عدد عبوات نصف الكيلو
+        const quantity = isHalf ? item.quantity * 0.5 : item.quantity;
+        const unitPrice = fullKgPrice;
         return {
           order_id: order.id,
           product_id: item.product.id,
           product_name: item.product.name,
-          quantity: item.quantity,
+          quantity,
           unit_price: unitPrice,
-          total_price: unitPrice * item.quantity,
-          is_half_kg: !!item.isHalfKg,
+          total_price: Math.round(unitPrice * quantity * 100) / 100,
+          is_half_kg: isHalf,
           offer_name: item.isOfferItem ? (item.offerBoxName || 'عرض') : null,
-          _isKg: isKgUnit(item.product.unit || ''),
         };
       });
 
+      // Merge same-product lines (e.g. نص + نص من نفس المنتج => 1 كجم).
       const grouped = new Map<string, RawRow[]>();
       for (const r of rawRows) {
         const arr = grouped.get(r.product_id) || [];
@@ -1054,28 +1056,25 @@ const NewOrder = () => {
       }
 
       const orderItems = Array.from(grouped.values()).map(arr => {
-        if (arr.length === 1) {
-          const { _isKg, ...rest } = arr[0];
-          return rest as any;
-        }
-        const isKg = arr[0]._isKg;
+        if (arr.length === 1) return arr[0] as any;
         let totalQty = 0;
         let totalPrice = 0;
         let offerName: string | null = null;
+        let anyHalf = false;
         for (const r of arr) {
-          const qty = isKg && r.is_half_kg ? r.quantity * 0.5 : r.quantity;
-          totalQty += qty;
+          totalQty += r.quantity;
           totalPrice += r.total_price;
+          if (r.is_half_kg) anyHalf = true;
           if (!offerName && r.offer_name) offerName = r.offer_name;
         }
         return {
-          order_id: order.id,
+          order_id: arr[0].order_id,
           product_id: arr[0].product_id,
           product_name: arr[0].product_name,
           quantity: totalQty,
-          unit_price: totalQty > 0 ? totalPrice / totalQty : 0,
+          unit_price: totalQty > 0 ? Math.round((totalPrice / totalQty) * 10000) / 10000 : 0,
           total_price: totalPrice,
-          is_half_kg: isKg ? false : arr[0].is_half_kg,
+          is_half_kg: anyHalf && arr.every(r => r.is_half_kg),
           offer_name: offerName,
         } as any;
       });
