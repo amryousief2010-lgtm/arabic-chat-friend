@@ -87,7 +87,7 @@ const ModeratorOrdersBreakdown = ({ month, year }: Props = {}) => {
       let profiles: ProfileRow[] = [];
       if (userIds.length > 0) {
         const { data: pData } = await supabase
-          .from('profiles')
+          .from('profile_directory')
           .select('id, full_name')
           .in('id', userIds);
         profiles = (pData || []) as ProfileRow[];

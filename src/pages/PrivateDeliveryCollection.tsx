@@ -94,7 +94,7 @@ const PrivateDeliveryCollection = () => {
       const collectorIds = Array.from(new Set(list.map((b) => b.collector_id).filter(Boolean)));
       let nameMap: Record<string, string> = {};
       if (collectorIds.length) {
-        const { data: ps } = await supabase.from("profiles").select("id, full_name").in("id", collectorIds);
+          const { data: ps } = await supabase.from("profile_directory").select("id, full_name").in("id", collectorIds);
         nameMap = Object.fromEntries((ps || []).map((p: any) => [p.id, p.full_name]));
       }
       setHistory(list.map((b) => ({ ...b, collector_name: nameMap[b.collector_id] || "-" })));
