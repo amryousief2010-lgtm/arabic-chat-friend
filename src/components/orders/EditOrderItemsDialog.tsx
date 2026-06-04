@@ -64,6 +64,10 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
   const [discount, setDiscount] = useState<number>(0);
   const [originalDiscount, setOriginalDiscount] = useState<number>(0);
   const [saving, setSaving] = useState(false);
+  // offer_name -> (group -> unit price) derived from offer_boxes
+  const [offerGroupPrices, setOfferGroupPrices] = useState<
+    Record<string, Partial<Record<OfferPriceGroup, number>>>
+  >({});
 
   useEffect(() => {
     if (!open) return;
