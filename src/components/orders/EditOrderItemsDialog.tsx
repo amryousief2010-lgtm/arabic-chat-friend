@@ -146,12 +146,17 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
     if (!p) return;
     const oldItem = items[idx];
     // For offer items, swapping within the same offer price group must keep
-    // the offer unit price (not the new product's normal catalog price).
+    // the offer unit price. When swapping into a DIFFERENT group, use that
+    // group's offer price (sibling line first, then offer-box fallback).
     // For normal items, use the catalog price as before.
     const siblings = items.filter(
       (it, i) => i !== idx && !it._deleted && !isOfferShippingLine(it)
     );
-    const newUnit = getOfferUnitPriceForReplacement(oldItem, p, siblings);
+    const newGroup = getOfferPriceGroup(p.name);
+    const offerName = oldItem.offer_name || "";
+    const fallback =
+      offerName && newGroup ? offerGroupPrices[offerName]?.[newGroup] ?? null : null;
+    const newUnit = getOfferUnitPriceForReplacement(oldItem, p, siblings, fallback);
     updateItem(idx, {
       product_id: p.id,
       product_name: p.name,
