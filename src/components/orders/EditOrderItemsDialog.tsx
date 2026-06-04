@@ -35,6 +35,7 @@ interface EditableItem {
   quantity: number;
   unit_price: number;
   offer_name?: string | null;
+  is_half_kg?: boolean;
   _deleted?: boolean;
   _original?: { product_id: string | null; quantity: number; unit_price: number };
 }
@@ -50,6 +51,7 @@ interface Props {
     quantity: number;
     unit_price: number;
     offer_name?: string | null;
+    is_half_kg?: boolean;
   }>;
   initialDiscount?: number;
   initialDeliveryFee?: number;
@@ -73,6 +75,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
         quantity: it.quantity,
         unit_price: it.unit_price,
         offer_name: it.offer_name ?? null,
+        is_half_kg: !!it.is_half_kg,
         _original: {
           product_id: it.product_id ?? null,
           quantity: it.quantity,
@@ -289,7 +292,14 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
                 className="grid grid-cols-12 gap-2 items-end p-3 rounded-lg border bg-muted/30"
               >
                 <div className="col-span-12 md:col-span-5">
-                  <label className="text-xs text-muted-foreground">المنتج</label>
+                  <label className="text-xs text-muted-foreground flex items-center gap-2">
+                    <span>المنتج</span>
+                    {it.is_half_kg && (
+                      <span className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/30">
+                        نصف كيلو
+                      </span>
+                    )}
+                  </label>
                   <Select
                     value={it.product_id || ""}
                     onValueChange={(v) => handleProductChange(realIdx, v)}
@@ -320,6 +330,11 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
                       updateItem(realIdx, { quantity: Number(e.target.value) });
                     }}
                   />
+                  {it.is_half_kg && (
+                    <div className="text-[10px] text-muted-foreground mt-1">
+                      = {(Number(it.quantity) * 0.5).toLocaleString()} كجم
+                    </div>
+                  )}
                 </div>
                 <div className="col-span-4 md:col-span-2">
                   <label className="text-xs text-muted-foreground">سعر الوحدة</label>
