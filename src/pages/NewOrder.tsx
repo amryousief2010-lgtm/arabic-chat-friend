@@ -750,13 +750,16 @@ const NewOrder = () => {
   };
 
   const subtotal = cart.reduce((sum, item) => {
-    const basePrice = item.customPrice ?? item.product.price;
-    const unitPrice = item.isHalfKg ? basePrice / 2 : basePrice;
-    return sum + (unitPrice * item.quantity);
+    const fullKgPrice = item.customPrice ?? item.product.price;
+    // For half-kg lines, item.quantity = عدد عبوات النصف كيلو، السعر بالكيلو
+    const lineTotal = item.isHalfKg
+      ? fullKgPrice * item.quantity * 0.5
+      : fullKgPrice * item.quantity;
+    return sum + lineTotal;
   }, 0);
   const totalKg = cart.reduce((sum, item) => {
     if (!isKgUnit(item.product.unit)) return sum;
-    const kg = item.isHalfKg ? item.quantity / 2 : item.quantity;
+    const kg = item.isHalfKg ? item.quantity * 0.5 : item.quantity;
     return sum + kg;
   }, 0);
   const hasOfferInCart = cart.some(item => item.isOfferItem);
