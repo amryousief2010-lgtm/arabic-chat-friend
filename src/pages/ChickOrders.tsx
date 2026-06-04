@@ -108,7 +108,7 @@ const ChickOrders = () => {
     queryFn: async () => {
       const ids = Array.from(new Set(orders.map((o) => o.created_by).filter(Boolean)));
       if (!ids.length) return {};
-      const { data, error } = await supabase.from("profiles").select("id, full_name").in("id", ids);
+        const { data, error } = await supabase.from("profile_directory").select("id, full_name").in("id", ids);
       if (error) throw error;
       return Object.fromEntries((data || []).map((p: any) => [p.id, p.full_name as string]));
     },

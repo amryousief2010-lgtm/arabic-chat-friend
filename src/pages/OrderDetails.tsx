@@ -255,7 +255,7 @@ const OrderDetails = () => {
       let createdByName: string | null = null;
       if (orderData.created_by) {
         const { data: profileData } = await supabase
-          .from('profiles')
+            .from('profile_directory')
           .select('full_name')
           .eq('id', orderData.created_by)
           .maybeSingle();

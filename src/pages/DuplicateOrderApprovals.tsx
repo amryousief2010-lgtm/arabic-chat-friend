@@ -52,7 +52,7 @@ const DuplicateOrderApprovals = () => {
           ? supabase.from("customers").select("id, name, phone").in("id", custIds)
           : Promise.resolve({ data: [] as any[] }),
         userIds.length
-          ? supabase.from("profiles").select("id, full_name").in("id", userIds)
+          ? supabase.from("profile_directory").select("id, full_name").in("id", userIds)
           : Promise.resolve({ data: [] as any[] }),
       ]);
       const cMap = new Map((custs || []).map((c: any) => [c.id, c]));
