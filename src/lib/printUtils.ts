@@ -69,7 +69,9 @@ export const printOrderInvoice = (order: PrintOrderData) => {
   const dt = new Date(order.created_at);
   const dateStr = dt.toLocaleString("ar-EG", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
   const itemsHtml = order.items.map((it, i) => {
-    const qtyLabel = `${fmt(it.quantity)}${it.is_half_kg ? " (نصف كيلو)" : ""}${it.product_unit ? " " + it.product_unit : ""}`;
+    const qtyLabel = it.is_half_kg
+      ? `${fmt(it.quantity)} كجم <span class="badge">نصف كيلو × ${fmt(it.quantity * 2)}</span>`
+      : `${fmt(it.quantity)}${it.product_unit ? " " + it.product_unit : ""}`;
     const nameLabel = `${it.product_name}${it.offer_name ? ` <span class="badge">${it.offer_name}</span>` : ""}`;
     return `<tr><td>${i + 1}</td><td>${nameLabel}</td><td>${qtyLabel}</td><td>${fmt(it.unit_price)}</td><td>${fmt(it.total_price)}</td></tr>`;
   }).join("");

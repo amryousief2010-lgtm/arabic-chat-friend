@@ -79,9 +79,8 @@ const OrderHalfKgReport = () => {
         const isHalf = !!it.is_half_kg;
         const isKg = isKgUnit(unit);
         const qty = Number(it.quantity);
-        let kg = 0;
-        if (isHalf) kg = qty / 2;
-        else if (isKg) kg = qty;
+        // New semantics: quantity is already in kg.
+        const kg = isHalf || isKg ? qty : 0;
         return {
           order_id: it.order_id,
           order_number: orderMap.get(it.order_id)?.order_number || "",
@@ -232,7 +231,7 @@ const OrderHalfKgReport = () => {
                         <TableCell className="text-center">{r.quantity}</TableCell>
                         <TableCell className="text-center">
                           {r.is_half_kg ? (
-                            <Badge variant="secondary" className="text-xs">نصف كيلو (÷2)</Badge>
+                            <Badge variant="secondary" className="text-xs">نصف كيلو ({(r.quantity * 2)} عبوة)</Badge>
                           ) : (
                             <Badge variant="outline" className="text-xs">كيلو كامل</Badge>
                           )}

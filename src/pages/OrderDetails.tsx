@@ -72,7 +72,8 @@ const isKgUnit = (unit?: string | null) => {
   return /^(كجم|كيلو|كيلوجرام|كيلوغرام|كغم|كغ|kg|kgs|kilogram|kilogramme|kilo)$/i.test(u);
 };
 const itemKg = (it: { is_half_kg?: boolean; quantity: number; product_unit?: string | null }) => {
-  if (it.is_half_kg) return it.quantity / 2;
+  // New semantics: quantity is already in kilograms for both kg-unit items and half-kg items.
+  if (it.is_half_kg) return it.quantity;
   if (isKgUnit(it.product_unit)) return it.quantity;
   return null;
 };
@@ -499,12 +500,9 @@ const OrderDetails = () => {
                           <p className="text-sm text-muted-foreground">
                             {item.is_half_kg ? (
                               <>
-                                <span className="text-primary font-medium">نصف كيلو</span>
-                                {item.quantity > 1 && <span> × {item.quantity}</span>}
-                                {kg !== null && (
-                                  <span className="mr-2 text-primary font-medium">• {kg} كجم</span>
-                                )}
-                                <span className="mr-2">— {item.unit_price.toLocaleString()} ج.م / عبوة</span>
+                                <span className="text-primary font-medium">{item.quantity} كجم</span>
+                                <span className="mr-2">({(item.quantity * 2).toLocaleString()} × نص كيلو)</span>
+                                <span className="mr-2">— {item.unit_price.toLocaleString()} ج.م / كجم</span>
                               </>
                             ) : (
                               <>

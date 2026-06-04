@@ -99,11 +99,12 @@ const CustomerWeightReport = () => {
         const cname = order.customers?.name || "عميل غير معروف";
         const unit = it.product_id ? unitMap.get(it.product_id) : null;
         const qty = Number(it.quantity) || 0;
+        // New semantics: quantity is already in kilograms.
         let halfQty = 0;
         let fullKg = 0;
-        if (it.is_half_kg) halfQty = qty;
-        else if (isKgUnit(unit)) fullKg = qty;
-        const kg = fullKg + halfQty / 2;
+        if (it.is_half_kg) halfQty = qty * 2; // عدد عبوات نص كيلو
+        if (it.is_half_kg || isKgUnit(unit)) fullKg = qty;
+        const kg = fullKg;
 
         const cur =
           agg.get(cid) ||
