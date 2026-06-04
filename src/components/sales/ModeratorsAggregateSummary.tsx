@@ -85,7 +85,7 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
       let profileMap = new Map<string, string>();
       if (userIds.length) {
         const { data: profiles } = await supabase
-          .from("profiles")
+          .from("profile_directory")
           .select("id, full_name")
           .in("id", userIds);
         profileMap = new Map(

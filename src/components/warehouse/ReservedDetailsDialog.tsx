@@ -98,7 +98,7 @@ export default function ReservedDetailsDialog({ open, onOpenChange, warehouseId,
             ? supabase.from("customers").select("id, name, phone").in("id", customerIds as string[])
             : Promise.resolve({ data: [] as any[] }),
           userIds.length
-            ? supabase.from("profiles").select("id, full_name").in("id", userIds as string[])
+            ? supabase.from("profile_directory").select("id, full_name").in("id", userIds as string[])
             : Promise.resolve({ data: [] as any[] }),
         ]);
 
