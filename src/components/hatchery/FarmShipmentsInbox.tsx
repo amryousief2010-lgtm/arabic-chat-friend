@@ -57,7 +57,7 @@ const statusBadge = (s: Shipment["status"]) => {
 const esc = (v: any) => String(v ?? "—").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 const FarmShipmentsInbox = () => {
-  const { profile, isGeneralManager, isExecutiveManager, isHatcheryManager, isProductionManager, isQualityManager } = useAuth();
+  const { profile, roles } = useAuth();
   const qc = useQueryClient();
   const [showAll, setShowAll] = useState(false);
   const [editing, setEditing] = useState<Shipment | null>(null);
@@ -67,7 +67,13 @@ const FarmShipmentsInbox = () => {
   const [form, setForm] = useState({ received: 0, damaged: 0, dead: 0, notes: "", hatch_batch_id: "" });
   const [confirmMatch, setConfirmMatch] = useState(false);
   const [suggestedId, setSuggestedId] = useState<string | null>(null);
-  const canSubscribeToShipments = isGeneralManager || isExecutiveManager || isHatcheryManager || isProductionManager || isQualityManager;
+  const canSubscribeToShipments = roles.some((role) => [
+    "general_manager",
+    "executive_manager",
+    "hatchery_manager",
+    "production_manager",
+    "quality_manager",
+  ].includes(role));
 
   const { data: rows = [], isLoading, refetch } = useQuery({
     queryKey: ["farm-to-hatchery-shipments", showAll],
