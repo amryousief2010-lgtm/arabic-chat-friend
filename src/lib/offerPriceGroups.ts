@@ -51,9 +51,9 @@ export interface OfferItemLike {
  *
  * - If old item is part of an offer and new product is in the SAME group →
  *   keep the old offer unit price.
- * - Else if new product is in a DIFFERENT group → use the stored group price
- *   from any sibling offer item in that group on the same order; fall back to
- *   the catalog price.
+ * - Else if new product is in a DIFFERENT group → use the offer's price for
+ *   the NEW group: first try any sibling offer item in that group, otherwise
+ *   fall back to `offerGroupPriceFallback` (looked up from the offer box).
  * - Else (new product not in any group) → use the catalog price.
  *
  * For non-offer items, always returns the catalog price.
@@ -61,7 +61,8 @@ export interface OfferItemLike {
 export function getOfferUnitPriceForReplacement(
   oldItem: OfferItemLike,
   newProduct: { id: string; name: string; price: number },
-  siblingOfferItems: OfferItemLike[]
+  siblingOfferItems: OfferItemLike[],
+  offerGroupPriceFallback?: number | null
 ): number {
   const isOfferItem = !!oldItem.offer_name;
   if (!isOfferItem) return Number(newProduct.price);
@@ -83,6 +84,9 @@ export function getOfferUnitPriceForReplacement(
         getOfferPriceGroup(it.product_name) === newGroup
     );
     if (sibling) return Number(sibling.unit_price);
+    if (offerGroupPriceFallback != null && Number(offerGroupPriceFallback) > 0) {
+      return Number(offerGroupPriceFallback);
+    }
   }
 
   return Number(newProduct.price);
