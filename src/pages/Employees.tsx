@@ -269,28 +269,17 @@ const Employees = () => {
     setIsAddLoading(true);
 
     try {
-      // Create user via Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: newEmail,
-        password: newPassword,
-        options: {
-          data: {
-            full_name: newFullName,
-          },
+      const { data, error } = await supabase.functions.invoke('create-employee', {
+        body: {
+          email: newEmail,
+          password: newPassword,
+          full_name: newFullName,
+          role: newRole,
         },
       });
 
-      if (authError) throw authError;
-
-      if (authData.user && newRole !== 'sales_moderator') {
-        // Update role if not default sales_moderator
-        const { error: roleError } = await supabase
-          .from('user_roles')
-          .update({ role: newRole })
-          .eq('user_id', authData.user.id);
-
-        if (roleError) throw roleError;
-      }
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
 
       toast.success('تم إضافة الموظف بنجاح');
       setIsAddDialogOpen(false);
