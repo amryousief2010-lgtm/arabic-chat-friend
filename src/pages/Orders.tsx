@@ -1444,9 +1444,23 @@ const Orders = () => {
                       className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
                     >
                       <div>
-                        <p className="font-medium">{item.product_name}</p>
+                        <p className="font-medium">
+                          {item.product_name}
+                          {(item as any).is_half_kg && (
+                            <span className="mr-2 text-xs px-2 py-0.5 rounded bg-secondary text-secondary-foreground">نصف كيلو</span>
+                          )}
+                        </p>
                         <p className="text-sm text-muted-foreground">
-                          {item.unit_price.toLocaleString()} ج.م × {item.quantity}
+                          {(item as any).is_half_kg ? (
+                            <>
+                              <span className="text-primary font-medium">نصف كيلو</span>
+                              {item.quantity > 1 && <span> × {item.quantity}</span>}
+                              <span className="mr-2 text-primary">• {(item.quantity * 0.5).toLocaleString()} كجم</span>
+                              <span className="mr-2">— {item.unit_price.toLocaleString()} ج.م / عبوة</span>
+                            </>
+                          ) : (
+                            <>{item.unit_price.toLocaleString()} ج.م × {item.quantity}</>
+                          )}
                         </p>
                       </div>
                       <p className="font-bold">

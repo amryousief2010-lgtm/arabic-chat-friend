@@ -1809,9 +1809,22 @@ const NewOrder = () => {
                                 )}
                               </div>
                               <p className="text-sm text-muted-foreground">
-                                {unitPrice.toLocaleString()} × {item.quantity}
-                                {kgEquivalent !== null && (
-                                  <span className="mr-2 text-primary">= {kgEquivalent} كجم</span>
+                                {item.isHalfKg ? (
+                                  <>
+                                    <span className="text-primary font-medium">نصف كيلو</span>
+                                    {item.quantity > 1 && <span> × {item.quantity}</span>}
+                                    {kgEquivalent !== null && (
+                                      <span className="mr-2 text-primary">• {kgEquivalent} كجم</span>
+                                    )}
+                                    <span className="mr-2">— {unitPrice.toLocaleString()} ج.م</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    {unitPrice.toLocaleString()} × {item.quantity}
+                                    {kgEquivalent !== null && (
+                                      <span className="mr-2 text-primary">= {kgEquivalent} كجم</span>
+                                    )}
+                                  </>
                                 )}
                               </p>
                               {item.isOfferItem && item.offerBoxId && offerContentsById[item.offerBoxId]?.length ? (
