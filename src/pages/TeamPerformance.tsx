@@ -327,7 +327,6 @@ const TeamPerformance = () => {
     // Team performance table
     const tableData = teamMembers.map(member => [
       member.full_name,
-      member.email,
       member.ordersCount.toString(),
       `${member.totalSales.toLocaleString()} EGP`,
       member.deliveredOrders.toString(),
@@ -336,7 +335,7 @@ const TeamPerformance = () => {
     
     autoTable(doc, {
       startY: 95,
-      head: [['Name', 'Email', 'Orders', 'Sales', 'Delivered', 'Pending']],
+      head: [['Name', 'Orders', 'Sales', 'Delivered', 'Pending']],
       body: tableData,
       styles: { fontSize: 9 },
       headStyles: { fillColor: [59, 130, 246] },
@@ -358,10 +357,9 @@ const TeamPerformance = () => {
       [`إجمالي المبيعات: ${totalSales.toLocaleString()} ج.م`],
       [`متوسط قيمة الطلب: ${avgOrderValue.toFixed(0)} ج.م`],
       [],
-      ['الاسم', 'البريد الإلكتروني', 'عدد الطلبات', 'المبيعات', 'تم التوصيل', 'قيد التنفيذ'],
+      ['الاسم', 'عدد الطلبات', 'المبيعات', 'تم التوصيل', 'قيد التنفيذ'],
       ...teamMembers.map(member => [
         member.full_name,
-        member.email,
         member.ordersCount,
         member.totalSales,
         member.deliveredOrders,
@@ -456,7 +454,7 @@ const TeamPerformance = () => {
                   <SelectContent>
                     {availableModerators.map(mod => (
                       <SelectItem key={mod.id} value={mod.id}>
-                        {mod.full_name} - {mod.email}
+                          {mod.full_name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -637,7 +635,6 @@ const TeamPerformance = () => {
                           </div>
                           <div>
                             <p className="font-medium">{member.full_name}</p>
-                            <p className="text-sm text-muted-foreground">{member.email}</p>
                           </div>
                         </div>
                       </TableCell>
