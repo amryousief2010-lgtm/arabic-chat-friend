@@ -142,7 +142,7 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
       const userIds = Array.from(new Set(orders.map(o => o.created_by).filter(Boolean))) as string[];
       let profileMap = new Map<string, string>();
       if (userIds.length > 0) {
-        const { data: profiles } = await supabase.from('profiles').select('id, full_name').in('id', userIds);
+        const { data: profiles } = await supabase.from('profile_directory').select('id, full_name').in('id', userIds);
         profileMap = new Map((profiles || []).map(p => [p.id, p.full_name]));
       }
 
@@ -209,7 +209,7 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
       const userIds = Array.from(new Set((rows || []).map(r => r.created_by).filter(Boolean))) as string[];
       let profileMap = new Map<string, string>();
       if (userIds.length > 0) {
-        const { data: profiles } = await supabase.from('profiles').select('id, full_name').in('id', userIds);
+          const { data: profiles } = await supabase.from('profile_directory').select('id, full_name').in('id', userIds);
         profileMap = new Map((profiles || []).map(p => [p.id, p.full_name]));
       }
       (rows || []).forEach(r => {
