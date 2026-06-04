@@ -497,9 +497,22 @@ const OrderDetails = () => {
                             )}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            {item.unit_price.toLocaleString()} ج.م × {item.quantity}
-                            {kg !== null && (
-                              <span className="mr-2 text-primary font-medium">= {kg} كجم</span>
+                            {item.is_half_kg ? (
+                              <>
+                                <span className="text-primary font-medium">نصف كيلو</span>
+                                {item.quantity > 1 && <span> × {item.quantity}</span>}
+                                {kg !== null && (
+                                  <span className="mr-2 text-primary font-medium">• {kg} كجم</span>
+                                )}
+                                <span className="mr-2">— {item.unit_price.toLocaleString()} ج.م / عبوة</span>
+                              </>
+                            ) : (
+                              <>
+                                {item.unit_price.toLocaleString()} ج.م × {item.quantity}
+                                {kg !== null && (
+                                  <span className="mr-2 text-primary font-medium">= {kg} كجم</span>
+                                )}
+                              </>
                             )}
                           </p>
                           <div className="mt-2 flex items-center gap-2">
