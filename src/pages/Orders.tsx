@@ -1453,10 +1453,9 @@ const Orders = () => {
                         <p className="text-sm text-muted-foreground">
                           {(item as any).is_half_kg ? (
                             <>
-                              <span className="text-primary font-medium">نصف كيلو</span>
-                              {item.quantity > 1 && <span> × {item.quantity}</span>}
-                              <span className="mr-2 text-primary">• {(item.quantity * 0.5).toLocaleString()} كجم</span>
-                              <span className="mr-2">— {item.unit_price.toLocaleString()} ج.م / عبوة</span>
+                              <span className="text-primary font-medium">{item.quantity} كجم</span>
+                              <span className="mr-2">({(item.quantity * 2).toLocaleString()} × نص كيلو)</span>
+                              <span className="mr-2">— {item.unit_price.toLocaleString()} ج.م / كجم</span>
                             </>
                           ) : (
                             <>{item.unit_price.toLocaleString()} ج.م × {item.quantity}</>

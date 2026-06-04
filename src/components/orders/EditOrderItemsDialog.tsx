@@ -296,7 +296,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
                     <span>المنتج</span>
                     {it.is_half_kg && (
                       <span className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/30">
-                        نصف كيلو
+                        نصف كيلو (الكمية بالكجم)
                       </span>
                     )}
                   </label>
@@ -318,12 +318,12 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
                 </div>
                 <div className="col-span-4 md:col-span-2">
                   <label className="text-xs text-muted-foreground">
-                    {it.is_half_kg ? "عدد العبوات (نصف كيلو)" : "الكمية"}
+                    {it.is_half_kg ? "الكمية بالكجم" : "الكمية"}
                   </label>
                   <Input
                     type="number"
                     min={0}
-                    step="any"
+                    step={it.is_half_kg ? 0.5 : "any"}
                     value={it.quantity}
                     onChange={(e) => {
                       updateItem(realIdx, { quantity: Number(e.target.value) });
@@ -331,7 +331,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
                   />
                   {it.is_half_kg && (
                     <div className="text-[10px] text-primary font-medium mt-1">
-                      = {(Number(it.quantity) * 0.5).toLocaleString()} كجم
+                      = {(Number(it.quantity) * 2).toLocaleString()} عبوة نص كيلو
                     </div>
                   )}
                 </div>
