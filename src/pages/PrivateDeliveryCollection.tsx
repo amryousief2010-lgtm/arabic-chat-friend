@@ -449,10 +449,11 @@ interface ReceiptData {
 }
 
 const printReceipt = (d: ReceiptData) => {
+  const esc = (v: unknown) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   const dt = new Date(d.collectedAt).toLocaleString("ar-EG");
-  const rows = d.orders.map((o, i) => `<tr><td>${i + 1}</td><td>${o.order_number || o.id.slice(0, 8)}</td><td>${o.customer_name || "-"}</td><td>${o.delivered_at ? new Date(o.delivered_at).toLocaleDateString("ar-EG") : "-"}</td><td>${Number(o.total).toLocaleString("en-US")}</td></tr>`).join("");
+  const rows = d.orders.map((o, i) => `<tr><td>${i + 1}</td><td>${esc(o.order_number || o.id.slice(0, 8))}</td><td>${esc(o.customer_name || "-")}</td><td>${o.delivered_at ? new Date(o.delivered_at).toLocaleDateString("ar-EG") : "-"}</td><td>${Number(o.total).toLocaleString("en-US")}</td></tr>`).join("");
   const variantRow = Math.abs(d.variance) > 0.001
-    ? `<div class="row"><span>الفرق (${d.variance > 0 ? "نقص" : "زيادة"})</span><b>${Math.abs(d.variance).toLocaleString("en-US")} ج</b></div><div class="row"><span>السبب</span><b>${d.reason}</b></div>`
+    ? `<div class="row"><span>الفرق (${d.variance > 0 ? "نقص" : "زيادة"})</span><b>${Math.abs(d.variance).toLocaleString("en-US")} ج</b></div><div class="row"><span>السبب</span><b>${esc(d.reason)}</b></div>`
     : "";
   const html = `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>إيصال تحصيل</title>
   <style>
@@ -476,10 +477,10 @@ const printReceipt = (d: ReceiptData) => {
     <div class="doc-title">إيصال تحصيل من المندوب</div>
   </div>
   <div class="meta">
-    <div><b>المندوب:</b> ${d.rep}</div>
-    <div><b>المُحصِّل:</b> ${d.collector}</div>
+    <div><b>المندوب:</b> ${esc(d.rep)}</div>
+    <div><b>المُحصِّل:</b> ${esc(d.collector)}</div>
     <div><b>التاريخ:</b> ${dt}</div>
-    <div><b>رقم الدفعة:</b> ${d.batchId.slice(0,8)}</div>
+    <div><b>رقم الدفعة:</b> ${esc(d.batchId.slice(0,8))}</div>
   </div>
   <table>
     <thead><tr><th>#</th><th>رقم الأوردر</th><th>العميل</th><th>تاريخ التسليم</th><th>المبلغ</th></tr></thead>
@@ -494,7 +495,7 @@ const printReceipt = (d: ReceiptData) => {
     ${variantRow}
     <div class="row grand"><span>الإجمالي المحصّل</span><b>${d.actual.toLocaleString("en-US")} ج</b></div>
   </div>
-  ${d.notes ? `<div style="margin-top:14px;padding:8px;background:#fff7ed;border-right:3px solid #f97316;font-size:12px;"><b>ملاحظات:</b> ${d.notes}</div>` : ""}
+  ${d.notes ? `<div style="margin-top:14px;padding:8px;background:#fff7ed;border-right:3px solid #f97316;font-size:12px;"><b>ملاحظات:</b> ${esc(d.notes)}</div>` : ""}
   <div class="sig">
 
     <div>توقيع المندوب</div>
