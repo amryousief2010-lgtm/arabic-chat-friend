@@ -150,6 +150,16 @@ export default function TransfersLog() {
     })));
   };
 
+  const reverseReceipt = async (outputId: string, label: string) => {
+    const reason = window.prompt(`عكس حركة استلام الصنف "${label}"؟ سيتم خصم الكمية من المخزون وإثبات حركة تصحيح. اكتب السبب:`, "اختبار / تصحيح إدارة");
+    if (reason === null) return;
+    const { data, error } = await supabase.rpc("reverse_slaughter_receipt" as any, { p_output_id: outputId, p_reason: reason });
+    if (error) { toast.error(error.message); return; }
+    toast.success("تم عكس حركة الاستلام وخصم الكمية من المخزون.");
+    if (detail) await openDetails(detail);
+    fetchAll();
+  };
+
   const exportExcel = () => {
     if (!detail) return;
     const dest = destLabel(warehouses, branches, detail.branch_id);
