@@ -1,0 +1,1 @@
+ALTER VIEW public.v_slaughter_transfer_shipments SET (security_invoker = on);
