@@ -1061,6 +1061,16 @@ export default function LabTreasury() {
             </Card>
           </TabsContent>
 
+          {/* Opening balances */}
+          <TabsContent value="openings" className="space-y-3">
+            <OpeningBalancesPanel />
+          </TabsContent>
+
+          {/* External collections (عُهَد) */}
+          <TabsContent value="external" className="space-y-3">
+            <ExternalCollectionsPanel />
+          </TabsContent>
+
           {/* Reports */}
           <TabsContent value="reports" className="space-y-3">
             <Card>
