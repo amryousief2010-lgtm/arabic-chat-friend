@@ -277,9 +277,9 @@ export default function LabTreasury() {
 
   const officialByMethod = useMemo(() => {
     const map: Record<PaymentMethod, number> = { ...openingByMethod };
-    approvedMovements.forEach((m) => { map[m.payment_method] += (m.movement_type === "income" ? 1 : -1) * Number(m.amount); });
+    approved.forEach((m) => { map[m.payment_method] += (m.movement_type === "income" ? 1 : -1) * Number(m.amount); });
     return map;
-  }, [approvedMovements, openingByMethod]);
+  }, [approved, openingByMethod]);
   const estimatedByMethod = useMemo(() => {
     const map: Record<PaymentMethod, number> = { ...officialByMethod };
     pending.forEach((m) => { map[m.payment_method] += (m.movement_type === "income" ? 1 : -1) * Number(m.amount); });
