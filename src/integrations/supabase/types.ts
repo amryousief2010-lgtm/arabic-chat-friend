@@ -12025,6 +12025,7 @@ export type Database = {
         | "private_delivery_rep"
         | "agouza_warehouse_keeper"
         | "brooding_dashboard_viewer"
+        | "lab_treasury_keeper"
       brooding_batch_status:
         | "active"
         | "completed"
@@ -12218,6 +12219,7 @@ export const Constants = {
         "private_delivery_rep",
         "agouza_warehouse_keeper",
         "brooding_dashboard_viewer",
+        "lab_treasury_keeper",
       ],
       brooding_batch_status: [
         "active",
