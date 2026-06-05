@@ -4139,6 +4139,13 @@ export type Database = {
             referencedRelation: "hatch_customers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "hatch_batches_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "v_hatchery_client_balances"
+            referencedColumns: ["client_id"]
+          },
         ]
       }
       hatch_customer_payments: {
@@ -4179,6 +4186,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hatch_customers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hatch_customer_payments_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "v_hatchery_client_balances"
+            referencedColumns: ["client_id"]
           },
         ]
       }
@@ -4284,6 +4298,443 @@ export type Database = {
         }
         Relationships: []
       }
+      hatchery_batch_lots: {
+        Row: {
+          batch_id: string
+          brooding_days: number | null
+          brooding_in_at: string | null
+          brooding_out_at: string | null
+          cancelled: boolean
+          candling_by: string | null
+          candling_notes: string | null
+          candling_recorded_at: string | null
+          chicks_hatched: number | null
+          client_id: string | null
+          client_name_snapshot: string | null
+          completed_unhatched: number | null
+          created_at: string
+          eggs_in: number
+          fertile_eggs: number | null
+          hatcher_machine_no: string | null
+          hatcher_out_at: string | null
+          hatcher_out_by: string | null
+          id: string
+          infertile_edible: number | null
+          infertile_eggs: number | null
+          infertile_inedible: number | null
+          invoice_id: string | null
+          owner_type: string
+          source: string
+          transferred_count: number | null
+          transferred_to_hatcher_at: string | null
+          transferred_to_hatcher_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          batch_id: string
+          brooding_days?: number | null
+          brooding_in_at?: string | null
+          brooding_out_at?: string | null
+          cancelled?: boolean
+          candling_by?: string | null
+          candling_notes?: string | null
+          candling_recorded_at?: string | null
+          chicks_hatched?: number | null
+          client_id?: string | null
+          client_name_snapshot?: string | null
+          completed_unhatched?: number | null
+          created_at?: string
+          eggs_in: number
+          fertile_eggs?: number | null
+          hatcher_machine_no?: string | null
+          hatcher_out_at?: string | null
+          hatcher_out_by?: string | null
+          id?: string
+          infertile_edible?: number | null
+          infertile_eggs?: number | null
+          infertile_inedible?: number | null
+          invoice_id?: string | null
+          owner_type: string
+          source: string
+          transferred_count?: number | null
+          transferred_to_hatcher_at?: string | null
+          transferred_to_hatcher_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          batch_id?: string
+          brooding_days?: number | null
+          brooding_in_at?: string | null
+          brooding_out_at?: string | null
+          cancelled?: boolean
+          candling_by?: string | null
+          candling_notes?: string | null
+          candling_recorded_at?: string | null
+          chicks_hatched?: number | null
+          client_id?: string | null
+          client_name_snapshot?: string | null
+          completed_unhatched?: number | null
+          created_at?: string
+          eggs_in?: number
+          fertile_eggs?: number | null
+          hatcher_machine_no?: string | null
+          hatcher_out_at?: string | null
+          hatcher_out_by?: string | null
+          id?: string
+          infertile_edible?: number | null
+          infertile_eggs?: number | null
+          infertile_inedible?: number | null
+          invoice_id?: string | null
+          owner_type?: string
+          source?: string
+          transferred_count?: number | null
+          transferred_to_hatcher_at?: string | null
+          transferred_to_hatcher_by?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hatchery_batch_lots_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "hatchery_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hatchery_batch_lots_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "v_hatchery_batches_full"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hatchery_batch_lots_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "hatch_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hatchery_batch_lots_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "v_hatchery_client_balances"
+            referencedColumns: ["client_id"]
+          },
+        ]
+      }
+      hatchery_batch_movements: {
+        Row: {
+          batch_id: string
+          created_at: string
+          created_by: string | null
+          event_type: string
+          id: string
+          lot_id: string | null
+          payload: Json | null
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          created_by?: string | null
+          event_type: string
+          id?: string
+          lot_id?: string | null
+          payload?: Json | null
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          created_by?: string | null
+          event_type?: string
+          id?: string
+          lot_id?: string | null
+          payload?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hatchery_batch_movements_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "hatchery_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hatchery_batch_movements_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "v_hatchery_batches_full"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hatchery_batch_movements_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "hatchery_batch_lots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hatchery_batches: {
+        Row: {
+          batch_number: string
+          batch_type: string
+          cancel_reason: string | null
+          created_at: string
+          created_by: string | null
+          entry_date: string
+          id: string
+          incubator_machine_no: string | null
+          notes: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          batch_number?: string
+          batch_type: string
+          cancel_reason?: string | null
+          created_at?: string
+          created_by?: string | null
+          entry_date: string
+          id?: string
+          incubator_machine_no?: string | null
+          notes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          batch_number?: string
+          batch_type?: string
+          cancel_reason?: string | null
+          created_at?: string
+          created_by?: string | null
+          entry_date?: string
+          id?: string
+          incubator_machine_no?: string | null
+          notes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      hatchery_client_invoices: {
+        Row: {
+          batch_id: string | null
+          brooding_amount: number
+          brooding_chicks_count: number
+          brooding_daily_price: number
+          brooding_days: number
+          chick_unit_price: number
+          chicks_amount: number
+          chicks_count: number
+          client_id: string | null
+          client_name_snapshot: string | null
+          completed_unhatched_amount: number
+          completed_unhatched_count: number
+          completed_unhatched_unit_price: number
+          eggs_in: number
+          id: string
+          infertile_amount: number
+          infertile_count: number
+          infertile_unit_price: number
+          invoice_no: string
+          issued_at: string
+          issued_by: string | null
+          lot_id: string | null
+          notes: string | null
+          paid_amount: number
+          payment_status: string
+          pricing_settings_version: number | null
+          remaining_amount: number | null
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          batch_id?: string | null
+          brooding_amount?: number
+          brooding_chicks_count?: number
+          brooding_daily_price?: number
+          brooding_days?: number
+          chick_unit_price?: number
+          chicks_amount?: number
+          chicks_count?: number
+          client_id?: string | null
+          client_name_snapshot?: string | null
+          completed_unhatched_amount?: number
+          completed_unhatched_count?: number
+          completed_unhatched_unit_price?: number
+          eggs_in?: number
+          id?: string
+          infertile_amount?: number
+          infertile_count?: number
+          infertile_unit_price?: number
+          invoice_no?: string
+          issued_at?: string
+          issued_by?: string | null
+          lot_id?: string | null
+          notes?: string | null
+          paid_amount?: number
+          payment_status?: string
+          pricing_settings_version?: number | null
+          remaining_amount?: number | null
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          batch_id?: string | null
+          brooding_amount?: number
+          brooding_chicks_count?: number
+          brooding_daily_price?: number
+          brooding_days?: number
+          chick_unit_price?: number
+          chicks_amount?: number
+          chicks_count?: number
+          client_id?: string | null
+          client_name_snapshot?: string | null
+          completed_unhatched_amount?: number
+          completed_unhatched_count?: number
+          completed_unhatched_unit_price?: number
+          eggs_in?: number
+          id?: string
+          infertile_amount?: number
+          infertile_count?: number
+          infertile_unit_price?: number
+          invoice_no?: string
+          issued_at?: string
+          issued_by?: string | null
+          lot_id?: string | null
+          notes?: string | null
+          paid_amount?: number
+          payment_status?: string
+          pricing_settings_version?: number | null
+          remaining_amount?: number | null
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hatchery_client_invoices_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "hatchery_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hatchery_client_invoices_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "v_hatchery_batches_full"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hatchery_client_invoices_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "hatch_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hatchery_client_invoices_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "v_hatchery_client_balances"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "hatchery_client_invoices_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: true
+            referencedRelation: "hatchery_batch_lots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hatchery_invoice_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          invoice_id: string
+          method: string | null
+          notes: string | null
+          paid_at: string
+          received_by: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          invoice_id: string
+          method?: string | null
+          notes?: string | null
+          paid_at?: string
+          received_by?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          method?: string | null
+          notes?: string | null
+          paid_at?: string
+          received_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hatchery_invoice_payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "hatchery_client_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hatchery_pricing_settings: {
+        Row: {
+          candling_day: number
+          chick_price: number
+          completed_unhatched_price: number
+          created_at: string
+          daily_brooding_price: number
+          hatcher_duration_hours: number
+          id: string
+          infertile_egg_price: number
+          transfer_to_hatcher_day: number
+          updated_at: string
+          updated_by: string | null
+          version: number
+        }
+        Insert: {
+          candling_day?: number
+          chick_price?: number
+          completed_unhatched_price?: number
+          created_at?: string
+          daily_brooding_price?: number
+          hatcher_duration_hours?: number
+          id?: string
+          infertile_egg_price?: number
+          transfer_to_hatcher_day?: number
+          updated_at?: string
+          updated_by?: string | null
+          version?: number
+        }
+        Update: {
+          candling_day?: number
+          chick_price?: number
+          completed_unhatched_price?: number
+          created_at?: string
+          daily_brooding_price?: number
+          hatcher_duration_hours?: number
+          id?: string
+          infertile_egg_price?: number
+          transfer_to_hatcher_day?: number
+          updated_at?: string
+          updated_by?: string | null
+          version?: number
+        }
+        Relationships: []
+      }
       hatchery_treasury_txns: {
         Row: {
           amount: number
@@ -4341,6 +4792,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hatch_customers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hatchery_treasury_txns_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "v_hatchery_client_balances"
+            referencedColumns: ["client_id"]
           },
         ]
       }
@@ -10400,6 +10858,58 @@ export type Database = {
         }
         Relationships: []
       }
+      v_hatchery_batches_full: {
+        Row: {
+          batch_number: string | null
+          batch_type: string | null
+          cancel_reason: string | null
+          candle_due_date: string | null
+          candling_day: number | null
+          created_at: string | null
+          created_by: string | null
+          entry_date: string | null
+          external_eggs: number | null
+          hatcher_due_date: string | null
+          id: string | null
+          incubator_machine_no: string | null
+          internal_eggs: number | null
+          notes: string | null
+          status: string | null
+          total_chicks: number | null
+          total_eggs_in: number | null
+          transfer_to_hatcher_day: number | null
+          updated_at: string | null
+        }
+        Relationships: []
+      }
+      v_hatchery_client_balances: {
+        Row: {
+          client_id: string | null
+          client_name: string | null
+          invoices_count: number | null
+          paid_amount: number | null
+          remaining_amount: number | null
+          total_amount: number | null
+        }
+        Relationships: []
+      }
+      v_hatchery_dashboard_kpis: {
+        Row: {
+          batches_awaiting_candling: number | null
+          batches_awaiting_hatcher: number | null
+          chicks_this_month: number | null
+          eggs_in_incubators: number | null
+          external_eggs: number | null
+          hatch_rate_pct: number | null
+          in_brooding: number | null
+          in_hatcher: number | null
+          internal_eggs: number | null
+          invoices_paid: number | null
+          invoices_remaining: number | null
+          invoices_total: number | null
+        }
+        Relationships: []
+      }
       v_inventory_balances: {
         Row: {
           available_stock: number | null
@@ -10786,6 +11296,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      cancel_hatchery_batch: {
+        Args: { _batch_id: string; _reason: string }
+        Returns: undefined
+      }
       cancel_meat_sales_return: { Args: { p_id: string }; Returns: string }
       cancel_mf_invoice: {
         Args: { p_id: string; p_reason: string; p_source_type: string }
@@ -10826,6 +11340,7 @@ export type Database = {
         Args: { p_raise_alert?: boolean; p_snapshot_id: string }
         Returns: Json
       }
+      compute_hatchery_invoice: { Args: { _lot_id: string }; Returns: string }
       confirm_transfer_receipt: {
         Args: { p_lines: Json; p_notes?: string; p_transfer_id: string }
         Returns: Json
