@@ -1,96 +1,86 @@
-# خزنة المعمل والحضانات
+# خطة تأمين خزنة المعمل والحضانات
 
-نظام خزنة مالية مستقلة تمامًا لإيرادات ومصروفات معمل التفريخ وحضانات الكتاكيت، المسؤول عنها: محمد خالد.
+## 1. قاعدة البيانات (Migration واحد)
 
-## 1) قاعدة البيانات (Migration واحد)
+### أعمدة جديدة على `lab_treasury_movements`
+- `rejected_by uuid`, `rejected_at timestamptz` (الموجود حالياً `rejection_reason` فقط)
+- `deleted_at timestamptz`, `deleted_by uuid`, `deletion_reason text` (soft-delete اختياري — لكن سياسة الحذف فعلية مع Audit)
+- `is_day_closed boolean default false`
 
-### Enums جديدة
-- `lab_treasury_payment_method`: `cash` | `vodafone_cash` | `instapay` | `bank_transfer`
-- `lab_treasury_movement_type`: `income` | `expense`
-- `lab_treasury_status`: `pending` | `approved` | `rejected`
-- `lab_treasury_income_category`: `hatching` | `chick_sales` | `other`
-- `lab_treasury_expense_category`: `electricity` | `maintenance` | `water` | `salaries_mother_farm` | `salaries_hatchery` | `salaries_brooding` | `medicine` | `feed_supplies` | `tools` | `transport` | `other`
+### جدول جديد `lab_treasury_day_closures`
+- `closure_date date unique`, `closed_by uuid`, `closed_at timestamptz`
+- `opening_balance numeric`, `closing_balance numeric`
+- `cash_balance, vodafone_balance, instapay_balance, bank_balance numeric`
+- `total_income, total_expense, net_movement numeric`
+- `notes text`
 
-### جدول `lab_treasury_movements`
-حقول الأعمال:
-- `movement_type` (enum) — إيراد/مصروف
-- `movement_date` (date) + `created_at` (timestamptz)
-- `income_category` / `expense_category` (nullable حسب النوع)
-- `customer_name`، `units_count` (numeric, nullable)، `unit_price` (numeric, nullable)
-- `amount` (numeric, > 0)
-- `payment_method` (enum)
-- `description`، `beneficiary`، `notes`
-- `receipt_url` (text — صورة إيصال على Storage)
-- `status` (enum, default `pending`)
-- `created_by` (uuid → auth.users)، `approved_by`، `approved_at`، `rejection_reason`
-- `balance_after` (numeric) — يحتسبه Trigger للحركات المعتمدة فقط
+### جدول جديد `lab_treasury_audit_log`
+- `action text` (insert_income, insert_expense, approve, reject, delete, update, export_excel, export_pdf, print_report, close_day, reopen_day)
+- `movement_id uuid nullable`, `actor_id uuid`, `actor_name text`
+- `before_data jsonb`, `after_data jsonb`, `reason text`
+- `created_at timestamptz default now()`
+- `ip_address text nullable`
 
-Trigger validation: إذا `movement_type = income` يجب وجود `income_category`، وإذا `expense` يجب `expense_category`. لا CHECK constraints على تواريخ.
+### تشديد RLS لـ `lab_treasury_keeper`
+- INSERT: مسموح، لكن `status` يُجبر = `pending` و `approved_by/at` null
+- UPDATE: ممنوع تماماً (مع trigger يمنع تعديل أي شيء بعد الاعتماد لأي دور غير GM/Executive)
+- DELETE: ممنوع
+- لا يرى إلا حركات `lab_treasury_movements`
 
-Trigger للرصيد: عند تحديث الحالة إلى `approved`، يحسب `balance_after` بناءً على ترتيب التاريخ.
+### Trigger `lab_treasury_guard_update`
+- يمنع UPDATE لأي حركة `status='approved'` إلا من GM/Executive
+- يمنع UPDATE/DELETE لأي حركة يومها مُقفل إلا من GM/Executive
+- عند الرفض: يُلزم بـ `rejection_reason` غير فارغ ويملأ `rejected_by/at`
+- عند الحذف: يُلزم بـ `deletion_reason` ويسجل في Audit Log
 
-### Storage Bucket
-`lab-treasury-receipts` (private) مع RLS للقراءة لنفس الأدوار.
+### Trigger `lab_treasury_check_balance`
+- على INSERT لمصروف: يتحقق أن `amount` ≤ الرصيد المعتمد لنفس `payment_method`
+- إذا كان المستخدم ليس GM/Executive ⇒ يرفض
+- إذا GM/Executive ⇒ يسمح (تحذير على الواجهة فقط)
 
-### GRANTs + RLS
-- GRANT SELECT/INSERT/UPDATE/DELETE on `lab_treasury_movements` to `authenticated`، ALL to `service_role`.
-- RLS:
-  - **SELECT**: `general_manager`, `executive_manager`, `accountant`, `financial_manager`, أو `created_by = auth.uid()` (لمحمد خالد).
-  - **INSERT**: نفس الأدوار أعلاه + المستخدم الخاص بمحمد خالد. الحركة تُنشأ دائمًا بحالة `pending`.
-  - **UPDATE (اعتماد/رفض/تعديل/حذف)**: `general_manager`, `executive_manager` فقط. `accountant` للقراءة فقط.
-  - **DELETE**: `general_manager` فقط.
+### Views محدّثة
+- `v_lab_treasury_balances`: يعيد `official_balance` (approved فقط) و `estimated_balance` (approved + pending) لكل طريقة دفع
+- `v_lab_treasury_daily_report(date)`: function ترجع تقرير يوم كامل
 
-### Views
-- `v_lab_treasury_balances`: رصيد لكل طريقة دفع + الإجمالي (من المعتمدة فقط) + رصيد تقديري شامل المعلقة.
-- `v_lab_treasury_dashboard`: كروت اليوم/الشهر، إيرادات/مصروفات، صافي، أعلى بند، إجماليات التفريخ والكتاكيت.
+### GRANTs
+- جداول جديدة لـ `authenticated` + `service_role`
 
-## 2) الواجهة الأمامية
+## 2. الواجهة الأمامية
 
-### صفحة جديدة `/lab-treasury` (مكوّن `src/pages/LabTreasury.tsx`)
-تابات داخلية:
-1. **Dashboard** — كل الكروت المطلوبة (إجمالي/نقدي/فودافون/إنستا/بنكي، يوم/شهر، أعلى بند، إيرادات التفريخ/الكتاكيت).
-2. **إضافة إيراد** — Dialog أو نموذج جانبي (نوع الإيراد، عميل، عدد، سعر، إجمالي تلقائي، طريقة دفع، ملاحظات، رفع إيصال).
-3. **إضافة مصروف** — نموذج (بند، مبلغ، طريقة دفع، وصف، مستفيد، إيصال).
-4. **سجل الحركات** — جدول كشف حساب (تاريخ، نوع، بيان، وارد، منصرف، طريقة، رصيد بعد، مستخدم، حالة، ملاحظات، تفاصيل) + فلاتر كاملة (من/إلى، نوع، تصنيف، طريقة دفع، حالة، عميل، مستخدم).
-5. **الاعتمادات** — للمدير فقط: الحركات المعلّقة + أزرار اعتماد/رفض (مع سبب رفض).
-6. **التقارير** — اختيار النوع (يومي/شهري/فترة/إيرادات تفريخ/إيرادات كتاكيت/مصروفات حسب البند/حسب طريقة الدفع/كشف كامل/صافي تشغيل/رواتب) + تصدير Excel وPDF وطباعة (عبر `openPrintWindow` من `@/lib/printPdf` لدعم العربي).
+### تعديلات على `src/pages/LabTreasury.tsx`
+- **Dashboard tab**: كاردات منفصلة للرصيد الرسمي vs التقديري + breakdown بطرق الدفع
+- **AddExpense**: تحقق فوري من الرصيد، إظهار تحذير عند التجاوز، منع الحفظ لغير GM/Executive
+- **Approvals**: نافذة رفض إلزامية لسبب الرفض
+- **Ledger**: زر حذف يفتح dialog يطلب سبب الحذف (للـ GM/Executive فقط)
+- **تبويب جديد "إقفال اليوم"**: قائمة الأيام، زر إقفال (GM/Executive)، عرض الأيام المقفلة
+- **تبويب "التقرير اليومي"**: اختيار التاريخ + كل الحقول المطلوبة
+- **زر "محضر جرد خزنة"**: PDF عبر `openPrintWindow` يحوي كل الأرصدة + خانتي توقيع
+- **تبويب "سجل التدقيق Audit"**: للـ GM/Executive فقط
 
-### Validation
-استخدام `zod` لكل النماذج (مبلغ > 0، تاريخ مطلوب، إلخ).
+### Hook `useLabTreasury.tsx`
+- تسجيل كل عملية في `lab_treasury_audit_log` عبر دوال wrapper
+- دوال: `approveMovement(reason?)`, `rejectMovement(reason)`, `deleteMovement(reason)`, `closeDayClosure(date)`, `exportExcel/PDF` (تسجل في Audit)
 
-### Sidebar
-إضافة عنصر واحد فقط في السايد بار تحت قسم "3. المعمل وتفريغ الكتاكيت":
-- **"خزنة المعمل والحضانات"** → `/lab-treasury`
-- الصلاحيات: `general_manager`, `executive_manager`, `accountant`, `financial_manager`, ومستخدم محمد خالد (نتعرف عليه إما بـ role جديد `lab_treasury_keeper` أو بـ profile مطابق). الأبسط: إضافة role جديد `lab_treasury_keeper` ضمن enum `app_role`، يُعطى لمحمد خالد.
+## 3. الصلاحيات النهائية
 
-### Route
-في `src/components/AnimatedRoutes.tsx` نضيف:
-```tsx
-<Route path="/lab-treasury" element={<ProtectedRoute roles={[...]}><LabTreasury/></ProtectedRoute>} />
-```
+| العملية | keeper | accountant | executive | general_manager |
+|---|---|---|---|---|
+| عرض | ✅ | ✅ | ✅ | ✅ |
+| إضافة إيراد/مصروف | ✅ (pending) | ❌ | ✅ | ✅ |
+| رفع إيصال | ✅ | ❌ | ✅ | ✅ |
+| اعتماد | ❌ | ❌ | ✅ | ✅ |
+| رفض (مع سبب) | ❌ | ❌ | ✅ | ✅ |
+| حذف (مع سبب) | ❌ | ❌ | ✅ | ✅ |
+| تعديل بعد الاعتماد | ❌ | ❌ | ✅ | ✅ |
+| تجاوز الرصيد | ❌ | ❌ | ✅ | ✅ |
+| إقفال اليوم | ❌ | ❌ | ✅ | ✅ |
+| فتح يوم مقفل | ❌ | ❌ | ❌ | ✅ |
+| Audit Log | ❌ | عرض | ✅ | ✅ |
 
-## 3) الاعتماد والرصيد
+## 4. القواعد الذهبية
+- الرصيد الرسمي = approved فقط (لا يدخل pending أبداً)
+- كل حدث = سطر في Audit Log
+- أي حركة يومها مُقفل = read-only للجميع عدا GM/Executive
+- لا خلط مع `hatchery_treasury_txns` أو `mf_treasury` أو أي خزنة أخرى
 
-- كل INSERT يضع `status = pending` و`balance_after = null`.
-- عند UPDATE إلى `approved`: trigger يحسب `balance_after` لتلك الحركة وكل الحركات المعتمدة الأحدث منها (ترتيب: `movement_date, created_at`).
-- الـ View `v_lab_treasury_balances` تجمع `SUM` على الحركات المعتمدة per `payment_method` (income +، expense −).
-
-## 4) التصدير
-
-- Excel: `safeExcel` الموجود.
-- PDF/طباعة: `openPrintWindow` من `@/lib/printPdf` (دعم RTL/العربي).
-
-## 5) خطوات التنفيذ
-
-1. Migration واحد: enums + جدول + triggers + views + storage bucket + RLS + grants + إضافة `lab_treasury_keeper` للـ `app_role` enum.
-2. تحديث `useAuth` types (يتم تلقائيًا بعد regenerate types).
-3. إنشاء `src/pages/LabTreasury.tsx` مع التابات الستة.
-4. إنشاء `src/hooks/useLabTreasury.tsx` (fetch + mutations + realtime channel).
-5. تحديث `SidebarMenuSections.tsx` و`AnimatedRoutes.tsx`.
-6. تحديث memory index بإضافة سجل للخزنة.
-
-## ملاحظات
-
-- خزنة مستقلة تمامًا عن `hatchery_treasury_txns` الموجودة (لن نلمسها).
-- كل الحركات تُسجّل المستخدم والتاريخ والوقت تلقائيًا.
-- لا حذف بدون صلاحية مدير عام؛ الرفض يحتفظ بالسجل للتدقيق.
+سأبدأ بـ Migration واحد شامل ثم تحديث الواجهة في خطوة ثانية.
