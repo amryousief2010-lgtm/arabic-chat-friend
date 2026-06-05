@@ -1,89 +1,54 @@
-# خطة تطوير إدارة المجزر
+## خطة تطوير إدارة علف مزرعة الأمهات
 
-سأبني على الجداول الموجودة (`slaughter_batches`, `slaughter_batch_outputs`, `slaughter_branch_transfers`, `slaughter_workers`, `slaughter_live_receipts`, `inventory_movements`, `meat_raw_inventory`, `inventory_items`) بدون كسر بيانات.
+### 1. قاعدة البيانات (Migration واحدة)
 
-## 1) داشبورد المجزر `/slaughterhouse/dashboard`
-KPIs حقيقية محسوبة من قاعدة البيانات:
-- النعام القائم الحالي = SUM(slaughter_live_birds.current_count)
-- مذبوح الشهر / اليوم = SUM(birds_slaughtered) فلتر بـ cairoMonthStartUTC / cairoTodayStartUTC على slaughter_date
-- الوزن الحي اليوم / الشهر = SUM(total_live_weight_kg)
-- وزن اللحم المشفى = SUM(total_meat_kg)
-- نسبة التصافي = total_meat_kg / total_live_weight_kg × 100
-- إنتاج الشهر (كجم) + تكلفة الكيلو (متوسط cost_per_kg_meat)
-- عدد أوامر الإنتاج الواردة (production_dispatch_orders.status='pending')
-- إجمالي تحويلات المجزر → المخزن الرئيسي / مصنع اللحوم (من slaughter_branch_transfers + inventory_movements)
+**جدول `mother_farm_feed_settings`** (صف إعدادات وحيد):
+- `bag_weight_kg` (افتراضي 40)
+- `daily_consumption_per_bird_kg` (افتراضي 2)
+- `low_stock_threshold_kg` (افتراضي 600)
+- `current_bird_count` (افتراضي 59)
+- `consumption_start_date` (افتراضي 2026-06-06)
+- `location_text` (افتراضي: الريف الأوروبي – طريق مصر إسكندرية الصحراوي)
 
-تقسيم واضح: حي / بعد ذبح / مشفى / هالك / منتجات التقسيمة.
+**جدول `mother_farm_feed_movements`**:
+- `movement_date` (DATE), `movement_type` (`in` | `daily_consumption` | `adjust_up` | `adjust_down`)
+- `bags`, `weight_kg` (موجب دائماً، الإشارة من النوع)
+- `supplier`, `notes`, `reason`, `created_by`
+- `consumption_day` (DATE, NULL إلا لـ daily_consumption، فريد لمنع التكرار)
+- Trigger يحدّث رصيد محسوب أو نعتمد على VIEW
 
-## 2) جدول عمال المجزر (جزارين)
-استخدام `slaughter_workers` الموجود. إدخال ٣ سجلات:
-- محمود جمال — جزار مسؤول أول
-- حمدي حماد — جزار مسؤول ثاني
-- إبراهيم السعدني — جزار مسؤول ثالث
+**View `v_mother_farm_feed_balance`**: مجموع الوارد - الاستهلاك - التسوية = الرصيد الحالي + آخر توريد + آخر خصم.
 
-إضافة أعمدة لـ `slaughter_batches`:
-- `butcher_1_id uuid`, `butcher_2_id uuid`, `butcher_3_id uuid` (FK → slaughter_workers)
-عرضهم في تفاصيل أمر الذبح + الطباعة + التقارير.
+**Function `apply_mother_farm_daily_consumption()`** (SECURITY DEFINER):
+- يحسب الأيام من max(consumption_start_date, آخر يوم استهلاك+1) حتى اليوم بتوقيت القاهرة.
+- لكل يوم: يدخل حركة `daily_consumption` بـ `current_bird_count × daily_consumption_per_bird_kg` إذا الرصيد كافٍ، وإلا يدخل ما تبقى ويسجل ملاحظة "رصيد غير كافٍ".
+- يستخدم unique constraint على `consumption_day` لمنع التكرار.
 
-## 3) تجربة تقسيمة دبح نعام كاملة
-داخل `SlaughterBatchDialog` (موجود):
-1. إنشاء batch جديد (طيور + وزن حي + اختيار ٣ جزارين).
-2. تسجيل ناتج التقسيمة في `slaughter_batch_outputs` (موزة، استيك، لحم قطع، إلخ).
-3. اختيار وجهة كل سطر: `main_warehouse` أو `meat_factory`.
-4. زر "اعتماد + ترحيل":
-   - يُنشئ `slaughter_branch_transfers` (سطر/سطور) **بـ status='pending'**.
-   - يُنشئ `inventory_movements` بنوع `transfer_out` من المجزر، و`transfer_in` بانتظار الاستلام على المخزن المستهدف.
-   - يحدّث `inventory_items.stock` فقط عند **الاستلام** (ليس عند الإرسال) لتجنب الخصم/الإضافة المزدوجة.
-5. حماية idempotency: UNIQUE على (output_id, branch_id, status<>'cancelled') + فحص داخل RPC قبل الإدراج.
+**RLS & GRANT**:
+- العرض: جميع الموظفين المسجلين.
+- التعديل (إدراج/تسوية/تعديل إعدادات): general_manager, executive_manager, mother_farm_supervisor (إن وُجد)، warehouse_supervisor.
 
-RPC جديد: `slaughter_dispatch_outputs(p_batch_id, p_lines jsonb)` يعمل كل ما سبق في معاملة واحدة.
+### 2. الواجهة
 
-RPC جديد: `slaughter_transfer_receive(p_transfer_id, p_accepted_kg, p_rejected_kg, p_reason)` للاستلام في الطرف الآخر — يُحدّث `inventory_items.stock` ويُنشئ حركة `transfer_in` نهائية.
+**صفحة جديدة** `src/pages/farm/MotherFarmFeed.tsx` (وتبويب داخل لوحة مزرعة الأمهات):
+- كروت: الرصيد الحالي/شكاير تقريبية/استهلاك يومي/أيام التغطية/آخر توريد/آخر خصم/الحالة (آمن/منخفض/خطر).
+- Banner أحمر + صوت Web Audio API لمرة واحدة عند < 600 كجم، مع زر "تأكيد قراءة".
+- زر "إضافة وارد علف" → ديالوج (شكاير أو كيلو، تاريخ، مورد، ملاحظات).
+- زر "تسوية رصيد" (+/-) بسبب إجباري.
+- جدول سجل الحركات.
+- زر "إعدادات" (للأدوار المخوّلة) لتعديل وزن الشيكارة/معدل الاستهلاك/الحد الأدنى/عدد النعام.
 
-## 4) سجل نقل اللحوم `/slaughterhouse/transfers-log`
-View جديد `v_slaughter_transfer_shipments` يجمع التحويلات في **شحنة واحدة لكل صف** (group by batch_id + transferred_at + destination):
-أعمدة: رقم الحركة، التاريخ، أمر الذبح، المرسل (المجزر)، المستلم (المخزن الرئيسي / مصنع اللحوم)، إجمالي كجم، عدد الأصناف، الحالة، المُنشئ، وقت الإنشاء، وقت الاستلام، ملاحظات.
+**التشغيل التلقائي للخصم اليومي**:
+- استدعاء RPC `apply_mother_farm_daily_consumption` تلقائياً عند فتح الصفحة (ولوحة المزرعة).
+- يضمن إنشاء حركات الأيام الفائتة بشكل ذرّي.
 
-## 5) زر العين — تفاصيل النقلة
-Dialog يعرض:
-- بيانات الحركة + قائمة الأصناف (الكمية، الوحدة، المقبول، المرفوض، سبب الرفض)
-- المخزن المستلم + أسماء الجزارين + ملاحظات
+### 3. الربط بلوحة المزرعة
+- إضافة قسم "علف الأمهات" في `MotherFarmDashboard.tsx` يعرض نفس الكروت الرئيسية + التنبيه.
 
-## 6) طباعة / Excel / PDF
-- زر طباعة + PDF عبر `openPrintWindow` من `@/lib/printPdf` (Arabic-safe)
-- زر Excel عبر `safeExcel`
-- شكل "إذن نقل لحوم من المجزر": شعار، رقم، تاريخ، أمر الذبح، المستلم، جدول، إجمالي، أسماء الجزارين، توقيع مسلم/مستلم، ملاحظات.
+### 4. الاختبار العملي
+بعد النشر: إدخال 20 شيكارة (800 كجم) بتاريخ 06-06-2026، تشغيل الخصم التلقائي → التحقق من الرصيد 682 ثم 564 وظهور التنبيه.
 
-## التغييرات على قاعدة البيانات (Migration واحدة)
-```text
-ALTER slaughter_batches ADD butcher_1_id, butcher_2_id, butcher_3_id
-INSERT 3 workers في slaughter_workers (لو غير موجودين)
-CREATE OR REPLACE VIEW v_slaughter_transfer_shipments
-CREATE FUNCTION slaughter_dispatch_outputs(...)
-CREATE FUNCTION slaughter_transfer_receive(...)
-CREATE UNIQUE INDEX جزئي لمنع الازدواج
-```
-**بدون أي حذف للبيانات**. الحركات القديمة تبقى كما هي.
-
-## التغييرات في الكود
-- `src/pages/modules/Slaughterhouse.tsx` — داشبورد جديدة بالـ KPIs المطلوبة
-- `src/components/slaughterhouse/SlaughterBatchDialog.tsx` — اختيار ٣ جزارين + اختيار وجهة لكل ناتج + زر "اعتماد وترحيل"
-- `src/pages/slaughterhouse/TransfersLog.tsx` — جدول السجل + بحث/فلتر
-- `src/components/slaughterhouse/TransferDetailsDialog.tsx` — تفاصيل + طباعة + PDF + Excel
-- `src/components/slaughterhouse/SlaughterTransferPrint.tsx` — قالب الطباعة
-- استدعاء RPC الاستلام من شاشات المخزن الرئيسي ومصنع اللحوم (Inbox الموجود)
-
-## اختبار حقيقي (مطلوب من المستخدم)
-بعد التطبيق سأنفّذ Seed تجريبي: batch نعام، ٣ منتجات (لحم قطع/موزة/قلوب)، نُرسل جزء للمخزن الرئيسي وجزء لمصنع اللحوم، نستلم، ونتأكد أن:
-- inventory_items.stock تحدّثت مرة واحدة فقط
-- slaughter_branch_transfers status = 'received'
-- تظهر في سجل النقل المجمّع
-- لا توجد حركة مكررة
-
-## شروط محفوظة
-- لا تغيير على منطق الطلبات أو مخزون باقي النظام
-- لا حذف بيانات
-- استخدام cairoDate helpers لكل الفلاتر الزمنية
-- جميع الحركات تمر عبر `inventory_movements`
-
-هل أبدأ التنفيذ؟
+### ملاحظات
+- لا تأثير على تسجيل البيض اليومي أو شحنات المعمل.
+- وزن الشيكارة/الاستهلاك/الحد الأدنى/عدد النعام كلها من جدول الإعدادات وقابلة للتعديل.
+- منع الرصيد السالب عبر منطق الـ function.
