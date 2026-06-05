@@ -476,6 +476,44 @@ export default function LabTreasury() {
   }
   useEffect(() => { loadDailyReport(); }, [reportDate]);
 
+  // ---- Source navigation ----
+  function openSource(m: Movement) {
+    if (!m.source_table) return;
+    switch (m.source_table) {
+      case "hatch_customer_payments":
+      case "hatchery_invoice_payments":
+        navigate("/hatchery-payments");
+        break;
+      case "brooding_chick_sales":
+        navigate("/modules/brooding");
+        break;
+      default:
+        toast.info(`المصدر: ${m.source_table} #${m.source_id?.slice(0, 8) || ""}`);
+    }
+  }
+
+  // ---- Operational reports (server-side via RPC) ----
+  const [opReportType, setOpReportType] = useState<"hatching_customer" | "hatching_batch" | "chicksales_batch" | "chicksales_customer" | "net">("hatching_customer");
+  const [opRows, setOpRows] = useState<any[]>([]);
+  const [opNet, setOpNet] = useState<any>(null);
+  const [opFrom, setOpFrom] = useState("");
+  const [opTo, setOpTo] = useState("");
+
+  async function loadOpReport() {
+    const fn = {
+      hatching_customer: "lab_treasury_hatching_by_customer",
+      hatching_batch: "lab_treasury_hatching_by_batch",
+      chicksales_batch: "lab_treasury_chicksales_by_batch",
+      chicksales_customer: "lab_treasury_chicksales_by_customer",
+      net: "lab_treasury_net_operation",
+    }[opReportType];
+    const { data, error } = await (supabase as any).rpc(fn, { p_from: opFrom || null, p_to: opTo || null });
+    if (error) { toast.error("فشل التقرير: " + error.message); return; }
+    if (opReportType === "net") { setOpNet(data); setOpRows([]); }
+    else { setOpRows(data || []); setOpNet(null); }
+  }
+  useEffect(() => { loadOpReport(); }, [opReportType, opFrom, opTo]);
+
   // ---- Exports ----
   async function exportExcel() {
     const rows = filtered.map((m) => ({
