@@ -151,14 +151,19 @@ export default function TransfersLog() {
   };
 
   const reverseReceipt = async (outputId: string, label: string) => {
-    const reason = window.prompt(`عكس حركة استلام الصنف "${label}"؟ سيتم خصم الكمية من المخزون وإثبات حركة تصحيح. اكتب السبب:`, "اختبار / تصحيح إدارة");
+    const reason = window.prompt(`عكس حركة استلام الصنف "${label}"؟\nسيتم خصم الكمية من المخزون وإثبات حركة تصحيح.\nاكتب سبب العكس (إلزامي):`, "");
     if (reason === null) return;
-    const { data, error } = await supabase.rpc("reverse_slaughter_receipt" as any, { p_output_id: outputId, p_reason: reason });
+    const trimmed = reason.trim();
+    if (!trimmed) { toast.error("سبب العكس إلزامي — لا يمكن تركه فارغًا."); return; }
+    const { error } = await supabase.rpc("reverse_slaughter_receipt" as any, { p_output_id: outputId, p_reason: trimmed });
     if (error) { toast.error(error.message); return; }
     toast.success("تم عكس حركة الاستلام وخصم الكمية من المخزون.");
     if (detail) await openDetails(detail);
     fetchAll();
   };
+
+  const itemDisplayStatus = (i: LineItem) =>
+    i.received_status === "reversed" ? "تم العكس" : i.status;
 
   const exportExcel = () => {
     if (!detail) return;
@@ -173,7 +178,7 @@ export default function TransfersLog() {
       ["عدد الأصناف", detail.items_count],
       [],
       ["الصنف", "الكمية (كجم)", "السعر/كجم", "الإجمالي", "الحالة", "ملاحظات"],
-      ...items.map((i) => [i.cut_name_ar, Number(i.weight_kg).toFixed(2), Number(i.unit_price).toFixed(2), Number(i.total_value).toFixed(2), i.status, i.notes || ""]),
+      ...items.map((i) => [i.cut_name_ar, Number(i.weight_kg).toFixed(2), Number(i.unit_price).toFixed(2), Number(i.total_value).toFixed(2), itemDisplayStatus(i), i.notes || ""]),
     ];
     const ws = XLSX.utils.aoa_to_sheet(wsData);
     const wb = XLSX.utils.book_new();
@@ -194,7 +199,7 @@ export default function TransfersLog() {
         <td class="num">${fmtNum(i.weight_kg, 2)}</td>
         <td class="num">${fmtNum(i.unit_price, 2)}</td>
         <td class="num">${fmtNum(i.total_value, 2)}</td>
-        <td>${escapeHtml(i.status)}</td>
+        <td>${escapeHtml(itemDisplayStatus(i))}${i.received_status === "reversed" ? ' <span style="color:#b45309;font-weight:bold">(Reversed)</span>' : ""}</td>
         <td>${escapeHtml(i.notes || "")}</td>
       </tr>`).join("");
 
