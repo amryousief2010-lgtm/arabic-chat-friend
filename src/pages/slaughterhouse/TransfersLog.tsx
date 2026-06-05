@@ -151,14 +151,19 @@ export default function TransfersLog() {
   };
 
   const reverseReceipt = async (outputId: string, label: string) => {
-    const reason = window.prompt(`عكس حركة استلام الصنف "${label}"؟ سيتم خصم الكمية من المخزون وإثبات حركة تصحيح. اكتب السبب:`, "اختبار / تصحيح إدارة");
+    const reason = window.prompt(`عكس حركة استلام الصنف "${label}"؟\nسيتم خصم الكمية من المخزون وإثبات حركة تصحيح.\nاكتب سبب العكس (إلزامي):`, "");
     if (reason === null) return;
-    const { data, error } = await supabase.rpc("reverse_slaughter_receipt" as any, { p_output_id: outputId, p_reason: reason });
+    const trimmed = reason.trim();
+    if (!trimmed) { toast.error("سبب العكس إلزامي — لا يمكن تركه فارغًا."); return; }
+    const { error } = await supabase.rpc("reverse_slaughter_receipt" as any, { p_output_id: outputId, p_reason: trimmed });
     if (error) { toast.error(error.message); return; }
     toast.success("تم عكس حركة الاستلام وخصم الكمية من المخزون.");
     if (detail) await openDetails(detail);
     fetchAll();
   };
+
+  const itemDisplayStatus = (i: LineItem) =>
+    i.received_status === "reversed" ? "تم العكس" : i.status;
 
   const exportExcel = () => {
     if (!detail) return;
