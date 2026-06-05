@@ -209,18 +209,27 @@ export default function LabTreasury() {
 
   async function fetchData() {
     setLoading(true);
-    const [{ data: mvs, error: e1 }, { data: cls }, { data: aud }] = await Promise.all([
+    const [{ data: mvs, error: e1 }, { data: cls }, { data: aud }, { data: ops }] = await Promise.all([
       (supabase as any).from("lab_treasury_movements").select("*").order("movement_date", { ascending: false }).order("created_at", { ascending: false }).limit(1000),
       (supabase as any).from("lab_treasury_day_closures").select("*").order("closure_date", { ascending: false }).limit(200),
       canApprove
         ? (supabase as any).from("lab_treasury_audit_log").select("*").order("created_at", { ascending: false }).limit(500)
         : Promise.resolve({ data: [] }),
+      (supabase as any).from("lab_treasury_opening_balances").select("cash_amount,vodafone_cash_amount,instapay_amount,bank_transfer_amount,status").eq("status", "approved"),
     ]);
     if (e1) { toast.error("فشل تحميل الخزنة: " + e1.message); setLoading(false); return; }
     const list = (mvs || []) as Movement[];
     setMovements(list);
     setClosures((cls || []) as DayClosure[]);
     setAuditRows((aud || []) as AuditRow[]);
+    const op: Record<PaymentMethod, number> = { cash: 0, vodafone_cash: 0, instapay: 0, bank_transfer: 0 };
+    (ops || []).forEach((o: any) => {
+      op.cash += Number(o.cash_amount || 0);
+      op.vodafone_cash += Number(o.vodafone_cash_amount || 0);
+      op.instapay += Number(o.instapay_amount || 0);
+      op.bank_transfer += Number(o.bank_transfer_amount || 0);
+    });
+    setOpeningByMethod(op);
 
     const ids = Array.from(new Set([
       ...list.flatMap((m) => [m.created_by, m.approved_by, m.rejected_by]),
