@@ -138,6 +138,8 @@ const roleIcons: Record<AppRole, React.ElementType> = {
   agouza_warehouse_keeper: Warehouse,
   brooding_dashboard_viewer: Users,
   lab_treasury_keeper: Calculator,
+  lab_external_collector: Calculator,
+  lab_treasury_approver: Shield,
 };
 
 const addEmployeeSchema = z.object({
