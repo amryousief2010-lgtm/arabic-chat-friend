@@ -289,6 +289,29 @@ export const SlaughterBatchDialog = ({ open, onOpenChange, receipts, workers = [
 
           {/* Step 3 */}
           <TabsContent value="step3" className="space-y-3 mt-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {[1, 2, 3].map((rank) => {
+                const key = `butcher_${rank}_id` as "butcher_1_id" | "butcher_2_id" | "butcher_3_id";
+                const labelMap: Record<number, string> = { 1: "الجزار المسؤول الأول", 2: "الجزار المسؤول الثاني", 3: "الجزار المسؤول الثالث" };
+                return (
+                  <div key={rank}>
+                    <Label>{labelMap[rank]}</Label>
+                    <Select value={form[key] || undefined} onValueChange={(v) => update(key, v)}>
+                      <SelectTrigger><SelectValue placeholder="اختر جزار..." /></SelectTrigger>
+                      <SelectContent className="z-[100] max-h-64">
+                        {sortedWorkers.length === 0 ? (
+                          <div className="text-xs text-muted-foreground p-3 text-center">لا يوجد عمال</div>
+                        ) : sortedWorkers.map((w) => (
+                          <SelectItem key={w.id} value={w.id}>
+                            {w.full_name}{w.lead_rank ? ` — مسؤول ${w.lead_rank === 1 ? "أول" : w.lead_rank === 2 ? "ثاني" : "ثالث"}` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                );
+              })}
+            </div>
             <div>
               <Label>ملاحظات</Label>
               <Textarea rows={4} value={form.notes} onChange={(e) => update("notes", e.target.value)} placeholder="أي ملاحظات إضافية..." />
