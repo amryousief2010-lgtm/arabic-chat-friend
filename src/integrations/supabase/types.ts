@@ -4157,6 +4157,7 @@ export type Database = {
           id: string
           notes: string | null
           payment_date: string
+          payment_method: string
           updated_at: string
         }
         Insert: {
@@ -4167,6 +4168,7 @@ export type Database = {
           id?: string
           notes?: string | null
           payment_date?: string
+          payment_method?: string
           updated_at?: string
         }
         Update: {
@@ -4177,6 +4179,7 @@ export type Database = {
           id?: string
           notes?: string | null
           payment_date?: string
+          payment_method?: string
           updated_at?: string
         }
         Relationships: [
@@ -5568,6 +5571,9 @@ export type Database = {
           rejected_at: string | null
           rejected_by: string | null
           rejection_reason: string | null
+          source_id: string | null
+          source_ref: string | null
+          source_table: string | null
           status: Database["public"]["Enums"]["lab_treasury_status"]
           unit_price: number | null
           units_count: number | null
@@ -5600,6 +5606,9 @@ export type Database = {
           rejected_at?: string | null
           rejected_by?: string | null
           rejection_reason?: string | null
+          source_id?: string | null
+          source_ref?: string | null
+          source_table?: string | null
           status?: Database["public"]["Enums"]["lab_treasury_status"]
           unit_price?: number | null
           units_count?: number | null
@@ -5632,6 +5641,9 @@ export type Database = {
           rejected_at?: string | null
           rejected_by?: string | null
           rejection_reason?: string | null
+          source_id?: string | null
+          source_ref?: string | null
+          source_table?: string | null
           status?: Database["public"]["Enums"]["lab_treasury_status"]
           unit_price?: number | null
           units_count?: number | null
@@ -11915,7 +11927,55 @@ export type Database = {
         Returns: Json
       }
       is_feed_team: { Args: { _user_id: string }; Returns: boolean }
+      lab_treasury_chicksales_by_batch: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: {
+          approved_amount: number
+          batch_ref: string
+          sales_count: number
+          total_amount: number
+          total_chicks: number
+        }[]
+      }
+      lab_treasury_chicksales_by_customer: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: {
+          approved_amount: number
+          customer_name: string
+          sales_count: number
+          total_amount: number
+          total_chicks: number
+        }[]
+      }
       lab_treasury_daily_report: { Args: { p_date: string }; Returns: Json }
+      lab_treasury_hatching_by_batch: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: {
+          approved_amount: number
+          batch_ref: string
+          customer_name: string
+          movements_count: number
+          total_amount: number
+        }[]
+      }
+      lab_treasury_hatching_by_customer: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: {
+          approved_amount: number
+          customer_name: string
+          movements_count: number
+          pending_amount: number
+          total_amount: number
+        }[]
+      }
+      lab_treasury_map_payment: {
+        Args: { p: string }
+        Returns: Database["public"]["Enums"]["lab_treasury_payment_method"]
+      }
+      lab_treasury_net_operation: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: Json
+      }
       meat_batch_approve: {
         Args: {
           p_batch_id: string

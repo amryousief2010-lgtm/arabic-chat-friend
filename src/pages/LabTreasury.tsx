@@ -20,8 +20,9 @@ import * as XLSX from "xlsx";
 import {
   Wallet, TrendingUp, TrendingDown, CircleDollarSign, Banknote, Smartphone, Building2,
   CreditCard, CheckCircle2, XCircle, Printer, FileSpreadsheet, Plus, Lock, Unlock,
-  ShieldAlert, ScrollText, AlertTriangle, FileCheck2,
+  ShieldAlert, ScrollText, AlertTriangle, FileCheck2, Link as LinkIcon, Users, Boxes,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 type PaymentMethod = "cash" | "vodafone_cash" | "instapay" | "bank_transfer";
 type MovementType = "income" | "expense";
@@ -57,6 +58,9 @@ interface Movement {
   approved_by: string | null;
   approved_at: string | null;
   created_at: string;
+  source_table: string | null;
+  source_id: string | null;
+  source_ref: string | null;
 }
 
 interface DayClosure {
@@ -156,6 +160,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 export default function LabTreasury() {
   const { user, isGeneralManager, isExecutiveManager } = useAuth();
+  const navigate = useNavigate();
   const isManager = isGeneralManager || isExecutiveManager;
   const canApprove = isManager;
 
@@ -470,6 +475,44 @@ export default function LabTreasury() {
     setReportData(data);
   }
   useEffect(() => { loadDailyReport(); }, [reportDate]);
+
+  // ---- Source navigation ----
+  function openSource(m: Movement) {
+    if (!m.source_table) return;
+    switch (m.source_table) {
+      case "hatch_customer_payments":
+      case "hatchery_invoice_payments":
+        navigate("/hatchery-payments");
+        break;
+      case "brooding_chick_sales":
+        navigate("/modules/brooding");
+        break;
+      default:
+        toast.info(`المصدر: ${m.source_table} #${m.source_id?.slice(0, 8) || ""}`);
+    }
+  }
+
+  // ---- Operational reports (server-side via RPC) ----
+  const [opReportType, setOpReportType] = useState<"hatching_customer" | "hatching_batch" | "chicksales_batch" | "chicksales_customer" | "net">("hatching_customer");
+  const [opRows, setOpRows] = useState<any[]>([]);
+  const [opNet, setOpNet] = useState<any>(null);
+  const [opFrom, setOpFrom] = useState("");
+  const [opTo, setOpTo] = useState("");
+
+  async function loadOpReport() {
+    const fn = {
+      hatching_customer: "lab_treasury_hatching_by_customer",
+      hatching_batch: "lab_treasury_hatching_by_batch",
+      chicksales_batch: "lab_treasury_chicksales_by_batch",
+      chicksales_customer: "lab_treasury_chicksales_by_customer",
+      net: "lab_treasury_net_operation",
+    }[opReportType];
+    const { data, error } = await (supabase as any).rpc(fn, { p_from: opFrom || null, p_to: opTo || null });
+    if (error) { toast.error("فشل التقرير: " + error.message); return; }
+    if (opReportType === "net") { setOpNet(data); setOpRows([]); }
+    else { setOpRows(data || []); setOpNet(null); }
+  }
+  useEffect(() => { loadOpReport(); }, [opReportType, opFrom, opTo]);
 
   // ---- Exports ----
   async function exportExcel() {
@@ -812,15 +855,16 @@ export default function LabTreasury() {
                       <TableHead>منصرف</TableHead>
                       <TableHead>طريقة</TableHead>
                       <TableHead>الحالة</TableHead>
+                      <TableHead>المصدر</TableHead>
                       <TableHead>سجّل بواسطة</TableHead>
                       {isManager && <TableHead>إجراءات</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {loading ? (
-                      <TableRow><TableCell colSpan={isManager ? 9 : 8} className="text-center py-8">جارٍ التحميل...</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={isManager ? 10 : 9} className="text-center py-8">جارٍ التحميل...</TableCell></TableRow>
                     ) : filtered.length === 0 ? (
-                      <TableRow><TableCell colSpan={isManager ? 9 : 8} className="text-center py-8 text-muted-foreground">لا توجد حركات</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={isManager ? 10 : 9} className="text-center py-8 text-muted-foreground">لا توجد حركات</TableCell></TableRow>
                     ) : filtered.map((m) => (
                       <TableRow key={m.id} className={closedDates.has(m.movement_date) ? "bg-muted/30" : ""}>
                         <TableCell>
@@ -840,6 +884,13 @@ export default function LabTreasury() {
                         <TableCell className="font-mono">{m.movement_type === "expense" ? fmtNum(m.amount, 2) : "—"}</TableCell>
                         <TableCell>{PAYMENT_LABELS[m.payment_method]}</TableCell>
                         <TableCell><StatusBadge s={m.status} /></TableCell>
+                        <TableCell className="text-xs">
+                          {m.source_table ? (
+                            <Button size="sm" variant="link" className="h-auto p-0 text-xs gap-1" onClick={() => openSource(m)}>
+                              <LinkIcon className="w-3 h-3" />{m.source_ref || "عرض المصدر"}
+                            </Button>
+                          ) : "—"}
+                        </TableCell>
                         <TableCell className="text-xs">{profiles[m.created_by || ""] || "—"}</TableCell>
                         {isManager && (
                           <TableCell>
@@ -1018,7 +1069,116 @@ export default function LabTreasury() {
                 </div>
               </CardContent>
             </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Users className="w-5 h-5" />التقارير التشغيلية المرتبطة</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex flex-wrap gap-2 items-end">
+                  <Field label="نوع التقرير">
+                    <Select value={opReportType} onValueChange={(v) => setOpReportType(v as any)}>
+                      <SelectTrigger className="w-64"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="hatching_customer">إيرادات التفريخ حسب العميل</SelectItem>
+                        <SelectItem value="hatching_batch">إيرادات التفريخ حسب الدفعة</SelectItem>
+                        <SelectItem value="chicksales_batch">مبيعات الكتاكيت حسب الدفعة</SelectItem>
+                        <SelectItem value="chicksales_customer">مبيعات الكتاكيت حسب العميل</SelectItem>
+                        <SelectItem value="net">صافي تشغيل المعمل والحضانات</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field label="من"><Input type="date" value={opFrom} onChange={(e) => setOpFrom(e.target.value)} /></Field>
+                  <Field label="إلى"><Input type="date" value={opTo} onChange={(e) => setOpTo(e.target.value)} /></Field>
+                </div>
+
+                {opReportType === "net" && opNet && (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <StatCard title="إيرادات التفريخ" value={fmtNum(opNet.hatching_income, 2)} icon={<TrendingUp />} />
+                    <StatCard title="إيرادات بيع الكتاكيت" value={fmtNum(opNet.chick_sales_income, 2)} icon={<Boxes />} />
+                    <StatCard title="إيرادات أخرى" value={fmtNum(opNet.other_income, 2)} />
+                    <StatCard title="إجمالي الإيرادات" value={fmtNum(opNet.total_income, 2)} accent />
+                    <StatCard title="إجمالي المصروفات" value={fmtNum(opNet.total_expense, 2)} icon={<TrendingDown />} />
+                    <StatCard title="صافي التشغيل" value={fmtNum(opNet.net_operation, 2)} accent />
+                    <StatCard title="إيرادات معلقة" value={fmtNum(opNet.pending_income, 2)} icon={<AlertTriangle />} />
+                    <StatCard title="مصروفات معلقة" value={fmtNum(opNet.pending_expense, 2)} icon={<AlertTriangle />} />
+                  </div>
+                )}
+
+                {opReportType !== "net" && (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          {opReportType === "hatching_customer" && <>
+                            <TableHead>العميل</TableHead><TableHead>عدد الحركات</TableHead>
+                            <TableHead className="text-end">إجمالي</TableHead>
+                            <TableHead className="text-end">المعتمد</TableHead>
+                            <TableHead className="text-end">المعلق</TableHead>
+                          </>}
+                          {opReportType === "hatching_batch" && <>
+                            <TableHead>الدفعة / المرجع</TableHead><TableHead>العميل</TableHead>
+                            <TableHead>عدد الحركات</TableHead>
+                            <TableHead className="text-end">إجمالي</TableHead>
+                            <TableHead className="text-end">المعتمد</TableHead>
+                          </>}
+                          {opReportType === "chicksales_batch" && <>
+                            <TableHead>الدفعة</TableHead><TableHead>عدد المبيعات</TableHead>
+                            <TableHead className="text-end">إجمالي الكتاكيت</TableHead>
+                            <TableHead className="text-end">إجمالي</TableHead>
+                            <TableHead className="text-end">المعتمد</TableHead>
+                          </>}
+                          {opReportType === "chicksales_customer" && <>
+                            <TableHead>العميل</TableHead><TableHead>عدد المبيعات</TableHead>
+                            <TableHead className="text-end">إجمالي الكتاكيت</TableHead>
+                            <TableHead className="text-end">إجمالي</TableHead>
+                            <TableHead className="text-end">المعتمد</TableHead>
+                          </>}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {opRows.length === 0 ? (
+                          <TableRow><TableCell colSpan={5} className="text-center py-6 text-muted-foreground">لا توجد بيانات</TableCell></TableRow>
+                        ) : opRows.map((r, i) => (
+                          <TableRow key={i}>
+                            {opReportType === "hatching_customer" && <>
+                              <TableCell>{r.customer_name}</TableCell>
+                              <TableCell>{r.movements_count}</TableCell>
+                              <TableCell className="text-end font-mono">{fmtNum(r.total_amount, 2)}</TableCell>
+                              <TableCell className="text-end font-mono">{fmtNum(r.approved_amount || 0, 2)}</TableCell>
+                              <TableCell className="text-end font-mono">{fmtNum(r.pending_amount || 0, 2)}</TableCell>
+                            </>}
+                            {opReportType === "hatching_batch" && <>
+                              <TableCell className="text-xs">{r.batch_ref}</TableCell>
+                              <TableCell>{r.customer_name}</TableCell>
+                              <TableCell>{r.movements_count}</TableCell>
+                              <TableCell className="text-end font-mono">{fmtNum(r.total_amount, 2)}</TableCell>
+                              <TableCell className="text-end font-mono">{fmtNum(r.approved_amount || 0, 2)}</TableCell>
+                            </>}
+                            {opReportType === "chicksales_batch" && <>
+                              <TableCell className="text-xs">{r.batch_ref}</TableCell>
+                              <TableCell>{r.sales_count}</TableCell>
+                              <TableCell className="text-end font-mono">{fmtNum(r.total_chicks || 0, 0)}</TableCell>
+                              <TableCell className="text-end font-mono">{fmtNum(r.total_amount, 2)}</TableCell>
+                              <TableCell className="text-end font-mono">{fmtNum(r.approved_amount || 0, 2)}</TableCell>
+                            </>}
+                            {opReportType === "chicksales_customer" && <>
+                              <TableCell>{r.customer_name}</TableCell>
+                              <TableCell>{r.sales_count}</TableCell>
+                              <TableCell className="text-end font-mono">{fmtNum(r.total_chicks || 0, 0)}</TableCell>
+                              <TableCell className="text-end font-mono">{fmtNum(r.total_amount, 2)}</TableCell>
+                              <TableCell className="text-end font-mono">{fmtNum(r.approved_amount || 0, 2)}</TableCell>
+                            </>}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
+
 
           {/* Audit */}
           {isManager && (
