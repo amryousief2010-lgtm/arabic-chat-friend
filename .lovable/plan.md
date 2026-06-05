@@ -1,73 +1,89 @@
-# لوحة تحكم المدير التنفيذي
+# خطة تطوير إدارة المجزر
 
-صفحة واحدة سريعة تجمع ملخصات كل الأقسام للمدير التنفيذي والمدير العام فقط.
+سأبني على الجداول الموجودة (`slaughter_batches`, `slaughter_batch_outputs`, `slaughter_branch_transfers`, `slaughter_workers`, `slaughter_live_receipts`, `inventory_movements`, `meat_raw_inventory`, `inventory_items`) بدون كسر بيانات.
 
-## الصلاحية
-- يظهر الرابط ولوحة التحكم فقط لأدوار: `general_manager` و `executive_manager`.
-- باقي المستخدمين لا يرون الرابط ولا يستطيعون فتح الصفحة (Redirect).
+## 1) داشبورد المجزر `/slaughterhouse/dashboard`
+KPIs حقيقية محسوبة من قاعدة البيانات:
+- النعام القائم الحالي = SUM(slaughter_live_birds.current_count)
+- مذبوح الشهر / اليوم = SUM(birds_slaughtered) فلتر بـ cairoMonthStartUTC / cairoTodayStartUTC على slaughter_date
+- الوزن الحي اليوم / الشهر = SUM(total_live_weight_kg)
+- وزن اللحم المشفى = SUM(total_meat_kg)
+- نسبة التصافي = total_meat_kg / total_live_weight_kg × 100
+- إنتاج الشهر (كجم) + تكلفة الكيلو (متوسط cost_per_kg_meat)
+- عدد أوامر الإنتاج الواردة (production_dispatch_orders.status='pending')
+- إجمالي تحويلات المجزر → المخزن الرئيسي / مصنع اللحوم (من slaughter_branch_transfers + inventory_movements)
 
-## المسار والقائمة
-- مسار جديد: `/executive-dashboard`
-- لينك في الشريط الجانبي بأعلى القائمة باسم: **لوحة تحكم المدير التنفيذي** بأيقونة مميزة.
+تقسيم واضح: حي / بعد ذبح / مشفى / هالك / منتجات التقسيمة.
 
-## الفلاتر العلوية
-- اليوم / الأسبوع / الشهر / السنة / من-إلى (Date range).
-- الفلتر يُمرَّر إلى RPC واحد ويُعاد حساب كل الكروت.
+## 2) جدول عمال المجزر (جزارين)
+استخدام `slaughter_workers` الموجود. إدخال ٣ سجلات:
+- محمود جمال — جزار مسؤول أول
+- حمدي حماد — جزار مسؤول ثاني
+- إبراهيم السعدني — جزار مسؤول ثالث
 
-## الأقسام المعروضة (كروت مختصرة + زر "عرض التفاصيل" يذهب لـ Dashboard القسم)
+إضافة أعمدة لـ `slaughter_batches`:
+- `butcher_1_id uuid`, `butcher_2_id uuid`, `butcher_3_id uuid` (FK → slaughter_workers)
+عرضهم في تفاصيل أمر الذبح + الطباعة + التقارير.
 
-1. **مزرعة الأمهات** — إنتاج البيض (يوم/أسبوع/شهر)، أعلى وأقل ملعب، نسبة الهالك، البيض المنقول للتفريخ.
-2. **معمل التفريخ** — عملاء، بيض داخل، بيض داخل الماكينات، دفعات حالية، أقرب فقس، كتاكيت نعام العاصمة (شهر/سنة)، نسبة الإخصاب، رصيد الخزنة، صافي الربح.
-3. **التحضين والتسمين** — عدد الكتاكيت، التكلفة، القيمة السوقية، الربح المتوقع، النافق ونسبته، رصيد العلف، تكلفة العلف، أقرب دفعة للمجزر.
-4. **مصنع الأعلاف** — مخزون العلف الجاهز وقيمته، مبيعات/مشتريات اليوم والشهر، مرتجعات، رصيد الخزنة، صافي الربح، تنبيهات نقص.
-5. **مصنع اللحوم** — قيمة الخامات والتغليف والمنتجات الجاهزة، مبيعات/مشتريات اليوم والشهر، مرتجعات، رصيد الخزنة، ربح الشهر، آخر أوامر التصنيع، منتجات تحت الحد الأدنى.
-6. **المخزن الرئيسي** — قيمة المخزون، الوارد/الصادر اليوم، التحويلات، المرتجعات، تحت الحد الأدنى، الطلبات المحجوزة.
-7. **المبيعات العامة** — مبيعات اليوم/الشهر/السنة، عدد الطلبات، أعلى منتج، أعلى قناة، مرتجعات، صافي المبيعات.
-8. **الخزن** — أرصدة كل الخزن (أعلاف/لحوم/تفريخ)، إجمالي النقد، داخل/خارج اليوم.
-9. **التنبيهات** — قسم تنبيهات مدمج: أقل ملعب، دفعات قريبة من الفقس/المجزر، نقص علف وخامات وتغليف، خزن سالبة، نافق مرتفع، فواتير آجلة مستحقة.
+## 3) تجربة تقسيمة دبح نعام كاملة
+داخل `SlaughterBatchDialog` (موجود):
+1. إنشاء batch جديد (طيور + وزن حي + اختيار ٣ جزارين).
+2. تسجيل ناتج التقسيمة في `slaughter_batch_outputs` (موزة، استيك، لحم قطع، إلخ).
+3. اختيار وجهة كل سطر: `main_warehouse` أو `meat_factory`.
+4. زر "اعتماد + ترحيل":
+   - يُنشئ `slaughter_branch_transfers` (سطر/سطور) **بـ status='pending'**.
+   - يُنشئ `inventory_movements` بنوع `transfer_out` من المجزر، و`transfer_in` بانتظار الاستلام على المخزن المستهدف.
+   - يحدّث `inventory_items.stock` فقط عند **الاستلام** (ليس عند الإرسال) لتجنب الخصم/الإضافة المزدوجة.
+5. حماية idempotency: UNIQUE على (output_id, branch_id, status<>'cancelled') + فحص داخل RPC قبل الإدراج.
 
-## التصميم
-- شبكة كروت ملونة (لون مميز لكل قسم باستخدام design tokens).
-- KPI كبيرة بأرقام عربية، شارات اتجاه (▲/▼) عند توفر مقارنة.
-- زر "عرض التفاصيل" على رأس كل قسم → الراوت الموجود حاليًا للقسم.
-- شريط تنبيهات بألوان warning/destructive في الأعلى.
-- Responsive: 1 عمود موبايل، 2 تابلت، 3 ديسكتوب.
-- Skeleton loaders للتحميل السريع.
+RPC جديد: `slaughter_dispatch_outputs(p_batch_id, p_lines jsonb)` يعمل كل ما سبق في معاملة واحدة.
 
-## الجانب التقني
+RPC جديد: `slaughter_transfer_receive(p_transfer_id, p_accepted_kg, p_rejected_kg, p_reason)` للاستلام في الطرف الآخر — يُحدّث `inventory_items.stock` ويُنشئ حركة `transfer_in` نهائية.
 
-### RPC مجمّع
-دالة `public.executive_dashboard_summary(p_from timestamptz, p_to timestamptz)` تُرجِع JSON واحد يحوي كل الأقسام:
-```json
-{ "mother_farm": {...}, "hatchery": {...}, "brooding": {...},
-  "feed_factory": {...}, "meat_factory": {...}, "main_warehouse": {...},
-  "sales": {...}, "treasuries": {...}, "alerts": [...] }
+## 4) سجل نقل اللحوم `/slaughterhouse/transfers-log`
+View جديد `v_slaughter_transfer_shipments` يجمع التحويلات في **شحنة واحدة لكل صف** (group by batch_id + transferred_at + destination):
+أعمدة: رقم الحركة، التاريخ، أمر الذبح، المرسل (المجزر)، المستلم (المخزن الرئيسي / مصنع اللحوم)، إجمالي كجم، عدد الأصناف، الحالة، المُنشئ، وقت الإنشاء، وقت الاستلام، ملاحظات.
+
+## 5) زر العين — تفاصيل النقلة
+Dialog يعرض:
+- بيانات الحركة + قائمة الأصناف (الكمية، الوحدة، المقبول، المرفوض، سبب الرفض)
+- المخزن المستلم + أسماء الجزارين + ملاحظات
+
+## 6) طباعة / Excel / PDF
+- زر طباعة + PDF عبر `openPrintWindow` من `@/lib/printPdf` (Arabic-safe)
+- زر Excel عبر `safeExcel`
+- شكل "إذن نقل لحوم من المجزر": شعار، رقم، تاريخ، أمر الذبح، المستلم، جدول، إجمالي، أسماء الجزارين، توقيع مسلم/مستلم، ملاحظات.
+
+## التغييرات على قاعدة البيانات (Migration واحدة)
+```text
+ALTER slaughter_batches ADD butcher_1_id, butcher_2_id, butcher_3_id
+INSERT 3 workers في slaughter_workers (لو غير موجودين)
+CREATE OR REPLACE VIEW v_slaughter_transfer_shipments
+CREATE FUNCTION slaughter_dispatch_outputs(...)
+CREATE FUNCTION slaughter_transfer_receive(...)
+CREATE UNIQUE INDEX جزئي لمنع الازدواج
 ```
-- داخل الدالة استعلامات Aggregate خفيفة فقط (COUNT/SUM) على الجداول الموجودة:
-  - `farm_egg_production`, `farm_egg_waste`, `farm_to_hatchery_shipments`
-  - `hatch_batches`, `hatch_customers`, `feed_factory_treasury_txns` (للتفريخ إن وجد)
-  - `brooding_batches`, `brooding_mortality`, `brooding_feed_inventory`, `brooding_to_slaughter_transfers`, `brooding_market_prices`
-  - `feed_products`, `feed_sales`, `feed_raw_purchases`, `feed_sales_returns`, `feed_factory_treasury_txns`
-  - `meat_raw_inventory`, `meat_packaging_inventory`, `meat_finished_inventory`, `mf_sales`, `mf_raw_purchases`, `mf_pack_purchases`, `mf_returns`, `mf_treasury`, `mf_manufacturing`, `mf_log`
-  - `inventory_items`, `inventory_movements`
-  - `orders`, `order_items`, `products`
-- `SECURITY DEFINER` + `SET search_path = public` + GRANT EXECUTE للأدوار authenticated، مع فحص الدور داخليًا (raise exception لو ليس general/executive manager).
+**بدون أي حذف للبيانات**. الحركات القديمة تبقى كما هي.
 
-### واجهة
-- ملف جديد: `src/pages/ExecutiveDashboard.tsx`
-- مكونات: `src/components/executive/SectionCard.tsx`, `KpiTile.tsx`, `AlertsPanel.tsx`, `RangeFilter.tsx`
-- React Query: `useQuery(['exec-summary', range], ...)` مع `staleTime: 60s`
-- تسجيل الراوت في `src/components/AnimatedRoutes.tsx` مع حارس صلاحية
-- إضافة لينك في `src/components/layout/SidebarMenuSections.tsx` مشروط بالدور
+## التغييرات في الكود
+- `src/pages/modules/Slaughterhouse.tsx` — داشبورد جديدة بالـ KPIs المطلوبة
+- `src/components/slaughterhouse/SlaughterBatchDialog.tsx` — اختيار ٣ جزارين + اختيار وجهة لكل ناتج + زر "اعتماد وترحيل"
+- `src/pages/slaughterhouse/TransfersLog.tsx` — جدول السجل + بحث/فلتر
+- `src/components/slaughterhouse/TransferDetailsDialog.tsx` — تفاصيل + طباعة + PDF + Excel
+- `src/components/slaughterhouse/SlaughterTransferPrint.tsx` — قالب الطباعة
+- استدعاء RPC الاستلام من شاشات المخزن الرئيسي ومصنع اللحوم (Inbox الموجود)
 
-### اختبار
-- تنفيذ الـ RPC مباشرة على القاعدة والتحقق من ظهور جميع المفاتيح بأرقام معقولة.
-- التحقق من أن المستخدم بدور `moderator` يُرفض.
-- التحقق من فتح كل زر "تفاصيل" للراوت الصحيح.
-- التحقق من تطبيق فلتر التاريخ على المبيعات/المشتريات/الإنتاج.
+## اختبار حقيقي (مطلوب من المستخدم)
+بعد التطبيق سأنفّذ Seed تجريبي: batch نعام، ٣ منتجات (لحم قطع/موزة/قلوب)، نُرسل جزء للمخزن الرئيسي وجزء لمصنع اللحوم، نستلم، ونتأكد أن:
+- inventory_items.stock تحدّثت مرة واحدة فقط
+- slaughter_branch_transfers status = 'received'
+- تظهر في سجل النقل المجمّع
+- لا توجد حركة مكررة
 
-## ملاحظات
-- لن أعدّل أي بيانات أو منطق تشغيل قائم؛ هذه صفحة قراءة فقط.
-- لن أنشئ Views جديدة دائمة لتجنّب تعقيد الصلاحيات؛ كل شيء داخل RPC واحد.
+## شروط محفوظة
+- لا تغيير على منطق الطلبات أو مخزون باقي النظام
+- لا حذف بيانات
+- استخدام cairoDate helpers لكل الفلاتر الزمنية
+- جميع الحركات تمر عبر `inventory_movements`
 
 هل أبدأ التنفيذ؟
