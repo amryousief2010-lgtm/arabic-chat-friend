@@ -20,8 +20,9 @@ import * as XLSX from "xlsx";
 import {
   Wallet, TrendingUp, TrendingDown, CircleDollarSign, Banknote, Smartphone, Building2,
   CreditCard, CheckCircle2, XCircle, Printer, FileSpreadsheet, Plus, Lock, Unlock,
-  ShieldAlert, ScrollText, AlertTriangle, FileCheck2,
+  ShieldAlert, ScrollText, AlertTriangle, FileCheck2, Link as LinkIcon, Users, Boxes,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 type PaymentMethod = "cash" | "vodafone_cash" | "instapay" | "bank_transfer";
 type MovementType = "income" | "expense";
