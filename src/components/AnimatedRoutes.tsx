@@ -534,6 +534,11 @@ const AnimatedRoutes = () => {
               <PageTransition><SlaughterTransfersLog /></PageTransition>
             </ProtectedRoute>
           } />
+          <Route path="/modules/slaughterhouse/payroll" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'slaughterhouse_manager']}>
+              <PageTransition><ButchersPayroll /></PageTransition>
+            </ProtectedRoute>
+          } />
           <Route path="/modules/meat-factory" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'quality_manager']}>
               <PageTransition><MeatFactory /></PageTransition>
