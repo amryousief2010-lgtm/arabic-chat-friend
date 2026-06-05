@@ -170,6 +170,7 @@ export default function LabTreasury() {
   const [closures, setClosures] = useState<DayClosure[]>([]);
   const [auditRows, setAuditRows] = useState<AuditRow[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
+  const [openingByMethod, setOpeningByMethod] = useState<Record<PaymentMethod, number>>({ cash: 0, vodafone_cash: 0, instapay: 0, bank_transfer: 0 });
   const [loading, setLoading] = useState(true);
 
   // filters
@@ -208,18 +209,27 @@ export default function LabTreasury() {
 
   async function fetchData() {
     setLoading(true);
-    const [{ data: mvs, error: e1 }, { data: cls }, { data: aud }] = await Promise.all([
+    const [{ data: mvs, error: e1 }, { data: cls }, { data: aud }, { data: ops }] = await Promise.all([
       (supabase as any).from("lab_treasury_movements").select("*").order("movement_date", { ascending: false }).order("created_at", { ascending: false }).limit(1000),
       (supabase as any).from("lab_treasury_day_closures").select("*").order("closure_date", { ascending: false }).limit(200),
       canApprove
         ? (supabase as any).from("lab_treasury_audit_log").select("*").order("created_at", { ascending: false }).limit(500)
         : Promise.resolve({ data: [] }),
+      (supabase as any).from("lab_treasury_opening_balances").select("cash_amount,vodafone_cash_amount,instapay_amount,bank_transfer_amount,status").eq("status", "approved"),
     ]);
     if (e1) { toast.error("فشل تحميل الخزنة: " + e1.message); setLoading(false); return; }
     const list = (mvs || []) as Movement[];
     setMovements(list);
     setClosures((cls || []) as DayClosure[]);
     setAuditRows((aud || []) as AuditRow[]);
+    const op: Record<PaymentMethod, number> = { cash: 0, vodafone_cash: 0, instapay: 0, bank_transfer: 0 };
+    (ops || []).forEach((o: any) => {
+      op.cash += Number(o.cash_amount || 0);
+      op.vodafone_cash += Number(o.vodafone_cash_amount || 0);
+      op.instapay += Number(o.instapay_amount || 0);
+      op.bank_transfer += Number(o.bank_transfer_amount || 0);
+    });
+    setOpeningByMethod(op);
 
     const ids = Array.from(new Set([
       ...list.flatMap((m) => [m.created_by, m.approved_by, m.rejected_by]),
@@ -242,6 +252,7 @@ export default function LabTreasury() {
       .channel("lab-treasury-rt")
       .on("postgres_changes", { event: "*", schema: "public", table: "lab_treasury_movements" }, () => fetchData())
       .on("postgres_changes", { event: "*", schema: "public", table: "lab_treasury_day_closures" }, () => fetchData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "lab_treasury_opening_balances" }, () => fetchData())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, []);
@@ -266,10 +277,10 @@ export default function LabTreasury() {
   const pending = useMemo(() => movements.filter((m) => m.status === "pending"), [movements]);
 
   const officialByMethod = useMemo(() => {
-    const map: Record<PaymentMethod, number> = { cash: 0, vodafone_cash: 0, instapay: 0, bank_transfer: 0 };
+    const map: Record<PaymentMethod, number> = { ...openingByMethod };
     approved.forEach((m) => { map[m.payment_method] += (m.movement_type === "income" ? 1 : -1) * Number(m.amount); });
     return map;
-  }, [approved]);
+  }, [approved, openingByMethod]);
   const estimatedByMethod = useMemo(() => {
     const map: Record<PaymentMethod, number> = { ...officialByMethod };
     pending.forEach((m) => { map[m.payment_method] += (m.movement_type === "income" ? 1 : -1) * Number(m.amount); });
@@ -279,6 +290,7 @@ export default function LabTreasury() {
   const officialTotal = officialByMethod.cash + officialByMethod.vodafone_cash + officialByMethod.instapay + officialByMethod.bank_transfer;
   const estimatedTotal = estimatedByMethod.cash + estimatedByMethod.vodafone_cash + estimatedByMethod.instapay + estimatedByMethod.bank_transfer;
   const pendingTotal = estimatedTotal - officialTotal;
+  const openingTotal = openingByMethod.cash + openingByMethod.vodafone_cash + openingByMethod.instapay + openingByMethod.bank_transfer;
 
   const todayStr = today();
   const monthStart = todayStr.slice(0, 7);
@@ -658,20 +670,23 @@ export default function LabTreasury() {
               <ShieldAlert className="w-4 h-4" />
               <AlertTitle>الرصيد الرسمي vs التقديري</AlertTitle>
               <AlertDescription className="text-xs">
-                الرصيد الرسمي يُحتسب من الحركات <b>المعتمدة فقط</b>. الرصيد التقديري يشمل الحركات بانتظار الاعتماد كمؤشر داخلي.
+                الرصيد الرسمي = الرصيد الافتتاحي المعتمد + الحركات <b>المعتمدة فقط</b>. التحصيلات الخارجية على فودافون كاش محمد شعلة لا تُحتسب ضمن الرصيد الرسمي إلا بعد توريدها واعتمادها.
               </AlertDescription>
             </Alert>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              <StatCard icon={<CheckCircle2 />} title="رصيد الخزنة الرسمي المعتمد" value={fmtNum(officialTotal, 2)} accent />
+              <StatCard icon={<Banknote />} title="الرصيد الفعلي داخل الخزنة" value={fmtNum(officialTotal, 2)} />
+              <ExternalSummaryCard />
+              <TotalLabFundsCard officialTotal={officialTotal} />
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <StatCard icon={<CheckCircle2 />} title="الرصيد الرسمي المعتمد" value={fmtNum(officialTotal, 2)} accent />
+              <StatCard icon={<CircleDollarSign />} title="رصيد افتتاحي معتمد" value={fmtNum(openingTotal, 2)} />
               <StatCard icon={<CircleDollarSign />} title="الرصيد التقديري (مع المعلق)" value={fmtNum(estimatedTotal, 2)} />
               <StatCard icon={<AlertTriangle />} title="صافي الحركات المعلقة" value={fmtNum(pendingTotal, 2)} />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <ExternalSummaryCard />
-              <TotalLabFundsCard officialTotal={officialTotal} />
-            </div>
 
             <Card>
               <CardHeader><CardTitle>الرصيد حسب طريقة الدفع</CardTitle></CardHeader>
