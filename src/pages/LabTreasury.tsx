@@ -57,6 +57,9 @@ interface Movement {
   approved_by: string | null;
   approved_at: string | null;
   created_at: string;
+  source_table: string | null;
+  source_id: string | null;
+  source_ref: string | null;
 }
 
 interface DayClosure {
