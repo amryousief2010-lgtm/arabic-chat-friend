@@ -19,7 +19,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { Package, Warehouse, Factory, ArrowRightCircle, Plus, Trash2, Loader2 } from "lucide-react";
+import { Package, Warehouse, Factory, ArrowRightCircle, Plus, Trash2, Loader2, Pencil, History, Scale } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 interface RawRow { id: string; name_ar: string; default_unit: string; stock: number; avg_unit_cost: number; }
 interface FinishedRow { id: string; name_ar: string; current_stock: number; latest_unit_cost: number; sale_price: number | null; }
