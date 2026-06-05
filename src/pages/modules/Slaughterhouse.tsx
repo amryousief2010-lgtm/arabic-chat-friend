@@ -935,6 +935,38 @@ const Slaughterhouse = () => {
         </CardContent></Card>
       </div>
 
+      {/* اللحم المشفى — اللحم الذي وصل فعليًا للمخازن */}
+      <Card className="mb-6 border-emerald-400/40 bg-emerald-50/40 dark:bg-emerald-950/10">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Scale className="w-5 h-5 text-emerald-600" />
+            <h3 className="font-bold text-emerald-700 dark:text-emerald-400">اللحم المشفى (المُستلم في المخازن)</h3>
+            <span className="text-xs text-muted-foreground">— الكميات المقبولة جودة فقط، بعد استلامها في المخزن الرئيسي أو مخزن خامات مصنع اللحوم</span>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="rounded-lg border bg-background p-3">
+              <p className="text-xs text-muted-foreground">اللحم المشفى اليوم</p>
+              <p className="text-2xl font-bold text-emerald-700">{cleanMeatToday.toFixed(1)} <span className="text-sm">كجم</span></p>
+            </div>
+            <div className="rounded-lg border bg-background p-3">
+              <p className="text-xs text-muted-foreground">اللحم المشفى هذا الشهر</p>
+              <p className="text-2xl font-bold text-emerald-700">{cleanMeatMonth.toFixed(1)} <span className="text-sm">كجم</span></p>
+            </div>
+            <div className="rounded-lg border bg-background p-3">
+              <p className="text-xs text-muted-foreground">الوزن الحي اليوم</p>
+              <p className="text-2xl font-bold">{liveWeightToday.toFixed(1)} <span className="text-sm">كجم</span></p>
+            </div>
+            <div className="rounded-lg border bg-background p-3">
+              <p className="text-xs text-muted-foreground">نسبة التصافي (مشفى ÷ حي)</p>
+              <p className={`text-2xl font-bold ${cleanMeatYieldPct > 0 && cleanMeatYieldPct < 40 ? "text-red-600" : "text-emerald-700"}`}>
+                {cleanMeatYieldPct.toFixed(1)}%
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+
       {/* نعام نافق — شهر/سنة */}
       <Card className="mb-6 border-red-400/40 bg-red-50/30 dark:bg-red-950/10">
         <CardContent className="p-4">
