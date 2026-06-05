@@ -8923,6 +8923,9 @@ export type Database = {
           received_inventory_item_id: string | null
           received_status: string
           received_warehouse_id: string | null
+          reverse_movement_id: string | null
+          reversed_at: string | null
+          reversed_by: string | null
           standard_weight_kg: number
           total_cost: number | null
           unit_cost: number
@@ -8952,6 +8955,9 @@ export type Database = {
           received_inventory_item_id?: string | null
           received_status?: string
           received_warehouse_id?: string | null
+          reverse_movement_id?: string | null
+          reversed_at?: string | null
+          reversed_by?: string | null
           standard_weight_kg?: number
           total_cost?: number | null
           unit_cost?: number
@@ -8981,6 +8987,9 @@ export type Database = {
           received_inventory_item_id?: string | null
           received_status?: string
           received_warehouse_id?: string | null
+          reverse_movement_id?: string | null
+          reversed_at?: string | null
+          reversed_by?: string | null
           standard_weight_kg?: number
           total_cost?: number | null
           unit_cost?: number
@@ -11295,6 +11304,10 @@ export type Database = {
       }
       return_order_stock: {
         Args: { p_order_id: string; p_reason?: string }
+        Returns: Json
+      }
+      reverse_slaughter_receipt: {
+        Args: { p_output_id: string; p_reason?: string }
         Returns: Json
       }
       slaughter_daily_summary: { Args: { p_date: string }; Returns: Json }

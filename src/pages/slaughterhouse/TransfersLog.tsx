@@ -8,8 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Eye, Printer, FileSpreadsheet, FileText, Truck, Search, RefreshCw } from "lucide-react";
+import { Eye, Printer, FileSpreadsheet, FileText, Truck, Search, RefreshCw, Undo2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { openPrintWindow, escapeHtml, fmtNum, COMPANY_AR } from "@/lib/printPdf";
@@ -70,6 +71,8 @@ const destLabel = (warehouses: { id: string; name: string }[], branches: { id: s
 };
 
 export default function TransfersLog() {
+  const { role } = useAuth();
+  const canReverse = role === "general_manager" || role === "executive_manager" || role === "slaughterhouse_manager" || role === "warehouse_supervisor" || role === "meat_factory_manager";
   const [rows, setRows] = useState<Shipment[]>([]);
   const [warehouses, setWarehouses] = useState<{ id: string; name: string }[]>([]);
   const [branches, setBranches] = useState<{ id: string; name_ar: string }[]>([]);
@@ -145,6 +148,16 @@ export default function TransfersLog() {
       quality_status: o.quality_status,
       received_status: o.received_status,
     })));
+  };
+
+  const reverseReceipt = async (outputId: string, label: string) => {
+    const reason = window.prompt(`عكس حركة استلام الصنف "${label}"؟ سيتم خصم الكمية من المخزون وإثبات حركة تصحيح. اكتب السبب:`, "اختبار / تصحيح إدارة");
+    if (reason === null) return;
+    const { data, error } = await supabase.rpc("reverse_slaughter_receipt" as any, { p_output_id: outputId, p_reason: reason });
+    if (error) { toast.error(error.message); return; }
+    toast.success("تم عكس حركة الاستلام وخصم الكمية من المخزون.");
+    if (detail) await openDetails(detail);
+    fetchAll();
   };
 
   const exportExcel = () => {
@@ -367,6 +380,7 @@ export default function TransfersLog() {
                         <TableHead className="text-center">الحالة</TableHead>
                         <TableHead className="text-center">المرفوض</TableHead>
                         <TableHead>ملاحظات</TableHead>
+                        {canReverse && <TableHead className="text-center">إجراء</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -376,9 +390,23 @@ export default function TransfersLog() {
                           <TableCell className="text-center">{Number(i.weight_kg).toFixed(2)}</TableCell>
                           <TableCell className="text-center">{Number(i.unit_price).toFixed(2)}</TableCell>
                           <TableCell className="text-center font-semibold">{Number(i.total_value).toFixed(2)}</TableCell>
-                          <TableCell className="text-center"><Badge variant="outline" className="text-[10px]">{i.status}</Badge></TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="outline" className="text-[10px]">{i.status}</Badge>
+                            {i.received_status === "reversed" && <Badge className="text-[10px] mr-1 bg-amber-100 text-amber-800 border-0">معكوسة</Badge>}
+                          </TableCell>
                           <TableCell className="text-center text-xs text-destructive">{(Number(i.damaged_weight_kg || 0) + Number(i.quarantined_weight_kg || 0)).toFixed(2)}</TableCell>
                           <TableCell className="text-xs">{i.notes || "—"}</TableCell>
+                          {canReverse && (
+                            <TableCell className="text-center">
+                              {i.received_status === "received" && i.quality_status === "accepted" ? (
+                                <Button size="sm" variant="outline" onClick={() => reverseReceipt(i.id, i.cut_name_ar)}>
+                                  <Undo2 className="h-3 w-3 ml-1" />عكس
+                                </Button>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))}
                     </TableBody>
