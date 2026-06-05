@@ -1069,7 +1069,116 @@ export default function LabTreasury() {
                 </div>
               </CardContent>
             </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Users className="w-5 h-5" />التقارير التشغيلية المرتبطة</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex flex-wrap gap-2 items-end">
+                  <Field label="نوع التقرير">
+                    <Select value={opReportType} onValueChange={(v) => setOpReportType(v as any)}>
+                      <SelectTrigger className="w-64"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="hatching_customer">إيرادات التفريخ حسب العميل</SelectItem>
+                        <SelectItem value="hatching_batch">إيرادات التفريخ حسب الدفعة</SelectItem>
+                        <SelectItem value="chicksales_batch">مبيعات الكتاكيت حسب الدفعة</SelectItem>
+                        <SelectItem value="chicksales_customer">مبيعات الكتاكيت حسب العميل</SelectItem>
+                        <SelectItem value="net">صافي تشغيل المعمل والحضانات</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field label="من"><Input type="date" value={opFrom} onChange={(e) => setOpFrom(e.target.value)} /></Field>
+                  <Field label="إلى"><Input type="date" value={opTo} onChange={(e) => setOpTo(e.target.value)} /></Field>
+                </div>
+
+                {opReportType === "net" && opNet && (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <StatCard title="إيرادات التفريخ" value={fmtNum(opNet.hatching_income, 2)} icon={<TrendingUp />} />
+                    <StatCard title="إيرادات بيع الكتاكيت" value={fmtNum(opNet.chick_sales_income, 2)} icon={<Boxes />} />
+                    <StatCard title="إيرادات أخرى" value={fmtNum(opNet.other_income, 2)} />
+                    <StatCard title="إجمالي الإيرادات" value={fmtNum(opNet.total_income, 2)} accent />
+                    <StatCard title="إجمالي المصروفات" value={fmtNum(opNet.total_expense, 2)} icon={<TrendingDown />} />
+                    <StatCard title="صافي التشغيل" value={fmtNum(opNet.net_operation, 2)} accent />
+                    <StatCard title="إيرادات معلقة" value={fmtNum(opNet.pending_income, 2)} icon={<AlertTriangle />} />
+                    <StatCard title="مصروفات معلقة" value={fmtNum(opNet.pending_expense, 2)} icon={<AlertTriangle />} />
+                  </div>
+                )}
+
+                {opReportType !== "net" && (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          {opReportType === "hatching_customer" && <>
+                            <TableHead>العميل</TableHead><TableHead>عدد الحركات</TableHead>
+                            <TableHead className="text-end">إجمالي</TableHead>
+                            <TableHead className="text-end">المعتمد</TableHead>
+                            <TableHead className="text-end">المعلق</TableHead>
+                          </>}
+                          {opReportType === "hatching_batch" && <>
+                            <TableHead>الدفعة / المرجع</TableHead><TableHead>العميل</TableHead>
+                            <TableHead>عدد الحركات</TableHead>
+                            <TableHead className="text-end">إجمالي</TableHead>
+                            <TableHead className="text-end">المعتمد</TableHead>
+                          </>}
+                          {opReportType === "chicksales_batch" && <>
+                            <TableHead>الدفعة</TableHead><TableHead>عدد المبيعات</TableHead>
+                            <TableHead className="text-end">إجمالي الكتاكيت</TableHead>
+                            <TableHead className="text-end">إجمالي</TableHead>
+                            <TableHead className="text-end">المعتمد</TableHead>
+                          </>}
+                          {opReportType === "chicksales_customer" && <>
+                            <TableHead>العميل</TableHead><TableHead>عدد المبيعات</TableHead>
+                            <TableHead className="text-end">إجمالي الكتاكيت</TableHead>
+                            <TableHead className="text-end">إجمالي</TableHead>
+                            <TableHead className="text-end">المعتمد</TableHead>
+                          </>}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {opRows.length === 0 ? (
+                          <TableRow><TableCell colSpan={5} className="text-center py-6 text-muted-foreground">لا توجد بيانات</TableCell></TableRow>
+                        ) : opRows.map((r, i) => (
+                          <TableRow key={i}>
+                            {opReportType === "hatching_customer" && <>
+                              <TableCell>{r.customer_name}</TableCell>
+                              <TableCell>{r.movements_count}</TableCell>
+                              <TableCell className="text-end font-mono">{fmtNum(r.total_amount, 2)}</TableCell>
+                              <TableCell className="text-end font-mono">{fmtNum(r.approved_amount || 0, 2)}</TableCell>
+                              <TableCell className="text-end font-mono">{fmtNum(r.pending_amount || 0, 2)}</TableCell>
+                            </>}
+                            {opReportType === "hatching_batch" && <>
+                              <TableCell className="text-xs">{r.batch_ref}</TableCell>
+                              <TableCell>{r.customer_name}</TableCell>
+                              <TableCell>{r.movements_count}</TableCell>
+                              <TableCell className="text-end font-mono">{fmtNum(r.total_amount, 2)}</TableCell>
+                              <TableCell className="text-end font-mono">{fmtNum(r.approved_amount || 0, 2)}</TableCell>
+                            </>}
+                            {opReportType === "chicksales_batch" && <>
+                              <TableCell className="text-xs">{r.batch_ref}</TableCell>
+                              <TableCell>{r.sales_count}</TableCell>
+                              <TableCell className="text-end font-mono">{fmtNum(r.total_chicks || 0, 0)}</TableCell>
+                              <TableCell className="text-end font-mono">{fmtNum(r.total_amount, 2)}</TableCell>
+                              <TableCell className="text-end font-mono">{fmtNum(r.approved_amount || 0, 2)}</TableCell>
+                            </>}
+                            {opReportType === "chicksales_customer" && <>
+                              <TableCell>{r.customer_name}</TableCell>
+                              <TableCell>{r.sales_count}</TableCell>
+                              <TableCell className="text-end font-mono">{fmtNum(r.total_chicks || 0, 0)}</TableCell>
+                              <TableCell className="text-end font-mono">{fmtNum(r.total_amount, 2)}</TableCell>
+                              <TableCell className="text-end font-mono">{fmtNum(r.approved_amount || 0, 2)}</TableCell>
+                            </>}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
+
 
           {/* Audit */}
           {isManager && (
