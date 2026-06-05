@@ -23,6 +23,7 @@ import {
   ShieldAlert, ScrollText, AlertTriangle, FileCheck2, Link as LinkIcon, Users, Boxes,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { OpeningBalancesPanel, ExternalCollectionsPanel, ExternalSummaryCard, TotalLabFundsCard } from "@/pages/lab-treasury/LabTreasuryExtras";
 
 type PaymentMethod = "cash" | "vodafone_cash" | "instapay" | "bank_transfer";
 type MovementType = "income" | "expense";
