@@ -117,22 +117,34 @@ export default function TransfersLog() {
   const openDetails = async (s: Shipment) => {
     setDetail(s);
     setItems([]);
+    // Shipment is a minute-bucket of received outputs — re-derive the same window
+    const bucketStart = new Date(s.transferred_at);
+    bucketStart.setSeconds(0, 0);
+    const bucketEnd = new Date(bucketStart.getTime() + 60_000);
     const { data, error } = await supabase
-      .from("slaughter_branch_transfers" as any)
-      .select("id,cut_name_ar,weight_kg,unit_price,total_value,status,notes,output_id,transferred_at")
-      .eq("batch_id", s.batch_id).eq("branch_id", s.branch_id).eq("transferred_at", s.transferred_at);
+      .from("slaughter_batch_outputs" as any)
+      .select("id,cut_name_ar,actual_weight_kg,unit_price,unit_cost,damaged_weight_kg,quarantined_weight_kg,package_count,quality_status,received_status,notes")
+      .eq("batch_id", s.batch_id)
+      .eq("received_warehouse_id", s.branch_id)
+      .gte("received_at", bucketStart.toISOString())
+      .lt("received_at", bucketEnd.toISOString());
     if (error) { toast.error(error.message); return; }
-    const transfers = (data as any[]) || [];
-    const outputIds = transfers.map((t) => t.output_id).filter(Boolean);
-    let outputsMap: Record<string, any> = {};
-    if (outputIds.length) {
-      const { data: outs } = await supabase
-        .from("slaughter_batch_outputs" as any)
-        .select("id,damaged_weight_kg,quarantined_weight_kg,package_count,quality_status,received_status")
-        .in("id", outputIds);
-      (outs as any[] || []).forEach((o: any) => { outputsMap[o.id] = o; });
-    }
-    setItems(transfers.map((t) => ({ ...t, ...(t.output_id ? outputsMap[t.output_id] || {} : {}) })));
+    const rows = (data as any[]) || [];
+    setItems(rows.map((o) => ({
+      id: o.id,
+      cut_name_ar: o.cut_name_ar,
+      weight_kg: Number(o.actual_weight_kg) || 0,
+      unit_price: Number(o.unit_price) || 0,
+      total_value: (Number(o.actual_weight_kg) || 0) * (Number(o.unit_price) || 0),
+      status: o.quality_status === "rejected" ? "مرفوض" : o.quality_status === "quarantine" ? "حجر" : "مقبول",
+      notes: o.notes,
+      output_id: o.id,
+      damaged_weight_kg: o.damaged_weight_kg,
+      quarantined_weight_kg: o.quarantined_weight_kg,
+      package_count: o.package_count,
+      quality_status: o.quality_status,
+      received_status: o.received_status,
+    })));
   };
 
   const exportExcel = () => {
