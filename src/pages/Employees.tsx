@@ -83,6 +83,7 @@ const roleLabels: Record<AppRole, string> = {
   private_delivery_rep: 'مندوب شحن خاص',
   agouza_warehouse_keeper: 'مسؤول مخزن العجوزة',
   brooding_dashboard_viewer: 'مشاهد لوحة التحضين (عرض فقط)',
+  lab_treasury_keeper: 'أمين خزنة المعمل والحضانات',
 };
 
 const roleBadgeVariants: Record<AppRole, 'default' | 'secondary' | 'outline' | 'destructive'> = {
@@ -107,6 +108,7 @@ const roleBadgeVariants: Record<AppRole, 'default' | 'secondary' | 'outline' | '
   private_delivery_rep: 'outline',
   agouza_warehouse_keeper: 'outline',
   brooding_dashboard_viewer: 'outline',
+  lab_treasury_keeper: 'outline',
 };
 
 const roleIcons: Record<AppRole, React.ElementType> = {
