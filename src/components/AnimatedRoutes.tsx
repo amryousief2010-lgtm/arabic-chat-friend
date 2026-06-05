@@ -490,6 +490,11 @@ const AnimatedRoutes = () => {
               <PageTransition><Hatchery /></PageTransition>
             </ProtectedRoute>
           } />
+          <Route path="/modules/hatchery-lab" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'hatchery_manager', 'production_manager', 'quality_manager', 'accountant']}>
+              <PageTransition><HatcheryLab /></PageTransition>
+            </ProtectedRoute>
+          } />
           <Route path="/hatchery/payments" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'hatchery_manager', 'production_manager', 'farm_manager', 'accountant', 'financial_manager']}>
               <PageTransition><HatcheryPayments /></PageTransition>
