@@ -863,7 +863,10 @@ const Slaughterhouse = () => {
     <DashboardLayout>
       <Header title="إدارة المجزر" subtitle="استلام النعام، تفريغة الذبح اليومي، التقسيمة والتوزيع على الفروع" />
 
-      <div className="flex justify-end mb-3">
+      <div className="flex justify-end gap-2 mb-3 flex-wrap">
+        <Button asChild variant="outline" size="sm">
+          <a href="/modules/slaughterhouse/transfers"><Truck className="w-4 h-4 ml-1" />سجل نقل اللحوم</a>
+        </Button>
         <RequestCorrectionDialog
           targetModule="المجزر"
           targetType="slaughterhouse"
