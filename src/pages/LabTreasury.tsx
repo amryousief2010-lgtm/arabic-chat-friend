@@ -645,6 +645,8 @@ export default function LabTreasury() {
             {canApprove && <TabsTrigger value="approvals">الاعتمادات</TabsTrigger>}
             <TabsTrigger value="daily">التقرير اليومي</TabsTrigger>
             <TabsTrigger value="closures">إقفال الأيام</TabsTrigger>
+            <TabsTrigger value="openings">الأرصدة الافتتاحية</TabsTrigger>
+            <TabsTrigger value="external">التحصيلات الخارجية</TabsTrigger>
             <TabsTrigger value="reports">التقارير</TabsTrigger>
             {isManager && <TabsTrigger value="audit">سجل التدقيق</TabsTrigger>}
           </TabsList>
