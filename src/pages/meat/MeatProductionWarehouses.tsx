@@ -277,7 +277,7 @@ export default function MeatProductionWarehouses() {
                   <ProductionDialog
                     open={prodOpen}
                     onOpenChange={setProdOpen}
-                    rawMaterials={rawQ.data || []}
+                    rawMaterials={(rawQ.data || []).filter((r) => r.is_active)}
                     products={finishedQ.data || []}
                     onSaved={refreshAll}
                   />
