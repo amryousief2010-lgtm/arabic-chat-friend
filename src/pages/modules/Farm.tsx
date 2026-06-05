@@ -121,12 +121,13 @@ const Farm = () => {
         </div>
 
         <Tabs defaultValue="dashboard" dir="rtl">
-          <TabsList className="grid grid-cols-2 md:grid-cols-7 w-full">
+          <TabsList className="grid grid-cols-2 md:grid-cols-8 w-full">
             <TabsTrigger value="dashboard"><LayoutDashboard className="w-4 h-4 ml-1" />لوحة التحكم</TabsTrigger>
             <TabsTrigger value="families"><Users className="w-4 h-4 ml-1" />الأسر</TabsTrigger>
             <TabsTrigger value="eggs"><Egg className="w-4 h-4 ml-1" />الإنتاج اليومي</TabsTrigger>
             <TabsTrigger value="transfers"><Truck className="w-4 h-4 ml-1" />نقل للمعمل</TabsTrigger>
-            <TabsTrigger value="feed"><Wheat className="w-4 h-4 ml-1" />العلف</TabsTrigger>
+            <TabsTrigger value="feed_inventory"><Wheat className="w-4 h-4 ml-1" />مخزون العلف</TabsTrigger>
+            <TabsTrigger value="feed"><Wheat className="w-4 h-4 ml-1" />سجل العلف اليومي</TabsTrigger>
             <TabsTrigger value="meds"><Syringe className="w-4 h-4 ml-1" />الأدوية</TabsTrigger>
             <TabsTrigger value="charts"><BarChart3 className="w-4 h-4 ml-1" />تحليلات</TabsTrigger>
           </TabsList>
@@ -135,6 +136,7 @@ const Farm = () => {
           <TabsContent value="families"><FamiliesTab families={families} qc={qc} /></TabsContent>
           <TabsContent value="eggs"><EggsTab eggs={eggs} families={families} qc={qc} /></TabsContent>
           <TabsContent value="transfers"><TransfersTab transfers={transfers} families={families} qc={qc} /></TabsContent>
+          <TabsContent value="feed_inventory"><MotherFarmFeedInventory /></TabsContent>
           <TabsContent value="feed"><FeedTab logs={feedLogs} qc={qc} /></TabsContent>
           <TabsContent value="meds"><MedsTab meds={meds} families={families} qc={qc} /></TabsContent>
           <TabsContent value="charts"><ChartsTab eggs={eggs} transfers={transfers} families={families} /></TabsContent>
