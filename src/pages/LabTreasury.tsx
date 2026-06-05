@@ -815,15 +815,16 @@ export default function LabTreasury() {
                       <TableHead>منصرف</TableHead>
                       <TableHead>طريقة</TableHead>
                       <TableHead>الحالة</TableHead>
+                      <TableHead>المصدر</TableHead>
                       <TableHead>سجّل بواسطة</TableHead>
                       {isManager && <TableHead>إجراءات</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {loading ? (
-                      <TableRow><TableCell colSpan={isManager ? 9 : 8} className="text-center py-8">جارٍ التحميل...</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={isManager ? 10 : 9} className="text-center py-8">جارٍ التحميل...</TableCell></TableRow>
                     ) : filtered.length === 0 ? (
-                      <TableRow><TableCell colSpan={isManager ? 9 : 8} className="text-center py-8 text-muted-foreground">لا توجد حركات</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={isManager ? 10 : 9} className="text-center py-8 text-muted-foreground">لا توجد حركات</TableCell></TableRow>
                     ) : filtered.map((m) => (
                       <TableRow key={m.id} className={closedDates.has(m.movement_date) ? "bg-muted/30" : ""}>
                         <TableCell>
@@ -843,6 +844,13 @@ export default function LabTreasury() {
                         <TableCell className="font-mono">{m.movement_type === "expense" ? fmtNum(m.amount, 2) : "—"}</TableCell>
                         <TableCell>{PAYMENT_LABELS[m.payment_method]}</TableCell>
                         <TableCell><StatusBadge s={m.status} /></TableCell>
+                        <TableCell className="text-xs">
+                          {m.source_table ? (
+                            <Button size="sm" variant="link" className="h-auto p-0 text-xs gap-1" onClick={() => openSource(m)}>
+                              <LinkIcon className="w-3 h-3" />{m.source_ref || "عرض المصدر"}
+                            </Button>
+                          ) : "—"}
+                        </TableCell>
                         <TableCell className="text-xs">{profiles[m.created_by || ""] || "—"}</TableCell>
                         {isManager && (
                           <TableCell>
