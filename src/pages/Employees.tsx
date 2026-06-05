@@ -83,6 +83,7 @@ const roleLabels: Record<AppRole, string> = {
   private_delivery_rep: 'مندوب شحن خاص',
   agouza_warehouse_keeper: 'مسؤول مخزن العجوزة',
   brooding_dashboard_viewer: 'مشاهد لوحة التحضين (عرض فقط)',
+  lab_treasury_keeper: 'أمين خزنة المعمل والحضانات',
 };
 
 const roleBadgeVariants: Record<AppRole, 'default' | 'secondary' | 'outline' | 'destructive'> = {
@@ -107,6 +108,7 @@ const roleBadgeVariants: Record<AppRole, 'default' | 'secondary' | 'outline' | '
   private_delivery_rep: 'outline',
   agouza_warehouse_keeper: 'outline',
   brooding_dashboard_viewer: 'outline',
+  lab_treasury_keeper: 'outline',
 };
 
 const roleIcons: Record<AppRole, React.ElementType> = {
@@ -131,13 +133,14 @@ const roleIcons: Record<AppRole, React.ElementType> = {
   private_delivery_rep: Truck,
   agouza_warehouse_keeper: Warehouse,
   brooding_dashboard_viewer: Users,
+  lab_treasury_keeper: Calculator,
 };
 
 const addEmployeeSchema = z.object({
   fullName: z.string().min(2, 'الاسم يجب أن يكون حرفين على الأقل').max(100),
   email: z.string().email('البريد الإلكتروني غير صالح').max(255),
   password: z.string().min(6, 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'),
-  role: z.enum(['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'accountant', 'warehouse_supervisor', 'farm_manager', 'hatchery_manager', 'brooding_manager', 'slaughterhouse_manager', 'meat_factory_manager', 'feed_factory_manager', 'hr_manager', 'production_manager', 'marketing_sales_manager', 'financial_manager', 'quality_manager', 'shipping_company', 'private_delivery_rep']),
+  role: z.enum(['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'accountant', 'warehouse_supervisor', 'farm_manager', 'hatchery_manager', 'brooding_manager', 'slaughterhouse_manager', 'meat_factory_manager', 'feed_factory_manager', 'hr_manager', 'production_manager', 'marketing_sales_manager', 'financial_manager', 'quality_manager', 'shipping_company', 'private_delivery_rep', 'lab_treasury_keeper']),
 });
 
 const Employees = () => {

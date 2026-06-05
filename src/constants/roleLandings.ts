@@ -27,6 +27,7 @@ export const ROLE_LANDING: Record<AppRole, string> = {
   private_delivery_rep: "/orders",
   agouza_warehouse_keeper: "/warehouse-stock/agouza",
   brooding_dashboard_viewer: "/modules/brooding",
+  lab_treasury_keeper: "/lab-treasury",
 };
 
 export const getLandingForRole = (role?: AppRole | null): string =>

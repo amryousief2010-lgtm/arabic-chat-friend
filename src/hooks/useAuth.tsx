@@ -23,7 +23,8 @@ export type AppRole =
   | 'shipping_company'
   | 'private_delivery_rep'
   | 'agouza_warehouse_keeper'
-  | 'brooding_dashboard_viewer';
+  | 'brooding_dashboard_viewer'
+  | 'lab_treasury_keeper';
 
 interface UserProfile {
   id: string;
