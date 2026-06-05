@@ -1200,7 +1200,7 @@ export default function LabTreasury() {
 
 
           {/* Audit */}
-          {isManager && (
+          {canApprove && (
             <TabsContent value="audit" className="space-y-3">
               <Card>
                 <CardHeader><CardTitle className="flex items-center gap-2"><ScrollText className="w-5 h-5" />سجل التدقيق - آخر 500 حدث</CardTitle></CardHeader>
