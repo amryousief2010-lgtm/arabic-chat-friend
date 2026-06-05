@@ -222,7 +222,7 @@ export default function TransfersLog() {
 
   return (
     <DashboardLayout>
-      <Header />
+      <Header title="سجل نقل اللحوم" subtitle="إدارة المجزر" />
       <div dir="rtl" className="p-4 md:p-6 space-y-4">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
