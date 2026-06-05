@@ -12,8 +12,8 @@ import { Eye, Printer, FileSpreadsheet, FileText, Truck, Search, RefreshCw } fro
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
-import { openPrintWindow, escapeHtml, fmtNum, fmtDate, COMPANY_AR } from "@/lib/printPdf";
-import { formatDateTime, formatDate } from "@/lib/dateFormat";
+import { openPrintWindow, escapeHtml, fmtNum, COMPANY_AR } from "@/lib/printPdf";
+import { formatDateTime } from "@/lib/dateFormat";
 
 type Shipment = {
   shipment_no: string;
