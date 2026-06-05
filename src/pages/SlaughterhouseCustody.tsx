@@ -19,8 +19,9 @@ import { openPrintWindow, escapeHtml, fmtNum, fmtDate } from "@/lib/printPdf";
 import * as XLSX from "xlsx";
 import {
   Wallet, Plus, ShieldAlert, CheckCircle2, XCircle, MessageSquare, Upload,
-  Printer, FileSpreadsheet, AlertTriangle, ScrollText, Beef,
+  Printer, FileSpreadsheet, AlertTriangle, ScrollText, Beef, Sparkles, Clock, Activity, Receipt, TrendingDown,
 } from "lucide-react";
+import { PremiumStat, HeroSummary, SectionTitle, StatusPill, DashboardSkeleton, EmptyState, ActivityTimeline, ProgressRing, getCairoNow } from "@/components/treasury/PremiumUI";
 
 type PM = "cash" | "vodafone_cash" | "instapay" | "bank_transfer";
 type Status = "pending_review" | "clarification_needed" | "approved" | "rejected" | "over_limit_pending";
