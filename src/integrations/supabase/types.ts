@@ -9053,6 +9053,9 @@ export type Database = {
           actual_yield_pct: number | null
           batch_number: string
           birds_slaughtered: number
+          butcher_1_id: string | null
+          butcher_2_id: string | null
+          butcher_3_id: string | null
           cost_per_kg_meat: number
           created_at: string
           created_by: string | null
@@ -9081,6 +9084,9 @@ export type Database = {
           actual_yield_pct?: number | null
           batch_number: string
           birds_slaughtered?: number
+          butcher_1_id?: string | null
+          butcher_2_id?: string | null
+          butcher_3_id?: string | null
           cost_per_kg_meat?: number
           created_at?: string
           created_by?: string | null
@@ -9109,6 +9115,9 @@ export type Database = {
           actual_yield_pct?: number | null
           batch_number?: string
           birds_slaughtered?: number
+          butcher_1_id?: string | null
+          butcher_2_id?: string | null
+          butcher_3_id?: string | null
           cost_per_kg_meat?: number
           created_at?: string
           created_by?: string | null
@@ -9134,6 +9143,27 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "slaughter_batches_butcher_1_id_fkey"
+            columns: ["butcher_1_id"]
+            isOneToOne: false
+            referencedRelation: "slaughter_workers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slaughter_batches_butcher_2_id_fkey"
+            columns: ["butcher_2_id"]
+            isOneToOne: false
+            referencedRelation: "slaughter_workers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slaughter_batches_butcher_3_id_fkey"
+            columns: ["butcher_3_id"]
+            isOneToOne: false
+            referencedRelation: "slaughter_workers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "slaughter_batches_live_receipt_id_fkey"
             columns: ["live_receipt_id"]
@@ -9520,6 +9550,7 @@ export type Database = {
           hire_date: string | null
           id: string
           is_active: boolean
+          lead_rank: number | null
           national_id: string | null
           notes: string | null
           phone: string | null
@@ -9533,6 +9564,7 @@ export type Database = {
           hire_date?: string | null
           id?: string
           is_active?: boolean
+          lead_rank?: number | null
           national_id?: string | null
           notes?: string | null
           phone?: string | null
@@ -9546,6 +9578,7 @@ export type Database = {
           hire_date?: string | null
           id?: string
           is_active?: boolean
+          lead_rank?: number | null
           national_id?: string | null
           notes?: string | null
           phone?: string | null
@@ -10304,6 +10337,62 @@ export type Database = {
           warehouse_name: string | null
         }
         Relationships: []
+      }
+      v_slaughter_transfer_shipments: {
+        Row: {
+          batch_id: string | null
+          batch_number: string | null
+          branch_id: string | null
+          butcher_1_id: string | null
+          butcher_2_id: string | null
+          butcher_3_id: string | null
+          created_at: string | null
+          items_count: number | null
+          received_at: string | null
+          shipment_no: string | null
+          shipment_status: string | null
+          slaughter_date: string | null
+          total_kg: number | null
+          total_value: number | null
+          transferred_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slaughter_batches_butcher_1_id_fkey"
+            columns: ["butcher_1_id"]
+            isOneToOne: false
+            referencedRelation: "slaughter_workers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slaughter_batches_butcher_2_id_fkey"
+            columns: ["butcher_2_id"]
+            isOneToOne: false
+            referencedRelation: "slaughter_workers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slaughter_batches_butcher_3_id_fkey"
+            columns: ["butcher_3_id"]
+            isOneToOne: false
+            referencedRelation: "slaughter_workers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slaughter_branch_transfers_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "slaughter_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slaughter_branch_transfers_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       v_stock_reconciliation: {
         Row: {

@@ -296,6 +296,10 @@ const Slaughterhouse = () => {
     const payload: any = { ...data, batch_number, created_by: user?.id };
     if (!payload.live_receipt_id) delete payload.live_receipt_id;
     if (!payload.start_time) delete payload.start_time;
+    // Convert empty butcher selections to null (UUID columns reject "")
+    for (const k of ["butcher_1_id", "butcher_2_id", "butcher_3_id"]) {
+      if (!payload[k]) payload[k] = null;
+    }
     const { error } = await supabase.from("slaughter_batches" as any).insert(payload);
     if (error) { toast.error(error.message); return false; }
     toast.success("تم إنشاء دفعة الذبح");
@@ -859,7 +863,10 @@ const Slaughterhouse = () => {
     <DashboardLayout>
       <Header title="إدارة المجزر" subtitle="استلام النعام، تفريغة الذبح اليومي، التقسيمة والتوزيع على الفروع" />
 
-      <div className="flex justify-end mb-3">
+      <div className="flex justify-end gap-2 mb-3 flex-wrap">
+        <Button asChild variant="outline" size="sm">
+          <a href="/modules/slaughterhouse/transfers"><Truck className="w-4 h-4 ml-1" />سجل نقل اللحوم</a>
+        </Button>
         <RequestCorrectionDialog
           targetModule="المجزر"
           targetType="slaughterhouse"
@@ -1055,6 +1062,7 @@ const Slaughterhouse = () => {
                 open={batchOpen}
                 onOpenChange={setBatchOpen}
                 receipts={receipts}
+                workers={workers as any}
                 onSave={async (draft) => saveBatch(draft as any)}
               />
             </CardHeader>
