@@ -84,6 +84,8 @@ const roleLabels: Record<AppRole, string> = {
   agouza_warehouse_keeper: 'مسؤول مخزن العجوزة',
   brooding_dashboard_viewer: 'مشاهد لوحة التحضين (عرض فقط)',
   lab_treasury_keeper: 'أمين خزنة المعمل والحضانات',
+  lab_external_collector: 'محصل خارجي - خزنة المعمل',
+  lab_treasury_approver: 'معتمد خزنة المعمل والحضانات',
 };
 
 const roleBadgeVariants: Record<AppRole, 'default' | 'secondary' | 'outline' | 'destructive'> = {
