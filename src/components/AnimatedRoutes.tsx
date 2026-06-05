@@ -142,6 +142,7 @@ const StockReconciliation = lazy(() => import("@/pages/StockReconciliation"));
 const PrivateDeliveryCollection = lazy(() => import("@/pages/PrivateDeliveryCollection"));
 const ChickOrders = lazy(() => import("@/pages/ChickOrders"));
 const MainWarehouseActivity = lazy(() => import("@/pages/MainWarehouseActivity"));
+const LabTreasury = lazy(() => import("@/pages/LabTreasury"));
 
 const RedirectWithQuery = ({ to }: { to: string }) => {
   const location = useLocation();
@@ -493,6 +494,11 @@ const AnimatedRoutes = () => {
           <Route path="/modules/hatchery-lab" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'hatchery_manager', 'production_manager', 'quality_manager', 'accountant']}>
               <PageTransition><HatcheryLab /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/lab-treasury" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper']}>
+              <PageTransition><LabTreasury /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/hatchery/payments" element={

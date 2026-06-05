@@ -117,9 +117,10 @@ export const moduleSections: ModuleSection[] = [
     id: "hatchery",
     icon: FlaskConical,
     label: "3. المعمل وتفريغ الكتاكيت",
-    roles: ['general_manager', 'executive_manager', 'hatchery_manager', 'production_manager', 'quality_manager'],
+    roles: ['general_manager', 'executive_manager', 'hatchery_manager', 'production_manager', 'quality_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper'],
     items: [
       { icon: FlaskConical, label: "معمل التفريخ والحضانات", path: "/modules/hatchery-lab", roles: ['general_manager', 'executive_manager', 'hatchery_manager', 'production_manager', 'quality_manager', 'accountant'] },
+      { icon: Wallet, label: "خزنة المعمل والحضانات", path: "/lab-treasury", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper'] },
       // الصفحات القديمة متاحة للمدير العام فقط للمراجعة (الـ Routes لا تزال تعمل)
       { icon: FlaskConical, label: "إدارة المعمل (أرشيف)", path: "/hatchery", roles: ['general_manager'] },
       { icon: Wallet, label: "دفعات عملاء المعمل (أرشيف)", path: "/hatchery/payments", roles: ['general_manager'] },
