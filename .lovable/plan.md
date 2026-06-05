@@ -1,104 +1,96 @@
-# خطة نظام معمل التفريخ والحضانات
+# خزنة المعمل والحضانات
 
-## 1. قاعدة البيانات (Migration واحدة)
+نظام خزنة مالية مستقلة تمامًا لإيرادات ومصروفات معمل التفريخ وحضانات الكتاكيت، المسؤول عنها: محمد خالد.
 
-### جدول الإعدادات `hatchery_pricing_settings` (صف واحد)
-- `infertile_egg_price` (افتراضي 50)
-- `chick_price` (افتراضي 150)
-- `completed_unhatched_price` (افتراضي 100)
-- `daily_brooding_price` (افتراضي 15)
-- `candling_day` (افتراضي 15)
-- `transfer_to_hatcher_day` (افتراضي 39)
-- `hatcher_duration_hours` (افتراضي 24)
+## 1) قاعدة البيانات (Migration واحد)
 
-### جدول `hatchery_batches`
-- `batch_number` (تلقائي), `entry_date`, `batch_type` (`internal` | `external` | `mixed`), `incubator_machine_no`, `notes`, `status` (`incubating` | `candled` | `in_hatcher` | `in_brooding` | `closed` | `cancelled`), `created_by`
-- حقول مجمعة محسوبة: `total_eggs_in`, `candle_date`, `hatcher_date`
+### Enums جديدة
+- `lab_treasury_payment_method`: `cash` | `vodafone_cash` | `instapay` | `bank_transfer`
+- `lab_treasury_movement_type`: `income` | `expense`
+- `lab_treasury_status`: `pending` | `approved` | `rejected`
+- `lab_treasury_income_category`: `hatching` | `chick_sales` | `other`
+- `lab_treasury_expense_category`: `electricity` | `maintenance` | `water` | `salaries_mother_farm` | `salaries_hatchery` | `salaries_brooding` | `medicine` | `feed_supplies` | `tools` | `transport` | `other`
 
-### جدول `hatchery_batch_lots` (كل عميل/مصدر داخل الدفعة)
-- `batch_id`, `owner_type` (`capital_ostrich` | `external_client`), `client_id` (nullable → جدول `hatch_customers` الحالي)
-- `source` (`mother_farm` | `external`), `eggs_in`
-- نتائج الكشف: `infertile_eggs`, `infertile_edible`, `infertile_inedible`, `fertile_eggs`, `candling_notes`, `candling_recorded_at`, `candling_by`
-- نتائج الهاتشر: `chicks_hatched`, `completed_unhatched`, `hatcher_out_at`, `hatcher_out_by`, `hatcher_machine_no`
-- الحضانات: `brooding_in_at`, `brooding_out_at`, `brooding_days` (محسوب أو يدوي عند الخروج)
-- الفوترة: `invoice_id` (nullable)
+### جدول `lab_treasury_movements`
+حقول الأعمال:
+- `movement_type` (enum) — إيراد/مصروف
+- `movement_date` (date) + `created_at` (timestamptz)
+- `income_category` / `expense_category` (nullable حسب النوع)
+- `customer_name`، `units_count` (numeric, nullable)، `unit_price` (numeric, nullable)
+- `amount` (numeric, > 0)
+- `payment_method` (enum)
+- `description`، `beneficiary`، `notes`
+- `receipt_url` (text — صورة إيصال على Storage)
+- `status` (enum, default `pending`)
+- `created_by` (uuid → auth.users)، `approved_by`، `approved_at`، `rejection_reason`
+- `balance_after` (numeric) — يحتسبه Trigger للحركات المعتمدة فقط
 
-### جدول `hatchery_batch_movements`
-سجل كل عملية: `batch_id`, `lot_id`, `event_type` (`created` | `candling` | `transferred_to_hatcher` | `hatched` | `moved_to_brooding` | `delivered` | `cancelled`), `payload` jsonb, `created_by`, `created_at`
+Trigger validation: إذا `movement_type = income` يجب وجود `income_category`، وإذا `expense` يجب `expense_category`. لا CHECK constraints على تواريخ.
 
-### جدول `hatchery_client_invoices`
-- `invoice_no`, `client_id`, `batch_id`, `lot_id`
-- `eggs_in`, `infertile_count`, `infertile_amount`
-- `chicks_count`, `chicks_amount`
-- `completed_unhatched_count`, `completed_unhatched_amount`
-- `brooding_chicks_count`, `brooding_days`, `brooding_daily_price`, `brooding_amount`
-- `total_amount`, `paid_amount`, `remaining_amount` (محسوب), `payment_status`
-- `notes`, `issued_at`, `issued_by`
+Trigger للرصيد: عند تحديث الحالة إلى `approved`، يحسب `balance_after` بناءً على ترتيب التاريخ.
 
-### جدول `hatchery_invoice_payments`
-- `invoice_id`, `amount`, `paid_at`, `method`, `notes`, `received_by`
+### Storage Bucket
+`lab-treasury-receipts` (private) مع RLS للقراءة لنفس الأدوار.
+
+### GRANTs + RLS
+- GRANT SELECT/INSERT/UPDATE/DELETE on `lab_treasury_movements` to `authenticated`، ALL to `service_role`.
+- RLS:
+  - **SELECT**: `general_manager`, `executive_manager`, `accountant`, `financial_manager`, أو `created_by = auth.uid()` (لمحمد خالد).
+  - **INSERT**: نفس الأدوار أعلاه + المستخدم الخاص بمحمد خالد. الحركة تُنشأ دائمًا بحالة `pending`.
+  - **UPDATE (اعتماد/رفض/تعديل/حذف)**: `general_manager`, `executive_manager` فقط. `accountant` للقراءة فقط.
+  - **DELETE**: `general_manager` فقط.
 
 ### Views
-- `v_hatchery_dashboard_kpis` — كروت الداشبورد
-- `v_hatchery_client_balances` — مديونية كل عميل
-- `v_hatchery_batches_full` — كل دفعة مع تواريخ الكشف والهاتشر والحالة
+- `v_lab_treasury_balances`: رصيد لكل طريقة دفع + الإجمالي (من المعتمدة فقط) + رصيد تقديري شامل المعلقة.
+- `v_lab_treasury_dashboard`: كروت اليوم/الشهر، إيرادات/مصروفات، صافي، أعلى بند، إجماليات التفريخ والكتاكيت.
 
-### Functions
-- `compute_hatchery_invoice(lot_id)` — تحسب القيم وفق الإعدادات الحالية وتنشئ/تحدث الفاتورة
-- `cancel_hatchery_batch(batch_id, reason)` — إلغاء بدلاً من حذف
+## 2) الواجهة الأمامية
 
-### RLS & GRANT
-- العرض: كل المستخدمين المسجلين
-- التعديل (دفعات/كشف/نقل/فواتير/إعدادات): `general_manager`, `executive_manager`, `hatchery_supervisor`
-- المدفوعات + قراءة الفواتير: نفس الأدوار + `accountant`
+### صفحة جديدة `/lab-treasury` (مكوّن `src/pages/LabTreasury.tsx`)
+تابات داخلية:
+1. **Dashboard** — كل الكروت المطلوبة (إجمالي/نقدي/فودافون/إنستا/بنكي، يوم/شهر، أعلى بند، إيرادات التفريخ/الكتاكيت).
+2. **إضافة إيراد** — Dialog أو نموذج جانبي (نوع الإيراد، عميل، عدد، سعر، إجمالي تلقائي، طريقة دفع، ملاحظات، رفع إيصال).
+3. **إضافة مصروف** — نموذج (بند، مبلغ، طريقة دفع، وصف، مستفيد، إيصال).
+4. **سجل الحركات** — جدول كشف حساب (تاريخ، نوع، بيان، وارد، منصرف، طريقة، رصيد بعد، مستخدم، حالة، ملاحظات، تفاصيل) + فلاتر كاملة (من/إلى، نوع، تصنيف، طريقة دفع، حالة، عميل، مستخدم).
+5. **الاعتمادات** — للمدير فقط: الحركات المعلّقة + أزرار اعتماد/رفض (مع سبب رفض).
+6. **التقارير** — اختيار النوع (يومي/شهري/فترة/إيرادات تفريخ/إيرادات كتاكيت/مصروفات حسب البند/حسب طريقة الدفع/كشف كامل/صافي تشغيل/رواتب) + تصدير Excel وPDF وطباعة (عبر `openPrintWindow` من `@/lib/printPdf` لدعم العربي).
 
-## 2. الواجهة
+### Validation
+استخدام `zod` لكل النماذج (مبلغ > 0، تاريخ مطلوب، إلخ).
 
-ملف جديد `src/pages/modules/HatcheryLab.tsx` بتبويبات:
+### Sidebar
+إضافة عنصر واحد فقط في السايد بار تحت قسم "3. المعمل وتفريغ الكتاكيت":
+- **"خزنة المعمل والحضانات"** → `/lab-treasury`
+- الصلاحيات: `general_manager`, `executive_manager`, `accountant`, `financial_manager`, ومستخدم محمد خالد (نتعرف عليه إما بـ role جديد `lab_treasury_keeper` أو بـ profile مطابق). الأبسط: إضافة role جديد `lab_treasury_keeper` ضمن enum `app_role`، يُعطى لمحمد خالد.
 
-1. **داشبورد** — كروت (إجمالي البيض الحالي، عاصمة، عملاء، تنتظر كشف، تنتظر هاتشر، في الهاتشر، في الحضانات، كتاكيت الشهر، نسبة الفقس، إجمالي الفواتير/المدفوع/المتبقي) + بانر تنبيهات الدفعات التي وصلت اليوم 15 أو 39.
-2. **الدفعات** — جدول كل الدفعات مع الحالة وأيام العمر، أزرار: تسجيل كشف، نقل للهاتشر، تسجيل الفقس، نقل للحضانات، تسليم، إلغاء.
-3. **دفعة جديدة** — ديالوج: تاريخ، رقم ماكينة، نوع، ملاحظات، + إضافة Lots متعددة (نعام العاصمة / عميل خارجي + عدد البيض + المصدر).
-4. **فواتير العملاء** — جدول الفواتير + تفاصيل + إضافة دفعة سداد + طباعة/PDF/Excel.
-5. **مديونية العملاء** — جدول إجمالي لكل عميل (فواتير، مدفوع، متبقي).
-6. **الإعدادات** — تعديل أسعار البيضة اللايح/الكتكوت/أكمل ولم يفقس/التحضين اليومي + أيام الكشف والهاتشر (للأدوار المصرح لها فقط).
+### Route
+في `src/components/AnimatedRoutes.tsx` نضيف:
+```tsx
+<Route path="/lab-treasury" element={<ProtectedRoute roles={[...]}><LabTreasury/></ProtectedRoute>} />
+```
 
-ديالوجات منفصلة:
-- `CandlingDialog` — لكل lot: عدد اللايح (صالح/غير صالح للأكل) + المخصب + ملاحظات.
-- `TransferToHatcherDialog` — رقم ماكينة الهاتشر + الكمية المنقولة + الوقت.
-- `HatchResultDialog` — لكل lot: عدد الكتاكيت + أكمل ولم يفقس.
-- `MoveToBroodingDialog` / `DeliverFromBroodingDialog`.
-- `PaymentDialog` و`InvoicePrintView` يستخدم `openPrintWindow` من `@/lib/printPdf` لدعم العربية.
+## 3) الاعتماد والرصيد
 
-تكامل مع السايد بار: إضافة بند "معمل التفريخ" تحت قسم المزرعة (يستبدل أي صفحات تفريخ قديمة بدون حذفها من الكود).
+- كل INSERT يضع `status = pending` و`balance_after = null`.
+- عند UPDATE إلى `approved`: trigger يحسب `balance_after` لتلك الحركة وكل الحركات المعتمدة الأحدث منها (ترتيب: `movement_date, created_at`).
+- الـ View `v_lab_treasury_balances` تجمع `SUM` على الحركات المعتمدة per `payment_method` (income +، expense −).
 
-## 3. الفوترة التلقائية
+## 4) التصدير
 
-عند تسجيل الكشف → تنشأ/تحدث الفاتورة للـ external lots بقيمة `infertile_amount` فقط.
-عند تسجيل الفقس → تضاف `chicks_amount` + `completed_unhatched_amount`.
-عند تسليم الكتاكيت من الحضانات → يحسب `brooding_days = brooding_out - hatcher_out` ويضاف `brooding_amount` ويقفل المبلغ النهائي.
-- بيض نعام العاصمة لا تنشأ له فاتورة.
+- Excel: `safeExcel` الموجود.
+- PDF/طباعة: `openPrintWindow` من `@/lib/printPdf` (دعم RTL/العربي).
 
-## 4. التنبيهات
+## 5) خطوات التنفيذ
 
-- فحص يومي عند فتح الداشبورد: أي batch بلغ `entry_date + candling_day` ولم يتم كشفه → بانر أصفر + إدخال notification.
-- أي batch بلغ `entry_date + transfer_to_hatcher_day` ولم ينقل → بانر برتقالي.
-- أي lot في الهاتشر منذ > `hatcher_duration_hours` ولم ينقل للحضانات → بانر أحمر.
-
-## 5. القيود والأمان
-
-- لا حذف للدفعات بعد أول حركة (تحقق في الـ trigger).
-- منع تكرار كشف نفس الـ lot.
-- كل حركة تخزن `created_by` + `created_at`.
-- الإعدادات تخزن `version` ليبقى السعر الذي حسبت به الفاتورة محفوظ في الفاتورة نفسها (snapshot).
-
-## 6. الاختبار (المثال المرفق)
-
-عميل أحمد واكد، 20 بيضة → كشف: 2 لايح / 18 مكمل → فقس: 16 كتكوت / 2 أكمل ولم يفقس → 4 أيام تحضين @ 15 = الفاتورة 3660 جنيه. سيتم التحقق بعد النشر.
+1. Migration واحد: enums + جدول + triggers + views + storage bucket + RLS + grants + إضافة `lab_treasury_keeper` للـ `app_role` enum.
+2. تحديث `useAuth` types (يتم تلقائيًا بعد regenerate types).
+3. إنشاء `src/pages/LabTreasury.tsx` مع التابات الستة.
+4. إنشاء `src/hooks/useLabTreasury.tsx` (fetch + mutations + realtime channel).
+5. تحديث `SidebarMenuSections.tsx` و`AnimatedRoutes.tsx`.
+6. تحديث memory index بإضافة سجل للخزنة.
 
 ## ملاحظات
 
-- لا تأثير على `farm_egg_production` أو `farm_to_hatchery_shipments` الحالية.
-- يدعم دفعات مختلطة (عاصمة + عميل واحد أو أكثر) عبر الـ Lots.
-- جميع الأسعار والأيام قابلة للتعديل من الإعدادات.
-- استخدام `openPrintWindow` لكل تصدير PDF لضمان العربية الصحيحة.
+- خزنة مستقلة تمامًا عن `hatchery_treasury_txns` الموجودة (لن نلمسها).
+- كل الحركات تُسجّل المستخدم والتاريخ والوقت تلقائيًا.
+- لا حذف بدون صلاحية مدير عام؛ الرفض يحتفظ بالسجل للتدقيق.
