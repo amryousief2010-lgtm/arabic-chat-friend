@@ -380,6 +380,7 @@ export default function TransfersLog() {
                         <TableHead className="text-center">الحالة</TableHead>
                         <TableHead className="text-center">المرفوض</TableHead>
                         <TableHead>ملاحظات</TableHead>
+                        {canReverse && <TableHead className="text-center">إجراء</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -389,9 +390,23 @@ export default function TransfersLog() {
                           <TableCell className="text-center">{Number(i.weight_kg).toFixed(2)}</TableCell>
                           <TableCell className="text-center">{Number(i.unit_price).toFixed(2)}</TableCell>
                           <TableCell className="text-center font-semibold">{Number(i.total_value).toFixed(2)}</TableCell>
-                          <TableCell className="text-center"><Badge variant="outline" className="text-[10px]">{i.status}</Badge></TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="outline" className="text-[10px]">{i.status}</Badge>
+                            {i.received_status === "reversed" && <Badge className="text-[10px] mr-1 bg-amber-100 text-amber-800 border-0">معكوسة</Badge>}
+                          </TableCell>
                           <TableCell className="text-center text-xs text-destructive">{(Number(i.damaged_weight_kg || 0) + Number(i.quarantined_weight_kg || 0)).toFixed(2)}</TableCell>
                           <TableCell className="text-xs">{i.notes || "—"}</TableCell>
+                          {canReverse && (
+                            <TableCell className="text-center">
+                              {i.received_status === "received" && i.quality_status === "accepted" ? (
+                                <Button size="sm" variant="outline" onClick={() => reverseReceipt(i.id, i.cut_name_ar)}>
+                                  <Undo2 className="h-3 w-3 ml-1" />عكس
+                                </Button>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))}
                     </TableBody>
