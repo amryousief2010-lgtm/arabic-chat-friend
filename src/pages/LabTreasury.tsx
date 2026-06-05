@@ -276,10 +276,10 @@ export default function LabTreasury() {
   const pending = useMemo(() => movements.filter((m) => m.status === "pending"), [movements]);
 
   const officialByMethod = useMemo(() => {
-    const map: Record<PaymentMethod, number> = { cash: 0, vodafone_cash: 0, instapay: 0, bank_transfer: 0 };
-    approved.forEach((m) => { map[m.payment_method] += (m.movement_type === "income" ? 1 : -1) * Number(m.amount); });
+    const map: Record<PaymentMethod, number> = { ...openingByMethod };
+    approvedMovements.forEach((m) => { map[m.payment_method] += (m.movement_type === "income" ? 1 : -1) * Number(m.amount); });
     return map;
-  }, [approved]);
+  }, [approvedMovements, openingByMethod]);
   const estimatedByMethod = useMemo(() => {
     const map: Record<PaymentMethod, number> = { ...officialByMethod };
     pending.forEach((m) => { map[m.payment_method] += (m.movement_type === "income" ? 1 : -1) * Number(m.amount); });
@@ -289,6 +289,7 @@ export default function LabTreasury() {
   const officialTotal = officialByMethod.cash + officialByMethod.vodafone_cash + officialByMethod.instapay + officialByMethod.bank_transfer;
   const estimatedTotal = estimatedByMethod.cash + estimatedByMethod.vodafone_cash + estimatedByMethod.instapay + estimatedByMethod.bank_transfer;
   const pendingTotal = estimatedTotal - officialTotal;
+  const openingTotal = openingByMethod.cash + openingByMethod.vodafone_cash + openingByMethod.instapay + openingByMethod.bank_transfer;
 
   const todayStr = today();
   const monthStart = todayStr.slice(0, 7);
