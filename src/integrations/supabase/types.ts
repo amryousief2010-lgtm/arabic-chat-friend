@@ -9389,6 +9389,33 @@ export type Database = {
         }
         Relationships: []
       }
+      slaughter_payroll_settings: {
+        Row: {
+          bonus_per_bird: number
+          bonus_threshold_birds: number
+          id: string
+          lead_share_pct: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          bonus_per_bird?: number
+          bonus_threshold_birds?: number
+          id?: string
+          lead_share_pct?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          bonus_per_bird?: number
+          bonus_threshold_birds?: number
+          id?: string
+          lead_share_pct?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       slaughter_quality_checks: {
         Row: {
           check_date: string
@@ -9551,6 +9578,7 @@ export type Database = {
           id: string
           is_active: boolean
           lead_rank: number | null
+          monthly_base_salary: number
           national_id: string | null
           notes: string | null
           phone: string | null
@@ -9565,6 +9593,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           lead_rank?: number | null
+          monthly_base_salary?: number
           national_id?: string | null
           notes?: string | null
           phone?: string | null
@@ -9579,6 +9608,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           lead_rank?: number | null
+          monthly_base_salary?: number
           national_id?: string | null
           notes?: string | null
           phone?: string | null
