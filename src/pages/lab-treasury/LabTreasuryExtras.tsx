@@ -13,7 +13,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { fmtNum } from "@/lib/printPdf";
-import { CheckCircle2, Plus, Users, Wallet, ArrowDownToLine } from "lucide-react";
+import { CheckCircle2, Plus, Users, Wallet, ArrowDownToLine, Sparkles } from "lucide-react";
+import { PremiumStat } from "@/components/treasury/PremiumUI";
 
 type PM = "cash" | "vodafone_cash" | "instapay" | "bank_transfer";
 type ExtStatus = "not_deposited" | "partially_deposited" | "fully_deposited";
