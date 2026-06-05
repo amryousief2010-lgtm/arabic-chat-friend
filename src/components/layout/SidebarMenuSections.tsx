@@ -144,6 +144,7 @@ export const moduleSections: ModuleSection[] = [
     items: [
       { icon: Beef, label: "إدارة المجزر", path: "/modules/slaughterhouse", roles: ['general_manager', 'executive_manager', 'slaughterhouse_manager', 'production_manager', 'quality_manager'] },
       { icon: Beef, label: "إذن ذبح النعام", path: "/modules/slaughterhouse/permit", roles: ['general_manager', 'executive_manager', 'slaughterhouse_manager', 'production_manager', 'quality_manager'] },
+      { icon: Package, label: "مخزن التغليف والتعبئة", path: "/modules/packaging", roles: ['general_manager', 'executive_manager', 'slaughterhouse_manager'] },
     ],
   },
   {
@@ -154,6 +155,7 @@ export const moduleSections: ModuleSection[] = [
     items: [
       { icon: Factory, label: "لوحة مصنع اللحوم", path: "/meat-factory/dashboard", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'quality_manager', 'accountant', 'financial_manager'] },
       { icon: Beef, label: "مخازن مصنع اللحوم", path: "/meat-factory/factory-warehouses", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'financial_manager', 'warehouse_supervisor', 'accountant'] },
+      { icon: Package, label: "مخزن التغليف والتعبئة", path: "/modules/packaging", roles: ['general_manager', 'executive_manager', 'meat_factory_manager'] },
       { icon: Factory, label: "تصنيع المنتجات", path: "/modules/meat-factory", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'quality_manager'] },
       { icon: Factory, label: "فواتير التصنيع", path: "/meat-factory/manufacturing", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager'] },
       { icon: Factory, label: "تحويلات مصنع اللحوم", path: "/modules/meat-factory/operations", roles: ['general_manager', 'executive_manager', 'meat_factory_manager'] },
@@ -188,26 +190,31 @@ export const moduleSections: ModuleSection[] = [
     id: "warehouses",
     icon: Warehouse,
     label: "9. المخازن",
-    roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager', 'quality_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'agouza_warehouse_keeper'],
+    roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager', 'quality_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'agouza_warehouse_keeper', 'meat_factory_manager', 'feed_factory_manager', 'slaughterhouse_manager', 'accountant', 'financial_manager'],
     items: [
-      { icon: Warehouse, label: "إدارة المخازن", path: "/modules/warehouses", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager', 'quality_manager'] },
+      // نظرة عامة للمبيعات (قراءة فقط للمتاح)
       { icon: Warehouse, label: "المتاح في المخازن", path: "/warehouse-stock", roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'warehouse_supervisor'] },
-      { icon: Warehouse, label: "مخزن العجوزة", path: "/warehouse-stock/agouza", roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper'] },
-      { icon: Warehouse, label: "المخزن الرئيسي", path: "/warehouse-stock/main", roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'warehouse_supervisor'] },
+      // المخازن الأساسية — كل مخزن مستقل، كل موظف يرى مخزنه فقط
+      { icon: Warehouse, label: "المخزن الرئيسي", path: "/warehouse-stock/main", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'] },
       { icon: Activity, label: "سجل حركات المخزن الرئيسي", path: "/main-warehouse-activity", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'] },
-      { icon: Package, label: "مخزن التغليف والتعبئة", path: "/modules/packaging", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'meat_factory_manager', 'feed_factory_manager', 'production_manager', 'accountant'] },
+      { icon: Warehouse, label: "مخزن العجوزة", path: "/warehouse-stock/agouza", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper'] },
+      { icon: Package, label: "مخزن التغليف والتعبئة", path: "/modules/packaging", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'meat_factory_manager', 'slaughterhouse_manager', 'production_manager'] },
+      // مخازن العملاء — للإدارة وأمناء المخازن فقط
       { icon: Warehouse, label: "هايبر هيلثي تيست", path: "/warehouse-stock/hyper-healthy-test", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'] },
       { icon: Warehouse, label: "هايبر كارفور", path: "/warehouse-stock/hyper-carrefour", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'] },
-      { icon: Wallet, label: "تحصيل المندوب الخاص", path: "/private-delivery-collection", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'] },
-      { icon: AlertTriangle, label: "مخزون منخفض", path: "/low-stock", roles: ['general_manager', 'executive_manager', 'sales_manager', 'warehouse_supervisor', 'production_manager', 'marketing_sales_manager', 'quality_manager'] },
-      { icon: ClipboardList, label: "قائمة التصنيع", path: "/manufacturing-queue", roles: ['general_manager', 'executive_manager', 'sales_manager', 'warehouse_supervisor', 'production_manager', 'quality_manager'] },
-      { icon: History, label: "سجل تزويد المخزون", path: "/stock-replenishment-log", roles: ['general_manager', 'executive_manager', 'sales_manager', 'warehouse_supervisor', 'production_manager', 'accountant'] },
-      { icon: ShieldCheck, label: "مركز مراجعة المدير", path: "/manager-review", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'feed_factory_manager', 'quality_manager', 'accountant', 'financial_manager'] },
-      { icon: Boxes, label: "محرك المخزون", path: "/inventory", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'meat_factory_manager', 'feed_factory_manager', 'production_manager', 'accountant', 'financial_manager', 'quality_manager'] },
-      { icon: ShieldCheck, label: "مطابقة المخزون (تخطيط)", path: "/stock-reconciliation", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'] },
-      { icon: ShieldCheck, label: "اعتماد وصفات الإنتاج (BOM)", path: "/bom-approval", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'meat_factory_manager', 'feed_factory_manager', 'quality_manager'] },
-      { icon: Factory, label: "دفعات مصنع اللحوم", path: "/meat-factory/batches", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'quality_manager'] },
-      { icon: Wheat, label: "دفعات مصنع الأعلاف", path: "/feed-factory/batches", roles: ['general_manager', 'executive_manager', 'feed_factory_manager', 'production_manager', 'quality_manager'] },
+      { icon: Wallet, label: "تحصيل المندوب الخاص", path: "/private-delivery-collection", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'accountant', 'financial_manager'] },
+      // تنبيهات وتشغيل
+      { icon: AlertTriangle, label: "مخزون منخفض", path: "/low-stock", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager'] },
+      { icon: ClipboardList, label: "قائمة التصنيع", path: "/manufacturing-queue", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager'] },
+      { icon: History, label: "سجل تزويد المخزون", path: "/stock-replenishment-log", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'] },
+      // أدوات إدارية متقدمة — للمدير العام/التنفيذي فقط
+      { icon: Warehouse, label: "إدارة المخازن", path: "/modules/warehouses", roles: ['general_manager', 'executive_manager'] },
+      { icon: ShieldCheck, label: "مركز مراجعة المدير", path: "/manager-review", roles: ['general_manager', 'executive_manager'] },
+      { icon: Boxes, label: "محرك المخزون", path: "/inventory", roles: ['general_manager', 'executive_manager'] },
+      { icon: ShieldCheck, label: "مطابقة المخزون (تخطيط)", path: "/stock-reconciliation", roles: ['general_manager', 'executive_manager'] },
+      { icon: ShieldCheck, label: "اعتماد وصفات الإنتاج (BOM)", path: "/bom-approval", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager'] },
+      { icon: Factory, label: "دفعات مصنع اللحوم", path: "/meat-factory/batches", roles: ['general_manager', 'executive_manager'] },
+      { icon: Wheat, label: "دفعات مصنع الأعلاف", path: "/feed-factory/batches", roles: ['general_manager', 'executive_manager'] },
     ],
   },
   {
