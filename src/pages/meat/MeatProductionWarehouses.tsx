@@ -22,29 +22,44 @@ import { toast } from "sonner";
 import { Package, Warehouse, Factory, ArrowRightCircle, Plus, Trash2, Loader2, Pencil, History, Scale } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 
-interface RawRow { id: string; name_ar: string; default_unit: string; stock: number; avg_unit_cost: number; }
+interface RawRow {
+  id: string;
+  material_code: string;
+  name_ar: string;
+  default_unit: string;
+  stock: number;
+  avg_unit_cost: number;
+  is_active: boolean;
+  notes: string | null;
+  category: string;
+}
 interface FinishedRow { id: string; name_ar: string; current_stock: number; latest_unit_cost: number; sale_price: number | null; }
 interface ProdItem { raw_material_id: string; quantity: string; }
 interface InvoiceRow { id: string; prod_no: string; prod_date: string; product_id: string; qty_produced: number; total_cost: number; unit_cost: number; transferred_to_main_qty: number; notes: string | null; created_at: string; }
 interface TransferRow { id: string; transfer_no: string; product_id: string; quantity: number; unit_cost: number; total_cost: number; notes: string | null; created_at: string; }
 
 export default function MeatProductionWarehouses() {
-  const { user, isGeneralManager, isExecutiveManager } = useAuth();
+  const { user, isGeneralManager, isExecutiveManager, canManageMeatFactory, isWarehouseSupervisor } = useAuth();
   const qc = useQueryClient();
   const canManage = true; // RLS handles the real guard
   const canDelete = isGeneralManager || isExecutiveManager;
+  const canManageRaw = isGeneralManager || isExecutiveManager || canManageMeatFactory || isWarehouseSupervisor;
 
   const [search, setSearch] = useState("");
   const [prodOpen, setProdOpen] = useState(false);
   const [transferTarget, setTransferTarget] = useState<FinishedRow | null>(null);
+  const [editRaw, setEditRaw] = useState<RawRow | null>(null);
+  const [addRawOpen, setAddRawOpen] = useState(false);
+  const [adjustRaw, setAdjustRaw] = useState<RawRow | null>(null);
+  const [movementsRaw, setMovementsRaw] = useState<RawRow | null>(null);
 
   const rawQ = useQuery({
     queryKey: ["meat-raw-materials"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("meat_factory_raw_materials")
-        .select("id,name_ar,default_unit,stock,avg_unit_cost")
-        .eq("is_active", true)
+        .select("id,material_code,name_ar,default_unit,stock,avg_unit_cost,is_active,notes,category")
+        .order("is_active", { ascending: false })
         .order("name_ar");
       if (error) throw error;
       return (data || []) as RawRow[];
