@@ -10358,6 +10358,27 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "slaughter_batch_outputs_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "slaughter_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slaughter_batch_outputs_received_warehouse_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_stock_availability"
+            referencedColumns: ["warehouse_id"]
+          },
+          {
+            foreignKeyName: "slaughter_batch_outputs_received_warehouse_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "slaughter_batches_butcher_1_id_fkey"
             columns: ["butcher_1_id"]
             isOneToOne: false
@@ -10376,20 +10397,6 @@ export type Database = {
             columns: ["butcher_3_id"]
             isOneToOne: false
             referencedRelation: "slaughter_workers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "slaughter_branch_transfers_batch_id_fkey"
-            columns: ["batch_id"]
-            isOneToOne: false
-            referencedRelation: "slaughter_batches"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "slaughter_branch_transfers_branch_id_fkey"
-            columns: ["branch_id"]
-            isOneToOne: false
-            referencedRelation: "branches"
             referencedColumns: ["id"]
           },
         ]
