@@ -86,6 +86,7 @@ const roleLabels: Record<AppRole, string> = {
   lab_treasury_keeper: 'أمين خزنة المعمل والحضانات',
   lab_external_collector: 'محصل خارجي - خزنة المعمل',
   lab_treasury_approver: 'معتمد خزنة المعمل والحضانات',
+  slaughterhouse_custody_keeper: 'أمين عهدة المجزر',
 };
 
 const roleBadgeVariants: Record<AppRole, 'default' | 'secondary' | 'outline' | 'destructive'> = {
@@ -113,6 +114,7 @@ const roleBadgeVariants: Record<AppRole, 'default' | 'secondary' | 'outline' | '
   lab_treasury_keeper: 'outline',
   lab_external_collector: 'outline',
   lab_treasury_approver: 'default',
+  slaughterhouse_custody_keeper: 'outline',
 };
 
 const roleIcons: Record<AppRole, React.ElementType> = {
@@ -140,6 +142,7 @@ const roleIcons: Record<AppRole, React.ElementType> = {
   lab_treasury_keeper: Calculator,
   lab_external_collector: Calculator,
   lab_treasury_approver: Shield,
+  slaughterhouse_custody_keeper: Calculator,
 };
 
 const addEmployeeSchema = z.object({
