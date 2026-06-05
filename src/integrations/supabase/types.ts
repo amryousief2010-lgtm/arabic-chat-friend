@@ -12025,7 +12025,12 @@ export type Database = {
         | "private_delivery_rep"
         | "agouza_warehouse_keeper"
         | "brooding_dashboard_viewer"
-      brooding_batch_status: "active" | "completed" | "transferred" | "closed"
+      brooding_batch_status:
+        | "active"
+        | "completed"
+        | "transferred"
+        | "closed"
+        | "sold"
       brooding_expense_type:
         | "feed"
         | "medicine"
@@ -12214,7 +12219,13 @@ export const Constants = {
         "agouza_warehouse_keeper",
         "brooding_dashboard_viewer",
       ],
-      brooding_batch_status: ["active", "completed", "transferred", "closed"],
+      brooding_batch_status: [
+        "active",
+        "completed",
+        "transferred",
+        "closed",
+        "sold",
+      ],
       brooding_expense_type: [
         "feed",
         "medicine",
