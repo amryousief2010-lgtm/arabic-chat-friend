@@ -668,9 +668,9 @@ export default function LabTreasury() {
           <TabsContent value="dashboard" className="space-y-4">
             <Alert>
               <ShieldAlert className="w-4 h-4" />
-              <AlertTitle>الرصيد الرسمي vs التقديري</AlertTitle>
+              <AlertTitle>خزنة المعمل والحضانات — مستقلة</AlertTitle>
               <AlertDescription className="text-xs">
-                الرصيد الرسمي = الرصيد الافتتاحي المعتمد + الحركات <b>المعتمدة فقط</b>. التحصيلات الخارجية على فودافون كاش محمد شعلة لا تُحتسب ضمن الرصيد الرسمي إلا بعد توريدها واعتمادها.
+                هذه الخزنة خاصة <b>بإيرادات التفريخ وبيع الكتاكيت</b> والتحصيلات الخارجية المرتبطة بها. هي <b>منفصلة تمامًا</b> عن <a href="/slaughterhouse-custody" className="underline">خزنة عهدة المجزر — محمد شعلة</a>. الرصيد الرسمي = الرصيد الافتتاحي المعتمد + الحركات <b>المعتمدة فقط</b>. تحصيلات شعلة الخاصة بالمعمل (فودافون كاش) لا تُحتسب ضمن الرصيد إلا بعد توريدها واعتمادها.
               </AlertDescription>
             </Alert>
 

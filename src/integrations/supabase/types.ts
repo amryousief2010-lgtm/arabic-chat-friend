@@ -10160,6 +10160,278 @@ export type Database = {
           },
         ]
       }
+      slaughter_custody_audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          entity: string
+          entity_id: string | null
+          id: string
+          payload: Json | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          entity: string
+          entity_id?: string | null
+          id?: string
+          payload?: Json | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          entity?: string
+          entity_id?: string | null
+          id?: string
+          payload?: Json | null
+        }
+        Relationships: []
+      }
+      slaughter_custody_comments: {
+        Row: {
+          attachment_url: string | null
+          author_id: string
+          body: string
+          created_at: string
+          expense_id: string
+          id: string
+          is_clarification_request: boolean
+        }
+        Insert: {
+          attachment_url?: string | null
+          author_id?: string
+          body: string
+          created_at?: string
+          expense_id: string
+          id?: string
+          is_clarification_request?: boolean
+        }
+        Update: {
+          attachment_url?: string | null
+          author_id?: string
+          body?: string
+          created_at?: string
+          expense_id?: string
+          id?: string
+          is_clarification_request?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slaughter_custody_comments_expense_id_fkey"
+            columns: ["expense_id"]
+            isOneToOne: false
+            referencedRelation: "slaughter_custody_expenses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      slaughter_custody_expenses: {
+        Row: {
+          amount: number
+          approved_at: string | null
+          approved_by: string | null
+          beneficiary: string | null
+          category: Database["public"]["Enums"]["slaughter_custody_category"]
+          created_at: string
+          created_by: string
+          description: string
+          expense_date: string
+          has_invoice: boolean
+          id: string
+          notes: string | null
+          over_limit: boolean
+          payment_method: Database["public"]["Enums"]["slaughter_custody_payment_method"]
+          receipt_url: string | null
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["slaughter_custody_status"]
+          updated_at: string
+          week_start_date: string | null
+        }
+        Insert: {
+          amount: number
+          approved_at?: string | null
+          approved_by?: string | null
+          beneficiary?: string | null
+          category: Database["public"]["Enums"]["slaughter_custody_category"]
+          created_at?: string
+          created_by?: string
+          description: string
+          expense_date?: string
+          has_invoice?: boolean
+          id?: string
+          notes?: string | null
+          over_limit?: boolean
+          payment_method: Database["public"]["Enums"]["slaughter_custody_payment_method"]
+          receipt_url?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["slaughter_custody_status"]
+          updated_at?: string
+          week_start_date?: string | null
+        }
+        Update: {
+          amount?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          beneficiary?: string | null
+          category?: Database["public"]["Enums"]["slaughter_custody_category"]
+          created_at?: string
+          created_by?: string
+          description?: string
+          expense_date?: string
+          has_invoice?: boolean
+          id?: string
+          notes?: string | null
+          over_limit?: boolean
+          payment_method?: Database["public"]["Enums"]["slaughter_custody_payment_method"]
+          receipt_url?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["slaughter_custody_status"]
+          updated_at?: string
+          week_start_date?: string | null
+        }
+        Relationships: []
+      }
+      slaughter_custody_opening_balances: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          as_of_date: string
+          bank_transfer_amount: number
+          cash_amount: number
+          created_at: string
+          created_by: string
+          id: string
+          instapay_amount: number
+          notes: string | null
+          status: Database["public"]["Enums"]["slaughter_custody_status"]
+          total_amount: number
+          updated_at: string
+          vodafone_cash_amount: number
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          as_of_date: string
+          bank_transfer_amount?: number
+          cash_amount?: number
+          created_at?: string
+          created_by?: string
+          id?: string
+          instapay_amount?: number
+          notes?: string | null
+          status?: Database["public"]["Enums"]["slaughter_custody_status"]
+          total_amount?: number
+          updated_at?: string
+          vodafone_cash_amount?: number
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          as_of_date?: string
+          bank_transfer_amount?: number
+          cash_amount?: number
+          created_at?: string
+          created_by?: string
+          id?: string
+          instapay_amount?: number
+          notes?: string | null
+          status?: Database["public"]["Enums"]["slaughter_custody_status"]
+          total_amount?: number
+          updated_at?: string
+          vodafone_cash_amount?: number
+        }
+        Relationships: []
+      }
+      slaughter_custody_week_closures: {
+        Row: {
+          closed_at: string
+          closed_by: string
+          created_at: string
+          id: string
+          is_open: boolean
+          notes: string | null
+          reopen_reason: string | null
+          reopened_at: string | null
+          reopened_by: string | null
+          total_approved: number | null
+          total_rejected: number | null
+          week_end_date: string
+          week_start_date: string
+        }
+        Insert: {
+          closed_at?: string
+          closed_by?: string
+          created_at?: string
+          id?: string
+          is_open?: boolean
+          notes?: string | null
+          reopen_reason?: string | null
+          reopened_at?: string | null
+          reopened_by?: string | null
+          total_approved?: number | null
+          total_rejected?: number | null
+          week_end_date: string
+          week_start_date: string
+        }
+        Update: {
+          closed_at?: string
+          closed_by?: string
+          created_at?: string
+          id?: string
+          is_open?: boolean
+          notes?: string | null
+          reopen_reason?: string | null
+          reopened_at?: string | null
+          reopened_by?: string | null
+          total_approved?: number | null
+          total_rejected?: number | null
+          week_end_date?: string
+          week_start_date?: string
+        }
+        Relationships: []
+      }
+      slaughter_custody_weekly_limits: {
+        Row: {
+          created_at: string
+          id: string
+          limit_amount: number
+          notes: string | null
+          set_by: string
+          updated_at: string
+          week_end_date: string
+          week_start_date: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          limit_amount: number
+          notes?: string | null
+          set_by?: string
+          updated_at?: string
+          week_end_date: string
+          week_start_date: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          limit_amount?: number
+          notes?: string | null
+          set_by?: string
+          updated_at?: string
+          week_end_date?: string
+          week_start_date?: string
+        }
+        Relationships: []
+      }
       slaughter_live_birds: {
         Row: {
           bird_index: number
@@ -11378,6 +11650,24 @@ export type Database = {
         }
         Relationships: []
       }
+      v_slaughter_custody_balance: {
+        Row: {
+          current_balance: number | null
+          total_approved_expenses: number | null
+          total_opening: number | null
+        }
+        Relationships: []
+      }
+      v_slaughter_custody_week_usage: {
+        Row: {
+          approved_total: number | null
+          limit_amount: number | null
+          pending_total: number | null
+          week_end_date: string | null
+          week_start_date: string | null
+        }
+        Relationships: []
+      }
       v_slaughter_transfer_shipments: {
         Row: {
           batch_id: string | null
@@ -12092,6 +12382,7 @@ export type Database = {
         Returns: Json
       }
       is_feed_team: { Args: { _user_id: string }; Returns: boolean }
+      is_slaughter_custody_manager: { Args: { _uid: string }; Returns: boolean }
       lab_treasury_chicksales_by_batch: {
         Args: { p_from?: string; p_to?: string }
         Returns: {
@@ -12477,6 +12768,7 @@ export type Database = {
         | "lab_treasury_keeper"
         | "lab_external_collector"
         | "lab_treasury_approver"
+        | "slaughterhouse_custody_keeper"
       brooding_batch_status:
         | "active"
         | "completed"
@@ -12537,6 +12829,31 @@ export type Database = {
         | "instapay"
         | "bank_transfer"
       lab_treasury_status: "pending" | "approved" | "rejected"
+      slaughter_custody_category:
+        | "maintenance"
+        | "utilities"
+        | "supplies"
+        | "cleaning"
+        | "transport"
+        | "daily_labor"
+        | "hospitality"
+        | "urgent_purchase"
+        | "government"
+        | "veterinary"
+        | "equipment_repair"
+        | "fridge_repair"
+        | "other"
+      slaughter_custody_payment_method:
+        | "cash"
+        | "vodafone_cash"
+        | "instapay"
+        | "bank_transfer"
+      slaughter_custody_status:
+        | "pending_review"
+        | "clarification_needed"
+        | "approved"
+        | "rejected"
+        | "over_limit_pending"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -12698,6 +13015,7 @@ export const Constants = {
         "lab_treasury_keeper",
         "lab_external_collector",
         "lab_treasury_approver",
+        "slaughterhouse_custody_keeper",
       ],
       brooding_batch_status: [
         "active",
@@ -12766,6 +13084,34 @@ export const Constants = {
         "bank_transfer",
       ],
       lab_treasury_status: ["pending", "approved", "rejected"],
+      slaughter_custody_category: [
+        "maintenance",
+        "utilities",
+        "supplies",
+        "cleaning",
+        "transport",
+        "daily_labor",
+        "hospitality",
+        "urgent_purchase",
+        "government",
+        "veterinary",
+        "equipment_repair",
+        "fridge_repair",
+        "other",
+      ],
+      slaughter_custody_payment_method: [
+        "cash",
+        "vodafone_cash",
+        "instapay",
+        "bank_transfer",
+      ],
+      slaughter_custody_status: [
+        "pending_review",
+        "clarification_needed",
+        "approved",
+        "rejected",
+        "over_limit_pending",
+      ],
     },
   },
 } as const

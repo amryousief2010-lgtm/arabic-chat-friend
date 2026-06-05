@@ -144,6 +144,7 @@ const ChickOrders = lazy(() => import("@/pages/ChickOrders"));
 const MainWarehouseActivity = lazy(() => import("@/pages/MainWarehouseActivity"));
 const LabTreasury = lazy(() => import("@/pages/LabTreasury"));
 const MyLabCollections = lazy(() => import("@/pages/MyLabCollections"));
+const SlaughterhouseCustody = lazy(() => import("@/pages/SlaughterhouseCustody"));
 
 const RedirectWithQuery = ({ to }: { to: string }) => {
   const location = useLocation();
@@ -683,6 +684,11 @@ const AnimatedRoutes = () => {
           <Route path="/main-warehouse-activity" element={
             <ProtectedRoute allowedRoles={['general_manager','executive_manager','warehouse_supervisor']}>
               <PageTransition><MainWarehouseActivity /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/slaughterhouse-custody" element={
+            <ProtectedRoute allowedRoles={['general_manager','executive_manager','slaughterhouse_manager','lab_treasury_approver','slaughterhouse_custody_keeper']}>
+              <PageTransition><SlaughterhouseCustody /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/unauthorized" element={
