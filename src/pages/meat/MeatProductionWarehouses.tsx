@@ -156,7 +156,14 @@ export default function MeatProductionWarehouses() {
           {/* Raw Materials */}
           <TabsContent value="raw">
             <Card>
-              <CardHeader><CardTitle className="text-base">المواد الخام الجاهزة للتصنيع</CardTitle></CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between gap-2">
+                <CardTitle className="text-base">المواد الخام بمصنع اللحوم</CardTitle>
+                {canManageRaw && (
+                  <Button size="sm" className="gap-1" onClick={() => setAddRawOpen(true)}>
+                    <Plus className="w-4 h-4" /> إضافة خامة
+                  </Button>
+                )}
+              </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
@@ -166,14 +173,19 @@ export default function MeatProductionWarehouses() {
                       <TableHead className="text-left">الرصيد</TableHead>
                       <TableHead className="text-left">متوسط السعر</TableHead>
                       <TableHead className="text-left">قيمة المخزون</TableHead>
+                      <TableHead>الحالة</TableHead>
+                      <TableHead className="text-center">إجراءات</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredRaw.length === 0 ? (
-                      <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">لا توجد بيانات</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">لا توجد بيانات</TableCell></TableRow>
                     ) : filteredRaw.map((r) => (
-                      <TableRow key={r.id}>
-                        <TableCell>{r.name_ar}</TableCell>
+                      <TableRow key={r.id} className={!r.is_active ? "opacity-60" : ""}>
+                        <TableCell>
+                          <div className="font-medium">{r.name_ar}</div>
+                          {r.notes && <div className="text-xs text-muted-foreground">{r.notes}</div>}
+                        </TableCell>
                         <TableCell>{r.default_unit}</TableCell>
                         <TableCell className="text-left font-semibold">
                           <Badge variant={Number(r.stock) <= 0 ? "destructive" : "outline"}>
@@ -182,6 +194,28 @@ export default function MeatProductionWarehouses() {
                         </TableCell>
                         <TableCell className="text-left">{Number(r.avg_unit_cost).toLocaleString("ar-EG", { maximumFractionDigits: 2 })}</TableCell>
                         <TableCell className="text-left">{(Number(r.stock) * Number(r.avg_unit_cost)).toLocaleString("ar-EG", { maximumFractionDigits: 2 })}</TableCell>
+                        <TableCell>
+                          <Badge variant={r.is_active ? "default" : "secondary"}>
+                            {r.is_active ? "نشطة" : "غير نشطة"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-center gap-1">
+                            <Button size="sm" variant="ghost" title="سجل الحركات" onClick={() => setMovementsRaw(r)}>
+                              <History className="w-4 h-4" />
+                            </Button>
+                            {canManageRaw && (
+                              <>
+                                <Button size="sm" variant="ghost" title="تسوية رصيد" onClick={() => setAdjustRaw(r)}>
+                                  <Scale className="w-4 h-4" />
+                                </Button>
+                                <Button size="sm" variant="ghost" title="تعديل" onClick={() => setEditRaw(r)}>
+                                  <Pencil className="w-4 h-4" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
