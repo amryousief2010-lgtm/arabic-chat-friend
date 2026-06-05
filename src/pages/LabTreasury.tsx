@@ -23,6 +23,7 @@ import {
   ShieldAlert, ScrollText, AlertTriangle, FileCheck2, Link as LinkIcon, Users, Boxes,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { OpeningBalancesPanel, ExternalCollectionsPanel, ExternalSummaryCard, TotalLabFundsCard } from "@/pages/lab-treasury/LabTreasuryExtras";
 
 type PaymentMethod = "cash" | "vodafone_cash" | "instapay" | "bank_transfer";
 type MovementType = "income" | "expense";
@@ -644,6 +645,8 @@ export default function LabTreasury() {
             {canApprove && <TabsTrigger value="approvals">الاعتمادات</TabsTrigger>}
             <TabsTrigger value="daily">التقرير اليومي</TabsTrigger>
             <TabsTrigger value="closures">إقفال الأيام</TabsTrigger>
+            <TabsTrigger value="openings">الأرصدة الافتتاحية</TabsTrigger>
+            <TabsTrigger value="external">التحصيلات الخارجية</TabsTrigger>
             <TabsTrigger value="reports">التقارير</TabsTrigger>
             {isManager && <TabsTrigger value="audit">سجل التدقيق</TabsTrigger>}
           </TabsList>
@@ -662,6 +665,11 @@ export default function LabTreasury() {
               <StatCard icon={<CheckCircle2 />} title="الرصيد الرسمي المعتمد" value={fmtNum(officialTotal, 2)} accent />
               <StatCard icon={<CircleDollarSign />} title="الرصيد التقديري (مع المعلق)" value={fmtNum(estimatedTotal, 2)} />
               <StatCard icon={<AlertTriangle />} title="صافي الحركات المعلقة" value={fmtNum(pendingTotal, 2)} />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <ExternalSummaryCard />
+              <TotalLabFundsCard officialTotal={officialTotal} />
             </div>
 
             <Card>
@@ -1051,6 +1059,16 @@ export default function LabTreasury() {
                 </Table>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Opening balances */}
+          <TabsContent value="openings" className="space-y-3">
+            <OpeningBalancesPanel />
+          </TabsContent>
+
+          {/* External collections (عُهَد) */}
+          <TabsContent value="external" className="space-y-3">
+            <ExternalCollectionsPanel />
           </TabsContent>
 
           {/* Reports */}

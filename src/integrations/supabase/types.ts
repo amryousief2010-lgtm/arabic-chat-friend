@@ -5543,6 +5543,102 @@ export type Database = {
         }
         Relationships: []
       }
+      lab_treasury_external_collections: {
+        Row: {
+          amount: number
+          collection_date: string
+          created_at: string
+          created_by: string | null
+          deposited_amount: number
+          holder_name: string
+          id: string
+          notes: string | null
+          payment_method: Database["public"]["Enums"]["lab_treasury_payment_method"]
+          source: Database["public"]["Enums"]["lab_external_source"]
+          status: Database["public"]["Enums"]["lab_external_status"]
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          collection_date?: string
+          created_at?: string
+          created_by?: string | null
+          deposited_amount?: number
+          holder_name: string
+          id?: string
+          notes?: string | null
+          payment_method: Database["public"]["Enums"]["lab_treasury_payment_method"]
+          source?: Database["public"]["Enums"]["lab_external_source"]
+          status?: Database["public"]["Enums"]["lab_external_status"]
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          collection_date?: string
+          created_at?: string
+          created_by?: string | null
+          deposited_amount?: number
+          holder_name?: string
+          id?: string
+          notes?: string | null
+          payment_method?: Database["public"]["Enums"]["lab_treasury_payment_method"]
+          source?: Database["public"]["Enums"]["lab_external_source"]
+          status?: Database["public"]["Enums"]["lab_external_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      lab_treasury_external_deposits: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          deposit_date: string
+          external_collection_id: string
+          id: string
+          movement_id: string | null
+          notes: string | null
+          payment_method: Database["public"]["Enums"]["lab_treasury_payment_method"]
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          deposit_date?: string
+          external_collection_id: string
+          id?: string
+          movement_id?: string | null
+          notes?: string | null
+          payment_method: Database["public"]["Enums"]["lab_treasury_payment_method"]
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          deposit_date?: string
+          external_collection_id?: string
+          id?: string
+          movement_id?: string | null
+          notes?: string | null
+          payment_method?: Database["public"]["Enums"]["lab_treasury_payment_method"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_treasury_external_deposits_external_collection_id_fkey"
+            columns: ["external_collection_id"]
+            isOneToOne: false
+            referencedRelation: "lab_treasury_external_collections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_treasury_external_deposits_movement_id_fkey"
+            columns: ["movement_id"]
+            isOneToOne: false
+            referencedRelation: "lab_treasury_movements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lab_treasury_movements: {
         Row: {
           amount: number
@@ -5648,6 +5744,66 @@ export type Database = {
           unit_price?: number | null
           units_count?: number | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      lab_treasury_opening_balances: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          balance_date: string
+          bank_transfer_amount: number
+          cash_amount: number
+          created_at: string
+          created_by: string | null
+          id: string
+          instapay_amount: number
+          notes: string | null
+          rejected_at: string | null
+          rejected_by: string | null
+          rejection_reason: string | null
+          status: Database["public"]["Enums"]["lab_treasury_status"]
+          total_amount: number | null
+          updated_at: string
+          vodafone_cash_amount: number
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          balance_date: string
+          bank_transfer_amount?: number
+          cash_amount?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          instapay_amount?: number
+          notes?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
+          status?: Database["public"]["Enums"]["lab_treasury_status"]
+          total_amount?: number | null
+          updated_at?: string
+          vodafone_cash_amount?: number
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          balance_date?: string
+          bank_transfer_amount?: number
+          cash_amount?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          instapay_amount?: number
+          notes?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
+          status?: Database["public"]["Enums"]["lab_treasury_status"]
+          total_amount?: number | null
+          updated_at?: string
+          vodafone_cash_amount?: number
         }
         Relationships: []
       }
@@ -11163,6 +11319,15 @@ export type Database = {
           },
         ]
       }
+      v_lab_external_summary: {
+        Row: {
+          open_count: number | null
+          total_collected: number | null
+          total_deposited: number | null
+          total_outstanding: number | null
+        }
+        Relationships: []
+      }
       v_lab_treasury_balances: {
         Row: {
           balance_approved: number | null
@@ -12345,6 +12510,11 @@ export type Database = {
         | "rejected"
         | "posted"
       feed_qc_result: "pass" | "fail" | "needs_review"
+      lab_external_source: "hatching" | "chick_sales" | "general" | "other"
+      lab_external_status:
+        | "not_deposited"
+        | "partially_deposited"
+        | "fully_deposited"
       lab_treasury_expense_category:
         | "electricity"
         | "maintenance"
@@ -12564,6 +12734,12 @@ export const Constants = {
         "posted",
       ],
       feed_qc_result: ["pass", "fail", "needs_review"],
+      lab_external_source: ["hatching", "chick_sales", "general", "other"],
+      lab_external_status: [
+        "not_deposited",
+        "partially_deposited",
+        "fully_deposited",
+      ],
       lab_treasury_expense_category: [
         "electricity",
         "maintenance",
