@@ -120,10 +120,11 @@ export const moduleSections: ModuleSection[] = [
     roles: ['general_manager', 'executive_manager', 'hatchery_manager', 'production_manager', 'quality_manager'],
     items: [
       { icon: FlaskConical, label: "معمل التفريخ والحضانات", path: "/modules/hatchery-lab", roles: ['general_manager', 'executive_manager', 'hatchery_manager', 'production_manager', 'quality_manager', 'accountant'] },
-      { icon: FlaskConical, label: "إدارة المعمل (قديم)", path: "/hatchery", roles: ['general_manager', 'executive_manager', 'hatchery_manager', 'production_manager', 'quality_manager'] },
-      { icon: Wallet, label: "دفعات عملاء المعمل", path: "/hatchery/payments", roles: ['general_manager', 'executive_manager', 'hatchery_manager', 'production_manager', 'farm_manager', 'accountant', 'financial_manager'] },
-      { icon: TrendingUp, label: "لوحة المزرعة والمعمل", path: "/modules/farm-hatchery-dashboard", roles: ['general_manager', 'executive_manager', 'farm_manager', 'hatchery_manager', 'production_manager', 'quality_manager'] },
-      { icon: TrendingUp, label: "سجل وارد المزرعة", path: "/farm-shipments-log", roles: ['general_manager', 'executive_manager', 'farm_manager', 'hatchery_manager', 'production_manager', 'quality_manager'] },
+      // الصفحات القديمة متاحة للمدير العام فقط للمراجعة (الـ Routes لا تزال تعمل)
+      { icon: FlaskConical, label: "إدارة المعمل (أرشيف)", path: "/hatchery", roles: ['general_manager'] },
+      { icon: Wallet, label: "دفعات عملاء المعمل (أرشيف)", path: "/hatchery/payments", roles: ['general_manager'] },
+      { icon: TrendingUp, label: "لوحة المزرعة والمعمل (أرشيف)", path: "/modules/farm-hatchery-dashboard", roles: ['general_manager'] },
+      { icon: TrendingUp, label: "سجل وارد المزرعة (أرشيف)", path: "/farm-shipments-log", roles: ['general_manager'] },
     ],
   },
   {
