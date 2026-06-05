@@ -670,20 +670,23 @@ export default function LabTreasury() {
               <ShieldAlert className="w-4 h-4" />
               <AlertTitle>الرصيد الرسمي vs التقديري</AlertTitle>
               <AlertDescription className="text-xs">
-                الرصيد الرسمي يُحتسب من الحركات <b>المعتمدة فقط</b>. الرصيد التقديري يشمل الحركات بانتظار الاعتماد كمؤشر داخلي.
+                الرصيد الرسمي = الرصيد الافتتاحي المعتمد + الحركات <b>المعتمدة فقط</b>. التحصيلات الخارجية على فودافون كاش محمد شعلة لا تُحتسب ضمن الرصيد الرسمي إلا بعد توريدها واعتمادها.
               </AlertDescription>
             </Alert>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              <StatCard icon={<CheckCircle2 />} title="رصيد الخزنة الرسمي المعتمد" value={fmtNum(officialTotal, 2)} accent />
+              <StatCard icon={<Banknote />} title="الرصيد الفعلي داخل الخزنة" value={fmtNum(officialTotal, 2)} />
+              <ExternalSummaryCard />
+              <TotalLabFundsCard officialTotal={officialTotal} />
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <StatCard icon={<CheckCircle2 />} title="الرصيد الرسمي المعتمد" value={fmtNum(officialTotal, 2)} accent />
+              <StatCard icon={<CircleDollarSign />} title="رصيد افتتاحي معتمد" value={fmtNum(openingTotal, 2)} />
               <StatCard icon={<CircleDollarSign />} title="الرصيد التقديري (مع المعلق)" value={fmtNum(estimatedTotal, 2)} />
               <StatCard icon={<AlertTriangle />} title="صافي الحركات المعلقة" value={fmtNum(pendingTotal, 2)} />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <ExternalSummaryCard />
-              <TotalLabFundsCard officialTotal={officialTotal} />
-            </div>
 
             <Card>
               <CardHeader><CardTitle>الرصيد حسب طريقة الدفع</CardTitle></CardHeader>
