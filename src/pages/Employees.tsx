@@ -111,6 +111,8 @@ const roleBadgeVariants: Record<AppRole, 'default' | 'secondary' | 'outline' | '
   agouza_warehouse_keeper: 'outline',
   brooding_dashboard_viewer: 'outline',
   lab_treasury_keeper: 'outline',
+  lab_external_collector: 'outline',
+  lab_treasury_approver: 'default',
 };
 
 const roleIcons: Record<AppRole, React.ElementType> = {
