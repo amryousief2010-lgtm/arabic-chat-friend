@@ -1,0 +1,1 @@
+ALTER TABLE public.hatchery_pricing_settings ALTER COLUMN daily_brooding_price SET DEFAULT 10;
