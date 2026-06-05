@@ -295,7 +295,7 @@ export default function SlaughterhouseCustody() {
         <div>توقيع المسؤول (محمد شعلة): ____________________</div>
         <div>توقيع المدير / المحاسب: ____________________</div>
       </div>`;
-    openPrintWindow({ title: "محضر جرد عهدة المجزر", body: html });
+    openPrintWindow("محضر جرد عهدة المجزر", html);
   }
 
   // Permissions: keeper can't see audit tab/limit panel

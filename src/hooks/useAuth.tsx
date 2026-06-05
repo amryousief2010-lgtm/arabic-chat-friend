@@ -26,7 +26,8 @@ export type AppRole =
   | 'brooding_dashboard_viewer'
   | 'lab_treasury_keeper'
   | 'lab_external_collector'
-  | 'lab_treasury_approver';
+  | 'lab_treasury_approver'
+  | 'slaughterhouse_custody_keeper';
 
 interface UserProfile {
   id: string;
