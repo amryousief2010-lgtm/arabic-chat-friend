@@ -160,10 +160,11 @@ const expenseSchema = z.object({
 const today = () => new Date().toISOString().slice(0, 10);
 
 export default function LabTreasury() {
-  const { user, isGeneralManager, isExecutiveManager } = useAuth();
+  const { user, isGeneralManager, isExecutiveManager, roles } = useAuth();
   const navigate = useNavigate();
-  const isManager = isGeneralManager || isExecutiveManager;
-  const canApprove = isManager;
+  const isApprover = roles.includes('lab_treasury_approver');
+  const isManager = isGeneralManager || isExecutiveManager; // full admin (delete/reopen)
+  const canApprove = isManager || isApprover;
 
   const [movements, setMovements] = useState<Movement[]>([]);
   const [closures, setClosures] = useState<DayClosure[]>([]);
@@ -210,7 +211,7 @@ export default function LabTreasury() {
     const [{ data: mvs, error: e1 }, { data: cls }, { data: aud }] = await Promise.all([
       (supabase as any).from("lab_treasury_movements").select("*").order("movement_date", { ascending: false }).order("created_at", { ascending: false }).limit(1000),
       (supabase as any).from("lab_treasury_day_closures").select("*").order("closure_date", { ascending: false }).limit(200),
-      isManager
+      canApprove
         ? (supabase as any).from("lab_treasury_audit_log").select("*").order("created_at", { ascending: false }).limit(500)
         : Promise.resolve({ data: [] }),
     ]);
@@ -648,7 +649,7 @@ export default function LabTreasury() {
             <TabsTrigger value="openings">الأرصدة الافتتاحية</TabsTrigger>
             <TabsTrigger value="external">التحصيلات الخارجية</TabsTrigger>
             <TabsTrigger value="reports">التقارير</TabsTrigger>
-            {isManager && <TabsTrigger value="audit">سجل التدقيق</TabsTrigger>}
+            {canApprove && <TabsTrigger value="audit">سجل التدقيق</TabsTrigger>}
           </TabsList>
 
           {/* Dashboard */}
@@ -1199,7 +1200,7 @@ export default function LabTreasury() {
 
 
           {/* Audit */}
-          {isManager && (
+          {canApprove && (
             <TabsContent value="audit" className="space-y-3">
               <Card>
                 <CardHeader><CardTitle className="flex items-center gap-2"><ScrollText className="w-5 h-5" />سجل التدقيق - آخر 500 حدث</CardTitle></CardHeader>

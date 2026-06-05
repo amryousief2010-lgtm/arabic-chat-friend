@@ -84,6 +84,8 @@ const roleLabels: Record<AppRole, string> = {
   agouza_warehouse_keeper: 'مسؤول مخزن العجوزة',
   brooding_dashboard_viewer: 'مشاهد لوحة التحضين (عرض فقط)',
   lab_treasury_keeper: 'أمين خزنة المعمل والحضانات',
+  lab_external_collector: 'محصل خارجي - خزنة المعمل',
+  lab_treasury_approver: 'معتمد خزنة المعمل والحضانات',
 };
 
 const roleBadgeVariants: Record<AppRole, 'default' | 'secondary' | 'outline' | 'destructive'> = {
@@ -109,6 +111,8 @@ const roleBadgeVariants: Record<AppRole, 'default' | 'secondary' | 'outline' | '
   agouza_warehouse_keeper: 'outline',
   brooding_dashboard_viewer: 'outline',
   lab_treasury_keeper: 'outline',
+  lab_external_collector: 'outline',
+  lab_treasury_approver: 'default',
 };
 
 const roleIcons: Record<AppRole, React.ElementType> = {
@@ -134,6 +138,8 @@ const roleIcons: Record<AppRole, React.ElementType> = {
   agouza_warehouse_keeper: Warehouse,
   brooding_dashboard_viewer: Users,
   lab_treasury_keeper: Calculator,
+  lab_external_collector: Calculator,
+  lab_treasury_approver: Shield,
 };
 
 const addEmployeeSchema = z.object({

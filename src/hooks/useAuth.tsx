@@ -24,7 +24,9 @@ export type AppRole =
   | 'private_delivery_rep'
   | 'agouza_warehouse_keeper'
   | 'brooding_dashboard_viewer'
-  | 'lab_treasury_keeper';
+  | 'lab_treasury_keeper'
+  | 'lab_external_collector'
+  | 'lab_treasury_approver';
 
 interface UserProfile {
   id: string;

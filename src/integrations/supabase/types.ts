@@ -12475,6 +12475,8 @@ export type Database = {
         | "agouza_warehouse_keeper"
         | "brooding_dashboard_viewer"
         | "lab_treasury_keeper"
+        | "lab_external_collector"
+        | "lab_treasury_approver"
       brooding_batch_status:
         | "active"
         | "completed"
@@ -12694,6 +12696,8 @@ export const Constants = {
         "agouza_warehouse_keeper",
         "brooding_dashboard_viewer",
         "lab_treasury_keeper",
+        "lab_external_collector",
+        "lab_treasury_approver",
       ],
       brooding_batch_status: [
         "active",
