@@ -667,6 +667,11 @@ export default function LabTreasury() {
               <StatCard icon={<AlertTriangle />} title="صافي الحركات المعلقة" value={fmtNum(pendingTotal, 2)} />
             </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <ExternalSummaryCard />
+              <TotalLabFundsCard officialTotal={officialTotal} />
+            </div>
+
             <Card>
               <CardHeader><CardTitle>الرصيد حسب طريقة الدفع</CardTitle></CardHeader>
               <CardContent className="overflow-x-auto">
