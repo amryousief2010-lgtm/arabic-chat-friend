@@ -5438,6 +5438,108 @@ export type Database = {
           },
         ]
       }
+      lab_treasury_audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_name: string | null
+          after_data: Json | null
+          before_data: Json | null
+          created_at: string
+          id: string
+          metadata: Json | null
+          movement_id: string | null
+          reason: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_name?: string | null
+          after_data?: Json | null
+          before_data?: Json | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          movement_id?: string | null
+          reason?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_name?: string | null
+          after_data?: Json | null
+          before_data?: Json | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          movement_id?: string | null
+          reason?: string | null
+        }
+        Relationships: []
+      }
+      lab_treasury_day_closures: {
+        Row: {
+          bank_balance: number
+          cash_balance: number
+          closed_at: string
+          closed_by: string
+          closing_balance: number
+          closure_date: string
+          created_at: string
+          id: string
+          instapay_balance: number
+          net_movement: number
+          notes: string | null
+          opening_balance: number
+          reopen_reason: string | null
+          reopened_at: string | null
+          reopened_by: string | null
+          total_expense: number
+          total_income: number
+          vodafone_balance: number
+        }
+        Insert: {
+          bank_balance?: number
+          cash_balance?: number
+          closed_at?: string
+          closed_by: string
+          closing_balance?: number
+          closure_date: string
+          created_at?: string
+          id?: string
+          instapay_balance?: number
+          net_movement?: number
+          notes?: string | null
+          opening_balance?: number
+          reopen_reason?: string | null
+          reopened_at?: string | null
+          reopened_by?: string | null
+          total_expense?: number
+          total_income?: number
+          vodafone_balance?: number
+        }
+        Update: {
+          bank_balance?: number
+          cash_balance?: number
+          closed_at?: string
+          closed_by?: string
+          closing_balance?: number
+          closure_date?: string
+          created_at?: string
+          id?: string
+          instapay_balance?: number
+          net_movement?: number
+          notes?: string | null
+          opening_balance?: number
+          reopen_reason?: string | null
+          reopened_at?: string | null
+          reopened_by?: string | null
+          total_expense?: number
+          total_income?: number
+          vodafone_balance?: number
+        }
+        Relationships: []
+      }
       lab_treasury_movements: {
         Row: {
           amount: number
@@ -5448,7 +5550,9 @@ export type Database = {
           created_at: string
           created_by: string | null
           customer_name: string | null
+          deletion_reason: string | null
           description: string | null
+          edit_reason: string | null
           expense_category:
             | Database["public"]["Enums"]["lab_treasury_expense_category"]
             | null
@@ -5461,6 +5565,8 @@ export type Database = {
           notes: string | null
           payment_method: Database["public"]["Enums"]["lab_treasury_payment_method"]
           receipt_url: string | null
+          rejected_at: string | null
+          rejected_by: string | null
           rejection_reason: string | null
           status: Database["public"]["Enums"]["lab_treasury_status"]
           unit_price: number | null
@@ -5476,7 +5582,9 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           customer_name?: string | null
+          deletion_reason?: string | null
           description?: string | null
+          edit_reason?: string | null
           expense_category?:
             | Database["public"]["Enums"]["lab_treasury_expense_category"]
             | null
@@ -5489,6 +5597,8 @@ export type Database = {
           notes?: string | null
           payment_method: Database["public"]["Enums"]["lab_treasury_payment_method"]
           receipt_url?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
           rejection_reason?: string | null
           status?: Database["public"]["Enums"]["lab_treasury_status"]
           unit_price?: number | null
@@ -5504,7 +5614,9 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           customer_name?: string | null
+          deletion_reason?: string | null
           description?: string | null
+          edit_reason?: string | null
           expense_category?:
             | Database["public"]["Enums"]["lab_treasury_expense_category"]
             | null
@@ -5517,6 +5629,8 @@ export type Database = {
           notes?: string | null
           payment_method?: Database["public"]["Enums"]["lab_treasury_payment_method"]
           receipt_url?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
           rejection_reason?: string | null
           status?: Database["public"]["Enums"]["lab_treasury_status"]
           unit_price?: number | null
@@ -11801,6 +11915,7 @@ export type Database = {
         Returns: Json
       }
       is_feed_team: { Args: { _user_id: string }; Returns: boolean }
+      lab_treasury_daily_report: { Args: { p_date: string }; Returns: Json }
       meat_batch_approve: {
         Args: {
           p_batch_id: string
