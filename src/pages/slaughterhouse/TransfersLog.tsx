@@ -199,7 +199,7 @@ export default function TransfersLog() {
         <td class="num">${fmtNum(i.weight_kg, 2)}</td>
         <td class="num">${fmtNum(i.unit_price, 2)}</td>
         <td class="num">${fmtNum(i.total_value, 2)}</td>
-        <td>${escapeHtml(i.status)}</td>
+        <td>${escapeHtml(itemDisplayStatus(i))}${i.received_status === "reversed" ? ' <span style="color:#b45309;font-weight:bold">(Reversed)</span>' : ""}</td>
         <td>${escapeHtml(i.notes || "")}</td>
       </tr>`).join("");
 
