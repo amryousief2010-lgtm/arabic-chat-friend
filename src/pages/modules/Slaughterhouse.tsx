@@ -296,6 +296,10 @@ const Slaughterhouse = () => {
     const payload: any = { ...data, batch_number, created_by: user?.id };
     if (!payload.live_receipt_id) delete payload.live_receipt_id;
     if (!payload.start_time) delete payload.start_time;
+    // Convert empty butcher selections to null (UUID columns reject "")
+    for (const k of ["butcher_1_id", "butcher_2_id", "butcher_3_id"]) {
+      if (!payload[k]) payload[k] = null;
+    }
     const { error } = await supabase.from("slaughter_batches" as any).insert(payload);
     if (error) { toast.error(error.message); return false; }
     toast.success("تم إنشاء دفعة الذبح");
