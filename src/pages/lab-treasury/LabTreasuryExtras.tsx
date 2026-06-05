@@ -13,7 +13,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { fmtNum } from "@/lib/printPdf";
-import { CheckCircle2, Plus, Users, Wallet, ArrowDownToLine } from "lucide-react";
+import { CheckCircle2, Plus, Users, Wallet, ArrowDownToLine, Sparkles } from "lucide-react";
+import { PremiumStat } from "@/components/treasury/PremiumUI";
 
 type PM = "cash" | "vodafone_cash" | "instapay" | "bank_transfer";
 type ExtStatus = "not_deposited" | "partially_deposited" | "fully_deposited";
@@ -389,15 +390,13 @@ export function ExternalSummaryCard() {
     return () => { alive = false; supabase.removeChannel(ch); };
   }, []);
   return (
-    <Card className="border-orange-300/50">
-      <CardContent className="p-4 flex items-center gap-3">
-        <Wallet className="w-6 h-6 text-orange-500" />
-        <div className="flex-1">
-          <div className="text-xs text-muted-foreground">تحصيلات خارجية غير موَرَّدة (عُهَد)</div>
-          <div className="text-2xl font-bold font-mono text-orange-600">{fmtNum(s.outstanding, 2)}</div>
-        </div>
-      </CardContent>
-    </Card>
+    <PremiumStat
+      tone="warning"
+      icon={<Wallet />}
+      title="تحصيلات خارجية غير موَرَّدة"
+      value={fmtNum(s.outstanding, 2)}
+      hint={`محصّل: ${fmtNum(s.collected, 0)} · موَرَّد: ${fmtNum(s.deposited, 0)}`}
+    />
   );
 }
 
@@ -417,11 +416,13 @@ export function TotalLabFundsCard({ officialTotal }: { officialTotal: number }) 
     return () => { alive = false; supabase.removeChannel(ch); };
   }, []);
   return (
-    <Card className="border-primary/50 bg-primary/5">
-      <CardContent className="p-4">
-        <div className="text-xs text-muted-foreground">إجمالي أموال المعمل (خزنة + عُهَد)</div>
-        <div className="text-2xl font-bold font-mono text-primary">{fmtNum(officialTotal + out, 2)}</div>
-      </CardContent>
-    </Card>
+    <PremiumStat
+      tone="primary"
+      highlight
+      icon={<Sparkles />}
+      title="إجمالي أموال المعمل"
+      value={fmtNum(officialTotal + out, 2)}
+      hint="خزنة + عُهَد خارجية"
+    />
   );
 }

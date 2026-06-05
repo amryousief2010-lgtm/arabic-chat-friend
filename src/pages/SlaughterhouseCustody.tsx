@@ -14,13 +14,15 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate } from "@/lib/printPdf";
 import * as XLSX from "xlsx";
 import {
   Wallet, Plus, ShieldAlert, CheckCircle2, XCircle, MessageSquare, Upload,
-  Printer, FileSpreadsheet, AlertTriangle, ScrollText, Beef,
+  Printer, FileSpreadsheet, AlertTriangle, ScrollText, Beef, Sparkles, Clock, Activity, Receipt, TrendingDown,
 } from "lucide-react";
+import { PremiumStat, HeroSummary, SectionTitle, StatusPill, DashboardSkeleton, EmptyState, ActivityTimeline, ProgressRing, getCairoNow } from "@/components/treasury/PremiumUI";
 
 type PM = "cash" | "vodafone_cash" | "instapay" | "bank_transfer";
 type Status = "pending_review" | "clarification_needed" | "approved" | "rejected" | "over_limit_pending";
@@ -299,28 +301,50 @@ export default function SlaughterhouseCustody() {
   }
 
   // Permissions: keeper can't see audit tab/limit panel
+  const usageTone: "success" | "warning" | "danger" = usagePct >= 100 ? "danger" : usagePct >= 80 ? "warning" : "success";
+  const lastExpense = expenses[0];
+  const lastExpenseLabel = lastExpense
+    ? `${fmtNum(Number(lastExpense.amount), 0)} ج · ${lastExpense.expense_date}`
+    : "—";
+
+  const recentActivity = recent10.slice(0, 8).map((e) => ({
+    id: e.id,
+    title: CAT_LBL[e.category],
+    subtitle: `${e.description?.slice(0, 60) || "—"} · ${PM_LBL[e.payment_method]}`,
+    amount: `− ${fmtNum(Number(e.amount), 2)} ج`,
+    date: e.expense_date,
+    tone: (e.status === "approved" ? "success" : e.status === "rejected" ? "danger" : e.status === "over_limit_pending" ? "danger" : "warning") as any,
+  }));
+
   return (
     <DashboardLayout>
-      <div className="p-4 space-y-4">
-        <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="p-4 space-y-5">
+        {/* Premium header */}
+        <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
-            <Beef className="w-6 h-6 text-primary" />
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-secondary to-accent text-secondary-foreground flex items-center justify-center shadow-md shadow-secondary/30">
+              <Beef className="w-5 h-5" />
+            </div>
             <div>
-              <h1 className="text-2xl font-bold">خزنة عهدة المجزر — محمد شعلة</h1>
-              <div className="text-sm text-muted-foreground">{profile?.full_name}</div>
+              <h1 className="text-2xl font-bold tracking-tight">خزنة عهدة المجزر</h1>
+              <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
+                <Clock className="w-3 h-3" /> {getCairoNow()}
+                <span className="text-border">|</span>
+                <span>{profile?.full_name || "محمد شعلة"}</span>
+              </div>
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={printInventory}><Printer className="w-4 h-4 ml-1" />محضر جرد</Button>
-            <Button variant="outline" size="sm" onClick={exportExcel}><FileSpreadsheet className="w-4 h-4 ml-1" />تصدير Excel</Button>
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" size="sm" onClick={printInventory} className="gap-2"><Printer className="w-4 h-4" />محضر جرد</Button>
+            <Button variant="outline" size="sm" onClick={exportExcel} className="gap-2"><FileSpreadsheet className="w-4 h-4" />تصدير</Button>
           </div>
         </div>
 
-        <Alert>
-          <ShieldAlert className="w-4 h-4" />
-          <AlertTitle>خزنة منفصلة تمامًا</AlertTitle>
+        <Alert className="border-secondary/40 bg-secondary/5">
+          <ShieldAlert className="w-4 h-4 text-secondary" />
+          <AlertTitle className="text-sm">خزنة عهدة المجزر — منفصلة تمامًا عن خزنة المعمل</AlertTitle>
           <AlertDescription className="text-xs">
-            هذه خزنة عهدة المجزر للمصروفات اليومية فقط. <b>منفصلة تمامًا</b> عن خزنة المعمل والحضانات وعن تحصيلات محمد شعلة الخاصة بالمعمل. لا يتم احتساب أي مصروف ضمن الرصيد إلا بعد <b>اعتمادها</b>.
+            هذه خزنة عهدة ومصروفات يومية للمجزر فقط. لا يتم احتساب أي مصروف ضمن الرصيد إلا بعد <b>اعتماده</b>.
           </AlertDescription>
         </Alert>
 
@@ -335,85 +359,113 @@ export default function SlaughterhouseCustody() {
           </TabsList>
 
           {/* ===== Dashboard ===== */}
-          <TabsContent value="dashboard" className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-              <StatCard icon={<Wallet />} title="رصيد العهدة الحالي" value={fmtNum(currentBalance, 2)} accent />
-              <StatCard icon={<ShieldAlert />} title="الحد الأسبوعي" value={fmtNum(limitAmt, 2)} sub={weekUsage ? `${weekUsage.week_start_date} → ${weekUsage.week_end_date}` : ""} />
-              <StatCard icon={<CheckCircle2 />} title="المعتمد هذا الأسبوع" value={fmtNum(approvedThisWeek, 2)} />
-              <StatCard icon={<AlertTriangle />} title="بانتظار المراجعة (الأسبوع)" value={fmtNum(pendingThisWeek, 2)} />
-            </div>
+          <TabsContent value="dashboard" className="space-y-5">
+            {loading ? <DashboardSkeleton /> : (
+            <>
+            {/* Hero */}
+            <HeroSummary
+              icon={<Sparkles />}
+              title="نظرة شاملة على العهدة"
+              subtitle="رصيد العهدة + الحد الأسبوعي + ما يحتاج مراجعة في مكان واحد."
+              badge={<StatusPill tone={usageTone === "danger" ? "danger" : usageTone === "warning" ? "warning" : "success"}>
+                {usageTone === "danger" ? "تم تجاوز الحد" : usageTone === "warning" ? "اقترب من الحد" : "ضمن الحد"}
+              </StatusPill>}
+              primaryValue={fmtNum(currentBalance, 2)}
+              primaryLabel="رصيد العهدة الحالي"
+              pills={[
+                { label: "الحد الأسبوعي", value: fmtNum(limitAmt, 0), tone: "info" },
+                { label: "المعتمد هذا الأسبوع", value: fmtNum(approvedThisWeek, 0), tone: "success" },
+                { label: "المتبقي من الحد", value: fmtNum(remaining, 0), tone: usageTone === "danger" ? "danger" : "primary" },
+                { label: "آخر مصروف", value: lastExpenseLabel, tone: "neutral" },
+              ]}
+              actions={isKeeper ? (
+                <Button size="sm" className="gap-2" onClick={() => { const el = document.querySelector('[value="add"]') as HTMLElement; el?.click(); }}>
+                  <Plus className="w-4 h-4" /> إضافة مصروف
+                </Button>
+              ) : null}
+            />
 
+            {/* Weekly limit progress */}
             {limitAmt > 0 && (
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between text-sm mb-1">
-                    <span>استهلاك الحد الأسبوعي</span>
-                    <b className="font-mono">{usagePct.toFixed(1)}% — المتبقي {fmtNum(remaining, 2)}</b>
+              <Card className={cn("border", usageTone === "danger" ? "border-destructive/40 bg-destructive/5" : usageTone === "warning" ? "border-[hsl(var(--warning))]/40 bg-[hsl(var(--warning))]/5" : "border-[hsl(var(--success))]/40 bg-[hsl(var(--success))]/5")}>
+                <CardContent className="p-5 flex items-center justify-between gap-4 flex-wrap">
+                  <ProgressRing percent={usagePct} label="استهلاك الحد الأسبوعي" sublabel={weekUsage ? `${weekUsage.week_start_date} → ${weekUsage.week_end_date}` : ""} tone={usageTone} />
+                  <div className="grid grid-cols-3 gap-3 flex-1 min-w-[280px]">
+                    <div className="rounded-xl border bg-card/70 px-3 py-2 text-center">
+                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">الحد</div>
+                      <div className="font-mono font-bold text-lg tabular-nums">{fmtNum(limitAmt, 0)}</div>
+                    </div>
+                    <div className="rounded-xl border bg-card/70 px-3 py-2 text-center">
+                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">المستهلك</div>
+                      <div className="font-mono font-bold text-lg tabular-nums text-[hsl(var(--warning))]">{fmtNum(approvedThisWeek + pendingThisWeek, 0)}</div>
+                    </div>
+                    <div className="rounded-xl border bg-card/70 px-3 py-2 text-center">
+                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">المتبقي</div>
+                      <div className={cn("font-mono font-bold text-lg tabular-nums", usageTone === "danger" ? "text-destructive" : "text-[hsl(var(--success))]")}>{fmtNum(remaining, 0)}</div>
+                    </div>
                   </div>
-                  <Progress value={usagePct} className={usagePct >= 100 ? "[&>div]:bg-destructive" : usagePct >= 80 ? "[&>div]:bg-orange-500" : ""} />
-                  {usagePct >= 100 && <div className="text-xs text-destructive mt-2">⚠ تم تجاوز الحد الأسبوعي — أي مصروف جديد يتطلب موافقة الإدارة</div>}
-                  {usagePct >= 80 && usagePct < 100 && <div className="text-xs text-orange-600 mt-2">⚠ اقتربت من الحد الأسبوعي (80%+)</div>}
                 </CardContent>
               </Card>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-              <StatCard icon={<AlertTriangle />} title="بانتظار المراجعة (إجمالي)" value={String(counts.pending)} />
-              <StatCard icon={<MessageSquare />} title="مطلوب توضيح" value={String(counts.clarif)} />
-              <StatCard icon={<XCircle />} title="المرفوضة" value={String(counts.rejected)} />
-              <StatCard icon={<ShieldAlert />} title="تجاوزات بانتظار الموافقة" value={String(counts.overLimit)} />
+            {/* Status counts */}
+            <div>
+              <SectionTitle icon={<Activity />} title="حالة المصروفات" />
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <PremiumStat tone="warning" icon={<Clock />} title="بانتظار المراجعة" value={counts.pending} currency="" />
+                <PremiumStat tone="warning" icon={<MessageSquare />} title="مطلوب توضيح" value={counts.clarif} currency="" />
+                <PremiumStat tone="danger" icon={<XCircle />} title="مرفوضة" value={counts.rejected} currency="" />
+                <PremiumStat tone="danger" icon={<ShieldAlert />} title="تجاوز الحد" value={counts.overLimit} currency="" hint="بانتظار موافقة الإدارة" />
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <StatCard icon={<ScrollText />} title="إجمالي مصروفات الشهر (معتمد)" value={fmtNum(monthExpensesTotal, 2)} />
-              <StatCard icon={<Beef />} title="أعلى بند هذا الأسبوع" value={topCategoryThisWeek} />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+              <PremiumStat tone="info" icon={<ScrollText />} title="مصروفات الشهر (معتمد)" value={fmtNum(monthExpensesTotal, 2)} />
+              <PremiumStat tone="accent" icon={<Receipt />} title="أعلى بند هذا الأسبوع" value={topCategoryThisWeek} currency="" />
+              <PremiumStat tone="primary" icon={<Wallet />} title="إجمالي الرصيد الافتتاحي المعتمد" value={fmtNum(balance?.total_opening || 0, 2)} />
             </div>
 
+            {/* Activity & comments */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
               <Card>
-                <CardHeader><CardTitle className="text-base">آخر 10 حركات</CardTitle></CardHeader>
-                <CardContent className="overflow-x-auto p-0">
-                  <Table>
-                    <TableHeader><TableRow>
-                      <TableHead>التاريخ</TableHead><TableHead>البند</TableHead>
-                      <TableHead>المبلغ</TableHead><TableHead>الحالة</TableHead>
-                    </TableRow></TableHeader>
-                    <TableBody>
-                      {recent10.map((e) => (
-                        <TableRow key={e.id}>
-                          <TableCell>{e.expense_date}</TableCell>
-                          <TableCell className="text-xs">{CAT_LBL[e.category]}</TableCell>
-                          <TableCell className="font-mono">{fmtNum(e.amount, 2)}</TableCell>
-                          <TableCell><Badge variant={e.status === "approved" ? "default" : e.status === "rejected" ? "destructive" : "secondary"}>{ST_LBL[e.status]}</Badge></TableCell>
-                        </TableRow>
-                      ))}
-                      {!recent10.length && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">لا توجد حركات</TableCell></TableRow>}
-                    </TableBody>
-                  </Table>
+                <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2"><Activity className="w-4 h-4 text-primary" /> آخر الحركات</CardTitle>
+                  <Badge variant="outline" className="font-mono">{recentActivity.length}</Badge>
+                </CardHeader>
+                <CardContent>
+                  <ActivityTimeline items={recentActivity} />
                 </CardContent>
               </Card>
 
               <Card>
-                <CardHeader><CardTitle className="text-base">آخر تعليقات الإدارة</CardTitle></CardHeader>
+                <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2"><MessageSquare className="w-4 h-4 text-[hsl(var(--chart-4))]" /> آخر تعليقات الإدارة</CardTitle>
+                  <Badge variant="outline" className="font-mono">{recentComments.length}</Badge>
+                </CardHeader>
                 <CardContent className="space-y-2">
                   {recentComments.map((c) => {
                     const exp = expenses.find((e) => e.id === c.expense_id);
                     return (
-                      <div key={c.id} className="text-xs p-2 bg-muted/50 rounded">
-                        <div className="flex justify-between text-muted-foreground">
-                          <span>{c.is_clarification_request ? "🔔 طلب توضيح" : "💬 تعليق"}</span>
-                          <span>{new Date(c.created_at).toLocaleString("ar-EG")}</span>
+                      <div key={c.id} className={cn("text-xs p-3 rounded-lg border", c.is_clarification_request ? "border-[hsl(var(--warning))]/30 bg-[hsl(var(--warning))]/5" : "border-border bg-muted/30")}>
+                        <div className="flex justify-between items-center gap-2">
+                          <StatusPill tone={c.is_clarification_request ? "warning" : "info"}>
+                            {c.is_clarification_request ? "طلب توضيح" : "تعليق"}
+                          </StatusPill>
+                          <span className="text-[10px] text-muted-foreground">{new Date(c.created_at).toLocaleString("ar-EG")}</span>
                         </div>
-                        <div className="mt-1">{c.body}</div>
-                        {exp && <div className="text-muted-foreground mt-1">على المصروف: {CAT_LBL[exp.category]} — {fmtNum(exp.amount, 2)}</div>}
+                        <div className="mt-2 text-foreground">{c.body}</div>
+                        {exp && <div className="text-muted-foreground mt-1 text-[11px]">على المصروف: {CAT_LBL[exp.category]} — {fmtNum(exp.amount, 2)} ج</div>}
                       </div>
                     );
                   })}
-                  {!recentComments.length && <div className="text-xs text-muted-foreground text-center py-4">لا توجد تعليقات</div>}
+                  {!recentComments.length && <EmptyState icon={<MessageSquare />} title="لا توجد تعليقات" description="تعليقات الإدارة ستظهر هنا" />}
                 </CardContent>
               </Card>
             </div>
+            </>
+            )}
           </TabsContent>
+
 
           {/* ===== Add Expense ===== */}
           <TabsContent value="add">

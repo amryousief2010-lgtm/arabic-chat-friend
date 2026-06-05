@@ -21,9 +21,11 @@ import {
   Wallet, TrendingUp, TrendingDown, CircleDollarSign, Banknote, Smartphone, Building2,
   CreditCard, CheckCircle2, XCircle, Printer, FileSpreadsheet, Plus, Lock, Unlock,
   ShieldAlert, ScrollText, AlertTriangle, FileCheck2, Link as LinkIcon, Users, Boxes,
+  Sparkles, Activity, Clock, FileText, ArrowRightLeft, Receipt,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { OpeningBalancesPanel, ExternalCollectionsPanel, ExternalSummaryCard, TotalLabFundsCard } from "@/pages/lab-treasury/LabTreasuryExtras";
+import { PremiumStat, HeroSummary, SectionTitle, StatusPill, DashboardSkeleton, EmptyState, ActivityTimeline, getCairoNow } from "@/components/treasury/PremiumUI";
 
 type PaymentMethod = "cash" | "vodafone_cash" | "instapay" | "bank_transfer";
 type MovementType = "income" | "expense";
@@ -634,19 +636,46 @@ export default function LabTreasury() {
     await logAudit("print_census", { metadata: { totals: officialByMethod, total: officialTotal } });
   }
 
-  // ---- Render ----
+  // ---- Activity feed (latest 8 approved/pending) ----
+  const recentActivity = useMemo(() => {
+    return [...movements].slice(0, 8).map((m) => ({
+      id: m.id,
+      title: `${m.movement_type === "income" ? "إيراد" : "مصروف"} — ${m.movement_type === "income" ? (m.income_category ? INCOME_LABELS[m.income_category] : "") : (m.expense_category ? EXPENSE_LABELS[m.expense_category] : "")}`,
+      subtitle: `${m.customer_name || m.beneficiary || "—"} · ${PAYMENT_LABELS[m.payment_method]}`,
+      amount: `${m.movement_type === "income" ? "+" : "−"} ${fmtNum(Number(m.amount), 2)} ج`,
+      date: m.movement_date,
+      tone: m.status === "approved" ? (m.movement_type === "income" ? ("success" as const) : ("info" as const)) : m.status === "rejected" ? ("danger" as const) : ("warning" as const),
+    }));
+  }, [movements]);
+
+  const lastApprovedMovement = approved[0];
+  const lastApprovedLabel = lastApprovedMovement
+    ? `${lastApprovedMovement.movement_type === "income" ? "+" : "−"} ${fmtNum(Number(lastApprovedMovement.amount), 2)} ج · ${lastApprovedMovement.movement_date}`
+    : "—";
+
   return (
     <DashboardLayout>
-      <div className="space-y-4">
+      <div className="space-y-5">
+        {/* Premium header */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
-            <Wallet className="w-7 h-7 text-primary" />
-            <h1 className="text-2xl font-bold">خزنة المعمل والحضانات</h1>
-            <Badge variant="outline">المسؤول: محمد خالد</Badge>
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground flex items-center justify-center shadow-md shadow-primary/30">
+              <Wallet className="w-5 h-5" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">خزنة المعمل والحضانات</h1>
+              <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
+                <Clock className="w-3 h-3" /> {getCairoNow()}
+                <span className="text-border">|</span>
+                <span>المسؤول: محمد خالد</span>
+              </div>
+            </div>
           </div>
-          <Button variant="outline" onClick={printCensus} className="gap-2">
-            <FileCheck2 className="w-4 h-4" />محضر جرد الخزنة
-          </Button>
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" size="sm" onClick={printCensus} className="gap-2">
+              <FileCheck2 className="w-4 h-4" />محضر جرد
+            </Button>
+          </div>
         </div>
 
         <Tabs defaultValue="dashboard" className="w-full">
@@ -665,68 +694,136 @@ export default function LabTreasury() {
           </TabsList>
 
           {/* Dashboard */}
-          <TabsContent value="dashboard" className="space-y-4">
-            <Alert>
-              <ShieldAlert className="w-4 h-4" />
-              <AlertTitle>خزنة المعمل والحضانات — مستقلة</AlertTitle>
+          <TabsContent value="dashboard" className="space-y-5">
+            {loading ? <DashboardSkeleton /> : (
+            <>
+            {/* Hero summary */}
+            <HeroSummary
+              icon={<Sparkles />}
+              title="نظرة شاملة على الخزنة"
+              subtitle="رصيد رسمي معتمد + حركات اليوم + ما ينتظر اعتمادك في مكان واحد."
+              badge={<StatusPill tone="info" icon={<ShieldAlert className="w-3 h-3" />}>خزنة المعمل والحضانات</StatusPill>}
+              primaryValue={fmtNum(officialTotal, 2)}
+              primaryLabel="الرصيد الرسمي المعتمد"
+              pills={[
+                { label: "إيرادات اليوم", value: fmtNum(todayIncome, 0), tone: "success" },
+                { label: "مصروفات اليوم", value: fmtNum(todayExpense, 0), tone: "danger" },
+                { label: "بانتظار الاعتماد", value: String(pending.length), tone: "warning" },
+                { label: "آخر حركة", value: lastApprovedLabel, tone: "info" },
+              ]}
+            />
+
+            {/* Separation banner */}
+            <Alert className="border-primary/30 bg-primary/5">
+              <ShieldAlert className="w-4 h-4 text-primary" />
+              <AlertTitle className="text-sm">خزنة منفصلة تمامًا عن خزنة عهدة المجزر</AlertTitle>
               <AlertDescription className="text-xs">
-                هذه الخزنة خاصة <b>بإيرادات التفريخ وبيع الكتاكيت</b> والتحصيلات الخارجية المرتبطة بها. هي <b>منفصلة تمامًا</b> عن <a href="/slaughterhouse-custody" className="underline">خزنة عهدة المجزر — محمد شعلة</a>. الرصيد الرسمي = الرصيد الافتتاحي المعتمد + الحركات <b>المعتمدة فقط</b>. تحصيلات شعلة الخاصة بالمعمل (فودافون كاش) لا تُحتسب ضمن الرصيد إلا بعد توريدها واعتمادها.
+                هذه الخزنة خاصة <b>بإيرادات التفريخ وبيع الكتاكيت</b> والتحصيلات الخارجية. تحصيلات شعلة (فودافون كاش) لا تُحتسب ضمن الرصيد إلا بعد التوريد والاعتماد. <a href="/slaughterhouse-custody" className="underline font-semibold">عرض خزنة عهدة المجزر</a>
               </AlertDescription>
             </Alert>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-              <StatCard icon={<CheckCircle2 />} title="رصيد الخزنة الرسمي المعتمد" value={fmtNum(officialTotal, 2)} accent />
-              <StatCard icon={<Banknote />} title="الرصيد الفعلي داخل الخزنة" value={fmtNum(officialTotal, 2)} />
-              <ExternalSummaryCard />
-              <TotalLabFundsCard officialTotal={officialTotal} />
+            {/* Main KPIs */}
+            <div>
+              <SectionTitle icon={<Activity />} title="مؤشرات الخزنة الرئيسية" />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                <PremiumStat tone="success" highlight icon={<CheckCircle2 />} title="الرصيد الرسمي المعتمد" value={fmtNum(officialTotal, 2)} hint="افتتاحي + حركات معتمدة" />
+                <PremiumStat tone="primary" icon={<Banknote />} title="الرصيد الفعلي داخل الخزنة" value={fmtNum(officialTotal, 2)} hint="نفس الرصيد المعتمد" />
+                <ExternalSummaryCard />
+                <TotalLabFundsCard officialTotal={officialTotal} />
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <StatCard icon={<CircleDollarSign />} title="رصيد افتتاحي معتمد" value={fmtNum(openingTotal, 2)} />
-              <StatCard icon={<CircleDollarSign />} title="الرصيد التقديري (مع المعلق)" value={fmtNum(estimatedTotal, 2)} />
-              <StatCard icon={<AlertTriangle />} title="صافي الحركات المعلقة" value={fmtNum(pendingTotal, 2)} />
+              <PremiumStat tone="info" icon={<CircleDollarSign />} title="رصيد افتتاحي معتمد" value={fmtNum(openingTotal, 2)} />
+              <PremiumStat tone="warning" icon={<Clock />} title="الرصيد التقديري (مع المعلق)" value={fmtNum(estimatedTotal, 2)} hint="بعد افتراض اعتماد المعلقات" />
+              <PremiumStat tone={pendingTotal === 0 ? "neutral" : pendingTotal > 0 ? "warning" : "danger"} icon={<AlertTriangle />} title="صافي الحركات المعلقة" value={fmtNum(pendingTotal, 2)} hint={`${pending.length} حركة بانتظار الاعتماد`} />
             </div>
 
-
-            <Card>
-              <CardHeader><CardTitle>الرصيد حسب طريقة الدفع</CardTitle></CardHeader>
-              <CardContent className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>طريقة الدفع</TableHead>
-                      <TableHead className="text-end">الرسمي (معتمد)</TableHead>
-                      <TableHead className="text-end">التقديري (+ معلق)</TableHead>
-                      <TableHead className="text-end">الفرق</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(["cash", "vodafone_cash", "instapay", "bank_transfer"] as PaymentMethod[]).map((pm) => (
-                      <TableRow key={pm}>
-                        <TableCell className="flex items-center gap-2">
-                          {pm === "cash" && <Banknote className="w-4 h-4" />}
-                          {pm === "vodafone_cash" && <Smartphone className="w-4 h-4" />}
-                          {pm === "instapay" && <CreditCard className="w-4 h-4" />}
-                          {pm === "bank_transfer" && <Building2 className="w-4 h-4" />}
-                          {PAYMENT_LABELS[pm]}
-                        </TableCell>
-                        <TableCell className="text-end font-mono font-semibold">{fmtNum(officialByMethod[pm], 2)}</TableCell>
-                        <TableCell className="text-end font-mono">{fmtNum(estimatedByMethod[pm], 2)}</TableCell>
-                        <TableCell className="text-end font-mono text-muted-foreground">{fmtNum(estimatedByMethod[pm] - officialByMethod[pm], 2)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-              <StatCard icon={<TrendingUp />} title="إيرادات اليوم" value={fmtNum(todayIncome, 2)} />
-              <StatCard icon={<TrendingDown />} title="مصروفات اليوم" value={fmtNum(todayExpense, 2)} />
-              <StatCard icon={<TrendingUp />} title="إيرادات الشهر" value={fmtNum(monthIncome, 2)} />
-              <StatCard icon={<TrendingDown />} title="مصروفات الشهر" value={fmtNum(monthExpense, 2)} />
+            {/* Payment methods grid */}
+            <div>
+              <SectionTitle icon={<CreditCard />} title="الرصيد حسب طريقة الدفع" />
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {(["cash", "vodafone_cash", "instapay", "bank_transfer"] as PaymentMethod[]).map((pm) => {
+                  const Icon = pm === "cash" ? Banknote : pm === "vodafone_cash" ? Smartphone : pm === "instapay" ? CreditCard : Building2;
+                  const tone = pm === "cash" ? "success" : pm === "vodafone_cash" ? "danger" : pm === "instapay" ? "info" : "primary";
+                  const diff = estimatedByMethod[pm] - officialByMethod[pm];
+                  return (
+                    <PremiumStat
+                      key={pm}
+                      tone={tone as any}
+                      icon={<Icon />}
+                      title={PAYMENT_LABELS[pm]}
+                      value={fmtNum(officialByMethod[pm], 2)}
+                      hint={diff !== 0 ? `تقديري: ${fmtNum(estimatedByMethod[pm], 0)} (فرق ${fmtNum(diff, 0)})` : "لا توجد معلقات"}
+                    />
+                  );
+                })}
+              </div>
             </div>
+
+            {/* Today / month KPIs + Activity */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+              <div className="lg:col-span-2 space-y-3">
+                <SectionTitle icon={<TrendingUp />} title="حركة اليوم والشهر" />
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <PremiumStat tone="success" icon={<TrendingUp />} title="إيرادات اليوم" value={fmtNum(todayIncome, 2)} />
+                  <PremiumStat tone="danger" icon={<TrendingDown />} title="مصروفات اليوم" value={fmtNum(todayExpense, 2)} />
+                  <PremiumStat tone="success" icon={<TrendingUp />} title="إيرادات الشهر" value={fmtNum(monthIncome, 2)} />
+                  <PremiumStat tone="danger" icon={<TrendingDown />} title="مصروفات الشهر" value={fmtNum(monthExpense, 2)} />
+                </div>
+
+                <Card>
+                  <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><ArrowRightLeft className="w-4 h-4 text-primary" /> تفاصيل الأرصدة حسب طريقة الدفع</CardTitle></CardHeader>
+                  <CardContent className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>طريقة الدفع</TableHead>
+                          <TableHead className="text-end">الرسمي</TableHead>
+                          <TableHead className="text-end">التقديري</TableHead>
+                          <TableHead className="text-end">الفرق</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(["cash", "vodafone_cash", "instapay", "bank_transfer"] as PaymentMethod[]).map((pm) => {
+                          const diff = estimatedByMethod[pm] - officialByMethod[pm];
+                          return (
+                            <TableRow key={pm}>
+                              <TableCell className="flex items-center gap-2">
+                                {pm === "cash" && <Banknote className="w-4 h-4 text-[hsl(var(--success))]" />}
+                                {pm === "vodafone_cash" && <Smartphone className="w-4 h-4 text-destructive" />}
+                                {pm === "instapay" && <CreditCard className="w-4 h-4 text-[hsl(var(--chart-4))]" />}
+                                {pm === "bank_transfer" && <Building2 className="w-4 h-4 text-primary" />}
+                                <span className="font-medium">{PAYMENT_LABELS[pm]}</span>
+                              </TableCell>
+                              <TableCell className="text-end font-mono font-bold tabular-nums">{fmtNum(officialByMethod[pm], 2)}</TableCell>
+                              <TableCell className="text-end font-mono tabular-nums text-muted-foreground">{fmtNum(estimatedByMethod[pm], 2)}</TableCell>
+                              <TableCell className="text-end font-mono tabular-nums">
+                                {diff === 0 ? <span className="text-muted-foreground">—</span> : <StatusPill tone={diff > 0 ? "success" : "danger"}>{fmtNum(diff, 2)}</StatusPill>}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card className="lg:row-span-2">
+                <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2"><Activity className="w-4 h-4 text-primary" /> آخر الحركات</CardTitle>
+                  <Badge variant="outline" className="font-mono">{recentActivity.length}</Badge>
+                </CardHeader>
+                <CardContent>
+                  <ActivityTimeline items={recentActivity} />
+                </CardContent>
+              </Card>
+            </div>
+            </>
+            )}
           </TabsContent>
+
 
           {/* Income form */}
           <TabsContent value="income">
