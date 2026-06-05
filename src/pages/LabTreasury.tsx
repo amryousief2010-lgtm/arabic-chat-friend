@@ -160,6 +160,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 export default function LabTreasury() {
   const { user, isGeneralManager, isExecutiveManager } = useAuth();
+  const navigate = useNavigate();
   const isManager = isGeneralManager || isExecutiveManager;
   const canApprove = isManager;
 
