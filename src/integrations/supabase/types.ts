@@ -5438,6 +5438,93 @@ export type Database = {
           },
         ]
       }
+      lab_treasury_movements: {
+        Row: {
+          amount: number
+          approved_at: string | null
+          approved_by: string | null
+          balance_after: number | null
+          beneficiary: string | null
+          created_at: string
+          created_by: string | null
+          customer_name: string | null
+          description: string | null
+          expense_category:
+            | Database["public"]["Enums"]["lab_treasury_expense_category"]
+            | null
+          id: string
+          income_category:
+            | Database["public"]["Enums"]["lab_treasury_income_category"]
+            | null
+          movement_date: string
+          movement_type: Database["public"]["Enums"]["lab_treasury_movement_type"]
+          notes: string | null
+          payment_method: Database["public"]["Enums"]["lab_treasury_payment_method"]
+          receipt_url: string | null
+          rejection_reason: string | null
+          status: Database["public"]["Enums"]["lab_treasury_status"]
+          unit_price: number | null
+          units_count: number | null
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          approved_at?: string | null
+          approved_by?: string | null
+          balance_after?: number | null
+          beneficiary?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string | null
+          description?: string | null
+          expense_category?:
+            | Database["public"]["Enums"]["lab_treasury_expense_category"]
+            | null
+          id?: string
+          income_category?:
+            | Database["public"]["Enums"]["lab_treasury_income_category"]
+            | null
+          movement_date?: string
+          movement_type: Database["public"]["Enums"]["lab_treasury_movement_type"]
+          notes?: string | null
+          payment_method: Database["public"]["Enums"]["lab_treasury_payment_method"]
+          receipt_url?: string | null
+          rejection_reason?: string | null
+          status?: Database["public"]["Enums"]["lab_treasury_status"]
+          unit_price?: number | null
+          units_count?: number | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          balance_after?: number | null
+          beneficiary?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string | null
+          description?: string | null
+          expense_category?:
+            | Database["public"]["Enums"]["lab_treasury_expense_category"]
+            | null
+          id?: string
+          income_category?:
+            | Database["public"]["Enums"]["lab_treasury_income_category"]
+            | null
+          movement_date?: string
+          movement_type?: Database["public"]["Enums"]["lab_treasury_movement_type"]
+          notes?: string | null
+          payment_method?: Database["public"]["Enums"]["lab_treasury_payment_method"]
+          receipt_url?: string | null
+          rejection_reason?: string | null
+          status?: Database["public"]["Enums"]["lab_treasury_status"]
+          unit_price?: number | null
+          units_count?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       manager_review_audit: {
         Row: {
           action: string
@@ -10950,6 +11037,28 @@ export type Database = {
           },
         ]
       }
+      v_lab_treasury_balances: {
+        Row: {
+          balance_approved: number | null
+          balance_estimated: number | null
+          payment_method:
+            | Database["public"]["Enums"]["lab_treasury_payment_method"]
+            | null
+        }
+        Relationships: []
+      }
+      v_lab_treasury_dashboard: {
+        Row: {
+          expense_month: number | null
+          expense_today: number | null
+          income_month: number | null
+          income_today: number | null
+          total_balance: number | null
+          total_chick_sales_income: number | null
+          total_hatching_income: number | null
+        }
+        Relationships: []
+      }
       v_mother_farm_feed_balance: {
         Row: {
           balance_kg: number | null
@@ -12061,6 +12170,26 @@ export type Database = {
         | "rejected"
         | "posted"
       feed_qc_result: "pass" | "fail" | "needs_review"
+      lab_treasury_expense_category:
+        | "electricity"
+        | "maintenance"
+        | "water"
+        | "salaries_mother_farm"
+        | "salaries_hatchery"
+        | "salaries_brooding"
+        | "medicine"
+        | "feed_supplies"
+        | "tools"
+        | "transport"
+        | "other"
+      lab_treasury_income_category: "hatching" | "chick_sales" | "other"
+      lab_treasury_movement_type: "income" | "expense"
+      lab_treasury_payment_method:
+        | "cash"
+        | "vodafone_cash"
+        | "instapay"
+        | "bank_transfer"
+      lab_treasury_status: "pending" | "approved" | "rejected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -12260,6 +12389,28 @@ export const Constants = {
         "posted",
       ],
       feed_qc_result: ["pass", "fail", "needs_review"],
+      lab_treasury_expense_category: [
+        "electricity",
+        "maintenance",
+        "water",
+        "salaries_mother_farm",
+        "salaries_hatchery",
+        "salaries_brooding",
+        "medicine",
+        "feed_supplies",
+        "tools",
+        "transport",
+        "other",
+      ],
+      lab_treasury_income_category: ["hatching", "chick_sales", "other"],
+      lab_treasury_movement_type: ["income", "expense"],
+      lab_treasury_payment_method: [
+        "cash",
+        "vodafone_cash",
+        "instapay",
+        "bank_transfer",
+      ],
+      lab_treasury_status: ["pending", "approved", "rejected"],
     },
   },
 } as const
