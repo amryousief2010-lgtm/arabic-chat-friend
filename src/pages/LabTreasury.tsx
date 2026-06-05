@@ -160,10 +160,11 @@ const expenseSchema = z.object({
 const today = () => new Date().toISOString().slice(0, 10);
 
 export default function LabTreasury() {
-  const { user, isGeneralManager, isExecutiveManager } = useAuth();
+  const { user, isGeneralManager, isExecutiveManager, roles } = useAuth();
   const navigate = useNavigate();
-  const isManager = isGeneralManager || isExecutiveManager;
-  const canApprove = isManager;
+  const isApprover = roles.includes('lab_treasury_approver');
+  const isManager = isGeneralManager || isExecutiveManager; // full admin (delete/reopen)
+  const canApprove = isManager || isApprover;
 
   const [movements, setMovements] = useState<Movement[]>([]);
   const [closures, setClosures] = useState<DayClosure[]>([]);
