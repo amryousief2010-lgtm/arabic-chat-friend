@@ -879,6 +879,9 @@ const Slaughterhouse = () => {
         <Button asChild variant="outline" size="sm">
           <a href="/modules/slaughterhouse/transfers"><Truck className="w-4 h-4 ml-1" />سجل نقل اللحوم</a>
         </Button>
+        <Button asChild variant="outline" size="sm">
+          <a href="/modules/slaughterhouse/payroll"><Users className="w-4 h-4 ml-1" />رواتب وبونص الجزارين</a>
+        </Button>
         <RequestCorrectionDialog
           targetModule="المجزر"
           targetType="slaughterhouse"
