@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
 import MotherFarmDashboard from "@/components/farm/MotherFarmDashboard";
+import MotherFarmFeedInventory from "@/components/farm/MotherFarmFeedInventory";
 
 const today = () => format(new Date(), "yyyy-MM-dd");
 const monthStart = () => { const d = new Date(); d.setDate(1); return format(d, "yyyy-MM-dd"); };
