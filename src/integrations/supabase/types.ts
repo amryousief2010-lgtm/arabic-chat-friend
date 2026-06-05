@@ -12477,6 +12477,7 @@ export type Database = {
         | "lab_treasury_keeper"
         | "lab_external_collector"
         | "lab_treasury_approver"
+        | "slaughterhouse_custody_keeper"
       brooding_batch_status:
         | "active"
         | "completed"
@@ -12698,6 +12699,7 @@ export const Constants = {
         "lab_treasury_keeper",
         "lab_external_collector",
         "lab_treasury_approver",
+        "slaughterhouse_custody_keeper",
       ],
       brooding_batch_status: [
         "active",
