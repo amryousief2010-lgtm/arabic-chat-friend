@@ -370,6 +370,29 @@ export default function MeatProductionWarehouses() {
         onClose={() => setTransferTarget(null)}
         onSaved={refreshAll}
       />
+
+      <RawMaterialEditDialog
+        mode="add"
+        open={addRawOpen}
+        onOpenChange={setAddRawOpen}
+        onSaved={refreshAll}
+      />
+      <RawMaterialEditDialog
+        mode="edit"
+        target={editRaw}
+        open={!!editRaw}
+        onOpenChange={(o) => !o && setEditRaw(null)}
+        onSaved={refreshAll}
+      />
+      <RawAdjustStockDialog
+        target={adjustRaw}
+        onClose={() => setAdjustRaw(null)}
+        onSaved={refreshAll}
+      />
+      <RawMovementsDialog
+        target={movementsRaw}
+        onClose={() => setMovementsRaw(null)}
+      />
     </DashboardLayout>
   );
 }
