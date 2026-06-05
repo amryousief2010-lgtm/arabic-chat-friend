@@ -178,7 +178,7 @@ export default function TransfersLog() {
       ["عدد الأصناف", detail.items_count],
       [],
       ["الصنف", "الكمية (كجم)", "السعر/كجم", "الإجمالي", "الحالة", "ملاحظات"],
-      ...items.map((i) => [i.cut_name_ar, Number(i.weight_kg).toFixed(2), Number(i.unit_price).toFixed(2), Number(i.total_value).toFixed(2), i.status, i.notes || ""]),
+      ...items.map((i) => [i.cut_name_ar, Number(i.weight_kg).toFixed(2), Number(i.unit_price).toFixed(2), Number(i.total_value).toFixed(2), itemDisplayStatus(i), i.notes || ""]),
     ];
     const ws = XLSX.utils.aoa_to_sheet(wsData);
     const wb = XLSX.utils.book_new();
