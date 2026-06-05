@@ -1055,6 +1055,7 @@ const Slaughterhouse = () => {
                 open={batchOpen}
                 onOpenChange={setBatchOpen}
                 receipts={receipts}
+                workers={workers as any}
                 onSave={async (draft) => saveBatch(draft as any)}
               />
             </CardHeader>
