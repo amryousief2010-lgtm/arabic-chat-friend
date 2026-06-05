@@ -7821,6 +7821,87 @@ export type Database = {
         }
         Relationships: []
       }
+      mother_farm_feed_movements: {
+        Row: {
+          bags: number | null
+          consumption_day: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          movement_date: string
+          movement_type: string
+          notes: string | null
+          reason: string | null
+          supplier: string | null
+          weight_kg: number
+        }
+        Insert: {
+          bags?: number | null
+          consumption_day?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          movement_date?: string
+          movement_type: string
+          notes?: string | null
+          reason?: string | null
+          supplier?: string | null
+          weight_kg: number
+        }
+        Update: {
+          bags?: number | null
+          consumption_day?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          movement_date?: string
+          movement_type?: string
+          notes?: string | null
+          reason?: string | null
+          supplier?: string | null
+          weight_kg?: number
+        }
+        Relationships: []
+      }
+      mother_farm_feed_settings: {
+        Row: {
+          bag_weight_kg: number
+          consumption_start_date: string
+          created_at: string
+          current_bird_count: number
+          daily_consumption_per_bird_kg: number
+          id: string
+          location_text: string
+          low_stock_threshold_kg: number
+          singleton: boolean
+          updated_at: string
+        }
+        Insert: {
+          bag_weight_kg?: number
+          consumption_start_date?: string
+          created_at?: string
+          current_bird_count?: number
+          daily_consumption_per_bird_kg?: number
+          id?: string
+          location_text?: string
+          low_stock_threshold_kg?: number
+          singleton?: boolean
+          updated_at?: string
+        }
+        Update: {
+          bag_weight_kg?: number
+          consumption_start_date?: string
+          created_at?: string
+          current_bird_count?: number
+          daily_consumption_per_bird_kg?: number
+          id?: string
+          location_text?: string
+          low_stock_threshold_kg?: number
+          singleton?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string
@@ -10359,6 +10440,16 @@ export type Database = {
           },
         ]
       }
+      v_mother_farm_feed_balance: {
+        Row: {
+          balance_kg: number | null
+          last_consumption_day: string | null
+          last_consumption_kg: number | null
+          last_supply_at: string | null
+          last_supply_kg: number | null
+        }
+        Relationships: []
+      }
       v_product_stock_availability: {
         Row: {
           available_stock: number | null
@@ -10521,6 +10612,13 @@ export type Database = {
         Returns: undefined
       }
       apply_meat_stocktake: { Args: { p_id: string }; Returns: string }
+      apply_mother_farm_daily_consumption: {
+        Args: never
+        Returns: {
+          days_added: number
+          total_deducted_kg: number
+        }[]
+      }
       approve_feed_batch_cost: {
         Args: {
           p_batch: string
