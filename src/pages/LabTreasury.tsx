@@ -170,6 +170,7 @@ export default function LabTreasury() {
   const [closures, setClosures] = useState<DayClosure[]>([]);
   const [auditRows, setAuditRows] = useState<AuditRow[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
+  const [openingByMethod, setOpeningByMethod] = useState<Record<PaymentMethod, number>>({ cash: 0, vodafone_cash: 0, instapay: 0, bank_transfer: 0 });
   const [loading, setLoading] = useState(true);
 
   // filters
