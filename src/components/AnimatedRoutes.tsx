@@ -67,6 +67,7 @@ const ModeratorPerformance = lazy(() => import("@/pages/ModeratorPerformance"));
 const ModeratorOrdersLog = lazy(() => import("@/pages/ModeratorOrdersLog"));
 const Farm = lazy(() => import("@/pages/modules/Farm"));
 const Hatchery = lazy(() => import("@/pages/modules/Hatchery"));
+const HatcheryLab = lazy(() => import("@/pages/modules/HatcheryLab"));
 const HatcheryPayments = lazy(() => import("@/pages/HatcheryPayments"));
 const FarmEggWaste = lazy(() => import("@/pages/FarmEggWaste"));
 const FarmHatcheryDashboard = lazy(() => import("@/pages/modules/FarmHatcheryDashboard"));
