@@ -143,6 +143,7 @@ const PrivateDeliveryCollection = lazy(() => import("@/pages/PrivateDeliveryColl
 const ChickOrders = lazy(() => import("@/pages/ChickOrders"));
 const MainWarehouseActivity = lazy(() => import("@/pages/MainWarehouseActivity"));
 const LabTreasury = lazy(() => import("@/pages/LabTreasury"));
+const MyLabCollections = lazy(() => import("@/pages/MyLabCollections"));
 
 const RedirectWithQuery = ({ to }: { to: string }) => {
   const location = useLocation();
