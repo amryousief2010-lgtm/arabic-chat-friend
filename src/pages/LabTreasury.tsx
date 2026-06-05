@@ -211,7 +211,7 @@ export default function LabTreasury() {
     const [{ data: mvs, error: e1 }, { data: cls }, { data: aud }] = await Promise.all([
       (supabase as any).from("lab_treasury_movements").select("*").order("movement_date", { ascending: false }).order("created_at", { ascending: false }).limit(1000),
       (supabase as any).from("lab_treasury_day_closures").select("*").order("closure_date", { ascending: false }).limit(200),
-      isManager
+      canApprove
         ? (supabase as any).from("lab_treasury_audit_log").select("*").order("created_at", { ascending: false }).limit(500)
         : Promise.resolve({ data: [] }),
     ]);
