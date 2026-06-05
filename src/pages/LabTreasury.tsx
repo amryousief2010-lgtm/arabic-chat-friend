@@ -252,6 +252,7 @@ export default function LabTreasury() {
       .channel("lab-treasury-rt")
       .on("postgres_changes", { event: "*", schema: "public", table: "lab_treasury_movements" }, () => fetchData())
       .on("postgres_changes", { event: "*", schema: "public", table: "lab_treasury_day_closures" }, () => fetchData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "lab_treasury_opening_balances" }, () => fetchData())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, []);
