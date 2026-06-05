@@ -51,7 +51,10 @@ interface Props {
   onSave: (draft: BatchDraft) => Promise<boolean>;
 }
 
-export const SlaughterBatchDialog = ({ open, onOpenChange, receipts, onSave }: Props) => {
+export const SlaughterBatchDialog = ({ open, onOpenChange, receipts, workers = [], onSave }: Props) => {
+  const sortedWorkers = [...workers]
+    .filter((w) => w.is_active !== false)
+    .sort((a, b) => (a.lead_rank ?? 99) - (b.lead_rank ?? 99) || a.full_name.localeCompare(b.full_name, "ar"));
   const [form, setForm] = useState<BatchDraft>(() => {
     try {
       const saved = localStorage.getItem(DRAFT_KEY);
