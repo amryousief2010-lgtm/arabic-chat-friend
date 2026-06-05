@@ -24,6 +24,9 @@ export type BatchDraft = {
   rejected_birds: number;
   start_time: string;
   notes: string;
+  butcher_1_id: string;
+  butcher_2_id: string;
+  butcher_3_id: string;
 };
 
 const defaultDraft: BatchDraft = {
@@ -35,12 +38,16 @@ const defaultDraft: BatchDraft = {
   rejected_birds: 0,
   start_time: "",
   notes: "",
+  butcher_1_id: "",
+  butcher_2_id: "",
+  butcher_3_id: "",
 };
 
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   receipts: Array<{ id: string; receipt_number: string; bird_count: number; total_weight_kg: number; status: string }>;
+  workers?: Array<{ id: string; full_name: string; role: string; is_active: boolean; lead_rank?: number | null }>;
   onSave: (draft: BatchDraft) => Promise<boolean>;
 }
 
