@@ -10,12 +10,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate } from "@/lib/printPdf";
 import * as XLSX from "xlsx";
-import { Wallet, TrendingUp, TrendingDown, CircleDollarSign, Banknote, Smartphone, Building2, CreditCard, CheckCircle2, XCircle, Hourglass, Printer, FileSpreadsheet, Plus } from "lucide-react";
+import {
+  Wallet, TrendingUp, TrendingDown, CircleDollarSign, Banknote, Smartphone, Building2,
+  CreditCard, CheckCircle2, XCircle, Printer, FileSpreadsheet, Plus, Lock, Unlock,
+  ShieldAlert, ScrollText, AlertTriangle, FileCheck2,
+} from "lucide-react";
 
 type PaymentMethod = "cash" | "vodafone_cash" | "instapay" | "bank_transfer";
 type MovementType = "income" | "expense";
@@ -43,10 +49,44 @@ interface Movement {
   receipt_url: string | null;
   status: Status;
   rejection_reason: string | null;
+  rejected_by: string | null;
+  rejected_at: string | null;
+  deletion_reason: string | null;
   balance_after: number | null;
   created_by: string | null;
   approved_by: string | null;
   approved_at: string | null;
+  created_at: string;
+}
+
+interface DayClosure {
+  id: string;
+  closure_date: string;
+  closed_by: string;
+  closed_at: string;
+  opening_balance: number;
+  closing_balance: number;
+  cash_balance: number;
+  vodafone_balance: number;
+  instapay_balance: number;
+  bank_balance: number;
+  total_income: number;
+  total_expense: number;
+  net_movement: number;
+  notes: string | null;
+  reopened_at: string | null;
+  reopened_by: string | null;
+  reopen_reason: string | null;
+}
+
+interface AuditRow {
+  id: string;
+  action: string;
+  movement_id: string | null;
+  actor_id: string | null;
+  actor_name: string | null;
+  reason: string | null;
+  metadata: any;
   created_at: string;
 }
 
@@ -64,23 +104,26 @@ const INCOME_LABELS: Record<IncomeCat, string> = {
 };
 
 const EXPENSE_LABELS: Record<ExpenseCat, string> = {
-  electricity: "كهرباء",
-  maintenance: "صيانة",
-  water: "مياه",
+  electricity: "كهرباء", maintenance: "صيانة", water: "مياه",
   salaries_mother_farm: "رواتب موظفي مزرعة الأمهات",
   salaries_hatchery: "رواتب موظفي معمل التفريخ",
   salaries_brooding: "رواتب موظفي الحضانات",
-  medicine: "أدوية ومطهرات",
-  feed_supplies: "علف ومستلزمات كتاكيت",
-  tools: "أدوات تشغيل",
-  transport: "نقل ومشاوير",
-  other: "مصروفات أخرى",
+  medicine: "أدوية ومطهرات", feed_supplies: "علف ومستلزمات كتاكيت",
+  tools: "أدوات تشغيل", transport: "نقل ومشاوير", other: "مصروفات أخرى",
 };
 
 const STATUS_LABELS: Record<Status, string> = {
   pending: "بانتظار الاعتماد",
   approved: "معتمدة",
   rejected: "مرفوضة",
+};
+
+const ACTION_LABELS: Record<string, string> = {
+  insert_income: "إضافة إيراد", insert_expense: "إضافة مصروف",
+  approve: "اعتماد حركة", reject: "رفض حركة", delete: "حذف حركة",
+  update: "تعديل حركة", export_excel: "تصدير Excel", export_pdf: "تصدير PDF",
+  print_report: "طباعة تقرير", close_day: "إقفال يوم", reopen_day: "إعادة فتح يوم",
+  print_census: "طباعة محضر جرد",
 };
 
 const incomeSchema = z.object({
@@ -112,11 +155,13 @@ const expenseSchema = z.object({
 const today = () => new Date().toISOString().slice(0, 10);
 
 export default function LabTreasury() {
-  const { user, isGeneralManager, isExecutiveManager, isAccountant } = useAuth();
+  const { user, isGeneralManager, isExecutiveManager } = useAuth();
   const isManager = isGeneralManager || isExecutiveManager;
   const canApprove = isManager;
 
   const [movements, setMovements] = useState<Movement[]>([]);
+  const [closures, setClosures] = useState<DayClosure[]>([]);
+  const [auditRows, setAuditRows] = useState<AuditRow[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
@@ -131,53 +176,51 @@ export default function LabTreasury() {
 
   // forms
   const [incForm, setIncForm] = useState({
-    movement_date: today(),
-    income_category: "hatching" as IncomeCat,
-    customer_name: "",
-    units_count: "" as any,
-    unit_price: "" as any,
-    amount: "" as any,
-    payment_method: "cash" as PaymentMethod,
-    description: "",
-    notes: "",
+    movement_date: today(), income_category: "hatching" as IncomeCat,
+    customer_name: "", units_count: "" as any, unit_price: "" as any, amount: "" as any,
+    payment_method: "cash" as PaymentMethod, description: "", notes: "",
   });
   const [incReceipt, setIncReceipt] = useState<File | null>(null);
 
   const [expForm, setExpForm] = useState({
-    movement_date: today(),
-    expense_category: "electricity" as ExpenseCat,
-    amount: "" as any,
-    payment_method: "cash" as PaymentMethod,
-    description: "",
-    beneficiary: "",
-    notes: "",
+    movement_date: today(), expense_category: "electricity" as ExpenseCat,
+    amount: "" as any, payment_method: "cash" as PaymentMethod,
+    description: "", beneficiary: "", notes: "",
   });
   const [expReceipt, setExpReceipt] = useState<File | null>(null);
 
-  const [rejectionReason, setRejectionReason] = useState<Record<string, string>>({});
+  // dialogs
+  const [rejectDlg, setRejectDlg] = useState<{ open: boolean; movement: Movement | null; reason: string }>({ open: false, movement: null, reason: "" });
+  const [deleteDlg, setDeleteDlg] = useState<{ open: boolean; movement: Movement | null; reason: string }>({ open: false, movement: null, reason: "" });
+  const [closeDayDlg, setCloseDayDlg] = useState<{ open: boolean; date: string; notes: string }>({ open: false, date: today(), notes: "" });
+  const [reopenDlg, setReopenDlg] = useState<{ open: boolean; closure: DayClosure | null; reason: string }>({ open: false, closure: null, reason: "" });
+
+  // daily report
+  const [reportDate, setReportDate] = useState(today());
+  const [reportData, setReportData] = useState<any>(null);
 
   async function fetchData() {
     setLoading(true);
-    const { data, error } = await (supabase as any)
-      .from("lab_treasury_movements")
-      .select("*")
-      .order("movement_date", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(1000);
-    if (error) {
-      toast.error("فشل تحميل حركات الخزنة: " + error.message);
-      setLoading(false);
-      return;
-    }
-    const list = (data || []) as Movement[];
+    const [{ data: mvs, error: e1 }, { data: cls }, { data: aud }] = await Promise.all([
+      (supabase as any).from("lab_treasury_movements").select("*").order("movement_date", { ascending: false }).order("created_at", { ascending: false }).limit(1000),
+      (supabase as any).from("lab_treasury_day_closures").select("*").order("closure_date", { ascending: false }).limit(200),
+      isManager
+        ? (supabase as any).from("lab_treasury_audit_log").select("*").order("created_at", { ascending: false }).limit(500)
+        : Promise.resolve({ data: [] }),
+    ]);
+    if (e1) { toast.error("فشل تحميل الخزنة: " + e1.message); setLoading(false); return; }
+    const list = (mvs || []) as Movement[];
     setMovements(list);
+    setClosures((cls || []) as DayClosure[]);
+    setAuditRows((aud || []) as AuditRow[]);
 
-    const userIds = Array.from(new Set(list.flatMap((m) => [m.created_by, m.approved_by]).filter(Boolean))) as string[];
-    if (userIds.length) {
-      const { data: profs } = await supabase
-        .from("profiles")
-        .select("id, full_name")
-        .in("id", userIds);
+    const ids = Array.from(new Set([
+      ...list.flatMap((m) => [m.created_by, m.approved_by, m.rejected_by]),
+      ...(cls || []).flatMap((c: any) => [c.closed_by, c.reopened_by]),
+      ...(aud || []).map((a: any) => a.actor_id),
+    ].filter(Boolean))) as string[];
+    if (ids.length) {
+      const { data: profs } = await supabase.from("profiles").select("id, full_name").in("id", ids);
       const map: Record<string, string> = {};
       (profs || []).forEach((p: any) => { map[p.id] = p.full_name || ""; });
       setProfiles(map);
@@ -187,26 +230,48 @@ export default function LabTreasury() {
 
   useEffect(() => { fetchData(); }, []);
 
-  // Realtime
   useEffect(() => {
     const ch = supabase
       .channel("lab-treasury-rt")
       .on("postgres_changes", { event: "*", schema: "public", table: "lab_treasury_movements" }, () => fetchData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "lab_treasury_day_closures" }, () => fetchData())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, []);
 
-  // Derived
-  const approved = useMemo(() => movements.filter((m) => m.status === "approved"), [movements]);
-  const balancesByMethod = useMemo(() => {
-    const map: Record<PaymentMethod, number> = { cash: 0, vodafone_cash: 0, instapay: 0, bank_transfer: 0 };
-    approved.forEach((m) => {
-      const sign = m.movement_type === "income" ? 1 : -1;
-      map[m.payment_method] += sign * Number(m.amount);
+  // ---- Audit helper ----
+  async function logAudit(action: string, opts: { movement_id?: string; reason?: string; before?: any; after?: any; metadata?: any } = {}) {
+    if (!user) return;
+    await (supabase as any).from("lab_treasury_audit_log").insert({
+      action,
+      movement_id: opts.movement_id ?? null,
+      actor_id: user.id,
+      actor_name: profiles[user.id] || user.email || null,
+      reason: opts.reason ?? null,
+      before_data: opts.before ?? null,
+      after_data: opts.after ?? null,
+      metadata: opts.metadata ?? null,
     });
+  }
+
+  // ---- Derived balances ----
+  const approved = useMemo(() => movements.filter((m) => m.status === "approved"), [movements]);
+  const pending = useMemo(() => movements.filter((m) => m.status === "pending"), [movements]);
+
+  const officialByMethod = useMemo(() => {
+    const map: Record<PaymentMethod, number> = { cash: 0, vodafone_cash: 0, instapay: 0, bank_transfer: 0 };
+    approved.forEach((m) => { map[m.payment_method] += (m.movement_type === "income" ? 1 : -1) * Number(m.amount); });
     return map;
   }, [approved]);
-  const totalBalance = balancesByMethod.cash + balancesByMethod.vodafone_cash + balancesByMethod.instapay + balancesByMethod.bank_transfer;
+  const estimatedByMethod = useMemo(() => {
+    const map: Record<PaymentMethod, number> = { ...officialByMethod };
+    pending.forEach((m) => { map[m.payment_method] += (m.movement_type === "income" ? 1 : -1) * Number(m.amount); });
+    return map;
+  }, [officialByMethod, pending]);
+
+  const officialTotal = officialByMethod.cash + officialByMethod.vodafone_cash + officialByMethod.instapay + officialByMethod.bank_transfer;
+  const estimatedTotal = estimatedByMethod.cash + estimatedByMethod.vodafone_cash + estimatedByMethod.instapay + estimatedByMethod.bank_transfer;
+  const pendingTotal = estimatedTotal - officialTotal;
 
   const todayStr = today();
   const monthStart = todayStr.slice(0, 7);
@@ -215,18 +280,7 @@ export default function LabTreasury() {
   const monthIncome = approved.filter((m) => m.movement_date.startsWith(monthStart) && m.movement_type === "income").reduce((s, m) => s + Number(m.amount), 0);
   const monthExpense = approved.filter((m) => m.movement_date.startsWith(monthStart) && m.movement_type === "expense").reduce((s, m) => s + Number(m.amount), 0);
 
-  const topExpenseCat = useMemo(() => {
-    const map: Record<string, number> = {};
-    approved.filter((m) => m.movement_type === "expense" && m.movement_date.startsWith(monthStart)).forEach((m) => {
-      const k = m.expense_category || "other";
-      map[k] = (map[k] || 0) + Number(m.amount);
-    });
-    const entry = Object.entries(map).sort((a, b) => b[1] - a[1])[0];
-    return entry ? { label: EXPENSE_LABELS[entry[0] as ExpenseCat] || "—", value: entry[1] } : { label: "—", value: 0 };
-  }, [approved, monthStart]);
-
-  const totalHatching = approved.filter((m) => m.income_category === "hatching").reduce((s, m) => s + Number(m.amount), 0);
-  const totalChickSales = approved.filter((m) => m.income_category === "chick_sales").reduce((s, m) => s + Number(m.amount), 0);
+  const closedDates = useMemo(() => new Set(closures.filter((c) => !c.reopened_at).map((c) => c.closure_date)), [closures]);
 
   const filtered = useMemo(() => {
     return movements.filter((m) => {
@@ -241,14 +295,16 @@ export default function LabTreasury() {
     });
   }, [movements, fromDate, toDate, fType, fCategory, fPayment, fStatus, fCustomer]);
 
+  // ---- Expense balance check (UI warning) ----
+  const expAmountNum = Number(expForm.amount) || 0;
+  const expAvailable = officialByMethod[expForm.payment_method] ?? 0;
+  const expExceeds = expAmountNum > 0 && expAmountNum > expAvailable;
+
   async function uploadReceipt(file: File | null): Promise<string | null> {
     if (!file || !user) return null;
     const path = `${user.id}/${Date.now()}-${file.name.replace(/[^\w.\-]/g, "_")}`;
     const { error } = await supabase.storage.from("lab-treasury-receipts").upload(path, file, { upsert: false });
-    if (error) {
-      toast.error("فشل رفع الإيصال: " + error.message);
-      return null;
-    }
+    if (error) { toast.error("فشل رفع الإيصال: " + error.message); return null; }
     return path;
   }
 
@@ -260,13 +316,10 @@ export default function LabTreasury() {
       unit_price: incForm.unit_price === "" ? undefined : Number(incForm.unit_price),
       amount: Number(incForm.amount),
     });
-    if (!parsed.success) {
-      toast.error(parsed.error.errors[0]?.message || "تحقق من الحقول");
-      return;
-    }
+    if (!parsed.success) { toast.error(parsed.error.errors[0]?.message || "تحقق من الحقول"); return; }
     const receipt_url = await uploadReceipt(incReceipt);
-    const { error } = await (supabase as any).from("lab_treasury_movements").insert({
-      movement_type: "income",
+    const payload = {
+      movement_type: "income" as const,
       movement_date: parsed.data.movement_date,
       income_category: parsed.data.income_category,
       customer_name: parsed.data.customer_name || null,
@@ -278,9 +331,11 @@ export default function LabTreasury() {
       notes: parsed.data.notes || null,
       receipt_url,
       created_by: user.id,
-      status: "pending",
-    });
+      status: "pending" as const,
+    };
+    const { data, error } = await (supabase as any).from("lab_treasury_movements").insert(payload).select().single();
     if (error) { toast.error("فشل التسجيل: " + error.message); return; }
+    await logAudit("insert_income", { movement_id: data?.id, after: payload });
     toast.success("تم تسجيل الإيراد — بانتظار الاعتماد");
     setIncForm({ ...incForm, customer_name: "", units_count: "", unit_price: "", amount: "", description: "", notes: "" });
     setIncReceipt(null);
@@ -290,13 +345,17 @@ export default function LabTreasury() {
   async function submitExpense() {
     if (!user) return;
     const parsed = expenseSchema.safeParse({ ...expForm, amount: Number(expForm.amount) });
-    if (!parsed.success) {
-      toast.error(parsed.error.errors[0]?.message || "تحقق من الحقول");
+    if (!parsed.success) { toast.error(parsed.error.errors[0]?.message || "تحقق من الحقول"); return; }
+    if (expExceeds && !isManager) {
+      toast.error(`الرصيد المتاح في ${PAYMENT_LABELS[expForm.payment_method]} غير كافٍ (${fmtNum(expAvailable, 2)} ج). يلزم اعتماد المدير العام أو التنفيذي.`);
       return;
     }
+    if (expExceeds && isManager) {
+      if (!confirm(`تحذير: المبلغ يتجاوز الرصيد المتاح في ${PAYMENT_LABELS[expForm.payment_method]} (${fmtNum(expAvailable, 2)} ج). هل تريد المتابعة بصلاحية الإدارة؟`)) return;
+    }
     const receipt_url = await uploadReceipt(expReceipt);
-    const { error } = await (supabase as any).from("lab_treasury_movements").insert({
-      movement_type: "expense",
+    const payload = {
+      movement_type: "expense" as const,
       movement_date: parsed.data.movement_date,
       expense_category: parsed.data.expense_category,
       amount: parsed.data.amount,
@@ -306,37 +365,114 @@ export default function LabTreasury() {
       notes: parsed.data.notes || null,
       receipt_url,
       created_by: user.id,
-      status: "pending",
-    });
+      status: "pending" as const,
+    };
+    const { data, error } = await (supabase as any).from("lab_treasury_movements").insert(payload).select().single();
     if (error) { toast.error("فشل التسجيل: " + error.message); return; }
+    await logAudit("insert_expense", { movement_id: data?.id, after: payload, metadata: expExceeds ? { override: true, available: expAvailable } : null });
     toast.success("تم تسجيل المصروف — بانتظار الاعتماد");
     setExpForm({ ...expForm, amount: "", description: "", beneficiary: "", notes: "" });
     setExpReceipt(null);
     fetchData();
   }
 
-  async function approve(id: string) {
+  async function approve(m: Movement) {
     const { error } = await (supabase as any).from("lab_treasury_movements")
-      .update({ status: "approved" }).eq("id", id);
-    if (error) toast.error("فشل الاعتماد: " + error.message);
-    else { toast.success("تم اعتماد الحركة"); fetchData(); }
-  }
-  async function reject(id: string) {
-    const reason = rejectionReason[id]?.trim();
-    if (!reason) { toast.error("اكتب سبب الرفض"); return; }
-    const { error } = await (supabase as any).from("lab_treasury_movements")
-      .update({ status: "rejected", rejection_reason: reason }).eq("id", id);
-    if (error) toast.error("فشل الرفض: " + error.message);
-    else { toast.success("تم رفض الحركة"); fetchData(); }
-  }
-  async function removeMovement(id: string) {
-    if (!confirm("تأكيد حذف الحركة؟")) return;
-    const { error } = await (supabase as any).from("lab_treasury_movements").delete().eq("id", id);
-    if (error) toast.error("فشل الحذف: " + error.message);
-    else { toast.success("تم الحذف"); fetchData(); }
+      .update({ status: "approved" }).eq("id", m.id);
+    if (error) { toast.error("فشل الاعتماد: " + error.message); return; }
+    await logAudit("approve", { movement_id: m.id, before: { status: m.status }, after: { status: "approved" } });
+    toast.success("تم اعتماد الحركة");
+    fetchData();
   }
 
-  function exportExcel() {
+  async function confirmReject() {
+    if (!rejectDlg.movement) return;
+    const reason = rejectDlg.reason.trim();
+    if (reason.length < 3) { toast.error("سبب الرفض إلزامي (3 أحرف على الأقل)"); return; }
+    const m = rejectDlg.movement;
+    const { error } = await (supabase as any).from("lab_treasury_movements")
+      .update({ status: "rejected", rejection_reason: reason }).eq("id", m.id);
+    if (error) { toast.error("فشل الرفض: " + error.message); return; }
+    await logAudit("reject", { movement_id: m.id, reason, before: { status: m.status }, after: { status: "rejected" } });
+    toast.success("تم رفض الحركة");
+    setRejectDlg({ open: false, movement: null, reason: "" });
+    fetchData();
+  }
+
+  async function confirmDelete() {
+    if (!deleteDlg.movement) return;
+    const reason = deleteDlg.reason.trim();
+    if (reason.length < 3) { toast.error("سبب الحذف إلزامي (3 أحرف على الأقل)"); return; }
+    const m = deleteDlg.movement;
+    // Log first so we keep audit even if delete cascades
+    await logAudit("delete", { movement_id: m.id, reason, before: m });
+    const { error } = await (supabase as any).from("lab_treasury_movements").delete().eq("id", m.id);
+    if (error) { toast.error("فشل الحذف: " + error.message); return; }
+    toast.success("تم الحذف وتسجيله في سجل التدقيق");
+    setDeleteDlg({ open: false, movement: null, reason: "" });
+    fetchData();
+  }
+
+  // ---- Day closures ----
+  function buildDayClosurePayload(date: string) {
+    const dayMovs = approved.filter((m) => m.movement_date === date);
+    const incomeT = dayMovs.filter((m) => m.movement_type === "income").reduce((s, m) => s + Number(m.amount), 0);
+    const expenseT = dayMovs.filter((m) => m.movement_type === "expense").reduce((s, m) => s + Number(m.amount), 0);
+    const opening = approved.filter((m) => m.movement_date < date).reduce((s, m) =>
+      s + (m.movement_type === "income" ? 1 : -1) * Number(m.amount), 0);
+    const closing = opening + incomeT - expenseT;
+    // closing balances by method up to and including this date
+    const upTo = approved.filter((m) => m.movement_date <= date);
+    const byM: Record<PaymentMethod, number> = { cash: 0, vodafone_cash: 0, instapay: 0, bank_transfer: 0 };
+    upTo.forEach((m) => { byM[m.payment_method] += (m.movement_type === "income" ? 1 : -1) * Number(m.amount); });
+    return {
+      opening_balance: opening, closing_balance: closing,
+      total_income: incomeT, total_expense: expenseT, net_movement: incomeT - expenseT,
+      cash_balance: byM.cash, vodafone_balance: byM.vodafone_cash,
+      instapay_balance: byM.instapay, bank_balance: byM.bank_transfer,
+    };
+  }
+
+  async function closeDay() {
+    if (!user || !isManager) return;
+    const date = closeDayDlg.date;
+    if (closedDates.has(date)) { toast.error("هذا اليوم مُقفل بالفعل"); return; }
+    const hasPending = movements.some((m) => m.movement_date === date && m.status === "pending");
+    if (hasPending && !confirm("يوجد حركات بانتظار الاعتماد لهذا اليوم. متابعة الإقفال؟")) return;
+    const payload = { closure_date: date, closed_by: user.id, notes: closeDayDlg.notes || null, ...buildDayClosurePayload(date) };
+    const { error } = await (supabase as any).from("lab_treasury_day_closures").insert(payload);
+    if (error) { toast.error("فشل الإقفال: " + error.message); return; }
+    await logAudit("close_day", { metadata: { date, ...payload } });
+    toast.success(`تم إقفال يوم ${date}`);
+    setCloseDayDlg({ open: false, date: today(), notes: "" });
+    fetchData();
+  }
+
+  async function reopenDay() {
+    if (!user || !isGeneralManager || !reopenDlg.closure) return;
+    const reason = reopenDlg.reason.trim();
+    if (reason.length < 3) { toast.error("سبب إعادة الفتح إلزامي"); return; }
+    const c = reopenDlg.closure;
+    const { error } = await (supabase as any).from("lab_treasury_day_closures")
+      .update({ reopened_at: new Date().toISOString(), reopened_by: user.id, reopen_reason: reason })
+      .eq("id", c.id);
+    if (error) { toast.error("فشل إعادة الفتح: " + error.message); return; }
+    await logAudit("reopen_day", { reason, metadata: { date: c.closure_date } });
+    toast.success("تمت إعادة فتح اليوم");
+    setReopenDlg({ open: false, closure: null, reason: "" });
+    fetchData();
+  }
+
+  // ---- Daily report ----
+  async function loadDailyReport() {
+    const { data, error } = await (supabase as any).rpc("lab_treasury_daily_report", { p_date: reportDate });
+    if (error) { toast.error("فشل تحميل التقرير: " + error.message); return; }
+    setReportData(data);
+  }
+  useEffect(() => { loadDailyReport(); }, [reportDate]);
+
+  // ---- Exports ----
+  async function exportExcel() {
     const rows = filtered.map((m) => ({
       "التاريخ": m.movement_date,
       "النوع": m.movement_type === "income" ? "إيراد" : "مصروف",
@@ -356,9 +492,10 @@ export default function LabTreasury() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "خزنة المعمل");
     XLSX.writeFile(wb, `lab-treasury-${todayStr}.xlsx`);
+    await logAudit("export_excel", { metadata: { count: rows.length, filters: { fromDate, toDate, fType, fCategory, fPayment, fStatus } } });
   }
 
-  function printReport(title: string) {
+  async function printReport(title: string) {
     const rowsHtml = filtered.map((m) => `
       <tr>
         <td>${escapeHtml(m.movement_date)}</td>
@@ -372,34 +509,75 @@ export default function LabTreasury() {
         <td>${PAYMENT_LABELS[m.payment_method]}</td>
         <td class="num">${m.balance_after != null ? fmtNum(m.balance_after, 2) : "—"}</td>
         <td>${STATUS_LABELS[m.status]}</td>
-        <td>${escapeHtml(profiles[m.created_by || ""] || "")}</td>
       </tr>`).join("");
-
     const totalIn = filtered.filter((m) => m.movement_type === "income" && m.status === "approved").reduce((s, m) => s + Number(m.amount), 0);
     const totalOut = filtered.filter((m) => m.movement_type === "expense" && m.status === "approved").reduce((s, m) => s + Number(m.amount), 0);
-
     const body = `
-      <header>
-        <div><h1>${escapeHtml(title)}</h1><div class="en">Lab & Brooding Treasury</div></div>
-        <div class="meta">${fmtDate(new Date())}</div>
-      </header>
+      <header><div><h1>${escapeHtml(title)}</h1><div class="en">Lab & Brooding Treasury</div></div>
+        <div class="meta">${fmtDate(new Date())}</div></header>
       <div class="stats">
         <div class="stat"><div class="k">إجمالي الوارد</div><div class="v num">${fmtNum(totalIn, 2)}</div></div>
         <div class="stat"><div class="k">إجمالي المنصرف</div><div class="v num">${fmtNum(totalOut, 2)}</div></div>
         <div class="stat"><div class="k">صافي الحركة</div><div class="v num">${fmtNum(totalIn - totalOut, 2)}</div></div>
-        <div class="stat"><div class="k">عدد الحركات</div><div class="v num">${filtered.length}</div></div>
       </div>
       <table>
-        <thead><tr>
-          <th>التاريخ</th><th>النوع</th><th>البيان</th><th>العميل/المستفيد</th>
-          <th>وارد</th><th>منصرف</th><th>طريقة الدفع</th><th>الرصيد بعد</th>
-          <th>الحالة</th><th>سجّل بواسطة</th>
-        </tr></thead>
+        <thead><tr><th>التاريخ</th><th>النوع</th><th>البيان</th><th>العميل/المستفيد</th>
+          <th>وارد</th><th>منصرف</th><th>طريقة الدفع</th><th>الرصيد بعد</th><th>الحالة</th></tr></thead>
         <tbody>${rowsHtml}</tbody>
       </table>`;
     openPrintWindow(title, body);
+    await logAudit("export_pdf", { metadata: { title } });
   }
 
+  async function printDailyReport() {
+    if (!reportData) { await loadDailyReport(); return; }
+    const r = reportData;
+    const body = `
+      <header><div><h1>التقرير اليومي - خزنة المعمل والحضانات</h1></div>
+        <div class="meta">${escapeHtml(r.date)}</div></header>
+      <div class="stats">
+        <div class="stat"><div class="k">رصيد أول اليوم</div><div class="v num">${fmtNum(r.opening_balance, 2)}</div></div>
+        <div class="stat"><div class="k">إجمالي الإيرادات</div><div class="v num">${fmtNum(r.income_total, 2)}</div></div>
+        <div class="stat"><div class="k">إجمالي المصروفات</div><div class="v num">${fmtNum(r.expense_total, 2)}</div></div>
+        <div class="stat"><div class="k">صافي الحركة</div><div class="v num">${fmtNum(r.net_movement, 2)}</div></div>
+        <div class="stat"><div class="k">رصيد آخر اليوم</div><div class="v num">${fmtNum(r.closing_balance, 2)}</div></div>
+        <div class="stat"><div class="k">حركات معلقة</div><div class="v num">${r.pending_count}</div></div>
+        <div class="stat"><div class="k">حركات مرفوضة</div><div class="v num">${r.rejected_count}</div></div>
+      </div>
+      <h3>الرصيد حسب طريقة الدفع (نهاية اليوم)</h3>
+      <table><thead><tr><th>طريقة الدفع</th><th>الرصيد</th></tr></thead><tbody>
+        ${Object.entries(r.by_method || {}).map(([k, v]) => `<tr><td>${PAYMENT_LABELS[k as PaymentMethod] || k}</td><td class="num">${fmtNum(Number(v), 2)}</td></tr>`).join("")}
+      </tbody></table>`;
+    openPrintWindow("تقرير يومي - خزنة المعمل", body);
+    await logAudit("print_report", { metadata: { date: r.date } });
+  }
+
+  async function printCensus() {
+    const body = `
+      <header><div><h1>محضر جرد خزنة المعمل والحضانات</h1></div>
+        <div class="meta">${fmtDate(new Date())}</div></header>
+      <table><tbody>
+        <tr><th>التاريخ</th><td>${todayStr}</td></tr>
+        <tr><th>مسؤول الخزنة</th><td>محمد خالد</td></tr>
+        <tr><th>الرصيد النقدي</th><td class="num">${fmtNum(officialByMethod.cash, 2)} ج</td></tr>
+        <tr><th>رصيد فودافون كاش</th><td class="num">${fmtNum(officialByMethod.vodafone_cash, 2)} ج</td></tr>
+        <tr><th>رصيد إنستا باي</th><td class="num">${fmtNum(officialByMethod.instapay, 2)} ج</td></tr>
+        <tr><th>رصيد التحويل البنكي</th><td class="num">${fmtNum(officialByMethod.bank_transfer, 2)} ج</td></tr>
+        <tr><th>إجمالي الرصيد</th><td class="num"><b>${fmtNum(officialTotal, 2)} ج</b></td></tr>
+      </tbody></table>
+      <div style="margin-top:60px;display:flex;justify-content:space-between;gap:40px;">
+        <div style="flex:1;text-align:center;">
+          <div style="border-top:1px solid #000;padding-top:8px;margin-top:60px;">توقيع مسؤول الخزنة<br/>(محمد خالد)</div>
+        </div>
+        <div style="flex:1;text-align:center;">
+          <div style="border-top:1px solid #000;padding-top:8px;margin-top:60px;">توقيع المدير / المحاسب</div>
+        </div>
+      </div>`;
+    openPrintWindow("محضر جرد خزنة المعمل والحضانات", body);
+    await logAudit("print_census", { metadata: { totals: officialByMethod, total: officialTotal } });
+  }
+
+  // ---- Render ----
   return (
     <DashboardLayout>
       <div className="space-y-4">
@@ -409,6 +587,9 @@ export default function LabTreasury() {
             <h1 className="text-2xl font-bold">خزنة المعمل والحضانات</h1>
             <Badge variant="outline">المسؤول: محمد خالد</Badge>
           </div>
+          <Button variant="outline" onClick={printCensus} className="gap-2">
+            <FileCheck2 className="w-4 h-4" />محضر جرد الخزنة
+          </Button>
         </div>
 
         <Tabs defaultValue="dashboard" className="w-full">
@@ -418,26 +599,65 @@ export default function LabTreasury() {
             <TabsTrigger value="expense">إضافة مصروف</TabsTrigger>
             <TabsTrigger value="log">سجل الحركات</TabsTrigger>
             {canApprove && <TabsTrigger value="approvals">الاعتمادات</TabsTrigger>}
+            <TabsTrigger value="daily">التقرير اليومي</TabsTrigger>
+            <TabsTrigger value="closures">إقفال الأيام</TabsTrigger>
             <TabsTrigger value="reports">التقارير</TabsTrigger>
+            {isManager && <TabsTrigger value="audit">سجل التدقيق</TabsTrigger>}
           </TabsList>
 
           {/* Dashboard */}
           <TabsContent value="dashboard" className="space-y-4">
+            <Alert>
+              <ShieldAlert className="w-4 h-4" />
+              <AlertTitle>الرصيد الرسمي vs التقديري</AlertTitle>
+              <AlertDescription className="text-xs">
+                الرصيد الرسمي يُحتسب من الحركات <b>المعتمدة فقط</b>. الرصيد التقديري يشمل الحركات بانتظار الاعتماد كمؤشر داخلي.
+              </AlertDescription>
+            </Alert>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <StatCard icon={<CheckCircle2 />} title="الرصيد الرسمي المعتمد" value={fmtNum(officialTotal, 2)} accent />
+              <StatCard icon={<CircleDollarSign />} title="الرصيد التقديري (مع المعلق)" value={fmtNum(estimatedTotal, 2)} />
+              <StatCard icon={<AlertTriangle />} title="صافي الحركات المعلقة" value={fmtNum(pendingTotal, 2)} />
+            </div>
+
+            <Card>
+              <CardHeader><CardTitle>الرصيد حسب طريقة الدفع</CardTitle></CardHeader>
+              <CardContent className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>طريقة الدفع</TableHead>
+                      <TableHead className="text-end">الرسمي (معتمد)</TableHead>
+                      <TableHead className="text-end">التقديري (+ معلق)</TableHead>
+                      <TableHead className="text-end">الفرق</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(["cash", "vodafone_cash", "instapay", "bank_transfer"] as PaymentMethod[]).map((pm) => (
+                      <TableRow key={pm}>
+                        <TableCell className="flex items-center gap-2">
+                          {pm === "cash" && <Banknote className="w-4 h-4" />}
+                          {pm === "vodafone_cash" && <Smartphone className="w-4 h-4" />}
+                          {pm === "instapay" && <CreditCard className="w-4 h-4" />}
+                          {pm === "bank_transfer" && <Building2 className="w-4 h-4" />}
+                          {PAYMENT_LABELS[pm]}
+                        </TableCell>
+                        <TableCell className="text-end font-mono font-semibold">{fmtNum(officialByMethod[pm], 2)}</TableCell>
+                        <TableCell className="text-end font-mono">{fmtNum(estimatedByMethod[pm], 2)}</TableCell>
+                        <TableCell className="text-end font-mono text-muted-foreground">{fmtNum(estimatedByMethod[pm] - officialByMethod[pm], 2)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-              <StatCard icon={<CircleDollarSign />} title="إجمالي رصيد الخزنة" value={fmtNum(totalBalance, 2)} accent />
-              <StatCard icon={<Banknote />} title="الرصيد النقدي" value={fmtNum(balancesByMethod.cash, 2)} />
-              <StatCard icon={<Smartphone />} title="فودافون كاش" value={fmtNum(balancesByMethod.vodafone_cash, 2)} />
-              <StatCard icon={<CreditCard />} title="إنستا باي" value={fmtNum(balancesByMethod.instapay, 2)} />
-              <StatCard icon={<Building2 />} title="تحويل بنكي" value={fmtNum(balancesByMethod.bank_transfer, 2)} />
               <StatCard icon={<TrendingUp />} title="إيرادات اليوم" value={fmtNum(todayIncome, 2)} />
               <StatCard icon={<TrendingDown />} title="مصروفات اليوم" value={fmtNum(todayExpense, 2)} />
-              <StatCard icon={<CircleDollarSign />} title="صافي اليوم" value={fmtNum(todayIncome - todayExpense, 2)} />
               <StatCard icon={<TrendingUp />} title="إيرادات الشهر" value={fmtNum(monthIncome, 2)} />
               <StatCard icon={<TrendingDown />} title="مصروفات الشهر" value={fmtNum(monthExpense, 2)} />
-              <StatCard icon={<CircleDollarSign />} title="صافي الشهر" value={fmtNum(monthIncome - monthExpense, 2)} />
-              <StatCard icon={<TrendingDown />} title={`أعلى بند مصروف (${topExpenseCat.label})`} value={fmtNum(topExpenseCat.value, 2)} />
-              <StatCard icon={<TrendingUp />} title="إجمالي إيرادات التفريخ" value={fmtNum(totalHatching, 2)} />
-              <StatCard icon={<TrendingUp />} title="إجمالي إيرادات بيع الكتاكيت" value={fmtNum(totalChickSales, 2)} />
             </div>
           </TabsContent>
 
@@ -446,45 +666,28 @@ export default function LabTreasury() {
             <Card>
               <CardHeader><CardTitle>إضافة إيراد جديد</CardTitle></CardHeader>
               <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                <Field label="التاريخ">
-                  <Input type="date" value={incForm.movement_date} onChange={(e) => setIncForm({ ...incForm, movement_date: e.target.value })} />
-                </Field>
+                <Field label="التاريخ"><Input type="date" value={incForm.movement_date} onChange={(e) => setIncForm({ ...incForm, movement_date: e.target.value })} /></Field>
                 <Field label="نوع الإيراد">
                   <Select value={incForm.income_category} onValueChange={(v) => setIncForm({ ...incForm, income_category: v as IncomeCat })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(INCOME_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                    </SelectContent>
+                    <SelectContent>{Object.entries(INCOME_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
                   </Select>
                 </Field>
-                <Field label="اسم العميل">
-                  <Input value={incForm.customer_name} onChange={(e) => setIncForm({ ...incForm, customer_name: e.target.value })} />
-                </Field>
-                <Field label="العدد (بيض/كتاكيت)">
-                  <Input type="number" value={incForm.units_count} onChange={(e) => setIncForm({ ...incForm, units_count: e.target.value })} />
-                </Field>
-                <Field label="سعر الوحدة">
-                  <Input type="number" value={incForm.unit_price} onChange={(e) => {
-                    const up = e.target.value;
-                    const units = Number(incForm.units_count) || 0;
-                    setIncForm({ ...incForm, unit_price: up, amount: up && units ? String(Number(up) * units) : incForm.amount });
-                  }} />
-                </Field>
-                <Field label="إجمالي المبلغ *">
-                  <Input type="number" value={incForm.amount} onChange={(e) => setIncForm({ ...incForm, amount: e.target.value })} />
-                </Field>
+                <Field label="اسم العميل"><Input value={incForm.customer_name} onChange={(e) => setIncForm({ ...incForm, customer_name: e.target.value })} /></Field>
+                <Field label="العدد (بيض/كتاكيت)"><Input type="number" value={incForm.units_count} onChange={(e) => setIncForm({ ...incForm, units_count: e.target.value })} /></Field>
+                <Field label="سعر الوحدة"><Input type="number" value={incForm.unit_price} onChange={(e) => {
+                  const up = e.target.value; const units = Number(incForm.units_count) || 0;
+                  setIncForm({ ...incForm, unit_price: up, amount: up && units ? String(Number(up) * units) : incForm.amount });
+                }} /></Field>
+                <Field label="إجمالي المبلغ *"><Input type="number" value={incForm.amount} onChange={(e) => setIncForm({ ...incForm, amount: e.target.value })} /></Field>
                 <Field label="طريقة التحصيل">
                   <Select value={incForm.payment_method} onValueChange={(v) => setIncForm({ ...incForm, payment_method: v as PaymentMethod })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(PAYMENT_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                    </SelectContent>
+                    <SelectContent>{Object.entries(PAYMENT_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
                   </Select>
                 </Field>
                 <Field label="الوصف"><Input value={incForm.description} onChange={(e) => setIncForm({ ...incForm, description: e.target.value })} /></Field>
-                <Field label="صورة الإيصال">
-                  <Input type="file" accept="image/*,application/pdf" onChange={(e) => setIncReceipt(e.target.files?.[0] || null)} />
-                </Field>
+                <Field label="صورة الإيصال"><Input type="file" accept="image/*,application/pdf" onChange={(e) => setIncReceipt(e.target.files?.[0] || null)} /></Field>
                 <div className="md:col-span-2 lg:col-span-3">
                   <Field label="ملاحظات"><Textarea value={incForm.notes} onChange={(e) => setIncForm({ ...incForm, notes: e.target.value })} /></Field>
                 </div>
@@ -504,30 +707,40 @@ export default function LabTreasury() {
                 <Field label="بند المصروف">
                   <Select value={expForm.expense_category} onValueChange={(v) => setExpForm({ ...expForm, expense_category: v as ExpenseCat })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(EXPENSE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                    </SelectContent>
+                    <SelectContent>{Object.entries(EXPENSE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
                   </Select>
                 </Field>
                 <Field label="المبلغ *"><Input type="number" value={expForm.amount} onChange={(e) => setExpForm({ ...expForm, amount: e.target.value })} /></Field>
                 <Field label="طريقة الدفع">
                   <Select value={expForm.payment_method} onValueChange={(v) => setExpForm({ ...expForm, payment_method: v as PaymentMethod })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(PAYMENT_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                    </SelectContent>
+                    <SelectContent>{Object.entries(PAYMENT_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
                   </Select>
                 </Field>
                 <Field label="المستفيد / الجهة"><Input value={expForm.beneficiary} onChange={(e) => setExpForm({ ...expForm, beneficiary: e.target.value })} /></Field>
                 <Field label="الوصف"><Input value={expForm.description} onChange={(e) => setExpForm({ ...expForm, description: e.target.value })} /></Field>
-                <Field label="صورة الإيصال">
-                  <Input type="file" accept="image/*,application/pdf" onChange={(e) => setExpReceipt(e.target.files?.[0] || null)} />
-                </Field>
+                <Field label="صورة الإيصال"><Input type="file" accept="image/*,application/pdf" onChange={(e) => setExpReceipt(e.target.files?.[0] || null)} /></Field>
                 <div className="md:col-span-2 lg:col-span-3">
                   <Field label="ملاحظات"><Textarea value={expForm.notes} onChange={(e) => setExpForm({ ...expForm, notes: e.target.value })} /></Field>
                 </div>
-                <div className="md:col-span-2 lg:col-span-3">
-                  <Button onClick={submitExpense} className="gap-2"><Plus className="w-4 h-4" />تسجيل المصروف</Button>
+                <div className="md:col-span-2 lg:col-span-3 space-y-2">
+                  <div className="text-sm text-muted-foreground">
+                    الرصيد المتاح في {PAYMENT_LABELS[expForm.payment_method]}: <span className="font-mono font-semibold">{fmtNum(expAvailable, 2)} ج</span>
+                  </div>
+                  {expExceeds && (
+                    <Alert variant="destructive">
+                      <AlertTriangle className="w-4 h-4" />
+                      <AlertTitle>المبلغ يتجاوز الرصيد المتاح</AlertTitle>
+                      <AlertDescription>
+                        {isManager
+                          ? "بصلاحيتك يمكنك المتابعة، وسيُسجل التجاوز في سجل التدقيق."
+                          : "لا يمكن الحفظ. يلزم اعتماد المدير العام أو التنفيذي."}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  <Button onClick={submitExpense} disabled={expExceeds && !isManager} className="gap-2">
+                    <Plus className="w-4 h-4" />تسجيل المصروف
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -598,34 +811,41 @@ export default function LabTreasury() {
                       <TableHead>وارد</TableHead>
                       <TableHead>منصرف</TableHead>
                       <TableHead>طريقة</TableHead>
-                      <TableHead>رصيد بعد</TableHead>
                       <TableHead>الحالة</TableHead>
                       <TableHead>سجّل بواسطة</TableHead>
-                      <TableHead>ملاحظات</TableHead>
+                      {isManager && <TableHead>إجراءات</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {loading ? (
-                      <TableRow><TableCell colSpan={10} className="text-center py-8">جارٍ التحميل...</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={isManager ? 9 : 8} className="text-center py-8">جارٍ التحميل...</TableCell></TableRow>
                     ) : filtered.length === 0 ? (
-                      <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">لا توجد حركات</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={isManager ? 9 : 8} className="text-center py-8 text-muted-foreground">لا توجد حركات</TableCell></TableRow>
                     ) : filtered.map((m) => (
-                      <TableRow key={m.id}>
-                        <TableCell>{m.movement_date}</TableCell>
+                      <TableRow key={m.id} className={closedDates.has(m.movement_date) ? "bg-muted/30" : ""}>
+                        <TableCell>
+                          {m.movement_date}
+                          {closedDates.has(m.movement_date) && <Lock className="inline w-3 h-3 ms-1 text-muted-foreground" />}
+                        </TableCell>
                         <TableCell>{m.movement_type === "income" ? <Badge variant="default">إيراد</Badge> : <Badge variant="destructive">مصروف</Badge>}</TableCell>
-                        <TableCell>{m.movement_type === "income"
-                          ? INCOME_LABELS[m.income_category as IncomeCat]
-                          : EXPENSE_LABELS[m.expense_category as ExpenseCat]}
+                        <TableCell>
+                          {m.movement_type === "income"
+                            ? INCOME_LABELS[m.income_category as IncomeCat]
+                            : EXPENSE_LABELS[m.expense_category as ExpenseCat]}
                           {m.customer_name && <div className="text-xs text-muted-foreground">{m.customer_name}</div>}
                           {m.beneficiary && <div className="text-xs text-muted-foreground">{m.beneficiary}</div>}
+                          {m.rejection_reason && <div className="text-xs text-destructive">رفض: {m.rejection_reason}</div>}
                         </TableCell>
                         <TableCell className="font-mono">{m.movement_type === "income" ? fmtNum(m.amount, 2) : "—"}</TableCell>
                         <TableCell className="font-mono">{m.movement_type === "expense" ? fmtNum(m.amount, 2) : "—"}</TableCell>
                         <TableCell>{PAYMENT_LABELS[m.payment_method]}</TableCell>
-                        <TableCell className="font-mono">{m.balance_after != null ? fmtNum(m.balance_after, 2) : "—"}</TableCell>
                         <TableCell><StatusBadge s={m.status} /></TableCell>
                         <TableCell className="text-xs">{profiles[m.created_by || ""] || "—"}</TableCell>
-                        <TableCell className="text-xs max-w-[200px] truncate" title={m.notes || ""}>{m.notes || "—"}</TableCell>
+                        {isManager && (
+                          <TableCell>
+                            <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setDeleteDlg({ open: true, movement: m, reason: "" })}>حذف</Button>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                   </TableBody>
@@ -640,10 +860,8 @@ export default function LabTreasury() {
               <Card>
                 <CardHeader><CardTitle>الحركات بانتظار الاعتماد</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
-                  {movements.filter((m) => m.status === "pending").length === 0 && (
-                    <div className="text-center text-muted-foreground py-6">لا توجد حركات معلقة</div>
-                  )}
-                  {movements.filter((m) => m.status === "pending").map((m) => (
+                  {pending.length === 0 && <div className="text-center text-muted-foreground py-6">لا توجد حركات معلقة</div>}
+                  {pending.map((m) => (
                     <div key={m.id} className="border rounded-md p-3 space-y-2">
                       <div className="flex items-center gap-2 flex-wrap">
                         <Badge variant={m.movement_type === "income" ? "default" : "destructive"}>
@@ -668,12 +886,9 @@ export default function LabTreasury() {
                         </div>
                       )}
                       <div className="flex gap-2 items-center flex-wrap">
-                        <Button size="sm" onClick={() => approve(m.id)} className="gap-1"><CheckCircle2 className="w-4 h-4" />اعتماد</Button>
-                        <Input placeholder="سبب الرفض" value={rejectionReason[m.id] || ""} onChange={(e) => setRejectionReason({ ...rejectionReason, [m.id]: e.target.value })} className="max-w-xs h-9" />
-                        <Button size="sm" variant="destructive" onClick={() => reject(m.id)} className="gap-1"><XCircle className="w-4 h-4" />رفض</Button>
-                        {isGeneralManager && (
-                          <Button size="sm" variant="outline" onClick={() => removeMovement(m.id)}>حذف</Button>
-                        )}
+                        <Button size="sm" onClick={() => approve(m)} className="gap-1"><CheckCircle2 className="w-4 h-4" />اعتماد</Button>
+                        <Button size="sm" variant="destructive" onClick={() => setRejectDlg({ open: true, movement: m, reason: "" })} className="gap-1"><XCircle className="w-4 h-4" />رفض</Button>
+                        <Button size="sm" variant="outline" onClick={() => setDeleteDlg({ open: true, movement: m, reason: "" })}>حذف</Button>
                       </div>
                     </div>
                   ))}
@@ -682,14 +897,116 @@ export default function LabTreasury() {
             </TabsContent>
           )}
 
+          {/* Daily Report */}
+          <TabsContent value="daily" className="space-y-3">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span>التقرير اليومي</span>
+                  <div className="flex gap-2 items-center">
+                    <Input type="date" value={reportDate} onChange={(e) => setReportDate(e.target.value)} className="w-44" />
+                    <Button variant="outline" onClick={printDailyReport} className="gap-2"><Printer className="w-4 h-4" />طباعة</Button>
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {!reportData ? <div className="text-center py-6 text-muted-foreground">جارٍ التحميل...</div> : (
+                  <>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <StatCard title="رصيد أول اليوم" value={fmtNum(reportData.opening_balance, 2)} />
+                      <StatCard title="إجمالي الإيرادات" value={fmtNum(reportData.income_total, 2)} icon={<TrendingUp />} />
+                      <StatCard title="إجمالي المصروفات" value={fmtNum(reportData.expense_total, 2)} icon={<TrendingDown />} />
+                      <StatCard title="صافي حركة اليوم" value={fmtNum(reportData.net_movement, 2)} accent />
+                      <StatCard title="رصيد آخر اليوم" value={fmtNum(reportData.closing_balance, 2)} accent />
+                      <StatCard title="حركات بانتظار الاعتماد" value={String(reportData.pending_count)} icon={<AlertTriangle />} />
+                      <StatCard title="حركات مرفوضة" value={String(reportData.rejected_count)} icon={<XCircle />} />
+                    </div>
+                    <Card>
+                      <CardHeader><CardTitle className="text-base">الرصيد حسب طريقة الدفع (نهاية اليوم)</CardTitle></CardHeader>
+                      <CardContent>
+                        <Table>
+                          <TableHeader><TableRow><TableHead>الطريقة</TableHead><TableHead className="text-end">الرصيد</TableHead></TableRow></TableHeader>
+                          <TableBody>
+                            {Object.entries(reportData.by_method || {}).map(([k, v]) => (
+                              <TableRow key={k}>
+                                <TableCell>{PAYMENT_LABELS[k as PaymentMethod] || k}</TableCell>
+                                <TableCell className="text-end font-mono">{fmtNum(Number(v), 2)}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </CardContent>
+                    </Card>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Day Closures */}
+          <TabsContent value="closures" className="space-y-3">
+            {isManager && (
+              <Card>
+                <CardHeader><CardTitle>إقفال يوم الخزنة</CardTitle></CardHeader>
+                <CardContent>
+                  <Button onClick={() => setCloseDayDlg({ open: true, date: today(), notes: "" })} className="gap-2">
+                    <Lock className="w-4 h-4" />إقفال يوم جديد
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+            <Card>
+              <CardHeader><CardTitle>الأيام المُقفلة</CardTitle></CardHeader>
+              <CardContent className="p-0 overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>التاريخ</TableHead>
+                      <TableHead>رصيد أول اليوم</TableHead>
+                      <TableHead>إيرادات</TableHead>
+                      <TableHead>مصروفات</TableHead>
+                      <TableHead>رصيد آخر اليوم</TableHead>
+                      <TableHead>أقفل بواسطة</TableHead>
+                      <TableHead>الحالة</TableHead>
+                      {isGeneralManager && <TableHead>إجراء</TableHead>}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {closures.length === 0 ? (
+                      <TableRow><TableCell colSpan={isGeneralManager ? 8 : 7} className="text-center py-8 text-muted-foreground">لا توجد أيام مُقفلة</TableCell></TableRow>
+                    ) : closures.map((c) => (
+                      <TableRow key={c.id}>
+                        <TableCell>{c.closure_date}</TableCell>
+                        <TableCell className="font-mono">{fmtNum(c.opening_balance, 2)}</TableCell>
+                        <TableCell className="font-mono">{fmtNum(c.total_income, 2)}</TableCell>
+                        <TableCell className="font-mono">{fmtNum(c.total_expense, 2)}</TableCell>
+                        <TableCell className="font-mono font-semibold">{fmtNum(c.closing_balance, 2)}</TableCell>
+                        <TableCell className="text-xs">{profiles[c.closed_by] || "—"}</TableCell>
+                        <TableCell>
+                          {c.reopened_at
+                            ? <Badge variant="outline" className="gap-1"><Unlock className="w-3 h-3" />أُعيد فتحه</Badge>
+                            : <Badge variant="secondary" className="gap-1"><Lock className="w-3 h-3" />مُقفل</Badge>}
+                        </TableCell>
+                        {isGeneralManager && (
+                          <TableCell>
+                            {!c.reopened_at && (
+                              <Button size="sm" variant="outline" onClick={() => setReopenDlg({ open: true, closure: c, reason: "" })}>إعادة فتح</Button>
+                            )}
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* Reports */}
           <TabsContent value="reports" className="space-y-3">
             <Card>
               <CardHeader><CardTitle>التقارير</CardTitle></CardHeader>
               <CardContent className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  استخدم الفلاتر في تبويب «سجل الحركات» لاختيار الفترة/النوع/البند/طريقة الدفع، ثم اطبع أو صدّر.
-                </p>
                 <div className="flex flex-wrap gap-2">
                   <Button variant="outline" onClick={() => { setFromDate(todayStr); setToDate(todayStr); printReport("تقرير يومي - خزنة المعمل والحضانات"); }}>تقرير يومي</Button>
                   <Button variant="outline" onClick={() => { setFromDate(`${monthStart}-01`); setToDate(todayStr); printReport("تقرير شهري - خزنة المعمل والحضانات"); }}>تقرير شهري</Button>
@@ -697,38 +1014,140 @@ export default function LabTreasury() {
                   <Button variant="outline" onClick={() => { setFCategory("chick_sales"); setFType("income"); printReport("تقرير إيرادات بيع الكتاكيت"); }}>إيرادات بيع الكتاكيت</Button>
                   <Button variant="outline" onClick={() => { setFType("expense"); printReport("تقرير المصروفات حسب البند"); }}>المصروفات حسب البند</Button>
                   <Button variant="outline" onClick={exportExcel} className="gap-2"><FileSpreadsheet className="w-4 h-4" />تصدير Excel</Button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 pt-3">
-                  <StatCard title="إجمالي الإيرادات (الشهر)" value={fmtNum(monthIncome, 2)} icon={<TrendingUp />} />
-                  <StatCard title="إجمالي المصروفات (الشهر)" value={fmtNum(monthExpense, 2)} icon={<TrendingDown />} />
-                  <StatCard title="صافي التشغيل (الشهر)" value={fmtNum(monthIncome - monthExpense, 2)} icon={<CircleDollarSign />} accent />
-                  <StatCard title="رواتب الشهر (مزرعة+معمل+حضانات)" value={fmtNum(
-                    approved.filter((m) => m.movement_date.startsWith(monthStart) &&
-                      (m.expense_category === "salaries_mother_farm" || m.expense_category === "salaries_hatchery" || m.expense_category === "salaries_brooding"))
-                      .reduce((s, m) => s + Number(m.amount), 0), 2
-                  )} icon={<TrendingDown />} />
+                  <Button variant="outline" onClick={printCensus} className="gap-2"><FileCheck2 className="w-4 h-4" />محضر جرد الخزنة</Button>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Audit */}
+          {isManager && (
+            <TabsContent value="audit" className="space-y-3">
+              <Card>
+                <CardHeader><CardTitle className="flex items-center gap-2"><ScrollText className="w-5 h-5" />سجل التدقيق - آخر 500 حدث</CardTitle></CardHeader>
+                <CardContent className="p-0 overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>التاريخ والوقت</TableHead>
+                        <TableHead>الإجراء</TableHead>
+                        <TableHead>المستخدم</TableHead>
+                        <TableHead>السبب</TableHead>
+                        <TableHead>تفاصيل</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {auditRows.length === 0 ? (
+                        <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">لا توجد عمليات</TableCell></TableRow>
+                      ) : auditRows.map((a) => (
+                        <TableRow key={a.id}>
+                          <TableCell className="text-xs whitespace-nowrap">{new Date(a.created_at).toLocaleString("ar-EG")}</TableCell>
+                          <TableCell><Badge variant="outline">{ACTION_LABELS[a.action] || a.action}</Badge></TableCell>
+                          <TableCell className="text-xs">{a.actor_name || profiles[a.actor_id || ""] || "—"}</TableCell>
+                          <TableCell className="text-xs">{a.reason || "—"}</TableCell>
+                          <TableCell className="text-xs max-w-xs truncate" title={JSON.stringify(a.metadata || a)}>{a.movement_id ? `#${a.movement_id.slice(0, 8)}` : (a.metadata ? JSON.stringify(a.metadata).slice(0, 80) : "—")}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
         </Tabs>
       </div>
+
+      {/* Reject Dialog */}
+      <Dialog open={rejectDlg.open} onOpenChange={(o) => setRejectDlg({ ...rejectDlg, open: o })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>رفض الحركة</DialogTitle>
+            <DialogDescription>سبب الرفض إلزامي ويُحفظ في سجل التدقيق.</DialogDescription>
+          </DialogHeader>
+          <Textarea placeholder="اكتب سبب الرفض..." value={rejectDlg.reason} onChange={(e) => setRejectDlg({ ...rejectDlg, reason: e.target.value })} rows={4} />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRejectDlg({ open: false, movement: null, reason: "" })}>إلغاء</Button>
+            <Button variant="destructive" onClick={confirmReject}>تأكيد الرفض</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Dialog */}
+      <Dialog open={deleteDlg.open} onOpenChange={(o) => setDeleteDlg({ ...deleteDlg, open: o })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>حذف الحركة</DialogTitle>
+            <DialogDescription>سبب الحذف إلزامي ويُسجل في سجل التدقيق مع نسخة كاملة من الحركة قبل الحذف.</DialogDescription>
+          </DialogHeader>
+          <Textarea placeholder="اكتب سبب الحذف..." value={deleteDlg.reason} onChange={(e) => setDeleteDlg({ ...deleteDlg, reason: e.target.value })} rows={4} />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDlg({ open: false, movement: null, reason: "" })}>إلغاء</Button>
+            <Button variant="destructive" onClick={confirmDelete}>تأكيد الحذف</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Close Day Dialog */}
+      <Dialog open={closeDayDlg.open} onOpenChange={(o) => setCloseDayDlg({ ...closeDayDlg, open: o })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>إقفال يوم الخزنة</DialogTitle>
+            <DialogDescription>بعد الإقفال لن تُقبل أي تعديلات أو حذف على حركات هذا اليوم إلا بصلاحية المدير العام أو التنفيذي.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Field label="التاريخ"><Input type="date" value={closeDayDlg.date} onChange={(e) => setCloseDayDlg({ ...closeDayDlg, date: e.target.value })} /></Field>
+            <Field label="ملاحظات"><Textarea value={closeDayDlg.notes} onChange={(e) => setCloseDayDlg({ ...closeDayDlg, notes: e.target.value })} rows={3} /></Field>
+            {(() => { const p = buildDayClosurePayload(closeDayDlg.date); return (
+              <div className="text-xs space-y-1 bg-muted/40 p-3 rounded">
+                <div>رصيد أول اليوم: <b>{fmtNum(p.opening_balance, 2)}</b></div>
+                <div>إيرادات: <b>{fmtNum(p.total_income, 2)}</b> | مصروفات: <b>{fmtNum(p.total_expense, 2)}</b></div>
+                <div>صافي: <b>{fmtNum(p.net_movement, 2)}</b> | رصيد آخر اليوم: <b>{fmtNum(p.closing_balance, 2)}</b></div>
+              </div>
+            );})()}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCloseDayDlg({ open: false, date: today(), notes: "" })}>إلغاء</Button>
+            <Button onClick={closeDay} className="gap-2"><Lock className="w-4 h-4" />تأكيد الإقفال</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reopen Day Dialog */}
+      <Dialog open={reopenDlg.open} onOpenChange={(o) => setReopenDlg({ ...reopenDlg, open: o })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>إعادة فتح يوم مُقفل</DialogTitle>
+            <DialogDescription>هذه عملية حساسة. سيُسجل سبب الفتح في سجل التدقيق.</DialogDescription>
+          </DialogHeader>
+          <Textarea placeholder="سبب إعادة الفتح..." value={reopenDlg.reason} onChange={(e) => setReopenDlg({ ...reopenDlg, reason: e.target.value })} rows={4} />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReopenDlg({ open: false, closure: null, reason: "" })}>إلغاء</Button>
+            <Button onClick={reopenDay} className="gap-2"><Unlock className="w-4 h-4" />تأكيد الفتح</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
 
 function StatCard({ title, value, icon, accent }: { title: string; value: string; icon?: React.ReactNode; accent?: boolean }) {
   return (
-    <Card className={accent ? "border-primary" : ""}>
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between gap-2">
+    <Card className={accent ? "border-primary/40 bg-primary/5" : ""}>
+      <CardContent className="p-4 flex items-center justify-between gap-2">
+        <div>
           <div className="text-xs text-muted-foreground">{title}</div>
-          {icon && <div className={"w-5 h-5 " + (accent ? "text-primary" : "text-muted-foreground")}>{icon}</div>}
+          <div className="text-xl font-bold font-mono">{value}</div>
         </div>
-        <div className={"text-xl font-bold font-mono mt-1 " + (accent ? "text-primary" : "")}>{value}</div>
+        {icon && <div className="text-muted-foreground">{icon}</div>}
       </CardContent>
     </Card>
   );
+}
+
+function StatusBadge({ s }: { s: Status }) {
+  if (s === "approved") return <Badge variant="default" className="gap-1"><CheckCircle2 className="w-3 h-3" />معتمدة</Badge>;
+  if (s === "pending") return <Badge variant="secondary" className="gap-1"><AlertTriangle className="w-3 h-3" />معلقة</Badge>;
+  return <Badge variant="destructive" className="gap-1"><XCircle className="w-3 h-3" />مرفوضة</Badge>;
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -738,10 +1157,4 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       {children}
     </div>
   );
-}
-
-function StatusBadge({ s }: { s: Status }) {
-  if (s === "approved") return <Badge className="gap-1"><CheckCircle2 className="w-3 h-3" />معتمدة</Badge>;
-  if (s === "rejected") return <Badge variant="destructive" className="gap-1"><XCircle className="w-3 h-3" />مرفوضة</Badge>;
-  return <Badge variant="secondary" className="gap-1"><Hourglass className="w-3 h-3" />بانتظار الاعتماد</Badge>;
 }
