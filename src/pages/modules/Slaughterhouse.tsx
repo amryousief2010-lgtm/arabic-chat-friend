@@ -184,6 +184,18 @@ const Slaughterhouse = () => {
     if (!recent.length) return 0;
     return recent.reduce((s, b) => s + Number(b.cost_per_kg_meat), 0) / recent.length;
   })();
+
+  // ===== اللحم المشفى (received-into-warehouse, accepted quality only) =====
+  const cleanMeatToday = outputs
+    .filter((o: any) => o.received_status === "received" && (o.quality_status || "accepted") === "accepted" && (o.received_at || "").slice(0, 10) === today)
+    .reduce((s: number, o: any) => s + Number(o.actual_weight_kg || 0), 0);
+  const cleanMeatMonth = outputs
+    .filter((o: any) => o.received_status === "received" && (o.quality_status || "accepted") === "accepted" && (o.received_at || "").slice(0, 10) >= monthStartStr)
+    .reduce((s: number, o: any) => s + Number(o.actual_weight_kg || 0), 0);
+  const liveWeightToday = batches
+    .filter(b => b.slaughter_date === today && b.status !== "cancelled")
+    .reduce((s, b) => s + Number(b.total_live_weight_kg || 0), 0);
+  const cleanMeatYieldPct = liveWeightToday > 0 ? (cleanMeatToday / liveWeightToday) * 100 : 0;
   const isExecManager = role === "general_manager" || role === "executive_manager";
   const pendingApprovalBatches = batches.filter(b => (b as any).transfer_status === "pending_approval");
 
