@@ -630,3 +630,337 @@ function TransferDialog({ target, onClose, onSaved }: { target: FinishedRow | nu
     </Dialog>
   );
 }
+
+// ============================================================================
+// Raw material management dialogs (add / edit / adjust stock / movements log)
+// ============================================================================
+
+function RawMaterialEditDialog({
+  mode,
+  target,
+  open,
+  onOpenChange,
+  onSaved,
+}: {
+  mode: "add" | "edit";
+  target?: RawRow | null;
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  onSaved: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [unit, setUnit] = useState("كيلو");
+  const [cost, setCost] = useState("");
+  const [active, setActive] = useState(true);
+  const [notes, setNotes] = useState("");
+  const [initialStock, setInitialStock] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  React.useEffect(() => {
+    if (open) {
+      if (mode === "edit" && target) {
+        setName(target.name_ar);
+        setUnit(target.default_unit || "كيلو");
+        setCost(String(target.avg_unit_cost ?? ""));
+        setActive(!!target.is_active);
+        setNotes(target.notes || "");
+        setInitialStock("");
+      } else {
+        setName(""); setUnit("كيلو"); setCost(""); setActive(true);
+        setNotes(""); setInitialStock("");
+      }
+    }
+  }, [open, mode, target]);
+
+  const save = async () => {
+    if (!name.trim()) { toast.error("ادخل اسم الخامة"); return; }
+    if (!unit.trim()) { toast.error("ادخل الوحدة"); return; }
+    const costN = Number(cost) || 0;
+    setSaving(true);
+    try {
+      if (mode === "add") {
+        const initN = Number(initialStock) || 0;
+        const code = "RAW-" + Date.now().toString(36).toUpperCase();
+        const { data: newRow, error } = await (supabase as any)
+          .from("meat_factory_raw_materials")
+          .insert({
+            material_code: code,
+            name_ar: name.trim(),
+            default_unit: unit.trim(),
+            avg_unit_cost: costN,
+            is_active: active,
+            notes: notes.trim() || null,
+            stock: initN,
+            category: "meat",
+          })
+          .select("id")
+          .single();
+        if (error) throw error;
+        if (initN > 0) {
+          await supabase.from("meat_factory_inventory_moves").insert({
+            item_kind: "raw",
+            item_id: newRow.id,
+            item_name: name.trim(),
+            direction: "IN",
+            quantity: initN,
+            unit_cost: costN,
+            reason: `رصيد افتتاحي — الكمية قبل: 0 — الكمية بعد: ${initN} — الفرق: +${initN} — إضافة خامة جديدة`,
+          });
+        }
+        toast.success("تمت إضافة الخامة");
+      } else if (target) {
+        const { error } = await (supabase as any)
+          .from("meat_factory_raw_materials")
+          .update({
+            name_ar: name.trim(),
+            default_unit: unit.trim(),
+            avg_unit_cost: costN,
+            is_active: active,
+            notes: notes.trim() || null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", target.id);
+        if (error) throw error;
+        toast.success("تم تحديث الخامة");
+      }
+      onOpenChange(false);
+      onSaved();
+    } catch (e: any) {
+      toast.error(e.message || "تعذّر الحفظ");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{mode === "add" ? "إضافة خامة جديدة" : "تعديل بيانات الخامة"}</DialogTitle>
+          <DialogDescription>
+            {mode === "add"
+              ? "ادخل بيانات الخامة. لتعديل الرصيد لاحقاً استخدم زر تسوية الرصيد."
+              : "لتعديل الرصيد استخدم زر تسوية الرصيد لتسجيل حركة واضحة."}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="md:col-span-2">
+            <Label>اسم الخامة</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} />
+          </div>
+          <div>
+            <Label>الوحدة</Label>
+            <Input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="كيلو / قطعة / عبوة" maxLength={20} />
+          </div>
+          <div>
+            <Label>سعر تكلفة الوحدة</Label>
+            <Input type="number" min="0" step="0.001" value={cost} onChange={(e) => setCost(e.target.value)} />
+          </div>
+          {mode === "add" && (
+            <div>
+              <Label>الرصيد الافتتاحي</Label>
+              <Input type="number" min="0" step="0.001" value={initialStock} onChange={(e) => setInitialStock(e.target.value)} />
+            </div>
+          )}
+          <div className="flex items-end gap-2">
+            <Switch checked={active} onCheckedChange={setActive} />
+            <Label className="!mb-0">{active ? "نشطة" : "غير نشطة"}</Label>
+          </div>
+          <div className="md:col-span-2">
+            <Label>ملاحظات</Label>
+            <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={500} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>إلغاء</Button>
+          <Button onClick={save} disabled={saving}>
+            {saving && <Loader2 className="w-4 h-4 ml-2 animate-spin" />}
+            حفظ
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function RawAdjustStockDialog({
+  target,
+  onClose,
+  onSaved,
+}: {
+  target: RawRow | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [newStock, setNewStock] = useState("");
+  const [reason, setReason] = useState("");
+  const [reasonType, setReasonType] = useState("تسوية زيادة");
+  const [saving, setSaving] = useState(false);
+
+  React.useEffect(() => {
+    if (target) {
+      setNewStock(String(target.stock));
+      setReason("");
+      setReasonType("تسوية زيادة");
+    }
+  }, [target]);
+
+  if (!target) return null;
+
+  const oldStock = Number(target.stock);
+  const newN = Number(newStock);
+  const diff = isFinite(newN) ? newN - oldStock : 0;
+
+  const submit = async () => {
+    if (!isFinite(newN) || newN < 0) { toast.error("ادخل رصيد صحيح غير سالب"); return; }
+    if (!reason.trim()) { toast.error("ادخل سبب التعديل"); return; }
+    if (diff === 0) { toast.error("لا يوجد فرق في الرصيد"); return; }
+
+    setSaving(true);
+    try {
+      const { error: e1 } = await (supabase as any)
+        .from("meat_factory_raw_materials")
+        .update({ stock: newN, updated_at: new Date().toISOString() })
+        .eq("id", target.id);
+      if (e1) throw e1;
+
+      const direction = diff > 0 ? "IN" : "OUT";
+      const fullReason = `${reasonType} — الكمية قبل: ${oldStock} — الكمية بعد: ${newN} — الفرق: ${diff > 0 ? "+" : ""}${diff.toFixed(3)} — ${reason.trim()}`;
+      const { error: e2 } = await supabase.from("meat_factory_inventory_moves").insert({
+        item_kind: "raw",
+        item_id: target.id,
+        item_name: target.name_ar,
+        direction,
+        quantity: Math.abs(diff),
+        unit_cost: Number(target.avg_unit_cost) || 0,
+        reason: fullReason,
+      });
+      if (e2) throw e2;
+
+      toast.success("تم تعديل الرصيد وتسجيل الحركة");
+      onClose();
+      onSaved();
+    } catch (e: any) {
+      toast.error(e.message || "تعذّر تعديل الرصيد");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={!!target} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>تسوية رصيد — {target.name_ar}</DialogTitle>
+          <DialogDescription>
+            الرصيد الحالي: {oldStock.toLocaleString("ar-EG", { maximumFractionDigits: 3 })} {target.default_unit}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <Label>نوع الحركة</Label>
+            <Select value={reasonType} onValueChange={setReasonType}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="رصيد افتتاحي">رصيد افتتاحي</SelectItem>
+                <SelectItem value="تسوية زيادة">تسوية زيادة</SelectItem>
+                <SelectItem value="تسوية نقص">تسوية نقص</SelectItem>
+                <SelectItem value="مرتجع من التصنيع">مرتجع من التصنيع</SelectItem>
+                <SelectItem value="صرف للتصنيع">صرف للتصنيع</SelectItem>
+                <SelectItem value="هالك / تالف">هالك / تالف</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>الرصيد الجديد</Label>
+            <Input type="number" min="0" step="0.001" value={newStock} onChange={(e) => setNewStock(e.target.value)} autoFocus />
+            {isFinite(newN) && (
+              <div className={`text-xs mt-1 ${diff > 0 ? "text-green-600" : diff < 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                الفرق: {diff > 0 ? "+" : ""}{diff.toFixed(3)} {target.default_unit}
+              </div>
+            )}
+          </div>
+          <div>
+            <Label>سبب التعديل (إجباري)</Label>
+            <Textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>إلغاء</Button>
+          <Button onClick={submit} disabled={saving}>
+            {saving && <Loader2 className="w-4 h-4 ml-2 animate-spin" />}
+            حفظ التسوية
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function RawMovementsDialog({ target, onClose }: { target: RawRow | null; onClose: () => void }) {
+  const movesQ = useQuery({
+    queryKey: ["meat-raw-moves", target?.id],
+    enabled: !!target,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("meat_factory_inventory_moves")
+        .select("id,direction,quantity,unit_cost,reason,created_at")
+        .eq("item_kind", "raw")
+        .eq("item_id", target!.id)
+        .order("created_at", { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  return (
+    <Dialog open={!!target} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>سجل حركات — {target?.name_ar}</DialogTitle>
+          <DialogDescription>آخر 200 حركة على هذه الخامة.</DialogDescription>
+        </DialogHeader>
+        <div className="max-h-[60vh] overflow-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>التاريخ</TableHead>
+                <TableHead>الحركة</TableHead>
+                <TableHead className="text-left">الكمية</TableHead>
+                <TableHead className="text-left">سعر الوحدة</TableHead>
+                <TableHead>السبب / البيان</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {movesQ.isLoading ? (
+                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">جارٍ التحميل...</TableCell></TableRow>
+              ) : (movesQ.data || []).length === 0 ? (
+                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">لا توجد حركات</TableCell></TableRow>
+              ) : (movesQ.data || []).map((m: any) => (
+                <TableRow key={m.id}>
+                  <TableCell className="text-xs">{new Date(m.created_at).toLocaleString("ar-EG")}</TableCell>
+                  <TableCell>
+                    <Badge variant={m.direction === "IN" ? "default" : "destructive"}>
+                      {m.direction === "IN" ? "وارد" : "صادر"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-left font-semibold">
+                    {Number(m.quantity).toLocaleString("ar-EG", { maximumFractionDigits: 3 })}
+                  </TableCell>
+                  <TableCell className="text-left">
+                    {Number(m.unit_cost).toLocaleString("ar-EG", { maximumFractionDigits: 2 })}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground whitespace-pre-wrap">{m.reason}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>إغلاق</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
