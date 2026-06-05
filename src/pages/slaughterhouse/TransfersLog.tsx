@@ -71,6 +71,8 @@ const destLabel = (warehouses: { id: string; name: string }[], branches: { id: s
 };
 
 export default function TransfersLog() {
+  const { role } = useAuth();
+  const canReverse = role === "general_manager" || role === "executive_manager" || role === "slaughterhouse_manager" || role === "warehouse_supervisor" || role === "meat_factory_manager";
   const [rows, setRows] = useState<Shipment[]>([]);
   const [warehouses, setWarehouses] = useState<{ id: string; name: string }[]>([]);
   const [branches, setBranches] = useState<{ id: string; name_ar: string }[]>([]);
