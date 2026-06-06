@@ -381,7 +381,7 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("hatch_batches")
-        .select("id, batch_number, receive_date, entry_date, machine, received_eggs, net_eggs, hatched_chicks, hatcher_dead, candle1_date, candle1_fertile, candle1_infertile, candle2_date, candle2_fertile, candle2_dead, exit_date, status, customer_id, notes, created_at, hatch_customers(id,name,customer_type)")
+        .select("id, batch_number, operational_batch_no, receive_date, entry_date, machine, received_eggs, net_eggs, hatched_chicks, hatcher_dead, candle1_date, candle1_fertile, candle1_infertile, candle2_date, candle2_fertile, candle2_dead, exit_date, status, customer_id, notes, created_at, hatch_customers(id,name,customer_type)")
         .order("receive_date", { ascending: false })
         .limit(1000);
       if (error) throw error;
@@ -415,6 +415,7 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
       return {
         id: b.id,
         batch_number: b.batch_number,
+        op_seq: b.operational_batch_no ?? null,
         receive_date: b.receive_date,
         entry_date: b.entry_date,
         machine: b.machine,
