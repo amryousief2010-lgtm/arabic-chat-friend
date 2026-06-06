@@ -112,18 +112,12 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr }: Props) => {
       const allCompleted = g.stages.every((s: string) => s === "completed");
       const anyOverdue = g.stages.some((s: string) => s === "overdue");
       const stage = anyOverdue ? "overdue" : allCompleted ? "completed" : "in_progress";
-      const bnArr = Array.from(g.batch_numbers).filter(Boolean);
-      const op_number =
-        bnArr.length === 1
-          ? String(bnArr[0])
-          : `${g.entry_date || "—"} / ${g.machine || "—"}`;
       const fmtDates = (s: Set<string>) =>
         s.size === 0 ? null : Array.from(s).sort().join(" / ");
       const exited = g.exit_dates.size > 0 && allCompleted;
       const expectedExit = g.expExit || addDaysISO(g.entry_date, 42);
       return {
         ...g,
-        op_number,
         stage,
         exited,
         expectedExit,
@@ -133,6 +127,22 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr }: Props) => {
         fertility: pct(g.c1_fertile, g.total_eggs),
         hatch_rate: pct(g.chicks, g.total_eggs),
       };
+    });
+
+    // Assign operational batch number per machine (1, 2, 3...) ordered by entry_date asc
+    const perMachine = new Map<string, string[]>();
+    arr.forEach((g) => {
+      const m = g.machine || "—";
+      if (!perMachine.has(m)) perMachine.set(m, []);
+      perMachine.get(m)!.push(g.entry_date || "");
+    });
+    perMachine.forEach((dates) => dates.sort());
+    arr.forEach((g) => {
+      const m = g.machine || "—";
+      const dates = perMachine.get(m) || [];
+      const idx = dates.indexOf(g.entry_date || "");
+      g.op_seq = idx + 1;
+      g.op_number = `دفعة ${idx + 1}${g.machine ? ` — ${g.machine}` : ""}`;
     });
 
     arr.sort((a, b) => String(b.entry_date || "").localeCompare(String(a.entry_date || "")));
