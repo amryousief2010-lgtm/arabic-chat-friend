@@ -1159,7 +1159,7 @@ export default function LabTreasury() {
                             ? <Badge variant="outline" className="gap-1"><Unlock className="w-3 h-3" />أُعيد فتحه</Badge>
                             : <Badge variant="secondary" className="gap-1"><Lock className="w-3 h-3" />مُقفل</Badge>}
                         </TableCell>
-                        {isGeneralManager && (
+                        {(isGeneralManager || isExecutiveManager) && (
                           <TableCell>
                             {!c.reopened_at && (
                               <Button size="sm" variant="outline" onClick={() => setReopenDlg({ open: true, closure: c, reason: "" })}>إعادة فتح</Button>
