@@ -284,6 +284,8 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr }: Props) => {
               <TableHead>تاريخ الدخول</TableHead>
               <TableHead>الماكينة</TableHead>
               <TableHead>عدد العملاء</TableHead>
+              <TableHead>بيض العاصمة</TableHead>
+              <TableHead>بيض الخارجي</TableHead>
               <TableHead>إجمالي البيض</TableHead>
               <TableHead>إجمالي الكتاكيت</TableHead>
               <TableHead>كشف 1</TableHead>
