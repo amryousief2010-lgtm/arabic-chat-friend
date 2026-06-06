@@ -124,6 +124,69 @@ interface OfferPreviewItem {
   is_gift?: boolean;
 }
 
+interface DuplicateCandidate {
+  matched_order_id: string;
+  order_number: string;
+  customer_name: string;
+  customer_phone: string;
+  moderator_name: string;
+  created_at: string;
+  status: string;
+  delivery_address: string | null;
+  shipping_company: string | null;
+  fulfillment_type: string | null;
+  products_summary: string;
+  similarity_score: number;
+  matched_on_phone: boolean;
+  matched_on_same_day: boolean;
+  matched_on_items: boolean;
+  matched_on_address: boolean;
+  matched_on_shipping: boolean;
+  matched_on_name: boolean;
+}
+
+interface DuplicateCheckResponse {
+  is_duplicate: boolean;
+  attempt_id: string | null;
+  candidates: DuplicateCandidate[];
+  existing_request?: {
+    id: string;
+    status: 'pending' | 'approved' | 'rejected';
+    reason: string | null;
+    created_at: string;
+    decided_at: string | null;
+    matched_order_id: string | null;
+    duplicate_score: number | null;
+  } | null;
+}
+
+interface DuplicateApprovalDialogState {
+  open: boolean;
+  status: 'idle' | 'pending' | 'rejected';
+  reason?: string;
+  attemptId?: string;
+  requestId?: string;
+  candidates: DuplicateCandidate[];
+}
+
+const buildDuplicateItemsPayload = (cart: CartItem[]) =>
+  cart.map((item) => ({
+    product_id: item.product.id,
+    product_name: item.product.name,
+    quantity: item.isHalfKg ? item.quantity * 0.5 : item.quantity,
+    unit_price: Number(item.customPrice ?? item.product.price),
+    offer_name: item.offerBoxName || null,
+  }));
+
+const summarizeDuplicateItems = (items: Array<{ product_name?: string; quantity?: number; offer_name?: string | null }>) =>
+  items
+    .map((item) => {
+      const label = item.offer_name || item.product_name || '—';
+      const qty = Number(item.quantity || 0);
+      return `${label}${qty > 0 ? ` × ${qty}` : ''}`;
+    })
+    .join('، ');
+
 const isKgUnit = (unit: string) => {
   const u = (unit || '').trim().toLowerCase().replace(/\s+/g, '');
   return /^(كجم|كيلو|كيلوجرام|كيلوغرام|كغم|كغ|kg|kgs|kilogram|kilogramme|kilo)$/i.test(u);
