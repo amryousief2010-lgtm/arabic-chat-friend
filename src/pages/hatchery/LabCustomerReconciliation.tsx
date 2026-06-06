@@ -123,9 +123,12 @@ export default function LabCustomerReconciliation() {
     <div dir="rtl" className="container mx-auto p-4 space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <h1 className="text-2xl font-bold">تسوية حسابات عملاء المعمل</h1>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            تسوية حسابات عملاء المعمل
+            <Badge variant="secondary" className="text-xs">تاريخي للمراجعة فقط</Badge>
+          </h1>
           <p className="text-sm text-muted-foreground">
-            معاينة (Preview) للأرصدة من ملف الاستيراد — لا يتم حفظ أي حركة مالية حتى الموافقة
+            بيانات مستوردة من الشيت — حسابات تقديرية تاريخية، لا تنشئ أي حركة خزنة ولا تُعتبر مديونية واجبة التحصيل.
           </p>
         </div>
         <Button onClick={exportExcel} variant="outline">
@@ -134,41 +137,63 @@ export default function LabCustomerReconciliation() {
         </Button>
       </div>
 
-      <Alert>
-        <Info className="w-4 h-4" />
-        <AlertDescription>
-          هذه الأرقام أرصدة افتتاحية مقروءة من شيت الاستيراد. لم يتم إنشاء أي حركة في خزنة المعمل
-          ولا في <code>lab_treasury_movements</code> ولا في <code>hatch_customer_payments</code>.
+      <Alert className="border-orange-400 bg-orange-50 dark:bg-orange-950/20">
+        <AlertTriangle className="w-4 h-4 text-orange-600" />
+        <AlertDescription className="space-y-1">
+          <div className="font-semibold">قاعدة مالية مهمة</div>
+          <ul className="list-disc pr-5 text-xs space-y-0.5">
+            <li>هذه الدفعات <b>تاريخية تشغيلية للمراجعة فقط</b> — لا تُنشئ أي حركة في خزنة المعمل.</li>
+            <li>حسابات نعام العاصمة = <b>تكلفة تقديرية داخلية</b>، وليست مديونية واجبة التحصيل.</li>
+            <li>التحصيل الفعلي يبدأ فقط من <b>الدفعات الحالية/القادمة عند الفقس</b>، ويُسجَّل يدويًا في خزنة المعمل بحسب طريقة الدفع.</li>
+            <li>الأعمدة "المستلم" و"المتبقي" المقروءة من الشيت = <b>أرصدة تاريخية تقديرية</b>، وليست تحصيلات خزنة.</li>
+          </ul>
         </AlertDescription>
       </Alert>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">إجمالي الدفعات</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{fmt(totals.all.batches)}</CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">إجمالي الحساب</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{fmt(totals.all.charge)}</CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">إجمالي المستلم</CardTitle></CardHeader><CardContent className="text-2xl font-bold text-green-600">{fmt(totals.all.received)}</CardContent></Card>
-        <Card className="border-orange-400"><CardHeader className="pb-2"><CardTitle className="text-sm">إجمالي المتبقي</CardTitle></CardHeader><CardContent className="text-2xl font-bold text-orange-600">{fmt(totals.all.remaining)}</CardContent></Card>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">إجمالي الدفعات التاريخية</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{fmt(totals.all.batches)}</CardContent></Card>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">حساب تقديري تاريخي</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{fmt(totals.all.charge)}</CardContent></Card>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">واجب التحصيل (دفعات حالية)</CardTitle></CardHeader><CardContent className="text-2xl font-bold text-muted-foreground">0</CardContent></Card>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">تم تحصيله فعليًا من الخزنة</CardTitle></CardHeader><CardContent className="text-2xl font-bold text-green-600">0</CardContent></Card>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <Card>
-          <CardHeader><CardTitle className="text-base">عملاء خارجيون (تظهر عليهم مديونية)</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              عملاء خارجيون
+              <Badge variant="outline" className="text-[10px]">حساب تقديري تاريخي</Badge>
+            </CardTitle>
+          </CardHeader>
           <CardContent className="text-sm space-y-1">
             <div>عدد العملاء: <b>{totals.external.customers}</b></div>
             <div>عدد الدفعات: <b>{fmt(totals.external.batches)}</b></div>
             <div>إجمالي البيض: <b>{fmt(totals.external.eggs)}</b> · كتاكيت: <b>{fmt(totals.external.chicks)}</b></div>
-            <div>الحساب: <b>{fmt(totals.external.charge)}</b> · المستلم: <b className="text-green-600">{fmt(totals.external.received)}</b> · المتبقي: <b className="text-orange-600">{fmt(totals.external.remaining)}</b></div>
+            <div>الحساب التقديري: <b>{fmt(totals.external.charge)}</b></div>
+            <div className="text-xs text-muted-foreground border-t pt-1 mt-1">
+              لا تظهر كمديونية واجبة التحصيل. التحصيل يبدأ من الدفعات الحالية عند الفقس فقط.
+            </div>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle className="text-base">داخلي / العاصمة (لا تُحسب كمديونية)</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              نعام العاصمة / داخلي
+              <Badge variant="outline" className="text-[10px]">تكلفة تقديرية داخلية</Badge>
+            </CardTitle>
+          </CardHeader>
           <CardContent className="text-sm space-y-1">
             <div>عدد العملاء: <b>{totals.internal.customers}</b></div>
             <div>عدد الدفعات: <b>{fmt(totals.internal.batches)}</b></div>
             <div>إجمالي البيض: <b>{fmt(totals.internal.eggs)}</b> · كتاكيت: <b>{fmt(totals.internal.chicks)}</b></div>
-            <div className="text-muted-foreground">لا تظهر كحسابات على عملاء</div>
+            <div>تكلفة تشغيلية تقديرية: <b>{fmt(totals.internal.charge)}</b></div>
+            <div className="text-xs text-muted-foreground border-t pt-1 mt-1">
+              لأغراض التحليل والتكلفة فقط — لا مديونية ولا تحصيل.
+            </div>
           </CardContent>
         </Card>
       </div>
+
 
       {anomalies.length > 0 && (
         <Alert variant="destructive">
