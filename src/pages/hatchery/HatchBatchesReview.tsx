@@ -152,12 +152,99 @@ export default function HatchBatchesReview() {
   const fertility = sum.eggs > 0 ? (sum.fertile / sum.eggs) * 100 : 0;
   const hatchRate = sum.fertile > 0 ? (sum.chicks / sum.fertile) * 100 : 0;
 
+  const exportExcel = () => {
+    const data = filtered.map(r => ({
+      "العميل": r.hatch_customers?.name ?? "",
+      "النوع": r.hatch_customers?.customer_type === "internal" ? "داخلي" : "خارجي",
+      "رقم الدفعة": r.batch_number,
+      "تاريخ الوارد": r.receive_date,
+      "البيض": r.received_eggs,
+      "الصافي": r.net_eggs,
+      "المخصب": r.candle1_fertile,
+      "غير المخصب": r.candle1_infertile,
+      "نافق كشف 2": r.candle2_dead,
+      "نافق الهاتشر": r.hatcher_dead,
+      "الكتاكيت": r.hatched_chicks,
+      "الماكينة": r.machine ?? "",
+      "الحالة": r.status,
+      "ملاحظات": r.notes ?? "",
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "دفعات المعمل");
+    XLSX.writeFile(wb, `مراجعة-دفعات-المعمل-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
+  const buildPdfBody = (compact: boolean) => {
+    const head = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <h1 style="margin:0">مراجعة دفعات المعمل المستوردة</h1>
+        <div style="font-size:11px">${new Date().toLocaleString("ar-EG")}</div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:10px;font-size:11px">
+        <tr>
+          <td>إجمالي الدفعات: <b>${sum.total}</b></td>
+          <td>عاصمة: <b>${sum.capital}</b></td>
+          <td>عملاء: <b>${sum.external}</b></td>
+          <td>إجمالي البيض: <b>${sum.eggs}</b></td>
+        </tr>
+        <tr>
+          <td>إجمالي الصافي: <b>${sum.net}</b></td>
+          <td>إجمالي الكتاكيت: <b>${sum.chicks}</b></td>
+          <td>نسبة الخصوبة: <b>${fertility.toFixed(1)}%</b></td>
+          <td>نسبة الفقس: <b>${hatchRate.toFixed(1)}%</b></td>
+        </tr>
+        <tr>
+          <td colspan="2">حسابات العملاء (تقديري): <b>${sum.charge.toLocaleString("ar-EG")} ج.م</b></td>
+          <td>غير المخصب: <b>${sum.infertile}</b></td>
+          <td>نافق هاتشر: <b>${sum.hatcherDead}</b></td>
+        </tr>
+      </table>`;
+    if (compact) return head;
+    const rowsHtml = filtered.map(r => `<tr>
+      <td>${escapeHtml(r.hatch_customers?.name ?? "")}</td>
+      <td>${r.hatch_customers?.customer_type === "internal" ? "داخلي" : "خارجي"}</td>
+      <td>${escapeHtml(r.batch_number)}</td>
+      <td>${r.receive_date}</td>
+      <td>${r.received_eggs}</td>
+      <td>${r.net_eggs}</td>
+      <td>${r.candle1_fertile}</td>
+      <td>${r.candle1_infertile}</td>
+      <td>${r.hatched_chicks}</td>
+      <td>${escapeHtml(r.machine ?? "")}</td>
+      <td>${escapeHtml(r.status)}</td>
+    </tr>`).join("");
+    return head + `
+      <table style="width:100%;border-collapse:collapse;font-size:10px" border="1">
+        <thead><tr style="background:#eee">
+          <th>العميل</th><th>النوع</th><th>الدفعة</th><th>الوارد</th><th>بيض</th><th>صافي</th>
+          <th>مخصب</th><th>غير مخصب</th><th>كتاكيت</th><th>ماكينة</th><th>الحالة</th>
+        </tr></thead><tbody>${rowsHtml}</tbody>
+      </table>`;
+  };
+
+  const exportPdf = () => openPrintWindow("مراجعة دفعات المعمل المستوردة", buildPdfBody(false));
+  const exportSummary = () => openPrintWindow("ملخص دفعات المعمل المستوردة", buildPdfBody(true));
+
   return (
     <DashboardLayout>
       <div className="space-y-6 p-4 max-w-[1400px] mx-auto" dir="rtl">
-        <div className="flex items-center gap-2">
-          <ClipboardCheck className="w-6 h-6 text-primary" />
-          <h1 className="text-2xl font-bold">مراجعة دفعات المعمل المستوردة</h1>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <ClipboardCheck className="w-6 h-6 text-primary" />
+            <h1 className="text-2xl font-bold">مراجعة دفعات المعمل المستوردة</h1>
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={exportExcel}>
+              <FileSpreadsheet className="w-4 h-4 ml-1" /> Excel
+            </Button>
+            <Button size="sm" variant="outline" onClick={exportPdf}>
+              <Printer className="w-4 h-4 ml-1" /> طباعة PDF
+            </Button>
+            <Button size="sm" variant="outline" onClick={exportSummary}>
+              <FileText className="w-4 h-4 ml-1" /> ملخص مختصر
+            </Button>
+          </div>
         </div>
 
         {/* Verification checks */}
