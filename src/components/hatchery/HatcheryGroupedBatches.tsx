@@ -400,7 +400,16 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr, onRefresh }: Props)
                     </div>
                   </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 flex-wrap">
+                      {g.stage === "in_hatcher" && (
+                        <Button
+                          size="sm"
+                          className="bg-purple-600 hover:bg-purple-700 text-white"
+                          onClick={() => setResultsGroup(g)}
+                        >
+                          <Sparkles className="w-3 h-3 ml-1" /> إدخال نتائج الفقس
+                        </Button>
+                      )}
                       <Button size="sm" variant="outline" onClick={() => setOpenGroup(g)}>
                         <Eye className="w-3 h-3 ml-1" /> تفاصيل
                       </Button>
