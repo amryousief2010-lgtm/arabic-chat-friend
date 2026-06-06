@@ -339,6 +339,9 @@ function Kpi({
 }
 
 function CurrentHatcherBatch({ batches, custMap }: { batches: any[]; custMap: Map<string, any> }) {
+  const qc = useQueryClient();
+  const [openGroup, setOpenGroup] = useState<any>(null);
+
   // Find batches currently in the hatcher (status='in_hatcher'), grouped by operational_batch_no + machine.
   const groups = useMemo(() => {
     const m = new Map<string, any>();
@@ -368,6 +371,21 @@ function CurrentHatcherBatch({ batches, custMap }: { batches: any[]; custMap: Ma
 
   if (groups.length === 0) return null;
 
+  // Build a HatchResultsEntryDialog-compatible group from raw rows.
+  const toDialogGroup = (g: any) => ({
+    op_no: g.op_no,
+    machine: g.machine,
+    entry_date: g.entry_date,
+    customers: g.rows.map((b: any) => ({
+      id: b.id,
+      customer_name: custMap.get(b.customer_id)?.name || "—",
+      batch_number: b.batch_number,
+      total_eggs: b.received_eggs || 0,
+      net_eggs: b.net_eggs || 0,
+      _raw: b,
+    })),
+  });
+
   return (
     <section>
       <h3 className="font-semibold mb-2 flex items-center gap-2 text-purple-700">
@@ -394,14 +412,10 @@ function CurrentHatcherBatch({ batches, custMap }: { batches: any[]; custMap: Ma
                 </div>
                 <Button
                   size="sm"
-                  className="bg-purple-600 hover:bg-purple-700 text-white"
-                  onClick={() => {
-                    sessionStorage.setItem("hatchery_batch_filter", "in_hatcher");
-                    window.location.hash = "#batches";
-                    // give the page a chance to honour the hash; the Batches tab will pick up the filter
-                    window.dispatchEvent(new HashChangeEvent("hashchange"));
-                  }}
+                  className="bg-purple-600 hover:bg-purple-700 text-white shadow-md"
+                  onClick={() => setOpenGroup(toDialogGroup(g))}
                 >
+                  <Sparkles className="w-4 h-4 ml-1" />
                   إدخال نتائج الفقس
                 </Button>
               </div>
@@ -427,6 +441,18 @@ function CurrentHatcherBatch({ batches, custMap }: { batches: any[]; custMap: Ma
           );
         })}
       </div>
+
+      {openGroup && (
+        <HatchResultsEntryDialog
+          group={openGroup}
+          onClose={() => setOpenGroup(null)}
+          onSaved={() => {
+            setOpenGroup(null);
+            qc.invalidateQueries({ queryKey: ["hatch_batches_dash"] });
+            qc.invalidateQueries({ queryKey: ["hatch_batches_lab"] });
+          }}
+        />
+      )}
     </section>
   );
 }
