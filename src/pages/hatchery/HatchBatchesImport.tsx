@@ -390,6 +390,9 @@ export default function HatchBatchesImport() {
           errors: errorDetails.slice(0, 100) as any,
         })
         .select("id").single();
+      if (!logRow) {
+        throw new Error("تعذر تسجيل سجل عملية الاستيراد في Audit Log");
+      }
 
       // 7) preview of first 10 inserted (resolve customer names)
       const custById = new Map<string, string>();
