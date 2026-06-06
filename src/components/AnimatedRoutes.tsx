@@ -72,6 +72,7 @@ const HatcheryPayments = lazy(() => import("@/pages/HatcheryPayments"));
 const HatcheryImport = lazy(() => import("@/pages/hatchery/HatcheryImport"));
 const HatchBatchesImport = lazy(() => import("@/pages/hatchery/HatchBatchesImport"));
 const HatchBatchesReview = lazy(() => import("@/pages/hatchery/HatchBatchesReview"));
+const LabCustomerReconciliation = lazy(() => import("@/pages/hatchery/LabCustomerReconciliation"));
 const FarmEggWaste = lazy(() => import("@/pages/FarmEggWaste"));
 const FarmHatcheryDashboard = lazy(() => import("@/pages/modules/FarmHatcheryDashboard"));
 const Brooding = lazy(() => import("@/pages/modules/Brooding"));
