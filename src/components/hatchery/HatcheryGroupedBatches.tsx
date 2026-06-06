@@ -341,7 +341,9 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr, onRefresh }: Props)
                   className={
                     g.stage === "overdue"
                       ? "bg-red-50/40 dark:bg-red-950/20 cursor-pointer"
-                      : "cursor-pointer hover:bg-muted/40"
+                      : g.stage === "in_hatcher"
+                        ? "bg-purple-50/60 dark:bg-purple-950/20 cursor-pointer hover:bg-purple-100/60"
+                        : "cursor-pointer hover:bg-muted/40"
                   }
                   onClick={() => setOpenGroup(g)}
                 >
