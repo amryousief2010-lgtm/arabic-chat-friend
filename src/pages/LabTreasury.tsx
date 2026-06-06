@@ -470,7 +470,7 @@ export default function LabTreasury() {
   }
 
   async function reopenDay() {
-    if (!user || !isGeneralManager || !reopenDlg.closure) return;
+    if (!user || !(isGeneralManager || isExecutiveManager) || !reopenDlg.closure) return;
     const reason = reopenDlg.reason.trim();
     if (reason.length < 3) { toast.error("سبب إعادة الفتح إلزامي"); return; }
     const c = reopenDlg.closure;
