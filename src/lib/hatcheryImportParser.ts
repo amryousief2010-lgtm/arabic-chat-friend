@@ -96,11 +96,13 @@ export function parseHatcheryWorkbook(buf: ArrayBuffer): {
     batches: {
       total: 0, capital: 0, external: 0,
       totalEggs: 0, capitalEggs: 0, externalEggs: 0,
-      totalChicks: 0, totalCharge: 0, totalReceived: 0, totalRemaining: 0,
+      totalDamaged: 0, totalNet: 0,
+      totalChicks: 0, capitalChicks: 0, externalChicks: 0,
+      totalCharge: 0, totalReceived: 0, totalRemaining: 0,
     },
-    production: { total: 0, futureSkipped: 0, totalEggs: 0 },
-    shipments: { total: 0, totalEggs: 0, totalDamaged: 0 },
-    chickMovements: { total: 0 },
+    production: { total: 0, futureSkipped: 0, emptySkipped: 0, totalEggs: 0 },
+    shipments: { total: 0, totalEggs: 0, totalDamaged: 0, totalOut: 0 },
+    chickMovements: { total: 0, incoming: 0, dead: 0, sold: 0, totalSale: 0 },
     errors: 0,
   };
   const today = new Date().toISOString().slice(0, 10);
