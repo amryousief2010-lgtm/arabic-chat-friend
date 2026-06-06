@@ -167,6 +167,9 @@ export default function MotherFarmFeedInventory() {
         <div className="flex gap-2 flex-wrap">
           <AddSupplyDialog bagWeight={bagWeight} onSaved={() => { refetchBalance(); refetchMoves(); }} />
           <AdjustStockDialog onSaved={() => { refetchBalance(); refetchMoves(); }} />
+          {(isGeneralManager || isExecutiveManager) && (
+            <SetBalanceDialog currentBalance={balanceKg} onSaved={() => { refetchBalance(); refetchMoves(); }} />
+          )}
         </div>
       )}
 
