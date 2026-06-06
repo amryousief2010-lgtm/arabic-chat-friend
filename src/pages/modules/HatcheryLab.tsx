@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   FlaskConical, Egg, Bird, Plus, Search, AlertTriangle, FileText, Wallet,
-  Settings as SettingsIcon, Printer, FileSpreadsheet, X, Activity, TrendingUp,
+  Settings as SettingsIcon, Printer, FileSpreadsheet, X, Activity, TrendingUp, ClipboardCheck,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
