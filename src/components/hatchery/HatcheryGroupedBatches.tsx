@@ -26,17 +26,32 @@ const pct = (num: number, den: number) =>
 
 const groupKey = (r: any) => `${r.entry_date || "—"}__${(r.machine || "—").trim()}`;
 
+const addDaysISO = (iso: string, days: number) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+};
+
 const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr }: Props) => {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<
-    "all" | "external" | "internal" | "in_progress" | "completed" | "overdue"
+    | "all" | "external" | "internal" | "in_progress" | "completed" | "overdue"
+    | "exited" | "candle2_today" | "exit_in_3"
   >("all");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [machineFilter, setMachineFilter] = useState("all");
   const [openGroup, setOpenGroup] = useState<any>(null);
 
   const groups = useMemo(() => {
     const map = new Map<string, any>();
     rows.forEach((r) => {
-      const key = groupKey(r);
+      // Prefer batch_number as operational key when it represents a single cycle;
+      // fall back to entry_date + machine.
+      const key = r.batch_number
+        ? `BN__${r.batch_number}`
+        : groupKey(r);
       if (!map.has(key)) {
         map.set(key, {
           key,
@@ -47,6 +62,10 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr }: Props) => {
           total_eggs: 0,
           net_eggs: 0,
           chicks: 0,
+          internal_eggs: 0,
+          external_eggs: 0,
+          internal_chicks: 0,
+          external_chicks: 0,
           c1_fertile: 0,
           c1_infertile: 0,
           c2_fertile: 0,
@@ -70,6 +89,15 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr }: Props) => {
       g.total_eggs += r.total_eggs || 0;
       g.net_eggs += r.net_eggs || 0;
       g.chicks += r.chicks || 0;
+      if (r.type === "internal") {
+        g.internal_eggs += r.total_eggs || 0;
+        g.internal_chicks += r.chicks || 0;
+        g.has_internal = true;
+      } else {
+        g.external_eggs += r.total_eggs || 0;
+        g.external_chicks += r.chicks || 0;
+        g.has_external = true;
+      }
       g.c1_fertile += r._raw?.candle1_fertile || 0;
       g.c1_infertile += r._raw?.candle1_infertile || 0;
       g.c2_fertile += r._raw?.candle2_fertile || 0;
@@ -79,23 +107,28 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr }: Props) => {
       if (r.candle2_date) g.candle2_dates.add(r.candle2_date);
       if (r.exit_date) g.exit_dates.add(r.exit_date);
       g.stages.push(r.stage);
-      if (r.type === "internal") g.has_internal = true;
-      else g.has_external = true;
       if (r.is_imported) g.is_imported = true;
     });
 
-    // Aggregate stage
     const arr = Array.from(map.values()).map((g) => {
       const allCompleted = g.stages.every((s: string) => s === "completed");
       const anyOverdue = g.stages.some((s: string) => s === "overdue");
       const stage = anyOverdue ? "overdue" : allCompleted ? "completed" : "in_progress";
-      const op_number = `${g.entry_date || "—"} / ${g.machine || "—"}`;
+      const bnArr = Array.from(g.batch_numbers).filter(Boolean);
+      const op_number =
+        bnArr.length === 1
+          ? String(bnArr[0])
+          : `${g.entry_date || "—"} / ${g.machine || "—"}`;
       const fmtDates = (s: Set<string>) =>
         s.size === 0 ? null : Array.from(s).sort().join(" / ");
+      const exited = g.exit_dates.size > 0 && allCompleted;
+      const expectedExit = g.expExit || addDaysISO(g.entry_date, 42);
       return {
         ...g,
         op_number,
         stage,
+        exited,
+        expectedExit,
         candle1_display: fmtDates(g.candle1_dates),
         candle2_display: fmtDates(g.candle2_dates),
         exit_display: fmtDates(g.exit_dates),
@@ -104,21 +137,40 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr }: Props) => {
       };
     });
 
-    // Sort by entry_date desc
     arr.sort((a, b) => String(b.entry_date || "").localeCompare(String(a.entry_date || "")));
     return arr;
   }, [rows]);
 
+  const machineOptions = useMemo(() => {
+    const s = new Set<string>();
+    groups.forEach((g) => g.machine && s.add(g.machine));
+    return Array.from(s).sort();
+  }, [groups]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
+    const today = todayStr;
+    const in3 = addDaysISO(today, 3);
     return groups.filter((g) => {
       if (filter === "external" && !g.has_external) return false;
       if (filter === "internal" && !g.has_internal) return false;
       if (filter === "completed" && g.stage !== "completed") return false;
       if (filter === "in_progress" && g.stage !== "in_progress") return false;
       if (filter === "overdue" && g.stage !== "overdue") return false;
+      if (filter === "exited" && !g.exited) return false;
+      if (filter === "candle2_today") {
+        const c2 = g.candle2_display || g.expCandle2;
+        if (!c2 || !String(c2).includes(today)) return false;
+      }
+      if (filter === "exit_in_3") {
+        const ex = g.expectedExit;
+        if (!ex || g.exited) return false;
+        if (!(ex >= today && ex <= in3)) return false;
+      }
+      if (machineFilter !== "all" && g.machine !== machineFilter) return false;
+      if (fromDate && (g.entry_date || "") < fromDate) return false;
+      if (toDate && (g.entry_date || "") > toDate) return false;
       if (!q) return true;
-      // search by customer name within group, machine, entry date
       if ((g.machine || "").toLowerCase().includes(q)) return true;
       if ((g.entry_date || "").includes(q)) return true;
       if (g.customers.some((c: any) => (c.customer_name || "").toLowerCase().includes(q)))
@@ -127,7 +179,7 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr }: Props) => {
         return true;
       return false;
     });
-  }, [groups, search, filter]);
+  }, [groups, search, filter, fromDate, toDate, machineFilter, todayStr]);
 
   const counts = useMemo(
     () => ({
@@ -137,6 +189,7 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr }: Props) => {
       in_progress: groups.filter((g) => g.stage === "in_progress").length,
       completed: groups.filter((g) => g.stage === "completed").length,
       overdue: groups.filter((g) => g.stage === "overdue").length,
+      exited: groups.filter((g) => g.exited).length,
     }),
     [groups]
   );
@@ -148,7 +201,12 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr }: Props) => {
       onClick={() => setFilter(k)}
       className={tone}
     >
-      {label} <Badge variant="secondary" className="mr-2 text-[10px]">{n}</Badge>
+      {label}{" "}
+      {typeof n === "number" && (
+        <Badge variant="secondary" className="mr-2 text-[10px]">
+          {n}
+        </Badge>
+      )}
     </Button>
   );
 
@@ -164,6 +222,46 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr }: Props) => {
             className="pr-9"
           />
         </div>
+        <Input
+          type="date"
+          value={fromDate}
+          onChange={(e) => setFromDate(e.target.value)}
+          className="w-[150px]"
+          placeholder="من"
+        />
+        <Input
+          type="date"
+          value={toDate}
+          onChange={(e) => setToDate(e.target.value)}
+          className="w-[150px]"
+          placeholder="إلى"
+        />
+        <select
+          value={machineFilter}
+          onChange={(e) => setMachineFilter(e.target.value)}
+          className="border rounded-md px-2 py-1 text-sm bg-background"
+        >
+          <option value="all">كل الماكينات</option>
+          {machineOptions.map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
+        </select>
+        {(fromDate || toDate || machineFilter !== "all" || search) && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              setFromDate("");
+              setToDate("");
+              setMachineFilter("all");
+              setSearch("");
+            }}
+          >
+            مسح الفلاتر
+          </Button>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -172,7 +270,10 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr }: Props) => {
         <FilterBtn k="internal" label="بها نعام العاصمة" n={counts.internal} />
         <FilterBtn k="in_progress" label="جارية" n={counts.in_progress} />
         <FilterBtn k="completed" label="مكتملة" n={counts.completed} />
+        <FilterBtn k="exited" label="خرجت" n={counts.exited} />
         <FilterBtn k="overdue" label="متأخرة" n={counts.overdue} tone="text-red-600" />
+        <FilterBtn k="candle2_today" label="كشف 2 اليوم" />
+        <FilterBtn k="exit_in_3" label="خروج خلال 3 أيام" />
       </div>
 
       <Card className="overflow-x-auto">
