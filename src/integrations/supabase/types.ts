@@ -1919,11 +1919,16 @@ export type Database = {
           customer_id: string
           decided_at: string | null
           decided_by: string | null
+          duplicate_score: number | null
           expires_at: string
           id: string
+          matched_order_id: string | null
           note: string | null
+          proposed_items: Json
+          proposed_order: Json
           reason: string | null
           requested_by: string
+          resolved_order_id: string | null
           status: string
           updated_at: string
         }
@@ -1932,11 +1937,16 @@ export type Database = {
           customer_id: string
           decided_at?: string | null
           decided_by?: string | null
+          duplicate_score?: number | null
           expires_at?: string
           id?: string
+          matched_order_id?: string | null
           note?: string | null
+          proposed_items?: Json
+          proposed_order?: Json
           reason?: string | null
           requested_by: string
+          resolved_order_id?: string | null
           status?: string
           updated_at?: string
         }
@@ -1945,11 +1955,16 @@ export type Database = {
           customer_id?: string
           decided_at?: string | null
           decided_by?: string | null
+          duplicate_score?: number | null
           expires_at?: string
           id?: string
+          matched_order_id?: string | null
           note?: string | null
+          proposed_items?: Json
+          proposed_order?: Json
           reason?: string | null
           requested_by?: string
+          resolved_order_id?: string | null
           status?: string
           updated_at?: string
         }
@@ -1959,6 +1974,99 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "duplicate_order_approvals_matched_order_id_fkey"
+            columns: ["matched_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "duplicate_order_approvals_resolved_order_id_fkey"
+            columns: ["resolved_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      duplicate_order_attempt_audit: {
+        Row: {
+          approval_id: string | null
+          attempted_by: string
+          created_at: string
+          customer_id: string | null
+          customer_phone: string | null
+          decided_at: string | null
+          decision_by: string | null
+          decision_reason: string | null
+          id: string
+          matched_order_id: string | null
+          matched_order_snapshot: Json
+          proposed_items: Json
+          proposed_order: Json
+          similarity_score: number | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          approval_id?: string | null
+          attempted_by: string
+          created_at?: string
+          customer_id?: string | null
+          customer_phone?: string | null
+          decided_at?: string | null
+          decision_by?: string | null
+          decision_reason?: string | null
+          id?: string
+          matched_order_id?: string | null
+          matched_order_snapshot?: Json
+          proposed_items?: Json
+          proposed_order?: Json
+          similarity_score?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          approval_id?: string | null
+          attempted_by?: string
+          created_at?: string
+          customer_id?: string | null
+          customer_phone?: string | null
+          decided_at?: string | null
+          decision_by?: string | null
+          decision_reason?: string | null
+          id?: string
+          matched_order_id?: string | null
+          matched_order_snapshot?: Json
+          proposed_items?: Json
+          proposed_order?: Json
+          similarity_score?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "duplicate_order_attempt_audit_approval_id_fkey"
+            columns: ["approval_id"]
+            isOneToOne: false
+            referencedRelation: "duplicate_order_approvals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "duplicate_order_attempt_audit_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "duplicate_order_attempt_audit_matched_order_id_fkey"
+            columns: ["matched_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
         ]
@@ -9310,10 +9418,15 @@ export type Database = {
           deposit_receipt_name: string | null
           deposit_receipt_url: string | null
           discount: number
+          duplicate_approval_id: string | null
+          duplicate_approval_reason: string | null
+          duplicate_approved_at: string | null
+          duplicate_approved_by: string | null
           extra_charge: number
           extra_charge_reason: string | null
           fulfillment_type: string | null
           id: string
+          is_duplicate_approved: boolean
           moderator: string | null
           notes: string | null
           order_number: string
@@ -9345,10 +9458,15 @@ export type Database = {
           deposit_receipt_name?: string | null
           deposit_receipt_url?: string | null
           discount?: number
+          duplicate_approval_id?: string | null
+          duplicate_approval_reason?: string | null
+          duplicate_approved_at?: string | null
+          duplicate_approved_by?: string | null
           extra_charge?: number
           extra_charge_reason?: string | null
           fulfillment_type?: string | null
           id?: string
+          is_duplicate_approved?: boolean
           moderator?: string | null
           notes?: string | null
           order_number: string
@@ -9380,10 +9498,15 @@ export type Database = {
           deposit_receipt_name?: string | null
           deposit_receipt_url?: string | null
           discount?: number
+          duplicate_approval_id?: string | null
+          duplicate_approval_reason?: string | null
+          duplicate_approved_at?: string | null
+          duplicate_approved_by?: string | null
           extra_charge?: number
           extra_charge_reason?: string | null
           fulfillment_type?: string | null
           id?: string
+          is_duplicate_approved?: boolean
           moderator?: string | null
           notes?: string | null
           order_number?: string
@@ -9413,6 +9536,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_duplicate_approval_id_fkey"
+            columns: ["duplicate_approval_id"]
+            isOneToOne: false
+            referencedRelation: "duplicate_order_approvals"
             referencedColumns: ["id"]
           },
           {
@@ -12436,6 +12566,19 @@ export type Database = {
         Args: { p_transfer_id: string }
         Returns: Json
       }
+      check_duplicate_order_attempt: {
+        Args: {
+          p_customer_id: string
+          p_customer_name: string
+          p_customer_phone: string
+          p_delivery_address?: string
+          p_fulfillment_type?: string
+          p_items?: Json
+          p_note?: string
+          p_shipping_company?: string
+        }
+        Returns: Json
+      }
       check_offer_expiry: { Args: never; Returns: boolean }
       check_order_stock_availability: {
         Args: { p_order_id: string }
@@ -12489,11 +12632,16 @@ export type Database = {
           customer_id: string
           decided_at: string | null
           decided_by: string | null
+          duplicate_score: number | null
           expires_at: string
           id: string
+          matched_order_id: string | null
           note: string | null
+          proposed_items: Json
+          proposed_order: Json
           reason: string | null
           requested_by: string
+          resolved_order_id: string | null
           status: string
           updated_at: string
         }
@@ -12701,6 +12849,37 @@ export type Database = {
         Returns: undefined
       }
       finalize_slaughter_batch: { Args: { p_batch_id: string }; Returns: Json }
+      find_duplicate_order_candidates: {
+        Args: {
+          p_customer_id: string
+          p_customer_name: string
+          p_customer_phone: string
+          p_delivery_address?: string
+          p_fulfillment_type?: string
+          p_items?: Json
+          p_shipping_company?: string
+        }
+        Returns: {
+          created_at: string
+          customer_name: string
+          customer_phone: string
+          delivery_address: string
+          fulfillment_type: string
+          matched_on_address: boolean
+          matched_on_items: boolean
+          matched_on_name: boolean
+          matched_on_phone: boolean
+          matched_on_same_day: boolean
+          matched_on_shipping: boolean
+          matched_order_id: string
+          moderator_name: string
+          order_number: string
+          products_summary: string
+          shipping_company: string
+          similarity_score: number
+          status: string
+        }[]
+      }
       fix_feed_sales_return_refund: {
         Args: { p_return_id: string }
         Returns: {
@@ -12750,6 +12929,31 @@ export type Database = {
         }[]
       }
       get_dashboard_overview: { Args: never; Returns: Json }
+      get_potential_duplicate_orders_report: {
+        Args: { p_limit?: number }
+        Returns: {
+          cairo_order_date: string
+          moderator_a: string
+          moderator_b: string
+          order_a_created_at: string
+          order_a_customer_name: string
+          order_a_id: string
+          order_a_number: string
+          order_b_created_at: string
+          order_b_customer_name: string
+          order_b_id: string
+          order_b_number: string
+          products_a: string
+          products_b: string
+          same_address: boolean
+          same_items: boolean
+          same_shipping: boolean
+          shared_phone: string
+          similarity_score: number
+          status_a: string
+          status_b: string
+        }[]
+      }
       get_production_dashboard: {
         Args: { p_from?: string; p_to?: string }
         Returns: Json
@@ -12865,6 +13069,33 @@ export type Database = {
         Args: { p_from?: string; p_to?: string }
         Returns: Json
       }
+      mark_duplicate_order_approval_used: {
+        Args: { p_id: string; p_order_id: string }
+        Returns: {
+          created_at: string
+          customer_id: string
+          decided_at: string | null
+          decided_by: string | null
+          duplicate_score: number | null
+          expires_at: string
+          id: string
+          matched_order_id: string | null
+          note: string | null
+          proposed_items: Json
+          proposed_order: Json
+          reason: string | null
+          requested_by: string
+          resolved_order_id: string | null
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "duplicate_order_approvals"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       meat_batch_approve: {
         Args: {
           p_batch_id: string
@@ -12935,6 +13166,24 @@ export type Database = {
       next_feed_factory_movement_no: { Args: never; Returns: string }
       next_feed_transfer_ref: { Args: never; Returns: string }
       normalize_ar: { Args: { s: string }; Returns: string }
+      normalize_match_text: { Args: { input: string }; Returns: string }
+      normalize_phone_eg: { Args: { input: string }; Returns: string }
+      order_items_signature_from_json: {
+        Args: { p_items: Json }
+        Returns: string
+      }
+      order_items_signature_from_order: {
+        Args: { p_order_id: string }
+        Returns: string
+      }
+      order_items_summary_from_json: {
+        Args: { p_items: Json }
+        Returns: string
+      }
+      order_items_summary_from_order: {
+        Args: { p_order_id: string }
+        Returns: string
+      }
       order_matches_moderator: {
         Args: { _moderator_text: string; _user_id: string }
         Returns: boolean
@@ -13024,10 +13273,20 @@ export type Database = {
         Returns: Json
       }
       release_order_reservation: { Args: { p_order_id: string }; Returns: Json }
-      request_duplicate_order_approval: {
-        Args: { p_customer_id: string; p_note?: string }
-        Returns: string
-      }
+      request_duplicate_order_approval:
+        | { Args: { p_customer_id: string; p_note?: string }; Returns: string }
+        | {
+            Args: {
+              p_attempt_audit_id?: string
+              p_customer_id: string
+              p_duplicate_score?: number
+              p_matched_order_id?: string
+              p_note?: string
+              p_proposed_items?: Json
+              p_proposed_order?: Json
+            }
+            Returns: string
+          }
       request_production_for_order_shortages: {
         Args: { p_order_id: string }
         Returns: Json
