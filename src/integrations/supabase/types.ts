@@ -1913,6 +1913,36 @@ export type Database = {
         }
         Relationships: []
       }
+      delivery_routes: {
+        Row: {
+          color: string
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       duplicate_order_approvals: {
         Row: {
           created_at: string
@@ -9432,6 +9462,7 @@ export type Database = {
           order_number: string
           payment_method: string
           payment_status: string
+          route_id: string | null
           shipping_company: string | null
           source: string | null
           source_warehouse_id: string | null
@@ -9472,6 +9503,7 @@ export type Database = {
           order_number: string
           payment_method?: string
           payment_status?: string
+          route_id?: string | null
           shipping_company?: string | null
           source?: string | null
           source_warehouse_id?: string | null
@@ -9512,6 +9544,7 @@ export type Database = {
           order_number?: string
           payment_method?: string
           payment_status?: string
+          route_id?: string | null
           shipping_company?: string | null
           source?: string | null
           source_warehouse_id?: string | null
@@ -9543,6 +9576,13 @@ export type Database = {
             columns: ["duplicate_approval_id"]
             isOneToOne: false
             referencedRelation: "duplicate_order_approvals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_routes"
             referencedColumns: ["id"]
           },
           {
