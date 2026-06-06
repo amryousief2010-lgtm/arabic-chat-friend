@@ -240,12 +240,18 @@ export default function HatchBatchesImport() {
     if (!rows || !file || !summary) return;
     setImporting(true);
     setReport(null);
+    setLastError(null);
+    let step: "customers" | "batches_lookup" | "batches_insert" | "batches_update" | "import_log" = "customers";
+    let plannedInserts = 0;
+    let plannedUpdates = 0;
+    let samplePayload: any = null;
     try {
       const previewRows = rows;
       const previewSummary = summary;
       const previewFile = file;
 
       // 1) Ensure customers exist
+      step = "customers";
       const distinctNames = Array.from(new Set(previewRows.map(r => r.customer_name)));
       console.log("[HatchBatchesImport] clicked", {
         user: user ? { id: user.id, email: user.email } : null,
@@ -271,6 +277,7 @@ export default function HatchBatchesImport() {
         customersToCreate: toCreate.length,
       });
       if (toCreate.length) {
+        samplePayload = toCreate[0];
         const { data: created, error: cc } = await supabase
           .from("hatch_customers").insert(toCreate).select("id,name,customer_type");
         if (cc) throw cc;
@@ -281,6 +288,7 @@ export default function HatchBatchesImport() {
       });
 
       // 2) Existing batch_numbers for dedup
+      step = "batches_lookup";
       const keys = previewRows.map(r => r.dedup_key);
       const { data: existingBatches, error: eb } = await supabase
         .from("hatch_batches").select("id,batch_number").in("batch_number", keys);
@@ -335,6 +343,10 @@ export default function HatchBatchesImport() {
         }
       }
 
+      plannedInserts = toInsert.length;
+      plannedUpdates = toUpdate.length;
+      samplePayload = toInsert[0] ?? toUpdate[0]?.payload ?? samplePayload;
+
       console.log("[HatchBatchesImport] upserting batches", {
         totalPreviewRows: previewRows.length,
         existingInDatabase: existingByKey.size,
@@ -345,6 +357,7 @@ export default function HatchBatchesImport() {
       });
 
       // 4) Insert in chunks
+      step = "batches_insert";
       const insertedRows: any[] = [];
       const chunk = 200;
       for (let i = 0; i < toInsert.length; i += chunk) {
@@ -353,6 +366,7 @@ export default function HatchBatchesImport() {
           .from("hatch_batches").insert(slice)
           .select("id,batch_number,customer_id,receive_date,received_eggs,hatched_chicks");
         if (error) {
+          samplePayload = slice[0];
           throw error;
         } else {
           insertedRows.push(...(data ?? []));
@@ -360,11 +374,13 @@ export default function HatchBatchesImport() {
       }
 
       // 5) Updates one by one (small count expected)
+      step = "batches_update";
       let updated = 0;
       for (const u of toUpdate) {
         const { error } = await supabase
           .from("hatch_batches").update(u.payload).eq("id", u.id);
         if (error) {
+          samplePayload = u.payload;
           throw error;
         } else {
           updated++;
@@ -381,6 +397,7 @@ export default function HatchBatchesImport() {
       });
 
       // 6) Audit log
+      step = "import_log";
       console.log("[HatchBatchesImport] writing import log", {
         fileName: previewFile.name,
         totalRows: previewRows.length,
@@ -389,7 +406,7 @@ export default function HatchBatchesImport() {
         skippedDuplicates: duplicate,
         errors,
       });
-      const { data: logRow } = await supabase
+      const { data: logRow, error: logErr } = await supabase
         .from("hatch_batch_import_log")
         .insert({
           imported_by: user?.id ?? null,
@@ -404,6 +421,7 @@ export default function HatchBatchesImport() {
           errors: errorDetails.slice(0, 100) as any,
         })
         .select("id").single();
+      if (logErr) throw logErr;
       if (!logRow) {
         throw new Error("تعذر تسجيل سجل عملية الاستيراد في Audit Log");
       }
@@ -436,18 +454,28 @@ export default function HatchBatchesImport() {
       toast.success(`تم الاستيراد: ${inserted} inserted • ${updated} updated • ${duplicate} skipped duplicates • errors: ${errors} • import_log_id: ${logRow?.id ?? "—"}`);
     } catch (e: any) {
       const errorInfo = {
+        step,
         message: e?.message ?? "خطأ غير معروف",
         code: e?.code ?? null,
         details: e?.details ?? null,
         hint: e?.hint ?? null,
+        plannedInserts,
+        plannedUpdates,
+        samplePayload,
+        userId: user?.id ?? null,
+        userEmail: user?.email ?? null,
+        roles: roles ?? [],
+        raw: (() => { try { return JSON.stringify(e, Object.getOwnPropertyNames(e), 2); } catch { return String(e); } })(),
       };
       console.error("[HatchBatchesImport] failed", errorInfo, e);
+      setLastError(errorInfo);
       toast.error(
-        `فشل الاستيراد: ${errorInfo.message}${errorInfo.code ? ` | code: ${errorInfo.code}` : ""}${errorInfo.details ? ` | details: ${errorInfo.details}` : ""}${errorInfo.hint ? ` | hint: ${errorInfo.hint}` : ""}`,
+        `فشل الاستيراد عند: ${step} — ${errorInfo.message}${errorInfo.code ? ` | code: ${errorInfo.code}` : ""}`,
         { duration: 12000 }
       );
     } finally { setImporting(false); }
   };
+
 
   return (
     <DashboardLayout>
