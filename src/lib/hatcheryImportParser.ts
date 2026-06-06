@@ -207,15 +207,11 @@ export function parseHatcheryWorkbook(buf: ArrayBuffer): {
     const family = r[1];
     if (!date || family === null || family === undefined) continue;
     const egg = num(r[4]);
-    if (date > today) {
-      if (egg <= 0) { summary.production.futureSkipped++; continue; }
+    if (egg <= 0) {
+      if (date > today) summary.production.futureSkipped++;
+      else summary.production.emptySkipped++;
+      continue;
     }
-    if (egg <= 0 && date > today) { summary.production.futureSkipped++; continue; }
-    const data = {
-      production_date: date,
-      family_number: String(family),
-      pen: txt(r[2]),
-      female_count: num(r[3]),
       egg_count: egg,
       notes: txt(r[8]),
     };
