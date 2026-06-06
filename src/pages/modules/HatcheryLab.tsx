@@ -261,11 +261,95 @@ const hatchStatusColor: Record<string, string> = {
   completed: "bg-emerald-600",
 };
 
+// ---- Stage + dates helpers ----
+const addDays = (d: string | Date, n: number) => {
+  const dt = typeof d === "string" ? new Date(d) : new Date(d.getTime());
+  dt.setDate(dt.getDate() + n);
+  return dt.toISOString().slice(0, 10);
+};
+const daysDiff = (a?: string | null, b?: string | null) => {
+  if (!a || !b) return null;
+  const ms = new Date(b).getTime() - new Date(a).getTime();
+  return Math.round(ms / 86400000);
+};
+
+type StageKey =
+  | "awaiting_entry" | "in_machine" | "awaiting_candle1" | "after_candle1"
+  | "awaiting_candle2" | "after_candle2" | "in_hatcher" | "completed" | "overdue";
+
+const STAGE_META: Record<StageKey, { label: string; color: string }> = {
+  awaiting_entry:   { label: "بانتظار الدخول",  color: "bg-slate-500" },
+  in_machine:       { label: "داخل الماكينة",    color: "bg-blue-500" },
+  awaiting_candle1: { label: "بانتظار الكشف الأول", color: "bg-yellow-500" },
+  after_candle1:    { label: "بعد الكشف الأول",  color: "bg-cyan-600" },
+  awaiting_candle2: { label: "بانتظار الكشف الثاني", color: "bg-yellow-600" },
+  after_candle2:    { label: "بعد الكشف الثاني",  color: "bg-indigo-500" },
+  in_hatcher:       { label: "في الهاتشر",       color: "bg-purple-500" },
+  completed:        { label: "مكتملة / خرجت",    color: "bg-emerald-600" },
+  overdue:          { label: "متأخرة عن الإجراء", color: "bg-red-600" },
+};
+
+function computeStage(b: any, settings: any): { stage: StageKey; expCandle1?: string; expCandle2?: string; expExit?: string; daysIn: number | null; overdueReason?: string; isSoon?: boolean } {
+  const candleDay = settings?.candling_day || 15;
+  const hatcherDay = settings?.transfer_to_hatcher_day || 39;
+  const candle2Default = Math.max(candleDay + 10, 25);
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  const entry = b.entry_date || b.receive_date || null;
+  const expCandle1 = entry ? addDays(entry, candleDay) : undefined;
+  const expCandle2 = entry ? addDays(entry, candle2Default) : undefined;
+  const expExit = entry ? addDays(entry, hatcherDay) : undefined;
+  const daysIn = entry ? daysDiff(entry, todayStr) : null;
+
+  if (b.status === "completed" || b.exit_date) {
+    return { stage: "completed", expCandle1, expCandle2, expExit, daysIn };
+  }
+  if (!entry) return { stage: "awaiting_entry", daysIn: null };
+
+  // overdue checks
+  const isAfter = (dueDate?: string) => dueDate && todayStr > dueDate;
+  const within = (dueDate?: string, days = 3) => {
+    if (!dueDate) return false;
+    const d = daysDiff(todayStr, dueDate);
+    return d !== null && d >= 0 && d <= days;
+  };
+
+  // After candle2 → in hatcher (around hatcher day)
+  if (b.candle2_date) {
+    if (todayStr >= (expExit || "9999-12-31")) {
+      // past exit, no exit_date recorded → overdue
+      if (isAfter(expExit)) return { stage: "overdue", expCandle1, expCandle2, expExit, daysIn, overdueReason: "تجاوز موعد الخروج" };
+    }
+    if (daysIn !== null && daysIn >= hatcherDay - 1) {
+      return { stage: "in_hatcher", expCandle1, expCandle2, expExit, daysIn, isSoon: within(expExit) };
+    }
+    return { stage: "after_candle2", expCandle1, expCandle2, expExit, daysIn, isSoon: within(expExit) };
+  }
+  if (b.candle1_date) {
+    if (isAfter(expCandle2)) {
+      return { stage: "overdue", expCandle1, expCandle2, expExit, daysIn, overdueReason: "تجاوز موعد الكشف الثاني" };
+    }
+    return { stage: "awaiting_candle2", expCandle1, expCandle2, expExit, daysIn, isSoon: within(expCandle2) };
+  }
+  if (isAfter(expCandle1)) {
+    return { stage: "overdue", expCandle1, expCandle2, expExit, daysIn, overdueReason: "تجاوز موعد الكشف الأول" };
+  }
+  if (daysIn !== null && daysIn >= 1) {
+    return { stage: "awaiting_candle1", expCandle1, expCandle2, expExit, daysIn, isSoon: within(expCandle1) };
+  }
+  return { stage: "in_machine", expCandle1, expCandle2, expExit, daysIn };
+}
+
+type QuickFilter =
+  | "all" | "internal" | "external" | "completed" | "in_progress" | "imported"
+  | "candle2_today" | "candle2_3d" | "exit_today" | "exit_3d" | "overdue";
+
 const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
   const [search, setSearch] = useState("");
   const [showNew, setShowNew] = useState(false);
   const [activeBatch, setActiveBatch] = useState<any>(null);
-  const [filter, setFilter] = useState<"all" | "internal" | "external" | "completed" | "in_progress" | "imported">("all");
+  const [detailBatch, setDetailBatch] = useState<any>(null);
+  const [filter, setFilter] = useState<QuickFilter>("all");
 
   // Pull imported / lab batches from hatch_batches (the table the import wrote to)
   const { data: hatchBatches = [] } = useQuery<any[]>({
@@ -273,7 +357,7 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("hatch_batches")
-        .select("id, batch_number, receive_date, entry_date, machine, received_eggs, net_eggs, hatched_chicks, candle1_date, candle2_date, exit_date, status, customer_id, created_at, hatch_customers(id,name,customer_type)")
+        .select("id, batch_number, receive_date, entry_date, machine, received_eggs, net_eggs, hatched_chicks, hatcher_dead, candle1_date, candle1_fertile, candle1_infertile, candle2_date, candle2_fertile, candle2_dead, exit_date, status, customer_id, notes, created_at, hatch_customers(id,name,customer_type)")
         .order("receive_date", { ascending: false })
         .limit(1000);
       if (error) throw error;
@@ -294,6 +378,8 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
   });
 
   const importTs = importLog?.created_at ? new Date(importLog.created_at).getTime() : null;
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const in3days = addDays(todayStr, 3);
 
   const rows = useMemo(() => {
     return (hatchBatches as any[]).map((b) => {
@@ -301,56 +387,124 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
       const isInternal = c.customer_type === "internal" || /عاصمة|داخل/.test(c.name || "");
       const createdMs = b.created_at ? new Date(b.created_at).getTime() : 0;
       const isImported = importTs ? Math.abs(createdMs - importTs) <= 60 * 60 * 1000 : false;
+      const st = computeStage(b, settings);
       return {
         id: b.id,
         batch_number: b.batch_number,
-        entry_date: b.entry_date || b.receive_date,
+        receive_date: b.receive_date,
+        entry_date: b.entry_date,
         machine: b.machine,
         type: isInternal ? "internal" : "external",
         customer_name: c.name || "—",
         total_eggs: b.received_eggs || 0,
         net_eggs: b.net_eggs || 0,
         chicks: b.hatched_chicks || 0,
-        candle_date: b.candle1_date || b.candle2_date,
-        hatcher_date: b.exit_date,
+        candle1_date: b.candle1_date,
+        candle2_date: b.candle2_date,
+        exit_date: b.exit_date,
         status: b.status || "pending",
         is_imported: isImported,
+        stage: st.stage,
+        expCandle1: st.expCandle1,
+        expCandle2: st.expCandle2,
+        expExit: st.expExit,
+        daysIn: st.daysIn,
+        isSoon: st.isSoon,
+        overdueReason: st.overdueReason,
         _raw: b,
       };
     });
-  }, [hatchBatches, importTs]);
+  }, [hatchBatches, importTs, settings]);
 
-  const counts = useMemo(() => ({
-    all: rows.length,
-    internal: rows.filter((r) => r.type === "internal").length,
-    external: rows.filter((r) => r.type === "external").length,
-    completed: rows.filter((r) => r.status === "completed").length,
-    in_progress: rows.filter((r) => r.status !== "completed").length,
-    imported: rows.filter((r) => r.is_imported).length,
-  }), [rows]);
+  const counts = useMemo(() => {
+    const c2Soon = (r: any, d: number) => {
+      const target = r.candle2_date || r.expCandle2;
+      if (!target || r.status === "completed" || r.exit_date) return false;
+      const diff = daysDiff(todayStr, target);
+      return diff !== null && diff >= 0 && diff <= d;
+    };
+    const exSoon = (r: any, d: number) => {
+      const target = r.exit_date || r.expExit;
+      if (!target || r.status === "completed") return false;
+      const diff = daysDiff(todayStr, target);
+      return diff !== null && diff >= 0 && diff <= d;
+    };
+    return {
+      all: rows.length,
+      internal: rows.filter((r) => r.type === "internal").length,
+      external: rows.filter((r) => r.type === "external").length,
+      completed: rows.filter((r) => r.stage === "completed").length,
+      in_progress: rows.filter((r) => r.stage !== "completed").length,
+      imported: rows.filter((r) => r.is_imported).length,
+      candle2_today: rows.filter((r) => c2Soon(r, 0)).length,
+      candle2_3d: rows.filter((r) => c2Soon(r, 3)).length,
+      exit_today: rows.filter((r) => exSoon(r, 0)).length,
+      exit_3d: rows.filter((r) => exSoon(r, 3)).length,
+      overdue: rows.filter((r) => r.stage === "overdue").length,
+    };
+  }, [rows, todayStr]);
 
   const filtered = useMemo(() => {
     return rows.filter((r) => {
       if (search && !String(r.batch_number ?? "").toLowerCase().includes(search.toLowerCase()) && !r.customer_name.includes(search)) return false;
-      if (filter === "internal") return r.type === "internal";
-      if (filter === "external") return r.type === "external";
-      if (filter === "completed") return r.status === "completed";
-      if (filter === "in_progress") return r.status !== "completed";
-      if (filter === "imported") return r.is_imported;
-      return true;
+      switch (filter) {
+        case "internal": return r.type === "internal";
+        case "external": return r.type === "external";
+        case "completed": return r.stage === "completed";
+        case "in_progress": return r.stage !== "completed";
+        case "imported": return r.is_imported;
+        case "candle2_today": {
+          const t = r.candle2_date || r.expCandle2;
+          if (!t || r.stage === "completed") return false;
+          return t === todayStr;
+        }
+        case "candle2_3d": {
+          const t = r.candle2_date || r.expCandle2;
+          if (!t || r.stage === "completed") return false;
+          const d = daysDiff(todayStr, t);
+          return d !== null && d >= 0 && d <= 3;
+        }
+        case "exit_today": {
+          const t = r.exit_date || r.expExit;
+          if (!t || r.stage === "completed") return false;
+          return t === todayStr;
+        }
+        case "exit_3d": {
+          const t = r.exit_date || r.expExit;
+          if (!t || r.stage === "completed") return false;
+          const d = daysDiff(todayStr, t);
+          return d !== null && d >= 0 && d <= 3;
+        }
+        case "overdue": return r.stage === "overdue";
+        default: return true;
+      }
     });
-  }, [rows, search, filter]);
+  }, [rows, search, filter, todayStr]);
 
-  const filterBtn = (key: typeof filter, label: string, count: number) => (
+  const filterBtn = (key: QuickFilter, label: string, count: number, tone?: string) => (
     <Button
       key={key}
       size="sm"
       variant={filter === key ? "default" : "outline"}
       onClick={() => setFilter(key)}
+      className={tone}
     >
       {label} <Badge variant="secondary" className="mr-2 text-[10px]">{count}</Badge>
     </Button>
   );
+
+  const dateCell = (date?: string | null, expected?: string | null, status?: string) => {
+    if (date) return <span className="text-xs">{date}</span>;
+    if (status === "completed") return <span className="text-xs text-muted-foreground">—</span>;
+    if (!expected) return <span className="text-xs text-muted-foreground">—</span>;
+    const isPast = expected < todayStr;
+    const isSoon = expected >= todayStr && expected <= in3days;
+    return (
+      <span className={`text-xs ${isPast ? "text-red-600 font-semibold" : isSoon ? "text-orange-600" : "text-muted-foreground"}`}>
+        ~{expected}
+      </span>
+    );
+  };
 
   return (
     <div className="space-y-3">
@@ -368,9 +522,16 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
         {filterBtn("all", "الكل", counts.all)}
         {filterBtn("internal", "دفعات العاصمة", counts.internal)}
         {filterBtn("external", "دفعات العملاء", counts.external)}
-        {filterBtn("completed", "مكتملة", counts.completed)}
         {filterBtn("in_progress", "جارية", counts.in_progress)}
-        {filterBtn("imported", "مستوردة من الشيت", counts.imported)}
+        {filterBtn("completed", "مكتملة", counts.completed)}
+        {filterBtn("imported", "مستوردة", counts.imported)}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {filterBtn("candle2_today", "كشف ثاني اليوم", counts.candle2_today)}
+        {filterBtn("candle2_3d", "كشف ثاني خلال 3 أيام", counts.candle2_3d)}
+        {filterBtn("exit_today", "خروج اليوم", counts.exit_today)}
+        {filterBtn("exit_3d", "خروج خلال 3 أيام", counts.exit_3d)}
+        {filterBtn("overdue", "متأخرة", counts.overdue)}
       </div>
 
       <Card className="overflow-x-auto">
@@ -378,49 +539,54 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
           <TableHeader>
             <TableRow>
               <TableHead>رقم الدفعة</TableHead>
-              <TableHead>تاريخ الدخول</TableHead>
-              <TableHead>الماكينة</TableHead>
-              <TableHead>النوع</TableHead>
               <TableHead>العميل</TableHead>
-              <TableHead>إجمالي البيض</TableHead>
+              <TableHead>الماكينة</TableHead>
+              <TableHead>الوارد</TableHead>
+              <TableHead>الدخول</TableHead>
+              <TableHead>كشف 1</TableHead>
+              <TableHead>كشف 2</TableHead>
+              <TableHead>الخروج</TableHead>
+              <TableHead>أيام داخل</TableHead>
+              <TableHead>البيض</TableHead>
               <TableHead>الكتاكيت</TableHead>
-              <TableHead>كشف يوم</TableHead>
-              <TableHead>هاتشر يوم</TableHead>
-              <TableHead>الحالة</TableHead>
+              <TableHead>المرحلة</TableHead>
               <TableHead>إجراءات</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.map((b: any) => (
-              <TableRow key={b.id}>
-                <TableCell className="font-mono text-xs">
-                  {b.batch_number}
-                  {b.is_imported && <Badge variant="outline" className="mr-1 text-[9px]">مستوردة</Badge>}
-                </TableCell>
-                <TableCell className="text-xs">{b.entry_date || "—"}</TableCell>
-                <TableCell>{b.machine || "—"}</TableCell>
-                <TableCell>
-                  <Badge variant="outline">{b.type === "internal" ? "عاصمة" : "عميل"}</Badge>
-                </TableCell>
-                <TableCell className="text-xs">{b.customer_name}</TableCell>
-                <TableCell className="font-bold">{fmtNum(b.total_eggs)}</TableCell>
-                <TableCell>{fmtNum(b.chicks)}</TableCell>
-                <TableCell className="text-xs">{b.candle_date || "—"}</TableCell>
-                <TableCell className="text-xs">{b.hatcher_date || "—"}</TableCell>
-                <TableCell>
-                  <Badge className={`${hatchStatusColor[b.status] || "bg-slate-500"} text-white`}>
-                    {hatchStatusLabel[b.status] || b.status}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <Button size="sm" variant="outline" asChild>
-                    <a href="/hatchery/import-batches/review">عرض</a>
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
+            {filtered.map((b: any) => {
+              const meta = STAGE_META[b.stage as StageKey];
+              return (
+                <TableRow key={b.id} className={b.stage === "overdue" ? "bg-red-50/40 dark:bg-red-950/20" : b.isSoon ? "bg-orange-50/40 dark:bg-orange-950/10" : ""}>
+                  <TableCell className="font-mono text-xs">
+                    {b.batch_number}
+                    {b.is_imported && <Badge variant="outline" className="mr-1 text-[9px]">مستوردة</Badge>}
+                  </TableCell>
+                  <TableCell className="text-xs">
+                    {b.customer_name}
+                    <div className="text-[10px] text-muted-foreground">{b.type === "internal" ? "عاصمة" : "عميل"}</div>
+                  </TableCell>
+                  <TableCell className="text-xs">{b.machine || "—"}</TableCell>
+                  <TableCell className="text-xs">{b.receive_date || "—"}</TableCell>
+                  <TableCell className="text-xs">{b.entry_date || "—"}</TableCell>
+                  <TableCell>{dateCell(b.candle1_date, b.expCandle1, b.status)}</TableCell>
+                  <TableCell>{dateCell(b.candle2_date, b.expCandle2, b.status)}</TableCell>
+                  <TableCell>{dateCell(b.exit_date, b.expExit, b.status)}</TableCell>
+                  <TableCell className="text-xs text-center">{b.daysIn ?? "—"}</TableCell>
+                  <TableCell className="font-bold">{fmtNum(b.total_eggs)}</TableCell>
+                  <TableCell>{fmtNum(b.chicks)}</TableCell>
+                  <TableCell>
+                    <Badge className={`${meta.color} text-white whitespace-nowrap`}>{meta.label}</Badge>
+                    {b.overdueReason && <div className="text-[10px] text-red-600 mt-1">{b.overdueReason}</div>}
+                  </TableCell>
+                  <TableCell>
+                    <Button size="sm" variant="outline" onClick={() => setDetailBatch(b)}>تفاصيل</Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
             {filtered.length === 0 && (
-              <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">لا توجد دفعات مطابقة</TableCell></TableRow>
+              <TableRow><TableCell colSpan={13} className="text-center text-muted-foreground py-8">لا توجد دفعات مطابقة</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
@@ -432,7 +598,104 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
           clients={clients} settings={settings} canManage={canManage}
           onClose={() => setActiveBatch(null)} onChanged={onRefresh} />
       )}
+      {detailBatch && (
+        <HatchBatchDetailDialog row={detailBatch} onClose={() => setDetailBatch(null)} />
+      )}
     </div>
+  );
+};
+
+// ============================================================
+// Hatch Batch Detail Dialog (read-only operational view)
+// ============================================================
+const HatchBatchDetailDialog = ({ row, onClose }: { row: any; onClose: () => void }) => {
+  const b = row._raw || {};
+  const meta = STAGE_META[row.stage as StageKey];
+  const fertility = b.received_eggs > 0 && b.candle1_fertile != null
+    ? ((b.candle1_fertile / b.received_eggs) * 100).toFixed(1) + "%"
+    : "—";
+  const hatchRate = b.received_eggs > 0 && b.hatched_chicks
+    ? ((b.hatched_chicks / b.received_eggs) * 100).toFixed(1) + "%"
+    : "—";
+  const totalDead = (b.candle1_infertile || 0) + (b.candle2_dead || 0) + (b.hatcher_dead || 0);
+  const damaged = (b.received_eggs || 0) - (b.net_eggs || 0);
+
+  const Row = ({ label, value }: { label: string; value: any }) => (
+    <div className="flex justify-between border-b py-1 text-sm">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium">{value ?? "—"}</span>
+    </div>
+  );
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 flex-wrap">
+            دفعة {b.batch_number}
+            <Badge className={`${meta.color} text-white`}>{meta.label}</Badge>
+            {row.is_imported && <Badge variant="outline">مستوردة من الشيت</Badge>}
+            {!row.is_imported && <Badge variant="outline">دفعة جديدة</Badge>}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card className="p-3 space-y-1">
+            <h4 className="font-semibold mb-2 text-primary">بيانات أساسية</h4>
+            <Row label="العميل" value={row.customer_name} />
+            <Row label="النوع" value={row.type === "internal" ? "عاصمة (داخلي)" : "عميل خارجي"} />
+            <Row label="رقم الدفعة" value={b.batch_number} />
+            <Row label="الماكينة" value={b.machine} />
+            <Row label="تاريخ الوارد" value={b.receive_date} />
+            <Row label="تاريخ الدخول" value={b.entry_date} />
+            <Row label="أيام داخل الماكينة" value={row.daysIn} />
+          </Card>
+
+          <Card className="p-3 space-y-1">
+            <h4 className="font-semibold mb-2 text-primary">المواعيد</h4>
+            <Row label="الكشف الأول (فعلي)" value={b.candle1_date} />
+            <Row label="الكشف الأول (متوقع)" value={row.expCandle1} />
+            <Row label="الكشف الثاني (فعلي)" value={b.candle2_date} />
+            <Row label="الكشف الثاني (متوقع)" value={row.expCandle2} />
+            <Row label="الخروج/الهاتشر (فعلي)" value={b.exit_date} />
+            <Row label="الخروج/الهاتشر (متوقع)" value={row.expExit} />
+            {row.overdueReason && (
+              <div className="text-xs text-red-600 mt-2">⚠ {row.overdueReason}</div>
+            )}
+          </Card>
+
+          <Card className="p-3 space-y-1">
+            <h4 className="font-semibold mb-2 text-primary">البيض والإنتاج</h4>
+            <Row label="إجمالي البيض" value={fmtNum(b.received_eggs)} />
+            <Row label="التالف" value={fmtNum(damaged)} />
+            <Row label="الصافي" value={fmtNum(b.net_eggs)} />
+            <Row label="لايح (كشف 1)" value={fmtNum(b.candle1_infertile)} />
+            <Row label="مخصب (كشف 1)" value={fmtNum(b.candle1_fertile)} />
+            <Row label="ميت كشف 2" value={fmtNum(b.candle2_dead)} />
+            <Row label="مخصب بعد كشف 2" value={fmtNum(b.candle2_fertile)} />
+            <Row label="نافق الهاتشر" value={fmtNum(b.hatcher_dead)} />
+            <Row label="عدد الكتاكيت" value={fmtNum(b.hatched_chicks)} />
+          </Card>
+
+          <Card className="p-3 space-y-1">
+            <h4 className="font-semibold mb-2 text-primary">النسب</h4>
+            <Row label="نسبة الخصوبة" value={fertility} />
+            <Row label="نسبة الفقس" value={hatchRate} />
+            <Row label="إجمالي النافق" value={fmtNum(totalDead)} />
+            {b.notes && (
+              <div className="mt-2">
+                <div className="text-xs text-muted-foreground mb-1">ملاحظات:</div>
+                <div className="text-sm bg-muted/40 rounded p-2">{b.notes}</div>
+              </div>
+            )}
+          </Card>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>إغلاق</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 
