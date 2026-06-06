@@ -406,33 +406,35 @@ const ChickOrders = () => {
 
       {/* Form Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="p-6 pb-2 shrink-0">
             <DialogTitle>{editing ? "تعديل طلب كتاكيت" : "طلب كتاكيت جديد"}</DialogTitle>
             <DialogDescription>أدخلي بيانات العميل وتفاصيل الطلب</DialogDescription>
           </DialogHeader>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <Field label="اسم العميل *" value={form.customer_name} onChange={(v) => setForm({ ...form, customer_name: v })} />
-            <Field label="رقم الهاتف *" value={form.phone_primary} onChange={(v) => setForm({ ...form, phone_primary: v })} dir="ltr" />
-            <Field label="رقم آخر (اختياري)" value={form.phone_secondary} onChange={(v) => setForm({ ...form, phone_secondary: v })} dir="ltr" />
-            <Field label="المحافظة *" value={form.governorate} onChange={(v) => setForm({ ...form, governorate: v })} />
-            <Field label="المدينة *" value={form.city} onChange={(v) => setForm({ ...form, city: v })} />
-            <Field label="عمر الكتكوت *" value={form.chick_age} onChange={(v) => setForm({ ...form, chick_age: v })} placeholder="مثال: شهر / 30 يوم" />
-            <Field label="سعر الكتكوت *" value={String(form.chick_price)} onChange={(v) => setForm({ ...form, chick_price: v as any })} type="number" />
-            <Field label="عدد الكتاكيت *" value={String(form.chick_count)} onChange={(v) => setForm({ ...form, chick_count: v as any })} type="number" />
-            <div className="md:col-span-2">
-              <Label>ملاحظات</Label>
-              <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} />
-            </div>
-            {form.chick_price && form.chick_count && (
-              <div className="md:col-span-2 p-3 rounded-lg bg-primary/5 border border-primary/20 text-sm">
-                الإجمالي: <strong className="text-primary text-base">{(Number(form.chick_price) * Number(form.chick_count)).toLocaleString()} ج</strong>
+          <div className="flex-1 overflow-y-auto px-6 py-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <Field label="اسم العميل *" value={form.customer_name} onChange={(v) => setForm({ ...form, customer_name: v })} />
+              <Field label="رقم الهاتف *" value={form.phone_primary} onChange={(v) => setForm({ ...form, phone_primary: v })} dir="ltr" />
+              <Field label="رقم آخر (اختياري)" value={form.phone_secondary} onChange={(v) => setForm({ ...form, phone_secondary: v })} dir="ltr" />
+              <Field label="المحافظة *" value={form.governorate} onChange={(v) => setForm({ ...form, governorate: v })} />
+              <Field label="المدينة *" value={form.city} onChange={(v) => setForm({ ...form, city: v })} />
+              <Field label="عمر الكتكوت *" value={form.chick_age} onChange={(v) => setForm({ ...form, chick_age: v })} placeholder="مثال: شهر / 30 يوم" />
+              <Field label="سعر الكتكوت *" value={String(form.chick_price)} onChange={(v) => setForm({ ...form, chick_price: v as any })} type="number" />
+              <Field label="عدد الكتاكيت *" value={String(form.chick_count)} onChange={(v) => setForm({ ...form, chick_count: v as any })} type="number" />
+              <div className="md:col-span-2">
+                <Label>ملاحظات</Label>
+                <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} />
               </div>
-            )}
+              {form.chick_price && form.chick_count && (
+                <div className="md:col-span-2 p-3 rounded-lg bg-primary/5 border border-primary/20 text-sm">
+                  الإجمالي: <strong className="text-primary text-base">{(Number(form.chick_price) * Number(form.chick_count)).toLocaleString()} ج</strong>
+                </div>
+              )}
+            </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>إلغاء</Button>
-            <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+          <DialogFooter className="p-4 border-t bg-background shrink-0 flex-row gap-2 sm:gap-2">
+            <Button variant="outline" onClick={() => setDialogOpen(false)} className="flex-1 sm:flex-initial">إلغاء</Button>
+            <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className="flex-1 sm:flex-initial">
               {saveMutation.isPending ? "جارٍ الحفظ..." : editing ? "حفظ التعديلات" : "تسجيل الطلب"}
             </Button>
           </DialogFooter>
