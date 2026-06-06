@@ -200,6 +200,9 @@ export default function HatcheryDashboard() {
         </div>
       )}
 
+      {/* Current batch in the hatcher */}
+      <CurrentHatcherBatch batches={batches as any[]} custMap={custMap} />
+
       {/* Customers + incoming eggs */}
       <section>
         <h3 className="font-semibold mb-2 flex items-center gap-2"><Users className="w-4 h-4" />العملاء والبيض الداخل</h3>
@@ -215,6 +218,7 @@ export default function HatcheryDashboard() {
           <Kpi label="بيض العملاء الخارجيين (سنة)" value={stats.externalEggs} />
         </div>
       </section>
+
 
       {/* Batches + machines */}
       <section>
