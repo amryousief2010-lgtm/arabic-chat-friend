@@ -582,8 +582,10 @@ function printGroup(g: any) {
       <tr><td><b>تاريخ الدخول:</b> ${escapeHtml(g.entry_date || "—")}</td><td><b>المرحلة:</b> ${escapeHtml(g.stage)}</td></tr>
       <tr><td><b>الكشف الأول:</b> ${escapeHtml(g.candle1_display || g.expCandle1 || "—")}</td>
           <td><b>الكشف الثاني:</b> ${escapeHtml(g.candle2_display || g.expCandle2 || "—")}</td></tr>
-      <tr><td><b>الخروج/الهاتشر:</b> ${escapeHtml(g.exit_display || g.expExit || "—")}</td>
+      <tr><td><b>حالة الخروج:</b> ${g.exited ? `خرجت بتاريخ ${escapeHtml(g.exit_display)}` : `لم تخرج — متوقع ~${escapeHtml(g.expectedExit || "—")}`}</td>
           <td><b>عدد العملاء:</b> ${g.customers.length}</td></tr>
+      <tr><td><b>بيض نعام العاصمة:</b> ${fmtNum(g.internal_eggs)}</td>
+          <td><b>بيض العملاء الخارجيين:</b> ${fmtNum(g.external_eggs)}</td></tr>
       <tr><td><b>إجمالي البيض:</b> ${fmtNum(g.total_eggs)}</td>
           <td><b>إجمالي الكتاكيت:</b> ${fmtNum(g.chicks)}</td></tr>
       <tr><td><b>نسبة الخصوبة:</b> ${g.fertility}</td>
