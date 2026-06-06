@@ -254,6 +254,7 @@ export function parseHatcheryWorkbook(buf: ArrayBuffer): {
     summary.shipments.total++;
     summary.shipments.totalEggs += moved;
     summary.shipments.totalDamaged += damaged;
+    summary.shipments.totalOut += moved + damaged;
   }
 
   // ---- Chick movements
