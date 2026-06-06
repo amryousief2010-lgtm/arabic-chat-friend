@@ -212,6 +212,11 @@ export function parseHatcheryWorkbook(buf: ArrayBuffer): {
       else summary.production.emptySkipped++;
       continue;
     }
+    const data = {
+      production_date: date,
+      family_number: String(family),
+      pen: txt(r[2]),
+      female_count: num(r[3]),
       egg_count: egg,
       notes: txt(r[8]),
     };
