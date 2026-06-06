@@ -164,14 +164,16 @@ export default function HatcheryImport() {
                 <Stat label="عملاء" value={summary.customers.total} sub={`داخلي ${summary.customers.internal} / خارجي ${summary.customers.external}`} />
                 <Stat label="دفعات المعمل" value={summary.batches.total} sub={`عاصمة ${summary.batches.capital} / عملاء ${summary.batches.external}`} />
                 <Stat label="إجمالي البيض الوارد" value={summary.batches.totalEggs} sub={`عاصمة ${summary.batches.capitalEggs} / عملاء ${summary.batches.externalEggs}`} />
-                <Stat label="إجمالي الكتاكيت" value={summary.batches.totalChicks} />
+                <Stat label="التالف / الصافي" value={summary.batches.totalDamaged} sub={`تالف ${summary.batches.totalDamaged} • صافي ${summary.batches.totalNet}`} />
+                <Stat label="إجمالي الكتاكيت" value={summary.batches.totalChicks} sub={`عاصمة ${summary.batches.capitalChicks} / عملاء ${summary.batches.externalChicks}`} />
                 <Stat label="إجمالي الحسابات" value={summary.batches.totalCharge} money />
-                <Stat label="إجمالي المستلم" value={summary.batches.totalReceived} money />
-                <Stat label="إجمالي المتبقي" value={summary.batches.totalRemaining} money />
+                <Stat label="المستلم" value={summary.batches.totalReceived} money />
+                <Stat label="المتبقي" value={summary.batches.totalRemaining} money />
+                <Stat label="إنتاج الأمهات الفعلي" value={summary.production.total} sub={`بيض ${summary.production.totalEggs} • صفر مُتجاهل ${summary.production.emptySkipped} • مستقبلي ${summary.production.futureSkipped}`} />
+                <Stat label="نقل البيض" value={summary.shipments.total} sub={`منقول ${summary.shipments.totalEggs} • تالف ${summary.shipments.totalDamaged} • خارج ${summary.shipments.totalOut}`} />
+                <Stat label="حركة الكتاكيت" value={summary.chickMovements.total} sub={`وارد ${summary.chickMovements.incoming} • نافق ${summary.chickMovements.dead} • مبيع ${summary.chickMovements.sold}`} />
+                <Stat label="إجمالي مبيعات الكتاكيت" value={summary.chickMovements.totalSale} money />
                 <Stat label="صفوف بها أخطاء" value={summary.errors} warn />
-                <Stat label="إنتاج الأمهات" value={summary.production.total} sub={`بيض ${summary.production.totalEggs} • مستقبلي مُتجاهل ${summary.production.futureSkipped}`} />
-                <Stat label="نقل البيض" value={summary.shipments.total} sub={`بيض ${summary.shipments.totalEggs} • تالف ${summary.shipments.totalDamaged}`} />
-                <Stat label="حركة الكتاكيت" value={summary.chickMovements.total} />
               </div>
 
               <div className="flex gap-2 pt-2">

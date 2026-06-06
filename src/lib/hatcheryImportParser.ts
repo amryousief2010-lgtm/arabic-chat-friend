@@ -24,14 +24,18 @@ export interface ParseSummary {
     totalEggs: number;
     capitalEggs: number;
     externalEggs: number;
+    totalDamaged: number;
+    totalNet: number;
     totalChicks: number;
+    capitalChicks: number;
+    externalChicks: number;
     totalCharge: number;
     totalReceived: number;
     totalRemaining: number;
   };
-  production: { total: number; futureSkipped: number; totalEggs: number };
-  shipments: { total: number; totalEggs: number; totalDamaged: number };
-  chickMovements: { total: number };
+  production: { total: number; futureSkipped: number; emptySkipped: number; totalEggs: number };
+  shipments: { total: number; totalEggs: number; totalDamaged: number; totalOut: number };
+  chickMovements: { total: number; incoming: number; dead: number; sold: number; totalSale: number };
   errors: number;
 }
 
@@ -92,11 +96,13 @@ export function parseHatcheryWorkbook(buf: ArrayBuffer): {
     batches: {
       total: 0, capital: 0, external: 0,
       totalEggs: 0, capitalEggs: 0, externalEggs: 0,
-      totalChicks: 0, totalCharge: 0, totalReceived: 0, totalRemaining: 0,
+      totalDamaged: 0, totalNet: 0,
+      totalChicks: 0, capitalChicks: 0, externalChicks: 0,
+      totalCharge: 0, totalReceived: 0, totalRemaining: 0,
     },
-    production: { total: 0, futureSkipped: 0, totalEggs: 0 },
-    shipments: { total: 0, totalEggs: 0, totalDamaged: 0 },
-    chickMovements: { total: 0 },
+    production: { total: 0, futureSkipped: 0, emptySkipped: 0, totalEggs: 0 },
+    shipments: { total: 0, totalEggs: 0, totalDamaged: 0, totalOut: 0 },
+    chickMovements: { total: 0, incoming: 0, dead: 0, sold: 0, totalSale: 0 },
     errors: 0,
   };
   const today = new Date().toISOString().slice(0, 10);
@@ -175,6 +181,8 @@ export function parseHatcheryWorkbook(buf: ArrayBuffer): {
     rows.push({ _sheet: "batches", _row: i + 1, _key: key, data, errors });
     summary.batches.total++;
     summary.batches.totalEggs += data.received_eggs;
+    summary.batches.totalDamaged += data.damaged;
+    summary.batches.totalNet += data.net_eggs;
     summary.batches.totalChicks += data.hatched_chicks;
     summary.batches.totalCharge += data.charge_total;
     summary.batches.totalReceived += data.received_money;
@@ -182,9 +190,11 @@ export function parseHatcheryWorkbook(buf: ArrayBuffer): {
     if (type === "internal") {
       summary.batches.capital++;
       summary.batches.capitalEggs += data.received_eggs;
+      summary.batches.capitalChicks += data.hatched_chicks;
     } else {
       summary.batches.external++;
       summary.batches.externalEggs += data.received_eggs;
+      summary.batches.externalChicks += data.hatched_chicks;
     }
     if (errors.length) summary.errors++;
   }
@@ -197,10 +207,11 @@ export function parseHatcheryWorkbook(buf: ArrayBuffer): {
     const family = r[1];
     if (!date || family === null || family === undefined) continue;
     const egg = num(r[4]);
-    if (date > today) {
-      if (egg <= 0) { summary.production.futureSkipped++; continue; }
+    if (egg <= 0) {
+      if (date > today) summary.production.futureSkipped++;
+      else summary.production.emptySkipped++;
+      continue;
     }
-    if (egg <= 0 && date > today) { summary.production.futureSkipped++; continue; }
     const data = {
       production_date: date,
       family_number: String(family),
@@ -243,6 +254,7 @@ export function parseHatcheryWorkbook(buf: ArrayBuffer): {
     summary.shipments.total++;
     summary.shipments.totalEggs += moved;
     summary.shipments.totalDamaged += damaged;
+    summary.shipments.totalOut += moved + damaged;
   }
 
   // ---- Chick movements
@@ -271,6 +283,10 @@ export function parseHatcheryWorkbook(buf: ArrayBuffer): {
       data, errors: [],
     });
     summary.chickMovements.total++;
+    summary.chickMovements.incoming += data.incoming;
+    summary.chickMovements.dead += data.dead;
+    summary.chickMovements.sold += data.sold;
+    summary.chickMovements.totalSale += data.total_sale;
   }
 
   return { rows, summary };
