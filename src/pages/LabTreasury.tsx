@@ -1140,12 +1140,12 @@ export default function LabTreasury() {
                       <TableHead>رصيد آخر اليوم</TableHead>
                       <TableHead>أقفل بواسطة</TableHead>
                       <TableHead>الحالة</TableHead>
-                      {isGeneralManager && <TableHead>إجراء</TableHead>}
+                      {(isGeneralManager || isExecutiveManager) && <TableHead>إجراء</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {closures.length === 0 ? (
-                      <TableRow><TableCell colSpan={isGeneralManager ? 8 : 7} className="text-center py-8 text-muted-foreground">لا توجد أيام مُقفلة</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={(isGeneralManager || isExecutiveManager) ? 8 : 7} className="text-center py-8 text-muted-foreground">لا توجد أيام مُقفلة</TableCell></TableRow>
                     ) : closures.map((c) => (
                       <TableRow key={c.id}>
                         <TableCell>{c.closure_date}</TableCell>
