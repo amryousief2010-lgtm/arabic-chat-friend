@@ -440,6 +440,14 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr, onRefresh }: Props)
           group={openGroup}
           stageMeta={stageMeta}
           onClose={() => setOpenGroup(null)}
+          onOpenResults={(g: any) => { setOpenGroup(null); setResultsGroup(g); }}
+        />
+      )}
+      {resultsGroup && (
+        <HatchResultsEntryDialog
+          group={resultsGroup}
+          onClose={() => setResultsGroup(null)}
+          onSaved={() => onRefresh?.()}
         />
       )}
     </div>
