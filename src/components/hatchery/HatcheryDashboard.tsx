@@ -1,16 +1,17 @@
-import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format, parseISO, differenceInDays, addDays, startOfWeek, startOfMonth, startOfYear } from "date-fns";
-import { Egg, FlaskConical, Users, AlertTriangle, TrendingUp, Bird, Wallet, Printer, FileSpreadsheet, TestTube } from "lucide-react";
+import { Egg, FlaskConical, Users, AlertTriangle, TrendingUp, Bird, Wallet, Printer, FileSpreadsheet, TestTube, Sparkles } from "lucide-react";
 import { exportCSV } from "@/lib/csvExport";
 import { useTestMode } from "@/hooks/useTestMode";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import HatchResultsEntryDialog from "./HatchResultsEntryDialog";
 
 const STAGE_EXIT = 42;
 const HATCH_DAYS = 45;
@@ -338,6 +339,9 @@ function Kpi({
 }
 
 function CurrentHatcherBatch({ batches, custMap }: { batches: any[]; custMap: Map<string, any> }) {
+  const qc = useQueryClient();
+  const [openGroup, setOpenGroup] = useState<any>(null);
+
   // Find batches currently in the hatcher (status='in_hatcher'), grouped by operational_batch_no + machine.
   const groups = useMemo(() => {
     const m = new Map<string, any>();
@@ -367,6 +371,21 @@ function CurrentHatcherBatch({ batches, custMap }: { batches: any[]; custMap: Ma
 
   if (groups.length === 0) return null;
 
+  // Build a HatchResultsEntryDialog-compatible group from raw rows.
+  const toDialogGroup = (g: any) => ({
+    op_no: g.op_no,
+    machine: g.machine,
+    entry_date: g.entry_date,
+    customers: g.rows.map((b: any) => ({
+      id: b.id,
+      customer_name: custMap.get(b.customer_id)?.name || "—",
+      batch_number: b.batch_number,
+      total_eggs: b.received_eggs || 0,
+      net_eggs: b.net_eggs || 0,
+      _raw: b,
+    })),
+  });
+
   return (
     <section>
       <h3 className="font-semibold mb-2 flex items-center gap-2 text-purple-700">
@@ -393,14 +412,10 @@ function CurrentHatcherBatch({ batches, custMap }: { batches: any[]; custMap: Ma
                 </div>
                 <Button
                   size="sm"
-                  className="bg-purple-600 hover:bg-purple-700 text-white"
-                  onClick={() => {
-                    sessionStorage.setItem("hatchery_batch_filter", "in_hatcher");
-                    window.location.hash = "#batches";
-                    // give the page a chance to honour the hash; the Batches tab will pick up the filter
-                    window.dispatchEvent(new HashChangeEvent("hashchange"));
-                  }}
+                  className="bg-purple-600 hover:bg-purple-700 text-white shadow-md"
+                  onClick={() => setOpenGroup(toDialogGroup(g))}
                 >
+                  <Sparkles className="w-4 h-4 ml-1" />
                   إدخال نتائج الفقس
                 </Button>
               </div>
@@ -426,6 +441,18 @@ function CurrentHatcherBatch({ batches, custMap }: { batches: any[]; custMap: Ma
           );
         })}
       </div>
+
+      {openGroup && (
+        <HatchResultsEntryDialog
+          group={openGroup}
+          onClose={() => setOpenGroup(null)}
+          onSaved={() => {
+            setOpenGroup(null);
+            qc.invalidateQueries({ queryKey: ["hatch_batches_dash"] });
+            qc.invalidateQueries({ queryKey: ["hatch_batches_lab"] });
+          }}
+        />
+      )}
     </section>
   );
 }
