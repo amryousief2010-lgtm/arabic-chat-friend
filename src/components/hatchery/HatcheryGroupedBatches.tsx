@@ -47,8 +47,9 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr }: Props) => {
   const groups = useMemo(() => {
     const map = new Map<string, any>();
     rows.forEach((r) => {
-      // Each individual batch row becomes its own group (no collapsing across batches).
-      const key = r.id ? `ID__${r.id}` : `${r.batch_number || ""}__${r.entry_date || ""}__${(r.machine || "").trim()}__${r.customer_name || ""}__${r.total_eggs || 0}`;
+      // One operational batch = same entry_date + same machine.
+      // All customer rows that share these two values collapse into ONE row.
+      const key = groupKey(r);
       if (!map.has(key)) {
         map.set(key, {
           key,
