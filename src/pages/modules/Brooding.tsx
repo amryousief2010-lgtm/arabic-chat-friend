@@ -1361,7 +1361,11 @@ const SALE_AGE_PRESETS = [
 const SaleForm = ({ batches, onDone, defaultBatchId }: any) => {
   const { roles, role } = useAuth();
   const userRoles = roles && roles.length > 0 ? roles : (role ? [role] : []);
-  const canManualAge = userRoles.includes("general_manager") || userRoles.includes("executive_manager");
+  const canManualAge =
+    userRoles.includes("general_manager") ||
+    userRoles.includes("executive_manager") ||
+    userRoles.includes("brooding_manager") ||
+    userRoles.includes("production_manager");
 
   const [f, setF] = useState({ batch_id: defaultBatchId || "", sale_date: new Date().toISOString().slice(0, 10), customer_name: "", count: 1, unit_price: 0, total_amount: 0, payment_method: "cash", treasury: "", notes: "" });
   const [ageMode, setAgeMode] = useState<"auto" | "preset" | "manual">("auto");
