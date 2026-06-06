@@ -201,6 +201,21 @@ export default function HatchBatchesImport() {
   const [parsing, setParsing] = useState(false);
   const [importing, setImporting] = useState(false);
   const [report, setReport] = useState<ImportReport | null>(null);
+  const [lastError, setLastError] = useState<null | {
+    step: string;
+    message: string;
+    code: string | null;
+    details: string | null;
+    hint: string | null;
+    plannedInserts: number;
+    plannedUpdates: number;
+    samplePayload: any;
+    userId: string | null;
+    userEmail: string | null;
+    roles: string[];
+    raw: string;
+  }>(null);
+
 
   const onParse = async (f: File) => {
     setParsing(true);
@@ -225,12 +240,18 @@ export default function HatchBatchesImport() {
     if (!rows || !file || !summary) return;
     setImporting(true);
     setReport(null);
+    setLastError(null);
+    let step: "customers" | "batches_lookup" | "batches_insert" | "batches_update" | "import_log" = "customers";
+    let plannedInserts = 0;
+    let plannedUpdates = 0;
+    let samplePayload: any = null;
     try {
       const previewRows = rows;
       const previewSummary = summary;
       const previewFile = file;
 
       // 1) Ensure customers exist
+      step = "customers";
       const distinctNames = Array.from(new Set(previewRows.map(r => r.customer_name)));
       console.log("[HatchBatchesImport] clicked", {
         user: user ? { id: user.id, email: user.email } : null,
@@ -256,6 +277,7 @@ export default function HatchBatchesImport() {
         customersToCreate: toCreate.length,
       });
       if (toCreate.length) {
+        samplePayload = toCreate[0];
         const { data: created, error: cc } = await supabase
           .from("hatch_customers").insert(toCreate).select("id,name,customer_type");
         if (cc) throw cc;
@@ -266,6 +288,7 @@ export default function HatchBatchesImport() {
       });
 
       // 2) Existing batch_numbers for dedup
+      step = "batches_lookup";
       const keys = previewRows.map(r => r.dedup_key);
       const { data: existingBatches, error: eb } = await supabase
         .from("hatch_batches").select("id,batch_number").in("batch_number", keys);
@@ -320,6 +343,10 @@ export default function HatchBatchesImport() {
         }
       }
 
+      plannedInserts = toInsert.length;
+      plannedUpdates = toUpdate.length;
+      samplePayload = toInsert[0] ?? toUpdate[0]?.payload ?? samplePayload;
+
       console.log("[HatchBatchesImport] upserting batches", {
         totalPreviewRows: previewRows.length,
         existingInDatabase: existingByKey.size,
@@ -330,6 +357,7 @@ export default function HatchBatchesImport() {
       });
 
       // 4) Insert in chunks
+      step = "batches_insert";
       const insertedRows: any[] = [];
       const chunk = 200;
       for (let i = 0; i < toInsert.length; i += chunk) {
@@ -338,6 +366,7 @@ export default function HatchBatchesImport() {
           .from("hatch_batches").insert(slice)
           .select("id,batch_number,customer_id,receive_date,received_eggs,hatched_chicks");
         if (error) {
+          samplePayload = slice[0];
           throw error;
         } else {
           insertedRows.push(...(data ?? []));
@@ -345,11 +374,13 @@ export default function HatchBatchesImport() {
       }
 
       // 5) Updates one by one (small count expected)
+      step = "batches_update";
       let updated = 0;
       for (const u of toUpdate) {
         const { error } = await supabase
           .from("hatch_batches").update(u.payload).eq("id", u.id);
         if (error) {
+          samplePayload = u.payload;
           throw error;
         } else {
           updated++;
@@ -366,6 +397,7 @@ export default function HatchBatchesImport() {
       });
 
       // 6) Audit log
+      step = "import_log";
       console.log("[HatchBatchesImport] writing import log", {
         fileName: previewFile.name,
         totalRows: previewRows.length,
@@ -374,7 +406,7 @@ export default function HatchBatchesImport() {
         skippedDuplicates: duplicate,
         errors,
       });
-      const { data: logRow } = await supabase
+      const { data: logRow, error: logErr } = await supabase
         .from("hatch_batch_import_log")
         .insert({
           imported_by: user?.id ?? null,
@@ -389,6 +421,7 @@ export default function HatchBatchesImport() {
           errors: errorDetails.slice(0, 100) as any,
         })
         .select("id").single();
+      if (logErr) throw logErr;
       if (!logRow) {
         throw new Error("تعذر تسجيل سجل عملية الاستيراد في Audit Log");
       }
@@ -421,18 +454,28 @@ export default function HatchBatchesImport() {
       toast.success(`تم الاستيراد: ${inserted} inserted • ${updated} updated • ${duplicate} skipped duplicates • errors: ${errors} • import_log_id: ${logRow?.id ?? "—"}`);
     } catch (e: any) {
       const errorInfo = {
+        step,
         message: e?.message ?? "خطأ غير معروف",
         code: e?.code ?? null,
         details: e?.details ?? null,
         hint: e?.hint ?? null,
+        plannedInserts,
+        plannedUpdates,
+        samplePayload,
+        userId: user?.id ?? null,
+        userEmail: user?.email ?? null,
+        roles: roles ?? [],
+        raw: (() => { try { return JSON.stringify(e, Object.getOwnPropertyNames(e), 2); } catch { return String(e); } })(),
       };
       console.error("[HatchBatchesImport] failed", errorInfo, e);
+      setLastError(errorInfo);
       toast.error(
-        `فشل الاستيراد: ${errorInfo.message}${errorInfo.code ? ` | code: ${errorInfo.code}` : ""}${errorInfo.details ? ` | details: ${errorInfo.details}` : ""}${errorInfo.hint ? ` | hint: ${errorInfo.hint}` : ""}`,
+        `فشل الاستيراد عند: ${step} — ${errorInfo.message}${errorInfo.code ? ` | code: ${errorInfo.code}` : ""}`,
         { duration: 12000 }
       );
     } finally { setImporting(false); }
   };
+
 
   return (
     <DashboardLayout>
@@ -492,6 +535,76 @@ export default function HatchBatchesImport() {
             </CardContent>
           </Card>
         )}
+
+        {lastError && (
+          <Card className="border-destructive/60">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-destructive">
+                <AlertTriangle className="w-5 h-5" /> تفاصيل خطأ الاستيراد
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                <KV k="الخطوة (step)" v={lastError.step} />
+                <KV k="code" v={lastError.code ?? "—"} />
+                <KV k="message" v={lastError.message} />
+                <KV k="details" v={lastError.details ?? "—"} />
+                <KV k="hint" v={lastError.hint ?? "—"} />
+                <KV k="عدد الإدراج المخطط" v={String(lastError.plannedInserts)} />
+                <KV k="عدد التحديث المخطط" v={String(lastError.plannedUpdates)} />
+                <KV k="المستخدم" v={`${lastError.userEmail ?? "—"} (${lastError.userId ?? "—"})`} />
+                <KV k="الأدوار" v={(lastError.roles ?? []).join(", ") || "—"} />
+              </div>
+
+              <div>
+                <div className="text-xs font-medium mb-1">أول دفعة في الـ payload (sample):</div>
+                <pre className="text-[11px] bg-muted/40 border rounded p-2 max-h-64 overflow-auto whitespace-pre-wrap break-all">
+{JSON.stringify(lastError.samplePayload, null, 2)}
+                </pre>
+              </div>
+
+              <div>
+                <div className="text-xs font-medium mb-1">الخطأ الكامل (raw):</div>
+                <pre className="text-[11px] bg-muted/40 border rounded p-2 max-h-64 overflow-auto whitespace-pre-wrap break-all">
+{lastError.raw}
+                </pre>
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => {
+                    const txt = [
+                      `step: ${lastError.step}`,
+                      `message: ${lastError.message}`,
+                      `code: ${lastError.code ?? "—"}`,
+                      `details: ${lastError.details ?? "—"}`,
+                      `hint: ${lastError.hint ?? "—"}`,
+                      `plannedInserts: ${lastError.plannedInserts}`,
+                      `plannedUpdates: ${lastError.plannedUpdates}`,
+                      `user: ${lastError.userEmail} (${lastError.userId})`,
+                      `roles: ${(lastError.roles ?? []).join(", ")}`,
+                      `samplePayload: ${JSON.stringify(lastError.samplePayload)}`,
+                      `raw: ${lastError.raw}`,
+                    ].join("\n");
+                    try {
+                      await navigator.clipboard.writeText(txt);
+                      toast.success("تم نسخ تفاصيل الخطأ");
+                    } catch {
+                      toast.error("تعذر النسخ تلقائياً — حدد النص يدوياً");
+                    }
+                  }}
+                >
+                  نسخ تفاصيل الخطأ
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setLastError(null)}>إخفاء</Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+
 
         {report && (
           <Card>
@@ -567,6 +680,15 @@ function Stat({ label, value, sub, money, warn }: { label: string; value: number
         {money ? value.toLocaleString("ar-EG", { maximumFractionDigits: 2 }) + " ج.م" : value.toLocaleString("ar-EG")}
       </div>
       {sub && <div className="text-[11px] text-muted-foreground mt-1">{sub}</div>}
+    </div>
+  );
+}
+
+function KV({ k, v }: { k: string; v: string }) {
+  return (
+    <div className="flex gap-2 border rounded p-2 bg-muted/20">
+      <div className="text-xs text-muted-foreground min-w-[120px]">{k}</div>
+      <div className="text-xs font-mono break-all">{v}</div>
     </div>
   );
 }
