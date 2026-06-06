@@ -442,6 +442,7 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr, onRefresh }: Props)
           stageMeta={stageMeta}
           onClose={() => setOpenGroup(null)}
           onOpenResults={(g: any) => { setOpenGroup(null); setResultsGroup(g); }}
+          onRefresh={onRefresh}
         />
       )}
       {resultsGroup && (
