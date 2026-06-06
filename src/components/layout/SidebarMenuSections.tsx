@@ -40,6 +40,7 @@ import {
   ShieldAlert,
   Activity,
   Undo2,
+  ClipboardCheck,
 } from "lucide-react";
 import { useAuth, AppRole } from "@/hooks/useAuth";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
