@@ -155,7 +155,7 @@ const HatcheryLab = () => {
           </TabsContent>
 
           <TabsContent value="batches">
-            <BatchesTab batches={batches} lots={lots} clients={clients} settings={settings}
+            <BatchesTab lots={lots} clients={clients} settings={settings}
               canManage={canManage} onRefresh={refresh} />
           </TabsContent>
 
