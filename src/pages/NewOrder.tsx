@@ -982,33 +982,64 @@ const NewOrder = () => {
       return;
     }
 
+    if (!fulfillmentKey) {
+      toast.error('يرجى اختيار مصدر تنفيذ الطلب');
+      return;
+    }
+
+    const fulfillmentType = fulfillmentKey.startsWith('pickup') ? 'pickup' : 'delivery';
+    const effectiveShippingCompany = fulfillmentKey === 'delivery_main'
+      ? 'مندوب خاص'
+      : ((shippingCompany === 'أخرى' ? shippingCustom.trim() : shippingCompany) || null);
+    const duplicateItemsPayload = buildDuplicateItemsPayload(cart);
+    let approvedDuplicateRequestId: string | null = null;
+    let duplicateApprovalMeta: { decided_by?: string | null; decided_at?: string | null; reason?: string | null } | null = null;
+
     setSubmitting(true);
 
     // Duplicate order pre-check (sales_moderator only)
     if (isSalesModerator && user?.id && selectedCustomer?.id) {
       try {
-        const [{ data: hasOther }, { data: approved }] = await Promise.all([
-          supabase.rpc('customer_has_other_order_today', { p_customer_id: selectedCustomer.id, p_user_id: user.id }),
-          supabase.rpc('has_approved_duplicate_order', { p_customer_id: selectedCustomer.id, p_user_id: user.id }),
-        ]);
-        if (hasOther && !approved) {
-          setSubmitting(false);
-          // Check if a pending request already exists
-          const { data: pending } = await supabase
-            .from('duplicate_order_approvals')
-            .select('status, reason')
-            .eq('customer_id', selectedCustomer.id)
-            .eq('requested_by', user.id)
-            .gt('expires_at', new Date().toISOString())
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          setApprovalDialog({
-            open: true,
-            status: pending?.status === 'rejected' ? 'rejected' : (pending?.status === 'pending' ? 'pending' : 'idle'),
-            reason: pending?.reason || undefined,
-          });
-          return;
+        const { data, error } = await supabase.rpc('check_duplicate_order_attempt', {
+          p_customer_id: selectedCustomer.id,
+          p_customer_name: selectedCustomer.name,
+          p_customer_phone: selectedCustomer.phone,
+          p_delivery_address: deliveryAddress.trim() || selectedCustomer.address || null,
+          p_shipping_company: effectiveShippingCompany,
+          p_fulfillment_type: fulfillmentType,
+          p_items: duplicateItemsPayload,
+          p_note: notes.trim() || null,
+        });
+
+        if (error) throw error;
+
+        const duplicateCheck = data as unknown as DuplicateCheckResponse | null;
+        if (duplicateCheck?.is_duplicate) {
+          const existing = duplicateCheck.existing_request;
+          if (existing?.status === 'approved' && existing.id) {
+            approvedDuplicateRequestId = existing.id;
+            const { data: approvalMeta } = await supabase
+              .from('duplicate_order_approvals')
+              .select('decided_by, decided_at, reason')
+              .eq('id', existing.id)
+              .maybeSingle();
+            duplicateApprovalMeta = approvalMeta || null;
+          } else {
+            const nextStatus = existing?.status === 'rejected'
+              ? 'rejected'
+              : (existing?.status === 'pending' ? 'pending' : 'idle');
+
+            setApprovalDialog({
+              open: true,
+              status: nextStatus,
+              reason: existing?.reason || undefined,
+              attemptId: duplicateCheck.attempt_id || undefined,
+              requestId: existing?.id || undefined,
+              candidates: duplicateCheck.candidates || [],
+            });
+            setSubmitting(false);
+            return;
+          }
         }
       } catch (e) {
         console.warn('duplicate check failed', e);
@@ -1023,13 +1054,7 @@ const NewOrder = () => {
       if (orderNumberError) throw orderNumberError;
 
       // Resolve fulfillment source warehouse
-      if (!fulfillmentKey) {
-        toast.error('يرجى اختيار مصدر تنفيذ الطلب');
-        setSubmitting(false);
-        return;
-      }
       const isAgouza = fulfillmentKey.endsWith('_agouza');
-      const fulfillmentType = fulfillmentKey.startsWith('pickup') ? 'pickup' : 'delivery';
       const sourceWh = isAgouza ? agouzaWh : mainWh;
       if (!sourceWh) {
         toast.error('تعذر تحديد المخزن المختار');
@@ -1071,15 +1096,18 @@ const NewOrder = () => {
           created_by: user?.id,
           moderator: moderatorName,
           source: (source === 'أخرى' ? sourceCustom.trim() : source) || null,
-          shipping_company: fulfillmentKey === 'delivery_main'
-            ? 'مندوب خاص'
-            : ((shippingCompany === 'أخرى' ? shippingCustom.trim() : shippingCompany) || null),
+          shipping_company: effectiveShippingCompany,
           extra_charge: Number(extraCharge) || 0,
           extra_charge_reason: extraChargeReason.trim() || null,
           fulfillment_type: fulfillmentType,
           source_warehouse_id: sourceWh.id,
           deposit_receipt_url: depositReceiptPath,
           deposit_receipt_name: depositReceiptName,
+          duplicate_approval_id: approvedDuplicateRequestId,
+          is_duplicate_approved: !!approvedDuplicateRequestId,
+          duplicate_approved_by: duplicateApprovalMeta?.decided_by || null,
+          duplicate_approved_at: duplicateApprovalMeta?.decided_at || null,
+          duplicate_approval_reason: duplicateApprovalMeta?.reason || null,
         })
         .select()
         .single();
@@ -1155,6 +1183,13 @@ const NewOrder = () => {
 
       if (itemsError) throw itemsError;
 
+      if (approvedDuplicateRequestId) {
+        await supabase.rpc('mark_duplicate_order_approval_used', {
+          p_id: approvedDuplicateRequestId,
+          p_order_id: order.id,
+        });
+      }
+
       // Update customer stats
       await supabase
         .from('customers')
@@ -1181,7 +1216,7 @@ const NewOrder = () => {
       console.error('Error creating order:', error);
       const msg = String(error?.message || '');
       if (msg.includes('DUPLICATE_ORDER_REQUIRES_APPROVAL')) {
-        setApprovalDialog({ open: true, status: 'idle' });
+        setApprovalDialog((prev) => ({ ...prev, open: true, status: prev.status === 'pending' ? 'pending' : 'idle' }));
       } else {
         toast.error('حدث خطأ أثناء إنشاء الطلب');
       }
