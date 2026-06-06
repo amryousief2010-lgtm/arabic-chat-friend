@@ -152,7 +152,7 @@ const HatcheryLab = () => {
           </TabsList>
 
           <TabsContent value="dashboard">
-            <DashboardTab kpis={kpis} batches={batches} settings={settings} />
+            <DashboardTab kpis={kpis} batches={batches} settings={settings} setTab={setTab} />
           </TabsContent>
 
           <TabsContent value="batches">
