@@ -119,8 +119,15 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr, onRefresh }: Props)
 
     const arr = Array.from(map.values()).map((g) => {
       const allCompleted = g.stages.every((s: string) => s === "completed");
+      const anyInHatcher = g.stages.some((s: string) => s === "in_hatcher");
       const anyOverdue = g.stages.some((s: string) => s === "overdue");
-      const stage = anyOverdue ? "overdue" : allCompleted ? "completed" : "in_progress";
+      const stage = anyOverdue
+        ? "overdue"
+        : allCompleted
+          ? "completed"
+          : anyInHatcher
+            ? "in_hatcher"
+            : "in_progress";
       const fmtDates = (s: Set<string>) =>
         s.size === 0 ? null : Array.from(s).sort().join(" / ");
       const exited = g.exit_dates.size > 0 && allCompleted;
