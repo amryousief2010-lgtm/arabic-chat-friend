@@ -53,11 +53,11 @@ export default function HatcheryClientMetrics() {
   const { data: collected = 0 } = useQuery<number>({
     queryKey: ["hc_metrics_collected"],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from("lab_treasury_movements")
         .select("amount")
-        .eq("movement_type" as any, "income")
-        .eq("status" as any, "approved");
+        .eq("movement_type", "income")
+        .eq("status", "approved");
       return ((data as any[]) || []).reduce((s, r) => s + Number(r.amount || 0), 0);
     },
   });
