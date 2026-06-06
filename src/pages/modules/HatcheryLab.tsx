@@ -683,7 +683,10 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
       {detailBatch && (
         <HatchBatchDetailDialog row={detailBatch} onClose={() => setDetailBatch(null)} />
       )}
+      </>
+      )}
     </div>
+
   );
 };
 
