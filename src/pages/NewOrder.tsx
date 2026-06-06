@@ -224,7 +224,11 @@ const withTimedQuery = async <T,>(
 const NewOrder = () => {
   const navigate = useNavigate();
   const { user, isSalesModerator } = useAuth();
-  const [approvalDialog, setApprovalDialog] = useState<{ open: boolean; status: 'idle'|'pending'|'rejected'; reason?: string }>({ open: false, status: 'idle' });
+  const [approvalDialog, setApprovalDialog] = useState<DuplicateApprovalDialogState>({
+    open: false,
+    status: 'idle',
+    candidates: [],
+  });
   const [searchParams] = useSearchParams();
 
   // Determine the moderator name to attribute this new order to.
