@@ -181,6 +181,8 @@ export function parseHatcheryWorkbook(buf: ArrayBuffer): {
     rows.push({ _sheet: "batches", _row: i + 1, _key: key, data, errors });
     summary.batches.total++;
     summary.batches.totalEggs += data.received_eggs;
+    summary.batches.totalDamaged += data.damaged;
+    summary.batches.totalNet += data.net_eggs;
     summary.batches.totalChicks += data.hatched_chicks;
     summary.batches.totalCharge += data.charge_total;
     summary.batches.totalReceived += data.received_money;
@@ -188,9 +190,11 @@ export function parseHatcheryWorkbook(buf: ArrayBuffer): {
     if (type === "internal") {
       summary.batches.capital++;
       summary.batches.capitalEggs += data.received_eggs;
+      summary.batches.capitalChicks += data.hatched_chicks;
     } else {
       summary.batches.external++;
       summary.batches.externalEggs += data.received_eggs;
+      summary.batches.externalChicks += data.hatched_chicks;
     }
     if (errors.length) summary.errors++;
   }
