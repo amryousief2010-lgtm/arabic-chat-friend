@@ -24,14 +24,18 @@ export interface ParseSummary {
     totalEggs: number;
     capitalEggs: number;
     externalEggs: number;
+    totalDamaged: number;
+    totalNet: number;
     totalChicks: number;
+    capitalChicks: number;
+    externalChicks: number;
     totalCharge: number;
     totalReceived: number;
     totalRemaining: number;
   };
-  production: { total: number; futureSkipped: number; totalEggs: number };
-  shipments: { total: number; totalEggs: number; totalDamaged: number };
-  chickMovements: { total: number };
+  production: { total: number; futureSkipped: number; emptySkipped: number; totalEggs: number };
+  shipments: { total: number; totalEggs: number; totalDamaged: number; totalOut: number };
+  chickMovements: { total: number; incoming: number; dead: number; sold: number; totalSale: number };
   errors: number;
 }
 
