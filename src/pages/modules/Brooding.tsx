@@ -765,7 +765,7 @@ const MovementCard = ({ title, data, canManage, onReload, exportName, columns, f
               <DialogTrigger asChild>
                 <Button size="sm" className="bg-primary"><Plus className="w-4 h-4 ml-1" />{addLabel}</Button>
               </DialogTrigger>
-              <DialogContent dir="rtl" className="max-w-lg">
+              <DialogContent dir="rtl" className="max-w-lg max-h-[85vh] overflow-y-auto pb-8">
                 <DialogHeader><DialogTitle>{addLabel}</DialogTitle></DialogHeader>
                 {form(null, () => setOpen(false))}
               </DialogContent>
