@@ -425,14 +425,25 @@ const GroupDetailDialog = ({ group, stageMeta, onClose }: any) => {
             <Row label="الماكينة" value={group.machine} />
             <Row label="الكشف الأول" value={group.candle1_display || `~${group.expCandle1 || "—"}`} />
             <Row label="الكشف الثاني" value={group.candle2_display || `~${group.expCandle2 || "—"}`} />
-            <Row label="الخروج/الهاتشر" value={group.exit_display || `~${group.expExit || "—"}`} />
+            <Row
+              label="الخروج/الهاتشر"
+              value={
+                group.exited
+                  ? `${group.exit_display} (خرجت ✓)`
+                  : `لم تخرج — متوقع ~${group.expectedExit || "—"}`
+              }
+            />
             <Row label="عدد دفعات العملاء" value={group.customers.length} />
             <Row label="أرقام الدفعات" value={Array.from(group.batch_numbers).join(", ")} />
           </Card>
           <Card className="p-3 space-y-1">
             <h4 className="font-semibold mb-2 text-primary">الإجماليات</h4>
+            <Row label="بيض نعام العاصمة (داخلي)" value={fmtNum(group.internal_eggs)} />
+            <Row label="بيض العملاء الخارجيين" value={fmtNum(group.external_eggs)} />
             <Row label="إجمالي البيض" value={fmtNum(group.total_eggs)} />
             <Row label="إجمالي الصافي" value={fmtNum(group.net_eggs)} />
+            <Row label="كتاكيت العاصمة" value={fmtNum(group.internal_chicks)} />
+            <Row label="كتاكيت العملاء الخارجيين" value={fmtNum(group.external_chicks)} />
             <Row label="إجمالي الكتاكيت" value={fmtNum(group.chicks)} />
             <Row label="نسبة الخصوبة العامة" value={group.fertility} />
             <Row label="نسبة الفقس العامة" value={group.hatch_rate} />
