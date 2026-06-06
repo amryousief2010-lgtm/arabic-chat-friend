@@ -182,7 +182,11 @@ const printTable = (
 const Brooding = () => {
   const { roles, role } = useAuth();
   const userRoles = roles && roles.length > 0 ? roles : (role ? [role] : []);
-  const canManage = userRoles.includes("general_manager") || userRoles.includes("executive_manager");
+  const canManage =
+    userRoles.includes("general_manager") ||
+    userRoles.includes("executive_manager") ||
+    userRoles.includes("brooding_manager") ||
+    userRoles.includes("production_manager");
 
   const [batches, setBatches] = useState<Batch[]>([]);
   const [mortality, setMortality] = useState<Mortality[]>([]);
