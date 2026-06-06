@@ -228,6 +228,8 @@ const DashboardTab = ({ kpis, batches, settings }: any) => {
         <KCard label="المدفوع" value={fmtEGP(k.invoices_paid)} icon={Wallet} color="from-green-600 to-emerald-700" />
         <KCard label="المتبقي" value={fmtEGP(k.invoices_remaining)} icon={Wallet} color="from-red-500 to-red-700" />
       </div>
+
+      <HatcheryClientMetrics />
     </div>
   );
 };
