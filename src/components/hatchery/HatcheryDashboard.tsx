@@ -336,3 +336,97 @@ function Kpi({
     </Card>
   );
 }
+
+function CurrentHatcherBatch({ batches, custMap }: { batches: any[]; custMap: Map<string, any> }) {
+  // Find batches currently in the hatcher (status='in_hatcher'), grouped by operational_batch_no + machine.
+  const groups = useMemo(() => {
+    const m = new Map<string, any>();
+    for (const b of batches) {
+      if (b.status !== "in_hatcher") continue;
+      const key = `${b.machine || "—"}__${b.operational_batch_no ?? "?"}`;
+      if (!m.has(key)) {
+        m.set(key, {
+          key,
+          op_no: b.operational_batch_no,
+          machine: b.machine,
+          entry_date: b.entry_date,
+          exit_date: b.exit_date,
+          total_eggs: 0,
+          customers: new Set<string>(),
+          rows: [] as any[],
+        });
+      }
+      const g = m.get(key);
+      g.total_eggs += b.received_eggs || 0;
+      if (b.customer_id) g.customers.add(b.customer_id);
+      g.rows.push(b);
+      if (b.entry_date && (!g.entry_date || b.entry_date < g.entry_date)) g.entry_date = b.entry_date;
+    }
+    return Array.from(m.values()).sort((a, b) => (a.op_no || 0) - (b.op_no || 0));
+  }, [batches]);
+
+  if (groups.length === 0) return null;
+
+  return (
+    <section>
+      <h3 className="font-semibold mb-2 flex items-center gap-2 text-purple-700">
+        <Bird className="w-4 h-4" />
+        الدفعة الحالية في الهاتشر — تفقس الآن
+      </h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {groups.map((g) => {
+          const expectedExit = g.entry_date
+            ? format(addDays(parseISO(g.entry_date), HATCH_DAYS), "yyyy-MM-dd")
+            : "—";
+          return (
+            <Card
+              key={g.key}
+              className="p-4 border-2 border-purple-500 bg-purple-50/40 dark:bg-purple-950/20"
+            >
+              <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge className="bg-purple-600 text-white text-sm">
+                    دفعة {g.op_no ?? "—"}
+                  </Badge>
+                  <Badge variant="outline">{g.machine || "—"}</Badge>
+                  <Badge className="bg-amber-500 text-white">في الهاتشر</Badge>
+                </div>
+                <Button
+                  size="sm"
+                  className="bg-purple-600 hover:bg-purple-700 text-white"
+                  onClick={() => {
+                    sessionStorage.setItem("hatchery_batch_filter", "in_hatcher");
+                    window.location.hash = "#batches";
+                    // give the page a chance to honour the hash; the Batches tab will pick up the filter
+                    window.dispatchEvent(new HashChangeEvent("hashchange"));
+                  }}
+                >
+                  إدخال نتائج الفقس
+                </Button>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <div className="text-muted-foreground">تاريخ الدخول</div>
+                  <div className="font-semibold">{g.entry_date || "—"}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground">الفقس المتوقع</div>
+                  <div className="font-semibold">{expectedExit}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground">إجمالي البيض</div>
+                  <div className="font-semibold">{fmt(g.total_eggs)}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground">عدد العملاء</div>
+                  <div className="font-semibold">{g.customers.size}</div>
+                </div>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
