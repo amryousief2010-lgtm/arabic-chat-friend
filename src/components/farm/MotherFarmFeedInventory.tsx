@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Wheat, Plus, Settings as SettingsIcon, AlertTriangle, VolumeX, RefreshCw, Sliders } from "lucide-react";
+import { Wheat, Plus, Settings as SettingsIcon, AlertTriangle, VolumeX, RefreshCw, Sliders, Edit3 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
