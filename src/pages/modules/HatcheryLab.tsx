@@ -25,6 +25,8 @@ import { openPrintWindow, escapeHtml, fmtNum, fmtDate } from "@/lib/printPdf";
 import * as XLSX from "xlsx";
 import HatcheryClientMetrics from "@/components/hatchery/HatcheryClientMetrics";
 import { printBatchStatement } from "@/lib/hatcheryStatements";
+import HatcheryGroupedBatches from "@/components/hatchery/HatcheryGroupedBatches";
+
 
 const today = () => format(new Date(), "yyyy-MM-dd");
 
