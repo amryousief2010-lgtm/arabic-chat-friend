@@ -5,9 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Search, Printer, FileSpreadsheet, Eye } from "lucide-react";
+import { Search, Printer, FileSpreadsheet, Eye, Sparkles } from "lucide-react";
 import { openPrintWindow, escapeHtml, fmtNum } from "@/lib/printPdf";
 import * as XLSX from "xlsx";
+import HatchResultsEntryDialog from "./HatchResultsEntryDialog";
 
 // row[] is the same shape produced by BatchesTab.rows (id, batch_number, entry_date, machine,
 // type, customer_name, total_eggs, net_eggs, chicks, candle1_date, candle2_date, exit_date,
@@ -19,6 +20,7 @@ interface Props {
   rows: any[];
   stageMeta: Record<string, StageMeta>;
   todayStr: string;
+  onRefresh?: () => void;
 }
 
 const pct = (num: number, den: number) =>
@@ -36,16 +38,17 @@ const addDaysISO = (iso: string, days: number) => {
   return d.toISOString().slice(0, 10);
 };
 
-const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr }: Props) => {
+const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr, onRefresh }: Props) => {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<
     | "all" | "external" | "internal" | "in_progress" | "completed" | "overdue"
-    | "exited" | "candle2_today" | "exit_in_3"
+    | "exited" | "candle2_today" | "exit_in_3" | "in_hatcher"
   >("all");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [machineFilter, setMachineFilter] = useState("all");
   const [openGroup, setOpenGroup] = useState<any>(null);
+  const [resultsGroup, setResultsGroup] = useState<any>(null);
 
   const groups = useMemo(() => {
     const map = new Map<string, any>();
@@ -116,8 +119,15 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr }: Props) => {
 
     const arr = Array.from(map.values()).map((g) => {
       const allCompleted = g.stages.every((s: string) => s === "completed");
+      const anyInHatcher = g.stages.some((s: string) => s === "in_hatcher");
       const anyOverdue = g.stages.some((s: string) => s === "overdue");
-      const stage = anyOverdue ? "overdue" : allCompleted ? "completed" : "in_progress";
+      const stage = anyOverdue
+        ? "overdue"
+        : allCompleted
+          ? "completed"
+          : anyInHatcher
+            ? "in_hatcher"
+            : "in_progress";
       const fmtDates = (s: Set<string>) =>
         s.size === 0 ? null : Array.from(s).sort().join(" / ");
       const exited = g.exit_dates.size > 0 && allCompleted;
@@ -179,6 +189,7 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr }: Props) => {
       if (filter === "internal" && !g.has_internal) return false;
       if (filter === "completed" && g.stage !== "completed") return false;
       if (filter === "in_progress" && g.stage !== "in_progress") return false;
+      if (filter === "in_hatcher" && g.stage !== "in_hatcher") return false;
       if (filter === "overdue" && g.stage !== "overdue") return false;
       if (filter === "exited" && !g.exited) return false;
       if (filter === "candle2_today") {
@@ -210,6 +221,7 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr }: Props) => {
       external: groups.filter((g) => g.has_external).length,
       internal: groups.filter((g) => g.has_internal).length,
       in_progress: groups.filter((g) => g.stage === "in_progress").length,
+      in_hatcher: groups.filter((g) => g.stage === "in_hatcher").length,
       completed: groups.filter((g) => g.stage === "completed").length,
       overdue: groups.filter((g) => g.stage === "overdue").length,
       exited: groups.filter((g) => g.exited).length,
@@ -292,6 +304,7 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr }: Props) => {
         <FilterBtn k="external" label="بها عملاء خارجيين" n={counts.external} />
         <FilterBtn k="internal" label="بها نعام العاصمة" n={counts.internal} />
         <FilterBtn k="in_progress" label="جارية" n={counts.in_progress} />
+        <FilterBtn k="in_hatcher" label="في الهاتشر / تفقس الآن" n={counts.in_hatcher} tone="text-purple-700" />
         <FilterBtn k="completed" label="مكتملة" n={counts.completed} />
         <FilterBtn k="exited" label="خرجت" n={counts.exited} />
         <FilterBtn k="overdue" label="متأخرة" n={counts.overdue} tone="text-red-600" />
@@ -328,7 +341,9 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr }: Props) => {
                   className={
                     g.stage === "overdue"
                       ? "bg-red-50/40 dark:bg-red-950/20 cursor-pointer"
-                      : "cursor-pointer hover:bg-muted/40"
+                      : g.stage === "in_hatcher"
+                        ? "bg-purple-50/60 dark:bg-purple-950/20 cursor-pointer hover:bg-purple-100/60"
+                        : "cursor-pointer hover:bg-muted/40"
                   }
                   onClick={() => setOpenGroup(g)}
                 >
@@ -385,7 +400,16 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr }: Props) => {
                     </div>
                   </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 flex-wrap">
+                      {g.stage === "in_hatcher" && (
+                        <Button
+                          size="sm"
+                          className="bg-purple-600 hover:bg-purple-700 text-white"
+                          onClick={() => setResultsGroup(g)}
+                        >
+                          <Sparkles className="w-3 h-3 ml-1" /> إدخال نتائج الفقس
+                        </Button>
+                      )}
                       <Button size="sm" variant="outline" onClick={() => setOpenGroup(g)}>
                         <Eye className="w-3 h-3 ml-1" /> تفاصيل
                       </Button>
@@ -416,6 +440,14 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr }: Props) => {
           group={openGroup}
           stageMeta={stageMeta}
           onClose={() => setOpenGroup(null)}
+          onOpenResults={(g: any) => { setOpenGroup(null); setResultsGroup(g); }}
+        />
+      )}
+      {resultsGroup && (
+        <HatchResultsEntryDialog
+          group={resultsGroup}
+          onClose={() => setResultsGroup(null)}
+          onSaved={() => onRefresh?.()}
         />
       )}
     </div>
@@ -423,7 +455,7 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr }: Props) => {
 };
 
 // ============== Group Detail Dialog ==============
-const GroupDetailDialog = ({ group, stageMeta, onClose }: any) => {
+const GroupDetailDialog = ({ group, stageMeta, onClose, onOpenResults }: any) => {
   const meta = stageMeta[group.stage] || { label: group.stage, color: "bg-gray-500" };
   const Row = ({ label, value }: { label: string; value: any }) => (
     <div className="flex justify-between border-b py-1 text-sm">
@@ -438,8 +470,18 @@ const GroupDetailDialog = ({ group, stageMeta, onClose }: any) => {
           <DialogTitle className="flex items-center gap-2 flex-wrap">
             دفعة تشغيلية: {group.op_number}
             <Badge className={`${meta.color} text-white`}>{meta.label}</Badge>
+            {group.stage === "in_hatcher" && onOpenResults && (
+              <Button
+                size="sm"
+                className="bg-purple-600 hover:bg-purple-700 text-white mr-auto"
+                onClick={() => onOpenResults(group)}
+              >
+                <Sparkles className="w-3 h-3 ml-1" /> إدخال نتائج الفقس
+              </Button>
+            )}
           </DialogTitle>
         </DialogHeader>
+
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card className="p-3 space-y-1">
