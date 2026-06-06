@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   FlaskConical, Egg, Bird, Plus, Search, AlertTriangle, FileText, Wallet,
-  Settings as SettingsIcon, Printer, FileSpreadsheet, X, Activity, TrendingUp,
+  Settings as SettingsIcon, Printer, FileSpreadsheet, X, Activity, TrendingUp, ClipboardCheck,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -129,6 +129,18 @@ const HatcheryLab = () => {
     <DashboardLayout>
       <Header title="معمل التفريخ والحضانات" subtitle="نظام كامل: دفعات • كشف • هاتشر • حضانات • فواتير" />
       <div className="p-4 max-w-7xl mx-auto space-y-4">
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline" size="sm">
+            <a href="/hatchery/import-batches/review">
+              <ClipboardCheck className="w-4 h-4 ml-1" /> مراجعة دفعات المعمل المستوردة
+            </a>
+          </Button>
+          <Button asChild variant="ghost" size="sm">
+            <a href="/hatchery/import-batches">
+              <FileSpreadsheet className="w-4 h-4 ml-1" /> استيراد دفعات المعمل
+            </a>
+          </Button>
+        </div>
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList className="flex flex-wrap h-auto">
             <TabsTrigger value="dashboard"><Activity className="w-4 h-4 ml-1" />الداشبورد</TabsTrigger>
