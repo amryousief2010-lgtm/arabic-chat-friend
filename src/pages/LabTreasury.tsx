@@ -470,7 +470,7 @@ export default function LabTreasury() {
   }
 
   async function reopenDay() {
-    if (!user || !isGeneralManager || !reopenDlg.closure) return;
+    if (!user || !(isGeneralManager || isExecutiveManager) || !reopenDlg.closure) return;
     const reason = reopenDlg.reason.trim();
     if (reason.length < 3) { toast.error("سبب إعادة الفتح إلزامي"); return; }
     const c = reopenDlg.closure;
@@ -1140,12 +1140,12 @@ export default function LabTreasury() {
                       <TableHead>رصيد آخر اليوم</TableHead>
                       <TableHead>أقفل بواسطة</TableHead>
                       <TableHead>الحالة</TableHead>
-                      {isGeneralManager && <TableHead>إجراء</TableHead>}
+                      {(isGeneralManager || isExecutiveManager) && <TableHead>إجراء</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {closures.length === 0 ? (
-                      <TableRow><TableCell colSpan={isGeneralManager ? 8 : 7} className="text-center py-8 text-muted-foreground">لا توجد أيام مُقفلة</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={(isGeneralManager || isExecutiveManager) ? 8 : 7} className="text-center py-8 text-muted-foreground">لا توجد أيام مُقفلة</TableCell></TableRow>
                     ) : closures.map((c) => (
                       <TableRow key={c.id}>
                         <TableCell>{c.closure_date}</TableCell>
@@ -1159,7 +1159,7 @@ export default function LabTreasury() {
                             ? <Badge variant="outline" className="gap-1"><Unlock className="w-3 h-3" />أُعيد فتحه</Badge>
                             : <Badge variant="secondary" className="gap-1"><Lock className="w-3 h-3" />مُقفل</Badge>}
                         </TableCell>
-                        {isGeneralManager && (
+                        {(isGeneralManager || isExecutiveManager) && (
                           <TableCell>
                             {!c.reopened_at && (
                               <Button size="sm" variant="outline" onClick={() => setReopenDlg({ open: true, closure: c, reason: "" })}>إعادة فتح</Button>
