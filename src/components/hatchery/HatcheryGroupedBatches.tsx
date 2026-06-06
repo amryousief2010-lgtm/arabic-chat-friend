@@ -301,13 +301,13 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr, onRefresh }: Props)
 
       <div className="flex flex-wrap gap-2">
         <FilterBtn k="all" label="الكل" n={counts.all} />
+        <FilterBtn k="completed" label="مكتملة / خرجت" n={counts.completed} tone="text-emerald-700" />
+        <FilterBtn k="in_hatcher" label="في الهاتشر" n={counts.in_hatcher} tone="text-purple-700" />
+        <FilterBtn k="in_progress" label="قادمة" n={counts.in_progress} />
+        <FilterBtn k="overdue" label="متأخرة" n={counts.overdue} tone="text-red-600" />
+        <FilterBtn k="exited" label="تم حساب العملاء عليها" n={counts.exited} tone="text-emerald-700" />
         <FilterBtn k="external" label="بها عملاء خارجيين" n={counts.external} />
         <FilterBtn k="internal" label="بها نعام العاصمة" n={counts.internal} />
-        <FilterBtn k="in_progress" label="جارية" n={counts.in_progress} />
-        <FilterBtn k="in_hatcher" label="في الهاتشر / تفقس الآن" n={counts.in_hatcher} tone="text-purple-700" />
-        <FilterBtn k="completed" label="مكتملة" n={counts.completed} />
-        <FilterBtn k="exited" label="خرجت" n={counts.exited} />
-        <FilterBtn k="overdue" label="متأخرة" n={counts.overdue} tone="text-red-600" />
         <FilterBtn k="candle2_today" label="كشف 2 اليوم" />
         <FilterBtn k="exit_in_3" label="خروج خلال 3 أيام" />
       </div>
