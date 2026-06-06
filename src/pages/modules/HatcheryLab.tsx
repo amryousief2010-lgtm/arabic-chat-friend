@@ -418,7 +418,11 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
   const in3days = addDays(todayStr, 3);
 
   const rows = useMemo(() => {
-    return (hatchBatches as any[]).map((b) => {
+    return (hatchBatches as any[])
+      // Drop orphan stub rows produced by old imports (no customer, no machine, no entry).
+      // They were the source of phantom "متأخرة / لم تخرج" rows in the grouped view.
+      .filter((b) => b.customer_id || b.entry_date || b.machine)
+      .map((b) => {
       const c = b.hatch_customers || {};
       const isInternal = c.customer_type === "internal" || /عاصمة|داخل/.test(c.name || "");
       const createdMs = b.created_at ? new Date(b.created_at).getTime() : 0;
