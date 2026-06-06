@@ -317,6 +317,9 @@ function computeStage(b: any, settings: any): { stage: StageKey; expCandle1?: st
   if (b.status === "completed" || b.exit_date) {
     return { stage: "completed", expCandle1, expCandle2, expExit, daysIn };
   }
+  if (b.status === "in_hatcher") {
+    return { stage: "in_hatcher", expCandle1, expCandle2, expExit, daysIn };
+  }
   if (!entry) return { stage: "awaiting_entry", daysIn: null };
 
   // overdue checks
