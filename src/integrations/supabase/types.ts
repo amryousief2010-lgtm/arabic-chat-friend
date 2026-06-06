@@ -4111,6 +4111,7 @@ export type Database = {
           machine: string | null
           net_eggs: number
           notes: string | null
+          operational_batch_no: number | null
           pickup_date: string | null
           receive_date: string
           received_eggs: number
@@ -4140,6 +4141,7 @@ export type Database = {
           machine?: string | null
           net_eggs?: number
           notes?: string | null
+          operational_batch_no?: number | null
           pickup_date?: string | null
           receive_date: string
           received_eggs?: number
@@ -4169,6 +4171,7 @@ export type Database = {
           machine?: string | null
           net_eggs?: number
           notes?: string | null
+          operational_batch_no?: number | null
           pickup_date?: string | null
           receive_date?: string
           received_eggs?: number
