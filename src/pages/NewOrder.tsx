@@ -2361,13 +2361,46 @@ const NewOrder = () => {
 
       {/* Duplicate order approval dialog */}
       <Dialog open={approvalDialog.open} onOpenChange={(o) => setApprovalDialog((s) => ({ ...s, open: o }))}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>يلزم موافقة مديرة التسويق</DialogTitle>
             <DialogDescription>
-              العميل ده عنده طلب اليوم من بنت تانية. عشان متبقاش فيه تكرار، لازم موافقة مديرة التسويق آلاء حامد قبل تسجيل الطلب.
+              يوجد طلب مشابه مسجل بالفعل لهذا العميل اليوم. لا يمكن تسجيل الطلب مرة أخرى إلا بعد موافقة مديرة التسويق.
             </DialogDescription>
           </DialogHeader>
+
+          {approvalDialog.candidates.length > 0 && (
+            <div className="space-y-3">
+              <div className="rounded-lg border bg-muted/30 p-3 space-y-2 text-sm">
+                <div className="font-semibold">الطلب الجديد المقترح</div>
+                <div className="grid gap-2 md:grid-cols-2 text-muted-foreground">
+                  <div>العميل: <span className="text-foreground font-medium">{selectedCustomer?.name || '—'}</span></div>
+                  <div>الهاتف: <span className="text-foreground font-medium">{selectedCustomer?.phone || '—'}</span></div>
+                  <div>العنوان: <span className="text-foreground font-medium">{deliveryAddress.trim() || selectedCustomer?.address || '—'}</span></div>
+                  <div>طريقة التسليم: <span className="text-foreground font-medium">{fulfillmentKey.startsWith('pickup') ? 'استلام' : 'توصيل'}</span></div>
+                  <div className="md:col-span-2">المنتجات: <span className="text-foreground font-medium">{summarizeDuplicateItems(buildDuplicateItemsPayload(cart)) || '—'}</span></div>
+                </div>
+              </div>
+
+              {approvalDialog.candidates.map((candidate, index) => (
+                <div key={`${candidate.matched_order_id}-${index}`} className="rounded-lg border p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="font-semibold">الطلب المشابه #{candidate.order_number}</div>
+                    <Badge variant="outline">نسبة التشابه {Number(candidate.similarity_score || 0).toFixed(0)}%</Badge>
+                  </div>
+                  <div className="grid gap-2 md:grid-cols-2 text-sm text-muted-foreground">
+                    <div>العميل: <span className="text-foreground font-medium">{candidate.customer_name || '—'}</span></div>
+                    <div>الهاتف: <span className="text-foreground font-medium">{candidate.customer_phone || '—'}</span></div>
+                    <div>المودريتور: <span className="text-foreground font-medium">{candidate.moderator_name || '—'}</span></div>
+                    <div>الوقت: <span className="text-foreground font-medium">{new Date(candidate.created_at).toLocaleString('ar-EG', { timeZone: 'Africa/Cairo', dateStyle: 'short', timeStyle: 'short' })}</span></div>
+                    <div>الحالة: <span className="text-foreground font-medium">{candidate.status || '—'}</span></div>
+                    <div>التوصيل: <span className="text-foreground font-medium">{candidate.shipping_company || candidate.fulfillment_type || '—'}</span></div>
+                    <div className="md:col-span-2">المنتجات: <span className="text-foreground font-medium">{candidate.products_summary || '—'}</span></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {approvalDialog.status === 'pending' && (
             <div className="rounded-md border bg-amber-50 dark:bg-amber-950/30 p-3 text-sm text-amber-800 dark:text-amber-200">
@@ -2382,22 +2415,34 @@ const NewOrder = () => {
           )}
 
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setApprovalDialog({ open: false, status: 'idle' })}>
+            <Button variant="outline" onClick={() => setApprovalDialog((s) => ({ ...s, open: false, status: 'idle' }))}>
               إغلاق
             </Button>
             {approvalDialog.status !== 'pending' && (
               <Button
                 onClick={async () => {
                   if (!selectedCustomer?.id) return;
+                  const topCandidate = approvalDialog.candidates[0];
                   const { error } = await supabase.rpc('request_duplicate_order_approval', {
                     p_customer_id: selectedCustomer.id,
                     p_note: notes.trim() || null,
+                    p_matched_order_id: topCandidate?.matched_order_id || null,
+                    p_duplicate_score: topCandidate?.similarity_score || null,
+                    p_proposed_order: {
+                      customer_name: selectedCustomer.name,
+                      customer_phone: selectedCustomer.phone,
+                      delivery_address: deliveryAddress.trim() || selectedCustomer.address || null,
+                      shipping_company: fulfillmentKey === 'delivery_main' ? 'مندوب خاص' : ((shippingCompany === 'أخرى' ? shippingCustom.trim() : shippingCompany) || null),
+                      fulfillment_type: fulfillmentKey.startsWith('pickup') ? 'pickup' : 'delivery',
+                    },
+                    p_proposed_items: buildDuplicateItemsPayload(cart),
+                    p_attempt_audit_id: approvalDialog.attemptId || null,
                   });
                   if (error) {
                     toast.error('تعذر إرسال طلب الموافقة');
                   } else {
                     toast.success('تم إرسال طلب الموافقة لمديرة التسويق آلاء حامد');
-                    setApprovalDialog({ open: false, status: 'pending' });
+                    setApprovalDialog((s) => ({ ...s, open: false, status: 'pending' }));
                   }
                 }}
               >
