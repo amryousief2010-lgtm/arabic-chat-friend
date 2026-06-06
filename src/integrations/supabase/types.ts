@@ -5717,6 +5717,127 @@ export type Database = {
           },
         ]
       }
+      lab_treasury_historical_receivable_items: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string
+          entry_date: string
+          id: string
+          receivable_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          description: string
+          entry_date: string
+          id?: string
+          receivable_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string
+          entry_date?: string
+          id?: string
+          receivable_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_treasury_historical_receivable_items_receivable_id_fkey"
+            columns: ["receivable_id"]
+            isOneToOne: false
+            referencedRelation: "lab_treasury_historical_receivables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lab_treasury_historical_receivable_settlements: {
+        Row: {
+          amount: number
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          lab_movement_id: string | null
+          note: string | null
+          receivable_id: string
+          settlement_date: string
+          status: string
+        }
+        Insert: {
+          amount: number
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          lab_movement_id?: string | null
+          note?: string | null
+          receivable_id: string
+          settlement_date?: string
+          status?: string
+        }
+        Update: {
+          amount?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          lab_movement_id?: string | null
+          note?: string | null
+          receivable_id?: string
+          settlement_date?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_treasury_historical_receivable_settlemen_receivable_id_fkey"
+            columns: ["receivable_id"]
+            isOneToOne: false
+            referencedRelation: "lab_treasury_historical_receivables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lab_treasury_historical_receivables: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          note: string | null
+          paid_amount: number
+          status: string
+          title: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          note?: string | null
+          paid_amount?: number
+          status?: string
+          title: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          note?: string | null
+          paid_amount?: number
+          status?: string
+          title?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       lab_treasury_movements: {
         Row: {
           amount: number

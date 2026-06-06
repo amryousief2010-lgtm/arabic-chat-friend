@@ -149,6 +149,7 @@ const MainWarehouseActivity = lazy(() => import("@/pages/MainWarehouseActivity")
 const LabTreasury = lazy(() => import("@/pages/LabTreasury"));
 const MyLabCollections = lazy(() => import("@/pages/MyLabCollections"));
 const SlaughterhouseCustody = lazy(() => import("@/pages/SlaughterhouseCustody"));
+const LabHistoricalReceivables = lazy(() => import("@/pages/lab-treasury/HistoricalReceivables"));
 
 const RedirectWithQuery = ({ to }: { to: string }) => {
   const location = useLocation();
@@ -505,6 +506,11 @@ const AnimatedRoutes = () => {
           <Route path="/lab-treasury" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper', 'lab_treasury_approver']}>
               <PageTransition><LabTreasury /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/lab-treasury/historical-receivables" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'lab_treasury_keeper', 'lab_treasury_approver', 'lab_external_collector', 'slaughterhouse_manager', 'slaughterhouse_custody_keeper']}>
+              <PageTransition><LabHistoricalReceivables /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/my-lab-collections" element={
