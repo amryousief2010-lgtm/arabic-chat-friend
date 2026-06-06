@@ -1014,7 +1014,7 @@ const BatchActionsMenu = ({ batch, batches, feedInventory, settings, canManage, 
         </DropdownMenuContent>
       </DropdownMenu>
       <Dialog open={!!action} onOpenChange={(v) => !v && setAction(null)}>
-        <DialogContent dir="rtl" className="max-w-lg">
+        <DialogContent dir="rtl" className="max-w-lg max-h-[85vh] overflow-y-auto pb-8">
           <DialogHeader>
             <DialogTitle>
               {action === "edit" ? "تعديل بيانات الدفعة" : BATCH_ACTIONS.find(a => a.key === action)?.label} — {batch.batch_number}
