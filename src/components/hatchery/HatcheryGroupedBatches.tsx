@@ -536,6 +536,7 @@ const GroupDetailDialog = ({ group, stageMeta, onClose, onOpenResults, onRefresh
                 <TableHead>كتاكيت</TableHead>
                 <TableHead>% فقس</TableHead>
                 <TableHead>الحساب التقديري</TableHead>
+                <TableHead>تعديل</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
