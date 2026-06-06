@@ -26,6 +26,7 @@ const MODERATOR_ALLOWED_PREFIXES = [
 const PRIVATE_REP_ALLOWED_PREFIXES = [
   '/orders',
   '/private-delivery-pricing',
+  '/delivery-routes',
   '/notifications',
   '/permissions',
   '/auth',
