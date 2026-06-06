@@ -683,3 +683,12 @@ function Stat({ label, value, sub, money, warn }: { label: string; value: number
     </div>
   );
 }
+
+function KV({ k, v }: { k: string; v: string }) {
+  return (
+    <div className="flex gap-2 border rounded p-2 bg-muted/20">
+      <div className="text-xs text-muted-foreground min-w-[120px]">{k}</div>
+      <div className="text-xs font-mono break-all">{v}</div>
+    </div>
+  );
+}
