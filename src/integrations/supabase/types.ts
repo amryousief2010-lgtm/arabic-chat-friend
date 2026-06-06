@@ -11330,6 +11330,173 @@ export type Database = {
         }
         Relationships: []
       }
+      treasury_transfer_audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          after_state: Json | null
+          before_state: Json | null
+          created_at: string
+          entity_id: string
+          entity_type: string
+          id: string
+          reason: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          after_state?: Json | null
+          before_state?: Json | null
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          reason?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          after_state?: Json | null
+          before_state?: Json | null
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          reason?: string | null
+        }
+        Relationships: []
+      }
+      treasury_transfer_settlements: {
+        Row: {
+          amount: number
+          approved_by: string | null
+          attachment_url: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          payment_method: Database["public"]["Enums"]["transfer_payment_method"]
+          recorded_by: string | null
+          rejection_reason: string | null
+          settlement_date: string
+          status: Database["public"]["Enums"]["transfer_status"]
+          transfer_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          approved_by?: string | null
+          attachment_url?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payment_method?: Database["public"]["Enums"]["transfer_payment_method"]
+          recorded_by?: string | null
+          rejection_reason?: string | null
+          settlement_date?: string
+          status?: Database["public"]["Enums"]["transfer_status"]
+          transfer_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          approved_by?: string | null
+          attachment_url?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payment_method?: Database["public"]["Enums"]["transfer_payment_method"]
+          recorded_by?: string | null
+          rejection_reason?: string | null
+          settlement_date?: string
+          status?: Database["public"]["Enums"]["transfer_status"]
+          transfer_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "treasury_transfer_settlements_transfer_id_fkey"
+            columns: ["transfer_id"]
+            isOneToOne: false
+            referencedRelation: "treasury_transfers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      treasury_transfers: {
+        Row: {
+          affects_cash_now: boolean
+          amount: number
+          approved_by: string | null
+          attachment_url: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          deletion_reason: string | null
+          from_treasury: Database["public"]["Enums"]["treasury_kind"]
+          id: string
+          is_historical: boolean
+          notes: string | null
+          paid_amount: number
+          reason: string | null
+          rejected_by: string | null
+          rejection_reason: string | null
+          settlement_status: Database["public"]["Enums"]["transfer_settlement_status"]
+          status: Database["public"]["Enums"]["transfer_status"]
+          to_treasury: Database["public"]["Enums"]["treasury_kind"]
+          transfer_date: string
+          updated_at: string
+        }
+        Insert: {
+          affects_cash_now?: boolean
+          amount: number
+          approved_by?: string | null
+          attachment_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
+          from_treasury: Database["public"]["Enums"]["treasury_kind"]
+          id?: string
+          is_historical?: boolean
+          notes?: string | null
+          paid_amount?: number
+          reason?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
+          settlement_status?: Database["public"]["Enums"]["transfer_settlement_status"]
+          status?: Database["public"]["Enums"]["transfer_status"]
+          to_treasury: Database["public"]["Enums"]["treasury_kind"]
+          transfer_date?: string
+          updated_at?: string
+        }
+        Update: {
+          affects_cash_now?: boolean
+          amount?: number
+          approved_by?: string | null
+          attachment_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
+          from_treasury?: Database["public"]["Enums"]["treasury_kind"]
+          id?: string
+          is_historical?: boolean
+          notes?: string | null
+          paid_amount?: number
+          reason?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
+          settlement_status?: Database["public"]["Enums"]["transfer_settlement_status"]
+          status?: Database["public"]["Enums"]["transfer_status"]
+          to_treasury?: Database["public"]["Enums"]["treasury_kind"]
+          transfer_date?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       trigger_patch_audit: {
         Row: {
           action: string
@@ -11949,6 +12116,17 @@ export type Database = {
         }
         Relationships: []
       }
+      v_treasury_inter_balances: {
+        Row: {
+          from_treasury: Database["public"]["Enums"]["treasury_kind"] | null
+          net_outstanding: number | null
+          pending_count: number | null
+          to_treasury: Database["public"]["Enums"]["treasury_kind"] | null
+          total_advanced: number | null
+          total_settled: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       _recon_assert_manager: { Args: never; Returns: undefined }
@@ -12141,6 +12319,10 @@ export type Database = {
         Args: { _uid: string }
         Returns: boolean
       }
+      can_approve_treasury_transfer: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
       can_approve_warehouse_transfer:
         | { Args: { _uid: string }; Returns: boolean }
         | { Args: { _transfer_id: string; _uid: string }; Returns: boolean }
@@ -12152,6 +12334,10 @@ export type Database = {
       can_manage_meat_batch: { Args: { _uid: string }; Returns: boolean }
       can_manage_review: { Args: { _uid: string }; Returns: boolean }
       can_post_inventory: { Args: { _uid: string }; Returns: boolean }
+      can_view_treasury_transfer: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
       cancel_feed_sales_return: {
         Args: { p_return_id: string }
         Returns: {
@@ -13056,6 +13242,21 @@ export type Database = {
         | "approved"
         | "rejected"
         | "over_limit_pending"
+      transfer_payment_method:
+        | "cash"
+        | "vodafone_cash"
+        | "instapay"
+        | "bank_transfer"
+      transfer_settlement_status: "unpaid" | "partial" | "paid"
+      transfer_status: "pending" | "approved" | "rejected" | "cancelled"
+      treasury_kind:
+        | "lab"
+        | "slaughter"
+        | "farm"
+        | "feed_factory"
+        | "hatchery"
+        | "meat_factory"
+        | "main_warehouse"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -13313,6 +13514,23 @@ export const Constants = {
         "approved",
         "rejected",
         "over_limit_pending",
+      ],
+      transfer_payment_method: [
+        "cash",
+        "vodafone_cash",
+        "instapay",
+        "bank_transfer",
+      ],
+      transfer_settlement_status: ["unpaid", "partial", "paid"],
+      transfer_status: ["pending", "approved", "rejected", "cancelled"],
+      treasury_kind: [
+        "lab",
+        "slaughter",
+        "farm",
+        "feed_factory",
+        "hatchery",
+        "meat_factory",
+        "main_warehouse",
       ],
     },
   },
