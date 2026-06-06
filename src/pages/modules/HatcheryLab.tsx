@@ -155,7 +155,7 @@ const HatcheryLab = () => {
           </TabsContent>
 
           <TabsContent value="batches">
-            <BatchesTab batches={batches} lots={lots} clients={clients} settings={settings}
+            <BatchesTab lots={lots} clients={clients} settings={settings}
               canManage={canManage} onRefresh={refresh} />
           </TabsContent>
 
@@ -243,25 +243,131 @@ const statusColors: Record<string, string> = {
   in_brooding: "bg-fuchsia-500", closed: "bg-emerald-600", cancelled: "bg-gray-500",
 };
 
-const BatchesTab = ({ batches, lots, clients, settings, canManage, onRefresh }: any) => {
+const IMPORT_LOG_ID = "94124ef6-50c0-4054-8e7e-df8c4f286433";
+
+const hatchStatusLabel: Record<string, string> = {
+  pending: "في الانتظار",
+  received: "تم الاستلام",
+  incubating: "في الكشف",
+  completed: "مكتملة",
+};
+const hatchStatusColor: Record<string, string> = {
+  pending: "bg-slate-500",
+  received: "bg-blue-500",
+  incubating: "bg-amber-500",
+  completed: "bg-emerald-600",
+};
+
+const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
   const [search, setSearch] = useState("");
   const [showNew, setShowNew] = useState(false);
   const [activeBatch, setActiveBatch] = useState<any>(null);
+  const [filter, setFilter] = useState<"all" | "internal" | "external" | "completed" | "in_progress" | "imported">("all");
 
-  const filtered = useMemo(() => batches.filter((b: any) =>
-    !search || b.batch_number?.toLowerCase().includes(search.toLowerCase())
-  ), [batches, search]);
+  // Pull imported / lab batches from hatch_batches (the table the import wrote to)
+  const { data: hatchBatches = [] } = useQuery<any[]>({
+    queryKey: ["hatch_batches_lab"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hatch_batches")
+        .select("id, batch_number, receive_date, entry_date, machine, received_eggs, net_eggs, hatched_chicks, candle1_date, candle2_date, exit_date, status, customer_id, created_at, hatch_customers(id,name,customer_type)")
+        .order("receive_date", { ascending: false })
+        .limit(1000);
+      if (error) throw error;
+      return (data as any) || [];
+    },
+  });
+
+  const { data: importLog } = useQuery<any>({
+    queryKey: ["hatch_import_log_ts"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("hatch_batch_import_log")
+        .select("created_at")
+        .eq("id", IMPORT_LOG_ID)
+        .maybeSingle();
+      return data;
+    },
+  });
+
+  const importTs = importLog?.created_at ? new Date(importLog.created_at).getTime() : null;
+
+  const rows = useMemo(() => {
+    return (hatchBatches as any[]).map((b) => {
+      const c = b.hatch_customers || {};
+      const isInternal = c.customer_type === "internal" || /عاصمة|داخل/.test(c.name || "");
+      const createdMs = b.created_at ? new Date(b.created_at).getTime() : 0;
+      const isImported = importTs ? Math.abs(createdMs - importTs) <= 60 * 60 * 1000 : false;
+      return {
+        id: b.id,
+        batch_number: b.batch_number,
+        entry_date: b.entry_date || b.receive_date,
+        machine: b.machine,
+        type: isInternal ? "internal" : "external",
+        customer_name: c.name || "—",
+        total_eggs: b.received_eggs || 0,
+        net_eggs: b.net_eggs || 0,
+        chicks: b.hatched_chicks || 0,
+        candle_date: b.candle1_date || b.candle2_date,
+        hatcher_date: b.exit_date,
+        status: b.status || "pending",
+        is_imported: isImported,
+        _raw: b,
+      };
+    });
+  }, [hatchBatches, importTs]);
+
+  const counts = useMemo(() => ({
+    all: rows.length,
+    internal: rows.filter((r) => r.type === "internal").length,
+    external: rows.filter((r) => r.type === "external").length,
+    completed: rows.filter((r) => r.status === "completed").length,
+    in_progress: rows.filter((r) => r.status !== "completed").length,
+    imported: rows.filter((r) => r.is_imported).length,
+  }), [rows]);
+
+  const filtered = useMemo(() => {
+    return rows.filter((r) => {
+      if (search && !String(r.batch_number ?? "").toLowerCase().includes(search.toLowerCase()) && !r.customer_name.includes(search)) return false;
+      if (filter === "internal") return r.type === "internal";
+      if (filter === "external") return r.type === "external";
+      if (filter === "completed") return r.status === "completed";
+      if (filter === "in_progress") return r.status !== "completed";
+      if (filter === "imported") return r.is_imported;
+      return true;
+    });
+  }, [rows, search, filter]);
+
+  const filterBtn = (key: typeof filter, label: string, count: number) => (
+    <Button
+      key={key}
+      size="sm"
+      variant={filter === key ? "default" : "outline"}
+      onClick={() => setFilter(key)}
+    >
+      {label} <Badge variant="secondary" className="mr-2 text-[10px]">{count}</Badge>
+    </Button>
+  );
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="بحث برقم الدفعة..." className="pr-9" />
+          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="بحث برقم الدفعة أو اسم العميل..." className="pr-9" />
         </div>
         {canManage && (
           <Button onClick={() => setShowNew(true)}><Plus className="w-4 h-4 ml-1" />دفعة جديدة</Button>
         )}
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {filterBtn("all", "الكل", counts.all)}
+        {filterBtn("internal", "دفعات العاصمة", counts.internal)}
+        {filterBtn("external", "دفعات العملاء", counts.external)}
+        {filterBtn("completed", "مكتملة", counts.completed)}
+        {filterBtn("in_progress", "جارية", counts.in_progress)}
+        {filterBtn("imported", "مستوردة من الشيت", counts.imported)}
       </div>
 
       <Card className="overflow-x-auto">
@@ -272,8 +378,8 @@ const BatchesTab = ({ batches, lots, clients, settings, canManage, onRefresh }: 
               <TableHead>تاريخ الدخول</TableHead>
               <TableHead>الماكينة</TableHead>
               <TableHead>النوع</TableHead>
+              <TableHead>العميل</TableHead>
               <TableHead>إجمالي البيض</TableHead>
-              <TableHead>عاصمة / عملاء</TableHead>
               <TableHead>الكتاكيت</TableHead>
               <TableHead>كشف يوم</TableHead>
               <TableHead>هاتشر يوم</TableHead>
@@ -284,21 +390,34 @@ const BatchesTab = ({ batches, lots, clients, settings, canManage, onRefresh }: 
           <TableBody>
             {filtered.map((b: any) => (
               <TableRow key={b.id}>
-                <TableCell className="font-mono text-xs">{b.batch_number}</TableCell>
-                <TableCell>{b.entry_date}</TableCell>
-                <TableCell>{b.incubator_machine_no || "—"}</TableCell>
-                <TableCell><Badge variant="outline">{b.batch_type === "internal" ? "عاصمة" : b.batch_type === "external" ? "عملاء" : "مختلطة"}</Badge></TableCell>
-                <TableCell className="font-bold">{fmtNum(b.total_eggs_in)}</TableCell>
-                <TableCell className="text-xs">{fmtNum(b.internal_eggs)} / {fmtNum(b.external_eggs)}</TableCell>
-                <TableCell>{fmtNum(b.total_chicks)}</TableCell>
-                <TableCell className="text-xs">{b.candle_due_date}</TableCell>
-                <TableCell className="text-xs">{b.hatcher_due_date}</TableCell>
-                <TableCell><Badge className={`${statusColors[b.status]} text-white`}>{statusLabels[b.status]}</Badge></TableCell>
-                <TableCell><Button size="sm" variant="outline" onClick={() => setActiveBatch(b)}>إدارة</Button></TableCell>
+                <TableCell className="font-mono text-xs">
+                  {b.batch_number}
+                  {b.is_imported && <Badge variant="outline" className="mr-1 text-[9px]">مستوردة</Badge>}
+                </TableCell>
+                <TableCell className="text-xs">{b.entry_date || "—"}</TableCell>
+                <TableCell>{b.machine || "—"}</TableCell>
+                <TableCell>
+                  <Badge variant="outline">{b.type === "internal" ? "عاصمة" : "عميل"}</Badge>
+                </TableCell>
+                <TableCell className="text-xs">{b.customer_name}</TableCell>
+                <TableCell className="font-bold">{fmtNum(b.total_eggs)}</TableCell>
+                <TableCell>{fmtNum(b.chicks)}</TableCell>
+                <TableCell className="text-xs">{b.candle_date || "—"}</TableCell>
+                <TableCell className="text-xs">{b.hatcher_date || "—"}</TableCell>
+                <TableCell>
+                  <Badge className={`${hatchStatusColor[b.status] || "bg-slate-500"} text-white`}>
+                    {hatchStatusLabel[b.status] || b.status}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <Button size="sm" variant="outline" asChild>
+                    <a href="/hatchery/import-batches/review">عرض</a>
+                  </Button>
+                </TableCell>
               </TableRow>
             ))}
             {filtered.length === 0 && (
-              <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">لا توجد دفعات</TableCell></TableRow>
+              <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">لا توجد دفعات مطابقة</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
