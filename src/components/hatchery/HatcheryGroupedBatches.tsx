@@ -322,6 +322,8 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr }: Props) => {
                   <TableCell className="text-center font-bold">
                     {g.customers.length}
                   </TableCell>
+                  <TableCell className="text-xs">{fmtNum(g.internal_eggs)}</TableCell>
+                  <TableCell className="text-xs">{fmtNum(g.external_eggs)}</TableCell>
                   <TableCell className="font-bold">{fmtNum(g.total_eggs)}</TableCell>
                   <TableCell>{fmtNum(g.chicks)}</TableCell>
                   <TableCell className="text-xs">
@@ -339,16 +341,25 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr }: Props) => {
                     )}
                   </TableCell>
                   <TableCell className="text-xs">
-                    {g.exit_display || (
+                    {g.exit_display ? (
+                      <span className="text-green-700 font-medium">{g.exit_display}</span>
+                    ) : (
                       <span className="text-muted-foreground">
-                        {g.expExit ? `~${g.expExit}` : "—"}
+                        {g.expectedExit ? `متوقع ~${g.expectedExit}` : "—"}
                       </span>
                     )}
                   </TableCell>
                   <TableCell>
-                    <Badge className={`${meta.color} text-white whitespace-nowrap`}>
-                      {meta.label}
-                    </Badge>
+                    <div className="flex flex-col gap-1">
+                      <Badge className={`${meta.color} text-white whitespace-nowrap`}>
+                        {meta.label}
+                      </Badge>
+                      {g.exited ? (
+                        <Badge variant="outline" className="text-[9px] text-green-700 border-green-300">خرجت</Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[9px] text-amber-700 border-amber-300">لم تخرج</Badge>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <div className="flex gap-1">
