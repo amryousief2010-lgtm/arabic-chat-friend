@@ -96,7 +96,9 @@ export default function HatcheryImport() {
       setRows(null); setSummary(null); setFile(null);
       await loadRuns();
     } catch (e: any) {
-      toast.error(e.message);
+      console.error("staging upload failed", e);
+      const msg = e?.message || e?.error_description || e?.hint || "فشل غير معروف";
+      toast.error(`فشل الحفظ في Staging: ${msg}`, { duration: 10000 });
     } finally { setUploading(false); }
   };
 
