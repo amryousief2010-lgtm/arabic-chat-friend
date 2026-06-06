@@ -566,7 +566,16 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
 
       {viewMode === "grouped" ? (
         <>
-          <HatcheryGroupedBatches rows={rows} stageMeta={groupedStageMeta} todayStr={todayStr} />
+          <HatcheryGroupedBatches
+            rows={rows}
+            stageMeta={groupedStageMeta}
+            todayStr={todayStr}
+            onRefresh={() => {
+              qc.invalidateQueries({ queryKey: ["hatch_batches_lab"] });
+              qc.invalidateQueries({ queryKey: ["hatch_batches_dash"] });
+              onRefresh?.();
+            }}
+          />
           {showNew && <NewBatchDialog open={showNew} onClose={() => setShowNew(false)} clients={clients} onSaved={() => { setShowNew(false); onRefresh(); }} />}
         </>
       ) : (
