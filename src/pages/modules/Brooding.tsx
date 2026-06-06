@@ -368,18 +368,18 @@ const Brooding = () => {
 
         <Tabs defaultValue="batches" className="space-y-4">
           <TabsList className="flex-wrap h-auto">
-            <TabsTrigger value="batches">الدفعات</TabsTrigger>
-            <TabsTrigger value="mortality">النافق</TabsTrigger>
-            <TabsTrigger value="expenses">المصروفات</TabsTrigger>
-            <TabsTrigger value="feed">صرف علف</TabsTrigger>
-            <TabsTrigger value="medicine">صرف أدوية</TabsTrigger>
-            <TabsTrigger value="sales">بيع كتاكيت</TabsTrigger>
-            <TabsTrigger value="transfers">التحويل للمجزر</TabsTrigger>
-            <TabsTrigger value="feedstock">مخزون العلف</TabsTrigger>
-            <TabsTrigger value="recipes">تركيبة علف التسمين</TabsTrigger>
-            <TabsTrigger value="market_prices">أسعار السوق</TabsTrigger>
-            <TabsTrigger value="movements">سجل الحركات</TabsTrigger>
-            {canManage && <TabsTrigger value="settings">الإعدادات</TabsTrigger>}
+            <TabsTrigger value="batches" className="text-rose-600 data-[state=active]:bg-rose-600 data-[state=active]:text-white">الدفعات</TabsTrigger>
+            <TabsTrigger value="mortality" className="text-red-700 data-[state=active]:bg-red-700 data-[state=active]:text-white">النافق</TabsTrigger>
+            <TabsTrigger value="expenses" className="text-amber-600 data-[state=active]:bg-amber-600 data-[state=active]:text-white">المصروفات</TabsTrigger>
+            <TabsTrigger value="feed" className="text-yellow-600 data-[state=active]:bg-yellow-600 data-[state=active]:text-white">صرف علف</TabsTrigger>
+            <TabsTrigger value="medicine" className="text-lime-600 data-[state=active]:bg-lime-600 data-[state=active]:text-white">صرف أدوية</TabsTrigger>
+            <TabsTrigger value="sales" className="text-emerald-600 data-[state=active]:bg-emerald-600 data-[state=active]:text-white">بيع كتاكيت</TabsTrigger>
+            <TabsTrigger value="transfers" className="text-teal-600 data-[state=active]:bg-teal-600 data-[state=active]:text-white">التحويل للمجزر</TabsTrigger>
+            <TabsTrigger value="feedstock" className="text-cyan-600 data-[state=active]:bg-cyan-600 data-[state=active]:text-white">مخزون العلف</TabsTrigger>
+            <TabsTrigger value="recipes" className="text-sky-600 data-[state=active]:bg-sky-600 data-[state=active]:text-white">تركيبة علف التسمين</TabsTrigger>
+            <TabsTrigger value="market_prices" className="text-indigo-600 data-[state=active]:bg-indigo-600 data-[state=active]:text-white">أسعار السوق</TabsTrigger>
+            <TabsTrigger value="movements" className="text-violet-600 data-[state=active]:bg-violet-600 data-[state=active]:text-white">سجل الحركات</TabsTrigger>
+            {canManage && <TabsTrigger value="settings" className="text-fuchsia-600 data-[state=active]:bg-fuchsia-600 data-[state=active]:text-white">الإعدادات</TabsTrigger>}
           </TabsList>
 
 
