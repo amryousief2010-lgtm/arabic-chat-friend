@@ -457,7 +457,8 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr, onRefresh }: Props)
 };
 
 // ============== Group Detail Dialog ==============
-const GroupDetailDialog = ({ group, stageMeta, onClose, onOpenResults }: any) => {
+const GroupDetailDialog = ({ group, stageMeta, onClose, onOpenResults, onRefresh }: any) => {
+  const [editRow, setEditRow] = useState<any>(null);
   const meta = stageMeta[group.stage] || { label: group.stage, color: "bg-gray-500" };
   const Row = ({ label, value }: { label: string; value: any }) => (
     <div className="flex justify-between border-b py-1 text-sm">
