@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Loader2, Upload, FileSpreadsheet, CheckCircle2, XCircle, AlertTriangle, Trash2, PlayCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { parseHatcheryWorkbook, type ParsedRow, type ParseSummary } from "@/lib/hatcheryImportParser";
+import { useAuth } from "@/hooks/useAuth";
 
 const SHEET_LABEL: Record<string, string> = {
   customers: "عملاء المعمل",
@@ -19,6 +20,7 @@ const SHEET_LABEL: Record<string, string> = {
 };
 
 export default function HatcheryImport() {
+  const { user, roles } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [rows, setRows] = useState<ParsedRow[] | null>(null);
   const [summary, setSummary] = useState<ParseSummary | null>(null);
@@ -53,35 +55,83 @@ export default function HatcheryImport() {
   };
 
   const onUploadToStaging = async () => {
-    if (!rows || !file) return;
+    console.log("[HatcheryImport] Save to Staging button clicked", {
+      clicked: true,
+      hasFile: Boolean(file),
+      hasSummary: Boolean(summary),
+      hasRows: Boolean(rows),
+      rowsCount: rows?.length ?? 0,
+      importType: "hatchery_workbook",
+      currentUser: user ? { id: user.id, email: user.email ?? null } : null,
+      currentRoles: roles,
+    });
+
+    if (!rows || !file || !summary) {
+      console.warn("[HatcheryImport] Save to Staging aborted before insert", {
+        reason: {
+          missingRows: !rows,
+          missingFile: !file,
+          missingSummary: !summary,
+        },
+      });
+      toast.error("تعذر بدء الحفظ: بيانات المعاينة غير مكتملة.", { duration: 10000 });
+      return;
+    }
+
+    const previewRows = rows;
+    const previewSummary = summary;
+    const previewFile = file;
+
     setUploading(true);
     try {
       const { data: u } = await supabase.auth.getUser();
+      const currentUser = u.user ?? user;
       const validation = {
-        summary,
-        rowsPerSheet: rows.reduce((a: Record<string, number>, r) => {
+        summary: previewSummary,
+        rowsPerSheet: previewRows.reduce((a: Record<string, number>, r) => {
           a[r._sheet] = (a[r._sheet] || 0) + 1; return a;
         }, {}),
       };
+
+      console.log("[HatcheryImport] Preparing staging save payload", {
+        rowsCount: previewRows.length,
+        importType: "hatchery_workbook",
+        currentUser: currentUser ? { id: currentUser.id, email: currentUser.email ?? null } : null,
+        currentRoles: roles,
+        previewSummarySnapshot: {
+          customers: previewSummary.customers.total,
+          batches: previewSummary.batches.total,
+          production: previewSummary.production.total,
+          shipments: previewSummary.shipments.total,
+          chickMovements: previewSummary.chickMovements.total,
+          errors: previewSummary.errors,
+        },
+      });
+
       const { data: run, error } = await supabase
         .from("import_staging_runs")
         .insert({
           import_type: "hatchery_workbook",
-          source_filename: file.name,
+          source_filename: previewFile.name,
           status: "previewing",
-          total_rows: rows.length,
-          valid_rows: rows.filter(r => r.errors.length === 0).length,
-          error_rows: rows.filter(r => r.errors.length > 0).length,
+          total_rows: previewRows.length,
+          valid_rows: previewRows.filter(r => r.errors.length === 0).length,
+          error_rows: previewRows.filter(r => r.errors.length > 0).length,
           validation_summary: validation as any,
-          uploaded_by: u.user?.id,
+          uploaded_by: currentUser?.id,
         })
         .select().single();
+      console.log("[HatcheryImport] import_staging_runs insert result", {
+        runId: run?.id ?? null,
+        error,
+      });
       if (error) throw error;
 
       // chunk insert
       const chunk = 500;
-      for (let i = 0; i < rows.length; i += chunk) {
-        const slice = rows.slice(i, i + chunk).map((r, idx) => ({
+      let insertedRows = 0;
+      for (let i = 0; i < previewRows.length; i += chunk) {
+        const slice = previewRows.slice(i, i + chunk).map((r, idx) => ({
           run_id: run.id,
           row_number: i + idx + 1,
           raw_data: { sheet: r._sheet, key: r._key, source_row: r._row } as any,
@@ -90,14 +140,40 @@ export default function HatcheryImport() {
           error_message: r.errors.join("؛ ") || null,
         }));
         const { error: e2 } = await supabase.from("import_staging_rows").insert(slice);
+        insertedRows += e2 ? 0 : slice.length;
+        console.log("[HatcheryImport] import_staging_rows chunk insert result", {
+          runId: run.id,
+          chunkStart: i + 1,
+          chunkSize: slice.length,
+          insertedRows,
+          error: e2,
+        });
         if (e2) throw e2;
       }
-      toast.success("تم رفع البيانات إلى Staging");
+
+      console.log("[HatcheryImport] import_staging_rows insert complete", {
+        runId: run.id,
+        insertedRows,
+        status: run.status,
+        validationSummary: validation,
+      });
+
+      toast.success(
+        `تم حفظ جلسة Staging بنجاح. رقم الجلسة: ${run.id} • عدد الصفوف المحفوظة: ${insertedRows}`,
+        { duration: 10000 }
+      );
       setRows(null); setSummary(null); setFile(null);
       await loadRuns();
     } catch (e: any) {
-      console.error("staging upload failed", e);
-      const msg = e?.message || e?.error_description || e?.hint || "فشل غير معروف";
+      console.error("[HatcheryImport] staging upload failed", {
+        error: e,
+        message: e?.message ?? null,
+        code: e?.code ?? null,
+        details: e?.details ?? null,
+        hint: e?.hint ?? null,
+        error_description: e?.error_description ?? null,
+      });
+      const msg = [e?.message, e?.error_description, e?.details, e?.hint].filter(Boolean).join(" — ") || "فشل غير معروف";
       toast.error(`فشل الحفظ في Staging: ${msg}`, { duration: 10000 });
     } finally { setUploading(false); }
   };
