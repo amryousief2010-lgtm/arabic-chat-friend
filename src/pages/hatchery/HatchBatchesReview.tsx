@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -244,7 +246,16 @@ export default function HatchBatchesReview() {
             <Button size="sm" variant="outline" onClick={exportSummary}>
               <FileText className="w-4 h-4 ml-1" /> ملخص مختصر
             </Button>
-          </div>
+        </div>
+
+        <Alert className="border-orange-400 bg-orange-50 dark:bg-orange-950/20">
+          <AlertTriangle className="w-4 h-4 text-orange-600" />
+          <AlertDescription className="text-xs space-y-0.5">
+            <div className="font-semibold text-sm">بيانات تاريخية للمراجعة فقط</div>
+            <div>هذه الدفعات مستوردة من الشيت ولن تُنشئ أي حركة في خزنة المعمل. حسابات نعام العاصمة = تكلفة تقديرية داخلية، وليست مديونية. التحصيل الفعلي يبدأ من الدفعات الحالية/القادمة فقط عند الفقس، ويُسجَّل يدويًا من خزنة المعمل.</div>
+          </AlertDescription>
+        </Alert>
+
         </div>
 
         {/* Verification checks */}
