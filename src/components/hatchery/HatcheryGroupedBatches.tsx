@@ -221,6 +221,7 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr, onRefresh }: Props)
       external: groups.filter((g) => g.has_external).length,
       internal: groups.filter((g) => g.has_internal).length,
       in_progress: groups.filter((g) => g.stage === "in_progress").length,
+      in_hatcher: groups.filter((g) => g.stage === "in_hatcher").length,
       completed: groups.filter((g) => g.stage === "completed").length,
       overdue: groups.filter((g) => g.stage === "overdue").length,
       exited: groups.filter((g) => g.exited).length,
