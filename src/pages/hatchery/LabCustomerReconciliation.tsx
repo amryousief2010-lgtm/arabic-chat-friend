@@ -230,9 +230,7 @@ export default function LabCustomerReconciliation() {
                         <th className="p-2">دفعات</th>
                         <th className="p-2">بيض</th>
                         <th className="p-2">كتاكيت</th>
-                        <th className="p-2">الحساب</th>
-                        <th className="p-2">المستلم</th>
-                        <th className="p-2">المتبقي</th>
+                        <th className="p-2">حساب تقديري تاريخي</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -240,13 +238,16 @@ export default function LabCustomerReconciliation() {
                         .filter((g) => (tab === "external" ? !isInternal(g.type) : isInternal(g.type)))
                         .map((g, i) => (
                           <tr key={i} className="border-t hover:bg-muted/40">
-                            <td className="p-2 font-medium">{g.customer} <Badge variant="outline" className="mr-1 text-[10px]">{g.type}</Badge></td>
+                            <td className="p-2 font-medium">
+                              {g.customer}{" "}
+                              <Badge variant="outline" className="mr-1 text-[10px]">
+                                {isInternal(g.type) ? "تكلفة داخلية" : "تاريخي"}
+                              </Badge>
+                            </td>
                             <td className="p-2 text-center">{g.count}</td>
                             <td className="p-2 text-center">{fmt(g.eggs)}</td>
                             <td className="p-2 text-center">{fmt(g.chicks)}</td>
                             <td className="p-2 text-center">{fmt(g.charge)}</td>
-                            <td className="p-2 text-center text-green-600">{fmt(g.received)}</td>
-                            <td className="p-2 text-center text-orange-600 font-semibold">{fmt(g.remaining)}</td>
                           </tr>
                         ))}
                     </tbody>
@@ -258,16 +259,20 @@ export default function LabCustomerReconciliation() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader><CardTitle className="text-base">الخطوة التالية — قرار التسوية</CardTitle></CardHeader>
+      <Card className="border-dashed">
+        <CardHeader>
+          <CardTitle className="text-base">دورة التحصيل الفعلي (الدفعات الحالية والقادمة)</CardTitle>
+        </CardHeader>
         <CardContent className="text-sm space-y-2">
-          <p>بعد مراجعة الأرقام بالأعلى، اختر أحد الخيارات لاحقًا (لم يُنفّذ أي شيء الآن):</p>
           <ol className="list-decimal pr-5 space-y-1">
-            <li>حفظها كأرصدة افتتاحية لعملاء المعمل فقط (بدون أي حركة خزنة)</li>
-            <li>تسجيلها في <code>hatch_customer_payments</code> كأرصدة سابقة</li>
-            <li>إبقاؤها كتقرير فقط بدون أي تسجيل مالي</li>
+            <li>عند فقس دفعة لعميل خارجي → يظهر المبلغ المطلوب على العميل.</li>
+            <li>يتم تسجيل التحصيل <b>يدويًا</b> من شاشة خزنة المعمل بحسب طريقة الدفع: نقدي / فودافون كاش / إنستا باي / تحويل.</li>
+            <li>لا تُضاف أي فلوس لخزنة المعمل إلا بعد اعتماد التحصيل الفعلي.</li>
+            <li>دفعات نعام العاصمة لا تدخل في دورة التحصيل، تظهر كتكلفة تشغيلية فقط.</li>
           </ol>
-          <p className="text-muted-foreground text-xs">العاصمة / الداخلي مُستبعد تلقائيًا من أي تسجيل كمديونية.</p>
+          <p className="text-xs text-muted-foreground border-t pt-2">
+            هذه الصفحة تعرض الأرصدة التاريخية فقط، ولن تُسجَّل في أي جدول مالي. المبالغ الواجبة والمحصَّلة فعليًا ستظهر من سجلات الدفعات الجديدة عند فقسها.
+          </p>
         </CardContent>
       </Card>
     </div>
