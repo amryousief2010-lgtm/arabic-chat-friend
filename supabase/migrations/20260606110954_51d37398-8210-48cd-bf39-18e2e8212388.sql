@@ -1,0 +1,2 @@
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS shipping_company_name text;
+COMMENT ON COLUMN public.profiles.shipping_company_name IS 'For users with shipping_company role: the carrier name they belong to (e.g. زودكس). Used to scope customers/orders visibility.';
