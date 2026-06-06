@@ -147,6 +147,7 @@ const PackagingMaterials = lazy(() => import("@/pages/modules/shared/PackagingMa
 const StockSnapshotReview = lazy(() => import("@/pages/modules/shared/StockSnapshotReview"));
 const StockReconciliation = lazy(() => import("@/pages/StockReconciliation"));
 const PrivateDeliveryCollection = lazy(() => import("@/pages/PrivateDeliveryCollection"));
+const DeliveryRoutes = lazy(() => import("@/pages/DeliveryRoutes"));
 const ChickOrders = lazy(() => import("@/pages/ChickOrders"));
 const MainWarehouseActivity = lazy(() => import("@/pages/MainWarehouseActivity"));
 const LabTreasury = lazy(() => import("@/pages/LabTreasury"));
@@ -229,6 +230,11 @@ const AnimatedRoutes = () => {
           <Route path="/private-delivery-collection" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor']}>
               <PageTransition><PrivateDeliveryCollection /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/delivery-routes" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'private_delivery_rep']}>
+              <PageTransition><DeliveryRoutes /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/warehouse-stock/main" element={
