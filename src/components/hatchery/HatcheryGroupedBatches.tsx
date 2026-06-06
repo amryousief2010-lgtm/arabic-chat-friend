@@ -189,6 +189,7 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr, onRefresh }: Props)
       if (filter === "internal" && !g.has_internal) return false;
       if (filter === "completed" && g.stage !== "completed") return false;
       if (filter === "in_progress" && g.stage !== "in_progress") return false;
+      if (filter === "in_hatcher" && g.stage !== "in_hatcher") return false;
       if (filter === "overdue" && g.stage !== "overdue") return false;
       if (filter === "exited" && !g.exited) return false;
       if (filter === "candle2_today") {
