@@ -42,6 +42,11 @@ export default function HatcheryDashboard() {
     queryFn: async () =>
       (await testFilter(supabase.from("hatchery_treasury_txns").select("*").order("txn_date", { ascending: false }).limit(2000))).data || [],
   });
+  const { data: customerPayments = [] } = useQuery({
+    queryKey: ["hatch_customer_payments_dash"],
+    queryFn: async () =>
+      (await supabase.from("hatch_customer_payments").select("customer_id,amount,payment_date")).data || [],
+  });
 
   const now = new Date();
   const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -203,6 +208,14 @@ export default function HatcheryDashboard() {
 
       {/* Current batch in the hatcher */}
       <CurrentHatcherBatch batches={batches as any[]} custMap={custMap} />
+
+      {/* Top customers analytics */}
+      <HatcheryTopCustomers
+        batches={batches as any[]}
+        customers={customers as any[]}
+        payments={customerPayments as any[]}
+      />
+
 
       {/* Customers + incoming eggs */}
       <section>
