@@ -418,7 +418,7 @@ export default function HatchBatchesImport() {
         errors,
         import_log_id: logRow?.id ?? null,
       });
-      toast.success(`تم الاستيراد: ${inserted} مدخل • ${updated} محدث • ${duplicate} مكرر`);
+      toast.success(`تم الاستيراد: ${inserted} inserted • ${updated} updated • ${duplicate} skipped duplicates • errors: ${errors} • import_log_id: ${logRow?.id ?? "—"}`);
     } catch (e: any) {
       const errorInfo = {
         message: e?.message ?? "خطأ غير معروف",
