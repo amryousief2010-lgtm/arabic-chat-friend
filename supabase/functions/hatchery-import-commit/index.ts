@@ -136,6 +136,7 @@ Deno.serve(async (req) => {
 
         const { error } = await supabase.from("hatch_batches").insert({
           batch_number: bn,
+          operational_batch_no: row.batch_seq ?? null,
           customer_id: custId,
           receive_date: row.receive_date,
           received_eggs: row.received_eggs || 0,

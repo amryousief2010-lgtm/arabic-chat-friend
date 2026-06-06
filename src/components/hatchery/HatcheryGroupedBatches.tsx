@@ -24,7 +24,10 @@ interface Props {
 const pct = (num: number, den: number) =>
   den > 0 ? ((num / den) * 100).toFixed(1) + "%" : "—";
 
-const groupKey = (r: any) => `${r.entry_date || "—"}__${(r.machine || "—").trim()}`;
+const groupKey = (r: any) =>
+  r.op_seq != null
+    ? `OP__${(r.machine || "—").trim()}__${r.op_seq}`
+    : `DATE__${r.entry_date || "—"}__${(r.machine || "—").trim()}`;
 
 const addDaysISO = (iso: string, days: number) => {
   if (!iso) return "";
@@ -55,6 +58,7 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr }: Props) => {
           key,
           entry_date: r.entry_date,
           machine: r.machine,
+          op_seq: r.op_seq ?? null,
           batch_numbers: new Set<string>(),
           customers: [] as any[],
           total_eggs: 0,
@@ -82,6 +86,8 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr }: Props) => {
         });
       }
       const g = map.get(key);
+      if (g.op_seq == null && r.op_seq != null) g.op_seq = r.op_seq;
+      if (!g.entry_date && r.entry_date) g.entry_date = r.entry_date;
       g.batch_numbers.add(r.batch_number);
       g.customers.push(r);
       g.total_eggs += r.total_eggs || 0;
@@ -129,9 +135,11 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr }: Props) => {
       };
     });
 
-    // Assign operational batch number per machine (1, 2, 3...) ordered by entry_date asc
+    // Operational batch number: prefer real sheet number (op_seq from DB);
+    // otherwise fall back to per-machine rank by entry_date asc.
     const perMachine = new Map<string, string[]>();
     arr.forEach((g) => {
+      if (g.op_seq != null) return;
       const m = g.machine || "—";
       if (!perMachine.has(m)) perMachine.set(m, []);
       perMachine.get(m)!.push(g.entry_date || "");
@@ -139,13 +147,20 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr }: Props) => {
     perMachine.forEach((dates) => dates.sort());
     arr.forEach((g) => {
       const m = g.machine || "—";
-      const dates = perMachine.get(m) || [];
-      const idx = dates.indexOf(g.entry_date || "");
-      g.op_seq = idx + 1;
-      g.op_number = `دفعة ${idx + 1}${g.machine ? ` — ${g.machine}` : ""}`;
+      const seq =
+        g.op_seq != null
+          ? g.op_seq
+          : (perMachine.get(m) || []).indexOf(g.entry_date || "") + 1;
+      g.op_seq = seq;
+      g.op_number = `دفعة ${seq}${g.machine ? ` — ${g.machine}` : ""}`;
     });
 
-    arr.sort((a, b) => String(b.entry_date || "").localeCompare(String(a.entry_date || "")));
+    // Sort ascending by machine then by sheet batch number (mirrors Excel order).
+    arr.sort((a, b) => {
+      const m = String(a.machine || "").localeCompare(String(b.machine || ""));
+      if (m !== 0) return m;
+      return (a.op_seq || 0) - (b.op_seq || 0);
+    });
     return arr;
   }, [rows]);
 
@@ -288,7 +303,7 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr }: Props) => {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>رقم الدفعة التشغيلية</TableHead>
+              <TableHead>رقم الدفعة</TableHead>
               <TableHead>تاريخ الدخول</TableHead>
               <TableHead>الماكينة</TableHead>
               <TableHead>عدد العملاء</TableHead>
