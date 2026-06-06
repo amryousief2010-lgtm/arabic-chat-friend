@@ -507,10 +507,8 @@ function printGroup(g: any) {
     </style>
   `;
 
-  openPrintWindow({
-    title: `تقرير دفعة تشغيلية - ${g.op_number}`,
-    bodyHtml: html,
-  });
+  openPrintWindow(`تقرير دفعة تشغيلية - ${g.op_number}`, html);
+
 }
 
 export default HatcheryGroupedBatches;
