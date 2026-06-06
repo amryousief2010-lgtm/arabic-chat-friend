@@ -283,6 +283,10 @@ export function parseHatcheryWorkbook(buf: ArrayBuffer): {
       data, errors: [],
     });
     summary.chickMovements.total++;
+    summary.chickMovements.incoming += data.incoming;
+    summary.chickMovements.dead += data.dead;
+    summary.chickMovements.sold += data.sold;
+    summary.chickMovements.totalSale += data.total_sale;
   }
 
   return { rows, summary };
