@@ -152,7 +152,7 @@ const HatcheryLab = () => {
           </TabsList>
 
           <TabsContent value="dashboard">
-            <DashboardTab kpis={kpis} batches={batches} settings={settings} />
+            <DashboardTab kpis={kpis} batches={batches} settings={settings} setTab={setTab} />
           </TabsContent>
 
           <TabsContent value="batches">
@@ -194,7 +194,9 @@ const KCard = ({ label, value, sub, color = "from-primary to-accent", icon: Icon
   </Card>
 );
 
-const DashboardTab = ({ kpis, batches, settings }: any) => {
+import HatcheryAlerts from "@/components/hatchery/HatcheryAlerts";
+
+const DashboardTab = ({ kpis, batches, settings, setTab }: any) => {
   const k = kpis || {};
   const dueCandling = useMemo(() =>
     batches.filter((b: any) => b.status === "incubating" && new Date(b.candle_due_date) <= new Date()), [batches]);
@@ -203,6 +205,14 @@ const DashboardTab = ({ kpis, batches, settings }: any) => {
 
   return (
     <div className="space-y-4">
+      <HatcheryAlerts
+        settings={settings}
+        onNavigate={(tabName: string, filter?: string) => {
+          if (filter) sessionStorage.setItem("hatchery_batch_filter", filter);
+          setTab(tabName);
+        }}
+      />
+
       {(dueCandling.length > 0 || dueHatcher.length > 0) && (
         <Alert className="bg-amber-50 dark:bg-amber-950 border-amber-300">
           <AlertTriangle className="w-4 h-4 text-amber-600" />
@@ -350,6 +360,15 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
   const [activeBatch, setActiveBatch] = useState<any>(null);
   const [detailBatch, setDetailBatch] = useState<any>(null);
   const [filter, setFilter] = useState<QuickFilter>("all");
+
+  useEffect(() => {
+    const f = sessionStorage.getItem("hatchery_batch_filter");
+    if (f) {
+      const valid: QuickFilter[] = ["all","internal","external","completed","in_progress","imported","candle2_today","candle2_3d","exit_today","exit_3d","overdue"];
+      if (valid.includes(f as QuickFilter)) setFilter(f as QuickFilter);
+      sessionStorage.removeItem("hatchery_batch_filter");
+    }
+  }, []);
 
   // Pull imported / lab batches from hatch_batches (the table the import wrote to)
   const { data: hatchBatches = [] } = useQuery<any[]>({
