@@ -361,6 +361,15 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
   const [detailBatch, setDetailBatch] = useState<any>(null);
   const [filter, setFilter] = useState<QuickFilter>("all");
 
+  useEffect(() => {
+    const f = sessionStorage.getItem("hatchery_batch_filter");
+    if (f) {
+      const valid: QuickFilter[] = ["all","internal","external","completed","in_progress","imported","candle2_today","candle2_3d","exit_today","exit_3d","overdue"];
+      if (valid.includes(f as QuickFilter)) setFilter(f as QuickFilter);
+      sessionStorage.removeItem("hatchery_batch_filter");
+    }
+  }, []);
+
   // Pull imported / lab batches from hatch_batches (the table the import wrote to)
   const { data: hatchBatches = [] } = useQuery<any[]>({
     queryKey: ["hatch_batches_lab"],
