@@ -338,8 +338,7 @@ export default function HatchBatchesImport() {
           .from("hatch_batches").insert(slice)
           .select("id,batch_number,customer_id,receive_date,received_eggs,hatched_chicks");
         if (error) {
-          // record error and continue
-          slice.forEach(s => errorDetails.push({ row: 0, key: s.batch_number, message: error.message }));
+          throw error;
         } else {
           insertedRows.push(...(data ?? []));
         }
@@ -351,7 +350,7 @@ export default function HatchBatchesImport() {
         const { error } = await supabase
           .from("hatch_batches").update(u.payload).eq("id", u.id);
         if (error) {
-          errorDetails.push({ row: 0, key: u.payload.batch_number, message: error.message });
+          throw error;
         } else {
           updated++;
         }
