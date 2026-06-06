@@ -314,7 +314,15 @@ function computeStage(b: any, settings: any): { stage: StageKey; expCandle1?: st
   const expExit = entry ? addDays(entry, hatcherDay) : undefined;
   const daysIn = entry ? daysDiff(entry, todayStr) : null;
 
-  if (b.status === "completed" || b.exit_date) {
+  // Treat batches with imported hatch results as completed even if status/exit_date
+  // weren't set explicitly (Excel sheet results: chicks, candle results, hatcher deaths).
+  const hasResults =
+    (b.hatched_chicks || 0) > 0 ||
+    (b.candle1_fertile || 0) > 0 ||
+    (b.candle1_infertile || 0) > 0 ||
+    (b.candle2_dead || 0) > 0 ||
+    (b.hatcher_dead || 0) > 0;
+  if (b.status === "completed" || b.exit_date || hasResults) {
     return { stage: "completed", expCandle1, expCandle2, expExit, daysIn };
   }
   if (b.status === "in_hatcher") {
@@ -410,7 +418,11 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
   const in3days = addDays(todayStr, 3);
 
   const rows = useMemo(() => {
-    return (hatchBatches as any[]).map((b) => {
+    return (hatchBatches as any[])
+      // Drop orphan stub rows produced by old imports (no customer, no machine, no entry).
+      // They were the source of phantom "متأخرة / لم تخرج" rows in the grouped view.
+      .filter((b) => b.customer_id || b.entry_date || b.machine)
+      .map((b) => {
       const c = b.hatch_customers || {};
       const isInternal = c.customer_type === "internal" || /عاصمة|داخل/.test(c.name || "");
       const createdMs = b.created_at ? new Date(b.created_at).getTime() : 0;
