@@ -121,6 +121,8 @@ export const moduleSections: ModuleSection[] = [
     roles: ['general_manager', 'executive_manager', 'hatchery_manager', 'production_manager', 'quality_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper', 'lab_treasury_approver', 'lab_external_collector'],
     items: [
       { icon: FlaskConical, label: "معمل التفريخ والحضانات", path: "/modules/hatchery-lab", roles: ['general_manager', 'executive_manager', 'hatchery_manager', 'production_manager', 'quality_manager', 'accountant'] },
+      { icon: Upload, label: "استيراد دفعات المعمل", path: "/hatchery/import-batches", roles: ['general_manager', 'executive_manager', 'hatchery_manager', 'farm_manager', 'production_manager'] },
+      { icon: ClipboardCheck, label: "مراجعة دفعات المعمل المستوردة", path: "/hatchery/import-batches/review", roles: ['general_manager', 'executive_manager', 'hatchery_manager', 'farm_manager', 'production_manager'] },
       { icon: Wallet, label: "خزنة المعمل والحضانات", path: "/lab-treasury", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper', 'lab_treasury_approver'] },
       { icon: Wallet, label: "تحصيلاتي لخزنة المعمل", path: "/my-lab-collections", roles: ['lab_external_collector'] },
       // الصفحات القديمة متاحة للمدير العام فقط للمراجعة (الـ Routes لا تزال تعمل)
