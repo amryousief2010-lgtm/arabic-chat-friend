@@ -12,6 +12,7 @@ import { useTestMode } from "@/hooks/useTestMode";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import HatchResultsEntryDialog from "./HatchResultsEntryDialog";
+import HatcheryTopCustomers from "./HatcheryTopCustomers";
 
 const STAGE_EXIT = 42;
 const HATCH_DAYS = 45;
