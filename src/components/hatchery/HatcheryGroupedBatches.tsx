@@ -455,7 +455,7 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr, onRefresh }: Props)
 };
 
 // ============== Group Detail Dialog ==============
-const GroupDetailDialog = ({ group, stageMeta, onClose }: any) => {
+const GroupDetailDialog = ({ group, stageMeta, onClose, onOpenResults }: any) => {
   const meta = stageMeta[group.stage] || { label: group.stage, color: "bg-gray-500" };
   const Row = ({ label, value }: { label: string; value: any }) => (
     <div className="flex justify-between border-b py-1 text-sm">
@@ -470,8 +470,18 @@ const GroupDetailDialog = ({ group, stageMeta, onClose }: any) => {
           <DialogTitle className="flex items-center gap-2 flex-wrap">
             دفعة تشغيلية: {group.op_number}
             <Badge className={`${meta.color} text-white`}>{meta.label}</Badge>
+            {group.stage === "in_hatcher" && onOpenResults && (
+              <Button
+                size="sm"
+                className="bg-purple-600 hover:bg-purple-700 text-white mr-auto"
+                onClick={() => onOpenResults(group)}
+              >
+                <Sparkles className="w-3 h-3 ml-1" /> إدخال نتائج الفقس
+              </Button>
+            )}
           </DialogTitle>
         </DialogHeader>
+
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card className="p-3 space-y-1">
