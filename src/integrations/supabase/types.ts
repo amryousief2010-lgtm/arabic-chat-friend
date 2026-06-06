@@ -4043,6 +4043,51 @@ export type Database = {
         }
         Relationships: []
       }
+      hatch_batch_import_log: {
+        Row: {
+          created_at: string
+          duplicate_count: number
+          error_count: number
+          errors: Json | null
+          id: string
+          imported_by: string | null
+          imported_by_name: string | null
+          inserted_count: number
+          source_filename: string
+          summary: Json | null
+          total_rows: number
+          updated_count: number
+        }
+        Insert: {
+          created_at?: string
+          duplicate_count?: number
+          error_count?: number
+          errors?: Json | null
+          id?: string
+          imported_by?: string | null
+          imported_by_name?: string | null
+          inserted_count?: number
+          source_filename: string
+          summary?: Json | null
+          total_rows?: number
+          updated_count?: number
+        }
+        Update: {
+          created_at?: string
+          duplicate_count?: number
+          error_count?: number
+          errors?: Json | null
+          id?: string
+          imported_by?: string | null
+          imported_by_name?: string | null
+          inserted_count?: number
+          source_filename?: string
+          summary?: Json | null
+          total_rows?: number
+          updated_count?: number
+        }
+        Relationships: []
+      }
       hatch_batches: {
         Row: {
           batch_number: string
