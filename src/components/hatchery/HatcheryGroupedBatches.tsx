@@ -568,12 +568,30 @@ const GroupDetailDialog = ({ group, stageMeta, onClose, onOpenResults, onRefresh
                         charge
                       )}
                     </TableCell>
+                    <TableCell>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setEditRow({ raw: { id: c.id, ...raw, batch_number: c.batch_number, customer_name: c.customer_name }, name: c.customer_name })}
+                      >
+                        <Pencil className="w-3 h-3 ml-1" /> تعديل
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 );
               })}
             </TableBody>
           </Table>
         </Card>
+
+        {editRow && (
+          <HatchBatchRowEditDialog
+            row={editRow.raw}
+            customerName={editRow.name}
+            onClose={() => setEditRow(null)}
+            onSaved={() => { setEditRow(null); onRefresh?.(); }}
+          />
+        )}
 
         <DialogFooter className="gap-2 flex-wrap">
           <Button variant="outline" onClick={onClose}>
