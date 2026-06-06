@@ -314,7 +314,15 @@ function computeStage(b: any, settings: any): { stage: StageKey; expCandle1?: st
   const expExit = entry ? addDays(entry, hatcherDay) : undefined;
   const daysIn = entry ? daysDiff(entry, todayStr) : null;
 
-  if (b.status === "completed" || b.exit_date) {
+  // Treat batches with imported hatch results as completed even if status/exit_date
+  // weren't set explicitly (Excel sheet results: chicks, candle results, hatcher deaths).
+  const hasResults =
+    (b.hatched_chicks || 0) > 0 ||
+    (b.candle1_fertile || 0) > 0 ||
+    (b.candle1_infertile || 0) > 0 ||
+    (b.candle2_dead || 0) > 0 ||
+    (b.hatcher_dead || 0) > 0;
+  if (b.status === "completed" || b.exit_date || hasResults) {
     return { stage: "completed", expCandle1, expCandle2, expExit, daysIn };
   }
   if (b.status === "in_hatcher") {
