@@ -304,6 +304,7 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr, onRefresh }: Props)
         <FilterBtn k="external" label="بها عملاء خارجيين" n={counts.external} />
         <FilterBtn k="internal" label="بها نعام العاصمة" n={counts.internal} />
         <FilterBtn k="in_progress" label="جارية" n={counts.in_progress} />
+        <FilterBtn k="in_hatcher" label="في الهاتشر / تفقس الآن" n={counts.in_hatcher} tone="text-purple-700" />
         <FilterBtn k="completed" label="مكتملة" n={counts.completed} />
         <FilterBtn k="exited" label="خرجت" n={counts.exited} />
         <FilterBtn k="overdue" label="متأخرة" n={counts.overdue} tone="text-red-600" />
