@@ -194,7 +194,9 @@ const KCard = ({ label, value, sub, color = "from-primary to-accent", icon: Icon
   </Card>
 );
 
-const DashboardTab = ({ kpis, batches, settings }: any) => {
+import HatcheryAlerts from "@/components/hatchery/HatcheryAlerts";
+
+const DashboardTab = ({ kpis, batches, settings, setTab }: any) => {
   const k = kpis || {};
   const dueCandling = useMemo(() =>
     batches.filter((b: any) => b.status === "incubating" && new Date(b.candle_due_date) <= new Date()), [batches]);
@@ -203,6 +205,14 @@ const DashboardTab = ({ kpis, batches, settings }: any) => {
 
   return (
     <div className="space-y-4">
+      <HatcheryAlerts
+        settings={settings}
+        onNavigate={(tabName: string, filter?: string) => {
+          if (filter) sessionStorage.setItem("hatchery_batch_filter", filter);
+          setTab(tabName);
+        }}
+      />
+
       {(dueCandling.length > 0 || dueHatcher.length > 0) && (
         <Alert className="bg-amber-50 dark:bg-amber-950 border-amber-300">
           <AlertTriangle className="w-4 h-4 text-amber-600" />
