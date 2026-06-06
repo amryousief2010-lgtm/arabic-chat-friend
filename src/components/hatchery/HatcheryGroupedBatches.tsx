@@ -38,16 +38,17 @@ const addDaysISO = (iso: string, days: number) => {
   return d.toISOString().slice(0, 10);
 };
 
-const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr }: Props) => {
+const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr, onRefresh }: Props) => {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<
     | "all" | "external" | "internal" | "in_progress" | "completed" | "overdue"
-    | "exited" | "candle2_today" | "exit_in_3"
+    | "exited" | "candle2_today" | "exit_in_3" | "in_hatcher"
   >("all");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [machineFilter, setMachineFilter] = useState("all");
   const [openGroup, setOpenGroup] = useState<any>(null);
+  const [resultsGroup, setResultsGroup] = useState<any>(null);
 
   const groups = useMemo(() => {
     const map = new Map<string, any>();
