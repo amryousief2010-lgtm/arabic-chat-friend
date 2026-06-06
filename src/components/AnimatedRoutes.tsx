@@ -526,6 +526,11 @@ const AnimatedRoutes = () => {
               <PageTransition><HatchBatchesImport /></PageTransition>
             </ProtectedRoute>
           } />
+          <Route path="/hatchery/import-batches/review" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'hatchery_manager', 'farm_manager', 'production_manager']}>
+              <PageTransition><HatchBatchesReview /></PageTransition>
+            </ProtectedRoute>
+          } />
           <Route path="/modules/farm-hatchery-dashboard" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'farm_manager', 'hatchery_manager', 'production_manager', 'quality_manager']}>
               <PageTransition><FarmHatcheryDashboard /></PageTransition>
