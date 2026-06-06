@@ -124,6 +124,69 @@ interface OfferPreviewItem {
   is_gift?: boolean;
 }
 
+interface DuplicateCandidate {
+  matched_order_id: string;
+  order_number: string;
+  customer_name: string;
+  customer_phone: string;
+  moderator_name: string;
+  created_at: string;
+  status: string;
+  delivery_address: string | null;
+  shipping_company: string | null;
+  fulfillment_type: string | null;
+  products_summary: string;
+  similarity_score: number;
+  matched_on_phone: boolean;
+  matched_on_same_day: boolean;
+  matched_on_items: boolean;
+  matched_on_address: boolean;
+  matched_on_shipping: boolean;
+  matched_on_name: boolean;
+}
+
+interface DuplicateCheckResponse {
+  is_duplicate: boolean;
+  attempt_id: string | null;
+  candidates: DuplicateCandidate[];
+  existing_request?: {
+    id: string;
+    status: 'pending' | 'approved' | 'rejected';
+    reason: string | null;
+    created_at: string;
+    decided_at: string | null;
+    matched_order_id: string | null;
+    duplicate_score: number | null;
+  } | null;
+}
+
+interface DuplicateApprovalDialogState {
+  open: boolean;
+  status: 'idle' | 'pending' | 'rejected';
+  reason?: string;
+  attemptId?: string;
+  requestId?: string;
+  candidates: DuplicateCandidate[];
+}
+
+const buildDuplicateItemsPayload = (cart: CartItem[]) =>
+  cart.map((item) => ({
+    product_id: item.product.id,
+    product_name: item.product.name,
+    quantity: item.isHalfKg ? item.quantity * 0.5 : item.quantity,
+    unit_price: Number(item.customPrice ?? item.product.price),
+    offer_name: item.offerBoxName || null,
+  }));
+
+const summarizeDuplicateItems = (items: Array<{ product_name?: string; quantity?: number; offer_name?: string | null }>) =>
+  items
+    .map((item) => {
+      const label = item.offer_name || item.product_name || '—';
+      const qty = Number(item.quantity || 0);
+      return `${label}${qty > 0 ? ` × ${qty}` : ''}`;
+    })
+    .join('، ');
+
 const isKgUnit = (unit: string) => {
   const u = (unit || '').trim().toLowerCase().replace(/\s+/g, '');
   return /^(كجم|كيلو|كيلوجرام|كيلوغرام|كغم|كغ|kg|kgs|kilogram|kilogramme|kilo)$/i.test(u);
@@ -161,7 +224,11 @@ const withTimedQuery = async <T,>(
 const NewOrder = () => {
   const navigate = useNavigate();
   const { user, isSalesModerator } = useAuth();
-  const [approvalDialog, setApprovalDialog] = useState<{ open: boolean; status: 'idle'|'pending'|'rejected'; reason?: string }>({ open: false, status: 'idle' });
+  const [approvalDialog, setApprovalDialog] = useState<DuplicateApprovalDialogState>({
+    open: false,
+    status: 'idle',
+    candidates: [],
+  });
   const [searchParams] = useSearchParams();
 
   // Determine the moderator name to attribute this new order to.
@@ -915,33 +982,64 @@ const NewOrder = () => {
       return;
     }
 
+    if (!fulfillmentKey) {
+      toast.error('يرجى اختيار مصدر تنفيذ الطلب');
+      return;
+    }
+
+    const fulfillmentType = fulfillmentKey.startsWith('pickup') ? 'pickup' : 'delivery';
+    const effectiveShippingCompany = fulfillmentKey === 'delivery_main'
+      ? 'مندوب خاص'
+      : ((shippingCompany === 'أخرى' ? shippingCustom.trim() : shippingCompany) || null);
+    const duplicateItemsPayload = buildDuplicateItemsPayload(cart);
+    let approvedDuplicateRequestId: string | null = null;
+    let duplicateApprovalMeta: { decided_by?: string | null; decided_at?: string | null; reason?: string | null } | null = null;
+
     setSubmitting(true);
 
     // Duplicate order pre-check (sales_moderator only)
     if (isSalesModerator && user?.id && selectedCustomer?.id) {
       try {
-        const [{ data: hasOther }, { data: approved }] = await Promise.all([
-          supabase.rpc('customer_has_other_order_today', { p_customer_id: selectedCustomer.id, p_user_id: user.id }),
-          supabase.rpc('has_approved_duplicate_order', { p_customer_id: selectedCustomer.id, p_user_id: user.id }),
-        ]);
-        if (hasOther && !approved) {
-          setSubmitting(false);
-          // Check if a pending request already exists
-          const { data: pending } = await supabase
-            .from('duplicate_order_approvals')
-            .select('status, reason')
-            .eq('customer_id', selectedCustomer.id)
-            .eq('requested_by', user.id)
-            .gt('expires_at', new Date().toISOString())
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          setApprovalDialog({
-            open: true,
-            status: pending?.status === 'rejected' ? 'rejected' : (pending?.status === 'pending' ? 'pending' : 'idle'),
-            reason: pending?.reason || undefined,
-          });
-          return;
+        const { data, error } = await supabase.rpc('check_duplicate_order_attempt', {
+          p_customer_id: selectedCustomer.id,
+          p_customer_name: selectedCustomer.name,
+          p_customer_phone: selectedCustomer.phone,
+          p_delivery_address: deliveryAddress.trim() || selectedCustomer.address || null,
+          p_shipping_company: effectiveShippingCompany,
+          p_fulfillment_type: fulfillmentType,
+          p_items: duplicateItemsPayload,
+          p_note: notes.trim() || null,
+        });
+
+        if (error) throw error;
+
+        const duplicateCheck = data as unknown as DuplicateCheckResponse | null;
+        if (duplicateCheck?.is_duplicate) {
+          const existing = duplicateCheck.existing_request;
+          if (existing?.status === 'approved' && existing.id) {
+            approvedDuplicateRequestId = existing.id;
+            const { data: approvalMeta } = await supabase
+              .from('duplicate_order_approvals')
+              .select('decided_by, decided_at, reason')
+              .eq('id', existing.id)
+              .maybeSingle();
+            duplicateApprovalMeta = approvalMeta || null;
+          } else {
+            const nextStatus = existing?.status === 'rejected'
+              ? 'rejected'
+              : (existing?.status === 'pending' ? 'pending' : 'idle');
+
+            setApprovalDialog({
+              open: true,
+              status: nextStatus,
+              reason: existing?.reason || undefined,
+              attemptId: duplicateCheck.attempt_id || undefined,
+              requestId: existing?.id || undefined,
+              candidates: duplicateCheck.candidates || [],
+            });
+            setSubmitting(false);
+            return;
+          }
         }
       } catch (e) {
         console.warn('duplicate check failed', e);
@@ -956,13 +1054,7 @@ const NewOrder = () => {
       if (orderNumberError) throw orderNumberError;
 
       // Resolve fulfillment source warehouse
-      if (!fulfillmentKey) {
-        toast.error('يرجى اختيار مصدر تنفيذ الطلب');
-        setSubmitting(false);
-        return;
-      }
       const isAgouza = fulfillmentKey.endsWith('_agouza');
-      const fulfillmentType = fulfillmentKey.startsWith('pickup') ? 'pickup' : 'delivery';
       const sourceWh = isAgouza ? agouzaWh : mainWh;
       if (!sourceWh) {
         toast.error('تعذر تحديد المخزن المختار');
@@ -1004,15 +1096,18 @@ const NewOrder = () => {
           created_by: user?.id,
           moderator: moderatorName,
           source: (source === 'أخرى' ? sourceCustom.trim() : source) || null,
-          shipping_company: fulfillmentKey === 'delivery_main'
-            ? 'مندوب خاص'
-            : ((shippingCompany === 'أخرى' ? shippingCustom.trim() : shippingCompany) || null),
+          shipping_company: effectiveShippingCompany,
           extra_charge: Number(extraCharge) || 0,
           extra_charge_reason: extraChargeReason.trim() || null,
           fulfillment_type: fulfillmentType,
           source_warehouse_id: sourceWh.id,
           deposit_receipt_url: depositReceiptPath,
           deposit_receipt_name: depositReceiptName,
+          duplicate_approval_id: approvedDuplicateRequestId,
+          is_duplicate_approved: !!approvedDuplicateRequestId,
+          duplicate_approved_by: duplicateApprovalMeta?.decided_by || null,
+          duplicate_approved_at: duplicateApprovalMeta?.decided_at || null,
+          duplicate_approval_reason: duplicateApprovalMeta?.reason || null,
         })
         .select()
         .single();
@@ -1088,6 +1183,13 @@ const NewOrder = () => {
 
       if (itemsError) throw itemsError;
 
+      if (approvedDuplicateRequestId) {
+        await supabase.rpc('mark_duplicate_order_approval_used', {
+          p_id: approvedDuplicateRequestId,
+          p_order_id: order.id,
+        });
+      }
+
       // Update customer stats
       await supabase
         .from('customers')
@@ -1114,7 +1216,7 @@ const NewOrder = () => {
       console.error('Error creating order:', error);
       const msg = String(error?.message || '');
       if (msg.includes('DUPLICATE_ORDER_REQUIRES_APPROVAL')) {
-        setApprovalDialog({ open: true, status: 'idle' });
+        setApprovalDialog((prev) => ({ ...prev, open: true, status: prev.status === 'pending' ? 'pending' : 'idle' }));
       } else {
         toast.error('حدث خطأ أثناء إنشاء الطلب');
       }
@@ -2259,13 +2361,46 @@ const NewOrder = () => {
 
       {/* Duplicate order approval dialog */}
       <Dialog open={approvalDialog.open} onOpenChange={(o) => setApprovalDialog((s) => ({ ...s, open: o }))}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>يلزم موافقة مديرة التسويق</DialogTitle>
             <DialogDescription>
-              العميل ده عنده طلب اليوم من بنت تانية. عشان متبقاش فيه تكرار، لازم موافقة مديرة التسويق آلاء حامد قبل تسجيل الطلب.
+              يوجد طلب مشابه مسجل بالفعل لهذا العميل اليوم. لا يمكن تسجيل الطلب مرة أخرى إلا بعد موافقة مديرة التسويق.
             </DialogDescription>
           </DialogHeader>
+
+          {approvalDialog.candidates.length > 0 && (
+            <div className="space-y-3">
+              <div className="rounded-lg border bg-muted/30 p-3 space-y-2 text-sm">
+                <div className="font-semibold">الطلب الجديد المقترح</div>
+                <div className="grid gap-2 md:grid-cols-2 text-muted-foreground">
+                  <div>العميل: <span className="text-foreground font-medium">{selectedCustomer?.name || '—'}</span></div>
+                  <div>الهاتف: <span className="text-foreground font-medium">{selectedCustomer?.phone || '—'}</span></div>
+                  <div>العنوان: <span className="text-foreground font-medium">{deliveryAddress.trim() || selectedCustomer?.address || '—'}</span></div>
+                  <div>طريقة التسليم: <span className="text-foreground font-medium">{fulfillmentKey.startsWith('pickup') ? 'استلام' : 'توصيل'}</span></div>
+                  <div className="md:col-span-2">المنتجات: <span className="text-foreground font-medium">{summarizeDuplicateItems(buildDuplicateItemsPayload(cart)) || '—'}</span></div>
+                </div>
+              </div>
+
+              {approvalDialog.candidates.map((candidate, index) => (
+                <div key={`${candidate.matched_order_id}-${index}`} className="rounded-lg border p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="font-semibold">الطلب المشابه #{candidate.order_number}</div>
+                    <Badge variant="outline">نسبة التشابه {Number(candidate.similarity_score || 0).toFixed(0)}%</Badge>
+                  </div>
+                  <div className="grid gap-2 md:grid-cols-2 text-sm text-muted-foreground">
+                    <div>العميل: <span className="text-foreground font-medium">{candidate.customer_name || '—'}</span></div>
+                    <div>الهاتف: <span className="text-foreground font-medium">{candidate.customer_phone || '—'}</span></div>
+                    <div>المودريتور: <span className="text-foreground font-medium">{candidate.moderator_name || '—'}</span></div>
+                    <div>الوقت: <span className="text-foreground font-medium">{new Date(candidate.created_at).toLocaleString('ar-EG', { timeZone: 'Africa/Cairo', dateStyle: 'short', timeStyle: 'short' })}</span></div>
+                    <div>الحالة: <span className="text-foreground font-medium">{candidate.status || '—'}</span></div>
+                    <div>التوصيل: <span className="text-foreground font-medium">{candidate.shipping_company || candidate.fulfillment_type || '—'}</span></div>
+                    <div className="md:col-span-2">المنتجات: <span className="text-foreground font-medium">{candidate.products_summary || '—'}</span></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {approvalDialog.status === 'pending' && (
             <div className="rounded-md border bg-amber-50 dark:bg-amber-950/30 p-3 text-sm text-amber-800 dark:text-amber-200">
@@ -2280,22 +2415,34 @@ const NewOrder = () => {
           )}
 
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setApprovalDialog({ open: false, status: 'idle' })}>
+            <Button variant="outline" onClick={() => setApprovalDialog((s) => ({ ...s, open: false, status: 'idle' }))}>
               إغلاق
             </Button>
             {approvalDialog.status !== 'pending' && (
               <Button
                 onClick={async () => {
                   if (!selectedCustomer?.id) return;
+                  const topCandidate = approvalDialog.candidates[0];
                   const { error } = await supabase.rpc('request_duplicate_order_approval', {
                     p_customer_id: selectedCustomer.id,
                     p_note: notes.trim() || null,
+                    p_matched_order_id: topCandidate?.matched_order_id || null,
+                    p_duplicate_score: topCandidate?.similarity_score || null,
+                    p_proposed_order: {
+                      customer_name: selectedCustomer.name,
+                      customer_phone: selectedCustomer.phone,
+                      delivery_address: deliveryAddress.trim() || selectedCustomer.address || null,
+                      shipping_company: fulfillmentKey === 'delivery_main' ? 'مندوب خاص' : ((shippingCompany === 'أخرى' ? shippingCustom.trim() : shippingCompany) || null),
+                      fulfillment_type: fulfillmentKey.startsWith('pickup') ? 'pickup' : 'delivery',
+                    },
+                    p_proposed_items: buildDuplicateItemsPayload(cart),
+                    p_attempt_audit_id: approvalDialog.attemptId || null,
                   });
                   if (error) {
                     toast.error('تعذر إرسال طلب الموافقة');
                   } else {
                     toast.success('تم إرسال طلب الموافقة لمديرة التسويق آلاء حامد');
-                    setApprovalDialog({ open: false, status: 'pending' });
+                    setApprovalDialog((s) => ({ ...s, open: false, status: 'pending' }));
                   }
                 }}
               >
