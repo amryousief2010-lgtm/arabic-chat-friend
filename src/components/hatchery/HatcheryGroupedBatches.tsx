@@ -402,13 +402,14 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr, onRefresh }: Props)
                   </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <div className="flex gap-1 flex-wrap">
-                      {g.stage === "in_hatcher" && (
+                      {(g.stage === "in_hatcher" || g.stage === "completed") && (
                         <Button
                           size="sm"
                           className="bg-purple-600 hover:bg-purple-700 text-white"
                           onClick={() => setResultsGroup(g)}
                         >
-                          <Sparkles className="w-3 h-3 ml-1" /> إدخال نتائج الفقس
+                          <Sparkles className="w-3 h-3 ml-1" />
+                          {g.stage === "completed" ? "تعديل نتائج الفقس" : "إدخال نتائج الفقس"}
                         </Button>
                       )}
                       <Button size="sm" variant="outline" onClick={() => setOpenGroup(g)}>
@@ -473,13 +474,14 @@ const GroupDetailDialog = ({ group, stageMeta, onClose, onOpenResults, onRefresh
           <DialogTitle className="flex items-center gap-2 flex-wrap">
             دفعة تشغيلية: {group.op_number}
             <Badge className={`${meta.color} text-white`}>{meta.label}</Badge>
-            {group.stage === "in_hatcher" && onOpenResults && (
+            {(group.stage === "in_hatcher" || group.stage === "completed") && onOpenResults && (
               <Button
                 size="sm"
                 className="bg-purple-600 hover:bg-purple-700 text-white mr-auto"
                 onClick={() => onOpenResults(group)}
               >
-                <Sparkles className="w-3 h-3 ml-1" /> إدخال نتائج الفقس
+                <Sparkles className="w-3 h-3 ml-1" />
+                {group.stage === "completed" ? "تعديل نتائج الفقس" : "إدخال نتائج الفقس"}
               </Button>
             )}
           </DialogTitle>
