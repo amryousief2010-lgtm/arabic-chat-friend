@@ -1,12 +1,17 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Users, Crown, TrendingUp, Wallet, Calendar, AlertTriangle, Bird, Egg } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Users, Crown, TrendingUp, Wallet, Calendar, AlertTriangle, Bird, Egg, Printer, FileSpreadsheet, FileText } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import reconciliation from "@/data/labCustomerReconciliation.json";
+import { printCustomerStatement, exportCustomerStatementExcel } from "@/lib/hatcheryStatements";
 
 type ReconRow = {
   customer: string;
