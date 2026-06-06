@@ -1,12 +1,17 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Users, Crown, TrendingUp, Wallet, Calendar, AlertTriangle, Bird, Egg } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Users, Crown, TrendingUp, Wallet, Calendar, AlertTriangle, Bird, Egg, Printer, FileSpreadsheet, FileText } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import reconciliation from "@/data/labCustomerReconciliation.json";
+import { printCustomerStatement, exportCustomerStatementExcel } from "@/lib/hatcheryStatements";
 
 type ReconRow = {
   customer: string;
@@ -300,6 +305,138 @@ export default function HatcheryClientMetrics() {
           </div>
         </Card>
       </div>
+
+      <CustomerStatementSection perCustomer={perCustomer} collected={collected} />
+    </div>
+  );
+}
+
+// ============================================================
+// Customer Statement section
+// ============================================================
+type ReconBatchRow = {
+  customer: string; type: string; receive_date: string | null; id?: string;
+  batch_number?: number; received_eggs?: number; net_eggs?: number; chicks?: number;
+  charge_total?: number; complete?: string;
+};
+
+function CustomerStatementSection({ perCustomer, collected }: { perCustomer: any[]; collected: number }) {
+  const allRecon = reconciliation as ReconBatchRow[];
+  const [selected, setSelected] = useState<string>("");
+  const [from, setFrom] = useState<string>("");
+  const [to, setTo] = useState<string>("");
+  const [scope, setScope] = useState<"all" | "current" | "historic" | "completed" | "in_progress">("all");
+
+  const customerOptions = useMemo(
+    () => [...perCustomer].sort((a, b) => b.charge - a.charge).map((c) => c.customer),
+    [perCustomer]
+  );
+
+  const filteredBatches = useMemo(() => {
+    if (!selected) return [];
+    return allRecon
+      .filter((r) => r.customer === selected)
+      .filter((r) => {
+        if (from && r.receive_date && r.receive_date < from) return false;
+        if (to && r.receive_date && r.receive_date > to) return false;
+        const completed = r.complete === "نعم";
+        switch (scope) {
+          case "historic": return true; // all imported are historic
+          case "current": return false; // no current yet
+          case "completed": return completed;
+          case "in_progress": return !completed;
+          default: return true;
+        }
+      })
+      .sort((a, b) => (a.receive_date || "").localeCompare(b.receive_date || ""));
+  }, [selected, from, to, scope, allRecon]);
+
+  const selectedMeta = perCustomer.find((c) => c.customer === selected);
+  const isInternalSel = selectedMeta && (selectedMeta.type === "داخلي" || /عاصمة|داخل/.test(selectedMeta.type));
+
+  const buildOpts = (mode: "detailed" | "summary") => ({
+    customerName: selected,
+    customerType: isInternalSel ? ("internal" as const) : ("external" as const),
+    fromDate: from || undefined,
+    toDate: to || undefined,
+    mode,
+    filterLabel:
+      scope === "all" ? "كل الدفعات" :
+      scope === "historic" ? "تاريخية فقط" :
+      scope === "current" ? "حالية فقط" :
+      scope === "completed" ? "مكتملة" : "جارية",
+    collected: isInternalSel ? 0 : 0, // no actual collections recorded yet
+    batches: filteredBatches.map((r) => ({
+      batch_number: r.batch_number,
+      receive_date: r.receive_date,
+      received_eggs: r.received_eggs,
+      net_eggs: r.net_eggs,
+      hatched_chicks: r.chicks,
+      charge_total: r.charge_total,
+      is_imported: true,
+      is_completed: r.complete === "نعم",
+    })),
+  });
+
+  return (
+    <div className="mt-2">
+      <h3 className="text-sm font-bold mb-2 text-muted-foreground flex items-center gap-2">
+        <FileText className="w-4 h-4" /> طباعة كشف حساب عميل
+      </h3>
+      <Card className="p-4 space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
+          <div className="md:col-span-2">
+            <Label className="text-xs">العميل</Label>
+            <Select value={selected} onValueChange={setSelected}>
+              <SelectTrigger><SelectValue placeholder="اختر عميل..." /></SelectTrigger>
+              <SelectContent className="max-h-72">
+                {customerOptions.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">من تاريخ</Label>
+            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-xs">إلى تاريخ</Label>
+            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-xs">الفلتر</Label>
+            <Select value={scope} onValueChange={(v: any) => setScope(v)}>
+              <SelectTrigger /><SelectContent>
+                <SelectItem value="all">كل الدفعات</SelectItem>
+                <SelectItem value="historic">تاريخية فقط</SelectItem>
+                <SelectItem value="current">حالية فقط</SelectItem>
+                <SelectItem value="completed">مكتملة</SelectItem>
+                <SelectItem value="in_progress">جارية</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {selected && (
+          <div className="text-xs text-muted-foreground">
+            تم اختيار {filteredBatches.length} دفعة للعميل <b>{selected}</b>{isInternalSel && " (داخلي — لا مديونية)"}
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" disabled={!selected || filteredBatches.length === 0}
+            onClick={() => printCustomerStatement(buildOpts("detailed"))}>
+            <Printer className="w-4 h-4 ml-1" /> طباعة تفصيلي (PDF)
+          </Button>
+          <Button size="sm" variant="outline" disabled={!selected || filteredBatches.length === 0}
+            onClick={() => printCustomerStatement(buildOpts("summary"))}>
+            <Printer className="w-4 h-4 ml-1" /> طباعة مختصر
+          </Button>
+          <Button size="sm" variant="outline" disabled={!selected || filteredBatches.length === 0}
+            onClick={() => exportCustomerStatementExcel(buildOpts("detailed"))}>
+            <FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel
+          </Button>
+        </div>
+      </Card>
     </div>
   );
 }

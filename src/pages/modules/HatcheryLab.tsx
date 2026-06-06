@@ -24,6 +24,7 @@ import { format } from "date-fns";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate } from "@/lib/printPdf";
 import * as XLSX from "xlsx";
 import HatcheryClientMetrics from "@/components/hatchery/HatcheryClientMetrics";
+import { printBatchStatement } from "@/lib/hatcheryStatements";
 
 const today = () => format(new Date(), "yyyy-MM-dd");
 
@@ -599,7 +600,33 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
                     {b.overdueReason && <div className="text-[10px] text-red-600 mt-1">{b.overdueReason}</div>}
                   </TableCell>
                   <TableCell>
-                    <Button size="sm" variant="outline" onClick={() => setDetailBatch(b)}>تفاصيل</Button>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="outline" onClick={() => setDetailBatch(b)}>تفاصيل</Button>
+                      <Button size="sm" variant="ghost" onClick={() => printBatchStatement({
+                        id: b.id,
+                        batch_number: b.batch_number,
+                        customer_name: b.customer_name,
+                        customer_type: b.type,
+                        is_imported: b.is_imported,
+                        receive_date: b.receive_date,
+                        entry_date: b.entry_date,
+                        machine: b.machine,
+                        received_eggs: b._raw?.received_eggs,
+                        damaged: (b._raw?.received_eggs || 0) - (b._raw?.net_eggs || 0),
+                        net_eggs: b._raw?.net_eggs,
+                        candle1_date: b._raw?.candle1_date,
+                        candle1_infertile: b._raw?.candle1_infertile,
+                        candle1_fertile: b._raw?.candle1_fertile,
+                        candle2_date: b._raw?.candle2_date,
+                        candle2_dead: b._raw?.candle2_dead,
+                        candle2_fertile: b._raw?.candle2_fertile,
+                        exit_date: b._raw?.exit_date,
+                        hatcher_dead: b._raw?.hatcher_dead,
+                        hatched_chicks: b._raw?.hatched_chicks,
+                        charge_total: (b._raw as any)?.charge_total,
+                        notes: b._raw?.notes,
+                      })}><Printer className="w-3 h-3" /></Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               );

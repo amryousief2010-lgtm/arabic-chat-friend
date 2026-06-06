@@ -4783,6 +4783,39 @@ export type Database = {
         }
         Relationships: []
       }
+      hatchery_print_audit: {
+        Row: {
+          created_at: string
+          id: string
+          meta: Json | null
+          report_type: string
+          target_label: string | null
+          target_ref: string | null
+          user_id: string | null
+          user_name: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          meta?: Json | null
+          report_type: string
+          target_label?: string | null
+          target_ref?: string | null
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          meta?: Json | null
+          report_type?: string
+          target_label?: string | null
+          target_ref?: string | null
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Relationships: []
+      }
       hatchery_treasury_txns: {
         Row: {
           amount: number
