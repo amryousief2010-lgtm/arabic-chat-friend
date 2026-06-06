@@ -73,6 +73,8 @@ const HatcheryImport = lazy(() => import("@/pages/hatchery/HatcheryImport"));
 const HatchBatchesImport = lazy(() => import("@/pages/hatchery/HatchBatchesImport"));
 const HatchBatchesReview = lazy(() => import("@/pages/hatchery/HatchBatchesReview"));
 const HatcheryCustomerStatements = lazy(() => import("@/pages/hatchery/HatcheryCustomerStatements"));
+const HatchBatchEditAudit = lazy(() => import("@/pages/hatchery/HatchBatchEditAudit"));
+const HatchTestData = lazy(() => import("@/pages/hatchery/HatchTestData"));
 const LabCustomerReconciliation = lazy(() => import("@/pages/hatchery/LabCustomerReconciliation"));
 const FarmEggWaste = lazy(() => import("@/pages/FarmEggWaste"));
 const FarmHatcheryDashboard = lazy(() => import("@/pages/modules/FarmHatcheryDashboard"));
@@ -542,6 +544,16 @@ const AnimatedRoutes = () => {
           <Route path="/hatchery/customer-statements" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'hatchery_manager', 'farm_manager', 'production_manager', 'accountant']}>
               <PageTransition><HatcheryCustomerStatements /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/hatchery/edit-audit" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'hatchery_manager', 'farm_manager']}>
+              <PageTransition><HatchBatchEditAudit /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/hatchery/test-data" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager']}>
+              <PageTransition><HatchTestData /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/hatchery/customer-reconciliation" element={

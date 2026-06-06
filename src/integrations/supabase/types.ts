@@ -4043,6 +4043,48 @@ export type Database = {
         }
         Relationships: []
       }
+      hatch_batch_edit_audit: {
+        Row: {
+          actor_id: string | null
+          actor_name: string | null
+          batch_id: string
+          batch_number: string | null
+          changes: Json
+          created_at: string
+          customer_id: string | null
+          customer_name: string | null
+          id: string
+          operational_batch_no: string | null
+          reason: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_name?: string | null
+          batch_id: string
+          batch_number?: string | null
+          changes?: Json
+          created_at?: string
+          customer_id?: string | null
+          customer_name?: string | null
+          id?: string
+          operational_batch_no?: string | null
+          reason?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          actor_name?: string | null
+          batch_id?: string
+          batch_number?: string | null
+          changes?: Json
+          created_at?: string
+          customer_id?: string | null
+          customer_name?: string | null
+          id?: string
+          operational_batch_no?: string | null
+          reason?: string | null
+        }
+        Relationships: []
+      }
       hatch_batch_import_log: {
         Row: {
           created_at: string
