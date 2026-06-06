@@ -201,6 +201,21 @@ export default function HatchBatchesImport() {
   const [parsing, setParsing] = useState(false);
   const [importing, setImporting] = useState(false);
   const [report, setReport] = useState<ImportReport | null>(null);
+  const [lastError, setLastError] = useState<null | {
+    step: string;
+    message: string;
+    code: string | null;
+    details: string | null;
+    hint: string | null;
+    plannedInserts: number;
+    plannedUpdates: number;
+    samplePayload: any;
+    userId: string | null;
+    userEmail: string | null;
+    roles: string[];
+    raw: string;
+  }>(null);
+
 
   const onParse = async (f: File) => {
     setParsing(true);
