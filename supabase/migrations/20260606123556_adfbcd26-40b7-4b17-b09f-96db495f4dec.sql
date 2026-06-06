@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX IF NOT EXISTS lab_treasury_movements_source_uniq ON public.lab_treasury_movements (source_table, source_id);
