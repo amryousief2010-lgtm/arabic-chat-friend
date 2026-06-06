@@ -69,6 +69,7 @@ const Farm = lazy(() => import("@/pages/modules/Farm"));
 const Hatchery = lazy(() => import("@/pages/modules/Hatchery"));
 const HatcheryLab = lazy(() => import("@/pages/modules/HatcheryLab"));
 const HatcheryPayments = lazy(() => import("@/pages/HatcheryPayments"));
+const HatcheryImport = lazy(() => import("@/pages/hatchery/HatcheryImport"));
 const FarmEggWaste = lazy(() => import("@/pages/FarmEggWaste"));
 const FarmHatcheryDashboard = lazy(() => import("@/pages/modules/FarmHatcheryDashboard"));
 const Brooding = lazy(() => import("@/pages/modules/Brooding"));
@@ -511,6 +512,11 @@ const AnimatedRoutes = () => {
           <Route path="/hatchery/payments" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'hatchery_manager', 'production_manager', 'farm_manager', 'accountant', 'financial_manager']}>
               <PageTransition><HatcheryPayments /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/hatchery/import" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'hatchery_manager', 'farm_manager', 'production_manager']}>
+              <PageTransition><HatcheryImport /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/modules/farm-hatchery-dashboard" element={
