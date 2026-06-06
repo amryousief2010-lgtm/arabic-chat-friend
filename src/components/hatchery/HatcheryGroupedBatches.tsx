@@ -5,10 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Search, Printer, FileSpreadsheet, Eye, Sparkles } from "lucide-react";
+import { Search, Printer, FileSpreadsheet, Eye, Sparkles, Pencil } from "lucide-react";
 import { openPrintWindow, escapeHtml, fmtNum } from "@/lib/printPdf";
 import * as XLSX from "xlsx";
 import HatchResultsEntryDialog from "./HatchResultsEntryDialog";
+import HatchBatchRowEditDialog from "./HatchBatchRowEditDialog";
 
 // row[] is the same shape produced by BatchesTab.rows (id, batch_number, entry_date, machine,
 // type, customer_name, total_eggs, net_eggs, chicks, candle1_date, candle2_date, exit_date,
@@ -441,6 +442,7 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr, onRefresh }: Props)
           stageMeta={stageMeta}
           onClose={() => setOpenGroup(null)}
           onOpenResults={(g: any) => { setOpenGroup(null); setResultsGroup(g); }}
+          onRefresh={onRefresh}
         />
       )}
       {resultsGroup && (
@@ -455,7 +457,8 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr, onRefresh }: Props)
 };
 
 // ============== Group Detail Dialog ==============
-const GroupDetailDialog = ({ group, stageMeta, onClose, onOpenResults }: any) => {
+const GroupDetailDialog = ({ group, stageMeta, onClose, onOpenResults, onRefresh }: any) => {
+  const [editRow, setEditRow] = useState<any>(null);
   const meta = stageMeta[group.stage] || { label: group.stage, color: "bg-gray-500" };
   const Row = ({ label, value }: { label: string; value: any }) => (
     <div className="flex justify-between border-b py-1 text-sm">
@@ -533,6 +536,7 @@ const GroupDetailDialog = ({ group, stageMeta, onClose, onOpenResults }: any) =>
                 <TableHead>كتاكيت</TableHead>
                 <TableHead>% فقس</TableHead>
                 <TableHead>الحساب التقديري</TableHead>
+                <TableHead>تعديل</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -564,12 +568,30 @@ const GroupDetailDialog = ({ group, stageMeta, onClose, onOpenResults }: any) =>
                         charge
                       )}
                     </TableCell>
+                    <TableCell>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setEditRow({ raw: { id: c.id, ...raw, batch_number: c.batch_number, customer_name: c.customer_name }, name: c.customer_name })}
+                      >
+                        <Pencil className="w-3 h-3 ml-1" /> تعديل
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 );
               })}
             </TableBody>
           </Table>
         </Card>
+
+        {editRow && (
+          <HatchBatchRowEditDialog
+            row={editRow.raw}
+            customerName={editRow.name}
+            onClose={() => setEditRow(null)}
+            onSaved={() => { setEditRow(null); onRefresh?.(); }}
+          />
+        )}
 
         <DialogFooter className="gap-2 flex-wrap">
           <Button variant="outline" onClick={onClose}>
