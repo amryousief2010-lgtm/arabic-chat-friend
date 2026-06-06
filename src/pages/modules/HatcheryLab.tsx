@@ -363,6 +363,8 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
   const [activeBatch, setActiveBatch] = useState<any>(null);
   const [detailBatch, setDetailBatch] = useState<any>(null);
   const [filter, setFilter] = useState<QuickFilter>("all");
+  const [viewMode, setViewMode] = useState<"grouped" | "detailed">("grouped");
+
 
   useEffect(() => {
     const f = sessionStorage.getItem("hatchery_batch_filter");
