@@ -361,6 +361,7 @@ type QuickFilter =
   | "candle2_today" | "candle2_3d" | "exit_today" | "exit_3d" | "overdue";
 
 const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
+  const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [showNew, setShowNew] = useState(false);
   const [activeBatch, setActiveBatch] = useState<any>(null);
