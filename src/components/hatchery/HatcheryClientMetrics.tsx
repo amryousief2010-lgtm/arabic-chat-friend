@@ -304,6 +304,8 @@ export default function HatcheryClientMetrics() {
             </table>
           </div>
         </Card>
+      </div>
+
       <CustomerStatementSection perCustomer={perCustomer} collected={collected} />
     </div>
   );
