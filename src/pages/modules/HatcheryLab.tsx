@@ -530,17 +530,49 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
     );
   };
 
+  const groupedStageMeta = {
+    ...STAGE_META,
+    in_progress: { label: "جارية", color: "bg-blue-500" },
+  } as Record<string, { label: string; color: string }>;
+
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="بحث برقم الدفعة أو اسم العميل..." className="pr-9" />
+      <div className="flex flex-wrap items-center gap-2 justify-between">
+        <div className="flex gap-1 p-1 bg-muted rounded-lg">
+          <Button
+            size="sm"
+            variant={viewMode === "grouped" ? "default" : "ghost"}
+            onClick={() => setViewMode("grouped")}
+          >
+            عرض مجمع (دفعة تشغيلية)
+          </Button>
+          <Button
+            size="sm"
+            variant={viewMode === "detailed" ? "default" : "ghost"}
+            onClick={() => setViewMode("detailed")}
+          >
+            عرض تفصيلي (لكل عميل)
+          </Button>
         </div>
         {canManage && (
           <Button onClick={() => setShowNew(true)}><Plus className="w-4 h-4 ml-1" />دفعة جديدة</Button>
         )}
       </div>
+
+      {viewMode === "grouped" ? (
+        <>
+          <HatcheryGroupedBatches rows={rows} stageMeta={groupedStageMeta} todayStr={todayStr} />
+          {showNew && <NewBatchDialog open={showNew} onClose={() => setShowNew(false)} clients={clients} onSaved={() => { setShowNew(false); onRefresh(); }} />}
+        </>
+      ) : (
+      <>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="بحث برقم الدفعة أو اسم العميل..." className="pr-9" />
+        </div>
+      </div>
+
 
       <div className="flex flex-wrap gap-2">
         {filterBtn("all", "الكل", counts.all)}
