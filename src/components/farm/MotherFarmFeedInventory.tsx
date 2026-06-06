@@ -347,6 +347,72 @@ function AdjustStockDialog({ onSaved }: { onSaved: () => void }) {
   );
 }
 
+function SetBalanceDialog({ currentBalance, onSaved }: { currentBalance: number; onSaved: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [target, setTarget] = useState<string>("");
+  const [reason, setReason] = useState("");
+  const [date, setDate] = useState(todayCairo());
+
+  useEffect(() => { if (open) setTarget(String(currentBalance ?? 0)); }, [open, currentBalance]);
+
+  const targetNum = parseFloat(target) || 0;
+  const diff = targetNum - currentBalance;
+
+  const save = useMutation({
+    mutationFn: async () => {
+      if (!reason.trim()) throw new Error("سبب التعديل إجباري");
+      if (diff === 0) throw new Error("لا يوجد فرق عن الرصيد الحالي");
+      const { data: u } = await supabase.auth.getUser();
+      const { error } = await supabase.from("mother_farm_feed_movements" as any).insert({
+        movement_date: date,
+        movement_type: diff > 0 ? "adjust_up" : "adjust_down",
+        weight_kg: Math.abs(diff),
+        reason: `تعديل رصيد إلى ${targetNum} كجم — ${reason}`,
+        created_by: u.user?.id,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("تم تعديل الرصيد");
+      setOpen(false); setReason("");
+      onSaved();
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="default" className="bg-purple-600 hover:bg-purple-700">
+          <Edit3 className="w-4 h-4 ml-1" />تعديل الرصيد المباشر
+        </Button>
+      </DialogTrigger>
+      <DialogContent dir="rtl">
+        <DialogHeader><DialogTitle>تعديل رصيد العلف مباشرة</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div className="bg-muted p-2 rounded text-sm">
+            الرصيد الحالي: <strong>{fmt(currentBalance)} كجم</strong>
+          </div>
+          <div>
+            <Label>الرصيد الجديد (كجم)</Label>
+            <Input type="number" step="0.1" value={target} onChange={(e) => setTarget(e.target.value)} />
+          </div>
+          {target !== "" && (
+            <div className={`p-2 rounded text-sm ${diff > 0 ? "bg-green-50 text-green-700" : diff < 0 ? "bg-red-50 text-red-700" : "bg-muted"}`}>
+              الفرق: <strong>{diff > 0 ? "+" : ""}{fmt(diff)} كجم</strong>
+              {diff !== 0 && <span className="text-xs mr-2">(سيُسجل كتسوية {diff > 0 ? "زيادة" : "نقص"})</span>}
+            </div>
+          )}
+          <div><Label>التاريخ</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+          <div><Label>سبب التعديل (إجباري)</Label><Textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="مثال: جرد فعلي بعد إعادة العد..." /></div>
+          <p className="text-xs text-muted-foreground">⚠️ هذا الإجراء متاح فقط للمدير العام والمدير التنفيذي ويُسجَّل في سجل الحركات.</p>
+        </div>
+        <DialogFooter><Button onClick={() => save.mutate()} disabled={save.isPending}>حفظ التعديل</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function SettingsDialog({ settings, onSaved }: { settings: any; onSaved: () => void }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<any>({});
