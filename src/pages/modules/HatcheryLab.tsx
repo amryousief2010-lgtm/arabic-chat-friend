@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate } from "@/lib/printPdf";
 import * as XLSX from "xlsx";
+import HatcheryClientMetrics from "@/components/hatchery/HatcheryClientMetrics";
 
 const today = () => format(new Date(), "yyyy-MM-dd");
 
@@ -227,6 +228,8 @@ const DashboardTab = ({ kpis, batches, settings }: any) => {
         <KCard label="المدفوع" value={fmtEGP(k.invoices_paid)} icon={Wallet} color="from-green-600 to-emerald-700" />
         <KCard label="المتبقي" value={fmtEGP(k.invoices_remaining)} icon={Wallet} color="from-red-500 to-red-700" />
       </div>
+
+      <HatcheryClientMetrics />
     </div>
   );
 };
