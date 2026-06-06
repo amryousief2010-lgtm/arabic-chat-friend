@@ -536,6 +536,76 @@ export default function HatchBatchesImport() {
           </Card>
         )}
 
+        {lastError && (
+          <Card className="border-destructive/60">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-destructive">
+                <AlertTriangle className="w-5 h-5" /> تفاصيل خطأ الاستيراد
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                <KV k="الخطوة (step)" v={lastError.step} />
+                <KV k="code" v={lastError.code ?? "—"} />
+                <KV k="message" v={lastError.message} />
+                <KV k="details" v={lastError.details ?? "—"} />
+                <KV k="hint" v={lastError.hint ?? "—"} />
+                <KV k="عدد الإدراج المخطط" v={String(lastError.plannedInserts)} />
+                <KV k="عدد التحديث المخطط" v={String(lastError.plannedUpdates)} />
+                <KV k="المستخدم" v={`${lastError.userEmail ?? "—"} (${lastError.userId ?? "—"})`} />
+                <KV k="الأدوار" v={(lastError.roles ?? []).join(", ") || "—"} />
+              </div>
+
+              <div>
+                <div className="text-xs font-medium mb-1">أول دفعة في الـ payload (sample):</div>
+                <pre className="text-[11px] bg-muted/40 border rounded p-2 max-h-64 overflow-auto whitespace-pre-wrap break-all">
+{JSON.stringify(lastError.samplePayload, null, 2)}
+                </pre>
+              </div>
+
+              <div>
+                <div className="text-xs font-medium mb-1">الخطأ الكامل (raw):</div>
+                <pre className="text-[11px] bg-muted/40 border rounded p-2 max-h-64 overflow-auto whitespace-pre-wrap break-all">
+{lastError.raw}
+                </pre>
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => {
+                    const txt = [
+                      `step: ${lastError.step}`,
+                      `message: ${lastError.message}`,
+                      `code: ${lastError.code ?? "—"}`,
+                      `details: ${lastError.details ?? "—"}`,
+                      `hint: ${lastError.hint ?? "—"}`,
+                      `plannedInserts: ${lastError.plannedInserts}`,
+                      `plannedUpdates: ${lastError.plannedUpdates}`,
+                      `user: ${lastError.userEmail} (${lastError.userId})`,
+                      `roles: ${(lastError.roles ?? []).join(", ")}`,
+                      `samplePayload: ${JSON.stringify(lastError.samplePayload)}`,
+                      `raw: ${lastError.raw}`,
+                    ].join("\n");
+                    try {
+                      await navigator.clipboard.writeText(txt);
+                      toast.success("تم نسخ تفاصيل الخطأ");
+                    } catch {
+                      toast.error("تعذر النسخ تلقائياً — حدد النص يدوياً");
+                    }
+                  }}
+                >
+                  نسخ تفاصيل الخطأ
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setLastError(null)}>إخفاء</Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+
+
         {report && (
           <Card>
             <CardHeader>
