@@ -360,6 +360,64 @@ export default function LabTreasury() {
     return path;
   }
 
+  function printCurrentInvoice() {
+    if (!incHatching) { toast.error("الطباعة متاحة فقط لفواتير التفريخ"); return; }
+    if (!incForm.batch_number.trim()) { toast.error("ادخل رقم الدفعة"); return; }
+    if (!incForm.customer_name.trim()) { toast.error("ادخل اسم العميل"); return; }
+    if (subtotalCalc <= 0) { toast.error("ادخل بنود الفاتورة أولاً"); return; }
+
+    const lines: { label: string; qty: number; unit: string; price: number; amount: number }[] = [];
+    if (Number(incForm.lais_count) > 0) lines.push({ label: "بيض لايح (كشف أول)", qty: Number(incForm.lais_count), unit: "بيضة", price: LAIS_PRICE, amount: lais_amt });
+    if (Number(incForm.candle2_count) > 0) lines.push({ label: "بيض الكشف الثاني", qty: Number(incForm.candle2_count), unit: "بيضة", price: CANDLE2_PRICE, amount: candle2_amt });
+    if (Number(incForm.chicks_count) > 0) lines.push({ label: "كتاكيت", qty: Number(incForm.chicks_count), unit: "كتكوت", price: CHICK_PRICE, amount: chicks_amt });
+    if (brooding_amt > 0) lines.push({ label: `تحضين كتاكيت (${Number(incForm.brooding_chicks)} × ${Number(incForm.brooding_days)} يوم)`, qty: Number(incForm.brooding_chicks) * Number(incForm.brooding_days), unit: "كتكوت/يوم", price: BROODING_PER_DAY, amount: brooding_amt });
+
+    const itemsHtml = lines.map((l, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td>${escapeHtml(l.label)}</td>
+        <td class="num">${fmtNum(l.qty, 0)} ${escapeHtml(l.unit)}</td>
+        <td class="num">${fmtNum(l.price, 2)}</td>
+        <td class="num">${fmtNum(l.amount, 2)}</td>
+      </tr>`).join("");
+
+    const statusLabel = paymentStatusCalc === "paid" ? "مدفوع بالكامل" : paymentStatusCalc === "partial" ? "مدفوع جزئيًا" : "غير مدفوع";
+    const body = `
+      <div style="text-align:center;margin-bottom:16px">
+        <h1 style="margin:0">معمل التفريخ — كابيتال أوستريتش</h1>
+        <div style="color:#666;font-size:12px">فاتورة تفريخ / حضانة</div>
+      </div>
+      <table style="width:100%;border:none;margin-bottom:12px">
+        <tr>
+          <td style="border:none"><b>العميل:</b> ${escapeHtml(incForm.customer_name)}</td>
+          <td style="border:none"><b>رقم الدفعة:</b> ${escapeHtml(incForm.batch_number)}</td>
+          <td style="border:none"><b>التاريخ:</b> ${fmtDate(incForm.movement_date)}</td>
+        </tr>
+      </table>
+      <table>
+        <thead>
+          <tr><th>#</th><th>البيان</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th></tr>
+        </thead>
+        <tbody>${itemsHtml}</tbody>
+      </table>
+      <table style="width:60%;margin-top:14px;margin-inline-start:auto">
+        <tr><td><b>إجمالي البنود (Subtotal)</b></td><td class="num">${fmtNum(subtotalCalc, 2)} ج</td></tr>
+        <tr><td><b>الخصم (Discount)</b></td><td class="num">- ${fmtNum(discountNum, 2)} ج</td></tr>
+        <tr style="background:#f6f6f6"><td><b>صافي الفاتورة (المطلوب)</b></td><td class="num"><b>${fmtNum(invoiceTotalCalc, 2)} ج</b></td></tr>
+        <tr><td><b>المبلغ المحصل</b></td><td class="num">${fmtNum(collectedNum, 2)} ج</td></tr>
+        <tr><td><b>المتبقي</b></td><td class="num">${fmtNum(remainingCalc, 2)} ج</td></tr>
+        <tr><td><b>حالة الدفع</b></td><td>${statusLabel}</td></tr>
+        <tr><td><b>طريقة التحصيل</b></td><td>${PAYMENT_LABELS[incForm.payment_method]}</td></tr>
+      </table>
+      ${incForm.notes ? `<div style="margin-top:14px;padding:8px;border:1px dashed #ccc"><b>ملاحظات:</b> ${escapeHtml(incForm.notes)}</div>` : ""}
+      <div style="margin-top:40px;display:flex;justify-content:space-between">
+        <div>توقيع المحاسب: ____________________</div>
+        <div>توقيع العميل: ____________________</div>
+      </div>
+    `;
+    openPrintWindow(`فاتورة ${incForm.batch_number} — ${incForm.customer_name}`, body);
+  }
+
   async function submitIncome() {
     if (!user) return;
     const isHatch = incForm.income_category === "hatching";
