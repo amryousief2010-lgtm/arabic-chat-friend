@@ -997,54 +997,13 @@ const NewOrder = () => {
 
     setSubmitting(true);
 
-    // Duplicate order pre-check (sales_moderator only)
-    if (isSalesModerator && user?.id && selectedCustomer?.id) {
-      try {
-        const { data, error } = await supabase.rpc('check_duplicate_order_attempt', {
-          p_customer_id: selectedCustomer.id,
-          p_customer_name: selectedCustomer.name,
-          p_customer_phone: selectedCustomer.phone,
-          p_delivery_address: deliveryAddress.trim() || selectedCustomer.address || null,
-          p_shipping_company: effectiveShippingCompany,
-          p_fulfillment_type: fulfillmentType,
-          p_items: duplicateItemsPayload,
-          p_note: notes.trim() || null,
-        });
+    // Duplicate-order approval flow removed.
+    // Sales reps can now create the order directly; a database trigger will
+    // notify the sales manager if the same customer phone already has another
+    // order in the same calendar month.
+    void duplicateItemsPayload;
+    void duplicateApprovalMeta;
 
-        if (error) throw error;
-
-        const duplicateCheck = data as unknown as DuplicateCheckResponse | null;
-        if (duplicateCheck?.is_duplicate) {
-          const existing = duplicateCheck.existing_request;
-          if (existing?.status === 'approved' && existing.id) {
-            approvedDuplicateRequestId = existing.id;
-            const { data: approvalMeta } = await supabase
-              .from('duplicate_order_approvals')
-              .select('decided_by, decided_at, reason')
-              .eq('id', existing.id)
-              .maybeSingle();
-            duplicateApprovalMeta = approvalMeta || null;
-          } else {
-            const nextStatus = existing?.status === 'rejected'
-              ? 'rejected'
-              : (existing?.status === 'pending' ? 'pending' : 'idle');
-
-            setApprovalDialog({
-              open: true,
-              status: nextStatus,
-              reason: existing?.reason || undefined,
-              attemptId: duplicateCheck.attempt_id || undefined,
-              requestId: existing?.id || undefined,
-              candidates: duplicateCheck.candidates || [],
-            });
-            setSubmitting(false);
-            return;
-          }
-        }
-      } catch (e) {
-        console.warn('duplicate check failed', e);
-      }
-    }
 
     try {
       // Generate order number
