@@ -6027,7 +6027,16 @@ export type Database = {
           approved_at: string | null
           approved_by: string | null
           balance_after: number | null
+          batch_number: string | null
           beneficiary: string | null
+          brooding_amount: number | null
+          brooding_chicks_count: number | null
+          brooding_days: number | null
+          candle2_eggs_amount: number | null
+          candle2_eggs_count: number | null
+          chicks_amount: number | null
+          chicks_count: number | null
+          collected_amount: number | null
           created_at: string
           created_by: string | null
           customer_name: string | null
@@ -6041,14 +6050,19 @@ export type Database = {
           income_category:
             | Database["public"]["Enums"]["lab_treasury_income_category"]
             | null
+          invoice_total: number | null
+          lais_eggs_amount: number | null
+          lais_eggs_count: number | null
           movement_date: string
           movement_type: Database["public"]["Enums"]["lab_treasury_movement_type"]
           notes: string | null
           payment_method: Database["public"]["Enums"]["lab_treasury_payment_method"]
+          payment_status: string | null
           receipt_url: string | null
           rejected_at: string | null
           rejected_by: string | null
           rejection_reason: string | null
+          remaining_amount: number | null
           source_id: string | null
           source_ref: string | null
           source_table: string | null
@@ -6062,7 +6076,16 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           balance_after?: number | null
+          batch_number?: string | null
           beneficiary?: string | null
+          brooding_amount?: number | null
+          brooding_chicks_count?: number | null
+          brooding_days?: number | null
+          candle2_eggs_amount?: number | null
+          candle2_eggs_count?: number | null
+          chicks_amount?: number | null
+          chicks_count?: number | null
+          collected_amount?: number | null
           created_at?: string
           created_by?: string | null
           customer_name?: string | null
@@ -6076,14 +6099,19 @@ export type Database = {
           income_category?:
             | Database["public"]["Enums"]["lab_treasury_income_category"]
             | null
+          invoice_total?: number | null
+          lais_eggs_amount?: number | null
+          lais_eggs_count?: number | null
           movement_date?: string
           movement_type: Database["public"]["Enums"]["lab_treasury_movement_type"]
           notes?: string | null
           payment_method: Database["public"]["Enums"]["lab_treasury_payment_method"]
+          payment_status?: string | null
           receipt_url?: string | null
           rejected_at?: string | null
           rejected_by?: string | null
           rejection_reason?: string | null
+          remaining_amount?: number | null
           source_id?: string | null
           source_ref?: string | null
           source_table?: string | null
@@ -6097,7 +6125,16 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           balance_after?: number | null
+          batch_number?: string | null
           beneficiary?: string | null
+          brooding_amount?: number | null
+          brooding_chicks_count?: number | null
+          brooding_days?: number | null
+          candle2_eggs_amount?: number | null
+          candle2_eggs_count?: number | null
+          chicks_amount?: number | null
+          chicks_count?: number | null
+          collected_amount?: number | null
           created_at?: string
           created_by?: string | null
           customer_name?: string | null
@@ -6111,14 +6148,19 @@ export type Database = {
           income_category?:
             | Database["public"]["Enums"]["lab_treasury_income_category"]
             | null
+          invoice_total?: number | null
+          lais_eggs_amount?: number | null
+          lais_eggs_count?: number | null
           movement_date?: string
           movement_type?: Database["public"]["Enums"]["lab_treasury_movement_type"]
           notes?: string | null
           payment_method?: Database["public"]["Enums"]["lab_treasury_payment_method"]
+          payment_status?: string | null
           receipt_url?: string | null
           rejected_at?: string | null
           rejected_by?: string | null
           rejection_reason?: string | null
+          remaining_amount?: number | null
           source_id?: string | null
           source_ref?: string | null
           source_table?: string | null

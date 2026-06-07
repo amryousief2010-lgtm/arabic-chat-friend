@@ -189,8 +189,36 @@ export default function LabTreasury() {
     movement_date: today(), income_category: "hatching" as IncomeCat,
     customer_name: "", units_count: "" as any, unit_price: "" as any, amount: "" as any,
     payment_method: "cash" as PaymentMethod, description: "", notes: "",
+    // hatching breakdown
+    batch_number: "",
+    lais_count: "" as any,
+    candle2_count: "" as any,
+    chicks_count: "" as any,
+    brooding_chicks: "" as any,
+    brooding_days: "" as any,
+    collected_amount: "" as any,
   });
   const [incReceipt, setIncReceipt] = useState<File | null>(null);
+
+  // Fixed lab pricing for hatching invoice breakdown
+  const LAIS_PRICE = 50;
+  const CANDLE2_PRICE = 100;
+  const CHICK_PRICE = 150;
+  const BROODING_PER_DAY = 10;
+
+  const incHatching = incForm.income_category === "hatching";
+  const lais_amt = (Number(incForm.lais_count) || 0) * LAIS_PRICE;
+  const candle2_amt = (Number(incForm.candle2_count) || 0) * CANDLE2_PRICE;
+  const chicks_amt = (Number(incForm.chicks_count) || 0) * CHICK_PRICE;
+  const brooding_amt =
+    (Number(incForm.brooding_chicks) || 0) *
+    (Number(incForm.brooding_days) || 0) *
+    BROODING_PER_DAY;
+  const invoiceTotalCalc = lais_amt + candle2_amt + chicks_amt + brooding_amt;
+  const collectedNum = Number(incForm.collected_amount) || 0;
+  const remainingCalc = Math.max(0, invoiceTotalCalc - collectedNum);
+  const paymentStatusCalc: "paid" | "partial" | "unpaid" =
+    collectedNum <= 0 ? "unpaid" : collectedNum >= invoiceTotalCalc && invoiceTotalCalc > 0 ? "paid" : "partial";
 
   const [expForm, setExpForm] = useState({
     movement_date: today(), expense_category: "electricity" as ExpenseCat,
@@ -331,34 +359,85 @@ export default function LabTreasury() {
 
   async function submitIncome() {
     if (!user) return;
-    const parsed = incomeSchema.safeParse({
-      ...incForm,
-      units_count: incForm.units_count === "" ? undefined : Number(incForm.units_count),
-      unit_price: incForm.unit_price === "" ? undefined : Number(incForm.unit_price),
-      amount: Number(incForm.amount),
-    });
-    if (!parsed.success) { toast.error(parsed.error.errors[0]?.message || "تحقق من الحقول"); return; }
-    const receipt_url = await uploadReceipt(incReceipt);
-    const payload = {
-      movement_type: "income" as const,
-      movement_date: parsed.data.movement_date,
-      income_category: parsed.data.income_category,
-      customer_name: parsed.data.customer_name || null,
-      units_count: parsed.data.units_count ?? null,
-      unit_price: parsed.data.unit_price ?? null,
-      amount: parsed.data.amount,
-      payment_method: parsed.data.payment_method,
-      description: parsed.data.description || null,
-      notes: parsed.data.notes || null,
-      receipt_url,
-      created_by: user.id,
-      status: "pending" as const,
-    };
+    const isHatch = incForm.income_category === "hatching";
+
+    let payload: any;
+    if (isHatch) {
+      // Detailed hatching invoice path
+      if (!incForm.batch_number.trim()) { toast.error("رقم الدفعة مطلوب"); return; }
+      if (!incForm.customer_name.trim()) { toast.error("اسم العميل مطلوب"); return; }
+      if (invoiceTotalCalc <= 0) { toast.error("يجب إدخال بنود الفاتورة (بيض أو كتاكيت أو تحضين)"); return; }
+      if (collectedNum < 0) { toast.error("المبلغ المحصل لا يصح أن يكون سالبًا"); return; }
+      if (collectedNum > invoiceTotalCalc) { toast.error("المبلغ المحصل لا يجوز أن يتجاوز إجمالي الفاتورة"); return; }
+
+      const receipt_url = await uploadReceipt(incReceipt);
+      payload = {
+        movement_type: "income" as const,
+        movement_date: incForm.movement_date,
+        income_category: "hatching",
+        customer_name: incForm.customer_name,
+        units_count: null,
+        unit_price: null,
+        amount: collectedNum, // only the actually-collected amount enters the treasury
+        payment_method: incForm.payment_method,
+        description: incForm.description || null,
+        notes: incForm.notes || null,
+        receipt_url,
+        created_by: user.id,
+        status: "pending" as const,
+        // breakdown
+        batch_number: incForm.batch_number.trim(),
+        lais_eggs_count: Number(incForm.lais_count) || 0,
+        lais_eggs_amount: lais_amt,
+        candle2_eggs_count: Number(incForm.candle2_count) || 0,
+        candle2_eggs_amount: candle2_amt,
+        chicks_count: Number(incForm.chicks_count) || 0,
+        chicks_amount: chicks_amt,
+        brooding_chicks_count: Number(incForm.brooding_chicks) || 0,
+        brooding_days: Number(incForm.brooding_days) || 0,
+        brooding_amount: brooding_amt,
+        invoice_total: invoiceTotalCalc,
+        collected_amount: collectedNum,
+        remaining_amount: remainingCalc,
+        payment_status: paymentStatusCalc,
+      };
+    } else {
+      const parsed = incomeSchema.safeParse({
+        ...incForm,
+        units_count: incForm.units_count === "" ? undefined : Number(incForm.units_count),
+        unit_price: incForm.unit_price === "" ? undefined : Number(incForm.unit_price),
+        amount: Number(incForm.amount),
+      });
+      if (!parsed.success) { toast.error(parsed.error.errors[0]?.message || "تحقق من الحقول"); return; }
+      const receipt_url = await uploadReceipt(incReceipt);
+      payload = {
+        movement_type: "income" as const,
+        movement_date: parsed.data.movement_date,
+        income_category: parsed.data.income_category,
+        customer_name: parsed.data.customer_name || null,
+        units_count: parsed.data.units_count ?? null,
+        unit_price: parsed.data.unit_price ?? null,
+        amount: parsed.data.amount,
+        payment_method: parsed.data.payment_method,
+        description: parsed.data.description || null,
+        notes: parsed.data.notes || null,
+        receipt_url,
+        created_by: user.id,
+        status: "pending" as const,
+      };
+    }
+
     const { data, error } = await (supabase as any).from("lab_treasury_movements").insert(payload).select().single();
     if (error) { toast.error("فشل التسجيل: " + error.message); return; }
     await logAudit("insert_income", { movement_id: data?.id, after: payload });
     toast.success("تم تسجيل الإيراد — بانتظار الاعتماد");
-    setIncForm({ ...incForm, customer_name: "", units_count: "", unit_price: "", amount: "", description: "", notes: "" });
+    setIncForm({
+      ...incForm,
+      customer_name: "", units_count: "", unit_price: "", amount: "",
+      description: "", notes: "",
+      batch_number: "", lais_count: "", candle2_count: "", chicks_count: "",
+      brooding_chicks: "", brooding_days: "", collected_amount: "",
+    });
     setIncReceipt(null);
     fetchData();
   }
@@ -828,7 +907,12 @@ export default function LabTreasury() {
           {/* Income form */}
           <TabsContent value="income">
             <Card>
-              <CardHeader><CardTitle>إضافة إيراد جديد</CardTitle></CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>إضافة إيراد جديد</CardTitle>
+                <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate('/lab-treasury/customer-debts')}>
+                  <Users className="w-4 h-4" /> مديونيات عملاء المعمل
+                </Button>
+              </CardHeader>
               <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 <Field label="التاريخ"><Input type="date" value={incForm.movement_date} onChange={(e) => setIncForm({ ...incForm, movement_date: e.target.value })} /></Field>
                 <Field label="نوع الإيراد">
@@ -837,13 +921,78 @@ export default function LabTreasury() {
                     <SelectContent>{Object.entries(INCOME_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
                   </Select>
                 </Field>
-                <Field label="اسم العميل"><Input value={incForm.customer_name} onChange={(e) => setIncForm({ ...incForm, customer_name: e.target.value })} /></Field>
-                <Field label="العدد (بيض/كتاكيت)"><Input type="number" value={incForm.units_count} onChange={(e) => setIncForm({ ...incForm, units_count: e.target.value })} /></Field>
-                <Field label="سعر الوحدة"><Input type="number" value={incForm.unit_price} onChange={(e) => {
-                  const up = e.target.value; const units = Number(incForm.units_count) || 0;
-                  setIncForm({ ...incForm, unit_price: up, amount: up && units ? String(Number(up) * units) : incForm.amount });
-                }} /></Field>
-                <Field label="إجمالي المبلغ *"><Input type="number" value={incForm.amount} onChange={(e) => setIncForm({ ...incForm, amount: e.target.value })} /></Field>
+                <Field label={incHatching ? "اسم العميل *" : "اسم العميل"}>
+                  <Input value={incForm.customer_name} onChange={(e) => setIncForm({ ...incForm, customer_name: e.target.value })} />
+                </Field>
+
+                {incHatching ? (
+                  <>
+                    <Field label="رقم الدفعة *">
+                      <Input value={incForm.batch_number} onChange={(e) => setIncForm({ ...incForm, batch_number: e.target.value })} placeholder="مثال: B-2026-05-12" />
+                    </Field>
+
+                    <div className="md:col-span-2 lg:col-span-3 border rounded-md p-3 bg-muted/30 space-y-3">
+                      <div className="text-sm font-semibold flex items-center gap-2">
+                        <Receipt className="w-4 h-4 text-primary" />
+                        تفاصيل الفاتورة (أسعار ثابتة)
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <Field label="عدد البيض اللايح (50 ج/بيضة)">
+                          <Input type="number" min={0} value={incForm.lais_count} onChange={(e) => setIncForm({ ...incForm, lais_count: e.target.value })} />
+                          <div className="text-xs text-muted-foreground mt-1">قيمة: {fmtNum(lais_amt, 2)} ج</div>
+                        </Field>
+                        <Field label="عدد بيض الكشف الثاني (100 ج/بيضة)">
+                          <Input type="number" min={0} value={incForm.candle2_count} onChange={(e) => setIncForm({ ...incForm, candle2_count: e.target.value })} />
+                          <div className="text-xs text-muted-foreground mt-1">قيمة: {fmtNum(candle2_amt, 2)} ج</div>
+                        </Field>
+                        <Field label="عدد الكتاكيت (150 ج/كتكوت)">
+                          <Input type="number" min={0} value={incForm.chicks_count} onChange={(e) => setIncForm({ ...incForm, chicks_count: e.target.value })} />
+                          <div className="text-xs text-muted-foreground mt-1">قيمة: {fmtNum(chicks_amt, 2)} ج</div>
+                        </Field>
+                        <Field label="عدد كتاكيت التحضين">
+                          <Input type="number" min={0} value={incForm.brooding_chicks} onChange={(e) => setIncForm({ ...incForm, brooding_chicks: e.target.value })} />
+                        </Field>
+                        <Field label="عدد أيام التحضين (10 ج/كتكوت/يوم)">
+                          <Input type="number" min={0} value={incForm.brooding_days} onChange={(e) => setIncForm({ ...incForm, brooding_days: e.target.value })} />
+                          <div className="text-xs text-muted-foreground mt-1">قيمة التحضين: {fmtNum(brooding_amt, 2)} ج</div>
+                        </Field>
+                        <div className="flex flex-col justify-end">
+                          <div className="text-xs text-muted-foreground">إجمالي الفاتورة</div>
+                          <div className="text-2xl font-mono font-bold text-primary">{fmtNum(invoiceTotalCalc, 2)} ج</div>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <Field label="المبلغ المحصل فعليًا *">
+                          <Input type="number" min={0} max={invoiceTotalCalc || undefined} value={incForm.collected_amount} onChange={(e) => setIncForm({ ...incForm, collected_amount: e.target.value })} />
+                        </Field>
+                        <div className="flex flex-col justify-end">
+                          <div className="text-xs text-muted-foreground">المبلغ المتبقي (مديونية العميل)</div>
+                          <div className="text-xl font-mono font-bold text-destructive">{fmtNum(remainingCalc, 2)} ج</div>
+                        </div>
+                        <div className="flex flex-col justify-end">
+                          <div className="text-xs text-muted-foreground">حالة الدفع</div>
+                          <div>
+                            <Badge variant={paymentStatusCalc === "paid" ? "default" : paymentStatusCalc === "partial" ? "secondary" : "destructive"}>
+                              {paymentStatusCalc === "paid" ? "مدفوع بالكامل" : paymentStatusCalc === "partial" ? "مدفوع جزئيًا" : "غير مدفوع"}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        ملاحظة: يدخل الخزنة فقط <b>المبلغ المحصل فعليًا</b> ({fmtNum(collectedNum, 2)} ج). المتبقي يظهر كمديونية على العميل في تقرير «مديونيات عملاء المعمل».
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <Field label="العدد (بيض/كتاكيت)"><Input type="number" value={incForm.units_count} onChange={(e) => setIncForm({ ...incForm, units_count: e.target.value })} /></Field>
+                    <Field label="سعر الوحدة"><Input type="number" value={incForm.unit_price} onChange={(e) => {
+                      const up = e.target.value; const units = Number(incForm.units_count) || 0;
+                      setIncForm({ ...incForm, unit_price: up, amount: up && units ? String(Number(up) * units) : incForm.amount });
+                    }} /></Field>
+                    <Field label="إجمالي المبلغ *"><Input type="number" value={incForm.amount} onChange={(e) => setIncForm({ ...incForm, amount: e.target.value })} /></Field>
+                  </>
+                )}
                 <Field label="طريقة التحصيل">
                   <Select value={incForm.payment_method} onValueChange={(v) => setIncForm({ ...incForm, payment_method: v as PaymentMethod })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
@@ -998,6 +1147,12 @@ export default function LabTreasury() {
                             ? INCOME_LABELS[m.income_category as IncomeCat]
                             : EXPENSE_LABELS[m.expense_category as ExpenseCat]}
                           {m.customer_name && <div className="text-xs text-muted-foreground">{m.customer_name}</div>}
+                          {(m as any).batch_number && <div className="text-xs text-primary">دفعة: {(m as any).batch_number}</div>}
+                          {(m as any).invoice_total != null && (
+                            <div className="text-xs text-muted-foreground">
+                              فاتورة: {fmtNum(Number((m as any).invoice_total), 0)} | محصل: {fmtNum(Number((m as any).collected_amount || 0), 0)} | متبقي: {fmtNum(Number((m as any).remaining_amount || 0), 0)}
+                            </div>
+                          )}
                           {m.beneficiary && <div className="text-xs text-muted-foreground">{m.beneficiary}</div>}
                           {m.rejection_reason && <div className="text-xs text-destructive">رفض: {m.rejection_reason}</div>}
                         </TableCell>
