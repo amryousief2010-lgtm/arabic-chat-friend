@@ -9958,6 +9958,12 @@ export type Database = {
           expected_delivery_at: string | null
           id: string
           order_id: string
+          planning_city: string | null
+          planning_confidence: string | null
+          planning_governorate: string | null
+          planning_notes: string | null
+          planning_region: string | null
+          planning_source: string | null
           route_id: string
           sequence: number
         }
@@ -9967,6 +9973,12 @@ export type Database = {
           expected_delivery_at?: string | null
           id?: string
           order_id: string
+          planning_city?: string | null
+          planning_confidence?: string | null
+          planning_governorate?: string | null
+          planning_notes?: string | null
+          planning_region?: string | null
+          planning_source?: string | null
           route_id: string
           sequence?: number
         }
@@ -9976,6 +9988,12 @@ export type Database = {
           expected_delivery_at?: string | null
           id?: string
           order_id?: string
+          planning_city?: string | null
+          planning_confidence?: string | null
+          planning_governorate?: string | null
+          planning_notes?: string | null
+          planning_region?: string | null
+          planning_source?: string | null
           route_id?: string
           sequence?: number
         }
@@ -13930,6 +13948,7 @@ export type Database = {
         | "in_progress"
         | "completed"
         | "cancelled"
+        | "archived"
       slaughter_custody_category:
         | "maintenance"
         | "utilities"
@@ -14240,6 +14259,7 @@ export const Constants = {
         "in_progress",
         "completed",
         "cancelled",
+        "archived",
       ],
       slaughter_custody_category: [
         "maintenance",
