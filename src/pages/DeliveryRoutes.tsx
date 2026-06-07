@@ -44,6 +44,7 @@ interface OrderRow {
   created_at: string;
   route_id: string | null;
   notes?: string | null;
+  governorate: string | null;
 }
 
 interface OrderItem {
