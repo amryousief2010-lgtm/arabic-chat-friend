@@ -145,7 +145,7 @@ export default function PCPlanning() {
         </div>
 
         <Card>
-          <CardContent className="p-3 grid grid-cols-2 md:grid-cols-6 gap-2">
+          <CardContent className="p-3 grid grid-cols-2 md:grid-cols-7 gap-2">
             <div className="relative col-span-2 md:col-span-2">
               <Search className="h-4 w-4 absolute right-3 top-3 text-muted-foreground" />
               <Input className="pr-9" placeholder="بحث برقم الطلب/العميل/الهاتف" value={search} onChange={e => setSearch(e.target.value)} />
@@ -155,6 +155,15 @@ export default function PCPlanning() {
               <SelectContent>
                 <SelectItem value="all">كل الأشهر</SelectItem>
                 {months.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={regionFilter} onValueChange={setRegionFilter}>
+              <SelectTrigger><SelectValue placeholder="المنطقة" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">كل المناطق</SelectItem>
+                {PC_REGIONS.filter(r => regionsInData.includes(r)).map(r => (
+                  <SelectItem key={r} value={r}>{r}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Select value={govFilter} onValueChange={setGovFilter}>
