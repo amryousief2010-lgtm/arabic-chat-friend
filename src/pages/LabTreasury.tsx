@@ -1233,7 +1233,9 @@ export default function LabTreasury() {
                           {(m as any).batch_number && <div className="text-xs text-primary">دفعة: {(m as any).batch_number}</div>}
                           {(m as any).invoice_total != null && (
                             <div className="text-xs text-muted-foreground">
-                              فاتورة: {fmtNum(Number((m as any).invoice_total), 0)} | محصل: {fmtNum(Number((m as any).collected_amount || 0), 0)} | متبقي: {fmtNum(Number((m as any).remaining_amount || 0), 0)}
+                              {(m as any).subtotal_amount != null && <>إجمالي: {fmtNum(Number((m as any).subtotal_amount), 0)} | </>}
+                              {Number((m as any).discount_amount) > 0 && <>خصم: {fmtNum(Number((m as any).discount_amount), 0)} | </>}
+                              صافي: {fmtNum(Number((m as any).invoice_total), 0)} | محصل: {fmtNum(Number((m as any).collected_amount || 0), 0)} | متبقي: {fmtNum(Number((m as any).remaining_amount || 0), 0)}
                             </div>
                           )}
                           {m.beneficiary && <div className="text-xs text-muted-foreground">{m.beneficiary}</div>}
