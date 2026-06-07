@@ -364,9 +364,6 @@ export default function DeliveryRoutes() {
                 </div>
               ) : (
                 <ScrollArea className="max-h-[calc(100vh-22rem)]">
-                  <ul className="divide-y">
-                    {filteredOrders.map((o) => {
-                <ScrollArea className="max-h-[calc(100vh-22rem)]">
                   <Accordion
                     type="multiple"
                     defaultValue={groupedByGov.map(([g]) => g)}
