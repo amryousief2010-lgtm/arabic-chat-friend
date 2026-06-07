@@ -26,10 +26,7 @@ import { PremiumStat, HeroSummary, SectionTitle, StatusPill, DashboardSkeleton, 
 
 type PM = "cash" | "vodafone_cash" | "instapay" | "bank_transfer";
 type Status = "pending_review" | "clarification_needed" | "approved" | "rejected" | "over_limit_pending";
-type Category =
-  | "maintenance" | "utilities" | "supplies" | "cleaning" | "transport" | "daily_labor"
-  | "hospitality" | "urgent_purchase" | "government" | "veterinary" | "equipment_repair"
-  | "fridge_repair" | "sanitation" | "loading" | "fuel" | "other";
+type Category = string;
 
 const PM_LBL: Record<PM, string> = { cash: "نقدي", vodafone_cash: "فودافون كاش", instapay: "إنستا باي", bank_transfer: "تحويل بنكي" };
 const ST_LBL: Record<Status, string> = {
@@ -39,7 +36,7 @@ const ST_LBL: Record<Status, string> = {
   rejected: "مرفوض",
   over_limit_pending: "تجاوز حد — بانتظار الموافقة",
 };
-const CAT_LBL: Record<Category, string> = {
+const BUILT_IN_CATS: Record<string, string> = {
   maintenance: "صيانة", utilities: "كهرباء / مياه / مرافق", supplies: "أدوات ومستلزمات تشغيل",
   cleaning: "نظافة ومطهرات", transport: "نقل ومشاوير", daily_labor: "عمالة يومية",
   hospitality: "ضيافة", urgent_purchase: "مشتريات طارئة", government: "مصروفات حكومية / تصاريح",
