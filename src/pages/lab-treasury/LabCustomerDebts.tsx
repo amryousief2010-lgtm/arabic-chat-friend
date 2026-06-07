@@ -160,7 +160,9 @@ export default function LabCustomerDebts() {
                   <TableHead>تاريخ آخر تحصيل</TableHead>
                   <TableHead>اسم العميل</TableHead>
                   <TableHead>رقم الدفعة</TableHead>
-                  <TableHead className="text-end">إجمالي الفاتورة</TableHead>
+                  <TableHead className="text-end">إجمالي البنود</TableHead>
+                  <TableHead className="text-end">الخصم</TableHead>
+                  <TableHead className="text-end">صافي الفاتورة</TableHead>
                   <TableHead className="text-end">المدفوع</TableHead>
                   <TableHead className="text-end">المتبقي</TableHead>
                   <TableHead>حالة الدفع</TableHead>
@@ -170,14 +172,16 @@ export default function LabCustomerDebts() {
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={9} className="text-center py-6">جارٍ التحميل...</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={11} className="text-center py-6">جارٍ التحميل...</TableCell></TableRow>
                 ) : filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={9} className="text-center py-6 text-muted-foreground">لا توجد بيانات</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={11} className="text-center py-6 text-muted-foreground">لا توجد بيانات</TableCell></TableRow>
                 ) : filtered.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell>{r.movement_date}</TableCell>
                     <TableCell>{r.customer_name || "—"}</TableCell>
                     <TableCell className="font-mono">{r.batch_number || "—"}</TableCell>
+                    <TableCell className="text-end font-mono">{fmtNum(Number(r.subtotal_amount || r.invoice_total || 0), 2)}</TableCell>
+                    <TableCell className="text-end font-mono text-amber-600">{fmtNum(Number(r.discount_amount || 0), 2)}</TableCell>
                     <TableCell className="text-end font-mono">{fmtNum(Number(r.invoice_total || 0), 2)}</TableCell>
                     <TableCell className="text-end font-mono text-[hsl(var(--success))]">{fmtNum(Number(r.collected_amount || 0), 2)}</TableCell>
                     <TableCell className="text-end font-mono text-destructive">{fmtNum(Number(r.remaining_amount || 0), 2)}</TableCell>
