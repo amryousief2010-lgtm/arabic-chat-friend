@@ -170,6 +170,20 @@ export default function SlaughterhouseCustody() {
     fetchAll();
   }
 
+  async function createCategory() {
+    const label = newCatDlg.label.trim();
+    if (label.length < 2) return toast.error("اسم البند مطلوب");
+    // generate a stable code: timestamp-based, ascii-safe
+    const code = "custom_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 6);
+    const { error } = await (supabase as any).from("slaughter_custody_expense_categories").insert({
+      code, label, created_by: user!.id,
+    });
+    if (error) return toast.error("فشل إضافة البند: " + error.message);
+    toast.success("تم إضافة البند");
+    setNewCatDlg({ open: false, label: "" });
+    setCustomCats((prev) => [...prev, { code, label }]);
+    setForm((f) => ({ ...f, category: code }));
+
   async function applyReview() {
     const { exp, action, reason } = reviewDlg;
     if (!exp) return;
