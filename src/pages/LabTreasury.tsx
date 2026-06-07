@@ -189,8 +189,36 @@ export default function LabTreasury() {
     movement_date: today(), income_category: "hatching" as IncomeCat,
     customer_name: "", units_count: "" as any, unit_price: "" as any, amount: "" as any,
     payment_method: "cash" as PaymentMethod, description: "", notes: "",
+    // hatching breakdown
+    batch_number: "",
+    lais_count: "" as any,
+    candle2_count: "" as any,
+    chicks_count: "" as any,
+    brooding_chicks: "" as any,
+    brooding_days: "" as any,
+    collected_amount: "" as any,
   });
   const [incReceipt, setIncReceipt] = useState<File | null>(null);
+
+  // Fixed lab pricing for hatching invoice breakdown
+  const LAIS_PRICE = 50;
+  const CANDLE2_PRICE = 100;
+  const CHICK_PRICE = 150;
+  const BROODING_PER_DAY = 10;
+
+  const incHatching = incForm.income_category === "hatching";
+  const lais_amt = (Number(incForm.lais_count) || 0) * LAIS_PRICE;
+  const candle2_amt = (Number(incForm.candle2_count) || 0) * CANDLE2_PRICE;
+  const chicks_amt = (Number(incForm.chicks_count) || 0) * CHICK_PRICE;
+  const brooding_amt =
+    (Number(incForm.brooding_chicks) || 0) *
+    (Number(incForm.brooding_days) || 0) *
+    BROODING_PER_DAY;
+  const invoiceTotalCalc = lais_amt + candle2_amt + chicks_amt + brooding_amt;
+  const collectedNum = Number(incForm.collected_amount) || 0;
+  const remainingCalc = Math.max(0, invoiceTotalCalc - collectedNum);
+  const paymentStatusCalc: "paid" | "partial" | "unpaid" =
+    collectedNum <= 0 ? "unpaid" : collectedNum >= invoiceTotalCalc && invoiceTotalCalc > 0 ? "paid" : "partial";
 
   const [expForm, setExpForm] = useState({
     movement_date: today(), expense_category: "electricity" as ExpenseCat,
