@@ -197,6 +197,7 @@ export default function LabTreasury() {
     brooding_chicks: "" as any,
     brooding_days: "" as any,
     collected_amount: "" as any,
+    discount: "" as any,
   });
   const [incReceipt, setIncReceipt] = useState<File | null>(null);
 
@@ -214,7 +215,9 @@ export default function LabTreasury() {
     (Number(incForm.brooding_chicks) || 0) *
     (Number(incForm.brooding_days) || 0) *
     BROODING_PER_DAY;
-  const invoiceTotalCalc = lais_amt + candle2_amt + chicks_amt + brooding_amt;
+  const subtotalCalc = lais_amt + candle2_amt + chicks_amt + brooding_amt;
+  const discountNum = Math.max(0, Number(incForm.discount) || 0);
+  const invoiceTotalCalc = Math.max(0, subtotalCalc - discountNum);
   const collectedNum = Number(incForm.collected_amount) || 0;
   const remainingCalc = Math.max(0, invoiceTotalCalc - collectedNum);
   const paymentStatusCalc: "paid" | "partial" | "unpaid" =
