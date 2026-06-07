@@ -88,6 +88,13 @@ export default function SlaughterhouseCustody() {
   const [weekUsage, setWeekUsage] = useState<{ week_start_date: string; week_end_date: string; limit_amount: number; approved_total: number; pending_total: number } | null>(null);
   const [audit, setAudit] = useState<AuditRow[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
+  const [customCats, setCustomCats] = useState<{ code: string; label: string }[]>([]);
+  const [newCatDlg, setNewCatDlg] = useState<{ open: boolean; label: string }>({ open: false, label: "" });
+  const CAT_LBL = useMemo<Record<string, string>>(() => {
+    const m: Record<string, string> = { ...BUILT_IN_CATS };
+    customCats.forEach((c) => { m[c.code] = c.label; });
+    return m;
+  }, [customCats]);
   const [loading, setLoading] = useState(true);
 
   // Add Expense form
