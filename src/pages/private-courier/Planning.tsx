@@ -19,8 +19,17 @@ export default function PCPlanning() {
   const [search, setSearch] = useState("");
   const [govFilter, setGovFilter] = useState<string>("all");
   const [routeFilter, setRouteFilter] = useState<string>("all");
+  const [monthFilter, setMonthFilter] = useState<string>("all"); // all | YYYY-MM
+  const [assignFilter, setAssignFilter] = useState<string>("all"); // all | assigned | unassigned
+  const [bulkRouteByGov, setBulkRouteByGov] = useState<Record<string, string>>({});
 
   const governorates = useMemo(() => Array.from(new Set(orders.map(o => o.customer_governorate).filter(Boolean))) as string[], [orders]);
+
+  const months = useMemo(() => {
+    const s = new Set<string>();
+    orders.forEach(o => { if (o.created_at) s.add(o.created_at.slice(0, 7)); });
+    return Array.from(s).sort().reverse();
+  }, [orders]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -28,6 +37,9 @@ export default function PCPlanning() {
       if (govFilter !== "all" && o.customer_governorate !== govFilter) return false;
       if (routeFilter === "none" && o.assigned_route_id) return false;
       if (routeFilter !== "all" && routeFilter !== "none" && o.assigned_route_id !== routeFilter) return false;
+      if (monthFilter !== "all" && (!o.created_at || !o.created_at.startsWith(monthFilter))) return false;
+      if (assignFilter === "assigned" && !o.assigned_route_id) return false;
+      if (assignFilter === "unassigned" && o.assigned_route_id) return false;
       if (!q) return true;
       return (
         o.order_number?.toLowerCase().includes(q) ||
@@ -35,7 +47,8 @@ export default function PCPlanning() {
         o.customer_phone?.toLowerCase().includes(q)
       );
     });
-  }, [orders, search, govFilter, routeFilter]);
+  }, [orders, search, govFilter, routeFilter, monthFilter, assignFilter]);
+
 
   const grouped = useMemo(() => {
     const map = new Map<string, typeof filtered>();
@@ -55,6 +68,22 @@ export default function PCPlanning() {
     toast.success("تم تعيين الطلب");
     refetch();
   };
+
+  const bulkAssign = async (gov: string, list: typeof orders, routeId: string) => {
+    if (!routeId) return;
+    const targets = list.filter(o => !o.assigned_route_id);
+    if (!targets.length) { toast.info("جميع الطلبات معينة بالفعل"); return; }
+    let ok = 0, fail = 0;
+    for (const o of targets) {
+      const { error } = await supabase.rpc("pc_assign_order_to_route" as any, {
+        p_route_id: routeId, p_order_id: o.id, p_sequence: 0, p_expected_at: null,
+      });
+      if (error) fail++; else ok++;
+    }
+    toast.success(`تم تعيين ${ok} طلب${fail ? ` — فشل ${fail}` : ""} (${gov})`);
+    refetch();
+  };
+
 
   const printManifest = (routeId: string) => {
     const route = routes.find(r => r.id === routeId);
@@ -99,16 +128,31 @@ export default function PCPlanning() {
         </div>
 
         <Card>
-          <CardContent className="p-3 grid grid-cols-1 md:grid-cols-4 gap-2">
-            <div className="relative md:col-span-2">
+          <CardContent className="p-3 grid grid-cols-2 md:grid-cols-6 gap-2">
+            <div className="relative col-span-2 md:col-span-2">
               <Search className="h-4 w-4 absolute right-3 top-3 text-muted-foreground" />
               <Input className="pr-9" placeholder="بحث برقم الطلب/العميل/الهاتف" value={search} onChange={e => setSearch(e.target.value)} />
             </div>
+            <Select value={monthFilter} onValueChange={setMonthFilter}>
+              <SelectTrigger><SelectValue placeholder="الشهر" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">كل الأشهر</SelectItem>
+                {months.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+              </SelectContent>
+            </Select>
             <Select value={govFilter} onValueChange={setGovFilter}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">كل المحافظات</SelectItem>
                 {governorates.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={assignFilter} onValueChange={setAssignFilter}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">الكل</SelectItem>
+                <SelectItem value="unassigned">بدون تعيين</SelectItem>
+                <SelectItem value="assigned">معيّن</SelectItem>
               </SelectContent>
             </Select>
             <Select value={routeFilter} onValueChange={setRouteFilter}>
@@ -135,6 +179,7 @@ export default function PCPlanning() {
           </Card>
         )}
 
+
         {loading ? <div className="text-center py-12 text-muted-foreground">جاري التحميل…</div> :
           grouped.length === 0 ? <Card><CardContent className="py-12 text-center text-muted-foreground">لا توجد طلبات مطابقة</CardContent></Card> :
             <Accordion type="multiple" defaultValue={grouped.map(([g]) => g).slice(0, 2)} className="space-y-2">
@@ -152,6 +197,17 @@ export default function PCPlanning() {
                       </div>
                     </AccordionTrigger>
                     <AccordionContent className="px-3 pb-3 space-y-2">
+                      <div className="flex items-center gap-2 flex-wrap bg-muted/40 p-2 rounded-md">
+                        <span className="text-xs text-muted-foreground">تعيين جماعي ({list.filter(o=>!o.assigned_route_id).length} بدون تعيين):</span>
+                        <Select value={bulkRouteByGov[gov] || ""} onValueChange={(v) => setBulkRouteByGov(p => ({ ...p, [gov]: v }))}>
+                          <SelectTrigger className="w-56 h-8 text-xs"><SelectValue placeholder="اختر خط للتعيين الجماعي" /></SelectTrigger>
+                          <SelectContent>
+                            {routes.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                        <Button size="sm" disabled={!bulkRouteByGov[gov]} onClick={() => bulkAssign(gov, list, bulkRouteByGov[gov])}>تعيين الكل</Button>
+                      </div>
+
                       {list.map(o => (
                         <div key={o.id} className="border rounded-md p-3 bg-card">
                           <div className="flex items-start justify-between gap-2 flex-wrap">
