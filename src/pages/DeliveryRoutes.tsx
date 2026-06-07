@@ -16,6 +16,9 @@ import {
 } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import {
+  Accordion, AccordionItem, AccordionTrigger, AccordionContent,
+} from "@/components/ui/accordion";
 import { toast } from "sonner";
 import {
   Plus, Trash2, Pencil, MapPin, Phone, Search, Truck, Package,
@@ -44,6 +47,7 @@ interface OrderRow {
   created_at: string;
   route_id: string | null;
   notes?: string | null;
+  governorate: string | null;
 }
 
 interface OrderItem {
@@ -86,7 +90,7 @@ export default function DeliveryRoutes() {
       supabase.from("delivery_routes").select("*").order("created_at", { ascending: true }),
       supabase
         .from("orders")
-        .select("id, order_number, delivery_address, total, status, created_at, route_id, notes, customers(name, phone)")
+        .select("id, order_number, delivery_address, total, status, created_at, route_id, notes, customers(name, phone, governorate)")
         .eq("shipping_company", "مندوب خاص")
         .order("created_at", { ascending: false })
         .limit(1000),
@@ -104,6 +108,7 @@ export default function DeliveryRoutes() {
         created_at: row.created_at,
         route_id: row.route_id,
         notes: row.notes,
+        governorate: row.customers?.governorate || null,
       }))
     );
     setLoading(false);
@@ -210,6 +215,15 @@ export default function DeliveryRoutes() {
     }
     return rows;
   }, [orders, activeRoute, search]);
+
+  const groupedByGov = useMemo(() => {
+    const groups: Record<string, OrderRow[]> = {};
+    filteredOrders.forEach((o) => {
+      const g = (o.governorate && o.governorate.trim()) || "غير محدد";
+      (groups[g] = groups[g] || []).push(o);
+    });
+    return Object.entries(groups).sort((a, b) => b[1].length - a[1].length);
+  }, [filteredOrders]);
 
   const activeRouteMeta = useMemo(() => {
     if (activeRoute === "all") return { name: "كل الطلبات", color: "hsl(var(--primary))", notes: "جميع طلبات المندوب الخاص" };
@@ -350,95 +364,123 @@ export default function DeliveryRoutes() {
                 </div>
               ) : (
                 <ScrollArea className="max-h-[calc(100vh-22rem)]">
-                  <ul className="divide-y">
-                    {filteredOrders.map((o) => {
-                      const routeMeta = routes.find((r) => r.id === o.route_id);
+                  <Accordion
+                    type="multiple"
+                    defaultValue={groupedByGov.map(([g]) => g)}
+                    className="px-2"
+                  >
+                    {groupedByGov.map(([gov, rows]) => {
+                      const govTotal = rows.reduce((s, x) => s + x.total, 0);
                       return (
-                        <li
-                          key={o.id}
-                          className="p-4 hover:bg-muted/40 transition-colors cursor-pointer"
-                          onClick={() => openDetails(o)}
-                        >
-                          <div className="flex items-start gap-3">
-                            <span
-                              className="mt-1.5 h-2.5 w-2.5 rounded-full shrink-0"
-                              style={{ background: routeMeta?.color || "hsl(var(--muted-foreground))" }}
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-mono font-bold text-sm">{o.order_number}</span>
-                                <Badge variant={STATUS_VARIANT[o.status] || "outline"} className="text-[10px]">
-                                  {o.status}
-                                </Badge>
-                                <span className="text-[11px] text-muted-foreground">
-                                  {format(new Date(o.created_at), "yyyy-MM-dd HH:mm")}
-                                </span>
-                              </div>
-                              <div className="mt-1 font-semibold text-sm flex items-center gap-1.5">
-                                <User className="h-3.5 w-3.5 text-muted-foreground" />
-                                {o.customer_name}
-                              </div>
-                              <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-xs text-muted-foreground">
-                                {o.customer_phone && (
-                                  <a
-                                    href={`tel:${o.customer_phone}`}
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="flex items-center gap-1 hover:text-primary"
-                                    dir="ltr"
-                                  >
-                                    <Phone className="h-3 w-3" /> {o.customer_phone}
-                                  </a>
-                                )}
-                                {o.delivery_address && (
-                                  <span className="flex items-start gap-1 max-w-xs">
-                                    <MapPin className="h-3 w-3 mt-0.5 shrink-0" />
-                                    <span className="line-clamp-1">{o.delivery_address}</span>
-                                  </span>
-                                )}
-                              </div>
+                        <AccordionItem key={gov} value={gov} className="border-b last:border-b-0">
+                          <AccordionTrigger className="px-2 py-2.5 hover:no-underline">
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              <MapPin className="h-4 w-4 text-primary shrink-0" />
+                              <span className="font-semibold text-sm truncate">{gov}</span>
+                              <Badge variant="secondary" className="text-[10px] h-5">
+                                {rows.length} طلب
+                              </Badge>
+                              <span className="text-xs text-muted-foreground mr-auto">
+                                {govTotal.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م
+                              </span>
                             </div>
-                            <div className="flex flex-col items-end gap-2 shrink-0">
-                              <div className="font-bold text-primary text-sm">
-                                {o.total.toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م
-                              </div>
-                              {canManageRoutes ? (
-                                <Select
-                                  value={o.route_id ?? "none"}
-                                  onValueChange={(v) => assignRoute(o.id, v === "none" ? null : v)}
-                                >
-                                  <SelectTrigger
-                                    className="h-8 w-40 text-xs"
-                                    onClick={(e) => e.stopPropagation()}
+                          </AccordionTrigger>
+                          <AccordionContent className="pb-0">
+                            <ul className="divide-y border-t">
+                              {rows.map((o) => {
+                                const routeMeta = routes.find((r) => r.id === o.route_id);
+                                return (
+                                  <li
+                                    key={o.id}
+                                    className="p-4 hover:bg-muted/40 transition-colors cursor-pointer"
+                                    onClick={() => openDetails(o)}
                                   >
-                                    <SelectValue placeholder="اختر خط" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="none">بدون خط</SelectItem>
-                                    {routes.map((r) => (
-                                      <SelectItem key={r.id} value={r.id}>
-                                        <span className="inline-flex items-center gap-2">
-                                          <span className="h-2 w-2 rounded-full" style={{ background: r.color }} />
-                                          {r.name}
-                                        </span>
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              ) : routeMeta ? (
-                                <Badge variant="outline" className="text-[10px]">{routeMeta.name}</Badge>
-                              ) : null}
-                              <ChevronLeft className="h-4 w-4 text-muted-foreground" />
-                            </div>
-                          </div>
-                        </li>
+                                    <div className="flex items-start gap-3">
+                                      <span
+                                        className="mt-1.5 h-2.5 w-2.5 rounded-full shrink-0"
+                                        style={{ background: routeMeta?.color || "hsl(var(--muted-foreground))" }}
+                                      />
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <span className="font-mono font-bold text-sm">{o.order_number}</span>
+                                          <Badge variant={STATUS_VARIANT[o.status] || "outline"} className="text-[10px]">
+                                            {o.status}
+                                          </Badge>
+                                          <span className="text-[11px] text-muted-foreground">
+                                            {format(new Date(o.created_at), "yyyy-MM-dd HH:mm")}
+                                          </span>
+                                        </div>
+                                        <div className="mt-1 font-semibold text-sm flex items-center gap-1.5">
+                                          <User className="h-3.5 w-3.5 text-muted-foreground" />
+                                          {o.customer_name}
+                                        </div>
+                                        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-xs text-muted-foreground">
+                                          {o.customer_phone && (
+                                            <a
+                                              href={`tel:${o.customer_phone}`}
+                                              onClick={(e) => e.stopPropagation()}
+                                              className="flex items-center gap-1 hover:text-primary"
+                                              dir="ltr"
+                                            >
+                                              <Phone className="h-3 w-3" /> {o.customer_phone}
+                                            </a>
+                                          )}
+                                          {o.delivery_address && (
+                                            <span className="flex items-start gap-1 max-w-xs">
+                                              <MapPin className="h-3 w-3 mt-0.5 shrink-0" />
+                                              <span className="line-clamp-1">{o.delivery_address}</span>
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <div className="flex flex-col items-end gap-2 shrink-0">
+                                        <div className="font-bold text-primary text-sm">
+                                          {o.total.toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م
+                                        </div>
+                                        {canManageRoutes ? (
+                                          <Select
+                                            value={o.route_id ?? "none"}
+                                            onValueChange={(v) => assignRoute(o.id, v === "none" ? null : v)}
+                                          >
+                                            <SelectTrigger
+                                              className="h-8 w-40 text-xs"
+                                              onClick={(e) => e.stopPropagation()}
+                                            >
+                                              <SelectValue placeholder="اختر خط" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              <SelectItem value="none">بدون خط</SelectItem>
+                                              {routes.map((r) => (
+                                                <SelectItem key={r.id} value={r.id}>
+                                                  <span className="inline-flex items-center gap-2">
+                                                    <span className="h-2 w-2 rounded-full" style={{ background: r.color }} />
+                                                    {r.name}
+                                                  </span>
+                                                </SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                        ) : routeMeta ? (
+                                          <Badge variant="outline" className="text-[10px]">{routeMeta.name}</Badge>
+                                        ) : null}
+                                        <ChevronLeft className="h-4 w-4 text-muted-foreground" />
+                                      </div>
+                                    </div>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </AccordionContent>
+                        </AccordionItem>
                       );
                     })}
-                  </ul>
+                  </Accordion>
                 </ScrollArea>
               )}
             </CardContent>
           </Card>
         </div>
+
 
         {/* Create / edit route dialog */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
