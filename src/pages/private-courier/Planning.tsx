@@ -197,6 +197,17 @@ export default function PCPlanning() {
                       </div>
                     </AccordionTrigger>
                     <AccordionContent className="px-3 pb-3 space-y-2">
+                      <div className="flex items-center gap-2 flex-wrap bg-muted/40 p-2 rounded-md">
+                        <span className="text-xs text-muted-foreground">تعيين جماعي ({list.filter(o=>!o.assigned_route_id).length} بدون تعيين):</span>
+                        <Select value={bulkRouteByGov[gov] || ""} onValueChange={(v) => setBulkRouteByGov(p => ({ ...p, [gov]: v }))}>
+                          <SelectTrigger className="w-56 h-8 text-xs"><SelectValue placeholder="اختر خط للتعيين الجماعي" /></SelectTrigger>
+                          <SelectContent>
+                            {routes.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                        <Button size="sm" disabled={!bulkRouteByGov[gov]} onClick={() => bulkAssign(gov, list, bulkRouteByGov[gov])}>تعيين الكل</Button>
+                      </div>
+
                       {list.map(o => (
                         <div key={o.id} className="border rounded-md p-3 bg-card">
                           <div className="flex items-start justify-between gap-2 flex-wrap">
