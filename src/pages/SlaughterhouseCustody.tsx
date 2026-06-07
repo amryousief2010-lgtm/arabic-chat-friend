@@ -118,7 +118,7 @@ export default function SlaughterhouseCustody() {
 
   async function fetchAll() {
     setLoading(true);
-    const [exp, open, lim, bal, usage, aud, cmt] = await Promise.all([
+    const [exp, open, lim, bal, usage, aud, cmt, cats] = await Promise.all([
       (supabase as any).from("slaughter_custody_expenses").select("*").order("expense_date", { ascending: false }).limit(1000),
       (supabase as any).from("slaughter_custody_opening_balances").select("*").order("as_of_date", { ascending: false }),
       (supabase as any).from("slaughter_custody_weekly_limits").select("*").order("week_start_date", { ascending: false }),
@@ -126,6 +126,7 @@ export default function SlaughterhouseCustody() {
       (supabase as any).from("v_slaughter_custody_week_usage").select("*").maybeSingle(),
       isManager ? (supabase as any).from("slaughter_custody_audit_log").select("*").order("created_at", { ascending: false }).limit(300) : Promise.resolve({ data: [] }),
       (supabase as any).from("slaughter_custody_comments").select("*").order("created_at", { ascending: false }).limit(500),
+      (supabase as any).from("slaughter_custody_expense_categories").select("code,label").eq("is_active", true).order("created_at", { ascending: true }),
     ]);
     if (exp.error) toast.error("فشل تحميل المصروفات: " + exp.error.message);
     setExpenses((exp.data || []) as Expense[]);
@@ -133,6 +134,7 @@ export default function SlaughterhouseCustody() {
     setLimits((lim.data || []) as Limit[]);
     setBalance(bal.data || null);
     setWeekUsage(usage.data || null);
+    setCustomCats((cats?.data || []) as { code: string; label: string }[]);
     setAudit((aud.data || []) as AuditRow[]);
     setComments((cmt.data || []) as Comment[]);
     setLoading(false);
