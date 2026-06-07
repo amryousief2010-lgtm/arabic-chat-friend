@@ -205,6 +205,7 @@ export default function DeliveryRoutes() {
   };
 
   return (
+    <DashboardLayout>
     <div className="container mx-auto p-4 space-y-4" dir="rtl">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
