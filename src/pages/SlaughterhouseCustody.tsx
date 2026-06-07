@@ -706,6 +706,22 @@ export default function SlaughterhouseCustody() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* New custom category dialog */}
+        <Dialog open={newCatDlg.open} onOpenChange={(o) => setNewCatDlg({ ...newCatDlg, open: o })}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>إضافة بند مصروف جديد</DialogTitle></DialogHeader>
+            <div>
+              <Label>اسم البند *</Label>
+              <Input value={newCatDlg.label} onChange={(e) => setNewCatDlg({ ...newCatDlg, label: e.target.value })} placeholder="مثال: مياه شرب — أكياس — أدوات سلامة" />
+              <p className="text-[11px] text-muted-foreground mt-2">سيظهر البند فورًا ضمن قائمة بنود المصاريف لكل المستخدمين.</p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setNewCatDlg({ open: false, label: "" })}>إلغاء</Button>
+              <Button onClick={createCategory}>إضافة</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );
