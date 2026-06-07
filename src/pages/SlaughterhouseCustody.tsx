@@ -183,6 +183,9 @@ export default function SlaughterhouseCustody() {
     setNewCatDlg({ open: false, label: "" });
     setCustomCats((prev) => [...prev, { code, label }]);
     setForm((f) => ({ ...f, category: code }));
+  }
+
+
 
   async function applyReview() {
     const { exp, action, reason } = reviewDlg;
