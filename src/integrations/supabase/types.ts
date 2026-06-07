@@ -9769,6 +9769,287 @@ export type Database = {
         }
         Relationships: []
       }
+      pc_collections: {
+        Row: {
+          amount_collected: number
+          amount_due: number
+          collected_at: string | null
+          collected_by: string | null
+          created_at: string
+          difference: number | null
+          id: string
+          notes: string | null
+          order_id: string
+          status: Database["public"]["Enums"]["pc_collection_status"]
+          updated_at: string
+        }
+        Insert: {
+          amount_collected?: number
+          amount_due?: number
+          collected_at?: string | null
+          collected_by?: string | null
+          created_at?: string
+          difference?: number | null
+          id?: string
+          notes?: string | null
+          order_id: string
+          status?: Database["public"]["Enums"]["pc_collection_status"]
+          updated_at?: string
+        }
+        Update: {
+          amount_collected?: number
+          amount_due?: number
+          collected_at?: string | null
+          collected_by?: string | null
+          created_at?: string
+          difference?: number | null
+          id?: string
+          notes?: string | null
+          order_id?: string
+          status?: Database["public"]["Enums"]["pc_collection_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pc_collections_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pc_failed_attempts: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          next_action: Database["public"]["Enums"]["pc_next_action"]
+          notes: string
+          order_id: string
+          reason: Database["public"]["Enums"]["pc_failed_reason"]
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          next_action: Database["public"]["Enums"]["pc_next_action"]
+          notes: string
+          order_id: string
+          reason: Database["public"]["Enums"]["pc_failed_reason"]
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          next_action?: Database["public"]["Enums"]["pc_next_action"]
+          notes?: string
+          order_id?: string
+          reason?: Database["public"]["Enums"]["pc_failed_reason"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pc_failed_attempts_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pc_handovers: {
+        Row: {
+          checklist_confirmed: boolean
+          courier_received_at: string | null
+          courier_received_by: string | null
+          created_at: string
+          handed_over_at: string | null
+          handed_over_by: string | null
+          id: string
+          notes: string | null
+          order_id: string
+          prepared_at: string | null
+          prepared_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          checklist_confirmed?: boolean
+          courier_received_at?: string | null
+          courier_received_by?: string | null
+          created_at?: string
+          handed_over_at?: string | null
+          handed_over_by?: string | null
+          id?: string
+          notes?: string | null
+          order_id: string
+          prepared_at?: string | null
+          prepared_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          checklist_confirmed?: boolean
+          courier_received_at?: string | null
+          courier_received_by?: string | null
+          created_at?: string
+          handed_over_at?: string | null
+          handed_over_by?: string | null
+          id?: string
+          notes?: string | null
+          order_id?: string
+          prepared_at?: string | null
+          prepared_by?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pc_handovers_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pc_order_tracking: {
+        Row: {
+          courier_id: string | null
+          courier_status: Database["public"]["Enums"]["pc_courier_status"]
+          created_at: string
+          delivered_at: string | null
+          id: string
+          last_updated_by: string | null
+          order_id: string
+          updated_at: string
+        }
+        Insert: {
+          courier_id?: string | null
+          courier_status?: Database["public"]["Enums"]["pc_courier_status"]
+          created_at?: string
+          delivered_at?: string | null
+          id?: string
+          last_updated_by?: string | null
+          order_id: string
+          updated_at?: string
+        }
+        Update: {
+          courier_id?: string | null
+          courier_status?: Database["public"]["Enums"]["pc_courier_status"]
+          created_at?: string
+          delivered_at?: string | null
+          id?: string
+          last_updated_by?: string | null
+          order_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pc_order_tracking_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pc_route_orders: {
+        Row: {
+          added_at: string
+          added_by: string | null
+          expected_delivery_at: string | null
+          id: string
+          order_id: string
+          route_id: string
+          sequence: number
+        }
+        Insert: {
+          added_at?: string
+          added_by?: string | null
+          expected_delivery_at?: string | null
+          id?: string
+          order_id: string
+          route_id: string
+          sequence?: number
+        }
+        Update: {
+          added_at?: string
+          added_by?: string | null
+          expected_delivery_at?: string | null
+          id?: string
+          order_id?: string
+          route_id?: string
+          sequence?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pc_route_orders_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pc_route_orders_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "pc_routes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pc_routes: {
+        Row: {
+          assigned_courier_id: string | null
+          cities: string[]
+          color: string | null
+          created_at: string
+          created_by: string | null
+          expected_end_time: string | null
+          governorates: string[]
+          id: string
+          name: string
+          notes: string | null
+          planned_date: string | null
+          region: string | null
+          start_time: string | null
+          status: Database["public"]["Enums"]["pc_route_status"]
+          updated_at: string
+        }
+        Insert: {
+          assigned_courier_id?: string | null
+          cities?: string[]
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          expected_end_time?: string | null
+          governorates?: string[]
+          id?: string
+          name: string
+          notes?: string | null
+          planned_date?: string | null
+          region?: string | null
+          start_time?: string | null
+          status?: Database["public"]["Enums"]["pc_route_status"]
+          updated_at?: string
+        }
+        Update: {
+          assigned_courier_id?: string | null
+          cities?: string[]
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          expected_end_time?: string | null
+          governorates?: string[]
+          id?: string
+          name?: string
+          notes?: string | null
+          planned_date?: string | null
+          region?: string | null
+          start_time?: string | null
+          status?: Database["public"]["Enums"]["pc_route_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       phase6_test_log: {
         Row: {
           batch_id: string | null
@@ -13228,6 +13509,58 @@ export type Database = {
         Args: { _moderator_text: string; _user_id: string }
         Returns: boolean
       }
+      pc_assign_order_to_route: {
+        Args: {
+          p_expected_at?: string
+          p_order_id: string
+          p_route_id: string
+          p_sequence?: number
+        }
+        Returns: undefined
+      }
+      pc_get_my_assigned_orders: {
+        Args: never
+        Returns: {
+          amount_collected: number
+          collection_status: Database["public"]["Enums"]["pc_collection_status"]
+          created_at: string
+          customer_governorate: string
+          customer_name: string
+          customer_phone: string
+          delivery_address: string
+          id: string
+          notes: string
+          order_number: string
+          payment_method: string
+          payment_status: string
+          route_id: string
+          route_name: string
+          status: string
+          total: number
+          tracking_status: Database["public"]["Enums"]["pc_courier_status"]
+        }[]
+      }
+      pc_list_eligible_orders: {
+        Args: never
+        Returns: {
+          assigned_route_id: string
+          created_at: string
+          customer_governorate: string
+          customer_id: string
+          customer_name: string
+          customer_phone: string
+          delivery_address: string
+          id: string
+          notes: string
+          order_number: string
+          payment_method: string
+          payment_status: string
+          status: string
+          total: number
+          tracking_courier_id: string
+          tracking_status: Database["public"]["Enums"]["pc_courier_status"]
+        }[]
+      }
       post_mf_manufacturing: { Args: { p_id: string }; Returns: undefined }
       post_mf_pack_purchase: { Args: { p_id: string }; Returns: undefined }
       post_mf_raw_purchase: { Args: { p_id: string }; Returns: undefined }
@@ -13561,6 +13894,42 @@ export type Database = {
         | "instapay"
         | "bank_transfer"
       lab_treasury_status: "pending" | "approved" | "rejected"
+      pc_collection_status:
+        | "cash_collected"
+        | "partial_collected"
+        | "not_collected"
+        | "mismatch"
+        | "paid_online"
+        | "returned_no_collection"
+      pc_courier_status:
+        | "assigned_to_courier"
+        | "ready_for_pickup_from_main_warehouse"
+        | "picked_up_by_courier"
+        | "out_for_delivery"
+        | "delivered"
+        | "failed_delivery"
+        | "returned_to_warehouse"
+        | "cancelled"
+      pc_failed_reason:
+        | "customer_unavailable"
+        | "address_unclear"
+        | "customer_refused"
+        | "customer_postponed"
+        | "product_unsuitable"
+        | "wrong_phone"
+        | "out_of_delivery_area"
+        | "other"
+      pc_next_action:
+        | "reschedule"
+        | "return_to_warehouse"
+        | "cancel_order"
+        | "manager_review"
+      pc_route_status:
+        | "draft"
+        | "planned"
+        | "in_progress"
+        | "completed"
+        | "cancelled"
       slaughter_custody_category:
         | "maintenance"
         | "utilities"
@@ -13831,6 +14200,47 @@ export const Constants = {
         "bank_transfer",
       ],
       lab_treasury_status: ["pending", "approved", "rejected"],
+      pc_collection_status: [
+        "cash_collected",
+        "partial_collected",
+        "not_collected",
+        "mismatch",
+        "paid_online",
+        "returned_no_collection",
+      ],
+      pc_courier_status: [
+        "assigned_to_courier",
+        "ready_for_pickup_from_main_warehouse",
+        "picked_up_by_courier",
+        "out_for_delivery",
+        "delivered",
+        "failed_delivery",
+        "returned_to_warehouse",
+        "cancelled",
+      ],
+      pc_failed_reason: [
+        "customer_unavailable",
+        "address_unclear",
+        "customer_refused",
+        "customer_postponed",
+        "product_unsuitable",
+        "wrong_phone",
+        "out_of_delivery_area",
+        "other",
+      ],
+      pc_next_action: [
+        "reschedule",
+        "return_to_warehouse",
+        "cancel_order",
+        "manager_review",
+      ],
+      pc_route_status: [
+        "draft",
+        "planned",
+        "in_progress",
+        "completed",
+        "cancelled",
+      ],
       slaughter_custody_category: [
         "maintenance",
         "utilities",
