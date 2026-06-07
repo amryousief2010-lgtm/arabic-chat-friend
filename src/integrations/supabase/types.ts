@@ -10986,6 +10986,33 @@ export type Database = {
           },
         ]
       }
+      slaughter_custody_expense_categories: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          label: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          label: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          label?: string
+        }
+        Relationships: []
+      }
       slaughter_custody_expenses: {
         Row: {
           amount: number

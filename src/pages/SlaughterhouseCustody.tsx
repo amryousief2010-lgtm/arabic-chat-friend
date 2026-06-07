@@ -26,10 +26,7 @@ import { PremiumStat, HeroSummary, SectionTitle, StatusPill, DashboardSkeleton, 
 
 type PM = "cash" | "vodafone_cash" | "instapay" | "bank_transfer";
 type Status = "pending_review" | "clarification_needed" | "approved" | "rejected" | "over_limit_pending";
-type Category =
-  | "maintenance" | "utilities" | "supplies" | "cleaning" | "transport" | "daily_labor"
-  | "hospitality" | "urgent_purchase" | "government" | "veterinary" | "equipment_repair"
-  | "fridge_repair" | "sanitation" | "loading" | "fuel" | "other";
+type Category = string;
 
 const PM_LBL: Record<PM, string> = { cash: "نقدي", vodafone_cash: "فودافون كاش", instapay: "إنستا باي", bank_transfer: "تحويل بنكي" };
 const ST_LBL: Record<Status, string> = {
@@ -39,7 +36,7 @@ const ST_LBL: Record<Status, string> = {
   rejected: "مرفوض",
   over_limit_pending: "تجاوز حد — بانتظار الموافقة",
 };
-const CAT_LBL: Record<Category, string> = {
+const BUILT_IN_CATS: Record<string, string> = {
   maintenance: "صيانة", utilities: "كهرباء / مياه / مرافق", supplies: "أدوات ومستلزمات تشغيل",
   cleaning: "نظافة ومطهرات", transport: "نقل ومشاوير", daily_labor: "عمالة يومية",
   hospitality: "ضيافة", urgent_purchase: "مشتريات طارئة", government: "مصروفات حكومية / تصاريح",
@@ -91,6 +88,13 @@ export default function SlaughterhouseCustody() {
   const [weekUsage, setWeekUsage] = useState<{ week_start_date: string; week_end_date: string; limit_amount: number; approved_total: number; pending_total: number } | null>(null);
   const [audit, setAudit] = useState<AuditRow[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
+  const [customCats, setCustomCats] = useState<{ code: string; label: string }[]>([]);
+  const [newCatDlg, setNewCatDlg] = useState<{ open: boolean; label: string }>({ open: false, label: "" });
+  const CAT_LBL = useMemo<Record<string, string>>(() => {
+    const m: Record<string, string> = { ...BUILT_IN_CATS };
+    customCats.forEach((c) => { m[c.code] = c.label; });
+    return m;
+  }, [customCats]);
   const [loading, setLoading] = useState(true);
 
   // Add Expense form
@@ -114,7 +118,7 @@ export default function SlaughterhouseCustody() {
 
   async function fetchAll() {
     setLoading(true);
-    const [exp, open, lim, bal, usage, aud, cmt] = await Promise.all([
+    const [exp, open, lim, bal, usage, aud, cmt, cats] = await Promise.all([
       (supabase as any).from("slaughter_custody_expenses").select("*").order("expense_date", { ascending: false }).limit(1000),
       (supabase as any).from("slaughter_custody_opening_balances").select("*").order("as_of_date", { ascending: false }),
       (supabase as any).from("slaughter_custody_weekly_limits").select("*").order("week_start_date", { ascending: false }),
@@ -122,6 +126,7 @@ export default function SlaughterhouseCustody() {
       (supabase as any).from("v_slaughter_custody_week_usage").select("*").maybeSingle(),
       isManager ? (supabase as any).from("slaughter_custody_audit_log").select("*").order("created_at", { ascending: false }).limit(300) : Promise.resolve({ data: [] }),
       (supabase as any).from("slaughter_custody_comments").select("*").order("created_at", { ascending: false }).limit(500),
+      (supabase as any).from("slaughter_custody_expense_categories").select("code,label").eq("is_active", true).order("created_at", { ascending: true }),
     ]);
     if (exp.error) toast.error("فشل تحميل المصروفات: " + exp.error.message);
     setExpenses((exp.data || []) as Expense[]);
@@ -129,6 +134,7 @@ export default function SlaughterhouseCustody() {
     setLimits((lim.data || []) as Limit[]);
     setBalance(bal.data || null);
     setWeekUsage(usage.data || null);
+    setCustomCats((cats?.data || []) as { code: string; label: string }[]);
     setAudit((aud.data || []) as AuditRow[]);
     setComments((cmt.data || []) as Comment[]);
     setLoading(false);
@@ -163,6 +169,23 @@ export default function SlaughterhouseCustody() {
     setReceiptFile(null);
     fetchAll();
   }
+
+  async function createCategory() {
+    const label = newCatDlg.label.trim();
+    if (label.length < 2) return toast.error("اسم البند مطلوب");
+    // generate a stable code: timestamp-based, ascii-safe
+    const code = "custom_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 6);
+    const { error } = await (supabase as any).from("slaughter_custody_expense_categories").insert({
+      code, label, created_by: user!.id,
+    });
+    if (error) return toast.error("فشل إضافة البند: " + error.message);
+    toast.success("تم إضافة البند");
+    setNewCatDlg({ open: false, label: "" });
+    setCustomCats((prev) => [...prev, { code, label }]);
+    setForm((f) => ({ ...f, category: code }));
+  }
+
+
 
   async function applyReview() {
     const { exp, action, reason } = reviewDlg;
@@ -475,10 +498,17 @@ export default function SlaughterhouseCustody() {
               <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 <div><Label>التاريخ</Label><Input type="date" value={form.expense_date} onChange={(e) => setForm({ ...form, expense_date: e.target.value })} /></div>
                 <div><Label>بند المصروف</Label>
-                  <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v as Category })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>{(Object.keys(CAT_LBL) as Category[]).map((k) => <SelectItem key={k} value={k}>{CAT_LBL[k]}</SelectItem>)}</SelectContent>
-                  </Select>
+                  <div className="flex gap-2">
+                    <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v as Category })}>
+                      <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
+                      <SelectContent>{(Object.keys(CAT_LBL) as Category[]).map((k) => <SelectItem key={k} value={k}>{CAT_LBL[k]}</SelectItem>)}</SelectContent>
+                    </Select>
+                    {(isKeeper || isManager) && (
+                      <Button type="button" variant="outline" size="icon" title="إضافة بند جديد" onClick={() => setNewCatDlg({ open: true, label: "" })}>
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <div><Label>المبلغ *</Label><Input type="number" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} /></div>
                 <div><Label>طريقة الدفع</Label>
@@ -673,6 +703,22 @@ export default function SlaughterhouseCustody() {
             <DialogFooter>
               <Button variant="outline" onClick={() => setCommentDlg({ ...commentDlg, open: false })}>إلغاء</Button>
               <Button onClick={submitComment}>إرسال</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* New custom category dialog */}
+        <Dialog open={newCatDlg.open} onOpenChange={(o) => setNewCatDlg({ ...newCatDlg, open: o })}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>إضافة بند مصروف جديد</DialogTitle></DialogHeader>
+            <div>
+              <Label>اسم البند *</Label>
+              <Input value={newCatDlg.label} onChange={(e) => setNewCatDlg({ ...newCatDlg, label: e.target.value })} placeholder="مثال: مياه شرب — أكياس — أدوات سلامة" />
+              <p className="text-[11px] text-muted-foreground mt-2">سيظهر البند فورًا ضمن قائمة بنود المصاريف لكل المستخدمين.</p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setNewCatDlg({ open: false, label: "" })}>إلغاء</Button>
+              <Button onClick={createCategory}>إضافة</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
