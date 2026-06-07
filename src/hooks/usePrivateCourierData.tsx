@@ -98,7 +98,9 @@ export function usePCRoutes() {
     const { data: rows } = await (supabase as any)
       .from("pc_routes")
       .select("*")
+      .neq("status", "archived")
       .order("created_at", { ascending: false });
+
     setData((rows as any) ?? []);
     setLoading(false);
   }, []);
