@@ -12,29 +12,46 @@ import { supabase } from "@/integrations/supabase/client";
 import { useEligibleOrders, usePCRoutes } from "@/hooks/usePrivateCourierData";
 import { CourierStatusBadge } from "@/components/private-courier/StatusBadge";
 import { openPrintWindow, escapeHtml, fmtNum } from "@/lib/printPdf";
+import { normalizeGovernorate, normalizeRegion, PC_REGIONS } from "@/lib/privateCourier/normalize";
 
 export default function PCPlanning() {
   const { data: orders, loading, refetch } = useEligibleOrders();
   const { data: routes } = usePCRoutes();
   const [search, setSearch] = useState("");
   const [govFilter, setGovFilter] = useState<string>("all");
+  const [regionFilter, setRegionFilter] = useState<string>("all");
   const [routeFilter, setRouteFilter] = useState<string>("all");
   const [monthFilter, setMonthFilter] = useState<string>("all"); // all | YYYY-MM
   const [assignFilter, setAssignFilter] = useState<string>("all"); // all | assigned | unassigned
   const [bulkRouteByGov, setBulkRouteByGov] = useState<Record<string, string>>({});
 
-  const governorates = useMemo(() => Array.from(new Set(orders.map(o => o.customer_governorate).filter(Boolean))) as string[], [orders]);
+  // Decorate each order with normalized fields (display-only — never written back).
+  const decorated = useMemo(() => orders.map(o => ({
+    ...o,
+    _gov: normalizeGovernorate(o.customer_governorate),
+    _region: normalizeRegion(o.planning_region),
+  })), [orders]);
+
+  const governorates = useMemo(
+    () => Array.from(new Set(decorated.map(o => o._gov))).sort(),
+    [decorated]
+  );
+  const regionsInData = useMemo(
+    () => Array.from(new Set(decorated.map(o => o._region))).sort(),
+    [decorated]
+  );
 
   const months = useMemo(() => {
     const s = new Set<string>();
-    orders.forEach(o => { if (o.created_at) s.add(o.created_at.slice(0, 7)); });
+    decorated.forEach(o => { if (o.created_at) s.add(o.created_at.slice(0, 7)); });
     return Array.from(s).sort().reverse();
-  }, [orders]);
+  }, [decorated]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return orders.filter(o => {
-      if (govFilter !== "all" && o.customer_governorate !== govFilter) return false;
+    return decorated.filter(o => {
+      if (govFilter !== "all" && o._gov !== govFilter) return false;
+      if (regionFilter !== "all" && o._region !== regionFilter) return false;
       if (routeFilter === "none" && o.assigned_route_id) return false;
       if (routeFilter !== "all" && routeFilter !== "none" && o.assigned_route_id !== routeFilter) return false;
       if (monthFilter !== "all" && (!o.created_at || !o.created_at.startsWith(monthFilter))) return false;
@@ -47,13 +64,13 @@ export default function PCPlanning() {
         o.customer_phone?.toLowerCase().includes(q)
       );
     });
-  }, [orders, search, govFilter, routeFilter, monthFilter, assignFilter]);
+  }, [decorated, search, govFilter, regionFilter, routeFilter, monthFilter, assignFilter]);
 
 
   const grouped = useMemo(() => {
     const map = new Map<string, typeof filtered>();
     for (const o of filtered) {
-      const g = o.customer_governorate || "غير محدد";
+      const g = o._gov;
       if (!map.has(g)) map.set(g, []);
       map.get(g)!.push(o);
     }
@@ -96,7 +113,7 @@ export default function PCPlanning() {
         <td>${escapeHtml(o.order_number)}</td>
         <td>${escapeHtml(o.customer_name)}</td>
         <td>${escapeHtml(o.customer_phone)}</td>
-        <td>${escapeHtml(o.customer_governorate)}</td>
+        <td>${escapeHtml(normalizeGovernorate(o.customer_governorate))}</td>
         <td>${escapeHtml(o.delivery_address)}</td>
         <td class="num">${fmtNum(o.total, 2)}</td>
         <td>${escapeHtml(o.payment_method)}</td>
@@ -128,7 +145,7 @@ export default function PCPlanning() {
         </div>
 
         <Card>
-          <CardContent className="p-3 grid grid-cols-2 md:grid-cols-6 gap-2">
+          <CardContent className="p-3 grid grid-cols-2 md:grid-cols-7 gap-2">
             <div className="relative col-span-2 md:col-span-2">
               <Search className="h-4 w-4 absolute right-3 top-3 text-muted-foreground" />
               <Input className="pr-9" placeholder="بحث برقم الطلب/العميل/الهاتف" value={search} onChange={e => setSearch(e.target.value)} />
@@ -138,6 +155,15 @@ export default function PCPlanning() {
               <SelectContent>
                 <SelectItem value="all">كل الأشهر</SelectItem>
                 {months.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={regionFilter} onValueChange={setRegionFilter}>
+              <SelectTrigger><SelectValue placeholder="المنطقة" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">كل المناطق</SelectItem>
+                {PC_REGIONS.filter(r => regionsInData.includes(r)).map(r => (
+                  <SelectItem key={r} value={r}>{r}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Select value={govFilter} onValueChange={setGovFilter}>
@@ -216,6 +242,8 @@ export default function PCPlanning() {
                                 <span className="font-mono text-xs">{o.order_number}</span>
                                 <CourierStatusBadge status={o.tracking_status} />
                                 <Badge variant="outline" className="text-xs">{o.payment_method}</Badge>
+                                <Badge variant="outline" className="text-xs">{o._gov}</Badge>
+                                <Badge variant="secondary" className="text-xs">{o._region}</Badge>
                               </div>
                               <p className="text-sm font-medium">{o.customer_name}</p>
                               <p className="text-xs text-muted-foreground">📞 {o.customer_phone} • {o.delivery_address}</p>

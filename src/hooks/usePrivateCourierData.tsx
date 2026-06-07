@@ -19,6 +19,7 @@ export interface EligibleOrder {
   assigned_route_id: string | null;
   tracking_status: CourierStatus | null;
   tracking_courier_id: string | null;
+  planning_region: string | null;
 }
 
 export interface MyAssignedOrder {

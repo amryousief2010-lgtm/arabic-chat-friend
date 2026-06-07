@@ -13573,6 +13573,7 @@ export type Database = {
           order_number: string
           payment_method: string
           payment_status: string
+          planning_region: string
           status: string
           total: number
           tracking_courier_id: string
