@@ -128,16 +128,31 @@ export default function PCPlanning() {
         </div>
 
         <Card>
-          <CardContent className="p-3 grid grid-cols-1 md:grid-cols-4 gap-2">
-            <div className="relative md:col-span-2">
+          <CardContent className="p-3 grid grid-cols-2 md:grid-cols-6 gap-2">
+            <div className="relative col-span-2 md:col-span-2">
               <Search className="h-4 w-4 absolute right-3 top-3 text-muted-foreground" />
               <Input className="pr-9" placeholder="بحث برقم الطلب/العميل/الهاتف" value={search} onChange={e => setSearch(e.target.value)} />
             </div>
+            <Select value={monthFilter} onValueChange={setMonthFilter}>
+              <SelectTrigger><SelectValue placeholder="الشهر" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">كل الأشهر</SelectItem>
+                {months.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+              </SelectContent>
+            </Select>
             <Select value={govFilter} onValueChange={setGovFilter}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">كل المحافظات</SelectItem>
                 {governorates.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={assignFilter} onValueChange={setAssignFilter}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">الكل</SelectItem>
+                <SelectItem value="unassigned">بدون تعيين</SelectItem>
+                <SelectItem value="assigned">معيّن</SelectItem>
               </SelectContent>
             </Select>
             <Select value={routeFilter} onValueChange={setRouteFilter}>
@@ -163,6 +178,7 @@ export default function PCPlanning() {
             </CardContent>
           </Card>
         )}
+
 
         {loading ? <div className="text-center py-12 text-muted-foreground">جاري التحميل…</div> :
           grouped.length === 0 ? <Card><CardContent className="py-12 text-center text-muted-foreground">لا توجد طلبات مطابقة</CardContent></Card> :
