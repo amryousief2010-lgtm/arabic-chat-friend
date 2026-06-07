@@ -442,7 +442,7 @@ export default function LabTreasury() {
       customer_name: "", units_count: "", unit_price: "", amount: "",
       description: "", notes: "",
       batch_number: "", lais_count: "", candle2_count: "", chicks_count: "",
-      brooding_chicks: "", brooding_days: "", collected_amount: "",
+      brooding_chicks: "", brooding_days: "", collected_amount: "", discount: "",
     });
     setIncReceipt(null);
     fetchData();
