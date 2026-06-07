@@ -15,6 +15,7 @@ import {
 import { toast } from "sonner";
 import { Plus, Trash2, Pencil, MapPin, Phone } from "lucide-react";
 import { format } from "date-fns";
+import DashboardLayout from "@/components/layout/DashboardLayout";
 
 const KIMO_USER_ID = "63f77f84-eb84-4e88-9d7d-468e2ca981b8";
 
@@ -204,6 +205,7 @@ export default function DeliveryRoutes() {
   };
 
   return (
+    <DashboardLayout>
     <div className="container mx-auto p-4 space-y-4" dir="rtl">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
@@ -311,5 +313,6 @@ export default function DeliveryRoutes() {
         </DialogContent>
       </Dialog>
     </div>
+    </DashboardLayout>
   );
 }
