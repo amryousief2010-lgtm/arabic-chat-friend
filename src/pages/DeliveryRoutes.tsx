@@ -87,7 +87,7 @@ export default function DeliveryRoutes() {
       supabase.from("delivery_routes").select("*").order("created_at", { ascending: true }),
       supabase
         .from("orders")
-        .select("id, order_number, delivery_address, total, status, created_at, route_id, notes, customers(name, phone)")
+        .select("id, order_number, delivery_address, total, status, created_at, route_id, notes, customers(name, phone, governorate)")
         .eq("shipping_company", "مندوب خاص")
         .order("created_at", { ascending: false })
         .limit(1000),
@@ -105,6 +105,7 @@ export default function DeliveryRoutes() {
         created_at: row.created_at,
         route_id: row.route_id,
         notes: row.notes,
+        governorate: row.customers?.governorate || null,
       }))
     );
     setLoading(false);
