@@ -1147,6 +1147,12 @@ export default function LabTreasury() {
                             ? INCOME_LABELS[m.income_category as IncomeCat]
                             : EXPENSE_LABELS[m.expense_category as ExpenseCat]}
                           {m.customer_name && <div className="text-xs text-muted-foreground">{m.customer_name}</div>}
+                          {(m as any).batch_number && <div className="text-xs text-primary">دفعة: {(m as any).batch_number}</div>}
+                          {(m as any).invoice_total != null && (
+                            <div className="text-xs text-muted-foreground">
+                              فاتورة: {fmtNum(Number((m as any).invoice_total), 0)} | محصل: {fmtNum(Number((m as any).collected_amount || 0), 0)} | متبقي: {fmtNum(Number((m as any).remaining_amount || 0), 0)}
+                            </div>
+                          )}
                           {m.beneficiary && <div className="text-xs text-muted-foreground">{m.beneficiary}</div>}
                           {m.rejection_reason && <div className="text-xs text-destructive">رفض: {m.rejection_reason}</div>}
                         </TableCell>
