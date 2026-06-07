@@ -907,7 +907,12 @@ export default function LabTreasury() {
           {/* Income form */}
           <TabsContent value="income">
             <Card>
-              <CardHeader><CardTitle>إضافة إيراد جديد</CardTitle></CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>إضافة إيراد جديد</CardTitle>
+                <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate('/lab-treasury/customer-debts')}>
+                  <Users className="w-4 h-4" /> مديونيات عملاء المعمل
+                </Button>
+              </CardHeader>
               <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 <Field label="التاريخ"><Input type="date" value={incForm.movement_date} onChange={(e) => setIncForm({ ...incForm, movement_date: e.target.value })} /></Field>
                 <Field label="نوع الإيراد">
