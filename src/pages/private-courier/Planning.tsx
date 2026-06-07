@@ -242,6 +242,8 @@ export default function PCPlanning() {
                                 <span className="font-mono text-xs">{o.order_number}</span>
                                 <CourierStatusBadge status={o.tracking_status} />
                                 <Badge variant="outline" className="text-xs">{o.payment_method}</Badge>
+                                <Badge variant="outline" className="text-xs">{o._gov}</Badge>
+                                <Badge variant="secondary" className="text-xs">{o._region}</Badge>
                               </div>
                               <p className="text-sm font-medium">{o.customer_name}</p>
                               <p className="text-xs text-muted-foreground">📞 {o.customer_phone} • {o.delivery_address}</p>
