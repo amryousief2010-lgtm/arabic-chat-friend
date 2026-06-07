@@ -26,6 +26,8 @@ interface Row {
   movement_date: string;
   customer_name: string | null;
   batch_number: string | null;
+  subtotal_amount: number | null;
+  discount_amount: number | null;
   invoice_total: number | null;
   collected_amount: number | null;
   remaining_amount: number | null;
