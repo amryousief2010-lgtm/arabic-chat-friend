@@ -487,10 +487,12 @@ const Orders = () => {
     const q = searchQuery.trim().toLowerCase();
     const normalizedPhoneQuery = q.replace(/[^\d]/g, "");
     const normalizedOrderPhone = (order.customer_phone || "").replace(/[^\d]/g, "");
+    const routeName = (order.route_name || "").toLowerCase();
     const matchesSearch =
       !q ||
       order.order_number.toLowerCase().includes(q) ||
       order.customer_name.toLowerCase().includes(q) ||
+      routeName.includes(q) ||
       (normalizedPhoneQuery.length > 0 && normalizedOrderPhone.includes(normalizedPhoneQuery));
     const d = new Date(order.created_at);
     const year = d.getUTCFullYear();
