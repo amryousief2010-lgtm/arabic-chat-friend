@@ -369,9 +369,10 @@ export default function LabTreasury() {
       // Detailed hatching invoice path
       if (!incForm.batch_number.trim()) { toast.error("رقم الدفعة مطلوب"); return; }
       if (!incForm.customer_name.trim()) { toast.error("اسم العميل مطلوب"); return; }
-      if (invoiceTotalCalc <= 0) { toast.error("يجب إدخال بنود الفاتورة (بيض أو كتاكيت أو تحضين)"); return; }
+      if (subtotalCalc <= 0) { toast.error("يجب إدخال بنود الفاتورة (بيض أو كتاكيت أو تحضين)"); return; }
+      if (discountNum > subtotalCalc) { toast.error("قيمة الخصم لا يجوز أن تتجاوز إجمالي البنود"); return; }
       if (collectedNum < 0) { toast.error("المبلغ المحصل لا يصح أن يكون سالبًا"); return; }
-      if (collectedNum > invoiceTotalCalc) { toast.error("المبلغ المحصل لا يجوز أن يتجاوز إجمالي الفاتورة"); return; }
+      if (collectedNum > invoiceTotalCalc) { toast.error("المبلغ المحصل لا يجوز أن يتجاوز صافي الفاتورة بعد الخصم"); return; }
 
       const receipt_url = await uploadReceipt(incReceipt);
       payload = {
@@ -399,7 +400,9 @@ export default function LabTreasury() {
         brooding_chicks_count: Number(incForm.brooding_chicks) || 0,
         brooding_days: Number(incForm.brooding_days) || 0,
         brooding_amount: brooding_amt,
-        invoice_total: invoiceTotalCalc,
+        subtotal_amount: subtotalCalc,
+        discount_amount: discountNum,
+        invoice_total: invoiceTotalCalc, // NET = subtotal - discount
         collected_amount: collectedNum,
         remaining_amount: remainingCalc,
         payment_status: paymentStatusCalc,
