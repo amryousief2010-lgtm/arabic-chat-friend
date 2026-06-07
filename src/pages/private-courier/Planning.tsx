@@ -69,6 +69,22 @@ export default function PCPlanning() {
     refetch();
   };
 
+  const bulkAssign = async (gov: string, list: typeof orders, routeId: string) => {
+    if (!routeId) return;
+    const targets = list.filter(o => !o.assigned_route_id);
+    if (!targets.length) { toast.info("جميع الطلبات معينة بالفعل"); return; }
+    let ok = 0, fail = 0;
+    for (const o of targets) {
+      const { error } = await supabase.rpc("pc_assign_order_to_route" as any, {
+        p_route_id: routeId, p_order_id: o.id, p_sequence: 0, p_expected_at: null,
+      });
+      if (error) fail++; else ok++;
+    }
+    toast.success(`تم تعيين ${ok} طلب${fail ? ` — فشل ${fail}` : ""} (${gov})`);
+    refetch();
+  };
+
+
   const printManifest = (routeId: string) => {
     const route = routes.find(r => r.id === routeId);
     if (!route) return;
