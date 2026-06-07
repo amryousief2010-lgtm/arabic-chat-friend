@@ -13930,6 +13930,7 @@ export type Database = {
         | "in_progress"
         | "completed"
         | "cancelled"
+        | "archived"
       slaughter_custody_category:
         | "maintenance"
         | "utilities"
@@ -14240,6 +14241,7 @@ export const Constants = {
         "in_progress",
         "completed",
         "cancelled",
+        "archived",
       ],
       slaughter_custody_category: [
         "maintenance",
