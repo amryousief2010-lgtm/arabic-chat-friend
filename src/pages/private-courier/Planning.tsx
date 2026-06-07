@@ -113,7 +113,7 @@ export default function PCPlanning() {
         <td>${escapeHtml(o.order_number)}</td>
         <td>${escapeHtml(o.customer_name)}</td>
         <td>${escapeHtml(o.customer_phone)}</td>
-        <td>${escapeHtml(o.customer_governorate)}</td>
+        <td>${escapeHtml(normalizeGovernorate(o.customer_governorate))}</td>
         <td>${escapeHtml(o.delivery_address)}</td>
         <td class="num">${fmtNum(o.total, 2)}</td>
         <td>${escapeHtml(o.payment_method)}</td>
