@@ -56,7 +56,7 @@ export default function LabCustomerDebts() {
     setLoading(true);
     const { data, error } = await (supabase as any)
       .from("lab_treasury_movements")
-      .select("id, movement_date, customer_name, batch_number, invoice_total, collected_amount, remaining_amount, payment_status, payment_method, status, notes")
+      .select("id, movement_date, customer_name, batch_number, subtotal_amount, discount_amount, invoice_total, collected_amount, remaining_amount, payment_status, payment_method, status, notes")
       .eq("movement_type", "income")
       .eq("income_category", "hatching")
       .not("batch_number", "is", null)
