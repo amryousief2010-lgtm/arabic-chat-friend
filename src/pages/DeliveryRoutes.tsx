@@ -213,6 +213,15 @@ export default function DeliveryRoutes() {
     return rows;
   }, [orders, activeRoute, search]);
 
+  const groupedByGov = useMemo(() => {
+    const groups: Record<string, OrderRow[]> = {};
+    filteredOrders.forEach((o) => {
+      const g = (o.governorate && o.governorate.trim()) || "غير محدد";
+      (groups[g] = groups[g] || []).push(o);
+    });
+    return Object.entries(groups).sort((a, b) => b[1].length - a[1].length);
+  }, [filteredOrders]);
+
   const activeRouteMeta = useMemo(() => {
     if (activeRoute === "all") return { name: "كل الطلبات", color: "hsl(var(--primary))", notes: "جميع طلبات المندوب الخاص" };
     if (activeRoute === "unassigned") return { name: "بدون خط سير", color: "hsl(var(--muted-foreground))", notes: "طلبات لم يتم توزيعها على خط بعد" };
