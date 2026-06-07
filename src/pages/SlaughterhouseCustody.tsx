@@ -481,10 +481,17 @@ export default function SlaughterhouseCustody() {
               <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 <div><Label>التاريخ</Label><Input type="date" value={form.expense_date} onChange={(e) => setForm({ ...form, expense_date: e.target.value })} /></div>
                 <div><Label>بند المصروف</Label>
-                  <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v as Category })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>{(Object.keys(CAT_LBL) as Category[]).map((k) => <SelectItem key={k} value={k}>{CAT_LBL[k]}</SelectItem>)}</SelectContent>
-                  </Select>
+                  <div className="flex gap-2">
+                    <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v as Category })}>
+                      <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
+                      <SelectContent>{(Object.keys(CAT_LBL) as Category[]).map((k) => <SelectItem key={k} value={k}>{CAT_LBL[k]}</SelectItem>)}</SelectContent>
+                    </Select>
+                    {(isKeeper || isManager) && (
+                      <Button type="button" variant="outline" size="icon" title="إضافة بند جديد" onClick={() => setNewCatDlg({ open: true, label: "" })}>
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <div><Label>المبلغ *</Label><Input type="number" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} /></div>
                 <div><Label>طريقة الدفع</Label>
