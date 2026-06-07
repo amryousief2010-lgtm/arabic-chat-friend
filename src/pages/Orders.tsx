@@ -312,6 +312,7 @@ const Orders = () => {
       const profilesMap: Record<string, string> = {};
       const productsMap: Record<string, string> = {};
       const warehousesMap: Record<string, string> = {};
+      const routesMap: Record<string, string> = {};
       const productNamesSet = new Set<string>();
 
       const formatBatch = (ordersData: any[], itemsByOrder: Record<string, any[]>): Order[] =>
@@ -344,6 +345,10 @@ const Orders = () => {
           source_warehouse_id: (order as any).source_warehouse_id ?? null,
           source_warehouse_name: (order as any).source_warehouse_id
             ? (warehousesMap[(order as any).source_warehouse_id] ?? null)
+            : null,
+          route_id: (order as any).route_id ?? null,
+          route_name: (order as any).route_id
+            ? (routesMap[(order as any).route_id] ?? null)
             : null,
           items: (itemsByOrder[order.id] || []).map((item: any) => ({
             id: item.id,
