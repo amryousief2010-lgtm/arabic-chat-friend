@@ -916,13 +916,78 @@ export default function LabTreasury() {
                     <SelectContent>{Object.entries(INCOME_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
                   </Select>
                 </Field>
-                <Field label="اسم العميل"><Input value={incForm.customer_name} onChange={(e) => setIncForm({ ...incForm, customer_name: e.target.value })} /></Field>
-                <Field label="العدد (بيض/كتاكيت)"><Input type="number" value={incForm.units_count} onChange={(e) => setIncForm({ ...incForm, units_count: e.target.value })} /></Field>
-                <Field label="سعر الوحدة"><Input type="number" value={incForm.unit_price} onChange={(e) => {
-                  const up = e.target.value; const units = Number(incForm.units_count) || 0;
-                  setIncForm({ ...incForm, unit_price: up, amount: up && units ? String(Number(up) * units) : incForm.amount });
-                }} /></Field>
-                <Field label="إجمالي المبلغ *"><Input type="number" value={incForm.amount} onChange={(e) => setIncForm({ ...incForm, amount: e.target.value })} /></Field>
+                <Field label={incHatching ? "اسم العميل *" : "اسم العميل"}>
+                  <Input value={incForm.customer_name} onChange={(e) => setIncForm({ ...incForm, customer_name: e.target.value })} />
+                </Field>
+
+                {incHatching ? (
+                  <>
+                    <Field label="رقم الدفعة *">
+                      <Input value={incForm.batch_number} onChange={(e) => setIncForm({ ...incForm, batch_number: e.target.value })} placeholder="مثال: B-2026-05-12" />
+                    </Field>
+
+                    <div className="md:col-span-2 lg:col-span-3 border rounded-md p-3 bg-muted/30 space-y-3">
+                      <div className="text-sm font-semibold flex items-center gap-2">
+                        <Receipt className="w-4 h-4 text-primary" />
+                        تفاصيل الفاتورة (أسعار ثابتة)
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <Field label="عدد البيض اللايح (50 ج/بيضة)">
+                          <Input type="number" min={0} value={incForm.lais_count} onChange={(e) => setIncForm({ ...incForm, lais_count: e.target.value })} />
+                          <div className="text-xs text-muted-foreground mt-1">قيمة: {fmtNum(lais_amt, 2)} ج</div>
+                        </Field>
+                        <Field label="عدد بيض الكشف الثاني (100 ج/بيضة)">
+                          <Input type="number" min={0} value={incForm.candle2_count} onChange={(e) => setIncForm({ ...incForm, candle2_count: e.target.value })} />
+                          <div className="text-xs text-muted-foreground mt-1">قيمة: {fmtNum(candle2_amt, 2)} ج</div>
+                        </Field>
+                        <Field label="عدد الكتاكيت (150 ج/كتكوت)">
+                          <Input type="number" min={0} value={incForm.chicks_count} onChange={(e) => setIncForm({ ...incForm, chicks_count: e.target.value })} />
+                          <div className="text-xs text-muted-foreground mt-1">قيمة: {fmtNum(chicks_amt, 2)} ج</div>
+                        </Field>
+                        <Field label="عدد كتاكيت التحضين">
+                          <Input type="number" min={0} value={incForm.brooding_chicks} onChange={(e) => setIncForm({ ...incForm, brooding_chicks: e.target.value })} />
+                        </Field>
+                        <Field label="عدد أيام التحضين (10 ج/كتكوت/يوم)">
+                          <Input type="number" min={0} value={incForm.brooding_days} onChange={(e) => setIncForm({ ...incForm, brooding_days: e.target.value })} />
+                          <div className="text-xs text-muted-foreground mt-1">قيمة التحضين: {fmtNum(brooding_amt, 2)} ج</div>
+                        </Field>
+                        <div className="flex flex-col justify-end">
+                          <div className="text-xs text-muted-foreground">إجمالي الفاتورة</div>
+                          <div className="text-2xl font-mono font-bold text-primary">{fmtNum(invoiceTotalCalc, 2)} ج</div>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <Field label="المبلغ المحصل فعليًا *">
+                          <Input type="number" min={0} max={invoiceTotalCalc || undefined} value={incForm.collected_amount} onChange={(e) => setIncForm({ ...incForm, collected_amount: e.target.value })} />
+                        </Field>
+                        <div className="flex flex-col justify-end">
+                          <div className="text-xs text-muted-foreground">المبلغ المتبقي (مديونية العميل)</div>
+                          <div className="text-xl font-mono font-bold text-destructive">{fmtNum(remainingCalc, 2)} ج</div>
+                        </div>
+                        <div className="flex flex-col justify-end">
+                          <div className="text-xs text-muted-foreground">حالة الدفع</div>
+                          <div>
+                            <Badge variant={paymentStatusCalc === "paid" ? "default" : paymentStatusCalc === "partial" ? "secondary" : "destructive"}>
+                              {paymentStatusCalc === "paid" ? "مدفوع بالكامل" : paymentStatusCalc === "partial" ? "مدفوع جزئيًا" : "غير مدفوع"}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        ملاحظة: يدخل الخزنة فقط <b>المبلغ المحصل فعليًا</b> ({fmtNum(collectedNum, 2)} ج). المتبقي يظهر كمديونية على العميل في تقرير «مديونيات عملاء المعمل».
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <Field label="العدد (بيض/كتاكيت)"><Input type="number" value={incForm.units_count} onChange={(e) => setIncForm({ ...incForm, units_count: e.target.value })} /></Field>
+                    <Field label="سعر الوحدة"><Input type="number" value={incForm.unit_price} onChange={(e) => {
+                      const up = e.target.value; const units = Number(incForm.units_count) || 0;
+                      setIncForm({ ...incForm, unit_price: up, amount: up && units ? String(Number(up) * units) : incForm.amount });
+                    }} /></Field>
+                    <Field label="إجمالي المبلغ *"><Input type="number" value={incForm.amount} onChange={(e) => setIncForm({ ...incForm, amount: e.target.value })} /></Field>
+                  </>
+                )}
                 <Field label="طريقة التحصيل">
                   <Select value={incForm.payment_method} onValueChange={(v) => setIncForm({ ...incForm, payment_method: v as PaymentMethod })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
