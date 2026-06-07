@@ -313,5 +313,6 @@ export default function DeliveryRoutes() {
         </DialogContent>
       </Dialog>
     </div>
+    </DashboardLayout>
   );
 }
