@@ -29,7 +29,7 @@ type Status = "pending_review" | "clarification_needed" | "approved" | "rejected
 type Category =
   | "maintenance" | "utilities" | "supplies" | "cleaning" | "transport" | "daily_labor"
   | "hospitality" | "urgent_purchase" | "government" | "veterinary" | "equipment_repair"
-  | "fridge_repair" | "other";
+  | "fridge_repair" | "sanitation" | "loading" | "fuel" | "other";
 
 const PM_LBL: Record<PM, string> = { cash: "نقدي", vodafone_cash: "فودافون كاش", instapay: "إنستا باي", bank_transfer: "تحويل بنكي" };
 const ST_LBL: Record<Status, string> = {
@@ -44,6 +44,7 @@ const CAT_LBL: Record<Category, string> = {
   cleaning: "نظافة ومطهرات", transport: "نقل ومشاوير", daily_labor: "عمالة يومية",
   hospitality: "ضيافة", urgent_purchase: "مشتريات طارئة", government: "مصروفات حكومية / تصاريح",
   veterinary: "مصروفات بيطرية", equipment_repair: "إصلاحات معدات", fridge_repair: "إصلاحات ثلاجات",
+  sanitation: "صرف صحى", loading: "تحميل وتفريغ", fuel: "وقود / سولار",
   other: "مصروفات أخرى",
 };
 
