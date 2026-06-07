@@ -197,6 +197,7 @@ export default function LabTreasury() {
     brooding_chicks: "" as any,
     brooding_days: "" as any,
     collected_amount: "" as any,
+    discount: "" as any,
   });
   const [incReceipt, setIncReceipt] = useState<File | null>(null);
 
@@ -214,7 +215,9 @@ export default function LabTreasury() {
     (Number(incForm.brooding_chicks) || 0) *
     (Number(incForm.brooding_days) || 0) *
     BROODING_PER_DAY;
-  const invoiceTotalCalc = lais_amt + candle2_amt + chicks_amt + brooding_amt;
+  const subtotalCalc = lais_amt + candle2_amt + chicks_amt + brooding_amt;
+  const discountNum = Math.max(0, Number(incForm.discount) || 0);
+  const invoiceTotalCalc = Math.max(0, subtotalCalc - discountNum);
   const collectedNum = Number(incForm.collected_amount) || 0;
   const remainingCalc = Math.max(0, invoiceTotalCalc - collectedNum);
   const paymentStatusCalc: "paid" | "partial" | "unpaid" =
@@ -357,6 +360,64 @@ export default function LabTreasury() {
     return path;
   }
 
+  function printCurrentInvoice() {
+    if (!incHatching) { toast.error("الطباعة متاحة فقط لفواتير التفريخ"); return; }
+    if (!incForm.batch_number.trim()) { toast.error("ادخل رقم الدفعة"); return; }
+    if (!incForm.customer_name.trim()) { toast.error("ادخل اسم العميل"); return; }
+    if (subtotalCalc <= 0) { toast.error("ادخل بنود الفاتورة أولاً"); return; }
+
+    const lines: { label: string; qty: number; unit: string; price: number; amount: number }[] = [];
+    if (Number(incForm.lais_count) > 0) lines.push({ label: "بيض لايح (كشف أول)", qty: Number(incForm.lais_count), unit: "بيضة", price: LAIS_PRICE, amount: lais_amt });
+    if (Number(incForm.candle2_count) > 0) lines.push({ label: "بيض الكشف الثاني", qty: Number(incForm.candle2_count), unit: "بيضة", price: CANDLE2_PRICE, amount: candle2_amt });
+    if (Number(incForm.chicks_count) > 0) lines.push({ label: "كتاكيت", qty: Number(incForm.chicks_count), unit: "كتكوت", price: CHICK_PRICE, amount: chicks_amt });
+    if (brooding_amt > 0) lines.push({ label: `تحضين كتاكيت (${Number(incForm.brooding_chicks)} × ${Number(incForm.brooding_days)} يوم)`, qty: Number(incForm.brooding_chicks) * Number(incForm.brooding_days), unit: "كتكوت/يوم", price: BROODING_PER_DAY, amount: brooding_amt });
+
+    const itemsHtml = lines.map((l, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td>${escapeHtml(l.label)}</td>
+        <td class="num">${fmtNum(l.qty, 0)} ${escapeHtml(l.unit)}</td>
+        <td class="num">${fmtNum(l.price, 2)}</td>
+        <td class="num">${fmtNum(l.amount, 2)}</td>
+      </tr>`).join("");
+
+    const statusLabel = paymentStatusCalc === "paid" ? "مدفوع بالكامل" : paymentStatusCalc === "partial" ? "مدفوع جزئيًا" : "غير مدفوع";
+    const body = `
+      <div style="text-align:center;margin-bottom:16px">
+        <h1 style="margin:0">معمل التفريخ — كابيتال أوستريتش</h1>
+        <div style="color:#666;font-size:12px">فاتورة تفريخ / حضانة</div>
+      </div>
+      <table style="width:100%;border:none;margin-bottom:12px">
+        <tr>
+          <td style="border:none"><b>العميل:</b> ${escapeHtml(incForm.customer_name)}</td>
+          <td style="border:none"><b>رقم الدفعة:</b> ${escapeHtml(incForm.batch_number)}</td>
+          <td style="border:none"><b>التاريخ:</b> ${fmtDate(incForm.movement_date)}</td>
+        </tr>
+      </table>
+      <table>
+        <thead>
+          <tr><th>#</th><th>البيان</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th></tr>
+        </thead>
+        <tbody>${itemsHtml}</tbody>
+      </table>
+      <table style="width:60%;margin-top:14px;margin-inline-start:auto">
+        <tr><td><b>إجمالي البنود (Subtotal)</b></td><td class="num">${fmtNum(subtotalCalc, 2)} ج</td></tr>
+        <tr><td><b>الخصم (Discount)</b></td><td class="num">- ${fmtNum(discountNum, 2)} ج</td></tr>
+        <tr style="background:#f6f6f6"><td><b>صافي الفاتورة (المطلوب)</b></td><td class="num"><b>${fmtNum(invoiceTotalCalc, 2)} ج</b></td></tr>
+        <tr><td><b>المبلغ المحصل</b></td><td class="num">${fmtNum(collectedNum, 2)} ج</td></tr>
+        <tr><td><b>المتبقي</b></td><td class="num">${fmtNum(remainingCalc, 2)} ج</td></tr>
+        <tr><td><b>حالة الدفع</b></td><td>${statusLabel}</td></tr>
+        <tr><td><b>طريقة التحصيل</b></td><td>${PAYMENT_LABELS[incForm.payment_method]}</td></tr>
+      </table>
+      ${incForm.notes ? `<div style="margin-top:14px;padding:8px;border:1px dashed #ccc"><b>ملاحظات:</b> ${escapeHtml(incForm.notes)}</div>` : ""}
+      <div style="margin-top:40px;display:flex;justify-content:space-between">
+        <div>توقيع المحاسب: ____________________</div>
+        <div>توقيع العميل: ____________________</div>
+      </div>
+    `;
+    openPrintWindow(`فاتورة ${incForm.batch_number} — ${incForm.customer_name}`, body);
+  }
+
   async function submitIncome() {
     if (!user) return;
     const isHatch = incForm.income_category === "hatching";
@@ -366,9 +427,10 @@ export default function LabTreasury() {
       // Detailed hatching invoice path
       if (!incForm.batch_number.trim()) { toast.error("رقم الدفعة مطلوب"); return; }
       if (!incForm.customer_name.trim()) { toast.error("اسم العميل مطلوب"); return; }
-      if (invoiceTotalCalc <= 0) { toast.error("يجب إدخال بنود الفاتورة (بيض أو كتاكيت أو تحضين)"); return; }
+      if (subtotalCalc <= 0) { toast.error("يجب إدخال بنود الفاتورة (بيض أو كتاكيت أو تحضين)"); return; }
+      if (discountNum > subtotalCalc) { toast.error("قيمة الخصم لا يجوز أن تتجاوز إجمالي البنود"); return; }
       if (collectedNum < 0) { toast.error("المبلغ المحصل لا يصح أن يكون سالبًا"); return; }
-      if (collectedNum > invoiceTotalCalc) { toast.error("المبلغ المحصل لا يجوز أن يتجاوز إجمالي الفاتورة"); return; }
+      if (collectedNum > invoiceTotalCalc) { toast.error("المبلغ المحصل لا يجوز أن يتجاوز صافي الفاتورة بعد الخصم"); return; }
 
       const receipt_url = await uploadReceipt(incReceipt);
       payload = {
@@ -396,7 +458,9 @@ export default function LabTreasury() {
         brooding_chicks_count: Number(incForm.brooding_chicks) || 0,
         brooding_days: Number(incForm.brooding_days) || 0,
         brooding_amount: brooding_amt,
-        invoice_total: invoiceTotalCalc,
+        subtotal_amount: subtotalCalc,
+        discount_amount: discountNum,
+        invoice_total: invoiceTotalCalc, // NET = subtotal - discount
         collected_amount: collectedNum,
         remaining_amount: remainingCalc,
         payment_status: paymentStatusCalc,
@@ -436,7 +500,7 @@ export default function LabTreasury() {
       customer_name: "", units_count: "", unit_price: "", amount: "",
       description: "", notes: "",
       batch_number: "", lais_count: "", candle2_count: "", chicks_count: "",
-      brooding_chicks: "", brooding_days: "", collected_amount: "",
+      brooding_chicks: "", brooding_days: "", collected_amount: "", discount: "",
     });
     setIncReceipt(null);
     fetchData();
@@ -618,6 +682,13 @@ export default function LabTreasury() {
         ? INCOME_LABELS[m.income_category as IncomeCat] || ""
         : EXPENSE_LABELS[m.expense_category as ExpenseCat] || "",
       "العميل/المستفيد": m.customer_name || m.beneficiary || "",
+      "رقم الدفعة": (m as any).batch_number || "",
+      "إجمالي البنود": (m as any).subtotal_amount ?? "",
+      "الخصم": Number((m as any).discount_amount || 0) || "",
+      "صافي الفاتورة": (m as any).invoice_total ?? "",
+      "المحصل من الفاتورة": (m as any).collected_amount ?? "",
+      "المتبقي": (m as any).remaining_amount ?? "",
+      "حالة الفاتورة": (m as any).payment_status === "paid" ? "مدفوع" : (m as any).payment_status === "partial" ? "جزئي" : (m as any).payment_status === "unpaid" ? "غير مدفوع" : "",
       "وارد": m.movement_type === "income" ? Number(m.amount) : 0,
       "منصرف": m.movement_type === "expense" ? Number(m.amount) : 0,
       "طريقة الدفع": PAYMENT_LABELS[m.payment_method],
@@ -957,7 +1028,21 @@ export default function LabTreasury() {
                           <div className="text-xs text-muted-foreground mt-1">قيمة التحضين: {fmtNum(brooding_amt, 2)} ج</div>
                         </Field>
                         <div className="flex flex-col justify-end">
-                          <div className="text-xs text-muted-foreground">إجمالي الفاتورة</div>
+                          <div className="text-xs text-muted-foreground">إجمالي البنود (Subtotal)</div>
+                          <div className="text-xl font-mono font-bold">{fmtNum(subtotalCalc, 2)} ج</div>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <Field label="الخصم (Discount)">
+                          <Input type="number" min={0} max={subtotalCalc || undefined} value={incForm.discount} onChange={(e) => setIncForm({ ...incForm, discount: e.target.value })} placeholder="مثال: 100" />
+                          <div className="text-xs text-muted-foreground mt-1">يخصم من إجمالي البنود قبل المطلوب من العميل</div>
+                        </Field>
+                        <div className="flex flex-col justify-end">
+                          <div className="text-xs text-muted-foreground">قيمة الخصم</div>
+                          <div className="text-xl font-mono font-bold text-amber-600">- {fmtNum(discountNum, 2)} ج</div>
+                        </div>
+                        <div className="flex flex-col justify-end">
+                          <div className="text-xs text-muted-foreground">صافي الفاتورة (المطلوب من العميل)</div>
                           <div className="text-2xl font-mono font-bold text-primary">{fmtNum(invoiceTotalCalc, 2)} ج</div>
                         </div>
                       </div>
@@ -1004,8 +1089,13 @@ export default function LabTreasury() {
                 <div className="md:col-span-2 lg:col-span-3">
                   <Field label="ملاحظات"><Textarea value={incForm.notes} onChange={(e) => setIncForm({ ...incForm, notes: e.target.value })} /></Field>
                 </div>
-                <div className="md:col-span-2 lg:col-span-3">
+                <div className="md:col-span-2 lg:col-span-3 flex flex-wrap gap-2">
                   <Button onClick={submitIncome} className="gap-2"><Plus className="w-4 h-4" />تسجيل الإيراد</Button>
+                  {incHatching && (
+                    <Button type="button" variant="outline" onClick={printCurrentInvoice} className="gap-2">
+                      <Printer className="w-4 h-4" />طباعة الفاتورة
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -1150,7 +1240,9 @@ export default function LabTreasury() {
                           {(m as any).batch_number && <div className="text-xs text-primary">دفعة: {(m as any).batch_number}</div>}
                           {(m as any).invoice_total != null && (
                             <div className="text-xs text-muted-foreground">
-                              فاتورة: {fmtNum(Number((m as any).invoice_total), 0)} | محصل: {fmtNum(Number((m as any).collected_amount || 0), 0)} | متبقي: {fmtNum(Number((m as any).remaining_amount || 0), 0)}
+                              {(m as any).subtotal_amount != null && <>إجمالي: {fmtNum(Number((m as any).subtotal_amount), 0)} | </>}
+                              {Number((m as any).discount_amount) > 0 && <>خصم: {fmtNum(Number((m as any).discount_amount), 0)} | </>}
+                              صافي: {fmtNum(Number((m as any).invoice_total), 0)} | محصل: {fmtNum(Number((m as any).collected_amount || 0), 0)} | متبقي: {fmtNum(Number((m as any).remaining_amount || 0), 0)}
                             </div>
                           )}
                           {m.beneficiary && <div className="text-xs text-muted-foreground">{m.beneficiary}</div>}

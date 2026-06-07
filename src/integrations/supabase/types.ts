@@ -6042,6 +6042,7 @@ export type Database = {
           customer_name: string | null
           deletion_reason: string | null
           description: string | null
+          discount_amount: number
           edit_reason: string | null
           expense_category:
             | Database["public"]["Enums"]["lab_treasury_expense_category"]
@@ -6067,6 +6068,7 @@ export type Database = {
           source_ref: string | null
           source_table: string | null
           status: Database["public"]["Enums"]["lab_treasury_status"]
+          subtotal_amount: number | null
           unit_price: number | null
           units_count: number | null
           updated_at: string
@@ -6091,6 +6093,7 @@ export type Database = {
           customer_name?: string | null
           deletion_reason?: string | null
           description?: string | null
+          discount_amount?: number
           edit_reason?: string | null
           expense_category?:
             | Database["public"]["Enums"]["lab_treasury_expense_category"]
@@ -6116,6 +6119,7 @@ export type Database = {
           source_ref?: string | null
           source_table?: string | null
           status?: Database["public"]["Enums"]["lab_treasury_status"]
+          subtotal_amount?: number | null
           unit_price?: number | null
           units_count?: number | null
           updated_at?: string
@@ -6140,6 +6144,7 @@ export type Database = {
           customer_name?: string | null
           deletion_reason?: string | null
           description?: string | null
+          discount_amount?: number
           edit_reason?: string | null
           expense_category?:
             | Database["public"]["Enums"]["lab_treasury_expense_category"]
@@ -6165,6 +6170,7 @@ export type Database = {
           source_ref?: string | null
           source_table?: string | null
           status?: Database["public"]["Enums"]["lab_treasury_status"]
+          subtotal_amount?: number | null
           unit_price?: number | null
           units_count?: number | null
           updated_at?: string
