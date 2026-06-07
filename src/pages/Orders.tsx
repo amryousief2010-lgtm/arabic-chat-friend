@@ -525,11 +525,13 @@ const Orders = () => {
     })();
     const matchesFulfillment =
       filterFulfillment === "all" || fulfillmentKey === filterFulfillment;
+    const matchesRoute =
+      filterRoute === "all" || order.route_id === filterRoute;
     // مشرف المخزن الرئيسي (هادى) يشوف فقط طلبات المخزن الرئيسي (استلام أو توصيل)
     const matchesWarehouseScope =
       !isWarehouseSupervisor || fulfillmentKey === 'pickup_main' || fulfillmentKey === 'delivery_main';
-    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment && matchesWarehouseScope;
-  }), [orders, filterStatus, searchQuery, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, filterFulfillment, isWarehouseSupervisor]);
+    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment && matchesRoute && matchesWarehouseScope;
+  }), [orders, filterStatus, searchQuery, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, filterFulfillment, filterRoute, isWarehouseSupervisor]);
 
   const availableGovernorates = Array.from(
     new Set(orders.map(o => (o.governorate || "").trim()).filter(Boolean))
