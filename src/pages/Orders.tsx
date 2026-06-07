@@ -864,6 +864,22 @@ const Orders = () => {
                 ))}
               </SelectContent>
             </Select>
+            <Select value={filterRoute} onValueChange={setFilterRoute}>
+              <SelectTrigger className="w-48 input-modern">
+                <SelectValue placeholder="فلترة حسب خط السير" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">جميع خطوط السير</SelectItem>
+                {availableRoutes.map((r) => (
+                  <SelectItem key={r.id} value={r.id}>
+                    <span className="inline-flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full" style={{ background: r.color }} />
+                      {r.name}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Select value={filterFulfillment} onValueChange={setFilterFulfillment}>
               <SelectTrigger className="w-56 input-modern">
                 <SelectValue placeholder="فلترة حسب مصدر التنفيذ" />
