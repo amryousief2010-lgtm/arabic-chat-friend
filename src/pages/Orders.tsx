@@ -266,6 +266,10 @@ const Orders = () => {
 
   useEffect(() => {
     fetchOrders();
+    (async () => {
+      const { data } = await supabase.from('delivery_routes').select('id,name,color').order('name', { ascending: true });
+      setAvailableRoutes((data as any[]) || []);
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterMonth, filterYear, yearGroup, debouncedSearch]);
 
