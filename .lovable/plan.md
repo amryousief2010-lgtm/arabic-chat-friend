@@ -1,128 +1,147 @@
-## الخطة المقترحة
+# خطة وحدة "المندوب الخاص وخطوط السير"
 
-تنقسم لخطوتين منفصلتين عشان نقدر نوقف بينهم لو حصل اعتراض على أي رقم.
-
----
-
-### الخطوة 1 — تصحيحات بيانات فورية (data-only)
-
-**أ. حذف "دين شعلة 1,400"**
-- صفّ السجل `lab_treasury_historical_receivables` (id `1bb3…0829`, title `مستحقات خزنة المعمل عند المجزر`) من ملاحظة `دين شعلة = 1,400 جنيه` → نمسحها من حقل `note` فقط (السجل نفسه هو المستحق الإجمالي، مش هنحذفه).
-- لو محتاج نمسح أيضًا أسطر `lab_treasury_historical_receivable_items` المتعلقة بالـ 1,400 — في الجدول حاليًا 4 أسطر (1,100 + 40,000 + 15,000 + 45 = 56,145، ولا فيهم 1,400). معناه دين شعلة كان مذكور في الـ note بس مش كـ item منفصل. **لا توجد حركة 1,400 للحذف**؛ الإزالة بالكامل من حقل `note`.
-
-**ب. تعديل رصيد خزنة المعمل النقدي → 69,195 ج**
-- نزود سجل جديد في `lab_treasury_opening_balances` بتاريخ اليوم وحالة `approved`، الكاش `69,195`، باقي الطرق `0`.
-- ملاحظة `notes`: "تصحيح رصيد خزنة المعمل النقدي الفعلي حسب الجرد الحالي — لا يُعتبر إيرادًا".
-- نسجّل سطر في `lab_treasury_audit_log` بنفس السبب.
-- مش هنُسجّل أي حركة في `lab_treasury_movements` كـ income — احترامًا للقاعدة "ليس إيرادًا".
-
-**ج. تعديل المستحق عند المجزر → 69,196 ج**
-- نُحدّث `lab_treasury_historical_receivables.total_amount` من `69,195` → `69,196`.
-- نمسح حقل `note` (إزالة دين شعلة).
-- لا نُغيّر `paid_amount` ولا `status`.
-
-**د. إظهار المبلغ كعهدة لصالح المعمل في خزنة المجزر**
-- نُضيف سجل في `slaughter_custody_opening_balances` بنوع جديد + سيتم استخدامه كـ memo فقط (لا يدخل الليميت الأسبوعي).
-- بدلاً من العبث بهيكل العهدة الحالي، الحل الأنظف: نتعامل مع المبلغ كقيد في **نظام السلف الجديد** (الخطوة 2) كسلفة معتمدة من المعمل للمجزر بنوع "تاريخية / opening". كده تظهر تلقائيًا في الداشبوردين بدون تشويش على عهدة المجزر الجارية.
+## مبدأ صارم
+- لا يتم تعديل أي ملف من ملفات الطلبات الحالية: `NewOrder.tsx`, `Orders.tsx`, `OrderDetails.tsx`, RLS الخاصة بـ `orders`/`order_items`/`customers`, التريجرز، خصم المخزون، التحصيل، الأسعار، العروض.
+- لا تُضاف أي أعمدة جديدة على `orders` ولا على `customers`.
+- الوحدة الجديدة **تقرأ** الطلبات المؤهلة فقط (`shipping_company='مندوب خاص' AND fulfillment_type='delivery' AND source_warehouse_id=<المخزن الرئيسي>`) وتربطها بجداولها الخاصة عبر `order_id` فقط.
+- `route_id` الموجود حاليًا على `orders` **يبقى كما هو** ولن يُعدل من الوحدة الجديدة (لتفادي أي أثر على Orders). الربط الجديد يتم في جدول وسيط جديد.
 
 ---
 
-### الخطوة 2 — نظام سلف وتحويلات بين الخزن
+## 1) الجداول الجديدة (كلها داخل schema جديد منفصل لعزل تام)
 
-#### جداول جديدة
+سيتم إنشاء **schema منفصل** اسمه `private_courier` لضمان عدم التداخل مع الجداول الحالية ولا مع RLS الحالية.
 
 ```text
-treasury_transfers
-  id, transfer_date, from_treasury, to_treasury,
-  amount, payment_method (cash|vodafone_cash|instapay|bank_transfer),
-  reason, handed_by, received_by, receipt_url, notes,
-  status (pending|approved|rejected|cancelled),
-  settlement_status (unpaid|partial|paid),
-  paid_amount,
-  affects_cash_now (bool), -- true لو الفلوس خرجت فعلاً، false لو قيد فقط
-  created_by, approved_by, approved_at,
-  rejected_by, rejected_at, rejection_reason,
-  created_at, updated_at
-
-treasury_transfer_settlements
-  id, transfer_id, settlement_date, amount,
-  payment_method, recorded_by, notes,
-  status (pending|approved|rejected),
-  approved_by, approved_at, created_at
-
-treasury_transfer_audit_log
-  id, transfer_id, action, actor_id, before_state, after_state,
-  reason, created_at
+private_courier.routes                  -- خطوط السير (منفصلة عن delivery_routes القديم)
+private_courier.route_orders            -- ربط M:1 بين الطلب والخط + بيانات التخطيط
+private_courier.order_tracking          -- حالة المندوب الخاص للطلب (assigned → delivered)
+private_courier.handovers               -- تتبع تسليم المخزن للمندوب
+private_courier.collections             -- تتبع التحصيل المنفصل
+private_courier.failed_attempts         -- محاولات التوصيل الفاشلة + السبب
 ```
 
-`from_treasury`/`to_treasury` enum: `lab` (خزنة المعمل) + `slaughter` (خزنة المجزر).
-بنية قابلة للتوسع لخزنات تانية (farm, factory…) لاحقًا.
+### الأعمدة الأساسية
 
-#### القواعد المحاسبية المطبَّقة
-- السلفة pending → **لا تؤثر** على أي رصيد.
-- السلفة approved + `affects_cash_now=true` → تنقص نقد المُسلِف (لو خزنة المعمل) عن طريق view حسابية فقط، **بدون** insert في `lab_treasury_movements` كإيراد/مصروف.
-- السلفة approved + `affects_cash_now=false` → قيد دفتري فقط (المبلغ موجود أصلاً عند المستلم).
-- مستحق الخزنة B لصالح الخزنة A = مجموع السلف المعتمدة - مجموع السدادات المعتمدة.
-- **مش بتدخل** في `slaughter_custody_weekly_limits` ولا في `lab_treasury_movements`.
+**`routes`**: `id`, `name`, `region` (القاهرة الكبرى/الدلتا/الإسكندرية والساحل/القناة وسيناء/الصعيد/خط خاص), `governorates text[]`, `cities text[]`, `assigned_courier_id uuid`, `planned_date date`, `start_time time`, `expected_end_time time`, `status` (draft/planned/in_progress/completed/cancelled), `color`, `notes`, `created_by`, timestamps.
 
-#### Views
-- `v_treasury_inter_balances` — لكل زوج خزن: net outstanding.
-- `v_lab_treasury_dashboard` — نُضيف عمود `external_at_slaughter` = صافي المستحق على المجزر من النظام الجديد + المستحق التاريخي.
+**`route_orders`**: `id`, `route_id`, `order_id` (UNIQUE — طلب في خط واحد فقط داخل الوحدة), `sequence int`, `expected_delivery_at timestamptz`, `added_by`, `added_at`.
 
-#### RLS
-- INSERT: GM, EM, `lab_treasury_approver`, `lab_treasury_keeper`, slaughterhouse_manager, accountant (حسب الخزنة المنطلق منها).
-- APPROVE: GM, EM, `lab_treasury_approver` فقط (وكذلك مدير المجزر لاعتماد ما يخص خزنته).
-- DELETE: GM فقط مع سبب إلزامي وبعد الاعتماد لا تُحذف إلا بسبب.
-- SELECT: كل أطراف الخزنتين + GM/EM/accountant.
-- audit log: insert فقط من triggers، SELECT للأدوار الإدارية.
+**`order_tracking`**: `id`, `order_id` (UNIQUE), `courier_id`, `courier_status` enum (`assigned_to_courier`,`ready_for_pickup_from_main_warehouse`,`picked_up_by_courier`,`out_for_delivery`,`delivered`,`failed_delivery`,`returned_to_warehouse`,`cancelled`), `delivered_at`, `last_updated_by`, timestamps.
 
-#### واجهة المستخدم
-1. **`/lab-treasury` — كروت جديدة بالأعلى**
-   - رصيد خزنة المعمل النقدي الفعلي = من `lab_treasury_opening_balances` + الحركات المعتمدة.
-   - مستحق لخزنة المعمل عند المجزر = من النظام الجديد + المستحق التاريخي.
-   - إجمالي أموال المعمل شامل المستحقات = مجموع الاثنين، مع tooltip توضيحي.
-   - تبويب جديد: **السلف والتحويلات بين الخزن** (إضافة، اعتماد، سداد، فلتر بالحالة).
+**`handovers`**: `order_id` (UNIQUE), `prepared_by`, `prepared_at`, `handed_over_by`, `handed_over_at`, `courier_received_by`, `courier_received_at`, `checklist_confirmed bool`, `notes`.
 
-2. **`/slaughterhouse-custody` — كرت memo**
-   - "عهدة مستحقة لصالح خزنة المعمل" = نفس الرقم.
-   - بنصّ صريح: "memo — لا يدخل ضمن الليميت الأسبوعي ولا يُعتبر مصروف مجزر".
+**`collections`**: `id`, `order_id` (UNIQUE), `amount_due numeric`, `amount_collected numeric`, `status` enum (`cash_collected`,`partial_collected`,`not_collected`,`mismatch`,`paid_online`,`returned_no_collection`), `difference numeric GENERATED`, `notes`, `collected_at`, `collected_by`. **لا يكتب أي شيء على `orders.collection_status` ولا `payment_status`.**
 
-3. **dialog السلفة** — كل الحقول المطلوبة: تاريخ، من/إلى، مبلغ، طريقة دفع، سبب، مسؤول تسليم، مسؤول استلام، رفع إيصال، ملاحظات، `affects_cash_now` toggle.
+**`failed_attempts`**: `id`, `order_id`, `reason` enum (8 أسباب من المواصفات), `notes` (إجباري), `next_action` enum (`reschedule`,`return_to_warehouse`,`cancel_order`,`manager_review`), `created_by`, `created_at`.
 
-4. **dialog السداد** — اختيار سلفة، مبلغ السداد، طريقة، تاريخ، حالة (pending → approved).
+### الصلاحيات (GRANT + RLS)
 
-#### Storage
-- Bucket: `treasury-transfers` (private) لصور الإيصالات.
+- GRANT على schema `private_courier` لـ `authenticated` و`service_role`.
+- RLS مفعّل على كل الجداول.
+- دالة مساعدة `private_courier.is_courier_for_order(order_id)` و`private_courier.has_courier_mgmt_role()` للاستخدام داخل السياسات (SECURITY DEFINER، تستخدم `has_role`).
+- السياسات:
+  - `private_delivery_rep`: يقرأ/يحدّث **فقط** السجلات المرتبطة بطلباته (عبر `order_tracking.courier_id = auth.uid()` أو `routes.assigned_courier_id = auth.uid()`).
+  - المدير العام/التنفيذي/مدير المبيعات: قراءة وكتابة شاملة داخل الوحدة فقط.
+  - مشرف المخزن: قراءة + كتابة على `handovers` فقط.
+  - المحاسبة: قراءة على `collections` فقط.
+  - باقي الأدوار: ممنوع.
 
-#### Audit & لا حذف بعد الاعتماد
-- trigger ON UPDATE/DELETE يُسجّل في `treasury_transfer_audit_log`.
-- DELETE مرفوض على الحركات `approved` إلا للـ GM مع `deletion_reason` غير فارغ.
+> ملاحظة: لن نلمس RLS الخاصة بـ `orders`. عرض بيانات الطلب للمندوب يتم عبر RPC `SECURITY DEFINER` يرجع فقط الحقول المسموح بها للطلبات المرتبطة به.
+
+### RPC جديد (للقراءة الآمنة من orders بدون توسيع RLS)
+- `private_courier.list_eligible_orders(filters)` — يرجع الطلبات المؤهلة (private courier من المخزن الرئيسي) للمديرين فقط.
+- `private_courier.get_my_assigned_orders()` — يرجع طلبات المندوب الحالي مع بيانات العميل والمنتجات.
+- كلاهما SECURITY DEFINER + يتحقق من الدور داخليًا.
 
 ---
 
-### تفاصيل تنفيذية مختصرة
+## 2) المسارات والصفحات الجديدة
 
-- 4 migrations:
-  1. (data) إزالة note + ضبط total إلى 69,196 + سجل جرد كاش + سجل audit.
-  2. (schema) جداول السلف + enums + views + RLS + grants + triggers.
-  3. (data) إنشاء سجل السلفة "تاريخية" بقيمة 69,196 من lab إلى slaughter (status approved, settlement_status unpaid, affects_cash_now=false).
-  4. (storage) bucket `treasury-transfers` + policies.
-- 3-4 ملفات frontend:
-  - `src/pages/LabTreasury.tsx` (كروت + تبويب جديد).
-  - `src/pages/SlaughterhouseCustody.tsx` (كرت memo).
-  - `src/components/treasury/InterTreasuryTransfersTab.tsx` (جديد).
-  - `src/components/treasury/TransferDialog.tsx` + `SettlementDialog.tsx`.
+كلها تحت prefix `/private-courier/*` (مفصول كليًا عن `/orders` و`/delivery-routes` القديم):
+
+```text
+/private-courier                        -> Dashboard (المؤشرات الـ 14 من المواصفات)
+/private-courier/planning               -> عرض المدير: الطلبات المؤهلة + إنشاء خطوط + تعيين
+/private-courier/routes                 -> إدارة خطوط السير (CRUD)
+/private-courier/routes/:id             -> تفاصيل خط + مانيفست قابل للطباعة
+/private-courier/my-deliveries          -> شاشة المندوب (مخصصة للموبايل)
+/private-courier/handovers              -> شاشة مشرف المخزن للتسليم
+/private-courier/collections            -> تقرير التحصيل (محاسبة + مدير)
+```
+
+ملفات جديدة فقط:
+```text
+src/pages/private-courier/Dashboard.tsx
+src/pages/private-courier/Planning.tsx
+src/pages/private-courier/Routes.tsx
+src/pages/private-courier/RouteDetail.tsx
+src/pages/private-courier/MyDeliveries.tsx
+src/pages/private-courier/Handovers.tsx
+src/pages/private-courier/Collections.tsx
+src/components/private-courier/RouteCard.tsx
+src/components/private-courier/OrderHandoverDialog.tsx
+src/components/private-courier/CollectionDialog.tsx
+src/components/private-courier/FailedDeliveryDialog.tsx
+src/components/private-courier/StatusBadge.tsx
+src/hooks/usePrivateCourierData.tsx
+src/lib/privateCourier/constants.ts   -- enums، أسباب الفشل، المناطق
+src/lib/privateCourier/printManifest.ts -- يستخدم openPrintWindow الحالي
+```
+
+تعديلات محدودة جدًا (إضافة فقط، بدون لمس سلوك قائم):
+- `src/components/AnimatedRoutes.tsx` — إضافة 7 routes جديدة محمية.
+- `src/components/layout/SidebarMenuSections.tsx` — إضافة قسم "المندوب الخاص وخطوط السير" (الصفحة القديمة `/delivery-routes` تبقى كما هي للتوافق).
+- `src/components/ProtectedRoute.tsx` — توسيع `PRIVATE_REP_ALLOWED_PREFIXES` ليشمل `/private-courier`.
 
 ---
 
-### نقاط محتاج تأكيدك عليها قبل التنفيذ
+## 3) خريطة الميزات → الجدول/الـ RPC
 
-1. **الرقم 69,195 نقدًا** — حاليًا في `lab_treasury_opening_balances` آخر رصيد معتمد = 53,000 بتاريخ 2026-06-05. الفرق 16,195. هل أُسجّل التصحيح كرصيد افتتاحي جديد بتاريخ اليوم 2026-06-06 = 69,195؟ (هذا هو السلوك المقترح).
+| ميزة | المصدر |
+|---|---|
+| Dashboard KPIs الـ14 | aggregate من `order_tracking` + `collections` + RPC eligible |
+| قائمة المندوب | RPC `get_my_assigned_orders` + `order_tracking` |
+| تخطيط المدير | RPC `list_eligible_orders` + `route_orders` + `routes` |
+| تعيين طلب لمندوب | INSERT في `route_orders` + INSERT/UPDATE في `order_tracking` (status=`assigned_to_courier`) |
+| تأكيد التسليم من المخزن | UPDATE `handovers` (يقوم به مشرف المخزن والمندوب يؤكد الاستلام) |
+| تغيير حالة المندوب | UPDATE `order_tracking.courier_status` |
+| تسجيل التحصيل | INSERT/UPSERT في `collections` |
+| فشل التوصيل | INSERT في `failed_attempts` + UPDATE حالة التتبع |
+| طباعة مانيفست | `printManifest` يستخدم `openPrintWindow` (RTL/Arabic-safe) |
 
-2. **سطور `historical_receivable_items` (1,100 + 40,000 + 15,000 + 45 = 56,145)** — مجموعهم 56,145، لكن المستحق الإجمالي 69,195. هل أتركهم كما هم وأضع الفرق كرصيد افتتاحي للمستحق، أم تريد مسحهم جميعًا وإعادة المستحق إلى رقم واحد مفرد = 69,196؟
+---
 
-3. **خزنات النظام** — هل أبدأ بـ `lab` + `slaughter` فقط، أم أضيف `farm`/`feed_factory`/`hatchery`/`meat_factory` من الآن (مع جداول جاهزة، UI لاحقًا)؟ (الأنظف: ابدأ بـ enum يقبل الأنواع كلها واستخدم اللي محتاجه في الـ UI الآن).
+## 4) الأمان
 
-4. **اعتماد السلف** — هل المدير العام/التنفيذي وحدهم، أم أضيف `lab_treasury_approver` كمعتمد للسلف الصادرة من المعمل، ومدير المجزر للصادرة من المجزر؟
+- لا يتم منح `anon` أي صلاحية.
+- كل الـ RPCs تتحقق من الدور داخلها قبل إرجاع أي بيانات.
+- بيانات العملاء (هاتف/عنوان) ترجع فقط للمندوب المعين أو للمديرين.
+- لن يتم استخدام `service_role` في أي edge function ضمن هذه الوحدة (كلها client-side عبر RLS/RPC).
+- RLS الحالية على `orders`/`customers` تبقى كما هي تمامًا.
 
-ابعت موافقتك على الخطة + إجابات النقاط الأربعة، وأبدأ التنفيذ على مرحلتين منفصلتين (Migration A للتصحيحات، ثم Migration B للنظام الجديد).
+---
+
+## 5) الاختبار
+
+- اختبارات `vitest` جديدة:
+  - مندوب يرى فقط طلباته.
+  - مدير يرى كل الطلبات المؤهلة، لا يرى غير المؤهلة كأنها مؤهلة.
+  - تحصيل لا يحدّث `orders.collection_status`.
+  - تعيين طلب لا يحدّث `orders.route_id` ولا `orders.status`.
+- اختبار يدوي: فتح `/orders` كما هو والتأكد من سلوكه قبل/بعد.
+
+---
+
+## 6) التقرير النهائي (سيُسلَّم بعد التنفيذ)
+- الجداول/الـ RPCs/الصفحات التي أضيفت.
+- تأكيد عدم تعديل `orders`، المخزون، التسعير، التحصيل، RLS.
+- نتائج الاختبارات.
+- أي ملاحظات أو تنبيهات من supabase linter.
+
+---
+
+## استفسارات قبل التنفيذ
+1. **خط السير الحالي `/delivery-routes`**: أتركه كما هو (للتوافق مع كيمو الآن) أم أخفيه لاحقًا بعد جاهزية الوحدة الجديدة؟
+2. **enum الحالة الجديد**: هل مقبول إنشاء enum جديد `private_courier.courier_status` (مستقل عن `orders.status`)؟
+3. **التحصيل المنفصل**: تأكيد أن قيمة التحصيل تُسجَّل فقط داخل `private_courier.collections` ولا تنعكس على `orders.payment_status` إطلاقًا حتى بعد `delivered`؟
