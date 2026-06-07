@@ -95,6 +95,8 @@ interface Order {
   fulfillment_type: string | null;
   source_warehouse_id: string | null;
   source_warehouse_name: string | null;
+  route_id: string | null;
+  route_name: string | null;
   items: OrderItem[];
 }
 
