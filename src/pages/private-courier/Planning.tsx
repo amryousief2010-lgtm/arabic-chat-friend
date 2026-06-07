@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useEligibleOrders, usePCRoutes } from "@/hooks/usePrivateCourierData";
 import { CourierStatusBadge } from "@/components/private-courier/StatusBadge";
 import { openPrintWindow, escapeHtml, fmtNum } from "@/lib/printPdf";
+import { normalizeGovernorate, normalizeRegion, PC_REGIONS } from "@/lib/privateCourier/normalize";
 
 export default function PCPlanning() {
   const { data: orders, loading, refetch } = useEligibleOrders();
