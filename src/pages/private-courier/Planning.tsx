@@ -19,8 +19,17 @@ export default function PCPlanning() {
   const [search, setSearch] = useState("");
   const [govFilter, setGovFilter] = useState<string>("all");
   const [routeFilter, setRouteFilter] = useState<string>("all");
+  const [monthFilter, setMonthFilter] = useState<string>("all"); // all | YYYY-MM
+  const [assignFilter, setAssignFilter] = useState<string>("all"); // all | assigned | unassigned
+  const [bulkRouteByGov, setBulkRouteByGov] = useState<Record<string, string>>({});
 
   const governorates = useMemo(() => Array.from(new Set(orders.map(o => o.customer_governorate).filter(Boolean))) as string[], [orders]);
+
+  const months = useMemo(() => {
+    const s = new Set<string>();
+    orders.forEach(o => { if (o.created_at) s.add(o.created_at.slice(0, 7)); });
+    return Array.from(s).sort().reverse();
+  }, [orders]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -28,6 +37,9 @@ export default function PCPlanning() {
       if (govFilter !== "all" && o.customer_governorate !== govFilter) return false;
       if (routeFilter === "none" && o.assigned_route_id) return false;
       if (routeFilter !== "all" && routeFilter !== "none" && o.assigned_route_id !== routeFilter) return false;
+      if (monthFilter !== "all" && (!o.created_at || !o.created_at.startsWith(monthFilter))) return false;
+      if (assignFilter === "assigned" && !o.assigned_route_id) return false;
+      if (assignFilter === "unassigned" && o.assigned_route_id) return false;
       if (!q) return true;
       return (
         o.order_number?.toLowerCase().includes(q) ||
@@ -35,7 +47,8 @@ export default function PCPlanning() {
         o.customer_phone?.toLowerCase().includes(q)
       );
     });
-  }, [orders, search, govFilter, routeFilter]);
+  }, [orders, search, govFilter, routeFilter, monthFilter, assignFilter]);
+
 
   const grouped = useMemo(() => {
     const map = new Map<string, typeof filtered>();
