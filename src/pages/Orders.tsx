@@ -95,6 +95,8 @@ interface Order {
   fulfillment_type: string | null;
   source_warehouse_id: string | null;
   source_warehouse_name: string | null;
+  route_id: string | null;
+  route_name: string | null;
   items: OrderItem[];
 }
 
@@ -220,6 +222,8 @@ const Orders = () => {
   const [filterProduct, setFilterProduct] = useState<string>("all");
   const [filterGovernorate, setFilterGovernorate] = useState<string>("all");
   const [filterFulfillment, setFilterFulfillment] = useState<string>("all");
+  const [filterRoute, setFilterRoute] = useState<string>("all");
+  const [availableRoutes, setAvailableRoutes] = useState<{ id: string; name: string; color: string }[]>([]);
   const [availableProducts, setAvailableProducts] = useState<string[]>([]);
   const [searchParams, setSearchParams] = useSearchParams();
   const yearParam = searchParams.get("year");
@@ -262,6 +266,10 @@ const Orders = () => {
 
   useEffect(() => {
     fetchOrders();
+    (async () => {
+      const { data } = await supabase.from('delivery_routes').select('id,name,color').order('name', { ascending: true });
+      setAvailableRoutes((data as any[]) || []);
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterMonth, filterYear, yearGroup, debouncedSearch]);
 
@@ -302,7 +310,7 @@ const Orders = () => {
         'id','order_number','customer_id','status','payment_method','payment_status',
         'collection_status','subtotal','discount','delivery_fee','total','notes',
         'delivery_address','created_at','delivered_at','created_by','moderator',
-        'shipping_company','fulfillment_type','source_warehouse_id',
+        'shipping_company','fulfillment_type','source_warehouse_id','route_id',
       ].join(',');
       const ITEM_COLS = 'id,order_id,product_id,product_name,quantity,unit_price,total_price,offer_name,is_half_kg';
 
@@ -310,6 +318,7 @@ const Orders = () => {
       const profilesMap: Record<string, string> = {};
       const productsMap: Record<string, string> = {};
       const warehousesMap: Record<string, string> = {};
+      const routesMap: Record<string, string> = {};
       const productNamesSet = new Set<string>();
 
       const formatBatch = (ordersData: any[], itemsByOrder: Record<string, any[]>): Order[] =>
@@ -343,6 +352,10 @@ const Orders = () => {
           source_warehouse_name: (order as any).source_warehouse_id
             ? (warehousesMap[(order as any).source_warehouse_id] ?? null)
             : null,
+          route_id: (order as any).route_id ?? null,
+          route_name: (order as any).route_id
+            ? (routesMap[(order as any).route_id] ?? null)
+            : null,
           items: (itemsByOrder[order.id] || []).map((item: any) => ({
             id: item.id,
             product_id: item.product_id ?? null,
@@ -365,6 +378,9 @@ const Orders = () => {
         const newWarehouses = Array.from(new Set(
           orders.map((o: any) => o.source_warehouse_id).filter((id: string) => id && !warehousesMap[id])
         )) as string[];
+        const newRoutes = Array.from(new Set(
+          orders.map((o: any) => o.route_id).filter((id: string) => id && !routesMap[id])
+        )) as string[];
 
         await Promise.all([
           newCreators.length > 0
@@ -380,6 +396,11 @@ const Orders = () => {
           newWarehouses.length > 0
             ? supabase.from('warehouses').select('id, name').in('id', newWarehouses).then(({ data }) => {
                 (data || []).forEach((w: any) => { warehousesMap[w.id] = w.name; });
+              })
+            : Promise.resolve(),
+          newRoutes.length > 0
+            ? supabase.from('delivery_routes').select('id, name').in('id', newRoutes).then(({ data }) => {
+                (data || []).forEach((r: any) => { routesMap[r.id] = r.name; });
               })
             : Promise.resolve(),
         ]);
@@ -466,10 +487,12 @@ const Orders = () => {
     const q = searchQuery.trim().toLowerCase();
     const normalizedPhoneQuery = q.replace(/[^\d]/g, "");
     const normalizedOrderPhone = (order.customer_phone || "").replace(/[^\d]/g, "");
+    const routeName = (order.route_name || "").toLowerCase();
     const matchesSearch =
       !q ||
       order.order_number.toLowerCase().includes(q) ||
       order.customer_name.toLowerCase().includes(q) ||
+      routeName.includes(q) ||
       (normalizedPhoneQuery.length > 0 && normalizedOrderPhone.includes(normalizedPhoneQuery));
     const d = new Date(order.created_at);
     const year = d.getUTCFullYear();
@@ -504,11 +527,13 @@ const Orders = () => {
     })();
     const matchesFulfillment =
       filterFulfillment === "all" || fulfillmentKey === filterFulfillment;
+    const matchesRoute =
+      filterRoute === "all" || order.route_id === filterRoute;
     // مشرف المخزن الرئيسي (هادى) يشوف فقط طلبات المخزن الرئيسي (استلام أو توصيل)
     const matchesWarehouseScope =
       !isWarehouseSupervisor || fulfillmentKey === 'pickup_main' || fulfillmentKey === 'delivery_main';
-    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment && matchesWarehouseScope;
-  }), [orders, filterStatus, searchQuery, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, filterFulfillment, isWarehouseSupervisor]);
+    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment && matchesRoute && matchesWarehouseScope;
+  }), [orders, filterStatus, searchQuery, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, filterFulfillment, filterRoute, isWarehouseSupervisor]);
 
   const availableGovernorates = Array.from(
     new Set(orders.map(o => (o.governorate || "").trim()).filter(Boolean))
@@ -838,6 +863,22 @@ const Orders = () => {
                 <SelectItem value="all">جميع المحافظات</SelectItem>
                 {availableGovernorates.map((g) => (
                   <SelectItem key={g} value={g}>{g}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterRoute} onValueChange={setFilterRoute}>
+              <SelectTrigger className="w-48 input-modern">
+                <SelectValue placeholder="فلترة حسب خط السير" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">جميع خطوط السير</SelectItem>
+                {availableRoutes.map((r) => (
+                  <SelectItem key={r.id} value={r.id}>
+                    <span className="inline-flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full" style={{ background: r.color }} />
+                      {r.name}
+                    </span>
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
