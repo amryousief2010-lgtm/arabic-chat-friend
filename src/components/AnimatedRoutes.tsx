@@ -154,6 +154,12 @@ const LabTreasury = lazy(() => import("@/pages/LabTreasury"));
 const MyLabCollections = lazy(() => import("@/pages/MyLabCollections"));
 const SlaughterhouseCustody = lazy(() => import("@/pages/SlaughterhouseCustody"));
 const LabHistoricalReceivables = lazy(() => import("@/pages/lab-treasury/HistoricalReceivables"));
+const PCDashboard = lazy(() => import("@/pages/private-courier/Dashboard"));
+const PCPlanning = lazy(() => import("@/pages/private-courier/Planning"));
+const PCRoutesPage = lazy(() => import("@/pages/private-courier/Routes"));
+const PCMyDeliveries = lazy(() => import("@/pages/private-courier/MyDeliveries"));
+const PCHandovers = lazy(() => import("@/pages/private-courier/Handovers"));
+const PCCollections = lazy(() => import("@/pages/private-courier/Collections"));
 
 const RedirectWithQuery = ({ to }: { to: string }) => {
   const location = useLocation();
@@ -235,6 +241,36 @@ const AnimatedRoutes = () => {
           <Route path="/delivery-routes" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'private_delivery_rep']}>
               <PageTransition><DeliveryRoutes /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/private-courier" element={
+            <ProtectedRoute allowedRoles={['general_manager','executive_manager','sales_manager','marketing_sales_manager','accountant','warehouse_supervisor','private_delivery_rep']}>
+              <PageTransition><PCDashboard /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/private-courier/planning" element={
+            <ProtectedRoute allowedRoles={['general_manager','executive_manager','sales_manager','marketing_sales_manager']}>
+              <PageTransition><PCPlanning /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/private-courier/routes" element={
+            <ProtectedRoute allowedRoles={['general_manager','executive_manager','sales_manager','marketing_sales_manager']}>
+              <PageTransition><PCRoutesPage /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/private-courier/my-deliveries" element={
+            <ProtectedRoute allowedRoles={['private_delivery_rep','general_manager','executive_manager']}>
+              <PageTransition><PCMyDeliveries /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/private-courier/handovers" element={
+            <ProtectedRoute allowedRoles={['general_manager','executive_manager','warehouse_supervisor','sales_manager']}>
+              <PageTransition><PCHandovers /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/private-courier/collections" element={
+            <ProtectedRoute allowedRoles={['general_manager','executive_manager','sales_manager','accountant']}>
+              <PageTransition><PCCollections /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/warehouse-stock/main" element={

@@ -27,6 +27,7 @@ const PRIVATE_REP_ALLOWED_PREFIXES = [
   '/orders',
   '/private-delivery-pricing',
   '/delivery-routes',
+  '/private-courier',
   '/notifications',
   '/permissions',
   '/auth',
