@@ -16,6 +16,9 @@ import {
 } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import {
+  Accordion, AccordionItem, AccordionTrigger, AccordionContent,
+} from "@/components/ui/accordion";
 import { toast } from "sonner";
 import {
   Plus, Trash2, Pencil, MapPin, Phone, Search, Truck, Package,
