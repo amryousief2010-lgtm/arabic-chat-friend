@@ -359,34 +359,85 @@ export default function LabTreasury() {
 
   async function submitIncome() {
     if (!user) return;
-    const parsed = incomeSchema.safeParse({
-      ...incForm,
-      units_count: incForm.units_count === "" ? undefined : Number(incForm.units_count),
-      unit_price: incForm.unit_price === "" ? undefined : Number(incForm.unit_price),
-      amount: Number(incForm.amount),
-    });
-    if (!parsed.success) { toast.error(parsed.error.errors[0]?.message || "تحقق من الحقول"); return; }
-    const receipt_url = await uploadReceipt(incReceipt);
-    const payload = {
-      movement_type: "income" as const,
-      movement_date: parsed.data.movement_date,
-      income_category: parsed.data.income_category,
-      customer_name: parsed.data.customer_name || null,
-      units_count: parsed.data.units_count ?? null,
-      unit_price: parsed.data.unit_price ?? null,
-      amount: parsed.data.amount,
-      payment_method: parsed.data.payment_method,
-      description: parsed.data.description || null,
-      notes: parsed.data.notes || null,
-      receipt_url,
-      created_by: user.id,
-      status: "pending" as const,
-    };
+    const isHatch = incForm.income_category === "hatching";
+
+    let payload: any;
+    if (isHatch) {
+      // Detailed hatching invoice path
+      if (!incForm.batch_number.trim()) { toast.error("رقم الدفعة مطلوب"); return; }
+      if (!incForm.customer_name.trim()) { toast.error("اسم العميل مطلوب"); return; }
+      if (invoiceTotalCalc <= 0) { toast.error("يجب إدخال بنود الفاتورة (بيض أو كتاكيت أو تحضين)"); return; }
+      if (collectedNum < 0) { toast.error("المبلغ المحصل لا يصح أن يكون سالبًا"); return; }
+      if (collectedNum > invoiceTotalCalc) { toast.error("المبلغ المحصل لا يجوز أن يتجاوز إجمالي الفاتورة"); return; }
+
+      const receipt_url = await uploadReceipt(incReceipt);
+      payload = {
+        movement_type: "income" as const,
+        movement_date: incForm.movement_date,
+        income_category: "hatching",
+        customer_name: incForm.customer_name,
+        units_count: null,
+        unit_price: null,
+        amount: collectedNum, // only the actually-collected amount enters the treasury
+        payment_method: incForm.payment_method,
+        description: incForm.description || null,
+        notes: incForm.notes || null,
+        receipt_url,
+        created_by: user.id,
+        status: "pending" as const,
+        // breakdown
+        batch_number: incForm.batch_number.trim(),
+        lais_eggs_count: Number(incForm.lais_count) || 0,
+        lais_eggs_amount: lais_amt,
+        candle2_eggs_count: Number(incForm.candle2_count) || 0,
+        candle2_eggs_amount: candle2_amt,
+        chicks_count: Number(incForm.chicks_count) || 0,
+        chicks_amount: chicks_amt,
+        brooding_chicks_count: Number(incForm.brooding_chicks) || 0,
+        brooding_days: Number(incForm.brooding_days) || 0,
+        brooding_amount: brooding_amt,
+        invoice_total: invoiceTotalCalc,
+        collected_amount: collectedNum,
+        remaining_amount: remainingCalc,
+        payment_status: paymentStatusCalc,
+      };
+    } else {
+      const parsed = incomeSchema.safeParse({
+        ...incForm,
+        units_count: incForm.units_count === "" ? undefined : Number(incForm.units_count),
+        unit_price: incForm.unit_price === "" ? undefined : Number(incForm.unit_price),
+        amount: Number(incForm.amount),
+      });
+      if (!parsed.success) { toast.error(parsed.error.errors[0]?.message || "تحقق من الحقول"); return; }
+      const receipt_url = await uploadReceipt(incReceipt);
+      payload = {
+        movement_type: "income" as const,
+        movement_date: parsed.data.movement_date,
+        income_category: parsed.data.income_category,
+        customer_name: parsed.data.customer_name || null,
+        units_count: parsed.data.units_count ?? null,
+        unit_price: parsed.data.unit_price ?? null,
+        amount: parsed.data.amount,
+        payment_method: parsed.data.payment_method,
+        description: parsed.data.description || null,
+        notes: parsed.data.notes || null,
+        receipt_url,
+        created_by: user.id,
+        status: "pending" as const,
+      };
+    }
+
     const { data, error } = await (supabase as any).from("lab_treasury_movements").insert(payload).select().single();
     if (error) { toast.error("فشل التسجيل: " + error.message); return; }
     await logAudit("insert_income", { movement_id: data?.id, after: payload });
     toast.success("تم تسجيل الإيراد — بانتظار الاعتماد");
-    setIncForm({ ...incForm, customer_name: "", units_count: "", unit_price: "", amount: "", description: "", notes: "" });
+    setIncForm({
+      ...incForm,
+      customer_name: "", units_count: "", unit_price: "", amount: "",
+      description: "", notes: "",
+      batch_number: "", lais_count: "", candle2_count: "", chicks_count: "",
+      brooding_chicks: "", brooding_days: "", collected_amount: "",
+    });
     setIncReceipt(null);
     fetchData();
   }
