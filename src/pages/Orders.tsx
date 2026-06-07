@@ -372,6 +372,9 @@ const Orders = () => {
         const newWarehouses = Array.from(new Set(
           orders.map((o: any) => o.source_warehouse_id).filter((id: string) => id && !warehousesMap[id])
         )) as string[];
+        const newRoutes = Array.from(new Set(
+          orders.map((o: any) => o.route_id).filter((id: string) => id && !routesMap[id])
+        )) as string[];
 
         await Promise.all([
           newCreators.length > 0
@@ -387,6 +390,11 @@ const Orders = () => {
           newWarehouses.length > 0
             ? supabase.from('warehouses').select('id, name').in('id', newWarehouses).then(({ data }) => {
                 (data || []).forEach((w: any) => { warehousesMap[w.id] = w.name; });
+              })
+            : Promise.resolve(),
+          newRoutes.length > 0
+            ? supabase.from('delivery_routes').select('id, name').in('id', newRoutes).then(({ data }) => {
+                (data || []).forEach((r: any) => { routesMap[r.id] = r.name; });
               })
             : Promise.resolve(),
         ]);
