@@ -682,6 +682,13 @@ export default function LabTreasury() {
         ? INCOME_LABELS[m.income_category as IncomeCat] || ""
         : EXPENSE_LABELS[m.expense_category as ExpenseCat] || "",
       "العميل/المستفيد": m.customer_name || m.beneficiary || "",
+      "رقم الدفعة": (m as any).batch_number || "",
+      "إجمالي البنود": (m as any).subtotal_amount ?? "",
+      "الخصم": Number((m as any).discount_amount || 0) || "",
+      "صافي الفاتورة": (m as any).invoice_total ?? "",
+      "المحصل من الفاتورة": (m as any).collected_amount ?? "",
+      "المتبقي": (m as any).remaining_amount ?? "",
+      "حالة الفاتورة": (m as any).payment_status === "paid" ? "مدفوع" : (m as any).payment_status === "partial" ? "جزئي" : (m as any).payment_status === "unpaid" ? "غير مدفوع" : "",
       "وارد": m.movement_type === "income" ? Number(m.amount) : 0,
       "منصرف": m.movement_type === "expense" ? Number(m.amount) : 0,
       "طريقة الدفع": PAYMENT_LABELS[m.payment_method],
