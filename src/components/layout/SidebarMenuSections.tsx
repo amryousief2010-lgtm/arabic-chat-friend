@@ -33,6 +33,7 @@ import {
   Calculator,
   ScrollText,
   MessageSquare,
+  Mail,
   Wallet,
   LucideIcon,
   ShieldCheck,
