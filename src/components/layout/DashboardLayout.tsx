@@ -8,6 +8,7 @@ import ClockCalendarWidget from "@/components/ClockCalendarWidget";
 import PendingApprovalsAlert from "@/components/lab-treasury/PendingApprovalsAlert";
 import { useOrderNotifications } from "@/hooks/useOrderNotifications";
 import { useDailyReminders } from "@/hooks/useDailyReminders";
+import { useInternalMessageRealtime } from "@/hooks/useInternalMessageRealtime";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
 import { useQueryClient } from "@tanstack/react-query";
