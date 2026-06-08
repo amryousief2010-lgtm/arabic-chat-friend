@@ -19,6 +19,7 @@ import * as XLSX from "xlsx";
 import { openPrintWindow } from "@/lib/printPdf";
 import { MarketProfitabilityCard, MarketPricesTab, useMarketPrices } from "./BroodingMarketPrices";
 import { MovementsLog } from "@/components/MovementsLog";
+import FeedInternalDebtDashboard from "@/components/feed/FeedInternalDebtDashboard";
 
 // ===== Types =====
 type Batch = {
@@ -1555,6 +1556,8 @@ const FeedStockTab = ({ inventory, movements, batches, canManage, settings, onRe
 
   return (
     <div className="space-y-4">
+      <FeedInternalDebtDashboard department="brooding" />
+
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>مخزون علف الكتاكيت</CardTitle>

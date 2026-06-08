@@ -2953,6 +2953,108 @@ export type Database = {
           },
         ]
       }
+      feed_internal_payments: {
+        Row: {
+          amount: number
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          created_by: string | null
+          department_type: string
+          id: string
+          notes: string | null
+          payment_date: string
+          payment_method: string
+          payment_no: string
+          receipt_url: string | null
+          reference_no: string | null
+          rejected_reason: string | null
+          status: string
+          treasury_txn_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          department_type: string
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          payment_method: string
+          payment_no?: string
+          receipt_url?: string | null
+          reference_no?: string | null
+          rejected_reason?: string | null
+          status?: string
+          treasury_txn_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          department_type?: string
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          payment_method?: string
+          payment_no?: string
+          receipt_url?: string | null
+          reference_no?: string | null
+          rejected_reason?: string | null
+          status?: string
+          treasury_txn_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      feed_internal_payments_audit: {
+        Row: {
+          action: string
+          amount: number | null
+          department_type: string | null
+          id: string
+          new_status: string | null
+          old_status: string | null
+          payment_id: string
+          payment_method: string | null
+          performed_at: string
+          performed_by: string | null
+          reason: string | null
+        }
+        Insert: {
+          action: string
+          amount?: number | null
+          department_type?: string | null
+          id?: string
+          new_status?: string | null
+          old_status?: string | null
+          payment_id: string
+          payment_method?: string | null
+          performed_at?: string
+          performed_by?: string | null
+          reason?: string | null
+        }
+        Update: {
+          action?: string
+          amount?: number | null
+          department_type?: string | null
+          id?: string
+          new_status?: string | null
+          old_status?: string | null
+          payment_id?: string
+          payment_method?: string | null
+          performed_at?: string
+          performed_by?: string | null
+          reason?: string | null
+        }
+        Relationships: []
+      }
       feed_invoice_batches: {
         Row: {
           approved_output_qty: number | null
@@ -12877,6 +12979,21 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      v_feed_internal_balances: {
+        Row: {
+          account_status: string | null
+          department_label: string | null
+          department_type: string | null
+          last_payment_date: string | null
+          last_supply_date: string | null
+          pending_payments_count: number | null
+          remaining_debt: number | null
+          supply_invoices_count: number | null
+          total_paid: number | null
+          total_supplied_value: number | null
+        }
+        Relationships: []
       }
       v_hatchery_batches_full: {
         Row: {
