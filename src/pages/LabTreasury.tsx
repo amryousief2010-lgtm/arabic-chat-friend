@@ -1034,14 +1034,24 @@ export default function LabTreasury() {
                           <div className="text-xl font-mono font-bold">{fmtNum(subtotalCalc, 2)} ج</div>
                         </div>
                       </div>
+                      {discountExceeds && (
+                        <Alert variant="destructive" className="py-2">
+                          <AlertTriangle className="w-4 h-4" />
+                          <AlertTitle>قيمة الخصم أكبر من إجمالي البنود</AlertTitle>
+                          <AlertDescription>
+                            الخصم المدخل ({fmtNum(discountNum, 2)} ج) يتجاوز إجمالي البنود ({fmtNum(subtotalCalc, 2)} ج).<br/>
+                            قم بتصحيح قيمة الخصم لتكون أقل من أو تساوي {fmtNum(subtotalCalc, 2)} ج.
+                          </AlertDescription>
+                        </Alert>
+                      )}
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <Field label="الخصم (Discount)">
-                          <Input type="number" min={0} max={subtotalCalc || undefined} value={incForm.discount} onChange={(e) => setIncForm({ ...incForm, discount: e.target.value })} placeholder="مثال: 100" />
+                          <Input type="number" min={0} max={subtotalCalc || undefined} value={incForm.discount} onChange={(e) => setIncForm({ ...incForm, discount: e.target.value })} placeholder="مثال: 100" className={discountExceeds ? "border-destructive focus-visible:ring-destructive" : ""} />
                           <div className="text-xs text-muted-foreground mt-1">يخصم من إجمالي البنود قبل المطلوب من العميل</div>
                         </Field>
                         <div className="flex flex-col justify-end">
                           <div className="text-xs text-muted-foreground">قيمة الخصم</div>
-                          <div className="text-xl font-mono font-bold text-amber-600">- {fmtNum(discountNum, 2)} ج</div>
+                          <div className={`text-xl font-mono font-bold ${discountExceeds ? "text-destructive" : "text-amber-600"}`}>- {fmtNum(discountNum, 2)} ج</div>
                         </div>
                         <div className="flex flex-col justify-end">
                           <div className="text-xs text-muted-foreground">صافي الفاتورة (المطلوب من العميل)</div>
