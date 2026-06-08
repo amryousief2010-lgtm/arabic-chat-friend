@@ -12795,6 +12795,9 @@ export type Database = {
         Row: {
           balance_approved: number | null
           balance_estimated: number | null
+          net_movements: number | null
+          official_balance: number | null
+          opening_balance: number | null
           payment_method:
             | Database["public"]["Enums"]["lab_treasury_payment_method"]
             | null

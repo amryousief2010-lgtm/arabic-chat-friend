@@ -288,32 +288,39 @@ export default function LabTreasury() {
         ? (supabase as any).from("lab_treasury_audit_log").select("*").order("created_at", { ascending: false }).limit(500)
         : Promise.resolve({ data: [] }),
       (supabase as any).from("lab_treasury_opening_balances").select("cash_amount,vodafone_cash_amount,instapay_amount,bank_transfer_amount,status").eq("status", "approved"),
-      (supabase as any).from("v_lab_treasury_balances").select("payment_method,balance_approved"),
+      (supabase as any).from("v_lab_treasury_balances").select("payment_method,opening_balance,net_movements,official_balance"),
     ]);
     if (e1) { toast.error("فشل تحميل الخزنة: " + e1.message); setLoading(false); return; }
     const list = (mvs || []) as Movement[];
     setMovements(list);
     setClosures((cls || []) as DayClosure[]);
     setAuditRows((aud || []) as AuditRow[]);
+
+    // Build opening + official maps from the view (single source of truth, same as dashboard cards & advance form)
     const op: Record<PaymentMethod, number> = { cash: 0, vodafone_cash: 0, instapay: 0, bank_transfer: 0 };
-    (ops || []).forEach((o: any) => {
-      op.cash += Number(o.cash_amount || 0);
-      op.vodafone_cash += Number(o.vodafone_cash_amount || 0);
-      op.instapay += Number(o.instapay_amount || 0);
-      op.bank_transfer += Number(o.bank_transfer_amount || 0);
+    const approvedMap: Record<PaymentMethod, number> = { cash: 0, vodafone_cash: 0, instapay: 0, bank_transfer: 0 };
+    (approvedBalancesView || []).forEach((row: any) => {
+      const pm = row?.payment_method as PaymentMethod;
+      if (!pm) return;
+      op[pm] = Number(row.opening_balance || 0);
+      approvedMap[pm] = Number(row.official_balance || 0);
     });
-    setOpeningByMethod(op);
-    const approvedMap: Record<PaymentMethod, number> = { ...op };
-    list
-      .filter((m) => m.status === "approved")
-      .forEach((m) => {
+    // Fallback: if view returned no rows, derive from raw tables
+    if (!approvedBalancesView || approvedBalancesView.length === 0) {
+      (ops || []).forEach((o: any) => {
+        op.cash += Number(o.cash_amount || 0);
+        op.vodafone_cash += Number(o.vodafone_cash_amount || 0);
+        op.instapay += Number(o.instapay_amount || 0);
+        op.bank_transfer += Number(o.bank_transfer_amount || 0);
+      });
+      (Object.keys(approvedMap) as PaymentMethod[]).forEach((pm) => { approvedMap[pm] = op[pm]; });
+      list.filter((m) => m.status === "approved").forEach((m) => {
         approvedMap[m.payment_method] += (m.movement_type === "income" ? 1 : -1) * Number(m.amount);
       });
-    (approvedBalancesView || []).forEach((row: any) => {
-      if (!row?.payment_method) return;
-      approvedMap[row.payment_method as PaymentMethod] = Number(row.balance_approved || 0);
-    });
+    }
+    setOpeningByMethod(op);
     setOfficialByMethod(approvedMap);
+
 
     const ids = Array.from(new Set([
       ...list.flatMap((m) => [m.created_by, m.approved_by, m.rejected_by]),
@@ -967,8 +974,9 @@ export default function LabTreasury() {
             <div>
               <SectionTitle icon={<Activity />} title="مؤشرات الخزنة الرئيسية" />
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                <PremiumStat tone="success" highlight icon={<CheckCircle2 />} title="الرصيد الرسمي المعتمد" value={fmtNum(officialTotal, 2)} hint="افتتاحي + حركات معتمدة" />
+                <PremiumStat tone="success" highlight icon={<CheckCircle2 />} title="الرصيد الرسمي المعتمد" value={fmtNum(officialTotal, 2)} hint={`افتتاحي: ${fmtNum(openingTotal, 0)} + صافي الحركات: ${fmtNum(officialTotal - openingTotal, 0)} = ${fmtNum(officialTotal, 0)}`} />
                 <PremiumStat tone="primary" icon={<Banknote />} title="الرصيد الفعلي داخل الخزنة" value={fmtNum(officialTotal, 2)} hint="نفس الرصيد المعتمد" />
+
                 <ExternalSummaryCard />
                 <TotalLabFundsCard officialTotal={officialTotal} />
               </div>
