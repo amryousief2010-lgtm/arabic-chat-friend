@@ -366,6 +366,11 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
                           {labApprovalsCount > 99 ? "99+" : labApprovalsCount}
                         </Badge>
                       )}
+                      {showInternalMsgBadge && (
+                        <Badge variant="destructive" className="h-5 min-w-5 px-1.5 text-xs">
+                          {unreadInternalMessages > 99 ? "99+" : unreadInternalMessages}
+                        </Badge>
+                      )}
                     </Link>
                   );
                 })}
