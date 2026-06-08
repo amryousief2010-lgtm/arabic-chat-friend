@@ -5864,8 +5864,43 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "lab_treasury_advances_difference_movement_id_fkey"
+            columns: ["difference_movement_id"]
+            isOneToOne: false
+            referencedRelation: "v_lab_treasury_potential_duplicates"
+            referencedColumns: ["duplicate_id"]
+          },
+          {
+            foreignKeyName: "lab_treasury_advances_difference_movement_id_fkey"
+            columns: ["difference_movement_id"]
+            isOneToOne: false
+            referencedRelation: "v_lab_treasury_potential_duplicates"
+            referencedColumns: ["first_id"]
+          },
+          {
             foreignKeyName: "lab_treasury_advances_issue_movement_id_fkey"
             columns: ["issue_movement_id"]
+            isOneToOne: false
+            referencedRelation: "lab_treasury_movements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_treasury_advances_issue_movement_id_fkey"
+            columns: ["issue_movement_id"]
+            isOneToOne: false
+            referencedRelation: "v_lab_treasury_potential_duplicates"
+            referencedColumns: ["duplicate_id"]
+          },
+          {
+            foreignKeyName: "lab_treasury_advances_issue_movement_id_fkey"
+            columns: ["issue_movement_id"]
+            isOneToOne: false
+            referencedRelation: "v_lab_treasury_potential_duplicates"
+            referencedColumns: ["first_id"]
+          },
+          {
+            foreignKeyName: "lab_treasury_advances_return_movement_id_fkey"
+            columns: ["return_movement_id"]
             isOneToOne: false
             referencedRelation: "lab_treasury_movements"
             referencedColumns: ["id"]
@@ -5874,8 +5909,15 @@ export type Database = {
             foreignKeyName: "lab_treasury_advances_return_movement_id_fkey"
             columns: ["return_movement_id"]
             isOneToOne: false
-            referencedRelation: "lab_treasury_movements"
-            referencedColumns: ["id"]
+            referencedRelation: "v_lab_treasury_potential_duplicates"
+            referencedColumns: ["duplicate_id"]
+          },
+          {
+            foreignKeyName: "lab_treasury_advances_return_movement_id_fkey"
+            columns: ["return_movement_id"]
+            isOneToOne: false
+            referencedRelation: "v_lab_treasury_potential_duplicates"
+            referencedColumns: ["first_id"]
           },
         ]
       }
@@ -6074,6 +6116,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "lab_treasury_movements"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_treasury_external_deposits_movement_id_fkey"
+            columns: ["movement_id"]
+            isOneToOne: false
+            referencedRelation: "v_lab_treasury_potential_duplicates"
+            referencedColumns: ["duplicate_id"]
+          },
+          {
+            foreignKeyName: "lab_treasury_external_deposits_movement_id_fkey"
+            columns: ["movement_id"]
+            isOneToOne: false
+            referencedRelation: "v_lab_treasury_potential_duplicates"
+            referencedColumns: ["first_id"]
           },
         ]
       }
@@ -12757,6 +12813,31 @@ export type Database = {
         }
         Relationships: []
       }
+      v_lab_treasury_potential_duplicates: {
+        Row: {
+          amount: number | null
+          category: string | null
+          duplicate_created_at: string | null
+          duplicate_created_by: string | null
+          duplicate_description: string | null
+          duplicate_id: string | null
+          duplicate_source_table: string | null
+          first_created_at: string | null
+          first_created_by: string | null
+          first_description: string | null
+          first_id: string | null
+          first_source_table: string | null
+          movement_date: string | null
+          movement_type:
+            | Database["public"]["Enums"]["lab_treasury_movement_type"]
+            | null
+          party: string | null
+          payment_method:
+            | Database["public"]["Enums"]["lab_treasury_payment_method"]
+            | null
+        }
+        Relationships: []
+      }
       v_mother_farm_feed_balance: {
         Row: {
           balance_kg: number | null
@@ -13680,6 +13761,10 @@ export type Database = {
       lab_treasury_net_operation: {
         Args: { p_from?: string; p_to?: string }
         Returns: Json
+      }
+      lab_treasury_reverse_duplicate: {
+        Args: { p_duplicate_id: string; p_kept_id: string; p_reason: string }
+        Returns: string
       }
       lab_treasury_settle_advance: {
         Args: {
