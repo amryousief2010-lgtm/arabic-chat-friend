@@ -5601,6 +5601,150 @@ export type Database = {
         }
         Relationships: []
       }
+      internal_message_attachments: {
+        Row: {
+          created_at: string
+          file_name: string | null
+          file_size: number | null
+          file_type: string | null
+          file_url: string
+          id: string
+          message_id: string
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string
+          file_name?: string | null
+          file_size?: number | null
+          file_type?: string | null
+          file_url: string
+          id?: string
+          message_id: string
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string | null
+          file_size?: number | null
+          file_type?: string | null
+          file_url?: string
+          id?: string
+          message_id?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "internal_message_attachments_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "internal_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      internal_message_recipients: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          id: string
+          message_id: string
+          read_at: string | null
+          recipient_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          id?: string
+          message_id: string
+          read_at?: string | null
+          recipient_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          id?: string
+          message_id?: string
+          read_at?: string | null
+          recipient_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "internal_message_recipients_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "internal_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      internal_message_replies: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          message_id: string
+          sender_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          message_id: string
+          sender_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          message_id?: string
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "internal_message_replies_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "internal_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      internal_messages: {
+        Row: {
+          body: string
+          created_at: string
+          has_attachments: boolean
+          id: string
+          is_deleted: boolean
+          priority: string
+          sender_id: string
+          subject: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          has_attachments?: boolean
+          id?: string
+          is_deleted?: boolean
+          priority?: string
+          sender_id: string
+          subject: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          has_attachments?: boolean
+          id?: string
+          is_deleted?: boolean
+          priority?: string
+          sender_id?: string
+          subject?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       inventory_items: {
         Row: {
           blocked_qty: number
@@ -14275,6 +14419,10 @@ export type Database = {
         Returns: Json
       }
       is_feed_team: { Args: { _user_id: string }; Returns: boolean }
+      is_message_participant: {
+        Args: { _message_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_slaughter_custody_manager: { Args: { _uid: string }; Returns: boolean }
       lab_ledger_recompute_balance: {
         Args: { p_customer: string }
