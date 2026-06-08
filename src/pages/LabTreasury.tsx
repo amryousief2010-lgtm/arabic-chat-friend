@@ -601,9 +601,8 @@ export default function LabTreasury() {
       if (correctionReason) {
         // Audit the manual correction explicitly
         await logAudit("insert_income", {
-          kind: "manual_chick_sale_correction",
           reason: correctionReason,
-          payload,
+          metadata: { kind: "manual_chick_sale_correction", payload },
         });
       }
     }
