@@ -280,6 +280,7 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
   const { role, roles, profile } = useAuth();
   const { unreadCount } = useUnreadNotifications();
   const { total: labApprovalsCount } = useLabTreasuryApprovals();
+  const { unreadCount: unreadInternalMessages } = useUnreadInternalMessages();
   // Sales moderators now use the same /orders page as managers (RLS scopes
   // them to their own rows). The previous override sent them to a stripped-
   // down log view, which the user explicitly asked to remove.
