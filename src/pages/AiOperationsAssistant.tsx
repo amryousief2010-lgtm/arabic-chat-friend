@@ -623,7 +623,7 @@ const QUESTIONS: QuickQuestion[] = [
       const { data, error } = await supabase
         .from("pc_collections")
         .select("amount_due, amount_collected, status")
-        .neq("status", "cash_collected");
+        .in("status", ["not_collected", "partial_collected", "mismatch"]);
       if (error) throw error;
       const due = (data || []).reduce((s, r: any) => s + n(r.amount_due), 0);
       const collected = (data || []).reduce((s, r: any) => s + n(r.amount_collected), 0);
