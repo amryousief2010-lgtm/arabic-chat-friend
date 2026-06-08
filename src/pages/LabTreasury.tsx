@@ -3,6 +3,8 @@ import { z } from "zod";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import AdvancesTab from "@/components/lab-treasury/AdvancesTab";
 import DuplicatesTab from "@/components/lab-treasury/DuplicatesTab";
+import ReconcileTab from "@/components/lab-treasury/ReconcileTab";
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -924,6 +926,7 @@ export default function LabTreasury() {
             <TabsTrigger value="external">التحصيلات الخارجية</TabsTrigger>
             <TabsTrigger value="advances">العُهد</TabsTrigger>
             {canApprove && <TabsTrigger value="duplicates">المكررات</TabsTrigger>}
+            <TabsTrigger value="reconcile">مطابقة الخزنة</TabsTrigger>
             <TabsTrigger value="reports">التقارير</TabsTrigger>
             {canApprove && <TabsTrigger value="audit">سجل التدقيق</TabsTrigger>}
           </TabsList>
@@ -940,6 +943,15 @@ export default function LabTreasury() {
               <DuplicatesTab isManager={isManager} />
             </TabsContent>
           )}
+          <TabsContent value="reconcile">
+            <ReconcileTab
+              movements={movements as any}
+              openingByMethod={openingByMethod}
+              officialByMethod={officialByMethod}
+              onChanged={fetchData}
+            />
+          </TabsContent>
+
 
           {/* Dashboard */}
           <TabsContent value="dashboard" className="space-y-5">
