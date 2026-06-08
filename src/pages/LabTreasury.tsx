@@ -106,6 +106,40 @@ const PAYMENT_LABELS: Record<PaymentMethod, string> = {
   bank_transfer: "تحويل بنكي",
 };
 
+const normalizePaymentMethod = (value: string | null | undefined): PaymentMethod => {
+  switch (value) {
+    case "cash":
+    case "نقدي":
+    case "النقدية (كاش)":
+      return "cash";
+    case "vodafone_cash":
+    case "فودافون كاش":
+      return "vodafone_cash";
+    case "instapay":
+    case "إنستا باي":
+    case "انستاباي":
+      return "instapay";
+    case "bank_transfer":
+    case "تحويل بنكي":
+    case "التحويل البنكي":
+      return "bank_transfer";
+    default:
+      return "cash";
+  }
+};
+
+const debugLabTreasuryAmount = (context: string, values: {
+  entered_amount: string | number | null;
+  expense_amount: number | null;
+  advance_amount: number | null;
+  invoice_total: number | null;
+  paid_amount: number | null;
+  amount_sent_to_rpc: number | null;
+  payment_method: PaymentMethod;
+}) => {
+  console.info("[lab-treasury-debug]", { context, ...values });
+};
+
 const INCOME_LABELS: Record<IncomeCat, string> = {
   hatching: "تفريخ بيض عملاء",
   chick_sales: "بيع كتاكيت",
@@ -352,8 +386,11 @@ export default function LabTreasury() {
   }, [movements, fromDate, toDate, fType, fCategory, fPayment, fStatus, fCustomer]);
 
   // ---- Expense balance check (UI warning) ----
-  const expAmountNum = Number(expForm.amount) || 0;
-  const expAvailable = officialByMethod[expForm.payment_method] ?? 0;
+  const normalizedIncomePaymentMethod = normalizePaymentMethod(incForm.payment_method);
+  const normalizedExpensePaymentMethod = normalizePaymentMethod(expForm.payment_method);
+  const expAmountRaw = String(expForm.amount ?? "").trim();
+  const expAmountNum = Number(expAmountRaw) || 0;
+  const expAvailable = officialByMethod[normalizedExpensePaymentMethod] ?? 0;
   const expExceeds = expAmountNum > 0 && expAmountNum > expAvailable;
 
   async function uploadReceipt(file: File | null): Promise<string | null> {
@@ -425,6 +462,18 @@ export default function LabTreasury() {
   async function submitIncome() {
     if (!user) return;
     const isHatch = incForm.income_category === "hatching";
+    const enteredIncomeAmount = isHatch ? String(incForm.collected_amount ?? "").trim() : String(incForm.amount ?? "").trim();
+    const sentIncomeAmount = isHatch ? collectedNum : Number(incForm.amount) || 0;
+
+    debugLabTreasuryAmount("income_submit", {
+      entered_amount: enteredIncomeAmount || null,
+      expense_amount: null,
+      advance_amount: null,
+      invoice_total: invoiceTotalCalc,
+      paid_amount: collectedNum,
+      amount_sent_to_rpc: sentIncomeAmount,
+      payment_method: normalizedIncomePaymentMethod,
+    });
 
     let payload: any;
     if (isHatch) {
@@ -445,7 +494,7 @@ export default function LabTreasury() {
         units_count: null,
         unit_price: null,
         amount: collectedNum, // only the actually-collected amount enters the treasury
-        payment_method: incForm.payment_method,
+        payment_method: normalizedIncomePaymentMethod,
         description: incForm.description || null,
         notes: incForm.notes || null,
         receipt_url,
@@ -475,6 +524,7 @@ export default function LabTreasury() {
         units_count: incForm.units_count === "" ? undefined : Number(incForm.units_count),
         unit_price: incForm.unit_price === "" ? undefined : Number(incForm.unit_price),
         amount: Number(incForm.amount),
+        payment_method: normalizedIncomePaymentMethod,
       });
       if (!parsed.success) { toast.error(parsed.error.errors[0]?.message || "تحقق من الحقول"); return; }
       const receipt_url = await uploadReceipt(incReceipt);
@@ -512,14 +562,28 @@ export default function LabTreasury() {
 
   async function submitExpense() {
     if (!user) return;
-    const parsed = expenseSchema.safeParse({ ...expForm, amount: Number(expForm.amount) });
+    debugLabTreasuryAmount("expense_submit", {
+      entered_amount: expAmountRaw || null,
+      expense_amount: expAmountNum,
+      advance_amount: null,
+      invoice_total: invoiceTotalCalc,
+      paid_amount: collectedNum,
+      amount_sent_to_rpc: expAmountNum,
+      payment_method: normalizedExpensePaymentMethod,
+    });
+
+    const parsed = expenseSchema.safeParse({
+      ...expForm,
+      amount: expAmountNum,
+      payment_method: normalizedExpensePaymentMethod,
+    });
     if (!parsed.success) { toast.error(parsed.error.errors[0]?.message || "تحقق من الحقول"); return; }
     if (expExceeds && !isManager) {
-      toast.error(`الرصيد المتاح في ${PAYMENT_LABELS[expForm.payment_method]} غير كافٍ (${fmtNum(expAvailable, 2)} ج). يلزم اعتماد المدير العام أو التنفيذي.`);
+      toast.error(`الرصيد المتاح في ${PAYMENT_LABELS[normalizedExpensePaymentMethod]} غير كافٍ (${fmtNum(expAvailable, 2)} ج). يلزم اعتماد المدير العام أو التنفيذي.`);
       return;
     }
     if (expExceeds && isManager) {
-      if (!confirm(`تحذير: المبلغ يتجاوز الرصيد المتاح في ${PAYMENT_LABELS[expForm.payment_method]} (${fmtNum(expAvailable, 2)} ج). هل تريد المتابعة بصلاحية الإدارة؟`)) return;
+      if (!confirm(`تحذير: المبلغ يتجاوز الرصيد المتاح في ${PAYMENT_LABELS[normalizedExpensePaymentMethod]} (${fmtNum(expAvailable, 2)} ج). هل تريد المتابعة بصلاحية الإدارة؟`)) return;
     }
     const receipt_url = await uploadReceipt(expReceipt);
     const payload = {
@@ -849,7 +913,7 @@ export default function LabTreasury() {
             {canApprove && <TabsTrigger value="audit">سجل التدقيق</TabsTrigger>}
           </TabsList>
           <TabsContent value="advances">
-            <AdvancesTab isManager={isManager} />
+            <AdvancesTab isManager={isManager} debugSnapshot={{ invoice_total: invoiceTotalCalc, paid_amount: collectedNum }} />
           </TabsContent>
           {canApprove && (
             <TabsContent value="duplicates">
@@ -1139,7 +1203,7 @@ export default function LabTreasury() {
                     <SelectContent>{Object.entries(EXPENSE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
                   </Select>
                 </Field>
-                <Field label="المبلغ *"><Input type="number" value={expForm.amount} onChange={(e) => setExpForm({ ...expForm, amount: e.target.value })} /></Field>
+                <Field label="المبلغ *"><Input type="number" inputMode="decimal" autoComplete="off" name="lab-treasury-expense-amount" value={expForm.amount} onChange={(e) => setExpForm({ ...expForm, amount: e.target.value })} /></Field>
                 <Field label="طريقة الدفع">
                   <Select value={expForm.payment_method} onValueChange={(v) => setExpForm({ ...expForm, payment_method: v as PaymentMethod })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
@@ -1154,7 +1218,7 @@ export default function LabTreasury() {
                 </div>
                 <div className="md:col-span-2 lg:col-span-3 space-y-2">
                   <div className="text-sm text-muted-foreground">
-                    الرصيد المتاح في {PAYMENT_LABELS[expForm.payment_method]}: <span className="font-mono font-semibold">{fmtNum(expAvailable, 2)} ج</span>
+                    الرصيد المتاح في {PAYMENT_LABELS[normalizedExpensePaymentMethod]}: <span className="font-mono font-semibold">{fmtNum(expAvailable, 2)} ج</span>
                   </div>
                   {expExceeds && (
                     <Alert variant="destructive">
