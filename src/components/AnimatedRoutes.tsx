@@ -335,6 +335,17 @@ const AnimatedRoutes = () => {
               <PageTransition><Notifications /></PageTransition>
             </ProtectedRoute>
           } />
+          <Route path="/internal-messages" element={
+            <ProtectedRoute>
+              <PageTransition><InternalMessages /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/internal-messages/:id" element={
+            <ProtectedRoute>
+              <PageTransition><InternalMessageDetails /></PageTransition>
+            </ProtectedRoute>
+          } />
+
           <Route path="/ai-operations-assistant" element={
             <ProtectedRoute allowedRoles={[
               'general_manager','executive_manager',
