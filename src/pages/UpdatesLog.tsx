@@ -2,7 +2,7 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import Header from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ScrollText, Shield, Sparkles, Wrench, Package, FileSpreadsheet, Printer, Lock, Beef } from "lucide-react";
+import { ScrollText, Shield, Sparkles, Wrench, Package, FileSpreadsheet, Printer, Lock, Beef, Factory, Scale, Egg, Users, Trash2 } from "lucide-react";
 
 type UpdateType = "feature" | "security" | "fix" | "export";
 
