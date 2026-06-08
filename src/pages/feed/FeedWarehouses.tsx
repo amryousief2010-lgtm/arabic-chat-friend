@@ -931,11 +931,34 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl" dir="rtl">
-        <DialogHeader><DialogTitle>{isEdit ? `تعديل فاتورة بيع ${editSale?.sale_no || ""}` : "فاتورة بيع — علف جاهز أو خامات (بريمكس / دريس...)"}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{isEdit ? `تعديل فاتورة بيع ${editSale?.sale_no || ""}` : "فاتورة بيع/توريد علف — جاهز أو خامات"}</DialogTitle></DialogHeader>
+
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
+          <Label className="font-bold">نوع العملية</Label>
+          <Select value={destinationType} onValueChange={(v: any) => setDestinationType(v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="external_customer">بيع خارجي لعميل</SelectItem>
+              <SelectItem value="brooding_feed_store">توريد داخلي → مخزن علف حضانات تسمين الكتاكيت</SelectItem>
+              <SelectItem value="slaughterhouse_feed_store">توريد داخلي → مخزن علف المجزر (علف النعام التسمين)</SelectItem>
+            </SelectContent>
+          </Select>
+          {isInternal && (
+            <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+              ⚠️ توريد داخلي: سيتم خصم الكمية من مخزون المصنع وإضافتها تلقائياً للمخزن الداخلي المحدد. لن تُسجَّل كبيع خارجي. لا يمكن تكرار نفس بند الفاتورة في المخزن الداخلي.
+            </div>
+          )}
+        </div>
+
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div><Label>العميل</Label><Input value={customer} onChange={(e) => setCustomer(e.target.value)} /></div>
-          <div><Label>رقم العميل</Label><Input type="tel" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="01xxxxxxxxx" /></div>
-          <div><Label>اسم البائع</Label><Input value={salesperson} onChange={(e) => setSalesperson(e.target.value)} /></div>
+          {!isInternal && <>
+            <div><Label>العميل</Label><Input value={customer} onChange={(e) => setCustomer(e.target.value)} /></div>
+            <div><Label>رقم العميل</Label><Input type="tel" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="01xxxxxxxxx" /></div>
+          </>}
+          {isInternal && <div className="md:col-span-2"><Label>الجهة المستلمة</Label>
+            <Input value={destinationType === "brooding_feed_store" ? "حضانات تسمين الكتاكيت" : "مخزن علف المجزر"} disabled />
+          </div>}
+          <div><Label>{isInternal ? "أمين المخزن المسلِّم" : "اسم البائع"}</Label><Input value={salesperson} onChange={(e) => setSalesperson(e.target.value)} /></div>
           <div><Label>التاريخ</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
         </div>
         <div className="space-y-2">
