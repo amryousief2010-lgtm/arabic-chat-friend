@@ -546,6 +546,40 @@ export default function LabTreasury() {
         payment_method: normalizedIncomePaymentMethod,
       });
       if (!parsed.success) { toast.error(parsed.error.errors[0]?.message || "تحقق من الحقول"); return; }
+
+      // ===== Manual chick-sale guard =====
+      let correctionReason: string | null = null;
+      if (parsed.data.income_category === "chick_sales") {
+        if (!isManager) {
+          toast.error("بيع الكتاكيت يتم تسجيله تلقائيًا من حضانات التسمين ولا يجوز تسجيله يدويًا حتى لا يتكرر الإيراد.");
+          return;
+        }
+        // Duplicate check vs auto-generated chick-sale movements
+        const { data: dup } = await (supabase as any)
+          .from("lab_treasury_movements")
+          .select("id, source_table, source_ref")
+          .eq("movement_type", "income")
+          .eq("income_category", "chick_sales")
+          .eq("movement_date", parsed.data.movement_date)
+          .eq("payment_method", parsed.data.payment_method)
+          .eq("amount", parsed.data.amount)
+          .eq("customer_name", parsed.data.customer_name || "")
+          .limit(1);
+        if (dup && dup.length > 0) {
+          toast.error("يوجد إيراد بيع كتاكيت مسجل تلقائيًا بنفس البيانات (العميل/التاريخ/المبلغ/طريقة التحصيل). لا يمكن تسجيله مرة أخرى.");
+          return;
+        }
+        // Force a correction reason
+        const reason = window.prompt("سبب تسجيل بيع كتاكيت يدويًا (إلزامي للتصحيح الاستثنائي):", "");
+        if (!reason || reason.trim().length < 5) {
+          toast.error("يجب إدخال سبب واضح (5 أحرف على الأقل) لتسجيل بيع كتاكيت يدويًا.");
+          return;
+        }
+        const confirmed = window.confirm(`⚠️ تأكيد:\nسيتم تسجيل إيراد بيع كتاكيت يدوي بمبلغ ${parsed.data.amount} ج كحالة تصحيح استثنائية.\nالسبب: ${reason}\n\nهل أنت متأكد؟`);
+        if (!confirmed) return;
+        correctionReason = reason.trim();
+      }
+
       const receipt_url = await uploadReceipt(incReceipt);
       payload = {
         movement_type: "income" as const,
@@ -556,12 +590,21 @@ export default function LabTreasury() {
         unit_price: parsed.data.unit_price ?? null,
         amount: parsed.data.amount,
         payment_method: parsed.data.payment_method,
-        description: parsed.data.description || null,
+        description: correctionReason
+          ? `[تصحيح يدوي - بيع كتاكيت] ${correctionReason}${parsed.data.description ? " — " + parsed.data.description : ""}`
+          : (parsed.data.description || null),
         notes: parsed.data.notes || null,
         receipt_url,
         created_by: user.id,
         status: "pending" as const,
       };
+      if (correctionReason) {
+        // Audit the manual correction explicitly
+        await logAudit("insert_income", {
+          reason: correctionReason,
+          metadata: { kind: "manual_chick_sale_correction", payload },
+        });
+      }
     }
 
     const { data, error } = await (supabase as any).from("lab_treasury_movements").insert(payload).select().single();
@@ -1123,10 +1166,37 @@ export default function LabTreasury() {
               <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 <Field label="التاريخ"><Input type="date" value={incForm.movement_date} onChange={(e) => setIncForm({ ...incForm, movement_date: e.target.value })} /></Field>
                 <Field label="نوع الإيراد">
-                  <Select value={incForm.income_category} onValueChange={(v) => setIncForm({ ...incForm, income_category: v as IncomeCat })}>
+                  <Select
+                    value={incForm.income_category}
+                    onValueChange={(v) => {
+                      if (v === "chick_sales" && !isManager) {
+                        toast.error("بيع الكتاكيت يتم تسجيله تلقائيًا من حضانات التسمين ولا يجوز تسجيله يدويًا حتى لا يتكرر الإيراد.");
+                        return;
+                      }
+                      if (v === "chick_sales" && isManager) {
+                        toast.warning("⚠️ تسجيل بيع كتاكيت يدويًا حالة استثنائية للتصحيح فقط. سيُطلب منك سبب وسيتم تسجيل العملية في سجل التدقيق.");
+                      }
+                      setIncForm({ ...incForm, income_category: v as IncomeCat });
+                    }}
+                  >
                     <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>{Object.entries(INCOME_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
+                    <SelectContent>
+                      {Object.entries(INCOME_LABELS).map(([k, v]) => (
+                        <SelectItem
+                          key={k}
+                          value={k}
+                          disabled={k === "chick_sales" && !isManager}
+                        >
+                          {v}{k === "chick_sales" ? (isManager ? " (تصحيح استثنائي)" : " — تلقائي من حضانات التسمين") : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
                   </Select>
+                  {incForm.income_category === "chick_sales" && (
+                    <div className="text-xs text-destructive mt-1 leading-relaxed">
+                      ⚠️ بيع الكتاكيت يُسجل تلقائيًا من حضانات التسمين. لا تستخدم هذا النوع إلا للتصحيح الاستثنائي.
+                    </div>
+                  )}
                 </Field>
                 <Field label={incHatching ? "اسم العميل *" : "اسم العميل"}>
                   <Input value={incForm.customer_name} onChange={(e) => setIncForm({ ...incForm, customer_name: e.target.value })} />
@@ -1429,11 +1499,27 @@ export default function LabTreasury() {
                         <TableCell>{PAYMENT_LABELS[m.payment_method]}</TableCell>
                         <TableCell><StatusBadge s={m.status} /></TableCell>
                         <TableCell className="text-xs">
-                          {m.source_table ? (
-                            <Button size="sm" variant="link" className="h-auto p-0 text-xs gap-1" onClick={() => openSource(m)}>
-                              <LinkIcon className="w-3 h-3" />{m.source_ref || "عرض المصدر"}
-                            </Button>
-                          ) : "—"}
+                          {(() => {
+                            const desc = m.description || "";
+                            const isManualCorrection = desc.includes("[تصحيح يدوي - بيع كتاكيت]");
+                            if (m.source_table) {
+                              const label =
+                                m.source_table === "brooding_chick_sales" ? "تلقائي — بيع كتاكيت" :
+                                m.source_table === "hatch_customer_payments" ? "تلقائي — دفع تفريخ" :
+                                m.source_table === "hatchery_invoice_payments" ? "تلقائي — فاتورة تفريخ" :
+                                "تلقائي";
+                              return (
+                                <div className="flex flex-col gap-0.5">
+                                  <Badge variant="secondary" className="w-fit text-[10px]">{label}</Badge>
+                                  <Button size="sm" variant="link" className="h-auto p-0 text-xs gap-1" onClick={() => openSource(m)}>
+                                    <LinkIcon className="w-3 h-3" />{m.source_ref || "عرض المصدر"}
+                                  </Button>
+                                </div>
+                              );
+                            }
+                            if (isManualCorrection) return <Badge variant="destructive" className="text-[10px]">تصحيح يدوي</Badge>;
+                            return <Badge variant="outline" className="text-[10px]">يدوي</Badge>;
+                          })()}
                         </TableCell>
                         <TableCell className="text-xs">{profiles[m.created_by || ""] || "—"}</TableCell>
                         {isManager && (
