@@ -844,12 +844,18 @@ export default function LabTreasury() {
             <TabsTrigger value="openings">الأرصدة الافتتاحية</TabsTrigger>
             <TabsTrigger value="external">التحصيلات الخارجية</TabsTrigger>
             <TabsTrigger value="advances">العُهد</TabsTrigger>
+            {canApprove && <TabsTrigger value="duplicates">المكررات</TabsTrigger>}
             <TabsTrigger value="reports">التقارير</TabsTrigger>
             {canApprove && <TabsTrigger value="audit">سجل التدقيق</TabsTrigger>}
           </TabsList>
           <TabsContent value="advances">
             <AdvancesTab isManager={isManager} />
           </TabsContent>
+          {canApprove && (
+            <TabsContent value="duplicates">
+              <DuplicatesTab isManager={isManager} />
+            </TabsContent>
+          )}
 
           {/* Dashboard */}
           <TabsContent value="dashboard" className="space-y-5">
