@@ -1248,9 +1248,20 @@ export default function LabTreasury() {
                 <Field label="بند المصروف">
                   <Select value={expForm.expense_category} onValueChange={(v) => setExpForm({ ...expForm, expense_category: v as ExpenseCat })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>{Object.entries(EXPENSE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
+                    <SelectContent>
+                      {Object.entries(EXPENSE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                    </SelectContent>
                   </Select>
                 </Field>
+                <Field label={expForm.expense_category === "other" ? "اسم البند المخصص *" : "بند مخصص (اختياري — استخدم \"أخرى\" أعلاه)"}>
+                  <Input
+                    placeholder={expForm.expense_category === "other" ? "مثال: شراء فلتر مياه" : 'اختر "أخرى" من بند المصروف ثم اكتب الاسم هنا'}
+                    value={expForm.custom_category}
+                    onChange={(e) => setExpForm({ ...expForm, custom_category: e.target.value })}
+                    disabled={expForm.expense_category !== "other"}
+                  />
+                </Field>
+
                 <Field label="المبلغ *"><Input type="number" inputMode="decimal" autoComplete="off" name="lab-treasury-expense-amount" value={expForm.amount} onChange={(e) => setExpForm({ ...expForm, amount: e.target.value })} /></Field>
                 <Field label="طريقة الدفع">
                   <Select value={expForm.payment_method} onValueChange={(v) => setExpForm({ ...expForm, payment_method: v as PaymentMethod })}>
