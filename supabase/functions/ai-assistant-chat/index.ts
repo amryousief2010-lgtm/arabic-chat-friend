@@ -315,23 +315,36 @@ Deno.serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const lovableKey = Deno.env.get("LOVABLE_API_KEY");
     if (!lovableKey) return json({ error: "LOVABLE_API_KEY غير مُعد على الخادم." }, 500);
 
-    const admin = createClient(supabaseUrl, serviceKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-
-    // 1) Verify caller
+    // 1) Verify caller using the USER's JWT — service_role is NOT used for data reads.
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) return json({ error: "Unauthorized" }, 401);
     const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: authErr } = await admin.auth.getUser(token);
+
+    // User-scoped client — every operational/financial read below runs under the
+    // caller's RLS context (orders, customers, products, inventory, hatchery, farm,
+    // sales, private_courier, etc.).
+    const userClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    // service_role client is used ONLY for the cross-user global audit count
+    // (so one user cannot read another user's log rows). It NEVER touches
+    // operational/financial tables.
+    const auditAdmin = createClient(supabaseUrl, serviceKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    const { data: { user }, error: authErr } = await userClient.auth.getUser();
     if (authErr || !user) return json({ error: "Unauthorized" }, 401);
 
-    // 2) Role gate — managers only
-    const { data: rolesRows } = await admin.from("user_roles").select("role").eq("user_id", user.id);
+    // 2) Role gate — managers only (read via user's RLS)
+    const { data: rolesRows } = await userClient.from("user_roles").select("role").eq("user_id", user.id);
     const userRoles = (rolesRows || []).map((r: any) => r.role);
     if (!userRoles.some((r: string) => ALLOWED_ROLES.includes(r))) {
       return json({ error: "السؤال الحر متاح فقط للمدير العام والمدير التنفيذي." }, 403);
@@ -355,15 +368,14 @@ Deno.serve(async (req) => {
       fromDate = new Date(toDate.getTime() - maxRangeDays * 86400000);
     }
 
-    // 4) Usage limits (count today, Cairo-tz approximated as UTC day; acceptable for a daily cap)
+    // 4) Usage limits — per-user via user RLS; global cross-user count via auditAdmin (counts only).
     const todayStart = new Date();
     todayStart.setUTCHours(0, 0, 0, 0);
-    const { count: userTodayCount } = await admin
+    const { count: userTodayCount } = await userClient
       .from("ai_assistant_query_log")
       .select("id", { count: "exact", head: true })
       .eq("user_id", user.id)
       .gte("created_at", todayStart.toISOString())
-      .not("module", "is", null)
       .like("module", "ai:%");
     if ((userTodayCount || 0) >= PER_USER_DAILY) {
       return json(
@@ -374,7 +386,7 @@ Deno.serve(async (req) => {
         429,
       );
     }
-    const { count: globalTodayCount } = await admin
+    const { count: globalTodayCount } = await auditAdmin
       .from("ai_assistant_query_log")
       .select("id", { count: "exact", head: true })
       .gte("created_at", todayStart.toISOString())
@@ -386,7 +398,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 5) Build aggregated context based on module
+    // 5) Build aggregated context — ALL operational reads use userClient (RLS enforced).
     const ctx: Record<string, unknown> = {
       range: { from: isoDate(fromDate), to: isoDate(toDate) },
       asked_at: now.toISOString(),
@@ -394,13 +406,13 @@ Deno.serve(async (req) => {
     const modules = module === "all" ? ["farm", "hatchery", "sales", "private_courier", "customers"] : [module];
     for (const m of modules) {
       try {
-        if (m === "farm") ctx.farm = await buildFarmSummary(admin, fromDate, toDate);
-        else if (m === "hatchery") ctx.hatchery = await buildHatcherySummary(admin, fromDate, toDate);
-        else if (m === "sales") ctx.sales = await buildSalesSummary(admin, fromDate, toDate);
-        else if (m === "orders") ctx.orders = await buildOrdersSummary(admin, fromDate, toDate);
+        if (m === "farm") ctx.farm = await buildFarmSummary(userClient, fromDate, toDate);
+        else if (m === "hatchery") ctx.hatchery = await buildHatcherySummary(userClient, fromDate, toDate);
+        else if (m === "sales") ctx.sales = await buildSalesSummary(userClient, fromDate, toDate);
+        else if (m === "orders") ctx.orders = await buildOrdersSummary(userClient, fromDate, toDate);
         else if (m === "private_courier")
-          ctx.private_courier = await buildPrivateCourierSummary(admin, fromDate, toDate);
-        else if (m === "customers") ctx.customers = await buildCustomersSummary(admin);
+          ctx.private_courier = await buildPrivateCourierSummary(userClient, fromDate, toDate);
+        else if (m === "customers") ctx.customers = await buildCustomersSummary(userClient);
       } catch (e) {
         ctx[m] = { error: "تعذّر تحضير الملخص" };
       }
@@ -434,7 +446,7 @@ Deno.serve(async (req) => {
       const errText = await aiResp.text();
       const status = aiResp.status;
       // Log failure (no answer content)
-      await admin.from("ai_assistant_query_log").insert({
+      await userClient.from("ai_assistant_query_log").insert({
         user_id: user.id,
         question,
         module: `ai:${module}:failed`,
@@ -451,7 +463,7 @@ Deno.serve(async (req) => {
     const answer: string = aiData?.choices?.[0]?.message?.content || "لم يصل رد من النموذج.";
 
     // 7) Log success (NO answer content stored)
-    await admin.from("ai_assistant_query_log").insert({
+    await userClient.from("ai_assistant_query_log").insert({
       user_id: user.id,
       question,
       module: `ai:${module}`,
