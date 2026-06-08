@@ -1,84 +1,138 @@
-# خطة تنفيذ نظام العُهد داخل خزنة معمل الكتاكيت
 
-## 1) سبب رسالة الخطأ الحالية
-- الخطأ يأتي من trigger `lab_treasury_check_expense_balance` على جدول `lab_treasury_movements`.
-- نموذج إضافة المصروف في `LabTreasury.tsx` لا يحتوي أي ضرب أو حساب تلقائي — الحقل `amount` يُحفظ كما أدخله المستخدم. لا يوجد سبب برمجي لتحويل 1000 إلى 45600.
-- على الأغلب الرقم الكبير ناتج عن إدخال يدوي خاطئ (أو لصق رقم) في حقل المبلغ. سأضيف مع المرحلة الجديدة:
-  - تحقق أمامي قبل الإرسال (المبلغ ≤ الرصيد المتاح).
-  - رسالة خطأ أوضح تعرض المبلغ الذي أدخله المستخدم + الرصيد المتاح، مع زر "تصحيح المبلغ" يعيد تركيز الحقل.
+# ربط مصنع العلف بمخازن الحضانات والمجزر
 
-## 2) قاعدة البيانات (Migration واحدة)
-
-### جدول جديد `lab_treasury_advances` (العُهد المفتوحة)
-- `employee_user_id` (uuid → profiles), `recipient_name` (نص حر للتسجيل في حالة عدم وجود حساب).
-- `issued_at` (date), `amount` (numeric).
-- `payment_method` (نفس enum خزنة المعمل).
-- `purpose` (نص), `notes` (نص).
-- `status`: enum جديد `lab_treasury_advance_status` = `open | settled | closed | cancelled`.
-- `issue_movement_id` (FK لـ `lab_treasury_movements`) → الحركة التي خصمت العهدة من الخزنة.
-- `actual_expense_total`, `returned_amount`, `pending_employee_amount` (numeric, محسوبة عند التسوية).
-- `settled_at`, `settled_by`, `manager_approval_at`, `manager_approval_by` (للفرق المستحق).
-
-### جدول `lab_treasury_advance_settlements`
-- `advance_id` FK, `line_no`, `description`, `amount`, `expense_category` (نفس enum الموجود).
-- يُستخدم لعرض تفاصيل المصروفات الفعلية + للترحيل النهائي للتقارير.
-
-### RPC آمنة (SECURITY DEFINER) — لمنع الحركات المكررة
-- `lab_treasury_issue_advance(p_recipient, p_employee, p_amount, p_method, p_purpose, p_notes, p_date)`
-  - يتحقق من الرصيد (نفس قاعدة المصروف العادي + يحترم استثناء GM/Exec).
-  - يُنشئ صف في `lab_treasury_movements` بنوع `expense` وفئة جديدة `advance_issue` وحالة `pending` (تخضع لنفس workflow الاعتماد).
-  - يُنشئ صف في `lab_treasury_advances` بحالة `open` يربط `issue_movement_id`.
-  - يكتب سطر في `lab_treasury_audit_log` (action = `advance_issue`).
-- `lab_treasury_settle_advance(p_advance_id, p_lines jsonb, p_returned_amount)`
-  - يتحقق أن العهدة `open`.
-  - يحسب `actual_total = SUM(p_lines.amount)`.
-  - يتحقق: `actual_total + p_returned_amount = amount` أو يحدد `pending_employee_amount = actual_total - amount` (موجبًا فقط).
-  - لو فيه مرتجع: ينشئ حركة income في الخزنة بفئة جديدة `advance_return` (approved تلقائياً لأنها رد لخزنة بنفس payment_method).
-  - **لا يُنشئ مصروف ثاني** بمبلغ العهدة. تفاصيل التسوية تُحفظ في الجدول، والتقارير الحقيقية تستخدمها (انظر فقرة 4).
-  - يضع status = `settled` ويسجل audit `advance_settle`.
-  - لو في فرق مستحق للموظف: يبقى `pending_employee_amount > 0` ويحتاج اعتماد مدير.
-- `lab_treasury_approve_advance_difference(p_advance_id)` — للمدير فقط، ينشئ حركة `expense` بفئة `advance_difference_payout` ويسجل audit + يضع `closed`.
-- `lab_treasury_cancel_advance(...)` (اختياري للمدير قبل التسوية).
-
-### تعديلات على enums الموجودة
-- إضافة `advance_issue`, `advance_return`, `advance_difference_payout` إلى enum فئات المصروف/الإيراد بحيث تظهر بتسمية واضحة في السجلات.
-
-### تعديل trigger الرصيد
-- لا يحتاج تغيير منطق؛ يكفي أن RPC الإصدار يستخدم نفس الـ trigger.
-- لكن سأحسّن نص الخطأ ليصبح بالعربية ويوضح payment_method.
-
-### حماية RLS
-- نفس قواعد `lab_treasury_movements`: الإدخال عبر RPC فقط (سنمنح EXECUTE لـ authenticated وندع الـ RPC تتحقق من الأدوار داخلياً).
-- العرض: مفتوح للأدوار الحالية (GM, executive, accountant, financial_manager, lab_treasury_keeper, lab_treasury_approver, lab_external_collector لعهد نفسه فقط).
-
-## 3) الواجهة (`/lab-treasury`)
-- تبويب جديد **"العُهد"** يحتوي قسمين:
-  1. **صرف عهدة جديدة** (نموذج): الموظف، المبلغ، طريقة الدفع، الغرض، التاريخ، ملاحظات + تحقق أمامي للرصيد.
-  2. **العُهد المفتوحة** (جدول): اسم الموظف، المبلغ، التاريخ، الغرض، المصروف الفعلي حتى الآن (= مجموع settlements إن وجدت)، المتبقي/العجز، الحالة، زر "تسوية".
-  3. **العُهد المسواة/المغلقة** (تبويب فرعي أو فلتر).
-- **Dialog تسوية العهدة**: جدول لإضافة بنود (وصف + فئة + مبلغ)، حقل "مرتجع للخزنة"، حساب تلقائي للفرق، زر حفظ.
-- **زر اعتماد الفرق** يظهر للمدير فقط على العهد التي بها `pending_employee_amount > 0`.
-
-## 4) تقرير العُهد
-- صفحة جديدة `/lab-treasury/advances-report` (وزر دخول من تبويب العُهد).
-- KPIs: إجمالي عهد مصروفة، إجمالي مصروفات فعلية (من settlements)، إجمالي مرتجعات، إجمالي فروق مستحقة، عدد عهد مفتوحة/مسواة.
-- جداول: العهد المفتوحة، العهد المسواة (مع تفاصيل بنودها)، الفروق التي تنتظر اعتماد.
-- فلتر بالتاريخ والموظف.
-
-## 5) أثر على باقي التقارير
-- التقرير اليومي/الشهري لخزنة المعمل سيظل يعرض مصروف "صرف عهدة" بفئة `advance_issue` كأثر فعلي على الرصيد.
-- لكن **التقارير التشغيلية للمصروفات الحقيقية** سترتكز على `lab_treasury_advance_settlements` بدلاً من حركة العهدة (لتجنب الاحتساب المزدوج). سأضيف ملاحظة واضحة في `/lab-treasury` يوضح هذا التمييز.
-
-## 6) Audit Log
-- استخدام `lab_treasury_audit_log` الحالي مع actions جديدة: `advance_issue`, `advance_edit`, `advance_settle`, `advance_return`, `advance_difference_payout`, `advance_cancel`.
-
-## 7) Out of scope (لن يتم في هذه الخطوة)
-- لن أعدل خزنة عهدة المجزر `/slaughterhouse-custody` (نظام مستقل).
-- لن أتطرق لـ Phase 2 من المساعد الذكي.
+## نظرة عامة
+تعديل فاتورة بيع/توريد مصنع العلف لتدعم ٣ أنواع عمليات (بيع خارجي / توريد لحضانات التسمين / توريد لمخزن علف المجزر الجديد)، مع تنفيذ الحركات تلقائيًا عند الاعتماد، ومنع تكرار نفس الفاتورة، وتقارير شهرية لكل جهة.
 
 ---
 
-هل أبدأ التنفيذ؟ أو هل تريد:
-- تسمية مختلفة للتبويب/الصفحة؟
-- تقييد "صرف عهدة" على دور محدد فقط (الافتراضي: نفس من يسجل المصروفات حالياً = `lab_treasury_keeper` + GM + Executive + accountant + financial_manager)؟
-- اعتماد تلقائي لحركة الإصدار (`approved`) بدلاً من `pending` لتسريع العمل؟
+## ١. قاعدة البيانات (Migration)
+
+### أ. مخزن علف المجزر الجديد
+جدول `slaughterhouse_feed_inventory`:
+- `feed_product_id` (FK إلى feed_products)
+- `qty_in_total`, `qty_out_total`, `balance` (محسوبة من الحركات)
+- صف واحد لكل صنف علف
+
+جدول `slaughterhouse_feed_movements`:
+- `feed_product_id`, `movement_type` (in/out/correction)
+- `quantity`, `unit_cost`, `total_cost`
+- `source_type` (`feed_factory_invoice` | `manual_issue` | `correction`)
+- `source_id` (UUID فاتورة المصنع أو غيره)
+- `invoice_no` (نص للعرض)
+- `reference_no`, `notes`, `performed_by`, `performed_at`
+
+**قيد منع التكرار (الأهم):**
+```sql
+CREATE UNIQUE INDEX uniq_sl_feed_invoice_in
+ON slaughterhouse_feed_movements(source_type, source_id)
+WHERE source_type = 'feed_factory_invoice' AND movement_type = 'in';
+```
+
+### ب. تعديل جدول حركات علف الحضانات `brooding_feed_stock_movements`
+إضافة الأعمدة (إن لم توجد):
+- `source_type TEXT` (`feed_factory_invoice` | `manual` | `correction`)
+- `source_id UUID`
+- `invoice_no TEXT`
+
+**قيد منع التكرار:**
+```sql
+CREATE UNIQUE INDEX uniq_br_feed_invoice_in
+ON brooding_feed_stock_movements(source_type, source_id)
+WHERE source_type = 'feed_factory_invoice' AND movement_type = 'in';
+```
+
+### ج. تعديل فاتورة المصنع `feed_sales`
+إضافة:
+- `destination_type TEXT NOT NULL DEFAULT 'external_customer'`
+  القيم: `external_customer` | `brooding_feed_store` | `slaughterhouse_feed_store`
+- `destination_ref_id UUID NULL` (اختياري — حضانة محددة لو احتجناه لاحقًا)
+- `internal_transfer BOOLEAN GENERATED ALWAYS AS (destination_type <> 'external_customer') STORED`
+
+### د. Trigger الاعتماد
+دالة `apply_feed_sale_on_approval()` تعمل بعد UPDATE على `feed_sales` عند انتقال `status` إلى `approved/closed`:
+1. خصم الكمية من مخزون مصنع العلف (موجود حاليًا — نتركه).
+2. لو `destination_type = 'brooding_feed_store'`: إدراج صف `in` في `brooding_feed_stock_movements` لكل بند بـ `source_type='feed_factory_invoice'`, `source_id=invoice.id`.
+3. لو `destination_type = 'slaughterhouse_feed_store'`: نفس الشيء في `slaughterhouse_feed_movements`.
+4. الـ UNIQUE INDEX يمنع التكرار لو الفاتورة اعتُمدت مرتين.
+5. لو `external_customer`: لا حركة مخزن داخلي.
+
+### هـ. Audit
+تسجيل العمليات في `feed_audit_log` الموجود + لوج جديد `slaughterhouse_feed_audit_log` لحركات المجزر.
+
+### و. RLS & GRANTS
+- مدير المصنع / المدير العام: full
+- مسؤول الحضانات: SELECT على movements حضانات + INSERT للصرف فقط
+- مسؤول المجزر: SELECT/INSERT صرف على مخزن المجزر
+- GRANT للأدوار حسب القواعد
+
+---
+
+## ٢. الواجهة (Frontend)
+
+### أ. صفحة فاتورة بيع/توريد مصنع العلف
+`src/pages/feed/FeedWarehouses.tsx` + نموذج إنشاء الفاتورة:
+- Radio/Select لـ "نوع العملية":
+  - بيع خارجي لعميل
+  - توريد داخلي → حضانات التسمين
+  - توريد داخلي → مخزن علف المجزر
+- حقل "الجهة المستلمة" يظهر شرطيًا.
+- Badge على الفاتورة بعد الحفظ يوضح نوع التوريد.
+
+### ب. مخزن علف المجزر (صفحة جديدة)
+`src/pages/slaughterhouse/SlaughterhouseFeedStore.tsx`:
+- تبويبات: الأرصدة الحالية / حركات وارد / حركات صرف / تقرير شهري.
+- جدول الأرصدة (صنف، وارد، مصروف، الرصيد).
+- زر "صرف علف للنعام التسمين" → modal بسيط.
+- مصدر كل حركة وارد يظهر "فاتورة مصنع العلف #..." بـ link.
+
+أضف الراوت في `src/App.tsx` تحت `/modules/slaughterhouse/feed-store`.
+
+### ج. مخزن علف الحضانات (موجود)
+ملف `src/components/farm/MotherFarmFeedInventory.tsx` أو ما يقابله في الحضانات: إضافة عمود "مصدر" + "فاتورة المصنع" + فلتر "وارد من مصنع العلف".
+
+### د. التقارير
+صفحة `src/pages/feed/FeedDistributionReports.tsx`:
+- تقرير توريدات مصنع العلف (بيع خارجي / حضانات / مجزر).
+- تقرير وارد علف الحضانات.
+- تقرير وارد علف المجزر.
+- تقرير شهري مجمع (إنتاج / خارجي / حضانات / مجزر / أرصدة).
+- فلاتر: من/إلى، نوع علف، الجهة، رقم فاتورة، نوع العملية.
+- تصدير Excel/PDF.
+
+### هـ. سايدبار
+إضافة بند "مخزن علف المجزر" تحت مجموعة المجزر، وبند "تقارير توزيع الأعلاف" تحت مصنع الأعلاف، في `src/components/layout/SidebarMenuSections.tsx`.
+
+---
+
+## ٣. منع التكرار + Audit
+- UNIQUE INDEX على (source_type, source_id, movement_type='in') لكل من المخزنين.
+- لو حصل تكرار: Trigger يرفع exception برسالة عربية واضحة.
+- إلغاء أثر حركة = إدراج حركة عكسية فقط (لا حذف). زر للمدير العام فقط في صفحات المخازن.
+
+---
+
+## ٤. الصلاحيات (RBAC)
+استخدام `has_role` الحالي:
+- `feed_factory_manager` / `general_manager`: إنشاء + اعتماد فواتير مصنع العلف.
+- `brooding_supervisor`: قراءة وارد + تسجيل صرف علف حضانات.
+- `slaughterhouse_supervisor`: قراءة وارد + تسجيل صرف علف المجزر.
+- `general_manager` / `executive_manager`: كل التقارير + إلغاء أثر حركة بعكسية.
+
+---
+
+## ملاحظات تقنية
+- الاعتماد على Trigger يضمن أن أي اعتماد للفاتورة (من UI أو SQL) ينفذ الحركات.
+- مخزون مصنع العلف: لا نغيّر منطق الخصم الحالي (`feed_sale_items` → خصم من `feed_products.stock`)، فقط نضيف حركة استلام للمخزن الداخلي.
+- التحويل الداخلي يُسجَّل بتكلفة الفاتورة (cost transfer) — لا يُسجَّل كإيراد خارجي.
+- الـ UNIQUE INDEX يحمي حتى لو تم استدعاء Trigger مرتين بسبب race condition.
+
+---
+
+## ترتيب التنفيذ
+1. Migration واحدة (مخزن مجزر + أعمدة destination + triggers + indexes + grants).
+2. تعديل نموذج فاتورة مصنع العلف لإضافة `destination_type`.
+3. صفحة مخزن علف المجزر + الراوت + السايدبار.
+4. تحديث صفحة مخزن علف الحضانات لعرض المصدر.
+5. صفحة التقارير المجمعة.
+6. اختبار: إنشاء فاتورة لكل نوع + محاولة اعتماد مكرر للتأكد من رفض التكرار.
