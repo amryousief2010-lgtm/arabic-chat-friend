@@ -1102,9 +1102,11 @@ export default function LabTreasury() {
                   <Field label="ملاحظات"><Textarea value={incForm.notes} onChange={(e) => setIncForm({ ...incForm, notes: e.target.value })} /></Field>
                 </div>
                 <div className="md:col-span-2 lg:col-span-3 flex flex-wrap gap-2">
-                  <Button onClick={submitIncome} className="gap-2"><Plus className="w-4 h-4" />تسجيل الإيراد</Button>
+                  <Button onClick={submitIncome} disabled={discountExceeds} className="gap-2">
+                    <Plus className="w-4 h-4" />تسجيل الإيراد
+                  </Button>
                   {incHatching && (
-                    <Button type="button" variant="outline" onClick={printCurrentInvoice} className="gap-2">
+                    <Button type="button" variant="outline" onClick={printCurrentInvoice} disabled={discountExceeds} className="gap-2">
                       <Printer className="w-4 h-4" />طباعة الفاتورة
                     </Button>
                   )}
