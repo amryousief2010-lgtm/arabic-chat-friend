@@ -100,11 +100,13 @@ export function useLabTreasuryApprovals() {
     },
   });
 
-  // Realtime invalidation
+  // Realtime invalidation — add ALL .on() before .subscribe(), unique channel per mount
   useEffect(() => {
     if (!enabled) return;
-    const ch = supabase.channel(`lab-treasury-approvals-rt-${Math.random().toString(36).slice(2)}`);
-    ch.on(
+    const channelName = `lab-treasury-approvals-rt-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const ch = supabase
+      .channel(channelName)
+      .on(
         "postgres_changes" as any,
         { event: "*", schema: "public", table: "lab_treasury_movements" },
         () => queryClient.invalidateQueries({ queryKey: ["lab-treasury-approvals"] })
@@ -116,7 +118,7 @@ export function useLabTreasuryApprovals() {
       )
       .subscribe();
     return () => {
-      supabase.removeChannel(ch);
+      try { supabase.removeChannel(ch); } catch { /* noop */ }
     };
   }, [enabled, queryClient]);
 
