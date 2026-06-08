@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Plus, Trash2, Wallet, AlertTriangle, CheckCircle2, Receipt, RefreshCw } from "lucide-react";
@@ -278,7 +278,7 @@ export default function AdvancesTab({ isManager, debugSnapshot }: { isManager: b
           <div className="space-y-1"><Label>اسم المستلم *</Label><Input value={issueForm.recipient_name} onChange={e => setIssueForm({ ...issueForm, recipient_name: e.target.value })} /></div>
           <div className="space-y-1"><Label>التاريخ</Label><Input type="date" value={issueForm.issued_at} onChange={e => setIssueForm({ ...issueForm, issued_at: e.target.value })} /></div>
           <div className="space-y-1"><Label>المبلغ *</Label>
-            <Input type="number" value={issueForm.amount} onChange={e => setIssueForm({ ...issueForm, amount: e.target.value })} />
+            <Input type="number" inputMode="decimal" autoComplete="off" name="lab-treasury-advance-amount" value={issueForm.amount} onChange={e => setIssueForm({ ...issueForm, amount: e.target.value })} />
           </div>
           <div className="space-y-1"><Label>طريقة الدفع</Label>
             <Select value={issueForm.payment_method} onValueChange={(v) => setIssueForm({ ...issueForm, payment_method: v as PaymentMethod })}>
@@ -387,7 +387,7 @@ export default function AdvancesTab({ isManager, debugSnapshot }: { isManager: b
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>تسوية عهدة — {activeAdvance?.recipient_name} ({fmt(Number(activeAdvance?.amount || 0))} ج)</DialogTitle>
-            <div className="sr-only">تفاصيل تسوية العهدة وتسجيل المصروف الفعلي والمبلغ المرتجع.</div>
+            <DialogDescription className="sr-only">تفاصيل تسوية العهدة وتسجيل المصروف الفعلي والمبلغ المرتجع.</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-3">
