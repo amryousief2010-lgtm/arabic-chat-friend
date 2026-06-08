@@ -127,6 +127,8 @@ export const moduleSections: ModuleSection[] = [
       { icon: ClipboardCheck, label: "تسوية حسابات عملاء المعمل", path: "/hatchery/customer-reconciliation", roles: ['general_manager', 'executive_manager', 'hatchery_manager', 'farm_manager', 'production_manager'] },
       { icon: Wallet, label: "خزنة المعمل والحضانات", path: "/lab-treasury", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper', 'lab_treasury_approver'] },
       { icon: Wallet, label: "مستحقات خزنة المعمل عند المجزر", path: "/lab-treasury/historical-receivables", roles: ['general_manager', 'executive_manager', 'lab_treasury_keeper', 'lab_treasury_approver', 'lab_external_collector', 'slaughterhouse_manager', 'slaughterhouse_custody_keeper'] },
+      { icon: Wallet, label: "كشف حساب عملاء المعمل", path: "/lab-treasury/customer-statement", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper'] },
+      { icon: Wallet, label: "أرصدة عملاء معمل التفريخ", path: "/lab-treasury/customer-balances", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper'] },
       { icon: Wallet, label: "تحصيلاتي لخزنة المعمل", path: "/my-lab-collections", roles: ['lab_external_collector'] },
       // الصفحات القديمة متاحة للمدير العام فقط للمراجعة (الـ Routes لا تزال تعمل)
       { icon: FlaskConical, label: "إدارة المعمل (أرشيف)", path: "/hatchery", roles: ['general_manager'] },

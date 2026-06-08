@@ -4598,6 +4598,13 @@ export type Database = {
             referencedRelation: "v_hatchery_client_balances"
             referencedColumns: ["client_id"]
           },
+          {
+            foreignKeyName: "hatch_batches_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "v_lab_customer_balances"
+            referencedColumns: ["customer_id"]
+          },
         ]
       }
       hatch_customer_payments: {
@@ -4648,6 +4655,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_hatchery_client_balances"
             referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "hatch_customer_payments_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "v_lab_customer_balances"
+            referencedColumns: ["customer_id"]
           },
         ]
       }
@@ -4876,6 +4890,13 @@ export type Database = {
             referencedRelation: "v_hatchery_client_balances"
             referencedColumns: ["client_id"]
           },
+          {
+            foreignKeyName: "hatchery_batch_lots_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "v_lab_customer_balances"
+            referencedColumns: ["customer_id"]
+          },
         ]
       }
       hatchery_batch_movements: {
@@ -5096,6 +5117,13 @@ export type Database = {
             referencedColumns: ["client_id"]
           },
           {
+            foreignKeyName: "hatchery_client_invoices_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "v_lab_customer_balances"
+            referencedColumns: ["customer_id"]
+          },
+          {
             foreignKeyName: "hatchery_client_invoices_lot_id_fkey"
             columns: ["lot_id"]
             isOneToOne: true
@@ -5287,6 +5315,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_hatchery_client_balances"
             referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "hatchery_treasury_txns_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "v_lab_customer_balances"
+            referencedColumns: ["customer_id"]
           },
         ]
       }
@@ -5925,6 +5960,160 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      lab_customer_ledger: {
+        Row: {
+          batch_number: string | null
+          brooding_chicks: number | null
+          brooding_days: number | null
+          brooding_price: number | null
+          candle2_dead: number | null
+          candle2_price: number | null
+          chick_price: number | null
+          chicks: number | null
+          created_at: string
+          created_by: string | null
+          credit: number
+          customer_id: string
+          debit: number
+          description: string | null
+          discount: number | null
+          entry_date: string
+          entry_type: string
+          id: string
+          infertile_eggs: number | null
+          infertile_price: number | null
+          notes: string | null
+          operational_batch_no: number | null
+          payment_method: string | null
+          receipt_no: string | null
+          running_balance: number
+          source_id: string
+          source_type: string
+          subtotal: number | null
+          updated_at: string
+        }
+        Insert: {
+          batch_number?: string | null
+          brooding_chicks?: number | null
+          brooding_days?: number | null
+          brooding_price?: number | null
+          candle2_dead?: number | null
+          candle2_price?: number | null
+          chick_price?: number | null
+          chicks?: number | null
+          created_at?: string
+          created_by?: string | null
+          credit?: number
+          customer_id: string
+          debit?: number
+          description?: string | null
+          discount?: number | null
+          entry_date?: string
+          entry_type: string
+          id?: string
+          infertile_eggs?: number | null
+          infertile_price?: number | null
+          notes?: string | null
+          operational_batch_no?: number | null
+          payment_method?: string | null
+          receipt_no?: string | null
+          running_balance?: number
+          source_id?: string
+          source_type: string
+          subtotal?: number | null
+          updated_at?: string
+        }
+        Update: {
+          batch_number?: string | null
+          brooding_chicks?: number | null
+          brooding_days?: number | null
+          brooding_price?: number | null
+          candle2_dead?: number | null
+          candle2_price?: number | null
+          chick_price?: number | null
+          chicks?: number | null
+          created_at?: string
+          created_by?: string | null
+          credit?: number
+          customer_id?: string
+          debit?: number
+          description?: string | null
+          discount?: number | null
+          entry_date?: string
+          entry_type?: string
+          id?: string
+          infertile_eggs?: number | null
+          infertile_price?: number | null
+          notes?: string | null
+          operational_batch_no?: number | null
+          payment_method?: string | null
+          receipt_no?: string | null
+          running_balance?: number
+          source_id?: string
+          source_type?: string
+          subtotal?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_customer_ledger_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "hatch_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_customer_ledger_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "v_hatchery_client_balances"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "lab_customer_ledger_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "v_lab_customer_balances"
+            referencedColumns: ["customer_id"]
+          },
+        ]
+      }
+      lab_customer_ledger_audit: {
+        Row: {
+          action: string
+          changed_at: string
+          changed_by: string | null
+          customer_id: string | null
+          id: string
+          ledger_id: string | null
+          new_data: Json | null
+          old_data: Json | null
+          reason: string | null
+        }
+        Insert: {
+          action: string
+          changed_at?: string
+          changed_by?: string | null
+          customer_id?: string | null
+          id?: string
+          ledger_id?: string | null
+          new_data?: Json | null
+          old_data?: Json | null
+          reason?: string | null
+        }
+        Update: {
+          action?: string
+          changed_at?: string
+          changed_by?: string | null
+          customer_id?: string | null
+          id?: string
+          ledger_id?: string | null
+          new_data?: Json | null
+          old_data?: Json | null
+          reason?: string | null
+        }
+        Relationships: []
       }
       lab_treasury_advance_settlements: {
         Row: {
@@ -13150,6 +13339,21 @@ export type Database = {
           },
         ]
       }
+      v_lab_customer_balances: {
+        Row: {
+          account_status: string | null
+          balance: number | null
+          batches_count: number | null
+          customer_id: string | null
+          customer_type: string | null
+          last_batch_date: string | null
+          last_payment_date: string | null
+          name: string | null
+          total_credit: number | null
+          total_debit: number | null
+        }
+        Relationships: []
+      }
       v_lab_external_summary: {
         Row: {
           open_count: number | null
@@ -14072,6 +14276,10 @@ export type Database = {
       }
       is_feed_team: { Args: { _user_id: string }; Returns: boolean }
       is_slaughter_custody_manager: { Args: { _uid: string }; Returns: boolean }
+      lab_ledger_recompute_balance: {
+        Args: { p_customer: string }
+        Returns: undefined
+      }
       lab_treasury_approve_advance_difference: {
         Args: { p_advance_id: string }
         Returns: string
