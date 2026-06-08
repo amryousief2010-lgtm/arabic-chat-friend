@@ -28,6 +28,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { cairoTodayStartUTC, currentCairoYearMonth, cairoMonthStartUTC } from "@/lib/cairoDate";
 import { exportCSV } from "@/lib/csvExport";
 import { toast } from "@/hooks/use-toast";
+import ReactMarkdown from "react-markdown";
 
 type ModuleKey = "farm" | "hatchery" | "sales" | "orders" | "customers" | "private_courier";
 
