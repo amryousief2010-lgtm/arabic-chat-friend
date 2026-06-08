@@ -6,6 +6,7 @@ import SwipeIndicator from "./SwipeIndicator";
 import StartOfDayDialog from "@/components/StartOfDayDialog";
 import ClockCalendarWidget from "@/components/ClockCalendarWidget";
 import PendingApprovalsAlert from "@/components/lab-treasury/PendingApprovalsAlert";
+import UnreadMessagesBanner from "@/components/internal-messages/UnreadMessagesBanner";
 import { useOrderNotifications } from "@/hooks/useOrderNotifications";
 import { useDailyReminders } from "@/hooks/useDailyReminders";
 import { useInternalMessageRealtime } from "@/hooks/useInternalMessageRealtime";
@@ -70,6 +71,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           pullDistance={pullDistance}
           isRefreshing={isRefreshing}
         />
+        <UnreadMessagesBanner />
         {children}
         
         {/* Swipe Navigation Indicator */}

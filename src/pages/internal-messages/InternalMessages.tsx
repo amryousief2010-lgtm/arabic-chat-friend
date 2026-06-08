@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -46,9 +46,21 @@ const InternalMessages = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const [searchParams] = useSearchParams();
+  const initialFilter = (searchParams.get("filter") as Filter) || "all";
   const [tab, setTab] = useState<Tab>("inbox");
-  const [filter, setFilter] = useState<Filter>("all");
+  const [filter, setFilter] = useState<Filter>(
+    ["all", "unread", "important", "urgent"].includes(initialFilter) ? initialFilter : "all",
+  );
   const [compose, setCompose] = useState(false);
+
+  useEffect(() => {
+    const f = searchParams.get("filter") as Filter | null;
+    if (f && ["all", "unread", "important", "urgent"].includes(f)) {
+      setFilter(f);
+      setTab("inbox");
+    }
+  }, [searchParams]);
 
   // Realtime: refetch lists on any change to my recipient rows or messages I sent
   useEffect(() => {
