@@ -33,6 +33,7 @@ import {
   Calculator,
   ScrollText,
   MessageSquare,
+  Mail,
   Wallet,
   LucideIcon,
   ShieldCheck,
@@ -45,6 +46,7 @@ import {
 import { useAuth, AppRole } from "@/hooks/useAuth";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
 import { useLabTreasuryApprovals } from "@/hooks/useLabTreasuryApprovals";
+import { useUnreadInternalMessages } from "@/hooks/useUnreadInternalMessages";
 import { findModeratorByName } from "@/constants/moderators";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -81,6 +83,15 @@ export const moduleSections: ModuleSection[] = [
       { icon: AlertTriangle, label: "طلبات التصحيح", path: "/correction-requests", roles: ['general_manager','executive_manager','slaughterhouse_manager','farm_manager','hatchery_manager','brooding_manager','meat_factory_manager','feed_factory_manager','production_manager','quality_manager'] },
       { icon: ScrollText, label: "سجل تدقيق حالات الطلبات", path: "/order-status-audit", roles: ['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'financial_manager', 'marketing_sales_manager'] },
       { icon: MessageSquare, label: "إرسال رسالة داخلية", path: "/send-message", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager', 'financial_manager', 'accountant'] },
+    ],
+  },
+  {
+    id: "internal-messages",
+    icon: Mail,
+    label: "الرسائل الداخلية",
+    roles: ['general_manager','executive_manager','sales_manager','sales_moderator','accountant','warehouse_supervisor','farm_manager','hatchery_manager','brooding_manager','slaughterhouse_manager','meat_factory_manager','feed_factory_manager','hr_manager','production_manager','marketing_sales_manager','financial_manager','quality_manager','shipping_company','private_delivery_rep','agouza_warehouse_keeper','brooding_dashboard_viewer','lab_treasury_keeper','lab_external_collector','lab_treasury_approver','slaughterhouse_custody_keeper'],
+    items: [
+      { icon: Mail, label: "الرسائل الداخلية", path: "/internal-messages", roles: ['general_manager','executive_manager','sales_manager','sales_moderator','accountant','warehouse_supervisor','farm_manager','hatchery_manager','brooding_manager','slaughterhouse_manager','meat_factory_manager','feed_factory_manager','hr_manager','production_manager','marketing_sales_manager','financial_manager','quality_manager','shipping_company','private_delivery_rep','agouza_warehouse_keeper','brooding_dashboard_viewer','lab_treasury_keeper','lab_external_collector','lab_treasury_approver','slaughterhouse_custody_keeper'] },
     ],
   },
   {
@@ -269,6 +280,7 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
   const { role, roles, profile } = useAuth();
   const { unreadCount } = useUnreadNotifications();
   const { total: labApprovalsCount } = useLabTreasuryApprovals();
+  const { unreadCount: unreadInternalMessages } = useUnreadInternalMessages();
   // Sales moderators now use the same /orders page as managers (RLS scopes
   // them to their own rows). The previous override sent them to a stripped-
   // down log view, which the user explicitly asked to remove.
@@ -330,6 +342,7 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
                   const isActive = location.pathname === targetPath;
                   const showBadge = item.path === "/notifications" && unreadCount > 0;
                   const showLabBadge = item.path === "/lab-treasury" && labApprovalsCount > 0;
+                  const showInternalMsgBadge = item.path === "/internal-messages" && unreadInternalMessages > 0;
                   return (
                     <Link
                       key={item.path}
@@ -351,6 +364,11 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
                       {showLabBadge && (
                         <Badge className="h-5 min-w-5 px-1.5 text-xs bg-amber-500 hover:bg-amber-600">
                           {labApprovalsCount > 99 ? "99+" : labApprovalsCount}
+                        </Badge>
+                      )}
+                      {showInternalMsgBadge && (
+                        <Badge variant="destructive" className="h-5 min-w-5 px-1.5 text-xs">
+                          {unreadInternalMessages > 99 ? "99+" : unreadInternalMessages}
                         </Badge>
                       )}
                     </Link>

@@ -168,6 +168,8 @@ const PCMyDeliveries = lazy(() => import("@/pages/private-courier/MyDeliveries")
 const PCHandovers = lazy(() => import("@/pages/private-courier/Handovers"));
 const PCCollections = lazy(() => import("@/pages/private-courier/Collections"));
 const AiOperationsAssistant = lazy(() => import("@/pages/AiOperationsAssistant"));
+const InternalMessages = lazy(() => import("@/pages/internal-messages/InternalMessages"));
+const InternalMessageDetails = lazy(() => import("@/pages/internal-messages/MessageDetails"));
 
 const RedirectWithQuery = ({ to }: { to: string }) => {
   const location = useLocation();
@@ -333,6 +335,17 @@ const AnimatedRoutes = () => {
               <PageTransition><Notifications /></PageTransition>
             </ProtectedRoute>
           } />
+          <Route path="/internal-messages" element={
+            <ProtectedRoute>
+              <PageTransition><InternalMessages /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/internal-messages/:id" element={
+            <ProtectedRoute>
+              <PageTransition><InternalMessageDetails /></PageTransition>
+            </ProtectedRoute>
+          } />
+
           <Route path="/ai-operations-assistant" element={
             <ProtectedRoute allowedRoles={[
               'general_manager','executive_manager',
