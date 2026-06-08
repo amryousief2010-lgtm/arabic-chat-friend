@@ -108,6 +108,7 @@ const FeedWarehouses = lazy(() => import("@/pages/feed/FeedWarehouses"));
 const FeedSalesReturns = lazy(() => import("@/pages/feed/FeedSalesReturns"));
 const FeedMonthlyReport = lazy(() => import("@/pages/feed/FeedMonthlyReport"));
 const FeedInternalAccounts = lazy(() => import("@/pages/feed/FeedInternalAccounts"));
+const FeedOpeningBalances = lazy(() => import("@/pages/feed/FeedOpeningBalances"));
 const MeatProductionWarehouses = lazy(() => import("@/pages/meat/MeatProductionWarehouses"));
 const MeatWarehouses = lazy(() => import("@/pages/meat/MeatWarehouses"));
 const ManufacturingInvoices = lazy(() => import("@/pages/meat/ManufacturingInvoices"));
@@ -478,6 +479,11 @@ const AnimatedRoutes = () => {
           <Route path="/feed-factory/internal-accounts" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'feed_factory_manager', 'accountant', 'financial_manager', 'brooding_manager', 'slaughterhouse_manager', 'production_manager']}>
               <PageTransition><FeedInternalAccounts /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/feed-factory/opening-balances" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'feed_factory_manager', 'accountant', 'financial_manager']}>
+              <PageTransition><FeedOpeningBalances /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/meat-factory/warehouses" element={

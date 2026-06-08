@@ -3235,6 +3235,69 @@ export type Database = {
           },
         ]
       }
+      feed_opening_balances: {
+        Row: {
+          applied_movement_id: string | null
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          created_by: string | null
+          effective_date: string
+          feed_name: string
+          feed_product_id: string | null
+          id: string
+          is_override: boolean
+          override_reason: string | null
+          quantity_kg: number
+          reason: string
+          status: string
+          total_value: number | null
+          unit_cost: number
+          updated_at: string
+          warehouse_type: string
+        }
+        Insert: {
+          applied_movement_id?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          effective_date?: string
+          feed_name: string
+          feed_product_id?: string | null
+          id?: string
+          is_override?: boolean
+          override_reason?: string | null
+          quantity_kg: number
+          reason: string
+          status?: string
+          total_value?: number | null
+          unit_cost?: number
+          updated_at?: string
+          warehouse_type: string
+        }
+        Update: {
+          applied_movement_id?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          effective_date?: string
+          feed_name?: string
+          feed_product_id?: string | null
+          id?: string
+          is_override?: boolean
+          override_reason?: string | null
+          quantity_kg?: number
+          reason?: string
+          status?: string
+          total_value?: number | null
+          unit_cost?: number
+          updated_at?: string
+          warehouse_type?: string
+        }
+        Relationships: []
+      }
       feed_production_batches: {
         Row: {
           actual_quantity: number | null
