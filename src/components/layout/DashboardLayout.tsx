@@ -5,6 +5,7 @@ import PullToRefreshIndicator from "./PullToRefresh";
 import SwipeIndicator from "./SwipeIndicator";
 import StartOfDayDialog from "@/components/StartOfDayDialog";
 import ClockCalendarWidget from "@/components/ClockCalendarWidget";
+import PendingApprovalsAlert from "@/components/lab-treasury/PendingApprovalsAlert";
 import { useOrderNotifications } from "@/hooks/useOrderNotifications";
 import { useDailyReminders } from "@/hooks/useDailyReminders";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
@@ -44,6 +45,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   return (
     <div className="min-h-screen bg-background">
       <StartOfDayDialog />
+      <PendingApprovalsAlert />
       {/* Desktop Sidebar */}
       <div className="hidden md:block">
         <AppSidebar />

@@ -44,6 +44,7 @@ import {
 } from "lucide-react";
 import { useAuth, AppRole } from "@/hooks/useAuth";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
+import { useLabTreasuryApprovals } from "@/hooks/useLabTreasuryApprovals";
 import { findModeratorByName } from "@/constants/moderators";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -260,6 +261,7 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
   const location = useLocation();
   const { role, roles, profile } = useAuth();
   const { unreadCount } = useUnreadNotifications();
+  const { total: labApprovalsCount } = useLabTreasuryApprovals();
   // Sales moderators now use the same /orders page as managers (RLS scopes
   // them to their own rows). The previous override sent them to a stripped-
   // down log view, which the user explicitly asked to remove.
@@ -320,6 +322,7 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
                   const targetPath = ordersPathOverride && item.path === "/orders" ? ordersPathOverride : item.path;
                   const isActive = location.pathname === targetPath;
                   const showBadge = item.path === "/notifications" && unreadCount > 0;
+                  const showLabBadge = item.path === "/lab-treasury" && labApprovalsCount > 0;
                   return (
                     <Link
                       key={item.path}
@@ -336,6 +339,11 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
                       {showBadge && (
                         <Badge variant="destructive" className="h-5 min-w-5 px-1.5 text-xs">
                           {unreadCount > 99 ? "99+" : unreadCount}
+                        </Badge>
+                      )}
+                      {showLabBadge && (
+                        <Badge className="h-5 min-w-5 px-1.5 text-xs bg-amber-500 hover:bg-amber-600">
+                          {labApprovalsCount > 99 ? "99+" : labApprovalsCount}
                         </Badge>
                       )}
                     </Link>
