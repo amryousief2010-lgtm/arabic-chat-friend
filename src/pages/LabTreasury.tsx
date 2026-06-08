@@ -1123,10 +1123,37 @@ export default function LabTreasury() {
               <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 <Field label="التاريخ"><Input type="date" value={incForm.movement_date} onChange={(e) => setIncForm({ ...incForm, movement_date: e.target.value })} /></Field>
                 <Field label="نوع الإيراد">
-                  <Select value={incForm.income_category} onValueChange={(v) => setIncForm({ ...incForm, income_category: v as IncomeCat })}>
+                  <Select
+                    value={incForm.income_category}
+                    onValueChange={(v) => {
+                      if (v === "chick_sales" && !isManager) {
+                        toast.error("بيع الكتاكيت يتم تسجيله تلقائيًا من حضانات التسمين ولا يجوز تسجيله يدويًا حتى لا يتكرر الإيراد.");
+                        return;
+                      }
+                      if (v === "chick_sales" && isManager) {
+                        toast.warning("⚠️ تسجيل بيع كتاكيت يدويًا حالة استثنائية للتصحيح فقط. سيُطلب منك سبب وسيتم تسجيل العملية في سجل التدقيق.");
+                      }
+                      setIncForm({ ...incForm, income_category: v as IncomeCat });
+                    }}
+                  >
                     <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>{Object.entries(INCOME_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
+                    <SelectContent>
+                      {Object.entries(INCOME_LABELS).map(([k, v]) => (
+                        <SelectItem
+                          key={k}
+                          value={k}
+                          disabled={k === "chick_sales" && !isManager}
+                        >
+                          {v}{k === "chick_sales" ? (isManager ? " (تصحيح استثنائي)" : " — تلقائي من حضانات التسمين") : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
                   </Select>
+                  {incForm.income_category === "chick_sales" && (
+                    <div className="text-xs text-destructive mt-1 leading-relaxed">
+                      ⚠️ بيع الكتاكيت يُسجل تلقائيًا من حضانات التسمين. لا تستخدم هذا النوع إلا للتصحيح الاستثنائي.
+                    </div>
+                  )}
                 </Field>
                 <Field label={incHatching ? "اسم العميل *" : "اسم العميل"}>
                   <Input value={incForm.customer_name} onChange={(e) => setIncForm({ ...incForm, customer_name: e.target.value })} />
