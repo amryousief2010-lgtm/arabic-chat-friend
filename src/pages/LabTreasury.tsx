@@ -1499,11 +1499,27 @@ export default function LabTreasury() {
                         <TableCell>{PAYMENT_LABELS[m.payment_method]}</TableCell>
                         <TableCell><StatusBadge s={m.status} /></TableCell>
                         <TableCell className="text-xs">
-                          {m.source_table ? (
-                            <Button size="sm" variant="link" className="h-auto p-0 text-xs gap-1" onClick={() => openSource(m)}>
-                              <LinkIcon className="w-3 h-3" />{m.source_ref || "عرض المصدر"}
-                            </Button>
-                          ) : "—"}
+                          {(() => {
+                            const desc = m.description || "";
+                            const isManualCorrection = desc.includes("[تصحيح يدوي - بيع كتاكيت]");
+                            if (m.source_table) {
+                              const label =
+                                m.source_table === "brooding_chick_sales" ? "تلقائي — بيع كتاكيت" :
+                                m.source_table === "hatch_customer_payments" ? "تلقائي — دفع تفريخ" :
+                                m.source_table === "hatchery_invoice_payments" ? "تلقائي — فاتورة تفريخ" :
+                                "تلقائي";
+                              return (
+                                <div className="flex flex-col gap-0.5">
+                                  <Badge variant="secondary" className="w-fit text-[10px]">{label}</Badge>
+                                  <Button size="sm" variant="link" className="h-auto p-0 text-xs gap-1" onClick={() => openSource(m)}>
+                                    <LinkIcon className="w-3 h-3" />{m.source_ref || "عرض المصدر"}
+                                  </Button>
+                                </div>
+                              );
+                            }
+                            if (isManualCorrection) return <Badge variant="destructive" className="text-[10px]">تصحيح يدوي</Badge>;
+                            return <Badge variant="outline" className="text-[10px]">يدوي</Badge>;
+                          })()}
                         </TableCell>
                         <TableCell className="text-xs">{profiles[m.created_by || ""] || "—"}</TableCell>
                         {isManager && (
