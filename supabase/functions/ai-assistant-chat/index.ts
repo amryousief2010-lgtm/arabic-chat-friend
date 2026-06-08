@@ -446,7 +446,7 @@ Deno.serve(async (req) => {
       const errText = await aiResp.text();
       const status = aiResp.status;
       // Log failure (no answer content)
-      await admin.from("ai_assistant_query_log").insert({
+      await userClient.from("ai_assistant_query_log").insert({
         user_id: user.id,
         question,
         module: `ai:${module}:failed`,
