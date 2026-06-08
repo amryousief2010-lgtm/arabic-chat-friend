@@ -465,8 +465,9 @@ const Slaughterhouse = () => {
   const printTransferNote = (b: Batch, destLabel: string, lines: { name: string; qty: number }[], totalKg: number) => {
     const w = window.open("", "_blank", "width=900,height=700");
     if (!w) return;
-    const rows = lines.map((l, i) => `<tr><td>${i + 1}</td><td>${l.name}</td><td style="text-align:center">${l.qty.toFixed(2)} كجم</td></tr>`).join("");
-    w.document.write(`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>إذن توريد ${b.batch_number}</title>
+    const esc = (v: any) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    const rows = lines.map((l, i) => `<tr><td>${i + 1}</td><td>${esc(l.name)}</td><td style="text-align:center">${l.qty.toFixed(2)} كجم</td></tr>`).join("");
+    w.document.write(`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>إذن توريد ${esc(b.batch_number)}</title>
       <style>
         body{font-family:'Tahoma','Cairo',Arial,sans-serif;padding:24px;color:#111}
         h1{margin:0 0 4px;font-size:22px;color:#5a2a82}
@@ -480,16 +481,16 @@ const Slaughterhouse = () => {
       </style></head><body>
       <h1>إذن توريد من المجزر</h1>
       <div class="meta">
-        <div><b>رقم الدفعة:</b> ${b.batch_number}</div>
+        <div><b>رقم الدفعة:</b> ${esc(b.batch_number)}</div>
         <div><b>التاريخ:</b> ${new Date().toLocaleDateString("ar-EG")}</div>
-        <div><b>الجهة:</b> ${destLabel}</div>
+        <div><b>الجهة:</b> ${esc(destLabel)}</div>
       </div>
       <table>
         <thead><tr><th>م</th><th>الصنف</th><th>الكمية</th></tr></thead>
         <tbody>${rows}</tbody>
         <tfoot><tr><td colspan="2">الإجمالي</td><td style="text-align:center">${totalKg.toFixed(2)} كجم</td></tr></tfoot>
       </table>
-      <div class="sign"><div>المُسلِّم (المجزر)</div><div>المُستلِم (${destLabel})</div><div>المدير</div></div>
+      <div class="sign"><div>المُسلِّم (المجزر)</div><div>المُستلِم (${esc(destLabel)})</div><div>المدير</div></div>
       <script>window.onload=()=>{window.print();}</script>
       </body></html>`);
     w.document.close();

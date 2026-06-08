@@ -1774,12 +1774,13 @@ const ChicksTab = ({ chicks, qc }: any) => {
   }, [filtered]);
 
   const printAll = () => {
+    const esc = (v: any) => String(v ?? "—").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     const rows = filtered.map((c: any) => `<tr>
-      <td>${c.movement_date}</td><td>${c.source || "—"}</td>
-      <td>${c.incoming}</td><td>${c.outgoing}</td>
-      <td style="color:#dc2626">${c.dead}</td><td style="color:#059669">${c.sold}</td>
-      <td>${c.age_days || "—"}</td><td>${c.unit_price}</td>
-      <td><b>${(c.sold * c.unit_price).toLocaleString()}</b></td></tr>`).join("");
+      <td>${esc(c.movement_date)}</td><td>${esc(c.source || "—")}</td>
+      <td>${Number(c.incoming) || 0}</td><td>${Number(c.outgoing) || 0}</td>
+      <td style="color:#dc2626">${Number(c.dead) || 0}</td><td style="color:#059669">${Number(c.sold) || 0}</td>
+      <td>${esc(c.age_days || "—")}</td><td>${Number(c.unit_price) || 0}</td>
+      <td><b>${((Number(c.sold) || 0) * (Number(c.unit_price) || 0)).toLocaleString()}</b></td></tr>`).join("");
     const html = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8"/><title>سجل حركة الكتاكيت</title>
     <style>body{font-family:-apple-system,Tahoma,sans-serif;padding:20px}h1{color:#7c3aed;border-bottom:3px solid #f97316;padding-bottom:8px}
     table{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px}th,td{border:1px solid #e5e7eb;padding:8px;text-align:center}
