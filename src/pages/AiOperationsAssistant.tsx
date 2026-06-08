@@ -790,7 +790,7 @@ export default function AiOperationsAssistant() {
       if (data?.error) {
         setAiError(data.error);
         if (typeof data.remaining === "number") {
-          setAiUsage({ used_today: PER_USER_DAILY_UI - data.remaining, remaining: data.remaining, per_user_daily: PER_USER_DAILY_UI });
+          setAiUsage({ used_today: 25 - data.remaining, remaining: data.remaining, per_user_daily: 25 });
         }
         return;
       }
