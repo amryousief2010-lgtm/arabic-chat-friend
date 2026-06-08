@@ -46,6 +46,7 @@ import {
 import { useAuth, AppRole } from "@/hooks/useAuth";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
 import { useLabTreasuryApprovals } from "@/hooks/useLabTreasuryApprovals";
+import { useUnreadInternalMessages } from "@/hooks/useUnreadInternalMessages";
 import { findModeratorByName } from "@/constants/moderators";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
