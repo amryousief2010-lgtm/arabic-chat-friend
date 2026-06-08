@@ -974,8 +974,9 @@ export default function LabTreasury() {
             <div>
               <SectionTitle icon={<Activity />} title="مؤشرات الخزنة الرئيسية" />
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                <PremiumStat tone="success" highlight icon={<CheckCircle2 />} title="الرصيد الرسمي المعتمد" value={fmtNum(officialTotal, 2)} hint="افتتاحي + حركات معتمدة" />
+                <PremiumStat tone="success" highlight icon={<CheckCircle2 />} title="الرصيد الرسمي المعتمد" value={fmtNum(officialTotal, 2)} hint={`افتتاحي: ${fmtNum(openingTotal, 0)} + صافي الحركات: ${fmtNum(officialTotal - openingTotal, 0)} = ${fmtNum(officialTotal, 0)}`} />
                 <PremiumStat tone="primary" icon={<Banknote />} title="الرصيد الفعلي داخل الخزنة" value={fmtNum(officialTotal, 2)} hint="نفس الرصيد المعتمد" />
+
                 <ExternalSummaryCard />
                 <TotalLabFundsCard officialTotal={officialTotal} />
               </div>
