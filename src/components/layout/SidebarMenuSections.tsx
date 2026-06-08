@@ -342,6 +342,7 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
                   const isActive = location.pathname === targetPath;
                   const showBadge = item.path === "/notifications" && unreadCount > 0;
                   const showLabBadge = item.path === "/lab-treasury" && labApprovalsCount > 0;
+                  const showInternalMsgBadge = item.path === "/internal-messages" && unreadInternalMessages > 0;
                   return (
                     <Link
                       key={item.path}
