@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import FeedInternalDebtDashboard from "@/components/feed/FeedInternalDebtDashboard";
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("en-US", { maximumFractionDigits: 2 });
 
@@ -95,6 +96,9 @@ export default function SlaughterhouseFeedStore() {
           <Card><CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><ArrowUpFromLine className="h-4 w-4 text-orange-600" />مصروف الشهر الحالي</CardTitle></CardHeader>
             <CardContent><div className="text-2xl font-bold text-orange-700">{fmt(totals.outMonth)} كجم</div></CardContent></Card>
         </div>
+
+        <FeedInternalDebtDashboard department="slaughterhouse" />
+
 
         <Tabs defaultValue="balances" dir="rtl">
           <TabsList className="bg-muted/60 p-2">
