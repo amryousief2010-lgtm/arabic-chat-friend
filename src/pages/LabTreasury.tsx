@@ -268,7 +268,9 @@ export default function LabTreasury() {
     movement_date: today(), expense_category: "electricity" as ExpenseCat,
     amount: "" as any, payment_method: "cash" as PaymentMethod,
     description: "", beneficiary: "", notes: "",
+    custom_category: "", // free-text bookkeeping label when no preset fits
   });
+
   const [expReceipt, setExpReceipt] = useState<File | null>(null);
 
   // dialogs
