@@ -663,7 +663,8 @@ function visibleModulesForUser(roles: string[]): Set<ModuleKey> {
 // ------------------------- component -------------------------
 
 export default function AiOperationsAssistant() {
-  const { user, roles } = useAuth();
+  const { user, roles, isGeneralManager, isExecutiveManager } = useAuth();
+  const canUseAiChat = isGeneralManager || isExecutiveManager;
   const allowedModules = useMemo(() => visibleModulesForUser(roles as string[]), [roles]);
   const [moduleFilter, setModuleFilter] = useState<ModuleKey | "all">("all");
   const today = new Date();
@@ -675,6 +676,14 @@ export default function AiOperationsAssistant() {
   const [loading, setLoading] = useState(false);
   const [answer, setAnswer] = useState<AnswerResult | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState<string>("");
+
+  // ----- Phase 2 (managers only): free-text AI question state -----
+  const [aiQuestion, setAiQuestion] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiAnswer, setAiAnswer] = useState<string>("");
+  const [aiUsage, setAiUsage] = useState<{ used_today: number; remaining: number; per_user_daily: number } | null>(null);
+  const [aiError, setAiError] = useState<string>("");
+
 
   const visibleQuestions = useMemo(
     () =>
