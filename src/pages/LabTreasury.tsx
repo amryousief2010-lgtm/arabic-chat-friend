@@ -223,6 +223,8 @@ export default function LabTreasury() {
   const paymentStatusCalc: "paid" | "partial" | "unpaid" =
     collectedNum <= 0 ? "unpaid" : collectedNum >= invoiceTotalCalc && invoiceTotalCalc > 0 ? "paid" : "partial";
 
+  const discountExceeds = subtotalCalc > 0 && discountNum > subtotalCalc;
+
   const [expForm, setExpForm] = useState({
     movement_date: today(), expense_category: "electricity" as ExpenseCat,
     amount: "" as any, payment_method: "cash" as PaymentMethod,
@@ -1032,14 +1034,24 @@ export default function LabTreasury() {
                           <div className="text-xl font-mono font-bold">{fmtNum(subtotalCalc, 2)} ج</div>
                         </div>
                       </div>
+                      {discountExceeds && (
+                        <Alert variant="destructive" className="py-2">
+                          <AlertTriangle className="w-4 h-4" />
+                          <AlertTitle>قيمة الخصم أكبر من إجمالي البنود</AlertTitle>
+                          <AlertDescription>
+                            الخصم المدخل ({fmtNum(discountNum, 2)} ج) يتجاوز إجمالي البنود ({fmtNum(subtotalCalc, 2)} ج).<br/>
+                            قم بتصحيح قيمة الخصم لتكون أقل من أو تساوي {fmtNum(subtotalCalc, 2)} ج.
+                          </AlertDescription>
+                        </Alert>
+                      )}
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <Field label="الخصم (Discount)">
-                          <Input type="number" min={0} max={subtotalCalc || undefined} value={incForm.discount} onChange={(e) => setIncForm({ ...incForm, discount: e.target.value })} placeholder="مثال: 100" />
+                          <Input type="number" min={0} max={subtotalCalc || undefined} value={incForm.discount} onChange={(e) => setIncForm({ ...incForm, discount: e.target.value })} placeholder="مثال: 100" className={discountExceeds ? "border-destructive focus-visible:ring-destructive" : ""} />
                           <div className="text-xs text-muted-foreground mt-1">يخصم من إجمالي البنود قبل المطلوب من العميل</div>
                         </Field>
                         <div className="flex flex-col justify-end">
                           <div className="text-xs text-muted-foreground">قيمة الخصم</div>
-                          <div className="text-xl font-mono font-bold text-amber-600">- {fmtNum(discountNum, 2)} ج</div>
+                          <div className={`text-xl font-mono font-bold ${discountExceeds ? "text-destructive" : "text-amber-600"}`}>- {fmtNum(discountNum, 2)} ج</div>
                         </div>
                         <div className="flex flex-col justify-end">
                           <div className="text-xs text-muted-foreground">صافي الفاتورة (المطلوب من العميل)</div>
@@ -1090,9 +1102,11 @@ export default function LabTreasury() {
                   <Field label="ملاحظات"><Textarea value={incForm.notes} onChange={(e) => setIncForm({ ...incForm, notes: e.target.value })} /></Field>
                 </div>
                 <div className="md:col-span-2 lg:col-span-3 flex flex-wrap gap-2">
-                  <Button onClick={submitIncome} className="gap-2"><Plus className="w-4 h-4" />تسجيل الإيراد</Button>
+                  <Button onClick={submitIncome} disabled={discountExceeds} className="gap-2">
+                    <Plus className="w-4 h-4" />تسجيل الإيراد
+                  </Button>
                   {incHatching && (
-                    <Button type="button" variant="outline" onClick={printCurrentInvoice} className="gap-2">
+                    <Button type="button" variant="outline" onClick={printCurrentInvoice} disabled={discountExceeds} className="gap-2">
                       <Printer className="w-4 h-4" />طباعة الفاتورة
                     </Button>
                   )}
