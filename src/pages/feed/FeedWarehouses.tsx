@@ -518,7 +518,13 @@ export default function FeedWarehouses() {
                       <TableRow key={s.id}>
                         <TableCell className="font-mono text-xs">{s.sale_no}</TableCell>
                         <TableCell>{s.sale_date}</TableCell>
-                        <TableCell>{s.customer || "-"}</TableCell>
+                        <TableCell>
+                          {s.destination_type === "brooding_feed_store"
+                            ? <Badge className="bg-blue-100 text-blue-800 border-blue-200">توريد → حضانات تسمين</Badge>
+                            : s.destination_type === "slaughterhouse_feed_store"
+                            ? <Badge className="bg-orange-100 text-orange-800 border-orange-200">توريد → مخزن علف المجزر</Badge>
+                            : (s.customer || "-")}
+                        </TableCell>
                         <TableCell>{fmt(Number(s.total_amount))}</TableCell>
                         <TableCell className="text-muted-foreground">{fmt(Number(s.total_cost))}</TableCell>
                         <TableCell className="font-bold text-success">{fmt(Number(s.profit))}</TableCell>
