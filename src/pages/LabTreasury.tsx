@@ -926,6 +926,7 @@ export default function LabTreasury() {
             <TabsTrigger value="external">التحصيلات الخارجية</TabsTrigger>
             <TabsTrigger value="advances">العُهد</TabsTrigger>
             {canApprove && <TabsTrigger value="duplicates">المكررات</TabsTrigger>}
+            <TabsTrigger value="reconcile">مطابقة الخزنة</TabsTrigger>
             <TabsTrigger value="reports">التقارير</TabsTrigger>
             {canApprove && <TabsTrigger value="audit">سجل التدقيق</TabsTrigger>}
           </TabsList>
@@ -942,6 +943,15 @@ export default function LabTreasury() {
               <DuplicatesTab isManager={isManager} />
             </TabsContent>
           )}
+          <TabsContent value="reconcile">
+            <ReconcileTab
+              movements={movements as any}
+              openingByMethod={openingByMethod}
+              officialByMethod={officialByMethod}
+              onChanged={fetchData}
+            />
+          </TabsContent>
+
 
           {/* Dashboard */}
           <TabsContent value="dashboard" className="space-y-5">
