@@ -87,7 +87,7 @@ const InternalMessages = () => {
         .select("id, subject, body, priority, has_attachments, created_at, sender_id")
         .in("id", ids)
         .eq("is_deleted", false);
-      const senderIds = Array.from(new Set((msgs || []).map((m: any) => m.sender_id)));
+      const senderIds = Array.from(new Set((msgs || []).map((m: any) => m.sender_id as string))) as string[];
       const { data: profiles } = senderIds.length
         ? await supabase.from("profile_directory").select("id, full_name").in("id", senderIds)
         : { data: [] as any[] };
