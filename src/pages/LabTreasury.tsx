@@ -894,11 +894,15 @@ export default function LabTreasury() {
         {/* Premium header */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground flex items-center justify-center shadow-md shadow-primary/30">
-              <Wallet className="w-5 h-5" />
+            <div className="relative group">
+              <div className="absolute -inset-1 rounded-2xl bg-gradient-to-br from-primary via-accent to-primary opacity-60 blur-md group-hover:opacity-90 transition-opacity" aria-hidden />
+              <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-primary via-primary to-primary/80 text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/40 ring-1 ring-white/20 ring-inset overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/20 to-white/0 pointer-events-none" aria-hidden />
+                <Wallet className="w-5 h-5 drop-shadow-sm relative" strokeWidth={2.25} />
+              </div>
             </div>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight">خزنة المعمل والحضانات</h1>
+              <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-l from-primary via-foreground to-foreground bg-clip-text text-transparent">خزنة المعمل والحضانات</h1>
               <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
                 <Clock className="w-3 h-3" /> {getCairoNow()}
                 <span className="text-border">|</span>
@@ -907,11 +911,20 @@ export default function LabTreasury() {
             </div>
           </div>
           <div className="flex gap-2 flex-wrap">
-            <Button variant="outline" size="sm" onClick={printCensus} className="gap-2">
-              <FileCheck2 className="w-4 h-4" />محضر جرد
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={printCensus}
+              className="gap-2 relative overflow-hidden border-primary/30 bg-gradient-to-br from-background to-primary/5 hover:from-primary/5 hover:to-primary/10 hover:border-primary/50 shadow-sm hover:shadow-md hover:shadow-primary/10 transition-all"
+            >
+              <span className="w-6 h-6 rounded-md bg-gradient-to-br from-primary to-primary/70 text-primary-foreground flex items-center justify-center shadow-sm shadow-primary/30 ring-1 ring-white/20 ring-inset">
+                <FileCheck2 className="w-3.5 h-3.5" strokeWidth={2.5} />
+              </span>
+              محضر جرد
             </Button>
           </div>
         </div>
+
 
         <Tabs defaultValue="dashboard" className="w-full">
           <TabsList className="flex flex-wrap h-auto">
