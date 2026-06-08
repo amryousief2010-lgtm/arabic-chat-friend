@@ -893,17 +893,29 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
         const { error: eDel } = await supabase.from("feed_sale_items").delete().eq("sale_id", saleId);
         if (eDel) throw eDel;
         const { error: eUpd } = await supabase.from("feed_sales").update({
-          customer, customer_phone: customerPhone || null, salesperson: salesperson || null, sale_date: date, notes,
+          customer: isInternal ? null : customer,
+          customer_phone: isInternal ? null : (customerPhone || null),
+          salesperson: salesperson || null,
+          sale_date: date,
+          notes,
+          destination_type: destinationType,
         } as any).eq("id", saleId);
         if (eUpd) throw eUpd;
       } else {
         const { data: head, error: e1 } = await supabase.from("feed_sales").insert({
-          customer, customer_phone: customerPhone || null, salesperson: salesperson || null, sale_date: date, notes, created_by: user?.id,
+          customer: isInternal ? null : customer,
+          customer_phone: isInternal ? null : (customerPhone || null),
+          salesperson: salesperson || null,
+          sale_date: date,
+          notes,
+          destination_type: destinationType,
+          created_by: user?.id,
         } as any).select("id").single();
         if (e1) throw e1;
         saleId = head.id;
       }
       for (const l of valid) {
+        if (isInternal && l.kind !== "finished") throw new Error("التوريد الداخلي يقبل علف جاهز فقط — لا يقبل خامات");
         const payload: any = { sale_id: saleId, quantity: l.qty, unit_price: l.price };
         if (l.kind === "finished") payload.feed_product_id = l.ref_id;
         else payload.raw_material_id = l.ref_id;
