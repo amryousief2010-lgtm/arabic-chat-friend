@@ -48,14 +48,15 @@ export default function FeedMonthlyReport() {
   const load = async () => {
     setLoading(true);
     try {
-      const [d, bIss, sIss, fp, bInv, sInv, tx] = await Promise.all([
+      const [d, bIss, sIss, fp, bInv, sInv, tx, leak] = await Promise.all([
         supabase.from("v_feed_factory_distribution" as any).select("*").gte("sale_date", range.start).lt("sale_date", range.end).order("sale_date", { ascending: false }),
         supabase.from("brooding_feed_issuance").select("issue_date, feed_name, quantity_kg, total_cost").gte("issue_date", range.start).lt("issue_date", range.end),
-        supabase.from("slaughterhouse_feed_movements").select("performed_at, feed_id, quantity_kg, total_cost, movement_type, notes").eq("movement_type", "out").gte("performed_at", range.start).lt("performed_at", range.end),
+        supabase.from("slaughterhouse_feed_movements").select("performed_at, feed_id, quantity_kg, total_cost, movement_type, notes").eq("movement_type", "consumption").gte("performed_at", range.start).lt("performed_at", range.end),
         supabase.from("feed_products").select("name, current_stock, latest_unit_cost").is("archived_at", null).order("name"),
         supabase.from("brooding_feed_inventory").select("feed_name, current_kg, last_unit_cost").order("feed_name"),
         supabase.from("slaughterhouse_feed_inventory").select("feed_name, current_kg, last_unit_cost").order("feed_name"),
-        supabase.from("feed_factory_treasury_txns").select("amount, txn_type, source_type").gte("created_at", range.start).lt("created_at", range.end),
+        supabase.from("feed_factory_treasury_txns").select("amount, direction, kind, ref_table, ref_id").gte("txn_date", range.start).lt("txn_date", range.end),
+        supabase.from("feed_sales").select("id, destination_type").neq("destination_type", "external_customer").gte("sale_date", range.start).lt("sale_date", range.end),
       ]);
 
       setDist((d.data as any) || []);
@@ -66,11 +67,12 @@ export default function FeedMonthlyReport() {
       setSlaughterBalances(sInv.data || []);
 
       const txns = (tx.data as any[]) || [];
-      const incoming = txns.filter((t) => t.txn_type === "in" || t.txn_type === "deposit" || t.txn_type === "sale");
-      const internal = txns.filter((t: any) => /internal|brooding|slaughter/i.test(t.source_type || ""));
+      const internalSaleIds = new Set(((leak.data as any[]) || []).map((s) => s.id));
+      const saleIncoming = txns.filter((t) => t.direction === "in" && t.kind === "sale");
+      const leakedCount = saleIncoming.filter((t) => t.ref_id && internalSaleIds.has(t.ref_id)).length;
       setFactoryTreasury({
-        in: incoming.reduce((s, t) => s + Number(t.amount || 0), 0),
-        internalCount: internal.length,
+        in: saleIncoming.reduce((s, t) => s + Number(t.amount || 0), 0),
+        internalCount: leakedCount,
       });
     } catch (e: any) {
       toast.error("فشل تحميل التقرير: " + (e.message || e));
