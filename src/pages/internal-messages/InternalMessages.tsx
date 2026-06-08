@@ -132,7 +132,7 @@ const InternalMessages = () => {
         .from("internal_message_recipients")
         .select("message_id, recipient_id, read_at")
         .in("message_id", ids);
-      const recipientIds = Array.from(new Set((recs || []).map((r: any) => r.recipient_id)));
+      const recipientIds = Array.from(new Set((recs || []).map((r: any) => r.recipient_id as string))) as string[];
       const { data: profiles } = recipientIds.length
         ? await supabase.from("profile_directory").select("id, full_name").in("id", recipientIds)
         : { data: [] as any[] };
