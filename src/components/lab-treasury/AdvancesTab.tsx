@@ -21,11 +21,50 @@ type ExpenseCat =
   | "medicine" | "feed_supplies" | "tools" | "transport" | "other";
 type AdvanceStatus = "open" | "settled" | "closed" | "cancelled";
 
+type AdvanceDebugSnapshot = {
+  invoice_total: number;
+  paid_amount: number;
+};
+
 const PAYMENT_LABELS: Record<PaymentMethod, string> = {
   cash: "نقدي (كاش)",
   vodafone_cash: "فودافون كاش",
   instapay: "انستاباي",
   bank_transfer: "تحويل بنكي",
+};
+
+const normalizePaymentMethod = (value: string | null | undefined): PaymentMethod => {
+  switch (value) {
+    case "cash":
+    case "نقدي":
+    case "النقدية (كاش)":
+      return "cash";
+    case "vodafone_cash":
+    case "فودافون كاش":
+      return "vodafone_cash";
+    case "instapay":
+    case "إنستا باي":
+    case "انستاباي":
+      return "instapay";
+    case "bank_transfer":
+    case "تحويل بنكي":
+    case "التحويل البنكي":
+      return "bank_transfer";
+    default:
+      return "cash";
+  }
+};
+
+const debugAdvanceAmount = (values: {
+  entered_amount: string | number | null;
+  expense_amount: number | null;
+  advance_amount: number | null;
+  invoice_total: number | null;
+  paid_amount: number | null;
+  amount_sent_to_rpc: number | null;
+  payment_method: PaymentMethod;
+}) => {
+  console.info("[lab-treasury-debug]", { context: "advance_issue", ...values });
 };
 
 const EXPENSE_LABELS: Record<ExpenseCat, string> = {
@@ -68,7 +107,7 @@ interface SettlementLine {
 
 const fmt = (n: number) => (n ?? 0).toLocaleString("ar-EG", { maximumFractionDigits: 2 });
 
-export default function AdvancesTab({ isManager }: { isManager: boolean }) {
+export default function AdvancesTab({ isManager, debugSnapshot }: { isManager: boolean; debugSnapshot?: AdvanceDebugSnapshot }) {
   const { user } = useAuth();
   const [advances, setAdvances] = useState<Advance[]>([]);
   const [loading, setLoading] = useState(true);
@@ -124,15 +163,26 @@ export default function AdvancesTab({ isManager }: { isManager: boolean }) {
     return { issued, actual, returned, pending, openCount: open.length, settledCount: settled.length };
   }, [advances, open.length, settled.length]);
 
-  const expAvailable = balanceByMethod[issueForm.payment_method] || 0;
-  const issueAmountNum = Number(issueForm.amount) || 0;
+  const normalizedIssuePaymentMethod = normalizePaymentMethod(issueForm.payment_method);
+  const issueAmountRaw = String(issueForm.amount ?? "").trim();
+  const issueAmountNum = Number(issueAmountRaw) || 0;
+  const expAvailable = balanceByMethod[normalizedIssuePaymentMethod] || 0;
   const issueExceeds = issueAmountNum > expAvailable;
 
   const submitIssue = async () => {
     if (!issueForm.recipient_name.trim()) { toast.error("اسم المستلم مطلوب"); return; }
     if (issueAmountNum <= 0) { toast.error("المبلغ يجب أن يكون أكبر من صفر"); return; }
+    debugAdvanceAmount({
+      entered_amount: issueAmountRaw || null,
+      expense_amount: null,
+      advance_amount: issueAmountNum,
+      invoice_total: debugSnapshot?.invoice_total ?? null,
+      paid_amount: debugSnapshot?.paid_amount ?? null,
+      amount_sent_to_rpc: issueAmountNum,
+      payment_method: normalizedIssuePaymentMethod,
+    });
     if (issueExceeds && !isManager) {
-      toast.error(`الرصيد المتاح في ${PAYMENT_LABELS[issueForm.payment_method]} ${fmt(expAvailable)} ج فقط، لا يمكن صرف ${fmt(issueAmountNum)} ج. صحح المبلغ أو اطلب اعتماد المدير.`);
+      toast.error(`الرصيد المتاح في ${PAYMENT_LABELS[normalizedIssuePaymentMethod]} ${fmt(expAvailable)} ج فقط، لا يمكن صرف ${fmt(issueAmountNum)} ج. صحح المبلغ أو اطلب اعتماد المدير.`);
       return;
     }
     setSubmitting(true);
@@ -140,7 +190,7 @@ export default function AdvancesTab({ isManager }: { isManager: boolean }) {
       p_recipient_name: issueForm.recipient_name.trim(),
       p_employee_user_id: issueForm.employee_user_id || null,
       p_amount: issueAmountNum,
-      p_payment_method: issueForm.payment_method,
+      p_payment_method: normalizedIssuePaymentMethod,
       p_purpose: issueForm.purpose || null,
       p_notes: issueForm.notes || null,
       p_issued_at: issueForm.issued_at,
@@ -337,6 +387,7 @@ export default function AdvancesTab({ isManager }: { isManager: boolean }) {
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>تسوية عهدة — {activeAdvance?.recipient_name} ({fmt(Number(activeAdvance?.amount || 0))} ج)</DialogTitle>
+            <div className="sr-only">تفاصيل تسوية العهدة وتسجيل المصروف الفعلي والمبلغ المرتجع.</div>
           </DialogHeader>
 
           <div className="space-y-3">
