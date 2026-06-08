@@ -849,9 +849,11 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
   const [salesperson, setSalesperson] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
+  const [destinationType, setDestinationType] = useState<"external_customer" | "brooding_feed_store" | "slaughterhouse_feed_store">("external_customer");
   const [lines, setLines] = useState<SaleLine[]>([newSaleLine()]);
   const [saving, setSaving] = useState(false);
   const total = lines.reduce((s, l) => s + l.qty * l.price, 0);
+  const isInternal = destinationType !== "external_customer";
 
   useEffect(() => {
     if (editSale?.id) {
@@ -860,6 +862,7 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
       setSalesperson(editSale.salesperson || "");
       setDate(editSale.sale_date || new Date().toISOString().slice(0, 10));
       setNotes(editSale.notes || "");
+      setDestinationType(editSale.destination_type || "external_customer");
       const items = editSale.feed_sale_items || [];
       setLines(items.length
         ? items.map((it: any) => ({
@@ -871,7 +874,8 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
           }))
         : [newSaleLine()]);
     } else if (open) {
-      setCustomer(""); setCustomerPhone(""); setSalesperson(""); setNotes(""); setDate(new Date().toISOString().slice(0, 10)); setLines([newSaleLine()]);
+      setCustomer(""); setCustomerPhone(""); setSalesperson(""); setNotes(""); setDate(new Date().toISOString().slice(0, 10));
+      setDestinationType("external_customer"); setLines([newSaleLine()]);
     }
   }, [editSale?.id, open]);
 
