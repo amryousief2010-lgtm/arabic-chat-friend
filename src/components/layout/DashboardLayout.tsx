@@ -71,6 +71,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           pullDistance={pullDistance}
           isRefreshing={isRefreshing}
         />
+        <UnreadMessagesBanner />
         {children}
         
         {/* Swipe Navigation Indicator */}
