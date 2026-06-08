@@ -223,6 +223,8 @@ export default function LabTreasury() {
   const paymentStatusCalc: "paid" | "partial" | "unpaid" =
     collectedNum <= 0 ? "unpaid" : collectedNum >= invoiceTotalCalc && invoiceTotalCalc > 0 ? "paid" : "partial";
 
+  const discountExceeds = subtotalCalc > 0 && discountNum > subtotalCalc;
+
   const [expForm, setExpForm] = useState({
     movement_date: today(), expense_category: "electricity" as ExpenseCat,
     amount: "" as any, payment_method: "cash" as PaymentMethod,
