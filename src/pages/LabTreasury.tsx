@@ -982,21 +982,26 @@ export default function LabTreasury() {
 
 
         <Tabs defaultValue="dashboard" className="w-full">
-          <TabsList className="flex flex-wrap h-auto">
-            <TabsTrigger value="dashboard">لوحة الخزنة</TabsTrigger>
-            <TabsTrigger value="income">إضافة إيراد</TabsTrigger>
-            <TabsTrigger value="expense">إضافة مصروف</TabsTrigger>
-            <TabsTrigger value="log">سجل الحركات</TabsTrigger>
-            {canApprove && <TabsTrigger value="approvals">الاعتمادات</TabsTrigger>}
-            <TabsTrigger value="daily">التقرير اليومي</TabsTrigger>
-            <TabsTrigger value="closures">إقفال الأيام</TabsTrigger>
-            <TabsTrigger value="openings">الأرصدة الافتتاحية</TabsTrigger>
-            <TabsTrigger value="external">التحصيلات الخارجية</TabsTrigger>
-            <TabsTrigger value="advances">العُهد</TabsTrigger>
-            {canApprove && <TabsTrigger value="duplicates">المكررات</TabsTrigger>}
-            <TabsTrigger value="reconcile">مطابقة الخزنة</TabsTrigger>
-            <TabsTrigger value="reports">التقارير</TabsTrigger>
-            {canApprove && <TabsTrigger value="audit">سجل التدقيق</TabsTrigger>}
+          <TabsList className="flex flex-wrap h-auto gap-1 bg-muted/60 p-2">
+            {(() => {
+              const tabCls = "font-semibold text-foreground/80 hover:text-primary hover:bg-primary/10 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-colors";
+              return <>
+                <TabsTrigger value="dashboard" className={tabCls}>لوحة الخزنة</TabsTrigger>
+                <TabsTrigger value="income" className={tabCls}>إضافة إيراد</TabsTrigger>
+                <TabsTrigger value="expense" className={tabCls}>إضافة مصروف</TabsTrigger>
+                <TabsTrigger value="log" className={tabCls}>سجل الحركات</TabsTrigger>
+                {canApprove && <TabsTrigger value="approvals" className={tabCls}>الاعتمادات</TabsTrigger>}
+                <TabsTrigger value="daily" className={tabCls}>التقرير اليومي</TabsTrigger>
+                <TabsTrigger value="closures" className={tabCls}>إقفال الأيام</TabsTrigger>
+                <TabsTrigger value="openings" className={tabCls}>الأرصدة الافتتاحية</TabsTrigger>
+                <TabsTrigger value="external" className={tabCls}>التحصيلات الخارجية</TabsTrigger>
+                <TabsTrigger value="advances" className={tabCls}>العُهد</TabsTrigger>
+                {canApprove && <TabsTrigger value="duplicates" className={tabCls}>المكررات</TabsTrigger>}
+                <TabsTrigger value="reconcile" className={tabCls}>مطابقة الخزنة</TabsTrigger>
+                <TabsTrigger value="reports" className={tabCls}>التقارير</TabsTrigger>
+                {canApprove && <TabsTrigger value="audit" className={tabCls}>سجل التدقيق</TabsTrigger>}
+              </>;
+            })()}
           </TabsList>
           <TabsContent value="advances">
             <AdvancesTab
