@@ -22,6 +22,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   // Enable real-time order notifications + daily/weekly role reminders
   useOrderNotifications();
   useDailyReminders();
+  useInternalMessageRealtime();
 
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
