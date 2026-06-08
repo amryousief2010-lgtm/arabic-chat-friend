@@ -518,7 +518,13 @@ export default function FeedWarehouses() {
                       <TableRow key={s.id}>
                         <TableCell className="font-mono text-xs">{s.sale_no}</TableCell>
                         <TableCell>{s.sale_date}</TableCell>
-                        <TableCell>{s.customer || "-"}</TableCell>
+                        <TableCell>
+                          {s.destination_type === "brooding_feed_store"
+                            ? <Badge className="bg-blue-100 text-blue-800 border-blue-200">توريد → حضانات تسمين</Badge>
+                            : s.destination_type === "slaughterhouse_feed_store"
+                            ? <Badge className="bg-orange-100 text-orange-800 border-orange-200">توريد → مخزن علف المجزر</Badge>
+                            : (s.customer || "-")}
+                        </TableCell>
                         <TableCell>{fmt(Number(s.total_amount))}</TableCell>
                         <TableCell className="text-muted-foreground">{fmt(Number(s.total_cost))}</TableCell>
                         <TableCell className="font-bold text-success">{fmt(Number(s.profit))}</TableCell>
@@ -849,9 +855,11 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
   const [salesperson, setSalesperson] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
+  const [destinationType, setDestinationType] = useState<"external_customer" | "brooding_feed_store" | "slaughterhouse_feed_store">("external_customer");
   const [lines, setLines] = useState<SaleLine[]>([newSaleLine()]);
   const [saving, setSaving] = useState(false);
   const total = lines.reduce((s, l) => s + l.qty * l.price, 0);
+  const isInternal = destinationType !== "external_customer";
 
   useEffect(() => {
     if (editSale?.id) {
@@ -860,6 +868,7 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
       setSalesperson(editSale.salesperson || "");
       setDate(editSale.sale_date || new Date().toISOString().slice(0, 10));
       setNotes(editSale.notes || "");
+      setDestinationType(editSale.destination_type || "external_customer");
       const items = editSale.feed_sale_items || [];
       setLines(items.length
         ? items.map((it: any) => ({
@@ -871,7 +880,8 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
           }))
         : [newSaleLine()]);
     } else if (open) {
-      setCustomer(""); setCustomerPhone(""); setSalesperson(""); setNotes(""); setDate(new Date().toISOString().slice(0, 10)); setLines([newSaleLine()]);
+      setCustomer(""); setCustomerPhone(""); setSalesperson(""); setNotes(""); setDate(new Date().toISOString().slice(0, 10));
+      setDestinationType("external_customer"); setLines([newSaleLine()]);
     }
   }, [editSale?.id, open]);
 
@@ -889,17 +899,29 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
         const { error: eDel } = await supabase.from("feed_sale_items").delete().eq("sale_id", saleId);
         if (eDel) throw eDel;
         const { error: eUpd } = await supabase.from("feed_sales").update({
-          customer, customer_phone: customerPhone || null, salesperson: salesperson || null, sale_date: date, notes,
+          customer: isInternal ? null : customer,
+          customer_phone: isInternal ? null : (customerPhone || null),
+          salesperson: salesperson || null,
+          sale_date: date,
+          notes,
+          destination_type: destinationType,
         } as any).eq("id", saleId);
         if (eUpd) throw eUpd;
       } else {
         const { data: head, error: e1 } = await supabase.from("feed_sales").insert({
-          customer, customer_phone: customerPhone || null, salesperson: salesperson || null, sale_date: date, notes, created_by: user?.id,
+          customer: isInternal ? null : customer,
+          customer_phone: isInternal ? null : (customerPhone || null),
+          salesperson: salesperson || null,
+          sale_date: date,
+          notes,
+          destination_type: destinationType,
+          created_by: user?.id,
         } as any).select("id").single();
         if (e1) throw e1;
         saleId = head.id;
       }
       for (const l of valid) {
+        if (isInternal && l.kind !== "finished") throw new Error("التوريد الداخلي يقبل علف جاهز فقط — لا يقبل خامات");
         const payload: any = { sale_id: saleId, quantity: l.qty, unit_price: l.price };
         if (l.kind === "finished") payload.feed_product_id = l.ref_id;
         else payload.raw_material_id = l.ref_id;
@@ -915,11 +937,34 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl" dir="rtl">
-        <DialogHeader><DialogTitle>{isEdit ? `تعديل فاتورة بيع ${editSale?.sale_no || ""}` : "فاتورة بيع — علف جاهز أو خامات (بريمكس / دريس...)"}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{isEdit ? `تعديل فاتورة بيع ${editSale?.sale_no || ""}` : "فاتورة بيع/توريد علف — جاهز أو خامات"}</DialogTitle></DialogHeader>
+
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
+          <Label className="font-bold">نوع العملية</Label>
+          <Select value={destinationType} onValueChange={(v: any) => setDestinationType(v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="external_customer">بيع خارجي لعميل</SelectItem>
+              <SelectItem value="brooding_feed_store">توريد داخلي → مخزن علف حضانات تسمين الكتاكيت</SelectItem>
+              <SelectItem value="slaughterhouse_feed_store">توريد داخلي → مخزن علف المجزر (علف النعام التسمين)</SelectItem>
+            </SelectContent>
+          </Select>
+          {isInternal && (
+            <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+              ⚠️ توريد داخلي: سيتم خصم الكمية من مخزون المصنع وإضافتها تلقائياً للمخزن الداخلي المحدد. لن تُسجَّل كبيع خارجي. لا يمكن تكرار نفس بند الفاتورة في المخزن الداخلي.
+            </div>
+          )}
+        </div>
+
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div><Label>العميل</Label><Input value={customer} onChange={(e) => setCustomer(e.target.value)} /></div>
-          <div><Label>رقم العميل</Label><Input type="tel" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="01xxxxxxxxx" /></div>
-          <div><Label>اسم البائع</Label><Input value={salesperson} onChange={(e) => setSalesperson(e.target.value)} /></div>
+          {!isInternal && <>
+            <div><Label>العميل</Label><Input value={customer} onChange={(e) => setCustomer(e.target.value)} /></div>
+            <div><Label>رقم العميل</Label><Input type="tel" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="01xxxxxxxxx" /></div>
+          </>}
+          {isInternal && <div className="md:col-span-2"><Label>الجهة المستلمة</Label>
+            <Input value={destinationType === "brooding_feed_store" ? "حضانات تسمين الكتاكيت" : "مخزن علف المجزر"} disabled />
+          </div>}
+          <div><Label>{isInternal ? "أمين المخزن المسلِّم" : "اسم البائع"}</Label><Input value={salesperson} onChange={(e) => setSalesperson(e.target.value)} /></div>
           <div><Label>التاريخ</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
         </div>
         <div className="space-y-2">

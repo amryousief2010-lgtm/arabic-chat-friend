@@ -154,6 +154,7 @@ export const moduleSections: ModuleSection[] = [
       { icon: Beef, label: "إذن ذبح النعام", path: "/modules/slaughterhouse/permit", roles: ['general_manager', 'executive_manager', 'slaughterhouse_manager', 'production_manager', 'quality_manager'] },
       { icon: Package, label: "مخزن التغليف والتعبئة", path: "/modules/packaging", roles: ['general_manager', 'executive_manager', 'slaughterhouse_manager'] },
       { icon: Wallet, label: "خزنة عهدة المجزر — محمد شعلة", path: "/slaughterhouse-custody", roles: ['general_manager', 'executive_manager', 'slaughterhouse_manager', 'lab_treasury_approver', 'slaughterhouse_custody_keeper'] },
+      { icon: Wheat, label: "مخزن علف المجزر — علف النعام التسمين", path: "/modules/slaughterhouse/feed-store", roles: ['general_manager', 'executive_manager', 'slaughterhouse_manager', 'warehouse_supervisor', 'feed_factory_manager', 'production_manager'] },
     ],
   },
   {

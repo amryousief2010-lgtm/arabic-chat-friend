@@ -496,9 +496,12 @@ export type Database = {
           created_by: string | null
           feed_id: string
           id: string
+          invoice_no: string | null
           movement_type: string
           notes: string | null
           quantity_kg: number
+          source_id: string | null
+          source_type: string
           total_cost: number
           unit_cost: number
         }
@@ -508,9 +511,12 @@ export type Database = {
           created_by?: string | null
           feed_id: string
           id?: string
+          invoice_no?: string | null
           movement_type: string
           notes?: string | null
           quantity_kg: number
+          source_id?: string | null
+          source_type?: string
           total_cost?: number
           unit_cost?: number
         }
@@ -520,9 +526,12 @@ export type Database = {
           created_by?: string | null
           feed_id?: string
           id?: string
+          invoice_no?: string | null
           movement_type?: string
           notes?: string | null
           quantity_kg?: number
+          source_id?: string | null
+          source_type?: string
           total_cost?: number
           unit_cost?: number
         }
@@ -3919,6 +3928,13 @@ export type Database = {
             referencedRelation: "feed_sales"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "feed_sale_items_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "v_feed_factory_distribution"
+            referencedColumns: ["sale_id"]
+          },
         ]
       }
       feed_sales: {
@@ -3927,6 +3943,8 @@ export type Database = {
           created_by: string | null
           customer: string | null
           customer_phone: string | null
+          destination_ref_id: string | null
+          destination_type: string
           id: string
           notes: string | null
           profit: number
@@ -3942,6 +3960,8 @@ export type Database = {
           created_by?: string | null
           customer?: string | null
           customer_phone?: string | null
+          destination_ref_id?: string | null
+          destination_type?: string
           id?: string
           notes?: string | null
           profit?: number
@@ -3957,6 +3977,8 @@ export type Database = {
           created_by?: string | null
           customer?: string | null
           customer_phone?: string | null
+          destination_ref_id?: string | null
+          destination_type?: string
           id?: string
           notes?: string | null
           profit?: number
@@ -4072,6 +4094,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "feed_sales"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feed_sales_returns_original_sale_id_fkey"
+            columns: ["original_sale_id"]
+            isOneToOne: false
+            referencedRelation: "v_feed_factory_distribution"
+            referencedColumns: ["sale_id"]
           },
           {
             foreignKeyName: "feed_sales_returns_reverse_cash_transaction_id_fkey"
@@ -11890,6 +11919,136 @@ export type Database = {
         }
         Relationships: []
       }
+      slaughterhouse_feed_audit_log: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          feed_id: string | null
+          id: string
+          movement_id: string | null
+          performed_by: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          feed_id?: string | null
+          id?: string
+          movement_id?: string | null
+          performed_by?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          feed_id?: string | null
+          id?: string
+          movement_id?: string | null
+          performed_by?: string | null
+        }
+        Relationships: []
+      }
+      slaughterhouse_feed_inventory: {
+        Row: {
+          created_at: string
+          current_kg: number
+          feed_name: string
+          feed_product_id: string
+          id: string
+          last_unit_cost: number
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_kg?: number
+          feed_name: string
+          feed_product_id: string
+          id?: string
+          last_unit_cost?: number
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_kg?: number
+          feed_name?: string
+          feed_product_id?: string
+          id?: string
+          last_unit_cost?: number
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slaughterhouse_feed_inventory_feed_product_id_fkey"
+            columns: ["feed_product_id"]
+            isOneToOne: true
+            referencedRelation: "feed_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      slaughterhouse_feed_movements: {
+        Row: {
+          created_at: string
+          feed_id: string
+          id: string
+          invoice_no: string | null
+          movement_type: string
+          notes: string | null
+          performed_at: string
+          performed_by: string | null
+          quantity_kg: number
+          reference_no: string | null
+          source_id: string | null
+          source_type: string
+          total_cost: number
+          unit_cost: number
+        }
+        Insert: {
+          created_at?: string
+          feed_id: string
+          id?: string
+          invoice_no?: string | null
+          movement_type: string
+          notes?: string | null
+          performed_at?: string
+          performed_by?: string | null
+          quantity_kg: number
+          reference_no?: string | null
+          source_id?: string | null
+          source_type?: string
+          total_cost?: number
+          unit_cost?: number
+        }
+        Update: {
+          created_at?: string
+          feed_id?: string
+          id?: string
+          invoice_no?: string | null
+          movement_type?: string
+          notes?: string | null
+          performed_at?: string
+          performed_by?: string | null
+          quantity_kg?: number
+          reference_no?: string | null
+          source_id?: string | null
+          source_type?: string
+          total_cost?: number
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slaughterhouse_feed_movements_feed_id_fkey"
+            columns: ["feed_id"]
+            isOneToOne: false
+            referencedRelation: "slaughterhouse_feed_inventory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stock_reconciliation_proposals: {
         Row: {
           agouza_warehouse_stock: number | null
@@ -12690,6 +12849,34 @@ export type Database = {
         }
         Relationships: []
       }
+      v_feed_factory_distribution: {
+        Row: {
+          destination_label: string | null
+          destination_type: string | null
+          feed_name: string | null
+          feed_product_id: string | null
+          item_id: string | null
+          line_cost: number | null
+          line_total: number | null
+          notes: string | null
+          quantity: number | null
+          sale_date: string | null
+          sale_id: string | null
+          sale_no: string | null
+          salesperson: string | null
+          unit_cost: number | null
+          unit_price: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_sale_items_feed_product_id_fkey"
+            columns: ["feed_product_id"]
+            isOneToOne: false
+            referencedRelation: "feed_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_hatchery_batches_full: {
         Row: {
           batch_number: string | null
@@ -13403,6 +13590,14 @@ export type Database = {
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
+      }
+      ensure_brooding_feed_row: {
+        Args: { _feed_name: string }
+        Returns: string
+      }
+      ensure_slaughter_feed_row: {
+        Args: { _feed_name: string; _feed_product_id: string }
+        Returns: string
       }
       executive_dashboard_summary: {
         Args: { p_from?: string; p_to?: string }
