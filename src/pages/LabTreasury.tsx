@@ -1256,21 +1256,38 @@ export default function LabTreasury() {
               <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 <Field label="التاريخ"><Input type="date" value={expForm.movement_date} onChange={(e) => setExpForm({ ...expForm, movement_date: e.target.value })} /></Field>
                 <Field label="بند المصروف">
-                  <Select value={expForm.expense_category} onValueChange={(v) => setExpForm({ ...expForm, expense_category: v as ExpenseCat })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(EXPENSE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex gap-2">
+                    <Select value={expForm.expense_category} onValueChange={(v) => setExpForm({ ...expForm, expense_category: v as ExpenseCat, custom_category: v === "other" ? expForm.custom_category : "" })}>
+                      <SelectTrigger className="flex-1">
+                        <SelectValue>
+                          {expForm.expense_category === "other" && expForm.custom_category
+                            ? expForm.custom_category
+                            : EXPENSE_LABELS[expForm.expense_category]}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(EXPENSE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      title="إضافة بند مصروف جديد"
+                      onClick={() => {
+                        const name = prompt("اكتب اسم بند المصروف الجديد (هيتسجل تحت تصنيف \"أخرى\"):", expForm.custom_category || "");
+                        if (name === null) return;
+                        const trimmed = name.trim();
+                        if (trimmed.length < 2) { toast.error("اسم البند قصير جداً"); return; }
+                        setExpForm({ ...expForm, expense_category: "other", custom_category: trimmed });
+                        toast.success(`تم اختيار بند مخصص: ${trimmed}`);
+                      }}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </Field>
-                <Field label={expForm.expense_category === "other" ? "اسم البند المخصص *" : "بند مخصص (اختياري — استخدم \"أخرى\" أعلاه)"}>
-                  <Input
-                    placeholder={expForm.expense_category === "other" ? "مثال: شراء فلتر مياه" : 'اختر "أخرى" من بند المصروف ثم اكتب الاسم هنا'}
-                    value={expForm.custom_category}
-                    onChange={(e) => setExpForm({ ...expForm, custom_category: e.target.value })}
-                    disabled={expForm.expense_category !== "other"}
-                  />
-                </Field>
+
 
                 <Field label="المبلغ *"><Input type="number" inputMode="decimal" autoComplete="off" name="lab-treasury-expense-amount" value={expForm.amount} onChange={(e) => setExpForm({ ...expForm, amount: e.target.value })} /></Field>
                 <Field label="طريقة الدفع">
