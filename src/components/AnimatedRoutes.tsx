@@ -161,6 +161,7 @@ const PCRoutesPage = lazy(() => import("@/pages/private-courier/Routes"));
 const PCMyDeliveries = lazy(() => import("@/pages/private-courier/MyDeliveries"));
 const PCHandovers = lazy(() => import("@/pages/private-courier/Handovers"));
 const PCCollections = lazy(() => import("@/pages/private-courier/Collections"));
+const AiOperationsAssistant = lazy(() => import("@/pages/AiOperationsAssistant"));
 
 const RedirectWithQuery = ({ to }: { to: string }) => {
   const location = useLocation();
