@@ -327,6 +327,16 @@ const AnimatedRoutes = () => {
               <PageTransition><Notifications /></PageTransition>
             </ProtectedRoute>
           } />
+          <Route path="/ai-operations-assistant" element={
+            <ProtectedRoute allowedRoles={[
+              'general_manager','executive_manager',
+              'sales_manager','marketing_sales_manager','sales_moderator',
+              'hatchery_manager','farm_manager','production_manager',
+              'accountant','financial_manager','private_delivery_rep'
+            ]}>
+              <PageTransition><AiOperationsAssistant /></PageTransition>
+            </ProtectedRoute>
+          } />
           <Route path="/reports" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'financial_manager', 'quality_manager']}>
               <PageTransition><Reports /></PageTransition>
