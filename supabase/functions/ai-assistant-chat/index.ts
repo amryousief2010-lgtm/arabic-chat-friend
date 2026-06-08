@@ -463,7 +463,7 @@ Deno.serve(async (req) => {
     const answer: string = aiData?.choices?.[0]?.message?.content || "لم يصل رد من النموذج.";
 
     // 7) Log success (NO answer content stored)
-    await admin.from("ai_assistant_query_log").insert({
+    await userClient.from("ai_assistant_query_log").insert({
       user_id: user.id,
       question,
       module: `ai:${module}`,
