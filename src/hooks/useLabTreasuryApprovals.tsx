@@ -103,15 +103,14 @@ export function useLabTreasuryApprovals() {
   // Realtime invalidation
   useEffect(() => {
     if (!enabled) return;
-    const ch = supabase
-      .channel("lab-treasury-approvals-rt")
-      .on(
-        "postgres_changes",
+    const ch = supabase.channel(`lab-treasury-approvals-rt-${Math.random().toString(36).slice(2)}`);
+    ch.on(
+        "postgres_changes" as any,
         { event: "*", schema: "public", table: "lab_treasury_movements" },
         () => queryClient.invalidateQueries({ queryKey: ["lab-treasury-approvals"] })
       )
       .on(
-        "postgres_changes",
+        "postgres_changes" as any,
         { event: "*", schema: "public", table: "lab_treasury_advances" },
         () => queryClient.invalidateQueries({ queryKey: ["lab-treasury-approvals"] })
       )
