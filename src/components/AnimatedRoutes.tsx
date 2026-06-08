@@ -161,6 +161,7 @@ const PCRoutesPage = lazy(() => import("@/pages/private-courier/Routes"));
 const PCMyDeliveries = lazy(() => import("@/pages/private-courier/MyDeliveries"));
 const PCHandovers = lazy(() => import("@/pages/private-courier/Handovers"));
 const PCCollections = lazy(() => import("@/pages/private-courier/Collections"));
+const AiOperationsAssistant = lazy(() => import("@/pages/AiOperationsAssistant"));
 
 const RedirectWithQuery = ({ to }: { to: string }) => {
   const location = useLocation();
@@ -324,6 +325,16 @@ const AnimatedRoutes = () => {
           <Route path="/notifications" element={
             <ProtectedRoute>
               <PageTransition><Notifications /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/ai-operations-assistant" element={
+            <ProtectedRoute allowedRoles={[
+              'general_manager','executive_manager',
+              'sales_manager','marketing_sales_manager','sales_moderator',
+              'hatchery_manager','farm_manager','production_manager',
+              'accountant','financial_manager','private_delivery_rep'
+            ]}>
+              <PageTransition><AiOperationsAssistant /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/reports" element={
