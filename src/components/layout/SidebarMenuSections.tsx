@@ -86,6 +86,15 @@ export const moduleSections: ModuleSection[] = [
     ],
   },
   {
+    id: "internal-messages",
+    icon: Mail,
+    label: "الرسائل الداخلية",
+    roles: ['general_manager','executive_manager','sales_manager','sales_moderator','accountant','warehouse_supervisor','farm_manager','hatchery_manager','brooding_manager','slaughterhouse_manager','meat_factory_manager','feed_factory_manager','hr_manager','production_manager','marketing_sales_manager','financial_manager','quality_manager','shipping_company','private_delivery_rep','agouza_warehouse_keeper','brooding_dashboard_viewer','lab_treasury_keeper','lab_external_collector','lab_treasury_approver','slaughterhouse_custody_keeper'],
+    items: [
+      { icon: Mail, label: "الرسائل الداخلية", path: "/internal-messages", roles: ['general_manager','executive_manager','sales_manager','sales_moderator','accountant','warehouse_supervisor','farm_manager','hatchery_manager','brooding_manager','slaughterhouse_manager','meat_factory_manager','feed_factory_manager','hr_manager','production_manager','marketing_sales_manager','financial_manager','quality_manager','shipping_company','private_delivery_rep','agouza_warehouse_keeper','brooding_dashboard_viewer','lab_treasury_keeper','lab_external_collector','lab_treasury_approver','slaughterhouse_custody_keeper'] },
+    ],
+  },
+  {
     id: "sales",
     icon: Megaphone,
     label: "1. التسويق والمبيعات",
