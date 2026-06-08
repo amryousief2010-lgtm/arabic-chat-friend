@@ -597,6 +597,12 @@ export default function LabTreasury() {
       payment_method: normalizedExpensePaymentMethod,
     });
     if (!parsed.success) { toast.error(parsed.error.errors[0]?.message || "تحقق من الحقول"); return; }
+    // Require custom label when category = "other"
+    const customLabel = expForm.custom_category.trim();
+    if (parsed.data.expense_category === "other" && customLabel.length < 2) {
+      toast.error('عند اختيار "أخرى" يجب كتابة اسم البند المخصص');
+      return;
+    }
     if (expExceeds && !isManager) {
       toast.error(`الرصيد المتاح في ${PAYMENT_LABELS[normalizedExpensePaymentMethod]} غير كافٍ (${fmtNum(expAvailable, 2)} ج). يلزم اعتماد المدير العام أو التنفيذي.`);
       return;
@@ -605,13 +611,16 @@ export default function LabTreasury() {
       if (!confirm(`تحذير: المبلغ يتجاوز الرصيد المتاح في ${PAYMENT_LABELS[normalizedExpensePaymentMethod]} (${fmtNum(expAvailable, 2)} ج). هل تريد المتابعة بصلاحية الإدارة؟`)) return;
     }
     const receipt_url = await uploadReceipt(expReceipt);
+    const mergedDescription = customLabel
+      ? `[${customLabel}]${parsed.data.description ? " — " + parsed.data.description : ""}`
+      : (parsed.data.description || null);
     const payload = {
       movement_type: "expense" as const,
       movement_date: parsed.data.movement_date,
       expense_category: parsed.data.expense_category,
       amount: parsed.data.amount,
       payment_method: parsed.data.payment_method,
-      description: parsed.data.description || null,
+      description: mergedDescription,
       beneficiary: parsed.data.beneficiary || null,
       notes: parsed.data.notes || null,
       receipt_url,
@@ -620,12 +629,13 @@ export default function LabTreasury() {
     };
     const { data, error } = await (supabase as any).from("lab_treasury_movements").insert(payload).select().single();
     if (error) { toast.error("فشل التسجيل: " + error.message); return; }
-    await logAudit("insert_expense", { movement_id: data?.id, after: payload, metadata: expExceeds ? { override: true, available: expAvailable } : null });
+    await logAudit("insert_expense", { movement_id: data?.id, after: payload, metadata: { ...(expExceeds ? { override: true, available: expAvailable } : {}), ...(customLabel ? { custom_category_label: customLabel } : {}) } });
     toast.success("تم تسجيل المصروف — بانتظار الاعتماد");
-    setExpForm({ ...expForm, amount: "", description: "", beneficiary: "", notes: "" });
+    setExpForm({ ...expForm, amount: "", description: "", beneficiary: "", notes: "", custom_category: "" });
     setExpReceipt(null);
     fetchData();
   }
+
 
   async function approve(m: Movement) {
     const { error } = await (supabase as any).from("lab_treasury_movements")
