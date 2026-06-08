@@ -5732,6 +5732,153 @@ export type Database = {
           },
         ]
       }
+      lab_treasury_advance_settlements: {
+        Row: {
+          advance_id: string
+          amount: number
+          created_at: string
+          created_by: string | null
+          description: string
+          expense_category: Database["public"]["Enums"]["lab_treasury_expense_category"]
+          id: string
+          line_no: number
+        }
+        Insert: {
+          advance_id: string
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          description: string
+          expense_category?: Database["public"]["Enums"]["lab_treasury_expense_category"]
+          id?: string
+          line_no: number
+        }
+        Update: {
+          advance_id?: string
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          expense_category?: Database["public"]["Enums"]["lab_treasury_expense_category"]
+          id?: string
+          line_no?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_treasury_advance_settlements_advance_id_fkey"
+            columns: ["advance_id"]
+            isOneToOne: false
+            referencedRelation: "lab_treasury_advances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lab_treasury_advances: {
+        Row: {
+          actual_expense_total: number
+          amount: number
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          created_at: string
+          created_by: string | null
+          difference_movement_id: string | null
+          employee_user_id: string | null
+          id: string
+          issue_movement_id: string | null
+          issued_at: string
+          manager_approval_at: string | null
+          manager_approval_by: string | null
+          notes: string | null
+          payment_method: Database["public"]["Enums"]["lab_treasury_payment_method"]
+          pending_employee_amount: number
+          purpose: string | null
+          recipient_name: string
+          return_movement_id: string | null
+          returned_amount: number
+          settled_at: string | null
+          settled_by: string | null
+          status: Database["public"]["Enums"]["lab_treasury_advance_status"]
+          updated_at: string
+        }
+        Insert: {
+          actual_expense_total?: number
+          amount: number
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          difference_movement_id?: string | null
+          employee_user_id?: string | null
+          id?: string
+          issue_movement_id?: string | null
+          issued_at?: string
+          manager_approval_at?: string | null
+          manager_approval_by?: string | null
+          notes?: string | null
+          payment_method: Database["public"]["Enums"]["lab_treasury_payment_method"]
+          pending_employee_amount?: number
+          purpose?: string | null
+          recipient_name: string
+          return_movement_id?: string | null
+          returned_amount?: number
+          settled_at?: string | null
+          settled_by?: string | null
+          status?: Database["public"]["Enums"]["lab_treasury_advance_status"]
+          updated_at?: string
+        }
+        Update: {
+          actual_expense_total?: number
+          amount?: number
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          difference_movement_id?: string | null
+          employee_user_id?: string | null
+          id?: string
+          issue_movement_id?: string | null
+          issued_at?: string
+          manager_approval_at?: string | null
+          manager_approval_by?: string | null
+          notes?: string | null
+          payment_method?: Database["public"]["Enums"]["lab_treasury_payment_method"]
+          pending_employee_amount?: number
+          purpose?: string | null
+          recipient_name?: string
+          return_movement_id?: string | null
+          returned_amount?: number
+          settled_at?: string | null
+          settled_by?: string | null
+          status?: Database["public"]["Enums"]["lab_treasury_advance_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_treasury_advances_difference_movement_id_fkey"
+            columns: ["difference_movement_id"]
+            isOneToOne: false
+            referencedRelation: "lab_treasury_movements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_treasury_advances_issue_movement_id_fkey"
+            columns: ["issue_movement_id"]
+            isOneToOne: false
+            referencedRelation: "lab_treasury_movements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_treasury_advances_return_movement_id_fkey"
+            columns: ["return_movement_id"]
+            isOneToOne: false
+            referencedRelation: "lab_treasury_movements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lab_treasury_audit_log: {
         Row: {
           action: string
@@ -12950,6 +13097,7 @@ export type Database = {
       can_manage_chick_orders: { Args: { _user_id: string }; Returns: boolean }
       can_manage_feed_batch: { Args: { _uid: string }; Returns: boolean }
       can_manage_feed_recipes: { Args: { _user_id: string }; Returns: boolean }
+      can_manage_lab_advances: { Args: { _uid: string }; Returns: boolean }
       can_manage_meat_batch: { Args: { _uid: string }; Returns: boolean }
       can_manage_review: { Args: { _uid: string }; Returns: boolean }
       can_post_inventory: { Args: { _uid: string }; Returns: boolean }
@@ -13464,6 +13612,14 @@ export type Database = {
       }
       is_feed_team: { Args: { _user_id: string }; Returns: boolean }
       is_slaughter_custody_manager: { Args: { _uid: string }; Returns: boolean }
+      lab_treasury_approve_advance_difference: {
+        Args: { p_advance_id: string }
+        Returns: string
+      }
+      lab_treasury_cancel_advance: {
+        Args: { p_advance_id: string; p_reason: string }
+        Returns: undefined
+      }
       lab_treasury_chicksales_by_batch: {
         Args: { p_from?: string; p_to?: string }
         Returns: {
@@ -13505,12 +13661,32 @@ export type Database = {
           total_amount: number
         }[]
       }
+      lab_treasury_issue_advance: {
+        Args: {
+          p_amount: number
+          p_employee_user_id: string
+          p_issued_at?: string
+          p_notes: string
+          p_payment_method: Database["public"]["Enums"]["lab_treasury_payment_method"]
+          p_purpose: string
+          p_recipient_name: string
+        }
+        Returns: string
+      }
       lab_treasury_map_payment: {
         Args: { p: string }
         Returns: Database["public"]["Enums"]["lab_treasury_payment_method"]
       }
       lab_treasury_net_operation: {
         Args: { p_from?: string; p_to?: string }
+        Returns: Json
+      }
+      lab_treasury_settle_advance: {
+        Args: {
+          p_advance_id: string
+          p_lines: Json
+          p_returned_amount?: number
+        }
         Returns: Json
       }
       mark_duplicate_order_approval_used: {
@@ -13998,6 +14174,7 @@ export type Database = {
         | "not_deposited"
         | "partially_deposited"
         | "fully_deposited"
+      lab_treasury_advance_status: "open" | "settled" | "closed" | "cancelled"
       lab_treasury_expense_category:
         | "electricity"
         | "maintenance"
@@ -14010,7 +14187,13 @@ export type Database = {
         | "tools"
         | "transport"
         | "other"
-      lab_treasury_income_category: "hatching" | "chick_sales" | "other"
+        | "advance_issue"
+        | "advance_difference_payout"
+      lab_treasury_income_category:
+        | "hatching"
+        | "chick_sales"
+        | "other"
+        | "advance_return"
       lab_treasury_movement_type: "income" | "expense"
       lab_treasury_payment_method:
         | "cash"
@@ -14303,6 +14486,7 @@ export const Constants = {
         "partially_deposited",
         "fully_deposited",
       ],
+      lab_treasury_advance_status: ["open", "settled", "closed", "cancelled"],
       lab_treasury_expense_category: [
         "electricity",
         "maintenance",
@@ -14315,8 +14499,15 @@ export const Constants = {
         "tools",
         "transport",
         "other",
+        "advance_issue",
+        "advance_difference_payout",
       ],
-      lab_treasury_income_category: ["hatching", "chick_sales", "other"],
+      lab_treasury_income_category: [
+        "hatching",
+        "chick_sales",
+        "other",
+        "advance_return",
+      ],
       lab_treasury_movement_type: ["income", "expense"],
       lab_treasury_payment_method: [
         "cash",

@@ -1,147 +1,84 @@
-# خطة وحدة "المندوب الخاص وخطوط السير"
+# خطة تنفيذ نظام العُهد داخل خزنة معمل الكتاكيت
 
-## مبدأ صارم
-- لا يتم تعديل أي ملف من ملفات الطلبات الحالية: `NewOrder.tsx`, `Orders.tsx`, `OrderDetails.tsx`, RLS الخاصة بـ `orders`/`order_items`/`customers`, التريجرز، خصم المخزون، التحصيل، الأسعار، العروض.
-- لا تُضاف أي أعمدة جديدة على `orders` ولا على `customers`.
-- الوحدة الجديدة **تقرأ** الطلبات المؤهلة فقط (`shipping_company='مندوب خاص' AND fulfillment_type='delivery' AND source_warehouse_id=<المخزن الرئيسي>`) وتربطها بجداولها الخاصة عبر `order_id` فقط.
-- `route_id` الموجود حاليًا على `orders` **يبقى كما هو** ولن يُعدل من الوحدة الجديدة (لتفادي أي أثر على Orders). الربط الجديد يتم في جدول وسيط جديد.
+## 1) سبب رسالة الخطأ الحالية
+- الخطأ يأتي من trigger `lab_treasury_check_expense_balance` على جدول `lab_treasury_movements`.
+- نموذج إضافة المصروف في `LabTreasury.tsx` لا يحتوي أي ضرب أو حساب تلقائي — الحقل `amount` يُحفظ كما أدخله المستخدم. لا يوجد سبب برمجي لتحويل 1000 إلى 45600.
+- على الأغلب الرقم الكبير ناتج عن إدخال يدوي خاطئ (أو لصق رقم) في حقل المبلغ. سأضيف مع المرحلة الجديدة:
+  - تحقق أمامي قبل الإرسال (المبلغ ≤ الرصيد المتاح).
+  - رسالة خطأ أوضح تعرض المبلغ الذي أدخله المستخدم + الرصيد المتاح، مع زر "تصحيح المبلغ" يعيد تركيز الحقل.
 
----
+## 2) قاعدة البيانات (Migration واحدة)
 
-## 1) الجداول الجديدة (كلها داخل schema جديد منفصل لعزل تام)
+### جدول جديد `lab_treasury_advances` (العُهد المفتوحة)
+- `employee_user_id` (uuid → profiles), `recipient_name` (نص حر للتسجيل في حالة عدم وجود حساب).
+- `issued_at` (date), `amount` (numeric).
+- `payment_method` (نفس enum خزنة المعمل).
+- `purpose` (نص), `notes` (نص).
+- `status`: enum جديد `lab_treasury_advance_status` = `open | settled | closed | cancelled`.
+- `issue_movement_id` (FK لـ `lab_treasury_movements`) → الحركة التي خصمت العهدة من الخزنة.
+- `actual_expense_total`, `returned_amount`, `pending_employee_amount` (numeric, محسوبة عند التسوية).
+- `settled_at`, `settled_by`, `manager_approval_at`, `manager_approval_by` (للفرق المستحق).
 
-سيتم إنشاء **schema منفصل** اسمه `private_courier` لضمان عدم التداخل مع الجداول الحالية ولا مع RLS الحالية.
+### جدول `lab_treasury_advance_settlements`
+- `advance_id` FK, `line_no`, `description`, `amount`, `expense_category` (نفس enum الموجود).
+- يُستخدم لعرض تفاصيل المصروفات الفعلية + للترحيل النهائي للتقارير.
 
-```text
-private_courier.routes                  -- خطوط السير (منفصلة عن delivery_routes القديم)
-private_courier.route_orders            -- ربط M:1 بين الطلب والخط + بيانات التخطيط
-private_courier.order_tracking          -- حالة المندوب الخاص للطلب (assigned → delivered)
-private_courier.handovers               -- تتبع تسليم المخزن للمندوب
-private_courier.collections             -- تتبع التحصيل المنفصل
-private_courier.failed_attempts         -- محاولات التوصيل الفاشلة + السبب
-```
+### RPC آمنة (SECURITY DEFINER) — لمنع الحركات المكررة
+- `lab_treasury_issue_advance(p_recipient, p_employee, p_amount, p_method, p_purpose, p_notes, p_date)`
+  - يتحقق من الرصيد (نفس قاعدة المصروف العادي + يحترم استثناء GM/Exec).
+  - يُنشئ صف في `lab_treasury_movements` بنوع `expense` وفئة جديدة `advance_issue` وحالة `pending` (تخضع لنفس workflow الاعتماد).
+  - يُنشئ صف في `lab_treasury_advances` بحالة `open` يربط `issue_movement_id`.
+  - يكتب سطر في `lab_treasury_audit_log` (action = `advance_issue`).
+- `lab_treasury_settle_advance(p_advance_id, p_lines jsonb, p_returned_amount)`
+  - يتحقق أن العهدة `open`.
+  - يحسب `actual_total = SUM(p_lines.amount)`.
+  - يتحقق: `actual_total + p_returned_amount = amount` أو يحدد `pending_employee_amount = actual_total - amount` (موجبًا فقط).
+  - لو فيه مرتجع: ينشئ حركة income في الخزنة بفئة جديدة `advance_return` (approved تلقائياً لأنها رد لخزنة بنفس payment_method).
+  - **لا يُنشئ مصروف ثاني** بمبلغ العهدة. تفاصيل التسوية تُحفظ في الجدول، والتقارير الحقيقية تستخدمها (انظر فقرة 4).
+  - يضع status = `settled` ويسجل audit `advance_settle`.
+  - لو في فرق مستحق للموظف: يبقى `pending_employee_amount > 0` ويحتاج اعتماد مدير.
+- `lab_treasury_approve_advance_difference(p_advance_id)` — للمدير فقط، ينشئ حركة `expense` بفئة `advance_difference_payout` ويسجل audit + يضع `closed`.
+- `lab_treasury_cancel_advance(...)` (اختياري للمدير قبل التسوية).
 
-### الأعمدة الأساسية
+### تعديلات على enums الموجودة
+- إضافة `advance_issue`, `advance_return`, `advance_difference_payout` إلى enum فئات المصروف/الإيراد بحيث تظهر بتسمية واضحة في السجلات.
 
-**`routes`**: `id`, `name`, `region` (القاهرة الكبرى/الدلتا/الإسكندرية والساحل/القناة وسيناء/الصعيد/خط خاص), `governorates text[]`, `cities text[]`, `assigned_courier_id uuid`, `planned_date date`, `start_time time`, `expected_end_time time`, `status` (draft/planned/in_progress/completed/cancelled), `color`, `notes`, `created_by`, timestamps.
+### تعديل trigger الرصيد
+- لا يحتاج تغيير منطق؛ يكفي أن RPC الإصدار يستخدم نفس الـ trigger.
+- لكن سأحسّن نص الخطأ ليصبح بالعربية ويوضح payment_method.
 
-**`route_orders`**: `id`, `route_id`, `order_id` (UNIQUE — طلب في خط واحد فقط داخل الوحدة), `sequence int`, `expected_delivery_at timestamptz`, `added_by`, `added_at`.
+### حماية RLS
+- نفس قواعد `lab_treasury_movements`: الإدخال عبر RPC فقط (سنمنح EXECUTE لـ authenticated وندع الـ RPC تتحقق من الأدوار داخلياً).
+- العرض: مفتوح للأدوار الحالية (GM, executive, accountant, financial_manager, lab_treasury_keeper, lab_treasury_approver, lab_external_collector لعهد نفسه فقط).
 
-**`order_tracking`**: `id`, `order_id` (UNIQUE), `courier_id`, `courier_status` enum (`assigned_to_courier`,`ready_for_pickup_from_main_warehouse`,`picked_up_by_courier`,`out_for_delivery`,`delivered`,`failed_delivery`,`returned_to_warehouse`,`cancelled`), `delivered_at`, `last_updated_by`, timestamps.
+## 3) الواجهة (`/lab-treasury`)
+- تبويب جديد **"العُهد"** يحتوي قسمين:
+  1. **صرف عهدة جديدة** (نموذج): الموظف، المبلغ، طريقة الدفع، الغرض، التاريخ، ملاحظات + تحقق أمامي للرصيد.
+  2. **العُهد المفتوحة** (جدول): اسم الموظف، المبلغ، التاريخ، الغرض، المصروف الفعلي حتى الآن (= مجموع settlements إن وجدت)، المتبقي/العجز، الحالة، زر "تسوية".
+  3. **العُهد المسواة/المغلقة** (تبويب فرعي أو فلتر).
+- **Dialog تسوية العهدة**: جدول لإضافة بنود (وصف + فئة + مبلغ)، حقل "مرتجع للخزنة"، حساب تلقائي للفرق، زر حفظ.
+- **زر اعتماد الفرق** يظهر للمدير فقط على العهد التي بها `pending_employee_amount > 0`.
 
-**`handovers`**: `order_id` (UNIQUE), `prepared_by`, `prepared_at`, `handed_over_by`, `handed_over_at`, `courier_received_by`, `courier_received_at`, `checklist_confirmed bool`, `notes`.
+## 4) تقرير العُهد
+- صفحة جديدة `/lab-treasury/advances-report` (وزر دخول من تبويب العُهد).
+- KPIs: إجمالي عهد مصروفة، إجمالي مصروفات فعلية (من settlements)، إجمالي مرتجعات، إجمالي فروق مستحقة، عدد عهد مفتوحة/مسواة.
+- جداول: العهد المفتوحة، العهد المسواة (مع تفاصيل بنودها)، الفروق التي تنتظر اعتماد.
+- فلتر بالتاريخ والموظف.
 
-**`collections`**: `id`, `order_id` (UNIQUE), `amount_due numeric`, `amount_collected numeric`, `status` enum (`cash_collected`,`partial_collected`,`not_collected`,`mismatch`,`paid_online`,`returned_no_collection`), `difference numeric GENERATED`, `notes`, `collected_at`, `collected_by`. **لا يكتب أي شيء على `orders.collection_status` ولا `payment_status`.**
+## 5) أثر على باقي التقارير
+- التقرير اليومي/الشهري لخزنة المعمل سيظل يعرض مصروف "صرف عهدة" بفئة `advance_issue` كأثر فعلي على الرصيد.
+- لكن **التقارير التشغيلية للمصروفات الحقيقية** سترتكز على `lab_treasury_advance_settlements` بدلاً من حركة العهدة (لتجنب الاحتساب المزدوج). سأضيف ملاحظة واضحة في `/lab-treasury` يوضح هذا التمييز.
 
-**`failed_attempts`**: `id`, `order_id`, `reason` enum (8 أسباب من المواصفات), `notes` (إجباري), `next_action` enum (`reschedule`,`return_to_warehouse`,`cancel_order`,`manager_review`), `created_by`, `created_at`.
+## 6) Audit Log
+- استخدام `lab_treasury_audit_log` الحالي مع actions جديدة: `advance_issue`, `advance_edit`, `advance_settle`, `advance_return`, `advance_difference_payout`, `advance_cancel`.
 
-### الصلاحيات (GRANT + RLS)
-
-- GRANT على schema `private_courier` لـ `authenticated` و`service_role`.
-- RLS مفعّل على كل الجداول.
-- دالة مساعدة `private_courier.is_courier_for_order(order_id)` و`private_courier.has_courier_mgmt_role()` للاستخدام داخل السياسات (SECURITY DEFINER، تستخدم `has_role`).
-- السياسات:
-  - `private_delivery_rep`: يقرأ/يحدّث **فقط** السجلات المرتبطة بطلباته (عبر `order_tracking.courier_id = auth.uid()` أو `routes.assigned_courier_id = auth.uid()`).
-  - المدير العام/التنفيذي/مدير المبيعات: قراءة وكتابة شاملة داخل الوحدة فقط.
-  - مشرف المخزن: قراءة + كتابة على `handovers` فقط.
-  - المحاسبة: قراءة على `collections` فقط.
-  - باقي الأدوار: ممنوع.
-
-> ملاحظة: لن نلمس RLS الخاصة بـ `orders`. عرض بيانات الطلب للمندوب يتم عبر RPC `SECURITY DEFINER` يرجع فقط الحقول المسموح بها للطلبات المرتبطة به.
-
-### RPC جديد (للقراءة الآمنة من orders بدون توسيع RLS)
-- `private_courier.list_eligible_orders(filters)` — يرجع الطلبات المؤهلة (private courier من المخزن الرئيسي) للمديرين فقط.
-- `private_courier.get_my_assigned_orders()` — يرجع طلبات المندوب الحالي مع بيانات العميل والمنتجات.
-- كلاهما SECURITY DEFINER + يتحقق من الدور داخليًا.
-
----
-
-## 2) المسارات والصفحات الجديدة
-
-كلها تحت prefix `/private-courier/*` (مفصول كليًا عن `/orders` و`/delivery-routes` القديم):
-
-```text
-/private-courier                        -> Dashboard (المؤشرات الـ 14 من المواصفات)
-/private-courier/planning               -> عرض المدير: الطلبات المؤهلة + إنشاء خطوط + تعيين
-/private-courier/routes                 -> إدارة خطوط السير (CRUD)
-/private-courier/routes/:id             -> تفاصيل خط + مانيفست قابل للطباعة
-/private-courier/my-deliveries          -> شاشة المندوب (مخصصة للموبايل)
-/private-courier/handovers              -> شاشة مشرف المخزن للتسليم
-/private-courier/collections            -> تقرير التحصيل (محاسبة + مدير)
-```
-
-ملفات جديدة فقط:
-```text
-src/pages/private-courier/Dashboard.tsx
-src/pages/private-courier/Planning.tsx
-src/pages/private-courier/Routes.tsx
-src/pages/private-courier/RouteDetail.tsx
-src/pages/private-courier/MyDeliveries.tsx
-src/pages/private-courier/Handovers.tsx
-src/pages/private-courier/Collections.tsx
-src/components/private-courier/RouteCard.tsx
-src/components/private-courier/OrderHandoverDialog.tsx
-src/components/private-courier/CollectionDialog.tsx
-src/components/private-courier/FailedDeliveryDialog.tsx
-src/components/private-courier/StatusBadge.tsx
-src/hooks/usePrivateCourierData.tsx
-src/lib/privateCourier/constants.ts   -- enums، أسباب الفشل، المناطق
-src/lib/privateCourier/printManifest.ts -- يستخدم openPrintWindow الحالي
-```
-
-تعديلات محدودة جدًا (إضافة فقط، بدون لمس سلوك قائم):
-- `src/components/AnimatedRoutes.tsx` — إضافة 7 routes جديدة محمية.
-- `src/components/layout/SidebarMenuSections.tsx` — إضافة قسم "المندوب الخاص وخطوط السير" (الصفحة القديمة `/delivery-routes` تبقى كما هي للتوافق).
-- `src/components/ProtectedRoute.tsx` — توسيع `PRIVATE_REP_ALLOWED_PREFIXES` ليشمل `/private-courier`.
+## 7) Out of scope (لن يتم في هذه الخطوة)
+- لن أعدل خزنة عهدة المجزر `/slaughterhouse-custody` (نظام مستقل).
+- لن أتطرق لـ Phase 2 من المساعد الذكي.
 
 ---
 
-## 3) خريطة الميزات → الجدول/الـ RPC
-
-| ميزة | المصدر |
-|---|---|
-| Dashboard KPIs الـ14 | aggregate من `order_tracking` + `collections` + RPC eligible |
-| قائمة المندوب | RPC `get_my_assigned_orders` + `order_tracking` |
-| تخطيط المدير | RPC `list_eligible_orders` + `route_orders` + `routes` |
-| تعيين طلب لمندوب | INSERT في `route_orders` + INSERT/UPDATE في `order_tracking` (status=`assigned_to_courier`) |
-| تأكيد التسليم من المخزن | UPDATE `handovers` (يقوم به مشرف المخزن والمندوب يؤكد الاستلام) |
-| تغيير حالة المندوب | UPDATE `order_tracking.courier_status` |
-| تسجيل التحصيل | INSERT/UPSERT في `collections` |
-| فشل التوصيل | INSERT في `failed_attempts` + UPDATE حالة التتبع |
-| طباعة مانيفست | `printManifest` يستخدم `openPrintWindow` (RTL/Arabic-safe) |
-
----
-
-## 4) الأمان
-
-- لا يتم منح `anon` أي صلاحية.
-- كل الـ RPCs تتحقق من الدور داخلها قبل إرجاع أي بيانات.
-- بيانات العملاء (هاتف/عنوان) ترجع فقط للمندوب المعين أو للمديرين.
-- لن يتم استخدام `service_role` في أي edge function ضمن هذه الوحدة (كلها client-side عبر RLS/RPC).
-- RLS الحالية على `orders`/`customers` تبقى كما هي تمامًا.
-
----
-
-## 5) الاختبار
-
-- اختبارات `vitest` جديدة:
-  - مندوب يرى فقط طلباته.
-  - مدير يرى كل الطلبات المؤهلة، لا يرى غير المؤهلة كأنها مؤهلة.
-  - تحصيل لا يحدّث `orders.collection_status`.
-  - تعيين طلب لا يحدّث `orders.route_id` ولا `orders.status`.
-- اختبار يدوي: فتح `/orders` كما هو والتأكد من سلوكه قبل/بعد.
-
----
-
-## 6) التقرير النهائي (سيُسلَّم بعد التنفيذ)
-- الجداول/الـ RPCs/الصفحات التي أضيفت.
-- تأكيد عدم تعديل `orders`، المخزون، التسعير، التحصيل، RLS.
-- نتائج الاختبارات.
-- أي ملاحظات أو تنبيهات من supabase linter.
-
----
-
-## استفسارات قبل التنفيذ
-1. **خط السير الحالي `/delivery-routes`**: أتركه كما هو (للتوافق مع كيمو الآن) أم أخفيه لاحقًا بعد جاهزية الوحدة الجديدة؟
-2. **enum الحالة الجديد**: هل مقبول إنشاء enum جديد `private_courier.courier_status` (مستقل عن `orders.status`)؟
-3. **التحصيل المنفصل**: تأكيد أن قيمة التحصيل تُسجَّل فقط داخل `private_courier.collections` ولا تنعكس على `orders.payment_status` إطلاقًا حتى بعد `delivered`؟
+هل أبدأ التنفيذ؟ أو هل تريد:
+- تسمية مختلفة للتبويب/الصفحة؟
+- تقييد "صرف عهدة" على دور محدد فقط (الافتراضي: نفس من يسجل المصروفات حالياً = `lab_treasury_keeper` + GM + Executive + accountant + financial_manager)؟
+- اعتماد تلقائي لحركة الإصدار (`approved`) بدلاً من `pending` لتسريع العمل؟
