@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_assistant_query_log: {
+        Row: {
+          created_at: string
+          date_from: string | null
+          date_to: string | null
+          id: string
+          module: string | null
+          question: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date_from?: string | null
+          date_to?: string | null
+          id?: string
+          module?: string | null
+          question: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date_from?: string | null
+          date_to?: string | null
+          id?: string
+          module?: string | null
+          question?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       bom_approval_audit: {
         Row: {
           action: string
