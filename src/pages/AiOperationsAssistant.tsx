@@ -288,36 +288,24 @@ const QUESTIONS: QuickQuestion[] = [
     module: "hatchery",
     label: "مديونيات عملاء المعمل؟",
     async run() {
-      const [invRes, payRes, custRes] = await Promise.all([
-        supabase
-          .from("hatchery_client_invoices")
-          .select("customer_id, invoice_total, paid_amount"),
-        supabase.from("hatch_customer_payments").select("customer_id, amount"),
-        supabase.from("hatch_customers").select("id, name").eq("is_active", true),
-      ]);
-      if (invRes.error) throw invRes.error;
-      if (custRes.error) throw custRes.error;
-      const debts = new Map<string, number>();
-      (invRes.data || []).forEach((r: any) => {
-        const rem = n(r.invoice_total) - n(r.paid_amount);
-        debts.set(r.customer_id, (debts.get(r.customer_id) || 0) + rem);
-      });
-      const names = new Map<string, string>(
-        (custRes.data || []).map((c: any) => [c.id, c.name]),
-      );
-      const rows = Array.from(debts.entries())
-        .filter(([, v]) => v > 0)
-        .sort((a, b) => b[1] - a[1])
-        .map(([id, v]) => ({
-          "العميل": names.get(id) || "—",
-          "المديونية": Number(v.toFixed(2)),
-        }));
+      const { data, error } = await (supabase as any)
+        .from("v_hatchery_client_balances")
+        .select("client_name, total_amount, paid_amount, remaining_amount")
+        .gt("remaining_amount", 0)
+        .order("remaining_amount", { ascending: false });
+      if (error) throw error;
+      const rows = (data || []).map((r: any) => ({
+        "العميل": r.client_name || "—",
+        "إجمالي الفواتير": Number(n(r.total_amount).toFixed(2)),
+        "المدفوع": Number(n(r.paid_amount).toFixed(2)),
+        "المديونية": Number(n(r.remaining_amount).toFixed(2)),
+      }));
       const total = rows.reduce((s, r) => s + n(r["المديونية"]), 0);
       return {
         title: "مديونيات عملاء معمل التفريخ",
-        summary: `إجمالي المديونيات: ${total.toLocaleString("ar-EG")} ج.م`,
+        summary: `إجمالي المديونيات: ${total.toLocaleString("ar-EG")} ج.م — ${rows.length} عميل`,
         rows,
-        note: "محسوبة من فواتير المعمل: invoice_total − paid_amount",
+        note: "محسوبة من view: v_hatchery_client_balances (total_amount − paid_amount)",
       };
     },
   },
