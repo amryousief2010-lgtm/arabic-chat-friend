@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import AdvancesTab from "@/components/lab-treasury/AdvancesTab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
