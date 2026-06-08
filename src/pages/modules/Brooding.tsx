@@ -1555,6 +1555,8 @@ const FeedStockTab = ({ inventory, movements, batches, canManage, settings, onRe
 
   return (
     <div className="space-y-4">
+      <FeedInternalDebtDashboard department="brooding" />
+
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>مخزون علف الكتاكيت</CardTitle>
