@@ -19,6 +19,7 @@ import * as XLSX from "xlsx";
 import { openPrintWindow } from "@/lib/printPdf";
 import { MarketProfitabilityCard, MarketPricesTab, useMarketPrices } from "./BroodingMarketPrices";
 import { MovementsLog } from "@/components/MovementsLog";
+import FeedInternalDebtDashboard from "@/components/feed/FeedInternalDebtDashboard";
 
 // ===== Types =====
 type Batch = {
