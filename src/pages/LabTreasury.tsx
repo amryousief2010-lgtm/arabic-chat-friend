@@ -841,9 +841,13 @@ export default function LabTreasury() {
             <TabsTrigger value="closures">إقفال الأيام</TabsTrigger>
             <TabsTrigger value="openings">الأرصدة الافتتاحية</TabsTrigger>
             <TabsTrigger value="external">التحصيلات الخارجية</TabsTrigger>
+            <TabsTrigger value="advances">العُهد</TabsTrigger>
             <TabsTrigger value="reports">التقارير</TabsTrigger>
             {canApprove && <TabsTrigger value="audit">سجل التدقيق</TabsTrigger>}
           </TabsList>
+          <TabsContent value="advances">
+            <AdvancesTab isManager={isManager} />
+          </TabsContent>
 
           {/* Dashboard */}
           <TabsContent value="dashboard" className="space-y-5">
