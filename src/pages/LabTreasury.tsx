@@ -209,6 +209,7 @@ export default function LabTreasury() {
   const [auditRows, setAuditRows] = useState<AuditRow[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [openingByMethod, setOpeningByMethod] = useState<Record<PaymentMethod, number>>({ cash: 0, vodafone_cash: 0, instapay: 0, bank_transfer: 0 });
+  const [officialByMethod, setOfficialByMethod] = useState<Record<PaymentMethod, number>>({ cash: 0, vodafone_cash: 0, instapay: 0, bank_transfer: 0 });
   const [loading, setLoading] = useState(true);
 
   // filters
@@ -280,13 +281,14 @@ export default function LabTreasury() {
 
   async function fetchData() {
     setLoading(true);
-    const [{ data: mvs, error: e1 }, { data: cls }, { data: aud }, { data: ops }] = await Promise.all([
+    const [{ data: mvs, error: e1 }, { data: cls }, { data: aud }, { data: ops }, { data: approvedBalancesView }] = await Promise.all([
       (supabase as any).from("lab_treasury_movements").select("*").order("movement_date", { ascending: false }).order("created_at", { ascending: false }).limit(1000),
       (supabase as any).from("lab_treasury_day_closures").select("*").order("closure_date", { ascending: false }).limit(200),
       canApprove
         ? (supabase as any).from("lab_treasury_audit_log").select("*").order("created_at", { ascending: false }).limit(500)
         : Promise.resolve({ data: [] }),
       (supabase as any).from("lab_treasury_opening_balances").select("cash_amount,vodafone_cash_amount,instapay_amount,bank_transfer_amount,status").eq("status", "approved"),
+      (supabase as any).from("v_lab_treasury_balances").select("payment_method,balance_approved"),
     ]);
     if (e1) { toast.error("فشل تحميل الخزنة: " + e1.message); setLoading(false); return; }
     const list = (mvs || []) as Movement[];
@@ -301,6 +303,17 @@ export default function LabTreasury() {
       op.bank_transfer += Number(o.bank_transfer_amount || 0);
     });
     setOpeningByMethod(op);
+    const approvedMap: Record<PaymentMethod, number> = { ...op };
+    list
+      .filter((m) => m.status === "approved")
+      .forEach((m) => {
+        approvedMap[m.payment_method] += (m.movement_type === "income" ? 1 : -1) * Number(m.amount);
+      });
+    (approvedBalancesView || []).forEach((row: any) => {
+      if (!row?.payment_method) return;
+      approvedMap[row.payment_method as PaymentMethod] = Number(row.balance_approved || 0);
+    });
+    setOfficialByMethod(approvedMap);
 
     const ids = Array.from(new Set([
       ...list.flatMap((m) => [m.created_by, m.approved_by, m.rejected_by]),
@@ -347,11 +360,6 @@ export default function LabTreasury() {
   const approved = useMemo(() => movements.filter((m) => m.status === "approved"), [movements]);
   const pending = useMemo(() => movements.filter((m) => m.status === "pending"), [movements]);
 
-  const officialByMethod = useMemo(() => {
-    const map: Record<PaymentMethod, number> = { ...openingByMethod };
-    approved.forEach((m) => { map[m.payment_method] += (m.movement_type === "income" ? 1 : -1) * Number(m.amount); });
-    return map;
-  }, [approved, openingByMethod]);
   const estimatedByMethod = useMemo(() => {
     const map: Record<PaymentMethod, number> = { ...officialByMethod };
     pending.forEach((m) => { map[m.payment_method] += (m.movement_type === "income" ? 1 : -1) * Number(m.amount); });
@@ -913,7 +921,12 @@ export default function LabTreasury() {
             {canApprove && <TabsTrigger value="audit">سجل التدقيق</TabsTrigger>}
           </TabsList>
           <TabsContent value="advances">
-            <AdvancesTab isManager={isManager} debugSnapshot={{ invoice_total: invoiceTotalCalc, paid_amount: collectedNum }} />
+            <AdvancesTab
+              isManager={isManager}
+              officialByMethod={officialByMethod}
+              openingByMethod={openingByMethod}
+              debugSnapshot={{ invoice_total: invoiceTotalCalc, paid_amount: collectedNum }}
+            />
           </TabsContent>
           {canApprove && (
             <TabsContent value="duplicates">

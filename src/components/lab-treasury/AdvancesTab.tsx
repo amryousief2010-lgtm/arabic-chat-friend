@@ -107,13 +107,20 @@ interface SettlementLine {
 
 const fmt = (n: number) => (n ?? 0).toLocaleString("ar-EG", { maximumFractionDigits: 2 });
 
-export default function AdvancesTab({ isManager, debugSnapshot }: { isManager: boolean; debugSnapshot?: AdvanceDebugSnapshot }) {
+export default function AdvancesTab({
+  isManager,
+  officialByMethod,
+  openingByMethod,
+  debugSnapshot,
+}: {
+  isManager: boolean;
+  officialByMethod: Record<PaymentMethod, number>;
+  openingByMethod: Record<PaymentMethod, number>;
+  debugSnapshot?: AdvanceDebugSnapshot;
+}) {
   const { user } = useAuth();
   const [advances, setAdvances] = useState<Advance[]>([]);
   const [loading, setLoading] = useState(true);
-  const [balanceByMethod, setBalanceByMethod] = useState<Record<PaymentMethod, number>>({
-    cash: 0, vodafone_cash: 0, instapay: 0, bank_transfer: 0,
-  });
 
   // Issue form
   const [issueForm, setIssueForm] = useState({
@@ -135,19 +142,13 @@ export default function AdvancesTab({ isManager, debugSnapshot }: { isManager: b
 
   const load = async () => {
     setLoading(true);
-    const [{ data: adv, error: e1 }, { data: mv, error: e2 }] = await Promise.all([
-      supabase.from("lab_treasury_advances").select("*").order("created_at", { ascending: false }).limit(500),
-      supabase.from("lab_treasury_movements").select("payment_method, movement_type, amount, status").eq("status", "approved"),
-    ]);
+    const { data: adv, error: e1 } = await supabase
+      .from("lab_treasury_advances")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(500);
     if (e1) toast.error(e1.message);
-    if (e2) toast.error(e2.message);
     setAdvances((adv as Advance[]) || []);
-    const bal: Record<PaymentMethod, number> = { cash: 0, vodafone_cash: 0, instapay: 0, bank_transfer: 0 };
-    (mv || []).forEach((m: any) => {
-      const sign = m.movement_type === "income" ? 1 : -1;
-      bal[m.payment_method as PaymentMethod] += sign * Number(m.amount);
-    });
-    setBalanceByMethod(bal);
     setLoading(false);
   };
 
@@ -166,8 +167,21 @@ export default function AdvancesTab({ isManager, debugSnapshot }: { isManager: b
   const normalizedIssuePaymentMethod = normalizePaymentMethod(issueForm.payment_method);
   const issueAmountRaw = String(issueForm.amount ?? "").trim();
   const issueAmountNum = Number(issueAmountRaw) || 0;
-  const expAvailable = balanceByMethod[normalizedIssuePaymentMethod] || 0;
+  const openingBalance = openingByMethod[normalizedIssuePaymentMethod] || 0;
+  const expAvailable = officialByMethod[normalizedIssuePaymentMethod] || 0;
+  const netMovements = expAvailable - openingBalance;
   const issueExceeds = issueAmountNum > expAvailable;
+
+  useEffect(() => {
+    console.log('[advance-balance-debug]', {
+      selectedPaymentMethod: normalizedIssuePaymentMethod,
+      openingBalance,
+      netMovements,
+      availableBalanceDisplayed: expAvailable,
+      amountEntered: issueAmountNum,
+      isBlockedByFrontend: issueExceeds && !isManager,
+    });
+  }, [normalizedIssuePaymentMethod, openingBalance, netMovements, expAvailable, issueAmountNum, issueExceeds, isManager]);
 
   const submitIssue = async () => {
     if (!issueForm.recipient_name.trim()) { toast.error("اسم المستلم مطلوب"); return; }
