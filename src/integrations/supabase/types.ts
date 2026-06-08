@@ -12855,6 +12855,7 @@ export type Database = {
           destination_type: string | null
           feed_name: string | null
           feed_product_id: string | null
+          is_internal_transfer: boolean | null
           item_id: string | null
           line_cost: number | null
           line_total: number | null
