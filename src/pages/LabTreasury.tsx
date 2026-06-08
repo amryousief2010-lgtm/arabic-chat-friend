@@ -546,6 +546,40 @@ export default function LabTreasury() {
         payment_method: normalizedIncomePaymentMethod,
       });
       if (!parsed.success) { toast.error(parsed.error.errors[0]?.message || "تحقق من الحقول"); return; }
+
+      // ===== Manual chick-sale guard =====
+      let correctionReason: string | null = null;
+      if (parsed.data.income_category === "chick_sales") {
+        if (!isManager) {
+          toast.error("بيع الكتاكيت يتم تسجيله تلقائيًا من حضانات التسمين ولا يجوز تسجيله يدويًا حتى لا يتكرر الإيراد.");
+          return;
+        }
+        // Duplicate check vs auto-generated chick-sale movements
+        const { data: dup } = await (supabase as any)
+          .from("lab_treasury_movements")
+          .select("id, source_table, source_ref")
+          .eq("movement_type", "income")
+          .eq("income_category", "chick_sales")
+          .eq("movement_date", parsed.data.movement_date)
+          .eq("payment_method", parsed.data.payment_method)
+          .eq("amount", parsed.data.amount)
+          .eq("customer_name", parsed.data.customer_name || "")
+          .limit(1);
+        if (dup && dup.length > 0) {
+          toast.error("يوجد إيراد بيع كتاكيت مسجل تلقائيًا بنفس البيانات (العميل/التاريخ/المبلغ/طريقة التحصيل). لا يمكن تسجيله مرة أخرى.");
+          return;
+        }
+        // Force a correction reason
+        const reason = window.prompt("سبب تسجيل بيع كتاكيت يدويًا (إلزامي للتصحيح الاستثنائي):", "");
+        if (!reason || reason.trim().length < 5) {
+          toast.error("يجب إدخال سبب واضح (5 أحرف على الأقل) لتسجيل بيع كتاكيت يدويًا.");
+          return;
+        }
+        const confirmed = window.confirm(`⚠️ تأكيد:\nسيتم تسجيل إيراد بيع كتاكيت يدوي بمبلغ ${parsed.data.amount} ج كحالة تصحيح استثنائية.\nالسبب: ${reason}\n\nهل أنت متأكد؟`);
+        if (!confirmed) return;
+        correctionReason = reason.trim();
+      }
+
       const receipt_url = await uploadReceipt(incReceipt);
       payload = {
         movement_type: "income" as const,
@@ -556,12 +590,22 @@ export default function LabTreasury() {
         unit_price: parsed.data.unit_price ?? null,
         amount: parsed.data.amount,
         payment_method: parsed.data.payment_method,
-        description: parsed.data.description || null,
+        description: correctionReason
+          ? `[تصحيح يدوي - بيع كتاكيت] ${correctionReason}${parsed.data.description ? " — " + parsed.data.description : ""}`
+          : (parsed.data.description || null),
         notes: parsed.data.notes || null,
         receipt_url,
         created_by: user.id,
         status: "pending" as const,
       };
+      if (correctionReason) {
+        // Audit the manual correction explicitly
+        await logAudit("insert_income", {
+          kind: "manual_chick_sale_correction",
+          reason: correctionReason,
+          payload,
+        });
+      }
     }
 
     const { data, error } = await (supabase as any).from("lab_treasury_movements").insert(payload).select().single();
