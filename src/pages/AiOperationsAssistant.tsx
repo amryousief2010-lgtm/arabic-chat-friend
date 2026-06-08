@@ -763,6 +763,47 @@ export default function AiOperationsAssistant() {
     exportCSV(filename, answer.rows as any);
   }
 
+  async function askAi() {
+    const q = aiQuestion.trim();
+    if (!q) return;
+    setAiLoading(true);
+    setAiAnswer("");
+    setAiError("");
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-assistant-chat", {
+        body: {
+          question: q,
+          module: moduleFilter === "all" ? "all" : moduleFilter,
+          date_from: fromDate,
+          date_to: toDate,
+        },
+      });
+      if (error) {
+        const msg = (error as any)?.context?.body
+          ? (() => {
+              try { return JSON.parse((error as any).context.body)?.error; } catch { return null; }
+            })()
+          : null;
+        setAiError(msg || error.message || "تعذّر الاتصال بالمساعد الذكي.");
+        return;
+      }
+      if (data?.error) {
+        setAiError(data.error);
+        if (typeof data.remaining === "number") {
+          setAiUsage({ used_today: PER_USER_DAILY_UI - data.remaining, remaining: data.remaining, per_user_daily: PER_USER_DAILY_UI });
+        }
+        return;
+      }
+      setAiAnswer(String(data?.answer || ""));
+      if (data?.usage) setAiUsage(data.usage);
+    } catch (e: any) {
+      setAiError(e?.message || "خطأ غير متوقع.");
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
+
   return (
     <DashboardLayout>
       <div dir="rtl" className="space-y-6 p-2 md:p-4">
