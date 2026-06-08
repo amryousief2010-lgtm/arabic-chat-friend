@@ -28,6 +28,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { cairoTodayStartUTC, currentCairoYearMonth, cairoMonthStartUTC } from "@/lib/cairoDate";
 import { exportCSV } from "@/lib/csvExport";
 import { toast } from "@/hooks/use-toast";
+import ReactMarkdown from "react-markdown";
 
 type ModuleKey = "farm" | "hatchery" | "sales" | "orders" | "customers" | "private_courier";
 
@@ -663,7 +664,8 @@ function visibleModulesForUser(roles: string[]): Set<ModuleKey> {
 // ------------------------- component -------------------------
 
 export default function AiOperationsAssistant() {
-  const { user, roles } = useAuth();
+  const { user, roles, isGeneralManager, isExecutiveManager } = useAuth();
+  const canUseAiChat = isGeneralManager || isExecutiveManager;
   const allowedModules = useMemo(() => visibleModulesForUser(roles as string[]), [roles]);
   const [moduleFilter, setModuleFilter] = useState<ModuleKey | "all">("all");
   const today = new Date();
@@ -675,6 +677,14 @@ export default function AiOperationsAssistant() {
   const [loading, setLoading] = useState(false);
   const [answer, setAnswer] = useState<AnswerResult | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState<string>("");
+
+  // ----- Phase 2 (managers only): free-text AI question state -----
+  const [aiQuestion, setAiQuestion] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiAnswer, setAiAnswer] = useState<string>("");
+  const [aiUsage, setAiUsage] = useState<{ used_today: number; remaining: number; per_user_daily: number } | null>(null);
+  const [aiError, setAiError] = useState<string>("");
+
 
   const visibleQuestions = useMemo(
     () =>
@@ -754,6 +764,47 @@ export default function AiOperationsAssistant() {
     exportCSV(filename, answer.rows as any);
   }
 
+  async function askAi() {
+    const q = aiQuestion.trim();
+    if (!q) return;
+    setAiLoading(true);
+    setAiAnswer("");
+    setAiError("");
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-assistant-chat", {
+        body: {
+          question: q,
+          module: moduleFilter === "all" ? "all" : moduleFilter,
+          date_from: fromDate,
+          date_to: toDate,
+        },
+      });
+      if (error) {
+        const msg = (error as any)?.context?.body
+          ? (() => {
+              try { return JSON.parse((error as any).context.body)?.error; } catch { return null; }
+            })()
+          : null;
+        setAiError(msg || error.message || "تعذّر الاتصال بالمساعد الذكي.");
+        return;
+      }
+      if (data?.error) {
+        setAiError(data.error);
+        if (typeof data.remaining === "number") {
+          setAiUsage({ used_today: 25 - data.remaining, remaining: data.remaining, per_user_daily: 25 });
+        }
+        return;
+      }
+      setAiAnswer(String(data?.answer || ""));
+      if (data?.usage) setAiUsage(data.usage);
+    } catch (e: any) {
+      setAiError(e?.message || "خطأ غير متوقع.");
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
+
   return (
     <DashboardLayout>
       <div dir="rtl" className="space-y-6 p-2 md:p-4">
@@ -831,6 +882,73 @@ export default function AiOperationsAssistant() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Phase 2: Free-text AI question — managers only */}
+        {canUseAiChat && (
+          <Card className="border-primary/40">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    اسأل المساعد الذكي (سؤال حر)
+                  </CardTitle>
+                  <CardDescription>
+                    متاح للمدير العام والمدير التنفيذي فقط — يحلل الملخصات المُجمَّعة باللغة العربية.
+                  </CardDescription>
+                </div>
+                {aiUsage && (
+                  <Badge variant="outline">
+                    المتبقي اليوم: {aiUsage.remaining}/{aiUsage.per_user_daily}
+                  </Badge>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertDescription className="text-xs">
+                  المساعد الذكي يقرأ ويحلل فقط ولا يقوم بتعديل البيانات. لا يتم إرسال بيانات شخصية حساسة
+                  (تليفونات، عناوين، قوائم عملاء كاملة) إلى نموذج الذكاء الاصطناعي — يُرسل ملخص مُجمَّع فقط
+                  مستند إلى نطاق التاريخ والموديول المحددَين أعلاه.
+                </AlertDescription>
+              </Alert>
+
+              <Textarea
+                value={aiQuestion}
+                onChange={(e) => setAiQuestion(e.target.value)}
+                rows={3}
+                maxLength={500}
+                placeholder="مثال: حلل مبيعات آخر 30 يوم وما أكثر المنتجات طلبًا؟ أو: ما موقف معمل التفريخ والمديونيات؟"
+                disabled={aiLoading}
+              />
+
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-muted-foreground">
+                  {aiQuestion.length}/500 — يستخدم نطاق التاريخ والموديول من الفلتر أعلاه
+                </span>
+                <Button onClick={askAi} disabled={aiLoading || aiQuestion.trim().length < 3}>
+                  {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                  اسأل
+                </Button>
+              </div>
+
+              {aiError && (
+                <Alert variant="destructive">
+                  <AlertDescription className="text-sm">{aiError}</AlertDescription>
+                </Alert>
+              )}
+
+              {aiAnswer && (
+                <div className="rounded-md border bg-muted/30 p-4">
+                  <div className="prose prose-sm max-w-none rtl:text-right" dir="rtl">
+                    <ReactMarkdown>{aiAnswer}</ReactMarkdown>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Quick questions */}
         <Card>
