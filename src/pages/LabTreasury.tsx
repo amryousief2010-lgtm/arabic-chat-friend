@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import AdvancesTab from "@/components/lab-treasury/AdvancesTab";
+import DuplicatesTab from "@/components/lab-treasury/DuplicatesTab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -843,12 +844,18 @@ export default function LabTreasury() {
             <TabsTrigger value="openings">الأرصدة الافتتاحية</TabsTrigger>
             <TabsTrigger value="external">التحصيلات الخارجية</TabsTrigger>
             <TabsTrigger value="advances">العُهد</TabsTrigger>
+            {canApprove && <TabsTrigger value="duplicates">المكررات</TabsTrigger>}
             <TabsTrigger value="reports">التقارير</TabsTrigger>
             {canApprove && <TabsTrigger value="audit">سجل التدقيق</TabsTrigger>}
           </TabsList>
           <TabsContent value="advances">
             <AdvancesTab isManager={isManager} />
           </TabsContent>
+          {canApprove && (
+            <TabsContent value="duplicates">
+              <DuplicatesTab isManager={isManager} />
+            </TabsContent>
+          )}
 
           {/* Dashboard */}
           <TabsContent value="dashboard" className="space-y-5">
