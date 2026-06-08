@@ -268,7 +268,9 @@ export default function LabTreasury() {
     movement_date: today(), expense_category: "electricity" as ExpenseCat,
     amount: "" as any, payment_method: "cash" as PaymentMethod,
     description: "", beneficiary: "", notes: "",
+    custom_category: "", // free-text bookkeeping label when no preset fits
   });
+
   const [expReceipt, setExpReceipt] = useState<File | null>(null);
 
   // dialogs
@@ -595,6 +597,12 @@ export default function LabTreasury() {
       payment_method: normalizedExpensePaymentMethod,
     });
     if (!parsed.success) { toast.error(parsed.error.errors[0]?.message || "تحقق من الحقول"); return; }
+    // Require custom label when category = "other"
+    const customLabel = expForm.custom_category.trim();
+    if (parsed.data.expense_category === "other" && customLabel.length < 2) {
+      toast.error('عند اختيار "أخرى" يجب كتابة اسم البند المخصص');
+      return;
+    }
     if (expExceeds && !isManager) {
       toast.error(`الرصيد المتاح في ${PAYMENT_LABELS[normalizedExpensePaymentMethod]} غير كافٍ (${fmtNum(expAvailable, 2)} ج). يلزم اعتماد المدير العام أو التنفيذي.`);
       return;
@@ -603,13 +611,16 @@ export default function LabTreasury() {
       if (!confirm(`تحذير: المبلغ يتجاوز الرصيد المتاح في ${PAYMENT_LABELS[normalizedExpensePaymentMethod]} (${fmtNum(expAvailable, 2)} ج). هل تريد المتابعة بصلاحية الإدارة؟`)) return;
     }
     const receipt_url = await uploadReceipt(expReceipt);
+    const mergedDescription = customLabel
+      ? `[${customLabel}]${parsed.data.description ? " — " + parsed.data.description : ""}`
+      : (parsed.data.description || null);
     const payload = {
       movement_type: "expense" as const,
       movement_date: parsed.data.movement_date,
       expense_category: parsed.data.expense_category,
       amount: parsed.data.amount,
       payment_method: parsed.data.payment_method,
-      description: parsed.data.description || null,
+      description: mergedDescription,
       beneficiary: parsed.data.beneficiary || null,
       notes: parsed.data.notes || null,
       receipt_url,
@@ -618,12 +629,13 @@ export default function LabTreasury() {
     };
     const { data, error } = await (supabase as any).from("lab_treasury_movements").insert(payload).select().single();
     if (error) { toast.error("فشل التسجيل: " + error.message); return; }
-    await logAudit("insert_expense", { movement_id: data?.id, after: payload, metadata: expExceeds ? { override: true, available: expAvailable } : null });
+    await logAudit("insert_expense", { movement_id: data?.id, after: payload, metadata: { ...(expExceeds ? { override: true, available: expAvailable } : {}), ...(customLabel ? { custom_category_label: customLabel } : {}) } });
     toast.success("تم تسجيل المصروف — بانتظار الاعتماد");
-    setExpForm({ ...expForm, amount: "", description: "", beneficiary: "", notes: "" });
+    setExpForm({ ...expForm, amount: "", description: "", beneficiary: "", notes: "", custom_category: "" });
     setExpReceipt(null);
     fetchData();
   }
+
 
   async function approve(m: Movement) {
     const { error } = await (supabase as any).from("lab_treasury_movements")
@@ -1246,9 +1258,20 @@ export default function LabTreasury() {
                 <Field label="بند المصروف">
                   <Select value={expForm.expense_category} onValueChange={(v) => setExpForm({ ...expForm, expense_category: v as ExpenseCat })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>{Object.entries(EXPENSE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
+                    <SelectContent>
+                      {Object.entries(EXPENSE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                    </SelectContent>
                   </Select>
                 </Field>
+                <Field label={expForm.expense_category === "other" ? "اسم البند المخصص *" : "بند مخصص (اختياري — استخدم \"أخرى\" أعلاه)"}>
+                  <Input
+                    placeholder={expForm.expense_category === "other" ? "مثال: شراء فلتر مياه" : 'اختر "أخرى" من بند المصروف ثم اكتب الاسم هنا'}
+                    value={expForm.custom_category}
+                    onChange={(e) => setExpForm({ ...expForm, custom_category: e.target.value })}
+                    disabled={expForm.expense_category !== "other"}
+                  />
+                </Field>
+
                 <Field label="المبلغ *"><Input type="number" inputMode="decimal" autoComplete="off" name="lab-treasury-expense-amount" value={expForm.amount} onChange={(e) => setExpForm({ ...expForm, amount: e.target.value })} /></Field>
                 <Field label="طريقة الدفع">
                   <Select value={expForm.payment_method} onValueChange={(v) => setExpForm({ ...expForm, payment_method: v as PaymentMethod })}>
