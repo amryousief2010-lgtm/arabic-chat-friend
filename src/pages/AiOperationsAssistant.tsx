@@ -882,6 +882,73 @@ export default function AiOperationsAssistant() {
           </CardContent>
         </Card>
 
+        {/* Phase 2: Free-text AI question — managers only */}
+        {canUseAiChat && (
+          <Card className="border-primary/40">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    اسأل المساعد الذكي (سؤال حر)
+                  </CardTitle>
+                  <CardDescription>
+                    متاح للمدير العام والمدير التنفيذي فقط — يحلل الملخصات المُجمَّعة باللغة العربية.
+                  </CardDescription>
+                </div>
+                {aiUsage && (
+                  <Badge variant="outline">
+                    المتبقي اليوم: {aiUsage.remaining}/{aiUsage.per_user_daily}
+                  </Badge>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertDescription className="text-xs">
+                  المساعد الذكي يقرأ ويحلل فقط ولا يقوم بتعديل البيانات. لا يتم إرسال بيانات شخصية حساسة
+                  (تليفونات، عناوين، قوائم عملاء كاملة) إلى نموذج الذكاء الاصطناعي — يُرسل ملخص مُجمَّع فقط
+                  مستند إلى نطاق التاريخ والموديول المحددَين أعلاه.
+                </AlertDescription>
+              </Alert>
+
+              <Textarea
+                value={aiQuestion}
+                onChange={(e) => setAiQuestion(e.target.value)}
+                rows={3}
+                maxLength={500}
+                placeholder="مثال: حلل مبيعات آخر 30 يوم وما أكثر المنتجات طلبًا؟ أو: ما موقف معمل التفريخ والمديونيات؟"
+                disabled={aiLoading}
+              />
+
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-muted-foreground">
+                  {aiQuestion.length}/500 — يستخدم نطاق التاريخ والموديول من الفلتر أعلاه
+                </span>
+                <Button onClick={askAi} disabled={aiLoading || aiQuestion.trim().length < 3}>
+                  {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                  اسأل
+                </Button>
+              </div>
+
+              {aiError && (
+                <Alert variant="destructive">
+                  <AlertDescription className="text-sm">{aiError}</AlertDescription>
+                </Alert>
+              )}
+
+              {aiAnswer && (
+                <div className="rounded-md border bg-muted/30 p-4">
+                  <div className="prose prose-sm max-w-none rtl:text-right" dir="rtl">
+                    <ReactMarkdown>{aiAnswer}</ReactMarkdown>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Quick questions */}
         <Card>
           <CardHeader className="pb-3">
