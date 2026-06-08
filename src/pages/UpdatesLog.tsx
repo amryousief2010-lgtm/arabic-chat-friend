@@ -2,7 +2,7 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import Header from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ScrollText, Shield, Sparkles, Wrench, Package, FileSpreadsheet, Printer, Lock, Beef } from "lucide-react";
+import { ScrollText, Shield, Sparkles, Wrench, Package, FileSpreadsheet, Printer, Lock, Beef, Factory, Scale, Egg, Users, Trash2 } from "lucide-react";
 
 type UpdateType = "feature" | "security" | "fix" | "export";
 
@@ -16,6 +16,38 @@ type UpdateEntry = {
 };
 
 const updates: UpdateEntry[] = [
+  {
+    date: "2026-06-08",
+    type: "feature",
+    title: "كشف حساب عملاء معمل التفريخ وربطه بالنتائج والتحصيلات",
+    description: "نظام كشف حساب مستقل لكل عميل في معمل التفريخ يظهر الدفعات ونتائجها (بيض لايح ×50، كشف ثاني ×100، كتاكيت ×150، تحضين ×10) كمديونية، والتحصيلات كدائن، مع رصيد جاري بعد كل حركة. يدعم السداد الجزئي والتسوية الداخلية وعميل العاصمة. تم ترحيل البيانات التاريخية وتسوية الدفعات ≤15 تلقائيًا.",
+    module: "معمل التفريخ",
+    icon: Egg,
+  },
+  {
+    date: "2026-06-08",
+    type: "feature",
+    title: "نظام المديونية والسداد الداخلي لمصنع العلف",
+    description: "عند توريد علف داخليًا من مصنع العلف إلى حضانات التسمين أو مخزن علف المجزر، تدخل الكمية المخزن المستلم وتسجل قيمتها كمديونية داخلية لصالح مصنع العلف. يدعم النظام سداد نقدي/تحويل/فودافون/إنستا (تدخل الخزنة) وتسوية داخلية (تقلل المديونية بدون نقدية). كل قسم حسابه منفصل: حضانات التسمين والمجزر.",
+    module: "مصنع العلف والمخازن الداخلية",
+    icon: Factory,
+  },
+  {
+    date: "2026-06-08",
+    type: "fix",
+    title: "تنظيف حركات اختبار نقل العلف وتجهيز رصيد افتتاحي",
+    description: "تم حذف/إلغاء أثر حركات توريد العلف التجريبي إلى مخزن المجزر ومخزن الحضانات، مع تسجيل الحركات العكسية في سجل التدقيق. أُضيفت صلحة إنشاء رصيد افتتاحي جديد (source_type = opening_balance) لكل مخزن برصيد جديد نظيف، مقيدة بصلاحية مدير عام/تنفيذي ومنع التكرار.",
+    module: "مصنع العلف",
+    icon: Scale,
+  },
+  {
+    date: "2026-06-08",
+    type: "fix",
+    title: "تصحيح تكرار الدفعة رقم 1 في معمل التفريخ",
+    description: "تم حذف الدفعة المكررة (رقم 1 بعدد عملاء 1) لأنها كانت فارغة ولا تحتوي على نتائج أو تحصيلات. أُبقي على النسخة الصحيحة (رقم 1 بعدد عملاء 7). تم تسجيل العملية في سجل تعديلات الدفعات. أرصدة العملاء لم تتأثر.",
+    module: "معمل التفريخ",
+    icon: Users,
+  },
   {
     date: "2026-05-29",
     type: "feature",
