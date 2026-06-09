@@ -219,6 +219,14 @@ export default function BankAccountPanel() {
     if (needsCat && !form.bank_category_id) return toast.error("اختر بند المصروف البنكي");
     if (form.txn_type === "loan_installment" && !form.loan_number.trim()) return toast.error("رقم القرض مطلوب");
 
+    // Incoming transfer: validate attachment for Hyper/Carrefour
+    const isIncoming = form.txn_type === "bank_deposit";
+    const srcDef = INCOMING_SOURCES.find(s => s.value === form.incoming_source);
+    if (isIncoming && !form.incoming_source) return toast.error("اختر مصدر التحويل الوارد");
+    if (isIncoming && srcDef?.attachmentRequired && !file) {
+      return toast.error(`صورة التحويل إجبارية لمصدر "${srcDef.label}"`);
+    }
+
     setBusy(true);
     let attachmentPath: string | null = null;
     if (file) {
@@ -238,6 +246,12 @@ export default function BankAccountPanel() {
       counterparty: form.counterparty || (acc.bank_name || null),
       description: form.description,
       attachment_url: attachmentPath,
+      incoming_source: isIncoming ? form.incoming_source : null,
+      attachment_name: file?.name || null,
+      attachment_mime: file?.type || null,
+      attachment_size: file?.size || null,
+      attachment_uploaded_by: attachmentPath ? user!.id : null,
+      attachment_uploaded_at: attachmentPath ? new Date().toISOString() : null,
       client_uuid: clientUuid,
       created_by: user!.id,
     });
@@ -248,6 +262,32 @@ export default function BankAccountPanel() {
     }
     toast.success("تم تسجيل الحركة البنكية — حسب القيمة قد تحتاج اعتماد");
     setTxnDlg(false);
+    fetchAll();
+  }
+
+  async function submitChangeAttachment() {
+    const t = changeAttachDlg.txn;
+    if (!t || !changeAttachDlg.file) return toast.error("اختر ملف الصورة الجديد");
+    if (!changeAttachDlg.reason.trim() && t.status === "posted") return toast.error("سبب التغيير مطلوب بعد الاعتماد");
+    setBusy(true);
+    const ext = changeAttachDlg.file.name.split(".").pop() || "bin";
+    const path = `${user!.id}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+    const { error: upErr } = await (supabase as any).storage.from("main-treasury-attachments")
+      .upload(path, changeAttachDlg.file, { cacheControl: "3600", upsert: false });
+    if (upErr) { setBusy(false); return toast.error("رفع الصورة: " + upErr.message); }
+    const { error } = await (supabase as any).from("main_treasury_transactions").update({
+      attachment_url: path,
+      attachment_name: changeAttachDlg.file.name,
+      attachment_mime: changeAttachDlg.file.type,
+      attachment_size: changeAttachDlg.file.size,
+      attachment_uploaded_by: user!.id,
+      attachment_uploaded_at: new Date().toISOString(),
+      attachment_change_reason: changeAttachDlg.reason || null,
+    }).eq("id", t.id);
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success("تم تحديث صورة التحويل");
+    setChangeAttachDlg({ open:false, reason:"", file:null });
     fetchAll();
   }
 
