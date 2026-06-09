@@ -489,7 +489,8 @@ export default function MainTreasury() {
                       <TableCell><Button size="sm" variant="ghost" onClick={()=>printVoucher(t)}><Printer className="h-4 w-4"/></Button></TableCell>
                     </TableRow>
                   );
-                })}
+                  });
+                })()}
               </TableBody>
             </Table>
           </CardContent></Card>
