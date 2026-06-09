@@ -103,7 +103,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
   },
   {
     role: "marketing_sales_manager",
-    title: "مدير التسويق والمبيعات",
+    title: "مدير المبيعات",
     summary: "متابعة الحملات والعروض، تحليل العملاء، وأداء الفريق.",
     color: "from-purple-500 to-orange-400",
     links: [
