@@ -572,8 +572,23 @@ export default function BankAccountPanel() {
                 </SelectContent>
               </Select>
             </div>
+            <div><Label className="text-xs">مصدر التحويل الوارد</Label>
+              <Select value={f.incoming_source} onValueChange={v=>setF({...f,incoming_source:v})}>
+                <SelectTrigger><SelectValue/></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">الكل</SelectItem>
+                  {INCOMING_SOURCES.map(s=><SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             <div><Label className="text-xs">من</Label><Input type="date" value={f.from} onChange={e=>setF({...f,from:e.target.value})}/></div>
             <div><Label className="text-xs">إلى</Label><Input type="date" value={f.to} onChange={e=>setF({...f,to:e.target.value})}/></div>
+            <div className="flex items-end gap-2 md:col-span-2">
+              <label className="flex items-center gap-2 text-xs cursor-pointer">
+                <input type="checkbox" checked={f.missing_attachment} onChange={e=>setF({...f,missing_attachment:e.target.checked})}/>
+                حركات بدون صورة تحويل (إيداعات بنكية)
+              </label>
+            </div>
           </CardContent></Card>
 
           <Card><CardContent className="p-0 overflow-x-auto">
