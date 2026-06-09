@@ -340,8 +340,8 @@ export default function BankAccountPanel() {
     openPrintWindow(title, body);
   }
 
-  function pdfAll() {
-    const rows = filtered.map(t => {
+  function buildRowsHTML(list: Txn[]) {
+    return list.map(t => {
       const acc = accounts.find(a => a.id === t.account_id);
       const cat = cats.find(c => c.id === t.bank_category_id);
       return `<tr>
@@ -355,7 +355,10 @@ export default function BankAccountPanel() {
         <td>${escapeHtml(STATUS_LBL[t.status]||t.status)}</td>
       </tr>`;
     }).join("");
-    exportPDF("تقرير الحساب البنكي", rows);
+  }
+  function pdfAll() { exportPDF("تقرير الحساب البنكي", buildRowsHTML(filtered)); }
+  function pdfWith(predicate: (t: Txn) => boolean, title: string) {
+    exportPDF(title, buildRowsHTML(bankTxns.filter(predicate)));
   }
 
   async function getAttachmentUrl(path: string) {
