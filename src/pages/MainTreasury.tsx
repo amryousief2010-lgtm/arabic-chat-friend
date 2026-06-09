@@ -67,6 +67,8 @@ export default function MainTreasury() {
   const [transferForm, setTransferForm] = useState({ account_id: "", custody_keeper_id: "", amount: "", notes: "" });
   const [newAccount, setNewAccount] = useState({ name:"", account_type:"cash" as Account["account_type"], bank_name:"", opening_balance:"" });
   const [rejectDlg, setRejectDlg] = useState<{open:boolean; txn?:Txn; reason:string}>({ open:false, reason:"" });
+  const [editOpenBal, setEditOpenBal] = useState<{open:boolean; account?:Account; value:string}>({ open:false, value:"" });
+  const [logFilter, setLogFilter] = useState({ account_id: "all", txn_type: "all", status: "all", from: "", to: "" });
   const [busy, setBusy] = useState(false);
 
   async function fetchAll() {
@@ -185,6 +187,20 @@ export default function MainTreasury() {
     if (error) return toast.error(error.message);
     toast.success("تم إنشاء الحساب");
     setNewAccount({ name:"", account_type:"cash", bank_name:"", opening_balance:"" });
+    fetchAll();
+  }
+
+  async function saveOpeningBalance() {
+    if (!editOpenBal.account) return;
+    const v = Number(editOpenBal.value);
+    if (Number.isNaN(v)) return toast.error("قيمة غير صحيحة");
+    setBusy(true);
+    const { error } = await (supabase as any).from("main_treasury_accounts")
+      .update({ opening_balance: v }).eq("id", editOpenBal.account.id);
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success("تم تحديث الرصيد الافتتاحي");
+    setEditOpenBal({ open:false, value:"" });
     fetchAll();
   }
 
@@ -408,7 +424,38 @@ export default function MainTreasury() {
         )}
 
         {/* Log */}
-        <TabsContent value="log" className="mt-4">
+        <TabsContent value="log" className="mt-4 space-y-3">
+          <Card><CardContent className="p-3 grid grid-cols-2 md:grid-cols-5 gap-2">
+            <div><Label className="text-xs">الحساب</Label>
+              <Select value={logFilter.account_id} onValueChange={v=>setLogFilter({...logFilter, account_id:v})}>
+                <SelectTrigger><SelectValue/></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">كل الحسابات</SelectItem>
+                  {accounts.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label className="text-xs">النوع</Label>
+              <Select value={logFilter.txn_type} onValueChange={v=>setLogFilter({...logFilter, txn_type:v})}>
+                <SelectTrigger><SelectValue/></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">الكل</SelectItem>
+                  {Object.entries(TYPE_LBL).map(([k,v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label className="text-xs">الحالة</Label>
+              <Select value={logFilter.status} onValueChange={v=>setLogFilter({...logFilter, status:v})}>
+                <SelectTrigger><SelectValue/></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">الكل</SelectItem>
+                  {Object.entries(STATUS_LBL).map(([k,v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label className="text-xs">من تاريخ</Label><Input type="date" value={logFilter.from} onChange={e=>setLogFilter({...logFilter, from:e.target.value})}/></div>
+            <div><Label className="text-xs">إلى تاريخ</Label><Input type="date" value={logFilter.to} onChange={e=>setLogFilter({...logFilter, to:e.target.value})}/></div>
+          </CardContent></Card>
           <Card><CardContent className="p-0 overflow-x-auto">
             <Table>
               <TableHeader><TableRow>
@@ -417,8 +464,16 @@ export default function MainTreasury() {
                 <TableHead>الوصف</TableHead><TableHead>الحالة</TableHead><TableHead>طباعة</TableHead>
               </TableRow></TableHeader>
               <TableBody>
-                {txns.length === 0 ? <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">لا توجد حركات بعد</TableCell></TableRow>
-                : txns.map(t => {
+                {(() => {
+                  const filtered = txns.filter(t =>
+                    (logFilter.account_id === "all" || t.account_id === logFilter.account_id) &&
+                    (logFilter.txn_type === "all" || t.txn_type === logFilter.txn_type) &&
+                    (logFilter.status === "all" || t.status === logFilter.status) &&
+                    (!logFilter.from || t.txn_date >= logFilter.from) &&
+                    (!logFilter.to || t.txn_date <= logFilter.to)
+                  );
+                  if (filtered.length === 0) return <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">لا توجد حركات مطابقة</TableCell></TableRow>;
+                  return filtered.map(t => {
                   const acc = accounts.find(a => a.id === t.account_id);
                   const cat = cats.find(c => c.id === t.category_id);
                   return (
@@ -434,7 +489,8 @@ export default function MainTreasury() {
                       <TableCell><Button size="sm" variant="ghost" onClick={()=>printVoucher(t)}><Printer className="h-4 w-4"/></Button></TableCell>
                     </TableRow>
                   );
-                })}
+                  });
+                })()}
               </TableBody>
             </Table>
           </CardContent></Card>
@@ -495,13 +551,14 @@ export default function MainTreasury() {
             <CardHeader><CardTitle>الحسابات الحالية</CardTitle></CardHeader>
             <CardContent className="p-0">
               <Table>
-                <TableHeader><TableRow><TableHead>الاسم</TableHead><TableHead>النوع</TableHead><TableHead>البنك</TableHead><TableHead>الافتتاحي</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow><TableHead>الاسم</TableHead><TableHead>النوع</TableHead><TableHead>البنك</TableHead><TableHead>الافتتاحي</TableHead><TableHead>إجراء</TableHead></TableRow></TableHeader>
                 <TableBody>
                   {accounts.map(a => (
                     <TableRow key={a.id}>
                       <TableCell>{a.name}</TableCell><TableCell>{a.account_type}</TableCell>
                       <TableCell>{a.bank_name || "—"}</TableCell>
                       <TableCell className="font-mono">{fmtNum(a.opening_balance,2)}</TableCell>
+                      <TableCell><Button size="sm" variant="outline" onClick={()=>setEditOpenBal({open:true, account:a, value:String(a.opening_balance)})}>تعديل الافتتاحي</Button></TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -525,6 +582,21 @@ export default function MainTreasury() {
           <DialogFooter>
             <Button variant="ghost" onClick={()=>setRejectDlg({open:false, reason:""})}>إلغاء</Button>
             <Button variant="destructive" onClick={reject} disabled={busy}>تأكيد الرفض</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editOpenBal.open} onOpenChange={o => !o && setEditOpenBal({open:false, value:""})}>
+        <DialogContent dir="rtl">
+          <DialogHeader><DialogTitle>تعديل الرصيد الافتتاحي — {editOpenBal.account?.name}</DialogTitle></DialogHeader>
+          <div className="space-y-2">
+            <Label>الرصيد الافتتاحي (ج.م)</Label>
+            <Input type="number" step="0.01" value={editOpenBal.value} onChange={e=>setEditOpenBal({...editOpenBal, value:e.target.value})}/>
+            <div className="text-xs text-muted-foreground">سيتم احتساب الرصيد الحالي = الافتتاحي + كل الحركات المُرحَّلة.</div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={()=>setEditOpenBal({open:false, value:""})}>إلغاء</Button>
+            <Button onClick={saveOpeningBalance} disabled={busy}>حفظ</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
