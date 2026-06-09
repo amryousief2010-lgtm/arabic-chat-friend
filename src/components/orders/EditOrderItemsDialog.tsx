@@ -355,6 +355,11 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
                         نصف كيلو (الكمية بالكجم)
                       </span>
                     )}
+                    {it.is_gift && (
+                      <span className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 border border-emerald-300">
+                        🎁 هدية مجانية
+                      </span>
+                    )}
                   </label>
                   <Select
                     value={it.product_id || ""}
