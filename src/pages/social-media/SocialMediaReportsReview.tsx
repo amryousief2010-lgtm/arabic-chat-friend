@@ -529,6 +529,24 @@ export default function SocialMediaReportsReview() {
                     2
                   )}
                 </pre>
+                {editing.kind === "daily" && editing.row.complaint_attachment_path && (
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <Paperclip className="w-4 h-4" /> صورة الشكوى المرفقة
+                    </Label>
+                    {attachmentUrl ? (
+                      <a href={attachmentUrl} target="_blank" rel="noreferrer">
+                        <img
+                          src={attachmentUrl}
+                          alt="مرفق الشكوى"
+                          className="max-h-80 rounded border w-auto"
+                        />
+                      </a>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">جاري تحميل الصورة…</p>
+                    )}
+                  </div>
+                )}
                 <div>
                   <Label>ملاحظة الإدارة</Label>
                   <Textarea
@@ -551,6 +569,26 @@ export default function SocialMediaReportsReview() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+          <AlertDialogContent dir="rtl">
+            <AlertDialogHeader>
+              <AlertDialogTitle>حذف التقرير؟</AlertDialogTitle>
+              <AlertDialogDescription>
+                لا يمكن التراجع عن هذه العملية. سيتم حذف التقرير وأي مرفقات مرتبطة به نهائيًا.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>إلغاء</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDelete}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                <Trash2 className="w-4 h-4 ml-2" /> حذف
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
   );
