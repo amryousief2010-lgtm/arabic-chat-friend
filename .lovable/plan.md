@@ -1,104 +1,70 @@
 
-# الخزنة الرئيسية للشركة — مجزر
+# خطة تنفيذ دور مسؤول السوشيال ميديا (social_media_manager)
 
-خزنة منفصلة عن خزنة العهدة، يديرها المحاسب **محمد شعلة**، تموّل خزنة العهدة وتدفع المصروفات الكبيرة. كل عملية صرف منها تمر بدورة اعتماد رسمية.
+## 1. تعديلات قاعدة البيانات (Migration واحد)
 
----
+### إضافة الدور للـ enum
+```sql
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'social_media_manager';
+```
 
-## 1) الأدوار (RBAC)
+### جدول `social_media_daily_reports`
+الحقول الأساسية: `report_date`, `employee_id`, `employee_name`, `posts_count`, `reels_videos_count`, `interested_customers_count`, `top_engaging_content`, `issues_or_complaints`, `tomorrow_content_suggestions`, `additional_notes`, `status` (draft/submitted/reviewed), `management_notes`, `reviewed_by`, `reviewed_at`.
+- Unique: `(employee_id, report_date)`
+- GRANTs + RLS + trigger للـ `updated_at`.
 
-| الدور | الصلاحية |
-|---|---|
-| `main_treasury_accountant` (محمد شعلة) | إنشاء إيداع/سحب/تحويل/مصروف، طباعة سندات، عرض كل الحركات |
-| `main_treasury_approver` (المدير العام / المالي) | اعتماد أو رفض أي مصروف أو تحويل |
-| `slaughterhouse_custody_keeper` | استلام التحويل الوارد من الخزنة الرئيسية (إثبات استلام) |
-| باقي الأدوار | لا ترى الخزنة الرئيسية |
+### جدول `social_media_weekly_reports`
+الحقول: `week_start_date`, `week_end_date`, `employee_id`, `employee_name`, نمو المتابعين لـ FB/IG/TikTok/YouTube, `leads_count`, `best_platform`, `best_platform_reason`, `repeated_problems`, `weekly_summary`, `next_week_suggestions`, `additional_notes`, `status`, `management_notes`, `reviewed_by`, `reviewed_at`.
+- Unique: `(employee_id, week_start_date, week_end_date)`
 
----
+### جدول `social_media_weekly_top_posts`
+- FK لـ `social_media_weekly_reports(id) ON DELETE CASCADE`
+- الحقول: `platform`, `post_title`, `post_url`, `reach_count`, `engagement_count`, `notes`.
 
-## 2) جداول قاعدة البيانات الجديدة
+### سياسات RLS
+- **social_media_manager**: INSERT/SELECT/UPDATE للسجلات الخاصة به فقط، والـ UPDATE مشروط بـ `status <> 'reviewed'`. لا DELETE.
+- **general_manager / executive_manager / marketing_sales_manager**: SELECT كامل + UPDATE لحقول المراجعة فقط (نعتمد على has_role).
+- **حماية الطلبات للقراءة فقط لهذا الدور**: لا نضيف أي policy تسمح لـ social_media_manager بـ INSERT/UPDATE/DELETE على `orders` / `order_items` / `customers`. (السياسات الحالية تعتمد على أدوار محددة لا تشمله، لذا الرفض تلقائي.)
+- نضيف policy SELECT للطلبات تسمح لـ social_media_manager بالقراءة فقط.
 
-**أ) `main_treasury_accounts`** — حسابات الخزنة (نقدي / بنك / فودافون كاش …):
-- name, account_type (cash/bank/wallet), bank_name, account_number, opening_balance, is_active
+## 2. تحديث `useAuth.tsx`
+- إضافة `'social_media_manager'` في `AppRole`.
+- إضافة `isSocialMediaManager`, `canManageSocial` helpers.
+- تعديل `priority` لإدراج الدور.
 
-**ب) `main_treasury_transactions`** — سجل الحركات (immutable ledger):
-- account_id, txn_type (deposit / withdrawal / transfer_out / transfer_in / expense)
-- amount, txn_date, reference_no (تلقائي: `MT-2026-000123`)
-- counterparty (المستفيد)، category، description
-- status: `draft → pending_approval → approved → posted` أو `rejected`
-- requested_by, approved_by, approved_at, rejection_reason
-- attachment_url (إيصال)
-- linked_expense_id (لو مرتبط بمصروف اعتمد)
-- linked_custody_transfer_id (لو تحويل لخزنة العهدة)
+## 3. تحديث `ProtectedRoute.tsx`
+- إضافة قائمة `SOCIAL_MEDIA_ALLOWED_PREFIXES`:
+  `/orders` (قراءة فقط), `/social-media/daily`, `/social-media/weekly`, `/social-media/my-reports`, `/notifications`, `/permissions`, `/auth`, `/install`.
+- redirect target: `/social-media/daily`.
 
-**ج) `main_treasury_expense_categories`** — بنود المصروفات (إيجار، رواتب، صيانة كبرى، شراء أصول…)
+## 4. الصفحات الجديدة (تحت `src/pages/social-media/`)
+1. **`SocialMediaDailyReport.tsx`** — فورم اليومي + قائمة "تقاريري السابقة" + منع التكرار (upsert/check).
+2. **`SocialMediaWeeklyReport.tsx`** — فورم الأسبوعي مع جدول أعلى 5 منشورات + حفظ.
+3. **`SocialMediaMyReports.tsx`** — قائمة موحدة لتقاريرها (يومي/أسبوعي) مع شارة الحالة.
+4. **`SocialMediaReportsReview.tsx`** — للإدارة: تبويبان (يومية/أسبوعية) + فلاتر + اعتماد + ملاحظات.
 
-**د) `main_treasury_approval_rules`** — قواعد الاعتماد بالحد:
-- min_amount, max_amount, required_approver_role, requires_dual_approval
+## 5. حماية صفحة الطلبات في الواجهة
+- في `src/pages/Orders.tsx`: عند `isSocialMediaManager` نخفي/نعطّل أزرار: إضافة طلب جديد، تعديل، حذف، تغيير الحالة، تصدير. ونعرض شارة "قراءة فقط".
+- اعتمادًا قاعديًا على RLS لرفض أي عملية كتابة.
 
-**هـ) `main_treasury_to_custody_transfers`** — جسر مع خزنة العهدة:
-- main_txn_id, custody_keeper_id, amount, transfer_date
-- status: `sent → received` (يضغط أمين العهدة استلمت)
-- عند الاستلام يُسجَّل تلقائيًا opening/top-up في `slaughter_custody_opening_balances`
+## 6. السايد بار (`AppSidebar` / `SidebarMenuSections`)
+- إخفاء كل العناصر لـ social_media_manager ما عدا:
+  - مراجعة الطلبات (`/orders`)
+  - تقرير السوشيال ميديا اليومي
+  - تقرير السوشيال ميديا الأسبوعي
+  - تقاريري السابقة
+- للأدوار الإدارية المعنية: إضافة عنصر "مراجعة تقارير السوشيال ميديا".
 
-**و) `main_treasury_audit_log`** — كل تغيير حالة (من، متى، لماذا)
+## 7. التوجيه في `AnimatedRoutes.tsx`
+إضافة المسارات الأربعة الجديدة مع `<ProtectedRoute allowedRoles={...}>`.
 
-**ز) View: `v_main_treasury_balance`** — الرصيد اللحظي لكل حساب = افتتاحي + كل المرحّل (`posted`).
+## 8. إنشاء حساب جنة سامح
+بعد تطبيق الـ migration، يقوم المدير العام بإنشاء الحساب من شاشة الموظفين وتعيين دور `social_media_manager` (أو نضيفه من شاشة الإدارة).
 
----
+## ملاحظات تقنية
+- جميع الجداول تحصل على `GRANT SELECT, INSERT, UPDATE ON ... TO authenticated; GRANT ALL ... TO service_role;` (بدون DELETE للجميع، يبقى DELETE لـ service_role فقط).
+- استخدام `has_role(auth.uid(), 'role')` في كل السياسات لتفادي recursion.
+- شارات الحالة والـ RTL تتبع الـ design system الحالي (Purple/Orange tokens).
+- لا تعديل على نظام الرسائل الداخلية ولا على `customers` ولا الخزائن لهذا الدور.
 
-## 3) قواعد العمل (Business Rules)
-
-- المحاسب يُنشئ المعاملة ⇒ حالتها `pending_approval` تلقائيًا.
-- أي مصروف **> 5,000 ج** يحتاج اعتماد المدير. (قابل للضبط من جدول `approval_rules`)
-- أي مصروف **> 50,000 ج** يحتاج اعتماد مزدوج (مدير مالي + مدير عام).
-- لا تُخصم من الرصيد إلا بعد `posted` (بعد الاعتماد).
-- لا يمكن **تعديل** أو **حذف** معاملة `approved` أو `posted` — فقط إنشاء قيد عكسي بمبرر.
-- التحويل لخزنة العهدة لا يُسجَّل في رصيد العهدة إلا بعد ضغط أمين العهدة "استلمت" (Double-entry).
-- كل عملية لها **سند رسمي PDF** (سند صرف / سند قبض / إذن تحويل) بالعربية RTL مع توقيعات.
-
----
-
-## 4) واجهة المستخدم
-
-مسار جديد: `/main-treasury` (مرئي فقط لأدوار الخزنة الرئيسية + الإدارة)
-
-تبويبات:
-1. **لوحة الرصيد** — كل حساب + إجمالي + KPIs (مصروفات الشهر، تحويلات للعهدة، بانتظار الاعتماد)
-2. **إيداع / سحب** — نقدي وبنكي
-3. **مصروف جديد** — مع بند، مستفيد، مرفق إيصال
-4. **تحويل لخزنة العهدة** — يختار المبلغ والأمين المستلم
-5. **بانتظار الاعتماد** (للمعتمد فقط) — قائمة بأزرار اعتماد/رفض مع مبرر
-6. **سجل الحركات** — فلترة بالتاريخ/الحساب/الحالة/البند + تصدير Excel + طباعة كشف
-7. **التقارير** — كشف حساب، تقرير شهري، أعلى بنود الصرف
-8. **الإعدادات** — الحسابات، بنود المصروفات، قواعد الاعتماد
-
-تنبيه واضح أعلى صفحة العهدة عند وصول تحويل بانتظار الاستلام.
-
----
-
-## 5) الأمان
-
-- RLS صارم: لا أحد يقرأ `main_treasury_*` إلا إذا كان لديه أحد أدوار الخزنة الرئيسية.
-- كل INSERT/UPDATE يمر بـ trigger يسجّل في `main_treasury_audit_log`.
-- المعاملة المعتمدة Immutable عبر trigger يمنع الـ UPDATE على الحقول المالية.
-
----
-
-## 6) خطوات التنفيذ
-
-1. Migration: الأدوار الجديدة + الجداول + GRANT + RLS + الـ Triggers + View الرصيد.
-2. صفحة `MainTreasury.tsx` + التبويبات الفرعية.
-3. مكوّن `ApprovalQueue` ومكوّن `TransferToCustodyDialog`.
-4. ربط استلام التحويل بصفحة العهدة الحالية (`SlaughterhouseCustody.tsx`).
-5. قالب طباعة سندات الصرف/القبض/التحويل عبر `openPrintWindow`.
-6. إضافة عنصر القائمة الجانبية تحت قسم "المجزر".
-
----
-
-## أسئلة قبل البدء
-
-1. **المدير المعتمِد** — مين بالضبط يعتمد المصروفات الكبيرة؟ (المدير العام؟ مدير مالي؟ اسم محدد؟)
-2. **حدود الاعتماد** — هل القيم المقترحة مناسبة (5,000 ج اعتماد واحد، 50,000 ج اعتماد مزدوج)؟
-3. **الحسابات** — كم حساب موجود فعلاً؟ (مثلاً: نقدي، بنك CIB، فودافون كاش …) ولو عندك أرصدة افتتاحية ابعتها.
-4. **بنود المصروفات** — تحب أبدأ بقائمة جاهزة (إيجار، رواتب، صيانة، أصول، مرافق، نقل، ضرائب، أخرى) ولا عندك قائمتك؟
+هل أبدأ التنفيذ؟
