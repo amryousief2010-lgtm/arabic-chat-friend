@@ -380,51 +380,125 @@ export default function SocialMediaReportsReview() {
               <CardContent>
                 {loading ? (
                   <p className="text-muted-foreground">جاري التحميل…</p>
+                ) : filteredWeekly.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-6">لا توجد تقارير.</p>
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>الأسبوع</TableHead>
-                        <TableHead>الموظفة</TableHead>
-                        <TableHead>FB</TableHead>
-                        <TableHead>IG</TableHead>
-                        <TableHead>TikTok</TableHead>
-                        <TableHead>YouTube</TableHead>
-                        <TableHead>Leads</TableHead>
-                        <TableHead>أفضل منصة</TableHead>
-                        <TableHead>الحالة</TableHead>
-                        <TableHead></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
+                  <>
+                    {/* Mobile cards */}
+                    <div className="grid gap-3 md:hidden">
                       {filteredWeekly.map((r) => (
-                        <TableRow key={r.id}>
-                          <TableCell>
-                            {r.week_start_date} → {r.week_end_date}
-                          </TableCell>
-                          <TableCell>{r.employee_name}</TableCell>
-                          <TableCell>{r.facebook_followers_growth}</TableCell>
-                          <TableCell>{r.instagram_followers_growth}</TableCell>
-                          <TableCell>{r.tiktok_followers_growth}</TableCell>
-                          <TableCell>{r.youtube_followers_growth}</TableCell>
-                          <TableCell>{r.leads_count}</TableCell>
-                          <TableCell>{r.best_platform}</TableCell>
-                          <TableCell>{statusBadge(r.status)}</TableCell>
-                          <TableCell>
+                        <div key={r.id} className="rounded-lg border p-3 bg-card space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <div>
+                              <div className="font-semibold text-sm">
+                                {r.week_start_date} → {r.week_end_date}
+                              </div>
+                              <div className="text-xs text-muted-foreground">{r.employee_name}</div>
+                            </div>
+                            {statusBadge(r.status)}
+                          </div>
+                          <div className="grid grid-cols-4 gap-1 text-xs">
+                            <div className="text-center bg-muted/40 rounded p-1.5">
+                              <div className="text-muted-foreground">FB</div>
+                              <div className="font-bold">{r.facebook_followers_growth}</div>
+                            </div>
+                            <div className="text-center bg-muted/40 rounded p-1.5">
+                              <div className="text-muted-foreground">IG</div>
+                              <div className="font-bold">{r.instagram_followers_growth}</div>
+                            </div>
+                            <div className="text-center bg-muted/40 rounded p-1.5">
+                              <div className="text-muted-foreground">TT</div>
+                              <div className="font-bold">{r.tiktok_followers_growth}</div>
+                            </div>
+                            <div className="text-center bg-muted/40 rounded p-1.5">
+                              <div className="text-muted-foreground">YT</div>
+                              <div className="font-bold">{r.youtube_followers_growth}</div>
+                            </div>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span><span className="text-muted-foreground">Leads: </span>{r.leads_count}</span>
+                            <span><span className="text-muted-foreground">أفضل: </span>{r.best_platform}</span>
+                          </div>
+                          <div className="flex gap-2 pt-1">
                             <Button
                               variant="outline"
                               size="sm"
+                              className="flex-1"
                               onClick={() =>
                                 setEditing({ kind: "weekly", row: r, notes: r.management_notes || "" })
                               }
                             >
                               <Eye className="w-4 h-4 ml-1" /> عرض
                             </Button>
-                          </TableCell>
-                        </TableRow>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => setDeleteTarget({ kind: "weekly", row: r })}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
                       ))}
-                    </TableBody>
-                  </Table>
+                    </div>
+
+                    {/* Desktop table */}
+                    <div className="hidden md:block">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>الأسبوع</TableHead>
+                            <TableHead>الموظفة</TableHead>
+                            <TableHead>FB</TableHead>
+                            <TableHead>IG</TableHead>
+                            <TableHead>TikTok</TableHead>
+                            <TableHead>YouTube</TableHead>
+                            <TableHead>Leads</TableHead>
+                            <TableHead>أفضل منصة</TableHead>
+                            <TableHead>الحالة</TableHead>
+                            <TableHead></TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredWeekly.map((r) => (
+                            <TableRow key={r.id}>
+                              <TableCell>
+                                {r.week_start_date} → {r.week_end_date}
+                              </TableCell>
+                              <TableCell>{r.employee_name}</TableCell>
+                              <TableCell>{r.facebook_followers_growth}</TableCell>
+                              <TableCell>{r.instagram_followers_growth}</TableCell>
+                              <TableCell>{r.tiktok_followers_growth}</TableCell>
+                              <TableCell>{r.youtube_followers_growth}</TableCell>
+                              <TableCell>{r.leads_count}</TableCell>
+                              <TableCell>{r.best_platform}</TableCell>
+                              <TableCell>{statusBadge(r.status)}</TableCell>
+                              <TableCell>
+                                <div className="flex gap-1">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                      setEditing({ kind: "weekly", row: r, notes: r.management_notes || "" })
+                                    }
+                                  >
+                                    <Eye className="w-4 h-4 ml-1" /> عرض
+                                  </Button>
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => setDeleteTarget({ kind: "weekly", row: r })}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </>
                 )}
               </CardContent>
             </Card>
