@@ -412,6 +412,57 @@ const Orders = () => {
         ]);
       };
 
+      // ====== فرع البحث: نجلب فقط الطلبات المطابقة بدل تحميل كل الشهر ======
+      if (debouncedSearch) {
+        const term = debouncedSearch;
+        const digits = term.replace(/[^\d]/g, "");
+        // 1) ابحث عن العملاء المطابقين بالاسم أو الهاتف
+        let custIds: string[] = [];
+        const custFilters: string[] = [];
+        if (term) custFilters.push(`name.ilike.%${term}%`);
+        if (digits) custFilters.push(`phone.ilike.%${digits}%`);
+        if (custFilters.length > 0) {
+          const { data: cdata } = await supabase
+            .from('customers')
+            .select('id')
+            .or(custFilters.join(','))
+            .limit(500);
+          custIds = (cdata || []).map((c: any) => c.id);
+        }
+        // 2) جلب الطلبات: رقم طلب مطابق أو ينتمي لعميل مطابق
+        const orFilters: string[] = [`order_number.ilike.%${term}%`];
+        if (custIds.length > 0) {
+          orFilters.push(`customer_id.in.(${custIds.join(',')})`);
+        }
+        const { data, error } = await supabase
+          .from('orders')
+          .select(`${ORDER_COLS}, customers (name, phone, governorate)`)
+          .or(orFilters.join(','))
+          .order('created_at', { ascending: false })
+          .limit(300);
+        if (error) throw error;
+        const ords = (data || []) as any[];
+        let items: any[] = [];
+        if (ords.length > 0) {
+          const ids = ords.map((o) => o.id);
+          const { data: itemsData, error: itemsErr } = await supabase
+            .from('order_items')
+            .select(ITEM_COLS)
+            .in('order_id', ids);
+          if (itemsErr) throw itemsErr;
+          items = itemsData || [];
+        }
+        await loadLookups(ords, items);
+        const byOrder: Record<string, any[]> = {};
+        items.forEach((it: any) => { (byOrder[it.order_id] ||= []).push(it); });
+        const formatted = formatBatch(ords, byOrder);
+        items.forEach((it: any) => { if (it.product_name) productNamesSet.add(it.product_name); });
+        setOrders(formatted);
+        setAvailableProducts(Array.from(productNamesSet).sort((a, b) => a.localeCompare(b, 'ar')));
+        setLoading(false);
+        return;
+      }
+
       // الصفحة الأولى: نعرضها فوراً ثم نكمل باقى الصفحات فى الخلفية
       const ORDERS_PAGE = 100;
       let oPage = 0;
@@ -478,6 +529,7 @@ const Orders = () => {
           oPage++;
         }
       }
+
     } catch (error) {
       console.error('Error fetching orders:', error);
       toast.error('حدث خطأ أثناء جلب الطلبات');
