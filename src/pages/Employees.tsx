@@ -622,7 +622,7 @@ const Employees = () => {
                       <SelectItem value="general_manager">مدير عام</SelectItem>
                       <SelectItem value="executive_manager">مدير تنفيذي</SelectItem>
                       <SelectItem value="production_manager">مدير الإنتاج والتشغيل</SelectItem>
-                      <SelectItem value="marketing_sales_manager">مدير التسويق والمبيعات</SelectItem>
+                      <SelectItem value="marketing_sales_manager">مدير المبيعات (Sales Manager)</SelectItem>
                       <SelectItem value="financial_manager">المدير المالي</SelectItem>
                       <SelectItem value="quality_manager">مدير الجودة</SelectItem>
                       <SelectItem value="sales_manager">مدير مبيعات</SelectItem>
