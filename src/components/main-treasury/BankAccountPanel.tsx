@@ -449,6 +449,9 @@ export default function BankAccountPanel() {
       {/* Actions */}
       <div className="flex flex-wrap gap-2">
         <Button onClick={openTxnDlg} className="gap-2" disabled={bankBalances.length===0}><Plus className="h-4 w-4"/>تسجيل حركة بنكية</Button>
+        <Button onClick={openTransferDlg} className="gap-2 bg-[hsl(142_71%_36%)] hover:bg-[hsl(142_71%_30%)] text-white" disabled={bankBalances.length===0 || !accounts.some(a=>a.account_type==='cash')}>
+          <ArrowRightLeft className="h-4 w-4"/>إيداع من الخزنة إلى البنك
+        </Button>
         <Button variant="outline" onClick={()=>setCatDlg(true)} className="gap-2"><Receipt className="h-4 w-4"/>إنشاء بند مصروف</Button>
         <Button variant="outline" onClick={pdfAll} className="gap-2"><Printer className="h-4 w-4"/>تصدير PDF</Button>
         <Button variant="outline" onClick={exportExcel} className="gap-2"><FileDown className="h-4 w-4"/>تصدير Excel</Button>
