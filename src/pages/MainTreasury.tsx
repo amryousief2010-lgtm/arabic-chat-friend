@@ -551,13 +551,14 @@ export default function MainTreasury() {
             <CardHeader><CardTitle>الحسابات الحالية</CardTitle></CardHeader>
             <CardContent className="p-0">
               <Table>
-                <TableHeader><TableRow><TableHead>الاسم</TableHead><TableHead>النوع</TableHead><TableHead>البنك</TableHead><TableHead>الافتتاحي</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow><TableHead>الاسم</TableHead><TableHead>النوع</TableHead><TableHead>البنك</TableHead><TableHead>الافتتاحي</TableHead><TableHead>إجراء</TableHead></TableRow></TableHeader>
                 <TableBody>
                   {accounts.map(a => (
                     <TableRow key={a.id}>
                       <TableCell>{a.name}</TableCell><TableCell>{a.account_type}</TableCell>
                       <TableCell>{a.bank_name || "—"}</TableCell>
                       <TableCell className="font-mono">{fmtNum(a.opening_balance,2)}</TableCell>
+                      <TableCell><Button size="sm" variant="outline" onClick={()=>setEditOpenBal({open:true, account:a, value:String(a.opening_balance)})}>تعديل الافتتاحي</Button></TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
