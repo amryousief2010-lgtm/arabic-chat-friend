@@ -7237,6 +7237,12 @@ export type Database = {
           approver_1_id: string | null
           approver_2_at: string | null
           approver_2_id: string | null
+          attachment_change_reason: string | null
+          attachment_mime: string | null
+          attachment_name: string | null
+          attachment_size: number | null
+          attachment_uploaded_at: string | null
+          attachment_uploaded_by: string | null
           attachment_url: string | null
           bank_account_number: string | null
           bank_category_id: string | null
@@ -7250,6 +7256,7 @@ export type Database = {
           deposit_purpose: string | null
           description: string
           id: string
+          incoming_source: string | null
           loan_number: string | null
           payment_method: string | null
           posted_at: string | null
@@ -7270,6 +7277,12 @@ export type Database = {
           approver_1_id?: string | null
           approver_2_at?: string | null
           approver_2_id?: string | null
+          attachment_change_reason?: string | null
+          attachment_mime?: string | null
+          attachment_name?: string | null
+          attachment_size?: number | null
+          attachment_uploaded_at?: string | null
+          attachment_uploaded_by?: string | null
           attachment_url?: string | null
           bank_account_number?: string | null
           bank_category_id?: string | null
@@ -7283,6 +7296,7 @@ export type Database = {
           deposit_purpose?: string | null
           description: string
           id?: string
+          incoming_source?: string | null
           loan_number?: string | null
           payment_method?: string | null
           posted_at?: string | null
@@ -7303,6 +7317,12 @@ export type Database = {
           approver_1_id?: string | null
           approver_2_at?: string | null
           approver_2_id?: string | null
+          attachment_change_reason?: string | null
+          attachment_mime?: string | null
+          attachment_name?: string | null
+          attachment_size?: number | null
+          attachment_uploaded_at?: string | null
+          attachment_uploaded_by?: string | null
           attachment_url?: string | null
           bank_account_number?: string | null
           bank_category_id?: string | null
@@ -7316,6 +7336,7 @@ export type Database = {
           deposit_purpose?: string | null
           description?: string
           id?: string
+          incoming_source?: string | null
           loan_number?: string | null
           payment_method?: string | null
           posted_at?: string | null
@@ -15208,6 +15229,12 @@ export type Database = {
           approver_1_id: string | null
           approver_2_at: string | null
           approver_2_id: string | null
+          attachment_change_reason: string | null
+          attachment_mime: string | null
+          attachment_name: string | null
+          attachment_size: number | null
+          attachment_uploaded_at: string | null
+          attachment_uploaded_by: string | null
           attachment_url: string | null
           bank_account_number: string | null
           bank_category_id: string | null
@@ -15221,6 +15248,7 @@ export type Database = {
           deposit_purpose: string | null
           description: string
           id: string
+          incoming_source: string | null
           loan_number: string | null
           payment_method: string | null
           posted_at: string | null
@@ -15288,6 +15316,12 @@ export type Database = {
           approver_1_id: string | null
           approver_2_at: string | null
           approver_2_id: string | null
+          attachment_change_reason: string | null
+          attachment_mime: string | null
+          attachment_name: string | null
+          attachment_size: number | null
+          attachment_uploaded_at: string | null
+          attachment_uploaded_by: string | null
           attachment_url: string | null
           bank_account_number: string | null
           bank_category_id: string | null
@@ -15301,6 +15335,7 @@ export type Database = {
           deposit_purpose: string | null
           description: string
           id: string
+          incoming_source: string | null
           loan_number: string | null
           payment_method: string | null
           posted_at: string | null

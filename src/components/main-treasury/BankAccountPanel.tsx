@@ -24,7 +24,17 @@ type Txn = {
   category_id: string | null; bank_category_id: string | null; loan_number: string | null; bank_account_number: string | null;
   payment_method: string | null; counterparty: string | null; description: string; status: string;
   attachment_url: string | null; created_at: string; created_by: string; rejection_reason: string | null;
+  incoming_source: string | null; attachment_name: string | null; attachment_mime: string | null;
+  attachment_size: number | null; attachment_uploaded_by: string | null; attachment_uploaded_at: string | null;
 };
+
+const INCOMING_SOURCES = [
+  { value: "hyper_healthy", label: "هايبر هيلثي تيست", attachmentRequired: true },
+  { value: "carrefour", label: "كارفور", attachmentRequired: true },
+  { value: "direct_customer", label: "عميل مباشر", attachmentRequired: false },
+  { value: "other", label: "جهة أخرى", attachmentRequired: false },
+];
+const SOURCE_LBL: Record<string,string> = Object.fromEntries(INCOMING_SOURCES.map(s => [s.value, s.label]));
 
 const BANK_TXN_TYPES: { value: string; label: string; direction: "in"|"out"|"neutral" }[] = [
   { value: "bank_deposit", label: "إيداع بنكي", direction: "in" },
@@ -76,7 +86,7 @@ export default function BankAccountPanel() {
   const bankTxns = useMemo(() => txns.filter(t => bankAccountIds.has(t.account_id)), [txns, bankAccountIds]);
 
   // Filters
-  const [f, setF] = useState({ account_id: "all", txn_type: "all", status: "all", category_id: "all", bank_name: "all", from: "", to: "" });
+  const [f, setF] = useState({ account_id: "all", txn_type: "all", status: "all", category_id: "all", bank_name: "all", incoming_source: "all", missing_attachment: false, from: "", to: "" });
 
   // Dialogs
   const [txnDlg, setTxnDlg] = useState(false);
@@ -88,9 +98,13 @@ export default function BankAccountPanel() {
     account_id: "", txn_type: "expense", amount: "", txn_date: today(),
     bank_category_id: "", loan_number: "", bank_account_number: "", payment_method: "transfer",
     counterparty: "", description: "", attachment_url: "" as string | null,
+    incoming_source: "" as string,
   };
   const [form, setForm] = useState<typeof emptyForm>(emptyForm);
   const [file, setFile] = useState<File | null>(null);
+
+  // Change-attachment dialog (post-creation)
+  const [changeAttachDlg, setChangeAttachDlg] = useState<{open:boolean; txn?:Txn; reason:string; file:File|null}>({ open:false, reason:"", file:null });
 
   const emptyCat = { code: "", label: "", requires_attachment: false, notes: "" };
   const [catForm, setCatForm] = useState(emptyCat);
@@ -205,6 +219,14 @@ export default function BankAccountPanel() {
     if (needsCat && !form.bank_category_id) return toast.error("اختر بند المصروف البنكي");
     if (form.txn_type === "loan_installment" && !form.loan_number.trim()) return toast.error("رقم القرض مطلوب");
 
+    // Incoming transfer: validate attachment for Hyper/Carrefour
+    const isIncoming = form.txn_type === "bank_deposit";
+    const srcDef = INCOMING_SOURCES.find(s => s.value === form.incoming_source);
+    if (isIncoming && !form.incoming_source) return toast.error("اختر مصدر التحويل الوارد");
+    if (isIncoming && srcDef?.attachmentRequired && !file) {
+      return toast.error(`صورة التحويل إجبارية لمصدر "${srcDef.label}"`);
+    }
+
     setBusy(true);
     let attachmentPath: string | null = null;
     if (file) {
@@ -224,6 +246,12 @@ export default function BankAccountPanel() {
       counterparty: form.counterparty || (acc.bank_name || null),
       description: form.description,
       attachment_url: attachmentPath,
+      incoming_source: isIncoming ? form.incoming_source : null,
+      attachment_name: file?.name || null,
+      attachment_mime: file?.type || null,
+      attachment_size: file?.size || null,
+      attachment_uploaded_by: attachmentPath ? user!.id : null,
+      attachment_uploaded_at: attachmentPath ? new Date().toISOString() : null,
       client_uuid: clientUuid,
       created_by: user!.id,
     });
@@ -234,6 +262,32 @@ export default function BankAccountPanel() {
     }
     toast.success("تم تسجيل الحركة البنكية — حسب القيمة قد تحتاج اعتماد");
     setTxnDlg(false);
+    fetchAll();
+  }
+
+  async function submitChangeAttachment() {
+    const t = changeAttachDlg.txn;
+    if (!t || !changeAttachDlg.file) return toast.error("اختر ملف الصورة الجديد");
+    if (!changeAttachDlg.reason.trim() && t.status === "posted") return toast.error("سبب التغيير مطلوب بعد الاعتماد");
+    setBusy(true);
+    const ext = changeAttachDlg.file.name.split(".").pop() || "bin";
+    const path = `${user!.id}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+    const { error: upErr } = await (supabase as any).storage.from("main-treasury-attachments")
+      .upload(path, changeAttachDlg.file, { cacheControl: "3600", upsert: false });
+    if (upErr) { setBusy(false); return toast.error("رفع الصورة: " + upErr.message); }
+    const { error } = await (supabase as any).from("main_treasury_transactions").update({
+      attachment_url: path,
+      attachment_name: changeAttachDlg.file.name,
+      attachment_mime: changeAttachDlg.file.type,
+      attachment_size: changeAttachDlg.file.size,
+      attachment_uploaded_by: user!.id,
+      attachment_uploaded_at: new Date().toISOString(),
+      attachment_change_reason: changeAttachDlg.reason || null,
+    }).eq("id", t.id);
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success("تم تحديث صورة التحويل");
+    setChangeAttachDlg({ open:false, reason:"", file:null });
     fetchAll();
   }
 
@@ -285,6 +339,8 @@ export default function BankAccountPanel() {
     (f.status === "all" || t.status === f.status) &&
     (f.category_id === "all" || t.bank_category_id === f.category_id) &&
     (f.bank_name === "all" || (accounts.find(a => a.id === t.account_id)?.bank_name || "") === f.bank_name) &&
+    (f.incoming_source === "all" || t.incoming_source === f.incoming_source) &&
+    (!f.missing_attachment || (!t.attachment_url && t.txn_type === "bank_deposit")) &&
     (!f.from || t.txn_date >= f.from) &&
     (!f.to || t.txn_date <= f.to)
   ), [bankTxns, f, accounts]);
@@ -332,8 +388,8 @@ export default function BankAccountPanel() {
       </div>
       <table>
         <thead><tr>
-          <th>المرجع</th><th>التاريخ</th><th>النوع</th><th>الحساب</th>
-          <th>المبلغ</th><th>البند</th><th>الوصف</th><th>الحالة</th>
+          <th>المرجع</th><th>التاريخ</th><th>النوع</th><th>المصدر</th><th>الحساب</th>
+          <th>المبلغ</th><th>البند</th><th>الوصف</th><th>الحالة</th><th>صورة</th>
         </tr></thead>
         <tbody>${rowsHTML}</tbody>
       </table>`;
@@ -348,11 +404,13 @@ export default function BankAccountPanel() {
         <td class="mono">${escapeHtml(t.reference_no)}</td>
         <td>${escapeHtml(t.txn_date)}</td>
         <td>${escapeHtml(TYPE_LBL[t.txn_type]||t.txn_type)}</td>
+        <td>${escapeHtml(t.incoming_source ? (SOURCE_LBL[t.incoming_source]||t.incoming_source) : "—")}</td>
         <td>${escapeHtml(acc?.name||"—")}</td>
         <td class="mono">${fmtNum(t.amount,2)}</td>
         <td>${escapeHtml(cat?.label||"—")}</td>
         <td>${escapeHtml(t.description)}</td>
         <td>${escapeHtml(STATUS_LBL[t.status]||t.status)}</td>
+        <td>${t.attachment_url ? "✓ مرفقة" : "—"}</td>
       </tr>`;
     }).join("");
   }
@@ -516,43 +574,87 @@ export default function BankAccountPanel() {
                 </SelectContent>
               </Select>
             </div>
+            <div><Label className="text-xs">مصدر التحويل الوارد</Label>
+              <Select value={f.incoming_source} onValueChange={v=>setF({...f,incoming_source:v})}>
+                <SelectTrigger><SelectValue/></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">الكل</SelectItem>
+                  {INCOMING_SOURCES.map(s=><SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             <div><Label className="text-xs">من</Label><Input type="date" value={f.from} onChange={e=>setF({...f,from:e.target.value})}/></div>
             <div><Label className="text-xs">إلى</Label><Input type="date" value={f.to} onChange={e=>setF({...f,to:e.target.value})}/></div>
+            <div className="flex items-end gap-2 md:col-span-2">
+              <label className="flex items-center gap-2 text-xs cursor-pointer">
+                <input type="checkbox" checked={f.missing_attachment} onChange={e=>setF({...f,missing_attachment:e.target.checked})}/>
+                حركات بدون صورة تحويل (إيداعات بنكية)
+              </label>
+            </div>
           </CardContent></Card>
 
           <Card><CardContent className="p-0 overflow-x-auto">
             <Table>
               <TableHeader><TableRow>
                 <TableHead>المرجع</TableHead><TableHead>التاريخ</TableHead><TableHead>النوع</TableHead>
+                <TableHead>المصدر</TableHead>
                 <TableHead>الحساب</TableHead><TableHead>المبلغ</TableHead><TableHead>البند</TableHead>
                 <TableHead>طريقة الدفع</TableHead><TableHead>الوصف</TableHead><TableHead>الحالة</TableHead>
-                <TableHead>مرفق</TableHead><TableHead>إجراء</TableHead>
+                <TableHead>صورة التحويل</TableHead><TableHead>إجراء</TableHead>
               </TableRow></TableHeader>
               <TableBody>
                 {filtered.length === 0
-                  ? <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">لا توجد حركات</TableCell></TableRow>
+                  ? <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">لا توجد حركات</TableCell></TableRow>
                   : filtered.map(t => {
                       const acc = accounts.find(a=>a.id===t.account_id);
                       const cat = cats.find(c=>c.id===t.bank_category_id);
                       const isPending = t.status === "pending_approval";
                       const isOwn = t.created_by === user?.id;
+                      const srcDef = INCOMING_SOURCES.find(s=>s.value===t.incoming_source);
+                      const requiresAttach = !!srcDef?.attachmentRequired;
+                      const missing = requiresAttach && !t.attachment_url;
+                      const canChange = (isPending || isApprover);
                       return <TableRow key={t.id}>
                         <TableCell className="font-mono text-xs">{t.reference_no}</TableCell>
                         <TableCell>{t.txn_date}</TableCell>
                         <TableCell>{TYPE_LBL[t.txn_type]||t.txn_type}</TableCell>
+                        <TableCell className="text-xs">{t.incoming_source ? (SOURCE_LBL[t.incoming_source]||t.incoming_source) : "—"}</TableCell>
                         <TableCell>{acc?.name || "—"}</TableCell>
                         <TableCell className="font-mono font-bold">{fmtNum(t.amount,2)}</TableCell>
                         <TableCell>{cat?.label || "—"}</TableCell>
                         <TableCell>{PAYMENT_METHODS.find(p=>p.value===t.payment_method)?.label || "—"}</TableCell>
                         <TableCell className="max-w-[240px] truncate">{t.description}</TableCell>
                         <TableCell><Badge variant={STATUS_TONE[t.status]}>{STATUS_LBL[t.status]}</Badge></TableCell>
-                        <TableCell>{t.attachment_url
-                          ? <Button size="sm" variant="ghost" onClick={async ()=>{ const u = await getAttachmentUrl(t.attachment_url!); if (u) window.open(u, "_blank"); }}><Paperclip className="h-4 w-4"/></Button>
-                          : "—"}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-1">
+                            {t.attachment_url ? (
+                              <Button size="sm" variant="outline" className="h-7 gap-1" onClick={async ()=>{
+                                const u = await getAttachmentUrl(t.attachment_url!); if (u) window.open(u, "_blank");
+                                else toast.error("تعذر فتح الصورة");
+                              }}><Paperclip className="h-3 w-3"/>عرض</Button>
+                            ) : (
+                              <span className={"text-xs " + (missing ? "text-destructive font-bold" : "text-muted-foreground")}>
+                                {missing ? "⚠ لا توجد صورة" : "لا توجد صورة"}
+                              </span>
+                            )}
+                            {canChange && (
+                              <Button size="sm" variant="ghost" className="h-6 text-xs px-2"
+                                onClick={()=>setChangeAttachDlg({ open:true, txn:t, reason:"", file:null })}>
+                                تغيير الصورة
+                              </Button>
+                            )}
+                            {t.attachment_name && <div className="text-[10px] text-muted-foreground truncate max-w-[140px]" title={t.attachment_name}>{t.attachment_name}{t.attachment_size?` · ${Math.round(t.attachment_size/1024)}KB`:""}</div>}
+                          </div>
+                        </TableCell>
                         <TableCell>
                           {isPending && isApprover && !isOwn ? (
                             <div className="flex gap-1">
                               <Button size="sm" variant="default" disabled={busy} onClick={async ()=>{
+                                if (missing) return toast.error("يجب إرفاق صورة التحويل قبل اعتماد هذه الحركة");
+                                if (requiresAttach && t.attachment_url) {
+                                  const u = await getAttachmentUrl(t.attachment_url); if (u) window.open(u, "_blank");
+                                  if (!window.confirm("هل راجعت صورة التحويل وتريد الاعتماد؟")) return;
+                                }
                                 setBusy(true);
                                 const { error } = await (supabase as any).rpc("mt_approve_txn", { p_txn_id: t.id });
                                 setBusy(false);
@@ -660,6 +762,16 @@ export default function BankAccountPanel() {
               <div><Label>رقم القرض *</Label><Input value={form.loan_number} onChange={e=>setForm({...form,loan_number:e.target.value})}/></div>
             )}
 
+            {form.txn_type === "bank_deposit" && (
+              <div className="md:col-span-2 border rounded p-2 bg-primary/5">
+                <Label>مصدر التحويل الوارد *</Label>
+                <Select value={form.incoming_source} onValueChange={v=>setForm({...form,incoming_source:v})}>
+                  <SelectTrigger><SelectValue placeholder="اختر المصدر"/></SelectTrigger>
+                  <SelectContent>{INCOMING_SOURCES.map(s=><SelectItem key={s.value} value={s.value}>{s.label}{s.attachmentRequired?" (صورة إجبارية)":""}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div><Label>اسم البنك / الجهة</Label><Input value={form.counterparty} onChange={e=>setForm({...form,counterparty:e.target.value})}/></div>
             <div><Label>رقم الحساب البنكي</Label><Input value={form.bank_account_number} onChange={e=>setForm({...form,bank_account_number:e.target.value})}/></div>
             <div><Label>طريقة الدفع / الخصم</Label>
@@ -670,12 +782,19 @@ export default function BankAccountPanel() {
             </div>
             <div className="md:col-span-2"><Label>الوصف *</Label><Textarea value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/></div>
             <div className="md:col-span-2">
-              <Label>مرفق (إيصال / صورة)</Label>
-              <Input type="file" accept="image/*,application/pdf" onChange={e=>setFile(e.target.files?.[0] || null)}/>
-              {file && <div className="text-xs text-muted-foreground mt-1">{file.name}</div>}
+              {(() => {
+                const srcDef = INCOMING_SOURCES.find(s=>s.value===form.incoming_source);
+                const required = form.txn_type === "bank_deposit" && !!srcDef?.attachmentRequired;
+                return <>
+                  <Label>صورة التحويل / إيصال التحويل {required && <span className="text-destructive">*</span>}</Label>
+                  <Input type="file" accept="image/jpeg,image/png,image/jpg,application/pdf" onChange={e=>setFile(e.target.files?.[0] || null)}/>
+                  {file && <div className="text-xs text-muted-foreground mt-1">{file.name} · {Math.round(file.size/1024)}KB · {file.type}</div>}
+                  {required && !file && <div className="text-xs text-destructive mt-1">صورة التحويل إجبارية لـ {srcDef?.label}</div>}
+                </>;
+              })()}
             </div>
             <div className="md:col-span-2 text-xs text-muted-foreground border rounded p-2 bg-muted/30">
-              ملاحظة: لا تؤثر هذه الحركة على الرصيد إلا بعد الاعتماد. الحركات ≤ 5,000 تُرحَّل تلقائيًا، من 5,000.01 إلى 50,000 اعتماد فردي، أكثر من 50,000 اعتماد مزدوج.
+              ملاحظة: لا تؤثر هذه الحركة على الرصيد إلا بعد الاعتماد. الحركات ≤ 5,000 تُرحَّل تلقائيًا، من 5,000.01 إلى 50,000 اعتماد فردي، أكثر من 50,000 اعتماد مزدوج. تحويلات هايبر هيلثي تيست وكارفور لا يمكن اعتمادها بدون صورة تحويل مرفقة.
             </div>
           </div>
           <DialogFooter>
@@ -758,6 +877,43 @@ export default function BankAccountPanel() {
             <Button variant="ghost" onClick={()=>setTransferDlg(false)} disabled={busy}>إلغاء</Button>
             <Button onClick={submitTransfer} disabled={busy} className="bg-[hsl(142_71%_36%)] hover:bg-[hsl(142_71%_30%)] text-white">
               {busy ? "جارٍ الحفظ…" : "تسجيل طلب الإيداع"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Change Attachment Dialog */}
+      <Dialog open={changeAttachDlg.open} onOpenChange={o=>!o && setChangeAttachDlg({ open:false, reason:"", file:null })}>
+        <DialogContent dir="rtl">
+          <DialogHeader><DialogTitle>تغيير صورة التحويل — {changeAttachDlg.txn?.reference_no}</DialogTitle></DialogHeader>
+          <div className="grid gap-3">
+            {changeAttachDlg.txn?.attachment_url && (
+              <Button variant="outline" size="sm" className="gap-1" onClick={async ()=>{
+                const u = await getAttachmentUrl(changeAttachDlg.txn!.attachment_url!); if (u) window.open(u, "_blank");
+              }}><Paperclip className="h-4 w-4"/>عرض الصورة الحالية</Button>
+            )}
+            <div>
+              <Label>صورة جديدة (JPG / PNG / PDF) *</Label>
+              <Input type="file" accept="image/jpeg,image/png,image/jpg,application/pdf"
+                onChange={e=>setChangeAttachDlg({...changeAttachDlg, file:e.target.files?.[0]||null})}/>
+              {changeAttachDlg.file && <div className="text-xs text-muted-foreground mt-1">{changeAttachDlg.file.name} · {Math.round(changeAttachDlg.file.size/1024)}KB</div>}
+            </div>
+            {changeAttachDlg.txn?.status === "posted" && (
+              <div>
+                <Label>سبب التغيير (إجباري بعد الاعتماد) *</Label>
+                <Textarea value={changeAttachDlg.reason} onChange={e=>setChangeAttachDlg({...changeAttachDlg, reason:e.target.value})}/>
+                <div className="text-xs text-muted-foreground mt-1">سيُسجَّل السبب في Audit Log.</div>
+              </div>
+            )}
+            {changeAttachDlg.txn?.status === "posted" && !isApprover && (
+              <div className="text-sm text-destructive border rounded p-2">لا يمكن تغيير صورة حركة معتمدة إلا من قِبل الإدارة.</div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={()=>setChangeAttachDlg({ open:false, reason:"", file:null })} disabled={busy}>إلغاء</Button>
+            <Button onClick={submitChangeAttachment}
+              disabled={busy || !changeAttachDlg.file || (changeAttachDlg.txn?.status === "posted" && !isApprover)}>
+              {busy ? "جارٍ الحفظ…" : "حفظ الصورة الجديدة"}
             </Button>
           </DialogFooter>
         </DialogContent>
