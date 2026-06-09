@@ -76,7 +76,7 @@ const roleLabels: Record<AppRole, string> = {
   feed_factory_manager: 'مدير مصنع الأعلاف',
   hr_manager: 'مدير الموارد البشرية',
   production_manager: 'مدير الإنتاج والتشغيل',
-  marketing_sales_manager: 'مدير التسويق والمبيعات',
+  marketing_sales_manager: 'مدير المبيعات',
   financial_manager: 'المدير المالي',
   quality_manager: 'مدير الجودة',
   shipping_company: 'شركة الشحن',
