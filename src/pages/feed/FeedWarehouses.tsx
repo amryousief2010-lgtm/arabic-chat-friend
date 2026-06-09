@@ -855,6 +855,7 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
   const [salesperson, setSalesperson] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<string>("cash");
   const [destinationType, setDestinationType] = useState<"external_customer" | "brooding_feed_store" | "slaughterhouse_feed_store">("external_customer");
   const [lines, setLines] = useState<SaleLine[]>([newSaleLine()]);
   const [saving, setSaving] = useState(false);
