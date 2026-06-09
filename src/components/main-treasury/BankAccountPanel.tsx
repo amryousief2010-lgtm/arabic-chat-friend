@@ -673,6 +673,64 @@ export default function BankAccountPanel() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Cash → Bank Transfer Dialog */}
+      <Dialog open={transferDlg} onOpenChange={setTransferDlg}>
+        <DialogContent dir="rtl" className="max-w-3xl">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><ArrowRightLeft className="h-5 w-5"/>إيداع من الخزنة النقدية إلى الحساب البنكي</DialogTitle></DialogHeader>
+          <div className="grid md:grid-cols-2 gap-3">
+            <div><Label>التاريخ *</Label><Input type="date" value={transferForm.txn_date} onChange={e=>setTransferForm({...transferForm,txn_date:e.target.value})}/></div>
+            <div><Label>المبلغ *</Label><Input type="number" min="0.01" step="0.01" value={transferForm.amount} onChange={e=>setTransferForm({...transferForm,amount:e.target.value})}/></div>
+            <div><Label>الخزنة النقدية المصدر *</Label>
+              <Select value={transferForm.cash_account_id} onValueChange={v=>setTransferForm({...transferForm,cash_account_id:v})}>
+                <SelectTrigger><SelectValue placeholder="اختر…"/></SelectTrigger>
+                <SelectContent>{accounts.filter(a=>a.account_type==="cash").map(a=><SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div><Label>الحساب البنكي المستلم *</Label>
+              <Select value={transferForm.bank_account_id} onValueChange={v=>{
+                const acc = accounts.find(a => a.id === v);
+                setTransferForm({...transferForm, bank_account_id:v,
+                  bank_name: acc?.bank_name || transferForm.bank_name,
+                  bank_account_number: acc?.account_number || transferForm.bank_account_number });
+              }}>
+                <SelectTrigger><SelectValue placeholder="اختر…"/></SelectTrigger>
+                <SelectContent>{accounts.filter(a=>a.account_type==="bank").map(a=><SelectItem key={a.id} value={a.id}>{a.name}{a.bank_name?` — ${a.bank_name}`:""}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div><Label>اسم البنك</Label><Input value={transferForm.bank_name} onChange={e=>setTransferForm({...transferForm,bank_name:e.target.value})}/></div>
+            <div><Label>رقم الحساب</Label><Input value={transferForm.bank_account_number} onChange={e=>setTransferForm({...transferForm,bank_account_number:e.target.value})}/></div>
+            <div><Label>سبب الإيداع *</Label>
+              <Select value={transferForm.deposit_purpose} onValueChange={v=>setTransferForm({...transferForm,deposit_purpose:v as any})}>
+                <SelectTrigger><SelectValue/></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="loan_installment">تغطية قسط قرض</SelectItem>
+                  <SelectItem value="bank_fees">تغطية مصروف بنكي</SelectItem>
+                  <SelectItem value="general">إيداع عام</SelectItem>
+                  <SelectItem value="other">أخرى</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label>اسم المستلم من الخزنة *</Label><Input value={transferForm.cash_handover_by} onChange={e=>setTransferForm({...transferForm,cash_handover_by:e.target.value})}/></div>
+            <div><Label>اسم المودع في البنك *</Label><Input value={transferForm.bank_depositor_by} onChange={e=>setTransferForm({...transferForm,bank_depositor_by:e.target.value})}/></div>
+            <div className="md:col-span-2"><Label>ملاحظات</Label><Textarea rows={2} value={transferForm.notes} onChange={e=>setTransferForm({...transferForm,notes:e.target.value})}/></div>
+            <div className="md:col-span-2">
+              <Label>مرفق إيصال الإيداع البنكي</Label>
+              <Input type="file" accept="image/*,application/pdf" onChange={e=>setTransferFile(e.target.files?.[0] || null)}/>
+              {transferFile && <div className="text-xs text-muted-foreground mt-1">{transferFile.name}</div>}
+            </div>
+            <div className="md:col-span-2 text-xs text-muted-foreground border rounded p-2 bg-muted/30">
+              تسجَّل حركتان مرتبطتان (خروج من النقدية + دخول للبنك) بمعرّف تحويل واحد. لا يُخصم/يضاف إلا بعد اعتماد المدير المختص. لا يمكنك اعتماد طلب سجلته بنفسك. تكرار الضغط محمي تلقائيًا.
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={()=>setTransferDlg(false)} disabled={busy}>إلغاء</Button>
+            <Button onClick={submitTransfer} disabled={busy} className="bg-[hsl(142_71%_36%)] hover:bg-[hsl(142_71%_30%)] text-white">
+              {busy ? "جارٍ الحفظ…" : "تسجيل طلب الإيداع"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
