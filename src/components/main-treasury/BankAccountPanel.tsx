@@ -339,6 +339,8 @@ export default function BankAccountPanel() {
     (f.status === "all" || t.status === f.status) &&
     (f.category_id === "all" || t.bank_category_id === f.category_id) &&
     (f.bank_name === "all" || (accounts.find(a => a.id === t.account_id)?.bank_name || "") === f.bank_name) &&
+    (f.incoming_source === "all" || t.incoming_source === f.incoming_source) &&
+    (!f.missing_attachment || (!t.attachment_url && t.txn_type === "bank_deposit")) &&
     (!f.from || t.txn_date >= f.from) &&
     (!f.to || t.txn_date <= f.to)
   ), [bankTxns, f, accounts]);
