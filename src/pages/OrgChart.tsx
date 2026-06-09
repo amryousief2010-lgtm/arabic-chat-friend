@@ -315,7 +315,7 @@ const OrgChart = () => {
           icon={Megaphone}
           gradient="from-pink-500 to-pink-700"
           managerName="م/ آلاء حامد"
-          managerTitle="مدير التسويق والمبيعات"
+          managerTitle="مدير المبيعات"
           members={salesTeam}
         />
 
