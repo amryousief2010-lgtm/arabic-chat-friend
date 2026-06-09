@@ -614,6 +614,7 @@ export default function DailyPerformanceAnalysis() {
         </Card>
       )}
     </div>
+    </DashboardLayout>
   );
 }
 
