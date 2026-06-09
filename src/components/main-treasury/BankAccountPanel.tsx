@@ -269,6 +269,15 @@ export default function BankAccountPanel() {
   }, 0);
   const expectedBalance = totalBalance + pendingAmount;
 
+  // Cash → Bank deposits stats (incoming bank legs from internal transfers)
+  const inToday = today();
+  const inMonthStart = monthStart();
+  const cashToBankLegs = bankTxns.filter(t => t.txn_type === "transfer_from_custody");
+  const cashToBankTodayTotal = cashToBankLegs.filter(t => t.status==="posted" && t.txn_date === inToday).reduce((s,t)=>s+Number(t.amount),0);
+  const cashToBankMonthTotal = cashToBankLegs.filter(t => t.status==="posted" && t.txn_date >= inMonthStart).reduce((s,t)=>s+Number(t.amount),0);
+  const cashToBankPending = cashToBankLegs.filter(t => t.status==="pending_approval").reduce((s,t)=>s+Number(t.amount),0);
+  const lastCashToBankReceipt = cashToBankLegs.find(t => !!t.attachment_url)?.attachment_url || null;
+
   // Filtered list for table + reports
   const filtered = useMemo(() => bankTxns.filter(t =>
     (f.account_id === "all" || t.account_id === f.account_id) &&
