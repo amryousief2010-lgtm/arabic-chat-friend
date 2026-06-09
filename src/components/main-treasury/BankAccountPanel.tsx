@@ -404,11 +404,13 @@ export default function BankAccountPanel() {
         <td class="mono">${escapeHtml(t.reference_no)}</td>
         <td>${escapeHtml(t.txn_date)}</td>
         <td>${escapeHtml(TYPE_LBL[t.txn_type]||t.txn_type)}</td>
+        <td>${escapeHtml(t.incoming_source ? (SOURCE_LBL[t.incoming_source]||t.incoming_source) : "—")}</td>
         <td>${escapeHtml(acc?.name||"—")}</td>
         <td class="mono">${fmtNum(t.amount,2)}</td>
         <td>${escapeHtml(cat?.label||"—")}</td>
         <td>${escapeHtml(t.description)}</td>
         <td>${escapeHtml(STATUS_LBL[t.status]||t.status)}</td>
+        <td>${t.attachment_url ? "✓ مرفقة" : "—"}</td>
       </tr>`;
     }).join("");
   }
