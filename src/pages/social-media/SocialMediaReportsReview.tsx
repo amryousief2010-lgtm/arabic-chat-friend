@@ -65,6 +65,11 @@ export default function SocialMediaReportsReview() {
     row: any;
     notes: string;
   } | null>(null);
+  const [attachmentUrl, setAttachmentUrl] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    kind: "daily" | "weekly";
+    row: any;
+  } | null>(null);
 
   const load = async () => {
     setLoading(true);
