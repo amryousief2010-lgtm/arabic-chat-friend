@@ -14,8 +14,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Wallet, Plus, Printer, CheckCircle2, XCircle, ArrowDownToLine, ArrowUpFromLine, Send, ShieldCheck, AlertTriangle, Banknote, Building2, Smartphone } from "lucide-react";
+import { Wallet, Plus, Printer, CheckCircle2, XCircle, ArrowDownToLine, ArrowUpFromLine, Send, ShieldCheck, AlertTriangle, Banknote, Building2, Smartphone, FileDown, History } from "lucide-react";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate } from "@/lib/printPdf";
+import * as XLSX from "xlsx";
 import BankAccountPanel from "@/components/main-treasury/BankAccountPanel";
 
 type Account = { id: string; name: string; account_type: "cash"|"bank"|"wallet"; bank_name: string|null; opening_balance: number; is_active: boolean };
@@ -32,6 +33,11 @@ type CustodyTransfer = { id: string; main_txn_id: string; custody_keeper_id: str
 const TYPE_LBL: Record<string,string> = {
   deposit: "إيداع", withdrawal: "سحب", expense: "مصروف",
   transfer_to_custody: "تحويل لخزنة العهدة", adjustment: "تسوية",
+  bank_deposit: "إيداع بنكي", bank_withdrawal: "سحب بنكي",
+  loan_installment: "قسط قرض", bank_fees: "رسوم بنكية",
+  transfer_to_bank: "تحويل من النقدية إلى البنك",
+  transfer_from_custody: "تحويل واصل من النقدية", transfer_to_sub_treasury: "تحويل لخزنة فرعية",
+  settlement: "تسوية بنكية", balance_correction: "تصحيح رصيد",
 };
 const STATUS_LBL: Record<string,string> = {
   draft: "مسودة", pending_approval: "بانتظار الاعتماد", approved: "معتمد جزئياً",
@@ -69,19 +75,24 @@ export default function MainTreasury() {
   const [newAccount, setNewAccount] = useState({ name:"", account_type:"cash" as Account["account_type"], bank_name:"", opening_balance:"" });
   const [rejectDlg, setRejectDlg] = useState<{open:boolean; txn?:Txn; reason:string}>({ open:false, reason:"" });
   const [editOpenBal, setEditOpenBal] = useState<{open:boolean; account?:Account; value:string}>({ open:false, value:"" });
-  const [logFilter, setLogFilter] = useState({ account_id: "all", txn_type: "all", status: "all", from: "", to: "" });
+  const [logFilter, setLogFilter] = useState({ account_id: "all", txn_type: "all", status: "all", from: "", to: "", search: "" });
   const [busy, setBusy] = useState(false);
+  const [txnUuid, setTxnUuid] = useState<string>(() => crypto.randomUUID());
+  const [transferUuid, setTransferUuid] = useState<string>(() => crypto.randomUUID());
+  const [auditLog, setAuditLog] = useState<Array<{id:string;txn_id:string|null;action:string;old_status:string|null;new_status:string|null;performed_at:string;performed_by:string;details:any}>>([]);
 
   async function fetchAll() {
     setLoading(true);
-    const [a, b, c, t, k, x] = await Promise.all([
+    const [a, b, c, t, k, x, al] = await Promise.all([
       (supabase as any).from("main_treasury_accounts").select("*").eq("is_active", true).order("created_at"),
       (supabase as any).from("v_main_treasury_balance").select("*"),
       (supabase as any).from("main_treasury_expense_categories").select("id,code,label").eq("is_active", true).order("sort_order"),
       (supabase as any).from("main_treasury_transactions").select("*").order("created_at", { ascending: false }).limit(500),
       (supabase as any).from("user_roles").select("user_id, profiles:profiles!user_roles_user_id_fkey(full_name)").eq("role", "slaughterhouse_custody_keeper"),
       (supabase as any).from("main_treasury_to_custody_transfers").select("*").order("created_at", { ascending: false }).limit(200),
+      (supabase as any).from("main_treasury_audit_log").select("*").order("performed_at", { ascending: false }).limit(300),
     ]);
+    setAuditLog(al.data || []);
     if (a.error) toast.error("حسابات: "+a.error.message);
     setAccounts(a.data || []);
     setBalances(b.data || []);
@@ -124,12 +135,17 @@ export default function MainTreasury() {
       account_id: txnForm.account_id, txn_type: txnForm.txn_type, amount: amt,
       txn_date: txnForm.txn_date, category_id: txnForm.category_id || null,
       counterparty: txnForm.counterparty || null, description: txnForm.description,
+      client_uuid: txnUuid,
       created_by: user!.id,
     });
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) {
+      if ((error as any).code === "23505") return toast.error("هذه المعاملة مسجلة بالفعل (تم منع التكرار)");
+      return toast.error(error.message);
+    }
     toast.success("تم التسجيل — حسب القيمة قد تحتاج اعتماد");
     setTxnForm({ ...txnForm, amount: "", counterparty: "", description: "", category_id: "" });
+    setTxnUuid(crypto.randomUUID());
     fetchAll();
   }
 
@@ -139,15 +155,18 @@ export default function MainTreasury() {
     if (!transferForm.custody_keeper_id) return toast.error("اختر أمين العهدة المستلم");
     if (amt <= 0) return toast.error("المبلغ مطلوب");
     setBusy(true);
-    // 1) Create the txn
     const { data: t, error: e1 } = await (supabase as any).from("main_treasury_transactions").insert({
       account_id: transferForm.account_id, txn_type: "transfer_to_custody",
       amount: amt, txn_date: today(),
       description: `تحويل لخزنة العهدة${transferForm.notes ? " — "+transferForm.notes : ""}`,
+      client_uuid: transferUuid,
       created_by: user!.id,
     }).select("*").single();
-    if (e1) { setBusy(false); return toast.error(e1.message); }
-    // 2) Create the transfer record
+    if (e1) {
+      setBusy(false);
+      if ((e1 as any).code === "23505") return toast.error("هذا التحويل مسجل بالفعل (تم منع التكرار)");
+      return toast.error(e1.message);
+    }
     const { error: e2 } = await (supabase as any).from("main_treasury_to_custody_transfers").insert({
       main_txn_id: t.id, custody_keeper_id: transferForm.custody_keeper_id,
       amount: amt, transfer_date: today(), notes: transferForm.notes || null,
@@ -156,6 +175,7 @@ export default function MainTreasury() {
     if (e2) return toast.error(e2.message);
     toast.success("تم إنشاء التحويل — بانتظار استلام أمين العهدة");
     setTransferForm({ ...transferForm, amount: "", notes: "" });
+    setTransferUuid(crypto.randomUUID());
     fetchAll();
   }
 
@@ -330,6 +350,7 @@ export default function MainTreasury() {
           {isApprover && <TabsTrigger value="approve">بانتظار الاعتماد {pendingTxns.length>0 && <Badge className="mr-2">{pendingTxns.length}</Badge>}</TabsTrigger>}
           <TabsTrigger value="log">سجل الحركات</TabsTrigger>
           <TabsTrigger value="transfers">سجل التحويلات</TabsTrigger>
+          <TabsTrigger value="audit">Audit Log</TabsTrigger>
           <TabsTrigger value="settings">إعدادات</TabsTrigger>
         </TabsList>
 
@@ -499,6 +520,32 @@ export default function MainTreasury() {
             </div>
             <div><Label className="text-xs">من تاريخ</Label><Input type="date" value={logFilter.from} onChange={e=>setLogFilter({...logFilter, from:e.target.value})}/></div>
             <div><Label className="text-xs">إلى تاريخ</Label><Input type="date" value={logFilter.to} onChange={e=>setLogFilter({...logFilter, to:e.target.value})}/></div>
+            <div className="md:col-span-3"><Label className="text-xs">بحث (مرجع/وصف/مستفيد)</Label><Input value={logFilter.search} onChange={e=>setLogFilter({...logFilter, search:e.target.value})}/></div>
+            <div className="md:col-span-2 flex items-end gap-2">
+              <Button variant="outline" size="sm" className="gap-1" onClick={()=>{
+                const rows = txns.filter(t =>
+                  (logFilter.account_id === "all" || t.account_id === logFilter.account_id) &&
+                  (logFilter.txn_type === "all" || t.txn_type === logFilter.txn_type) &&
+                  (logFilter.status === "all" || t.status === logFilter.status) &&
+                  (!logFilter.from || t.txn_date >= logFilter.from) &&
+                  (!logFilter.to || t.txn_date <= logFilter.to) &&
+                  (!logFilter.search || `${t.reference_no} ${t.description} ${t.counterparty||""}`.toLowerCase().includes(logFilter.search.toLowerCase()))
+                ).map(t => ({
+                  "المرجع": t.reference_no, "التاريخ": t.txn_date,
+                  "النوع": TYPE_LBL[t.txn_type] || t.txn_type,
+                  "الحساب": accounts.find(a=>a.id===t.account_id)?.name || "",
+                  "المبلغ": Number(t.amount),
+                  "البند": cats.find(c=>c.id===t.category_id)?.label || "",
+                  "المستفيد": t.counterparty || "", "الوصف": t.description,
+                  "الحالة": STATUS_LBL[t.status] || t.status,
+                }));
+                const ws = XLSX.utils.json_to_sheet(rows);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "حركات الخزنة");
+                XLSX.writeFile(wb, `main-treasury-${today()}.xlsx`);
+              }}><FileDown className="h-4 w-4"/>تصدير Excel</Button>
+              <Button variant="outline" size="sm" className="gap-1" onClick={()=>setLogFilter({ account_id:"all", txn_type:"all", status:"all", from:"", to:"", search:"" })}>إعادة ضبط الفلاتر</Button>
+            </div>
           </CardContent></Card>
           <Card><CardContent className="p-0 overflow-x-auto">
             <Table>
@@ -514,7 +561,8 @@ export default function MainTreasury() {
                     (logFilter.txn_type === "all" || t.txn_type === logFilter.txn_type) &&
                     (logFilter.status === "all" || t.status === logFilter.status) &&
                     (!logFilter.from || t.txn_date >= logFilter.from) &&
-                    (!logFilter.to || t.txn_date <= logFilter.to)
+                    (!logFilter.to || t.txn_date <= logFilter.to) &&
+                    (!logFilter.search || `${t.reference_no} ${t.description} ${t.counterparty||""}`.toLowerCase().includes(logFilter.search.toLowerCase()))
                   );
                   if (filtered.length === 0) return <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">لا توجد حركات مطابقة</TableCell></TableRow>;
                   return filtered.map(t => {
@@ -524,7 +572,7 @@ export default function MainTreasury() {
                     <TableRow key={t.id}>
                       <TableCell className="font-mono text-xs">{t.reference_no}</TableCell>
                       <TableCell>{t.txn_date}</TableCell>
-                      <TableCell>{TYPE_LBL[t.txn_type]}</TableCell>
+                      <TableCell>{TYPE_LBL[t.txn_type] || t.txn_type}</TableCell>
                       <TableCell>{acc?.name || "—"}</TableCell>
                       <TableCell className="font-mono font-bold">{fmtNum(t.amount,2)}</TableCell>
                       <TableCell>{cat?.label || "—"}</TableCell>
@@ -567,6 +615,37 @@ export default function MainTreasury() {
               </TableBody>
             </Table>
           </CardContent></Card>
+        </TabsContent>
+
+        {/* Audit Log */}
+        <TabsContent value="audit" className="mt-4">
+          <Card>
+            <CardHeader><CardTitle className="flex items-center gap-2"><History className="h-4 w-4"/>سجل التدقيق (Audit Log)</CardTitle></CardHeader>
+            <CardContent className="p-0 overflow-x-auto">
+              <Table>
+                <TableHeader><TableRow>
+                  <TableHead>الوقت</TableHead><TableHead>الإجراء</TableHead>
+                  <TableHead>من حالة</TableHead><TableHead>إلى حالة</TableHead>
+                  <TableHead>المرجع</TableHead><TableHead>تفاصيل</TableHead>
+                </TableRow></TableHeader>
+                <TableBody>
+                  {auditLog.length === 0
+                    ? <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">لا توجد قيود تدقيق</TableCell></TableRow>
+                    : auditLog.map(l => {
+                        const tx = txns.find(t => t.id === l.txn_id);
+                        return <TableRow key={l.id}>
+                          <TableCell className="text-xs">{fmtDate(l.performed_at)}</TableCell>
+                          <TableCell><Badge variant="outline">{l.action}</Badge></TableCell>
+                          <TableCell className="text-xs">{l.old_status ? (STATUS_LBL[l.old_status]||l.old_status) : "—"}</TableCell>
+                          <TableCell className="text-xs">{l.new_status ? (STATUS_LBL[l.new_status]||l.new_status) : "—"}</TableCell>
+                          <TableCell className="font-mono text-xs">{tx?.reference_no || "—"}</TableCell>
+                          <TableCell className="text-xs max-w-[300px] truncate">{l.details ? JSON.stringify(l.details) : "—"}</TableCell>
+                        </TableRow>;
+                      })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Settings */}

@@ -340,8 +340,8 @@ export default function BankAccountPanel() {
     openPrintWindow(title, body);
   }
 
-  function pdfAll() {
-    const rows = filtered.map(t => {
+  function buildRowsHTML(list: Txn[]) {
+    return list.map(t => {
       const acc = accounts.find(a => a.id === t.account_id);
       const cat = cats.find(c => c.id === t.bank_category_id);
       return `<tr>
@@ -355,7 +355,10 @@ export default function BankAccountPanel() {
         <td>${escapeHtml(STATUS_LBL[t.status]||t.status)}</td>
       </tr>`;
     }).join("");
-    exportPDF("تقرير الحساب البنكي", rows);
+  }
+  function pdfAll() { exportPDF("تقرير الحساب البنكي", buildRowsHTML(filtered)); }
+  function pdfWith(predicate: (t: Txn) => boolean, title: string) {
+    exportPDF(title, buildRowsHTML(bankTxns.filter(predicate)));
   }
 
   async function getAttachmentUrl(path: string) {
@@ -523,14 +526,16 @@ export default function BankAccountPanel() {
                 <TableHead>المرجع</TableHead><TableHead>التاريخ</TableHead><TableHead>النوع</TableHead>
                 <TableHead>الحساب</TableHead><TableHead>المبلغ</TableHead><TableHead>البند</TableHead>
                 <TableHead>طريقة الدفع</TableHead><TableHead>الوصف</TableHead><TableHead>الحالة</TableHead>
-                <TableHead>مرفق</TableHead>
+                <TableHead>مرفق</TableHead><TableHead>إجراء</TableHead>
               </TableRow></TableHeader>
               <TableBody>
                 {filtered.length === 0
-                  ? <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">لا توجد حركات</TableCell></TableRow>
+                  ? <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">لا توجد حركات</TableCell></TableRow>
                   : filtered.map(t => {
                       const acc = accounts.find(a=>a.id===t.account_id);
                       const cat = cats.find(c=>c.id===t.bank_category_id);
+                      const isPending = t.status === "pending_approval";
+                      const isOwn = t.created_by === user?.id;
                       return <TableRow key={t.id}>
                         <TableCell className="font-mono text-xs">{t.reference_no}</TableCell>
                         <TableCell>{t.txn_date}</TableCell>
@@ -544,6 +549,31 @@ export default function BankAccountPanel() {
                         <TableCell>{t.attachment_url
                           ? <Button size="sm" variant="ghost" onClick={async ()=>{ const u = await getAttachmentUrl(t.attachment_url!); if (u) window.open(u, "_blank"); }}><Paperclip className="h-4 w-4"/></Button>
                           : "—"}</TableCell>
+                        <TableCell>
+                          {isPending && isApprover && !isOwn ? (
+                            <div className="flex gap-1">
+                              <Button size="sm" variant="default" disabled={busy} onClick={async ()=>{
+                                setBusy(true);
+                                const { error } = await (supabase as any).rpc("mt_approve_txn", { p_txn_id: t.id });
+                                setBusy(false);
+                                if (error) return toast.error(error.message);
+                                toast.success("تم الاعتماد");
+                                fetchAll();
+                              }}>اعتماد</Button>
+                              <Button size="sm" variant="destructive" disabled={busy} onClick={async ()=>{
+                                const reason = window.prompt("سبب الرفض:");
+                                if (!reason?.trim()) return;
+                                setBusy(true);
+                                const { error } = await (supabase as any).rpc("mt_reject_txn", { p_txn_id: t.id, p_reason: reason });
+                                setBusy(false);
+                                if (error) return toast.error(error.message);
+                                toast.success("تم الرفض");
+                                fetchAll();
+                              }}>رفض</Button>
+                            </div>
+                          ) : isPending && isOwn ? <span className="text-xs text-muted-foreground">لا يمكن اعتماد حركتك بنفسك</span>
+                          : "—"}
+                        </TableCell>
                       </TableRow>;
                     })}
               </TableBody>
@@ -552,18 +582,19 @@ export default function BankAccountPanel() {
         </TabsContent>
 
         <TabsContent value="reports" className="mt-3 grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-          <ReportCard title="تقرير يومي" hint="يعرض حركات اليوم"
-            onPdf={()=>{ setF({...f, from: today(), to: today() }); setTimeout(pdfAll, 50); }} />
-          <ReportCard title="تقرير شهري" hint="يعرض حركات هذا الشهر"
-            onPdf={()=>{ setF({...f, from: monthStart(), to: today() }); setTimeout(pdfAll, 50); }} />
+          <ReportCard title="تقرير يومي" hint="حركات اليوم"
+            onPdf={()=>pdfWith(t=>t.txn_date===today(), "تقرير يومي — الحساب البنكي")} />
+          <ReportCard title="تقرير شهري" hint="حركات هذا الشهر"
+            onPdf={()=>pdfWith(t=>t.txn_date>=monthStart(), "تقرير شهري — الحساب البنكي")} />
           <ReportCard title="تقرير أقساط القرض" hint="كل أقساط القرض المسددة"
-            onPdf={()=>{ setF({...f, txn_type: "loan_installment" }); setTimeout(pdfAll, 50); }} />
+            onPdf={()=>pdfWith(t=>t.txn_type==="loan_installment", "تقرير أقساط القرض")} />
           <ReportCard title="تقرير المصروفات البنكية" hint="مصروفات + رسوم بنكية"
-            onPdf={()=>{ setF({...f, txn_type: "expense" }); setTimeout(pdfAll, 50); }} />
+            onPdf={()=>pdfWith(t=>["expense","bank_fees"].includes(t.txn_type), "تقرير المصروفات البنكية")} />
+          <ReportCard title="تقرير إيداعات الخزنة → البنك" hint="تحويلات داخلية من النقدية"
+            onPdf={()=>pdfWith(t=>t.txn_type==="transfer_from_custody", "تقرير إيداعات الخزنة إلى البنك")} />
           <ReportCard title="تقرير الحركات المعلقة" hint="بانتظار الاعتماد"
-            onPdf={()=>{ setF({...f, status: "pending_approval" }); setTimeout(pdfAll, 50); }} />
-          <ReportCard title="تقرير حسب بند المصروف" hint="استخدم الفلتر أعلاه" onPdf={pdfAll}/>
-          <ReportCard title="تقرير حسب اسم البنك" hint="استخدم الفلتر أعلاه" onPdf={pdfAll}/>
+            onPdf={()=>pdfWith(t=>t.status==="pending_approval", "تقرير الحركات المعلقة — البنك")} />
+          <ReportCard title="تقرير حسب الفلاتر الحالية" hint="يستخدم فلاتر سجل الحركات" onPdf={pdfAll}/>
         </TabsContent>
 
         <TabsContent value="categories" className="mt-3">
