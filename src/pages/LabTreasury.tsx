@@ -27,7 +27,7 @@ import {
   ShieldAlert, ScrollText, AlertTriangle, FileCheck2, Link as LinkIcon, Users, Boxes,
   Sparkles, Activity, Clock, FileText, ArrowRightLeft, Receipt,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { OpeningBalancesPanel, ExternalCollectionsPanel, ExternalSummaryCard, TotalLabFundsCard } from "@/pages/lab-treasury/LabTreasuryExtras";
 import { PremiumStat, HeroSummary, SectionTitle, StatusPill, DashboardSkeleton, EmptyState, ActivityTimeline, getCairoNow } from "@/components/treasury/PremiumUI";
 
