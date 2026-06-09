@@ -1020,6 +1020,21 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
             );
           })}
         </div>
+        {!isInternal && (
+          <div>
+            <Label>طريقة التحصيل</Label>
+            <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cash">نقدي</SelectItem>
+                <SelectItem value="vodafone_cash_ahmed_elgamal">فودافون كاش — أحمد الجمل</SelectItem>
+                <SelectItem value="vodafone_cash_mohamed_shaala">فودافون كاش — محمد شعلة</SelectItem>
+                <SelectItem value="bank_transfer">تحويل بنكي</SelectItem>
+                <SelectItem value="deferred">آجل</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         <div><Label>ملاحظات</Label><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} /></div>
         <div className="text-left text-xl font-bold">الإجمالي: {fmt(total)} ج.م</div>
         <DialogFooter><Button onClick={save} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ الفاتورة"}</Button></DialogFooter>
