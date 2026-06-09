@@ -33,6 +33,11 @@ type CustodyTransfer = { id: string; main_txn_id: string; custody_keeper_id: str
 const TYPE_LBL: Record<string,string> = {
   deposit: "إيداع", withdrawal: "سحب", expense: "مصروف",
   transfer_to_custody: "تحويل لخزنة العهدة", adjustment: "تسوية",
+  bank_deposit: "إيداع بنكي", bank_withdrawal: "سحب بنكي",
+  loan_installment: "قسط قرض", bank_fees: "رسوم بنكية",
+  transfer_to_bank: "تحويل من النقدية إلى البنك",
+  transfer_from_custody: "تحويل واصل من النقدية", transfer_to_sub_treasury: "تحويل لخزنة فرعية",
+  settlement: "تسوية بنكية", balance_correction: "تصحيح رصيد",
 };
 const STATUS_LBL: Record<string,string> = {
   draft: "مسودة", pending_approval: "بانتظار الاعتماد", approved: "معتمد جزئياً",
