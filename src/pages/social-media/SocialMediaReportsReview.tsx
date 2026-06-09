@@ -157,6 +157,42 @@ export default function SocialMediaReportsReview() {
     load();
   };
 
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    const table =
+      deleteTarget.kind === "daily"
+        ? "social_media_daily_reports"
+        : "social_media_weekly_reports";
+    // Remove attachment image if present
+    const path = deleteTarget.row?.complaint_attachment_path;
+    if (path) {
+      await supabase.storage.from("social-media-attachments").remove([path]);
+    }
+    const { error } = await supabase.from(table).delete().eq("id", deleteTarget.row.id);
+    if (error) {
+      toast.error("تعذّر الحذف", { description: error.message });
+      return;
+    }
+    toast.success("تم حذف التقرير");
+    setDeleteTarget(null);
+    load();
+  };
+
+  // Signed URL for complaint attachment in dialog
+  useEffect(() => {
+    const path = editing?.row?.complaint_attachment_path;
+    if (!path) {
+      setAttachmentUrl(null);
+      return;
+    }
+    (async () => {
+      const { data } = await supabase.storage
+        .from("social-media-attachments")
+        .createSignedUrl(path, 3600);
+      setAttachmentUrl(data?.signedUrl ?? null);
+    })();
+  }, [editing?.row?.complaint_attachment_path]);
+
   return (
     <DashboardLayout>
       <div className="space-y-6" dir="rtl">
