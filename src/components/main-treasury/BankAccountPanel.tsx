@@ -755,6 +755,16 @@ export default function BankAccountPanel() {
               <div><Label>رقم القرض *</Label><Input value={form.loan_number} onChange={e=>setForm({...form,loan_number:e.target.value})}/></div>
             )}
 
+            {form.txn_type === "bank_deposit" && (
+              <div className="md:col-span-2 border rounded p-2 bg-primary/5">
+                <Label>مصدر التحويل الوارد *</Label>
+                <Select value={form.incoming_source} onValueChange={v=>setForm({...form,incoming_source:v})}>
+                  <SelectTrigger><SelectValue placeholder="اختر المصدر"/></SelectTrigger>
+                  <SelectContent>{INCOMING_SOURCES.map(s=><SelectItem key={s.value} value={s.value}>{s.label}{s.attachmentRequired?" (صورة إجبارية)":""}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div><Label>اسم البنك / الجهة</Label><Input value={form.counterparty} onChange={e=>setForm({...form,counterparty:e.target.value})}/></div>
             <div><Label>رقم الحساب البنكي</Label><Input value={form.bank_account_number} onChange={e=>setForm({...form,bank_account_number:e.target.value})}/></div>
             <div><Label>طريقة الدفع / الخصم</Label>
@@ -765,12 +775,19 @@ export default function BankAccountPanel() {
             </div>
             <div className="md:col-span-2"><Label>الوصف *</Label><Textarea value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/></div>
             <div className="md:col-span-2">
-              <Label>مرفق (إيصال / صورة)</Label>
-              <Input type="file" accept="image/*,application/pdf" onChange={e=>setFile(e.target.files?.[0] || null)}/>
-              {file && <div className="text-xs text-muted-foreground mt-1">{file.name}</div>}
+              {(() => {
+                const srcDef = INCOMING_SOURCES.find(s=>s.value===form.incoming_source);
+                const required = form.txn_type === "bank_deposit" && !!srcDef?.attachmentRequired;
+                return <>
+                  <Label>صورة التحويل / إيصال التحويل {required && <span className="text-destructive">*</span>}</Label>
+                  <Input type="file" accept="image/jpeg,image/png,image/jpg,application/pdf" onChange={e=>setFile(e.target.files?.[0] || null)}/>
+                  {file && <div className="text-xs text-muted-foreground mt-1">{file.name} · {Math.round(file.size/1024)}KB · {file.type}</div>}
+                  {required && !file && <div className="text-xs text-destructive mt-1">صورة التحويل إجبارية لـ {srcDef?.label}</div>}
+                </>;
+              })()}
             </div>
             <div className="md:col-span-2 text-xs text-muted-foreground border rounded p-2 bg-muted/30">
-              ملاحظة: لا تؤثر هذه الحركة على الرصيد إلا بعد الاعتماد. الحركات ≤ 5,000 تُرحَّل تلقائيًا، من 5,000.01 إلى 50,000 اعتماد فردي، أكثر من 50,000 اعتماد مزدوج.
+              ملاحظة: لا تؤثر هذه الحركة على الرصيد إلا بعد الاعتماد. الحركات ≤ 5,000 تُرحَّل تلقائيًا، من 5,000.01 إلى 50,000 اعتماد فردي، أكثر من 50,000 اعتماد مزدوج. تحويلات هايبر هيلثي تيست وكارفور لا يمكن اعتمادها بدون صورة تحويل مرفقة.
             </div>
           </div>
           <DialogFooter>
