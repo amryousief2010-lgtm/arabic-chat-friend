@@ -40,6 +40,7 @@ const FinancialReports = lazy(() => import("@/pages/FinancialReports"));
 const Orders = lazy(() => import("@/pages/Orders"));
 const Customers = lazy(() => import("@/pages/Customers"));
 const Reports = lazy(() => import("@/pages/Reports"));
+const DailyPerformanceAnalysis = lazy(() => import("@/pages/sales/DailyPerformanceAnalysis"));
 const Settings = lazy(() => import("@/pages/Settings"));
 const Employees = lazy(() => import("@/pages/Employees"));
 const NewOrder = lazy(() => import("@/pages/NewOrder"));
@@ -359,6 +360,11 @@ const AnimatedRoutes = () => {
           <Route path="/reports" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'financial_manager', 'quality_manager']}>
               <PageTransition><Reports /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/sales/daily-performance-analysis" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager', 'financial_manager', 'accountant']}>
+              <PageTransition><DailyPerformanceAnalysis /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/reports/excel-comparison" element={
