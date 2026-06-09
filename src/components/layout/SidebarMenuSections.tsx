@@ -263,6 +263,19 @@ export const moduleSections: ModuleSection[] = [
     ],
   },
   {
+    id: "social-media",
+    icon: Megaphone,
+    label: "11. السوشيال ميديا",
+    roles: ['general_manager', 'executive_manager', 'marketing_sales_manager', 'social_media_manager'],
+    items: [
+      { icon: ShoppingCart, label: "مراجعة الطلبات (قراءة فقط)", path: "/orders", roles: ['social_media_manager'] },
+      { icon: ClipboardList, label: "تقرير السوشيال ميديا اليومي", path: "/social-media/daily", roles: ['general_manager', 'executive_manager', 'marketing_sales_manager', 'social_media_manager'] },
+      { icon: ClipboardList, label: "تقرير السوشيال ميديا الأسبوعي", path: "/social-media/weekly", roles: ['general_manager', 'executive_manager', 'marketing_sales_manager', 'social_media_manager'] },
+      { icon: History, label: "تقاريري السابقة", path: "/social-media/my-reports", roles: ['social_media_manager'] },
+      { icon: ShieldCheck, label: "مراجعة تقارير السوشيال ميديا", path: "/social-media/review", roles: ['general_manager', 'executive_manager', 'marketing_sales_manager'] },
+    ],
+  },
+  {
     id: "system",
     icon: Settings,
     label: "النظام",

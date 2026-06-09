@@ -172,6 +172,10 @@ const PCCollections = lazy(() => import("@/pages/private-courier/Collections"));
 const AiOperationsAssistant = lazy(() => import("@/pages/AiOperationsAssistant"));
 const InternalMessages = lazy(() => import("@/pages/internal-messages/InternalMessages"));
 const InternalMessageDetails = lazy(() => import("@/pages/internal-messages/MessageDetails"));
+const SocialMediaDailyReport = lazy(() => import("@/pages/social-media/SocialMediaDailyReport"));
+const SocialMediaWeeklyReport = lazy(() => import("@/pages/social-media/SocialMediaWeeklyReport"));
+const SocialMediaMyReports = lazy(() => import("@/pages/social-media/SocialMediaMyReports"));
+const SocialMediaReportsReview = lazy(() => import("@/pages/social-media/SocialMediaReportsReview"));
 
 const RedirectWithQuery = ({ to }: { to: string }) => {
   const location = useLocation();
