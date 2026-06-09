@@ -15478,6 +15478,9 @@ export type Database = {
         | "equipment_repair"
         | "fridge_repair"
         | "other"
+        | "fuel"
+        | "sanitation"
+        | "loading"
       slaughter_custody_payment_method:
         | "cash"
         | "vodafone_cash"
@@ -15800,6 +15803,9 @@ export const Constants = {
         "equipment_repair",
         "fridge_repair",
         "other",
+        "fuel",
+        "sanitation",
+        "loading",
       ],
       slaughter_custody_payment_method: [
         "cash",
