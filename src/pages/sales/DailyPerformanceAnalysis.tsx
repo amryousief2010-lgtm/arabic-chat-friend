@@ -449,9 +449,9 @@ export default function DailyPerformanceAnalysis() {
   );
 }
 
-function avgOf<T extends Record<string, number | string>>(arr: T[], key: keyof T): number {
+function avgOf<T>(arr: T[], key: keyof T): number {
   if (!arr.length) return 0;
-  const sum = arr.reduce((s, x) => s + Number(x[key] || 0), 0);
+  const sum = arr.reduce((s, x) => s + Number((x as any)[key] || 0), 0);
   return sum / arr.length;
 }
 
