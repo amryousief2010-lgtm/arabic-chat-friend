@@ -12847,6 +12847,7 @@ export type Database = {
       social_media_daily_reports: {
         Row: {
           additional_notes: string | null
+          complaint_attachment_path: string | null
           created_at: string
           employee_id: string
           employee_name: string
@@ -12866,6 +12867,7 @@ export type Database = {
         }
         Insert: {
           additional_notes?: string | null
+          complaint_attachment_path?: string | null
           created_at?: string
           employee_id: string
           employee_name: string
@@ -12885,6 +12887,7 @@ export type Database = {
         }
         Update: {
           additional_notes?: string | null
+          complaint_attachment_path?: string | null
           created_at?: string
           employee_id?: string
           employee_name?: string

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,20 +10,21 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { ClipboardList, Save, Send, History } from "lucide-react";
+import { ClipboardList, Save, Send, History, Paperclip, X, ImageIcon } from "lucide-react";
 
 type DailyStatus = "draft" | "submitted" | "reviewed";
 
 interface DailyForm {
   id?: string;
   report_date: string;
-  posts_count: number;
-  reels_videos_count: number;
-  interested_customers_count: number;
+  posts_count: string;
+  reels_videos_count: string;
+  interested_customers_count: string;
   top_engaging_content: string;
   issues_or_complaints: string;
   tomorrow_content_suggestions: string;
   additional_notes: string;
+  complaint_attachment_path: string | null;
   status: DailyStatus;
   management_notes?: string | null;
 }
@@ -36,24 +37,33 @@ const statusBadge = (s: DailyStatus) => {
   return <Badge variant="outline">مسودة</Badge>;
 };
 
+const toNum = (s: string) => {
+  const n = parseInt(s, 10);
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+};
+
 export default function SocialMediaDailyReport() {
   const { user, profile, isGeneralManager, isExecutiveManager } = useAuth();
   const canEditDate = isGeneralManager || isExecutiveManager;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [attachmentUrl, setAttachmentUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   const [form, setForm] = useState<DailyForm>({
     report_date: todayISO(),
-    posts_count: 0,
-    reels_videos_count: 0,
-    interested_customers_count: 0,
+    posts_count: "",
+    reels_videos_count: "",
+    interested_customers_count: "",
     top_engaging_content: "",
     issues_or_complaints: "",
     tomorrow_content_suggestions: "",
     additional_notes: "",
+    complaint_attachment_path: null,
     status: "draft",
   });
 
-  // Load today's existing report (if any)
   useEffect(() => {
     if (!user) return;
     (async () => {
@@ -68,31 +78,101 @@ export default function SocialMediaDailyReport() {
         setForm({
           id: data.id,
           report_date: data.report_date,
-          posts_count: data.posts_count,
-          reels_videos_count: data.reels_videos_count,
-          interested_customers_count: data.interested_customers_count,
+          posts_count: String(data.posts_count ?? ""),
+          reels_videos_count: String(data.reels_videos_count ?? ""),
+          interested_customers_count: String(data.interested_customers_count ?? ""),
           top_engaging_content: data.top_engaging_content ?? "",
           issues_or_complaints: data.issues_or_complaints ?? "",
           tomorrow_content_suggestions: data.tomorrow_content_suggestions ?? "",
           additional_notes: data.additional_notes ?? "",
+          complaint_attachment_path: (data as any).complaint_attachment_path ?? null,
           status: data.status as DailyStatus,
           management_notes: data.management_notes,
         });
+      } else {
+        setForm((f) => ({
+          ...f,
+          id: undefined,
+          posts_count: "",
+          reels_videos_count: "",
+          interested_customers_count: "",
+          top_engaging_content: "",
+          issues_or_complaints: "",
+          tomorrow_content_suggestions: "",
+          additional_notes: "",
+          complaint_attachment_path: null,
+          status: "draft",
+          management_notes: null,
+        }));
       }
       setLoading(false);
     })();
   }, [user, form.report_date]);
+
+  // Get signed URL for attachment preview
+  useEffect(() => {
+    if (!form.complaint_attachment_path) {
+      setAttachmentUrl(null);
+      return;
+    }
+    (async () => {
+      const { data } = await supabase.storage
+        .from("social-media-attachments")
+        .createSignedUrl(form.complaint_attachment_path!, 3600);
+      setAttachmentUrl(data?.signedUrl ?? null);
+    })();
+  }, [form.complaint_attachment_path]);
 
   const isLocked = form.status === "reviewed";
 
   const validate = (forSubmit: boolean) => {
     if (forSubmit) {
       if (!form.top_engaging_content.trim()) return "أعلى محتوى في التفاعل مطلوب";
-      if (!form.tomorrow_content_suggestions.trim()) return "اقتراحات محتوى لبكرة مطلوبة";
-      if (form.posts_count < 0 || form.reels_videos_count < 0 || form.interested_customers_count < 0)
-        return "الأرقام يجب ألا تكون سالبة";
+      if (!form.tomorrow_content_suggestions.trim()) return "اقتراحات محتوى غدا مطلوبة";
     }
     return null;
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("يجب اختيار صورة فقط");
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error("حجم الصورة يجب ألا يتجاوز 8 ميجا");
+      return;
+    }
+    setUploadingFile(true);
+    const ext = file.name.split(".").pop() || "jpg";
+    const path = `${user.id}/${form.report_date}-${Date.now()}.${ext}`;
+    const { error } = await supabase.storage
+      .from("social-media-attachments")
+      .upload(path, file, { cacheControl: "3600", upsert: false });
+    setUploadingFile(false);
+    if (error) {
+      toast.error("تعذّر رفع الصورة", { description: error.message });
+      return;
+    }
+    // Remove old attachment if exists
+    if (form.complaint_attachment_path) {
+      await supabase.storage
+        .from("social-media-attachments")
+        .remove([form.complaint_attachment_path]);
+    }
+    setForm((f) => ({ ...f, complaint_attachment_path: path }));
+    toast.success("تم رفع الصورة");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleRemoveAttachment = async () => {
+    if (!form.complaint_attachment_path) return;
+    await supabase.storage
+      .from("social-media-attachments")
+      .remove([form.complaint_attachment_path]);
+    setForm((f) => ({ ...f, complaint_attachment_path: null }));
+    toast.success("تم حذف الصورة");
   };
 
   const save = async (status: DailyStatus) => {
@@ -107,13 +187,14 @@ export default function SocialMediaDailyReport() {
       report_date: form.report_date,
       employee_id: user.id,
       employee_name: profile.full_name || user.email || "",
-      posts_count: form.posts_count,
-      reels_videos_count: form.reels_videos_count,
-      interested_customers_count: form.interested_customers_count,
+      posts_count: toNum(form.posts_count),
+      reels_videos_count: toNum(form.reels_videos_count),
+      interested_customers_count: toNum(form.interested_customers_count),
       top_engaging_content: form.top_engaging_content.trim(),
       issues_or_complaints: form.issues_or_complaints || null,
       tomorrow_content_suggestions: form.tomorrow_content_suggestions.trim(),
       additional_notes: form.additional_notes || null,
+      complaint_attachment_path: form.complaint_attachment_path,
       status,
     };
     const { data, error } = await supabase
@@ -179,21 +260,25 @@ export default function SocialMediaDailyReport() {
                   <Label>عدد البوستات المنشورة *</Label>
                   <Input
                     type="number"
+                    inputMode="numeric"
                     min={0}
+                    placeholder="مثال: 5"
                     value={form.posts_count}
                     disabled={isLocked}
-                    onChange={(e) => setForm((f) => ({ ...f, posts_count: Number(e.target.value) }))}
+                    onChange={(e) => setForm((f) => ({ ...f, posts_count: e.target.value }))}
                   />
                 </div>
                 <div>
                   <Label>عدد الريلز / الفيديوهات *</Label>
                   <Input
                     type="number"
+                    inputMode="numeric"
                     min={0}
+                    placeholder="مثال: 2"
                     value={form.reels_videos_count}
                     disabled={isLocked}
                     onChange={(e) =>
-                      setForm((f) => ({ ...f, reels_videos_count: Number(e.target.value) }))
+                      setForm((f) => ({ ...f, reels_videos_count: e.target.value }))
                     }
                   />
                 </div>
@@ -201,13 +286,15 @@ export default function SocialMediaDailyReport() {
                   <Label>عدد العملاء المهتمين *</Label>
                   <Input
                     type="number"
+                    inputMode="numeric"
                     min={0}
+                    placeholder="مثال: 12"
                     value={form.interested_customers_count}
                     disabled={isLocked}
                     onChange={(e) =>
                       setForm((f) => ({
                         ...f,
-                        interested_customers_count: Number(e.target.value),
+                        interested_customers_count: e.target.value,
                       }))
                     }
                   />
@@ -237,9 +324,64 @@ export default function SocialMediaDailyReport() {
                     }
                     placeholder="ملاحظات من الجمهور (السعر، التوصيل، المنتج، …)"
                   />
+
+                  {/* Optional complaint image attachment */}
+                  <div className="mt-3 space-y-2">
+                    <Label className="flex items-center gap-2 text-sm">
+                      <Paperclip className="w-4 h-4" />
+                      إرفاق صورة الشكوى (اختياري)
+                    </Label>
+                    {form.complaint_attachment_path ? (
+                      <div className="flex items-center gap-3 p-3 rounded-md border bg-muted/30">
+                        <ImageIcon className="w-5 h-5 text-primary" />
+                        <a
+                          href={attachmentUrl ?? "#"}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-sm text-primary underline flex-1 truncate"
+                        >
+                          عرض الصورة المرفقة
+                        </a>
+                        {!isLocked && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleRemoveAttachment}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ) : (
+                      <div>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleFileUpload}
+                          disabled={isLocked || uploadingFile}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={isLocked || uploadingFile}
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          <Paperclip className="w-4 h-4 ml-2" />
+                          {uploadingFile ? "جاري الرفع…" : "إرفاق صورة"}
+                        </Button>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          مثلًا: لقطة شاشة لشكوى عميل (الحد الأقصى 8 ميجا).
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="md:col-span-2">
-                  <Label>اقتراحات محتوى لبكرة *</Label>
+                  <Label>اقتراحات محتوى غدا *</Label>
                   <Textarea
                     rows={3}
                     value={form.tomorrow_content_suggestions}
