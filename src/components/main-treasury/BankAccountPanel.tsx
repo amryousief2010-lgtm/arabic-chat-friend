@@ -388,8 +388,8 @@ export default function BankAccountPanel() {
       </div>
       <table>
         <thead><tr>
-          <th>المرجع</th><th>التاريخ</th><th>النوع</th><th>الحساب</th>
-          <th>المبلغ</th><th>البند</th><th>الوصف</th><th>الحالة</th>
+          <th>المرجع</th><th>التاريخ</th><th>النوع</th><th>المصدر</th><th>الحساب</th>
+          <th>المبلغ</th><th>البند</th><th>الوصف</th><th>الحالة</th><th>صورة</th>
         </tr></thead>
         <tbody>${rowsHTML}</tbody>
       </table>`;
