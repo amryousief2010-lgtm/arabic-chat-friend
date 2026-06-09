@@ -161,7 +161,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
     updateItem(idx, {
       product_id: p.id,
       product_name: p.name,
-      unit_price: Number(newUnit),
+      unit_price: oldItem.is_gift ? 0 : Number(newUnit),
     });
   };
 
