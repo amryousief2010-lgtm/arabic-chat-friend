@@ -45,9 +45,11 @@ const today = () => new Date().toISOString().slice(0,10);
 
 export default function MainTreasury() {
   const { user, roles } = useAuth();
-  const isApprover = roles.some(r => ["main_treasury_approver","general_manager","executive_manager","financial_manager"].includes(r));
-  const isAccountant = roles.includes("main_treasury_accountant");
+  const rs = roles as string[];
+  const isApprover = rs.some(r => ["main_treasury_approver","general_manager","executive_manager","financial_manager"].includes(r));
+  const isAccountant = rs.includes("main_treasury_accountant");
   const canWrite = isApprover || isAccountant;
+
 
   const [loading, setLoading] = useState(true);
   const [accounts, setAccounts] = useState<Account[]>([]);
