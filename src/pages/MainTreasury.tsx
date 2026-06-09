@@ -264,25 +264,46 @@ export default function MainTreasury() {
       <Header title="الخزنة الرئيسية للشركة" subtitle="مجزر — يديرها أ. محمد شعلة • نظام اعتماد مالي رسمي" />
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-        <Card><CardContent className="p-4">
-          <div className="text-xs text-muted-foreground">إجمالي الرصيد الحالي</div>
-          <div className="text-2xl font-bold font-mono text-primary">{fmtNum(totalBalance, 2)} ج</div>
-        </CardContent></Card>
-        <Card><CardContent className="p-4">
-          <div className="text-xs text-muted-foreground">بانتظار الاعتماد</div>
-          <div className="text-2xl font-bold font-mono text-[hsl(var(--warning,38_92%_50%))]">{fmtNum(totalPending, 2)} ج</div>
-          <div className="text-xs">{pendingTxns.length} معاملة</div>
-        </CardContent></Card>
-        <Card><CardContent className="p-4">
-          <div className="text-xs text-muted-foreground">مصروفات الشهر (مُرحّل)</div>
-          <div className="text-2xl font-bold font-mono">{fmtNum(monthExpenses, 2)} ج</div>
-        </CardContent></Card>
-        <Card><CardContent className="p-4">
-          <div className="text-xs text-muted-foreground">تحويلات للعهدة (الشهر)</div>
-          <div className="text-2xl font-bold font-mono">{fmtNum(monthTransfers, 2)} ج</div>
-        </CardContent></Card>
-      </div>
+      {(() => {
+        const cashTotal = balances.filter(b => b.account_type === "cash").reduce((s,b)=>s+Number(b.current_balance||0),0);
+        const bankTotal = balances.filter(b => b.account_type === "bank").reduce((s,b)=>s+Number(b.current_balance||0),0);
+        const bankPending = balances.filter(b => b.account_type === "bank").reduce((s,b)=>s+Number(b.pending_amount||0),0);
+        const m = new Date(); m.setDate(1);
+        const monthBankInstallments = txns.filter(t => t.status==="posted" && t.txn_type==="loan_installment" && new Date(t.txn_date) >= m).reduce((s,t)=>s+Number(t.amount),0);
+        const monthBankExpenses = txns.filter(t => t.status==="posted" && ["expense","bank_fees"].includes(t.txn_type) && new Date(t.txn_date) >= m).reduce((s,t)=>s+Number(t.amount),0);
+        return (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
+            <Card><CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">إجمالي الخزنة الرئيسية</div>
+              <div className="text-2xl font-bold font-mono text-primary">{fmtNum(totalBalance, 2)} ج</div>
+              <div className="text-xs">نقدي + بنك</div>
+            </CardContent></Card>
+            <Card><CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">رصيد النقدية</div>
+              <div className="text-2xl font-bold font-mono">{fmtNum(cashTotal, 2)}</div>
+            </CardContent></Card>
+            <Card><CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">رصيد الحساب البنكي</div>
+              <div className="text-2xl font-bold font-mono text-[hsl(217_91%_60%)]">{fmtNum(bankTotal, 2)}</div>
+              {bankPending > 0 && <div className="text-xs text-[hsl(38_92%_50%)]">معلق: {fmtNum(bankPending,0)}</div>}
+            </CardContent></Card>
+            <Card><CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">أقساط قرض هذا الشهر</div>
+              <div className="text-xl font-bold font-mono">{fmtNum(monthBankInstallments, 2)}</div>
+            </CardContent></Card>
+            <Card><CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">مصروفات بنكية الشهر</div>
+              <div className="text-xl font-bold font-mono">{fmtNum(monthBankExpenses, 2)}</div>
+            </CardContent></Card>
+            <Card><CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">بانتظار الاعتماد</div>
+              <div className="text-xl font-bold font-mono text-[hsl(38_92%_50%)]">{fmtNum(totalPending, 2)}</div>
+              <div className="text-xs">{pendingTxns.length} معاملة</div>
+            </CardContent></Card>
+          </div>
+        );
+      })()}
+
 
       <Tabs defaultValue="dashboard">
         <TabsList className="flex-wrap h-auto">
