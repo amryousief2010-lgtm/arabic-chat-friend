@@ -854,6 +854,12 @@ const AnimatedRoutes = () => {
               <PageTransition><SlaughterhouseCustody /></PageTransition>
             </ProtectedRoute>
           } />
+          <Route path="/main-treasury" element={
+            <ProtectedRoute allowedRoles={['general_manager','executive_manager','financial_manager','main_treasury_accountant' as any,'main_treasury_approver' as any]}>
+              <PageTransition><MainTreasury /></PageTransition>
+            </ProtectedRoute>
+          } />
+
           <Route path="/unauthorized" element={
             <PageTransition><Unauthorized /></PageTransition>
           } />
