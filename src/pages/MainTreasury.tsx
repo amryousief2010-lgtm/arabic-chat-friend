@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { toast } from "sonner";
 import { Wallet, Plus, Printer, CheckCircle2, XCircle, ArrowDownToLine, ArrowUpFromLine, Send, ShieldCheck, AlertTriangle, Banknote, Building2, Smartphone } from "lucide-react";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate } from "@/lib/printPdf";
+import BankAccountPanel from "@/components/main-treasury/BankAccountPanel";
 
 type Account = { id: string; name: string; account_type: "cash"|"bank"|"wallet"; bank_name: string|null; opening_balance: number; is_active: boolean };
 type Balance = { account_id: string; name: string; account_type: string; bank_name: string|null; opening_balance: number; current_balance: number; pending_amount: number; pending_count: number };
@@ -263,29 +264,51 @@ export default function MainTreasury() {
       <Header title="الخزنة الرئيسية للشركة" subtitle="مجزر — يديرها أ. محمد شعلة • نظام اعتماد مالي رسمي" />
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-        <Card><CardContent className="p-4">
-          <div className="text-xs text-muted-foreground">إجمالي الرصيد الحالي</div>
-          <div className="text-2xl font-bold font-mono text-primary">{fmtNum(totalBalance, 2)} ج</div>
-        </CardContent></Card>
-        <Card><CardContent className="p-4">
-          <div className="text-xs text-muted-foreground">بانتظار الاعتماد</div>
-          <div className="text-2xl font-bold font-mono text-[hsl(var(--warning,38_92%_50%))]">{fmtNum(totalPending, 2)} ج</div>
-          <div className="text-xs">{pendingTxns.length} معاملة</div>
-        </CardContent></Card>
-        <Card><CardContent className="p-4">
-          <div className="text-xs text-muted-foreground">مصروفات الشهر (مُرحّل)</div>
-          <div className="text-2xl font-bold font-mono">{fmtNum(monthExpenses, 2)} ج</div>
-        </CardContent></Card>
-        <Card><CardContent className="p-4">
-          <div className="text-xs text-muted-foreground">تحويلات للعهدة (الشهر)</div>
-          <div className="text-2xl font-bold font-mono">{fmtNum(monthTransfers, 2)} ج</div>
-        </CardContent></Card>
-      </div>
+      {(() => {
+        const cashTotal = balances.filter(b => b.account_type === "cash").reduce((s,b)=>s+Number(b.current_balance||0),0);
+        const bankTotal = balances.filter(b => b.account_type === "bank").reduce((s,b)=>s+Number(b.current_balance||0),0);
+        const bankPending = balances.filter(b => b.account_type === "bank").reduce((s,b)=>s+Number(b.pending_amount||0),0);
+        const m = new Date(); m.setDate(1);
+        const monthBankInstallments = txns.filter(t => t.status==="posted" && t.txn_type==="loan_installment" && new Date(t.txn_date) >= m).reduce((s,t)=>s+Number(t.amount),0);
+        const monthBankExpenses = txns.filter(t => t.status==="posted" && ["expense","bank_fees"].includes(t.txn_type) && new Date(t.txn_date) >= m).reduce((s,t)=>s+Number(t.amount),0);
+        return (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
+            <Card><CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">إجمالي الخزنة الرئيسية</div>
+              <div className="text-2xl font-bold font-mono text-primary">{fmtNum(totalBalance, 2)} ج</div>
+              <div className="text-xs">نقدي + بنك</div>
+            </CardContent></Card>
+            <Card><CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">رصيد النقدية</div>
+              <div className="text-2xl font-bold font-mono">{fmtNum(cashTotal, 2)}</div>
+            </CardContent></Card>
+            <Card><CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">رصيد الحساب البنكي</div>
+              <div className="text-2xl font-bold font-mono text-[hsl(217_91%_60%)]">{fmtNum(bankTotal, 2)}</div>
+              {bankPending > 0 && <div className="text-xs text-[hsl(38_92%_50%)]">معلق: {fmtNum(bankPending,0)}</div>}
+            </CardContent></Card>
+            <Card><CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">أقساط قرض هذا الشهر</div>
+              <div className="text-xl font-bold font-mono">{fmtNum(monthBankInstallments, 2)}</div>
+            </CardContent></Card>
+            <Card><CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">مصروفات بنكية الشهر</div>
+              <div className="text-xl font-bold font-mono">{fmtNum(monthBankExpenses, 2)}</div>
+            </CardContent></Card>
+            <Card><CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">بانتظار الاعتماد</div>
+              <div className="text-xl font-bold font-mono text-[hsl(38_92%_50%)]">{fmtNum(totalPending, 2)}</div>
+              <div className="text-xs">{pendingTxns.length} معاملة</div>
+            </CardContent></Card>
+          </div>
+        );
+      })()}
+
 
       <Tabs defaultValue="dashboard">
         <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="dashboard">لوحة الرصيد</TabsTrigger>
+          <TabsTrigger value="bank">الحساب البنكي</TabsTrigger>
           <TabsTrigger value="new">معاملة جديدة</TabsTrigger>
           <TabsTrigger value="transfer">تحويل للعهدة</TabsTrigger>
           {isApprover && <TabsTrigger value="approve">بانتظار الاعتماد {pendingTxns.length>0 && <Badge className="mr-2">{pendingTxns.length}</Badge>}</TabsTrigger>}
@@ -293,6 +316,11 @@ export default function MainTreasury() {
           <TabsTrigger value="transfers">سجل التحويلات</TabsTrigger>
           <TabsTrigger value="settings">إعدادات</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="bank" className="mt-4">
+          <BankAccountPanel />
+        </TabsContent>
+
 
         {/* Dashboard */}
         <TabsContent value="dashboard" className="mt-4 grid md:grid-cols-2 lg:grid-cols-3 gap-3">

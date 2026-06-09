@@ -1,70 +1,75 @@
+# خطة: قسم "الحساب البنكي" داخل الخزنة الرئيسية
 
-# خطة تنفيذ دور مسؤول السوشيال ميديا (social_media_manager)
+النظام الحالي عنده جدول `main_treasury_accounts` بيدعم نوع `bank` بالفعل، وجدول `main_treasury_transactions` بحركات معتمدة (deposit / withdrawal / expense / transfer_to_custody / adjustment) مع موافقة وحماية بعد الاعتماد و audit log. هنبني فوق ده **بدون حذف** أي بيانات أو صلاحيات.
 
-## 1. تعديلات قاعدة البيانات (Migration واحد)
+## ١. قاعدة البيانات (migration واحد)
 
-### إضافة الدور للـ enum
-```sql
-ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'social_media_manager';
-```
+**جدول جديد:** `main_treasury_bank_categories` (بنود مصاريف خاصة بالحساب البنكي)
+- code, label, requires_attachment (bool), notes, is_active, sort_order
+- seed: قسط قرض / رسوم بنكية / مصاريف تحويل / عمولة بنك / فوائد قرض / دفتر شيكات / كشف حساب / مصاريف إدارية / أخرى
 
-### جدول `social_media_daily_reports`
-الحقول الأساسية: `report_date`, `employee_id`, `employee_name`, `posts_count`, `reels_videos_count`, `interested_customers_count`, `top_engaging_content`, `issues_or_complaints`, `tomorrow_content_suggestions`, `additional_notes`, `status` (draft/submitted/reviewed), `management_notes`, `reviewed_by`, `reviewed_at`.
-- Unique: `(employee_id, report_date)`
-- GRANTs + RLS + trigger للـ `updated_at`.
+**توسيع `main_treasury_transactions`:**
+- إضافة أعمدة: `bank_category_id uuid`, `loan_number text`, `bank_account_number text`, `payment_method text`, `client_uuid uuid UNIQUE` (لمنع التكرار)
+- توسيع check على `txn_type` ليشمل القيم الجديدة:
+  `loan_installment`, `bank_fees`, `bank_deposit`, `bank_withdrawal`, `transfer_from_custody`, `transfer_to_sub_treasury`, `settlement`, `balance_correction`
 
-### جدول `social_media_weekly_reports`
-الحقول: `week_start_date`, `week_end_date`, `employee_id`, `employee_name`, نمو المتابعين لـ FB/IG/TikTok/YouTube, `leads_count`, `best_platform`, `best_platform_reason`, `repeated_problems`, `weekly_summary`, `next_week_suggestions`, `additional_notes`, `status`, `management_notes`, `reviewed_by`, `reviewed_at`.
-- Unique: `(employee_id, week_start_date, week_end_date)`
+**تحديث `v_main_treasury_balance`:**
+- الإيداع/الزيادة: `deposit`, `bank_deposit`, `transfer_from_custody`, `settlement` (موجب), `balance_correction`, `adjustment`
+- الخصم: `withdrawal`, `expense`, `bank_withdrawal`, `bank_fees`, `loan_installment`, `transfer_to_custody`, `transfer_to_sub_treasury`
 
-### جدول `social_media_weekly_top_posts`
-- FK لـ `social_media_weekly_reports(id) ON DELETE CASCADE`
-- الحقول: `platform`, `post_title`, `post_url`, `reach_count`, `engagement_count`, `notes`.
+**حقل `bank_category_id`** يُستخدم فقط مع `expense / bank_fees / loan_installment`.
 
-### سياسات RLS
-- **social_media_manager**: INSERT/SELECT/UPDATE للسجلات الخاصة به فقط، والـ UPDATE مشروط بـ `status <> 'reviewed'`. لا DELETE.
-- **general_manager / executive_manager / marketing_sales_manager**: SELECT كامل + UPDATE لحقول المراجعة فقط (نعتمد على has_role).
-- **حماية الطلبات للقراءة فقط لهذا الدور**: لا نضيف أي policy تسمح لـ social_media_manager بـ INSERT/UPDATE/DELETE على `orders` / `order_items` / `customers`. (السياسات الحالية تعتمد على أدوار محددة لا تشمله، لذا الرفض تلقائي.)
-- نضيف policy SELECT للطلبات تسمح لـ social_media_manager بالقراءة فقط.
+**Audit log:** الترايجر الموجود `main_treasury_audit_log` يكفي؛ نضيف تسجيل عند إنشاء/تعطيل بند مصروف بنكي.
 
-## 2. تحديث `useAuth.tsx`
-- إضافة `'social_media_manager'` في `AppRole`.
-- إضافة `isSocialMediaManager`, `canManageSocial` helpers.
-- تعديل `priority` لإدراج الدور.
+## ٢. الصلاحيات
 
-## 3. تحديث `ProtectedRoute.tsx`
-- إضافة قائمة `SOCIAL_MEDIA_ALLOWED_PREFIXES`:
-  `/orders` (قراءة فقط), `/social-media/daily`, `/social-media/weekly`, `/social-media/my-reports`, `/notifications`, `/permissions`, `/auth`, `/install`.
-- redirect target: `/social-media/daily`.
+- المحاسب محمد شعلة عنده دور `main_treasury_accountant` بالفعل → يقدر يسجل ويرفع مرفقات.
+- RLS قاعدة: مينفعش يعتمد حركة سجلها بنفسه (يتم enforcement في `mt_approve_txn` بشرط `created_by <> auth.uid()` — موجود غالبًا، هنتأكد ونضيفه لو ناقص).
+- الاعتماد: `main_treasury_approver` + general/executive/financial manager (زي اللي موجود).
 
-## 4. الصفحات الجديدة (تحت `src/pages/social-media/`)
-1. **`SocialMediaDailyReport.tsx`** — فورم اليومي + قائمة "تقاريري السابقة" + منع التكرار (upsert/check).
-2. **`SocialMediaWeeklyReport.tsx`** — فورم الأسبوعي مع جدول أعلى 5 منشورات + حفظ.
-3. **`SocialMediaMyReports.tsx`** — قائمة موحدة لتقاريرها (يومي/أسبوعي) مع شارة الحالة.
-4. **`SocialMediaReportsReview.tsx`** — للإدارة: تبويبان (يومية/أسبوعية) + فلاتر + اعتماد + ملاحظات.
+## ٣. واجهة المستخدم
 
-## 5. حماية صفحة الطلبات في الواجهة
-- في `src/pages/Orders.tsx`: عند `isSocialMediaManager` نخفي/نعطّل أزرار: إضافة طلب جديد، تعديل، حذف، تغيير الحالة، تصدير. ونعرض شارة "قراءة فقط".
-- اعتمادًا قاعديًا على RLS لرفض أي عملية كتابة.
+داخل `src/pages/MainTreasury.tsx` نضيف تبويب جديد **"الحساب البنكي"**:
 
-## 6. السايد بار (`AppSidebar` / `SidebarMenuSections`)
-- إخفاء كل العناصر لـ social_media_manager ما عدا:
-  - مراجعة الطلبات (`/orders`)
-  - تقرير السوشيال ميديا اليومي
-  - تقرير السوشيال ميديا الأسبوعي
-  - تقاريري السابقة
-- للأدوار الإدارية المعنية: إضافة عنصر "مراجعة تقارير السوشيال ميديا".
+**كروت أعلى الصفحة (لكل حساب بنكي):**
+- الرصيد الحالي / الافتتاحي / الإيداعات / السحوبات / المصروفات البنكية / أقساط القرض المسددة / الرسوم البنكية / الرصيد المتوقع / عدد المعلقة
 
-## 7. التوجيه في `AnimatedRoutes.tsx`
-إضافة المسارات الأربعة الجديدة مع `<ProtectedRoute allowedRoles={...}>`.
+**جدول الحركات البنكية** مع فلاتر: التاريخ، نوع الحركة، الحالة، بند المصروف، اسم البنك.
 
-## 8. إنشاء حساب جنة سامح
-بعد تطبيق الـ migration، يقوم المدير العام بإنشاء الحساب من شاشة الموظفين وتعيين دور `social_media_manager` (أو نضيفه من شاشة الإدارة).
+**أزرار:**
+- "تسجيل حركة بنكية" (Dialog شامل بكل الحقول + رفع مرفق + `client_uuid` للحماية من التكرار)
+- "إنشاء بند مصروف بنكي" (للمحاسب والإدارة)
+- "تصدير PDF" (عبر `openPrintWindow` من `@/lib/printPdf` — Arabic RTL)
+- "تصدير Excel" (عبر `xlsx` المتاحة)
 
-## ملاحظات تقنية
-- جميع الجداول تحصل على `GRANT SELECT, INSERT, UPDATE ON ... TO authenticated; GRANT ALL ... TO service_role;` (بدون DELETE للجميع، يبقى DELETE لـ service_role فقط).
-- استخدام `has_role(auth.uid(), 'role')` في كل السياسات لتفادي recursion.
-- شارات الحالة والـ RTL تتبع الـ design system الحالي (Purple/Orange tokens).
-- لا تعديل على نظام الرسائل الداخلية ولا على `customers` ولا الخزائن لهذا الدور.
+**ملخّص في تبويب "نظرة عامة":**
+- رصيد النقدية / رصيد البنك / الإجمالي / الحركات البنكية المعلقة / أقساط الشهر / المصروفات البنكية للشهر.
 
-هل أبدأ التنفيذ؟
+## ٤. منع التكرار
+
+- عمود `client_uuid UNIQUE` يُولَّد بـ `crypto.randomUUID()` عند فتح الـ Dialog ويُرسل مع الإدخال؛ أي retry بنفس الـ UUID يُرفض من DB.
+- زر الحفظ يُعطَّل أثناء `isSubmitting`.
+
+## ٥. التقارير
+
+تبويب فرعي "تقارير البنك":
+- يومي / شهري / حسب بند المصروف / حسب البنك / المعلقة / أقساط القرض / المصروفات البنكية
+- كل تقرير يدعم تصدير PDF و Excel.
+
+## ٦. ملفات ستُعدَّل/تُنشأ
+
+- migration واحد (جدول + أعمدة + توسيع check + تحديث view + seed).
+- `src/pages/MainTreasury.tsx`: إضافة Tab "الحساب البنكي" + ملخص في النظرة العامة.
+- `src/components/main-treasury/BankAccountPanel.tsx` (جديد)
+- `src/components/main-treasury/BankTxnDialog.tsx` (جديد)
+- `src/components/main-treasury/BankCategoryDialog.tsx` (جديد)
+- `src/components/main-treasury/BankReports.tsx` (جديد)
+- تحديث memory ملف `main-treasury.md`.
+
+## ضمانات
+
+- لا تُحذف أي بيانات أو صلاحيات أو حسابات.
+- خزنة النقدية تظل منفصلة؛ قسط القرض/المصروفات البنكية لا تُخصم إلا من حسابات `account_type='bank'` بعد الاعتماد.
+- كل الحركات تظل تحت نفس workflow الاعتماد الموجود (مع الحدّ المزدوج لو > 50,000).
+
+أأكد وأبدأ التنفيذ؟

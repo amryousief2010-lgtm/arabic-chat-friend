@@ -41,3 +41,13 @@ type: feature
 - مسار: `/main-treasury`
 - صفحة: `src/pages/MainTreasury.tsx`
 - مرئي تحت قسم "5. المجزر" في الـ Sidebar
+
+## قسم الحساب البنكي (Bank Account section)
+- تبويب جديد داخل `/main-treasury` يعرضه `src/components/main-treasury/BankAccountPanel.tsx`
+- جدول جديد `main_treasury_bank_categories` (بنود مصاريف بنكية: loan_installment, bank_fees, transfer_fees, bank_commission, loan_interest, checkbook_fees, statement_fees, admin_bank_fees, other_bank)
+- أعمدة جديدة على `main_treasury_transactions`: `bank_category_id`, `loan_number`, `bank_account_number`, `payment_method`, `client_uuid UNIQUE` (لمنع تكرار الحركة)
+- أنواع حركات إضافية: bank_deposit, bank_withdrawal, loan_installment, bank_fees, transfer_from_custody, transfer_to_sub_treasury, settlement, balance_correction
+- `v_main_treasury_balance` يأخذ في الحسبان الأنواع الجديدة (in/out)
+- `mt_approve_txn` يمنع المعتمد من اعتماد حركة سجلها بنفسه (created_by ≠ auth.uid())
+- مرفقات الحركات في bucket خاص `main-treasury-attachments` (private) — قراءة/رفع لكل من له صلاحية الخزنة الرئيسية
+- لا يخصم قسط القرض من رصيد النقدية أبدًا — فقط من حسابات `account_type='bank'` وبعد الاعتماد
