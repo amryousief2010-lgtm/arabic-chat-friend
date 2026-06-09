@@ -36,6 +36,7 @@ interface EditableItem {
   unit_price: number;
   offer_name?: string | null;
   is_half_kg?: boolean;
+  is_gift?: boolean;
   _deleted?: boolean;
   _original?: { product_id: string | null; quantity: number; unit_price: number };
 }
