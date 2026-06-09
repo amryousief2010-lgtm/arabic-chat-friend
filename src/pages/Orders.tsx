@@ -147,9 +147,11 @@ const isMassUnit = (u?: string) => {
 const formatItemQty = (qty: number, unit?: string): string => {
   const mass = isMassUnit(unit);
   let q = qty;
-  // للوحدات الوزنية لا نطبع لاحقة "ك" قبل اسم المنتج (مثلاً: "نص كفتة" بدلاً من "نص ك كفتة").
-  let suffix = mass ? '' : (unit || '');
-  if (mass && (unit === 'جم' || unit === 'جرام' || unit === 'g')) q = qty / 1000;
+  let suffix = unit || '';
+  if (mass) {
+    suffix = 'ك';
+    if (unit === 'جم' || unit === 'جرام' || unit === 'g') q = qty / 1000;
+  }
   const fractions: Record<string, string> = {
     '0.25': 'ربع',
     '0.5': 'نص',
@@ -164,6 +166,11 @@ const formatItemQty = (qty: number, unit?: string): string => {
   else if (whole > 0 && fracLabel) qtyStr = `${whole} و${fracLabel}`;
   else if (whole === 1 && frac === 0) qtyStr = '';
   else qtyStr = q % 1 === 0 ? String(whole) : String(q);
+
+  // للوحدات الوزنية: نلغى لاحقة "ك" فقط لما الكمية "نص" (مثلاً "نص كفتة")،
+  // أما "1 ك لحمة" أو "2 ك سجق" نخليها زى ما هى.
+  if (mass && whole === 0 && fracLabel === 'نص') suffix = '';
+
 
   if (!suffix) return qtyStr || String(q);
   return qtyStr ? `${qtyStr} ${suffix}` : suffix;
