@@ -287,6 +287,7 @@ export default function MainTreasury() {
       <Tabs defaultValue="dashboard">
         <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="dashboard">لوحة الرصيد</TabsTrigger>
+          <TabsTrigger value="bank">الحساب البنكي</TabsTrigger>
           <TabsTrigger value="new">معاملة جديدة</TabsTrigger>
           <TabsTrigger value="transfer">تحويل للعهدة</TabsTrigger>
           {isApprover && <TabsTrigger value="approve">بانتظار الاعتماد {pendingTxns.length>0 && <Badge className="mr-2">{pendingTxns.length}</Badge>}</TabsTrigger>}
@@ -294,6 +295,11 @@ export default function MainTreasury() {
           <TabsTrigger value="transfers">سجل التحويلات</TabsTrigger>
           <TabsTrigger value="settings">إعدادات</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="bank" className="mt-4">
+          <BankAccountPanel />
+        </TabsContent>
+
 
         {/* Dashboard */}
         <TabsContent value="dashboard" className="mt-4 grid md:grid-cols-2 lg:grid-cols-3 gap-3">
