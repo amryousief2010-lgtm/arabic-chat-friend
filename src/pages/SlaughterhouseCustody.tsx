@@ -156,6 +156,15 @@ export default function SlaughterhouseCustody() {
     if (!form.description.trim()) return toast.error("الوصف مطلوب");
     if (form.category === "other" && form.description.trim().length < 5)
       return toast.error("الوصف التفصيلي إجباري عند اختيار مصروفات أخرى");
+    if (isKeeper && amt > 1500) {
+      const ok = window.confirm(
+        "⚠️ تنبيه: المبلغ المُدخل (" + amt.toLocaleString("ar-EG") + " ج) تجاوز الحد المسموح للمصروف الواحد (1,500 ج).\n\n" +
+        "بالرجاء الرجوع للأستاذ أحمد الجمل قبل تسجيل المصروف باعتبار المصروف متجاوز للحد.\n\n" +
+        "هل تريد المتابعة وتسجيله للمراجعة؟"
+      );
+      if (!ok) return;
+    }
+
     const receipt_url = await uploadReceipt();
     const { error } = await (supabase as any).from("slaughter_custody_expenses").insert({
       expense_date: form.expense_date, category: form.category, description: form.description,
