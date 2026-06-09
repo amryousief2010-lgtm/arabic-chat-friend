@@ -146,16 +146,25 @@ export default function MainTreasury() {
     setTxnUuid(crypto.randomUUID());
     fetchAll();
   }
+
+  async function submitTransfer() {
+    const amt = Number(transferForm.amount || 0);
+    if (!transferForm.account_id) return toast.error("اختر الحساب");
+    if (!transferForm.custody_keeper_id) return toast.error("اختر أمين العهدة المستلم");
+    if (amt <= 0) return toast.error("المبلغ مطلوب");
     setBusy(true);
-    // 1) Create the txn
     const { data: t, error: e1 } = await (supabase as any).from("main_treasury_transactions").insert({
       account_id: transferForm.account_id, txn_type: "transfer_to_custody",
       amount: amt, txn_date: today(),
       description: `تحويل لخزنة العهدة${transferForm.notes ? " — "+transferForm.notes : ""}`,
+      client_uuid: transferUuid,
       created_by: user!.id,
     }).select("*").single();
-    if (e1) { setBusy(false); return toast.error(e1.message); }
-    // 2) Create the transfer record
+    if (e1) {
+      setBusy(false);
+      if ((e1 as any).code === "23505") return toast.error("هذا التحويل مسجل بالفعل (تم منع التكرار)");
+      return toast.error(e1.message);
+    }
     const { error: e2 } = await (supabase as any).from("main_treasury_to_custody_transfers").insert({
       main_txn_id: t.id, custody_keeper_id: transferForm.custody_keeper_id,
       amount: amt, transfer_date: today(), notes: transferForm.notes || null,
@@ -164,6 +173,7 @@ export default function MainTreasury() {
     if (e2) return toast.error(e2.message);
     toast.success("تم إنشاء التحويل — بانتظار استلام أمين العهدة");
     setTransferForm({ ...transferForm, amount: "", notes: "" });
+    setTransferUuid(crypto.randomUUID());
     fetchAll();
   }
 
