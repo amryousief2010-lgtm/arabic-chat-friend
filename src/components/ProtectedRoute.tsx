@@ -77,6 +77,7 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
       // these are expected automatic landings, not real permission errors.
       const isSilentLanding =
         (role === 'private_delivery_rep') ||
+        (role === 'social_media_manager') ||
         (role === 'sales_moderator' && (location.pathname === '/' || location.pathname.startsWith('/dashboard')));
       if (isSilentLanding) return;
       const isDashboardAttempt =
