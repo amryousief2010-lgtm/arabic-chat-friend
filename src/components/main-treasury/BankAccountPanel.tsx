@@ -555,18 +555,19 @@ export default function BankAccountPanel() {
         </TabsContent>
 
         <TabsContent value="reports" className="mt-3 grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-          <ReportCard title="تقرير يومي" hint="يعرض حركات اليوم"
-            onPdf={()=>{ setF({...f, from: today(), to: today() }); setTimeout(pdfAll, 50); }} />
-          <ReportCard title="تقرير شهري" hint="يعرض حركات هذا الشهر"
-            onPdf={()=>{ setF({...f, from: monthStart(), to: today() }); setTimeout(pdfAll, 50); }} />
+          <ReportCard title="تقرير يومي" hint="حركات اليوم"
+            onPdf={()=>pdfWith(t=>t.txn_date===today(), "تقرير يومي — الحساب البنكي")} />
+          <ReportCard title="تقرير شهري" hint="حركات هذا الشهر"
+            onPdf={()=>pdfWith(t=>t.txn_date>=monthStart(), "تقرير شهري — الحساب البنكي")} />
           <ReportCard title="تقرير أقساط القرض" hint="كل أقساط القرض المسددة"
-            onPdf={()=>{ setF({...f, txn_type: "loan_installment" }); setTimeout(pdfAll, 50); }} />
+            onPdf={()=>pdfWith(t=>t.txn_type==="loan_installment", "تقرير أقساط القرض")} />
           <ReportCard title="تقرير المصروفات البنكية" hint="مصروفات + رسوم بنكية"
-            onPdf={()=>{ setF({...f, txn_type: "expense" }); setTimeout(pdfAll, 50); }} />
+            onPdf={()=>pdfWith(t=>["expense","bank_fees"].includes(t.txn_type), "تقرير المصروفات البنكية")} />
+          <ReportCard title="تقرير إيداعات الخزنة → البنك" hint="تحويلات داخلية من النقدية"
+            onPdf={()=>pdfWith(t=>t.txn_type==="transfer_from_custody", "تقرير إيداعات الخزنة إلى البنك")} />
           <ReportCard title="تقرير الحركات المعلقة" hint="بانتظار الاعتماد"
-            onPdf={()=>{ setF({...f, status: "pending_approval" }); setTimeout(pdfAll, 50); }} />
-          <ReportCard title="تقرير حسب بند المصروف" hint="استخدم الفلتر أعلاه" onPdf={pdfAll}/>
-          <ReportCard title="تقرير حسب اسم البنك" hint="استخدم الفلتر أعلاه" onPdf={pdfAll}/>
+            onPdf={()=>pdfWith(t=>t.status==="pending_approval", "تقرير الحركات المعلقة — البنك")} />
+          <ReportCard title="تقرير حسب الفلاتر الحالية" hint="يستخدم فلاتر سجل الحركات" onPdf={pdfAll}/>
         </TabsContent>
 
         <TabsContent value="categories" className="mt-3">
