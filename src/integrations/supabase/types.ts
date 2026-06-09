@@ -6997,6 +6997,300 @@ export type Database = {
         }
         Relationships: []
       }
+      main_treasury_accounts: {
+        Row: {
+          account_number: string | null
+          account_type: string
+          bank_name: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          opening_balance: number
+          opening_date: string
+          updated_at: string
+        }
+        Insert: {
+          account_number?: string | null
+          account_type: string
+          bank_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          opening_balance?: number
+          opening_date?: string
+          updated_at?: string
+        }
+        Update: {
+          account_number?: string | null
+          account_type?: string
+          bank_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          opening_balance?: number
+          opening_date?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      main_treasury_approval_rules: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          max_amount: number | null
+          min_amount: number
+          requires_approval: boolean
+          requires_dual_approval: boolean
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          max_amount?: number | null
+          min_amount: number
+          requires_approval?: boolean
+          requires_dual_approval?: boolean
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          max_amount?: number | null
+          min_amount?: number
+          requires_approval?: boolean
+          requires_dual_approval?: boolean
+        }
+        Relationships: []
+      }
+      main_treasury_audit_log: {
+        Row: {
+          action: string
+          details: Json | null
+          id: string
+          new_status: string | null
+          old_status: string | null
+          performed_at: string
+          performed_by: string
+          txn_id: string | null
+        }
+        Insert: {
+          action: string
+          details?: Json | null
+          id?: string
+          new_status?: string | null
+          old_status?: string | null
+          performed_at?: string
+          performed_by: string
+          txn_id?: string | null
+        }
+        Update: {
+          action?: string
+          details?: Json | null
+          id?: string
+          new_status?: string | null
+          old_status?: string | null
+          performed_at?: string
+          performed_by?: string
+          txn_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "main_treasury_audit_log_txn_id_fkey"
+            columns: ["txn_id"]
+            isOneToOne: false
+            referencedRelation: "main_treasury_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      main_treasury_expense_categories: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          label: string
+          sort_order: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label: string
+          sort_order?: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      main_treasury_to_custody_transfers: {
+        Row: {
+          amount: number
+          created_at: string
+          custody_keeper_id: string
+          id: string
+          main_txn_id: string
+          notes: string | null
+          received_at: string | null
+          received_by: string | null
+          status: string
+          transfer_date: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          custody_keeper_id: string
+          id?: string
+          main_txn_id: string
+          notes?: string | null
+          received_at?: string | null
+          received_by?: string | null
+          status?: string
+          transfer_date?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          custody_keeper_id?: string
+          id?: string
+          main_txn_id?: string
+          notes?: string | null
+          received_at?: string | null
+          received_by?: string | null
+          status?: string
+          transfer_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "main_treasury_to_custody_transfers_main_txn_id_fkey"
+            columns: ["main_txn_id"]
+            isOneToOne: false
+            referencedRelation: "main_treasury_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      main_treasury_transactions: {
+        Row: {
+          account_id: string
+          amount: number
+          approver_1_at: string | null
+          approver_1_id: string | null
+          approver_2_at: string | null
+          approver_2_id: string | null
+          attachment_url: string | null
+          category_id: string | null
+          counterparty: string | null
+          created_at: string
+          created_by: string
+          description: string
+          id: string
+          posted_at: string | null
+          reference_no: string | null
+          rejection_reason: string | null
+          requires_dual_approval: boolean
+          reversed_by_txn_id: string | null
+          status: string
+          txn_date: string
+          txn_type: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          amount: number
+          approver_1_at?: string | null
+          approver_1_id?: string | null
+          approver_2_at?: string | null
+          approver_2_id?: string | null
+          attachment_url?: string | null
+          category_id?: string | null
+          counterparty?: string | null
+          created_at?: string
+          created_by: string
+          description: string
+          id?: string
+          posted_at?: string | null
+          reference_no?: string | null
+          rejection_reason?: string | null
+          requires_dual_approval?: boolean
+          reversed_by_txn_id?: string | null
+          status?: string
+          txn_date?: string
+          txn_type: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          amount?: number
+          approver_1_at?: string | null
+          approver_1_id?: string | null
+          approver_2_at?: string | null
+          approver_2_id?: string | null
+          attachment_url?: string | null
+          category_id?: string | null
+          counterparty?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string
+          id?: string
+          posted_at?: string | null
+          reference_no?: string | null
+          rejection_reason?: string | null
+          requires_dual_approval?: boolean
+          reversed_by_txn_id?: string | null
+          status?: string
+          txn_date?: string
+          txn_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "main_treasury_transactions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "main_treasury_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "main_treasury_transactions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_main_treasury_balance"
+            referencedColumns: ["account_id"]
+          },
+          {
+            foreignKeyName: "main_treasury_transactions_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "main_treasury_expense_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "main_treasury_transactions_reversed_by_txn_id_fkey"
+            columns: ["reversed_by_txn_id"]
+            isOneToOne: false
+            referencedRelation: "main_treasury_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       manager_review_audit: {
         Row: {
           action: string
@@ -13557,6 +13851,20 @@ export type Database = {
         }
         Relationships: []
       }
+      v_main_treasury_balance: {
+        Row: {
+          account_id: string | null
+          account_type: string | null
+          bank_name: string | null
+          current_balance: number | null
+          name: string | null
+          net_movements: number | null
+          opening_balance: number | null
+          pending_amount: number | null
+          pending_count: number | null
+        }
+        Relationships: []
+      }
       v_mother_farm_feed_balance: {
         Row: {
           balance_kg: number | null
@@ -14377,6 +14685,7 @@ export type Database = {
         Args: { p_customer_id: string; p_user_id: string }
         Returns: boolean
       }
+      has_main_treasury_access: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -14419,6 +14728,14 @@ export type Database = {
         Returns: Json
       }
       is_feed_team: { Args: { _user_id: string }; Returns: boolean }
+      is_main_treasury_accountant: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
+      is_main_treasury_approver: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
       is_message_participant: {
         Args: { _message_id: string; _user_id: string }
         Returns: boolean
@@ -14601,6 +14918,93 @@ export type Database = {
           p_task_id: string
         }
         Returns: Json
+      }
+      mt_approve_txn: {
+        Args: { p_txn_id: string }
+        Returns: {
+          account_id: string
+          amount: number
+          approver_1_at: string | null
+          approver_1_id: string | null
+          approver_2_at: string | null
+          approver_2_id: string | null
+          attachment_url: string | null
+          category_id: string | null
+          counterparty: string | null
+          created_at: string
+          created_by: string
+          description: string
+          id: string
+          posted_at: string | null
+          reference_no: string | null
+          rejection_reason: string | null
+          requires_dual_approval: boolean
+          reversed_by_txn_id: string | null
+          status: string
+          txn_date: string
+          txn_type: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "main_treasury_transactions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      mt_receive_custody_transfer: {
+        Args: { p_transfer_id: string }
+        Returns: {
+          amount: number
+          created_at: string
+          custody_keeper_id: string
+          id: string
+          main_txn_id: string
+          notes: string | null
+          received_at: string | null
+          received_by: string | null
+          status: string
+          transfer_date: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "main_treasury_to_custody_transfers"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      mt_reject_txn: {
+        Args: { p_reason: string; p_txn_id: string }
+        Returns: {
+          account_id: string
+          amount: number
+          approver_1_at: string | null
+          approver_1_id: string | null
+          approver_2_at: string | null
+          approver_2_id: string | null
+          attachment_url: string | null
+          category_id: string | null
+          counterparty: string | null
+          created_at: string
+          created_by: string
+          description: string
+          id: string
+          posted_at: string | null
+          reference_no: string | null
+          rejection_reason: string | null
+          requires_dual_approval: boolean
+          reversed_by_txn_id: string | null
+          status: string
+          txn_date: string
+          txn_type: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "main_treasury_transactions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       next_brooding_movement_no: { Args: never; Returns: string }
       next_feed_factory_movement_no: { Args: never; Returns: string }
@@ -14954,6 +15358,8 @@ export type Database = {
         | "lab_external_collector"
         | "lab_treasury_approver"
         | "slaughterhouse_custody_keeper"
+        | "main_treasury_accountant"
+        | "main_treasury_approver"
       brooding_batch_status:
         | "active"
         | "completed"
@@ -15260,6 +15666,8 @@ export const Constants = {
         "lab_external_collector",
         "lab_treasury_approver",
         "slaughterhouse_custody_keeper",
+        "main_treasury_accountant",
+        "main_treasury_approver",
       ],
       brooding_batch_status: [
         "active",
