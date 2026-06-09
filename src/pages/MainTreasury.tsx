@@ -585,6 +585,21 @@ export default function MainTreasury() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={editOpenBal.open} onOpenChange={o => !o && setEditOpenBal({open:false, value:""})}>
+        <DialogContent dir="rtl">
+          <DialogHeader><DialogTitle>تعديل الرصيد الافتتاحي — {editOpenBal.account?.name}</DialogTitle></DialogHeader>
+          <div className="space-y-2">
+            <Label>الرصيد الافتتاحي (ج.م)</Label>
+            <Input type="number" step="0.01" value={editOpenBal.value} onChange={e=>setEditOpenBal({...editOpenBal, value:e.target.value})}/>
+            <div className="text-xs text-muted-foreground">سيتم احتساب الرصيد الحالي = الافتتاحي + كل الحركات المُرحَّلة.</div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={()=>setEditOpenBal({open:false, value:""})}>إلغاء</Button>
+            <Button onClick={saveOpeningBalance} disabled={busy}>حفظ</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
