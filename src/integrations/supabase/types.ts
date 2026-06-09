@@ -7240,11 +7240,14 @@ export type Database = {
           attachment_url: string | null
           bank_account_number: string | null
           bank_category_id: string | null
+          bank_depositor_by: string | null
+          cash_handover_by: string | null
           category_id: string | null
           client_uuid: string | null
           counterparty: string | null
           created_at: string
           created_by: string
+          deposit_purpose: string | null
           description: string
           id: string
           loan_number: string | null
@@ -7255,6 +7258,7 @@ export type Database = {
           requires_dual_approval: boolean
           reversed_by_txn_id: string | null
           status: string
+          transfer_group_id: string | null
           txn_date: string
           txn_type: string
           updated_at: string
@@ -7269,11 +7273,14 @@ export type Database = {
           attachment_url?: string | null
           bank_account_number?: string | null
           bank_category_id?: string | null
+          bank_depositor_by?: string | null
+          cash_handover_by?: string | null
           category_id?: string | null
           client_uuid?: string | null
           counterparty?: string | null
           created_at?: string
           created_by: string
+          deposit_purpose?: string | null
           description: string
           id?: string
           loan_number?: string | null
@@ -7284,6 +7291,7 @@ export type Database = {
           requires_dual_approval?: boolean
           reversed_by_txn_id?: string | null
           status?: string
+          transfer_group_id?: string | null
           txn_date?: string
           txn_type: string
           updated_at?: string
@@ -7298,11 +7306,14 @@ export type Database = {
           attachment_url?: string | null
           bank_account_number?: string | null
           bank_category_id?: string | null
+          bank_depositor_by?: string | null
+          cash_handover_by?: string | null
           category_id?: string | null
           client_uuid?: string | null
           counterparty?: string | null
           created_at?: string
           created_by?: string
+          deposit_purpose?: string | null
           description?: string
           id?: string
           loan_number?: string | null
@@ -7313,6 +7324,7 @@ export type Database = {
           requires_dual_approval?: boolean
           reversed_by_txn_id?: string | null
           status?: string
+          transfer_group_id?: string | null
           txn_date?: string
           txn_type?: string
           updated_at?: string
@@ -15183,6 +15195,10 @@ export type Database = {
         }
         Returns: Json
       }
+      mt_approve_transfer_group: {
+        Args: { p_group_id: string }
+        Returns: number
+      }
       mt_approve_txn: {
         Args: { p_txn_id: string }
         Returns: {
@@ -15195,11 +15211,14 @@ export type Database = {
           attachment_url: string | null
           bank_account_number: string | null
           bank_category_id: string | null
+          bank_depositor_by: string | null
+          cash_handover_by: string | null
           category_id: string | null
           client_uuid: string | null
           counterparty: string | null
           created_at: string
           created_by: string
+          deposit_purpose: string | null
           description: string
           id: string
           loan_number: string | null
@@ -15210,6 +15229,7 @@ export type Database = {
           requires_dual_approval: boolean
           reversed_by_txn_id: string | null
           status: string
+          transfer_group_id: string | null
           txn_date: string
           txn_type: string
           updated_at: string
@@ -15220,6 +15240,23 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      mt_create_cash_to_bank_transfer: {
+        Args: {
+          p_amount: number
+          p_attachment_url: string
+          p_bank_account_id: string
+          p_bank_account_number: string
+          p_bank_depositor_by: string
+          p_bank_name: string
+          p_cash_account_id: string
+          p_cash_handover_by: string
+          p_client_uuid: string
+          p_deposit_purpose: string
+          p_description: string
+          p_txn_date: string
+        }
+        Returns: string
       }
       mt_receive_custody_transfer: {
         Args: { p_transfer_id: string }
@@ -15254,11 +15291,14 @@ export type Database = {
           attachment_url: string | null
           bank_account_number: string | null
           bank_category_id: string | null
+          bank_depositor_by: string | null
+          cash_handover_by: string | null
           category_id: string | null
           client_uuid: string | null
           counterparty: string | null
           created_at: string
           created_by: string
+          deposit_purpose: string | null
           description: string
           id: string
           loan_number: string | null
@@ -15269,6 +15309,7 @@ export type Database = {
           requires_dual_approval: boolean
           reversed_by_txn_id: string | null
           status: string
+          transfer_group_id: string | null
           txn_date: string
           txn_type: string
           updated_at: string

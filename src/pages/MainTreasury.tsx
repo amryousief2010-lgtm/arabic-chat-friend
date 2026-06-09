@@ -271,8 +271,24 @@ export default function MainTreasury() {
         const m = new Date(); m.setDate(1);
         const monthBankInstallments = txns.filter(t => t.status==="posted" && t.txn_type==="loan_installment" && new Date(t.txn_date) >= m).reduce((s,t)=>s+Number(t.amount),0);
         const monthBankExpenses = txns.filter(t => t.status==="posted" && ["expense","bank_fees"].includes(t.txn_type) && new Date(t.txn_date) >= m).reduce((s,t)=>s+Number(t.amount),0);
+        const todayStr = new Date().toISOString().slice(0,10);
+        const cashAccIds = new Set(accounts.filter(a => a.account_type === "cash").map(a => a.id));
+        const toBankLegs = txns.filter(t => t.txn_type === "transfer_to_bank" && cashAccIds.has(t.account_id));
+        const toBankToday = toBankLegs.filter(t => t.status==="posted" && t.txn_date===todayStr).reduce((s,t)=>s+Number(t.amount),0);
+        const toBankMonth = toBankLegs.filter(t => t.status==="posted" && new Date(t.txn_date) >= m).reduce((s,t)=>s+Number(t.amount),0);
+        const toBankPending = toBankLegs.filter(t => t.status==="pending_approval").reduce((s,t)=>s+Number(t.amount),0);
+        const toBankApproved = toBankLegs.filter(t => t.status==="posted").reduce((s,t)=>s+Number(t.amount),0);
         return (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
+            <Card className="lg:col-span-2 border-[hsl(142_71%_36%)]/30 bg-[hsl(142_71%_36%)]/5"><CardContent className="p-4">
+              <div className="text-sm font-bold flex items-center gap-1"><Send className="h-4 w-4"/>تحويلات إلى البنك</div>
+              <div className="grid grid-cols-4 gap-2 mt-2 text-xs">
+                <div><div className="text-muted-foreground">اليوم</div><div className="font-mono font-bold text-sm">{fmtNum(toBankToday,0)}</div></div>
+                <div><div className="text-muted-foreground">الشهر</div><div className="font-mono font-bold text-sm">{fmtNum(toBankMonth,0)}</div></div>
+                <div><div className="text-muted-foreground">معلق</div><div className="font-mono font-bold text-sm text-[hsl(38_92%_50%)]">{fmtNum(toBankPending,0)}</div></div>
+                <div><div className="text-muted-foreground">معتمد</div><div className="font-mono font-bold text-sm text-[hsl(142_71%_36%)]">{fmtNum(toBankApproved,0)}</div></div>
+              </div>
+            </CardContent></Card>
             <Card><CardContent className="p-4">
               <div className="text-xs text-muted-foreground">إجمالي الخزنة الرئيسية</div>
               <div className="text-2xl font-bold font-mono text-primary">{fmtNum(totalBalance, 2)} ج</div>

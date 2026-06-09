@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Building2, FileDown, Printer, Paperclip, Wallet, Banknote, Receipt, RefreshCw } from "lucide-react";
+import { Plus, Building2, FileDown, Printer, Paperclip, Wallet, Banknote, Receipt, RefreshCw, ArrowRightLeft } from "lucide-react";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate } from "@/lib/printPdf";
 import * as XLSX from "xlsx";
 
@@ -94,6 +94,73 @@ export default function BankAccountPanel() {
 
   const emptyCat = { code: "", label: "", requires_attachment: false, notes: "" };
   const [catForm, setCatForm] = useState(emptyCat);
+
+  // Cash → Bank transfer dialog
+  const [transferDlg, setTransferDlg] = useState(false);
+  const emptyTransfer = {
+    cash_account_id: "", bank_account_id: "", amount: "", txn_date: today(),
+    bank_name: "", bank_account_number: "",
+    deposit_purpose: "loan_installment" as "loan_installment"|"bank_fees"|"general"|"other",
+    cash_handover_by: "", bank_depositor_by: "",
+    description: "", notes: "",
+  };
+  const [transferForm, setTransferForm] = useState(emptyTransfer);
+  const [transferFile, setTransferFile] = useState<File | null>(null);
+  const [transferUuid, setTransferUuid] = useState("");
+
+  function openTransferDlg() {
+    const cash = accounts.find(a => a.account_type === "cash");
+    const bank = accounts.find(a => a.account_type === "bank");
+    setTransferForm({ ...emptyTransfer,
+      cash_account_id: cash?.id || "", bank_account_id: bank?.id || "",
+      bank_name: bank?.bank_name || "", bank_account_number: bank?.account_number || "" });
+    setTransferFile(null);
+    setTransferUuid(crypto.randomUUID());
+    setTransferDlg(true);
+  }
+
+  async function submitTransfer() {
+    if (!transferForm.cash_account_id || !transferForm.bank_account_id) return toast.error("اختر الخزنة والحساب البنكي");
+    const amt = Number(transferForm.amount || 0);
+    if (amt <= 0) return toast.error("المبلغ مطلوب");
+    if (!transferForm.cash_handover_by.trim() || !transferForm.bank_depositor_by.trim())
+      return toast.error("اسم المستلم والمودع مطلوبان");
+    setBusy(true);
+    let attachmentPath: string | null = null;
+    if (transferFile) {
+      const ext = transferFile.name.split(".").pop() || "bin";
+      const path = `${user!.id}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+      const { error: upErr } = await (supabase as any).storage.from("main-treasury-attachments")
+        .upload(path, transferFile, { cacheControl: "3600", upsert: false });
+      if (upErr) { setBusy(false); return toast.error("رفع المرفق: " + upErr.message); }
+      attachmentPath = path;
+    }
+    const purposeLbl: Record<string,string> = {
+      loan_installment: "تغطية قسط قرض", bank_fees: "تغطية مصروف بنكي",
+      general: "إيداع عام", other: "أخرى",
+    };
+    const desc = transferForm.description?.trim()
+      || `إيداع من الخزنة إلى البنك — ${purposeLbl[transferForm.deposit_purpose]}` + (transferForm.notes ? ` — ${transferForm.notes}` : "");
+    const { error } = await (supabase as any).rpc("mt_create_cash_to_bank_transfer", {
+      p_cash_account_id: transferForm.cash_account_id,
+      p_bank_account_id: transferForm.bank_account_id,
+      p_amount: amt,
+      p_txn_date: transferForm.txn_date,
+      p_bank_name: transferForm.bank_name || null,
+      p_bank_account_number: transferForm.bank_account_number || null,
+      p_deposit_purpose: transferForm.deposit_purpose,
+      p_cash_handover_by: transferForm.cash_handover_by,
+      p_bank_depositor_by: transferForm.bank_depositor_by,
+      p_attachment_url: attachmentPath,
+      p_description: desc,
+      p_client_uuid: transferUuid,
+    });
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success("تم تسجيل طلب الإيداع — بانتظار اعتماد المدير");
+    setTransferDlg(false);
+    fetchAll();
+  }
 
   async function fetchAll() {
     setLoading(true);
@@ -201,6 +268,15 @@ export default function BankAccountPanel() {
     return s + (dir === "in" ? Number(t.amount) : dir === "out" ? -Number(t.amount) : 0);
   }, 0);
   const expectedBalance = totalBalance + pendingAmount;
+
+  // Cash → Bank deposits stats (incoming bank legs from internal transfers)
+  const inToday = today();
+  const inMonthStart = monthStart();
+  const cashToBankLegs = bankTxns.filter(t => t.txn_type === "transfer_from_custody");
+  const cashToBankTodayTotal = cashToBankLegs.filter(t => t.status==="posted" && t.txn_date === inToday).reduce((s,t)=>s+Number(t.amount),0);
+  const cashToBankMonthTotal = cashToBankLegs.filter(t => t.status==="posted" && t.txn_date >= inMonthStart).reduce((s,t)=>s+Number(t.amount),0);
+  const cashToBankPending = cashToBankLegs.filter(t => t.status==="pending_approval").reduce((s,t)=>s+Number(t.amount),0);
+  const lastCashToBankReceipt = cashToBankLegs.find(t => !!t.attachment_url)?.attachment_url || null;
 
   // Filtered list for table + reports
   const filtered = useMemo(() => bankTxns.filter(t =>
@@ -325,6 +401,22 @@ export default function BankAccountPanel() {
           <div className="text-xs text-muted-foreground">الرسوم والمصاريف البنكية</div>
           <div className="text-xl font-bold font-mono">{fmtNum(totalBankFees,2)}</div>
         </CardContent></Card>
+        <Card className="md:col-span-2 lg:col-span-2 border-primary/30 bg-primary/5"><CardContent className="p-4">
+          <div className="flex items-center justify-between mb-1">
+            <div className="text-sm font-bold flex items-center gap-1"><ArrowRightLeft className="h-4 w-4"/>إيداعات من الخزنة</div>
+            {lastCashToBankReceipt && (
+              <Button size="sm" variant="ghost" className="h-6 px-2"
+                onClick={async ()=>{ const u = await getAttachmentUrl(lastCashToBankReceipt); if (u) window.open(u, "_blank"); }}>
+                <Paperclip className="h-3 w-3"/> آخر إيصال
+              </Button>
+            )}
+          </div>
+          <div className="grid grid-cols-3 gap-2 text-xs">
+            <div><div className="text-muted-foreground">اليوم</div><div className="font-mono font-bold text-base">{fmtNum(cashToBankTodayTotal,0)}</div></div>
+            <div><div className="text-muted-foreground">الشهر</div><div className="font-mono font-bold text-base">{fmtNum(cashToBankMonthTotal,0)}</div></div>
+            <div><div className="text-muted-foreground">معلق</div><div className="font-mono font-bold text-base text-[hsl(38_92%_50%)]">{fmtNum(cashToBankPending,0)}</div></div>
+          </div>
+        </CardContent></Card>
       </div>
 
       {/* Per-account cards */}
@@ -357,6 +449,9 @@ export default function BankAccountPanel() {
       {/* Actions */}
       <div className="flex flex-wrap gap-2">
         <Button onClick={openTxnDlg} className="gap-2" disabled={bankBalances.length===0}><Plus className="h-4 w-4"/>تسجيل حركة بنكية</Button>
+        <Button onClick={openTransferDlg} className="gap-2 bg-[hsl(142_71%_36%)] hover:bg-[hsl(142_71%_30%)] text-white" disabled={bankBalances.length===0 || !accounts.some(a=>a.account_type==='cash')}>
+          <ArrowRightLeft className="h-4 w-4"/>إيداع من الخزنة إلى البنك
+        </Button>
         <Button variant="outline" onClick={()=>setCatDlg(true)} className="gap-2"><Receipt className="h-4 w-4"/>إنشاء بند مصروف</Button>
         <Button variant="outline" onClick={pdfAll} className="gap-2"><Printer className="h-4 w-4"/>تصدير PDF</Button>
         <Button variant="outline" onClick={exportExcel} className="gap-2"><FileDown className="h-4 w-4"/>تصدير Excel</Button>
@@ -575,6 +670,64 @@ export default function BankAccountPanel() {
           <DialogFooter>
             <Button variant="ghost" onClick={()=>setCatDlg(false)} disabled={busy}>إلغاء</Button>
             <Button onClick={submitCategory} disabled={busy}>{busy ? "جارٍ الحفظ…" : "إنشاء البند"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cash → Bank Transfer Dialog */}
+      <Dialog open={transferDlg} onOpenChange={setTransferDlg}>
+        <DialogContent dir="rtl" className="max-w-3xl">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><ArrowRightLeft className="h-5 w-5"/>إيداع من الخزنة النقدية إلى الحساب البنكي</DialogTitle></DialogHeader>
+          <div className="grid md:grid-cols-2 gap-3">
+            <div><Label>التاريخ *</Label><Input type="date" value={transferForm.txn_date} onChange={e=>setTransferForm({...transferForm,txn_date:e.target.value})}/></div>
+            <div><Label>المبلغ *</Label><Input type="number" min="0.01" step="0.01" value={transferForm.amount} onChange={e=>setTransferForm({...transferForm,amount:e.target.value})}/></div>
+            <div><Label>الخزنة النقدية المصدر *</Label>
+              <Select value={transferForm.cash_account_id} onValueChange={v=>setTransferForm({...transferForm,cash_account_id:v})}>
+                <SelectTrigger><SelectValue placeholder="اختر…"/></SelectTrigger>
+                <SelectContent>{accounts.filter(a=>a.account_type==="cash").map(a=><SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div><Label>الحساب البنكي المستلم *</Label>
+              <Select value={transferForm.bank_account_id} onValueChange={v=>{
+                const acc = accounts.find(a => a.id === v);
+                setTransferForm({...transferForm, bank_account_id:v,
+                  bank_name: acc?.bank_name || transferForm.bank_name,
+                  bank_account_number: acc?.account_number || transferForm.bank_account_number });
+              }}>
+                <SelectTrigger><SelectValue placeholder="اختر…"/></SelectTrigger>
+                <SelectContent>{accounts.filter(a=>a.account_type==="bank").map(a=><SelectItem key={a.id} value={a.id}>{a.name}{a.bank_name?` — ${a.bank_name}`:""}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div><Label>اسم البنك</Label><Input value={transferForm.bank_name} onChange={e=>setTransferForm({...transferForm,bank_name:e.target.value})}/></div>
+            <div><Label>رقم الحساب</Label><Input value={transferForm.bank_account_number} onChange={e=>setTransferForm({...transferForm,bank_account_number:e.target.value})}/></div>
+            <div><Label>سبب الإيداع *</Label>
+              <Select value={transferForm.deposit_purpose} onValueChange={v=>setTransferForm({...transferForm,deposit_purpose:v as any})}>
+                <SelectTrigger><SelectValue/></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="loan_installment">تغطية قسط قرض</SelectItem>
+                  <SelectItem value="bank_fees">تغطية مصروف بنكي</SelectItem>
+                  <SelectItem value="general">إيداع عام</SelectItem>
+                  <SelectItem value="other">أخرى</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label>اسم المستلم من الخزنة *</Label><Input value={transferForm.cash_handover_by} onChange={e=>setTransferForm({...transferForm,cash_handover_by:e.target.value})}/></div>
+            <div><Label>اسم المودع في البنك *</Label><Input value={transferForm.bank_depositor_by} onChange={e=>setTransferForm({...transferForm,bank_depositor_by:e.target.value})}/></div>
+            <div className="md:col-span-2"><Label>ملاحظات</Label><Textarea rows={2} value={transferForm.notes} onChange={e=>setTransferForm({...transferForm,notes:e.target.value})}/></div>
+            <div className="md:col-span-2">
+              <Label>مرفق إيصال الإيداع البنكي</Label>
+              <Input type="file" accept="image/*,application/pdf" onChange={e=>setTransferFile(e.target.files?.[0] || null)}/>
+              {transferFile && <div className="text-xs text-muted-foreground mt-1">{transferFile.name}</div>}
+            </div>
+            <div className="md:col-span-2 text-xs text-muted-foreground border rounded p-2 bg-muted/30">
+              تسجَّل حركتان مرتبطتان (خروج من النقدية + دخول للبنك) بمعرّف تحويل واحد. لا يُخصم/يضاف إلا بعد اعتماد المدير المختص. لا يمكنك اعتماد طلب سجلته بنفسك. تكرار الضغط محمي تلقائيًا.
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={()=>setTransferDlg(false)} disabled={busy}>إلغاء</Button>
+            <Button onClick={submitTransfer} disabled={busy} className="bg-[hsl(142_71%_36%)] hover:bg-[hsl(142_71%_30%)] text-white">
+              {busy ? "جارٍ الحفظ…" : "تسجيل طلب الإيداع"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
