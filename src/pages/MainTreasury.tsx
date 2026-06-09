@@ -75,8 +75,11 @@ export default function MainTreasury() {
   const [newAccount, setNewAccount] = useState({ name:"", account_type:"cash" as Account["account_type"], bank_name:"", opening_balance:"" });
   const [rejectDlg, setRejectDlg] = useState<{open:boolean; txn?:Txn; reason:string}>({ open:false, reason:"" });
   const [editOpenBal, setEditOpenBal] = useState<{open:boolean; account?:Account; value:string}>({ open:false, value:"" });
-  const [logFilter, setLogFilter] = useState({ account_id: "all", txn_type: "all", status: "all", from: "", to: "" });
+  const [logFilter, setLogFilter] = useState({ account_id: "all", txn_type: "all", status: "all", from: "", to: "", search: "" });
   const [busy, setBusy] = useState(false);
+  const [txnUuid, setTxnUuid] = useState<string>(() => crypto.randomUUID());
+  const [transferUuid, setTransferUuid] = useState<string>(() => crypto.randomUUID());
+  const [auditLog, setAuditLog] = useState<Array<{id:string;txn_id:string|null;action:string;old_status:string|null;new_status:string|null;performed_at:string;performed_by:string;details:any}>>([]);
 
   async function fetchAll() {
     setLoading(true);
