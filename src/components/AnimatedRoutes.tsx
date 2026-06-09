@@ -158,6 +158,7 @@ const MainWarehouseActivity = lazy(() => import("@/pages/MainWarehouseActivity")
 const LabTreasury = lazy(() => import("@/pages/LabTreasury"));
 const MyLabCollections = lazy(() => import("@/pages/MyLabCollections"));
 const SlaughterhouseCustody = lazy(() => import("@/pages/SlaughterhouseCustody"));
+const MainTreasury = lazy(() => import("@/pages/MainTreasury"));
 const LabHistoricalReceivables = lazy(() => import("@/pages/lab-treasury/HistoricalReceivables"));
 const LabCustomerDebts = lazy(() => import("@/pages/lab-treasury/LabCustomerDebts"));
 const LabCustomerStatement = lazy(() => import("@/pages/lab-treasury/LabCustomerStatement"));
@@ -853,6 +854,12 @@ const AnimatedRoutes = () => {
               <PageTransition><SlaughterhouseCustody /></PageTransition>
             </ProtectedRoute>
           } />
+          <Route path="/main-treasury" element={
+            <ProtectedRoute allowedRoles={['general_manager','executive_manager','financial_manager','main_treasury_accountant' as any,'main_treasury_approver' as any]}>
+              <PageTransition><MainTreasury /></PageTransition>
+            </ProtectedRoute>
+          } />
+
           <Route path="/unauthorized" element={
             <PageTransition><Unauthorized /></PageTransition>
           } />

@@ -1,99 +1,104 @@
-# نظام الرسائل الداخلية (Internal Messages)
 
-نظام رسائل مستقل تمامًا عن نظام الإشعارات الحالي، بدون أي تعديل عليه.
+# الخزنة الرئيسية للشركة — مجزر
 
-## 1. قاعدة البيانات (Migration واحدة)
-
-### جداول جديدة
-
-- `internal_messages` — `sender_id`, `subject`, `body`, `priority` ('normal' | 'important' | 'urgent'), `has_attachments`, `is_deleted`
-- `internal_message_recipients` — `message_id`, `recipient_id`, `read_at`, `archived_at` (UNIQUE على message_id + recipient_id)
-- `internal_message_attachments` — `message_id`, `file_url`, `file_name`, `file_type`, `file_size`, `uploaded_by`
-- `internal_message_replies` — `message_id`, `sender_id`, `body`
-
-كل جدول: `id uuid pk`, `created_at`, GRANT للـ `authenticated` و `service_role`, RLS مُفعّل.
-
-### دالة أمان (لتجنّب Recursion)
-
-```sql
-public.is_message_participant(_message_id uuid, _user_id uuid)
--- TRUE إذا كان المستخدم المرسل أو ضمن المستلمين
-```
-
-### سياسات RLS الأساسية
-
-- **internal_messages**: 
-  - SELECT: `sender_id = auth.uid()` OR `is_message_participant(id, auth.uid())`
-  - INSERT: `sender_id = auth.uid()`
-  - UPDATE (soft delete): المرسل فقط
-- **internal_message_recipients**:
-  - SELECT: للمشاركين في الرسالة فقط
-  - INSERT: المرسل يضيف المستلمين عند الإرسال
-  - UPDATE: `recipient_id = auth.uid()` فقط (للقراءة والأرشفة)
-- **attachments / replies**: SELECT/INSERT للمشاركين فقط، عبر `is_message_participant`
-- **لا استثناء للمدير العام/التنفيذي** — خصوصية كاملة.
-
-### Realtime
-
-تفعيل `supabase_realtime` على الجداول الأربعة.
-
-### Storage
-
-Bucket: `internal-message-attachments` (private). 
-سياسات على `storage.objects`: المرفوع والمشارك في الرسالة يقرأ، المرسل يرفع تحت مسار `{message_id}/...`.
-
-## 2. الواجهة (Frontend)
-
-### مسارات وملفات جديدة
-
-- `src/pages/internal-messages/InternalMessages.tsx` — صفحة بتبويبات (وارد / مرسل / مؤرشف)
-- `src/pages/internal-messages/MessageDetails.tsx` — تفاصيل + ردود + مرفقات
-- `src/components/internal-messages/ComposeMessageDialog.tsx` — فورم رسالة جديدة (متعدد المستلمين + مرفق)
-- `src/components/internal-messages/MessageList.tsx` — قائمة موحدة لكل تبويب
-- `src/components/internal-messages/MessageItem.tsx` — صف رسالة (مرسل/عنوان/مقتطف/أولوية/تاريخ/مرفق)
-- `src/components/internal-messages/RecipientSelector.tsx` — بحث متعدد من `profile_directory` + `user_roles`
-- `src/components/internal-messages/AttachmentUploader.tsx` — رفع صور
-- `src/components/internal-messages/PriorityBadge.tsx`
-- `src/components/internal-messages/NewMessageToast.tsx` — Toast realtime عام داخل التطبيق
-- `src/hooks/useUnreadInternalMessages.tsx` — عداد realtime
-- `src/hooks/useInternalMessageRealtime.tsx` — اشتراك للرسائل الجديدة + إظهار Toast
-
-### تكامل عام
-
-- إضافة Mount لـ `NewMessageToast` في `DashboardLayout` ليعمل في كل الصفحات.
-- `SidebarMenuSections`: عنصر جديد "الرسائل الداخلية" بأيقونة `Mail` + Badge بعدد غير المقروء (يستخدم `useUnreadInternalMessages`).
-- `AnimatedRoutes`: مسارات `/internal-messages` و `/internal-messages/:id`.
-
-### فلاتر صندوق الوارد
-
-أزرار: الكل / غير مقروء / مهم / عاجل (state محلي + استعلام مفلتر).
-
-### سلوك القراءة/الأرشفة
-
-- فتح الرسالة → `UPDATE recipients SET read_at = now() WHERE message_id = ? AND recipient_id = auth.uid() AND read_at IS NULL`.
-- زر "أرشفة" → `archived_at = now()` للمستخدم الحالي فقط.
-- في تبويب "المرسل": عرض حالة كل مستلم (قرأ ✓ / لم يقرأ) من `read_at`.
-
-### الردود (Thread)
-
-تظهر مرتبة زمنيًا أسفل تفاصيل الرسالة، مع مربع كتابة رد. أي مشارك (مرسل أو مستلم) يستطيع الرد.
-
-### Realtime
-
-- اشتراك على `internal_message_recipients` بفلتر `recipient_id=eq.<me>` لتحديث القائمة والعداد فورًا.
-- اشتراك على `internal_messages` لاستخراج بيانات الرسالة الجديدة وعرض Toast (يجلب اسم المرسل من `profile_directory`).
-- اشتراك على `internal_message_replies` داخل صفحة التفاصيل.
-
-## 3. ما لن يُلمس
-
-- جدول `notifications` وكل ما يخصه — كما هو تمامًا.
-- صفحة `Notifications.tsx` و `useUnreadNotifications` — لا تغيير.
-- لا Push Notifications، لا SMS، لا Edge Functions.
-
-## 4. الاختبار اليدوي بعد التنفيذ
-
-سيناريوهات الإرسال متعدد الأدوار، الرفع، Realtime، العداد، الأرشفة الخاصة، الفصل عن صفحة الإشعارات.
+خزنة منفصلة عن خزنة العهدة، يديرها المحاسب **محمد شعلة**، تموّل خزنة العهدة وتدفع المصروفات الكبيرة. كل عملية صرف منها تمر بدورة اعتماد رسمية.
 
 ---
 
-هل أبدأ التنفيذ مباشرة بهذا الشكل؟
+## 1) الأدوار (RBAC)
+
+| الدور | الصلاحية |
+|---|---|
+| `main_treasury_accountant` (محمد شعلة) | إنشاء إيداع/سحب/تحويل/مصروف، طباعة سندات، عرض كل الحركات |
+| `main_treasury_approver` (المدير العام / المالي) | اعتماد أو رفض أي مصروف أو تحويل |
+| `slaughterhouse_custody_keeper` | استلام التحويل الوارد من الخزنة الرئيسية (إثبات استلام) |
+| باقي الأدوار | لا ترى الخزنة الرئيسية |
+
+---
+
+## 2) جداول قاعدة البيانات الجديدة
+
+**أ) `main_treasury_accounts`** — حسابات الخزنة (نقدي / بنك / فودافون كاش …):
+- name, account_type (cash/bank/wallet), bank_name, account_number, opening_balance, is_active
+
+**ب) `main_treasury_transactions`** — سجل الحركات (immutable ledger):
+- account_id, txn_type (deposit / withdrawal / transfer_out / transfer_in / expense)
+- amount, txn_date, reference_no (تلقائي: `MT-2026-000123`)
+- counterparty (المستفيد)، category، description
+- status: `draft → pending_approval → approved → posted` أو `rejected`
+- requested_by, approved_by, approved_at, rejection_reason
+- attachment_url (إيصال)
+- linked_expense_id (لو مرتبط بمصروف اعتمد)
+- linked_custody_transfer_id (لو تحويل لخزنة العهدة)
+
+**ج) `main_treasury_expense_categories`** — بنود المصروفات (إيجار، رواتب، صيانة كبرى، شراء أصول…)
+
+**د) `main_treasury_approval_rules`** — قواعد الاعتماد بالحد:
+- min_amount, max_amount, required_approver_role, requires_dual_approval
+
+**هـ) `main_treasury_to_custody_transfers`** — جسر مع خزنة العهدة:
+- main_txn_id, custody_keeper_id, amount, transfer_date
+- status: `sent → received` (يضغط أمين العهدة استلمت)
+- عند الاستلام يُسجَّل تلقائيًا opening/top-up في `slaughter_custody_opening_balances`
+
+**و) `main_treasury_audit_log`** — كل تغيير حالة (من، متى، لماذا)
+
+**ز) View: `v_main_treasury_balance`** — الرصيد اللحظي لكل حساب = افتتاحي + كل المرحّل (`posted`).
+
+---
+
+## 3) قواعد العمل (Business Rules)
+
+- المحاسب يُنشئ المعاملة ⇒ حالتها `pending_approval` تلقائيًا.
+- أي مصروف **> 5,000 ج** يحتاج اعتماد المدير. (قابل للضبط من جدول `approval_rules`)
+- أي مصروف **> 50,000 ج** يحتاج اعتماد مزدوج (مدير مالي + مدير عام).
+- لا تُخصم من الرصيد إلا بعد `posted` (بعد الاعتماد).
+- لا يمكن **تعديل** أو **حذف** معاملة `approved` أو `posted` — فقط إنشاء قيد عكسي بمبرر.
+- التحويل لخزنة العهدة لا يُسجَّل في رصيد العهدة إلا بعد ضغط أمين العهدة "استلمت" (Double-entry).
+- كل عملية لها **سند رسمي PDF** (سند صرف / سند قبض / إذن تحويل) بالعربية RTL مع توقيعات.
+
+---
+
+## 4) واجهة المستخدم
+
+مسار جديد: `/main-treasury` (مرئي فقط لأدوار الخزنة الرئيسية + الإدارة)
+
+تبويبات:
+1. **لوحة الرصيد** — كل حساب + إجمالي + KPIs (مصروفات الشهر، تحويلات للعهدة، بانتظار الاعتماد)
+2. **إيداع / سحب** — نقدي وبنكي
+3. **مصروف جديد** — مع بند، مستفيد، مرفق إيصال
+4. **تحويل لخزنة العهدة** — يختار المبلغ والأمين المستلم
+5. **بانتظار الاعتماد** (للمعتمد فقط) — قائمة بأزرار اعتماد/رفض مع مبرر
+6. **سجل الحركات** — فلترة بالتاريخ/الحساب/الحالة/البند + تصدير Excel + طباعة كشف
+7. **التقارير** — كشف حساب، تقرير شهري، أعلى بنود الصرف
+8. **الإعدادات** — الحسابات، بنود المصروفات، قواعد الاعتماد
+
+تنبيه واضح أعلى صفحة العهدة عند وصول تحويل بانتظار الاستلام.
+
+---
+
+## 5) الأمان
+
+- RLS صارم: لا أحد يقرأ `main_treasury_*` إلا إذا كان لديه أحد أدوار الخزنة الرئيسية.
+- كل INSERT/UPDATE يمر بـ trigger يسجّل في `main_treasury_audit_log`.
+- المعاملة المعتمدة Immutable عبر trigger يمنع الـ UPDATE على الحقول المالية.
+
+---
+
+## 6) خطوات التنفيذ
+
+1. Migration: الأدوار الجديدة + الجداول + GRANT + RLS + الـ Triggers + View الرصيد.
+2. صفحة `MainTreasury.tsx` + التبويبات الفرعية.
+3. مكوّن `ApprovalQueue` ومكوّن `TransferToCustodyDialog`.
+4. ربط استلام التحويل بصفحة العهدة الحالية (`SlaughterhouseCustody.tsx`).
+5. قالب طباعة سندات الصرف/القبض/التحويل عبر `openPrintWindow`.
+6. إضافة عنصر القائمة الجانبية تحت قسم "المجزر".
+
+---
+
+## أسئلة قبل البدء
+
+1. **المدير المعتمِد** — مين بالضبط يعتمد المصروفات الكبيرة؟ (المدير العام؟ مدير مالي؟ اسم محدد؟)
+2. **حدود الاعتماد** — هل القيم المقترحة مناسبة (5,000 ج اعتماد واحد، 50,000 ج اعتماد مزدوج)؟
+3. **الحسابات** — كم حساب موجود فعلاً؟ (مثلاً: نقدي، بنك CIB، فودافون كاش …) ولو عندك أرصدة افتتاحية ابعتها.
+4. **بنود المصروفات** — تحب أبدأ بقائمة جاهزة (إيجار، رواتب، صيانة، أصول، مرافق، نقل، ضرائب، أخرى) ولا عندك قائمتك؟
