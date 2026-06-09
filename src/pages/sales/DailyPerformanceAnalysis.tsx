@@ -142,81 +142,247 @@ export default function DailyPerformanceAnalysis() {
 
   const handleExportPDF = () => {
     if (!todayKpis || !avgPrev || !plan) return;
-    const dl = delta(todayKpis.sales, avgPrev.sales);
+
+    const dSales = delta(todayKpis.sales, avgPrev.sales);
+    const dOrders = delta(todayKpis.orders, avgPrev.orders);
+    const dAov = delta(todayKpis.avgOrderValue, avgPrev.avgOrderValue);
+    const dCust = delta(todayKpis.customers, avgPrev.customers);
+    const dKg = delta(todayKpis.totalQtyKg, avgPrev.totalQtyKg);
+
+    const arrow = (pct: number, invert = false) => {
+      const up = invert ? pct < 0 : pct > 0;
+      const down = invert ? pct > 0 : pct < 0;
+      if (Math.abs(pct) < 0.5) return `<span class="trend stable">— ${pct.toFixed(1)}%</span>`;
+      if (up) return `<span class="trend up">▲ ${pct.toFixed(1)}%</span>`;
+      if (down) return `<span class="trend down">▼ ${pct.toFixed(1)}%</span>`;
+      return `<span class="trend stable">${pct.toFixed(1)}%</span>`;
+    };
+
+    const kpiRow = (label: string, today: string, prev: string, pct: number, invert = false) =>
+      `<tr><td>${escapeHtml(label)}</td><td class="num">${today}</td><td class="num muted">${prev}</td><td class="num">${arrow(pct, invert)}</td></tr>`;
+
     const compRows = [todayKpis, ...monthKpisList, ...weekdayKpisList]
-      .map((k) => `<tr>
+      .map((k, i) => `<tr class="${i === 0 ? "row-current" : ""}">
         <td>${escapeHtml(k.label)}</td>
         <td>${escapeHtml(k.date)}</td>
+        <td>${escapeHtml(weekdayName(k.date))}</td>
         <td class="num">${fmtNum(k.sales)}</td>
         <td class="num">${fmtNum(k.orders)}</td>
         <td class="num">${fmtNum(Math.round(k.avgOrderValue))}</td>
         <td class="num">${fmtNum(k.customers)}</td>
         <td class="num">${fmtNum(k.cancelled)}</td>
+        <td class="num">${fmtNum(k.totalQtyKg, 1)}</td>
       </tr>`).join("");
-    const prodRows = tProds.map((p) => `<tr>
+
+    const prodRows = tProds.map((p, i) => `<tr>
+      <td class="num">${i + 1}</td>
       <td>${escapeHtml(p.name)}</td>
       <td class="num">${fmtNum(p.qty, 2)}</td>
       <td class="num">${fmtNum(Math.round(p.revenue))}</td>
     </tr>`).join("");
-    const govRows = govs.slice(0, 10).map((g) => `<tr>
+
+    const bottomRows = bProds.map((p, i) => `<tr>
+      <td class="num">${i + 1}</td>
+      <td>${escapeHtml(p.name)}</td>
+      <td class="num">${fmtNum(p.qty, 2)}</td>
+      <td class="num">${fmtNum(Math.round(p.revenue))}</td>
+    </tr>`).join("");
+
+    const govRows = govs.slice(0, 15).map((g, i) => `<tr>
+      <td class="num">${i + 1}</td>
       <td>${escapeHtml(g.name)}</td>
       <td class="num">${fmtNum(g.sales)}</td>
       <td class="num">${fmtNum(g.orders)}</td>
       <td class="num">${fmtNum(Math.round(g.avg))}</td>
     </tr>`).join("");
-    const recRows = recs.map((r) =>
-      `<li><b>${escapeHtml(r.title)}:</b> ${escapeHtml(r.body)}</li>`).join("");
-    openPrintWindow(
-      `تحليل أداء المبيعات اليومي — ${selected}`,
-      `
+
+    const recBadge = (t: string) =>
+      t === "alert" ? `<span class="badge bad">تنبيه</span>` :
+      t === "opportunity" ? `<span class="badge good">فرصة</span>` :
+      `<span class="badge info">إجراء</span>`;
+
+    const recCards = recs.length
+      ? recs.map((r) => `
+        <div class="rec rec-${escapeHtml(r.type)}">
+          <div class="rec-head">${recBadge(r.type)}<b>${escapeHtml(r.title)}</b></div>
+          <div class="rec-body">${escapeHtml(r.body)}</div>
+        </div>`).join("")
+      : `<div class="muted">لا توجد توصيات عاجلة لهذا اليوم.</div>`;
+
+    const overallVerdict =
+      dSales.pct > 5 ? "أداء أعلى من المتوسط — حافظ على الزخم" :
+      dSales.pct < -5 ? "أداء أقل من المتوسط — تحرّك فوري مطلوب" :
+      "أداء مستقر مقارنة بالمتوسط";
+
+    const extraCss = `
+      h2 { page-break-after: avoid; }
+      .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 10px 0 14px; }
+      .kpi-grid .stat { border: 1px solid #e2d6f5; border-radius: 8px; padding: 8px 10px;
+                        background: linear-gradient(180deg,#faf6ff,#fff); }
+      .kpi-grid .stat .k { font-size: 10px; color: #6b7280; }
+      .kpi-grid .stat .v { font-size: 14px; font-weight: 700; color: #4c1d95; margin-top: 2px; }
+      .kpi-grid .stat .t { font-size: 10px; margin-top: 3px; }
+      .trend.up   { color: #047857; font-weight: 700; }
+      .trend.down { color: #b91c1c; font-weight: 700; }
+      .trend.stable { color: #6b7280; }
+      .muted { color: #6b7280; }
+      .row-current { background: #f5edff !important; font-weight: 700; }
+      .row-current td { border-top: 2px solid #6b46c1; border-bottom: 2px solid #6b46c1; }
+      .page-break { page-break-before: always; }
+      .summary-box { border: 1px solid #d8b4fe; background: #faf5ff; border-radius: 8px;
+                     padding: 10px 14px; margin: 8px 0 14px; }
+      .summary-box h3 { margin: 0 0 6px; color: #6b21a8; font-size: 13px; }
+      .summary-box ul { margin: 4px 18px 0; padding: 0; }
+      .summary-box li { margin: 2px 0; font-size: 11px; }
+      .rec-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+      .rec { border: 1px solid #e5e7eb; border-right: 4px solid #6b46c1; border-radius: 6px;
+             padding: 8px 10px; background: #fff; page-break-inside: avoid; }
+      .rec-alert       { border-right-color: #b91c1c; background: #fef2f2; }
+      .rec-opportunity { border-right-color: #047857; background: #ecfdf5; }
+      .rec-action      { border-right-color: #1d4ed8; background: #eff6ff; }
+      .rec-head { display: flex; gap: 6px; align-items: center; margin-bottom: 4px; font-size: 12px; }
+      .rec-body { font-size: 11px; color: #374151; line-height: 1.5; }
+      .badge { display: inline-block; padding: 1px 6px; border-radius: 999px; font-size: 9px;
+               font-weight: 700; color: #fff; }
+      .badge.bad  { background: #b91c1c; }
+      .badge.good { background: #047857; }
+      .badge.info { background: #1d4ed8; }
+      .plan-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+      .plan-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px;
+                   background: #fff; page-break-inside: avoid; }
+      .plan-card h4 { margin: 0 0 6px; font-size: 12px; color: #6b21a8;
+                      border-bottom: 1px dashed #d8b4fe; padding-bottom: 3px; }
+      .plan-card ul { margin: 4px 16px 0; padding: 0; font-size: 10.5px; }
+      .plan-card li { margin: 2px 0; }
+      .targets-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 10px; }
+      .target { border: 1px solid #fcd34d; background: #fffbeb; border-radius: 6px;
+                padding: 6px 8px; text-align: center; }
+      .target .k { font-size: 9px; color: #92400e; }
+      .target .v { font-size: 13px; font-weight: 700; color: #78350f; margin-top: 2px; }
+    `;
+
+    const body = `
       <header>
         <div>
           <h1>${COMPANY_AR}</h1>
           <div class="en">تحليل أداء المبيعات اليومي وخطة الشهر القادم</div>
         </div>
         <div class="meta">
-          <div>اليوم: ${escapeHtml(selected)} (${escapeHtml(weekdayName(selected))})</div>
+          <div><b>اليوم:</b> ${escapeHtml(selected)} (${escapeHtml(weekdayName(selected))})</div>
+          <div><b>تاريخ الإصدار:</b> ${new Date().toLocaleString("ar-EG-u-nu-latn")}</div>
+          <div><b>قاعدة المقارنة:</b> متوسط ${monthKpisList.length} شهور سابقة</div>
         </div>
       </header>
-      <div class="stats">
-        <div class="stat"><div class="k">المبيعات</div><div class="v">${fmtNum(todayKpis.sales)} ج.م</div></div>
-        <div class="stat"><div class="k">الطلبات</div><div class="v">${fmtNum(todayKpis.orders)}</div></div>
-        <div class="stat"><div class="k">متوسط الطلب</div><div class="v">${fmtNum(Math.round(todayKpis.avgOrderValue))} ج.م</div></div>
-        <div class="stat"><div class="k">الفرق عن المتوسط</div><div class="v">${dl.pct.toFixed(1)}%</div></div>
+
+      <h2>الملخّص التنفيذي</h2>
+      <div class="summary-box">
+        <h3>${escapeHtml(overallVerdict)}</h3>
+        <ul>
+          <li><b>المبيعات:</b> ${fmtNum(todayKpis.sales)} ج.م مقابل متوسط ${fmtNum(Math.round(avgPrev.sales))} ج.م — ${arrow(dSales.pct)}</li>
+          <li><b>الطلبات:</b> ${fmtNum(todayKpis.orders)} طلب مقابل ${fmtNum(Math.round(avgPrev.orders))} — ${arrow(dOrders.pct)}</li>
+          <li><b>متوسط الطلب:</b> ${fmtNum(Math.round(todayKpis.avgOrderValue))} ج.م — ${arrow(dAov.pct)}</li>
+          <li><b>العملاء:</b> ${fmtNum(todayKpis.customers)} (${fmtNum(todayKpis.newCustomers)} جديد) — ${arrow(dCust.pct)}</li>
+          <li><b>عدد التوصيات العاجلة:</b> ${fmtNum(recs.length)} — <b>تارجت شهري مقترح:</b> ${fmtNum(plan.monthlyTarget)} ج.م</li>
+        </ul>
       </div>
-      <h2>المقارنات</h2>
+
+      <h2>مؤشرات الأداء الرئيسية (KPIs)</h2>
+      <div class="kpi-grid">
+        <div class="stat"><div class="k">المبيعات</div><div class="v">${fmtNum(todayKpis.sales)} ج.م</div><div class="t">${arrow(dSales.pct)}</div></div>
+        <div class="stat"><div class="k">الطلبات</div><div class="v">${fmtNum(todayKpis.orders)}</div><div class="t">${arrow(dOrders.pct)}</div></div>
+        <div class="stat"><div class="k">متوسط الطلب</div><div class="v">${fmtNum(Math.round(todayKpis.avgOrderValue))} ج.م</div><div class="t">${arrow(dAov.pct)}</div></div>
+        <div class="stat"><div class="k">العملاء</div><div class="v">${fmtNum(todayKpis.customers)}</div><div class="t">${arrow(dCust.pct)}</div></div>
+        <div class="stat"><div class="k">عملاء جدد</div><div class="v">${fmtNum(todayKpis.newCustomers)}</div><div class="t">${arrow(delta(todayKpis.newCustomers, avgPrev.newCustomers).pct)}</div></div>
+        <div class="stat"><div class="k">عملاء متكررون</div><div class="v">${fmtNum(todayKpis.repeatCustomers)}</div><div class="t">${arrow(delta(todayKpis.repeatCustomers, avgPrev.repeatCustomers).pct)}</div></div>
+        <div class="stat"><div class="k">إجمالي الكيلو</div><div class="v">${fmtNum(todayKpis.totalQtyKg, 1)}</div><div class="t">${arrow(dKg.pct)}</div></div>
+        <div class="stat"><div class="k">ملغاة / معلقة</div><div class="v">${fmtNum(todayKpis.cancelled)} / ${fmtNum(todayKpis.pending)}</div><div class="t">${arrow(delta(todayKpis.cancelled, avgPrev.cancelled).pct, true)}</div></div>
+      </div>
+
+      <h2>مقارنة اليوم بالمتوسط</h2>
       <table>
-        <thead><tr><th>البيان</th><th>التاريخ</th><th>المبيعات</th><th>الطلبات</th><th>متوسط الطلب</th><th>عملاء</th><th>إلغاءات</th></tr></thead>
+        <thead><tr><th>المؤشر</th><th>اليوم</th><th>المتوسط السابق</th><th>الفرق</th></tr></thead>
+        <tbody>
+          ${kpiRow("المبيعات (ج.م)", fmtNum(todayKpis.sales), fmtNum(Math.round(avgPrev.sales)), dSales.pct)}
+          ${kpiRow("الطلبات", fmtNum(todayKpis.orders), fmtNum(Math.round(avgPrev.orders)), dOrders.pct)}
+          ${kpiRow("متوسط قيمة الطلب", fmtNum(Math.round(todayKpis.avgOrderValue)), fmtNum(Math.round(avgPrev.avgOrderValue)), dAov.pct)}
+          ${kpiRow("العملاء", fmtNum(todayKpis.customers), fmtNum(Math.round(avgPrev.customers)), dCust.pct)}
+          ${kpiRow("عملاء جدد", fmtNum(todayKpis.newCustomers), fmtNum(Math.round(avgPrev.newCustomers)), delta(todayKpis.newCustomers, avgPrev.newCustomers).pct)}
+          ${kpiRow("إجمالي الكيلو", fmtNum(todayKpis.totalQtyKg, 1), fmtNum(avgPrev.totalQtyKg, 1), dKg.pct)}
+          ${kpiRow("الإلغاءات", fmtNum(todayKpis.cancelled), fmtNum(Math.round(avgPrev.cancelled)), delta(todayKpis.cancelled, avgPrev.cancelled).pct, true)}
+        </tbody>
+      </table>
+
+      <h2>مقارنة الأيام التفصيلية</h2>
+      <table>
+        <thead><tr>
+          <th>البيان</th><th>التاريخ</th><th>اليوم</th><th>المبيعات</th><th>الطلبات</th>
+          <th>متوسط الطلب</th><th>عملاء</th><th>إلغاء</th><th>كيلو</th>
+        </tr></thead>
         <tbody>${compRows}</tbody>
       </table>
-      <h2>أعلى المنتجات</h2>
+
+      <div class="page-break"></div>
+      <h2>أعلى المنتجات مبيعاً</h2>
       <table>
-        <thead><tr><th>المنتج</th><th>الكمية</th><th>الإيراد</th></tr></thead>
-        <tbody>${prodRows}</tbody>
+        <thead><tr><th>#</th><th>المنتج</th><th>الكمية</th><th>الإيراد (ج.م)</th></tr></thead>
+        <tbody>${prodRows || `<tr><td colspan="4" class="muted">لا توجد بيانات</td></tr>`}</tbody>
       </table>
-      <h2>المحافظات</h2>
+
+      <h2>أقل المنتجات مبيعاً</h2>
       <table>
-        <thead><tr><th>المحافظة</th><th>المبيعات</th><th>الطلبات</th><th>متوسط الطلب</th></tr></thead>
-        <tbody>${govRows}</tbody>
+        <thead><tr><th>#</th><th>المنتج</th><th>الكمية</th><th>الإيراد (ج.م)</th></tr></thead>
+        <tbody>${bottomRows || `<tr><td colspan="4" class="muted">لا توجد بيانات</td></tr>`}</tbody>
       </table>
+
+      <h2>توزيع المبيعات حسب المحافظات</h2>
+      <table>
+        <thead><tr><th>#</th><th>المحافظة</th><th>المبيعات</th><th>الطلبات</th><th>متوسط الطلب</th></tr></thead>
+        <tbody>${govRows || `<tr><td colspan="5" class="muted">لا توجد بيانات</td></tr>`}</tbody>
+      </table>
+
+      <div class="page-break"></div>
       <h2>التوصيات العاجلة</h2>
-      <ul>${recRows}</ul>
+      <div class="rec-grid">${recCards}</div>
+
+      <div class="page-break"></div>
       <h2>خطة الشهر القادم</h2>
-      <ul>
-        <li><b>تارجت يومي:</b> ${fmtNum(plan.dailyTarget)} ج.م</li>
-        <li><b>تارجت أسبوعي:</b> ${fmtNum(plan.weeklyTarget)} ج.م</li>
-        <li><b>تارجت شهري:</b> ${fmtNum(plan.monthlyTarget)} ج.م</li>
-        <li><b>عدد طلبات مستهدف:</b> ${fmtNum(plan.targetOrders)}</li>
-        <li><b>متوسط طلب مستهدف:</b> ${fmtNum(plan.targetAOV)} ج.م</li>
-        <li><b>منتجات للدفع:</b> ${escapeHtml(plan.pushProducts.join("، "))}</li>
-        <li><b>محافظات أولوية:</b> ${escapeHtml(plan.topGovernorates.join("، "))}</li>
-        <li><b>توصيات تسويق:</b> ${escapeHtml(plan.marketing.join(" / "))}</li>
-        <li><b>إجراءات موديراتور:</b> ${escapeHtml(plan.moderatorActions.join(" / "))}</li>
-        <li><b>إجراءات توصيل:</b> ${escapeHtml(plan.deliveryActions.join(" / "))}</li>
-        <li><b>مخاطر:</b> ${escapeHtml(plan.risks.join(" / ") || "—")}</li>
-      </ul>
-      `,
-    );
+      <div class="targets-row">
+        <div class="target"><div class="k">تارجت يومي</div><div class="v">${fmtNum(plan.dailyTarget)}</div></div>
+        <div class="target"><div class="k">تارجت أسبوعي</div><div class="v">${fmtNum(plan.weeklyTarget)}</div></div>
+        <div class="target"><div class="k">تارجت شهري</div><div class="v">${fmtNum(plan.monthlyTarget)}</div></div>
+        <div class="target"><div class="k">عدد الطلبات</div><div class="v">${fmtNum(plan.targetOrders)}</div></div>
+        <div class="target"><div class="k">متوسط الطلب</div><div class="v">${fmtNum(plan.targetAOV)}</div></div>
+      </div>
+
+      <div class="plan-grid">
+        <div class="plan-card">
+          <h4>منتجات للدفع</h4>
+          <ul>${plan.pushProducts.map((p) => `<li>${escapeHtml(p)}</li>`).join("") || `<li class="muted">—</li>`}</ul>
+        </div>
+        <div class="plan-card">
+          <h4>محافظات الأولوية</h4>
+          <ul>${plan.topGovernorates.map((g) => `<li>${escapeHtml(g)}</li>`).join("") || `<li class="muted">—</li>`}</ul>
+        </div>
+        <div class="plan-card">
+          <h4>خطة التسويق</h4>
+          <ul>${plan.marketing.map((m) => `<li>${escapeHtml(m)}</li>`).join("") || `<li class="muted">—</li>`}</ul>
+        </div>
+        <div class="plan-card">
+          <h4>إجراءات الموديراتور</h4>
+          <ul>${plan.moderatorActions.map((m) => `<li>${escapeHtml(m)}</li>`).join("") || `<li class="muted">—</li>`}</ul>
+        </div>
+        <div class="plan-card">
+          <h4>إجراءات التوصيل</h4>
+          <ul>${plan.deliveryActions.map((d) => `<li>${escapeHtml(d)}</li>`).join("") || `<li class="muted">—</li>`}</ul>
+        </div>
+        <div class="plan-card">
+          <h4>المخاطر المحتملة</h4>
+          <ul>${plan.risks.length ? plan.risks.map((r) => `<li>${escapeHtml(r)}</li>`).join("") : `<li class="muted">لا توجد مخاطر مرصودة</li>`}</ul>
+        </div>
+      </div>
+    `;
+
+    openPrintWindow(`تحليل أداء المبيعات اليومي — ${selected}`, body, extraCss);
   };
 
   return (
