@@ -424,7 +424,38 @@ export default function MainTreasury() {
         )}
 
         {/* Log */}
-        <TabsContent value="log" className="mt-4">
+        <TabsContent value="log" className="mt-4 space-y-3">
+          <Card><CardContent className="p-3 grid grid-cols-2 md:grid-cols-5 gap-2">
+            <div><Label className="text-xs">الحساب</Label>
+              <Select value={logFilter.account_id} onValueChange={v=>setLogFilter({...logFilter, account_id:v})}>
+                <SelectTrigger><SelectValue/></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">كل الحسابات</SelectItem>
+                  {accounts.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label className="text-xs">النوع</Label>
+              <Select value={logFilter.txn_type} onValueChange={v=>setLogFilter({...logFilter, txn_type:v})}>
+                <SelectTrigger><SelectValue/></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">الكل</SelectItem>
+                  {Object.entries(TYPE_LBL).map(([k,v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label className="text-xs">الحالة</Label>
+              <Select value={logFilter.status} onValueChange={v=>setLogFilter({...logFilter, status:v})}>
+                <SelectTrigger><SelectValue/></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">الكل</SelectItem>
+                  {Object.entries(STATUS_LBL).map(([k,v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label className="text-xs">من تاريخ</Label><Input type="date" value={logFilter.from} onChange={e=>setLogFilter({...logFilter, from:e.target.value})}/></div>
+            <div><Label className="text-xs">إلى تاريخ</Label><Input type="date" value={logFilter.to} onChange={e=>setLogFilter({...logFilter, to:e.target.value})}/></div>
+          </CardContent></Card>
           <Card><CardContent className="p-0 overflow-x-auto">
             <Table>
               <TableHeader><TableRow>
@@ -433,8 +464,16 @@ export default function MainTreasury() {
                 <TableHead>الوصف</TableHead><TableHead>الحالة</TableHead><TableHead>طباعة</TableHead>
               </TableRow></TableHeader>
               <TableBody>
-                {txns.length === 0 ? <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">لا توجد حركات بعد</TableCell></TableRow>
-                : txns.map(t => {
+                {(() => {
+                  const filtered = txns.filter(t =>
+                    (logFilter.account_id === "all" || t.account_id === logFilter.account_id) &&
+                    (logFilter.txn_type === "all" || t.txn_type === logFilter.txn_type) &&
+                    (logFilter.status === "all" || t.status === logFilter.status) &&
+                    (!logFilter.from || t.txn_date >= logFilter.from) &&
+                    (!logFilter.to || t.txn_date <= logFilter.to)
+                  );
+                  if (filtered.length === 0) return <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">لا توجد حركات مطابقة</TableCell></TableRow>;
+                  return filtered.map(t => {
                   const acc = accounts.find(a => a.id === t.account_id);
                   const cat = cats.find(c => c.id === t.category_id);
                   return (
