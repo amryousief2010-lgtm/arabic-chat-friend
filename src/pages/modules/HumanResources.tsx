@@ -250,8 +250,8 @@ const HumanResources = () => {
                             {r.roles.length === 0 ? (
                               <Badge variant="outline" className="text-muted-foreground">بدون دور</Badge>
                             ) : (
-                              r.roles.map((role) => (
-                                <Badge key={role} variant="secondary">{roleLabel[role] || role}</Badge>
+                              Array.from(new Set(r.roles.map((role) => roleLabel[role] || role))).map((label) => (
+                                <Badge key={label} variant="secondary">{label}</Badge>
                               ))
                             )}
                           </div>
