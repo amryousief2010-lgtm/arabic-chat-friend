@@ -9,8 +9,9 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ArrowRight, Loader2, Wheat, AlertTriangle, Printer } from "lucide-react";
+import { ArrowRight, Loader2, Wheat, AlertTriangle, Printer, FileText } from "lucide-react";
 import { exportBatchPDF } from "@/utils/exportBatchPDF";
+import { openPrintWindow, escapeHtml, fmtNum, fmtDate } from "@/lib/printPdf";
 
 export default function FeedBatchDetail() {
   const { id } = useParams<{ id: string }>();
