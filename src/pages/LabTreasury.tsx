@@ -202,9 +202,23 @@ const today = () => new Date().toISOString().slice(0, 10);
 export default function LabTreasury() {
   const { user, isGeneralManager, isExecutiveManager, roles } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const isApprover = roles.includes('lab_treasury_approver');
   const isManager = isGeneralManager || isExecutiveManager; // full admin (delete/reopen)
   const canApprove = isManager || isApprover;
+  const initialTab = (() => {
+    const t = searchParams.get('tab');
+    const aliases: Record<string, string> = { pending: 'approvals', approval: 'approvals' };
+    return (t && (aliases[t] || t)) || 'dashboard';
+  })();
+  const [activeTab, setActiveTab] = useState<string>(initialTab);
+  useEffect(() => {
+    const t = searchParams.get('tab');
+    if (!t) return;
+    const aliases: Record<string, string> = { pending: 'approvals', approval: 'approvals' };
+    const v = aliases[t] || t;
+    setActiveTab(v);
+  }, [searchParams]);
 
   const [movements, setMovements] = useState<Movement[]>([]);
   const [closures, setClosures] = useState<DayClosure[]>([]);
