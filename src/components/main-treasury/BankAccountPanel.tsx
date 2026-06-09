@@ -648,6 +648,11 @@ export default function BankAccountPanel() {
                           {isPending && isApprover && !isOwn ? (
                             <div className="flex gap-1">
                               <Button size="sm" variant="default" disabled={busy} onClick={async ()=>{
+                                if (missing) return toast.error("يجب إرفاق صورة التحويل قبل اعتماد هذه الحركة");
+                                if (requiresAttach && t.attachment_url) {
+                                  const u = await getAttachmentUrl(t.attachment_url); if (u) window.open(u, "_blank");
+                                  if (!window.confirm("هل راجعت صورة التحويل وتريد الاعتماد؟")) return;
+                                }
                                 setBusy(true);
                                 const { error } = await (supabase as any).rpc("mt_approve_txn", { p_txn_id: t.id });
                                 setBusy(false);
