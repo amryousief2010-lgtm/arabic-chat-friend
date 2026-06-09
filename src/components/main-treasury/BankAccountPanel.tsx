@@ -95,6 +95,73 @@ export default function BankAccountPanel() {
   const emptyCat = { code: "", label: "", requires_attachment: false, notes: "" };
   const [catForm, setCatForm] = useState(emptyCat);
 
+  // Cash → Bank transfer dialog
+  const [transferDlg, setTransferDlg] = useState(false);
+  const emptyTransfer = {
+    cash_account_id: "", bank_account_id: "", amount: "", txn_date: today(),
+    bank_name: "", bank_account_number: "",
+    deposit_purpose: "loan_installment" as "loan_installment"|"bank_fees"|"general"|"other",
+    cash_handover_by: "", bank_depositor_by: "",
+    description: "", notes: "",
+  };
+  const [transferForm, setTransferForm] = useState(emptyTransfer);
+  const [transferFile, setTransferFile] = useState<File | null>(null);
+  const [transferUuid, setTransferUuid] = useState("");
+
+  function openTransferDlg() {
+    const cash = accounts.find(a => a.account_type === "cash");
+    const bank = accounts.find(a => a.account_type === "bank");
+    setTransferForm({ ...emptyTransfer,
+      cash_account_id: cash?.id || "", bank_account_id: bank?.id || "",
+      bank_name: bank?.bank_name || "", bank_account_number: bank?.account_number || "" });
+    setTransferFile(null);
+    setTransferUuid(crypto.randomUUID());
+    setTransferDlg(true);
+  }
+
+  async function submitTransfer() {
+    if (!transferForm.cash_account_id || !transferForm.bank_account_id) return toast.error("اختر الخزنة والحساب البنكي");
+    const amt = Number(transferForm.amount || 0);
+    if (amt <= 0) return toast.error("المبلغ مطلوب");
+    if (!transferForm.cash_handover_by.trim() || !transferForm.bank_depositor_by.trim())
+      return toast.error("اسم المستلم والمودع مطلوبان");
+    setBusy(true);
+    let attachmentPath: string | null = null;
+    if (transferFile) {
+      const ext = transferFile.name.split(".").pop() || "bin";
+      const path = `${user!.id}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+      const { error: upErr } = await (supabase as any).storage.from("main-treasury-attachments")
+        .upload(path, transferFile, { cacheControl: "3600", upsert: false });
+      if (upErr) { setBusy(false); return toast.error("رفع المرفق: " + upErr.message); }
+      attachmentPath = path;
+    }
+    const purposeLbl: Record<string,string> = {
+      loan_installment: "تغطية قسط قرض", bank_fees: "تغطية مصروف بنكي",
+      general: "إيداع عام", other: "أخرى",
+    };
+    const desc = transferForm.description?.trim()
+      || `إيداع من الخزنة إلى البنك — ${purposeLbl[transferForm.deposit_purpose]}` + (transferForm.notes ? ` — ${transferForm.notes}` : "");
+    const { error } = await (supabase as any).rpc("mt_create_cash_to_bank_transfer", {
+      p_cash_account_id: transferForm.cash_account_id,
+      p_bank_account_id: transferForm.bank_account_id,
+      p_amount: amt,
+      p_txn_date: transferForm.txn_date,
+      p_bank_name: transferForm.bank_name || null,
+      p_bank_account_number: transferForm.bank_account_number || null,
+      p_deposit_purpose: transferForm.deposit_purpose,
+      p_cash_handover_by: transferForm.cash_handover_by,
+      p_bank_depositor_by: transferForm.bank_depositor_by,
+      p_attachment_url: attachmentPath,
+      p_description: desc,
+      p_client_uuid: transferUuid,
+    });
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success("تم تسجيل طلب الإيداع — بانتظار اعتماد المدير");
+    setTransferDlg(false);
+    fetchAll();
+  }
+
   async function fetchAll() {
     setLoading(true);
     const [a, b, c, t] = await Promise.all([
