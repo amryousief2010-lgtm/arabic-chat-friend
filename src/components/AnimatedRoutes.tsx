@@ -352,6 +352,29 @@ const AnimatedRoutes = () => {
             </ProtectedRoute>
           } />
 
+          <Route path="/social-media/daily" element={
+            <ProtectedRoute allowedRoles={['general_manager','executive_manager','marketing_sales_manager','social_media_manager']}>
+              <PageTransition><SocialMediaDailyReport /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/social-media/weekly" element={
+            <ProtectedRoute allowedRoles={['general_manager','executive_manager','marketing_sales_manager','social_media_manager']}>
+              <PageTransition><SocialMediaWeeklyReport /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/social-media/my-reports" element={
+            <ProtectedRoute allowedRoles={['social_media_manager','general_manager','executive_manager','marketing_sales_manager']}>
+              <PageTransition><SocialMediaMyReports /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/social-media/review" element={
+            <ProtectedRoute allowedRoles={['general_manager','executive_manager','marketing_sales_manager']}>
+              <PageTransition><SocialMediaReportsReview /></PageTransition>
+            </ProtectedRoute>
+          } />
+
+
+
           <Route path="/ai-operations-assistant" element={
             <ProtectedRoute allowedRoles={[
               'general_manager','executive_manager',
