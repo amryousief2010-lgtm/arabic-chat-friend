@@ -402,6 +402,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
                     type="number"
                     min={0}
                     value={it.unit_price}
+                    disabled={it.is_gift}
                     onChange={(e) => updateItem(realIdx, { unit_price: Number(e.target.value) })}
                   />
                 </div>
