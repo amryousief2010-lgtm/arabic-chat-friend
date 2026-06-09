@@ -874,6 +874,43 @@ export default function BankAccountPanel() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Change Attachment Dialog */}
+      <Dialog open={changeAttachDlg.open} onOpenChange={o=>!o && setChangeAttachDlg({ open:false, reason:"", file:null })}>
+        <DialogContent dir="rtl">
+          <DialogHeader><DialogTitle>تغيير صورة التحويل — {changeAttachDlg.txn?.reference_no}</DialogTitle></DialogHeader>
+          <div className="grid gap-3">
+            {changeAttachDlg.txn?.attachment_url && (
+              <Button variant="outline" size="sm" className="gap-1" onClick={async ()=>{
+                const u = await getAttachmentUrl(changeAttachDlg.txn!.attachment_url!); if (u) window.open(u, "_blank");
+              }}><Paperclip className="h-4 w-4"/>عرض الصورة الحالية</Button>
+            )}
+            <div>
+              <Label>صورة جديدة (JPG / PNG / PDF) *</Label>
+              <Input type="file" accept="image/jpeg,image/png,image/jpg,application/pdf"
+                onChange={e=>setChangeAttachDlg({...changeAttachDlg, file:e.target.files?.[0]||null})}/>
+              {changeAttachDlg.file && <div className="text-xs text-muted-foreground mt-1">{changeAttachDlg.file.name} · {Math.round(changeAttachDlg.file.size/1024)}KB</div>}
+            </div>
+            {changeAttachDlg.txn?.status === "posted" && (
+              <div>
+                <Label>سبب التغيير (إجباري بعد الاعتماد) *</Label>
+                <Textarea value={changeAttachDlg.reason} onChange={e=>setChangeAttachDlg({...changeAttachDlg, reason:e.target.value})}/>
+                <div className="text-xs text-muted-foreground mt-1">سيُسجَّل السبب في Audit Log.</div>
+              </div>
+            )}
+            {changeAttachDlg.txn?.status === "posted" && !isApprover && (
+              <div className="text-sm text-destructive border rounded p-2">لا يمكن تغيير صورة حركة معتمدة إلا من قِبل الإدارة.</div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={()=>setChangeAttachDlg({ open:false, reason:"", file:null })} disabled={busy}>إلغاء</Button>
+            <Button onClick={submitChangeAttachment}
+              disabled={busy || !changeAttachDlg.file || (changeAttachDlg.txn?.status === "posted" && !isApprover)}>
+              {busy ? "جارٍ الحفظ…" : "حفظ الصورة الجديدة"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
