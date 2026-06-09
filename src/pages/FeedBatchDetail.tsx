@@ -163,7 +163,11 @@ export default function FeedBatchDetail() {
     if (Number(it.unit_cost) === 0 && Number(it.stock) > 0) return <Badge variant="destructive">تكلفة صفرية</Badge>;
     if (avail < need) return <Badge variant="destructive">مخزون غير كافٍ ({avail})</Badge>;
     return <Badge variant="secondary">متاح {avail}</Badge>;
+  };
+
   if (!batch) return <div className="p-6"><Loader2 className="h-5 w-5 animate-spin" /></div>;
+
+
 
 
 
