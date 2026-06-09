@@ -7116,6 +7116,45 @@ export type Database = {
           },
         ]
       }
+      main_treasury_bank_categories: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          label: string
+          notes: string | null
+          requires_attachment: boolean
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          label: string
+          notes?: string | null
+          requires_attachment?: boolean
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          label?: string
+          notes?: string | null
+          requires_attachment?: boolean
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       main_treasury_expense_categories: {
         Row: {
           code: string
@@ -7199,12 +7238,17 @@ export type Database = {
           approver_2_at: string | null
           approver_2_id: string | null
           attachment_url: string | null
+          bank_account_number: string | null
+          bank_category_id: string | null
           category_id: string | null
+          client_uuid: string | null
           counterparty: string | null
           created_at: string
           created_by: string
           description: string
           id: string
+          loan_number: string | null
+          payment_method: string | null
           posted_at: string | null
           reference_no: string | null
           rejection_reason: string | null
@@ -7223,12 +7267,17 @@ export type Database = {
           approver_2_at?: string | null
           approver_2_id?: string | null
           attachment_url?: string | null
+          bank_account_number?: string | null
+          bank_category_id?: string | null
           category_id?: string | null
+          client_uuid?: string | null
           counterparty?: string | null
           created_at?: string
           created_by: string
           description: string
           id?: string
+          loan_number?: string | null
+          payment_method?: string | null
           posted_at?: string | null
           reference_no?: string | null
           rejection_reason?: string | null
@@ -7247,12 +7296,17 @@ export type Database = {
           approver_2_at?: string | null
           approver_2_id?: string | null
           attachment_url?: string | null
+          bank_account_number?: string | null
+          bank_category_id?: string | null
           category_id?: string | null
+          client_uuid?: string | null
           counterparty?: string | null
           created_at?: string
           created_by?: string
           description?: string
           id?: string
+          loan_number?: string | null
+          payment_method?: string | null
           posted_at?: string | null
           reference_no?: string | null
           rejection_reason?: string | null
@@ -7277,6 +7331,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_main_treasury_balance"
             referencedColumns: ["account_id"]
+          },
+          {
+            foreignKeyName: "main_treasury_transactions_bank_category_id_fkey"
+            columns: ["bank_category_id"]
+            isOneToOne: false
+            referencedRelation: "main_treasury_bank_categories"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "main_treasury_transactions_category_id_fkey"
@@ -15132,12 +15193,17 @@ export type Database = {
           approver_2_at: string | null
           approver_2_id: string | null
           attachment_url: string | null
+          bank_account_number: string | null
+          bank_category_id: string | null
           category_id: string | null
+          client_uuid: string | null
           counterparty: string | null
           created_at: string
           created_by: string
           description: string
           id: string
+          loan_number: string | null
+          payment_method: string | null
           posted_at: string | null
           reference_no: string | null
           rejection_reason: string | null
@@ -15186,12 +15252,17 @@ export type Database = {
           approver_2_at: string | null
           approver_2_id: string | null
           attachment_url: string | null
+          bank_account_number: string | null
+          bank_category_id: string | null
           category_id: string | null
+          client_uuid: string | null
           counterparty: string | null
           created_at: string
           created_by: string
           description: string
           id: string
+          loan_number: string | null
+          payment_method: string | null
           posted_at: string | null
           reference_no: string | null
           rejection_reason: string | null
