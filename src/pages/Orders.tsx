@@ -147,11 +147,9 @@ const isMassUnit = (u?: string) => {
 const formatItemQty = (qty: number, unit?: string): string => {
   const mass = isMassUnit(unit);
   let q = qty;
-  let suffix = unit || '';
-  if (mass) {
-    suffix = 'ك';
-    if (unit === 'جم' || unit === 'جرام' || unit === 'g') q = qty / 1000;
-  }
+  // للوحدات الوزنية لا نطبع لاحقة "ك" قبل اسم المنتج (مثلاً: "نص كفتة" بدلاً من "نص ك كفتة").
+  let suffix = mass ? '' : (unit || '');
+  if (mass && (unit === 'جم' || unit === 'جرام' || unit === 'g')) q = qty / 1000;
   const fractions: Record<string, string> = {
     '0.25': 'ربع',
     '0.5': 'نص',
