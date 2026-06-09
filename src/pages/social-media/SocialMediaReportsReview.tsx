@@ -32,7 +32,17 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { ShieldCheck, Eye, CheckCircle2 } from "lucide-react";
+import { ShieldCheck, Eye, CheckCircle2, Trash2, Paperclip } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const statusBadge = (s: string) => {
   if (s === "reviewed")
