@@ -9,7 +9,7 @@ const ROLE_LABELS: Record<string, string> = {
   general_manager: "المدير العام",
   executive_manager: "المدير التنفيذي",
   sales_manager: "مدير المبيعات",
-  marketing_sales_manager: "مدير التسويق والمبيعات",
+  marketing_sales_manager: "مدير المبيعات",
   accountant: "محاسب",
   financial_manager: "المدير المالي",
   warehouse_supervisor: "مشرف المخازن",
