@@ -181,6 +181,19 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
     ]);
   };
 
+  const handleAddGift = () => {
+    setItems((prev) => [
+      ...prev,
+      {
+        product_id: null,
+        product_name: "",
+        quantity: 1,
+        unit_price: 0,
+        offer_name: "هدية مجانية",
+      },
+    ]);
+  };
+
   const handleSave = async () => {
     // Validate (skip synthetic shipping lines — they have no product_id by design)
     for (const it of items) {
