@@ -181,9 +181,13 @@ export default function FeedBatchDetail() {
           <p className="text-xs text-muted-foreground">BOM v{batch.bom_version ?? "—"} • مخطط {batch.target_quantity} كجم</p>
         </div>
         <Badge className="text-base">{batch.status}</Badge>
-        <Button size="sm" variant="outline" onClick={() => exportBatchPDF({ factory: "Feed Factory", batch, consumption: cons, movements: movs, audit })}>
-          <Printer className="h-4 w-4 ml-1" />طباعة PDF
+        <Button size="sm" onClick={printInvoice}>
+          <FileText className="h-4 w-4 ml-1" />طباعة فاتورة التصنيع
         </Button>
+        <Button size="sm" variant="outline" onClick={() => exportBatchPDF({ factory: "Feed Factory", batch, consumption: cons, movements: movs, audit })}>
+          <Printer className="h-4 w-4 ml-1" />تقرير PDF
+        </Button>
+
       </div>
 
       {isLocked && <div className="bg-muted border rounded p-3 text-sm flex items-center gap-2"><AlertTriangle className="h-4 w-4" />الدفعة مغلقة/ملغاة — للقراءة فقط</div>}
