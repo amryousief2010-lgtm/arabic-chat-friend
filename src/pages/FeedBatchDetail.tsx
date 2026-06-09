@@ -81,7 +81,78 @@ export default function FeedBatchDetail() {
     });
   };
 
-  if (!batch) return <div className="p-6"><Loader2 className="h-5 w-5 animate-spin" /></div>;
+  const printInvoice = () => {
+    const totalCost = Number(batch.total_cost || 0);
+    const actualQty = Number(batch.actual_quantity || 0);
+    const costPerKg = batch.cost_per_kg ? Number(batch.cost_per_kg) : (actualQty > 0 ? totalCost / actualQty : 0);
+    const labor = Number((batch as any).labor_cost || 0);
+    const service = Number((batch as any).service_cost || 0);
+    const other = Number((batch as any).other_cost || 0);
+    const waste = Number((batch as any).waste_cost || 0);
+    const matsCost = cons.reduce((s, r: any) => s + Number(r.total_cost || 0), 0);
+
+    const rows = cons.map((r: any, i: number) => `
+      <tr>
+        <td class="num">${i + 1}</td>
+        <td>${escapeHtml(r.raw_material?.name)}</td>
+        <td class="num">${fmtNum(r.actual_qty ?? r.quantity, 3)}</td>
+        <td>${escapeHtml(r.raw_material?.unit || "كجم")}</td>
+        <td class="num">${fmtNum(r.unit_cost, 4)}</td>
+        <td class="num">${fmtNum(r.total_cost, 2)}</td>
+      </tr>`).join("");
+
+    const body = `
+      <header>
+        <div>
+          <h1>فاتورة تصنيع أعلاف</h1>
+          <div class="en">Feed Manufacturing Invoice</div>
+        </div>
+        <div class="meta">
+          <div><b>رقم الدفعة:</b> ${escapeHtml(batch.batch_number)}</div>
+          <div><b>الحالة:</b> ${escapeHtml(batch.status)}</div>
+          <div><b>BOM:</b> v${escapeHtml(batch.bom_version ?? "—")}</div>
+          <div><b>تاريخ الإنشاء:</b> ${fmtDate(batch.created_at)}</div>
+          <div><b>تاريخ الطباعة:</b> ${fmtDate(new Date().toISOString())}</div>
+        </div>
+      </header>
+
+      <div class="stats">
+        <div class="stat"><div class="k">الكمية المخططة</div><div class="v">${fmtNum(batch.target_quantity, 2)} كجم</div></div>
+        <div class="stat"><div class="k">الكمية الفعلية</div><div class="v">${fmtNum(actualQty, 2)} كجم</div></div>
+        <div class="stat"><div class="k">إجمالي التكلفة</div><div class="v">${fmtNum(totalCost, 2)} ج.م</div></div>
+        <div class="stat"><div class="k">تكلفة/كجم</div><div class="v">${fmtNum(costPerKg, 4)} ج.م</div></div>
+      </div>
+
+      <h2>بنود المواد الخام المستهلكة</h2>
+      <table>
+        <thead><tr><th>#</th><th>المادة</th><th>الكمية</th><th>الوحدة</th><th>تكلفة/وحدة</th><th>الإجمالي</th></tr></thead>
+        <tbody>${rows || `<tr><td colspan="6" style="text-align:center;padding:14px;color:#888">لا توجد بنود</td></tr>`}</tbody>
+        <tfoot><tr><td colspan="5" style="text-align:left;font-weight:bold;background:#f5edff">إجمالي تكلفة المواد</td><td class="num" style="font-weight:bold;background:#f5edff">${fmtNum(matsCost, 2)}</td></tr></tfoot>
+      </table>
+
+      <h2>تفصيل التكاليف الإضافية</h2>
+      <table>
+        <thead><tr><th>البند</th><th>القيمة (ج.م)</th></tr></thead>
+        <tbody>
+          <tr><td>تكلفة المواد الخام</td><td class="num">${fmtNum(matsCost, 2)}</td></tr>
+          <tr><td>تكلفة العمالة</td><td class="num">${fmtNum(labor, 2)}</td></tr>
+          <tr><td>تكلفة الخدمات</td><td class="num">${fmtNum(service, 2)}</td></tr>
+          <tr><td>تكاليف أخرى</td><td class="num">${fmtNum(other, 2)}</td></tr>
+          <tr><td>تكلفة الفاقد</td><td class="num">${fmtNum(waste, 2)}</td></tr>
+          <tr style="background:#6b46c1;color:#fff;font-weight:bold"><td>الإجمالي الكلي</td><td class="num">${fmtNum(totalCost, 2)}</td></tr>
+        </tbody>
+      </table>
+
+      <h2>التوقيعات</h2>
+      <table>
+        <thead><tr><th style="width:33%">المُصنّع</th><th style="width:33%">مراجع الجودة</th><th style="width:33%">المدير المسؤول</th></tr></thead>
+        <tbody><tr><td style="height:60px"></td><td></td><td></td></tr></tbody>
+      </table>
+    `;
+    openPrintWindow(`فاتورة تصنيع ${batch.batch_number}`, body);
+  };
+
+
 
   const renderBlocker = (r: any) => {
     if (!r.inventory_item_id) return <Badge variant="destructive">لا يوجد ربط مخزن</Badge>;
