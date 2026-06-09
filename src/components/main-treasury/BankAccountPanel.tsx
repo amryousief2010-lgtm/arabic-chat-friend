@@ -526,14 +526,16 @@ export default function BankAccountPanel() {
                 <TableHead>المرجع</TableHead><TableHead>التاريخ</TableHead><TableHead>النوع</TableHead>
                 <TableHead>الحساب</TableHead><TableHead>المبلغ</TableHead><TableHead>البند</TableHead>
                 <TableHead>طريقة الدفع</TableHead><TableHead>الوصف</TableHead><TableHead>الحالة</TableHead>
-                <TableHead>مرفق</TableHead>
+                <TableHead>مرفق</TableHead><TableHead>إجراء</TableHead>
               </TableRow></TableHeader>
               <TableBody>
                 {filtered.length === 0
-                  ? <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">لا توجد حركات</TableCell></TableRow>
+                  ? <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">لا توجد حركات</TableCell></TableRow>
                   : filtered.map(t => {
                       const acc = accounts.find(a=>a.id===t.account_id);
                       const cat = cats.find(c=>c.id===t.bank_category_id);
+                      const isPending = t.status === "pending_approval";
+                      const isOwn = t.created_by === user?.id;
                       return <TableRow key={t.id}>
                         <TableCell className="font-mono text-xs">{t.reference_no}</TableCell>
                         <TableCell>{t.txn_date}</TableCell>
@@ -547,6 +549,31 @@ export default function BankAccountPanel() {
                         <TableCell>{t.attachment_url
                           ? <Button size="sm" variant="ghost" onClick={async ()=>{ const u = await getAttachmentUrl(t.attachment_url!); if (u) window.open(u, "_blank"); }}><Paperclip className="h-4 w-4"/></Button>
                           : "—"}</TableCell>
+                        <TableCell>
+                          {isPending && isApprover && !isOwn ? (
+                            <div className="flex gap-1">
+                              <Button size="sm" variant="default" disabled={busy} onClick={async ()=>{
+                                setBusy(true);
+                                const { error } = await (supabase as any).rpc("mt_approve_txn", { p_txn_id: t.id });
+                                setBusy(false);
+                                if (error) return toast.error(error.message);
+                                toast.success("تم الاعتماد");
+                                fetchAll();
+                              }}>اعتماد</Button>
+                              <Button size="sm" variant="destructive" disabled={busy} onClick={async ()=>{
+                                const reason = window.prompt("سبب الرفض:");
+                                if (!reason?.trim()) return;
+                                setBusy(true);
+                                const { error } = await (supabase as any).rpc("mt_reject_txn", { p_txn_id: t.id, p_reason: reason });
+                                setBusy(false);
+                                if (error) return toast.error(error.message);
+                                toast.success("تم الرفض");
+                                fetchAll();
+                              }}>رفض</Button>
+                            </div>
+                          ) : isPending && isOwn ? <span className="text-xs text-muted-foreground">لا يمكن اعتماد حركتك بنفسك</span>
+                          : "—"}
+                        </TableCell>
                       </TableRow>;
                     })}
               </TableBody>
