@@ -190,6 +190,20 @@ export default function MainTreasury() {
     fetchAll();
   }
 
+  async function saveOpeningBalance() {
+    if (!editOpenBal.account) return;
+    const v = Number(editOpenBal.value);
+    if (Number.isNaN(v)) return toast.error("قيمة غير صحيحة");
+    setBusy(true);
+    const { error } = await (supabase as any).from("main_treasury_accounts")
+      .update({ opening_balance: v }).eq("id", editOpenBal.account.id);
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success("تم تحديث الرصيد الافتتاحي");
+    setEditOpenBal({ open:false, value:"" });
+    fetchAll();
+  }
+
   function printVoucher(t: Txn) {
     const acc = accounts.find(a => a.id === t.account_id);
     const cat = cats.find(c => c.id === t.category_id);
