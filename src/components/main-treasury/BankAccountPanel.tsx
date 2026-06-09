@@ -86,7 +86,7 @@ export default function BankAccountPanel() {
   const bankTxns = useMemo(() => txns.filter(t => bankAccountIds.has(t.account_id)), [txns, bankAccountIds]);
 
   // Filters
-  const [f, setF] = useState({ account_id: "all", txn_type: "all", status: "all", category_id: "all", bank_name: "all", from: "", to: "" });
+  const [f, setF] = useState({ account_id: "all", txn_type: "all", status: "all", category_id: "all", bank_name: "all", incoming_source: "all", missing_attachment: false, from: "", to: "" });
 
   // Dialogs
   const [txnDlg, setTxnDlg] = useState(false);
@@ -98,9 +98,13 @@ export default function BankAccountPanel() {
     account_id: "", txn_type: "expense", amount: "", txn_date: today(),
     bank_category_id: "", loan_number: "", bank_account_number: "", payment_method: "transfer",
     counterparty: "", description: "", attachment_url: "" as string | null,
+    incoming_source: "" as string,
   };
   const [form, setForm] = useState<typeof emptyForm>(emptyForm);
   const [file, setFile] = useState<File | null>(null);
+
+  // Change-attachment dialog (post-creation)
+  const [changeAttachDlg, setChangeAttachDlg] = useState<{open:boolean; txn?:Txn; reason:string; file:File|null}>({ open:false, reason:"", file:null });
 
   const emptyCat = { code: "", label: "", requires_attachment: false, notes: "" };
   const [catForm, setCatForm] = useState(emptyCat);
