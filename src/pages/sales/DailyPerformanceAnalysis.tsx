@@ -387,8 +387,9 @@ export default function DailyPerformanceAnalysis() {
   };
 
   return (
-    <div className="container mx-auto p-4 space-y-4" dir="rtl">
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
+    <DashboardLayout>
+      <div className="container mx-auto p-4 space-y-4" dir="rtl">
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-primary">
             تحليل أداء المبيعات اليومي وخطة الشهر القادم
