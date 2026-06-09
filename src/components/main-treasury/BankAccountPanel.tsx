@@ -595,31 +595,55 @@ export default function BankAccountPanel() {
             <Table>
               <TableHeader><TableRow>
                 <TableHead>المرجع</TableHead><TableHead>التاريخ</TableHead><TableHead>النوع</TableHead>
+                <TableHead>المصدر</TableHead>
                 <TableHead>الحساب</TableHead><TableHead>المبلغ</TableHead><TableHead>البند</TableHead>
                 <TableHead>طريقة الدفع</TableHead><TableHead>الوصف</TableHead><TableHead>الحالة</TableHead>
-                <TableHead>مرفق</TableHead><TableHead>إجراء</TableHead>
+                <TableHead>صورة التحويل</TableHead><TableHead>إجراء</TableHead>
               </TableRow></TableHeader>
               <TableBody>
                 {filtered.length === 0
-                  ? <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">لا توجد حركات</TableCell></TableRow>
+                  ? <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">لا توجد حركات</TableCell></TableRow>
                   : filtered.map(t => {
                       const acc = accounts.find(a=>a.id===t.account_id);
                       const cat = cats.find(c=>c.id===t.bank_category_id);
                       const isPending = t.status === "pending_approval";
                       const isOwn = t.created_by === user?.id;
+                      const srcDef = INCOMING_SOURCES.find(s=>s.value===t.incoming_source);
+                      const requiresAttach = !!srcDef?.attachmentRequired;
+                      const missing = requiresAttach && !t.attachment_url;
+                      const canChange = (isPending || isApprover);
                       return <TableRow key={t.id}>
                         <TableCell className="font-mono text-xs">{t.reference_no}</TableCell>
                         <TableCell>{t.txn_date}</TableCell>
                         <TableCell>{TYPE_LBL[t.txn_type]||t.txn_type}</TableCell>
+                        <TableCell className="text-xs">{t.incoming_source ? (SOURCE_LBL[t.incoming_source]||t.incoming_source) : "—"}</TableCell>
                         <TableCell>{acc?.name || "—"}</TableCell>
                         <TableCell className="font-mono font-bold">{fmtNum(t.amount,2)}</TableCell>
                         <TableCell>{cat?.label || "—"}</TableCell>
                         <TableCell>{PAYMENT_METHODS.find(p=>p.value===t.payment_method)?.label || "—"}</TableCell>
                         <TableCell className="max-w-[240px] truncate">{t.description}</TableCell>
                         <TableCell><Badge variant={STATUS_TONE[t.status]}>{STATUS_LBL[t.status]}</Badge></TableCell>
-                        <TableCell>{t.attachment_url
-                          ? <Button size="sm" variant="ghost" onClick={async ()=>{ const u = await getAttachmentUrl(t.attachment_url!); if (u) window.open(u, "_blank"); }}><Paperclip className="h-4 w-4"/></Button>
-                          : "—"}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-1">
+                            {t.attachment_url ? (
+                              <Button size="sm" variant="outline" className="h-7 gap-1" onClick={async ()=>{
+                                const u = await getAttachmentUrl(t.attachment_url!); if (u) window.open(u, "_blank");
+                                else toast.error("تعذر فتح الصورة");
+                              }}><Paperclip className="h-3 w-3"/>عرض</Button>
+                            ) : (
+                              <span className={"text-xs " + (missing ? "text-destructive font-bold" : "text-muted-foreground")}>
+                                {missing ? "⚠ لا توجد صورة" : "لا توجد صورة"}
+                              </span>
+                            )}
+                            {canChange && (
+                              <Button size="sm" variant="ghost" className="h-6 text-xs px-2"
+                                onClick={()=>setChangeAttachDlg({ open:true, txn:t, reason:"", file:null })}>
+                                تغيير الصورة
+                              </Button>
+                            )}
+                            {t.attachment_name && <div className="text-[10px] text-muted-foreground truncate max-w-[140px]" title={t.attachment_name}>{t.attachment_name}{t.attachment_size?` · ${Math.round(t.attachment_size/1024)}KB`:""}</div>}
+                          </div>
+                        </TableCell>
                         <TableCell>
                           {isPending && isApprover && !isOwn ? (
                             <div className="flex gap-1">
