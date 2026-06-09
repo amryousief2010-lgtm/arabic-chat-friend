@@ -4112,6 +4112,7 @@ export type Database = {
           destination_type: string
           id: string
           notes: string | null
+          payment_method: string | null
           profit: number
           sale_date: string
           sale_no: string
@@ -4129,6 +4130,7 @@ export type Database = {
           destination_type?: string
           id?: string
           notes?: string | null
+          payment_method?: string | null
           profit?: number
           sale_date?: string
           sale_no?: string
@@ -4146,6 +4148,7 @@ export type Database = {
           destination_type?: string
           id?: string
           notes?: string | null
+          payment_method?: string | null
           profit?: number
           sale_date?: string
           sale_no?: string

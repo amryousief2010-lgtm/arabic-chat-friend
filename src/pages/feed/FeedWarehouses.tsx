@@ -855,6 +855,7 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
   const [salesperson, setSalesperson] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<string>("cash");
   const [destinationType, setDestinationType] = useState<"external_customer" | "brooding_feed_store" | "slaughterhouse_feed_store">("external_customer");
   const [lines, setLines] = useState<SaleLine[]>([newSaleLine()]);
   const [saving, setSaving] = useState(false);
@@ -868,6 +869,7 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
       setSalesperson(editSale.salesperson || "");
       setDate(editSale.sale_date || new Date().toISOString().slice(0, 10));
       setNotes(editSale.notes || "");
+      setPaymentMethod(editSale.payment_method || "cash");
       setDestinationType(editSale.destination_type || "external_customer");
       const items = editSale.feed_sale_items || [];
       setLines(items.length
@@ -881,7 +883,7 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
         : [newSaleLine()]);
     } else if (open) {
       setCustomer(""); setCustomerPhone(""); setSalesperson(""); setNotes(""); setDate(new Date().toISOString().slice(0, 10));
-      setDestinationType("external_customer"); setLines([newSaleLine()]);
+      setDestinationType("external_customer"); setPaymentMethod("cash"); setLines([newSaleLine()]);
     }
   }, [editSale?.id, open]);
 
@@ -905,6 +907,7 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
           sale_date: date,
           notes,
           destination_type: destinationType,
+          payment_method: isInternal ? null : paymentMethod,
         } as any).eq("id", saleId);
         if (eUpd) throw eUpd;
       } else {
@@ -915,6 +918,7 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
           sale_date: date,
           notes,
           destination_type: destinationType,
+          payment_method: isInternal ? null : paymentMethod,
           created_by: user?.id,
         } as any).select("id").single();
         if (e1) throw e1;
@@ -1016,6 +1020,21 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
             );
           })}
         </div>
+        {!isInternal && (
+          <div>
+            <Label>طريقة التحصيل</Label>
+            <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cash">نقدي</SelectItem>
+                <SelectItem value="vodafone_cash_ahmed_elgamal">فودافون كاش — أحمد الجمل</SelectItem>
+                <SelectItem value="vodafone_cash_mohamed_shaala">فودافون كاش — محمد شعلة</SelectItem>
+                <SelectItem value="bank_transfer">تحويل بنكي</SelectItem>
+                <SelectItem value="deferred">آجل</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         <div><Label>ملاحظات</Label><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} /></div>
         <div className="text-left text-xl font-bold">الإجمالي: {fmt(total)} ج.م</div>
         <DialogFooter><Button onClick={save} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ الفاتورة"}</Button></DialogFooter>
