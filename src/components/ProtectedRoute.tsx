@@ -34,11 +34,23 @@ const PRIVATE_REP_ALLOWED_PREFIXES = [
   '/install',
 ];
 
+const SOCIAL_MEDIA_ALLOWED_PREFIXES = [
+  '/orders',
+  '/social-media',
+  '/notifications',
+  '/permissions',
+  '/auth',
+  '/install',
+];
+
 const isPathAllowedForModerator = (pathname: string) =>
   MODERATOR_ALLOWED_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'));
 
 const isPathAllowedForPrivateRep = (pathname: string) =>
   PRIVATE_REP_ALLOWED_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'));
+
+const isPathAllowedForSocialMedia = (pathname: string) =>
+  SOCIAL_MEDIA_ALLOWED_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'));
 
 const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
   const { user, role, roles, loading } = useAuth();
@@ -48,11 +60,13 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
   // Sales moderators land on the org chart first, then navigate from there.
   const moderatorTarget =
     role === 'sales_moderator' ? '/orders' :
-    role === 'private_delivery_rep' ? '/orders' : '/';
+    role === 'private_delivery_rep' ? '/orders' :
+    role === 'social_media_manager' ? '/social-media/daily' : '/';
 
   const isModeratorBlocked =
     (role === 'sales_moderator' && !isPathAllowedForModerator(location.pathname)) ||
-    (role === 'private_delivery_rep' && !isPathAllowedForPrivateRep(location.pathname));
+    (role === 'private_delivery_rep' && !isPathAllowedForPrivateRep(location.pathname)) ||
+    (role === 'social_media_manager' && !isPathAllowedForSocialMedia(location.pathname));
   // 2) Standard role check — pass if ANY of the user's roles is allowed.
   const isRoleDenied = !!(allowedRoles && !(effectiveRoles.some((r) => allowedRoles.includes(r))));
   const isDenied = isModeratorBlocked || isRoleDenied;
@@ -89,7 +103,7 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
   }
 
   if (isDenied) {
-    if (role === 'sales_moderator' || role === 'private_delivery_rep') {
+    if (role === 'sales_moderator' || role === 'private_delivery_rep' || role === 'social_media_manager') {
       return <Navigate to={moderatorTarget} replace />;
     }
     return <Navigate to="/unauthorized" state={{ from: location.pathname }} replace />;
