@@ -24,7 +24,17 @@ type Txn = {
   category_id: string | null; bank_category_id: string | null; loan_number: string | null; bank_account_number: string | null;
   payment_method: string | null; counterparty: string | null; description: string; status: string;
   attachment_url: string | null; created_at: string; created_by: string; rejection_reason: string | null;
+  incoming_source: string | null; attachment_name: string | null; attachment_mime: string | null;
+  attachment_size: number | null; attachment_uploaded_by: string | null; attachment_uploaded_at: string | null;
 };
+
+const INCOMING_SOURCES = [
+  { value: "hyper_healthy", label: "هايبر هيلثي تيست", attachmentRequired: true },
+  { value: "carrefour", label: "كارفور", attachmentRequired: true },
+  { value: "direct_customer", label: "عميل مباشر", attachmentRequired: false },
+  { value: "other", label: "جهة أخرى", attachmentRequired: false },
+];
+const SOURCE_LBL: Record<string,string> = Object.fromEntries(INCOMING_SOURCES.map(s => [s.value, s.label]));
 
 const BANK_TXN_TYPES: { value: string; label: string; direction: "in"|"out"|"neutral" }[] = [
   { value: "bank_deposit", label: "إيداع بنكي", direction: "in" },
