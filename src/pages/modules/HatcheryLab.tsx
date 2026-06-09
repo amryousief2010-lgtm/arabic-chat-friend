@@ -39,8 +39,8 @@ const fmtEGP = (v: any) => `${fmtNum(v, 2)} ج.م`;
 // Main Page
 // ============================================================
 const HatcheryLab = () => {
-  const { isGeneralManager, isExecutiveManager, isHatcheryManager, isAccountant } = useAuth();
-  const canManage = isGeneralManager || isExecutiveManager || isHatcheryManager;
+  const { isGeneralManager, isExecutiveManager, isHatcheryManager, isAccountant, roles } = useAuth();
+  const canManage = isGeneralManager || isExecutiveManager || isHatcheryManager || (roles || []).includes('lab_treasury_approver');
   const canBill = canManage || isAccountant;
   const qc = useQueryClient();
   const [tab, setTab] = useState("dashboard");
