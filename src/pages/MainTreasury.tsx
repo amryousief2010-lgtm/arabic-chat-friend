@@ -520,6 +520,32 @@ export default function MainTreasury() {
             </div>
             <div><Label className="text-xs">من تاريخ</Label><Input type="date" value={logFilter.from} onChange={e=>setLogFilter({...logFilter, from:e.target.value})}/></div>
             <div><Label className="text-xs">إلى تاريخ</Label><Input type="date" value={logFilter.to} onChange={e=>setLogFilter({...logFilter, to:e.target.value})}/></div>
+            <div className="md:col-span-3"><Label className="text-xs">بحث (مرجع/وصف/مستفيد)</Label><Input value={logFilter.search} onChange={e=>setLogFilter({...logFilter, search:e.target.value})}/></div>
+            <div className="md:col-span-2 flex items-end gap-2">
+              <Button variant="outline" size="sm" className="gap-1" onClick={()=>{
+                const rows = txns.filter(t =>
+                  (logFilter.account_id === "all" || t.account_id === logFilter.account_id) &&
+                  (logFilter.txn_type === "all" || t.txn_type === logFilter.txn_type) &&
+                  (logFilter.status === "all" || t.status === logFilter.status) &&
+                  (!logFilter.from || t.txn_date >= logFilter.from) &&
+                  (!logFilter.to || t.txn_date <= logFilter.to) &&
+                  (!logFilter.search || `${t.reference_no} ${t.description} ${t.counterparty||""}`.toLowerCase().includes(logFilter.search.toLowerCase()))
+                ).map(t => ({
+                  "المرجع": t.reference_no, "التاريخ": t.txn_date,
+                  "النوع": TYPE_LBL[t.txn_type] || t.txn_type,
+                  "الحساب": accounts.find(a=>a.id===t.account_id)?.name || "",
+                  "المبلغ": Number(t.amount),
+                  "البند": cats.find(c=>c.id===t.category_id)?.label || "",
+                  "المستفيد": t.counterparty || "", "الوصف": t.description,
+                  "الحالة": STATUS_LBL[t.status] || t.status,
+                }));
+                const ws = XLSX.utils.json_to_sheet(rows);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "حركات الخزنة");
+                XLSX.writeFile(wb, `main-treasury-${today()}.xlsx`);
+              }}><FileDown className="h-4 w-4"/>تصدير Excel</Button>
+              <Button variant="outline" size="sm" className="gap-1" onClick={()=>setLogFilter({ account_id:"all", txn_type:"all", status:"all", from:"", to:"", search:"" })}>إعادة ضبط الفلاتر</Button>
+            </div>
           </CardContent></Card>
           <Card><CardContent className="p-0 overflow-x-auto">
             <Table>
@@ -535,7 +561,8 @@ export default function MainTreasury() {
                     (logFilter.txn_type === "all" || t.txn_type === logFilter.txn_type) &&
                     (logFilter.status === "all" || t.status === logFilter.status) &&
                     (!logFilter.from || t.txn_date >= logFilter.from) &&
-                    (!logFilter.to || t.txn_date <= logFilter.to)
+                    (!logFilter.to || t.txn_date <= logFilter.to) &&
+                    (!logFilter.search || `${t.reference_no} ${t.description} ${t.counterparty||""}`.toLowerCase().includes(logFilter.search.toLowerCase()))
                   );
                   if (filtered.length === 0) return <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">لا توجد حركات مطابقة</TableCell></TableRow>;
                   return filtered.map(t => {
@@ -545,7 +572,7 @@ export default function MainTreasury() {
                     <TableRow key={t.id}>
                       <TableCell className="font-mono text-xs">{t.reference_no}</TableCell>
                       <TableCell>{t.txn_date}</TableCell>
-                      <TableCell>{TYPE_LBL[t.txn_type]}</TableCell>
+                      <TableCell>{TYPE_LBL[t.txn_type] || t.txn_type}</TableCell>
                       <TableCell>{acc?.name || "—"}</TableCell>
                       <TableCell className="font-mono font-bold">{fmtNum(t.amount,2)}</TableCell>
                       <TableCell>{cat?.label || "—"}</TableCell>
