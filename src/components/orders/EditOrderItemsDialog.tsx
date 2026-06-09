@@ -423,10 +423,20 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
             );
           })}
 
-          <Button type="button" variant="outline" onClick={handleAdd} className="w-full">
-            <Plus className="w-4 h-4 ml-1" />
-            إضافة منتج
-          </Button>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <Button type="button" variant="outline" onClick={handleAdd} className="w-full">
+              <Plus className="w-4 h-4 ml-1" />
+              إضافة منتج
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleAddGift}
+              className="w-full border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+            >
+              🎁 إضافة هدية مجانية
+            </Button>
+          </div>
 
           <div className="pt-2 border-t space-y-3">
             {hasOfferItems && (
