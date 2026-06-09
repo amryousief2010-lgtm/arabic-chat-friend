@@ -502,8 +502,23 @@ export default function SlaughterhouseCustody() {
 
           {/* ===== Add Expense ===== */}
           <TabsContent value="add">
+            {isKeeper && (
+              <div className="mb-3 rounded-lg border-2 border-[hsl(var(--warning))] bg-[hsl(var(--warning))]/10 p-4 space-y-2">
+                <div className="font-bold text-base flex items-center gap-2">
+                  💰 الحد الأسبوعي المسموح للمصروف: <span className="font-mono text-lg">10,000 ج</span>
+                </div>
+                <div className="text-sm">
+                  • المُعتمد هذا الأسبوع: <b className="font-mono">{fmtNum(approvedThisWeek, 0)} ج</b>
+                  {limitAmt > 0 && <> &nbsp;•&nbsp; المتبقي: <b className="font-mono">{fmtNum(remaining, 0)} ج</b></>}
+                </div>
+                <div className="text-sm font-semibold text-[hsl(var(--warning-foreground,0_0%_0%))] bg-[hsl(var(--warning))]/20 rounded p-2">
+                  ⚠️ أي مصروف يتجاوز <b>1,500 ج</b> يجب الرجوع للأستاذ <b>أحمد الجمل</b> قبل تسجيله.
+                </div>
+              </div>
+            )}
             <Card>
               <CardHeader><CardTitle>إضافة مصروف جديد</CardTitle></CardHeader>
+
               <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 <div><Label>التاريخ</Label><Input type="date" value={form.expense_date} onChange={(e) => setForm({ ...form, expense_date: e.target.value })} /></div>
                 <div><Label>بند المصروف</Label>
