@@ -190,7 +190,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
         product_name: "",
         quantity: 1,
         unit_price: 0,
-        offer_name: "هدية مجانية",
+        is_gift: true,
       },
     ]);
   };
