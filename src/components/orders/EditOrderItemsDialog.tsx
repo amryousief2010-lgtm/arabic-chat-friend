@@ -36,6 +36,7 @@ interface EditableItem {
   unit_price: number;
   offer_name?: string | null;
   is_half_kg?: boolean;
+  is_gift?: boolean;
   _deleted?: boolean;
   _original?: { product_id: string | null; quantity: number; unit_price: number };
 }
@@ -160,7 +161,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
     updateItem(idx, {
       product_id: p.id,
       product_name: p.name,
-      unit_price: Number(newUnit),
+      unit_price: oldItem.is_gift ? 0 : Number(newUnit),
     });
   };
 
@@ -178,6 +179,19 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
     setItems((prev) => [
       ...prev,
       { product_id: null, product_name: "", quantity: 1, unit_price: 0 },
+    ]);
+  };
+
+  const handleAddGift = () => {
+    setItems((prev) => [
+      ...prev,
+      {
+        product_id: null,
+        product_name: "",
+        quantity: 1,
+        unit_price: 0,
+        is_gift: true,
+      },
     ]);
   };
 
@@ -341,6 +355,11 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
                         نصف كيلو (الكمية بالكجم)
                       </span>
                     )}
+                    {it.is_gift && (
+                      <span className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 border border-emerald-300">
+                        🎁 هدية مجانية
+                      </span>
+                    )}
                   </label>
                   <Select
                     value={it.product_id || ""}
@@ -383,6 +402,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
                     type="number"
                     min={0}
                     value={it.unit_price}
+                    disabled={it.is_gift}
                     onChange={(e) => updateItem(realIdx, { unit_price: Number(e.target.value) })}
                   />
                 </div>
@@ -403,10 +423,20 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
             );
           })}
 
-          <Button type="button" variant="outline" onClick={handleAdd} className="w-full">
-            <Plus className="w-4 h-4 ml-1" />
-            إضافة منتج
-          </Button>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <Button type="button" variant="outline" onClick={handleAdd} className="w-full">
+              <Plus className="w-4 h-4 ml-1" />
+              إضافة منتج
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleAddGift}
+              className="w-full border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+            >
+              🎁 إضافة هدية مجانية
+            </Button>
+          </div>
 
           <div className="pt-2 border-t space-y-3">
             {hasOfferItems && (
