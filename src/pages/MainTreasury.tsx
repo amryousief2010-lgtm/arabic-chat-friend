@@ -83,14 +83,16 @@ export default function MainTreasury() {
 
   async function fetchAll() {
     setLoading(true);
-    const [a, b, c, t, k, x] = await Promise.all([
+    const [a, b, c, t, k, x, al] = await Promise.all([
       (supabase as any).from("main_treasury_accounts").select("*").eq("is_active", true).order("created_at"),
       (supabase as any).from("v_main_treasury_balance").select("*"),
       (supabase as any).from("main_treasury_expense_categories").select("id,code,label").eq("is_active", true).order("sort_order"),
       (supabase as any).from("main_treasury_transactions").select("*").order("created_at", { ascending: false }).limit(500),
       (supabase as any).from("user_roles").select("user_id, profiles:profiles!user_roles_user_id_fkey(full_name)").eq("role", "slaughterhouse_custody_keeper"),
       (supabase as any).from("main_treasury_to_custody_transfers").select("*").order("created_at", { ascending: false }).limit(200),
+      (supabase as any).from("main_treasury_audit_log").select("*").order("performed_at", { ascending: false }).limit(300),
     ]);
+    setAuditLog(al.data || []);
     if (a.error) toast.error("حسابات: "+a.error.message);
     setAccounts(a.data || []);
     setBalances(b.data || []);
