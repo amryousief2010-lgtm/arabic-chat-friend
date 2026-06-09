@@ -12079,7 +12079,7 @@ export type Database = {
           approved_at: string | null
           approved_by: string | null
           beneficiary: string | null
-          category: Database["public"]["Enums"]["slaughter_custody_category"]
+          category: string
           created_at: string
           created_by: string
           description: string
@@ -12102,7 +12102,7 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           beneficiary?: string | null
-          category: Database["public"]["Enums"]["slaughter_custody_category"]
+          category: string
           created_at?: string
           created_by?: string
           description: string
@@ -12125,7 +12125,7 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           beneficiary?: string | null
-          category?: Database["public"]["Enums"]["slaughter_custody_category"]
+          category?: string
           created_at?: string
           created_by?: string
           description?: string
