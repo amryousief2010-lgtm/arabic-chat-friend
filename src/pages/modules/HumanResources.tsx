@@ -34,7 +34,7 @@ const roleLabel: Partial<Record<AppRole, string>> = {
   feed_factory_manager: "مدير مصنع أعلاف",
   hr_manager: "مدير موارد بشرية",
   production_manager: "مدير إنتاج",
-  marketing_sales_manager: "مدير تسويق ومبيعات",
+  marketing_sales_manager: "مدير المبيعات",
   financial_manager: "مدير مالي",
   quality_manager: "مدير جودة",
   shipping_company: "شركة شحن",
