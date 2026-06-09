@@ -12841,6 +12841,201 @@ export type Database = {
           },
         ]
       }
+      social_media_daily_reports: {
+        Row: {
+          additional_notes: string | null
+          created_at: string
+          employee_id: string
+          employee_name: string
+          id: string
+          interested_customers_count: number
+          issues_or_complaints: string | null
+          management_notes: string | null
+          posts_count: number
+          reels_videos_count: number
+          report_date: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          tomorrow_content_suggestions: string
+          top_engaging_content: string
+          updated_at: string
+        }
+        Insert: {
+          additional_notes?: string | null
+          created_at?: string
+          employee_id: string
+          employee_name: string
+          id?: string
+          interested_customers_count?: number
+          issues_or_complaints?: string | null
+          management_notes?: string | null
+          posts_count?: number
+          reels_videos_count?: number
+          report_date?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          tomorrow_content_suggestions: string
+          top_engaging_content: string
+          updated_at?: string
+        }
+        Update: {
+          additional_notes?: string | null
+          created_at?: string
+          employee_id?: string
+          employee_name?: string
+          id?: string
+          interested_customers_count?: number
+          issues_or_complaints?: string | null
+          management_notes?: string | null
+          posts_count?: number
+          reels_videos_count?: number
+          report_date?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          tomorrow_content_suggestions?: string
+          top_engaging_content?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_media_daily_reports_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      social_media_weekly_reports: {
+        Row: {
+          additional_notes: string | null
+          best_platform: string
+          best_platform_reason: string
+          created_at: string
+          employee_id: string
+          employee_name: string
+          facebook_followers_growth: number
+          id: string
+          instagram_followers_growth: number
+          leads_count: number
+          management_notes: string | null
+          next_week_suggestions: string
+          repeated_problems: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          tiktok_followers_growth: number
+          updated_at: string
+          week_end_date: string
+          week_start_date: string
+          weekly_summary: string
+          youtube_followers_growth: number
+        }
+        Insert: {
+          additional_notes?: string | null
+          best_platform: string
+          best_platform_reason: string
+          created_at?: string
+          employee_id: string
+          employee_name: string
+          facebook_followers_growth?: number
+          id?: string
+          instagram_followers_growth?: number
+          leads_count?: number
+          management_notes?: string | null
+          next_week_suggestions: string
+          repeated_problems?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          tiktok_followers_growth?: number
+          updated_at?: string
+          week_end_date: string
+          week_start_date: string
+          weekly_summary: string
+          youtube_followers_growth?: number
+        }
+        Update: {
+          additional_notes?: string | null
+          best_platform?: string
+          best_platform_reason?: string
+          created_at?: string
+          employee_id?: string
+          employee_name?: string
+          facebook_followers_growth?: number
+          id?: string
+          instagram_followers_growth?: number
+          leads_count?: number
+          management_notes?: string | null
+          next_week_suggestions?: string
+          repeated_problems?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          tiktok_followers_growth?: number
+          updated_at?: string
+          week_end_date?: string
+          week_start_date?: string
+          weekly_summary?: string
+          youtube_followers_growth?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_media_weekly_reports_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      social_media_weekly_top_posts: {
+        Row: {
+          created_at: string
+          engagement_count: number
+          id: string
+          notes: string | null
+          platform: string
+          post_title: string
+          post_url: string | null
+          reach_count: number
+          weekly_report_id: string
+        }
+        Insert: {
+          created_at?: string
+          engagement_count?: number
+          id?: string
+          notes?: string | null
+          platform: string
+          post_title: string
+          post_url?: string | null
+          reach_count?: number
+          weekly_report_id: string
+        }
+        Update: {
+          created_at?: string
+          engagement_count?: number
+          id?: string
+          notes?: string | null
+          platform?: string
+          post_title?: string
+          post_url?: string | null
+          reach_count?: number
+          weekly_report_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_media_weekly_top_posts_weekly_report_id_fkey"
+            columns: ["weekly_report_id"]
+            isOneToOne: false
+            referencedRelation: "social_media_weekly_reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stock_reconciliation_proposals: {
         Row: {
           agouza_warehouse_stock: number | null
@@ -14741,6 +14936,8 @@ export type Database = {
         Returns: boolean
       }
       is_slaughter_custody_manager: { Args: { _uid: string }; Returns: boolean }
+      is_social_media_manager: { Args: { _uid: string }; Returns: boolean }
+      is_social_media_reviewer: { Args: { _uid: string }; Returns: boolean }
       lab_ledger_recompute_balance: {
         Args: { p_customer: string }
         Returns: undefined
@@ -15360,6 +15557,7 @@ export type Database = {
         | "slaughterhouse_custody_keeper"
         | "main_treasury_accountant"
         | "main_treasury_approver"
+        | "social_media_manager"
       brooding_batch_status:
         | "active"
         | "completed"
@@ -15671,6 +15869,7 @@ export const Constants = {
         "slaughterhouse_custody_keeper",
         "main_treasury_accountant",
         "main_treasury_approver",
+        "social_media_manager",
       ],
       brooding_batch_status: [
         "active",
