@@ -66,7 +66,7 @@ const roleLabels: Record<string, string> = {
   general_manager: "المدير العام",
   executive_manager: "المدير التنفيذي",
   production_manager: "مدير الإنتاج والتشغيل",
-  marketing_sales_manager: "مدير التسويق والمبيعات",
+  marketing_sales_manager: "مدير المبيعات",
   financial_manager: "المدير المالي",
   quality_manager: "مدير الجودة",
   sales_manager: "مدير المبيعات",

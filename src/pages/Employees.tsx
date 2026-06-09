@@ -76,7 +76,7 @@ const roleLabels: Record<AppRole, string> = {
   feed_factory_manager: 'مدير مصنع الأعلاف',
   hr_manager: 'مدير الموارد البشرية',
   production_manager: 'مدير الإنتاج والتشغيل',
-  marketing_sales_manager: 'مدير التسويق والمبيعات',
+  marketing_sales_manager: 'مدير المبيعات',
   financial_manager: 'المدير المالي',
   quality_manager: 'مدير الجودة',
   shipping_company: 'شركة الشحن',
@@ -622,7 +622,7 @@ const Employees = () => {
                       <SelectItem value="general_manager">مدير عام</SelectItem>
                       <SelectItem value="executive_manager">مدير تنفيذي</SelectItem>
                       <SelectItem value="production_manager">مدير الإنتاج والتشغيل</SelectItem>
-                      <SelectItem value="marketing_sales_manager">مدير التسويق والمبيعات</SelectItem>
+                      <SelectItem value="marketing_sales_manager">مدير المبيعات (Sales Manager)</SelectItem>
                       <SelectItem value="financial_manager">المدير المالي</SelectItem>
                       <SelectItem value="quality_manager">مدير الجودة</SelectItem>
                       <SelectItem value="sales_manager">مدير مبيعات</SelectItem>

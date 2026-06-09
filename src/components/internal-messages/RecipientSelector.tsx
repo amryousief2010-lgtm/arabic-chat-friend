@@ -28,7 +28,7 @@ const ROLE_LABEL: Record<string, string> = {
   feed_factory_manager: "مدير مصنع الأعلاف",
   hr_manager: "مدير الموارد البشرية",
   production_manager: "مدير الإنتاج",
-  marketing_sales_manager: "مدير التسويق",
+  marketing_sales_manager: "مدير المبيعات",
   financial_manager: "المدير المالي",
   quality_manager: "مدير الجودة",
   shipping_company: "شركة شحن",
