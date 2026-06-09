@@ -907,6 +907,7 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
           sale_date: date,
           notes,
           destination_type: destinationType,
+          payment_method: isInternal ? null : paymentMethod,
         } as any).eq("id", saleId);
         if (eUpd) throw eUpd;
       } else {
@@ -917,6 +918,7 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
           sale_date: date,
           notes,
           destination_type: destinationType,
+          payment_method: isInternal ? null : paymentMethod,
           created_by: user?.id,
         } as any).select("id").single();
         if (e1) throw e1;
