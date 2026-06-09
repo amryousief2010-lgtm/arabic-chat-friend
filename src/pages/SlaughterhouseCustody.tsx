@@ -156,6 +156,13 @@ export default function SlaughterhouseCustody() {
     if (!form.description.trim()) return toast.error("الوصف مطلوب");
     if (form.category === "other" && form.description.trim().length < 5)
       return toast.error("الوصف التفصيلي إجباري عند اختيار مصروفات أخرى");
+    if (amt >= 20000) {
+      const ok = window.confirm(
+        "⚠️ تنبيه هام: المبلغ المُدخل (" + amt.toLocaleString("ar-EG") + " ج) مرتفع جداً (20,000 ج أو أكثر).\n\n" +
+        "هل أنت متأكد من صحة هذا المبلغ وترغب في المتابعة؟"
+      );
+      if (!ok) return;
+    }
     if (isKeeper && amt > 1500) {
       const ok = window.confirm(
         "⚠️ تنبيه: المبلغ المُدخل (" + amt.toLocaleString("ar-EG") + " ج) تجاوز الحد المسموح للمصروف الواحد (1,500 ج).\n\n" +
