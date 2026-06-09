@@ -617,6 +617,37 @@ export default function MainTreasury() {
           </CardContent></Card>
         </TabsContent>
 
+        {/* Audit Log */}
+        <TabsContent value="audit" className="mt-4">
+          <Card>
+            <CardHeader><CardTitle className="flex items-center gap-2"><History className="h-4 w-4"/>سجل التدقيق (Audit Log)</CardTitle></CardHeader>
+            <CardContent className="p-0 overflow-x-auto">
+              <Table>
+                <TableHeader><TableRow>
+                  <TableHead>الوقت</TableHead><TableHead>الإجراء</TableHead>
+                  <TableHead>من حالة</TableHead><TableHead>إلى حالة</TableHead>
+                  <TableHead>المرجع</TableHead><TableHead>تفاصيل</TableHead>
+                </TableRow></TableHeader>
+                <TableBody>
+                  {auditLog.length === 0
+                    ? <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">لا توجد قيود تدقيق</TableCell></TableRow>
+                    : auditLog.map(l => {
+                        const tx = txns.find(t => t.id === l.txn_id);
+                        return <TableRow key={l.id}>
+                          <TableCell className="text-xs">{fmtDate(l.performed_at)}</TableCell>
+                          <TableCell><Badge variant="outline">{l.action}</Badge></TableCell>
+                          <TableCell className="text-xs">{l.old_status ? (STATUS_LBL[l.old_status]||l.old_status) : "—"}</TableCell>
+                          <TableCell className="text-xs">{l.new_status ? (STATUS_LBL[l.new_status]||l.new_status) : "—"}</TableCell>
+                          <TableCell className="font-mono text-xs">{tx?.reference_no || "—"}</TableCell>
+                          <TableCell className="text-xs max-w-[300px] truncate">{l.details ? JSON.stringify(l.details) : "—"}</TableCell>
+                        </TableRow>;
+                      })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* Settings */}
         <TabsContent value="settings" className="mt-4 space-y-4">
           <Card>
