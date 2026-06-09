@@ -995,7 +995,7 @@ export default function LabTreasury() {
         </div>
 
 
-        <Tabs defaultValue="dashboard" className="w-full">
+        <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); const sp = new URLSearchParams(searchParams); sp.set('tab', v); setSearchParams(sp, { replace: true }); }} className="w-full">
           <TabsList className="flex flex-wrap h-auto gap-1 bg-muted/60 p-2">
             {(() => {
               const tabCls = "font-semibold text-foreground/80 hover:text-primary hover:bg-primary/10 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-colors";
