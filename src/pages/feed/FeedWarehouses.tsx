@@ -869,6 +869,7 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
       setSalesperson(editSale.salesperson || "");
       setDate(editSale.sale_date || new Date().toISOString().slice(0, 10));
       setNotes(editSale.notes || "");
+      setPaymentMethod(editSale.payment_method || "cash");
       setDestinationType(editSale.destination_type || "external_customer");
       const items = editSale.feed_sale_items || [];
       setLines(items.length
@@ -882,7 +883,7 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
         : [newSaleLine()]);
     } else if (open) {
       setCustomer(""); setCustomerPhone(""); setSalesperson(""); setNotes(""); setDate(new Date().toISOString().slice(0, 10));
-      setDestinationType("external_customer"); setLines([newSaleLine()]);
+      setDestinationType("external_customer"); setPaymentMethod("cash"); setLines([newSaleLine()]);
     }
   }, [editSale?.id, open]);
 
