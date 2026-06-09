@@ -401,6 +401,22 @@ export default function BankAccountPanel() {
           <div className="text-xs text-muted-foreground">الرسوم والمصاريف البنكية</div>
           <div className="text-xl font-bold font-mono">{fmtNum(totalBankFees,2)}</div>
         </CardContent></Card>
+        <Card className="md:col-span-2 lg:col-span-2 border-primary/30 bg-primary/5"><CardContent className="p-4">
+          <div className="flex items-center justify-between mb-1">
+            <div className="text-sm font-bold flex items-center gap-1"><ArrowRightLeft className="h-4 w-4"/>إيداعات من الخزنة</div>
+            {lastCashToBankReceipt && (
+              <Button size="sm" variant="ghost" className="h-6 px-2"
+                onClick={async ()=>{ const u = await getAttachmentUrl(lastCashToBankReceipt); if (u) window.open(u, "_blank"); }}>
+                <Paperclip className="h-3 w-3"/> آخر إيصال
+              </Button>
+            )}
+          </div>
+          <div className="grid grid-cols-3 gap-2 text-xs">
+            <div><div className="text-muted-foreground">اليوم</div><div className="font-mono font-bold text-base">{fmtNum(cashToBankTodayTotal,0)}</div></div>
+            <div><div className="text-muted-foreground">الشهر</div><div className="font-mono font-bold text-base">{fmtNum(cashToBankMonthTotal,0)}</div></div>
+            <div><div className="text-muted-foreground">معلق</div><div className="font-mono font-bold text-base text-[hsl(38_92%_50%)]">{fmtNum(cashToBankPending,0)}</div></div>
+          </div>
+        </CardContent></Card>
       </div>
 
       {/* Per-account cards */}
