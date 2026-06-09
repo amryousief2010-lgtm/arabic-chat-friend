@@ -133,20 +133,19 @@ export default function MainTreasury() {
       account_id: txnForm.account_id, txn_type: txnForm.txn_type, amount: amt,
       txn_date: txnForm.txn_date, category_id: txnForm.category_id || null,
       counterparty: txnForm.counterparty || null, description: txnForm.description,
+      client_uuid: txnUuid,
       created_by: user!.id,
     });
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) {
+      if ((error as any).code === "23505") return toast.error("هذه المعاملة مسجلة بالفعل (تم منع التكرار)");
+      return toast.error(error.message);
+    }
     toast.success("تم التسجيل — حسب القيمة قد تحتاج اعتماد");
     setTxnForm({ ...txnForm, amount: "", counterparty: "", description: "", category_id: "" });
+    setTxnUuid(crypto.randomUUID());
     fetchAll();
   }
-
-  async function submitTransfer() {
-    const amt = Number(transferForm.amount || 0);
-    if (!transferForm.account_id) return toast.error("اختر الحساب");
-    if (!transferForm.custody_keeper_id) return toast.error("اختر أمين العهدة المستلم");
-    if (amt <= 0) return toast.error("المبلغ مطلوب");
     setBusy(true);
     // 1) Create the txn
     const { data: t, error: e1 } = await (supabase as any).from("main_treasury_transactions").insert({
