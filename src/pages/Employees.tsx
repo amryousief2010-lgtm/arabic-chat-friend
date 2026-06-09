@@ -87,6 +87,7 @@ const roleLabels: Record<AppRole, string> = {
   lab_external_collector: 'محصل خارجي - خزنة المعمل',
   lab_treasury_approver: 'معتمد خزنة المعمل والحضانات',
   slaughterhouse_custody_keeper: 'أمين عهدة المجزر',
+  social_media_manager: 'مسؤول السوشيال ميديا',
 };
 
 const roleBadgeVariants: Record<AppRole, 'default' | 'secondary' | 'outline' | 'destructive'> = {
@@ -115,6 +116,7 @@ const roleBadgeVariants: Record<AppRole, 'default' | 'secondary' | 'outline' | '
   lab_external_collector: 'outline',
   lab_treasury_approver: 'default',
   slaughterhouse_custody_keeper: 'outline',
+  social_media_manager: 'secondary',
 };
 
 const roleIcons: Record<AppRole, React.ElementType> = {
@@ -143,6 +145,7 @@ const roleIcons: Record<AppRole, React.ElementType> = {
   lab_external_collector: Calculator,
   lab_treasury_approver: Shield,
   slaughterhouse_custody_keeper: Calculator,
+  social_media_manager: Megaphone,
 };
 
 const addEmployeeSchema = z.object({

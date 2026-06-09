@@ -172,7 +172,8 @@ const formatItemQty = (qty: number, unit?: string): string => {
 };
 
 const Orders = () => {
-  const { user, isShippingCompany, isAccountant, isSalesModerator, isPrivateDeliveryRep, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, roles, canUpdateOrderStatusForOrder, canDeleteOrders, canEditOrderItems } = useAuth();
+ const { user, isShippingCompany, isAccountant, isSalesModerator, isPrivateDeliveryRep, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, roles, canUpdateOrderStatusForOrder, canDeleteOrders, canEditOrderItems } = useAuth();
+ const isSocialMediaManager = roles?.includes('social_media_manager') ?? false;
   const canExportExcel = isGeneralManager || isExecutiveManager || roles.includes('marketing_sales_manager');
   const [orders, setOrders] = useState<Order[]>([]);
   const [approvedEditOrderIds, setApprovedEditOrderIds] = useState<Set<string>>(new Set());
@@ -918,12 +919,14 @@ const Orders = () => {
             <Button variant="outline" className="gap-2" onClick={() => exportOrdersToPDF(filteredOrders)}>
               <FileText className="w-4 h-4" /> PDF
             </Button>
-            <Button asChild className="gap-2">
-              <Link to="/orders/new">
-                <Plus className="w-4 h-4" />
-                طلب جديد
-              </Link>
-            </Button>
+            {!isSocialMediaManager && (
+              <Button asChild className="gap-2">
+                <Link to="/orders/new">
+                  <Plus className="w-4 h-4" />
+                  طلب جديد
+                </Link>
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent>

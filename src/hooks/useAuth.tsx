@@ -27,7 +27,8 @@ export type AppRole =
   | 'lab_treasury_keeper'
   | 'lab_external_collector'
   | 'lab_treasury_approver'
-  | 'slaughterhouse_custody_keeper';
+  | 'slaughterhouse_custody_keeper'
+  | 'social_media_manager';
 
 interface UserProfile {
   id: string;
@@ -131,6 +132,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         'slaughterhouse_manager', 'meat_factory_manager', 'feed_factory_manager',
         'warehouse_supervisor', 'agouza_warehouse_keeper',
         'accountant', 'sales_moderator', 'shipping_company', 'private_delivery_rep',
+        'social_media_manager',
       ];
       const primary = priority.find((p) => all.includes(p)) ?? all[0];
       return { primary, all };
@@ -243,6 +245,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const isShippingCompany = has('shipping_company');
   const isPrivateDeliveryRep = has('private_delivery_rep');
   const isAgouzaWarehouseKeeper = has('agouza_warehouse_keeper');
+  const isSocialMediaManager = has('social_media_manager');
 
   // Module-level write permissions
   const canManageFeedFactory = isGeneralManager || isExecutiveManager || isFeedFactoryManager || isProductionManager;

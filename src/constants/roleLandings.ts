@@ -31,6 +31,7 @@ export const ROLE_LANDING: Record<AppRole, string> = {
   lab_external_collector: "/my-lab-collections",
   lab_treasury_approver: "/lab-treasury",
   slaughterhouse_custody_keeper: "/slaughterhouse-custody",
+  social_media_manager: "/social-media/daily",
 };
 
 export const getLandingForRole = (role?: AppRole | null): string =>

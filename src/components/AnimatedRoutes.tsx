@@ -172,6 +172,10 @@ const PCCollections = lazy(() => import("@/pages/private-courier/Collections"));
 const AiOperationsAssistant = lazy(() => import("@/pages/AiOperationsAssistant"));
 const InternalMessages = lazy(() => import("@/pages/internal-messages/InternalMessages"));
 const InternalMessageDetails = lazy(() => import("@/pages/internal-messages/MessageDetails"));
+const SocialMediaDailyReport = lazy(() => import("@/pages/social-media/SocialMediaDailyReport"));
+const SocialMediaWeeklyReport = lazy(() => import("@/pages/social-media/SocialMediaWeeklyReport"));
+const SocialMediaMyReports = lazy(() => import("@/pages/social-media/SocialMediaMyReports"));
+const SocialMediaReportsReview = lazy(() => import("@/pages/social-media/SocialMediaReportsReview"));
 
 const RedirectWithQuery = ({ to }: { to: string }) => {
   const location = useLocation();
@@ -347,6 +351,29 @@ const AnimatedRoutes = () => {
               <PageTransition><InternalMessageDetails /></PageTransition>
             </ProtectedRoute>
           } />
+
+          <Route path="/social-media/daily" element={
+            <ProtectedRoute allowedRoles={['general_manager','executive_manager','marketing_sales_manager','social_media_manager']}>
+              <PageTransition><SocialMediaDailyReport /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/social-media/weekly" element={
+            <ProtectedRoute allowedRoles={['general_manager','executive_manager','marketing_sales_manager','social_media_manager']}>
+              <PageTransition><SocialMediaWeeklyReport /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/social-media/my-reports" element={
+            <ProtectedRoute allowedRoles={['social_media_manager','general_manager','executive_manager','marketing_sales_manager']}>
+              <PageTransition><SocialMediaMyReports /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/social-media/review" element={
+            <ProtectedRoute allowedRoles={['general_manager','executive_manager','marketing_sales_manager']}>
+              <PageTransition><SocialMediaReportsReview /></PageTransition>
+            </ProtectedRoute>
+          } />
+
+
 
           <Route path="/ai-operations-assistant" element={
             <ProtectedRoute allowedRoles={[
