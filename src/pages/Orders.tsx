@@ -17,6 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -181,6 +182,45 @@ const Orders = () => {
  const isSocialMediaManager = roles?.includes('social_media_manager') ?? false;
   const canExportExcel = isGeneralManager || isExecutiveManager || roles.includes('marketing_sales_manager');
   const [orders, setOrders] = useState<Order[]>([]);
+  const [reviewedIds, setReviewedIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from('order_review_status')
+        .select('order_id, is_reviewed')
+        .eq('user_id', user.id)
+        .eq('is_reviewed', true);
+      if (cancelled || error) return;
+      setReviewedIds(new Set((data || []).map((r: any) => r.order_id)));
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
+  const toggleReviewed = async (orderId: string, next: boolean) => {
+    if (!user?.id) return;
+    setReviewedIds(prev => {
+      const n = new Set(prev);
+      next ? n.add(orderId) : n.delete(orderId);
+      return n;
+    });
+    const { error } = await supabase
+      .from('order_review_status')
+      .upsert(
+        { order_id: orderId, user_id: user.id, is_reviewed: next, reviewed_at: next ? new Date().toISOString() : null },
+        { onConflict: 'order_id,user_id' }
+      );
+    if (error) {
+      toast.error('تعذر حفظ حالة المراجعة');
+      setReviewedIds(prev => {
+        const n = new Set(prev);
+        next ? n.delete(orderId) : n.add(orderId);
+        return n;
+      });
+    }
+  };
   const [approvedEditOrderIds, setApprovedEditOrderIds] = useState<Set<string>>(new Set());
   const [pendingEditOrderIds, setPendingEditOrderIds] = useState<Set<string>>(new Set());
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
@@ -1196,6 +1236,7 @@ const Orders = () => {
           <Table>
             <TableHeader>
               <TableRow className="bg-green-100 hover:bg-green-100 dark:bg-green-800/40 dark:hover:bg-green-800/40 [&_th]:text-green-900 dark:[&_th]:text-green-100 [&_th]:font-semibold">
+                <TableHead className="text-right w-10">مراجعة</TableHead>
                 <TableHead className="text-right">رقم الطلب</TableHead>
                 <TableHead className="text-right">العميل</TableHead>
                 <TableHead className="text-right">رقم الهاتف</TableHead>
@@ -1218,7 +1259,7 @@ const Orders = () => {
             <TableBody>
               {filteredOrders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={isPrivateDeliveryRep ? 17 : 16} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={isPrivateDeliveryRep ? 18 : 17} className="text-center py-8 text-muted-foreground">
                     لا توجد طلبات
                   </TableCell>
                 </TableRow>
@@ -1226,6 +1267,13 @@ const Orders = () => {
               ) : (
                 filteredOrders.map((order) => (
                   <TableRow key={order.id} className="table-row-hover">
+                    <TableCell className="w-10">
+                      <Checkbox
+                        checked={reviewedIds.has(order.id)}
+                        onCheckedChange={(v) => toggleReviewed(order.id, v === true)}
+                        aria-label="تمت المراجعة"
+                      />
+                    </TableCell>
                     <TableCell className="font-mono font-semibold">
                       {order.order_number}
                     </TableCell>

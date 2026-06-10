@@ -10678,6 +10678,44 @@ export type Database = {
           },
         ]
       }
+      order_review_status: {
+        Row: {
+          created_at: string
+          id: string
+          is_reviewed: boolean
+          order_id: string
+          reviewed_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_reviewed?: boolean
+          order_id: string
+          reviewed_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_reviewed?: boolean
+          order_id?: string
+          reviewed_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_review_status_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_status_audit: {
         Row: {
           changed_at: string
