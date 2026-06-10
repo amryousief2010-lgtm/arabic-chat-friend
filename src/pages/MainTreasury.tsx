@@ -106,11 +106,20 @@ export default function MainTreasury() {
     setTxns(t.data || []);
     setTransfers(x.data || []);
     const keepers = (k.data || []).map((r: any) => ({ user_id: r.user_id, name: r.profiles?.full_name || r.user_id.slice(0,8) }));
+    // Sort: محمد شعلة first (default custody keeper)
+    keepers.sort((x: any, y: any) => {
+      const xs = /شعلة|شعله/.test(x.name) ? 0 : 1;
+      const ys = /شعلة|شعله/.test(y.name) ? 0 : 1;
+      return xs - ys;
+    });
     setCustodyKeepers(keepers);
+    const defaultKeeper = keepers.find((kk: any) => /شعلة|شعله/.test(kk.name)) || keepers[0];
     // set default account if none chosen
     if (!txnForm.account_id && a.data?.[0]) {
       setTxnForm(f => ({ ...f, account_id: a.data[0].id }));
-      setTransferForm(f => ({ ...f, account_id: a.data[0].id }));
+      setTransferForm(f => ({ ...f, account_id: a.data[0].id, custody_keeper_id: f.custody_keeper_id || defaultKeeper?.user_id || "" }));
+    } else if (defaultKeeper) {
+      setTransferForm(f => ({ ...f, custody_keeper_id: f.custody_keeper_id || defaultKeeper.user_id }));
     }
     setLoading(false);
   }
