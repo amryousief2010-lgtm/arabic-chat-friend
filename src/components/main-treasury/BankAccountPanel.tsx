@@ -539,7 +539,7 @@ export default function BankAccountPanel() {
         <Button variant="outline" onClick={()=>setCatDlg(true)} className="gap-2"><Receipt className="h-4 w-4"/>إنشاء بند مصروف</Button>
         <Button variant="outline" onClick={pdfAll} className="gap-2"><Printer className="h-4 w-4"/>تصدير PDF</Button>
         <Button variant="outline" onClick={exportExcel} className="gap-2"><FileDown className="h-4 w-4"/>تصدير Excel</Button>
-        <Button variant="ghost" onClick={fetchAll} className="gap-2"><RefreshCw className="h-4 w-4"/>تحديث</Button>
+        <Button variant="ghost" onClick={()=>fetchAll()} className="gap-2"><RefreshCw className="h-4 w-4"/>تحديث</Button>
       </div>
 
       <Tabs defaultValue="log">
