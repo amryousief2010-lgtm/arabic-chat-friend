@@ -23,6 +23,7 @@ type Kind = "raw" | "finished";
 type LineRow = { id: string; item_id: string; qty: number; price: number };
 const newLine = (): LineRow => ({ id: crypto.randomUUID(), item_id: "", qty: 0, price: 0 });
 const fmt = (n: number) => Number(n || 0).toLocaleString("ar-EG", { maximumFractionDigits: 2 });
+const esc = (s: any) => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
 const printHtml = (title: string, body: string) => {
   const w = window.open("", "_blank", "width=950,height=720");
