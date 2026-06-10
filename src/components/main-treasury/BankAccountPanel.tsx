@@ -905,10 +905,12 @@ export default function BankAccountPanel() {
               }}><Paperclip className="h-4 w-4"/>عرض الصورة الحالية</Button>
             )}
             <div>
-              <Label>صورة جديدة (JPG / PNG / PDF) *</Label>
-              <Input type="file" accept="image/jpeg,image/png,image/jpg,application/pdf"
-                onChange={e=>setChangeAttachDlg({...changeAttachDlg, file:e.target.files?.[0]||null})}/>
-              {changeAttachDlg.file && <div className="text-xs text-muted-foreground mt-1">{changeAttachDlg.file.name} · {Math.round(changeAttachDlg.file.size/1024)}KB</div>}
+              <Label className="mb-2 block">صورة جديدة (JPG / PNG / PDF) *</Label>
+              <DragDropUpload
+                value={changeAttachDlg.file}
+                onChange={(f) => setChangeAttachDlg({...changeAttachDlg, file: f})}
+                label="اسحب الصورة الجديدة هنا أو انقر للاختيار"
+              />
             </div>
             {changeAttachDlg.txn?.status === "posted" && (
               <div>
