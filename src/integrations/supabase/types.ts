@@ -444,12 +444,16 @@ export type Database = {
           batch_id: string
           created_at: string
           created_by: string | null
+          feed_id: string | null
           feed_name: string
           feed_warehouse_product_id: string | null
           id: string
           issue_date: string
           notes: string | null
           quantity_kg: number
+          reference_id: string
+          stock_after: number | null
+          stock_before: number | null
           total_cost: number
           unit_cost: number
         }
@@ -457,12 +461,16 @@ export type Database = {
           batch_id: string
           created_at?: string
           created_by?: string | null
+          feed_id?: string | null
           feed_name: string
           feed_warehouse_product_id?: string | null
           id?: string
           issue_date?: string
           notes?: string | null
           quantity_kg: number
+          reference_id?: string
+          stock_after?: number | null
+          stock_before?: number | null
           total_cost?: number
           unit_cost?: number
         }
@@ -470,12 +478,16 @@ export type Database = {
           batch_id?: string
           created_at?: string
           created_by?: string | null
+          feed_id?: string | null
           feed_name?: string
           feed_warehouse_product_id?: string | null
           id?: string
           issue_date?: string
           notes?: string | null
           quantity_kg?: number
+          reference_id?: string
+          stock_after?: number | null
+          stock_before?: number | null
           total_cost?: number
           unit_cost?: number
         }
@@ -485,6 +497,13 @@ export type Database = {
             columns: ["batch_id"]
             isOneToOne: false
             referencedRelation: "brooding_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brooding_feed_issuance_feed_id_fkey"
+            columns: ["feed_id"]
+            isOneToOne: false
+            referencedRelation: "brooding_feed_inventory"
             referencedColumns: ["id"]
           },
         ]
