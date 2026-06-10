@@ -1231,9 +1231,45 @@ const FeedForm = ({ batches, feedInventory = [], settings = DEFAULT_SETTINGS, ca
   const batch = batches.find(b => b.id === f.batch_id);
   const recommendedUnitCost = feedCostForBatch(batch, settings);
   const inv = feedInventory.find(x => x.id === f.feed_id) || feedInventory.find(x => x.feed_name === f.feed_name);
-...
+
+  // Auto-fill unit_cost from settings when not overriding
+  useEffect(() => {
+    if (!override) setF(p => ({ ...p, unit_cost: recommendedUnitCost }));
+    // eslint-disable-next-line
+  }, [recommendedUnitCost, override, f.batch_id]);
+
+  useEffect(() => { setF(p => ({ ...p, total_cost: +(p.quantity_kg * p.unit_cost).toFixed(3) })); }, [f.quantity_kg, f.unit_cost]);
+
+  const printPermit = (saved: typeof f, user: string) => {
+    const html = `
+      <div style="font-family:'Cairo',sans-serif;direction:rtl">
+        <div style="border-bottom:3px solid ${settings.print_header_color};padding-bottom:10px;margin-bottom:15px">
+          <h1 style="margin:0;text-align:center;color:${settings.print_header_color};font-size:26px">${settings.company_name}</h1>
+          <h2 style="margin:4px 0 0;text-align:center;color:#555;font-size:16px;font-weight:normal">القسم: التحضين والتسمين — نوع الحركة: <strong>صرف علف</strong></h2>
+        </div>
+        <h3 style="text-align:center;color:${settings.print_header_color};margin:0 0 12px">إذن صرف علف رقم ${Date.now().toString().slice(-6)}</h3>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;border:1px solid #999">
+          <tr><th style="padding:8px;background:${settings.print_accent_color};border:1px solid #999;text-align:right">رقم الدفعة</th><td style="padding:8px;border:1px solid #ccc">${batch?.batch_number || '-'}</td>
+              <th style="padding:8px;background:${settings.print_accent_color};border:1px solid #999;text-align:right">تاريخ الصرف</th><td style="padding:8px;border:1px solid #ccc">${saved.issue_date}</td></tr>
+          <tr><th style="padding:8px;background:${settings.print_accent_color};border:1px solid #999;text-align:right">نوع العلف</th><td style="padding:8px;border:1px solid #ccc">${saved.feed_name}</td>
+              <th style="padding:8px;background:${settings.print_accent_color};border:1px solid #999;text-align:right">الكمية</th><td style="padding:8px;border:1px solid #ccc"><strong>${saved.quantity_kg} كجم</strong></td></tr>
+          <tr><th style="padding:8px;background:${settings.print_accent_color};border:1px solid #999;text-align:right">سعر الكيلو (تكلفة)</th><td style="padding:8px;border:1px solid #ccc">${saved.unit_cost} ج.م</td>
+              <th style="padding:8px;background:${settings.print_accent_color};border:1px solid #999;text-align:right">إجمالي التكلفة</th><td style="padding:8px;border:1px solid #ccc;font-weight:bold;color:${settings.print_header_color}">${saved.total_cost} ج.م</td></tr>
+          <tr><th style="padding:8px;background:${settings.print_accent_color};border:1px solid #999;text-align:right">المستخدم</th><td colspan="3" style="padding:8px;border:1px solid #ccc">${user}</td></tr>
+          ${saved.notes ? `<tr><th style="padding:8px;background:${settings.print_accent_color};border:1px solid #999;text-align:right">ملاحظات</th><td colspan="3" style="padding:8px;border:1px solid #ccc">${saved.notes}</td></tr>` : ''}
+        </table>
+        <div style="margin-top:50px;display:flex;justify-content:space-between;gap:20px;font-size:13px">
+          <div style="border-top:2px solid #333;padding-top:8px;flex:1;text-align:center">توقيع مسؤول التحضين<br/><span style="color:#888;font-size:11px">................................</span></div>
+          <div style="border-top:2px solid #333;padding-top:8px;flex:1;text-align:center">توقيع مسؤول مصنع الأعلاف<br/><span style="color:#888;font-size:11px">................................</span></div>
+        </div>
+        <p style="margin-top:20px;text-align:center;font-size:11px;color:#888">⚠️ تم إرسال إشعار تلقائي لمسؤول مصنع الأعلاف بهذه الحركة</p>
+      </div>`;
+    openPrintWindow("إذن صرف علف", html);
+  };
+
   const { profile } = useAuth();
   const [lastSaved, setLastSaved] = useState<typeof f | null>(null);
+
 
   const submit = async () => {
     if (saving) return;
