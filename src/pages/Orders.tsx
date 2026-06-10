@@ -1236,6 +1236,7 @@ const Orders = () => {
           <Table>
             <TableHeader>
               <TableRow className="bg-green-100 hover:bg-green-100 dark:bg-green-800/40 dark:hover:bg-green-800/40 [&_th]:text-green-900 dark:[&_th]:text-green-100 [&_th]:font-semibold">
+                <TableHead className="text-right w-10">مراجعة</TableHead>
                 <TableHead className="text-right">رقم الطلب</TableHead>
                 <TableHead className="text-right">العميل</TableHead>
                 <TableHead className="text-right">رقم الهاتف</TableHead>
