@@ -1058,8 +1058,9 @@ const Orders = () => {
             </Button>
           </div>
 
-          {/* Mobile card view */}
-          <div className="md:hidden space-y-3">
+          {/* Card view (unified for all screens) */}
+          <div className="space-y-3">
+
             {filteredOrders.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">لا توجد طلبات</div>
             ) : (
@@ -1077,16 +1078,29 @@ const Orders = () => {
                 return (
                   <div key={order.id} className="rounded-lg border bg-card p-3 space-y-2">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-mono font-semibold text-sm">{order.order_number}</span>
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          checked={reviewedIds.has(order.id)}
+                          onCheckedChange={(v) => toggleReviewed(order.id, v === true)}
+                          aria-label="تمت المراجعة"
+                        />
+                        <span className="font-mono font-semibold text-sm">{order.order_number}</span>
+                      </div>
                       <Badge className={`${statusColors[order.status]} flex items-center gap-1 text-xs`}>
                         {getStatusIcon(order.status)}
                         {statusLabels[order.status]}
                       </Badge>
                     </div>
+
                     <div className="flex items-center justify-between gap-2 text-sm">
                       <span className="font-semibold truncate">{order.customer_name}</span>
                       <Badge variant="secondary" className="text-xs shrink-0">{order.moderator_name}</Badge>
                     </div>
+                    {order.customer_phone && (
+                      <div className="text-xs font-mono text-muted-foreground" dir="ltr">
+                        <a href={`tel:${order.customer_phone}`} className="hover:underline">{order.customer_phone}</a>
+                      </div>
+                    )}
                     <div className="text-sm text-foreground/90 break-words">
                       {itemLines.length === 0 ? '-' : (
                         <ul className="space-y-0.5 list-disc pr-4">
@@ -1104,6 +1118,23 @@ const Orders = () => {
                         </Button>
                       )}
                     </div>
+                    {(() => {
+                      const offers = Array.from(new Set(order.items.map((it) => it.offer_name).filter(Boolean) as string[]));
+                      return offers.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {offers.map((name) => (
+                            <Badge key={name} className="bg-orange-500 hover:bg-orange-500 text-white text-xs">{name}</Badge>
+                          ))}
+                        </div>
+                      ) : null;
+                    })()}
+                    {order.notes && (
+                      <div className="text-xs bg-muted/50 border rounded px-2 py-1 break-words">
+                        <span className="font-semibold">ملاحظات: </span>
+                        {order.notes}
+                      </div>
+                    )}
+
                     <div className="flex items-center justify-between gap-2 pt-1 border-t">
                       <span className="font-bold text-primary">{order.total.toLocaleString()} ج.م</span>
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -1232,7 +1263,7 @@ const Orders = () => {
           </div>
 
           {/* Desktop table view */}
-          <div className="hidden md:block overflow-x-auto">
+          <div className="hidden">
           <Table>
             <TableHeader>
               <TableRow className="bg-green-100 hover:bg-green-100 dark:bg-green-800/40 dark:hover:bg-green-800/40 [&_th]:text-green-900 dark:[&_th]:text-green-100 [&_th]:font-semibold">
