@@ -12254,6 +12254,7 @@ export type Database = {
           id: string
           instapay_amount: number
           notes: string | null
+          source_main_txn_id: string | null
           status: Database["public"]["Enums"]["slaughter_custody_status"]
           total_amount: number
           updated_at: string
@@ -12270,6 +12271,7 @@ export type Database = {
           id?: string
           instapay_amount?: number
           notes?: string | null
+          source_main_txn_id?: string | null
           status?: Database["public"]["Enums"]["slaughter_custody_status"]
           total_amount?: number
           updated_at?: string
@@ -12286,12 +12288,21 @@ export type Database = {
           id?: string
           instapay_amount?: number
           notes?: string | null
+          source_main_txn_id?: string | null
           status?: Database["public"]["Enums"]["slaughter_custody_status"]
           total_amount?: number
           updated_at?: string
           vodafone_cash_amount?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "slaughter_custody_opening_balances_source_main_txn_id_fkey"
+            columns: ["source_main_txn_id"]
+            isOneToOne: false
+            referencedRelation: "main_treasury_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       slaughter_custody_week_closures: {
         Row: {
