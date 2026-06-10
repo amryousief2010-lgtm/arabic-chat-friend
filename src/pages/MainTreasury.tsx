@@ -71,7 +71,13 @@ export default function MainTreasury() {
     account_id: "", txn_type: "expense" as Txn["txn_type"], amount: "",
     txn_date: today(), category_id: "", counterparty: "", description: "",
   });
-  const [transferForm, setTransferForm] = useState({ account_id: "", custody_keeper_id: "", amount: "", notes: "" });
+  const [transferForm, setTransferForm] = useState({
+    account_id: "", custody_keeper_id: "", amount: "",
+    recipient_name: "", reason: "", payment_method: "cash" as "cash"|"transfer"|"other",
+    notes: "", txn_date: today(),
+  });
+  const [transferReceipt, setTransferReceipt] = useState<File|null>(null);
+  const [transferDupWarn, setTransferDupWarn] = useState<string>("");
   const [newAccount, setNewAccount] = useState({ name:"", account_type:"cash" as Account["account_type"], bank_name:"", opening_balance:"" });
   const [rejectDlg, setRejectDlg] = useState<{open:boolean; txn?:Txn; reason:string}>({ open:false, reason:"" });
   const [editOpenBal, setEditOpenBal] = useState<{open:boolean; account?:Account; value:string}>({ open:false, value:"" });
