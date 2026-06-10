@@ -783,7 +783,7 @@ export default function BankAccountPanel() {
               <div><Label>بند المصروف *</Label>
                 <Select value={form.bank_category_id} onValueChange={v=>setForm({...form,bank_category_id:v})}>
                   <SelectTrigger><SelectValue placeholder="اختر"/></SelectTrigger>
-                  <SelectContent>{cats.map(c=><SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}</SelectContent>
+                  <SelectContent>{cats.filter(c=>c.is_active).map(c=><SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             )}
