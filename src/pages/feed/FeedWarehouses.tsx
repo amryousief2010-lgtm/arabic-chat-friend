@@ -50,31 +50,31 @@ const printHtml = (title: string, bodyHtml: string) => {
 
 const printPurchase = (p: any) => {
   const rows = (p.feed_raw_purchase_items || []).map((it: any) => `
-    <tr><td>${it.feed_raw_materials?.name || "-"}</td><td>${fmt(it.quantity)}</td><td>${it.feed_raw_materials?.unit || "كجم"}</td><td>${fmt(it.unit_price)}</td><td>${fmt(Number(it.quantity) * Number(it.unit_price))}</td></tr>`).join("");
+    <tr><td>${esc(it.feed_raw_materials?.name || "-")}</td><td>${fmt(it.quantity)}</td><td>${esc(it.feed_raw_materials?.unit || "كجم")}</td><td>${fmt(it.unit_price)}</td><td>${fmt(Number(it.quantity) * Number(it.unit_price))}</td></tr>`).join("");
   const total = (p.feed_raw_purchase_items || []).reduce((s: number, i: any) => s + Number(i.quantity) * Number(i.unit_price), 0);
-  printHtml(`فاتورة شراء ${p.purchase_no}`, `
+  printHtml(`فاتورة شراء ${esc(p.purchase_no)}`, `
     <div class="header"><div><div class="brand">عاصمة النعام</div><div>مصنع الأعلاف — فاتورة شراء مواد خام</div></div>
-      <div style="text-align:left"><div><b>رقم:</b> ${p.purchase_no}</div><div><b>التاريخ:</b> ${p.purchase_date}</div></div></div>
-    <div class="meta"><b>المورد:</b> ${p.supplier || "-"} &nbsp; <b>رقم فاتورة المورد:</b> ${p.supplier_invoice_no || "-"}</div>
+      <div style="text-align:left"><div><b>رقم:</b> ${esc(p.purchase_no)}</div><div><b>التاريخ:</b> ${esc(p.purchase_date)}</div></div></div>
+    <div class="meta"><b>المورد:</b> ${esc(p.supplier || "-")} &nbsp; <b>رقم فاتورة المورد:</b> ${esc(p.supplier_invoice_no || "-")}</div>
     <table><thead><tr><th>الصنف</th><th>الكمية</th><th>الوحدة</th><th>سعر الوحدة</th><th>الإجمالي</th></tr></thead>
       <tbody>${rows || '<tr><td colspan="5" style="text-align:center">لا توجد بنود</td></tr>'}</tbody>
       <tfoot><tr><td colspan="4">الإجمالي</td><td>${fmt(total)} ج.م</td></tr></tfoot></table>
-    ${p.notes ? `<div class="meta" style="margin-top:10px"><b>ملاحظات:</b> ${p.notes}</div>` : ""}
+    ${p.notes ? `<div class="meta" style="margin-top:10px"><b>ملاحظات:</b> ${esc(p.notes)}</div>` : ""}
     <div class="sig"><div>توقيع المسؤول: ____________</div><div>توقيع المستلم: ____________</div></div>`);
 };
 
 const printSale = (s: any) => {
   const rows = (s.feed_sale_items || []).map((it: any) => `
-    <tr><td>${it.feed_products?.name || it.feed_raw_materials?.name || "-"}</td><td>${fmt(it.quantity)} ${it.feed_raw_materials?.unit || "كجم"}</td><td>${fmt(it.unit_price)}</td><td>${fmt(Number(it.quantity) * Number(it.unit_price))}</td></tr>`).join("");
+    <tr><td>${esc(it.feed_products?.name || it.feed_raw_materials?.name || "-")}</td><td>${fmt(it.quantity)} ${esc(it.feed_raw_materials?.unit || "كجم")}</td><td>${fmt(it.unit_price)}</td><td>${fmt(Number(it.quantity) * Number(it.unit_price))}</td></tr>`).join("");
   const total = (s.feed_sale_items || []).reduce((sum: number, i: any) => sum + Number(i.quantity) * Number(i.unit_price), 0);
-  printHtml(`فاتورة بيع ${s.sale_no}`, `
+  printHtml(`فاتورة بيع ${esc(s.sale_no)}`, `
     <div class="header"><div><div class="brand">عاصمة النعام</div><div>مصنع الأعلاف — فاتورة بيع</div></div>
-      <div style="text-align:left"><div><b>رقم:</b> ${s.sale_no}</div><div><b>التاريخ:</b> ${s.sale_date}</div></div></div>
-    <div class="meta"><b>العميل:</b> ${s.customer || "-"}</div>
+      <div style="text-align:left"><div><b>رقم:</b> ${esc(s.sale_no)}</div><div><b>التاريخ:</b> ${esc(s.sale_date)}</div></div></div>
+    <div class="meta"><b>العميل:</b> ${esc(s.customer || "-")}</div>
     <table><thead><tr><th>المنتج</th><th>الكمية</th><th>سعر الكيلو</th><th>الإجمالي</th></tr></thead>
       <tbody>${rows || '<tr><td colspan="4" style="text-align:center">لا توجد بنود</td></tr>'}</tbody>
       <tfoot><tr><td colspan="3">الإجمالي</td><td>${fmt(total)} ج.م</td></tr></tfoot></table>
-    ${s.notes ? `<div class="meta" style="margin-top:10px"><b>ملاحظات:</b> ${s.notes}</div>` : ""}
+    ${s.notes ? `<div class="meta" style="margin-top:10px"><b>ملاحظات:</b> ${esc(s.notes)}</div>` : ""}
     <div class="sig"><div>توقيع البائع: ____________</div><div>توقيع العميل: ____________</div></div>`);
 };
 
@@ -82,16 +82,16 @@ const printCount = (c: any) => {
   const rows = (c.feed_stock_count_items || []).map((it: any) => {
     const v = Number(it.counted_qty) - Number(it.system_qty);
     const vv = v * Number(it.unit_cost || 0);
-    return `<tr><td>${it.item_name}</td><td>${it.item_kind === "raw_material" ? "خامة" : "علف جاهز"}</td><td>${fmt(it.system_qty)}</td><td>${fmt(it.counted_qty)}</td><td style="color:${v < 0 ? "#dc2626" : v > 0 ? "#059669" : "#111"}">${fmt(v)}</td><td>${fmt(it.unit_cost)}</td><td>${fmt(vv)}</td></tr>`;
+    return `<tr><td>${esc(it.item_name)}</td><td>${it.item_kind === "raw_material" ? "خامة" : "علف جاهز"}</td><td>${fmt(it.system_qty)}</td><td>${fmt(it.counted_qty)}</td><td style="color:${v < 0 ? "#dc2626" : v > 0 ? "#059669" : "#111"}">${fmt(v)}</td><td>${fmt(it.unit_cost)}</td><td>${fmt(vv)}</td></tr>`;
   }).join("");
   const total = (c.feed_stock_count_items || []).reduce((s: number, i: any) => s + (Number(i.counted_qty) - Number(i.system_qty)) * Number(i.unit_cost || 0), 0);
-  printHtml(`محضر جرد ${c.count_no}`, `
+  printHtml(`محضر جرد ${esc(c.count_no)}`, `
     <div class="header"><div><div class="brand">عاصمة النعام</div><div>مصنع الأعلاف — محضر جرد</div></div>
-      <div style="text-align:left"><div><b>رقم:</b> ${c.count_no}</div><div><b>التاريخ:</b> ${c.count_date}</div><div><b>الحالة:</b> ${c.status === "closed" ? "مغلق" : "مسودة"}</div></div></div>
+      <div style="text-align:left"><div><b>رقم:</b> ${esc(c.count_no)}</div><div><b>التاريخ:</b> ${esc(c.count_date)}</div><div><b>الحالة:</b> ${c.status === "closed" ? "مغلق" : "مسودة"}</div></div></div>
     <table><thead><tr><th>الصنف</th><th>النوع</th><th>رصيد النظام</th><th>الفعلي</th><th>الفرق</th><th>سعر الوحدة</th><th>قيمة الفرق</th></tr></thead>
       <tbody>${rows || '<tr><td colspan="7" style="text-align:center">لا توجد بنود</td></tr>'}</tbody>
       <tfoot><tr><td colspan="6">إجمالي قيمة الفروقات</td><td>${fmt(total)} ج.م</td></tr></tfoot></table>
-    ${c.notes ? `<div class="meta" style="margin-top:10px"><b>ملاحظات:</b> ${c.notes}</div>` : ""}
+    ${c.notes ? `<div class="meta" style="margin-top:10px"><b>ملاحظات:</b> ${esc(c.notes)}</div>` : ""}
     <div class="sig"><div>القائم بالجرد: ____________</div><div>المدير التنفيذي: ____________</div></div>`);
 };
 
