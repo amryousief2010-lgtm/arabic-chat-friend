@@ -1259,7 +1259,7 @@ const Orders = () => {
             <TableBody>
               {filteredOrders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={isPrivateDeliveryRep ? 17 : 16} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={isPrivateDeliveryRep ? 18 : 17} className="text-center py-8 text-muted-foreground">
                     لا توجد طلبات
                   </TableCell>
                 </TableRow>
@@ -1267,6 +1267,13 @@ const Orders = () => {
               ) : (
                 filteredOrders.map((order) => (
                   <TableRow key={order.id} className="table-row-hover">
+                    <TableCell className="w-10">
+                      <Checkbox
+                        checked={reviewedIds.has(order.id)}
+                        onCheckedChange={(v) => toggleReviewed(order.id, v === true)}
+                        aria-label="تمت المراجعة"
+                      />
+                    </TableCell>
                     <TableCell className="font-mono font-semibold">
                       {order.order_number}
                     </TableCell>
