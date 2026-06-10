@@ -730,14 +730,21 @@ export default function BankAccountPanel() {
             </CardHeader>
             <CardContent className="p-0">
               <Table>
-                <TableHeader><TableRow><TableHead>الكود</TableHead><TableHead>الاسم</TableHead><TableHead>يحتاج مرفق</TableHead><TableHead>الحالة</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow><TableHead>الكود</TableHead><TableHead>الاسم</TableHead><TableHead>يحتاج مرفق</TableHead><TableHead>الحالة</TableHead><TableHead>إجراء</TableHead></TableRow></TableHeader>
                 <TableBody>
-                  {cats.map(c => (
+                  {cats.length === 0
+                    ? <TableRow><TableCell colSpan={5} className="text-center py-6 text-muted-foreground">لا توجد بنود — أضف بندًا جديدًا</TableCell></TableRow>
+                    : cats.map(c => (
                     <TableRow key={c.id}>
                       <TableCell className="font-mono text-xs">{c.code}</TableCell>
                       <TableCell>{c.label}</TableCell>
                       <TableCell>{c.requires_attachment ? "نعم" : "—"}</TableCell>
                       <TableCell><Badge variant={c.is_active ? "default" : "outline"}>{c.is_active ? "نشط" : "موقوف"}</Badge></TableCell>
+                      <TableCell>
+                        <Button size="sm" variant={c.is_active ? "outline" : "default"} onClick={()=>toggleCategoryActive(c)}>
+                          {c.is_active ? "تعطيل" : "تفعيل"}
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
