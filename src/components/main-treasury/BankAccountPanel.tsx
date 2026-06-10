@@ -786,12 +786,20 @@ export default function BankAccountPanel() {
               {(() => {
                 const srcDef = INCOMING_SOURCES.find(s=>s.value===form.incoming_source);
                 const required = form.txn_type === "bank_deposit" && !!srcDef?.attachmentRequired;
-                return <>
-                  <Label>صورة التحويل / إيصال التحويل {required && <span className="text-destructive">*</span>}</Label>
-                  <Input type="file" accept="image/jpeg,image/png,image/jpg,application/pdf" onChange={e=>setFile(e.target.files?.[0] || null)}/>
-                  {file && <div className="text-xs text-muted-foreground mt-1">{file.name} · {Math.round(file.size/1024)}KB · {file.type}</div>}
-                  {required && !file && <div className="text-xs text-destructive mt-1">صورة التحويل إجبارية لـ {srcDef?.label}</div>}
-                </>;
+                return (
+                  <>
+                    <Label className="mb-2 block">
+                      صورة التحويل / إيصال التحويل{" "}
+                      {required && <span className="text-destructive">*</span>}
+                    </Label>
+                    <DragDropUpload
+                      value={file}
+                      onChange={setFile}
+                      label="اسحب صورة التحويل هنا أو انقر للاختيار"
+                      requiredHint={required && !file ? `صورة التحويل إجبارية لـ ${srcDef?.label}` : undefined}
+                    />
+                  </>
+                );
               })()}
             </div>
             <div className="md:col-span-2 text-xs text-muted-foreground border rounded p-2 bg-muted/30">
