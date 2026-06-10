@@ -874,9 +874,12 @@ export default function BankAccountPanel() {
             <div><Label>اسم المودع في البنك *</Label><Input value={transferForm.bank_depositor_by} onChange={e=>setTransferForm({...transferForm,bank_depositor_by:e.target.value})}/></div>
             <div className="md:col-span-2"><Label>ملاحظات</Label><Textarea rows={2} value={transferForm.notes} onChange={e=>setTransferForm({...transferForm,notes:e.target.value})}/></div>
             <div className="md:col-span-2">
-              <Label>مرفق إيصال الإيداع البنكي</Label>
-              <Input type="file" accept="image/*,application/pdf" onChange={e=>setTransferFile(e.target.files?.[0] || null)}/>
-              {transferFile && <div className="text-xs text-muted-foreground mt-1">{transferFile.name}</div>}
+              <Label className="mb-2 block">مرفق إيصال الإيداع البنكي</Label>
+              <DragDropUpload
+                value={transferFile}
+                onChange={setTransferFile}
+                label="اسحب إيصال الإيداع هنا أو انقر للاختيار"
+              />
             </div>
             <div className="md:col-span-2 text-xs text-muted-foreground border rounded p-2 bg-muted/30">
               تسجَّل حركتان مرتبطتان (خروج من النقدية + دخول للبنك) بمعرّف تحويل واحد. لا يُخصم/يضاف إلا بعد اعتماد المدير المختص. لا يمكنك اعتماد طلب سجلته بنفسك. تكرار الضغط محمي تلقائيًا.
