@@ -405,15 +405,6 @@ export default function MainTreasury() {
         );
       })()}
 
-      {(() => null)()}
-      {/* sentinel */}
-      {false && <div/>}
-      {/* end KPI */}
-      {/** ensure no extra rendering **/}
-      {/* placeholder removed */}
-      </>
-}
-
 
       <Tabs defaultValue="dashboard">
         <TabsList className="flex-wrap h-auto">
