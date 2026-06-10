@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Users, Package, CheckCircle2, XCircle, Truck, RefreshCw } from 'lucide-react';
+import { Users, Package, CheckCircle2, XCircle, Truck, RefreshCw, Bird } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { findModeratorByName } from '@/constants/moderators';
 
@@ -83,7 +83,17 @@ const ModeratorOrdersBreakdown = ({ month, year }: Props = {}) => {
         .lt('created_at', endDate);
       if (error) throw error;
 
-      const userIds = Array.from(new Set((orders || []).map(o => o.created_by).filter(Boolean))) as string[];
+      const { data: chickOrders } = await supabase
+        .from('chick_orders')
+        .select('status, chick_count, created_by')
+        .eq('status', 'delivered')
+        .gte('created_at', startDate)
+        .lt('created_at', endDate);
+
+      const userIds = Array.from(new Set([
+        ...((orders || []).map(o => o.created_by).filter(Boolean) as string[]),
+        ...((chickOrders || []).map(o => o.created_by).filter(Boolean) as string[]),
+      ]));
       let profiles: ProfileRow[] = [];
       if (userIds.length > 0) {
         const { data: pData } = await supabase
@@ -105,7 +115,13 @@ const ModeratorOrdersBreakdown = ({ month, year }: Props = {}) => {
         const delivered = filtered.filter(o => o.status === 'delivered').length;
         const cancelled = filtered.filter(o => o.status === 'cancelled').length;
         const pending = total - delivered - cancelled;
-        return { name: girl, total, delivered, cancelled, pending };
+        const chicksDelivered = (chickOrders || [])
+          .filter(c => {
+            const creatorName = c.created_by ? (profileMap.get(c.created_by) || '') : '';
+            return matches(creatorName, girl);
+          })
+          .reduce((s, c) => s + (Number(c.chick_count) || 0), 0);
+        return { name: girl, total, delivered, cancelled, pending, chicksDelivered };
       });
     },
   });
@@ -196,6 +212,13 @@ const ModeratorOrdersBreakdown = ({ month, year }: Props = {}) => {
                       <span className="text-sm">ملغية</span>
                     </div>
                     <span className="font-bold text-lg text-red-600">{item.cancelled}</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-yellow-500/10">
+                    <div className="flex items-center gap-2">
+                      <Bird className="h-4 w-4 text-yellow-700" />
+                      <span className="text-sm">عدد الكتاكيت المسلمة</span>
+                    </div>
+                    <span className="font-bold text-lg text-yellow-700">{item.chicksDelivered}</span>
                   </div>
                 </CardContent>
               </Card>
