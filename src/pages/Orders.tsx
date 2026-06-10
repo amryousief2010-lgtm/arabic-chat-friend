@@ -1078,12 +1078,20 @@ const Orders = () => {
                 return (
                   <div key={order.id} className="rounded-lg border bg-card p-3 space-y-2">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-mono font-semibold text-sm">{order.order_number}</span>
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          checked={reviewedIds.has(order.id)}
+                          onCheckedChange={(v) => toggleReviewed(order.id, v === true)}
+                          aria-label="تمت المراجعة"
+                        />
+                        <span className="font-mono font-semibold text-sm">{order.order_number}</span>
+                      </div>
                       <Badge className={`${statusColors[order.status]} flex items-center gap-1 text-xs`}>
                         {getStatusIcon(order.status)}
                         {statusLabels[order.status]}
                       </Badge>
                     </div>
+
                     <div className="flex items-center justify-between gap-2 text-sm">
                       <span className="font-semibold truncate">{order.customer_name}</span>
                       <Badge variant="secondary" className="text-xs shrink-0">{order.moderator_name}</Badge>
