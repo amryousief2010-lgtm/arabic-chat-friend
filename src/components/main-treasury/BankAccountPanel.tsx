@@ -177,12 +177,12 @@ export default function BankAccountPanel() {
     fetchAll();
   }
 
-  async function fetchAll() {
+  async function fetchAll(opts?: { silent?: boolean }) {
     setLoading(true);
     const [a, b, c, t] = await Promise.all([
       (supabase as any).from("main_treasury_accounts").select("*").eq("is_active", true).order("created_at"),
       (supabase as any).from("v_main_treasury_balance").select("*"),
-      (supabase as any).from("main_treasury_bank_categories").select("*").eq("is_active", true).order("sort_order"),
+      (supabase as any).from("main_treasury_bank_categories").select("*").order("sort_order"),
       (supabase as any).from("main_treasury_transactions").select("*").order("created_at", { ascending: false }).limit(1000),
     ]);
     setAccounts(a.data || []);
@@ -190,8 +190,30 @@ export default function BankAccountPanel() {
     setCats(c.data || []);
     setTxns(t.data || []);
     setLoading(false);
+    if (!opts?.silent) toast.success("تم التحديث بنجاح");
   }
-  useEffect(() => { if (user) fetchAll(); /* eslint-disable-next-line */ }, [user?.id]);
+  useEffect(() => { if (user) fetchAll({ silent: true }); /* eslint-disable-next-line */ }, [user?.id]);
+
+  async function toggleCategoryActive(cat: BankCategory) {
+    // Block disabling if used in any non-rejected transaction
+    if (cat.is_active) {
+      const { count } = await (supabase as any)
+        .from("main_treasury_transactions")
+        .select("id", { count: "exact", head: true })
+        .eq("bank_category_id", cat.id)
+        .neq("status", "rejected");
+      if ((count || 0) > 0 && !isApprover) {
+        return toast.error("لا يمكن تعطيل بند مستخدم في حركات — يحتاج صلاحية الإدارة");
+      }
+    }
+    const { error } = await (supabase as any)
+      .from("main_treasury_bank_categories")
+      .update({ is_active: !cat.is_active })
+      .eq("id", cat.id);
+    if (error) return toast.error(error.message);
+    toast.success(cat.is_active ? "تم تعطيل البند" : "تم تفعيل البند");
+    fetchAll({ silent: true });
+  }
 
   function openTxnDlg() {
     setForm({ ...emptyForm, account_id: accounts.find(a => a.account_type === "bank")?.id || "" });
@@ -517,7 +539,7 @@ export default function BankAccountPanel() {
         <Button variant="outline" onClick={()=>setCatDlg(true)} className="gap-2"><Receipt className="h-4 w-4"/>إنشاء بند مصروف</Button>
         <Button variant="outline" onClick={pdfAll} className="gap-2"><Printer className="h-4 w-4"/>تصدير PDF</Button>
         <Button variant="outline" onClick={exportExcel} className="gap-2"><FileDown className="h-4 w-4"/>تصدير Excel</Button>
-        <Button variant="ghost" onClick={fetchAll} className="gap-2"><RefreshCw className="h-4 w-4"/>تحديث</Button>
+        <Button variant="ghost" onClick={()=>fetchAll()} className="gap-2"><RefreshCw className="h-4 w-4"/>تحديث</Button>
       </div>
 
       <Tabs defaultValue="log">
@@ -708,14 +730,21 @@ export default function BankAccountPanel() {
             </CardHeader>
             <CardContent className="p-0">
               <Table>
-                <TableHeader><TableRow><TableHead>الكود</TableHead><TableHead>الاسم</TableHead><TableHead>يحتاج مرفق</TableHead><TableHead>الحالة</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow><TableHead>الكود</TableHead><TableHead>الاسم</TableHead><TableHead>يحتاج مرفق</TableHead><TableHead>الحالة</TableHead><TableHead>إجراء</TableHead></TableRow></TableHeader>
                 <TableBody>
-                  {cats.map(c => (
+                  {cats.length === 0
+                    ? <TableRow><TableCell colSpan={5} className="text-center py-6 text-muted-foreground">لا توجد بنود — أضف بندًا جديدًا</TableCell></TableRow>
+                    : cats.map(c => (
                     <TableRow key={c.id}>
                       <TableCell className="font-mono text-xs">{c.code}</TableCell>
                       <TableCell>{c.label}</TableCell>
                       <TableCell>{c.requires_attachment ? "نعم" : "—"}</TableCell>
                       <TableCell><Badge variant={c.is_active ? "default" : "outline"}>{c.is_active ? "نشط" : "موقوف"}</Badge></TableCell>
+                      <TableCell>
+                        <Button size="sm" variant={c.is_active ? "outline" : "default"} onClick={()=>toggleCategoryActive(c)}>
+                          {c.is_active ? "تعطيل" : "تفعيل"}
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -754,7 +783,7 @@ export default function BankAccountPanel() {
               <div><Label>بند المصروف *</Label>
                 <Select value={form.bank_category_id} onValueChange={v=>setForm({...form,bank_category_id:v})}>
                   <SelectTrigger><SelectValue placeholder="اختر"/></SelectTrigger>
-                  <SelectContent>{cats.map(c=><SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}</SelectContent>
+                  <SelectContent>{cats.filter(c=>c.is_active).map(c=><SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             )}
