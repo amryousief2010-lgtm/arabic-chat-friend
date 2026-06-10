@@ -7942,6 +7942,8 @@ export type Database = {
           reason: string
           ref_id: string | null
           ref_table: string | null
+          stock_after: number | null
+          stock_before: number | null
           unit_cost: number
         }
         Insert: {
@@ -7956,6 +7958,8 @@ export type Database = {
           reason: string
           ref_id?: string | null
           ref_table?: string | null
+          stock_after?: number | null
+          stock_before?: number | null
           unit_cost?: number
         }
         Update: {
@@ -7970,6 +7974,8 @@ export type Database = {
           reason?: string
           ref_id?: string | null
           ref_table?: string | null
+          stock_after?: number | null
+          stock_before?: number | null
           unit_cost?: number
         }
         Relationships: []
@@ -8292,32 +8298,44 @@ export type Database = {
       meat_factory_purchase_lines: {
         Row: {
           created_at: string
+          expiry_date: string | null
           id: string
+          kind: string
           line_total: number
+          notes: string | null
           purchase_id: string
           quantity: number
           raw_item_id: string
           raw_item_name: string
+          unit: string | null
           unit_price: number
         }
         Insert: {
           created_at?: string
+          expiry_date?: string | null
           id?: string
+          kind?: string
           line_total?: number
+          notes?: string | null
           purchase_id: string
           quantity: number
           raw_item_id: string
           raw_item_name: string
+          unit?: string | null
           unit_price: number
         }
         Update: {
           created_at?: string
+          expiry_date?: string | null
           id?: string
+          kind?: string
           line_total?: number
+          notes?: string | null
           purchase_id?: string
           quantity?: number
           raw_item_id?: string
           raw_item_name?: string
+          unit?: string | null
           unit_price?: number
         }
         Relationships: [
@@ -8341,12 +8359,17 @@ export type Database = {
         Row: {
           approved_at: string | null
           approved_by: string | null
+          attachment_url: string | null
           created_at: string
           created_by: string | null
           id: string
+          invoice_no: string | null
+          invoice_type: string
           notes: string | null
           payment_method: string
           purchase_date: string
+          purchase_invoice_uuid: string
+          receipt_no: string | null
           status: string
           supplier: string | null
           total_amount: number
@@ -8356,12 +8379,17 @@ export type Database = {
         Insert: {
           approved_at?: string | null
           approved_by?: string | null
+          attachment_url?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
+          invoice_no?: string | null
+          invoice_type?: string
           notes?: string | null
           payment_method?: string
           purchase_date?: string
+          purchase_invoice_uuid?: string
+          receipt_no?: string | null
           status?: string
           supplier?: string | null
           total_amount?: number
@@ -8371,12 +8399,17 @@ export type Database = {
         Update: {
           approved_at?: string | null
           approved_by?: string | null
+          attachment_url?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
+          invoice_no?: string | null
+          invoice_type?: string
           notes?: string | null
           payment_method?: string
           purchase_date?: string
+          purchase_invoice_uuid?: string
+          receipt_no?: string | null
           status?: string
           supplier?: string | null
           total_amount?: number
@@ -8432,6 +8465,8 @@ export type Database = {
           created_at: string
           current_stock: number
           id: string
+          is_active: boolean
+          kind: string
           low_stock_threshold: number
           name: string
           notes: string | null
@@ -8443,6 +8478,8 @@ export type Database = {
           created_at?: string
           current_stock?: number
           id?: string
+          is_active?: boolean
+          kind?: string
           low_stock_threshold?: number
           name: string
           notes?: string | null
@@ -8454,6 +8491,8 @@ export type Database = {
           created_at?: string
           current_stock?: number
           id?: string
+          is_active?: boolean
+          kind?: string
           low_stock_threshold?: number
           name?: string
           notes?: string | null
@@ -14950,6 +14989,7 @@ export type Database = {
         }
       }
       gen_meat_invoice_no: { Args: never; Returns: string }
+      gen_meat_purchase_invoice_no: { Args: never; Returns: string }
       gen_transfer_no: { Args: never; Returns: string }
       generate_order_number: { Args: never; Returns: string }
       generate_stock_reconciliation_proposals: {
@@ -15501,6 +15541,10 @@ export type Database = {
       reject_low_yield_transfer: {
         Args: { p_batch_id: string; p_reason: string }
         Returns: Json
+      }
+      reject_meat_purchase: {
+        Args: { p_purchase_id: string; p_reason?: string }
+        Returns: string
       }
       reject_proposal: {
         Args: { p_id: string; p_note?: string }
