@@ -1075,8 +1075,21 @@ const Orders = () => {
                 const isExpanded = expandedItems.has(order.id);
                 const hasMore = itemLines.length > 1;
                 const shownLines = isExpanded || !hasMore ? itemLines : [itemLines[0]];
+                const cardPalette = [
+                  "bg-blue-50 dark:bg-blue-950/30 border-r-4 border-r-blue-500",
+                  "bg-emerald-50 dark:bg-emerald-950/30 border-r-4 border-r-emerald-500",
+                  "bg-amber-50 dark:bg-amber-950/30 border-r-4 border-r-amber-500",
+                  "bg-purple-50 dark:bg-purple-950/30 border-r-4 border-r-purple-500",
+                  "bg-pink-50 dark:bg-pink-950/30 border-r-4 border-r-pink-500",
+                  "bg-cyan-50 dark:bg-cyan-950/30 border-r-4 border-r-cyan-500",
+                  "bg-orange-50 dark:bg-orange-950/30 border-r-4 border-r-orange-500",
+                  "bg-teal-50 dark:bg-teal-950/30 border-r-4 border-r-teal-500",
+                ];
+                let hash = 0;
+                for (let i = 0; i < order.id.length; i++) hash = (hash * 31 + order.id.charCodeAt(i)) >>> 0;
+                const cardColor = cardPalette[hash % cardPalette.length];
                 return (
-                  <div key={order.id} className="rounded-lg border bg-card p-3 space-y-2">
+                  <div key={order.id} className={`rounded-lg border p-3 space-y-2 ${cardColor}`}>
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <Checkbox
