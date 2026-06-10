@@ -411,7 +411,7 @@ export default function MainTreasury() {
           <TabsTrigger value="dashboard">لوحة الرصيد</TabsTrigger>
           <TabsTrigger value="bank">الحساب البنكي</TabsTrigger>
           <TabsTrigger value="new">معاملة جديدة</TabsTrigger>
-          <TabsTrigger value="transfer">تحويل للعهدة</TabsTrigger>
+          <TabsTrigger value="transfer">توريد لخزنة العهدة</TabsTrigger>
           {isApprover && <TabsTrigger value="approve">بانتظار الاعتماد {pendingTxns.length>0 && <Badge className="mr-2">{pendingTxns.length}</Badge>}</TabsTrigger>}
           <TabsTrigger value="log">سجل الحركات</TabsTrigger>
           <TabsTrigger value="transfers">سجل التحويلات</TabsTrigger>
