@@ -315,84 +315,100 @@ const ChickOrders = () => {
           </div>
         </Card>
 
-        {/* Table */}
-        <Card className="p-0 overflow-hidden">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-right">رقم الطلب</TableHead>
-                  <TableHead className="text-right">العميل</TableHead>
-                  <TableHead className="text-right">الهاتف</TableHead>
-                  <TableHead className="text-right">المحافظة / المدينة</TableHead>
-                  <TableHead className="text-right">المسوقة</TableHead>
-                  <TableHead className="text-right">العمر</TableHead>
-                  <TableHead className="text-right">العدد</TableHead>
-                  <TableHead className="text-right">السعر</TableHead>
-                  <TableHead className="text-right">الإجمالي</TableHead>
-                  <TableHead className="text-right">الحالة</TableHead>
-                  <TableHead className="text-right">إجراءات</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">جارٍ التحميل...</TableCell></TableRow>
-                ) : filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={11} className="text-center py-10 text-muted-foreground">لا توجد طلبات</TableCell></TableRow>
-                ) : filtered.map((o) => {
-                  const st = statusLabels[o.status];
-                  const orderNo = `CK-${o.id.slice(0, 8).toUpperCase()}`;
-                  return (
-                    <TableRow key={o.id}>
-                      <TableCell className="font-mono text-xs">{orderNo}</TableCell>
-                      <TableCell className="font-medium">{o.customer_name}</TableCell>
-                      <TableCell dir="ltr" className="text-right">
-                        {o.phone_primary}
-                        {o.phone_secondary && <div className="text-xs text-muted-foreground">{o.phone_secondary}</div>}
-                      </TableCell>
-                      <TableCell>{o.governorate} / {o.city}</TableCell>
-                      <TableCell className="text-sm">{profilesMap[o.created_by] || "—"}</TableCell>
-                      <TableCell>{o.chick_age}</TableCell>
-                      <TableCell>{o.chick_count.toLocaleString()}</TableCell>
-                      <TableCell>{Number(o.chick_price).toLocaleString()} ج</TableCell>
-                      <TableCell className="font-semibold">{Number(o.total_amount).toLocaleString()} ج</TableCell>
-                      <TableCell>
-                        {canManage ? (
-                          <Select
-                            value={o.status}
-                            onValueChange={(v) => statusMutation.mutate({ id: o.id, status: v })}
-                          >
-                            <SelectTrigger className="h-8 w-32"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="pending">قيد التنفيذ</SelectItem>
-                              <SelectItem value="delivered">تم التسليم</SelectItem>
-                              <SelectItem value="returned">مرتجع</SelectItem>
-                              <SelectItem value="cancelled">ملغي</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <Badge className={st.cls}>{st.label}</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button size="icon" variant="ghost" onClick={() => openEdit(o)}>
-                            <Pencil className="w-4 h-4" />
-                          </Button>
-                          {canManage && (
-                            <Button size="icon" variant="ghost" onClick={() => setDeleteId(o.id)}>
-                              <Trash2 className="w-4 h-4 text-destructive" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        </Card>
+        {/* Orders cards */}
+        <div className="space-y-3">
+          {isLoading ? (
+            <Card className="p-8 text-center text-muted-foreground">جارٍ التحميل...</Card>
+          ) : filtered.length === 0 ? (
+            <Card className="p-10 text-center text-muted-foreground">لا توجد طلبات</Card>
+          ) : filtered.map((o) => {
+            const st = statusLabels[o.status];
+            const orderNo = `CK-${o.id.slice(0, 8).toUpperCase()}`;
+            const cardPalette = [
+              "border-r-4 border-r-blue-500",
+              "border-r-4 border-r-emerald-500",
+              "border-r-4 border-r-amber-500",
+              "border-r-4 border-r-purple-500",
+              "border-r-4 border-r-pink-500",
+              "border-r-4 border-r-cyan-500",
+              "border-r-4 border-r-orange-500",
+              "border-r-4 border-r-teal-500",
+            ];
+            let hash = 0;
+            for (let i = 0; i < o.id.length; i++) hash = (hash * 31 + o.id.charCodeAt(i)) >>> 0;
+            const cardColor = cardPalette[hash % cardPalette.length];
+            return (
+              <Card key={o.id} className={`p-3 space-y-2 ${cardColor}`}>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs bg-muted px-2 py-1 rounded">{orderNo}</span>
+                    <span className="font-semibold">{o.customer_name}</span>
+                  </div>
+                  {canManage ? (
+                    <Select value={o.status} onValueChange={(v) => statusMutation.mutate({ id: o.id, status: v })}>
+                      <SelectTrigger className="h-8 w-32"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">قيد التنفيذ</SelectItem>
+                        <SelectItem value="delivered">تم التسليم</SelectItem>
+                        <SelectItem value="returned">مرتجع</SelectItem>
+                        <SelectItem value="cancelled">ملغي</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Badge className={st.cls}>{st.label}</Badge>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                  <div>
+                    <div className="text-xs text-muted-foreground">الهاتف</div>
+                    <a href={`tel:${o.phone_primary}`} dir="ltr" className="text-primary font-medium">{o.phone_primary}</a>
+                    {o.phone_secondary && <div dir="ltr" className="text-xs text-muted-foreground">{o.phone_secondary}</div>}
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">المحافظة / المدينة</div>
+                    <div>{o.governorate} / {o.city}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">المسوقة</div>
+                    <div>{profilesMap[o.created_by] || "—"}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">العمر</div>
+                    <div>{o.chick_age}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">العدد</div>
+                    <div>{o.chick_count.toLocaleString()}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">السعر</div>
+                    <div>{Number(o.chick_price).toLocaleString()} ج</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">الإجمالي</div>
+                    <div className="font-bold text-primary">{Number(o.total_amount).toLocaleString()} ج</div>
+                  </div>
+                  <div className="flex items-end gap-1">
+                    <Button size="icon" variant="ghost" onClick={() => openEdit(o)}>
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                    {canManage && (
+                      <Button size="icon" variant="ghost" onClick={() => setDeleteId(o.id)}>
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                {o.notes && (
+                  <div className="text-sm bg-muted/40 rounded p-2">
+                    <span className="text-xs text-muted-foreground">ملاحظات: </span>
+                    {o.notes}
+                  </div>
+                )}
+              </Card>
+            );
+          })}
+        </div>
 
         {!canManage && (
           <Card className="p-4 bg-amber-50 border-amber-200 flex items-start gap-3">
