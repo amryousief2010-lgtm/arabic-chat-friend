@@ -1940,10 +1940,10 @@ const NewOrder = () => {
                     {isSalesModerator && requiresDepositReceipt && (
                       <div className="space-y-2 rounded-lg border-2 border-orange-400 dark:border-orange-700 bg-orange-50/60 dark:bg-orange-950/30 p-3">
                         <Label className="flex items-center gap-1 font-semibold text-orange-900 dark:text-orange-200">
-                          إيصال تحويل العربون <span className="text-destructive">*</span>
+                          إيصال تحويل العربون <span className="text-xs text-muted-foreground">(اختياري)</span>
                         </Label>
                         <p className="text-xs text-orange-800 dark:text-orange-300">
-                          الطلب يحتوي على (دبوس بالعظم / فخدة بالعظم / نعامة صندوق). يجب رفع صورة إيصال تحويل العربون قبل تأكيد الطلب.
+                          يمكنك رفع صورة إيصال تحويل العربون إن وُجد (غير إلزامي).
                         </p>
                         <Input
                           type="file"
