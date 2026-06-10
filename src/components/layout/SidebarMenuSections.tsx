@@ -179,6 +179,7 @@ export const moduleSections: ModuleSection[] = [
     roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'quality_manager', 'accountant', 'financial_manager', 'warehouse_supervisor'],
     items: [
       { icon: Factory, label: "لوحة مصنع اللحوم", path: "/meat-factory/dashboard", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'quality_manager', 'accountant', 'financial_manager'] },
+      { icon: Factory, label: "لوحة المشتريات والتصنيع (Dashboard متقدم)", path: "/meat-factory/overview-dashboard", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'accountant', 'financial_manager', 'warehouse_supervisor'] },
       { icon: Factory, label: "تصنيع المنتجات", path: "/modules/meat-factory", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'quality_manager'] },
       { icon: Beef, label: "مخازن مصنع اللحوم", path: "/meat-factory/factory-warehouses", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'financial_manager', 'warehouse_supervisor', 'accountant'] },
       { icon: Factory, label: "فواتير التصنيع", path: "/meat-factory/manufacturing", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager'] },

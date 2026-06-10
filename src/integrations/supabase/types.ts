@@ -9038,8 +9038,12 @@ export type Database = {
           invoice_id: string
           item_id: string
           item_name: string
+          kind: string
           line_total: number
+          notes: string | null
           quantity: number
+          stock_after: number | null
+          stock_before: number | null
           unit: string
           unit_cost: number
         }
@@ -9049,8 +9053,12 @@ export type Database = {
           invoice_id: string
           item_id: string
           item_name: string
+          kind?: string
           line_total?: number
+          notes?: string | null
           quantity: number
+          stock_after?: number | null
+          stock_before?: number | null
           unit: string
           unit_cost?: number
         }
@@ -9060,8 +9068,12 @@ export type Database = {
           invoice_id?: string
           item_id?: string
           item_name?: string
+          kind?: string
           line_total?: number
+          notes?: string | null
           quantity?: number
+          stock_after?: number | null
+          stock_before?: number | null
           unit?: string
           unit_cost?: number
         }
@@ -9102,15 +9114,22 @@ export type Database = {
           approved_by: string | null
           created_at: string
           created_by: string | null
+          destination_kind: string
+          extra_cost: number
           factory_warehouse_id: string
           finished_item_id: string | null
           finished_qty: number
           id: string
           invoice_no: string
+          manufacturing_invoice_uuid: string
           materials_total_cost: number
           notes: string | null
+          packaging_cost: number
           product_name: string
+          raw_cost: number
+          spice_cost: number
           status: string
+          total_manufacturing_cost: number
           transfer_id: string | null
           transfer_no: string | null
           transferred_at: string | null
@@ -9124,15 +9143,22 @@ export type Database = {
           approved_by?: string | null
           created_at?: string
           created_by?: string | null
+          destination_kind?: string
+          extra_cost?: number
           factory_warehouse_id: string
           finished_item_id?: string | null
           finished_qty: number
           id?: string
           invoice_no: string
+          manufacturing_invoice_uuid?: string
           materials_total_cost?: number
           notes?: string | null
+          packaging_cost?: number
           product_name: string
+          raw_cost?: number
+          spice_cost?: number
           status?: string
+          total_manufacturing_cost?: number
           transfer_id?: string | null
           transfer_no?: string | null
           transferred_at?: string | null
@@ -9146,15 +9172,22 @@ export type Database = {
           approved_by?: string | null
           created_at?: string
           created_by?: string | null
+          destination_kind?: string
+          extra_cost?: number
           factory_warehouse_id?: string
           finished_item_id?: string | null
           finished_qty?: number
           id?: string
           invoice_no?: string
+          manufacturing_invoice_uuid?: string
           materials_total_cost?: number
           notes?: string | null
+          packaging_cost?: number
           product_name?: string
+          raw_cost?: number
+          spice_cost?: number
           status?: string
+          total_manufacturing_cost?: number
           transfer_id?: string | null
           transfer_no?: string | null
           transferred_at?: string | null
