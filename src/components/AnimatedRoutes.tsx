@@ -114,6 +114,7 @@ const MeatProductionWarehouses = lazy(() => import("@/pages/meat/MeatProductionW
 const MeatWarehouses = lazy(() => import("@/pages/meat/MeatWarehouses"));
 const ManufacturingInvoices = lazy(() => import("@/pages/meat/ManufacturingInvoices"));
 const MeatPurchaseInvoices = lazy(() => import("@/pages/meat/MeatPurchaseInvoices"));
+const MeatFactoryOverviewDashboard = lazy(() => import("@/pages/meat/MeatFactoryOverviewDashboard"));
 const FactoryOverview = lazy(() => import("@/pages/factory/FactoryOverview"));
 const FactoryReports = lazy(() => import("@/pages/factory/FactoryReports"));
 const FeedOrders = lazy(() => import("@/pages/modules/feed/Orders"));
