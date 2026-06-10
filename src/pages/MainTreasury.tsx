@@ -160,27 +160,69 @@ export default function MainTreasury() {
     if (!transferForm.account_id) return toast.error("اختر الحساب");
     if (!transferForm.custody_keeper_id) return toast.error("اختر أمين العهدة المستلم");
     if (amt <= 0) return toast.error("المبلغ مطلوب");
+    if (!transferForm.reason.trim()) return toast.error("سبب التوريد مطلوب");
+    const keeperName = custodyKeepers.find(k => k.user_id === transferForm.custody_keeper_id)?.name || "";
+    const recipient = (transferForm.recipient_name || keeperName).trim();
+    if (!recipient) return toast.error("اسم المستلم في العهدة مطلوب");
+
+    // Duplicate detection: same amount + date + recipient still pending or posted
+    const dup = txns.find(t =>
+      t.txn_type === "transfer_to_custody" &&
+      ["pending_approval","approved","posted"].includes(t.status) &&
+      Number(t.amount) === amt &&
+      t.txn_date === transferForm.txn_date &&
+      (t.counterparty || "").trim() === recipient
+    );
+    if (dup && !transferDupWarn) {
+      setTransferDupWarn(`تنبيه: توجد حركة توريد مسجلة (#${dup.reference_no}) بنفس المبلغ والتاريخ والمستلم. اضغط "تأكيد الإرسال" لتسجيلها رغم ذلك.`);
+      return;
+    }
+
     setBusy(true);
+    // 1) Upload attachment if provided
+    let attachment_url: string | null = null;
+    let attachment_name: string | null = null;
+    let attachment_mime: string | null = null;
+    let attachment_size: number | null = null;
+    if (transferReceipt) {
+      const path = `transfers/${user!.id}/${Date.now()}_${transferReceipt.name.replace(/[^\w.\-]/g,"_")}`;
+      const up = await (supabase as any).storage.from("main-treasury-attachments").upload(path, transferReceipt, { upsert: false });
+      if (up.error) { setBusy(false); return toast.error("فشل رفع المرفق: " + up.error.message); }
+      attachment_url = path;
+      attachment_name = transferReceipt.name;
+      attachment_mime = transferReceipt.type;
+      attachment_size = transferReceipt.size;
+    }
+
+    const desc = `توريد إلى خزنة العهدة — ${transferForm.reason}` +
+      (transferForm.notes ? ` — ${transferForm.notes}` : "");
     const { data: t, error: e1 } = await (supabase as any).from("main_treasury_transactions").insert({
       account_id: transferForm.account_id, txn_type: "transfer_to_custody",
-      amount: amt, txn_date: today(),
-      description: `تحويل لخزنة العهدة${transferForm.notes ? " — "+transferForm.notes : ""}`,
+      amount: amt, txn_date: transferForm.txn_date,
+      counterparty: recipient,
+      payment_method: transferForm.payment_method,
+      description: desc,
+      attachment_url, attachment_name, attachment_mime, attachment_size,
+      attachment_uploaded_by: attachment_url ? user!.id : null,
+      attachment_uploaded_at: attachment_url ? new Date().toISOString() : null,
       client_uuid: transferUuid,
       created_by: user!.id,
     }).select("*").single();
     if (e1) {
       setBusy(false);
-      if ((e1 as any).code === "23505") return toast.error("هذا التحويل مسجل بالفعل (تم منع التكرار)");
+      if ((e1 as any).code === "23505") return toast.error("هذه حركة توريد مسجلة من قبل ولا يمكن تكرارها");
       return toast.error(e1.message);
     }
     const { error: e2 } = await (supabase as any).from("main_treasury_to_custody_transfers").insert({
       main_txn_id: t.id, custody_keeper_id: transferForm.custody_keeper_id,
-      amount: amt, transfer_date: today(), notes: transferForm.notes || null,
+      amount: amt, transfer_date: transferForm.txn_date, notes: transferForm.notes || null,
     });
     setBusy(false);
-    if (e2) return toast.error(e2.message);
-    toast.success("تم إنشاء التحويل — بانتظار استلام أمين العهدة");
-    setTransferForm({ ...transferForm, amount: "", notes: "" });
+    if (e2 && (e2 as any).code !== "23505") return toast.error(e2.message);
+    toast.success("تم إنشاء طلب التوريد — بانتظار اعتماد المدير العام/التنفيذي");
+    setTransferForm({ ...transferForm, amount: "", notes: "", reason: "", recipient_name: "" });
+    setTransferReceipt(null);
+    setTransferDupWarn("");
     setTransferUuid(crypto.randomUUID());
     fetchAll();
   }
