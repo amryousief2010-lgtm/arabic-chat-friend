@@ -1,75 +1,100 @@
-# خطة: قسم "الحساب البنكي" داخل الخزنة الرئيسية
+# خطة: توريد الخزنة الرئيسية → خزنة العهدة (Double-Entry آمن)
 
-النظام الحالي عنده جدول `main_treasury_accounts` بيدعم نوع `bank` بالفعل، وجدول `main_treasury_transactions` بحركات معتمدة (deposit / withdrawal / expense / transfer_to_custody / adjustment) مع موافقة وحماية بعد الاعتماد و audit log. هنبني فوق ده **بدون حذف** أي بيانات أو صلاحيات.
+البناء **فوق** البنية القائمة بدون حذف أو تعديل أي بيانات/صلاحيات حالية.
 
-## ١. قاعدة البيانات (migration واحد)
+## ١. البنية المعتمدة (الموجودة فعلًا)
+- `main_treasury_transactions` بنوع `transfer_to_custody` يخصم تلقائيًا من رصيد الخزنة الرئيسية لما `status='posted'` (موجود في `v_main_treasury_balance`).
+- `mt_approve_txn` فيها: منع الاعتماد الذاتي + قاعدة الاعتماد المزدوج لو > 50,000 + المعتمدون: المدير العام/التنفيذي/المالي + `main_treasury_approver`.
+- `main_treasury_to_custody_transfers` جدول الربط — موجود.
+- ناقص: **زيادة رصيد خزنة العهدة** بعد الاعتماد (الـ view `v_slaughter_custody_balance` بيقرأ من `slaughter_custody_opening_balances` فقط).
 
-**جدول جديد:** `main_treasury_bank_categories` (بنود مصاريف خاصة بالحساب البنكي)
-- code, label, requires_attachment (bool), notes, is_active, sort_order
-- seed: قسط قرض / رسوم بنكية / مصاريف تحويل / عمولة بنك / فوائد قرض / دفتر شيكات / كشف حساب / مصاريف إدارية / أخرى
+## ٢. تغييرات قاعدة البيانات (migration واحد)
 
-**توسيع `main_treasury_transactions`:**
-- إضافة أعمدة: `bank_category_id uuid`, `loan_number text`, `bank_account_number text`, `payment_method text`, `client_uuid uuid UNIQUE` (لمنع التكرار)
-- توسيع check على `txn_type` ليشمل القيم الجديدة:
-  `loan_installment`, `bank_fees`, `bank_deposit`, `bank_withdrawal`, `transfer_from_custody`, `transfer_to_sub_treasury`, `settlement`, `balance_correction`
+### (أ) عمود ربط idempotent على رصيد العهدة
+```sql
+ALTER TABLE slaughter_custody_opening_balances
+  ADD COLUMN source_main_txn_id uuid UNIQUE
+    REFERENCES main_treasury_transactions(id) ON DELETE RESTRICT;
+```
+وجود `UNIQUE` يمنع إنشاء سطرين لنفس التوريد حتى لو الـ trigger اتنفذ مرتين.
 
-**تحديث `v_main_treasury_balance`:**
-- الإيداع/الزيادة: `deposit`, `bank_deposit`, `transfer_from_custody`, `settlement` (موجب), `balance_correction`, `adjustment`
-- الخصم: `withdrawal`, `expense`, `bank_withdrawal`, `bank_fees`, `loan_installment`, `transfer_to_custody`, `transfer_to_sub_treasury`
+### (ب) Trigger يضيف للعهدة عند posted ويعكس عند reversal
+- `AFTER UPDATE` على `main_treasury_transactions`:
+  - لو `NEW.txn_type='transfer_to_custody' AND NEW.status='posted' AND OLD.status<>'posted'` → INSERT في `slaughter_custody_opening_balances` (status `approved`, `total_amount=NEW.amount`, `cash_amount=NEW.amount`, `as_of_date=NEW.txn_date`, `source_main_txn_id=NEW.id`, ملاحظة "توريد من الخزنة الرئيسية #ref"). يُحدِّث/يُنشِئ صف في `main_treasury_to_custody_transfers` بـ `status='received'`.
+  - لو `NEW.status='reversed' AND OLD.status='posted'` → DELETE صف الـ opening المرتبط (نفس `source_main_txn_id`).
+- الـ INSERT يتم تحت `SECURITY DEFINER` بدالة عشان يعدي RLS.
 
-**حقل `bank_category_id`** يُستخدم فقط مع `expense / bank_fees / loan_installment`.
+### (ج) Idempotency على إنشاء التوريد نفسه
+- استخدام `client_uuid` الموجود فعلًا (UNIQUE) على `main_treasury_transactions` لمنع إعادة الإرسال.
+- فحص duplicate منطقي: حركة `pending_approval` بنفس `txn_date + amount + recipient_name + txn_type='transfer_to_custody'` ترفع تنبيه في الـ UI قبل الإرسال.
 
-**Audit log:** الترايجر الموجود `main_treasury_audit_log` يكفي؛ نضيف تسجيل عند إنشاء/تعطيل بند مصروف بنكي.
+### (د) منع التلاعب المباشر برصيد العهدة لصفوف التوريد
+- منع تعديل/حذف أي صف في `slaughter_custody_opening_balances` يحمل `source_main_txn_id IS NOT NULL` من قِبَل المستخدمين العاديين (BEFORE UPDATE/DELETE trigger يرفع EXCEPTION ما عدا الـ trigger الداخلي عند reversal).
 
-## ٢. الصلاحيات
+### (هـ) Audit Log
+- `main_treasury_audit_log` بيسجل create/approve/reject أصلًا. نضيف entries أوتوماتيكية في الـ trigger عند `posted` و`reversed` بالنوع `custody_credit_created` و`custody_credit_reversed` (تشمل المبلغ والمستلم والـ source/target).
 
-- المحاسب محمد شعلة عنده دور `main_treasury_accountant` بالفعل → يقدر يسجل ويرفع مرفقات.
-- RLS قاعدة: مينفعش يعتمد حركة سجلها بنفسه (يتم enforcement في `mt_approve_txn` بشرط `created_by <> auth.uid()` — موجود غالبًا، هنتأكد ونضيفه لو ناقص).
-- الاعتماد: `main_treasury_approver` + general/executive/financial manager (زي اللي موجود).
+## ٣. واجهة المستخدم (لا حذف)
 
-## ٣. واجهة المستخدم
+### فورم جديد: "توريد إلى خزنة العهدة"
+- مكوّن `TransferToCustodyDialog.tsx` (جديد) داخل `src/components/main-treasury/`.
+- الحقول المطلوبة (كلها في المواصفات): التاريخ، المبلغ، الخزنة المصدر (مقفل = الخزنة الرئيسية)، الخزنة المستلمة (مقفل = خزنة العهدة)، اسم المستلم في العهدة (Select لأمناء العهدة)، سبب التوريد، طريقة التسليم (cash/transfer/other)، مرفق إيصال (سحب وإفلات عبر `DragDropUpload` الموجود)، ملاحظات.
+- يولّد `client_uuid` عند فتح الـ Dialog. زر الحفظ يُعطَّل أثناء الإرسال.
+- يحفظ كـ `main_treasury_transactions(txn_type='transfer_to_custody', status='pending_approval', recipient_name, payment_method, attachment_url, client_uuid, ...)`.
 
-داخل `src/pages/MainTreasury.tsx` نضيف تبويب جديد **"الحساب البنكي"**:
+### كارت في لوحة الخزنة الرئيسية
+- "توريدات إلى خزنة العهدة": اليوم / الشهر / معلقة / معتمدة / مرفوضة (Query على `main_treasury_transactions` نوع `transfer_to_custody` مع cairoDate helpers).
 
-**كروت أعلى الصفحة (لكل حساب بنكي):**
-- الرصيد الحالي / الافتتاحي / الإيداعات / السحوبات / المصروفات البنكية / أقساط القرض المسددة / الرسوم البنكية / الرصيد المتوقع / عدد المعلقة
+### كارت في صفحة الخزنة العهدة (`SlaughterhouseCustody.tsx`)
+- "وارد من الخزنة الرئيسية": اليوم / الشهر / معلق / معتمد / آخر توريد مستلم.
 
-**جدول الحركات البنكية** مع فلاتر: التاريخ، نوع الحركة، الحالة، بند المصروف، اسم البنك.
+### قسم تقارير
+- تبويب فرعي داخل `MainTreasury.tsx` يعرض جدول التوريدات مع فلاتر (تاريخ/الحالة/المستلم) + تصدير PDF (`openPrintWindow`) + Excel (`xlsx`).
 
-**أزرار:**
-- "تسجيل حركة بنكية" (Dialog شامل بكل الحقول + رفع مرفق + `client_uuid` للحماية من التكرار)
-- "إنشاء بند مصروف بنكي" (للمحاسب والإدارة)
-- "تصدير PDF" (عبر `openPrintWindow` من `@/lib/printPdf` — Arabic RTL)
-- "تصدير Excel" (عبر `xlsx` المتاحة)
+## ٤. الصلاحيات (موجودة — تأكيد فقط)
+- محمد شعلة (`main_treasury_accountant`): إنشاء التوريد ورفع المرفق ومتابعة الحالة.
+- المدير العام/التنفيذي/المالي + `main_treasury_approver`: اعتماد/رفض.
+- `mt_approve_txn` تمنع الاعتماد الذاتي بالفعل.
+- الرفض عبر `mt_reject_txn` يحفظ السبب الإجباري.
 
-**ملخّص في تبويب "نظرة عامة":**
-- رصيد النقدية / رصيد البنك / الإجمالي / الحركات البنكية المعلقة / أقساط الشهر / المصروفات البنكية للشهر.
+## ٥. المعادلة المحاسبية (مضمونة بعد التغييرات)
 
-## ٤. منع التكرار
+```text
+رصيد الخزنة الرئيسية = opening
+                     + posted(deposit / bank_deposit / transfer_from_custody / settlement / adjustment)
+                     − posted(withdrawal / expense / bank_* / loan_installment / transfer_to_custody / ...)
 
-- عمود `client_uuid UNIQUE` يُولَّد بـ `crypto.randomUUID()` عند فتح الـ Dialog ويُرسل مع الإدخال؛ أي retry بنفس الـ UUID يُرفض من DB.
-- زر الحفظ يُعطَّل أثناء `isSubmitting`.
+رصيد خزنة العهدة     = approved(opening_balances)               ← يشمل الآن صفوف التوريد المعتمدة
+                     − approved(custody_expenses)
+```
 
-## ٥. التقارير
+- `pending_approval` لا يؤثر على أي رصيد فعلي.
+- العمود `pending_amount` في `v_main_treasury_balance` يظهر "الرصيد المتوقع" للمعلقة.
 
-تبويب فرعي "تقارير البنك":
-- يومي / شهري / حسب بند المصروف / حسب البنك / المعلقة / أقساط القرض / المصروفات البنكية
-- كل تقرير يدعم تصدير PDF و Excel.
+## ٦. منع التكرار (طبقات متعددة)
 
-## ٦. ملفات ستُعدَّل/تُنشأ
+1. `client_uuid UNIQUE` يرفض الـ retry على مستوى DB.
+2. زر الحفظ disabled أثناء الإرسال.
+3. فحص الـ duplicate قبل الحفظ (نفس المبلغ/التاريخ/المستلم في آخر ساعة وحالة `pending_approval` أو `posted`) → تنبيه: "هذه حركة توريد مسجلة من قبل ولا يمكن تكرارها" مع زر "تأكيد الإرسال رغم ذلك".
+4. عمود `source_main_txn_id UNIQUE` يضمن أن الاعتماد المتكرر لنفس الحركة لا يضاعف رصيد العهدة.
+5. `mt_approve_txn` بترفض اعتماد حركة ليست `pending_approval`.
 
-- migration واحد (جدول + أعمدة + توسيع check + تحديث view + seed).
-- `src/pages/MainTreasury.tsx`: إضافة Tab "الحساب البنكي" + ملخص في النظرة العامة.
-- `src/components/main-treasury/BankAccountPanel.tsx` (جديد)
-- `src/components/main-treasury/BankTxnDialog.tsx` (جديد)
-- `src/components/main-treasury/BankCategoryDialog.tsx` (جديد)
-- `src/components/main-treasury/BankReports.tsx` (جديد)
-- تحديث memory ملف `main-treasury.md`.
+## ٧. ملفات ستُنشَأ/تُعدَّل
 
-## ضمانات
+- **Migration واحد** (الجدول أعمدة + الـ triggers + الـ audit).
+- جديد: `src/components/main-treasury/TransferToCustodyDialog.tsx`
+- جديد: `src/components/main-treasury/TransfersToCustodyCard.tsx` (كارت اللوحة)
+- جديد: `src/components/main-treasury/TransfersToCustodyReport.tsx` (التقرير + Excel/PDF)
+- تعديل: `src/pages/MainTreasury.tsx` (إضافة الكارت + التبويب + الزر)
+- تعديل: `src/pages/SlaughterhouseCustody.tsx` (كارت "وارد من الخزنة الرئيسية")
+- تعديل: `.lovable/memory/features/main-treasury.md`
 
-- لا تُحذف أي بيانات أو صلاحيات أو حسابات.
-- خزنة النقدية تظل منفصلة؛ قسط القرض/المصروفات البنكية لا تُخصم إلا من حسابات `account_type='bank'` بعد الاعتماد.
-- كل الحركات تظل تحت نفس workflow الاعتماد الموجود (مع الحدّ المزدوج لو > 50,000).
+## ٨. ضمانات
 
-أأكد وأبدأ التنفيذ؟
+- ❌ لا تُحذف أي بيانات أو صلاحيات أو حسابات أو policies.
+- ❌ التوريد لا يُسجَّل كـ `expense` نهائيًا — هو `transfer_to_custody` فقط.
+- ✅ الرصيدان لا يتأثران إلا بعد `posted` (= بعد الاعتماد، أو الاعتماد المزدوج لو > 50,000).
+- ✅ الرفض = لا خصم ولا إضافة ولا صف opening.
+- ✅ Reversal يمسح صف العهدة المرتبط آليًا.
+
+أأكد وأبدأ بتنفيذ الـ migration ثم الواجهة؟

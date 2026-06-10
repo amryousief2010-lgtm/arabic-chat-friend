@@ -71,7 +71,13 @@ export default function MainTreasury() {
     account_id: "", txn_type: "expense" as Txn["txn_type"], amount: "",
     txn_date: today(), category_id: "", counterparty: "", description: "",
   });
-  const [transferForm, setTransferForm] = useState({ account_id: "", custody_keeper_id: "", amount: "", notes: "" });
+  const [transferForm, setTransferForm] = useState({
+    account_id: "", custody_keeper_id: "", amount: "",
+    recipient_name: "", reason: "", payment_method: "cash" as "cash"|"transfer"|"other",
+    notes: "", txn_date: today(),
+  });
+  const [transferReceipt, setTransferReceipt] = useState<File|null>(null);
+  const [transferDupWarn, setTransferDupWarn] = useState<string>("");
   const [newAccount, setNewAccount] = useState({ name:"", account_type:"cash" as Account["account_type"], bank_name:"", opening_balance:"" });
   const [rejectDlg, setRejectDlg] = useState<{open:boolean; txn?:Txn; reason:string}>({ open:false, reason:"" });
   const [editOpenBal, setEditOpenBal] = useState<{open:boolean; account?:Account; value:string}>({ open:false, value:"" });
@@ -154,27 +160,69 @@ export default function MainTreasury() {
     if (!transferForm.account_id) return toast.error("اختر الحساب");
     if (!transferForm.custody_keeper_id) return toast.error("اختر أمين العهدة المستلم");
     if (amt <= 0) return toast.error("المبلغ مطلوب");
+    if (!transferForm.reason.trim()) return toast.error("سبب التوريد مطلوب");
+    const keeperName = custodyKeepers.find(k => k.user_id === transferForm.custody_keeper_id)?.name || "";
+    const recipient = (transferForm.recipient_name || keeperName).trim();
+    if (!recipient) return toast.error("اسم المستلم في العهدة مطلوب");
+
+    // Duplicate detection: same amount + date + recipient still pending or posted
+    const dup = txns.find(t =>
+      t.txn_type === "transfer_to_custody" &&
+      ["pending_approval","approved","posted"].includes(t.status) &&
+      Number(t.amount) === amt &&
+      t.txn_date === transferForm.txn_date &&
+      (t.counterparty || "").trim() === recipient
+    );
+    if (dup && !transferDupWarn) {
+      setTransferDupWarn(`تنبيه: توجد حركة توريد مسجلة (#${dup.reference_no}) بنفس المبلغ والتاريخ والمستلم. اضغط "تأكيد الإرسال" لتسجيلها رغم ذلك.`);
+      return;
+    }
+
     setBusy(true);
+    // 1) Upload attachment if provided
+    let attachment_url: string | null = null;
+    let attachment_name: string | null = null;
+    let attachment_mime: string | null = null;
+    let attachment_size: number | null = null;
+    if (transferReceipt) {
+      const path = `transfers/${user!.id}/${Date.now()}_${transferReceipt.name.replace(/[^\w.\-]/g,"_")}`;
+      const up = await (supabase as any).storage.from("main-treasury-attachments").upload(path, transferReceipt, { upsert: false });
+      if (up.error) { setBusy(false); return toast.error("فشل رفع المرفق: " + up.error.message); }
+      attachment_url = path;
+      attachment_name = transferReceipt.name;
+      attachment_mime = transferReceipt.type;
+      attachment_size = transferReceipt.size;
+    }
+
+    const desc = `توريد إلى خزنة العهدة — ${transferForm.reason}` +
+      (transferForm.notes ? ` — ${transferForm.notes}` : "");
     const { data: t, error: e1 } = await (supabase as any).from("main_treasury_transactions").insert({
       account_id: transferForm.account_id, txn_type: "transfer_to_custody",
-      amount: amt, txn_date: today(),
-      description: `تحويل لخزنة العهدة${transferForm.notes ? " — "+transferForm.notes : ""}`,
+      amount: amt, txn_date: transferForm.txn_date,
+      counterparty: recipient,
+      payment_method: transferForm.payment_method,
+      description: desc,
+      attachment_url, attachment_name, attachment_mime, attachment_size,
+      attachment_uploaded_by: attachment_url ? user!.id : null,
+      attachment_uploaded_at: attachment_url ? new Date().toISOString() : null,
       client_uuid: transferUuid,
       created_by: user!.id,
     }).select("*").single();
     if (e1) {
       setBusy(false);
-      if ((e1 as any).code === "23505") return toast.error("هذا التحويل مسجل بالفعل (تم منع التكرار)");
+      if ((e1 as any).code === "23505") return toast.error("هذه حركة توريد مسجلة من قبل ولا يمكن تكرارها");
       return toast.error(e1.message);
     }
     const { error: e2 } = await (supabase as any).from("main_treasury_to_custody_transfers").insert({
       main_txn_id: t.id, custody_keeper_id: transferForm.custody_keeper_id,
-      amount: amt, transfer_date: today(), notes: transferForm.notes || null,
+      amount: amt, transfer_date: transferForm.txn_date, notes: transferForm.notes || null,
     });
     setBusy(false);
-    if (e2) return toast.error(e2.message);
-    toast.success("تم إنشاء التحويل — بانتظار استلام أمين العهدة");
-    setTransferForm({ ...transferForm, amount: "", notes: "" });
+    if (e2 && (e2 as any).code !== "23505") return toast.error(e2.message);
+    toast.success("تم إنشاء طلب التوريد — بانتظار اعتماد المدير العام/التنفيذي");
+    setTransferForm({ ...transferForm, amount: "", notes: "", reason: "", recipient_name: "" });
+    setTransferReceipt(null);
+    setTransferDupWarn("");
     setTransferUuid(crypto.randomUUID());
     fetchAll();
   }
@@ -298,6 +346,13 @@ export default function MainTreasury() {
         const toBankMonth = toBankLegs.filter(t => t.status==="posted" && new Date(t.txn_date) >= m).reduce((s,t)=>s+Number(t.amount),0);
         const toBankPending = toBankLegs.filter(t => t.status==="pending_approval").reduce((s,t)=>s+Number(t.amount),0);
         const toBankApproved = toBankLegs.filter(t => t.status==="posted").reduce((s,t)=>s+Number(t.amount),0);
+        // Custody transfers stats
+        const custodyLegs = txns.filter(t => t.txn_type === "transfer_to_custody");
+        const custToday = custodyLegs.filter(t => t.status==="posted" && t.txn_date===todayStr).reduce((s,t)=>s+Number(t.amount),0);
+        const custMonth = custodyLegs.filter(t => t.status==="posted" && new Date(t.txn_date) >= m).reduce((s,t)=>s+Number(t.amount),0);
+        const custPending = custodyLegs.filter(t => t.status==="pending_approval").reduce((s,t)=>s+Number(t.amount),0);
+        const custApproved = custodyLegs.filter(t => t.status==="posted").reduce((s,t)=>s+Number(t.amount),0);
+        const custRejected = custodyLegs.filter(t => t.status==="rejected").reduce((s,t)=>s+Number(t.amount),0);
         return (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
             <Card className="lg:col-span-2 border-[hsl(142_71%_36%)]/30 bg-[hsl(142_71%_36%)]/5"><CardContent className="p-4">
@@ -336,6 +391,16 @@ export default function MainTreasury() {
               <div className="text-xl font-bold font-mono text-[hsl(38_92%_50%)]">{fmtNum(totalPending, 2)}</div>
               <div className="text-xs">{pendingTxns.length} معاملة</div>
             </CardContent></Card>
+            <Card className="lg:col-span-3 border-[hsl(280_60%_50%)]/30 bg-[hsl(280_60%_50%)]/5"><CardContent className="p-4">
+              <div className="text-sm font-bold flex items-center gap-1"><Send className="h-4 w-4"/>توريدات إلى خزنة العهدة</div>
+              <div className="grid grid-cols-5 gap-2 mt-2 text-xs">
+                <div><div className="text-muted-foreground">اليوم</div><div className="font-mono font-bold text-sm">{fmtNum(custToday,0)}</div></div>
+                <div><div className="text-muted-foreground">الشهر</div><div className="font-mono font-bold text-sm">{fmtNum(custMonth,0)}</div></div>
+                <div><div className="text-muted-foreground">معلقة</div><div className="font-mono font-bold text-sm text-[hsl(38_92%_50%)]">{fmtNum(custPending,0)}</div></div>
+                <div><div className="text-muted-foreground">معتمدة</div><div className="font-mono font-bold text-sm text-[hsl(142_71%_36%)]">{fmtNum(custApproved,0)}</div></div>
+                <div><div className="text-muted-foreground">مرفوضة</div><div className="font-mono font-bold text-sm text-destructive">{fmtNum(custRejected,0)}</div></div>
+              </div>
+            </CardContent></Card>
           </div>
         );
       })()}
@@ -346,7 +411,7 @@ export default function MainTreasury() {
           <TabsTrigger value="dashboard">لوحة الرصيد</TabsTrigger>
           <TabsTrigger value="bank">الحساب البنكي</TabsTrigger>
           <TabsTrigger value="new">معاملة جديدة</TabsTrigger>
-          <TabsTrigger value="transfer">تحويل للعهدة</TabsTrigger>
+          <TabsTrigger value="transfer">توريد لخزنة العهدة</TabsTrigger>
           {isApprover && <TabsTrigger value="approve">بانتظار الاعتماد {pendingTxns.length>0 && <Badge className="mr-2">{pendingTxns.length}</Badge>}</TabsTrigger>}
           <TabsTrigger value="log">سجل الحركات</TabsTrigger>
           <TabsTrigger value="transfers">سجل التحويلات</TabsTrigger>
@@ -433,25 +498,72 @@ export default function MainTreasury() {
         {/* Transfer */}
         <TabsContent value="transfer" className="mt-4">
           <Card>
-            <CardHeader><CardTitle className="flex items-center gap-2"><Send className="h-4 w-4"/>تحويل لخزنة العهدة</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="flex items-center gap-2"><Send className="h-4 w-4"/>توريد إلى خزنة العهدة</CardTitle></CardHeader>
             <CardContent className="grid md:grid-cols-2 gap-3">
-              <div><Label>الحساب المُحوَّل منه</Label>
+              <div><Label>التاريخ</Label>
+                <Input type="date" value={transferForm.txn_date} onChange={e=>{ setTransferForm({...transferForm, txn_date: e.target.value}); setTransferDupWarn(""); }}/>
+              </div>
+              <div><Label>المبلغ *</Label>
+                <Input type="number" step="0.01" value={transferForm.amount} onChange={e=>{ setTransferForm({...transferForm, amount: e.target.value}); setTransferDupWarn(""); }}/>
+              </div>
+              <div><Label>الخزنة المصدر (الخزنة الرئيسية)</Label>
                 <Select value={transferForm.account_id} onValueChange={v=>setTransferForm({...transferForm, account_id:v})}>
-                  <SelectTrigger><SelectValue placeholder="اختر"/></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="اختر الحساب"/></SelectTrigger>
                   <SelectContent>{accounts.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div><Label>أمين العهدة المستلم</Label>
-                <Select value={transferForm.custody_keeper_id} onValueChange={v=>setTransferForm({...transferForm, custody_keeper_id:v})}>
+              <div><Label>الخزنة المستلمة</Label>
+                <Input value="خزنة العهدة (المجزر)" disabled readOnly/>
+              </div>
+              <div><Label>أمين العهدة المستلم *</Label>
+                <Select value={transferForm.custody_keeper_id} onValueChange={v=>{ setTransferForm({...transferForm, custody_keeper_id:v}); setTransferDupWarn(""); }}>
                   <SelectTrigger><SelectValue placeholder="اختر"/></SelectTrigger>
                   <SelectContent>{custodyKeepers.map(k => <SelectItem key={k.user_id} value={k.user_id}>{k.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div><Label>المبلغ</Label><Input type="number" step="0.01" value={transferForm.amount} onChange={e=>setTransferForm({...transferForm, amount: e.target.value})}/></div>
-              <div className="md:col-span-2"><Label>ملاحظات</Label><Textarea value={transferForm.notes} onChange={e=>setTransferForm({...transferForm, notes: e.target.value})}/></div>
-              <div className="md:col-span-2">
-                <Button onClick={submitTransfer} disabled={busy} className="gap-2"><Send className="h-4 w-4"/>إرسال التحويل</Button>
-                <span className="text-xs text-muted-foreground mr-3">سيظهر التحويل لأمين العهدة لاعتماده بعد الاعتماد المالي.</span>
+              <div><Label>اسم المستلم (اختياري — يتعبأ تلقائياً)</Label>
+                <Input value={transferForm.recipient_name} onChange={e=>{ setTransferForm({...transferForm, recipient_name: e.target.value}); setTransferDupWarn(""); }} placeholder="اتركه فارغاً لاستخدام اسم أمين العهدة"/>
+              </div>
+              <div><Label>طريقة التسليم</Label>
+                <Select value={transferForm.payment_method} onValueChange={v=>setTransferForm({...transferForm, payment_method: v as any})}>
+                  <SelectTrigger><SelectValue/></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">نقدي</SelectItem>
+                    <SelectItem value="transfer">تحويل بنكي / محفظة</SelectItem>
+                    <SelectItem value="other">أخرى</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div><Label>مرفق إيصال (اختياري)</Label>
+                <Input type="file" accept="image/*,application/pdf" onChange={e=>setTransferReceipt(e.target.files?.[0] || null)}/>
+                {transferReceipt && <div className="text-xs text-muted-foreground mt-1">{transferReceipt.name}</div>}
+              </div>
+              <div className="md:col-span-2"><Label>سبب التوريد *</Label>
+                <Input value={transferForm.reason} onChange={e=>setTransferForm({...transferForm, reason: e.target.value})} placeholder="مثال: مصاريف تشغيل أسبوعية للمجزر"/>
+              </div>
+              <div className="md:col-span-2"><Label>ملاحظات</Label>
+                <Textarea value={transferForm.notes} onChange={e=>setTransferForm({...transferForm, notes: e.target.value})}/>
+              </div>
+              {transferDupWarn && (
+                <div className="md:col-span-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm flex items-start gap-2">
+                  <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-destructive"/>
+                  <div>{transferDupWarn}</div>
+                </div>
+              )}
+              <div className="md:col-span-2 rounded-md border border-[hsl(38_92%_50%)]/40 bg-[hsl(38_92%_50%)]/10 p-3 text-xs flex items-start gap-2">
+                <ShieldCheck className="h-4 w-4 mt-0.5 shrink-0"/>
+                <div>
+                  هذا توريد بين الخزن (ليس مصروفاً). لن يُخصم من الخزنة الرئيسية ولن يُضاف إلى خزنة العهدة إلا بعد <b>اعتماد المدير العام أو التنفيذي</b>.
+                  بعد الاعتماد، يُخصم المبلغ تلقائياً من الخزنة الرئيسية ويُضاف بنفس القيمة لخزنة العهدة.
+                </div>
+              </div>
+              <div className="md:col-span-2 flex items-center gap-2 flex-wrap">
+                <Button onClick={submitTransfer} disabled={busy} className="gap-2">
+                  <Send className="h-4 w-4"/>{transferDupWarn ? "تأكيد الإرسال رغم التحذير" : "إرسال طلب التوريد"}
+                </Button>
+                {transferDupWarn && (
+                  <Button variant="ghost" onClick={()=>setTransferDupWarn("")}>إلغاء</Button>
+                )}
               </div>
             </CardContent>
           </Card>
