@@ -23,6 +23,7 @@ type Kind = "raw" | "finished";
 type LineRow = { id: string; item_id: string; qty: number; price: number };
 const newLine = (): LineRow => ({ id: crypto.randomUUID(), item_id: "", qty: 0, price: 0 });
 const fmt = (n: number) => Number(n || 0).toLocaleString("ar-EG", { maximumFractionDigits: 2 });
+const esc = (s: any) => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
 const printHtml = (title: string, body: string) => {
   const w = window.open("", "_blank", "width=950,height=720");
@@ -377,7 +378,7 @@ export default function MeatWarehouses() {
           <TabsContent value="raw" className="space-y-3 mt-3">
             <div className="flex justify-end gap-2">
               <Button onClick={()=>{setNewItemOpen("raw");}}><Plus className="h-4 w-4 ml-1" />صنف خامة</Button>
-              <Button variant="outline" onClick={()=>printHtml("الخامات", `<div class="header"><div class="brand">عاصمة النعام</div><div>كشف خامات مصنع اللحوم</div></div><table><thead><tr><th>الصنف</th><th>الوحدة</th><th>الرصيد</th><th>متوسط التكلفة</th><th>القيمة</th></tr></thead><tbody>${(rawItems as any[]).map(i=>`<tr><td>${i.name}</td><td>${i.unit}</td><td>${fmt(i.current_stock)}</td><td>${fmt(i.avg_cost)}</td><td>${fmt(Number(i.current_stock)*Number(i.avg_cost))}</td></tr>`).join("")}</tbody></table>`)}><Printer className="h-4 w-4 ml-1" />طباعة</Button>
+              <Button variant="outline" onClick={()=>printHtml("الخامات", `<div class="header"><div class="brand">عاصمة النعام</div><div>كشف خامات مصنع اللحوم</div></div><table><thead><tr><th>الصنف</th><th>الوحدة</th><th>الرصيد</th><th>متوسط التكلفة</th><th>القيمة</th></tr></thead><tbody>${(rawItems as any[]).map(i=>`<tr><td>${esc(i.name)}</td><td>${esc(i.unit)}</td><td>${fmt(i.current_stock)}</td><td>${fmt(i.avg_cost)}</td><td>${fmt(Number(i.current_stock)*Number(i.avg_cost))}</td></tr>`).join("")}</tbody></table>`)}><Printer className="h-4 w-4 ml-1" />طباعة</Button>
             </div>
             <Card><CardContent className="p-0"><Table><TableHeader><TableRow><TableHead>الصنف</TableHead><TableHead>الوحدة</TableHead><TableHead>الرصيد</TableHead><TableHead>متوسط التكلفة</TableHead><TableHead>القيمة</TableHead><TableHead>حد التنبيه</TableHead><TableHead>الحالة</TableHead></TableRow></TableHeader>
               <TableBody>{(rawItems as any[]).map((i) => (
@@ -410,7 +411,7 @@ export default function MeatWarehouses() {
           <TabsContent value="finished" className="space-y-3 mt-3">
             <div className="flex justify-end gap-2">
               <Button onClick={()=>{setNewItemOpen("finished");}}><Plus className="h-4 w-4 ml-1" />منتج جاهز</Button>
-              <Button variant="outline" onClick={()=>printHtml("المنتجات الجاهزة", `<div class="header"><div class="brand">عاصمة النعام</div><div>كشف منتجات مصنع اللحوم الجاهزة</div></div><table><thead><tr><th>الصنف</th><th>الوحدة</th><th>الرصيد</th><th>متوسط التكلفة</th><th>سعر البيع</th><th>القيمة</th></tr></thead><tbody>${(finItems as any[]).map(i=>`<tr><td>${i.name}</td><td>${i.unit}</td><td>${fmt(i.current_stock)}</td><td>${fmt(i.avg_cost)}</td><td>${fmt(i.sale_price)}</td><td>${fmt(Number(i.current_stock)*Number(i.avg_cost))}</td></tr>`).join("")}</tbody></table>`)}><Printer className="h-4 w-4 ml-1" />طباعة</Button>
+              <Button variant="outline" onClick={()=>printHtml("المنتجات الجاهزة", `<div class="header"><div class="brand">عاصمة النعام</div><div>كشف منتجات مصنع اللحوم الجاهزة</div></div><table><thead><tr><th>الصنف</th><th>الوحدة</th><th>الرصيد</th><th>متوسط التكلفة</th><th>سعر البيع</th><th>القيمة</th></tr></thead><tbody>${(finItems as any[]).map(i=>`<tr><td>${esc(i.name)}</td><td>${esc(i.unit)}</td><td>${fmt(i.current_stock)}</td><td>${fmt(i.avg_cost)}</td><td>${fmt(i.sale_price)}</td><td>${fmt(Number(i.current_stock)*Number(i.avg_cost))}</td></tr>`).join("")}</tbody></table>`)}><Printer className="h-4 w-4 ml-1" />طباعة</Button>
             </div>
             <Card><CardContent className="p-0"><Table><TableHeader><TableRow><TableHead>المنتج</TableHead><TableHead>الوحدة</TableHead><TableHead>الرصيد</TableHead><TableHead>متوسط التكلفة</TableHead><TableHead>سعر البيع</TableHead><TableHead>القيمة</TableHead><TableHead>الحالة</TableHead></TableRow></TableHeader>
               <TableBody>{(finItems as any[]).map((i) => (
