@@ -391,9 +391,28 @@ export default function MainTreasury() {
               <div className="text-xl font-bold font-mono text-[hsl(38_92%_50%)]">{fmtNum(totalPending, 2)}</div>
               <div className="text-xs">{pendingTxns.length} معاملة</div>
             </CardContent></Card>
+            <Card className="lg:col-span-3 border-[hsl(280_60%_50%)]/30 bg-[hsl(280_60%_50%)]/5"><CardContent className="p-4">
+              <div className="text-sm font-bold flex items-center gap-1"><Send className="h-4 w-4"/>توريدات إلى خزنة العهدة</div>
+              <div className="grid grid-cols-5 gap-2 mt-2 text-xs">
+                <div><div className="text-muted-foreground">اليوم</div><div className="font-mono font-bold text-sm">{fmtNum(custToday,0)}</div></div>
+                <div><div className="text-muted-foreground">الشهر</div><div className="font-mono font-bold text-sm">{fmtNum(custMonth,0)}</div></div>
+                <div><div className="text-muted-foreground">معلقة</div><div className="font-mono font-bold text-sm text-[hsl(38_92%_50%)]">{fmtNum(custPending,0)}</div></div>
+                <div><div className="text-muted-foreground">معتمدة</div><div className="font-mono font-bold text-sm text-[hsl(142_71%_36%)]">{fmtNum(custApproved,0)}</div></div>
+                <div><div className="text-muted-foreground">مرفوضة</div><div className="font-mono font-bold text-sm text-destructive">{fmtNum(custRejected,0)}</div></div>
+              </div>
+            </CardContent></Card>
           </div>
         );
       })()}
+
+      {(() => null)()}
+      {/* sentinel */}
+      {false && <div/>}
+      {/* end KPI */}
+      {/** ensure no extra rendering **/}
+      {/* placeholder removed */}
+      </>
+}
 
 
       <Tabs defaultValue="dashboard">
