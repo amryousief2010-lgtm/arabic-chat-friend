@@ -465,6 +465,34 @@ export default function SlaughterhouseCustody() {
               <PremiumStat tone="primary" icon={<Wallet />} title="إجمالي الرصيد الافتتاحي المعتمد" value={fmtNum(balance?.total_opening || 0, 2)} />
             </div>
 
+            {/* Inbound from Main Treasury */}
+            {(() => {
+              const todayStr = new Date().toISOString().slice(0,10);
+              const monthStart = new Date(); monthStart.setDate(1);
+              const fromMT = (openings as any[]).filter(o => o.source_main_txn_id);
+              const sumApproved = (rows: any[]) => rows.filter(r => r.status === "approved").reduce((s,r)=>s+Number(r.total_amount||0), 0);
+              const sumPending = (rows: any[]) => rows.filter(r => r.status === "pending_review").reduce((s,r)=>s+Number(r.total_amount||0), 0);
+              const todayApproved = sumApproved(fromMT.filter(r => r.as_of_date === todayStr));
+              const monthApproved = sumApproved(fromMT.filter(r => new Date(r.as_of_date) >= monthStart));
+              const totalApproved = sumApproved(fromMT);
+              const totalPending = sumPending(fromMT);
+              const last = fromMT.slice().sort((a,b)=> (b.as_of_date||"").localeCompare(a.as_of_date||""))[0];
+              return (
+                <div>
+                  <SectionTitle icon={<Wallet />} title="وارد من الخزنة الرئيسية" />
+                  <Card className="border-[hsl(280_60%_50%)]/30 bg-[hsl(280_60%_50%)]/5">
+                    <CardContent className="p-4 grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
+                      <div><div className="text-muted-foreground">اليوم (معتمد)</div><div className="font-mono font-bold text-base">{fmtNum(todayApproved,0)}</div></div>
+                      <div><div className="text-muted-foreground">الشهر (معتمد)</div><div className="font-mono font-bold text-base">{fmtNum(monthApproved,0)}</div></div>
+                      <div><div className="text-muted-foreground">معلق</div><div className="font-mono font-bold text-base text-[hsl(38_92%_50%)]">{fmtNum(totalPending,0)}</div></div>
+                      <div><div className="text-muted-foreground">إجمالي معتمد</div><div className="font-mono font-bold text-base text-[hsl(142_71%_36%)]">{fmtNum(totalApproved,0)}</div></div>
+                      <div><div className="text-muted-foreground">آخر توريد</div><div className="font-mono font-bold text-base">{last ? `${fmtNum(last.total_amount,0)} • ${last.as_of_date}` : "—"}</div></div>
+                    </CardContent>
+                  </Card>
+                </div>
+              );
+            })()}
+
             {/* Activity & comments */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
               <Card>
