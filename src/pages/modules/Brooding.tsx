@@ -1216,12 +1216,21 @@ const ExpenseForm = ({ batches, onDone, defaultBatchId }: any) => {
 };
 
 const FeedForm = ({ batches, feedInventory = [], settings = DEFAULT_SETTINGS, canOverride = false, onDone, defaultBatchId }: { batches: Batch[]; feedInventory?: FeedInventory[]; settings?: BroodingSettings; canOverride?: boolean; onDone: () => void; defaultBatchId?: string }) => {
-  const defaultFeed = feedInventory[0]?.feed_name || "علف كتاكيت نعام";
-  const [f, setF] = useState({ batch_id: defaultBatchId || "", issue_date: new Date().toISOString().slice(0, 10), feed_name: defaultFeed, quantity_kg: 0, unit_cost: 0, total_cost: 0, notes: "" });
+  const defaultInv = feedInventory[0];
+  const newRef = () => (typeof crypto !== "undefined" && (crypto as any).randomUUID) ? (crypto as any).randomUUID() : `${Date.now()}-${Math.random()}`;
+  const [f, setF] = useState({
+    batch_id: defaultBatchId || "",
+    issue_date: new Date().toISOString().slice(0, 10),
+    feed_id: defaultInv?.id || "",
+    feed_name: defaultInv?.feed_name || "علف كتاكيت نعام",
+    quantity_kg: 0, unit_cost: 0, total_cost: 0, notes: "",
+    reference_id: newRef(),
+  });
   const [override, setOverride] = useState(false);
+  const [saving, setSaving] = useState(false);
   const batch = batches.find(b => b.id === f.batch_id);
   const recommendedUnitCost = feedCostForBatch(batch, settings);
-  const inv = feedInventory.find(x => x.feed_name === f.feed_name);
+  const inv = feedInventory.find(x => x.id === f.feed_id) || feedInventory.find(x => x.feed_name === f.feed_name);
 
   // Auto-fill unit_cost from settings when not overriding
   useEffect(() => {
@@ -1261,15 +1270,36 @@ const FeedForm = ({ batches, feedInventory = [], settings = DEFAULT_SETTINGS, ca
   const { profile } = useAuth();
   const [lastSaved, setLastSaved] = useState<typeof f | null>(null);
 
+
   const submit = async () => {
-    if (!f.batch_id || !f.feed_name || f.quantity_kg <= 0) { toast.error("أكمل البيانات"); return; }
+    if (saving) return;
+    if (!f.batch_id) { toast.error("يجب اختيار الدفعة"); return; }
+    if (!f.feed_id && !f.feed_name) { toast.error("يجب اختيار نوع العلف"); return; }
+    if (!f.quantity_kg || f.quantity_kg <= 0) { toast.error("يجب إدخال كمية أكبر من صفر"); return; }
     if (inv && f.quantity_kg > Number(inv.current_kg)) {
-      toast.error(`الرصيد المتاح من ${f.feed_name} = ${inv.current_kg} كجم فقط`);
+      toast.error("الكمية المطلوبة أكبر من مخزون العلف المتاح");
       return;
     }
-    const { error } = await supabase.from("brooding_feed_issuance").insert(f);
-    if (error) { toast.error(error.message); return; }
-    toast.success("تم صرف العلف وخصمه من المخزون — تم إرسال إشعار لمسؤول مصنع الأعلاف");
+    setSaving(true);
+    const payload: any = {
+      batch_id: f.batch_id,
+      issue_date: f.issue_date,
+      feed_id: f.feed_id || inv?.id || null,
+      feed_name: inv?.feed_name || f.feed_name,
+      quantity_kg: f.quantity_kg,
+      unit_cost: f.unit_cost,
+      total_cost: f.total_cost,
+      notes: f.notes,
+      reference_id: f.reference_id,
+    };
+    const { error } = await supabase.from("brooding_feed_issuance").insert(payload);
+    setSaving(false);
+    if (error) {
+      if ((error as any).code === "23505") { toast.error("تم تسجيل هذا الصرف من قبل"); return; }
+      toast.error(error.message);
+      return;
+    }
+    toast.success("تم صرف العلف وخصم الكمية من المخزون بنجاح");
     setLastSaved({ ...f });
   };
   return (<div className="space-y-3">
@@ -1278,9 +1308,12 @@ const FeedForm = ({ batches, feedInventory = [], settings = DEFAULT_SETTINGS, ca
     <div>
       <Label>نوع العلف (من مخزون علف الكتاكيت)</Label>
       {feedInventory.length > 0 ? (
-        <Select value={f.feed_name} onValueChange={v => setF({ ...f, feed_name: v })}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>{feedInventory.map(i => <SelectItem key={i.id} value={i.feed_name}>{i.feed_name} — متاح {fmt(Number(i.current_kg))} كجم</SelectItem>)}</SelectContent>
+        <Select value={f.feed_id} onValueChange={v => {
+          const sel = feedInventory.find(i => i.id === v);
+          setF({ ...f, feed_id: v, feed_name: sel?.feed_name || f.feed_name });
+        }}>
+          <SelectTrigger><SelectValue placeholder="اختر نوع العلف" /></SelectTrigger>
+          <SelectContent>{feedInventory.map(i => <SelectItem key={i.id} value={i.id}>{i.feed_name} — متاح {fmt(Number(i.current_kg))} كجم</SelectItem>)}</SelectContent>
         </Select>
       ) : (
         <Input value={f.feed_name} onChange={e => setF({ ...f, feed_name: e.target.value })} />
