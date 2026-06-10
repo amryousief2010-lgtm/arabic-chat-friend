@@ -23,6 +23,7 @@ const newLine = (): Line => ({ id: crypto.randomUUID(), ref_id: "", qty: 0, pric
 const fmt = (n: number) => Number(n || 0).toLocaleString("ar-EG", { maximumFractionDigits: 2 });
 
 // ============ PRINT HELPERS ============
+const esc = (s: any) => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 const printHtml = (title: string, bodyHtml: string) => {
   const w = window.open("", "_blank", "width=900,height=700");
   if (!w) return toast.error("فعّل النوافذ المنبثقة للطباعة");
