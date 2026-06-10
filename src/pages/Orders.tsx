@@ -1096,6 +1096,11 @@ const Orders = () => {
                       <span className="font-semibold truncate">{order.customer_name}</span>
                       <Badge variant="secondary" className="text-xs shrink-0">{order.moderator_name}</Badge>
                     </div>
+                    {order.customer_phone && (
+                      <div className="text-xs font-mono text-muted-foreground" dir="ltr">
+                        <a href={`tel:${order.customer_phone}`} className="hover:underline">{order.customer_phone}</a>
+                      </div>
+                    )}
                     <div className="text-sm text-foreground/90 break-words">
                       {itemLines.length === 0 ? '-' : (
                         <ul className="space-y-0.5 list-disc pr-4">
@@ -1113,6 +1118,23 @@ const Orders = () => {
                         </Button>
                       )}
                     </div>
+                    {(() => {
+                      const offers = Array.from(new Set(order.items.map((it) => it.offer_name).filter(Boolean) as string[]));
+                      return offers.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {offers.map((name) => (
+                            <Badge key={name} className="bg-orange-500 hover:bg-orange-500 text-white text-xs">{name}</Badge>
+                          ))}
+                        </div>
+                      ) : null;
+                    })()}
+                    {order.notes && (
+                      <div className="text-xs bg-muted/50 border rounded px-2 py-1 break-words">
+                        <span className="font-semibold">ملاحظات: </span>
+                        {order.notes}
+                      </div>
+                    )}
+
                     <div className="flex items-center justify-between gap-2 pt-1 border-t">
                       <span className="font-bold text-primary">{order.total.toLocaleString()} ج.م</span>
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
