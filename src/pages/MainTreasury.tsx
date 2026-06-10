@@ -346,6 +346,13 @@ export default function MainTreasury() {
         const toBankMonth = toBankLegs.filter(t => t.status==="posted" && new Date(t.txn_date) >= m).reduce((s,t)=>s+Number(t.amount),0);
         const toBankPending = toBankLegs.filter(t => t.status==="pending_approval").reduce((s,t)=>s+Number(t.amount),0);
         const toBankApproved = toBankLegs.filter(t => t.status==="posted").reduce((s,t)=>s+Number(t.amount),0);
+        // Custody transfers stats
+        const custodyLegs = txns.filter(t => t.txn_type === "transfer_to_custody");
+        const custToday = custodyLegs.filter(t => t.status==="posted" && t.txn_date===todayStr).reduce((s,t)=>s+Number(t.amount),0);
+        const custMonth = custodyLegs.filter(t => t.status==="posted" && new Date(t.txn_date) >= m).reduce((s,t)=>s+Number(t.amount),0);
+        const custPending = custodyLegs.filter(t => t.status==="pending_approval").reduce((s,t)=>s+Number(t.amount),0);
+        const custApproved = custodyLegs.filter(t => t.status==="posted").reduce((s,t)=>s+Number(t.amount),0);
+        const custRejected = custodyLegs.filter(t => t.status==="rejected").reduce((s,t)=>s+Number(t.amount),0);
         return (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
             <Card className="lg:col-span-2 border-[hsl(142_71%_36%)]/30 bg-[hsl(142_71%_36%)]/5"><CardContent className="p-4">
