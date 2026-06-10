@@ -1,100 +1,63 @@
-# خطة: توريد الخزنة الرئيسية → خزنة العهدة (Double-Entry آمن)
+## الخطة المقترحة — تنفيذ على 3 مراحل متتابعة
 
-البناء **فوق** البنية القائمة بدون حذف أو تعديل أي بيانات/صلاحيات حالية.
+النظام الحالي عنده بالفعل: `meat_factory_raw_items`، `meat_factory_inventory_moves`، `meat_manufacturing_invoices` + lines، وزر تحويل للمخزن الرئيسي بموافقة الاستلام، وفاتورة تصنيع تخصم الخامات عند الاعتماد. هابني فوق ده بدون حذف.
 
-## ١. البنية المعتمدة (الموجودة فعلًا)
-- `main_treasury_transactions` بنوع `transfer_to_custody` يخصم تلقائيًا من رصيد الخزنة الرئيسية لما `status='posted'` (موجود في `v_main_treasury_balance`).
-- `mt_approve_txn` فيها: منع الاعتماد الذاتي + قاعدة الاعتماد المزدوج لو > 50,000 + المعتمدون: المدير العام/التنفيذي/المالي + `main_treasury_approver`.
-- `main_treasury_to_custody_transfers` جدول الربط — موجود.
-- ناقص: **زيادة رصيد خزنة العهدة** بعد الاعتماد (الـ view `v_slaughter_custody_balance` بيقرأ من `slaughter_custody_opening_balances` فقط).
+---
 
-## ٢. تغييرات قاعدة البيانات (migration واحد)
+### المرحلة 1 — المشتريات + خامات التغليف (هذه الرسالة)
 
-### (أ) عمود ربط idempotent على رصيد العهدة
-```sql
-ALTER TABLE slaughter_custody_opening_balances
-  ADD COLUMN source_main_txn_id uuid UNIQUE
-    REFERENCES main_treasury_transactions(id) ON DELETE RESTRICT;
-```
-وجود `UNIQUE` يمنع إنشاء سطرين لنفس التوريد حتى لو الـ trigger اتنفذ مرتين.
+**قاعدة البيانات (migration واحد):**
+- توسيع `meat_factory_raw_items` بإضافة:
+  - `kind` (`raw` | `spice` | `packaging`) — defaults `raw`، تُحدّث الصفوف القديمة حسب التصنيف الحالي.
+  - `reorder_threshold` numeric، `is_active` boolean default true.
+- جدول `meat_factory_purchase_invoices`:
+  - رقم تلقائي `MPI-YYYYMM-####`، تاريخ، المورد، نوع الفاتورة، طريقة الدفع، رقم الإيصال، مرفق، ملاحظات، الحالة (`pending` / `approved` / `rejected` / `cancelled`)، `purchase_invoice_uuid` (unique) لمنع التكرار، `created_by`، `approved_by`، `approved_at`، `total`.
+- جدول `meat_factory_purchase_invoice_lines`: الصنف، القسم، الوحدة، الكمية، سعر الشراء، إجمالي السطر، تاريخ الصلاحية، ملاحظات.
+- دالة `approve_meat_purchase_invoice(p_id)`:
+  - تتحقق من الصلاحية (مدير عام/تنفيذي).
+  - لكل سطر: تزيد `current_stock`، تحدّث متوسط `unit_cost`، تُدخل صف في `meat_factory_inventory_moves` مع `stock_before`/`stock_after` و `reason='purchase'` و `source_id` للفاتورة.
+  - تحدّث حالة الفاتورة لـ `approved`، تسجّل في `meat_factory_audit_log`.
+  - فهرس فريد على `(source_type='purchase_invoice', source_id)` لمنع التكرار.
+- RLS: قراءة لكل مستخدمي المصنع، إنشاء لمسؤول المصنع، اعتماد للمدراء فقط.
 
-### (ب) Trigger يضيف للعهدة عند posted ويعكس عند reversal
-- `AFTER UPDATE` على `main_treasury_transactions`:
-  - لو `NEW.txn_type='transfer_to_custody' AND NEW.status='posted' AND OLD.status<>'posted'` → INSERT في `slaughter_custody_opening_balances` (status `approved`, `total_amount=NEW.amount`, `cash_amount=NEW.amount`, `as_of_date=NEW.txn_date`, `source_main_txn_id=NEW.id`, ملاحظة "توريد من الخزنة الرئيسية #ref"). يُحدِّث/يُنشِئ صف في `main_treasury_to_custody_transfers` بـ `status='received'`.
-  - لو `NEW.status='reversed' AND OLD.status='posted'` → DELETE صف الـ opening المرتبط (نفس `source_main_txn_id`).
-- الـ INSERT يتم تحت `SECURITY DEFINER` بدالة عشان يعدي RLS.
+**الواجهة:**
+- صفحة جديدة `/meat-factory/purchase-invoices` بتبويبين:
+  - **فاتورة جديدة**: نموذج رأس + جدول أسطر + رفع مرفق، حفظ بحالة `pending`.
+  - **سجل الفواتير**: فلاتر (تاريخ، حالة، مورد)، شارة الحالة، زر **اعتماد** للمدير العام/التنفيذي، زر **رفض**، زر **طباعة**، تصدير Excel/PDF.
+- في صفحة مخزن الخامات: تبويب جديد **خامات التغليف** يفلتر `kind='packaging'`، مع نفس أزرار إضافة/تعديل الصنف وعرض حد التنبيه و"غير نشط".
+- إدخال 14 صنف تغليف افتتاحي بصفر رصيد (علبة برجر/كفتة/سجق/مفروم/حواوشي/شاورما/شيش/رول استرتش/أكياس/استيكرات/أطباق فوم/رول فاكيوم/شنط/أخرى) — هتزيد أرصدتها من فاتورة المشتريات.
+- رابط في القائمة الجانبية تحت مصنع اللحوم.
 
-### (ج) Idempotency على إنشاء التوريد نفسه
-- استخدام `client_uuid` الموجود فعلًا (UNIQUE) على `main_treasury_transactions` لمنع إعادة الإرسال.
-- فحص duplicate منطقي: حركة `pending_approval` بنفس `txn_date + amount + recipient_name + txn_type='transfer_to_custody'` ترفع تنبيه في الـ UI قبل الإرسال.
+**الاختبار:** فاتورة مشتريات لـ 100 علبة برجر × 2ج، اعتمادها، التأكد أن رصيد علبة برجر = 100 وحركة `purchase` ظهرت، ومحاولة اعتماد مرتين لا تكرر.
 
-### (د) منع التلاعب المباشر برصيد العهدة لصفوف التوريد
-- منع تعديل/حذف أي صف في `slaughter_custody_opening_balances` يحمل `source_main_txn_id IS NOT NULL` من قِبَل المستخدمين العاديين (BEFORE UPDATE/DELETE trigger يرفع EXCEPTION ما عدا الـ trigger الداخلي عند reversal).
+---
 
-### (هـ) Audit Log
-- `main_treasury_audit_log` بيسجل create/approve/reject أصلًا. نضيف entries أوتوماتيكية في الـ trigger عند `posted` و`reversed` بالنوع `custody_credit_created` و`custody_credit_reversed` (تشمل المبلغ والمستلم والـ source/target).
+### المرحلة 2 — ترقية فاتورة التصنيع (الرسالة التالية بعد قبول هذه)
 
-## ٣. واجهة المستخدم (لا حذف)
+- إضافة `kind` لكل سطر مكونات + جدول مستقل في الواجهة لخامات التغليف داخل نفس فاتورة التصنيع.
+- حقول جديدة: `packaging_cost`، `extra_cost`، `total_manufacturing_cost`، `unit_cost` (محسوبة).
+- حقل `destination_kind` (`factory_warehouse` | `main_warehouse_direct`):
+  - عند الاعتماد ومع اختيار "توريد مباشر" يتم إنشاء `meat_production_transfer` تلقائيًا.
+- تعديل دالة `approve_meat_manufacturing_invoice` لتخصم خامات + تغليف معًا، تتحقق من كفاية الرصيد قبل أي خصم، وتسجّل `stock_before/after` لكل سطر، وتمنع الاعتماد المزدوج.
+- زر **طباعة فاتورة تصنيع** عبر `openPrintWindow` من `@/lib/printPdf` (يدعم العربية): شعار، رؤوس، جدولان للخامات وللتغليف، إجماليات، تكلفة الوحدة، توقيعات.
+- صفحة **سجل التصنيع** الكاملة `/meat-factory/manufacturing-log` بكل الأعمدة المطلوبة + Drawer للتفاصيل + أزرار طباعة/توريد/عرض.
 
-### فورم جديد: "توريد إلى خزنة العهدة"
-- مكوّن `TransferToCustodyDialog.tsx` (جديد) داخل `src/components/main-treasury/`.
-- الحقول المطلوبة (كلها في المواصفات): التاريخ، المبلغ، الخزنة المصدر (مقفل = الخزنة الرئيسية)، الخزنة المستلمة (مقفل = خزنة العهدة)، اسم المستلم في العهدة (Select لأمناء العهدة)، سبب التوريد، طريقة التسليم (cash/transfer/other)، مرفق إيصال (سحب وإفلات عبر `DragDropUpload` الموجود)، ملاحظات.
-- يولّد `client_uuid` عند فتح الـ Dialog. زر الحفظ يُعطَّل أثناء الإرسال.
-- يحفظ كـ `main_treasury_transactions(txn_type='transfer_to_custody', status='pending_approval', recipient_name, payment_method, attachment_url, client_uuid, ...)`.
+---
 
-### كارت في لوحة الخزنة الرئيسية
-- "توريدات إلى خزنة العهدة": اليوم / الشهر / معلقة / معتمدة / مرفوضة (Query على `main_treasury_transactions` نوع `transfer_to_custody` مع cairoDate helpers).
+### المرحلة 3 — التقارير والاختبار E2E (الرسالة الأخيرة)
 
-### كارت في صفحة الخزنة العهدة (`SlaughterhouseCustody.tsx`)
-- "وارد من الخزنة الرئيسية": اليوم / الشهر / معلق / معتمد / آخر توريد مستلم.
+- تقارير: استهلاك الخامات، استهلاك التغليف، تكلفة المنتجات، فواتير المشتريات الشهرية، فواتير التصنيع اليومية/الشهرية، أرصدة الخامات، التوريد للمخزن الرئيسي — كلها مع فلاتر وتصدير Excel/PDF.
+- تشغيل سيناريو الاختبار الكامل من طلبك (مشتريات 100 علبة → تصنيع 10 كجم برجر باستخدام 8 كجم لحم + 10 علب → اعتماد → خصم → ظهور في السجل → طباعة → توريد → منع التكرار → اختبار رصيد غير كافٍ) وعرض تقرير النتائج بقيم قبل/بعد.
 
-### قسم تقارير
-- تبويب فرعي داخل `MainTreasury.tsx` يعرض جدول التوريدات مع فلاتر (تاريخ/الحالة/المستلم) + تصدير PDF (`openPrintWindow`) + Excel (`xlsx`).
+---
 
-## ٤. الصلاحيات (موجودة — تأكيد فقط)
-- محمد شعلة (`main_treasury_accountant`): إنشاء التوريد ورفع المرفق ومتابعة الحالة.
-- المدير العام/التنفيذي/المالي + `main_treasury_approver`: اعتماد/رفض.
-- `mt_approve_txn` تمنع الاعتماد الذاتي بالفعل.
-- الرفض عبر `mt_reject_txn` يحفظ السبب الإجباري.
+### تفاصيل تقنية مختصرة (للمراجعة)
 
-## ٥. المعادلة المحاسبية (مضمونة بعد التغييرات)
+- منع التكرار: عمود `*_uuid unique` على كل من فاتورة المشتريات وفاتورة التصنيع والتوريد + فهرس فريد `(source_type, source_id)` على `meat_factory_inventory_moves`.
+- متوسط التكلفة: `new_unit_cost = (old_stock*old_cost + qty*purchase_price) / (old_stock+qty)` يطبق فقط للأصناف ذات `kind in ('raw','spice','packaging')`.
+- الصلاحيات: `has_role(uid,'general_manager') or has_role(uid,'executive_manager')` للاعتماد؛ مسؤول المصنع للإنشاء؛ المحاسبة للقراءة.
+- كل الـ Audit في `meat_factory_audit_log` الموجود.
 
-```text
-رصيد الخزنة الرئيسية = opening
-                     + posted(deposit / bank_deposit / transfer_from_custody / settlement / adjustment)
-                     − posted(withdrawal / expense / bank_* / loan_installment / transfer_to_custody / ...)
+---
 
-رصيد خزنة العهدة     = approved(opening_balances)               ← يشمل الآن صفوف التوريد المعتمدة
-                     − approved(custody_expenses)
-```
-
-- `pending_approval` لا يؤثر على أي رصيد فعلي.
-- العمود `pending_amount` في `v_main_treasury_balance` يظهر "الرصيد المتوقع" للمعلقة.
-
-## ٦. منع التكرار (طبقات متعددة)
-
-1. `client_uuid UNIQUE` يرفض الـ retry على مستوى DB.
-2. زر الحفظ disabled أثناء الإرسال.
-3. فحص الـ duplicate قبل الحفظ (نفس المبلغ/التاريخ/المستلم في آخر ساعة وحالة `pending_approval` أو `posted`) → تنبيه: "هذه حركة توريد مسجلة من قبل ولا يمكن تكرارها" مع زر "تأكيد الإرسال رغم ذلك".
-4. عمود `source_main_txn_id UNIQUE` يضمن أن الاعتماد المتكرر لنفس الحركة لا يضاعف رصيد العهدة.
-5. `mt_approve_txn` بترفض اعتماد حركة ليست `pending_approval`.
-
-## ٧. ملفات ستُنشَأ/تُعدَّل
-
-- **Migration واحد** (الجدول أعمدة + الـ triggers + الـ audit).
-- جديد: `src/components/main-treasury/TransferToCustodyDialog.tsx`
-- جديد: `src/components/main-treasury/TransfersToCustodyCard.tsx` (كارت اللوحة)
-- جديد: `src/components/main-treasury/TransfersToCustodyReport.tsx` (التقرير + Excel/PDF)
-- تعديل: `src/pages/MainTreasury.tsx` (إضافة الكارت + التبويب + الزر)
-- تعديل: `src/pages/SlaughterhouseCustody.tsx` (كارت "وارد من الخزنة الرئيسية")
-- تعديل: `.lovable/memory/features/main-treasury.md`
-
-## ٨. ضمانات
-
-- ❌ لا تُحذف أي بيانات أو صلاحيات أو حسابات أو policies.
-- ❌ التوريد لا يُسجَّل كـ `expense` نهائيًا — هو `transfer_to_custody` فقط.
-- ✅ الرصيدان لا يتأثران إلا بعد `posted` (= بعد الاعتماد، أو الاعتماد المزدوج لو > 50,000).
-- ✅ الرفض = لا خصم ولا إضافة ولا صف opening.
-- ✅ Reversal يمسح صف العهدة المرتبط آليًا.
-
-أأكد وأبدأ بتنفيذ الـ migration ثم الواجهة؟
+أبدأ بتنفيذ **المرحلة 1 فقط** الآن. عند انتهائها واختبارها معك، أنتقل للمرحلة 2.
