@@ -498,25 +498,72 @@ export default function MainTreasury() {
         {/* Transfer */}
         <TabsContent value="transfer" className="mt-4">
           <Card>
-            <CardHeader><CardTitle className="flex items-center gap-2"><Send className="h-4 w-4"/>تحويل لخزنة العهدة</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="flex items-center gap-2"><Send className="h-4 w-4"/>توريد إلى خزنة العهدة</CardTitle></CardHeader>
             <CardContent className="grid md:grid-cols-2 gap-3">
-              <div><Label>الحساب المُحوَّل منه</Label>
+              <div><Label>التاريخ</Label>
+                <Input type="date" value={transferForm.txn_date} onChange={e=>{ setTransferForm({...transferForm, txn_date: e.target.value}); setTransferDupWarn(""); }}/>
+              </div>
+              <div><Label>المبلغ *</Label>
+                <Input type="number" step="0.01" value={transferForm.amount} onChange={e=>{ setTransferForm({...transferForm, amount: e.target.value}); setTransferDupWarn(""); }}/>
+              </div>
+              <div><Label>الخزنة المصدر (الخزنة الرئيسية)</Label>
                 <Select value={transferForm.account_id} onValueChange={v=>setTransferForm({...transferForm, account_id:v})}>
-                  <SelectTrigger><SelectValue placeholder="اختر"/></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="اختر الحساب"/></SelectTrigger>
                   <SelectContent>{accounts.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div><Label>أمين العهدة المستلم</Label>
-                <Select value={transferForm.custody_keeper_id} onValueChange={v=>setTransferForm({...transferForm, custody_keeper_id:v})}>
+              <div><Label>الخزنة المستلمة</Label>
+                <Input value="خزنة العهدة (المجزر)" disabled readOnly/>
+              </div>
+              <div><Label>أمين العهدة المستلم *</Label>
+                <Select value={transferForm.custody_keeper_id} onValueChange={v=>{ setTransferForm({...transferForm, custody_keeper_id:v}); setTransferDupWarn(""); }}>
                   <SelectTrigger><SelectValue placeholder="اختر"/></SelectTrigger>
                   <SelectContent>{custodyKeepers.map(k => <SelectItem key={k.user_id} value={k.user_id}>{k.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div><Label>المبلغ</Label><Input type="number" step="0.01" value={transferForm.amount} onChange={e=>setTransferForm({...transferForm, amount: e.target.value})}/></div>
-              <div className="md:col-span-2"><Label>ملاحظات</Label><Textarea value={transferForm.notes} onChange={e=>setTransferForm({...transferForm, notes: e.target.value})}/></div>
-              <div className="md:col-span-2">
-                <Button onClick={submitTransfer} disabled={busy} className="gap-2"><Send className="h-4 w-4"/>إرسال التحويل</Button>
-                <span className="text-xs text-muted-foreground mr-3">سيظهر التحويل لأمين العهدة لاعتماده بعد الاعتماد المالي.</span>
+              <div><Label>اسم المستلم (اختياري — يتعبأ تلقائياً)</Label>
+                <Input value={transferForm.recipient_name} onChange={e=>{ setTransferForm({...transferForm, recipient_name: e.target.value}); setTransferDupWarn(""); }} placeholder="اتركه فارغاً لاستخدام اسم أمين العهدة"/>
+              </div>
+              <div><Label>طريقة التسليم</Label>
+                <Select value={transferForm.payment_method} onValueChange={v=>setTransferForm({...transferForm, payment_method: v as any})}>
+                  <SelectTrigger><SelectValue/></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">نقدي</SelectItem>
+                    <SelectItem value="transfer">تحويل بنكي / محفظة</SelectItem>
+                    <SelectItem value="other">أخرى</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div><Label>مرفق إيصال (اختياري)</Label>
+                <Input type="file" accept="image/*,application/pdf" onChange={e=>setTransferReceipt(e.target.files?.[0] || null)}/>
+                {transferReceipt && <div className="text-xs text-muted-foreground mt-1">{transferReceipt.name}</div>}
+              </div>
+              <div className="md:col-span-2"><Label>سبب التوريد *</Label>
+                <Input value={transferForm.reason} onChange={e=>setTransferForm({...transferForm, reason: e.target.value})} placeholder="مثال: مصاريف تشغيل أسبوعية للمجزر"/>
+              </div>
+              <div className="md:col-span-2"><Label>ملاحظات</Label>
+                <Textarea value={transferForm.notes} onChange={e=>setTransferForm({...transferForm, notes: e.target.value})}/>
+              </div>
+              {transferDupWarn && (
+                <div className="md:col-span-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm flex items-start gap-2">
+                  <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-destructive"/>
+                  <div>{transferDupWarn}</div>
+                </div>
+              )}
+              <div className="md:col-span-2 rounded-md border border-[hsl(38_92%_50%)]/40 bg-[hsl(38_92%_50%)]/10 p-3 text-xs flex items-start gap-2">
+                <ShieldCheck className="h-4 w-4 mt-0.5 shrink-0"/>
+                <div>
+                  هذا توريد بين الخزن (ليس مصروفاً). لن يُخصم من الخزنة الرئيسية ولن يُضاف إلى خزنة العهدة إلا بعد <b>اعتماد المدير العام أو التنفيذي</b>.
+                  بعد الاعتماد، يُخصم المبلغ تلقائياً من الخزنة الرئيسية ويُضاف بنفس القيمة لخزنة العهدة.
+                </div>
+              </div>
+              <div className="md:col-span-2 flex items-center gap-2 flex-wrap">
+                <Button onClick={submitTransfer} disabled={busy} className="gap-2">
+                  <Send className="h-4 w-4"/>{transferDupWarn ? "تأكيد الإرسال رغم التحذير" : "إرسال طلب التوريد"}
+                </Button>
+                {transferDupWarn && (
+                  <Button variant="ghost" onClick={()=>setTransferDupWarn("")}>إلغاء</Button>
+                )}
               </div>
             </CardContent>
           </Card>
