@@ -970,12 +970,7 @@ const NewOrder = () => {
       return;
     }
 
-    if (isSalesModerator && requiresDepositReceipt && !depositReceiptFile) {
-      toast.error('يجب رفع إيصال تحويل العربون قبل تسجيل الطلب', {
-        description: 'الطلب يحتوي على منتج (دبوس بالعظم / فخدة بالعظم / نعامة صندوق) ويتطلب إثبات تحويل العربون',
-      });
-      return;
-    }
+    // Deposit receipt is now optional — requirement removed per user request.
 
     if (!selectedCustomer) {
       toast.error('يرجى اختيار العميل');
