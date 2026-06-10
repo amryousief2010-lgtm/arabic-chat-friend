@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { Plus, Building2, FileDown, Printer, Paperclip, Wallet, Banknote, Receipt, RefreshCw, ArrowRightLeft } from "lucide-react";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate } from "@/lib/printPdf";
 import * as XLSX from "xlsx";
+import DragDropUpload from "./DragDropUpload";
 
 type Account = { id: string; name: string; account_type: "cash"|"bank"|"wallet"; bank_name: string|null; account_number: string|null; opening_balance: number; is_active: boolean };
 type Balance = { account_id: string; name: string; account_type: string; bank_name: string|null; opening_balance: number; current_balance: number; pending_amount: number; pending_count: number };
@@ -785,12 +786,20 @@ export default function BankAccountPanel() {
               {(() => {
                 const srcDef = INCOMING_SOURCES.find(s=>s.value===form.incoming_source);
                 const required = form.txn_type === "bank_deposit" && !!srcDef?.attachmentRequired;
-                return <>
-                  <Label>صورة التحويل / إيصال التحويل {required && <span className="text-destructive">*</span>}</Label>
-                  <Input type="file" accept="image/jpeg,image/png,image/jpg,application/pdf" onChange={e=>setFile(e.target.files?.[0] || null)}/>
-                  {file && <div className="text-xs text-muted-foreground mt-1">{file.name} · {Math.round(file.size/1024)}KB · {file.type}</div>}
-                  {required && !file && <div className="text-xs text-destructive mt-1">صورة التحويل إجبارية لـ {srcDef?.label}</div>}
-                </>;
+                return (
+                  <>
+                    <Label className="mb-2 block">
+                      صورة التحويل / إيصال التحويل{" "}
+                      {required && <span className="text-destructive">*</span>}
+                    </Label>
+                    <DragDropUpload
+                      value={file}
+                      onChange={setFile}
+                      label="اسحب صورة التحويل هنا أو انقر للاختيار"
+                      requiredHint={required && !file ? `صورة التحويل إجبارية لـ ${srcDef?.label}` : undefined}
+                    />
+                  </>
+                );
               })()}
             </div>
             <div className="md:col-span-2 text-xs text-muted-foreground border rounded p-2 bg-muted/30">
@@ -865,9 +874,12 @@ export default function BankAccountPanel() {
             <div><Label>اسم المودع في البنك *</Label><Input value={transferForm.bank_depositor_by} onChange={e=>setTransferForm({...transferForm,bank_depositor_by:e.target.value})}/></div>
             <div className="md:col-span-2"><Label>ملاحظات</Label><Textarea rows={2} value={transferForm.notes} onChange={e=>setTransferForm({...transferForm,notes:e.target.value})}/></div>
             <div className="md:col-span-2">
-              <Label>مرفق إيصال الإيداع البنكي</Label>
-              <Input type="file" accept="image/*,application/pdf" onChange={e=>setTransferFile(e.target.files?.[0] || null)}/>
-              {transferFile && <div className="text-xs text-muted-foreground mt-1">{transferFile.name}</div>}
+              <Label className="mb-2 block">مرفق إيصال الإيداع البنكي</Label>
+              <DragDropUpload
+                value={transferFile}
+                onChange={setTransferFile}
+                label="اسحب إيصال الإيداع هنا أو انقر للاختيار"
+              />
             </div>
             <div className="md:col-span-2 text-xs text-muted-foreground border rounded p-2 bg-muted/30">
               تسجَّل حركتان مرتبطتان (خروج من النقدية + دخول للبنك) بمعرّف تحويل واحد. لا يُخصم/يضاف إلا بعد اعتماد المدير المختص. لا يمكنك اعتماد طلب سجلته بنفسك. تكرار الضغط محمي تلقائيًا.
@@ -893,10 +905,12 @@ export default function BankAccountPanel() {
               }}><Paperclip className="h-4 w-4"/>عرض الصورة الحالية</Button>
             )}
             <div>
-              <Label>صورة جديدة (JPG / PNG / PDF) *</Label>
-              <Input type="file" accept="image/jpeg,image/png,image/jpg,application/pdf"
-                onChange={e=>setChangeAttachDlg({...changeAttachDlg, file:e.target.files?.[0]||null})}/>
-              {changeAttachDlg.file && <div className="text-xs text-muted-foreground mt-1">{changeAttachDlg.file.name} · {Math.round(changeAttachDlg.file.size/1024)}KB</div>}
+              <Label className="mb-2 block">صورة جديدة (JPG / PNG / PDF) *</Label>
+              <DragDropUpload
+                value={changeAttachDlg.file}
+                onChange={(f) => setChangeAttachDlg({...changeAttachDlg, file: f})}
+                label="اسحب الصورة الجديدة هنا أو انقر للاختيار"
+              />
             </div>
             {changeAttachDlg.txn?.status === "posted" && (
               <div>
