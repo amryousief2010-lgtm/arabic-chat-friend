@@ -97,19 +97,19 @@ const printCount = (c: any) => {
 
 // ---- list printers ----
 const printRawList = (rows: any[]) => {
-  const body = rows.map((r) => `<tr><td>${r.name}</td><td>${fmt(r.stock)}</td><td>${r.unit||'كجم'}</td><td>${fmt(r.unit_cost)}</td><td>${fmt(Number(r.stock)*Number(r.unit_cost))}</td><td>${r.supplier||'-'}</td></tr>`).join("");
+  const body = rows.map((r) => `<tr><td>${esc(r.name)}</td><td>${fmt(r.stock)}</td><td>${esc(r.unit||'كجم')}</td><td>${fmt(r.unit_cost)}</td><td>${fmt(Number(r.stock)*Number(r.unit_cost))}</td><td>${esc(r.supplier||'-')}</td></tr>`).join("");
   const total = rows.reduce((s,r)=>s+Number(r.stock)*Number(r.unit_cost),0);
   printHtml("جرد المواد الخام", `<div class="header"><div><div class="brand">عاصمة النعام</div><div>مصنع الأعلاف — كشف المواد الخام</div></div><div style="text-align:left"><b>التاريخ:</b> ${new Date().toLocaleDateString('ar-EG')}</div></div>
   <table><thead><tr><th>الصنف</th><th>الرصيد</th><th>الوحدة</th><th>متوسط التكلفة</th><th>القيمة</th><th>المورد</th></tr></thead><tbody>${body}</tbody><tfoot><tr><td colspan="4">إجمالي قيمة المخزون</td><td colspan="2">${fmt(total)} ج.م</td></tr></tfoot></table>`);
 };
 const printProdList = (rows: any[]) => {
-  const body = rows.map((p)=>{const bag=Number(p.default_bag_kg||50);const st=Number(p.current_stock||0);return `<tr><td>${p.name}</td><td>${p.stage||'-'}</td><td>${fmt(st)}</td><td>${fmt(bag>0?st/bag:0)}</td><td>${fmt(p.latest_unit_cost)}</td><td>${fmt(p.selling_price)}</td><td>${fmt(st*Number(p.latest_unit_cost||0))}</td></tr>`}).join("");
+  const body = rows.map((p)=>{const bag=Number(p.default_bag_kg||50);const st=Number(p.current_stock||0);return `<tr><td>${esc(p.name)}</td><td>${esc(p.stage||'-')}</td><td>${fmt(st)}</td><td>${fmt(bag>0?st/bag:0)}</td><td>${fmt(p.latest_unit_cost)}</td><td>${fmt(p.selling_price)}</td><td>${fmt(st*Number(p.latest_unit_cost||0))}</td></tr>`}).join("");
   const total = rows.reduce((s,p)=>s+Number(p.current_stock||0)*Number(p.latest_unit_cost||0),0);
   printHtml("جرد العلف الجاهز", `<div class="header"><div><div class="brand">عاصمة النعام</div><div>مصنع الأعلاف — كشف العلف الجاهز</div></div><div style="text-align:left"><b>التاريخ:</b> ${new Date().toLocaleDateString('ar-EG')}</div></div>
   <table><thead><tr><th>المنتج</th><th>المرحلة</th><th>الكمية كجم</th><th>عدد الشكاير</th><th>متوسط التكلفة</th><th>سعر البيع</th><th>القيمة</th></tr></thead><tbody>${body}</tbody><tfoot><tr><td colspan="6">إجمالي قيمة العلف</td><td>${fmt(total)} ج.م</td></tr></tfoot></table>`);
 };
 const printTreasury = (rows: any[], balance: number) => {
-  const body = rows.map((t)=>`<tr><td>${t.txn_no}</td><td>${t.txn_date}</td><td>${KIND_LABEL[t.kind]||t.kind}</td><td>${t.party||'-'}</td><td>${t.note||'-'}</td><td style="color:#059669">${t.direction==='in'?fmt(t.amount):'-'}</td><td style="color:#dc2626">${t.direction==='out'?fmt(t.amount):'-'}</td></tr>`).join("");
+  const body = rows.map((t)=>`<tr><td>${esc(t.txn_no)}</td><td>${esc(t.txn_date)}</td><td>${esc(KIND_LABEL[t.kind]||t.kind)}</td><td>${esc(t.party||'-')}</td><td>${esc(t.note||'-')}</td><td style="color:#059669">${t.direction==='in'?fmt(t.amount):'-'}</td><td style="color:#dc2626">${t.direction==='out'?fmt(t.amount):'-'}</td></tr>`).join("");
   const tin = rows.filter(r=>r.direction==='in').reduce((s,r)=>s+Number(r.amount),0);
   const tout = rows.filter(r=>r.direction==='out').reduce((s,r)=>s+Number(r.amount),0);
   printHtml("كشف خزنة المصنع", `<div class="header"><div><div class="brand">عاصمة النعام</div><div>مصنع الأعلاف — كشف حركة الخزنة</div></div><div style="text-align:left"><b>التاريخ:</b> ${new Date().toLocaleDateString('ar-EG')}<br/><b>الرصيد:</b> ${fmt(balance)} ج.م</div></div>
