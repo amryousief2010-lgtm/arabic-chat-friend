@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { Plus, Building2, FileDown, Printer, Paperclip, Wallet, Banknote, Receipt, RefreshCw, ArrowRightLeft } from "lucide-react";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate } from "@/lib/printPdf";
 import * as XLSX from "xlsx";
+import DragDropUpload from "./DragDropUpload";
 
 type Account = { id: string; name: string; account_type: "cash"|"bank"|"wallet"; bank_name: string|null; account_number: string|null; opening_balance: number; is_active: boolean };
 type Balance = { account_id: string; name: string; account_type: string; bank_name: string|null; opening_balance: number; current_balance: number; pending_amount: number; pending_count: number };
