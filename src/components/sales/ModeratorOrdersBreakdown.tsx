@@ -213,6 +213,13 @@ const ModeratorOrdersBreakdown = ({ month, year }: Props = {}) => {
                     </div>
                     <span className="font-bold text-lg text-red-600">{item.cancelled}</span>
                   </div>
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-yellow-500/10">
+                    <div className="flex items-center gap-2">
+                      <Bird className="h-4 w-4 text-yellow-700" />
+                      <span className="text-sm">عدد الكتاكيت المسلمة</span>
+                    </div>
+                    <span className="font-bold text-lg text-yellow-700">{item.chicksDelivered}</span>
+                  </div>
                 </CardContent>
               </Card>
             ))}
