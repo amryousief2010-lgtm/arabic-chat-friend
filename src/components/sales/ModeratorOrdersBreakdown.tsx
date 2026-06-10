@@ -83,7 +83,17 @@ const ModeratorOrdersBreakdown = ({ month, year }: Props = {}) => {
         .lt('created_at', endDate);
       if (error) throw error;
 
-      const userIds = Array.from(new Set((orders || []).map(o => o.created_by).filter(Boolean))) as string[];
+      const { data: chickOrders } = await supabase
+        .from('chick_orders')
+        .select('status, chick_count, created_by')
+        .eq('status', 'delivered')
+        .gte('created_at', startDate)
+        .lt('created_at', endDate);
+
+      const userIds = Array.from(new Set([
+        ...((orders || []).map(o => o.created_by).filter(Boolean) as string[]),
+        ...((chickOrders || []).map(o => o.created_by).filter(Boolean) as string[]),
+      ]));
       let profiles: ProfileRow[] = [];
       if (userIds.length > 0) {
         const { data: pData } = await supabase
@@ -105,7 +115,13 @@ const ModeratorOrdersBreakdown = ({ month, year }: Props = {}) => {
         const delivered = filtered.filter(o => o.status === 'delivered').length;
         const cancelled = filtered.filter(o => o.status === 'cancelled').length;
         const pending = total - delivered - cancelled;
-        return { name: girl, total, delivered, cancelled, pending };
+        const chicksDelivered = (chickOrders || [])
+          .filter(c => {
+            const creatorName = c.created_by ? (profileMap.get(c.created_by) || '') : '';
+            return matches(creatorName, girl);
+          })
+          .reduce((s, c) => s + (Number(c.chick_count) || 0), 0);
+        return { name: girl, total, delivered, cancelled, pending, chicksDelivered };
       });
     },
   });
