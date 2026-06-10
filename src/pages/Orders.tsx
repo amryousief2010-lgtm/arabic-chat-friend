@@ -1058,8 +1058,9 @@ const Orders = () => {
             </Button>
           </div>
 
-          {/* Mobile card view */}
-          <div className="md:hidden space-y-3">
+          {/* Card view (unified for all screens) */}
+          <div className="space-y-3">
+
             {filteredOrders.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">لا توجد طلبات</div>
             ) : (
