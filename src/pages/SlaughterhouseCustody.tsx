@@ -19,6 +19,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate } from "@/lib/printPdf";
 import * as XLSX from "xlsx";
 import CustodyExpenseAnalytics from "@/components/treasury/CustodyExpenseAnalytics";
+import VehicleExpenseAnalysis from "@/components/treasury/VehicleExpenseAnalysis";
 import {
   Wallet, Plus, ShieldAlert, CheckCircle2, XCircle, MessageSquare, Upload,
   Printer, FileSpreadsheet, AlertTriangle, ScrollText, Beef, Sparkles, Clock, Activity, Receipt, TrendingDown,
