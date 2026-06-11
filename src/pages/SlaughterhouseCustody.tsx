@@ -456,9 +456,9 @@ export default function SlaughterhouseCustody() {
               ) : null}
             />
 
-            {/* Incoming transfers from main treasury */}
+            {/* Incoming transfers from main treasury (to custody) */}
             <IncomingCustodyTransfers onReceived={() => { window.dispatchEvent(new Event('custody:refresh')); }} />
-            <IncomingLabCustodyTransfers onReceived={() => { window.dispatchEvent(new Event('custody:refresh')); }} />
+            {/* Note: تحويلات خزنة المعمل → الخزنة الرئيسية للمجزر تم نقلها إلى صفحة الخزنة الرئيسية للمجزر */}
 
 
 
