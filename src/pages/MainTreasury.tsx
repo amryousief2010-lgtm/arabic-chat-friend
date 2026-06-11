@@ -536,7 +536,48 @@ export default function MainTreasury() {
         </TabsContent>
 
         {/* Transfer */}
-        <TabsContent value="transfer" className="mt-4">
+        <TabsContent value="transfer" className="mt-4 space-y-3">
+          {/* آخر حركة تحويل إلى خزنة العهدة */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <History className="h-4 w-4 text-[hsl(280_60%_50%)]"/>آخر حركة تحويل إلى خزنة العهدة
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {lastTransferTxn ? (() => {
+                const keeperName = custodyKeepers.find(k => k.user_id === lastTransferLink?.custody_keeper_id)?.name || "—";
+                const reason = lastTransferTxn.description?.replace("توريد إلى خزنة العهدة — ", "") || "—";
+                const pm = lastTransferTxn.payment_method === "cash" ? "نقدي" : lastTransferTxn.payment_method === "transfer" ? "تحويل بنكي / محفظة" : lastTransferTxn.payment_method || "—";
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-2 text-sm">
+                    <div><span className="text-muted-foreground text-xs">رقم الحركة</span><div className="font-mono font-semibold">{lastTransferTxn.reference_no}</div></div>
+                    <div><span className="text-muted-foreground text-xs">التاريخ والوقت</span><div className="font-semibold">{fmtDate(lastTransferTxn.created_at)}</div></div>
+                    <div><span className="text-muted-foreground text-xs">المبلغ</span><div className="font-mono font-bold text-primary">{fmtNum(lastTransferTxn.amount,2)} ج.م</div></div>
+                    <div><span className="text-muted-foreground text-xs">الخزنة المصدر</span><div className="font-semibold">الخزنة الرئيسية</div></div>
+                    <div><span className="text-muted-foreground text-xs">الخزنة المستلمة</span><div className="font-semibold">خزنة العهدة</div></div>
+                    <div><span className="text-muted-foreground text-xs">أمين العهدة المستلم</span><div className="font-semibold">{keeperName}</div></div>
+                    <div><span className="text-muted-foreground text-xs">سبب التوريد</span><div className="font-semibold">{reason}</div></div>
+                    <div><span className="text-muted-foreground text-xs">طريقة التسليم</span><div className="font-semibold">{pm}</div></div>
+                    <div><span className="text-muted-foreground text-xs">الحالة</span><div><Badge variant={STATUS_TONE[lastTransferTxn.status]}>{STATUS_LBL[lastTransferTxn.status] || lastTransferTxn.status}</Badge></div></div>
+                    <div><span className="text-muted-foreground text-xs">تم التسجيل بواسطة</span><div className="font-semibold">{lastTransferUserNames[lastTransferTxn.created_by] || lastTransferTxn.created_by.slice(0,8)}</div></div>
+                    {lastTransferTxn.approver_1_id && (
+                      <>
+                        <div><span className="text-muted-foreground text-xs">تم الاعتماد بواسطة</span><div className="font-semibold">{lastTransferUserNames[lastTransferTxn.approver_1_id] || lastTransferTxn.approver_1_id.slice(0,8)}</div></div>
+                        <div><span className="text-muted-foreground text-xs">تاريخ الاعتماد</span><div className="font-semibold">{fmtDate(lastTransferTxn.approver_1_at)}</div></div>
+                      </>
+                    )}
+                    <div className="md:col-span-3 pt-1">
+                      <Button variant="outline" size="sm" onClick={() => setLastDetailOpen(true)}>عرض التفاصيل</Button>
+                    </div>
+                  </div>
+                );
+              })() : (
+                <div className="text-center text-muted-foreground py-6">لا توجد تحويلات سابقة إلى خزنة العهدة</div>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><Send className="h-4 w-4"/>توريد إلى خزنة العهدة</CardTitle></CardHeader>
             <CardContent className="grid md:grid-cols-2 gap-3">
