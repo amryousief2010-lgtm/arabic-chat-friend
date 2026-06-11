@@ -17,6 +17,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import { exportCSV } from "@/lib/csvExport";
 import { openPrintWindow } from "@/lib/printPdf";
 import { toast } from "sonner";
+import BatchAccountDialog from "./BatchAccountDialog";
 
 type Customer = { id: string; name: string; customer_type: string; is_active: boolean; notes: string | null; is_test?: boolean | null };
 type Batch = {
@@ -50,6 +51,7 @@ export default function ExternalCustomersReport() {
   const [statusFilter, setStatusFilter] = useState<string>("all"); // all | paid | owes | credit
   const [sortKey, setSortKey] = useState<SortKey>("eggs");
   const [detailsCustomerId, setDetailsCustomerId] = useState<string | null>(null);
+  const [openLotId, setOpenLotId] = useState<string | null>(null);
 
   const { data: customers = [] } = useQuery({
     queryKey: ["ecr_customers"],
@@ -303,6 +305,40 @@ export default function ExternalCustomersReport() {
       .filter(p => p.customer_id === detailsCustomerId && p.payment_date >= fromDate && p.payment_date <= toDate)
       .sort((a, b) => b.payment_date.localeCompare(a.payment_date));
   }, [payments, detailsCustomerId, fromDate, toDate]);
+
+  // Per-customer lots + invoices for the "Batch Accounts" section in details dialog
+  const { data: customerLots = [], refetch: refetchCustomerLots } = useQuery({
+    queryKey: ["ecr_customer_lots", detailsCustomerId],
+    enabled: !!detailsCustomerId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hatchery_batch_lots" as any)
+        .select("id,batch_id,eggs_in,infertile_eggs,completed_unhatched,chicks_hatched,hatcher_out_at,brooding_out_at,brooding_days,cancelled,batch:hatchery_batches(batch_number,entry_date,status)")
+        .eq("client_id", detailsCustomerId!)
+        .eq("owner_type", "external_client")
+        .eq("cancelled", false)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+  const { data: customerInvoices = [], refetch: refetchCustomerInvoices } = useQuery({
+    queryKey: ["ecr_customer_invoices", detailsCustomerId],
+    enabled: !!detailsCustomerId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hatchery_client_invoices" as any)
+        .select("id,lot_id,invoice_no,total_amount,paid_amount,remaining_amount,payment_status")
+        .eq("client_id", detailsCustomerId!);
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+  const invoiceByLot = useMemo(() => {
+    const m = new Map<string, any>();
+    customerInvoices.forEach((i) => i.lot_id && m.set(i.lot_id, i));
+    return m;
+  }, [customerInvoices]);
 
   // Exports
   const handleExportCsv = () => {
@@ -596,7 +632,56 @@ export default function ExternalCustomersReport() {
               </div>
 
               <div>
-                <h3 className="font-semibold mb-2">المدفوعات في الفترة</h3>
+                <h3 className="font-semibold mb-2">حسابات الدفعات (لكل دفعة على حدة)</h3>
+                <div className="overflow-x-auto rounded border">
+                  <Table>
+                    <TableHeader><TableRow>
+                      <TableHead>رقم الدفعة</TableHead>
+                      <TableHead>تاريخ الدخول</TableHead>
+                      <TableHead>تاريخ الفقس</TableHead>
+                      <TableHead>تاريخ الاستلام</TableHead>
+                      <TableHead>بيض</TableHead>
+                      <TableHead>كتاكيت</TableHead>
+                      <TableHead>الفاتورة</TableHead>
+                      <TableHead>المتبقي</TableHead>
+                      <TableHead>الحالة</TableHead>
+                      <TableHead></TableHead>
+                    </TableRow></TableHeader>
+                    <TableBody>
+                      {customerLots.length === 0 ? (
+                        <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-4">لا توجد دفعات لهذا العميل</TableCell></TableRow>
+                      ) : customerLots.map((l: any) => {
+                        const inv = invoiceByLot.get(l.id);
+                        return (
+                          <TableRow key={l.id}>
+                            <TableCell className="font-mono text-xs">{l.batch?.batch_number || "—"}</TableCell>
+                            <TableCell className="text-xs">{l.batch?.entry_date || "—"}</TableCell>
+                            <TableCell className="text-xs">{l.hatcher_out_at?.slice(0,10) || "—"}</TableCell>
+                            <TableCell className="text-xs">{l.brooding_out_at?.slice(0,10) || "—"}</TableCell>
+                            <TableCell>{fmt(l.eggs_in)}</TableCell>
+                            <TableCell>{fmt(l.chicks_hatched)}</TableCell>
+                            <TableCell className="text-xs font-mono">{inv?.invoice_no || "—"}</TableCell>
+                            <TableCell className="text-red-600">{inv ? fmtMoney(inv.remaining_amount) : "—"}</TableCell>
+                            <TableCell>
+                              {inv ? (
+                                <Badge variant={inv.payment_status === "paid" ? "default" : inv.payment_status === "partial" ? "secondary" : "destructive"}>
+                                  {inv.payment_status === "paid" ? "مدفوعة" : inv.payment_status === "partial" ? "جزئيًا" : "غير مدفوعة"}
+                                </Badge>
+                              ) : <Badge variant="outline">بدون فاتورة</Badge>}
+                            </TableCell>
+                            <TableCell>
+                              <Button size="sm" variant="outline" onClick={() => setOpenLotId(l.id)}>فتح حساب الدفعة</Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-semibold mb-2">المدفوعات اليدوية في الفترة</h3>
                 <div className="overflow-x-auto rounded border">
                   <Table>
                     <TableHeader><TableRow>
@@ -604,7 +689,7 @@ export default function ExternalCustomersReport() {
                     </TableRow></TableHeader>
                     <TableBody>
                       {detailsPayments.length === 0 ? (
-                        <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-4">لا توجد مدفوعات</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-4">لا توجد مدفوعات يدوية</TableCell></TableRow>
                       ) : detailsPayments.map((p) => (
                         <TableRow key={p.id}>
                           <TableCell>{p.payment_date}</TableCell>
@@ -620,6 +705,14 @@ export default function ExternalCustomersReport() {
           )}
         </DialogContent>
       </Dialog>
+
+      {openLotId && detailsRow && (
+        <BatchAccountDialog
+          lotId={openLotId}
+          customerName={detailsRow.customer.name}
+          onClose={() => { setOpenLotId(null); refetchCustomerLots(); refetchCustomerInvoices(); }}
+        />
+      )}
     </div>
   );
 }
