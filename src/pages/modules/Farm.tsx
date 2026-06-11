@@ -317,157 +317,365 @@ const EggsTab = ({ eggs, families, qc }: any) => {
   const [fFamily, setFFamily] = useState("all");
   const [fFrom, setFFrom] = useState("");
   const [fTo, setFTo] = useState("");
+  const [fMonth, setFMonth] = useState("all");
+  const [fYear, setFYear] = useState("all");
+  const [detailDate, setDetailDate] = useState<string | null>(null);
+
   const filtered = useMemo(() => eggs.filter((e: any) => {
     if (fFamily !== "all" && e.family_id !== fFamily) return false;
     if (fFrom && e.production_date < fFrom) return false;
     if (fTo && e.production_date > fTo) return false;
+    const d = e.production_date || "";
+    if (fYear !== "all" && d.slice(0, 4) !== fYear) return false;
+    if (fMonth !== "all" && d.slice(5, 7) !== fMonth) return false;
     return true;
-  }), [eggs, fFamily, fFrom, fTo]);
+  }), [eggs, fFamily, fFrom, fTo, fMonth, fYear]);
   const total = filtered.reduce((s: number, e: any) => s + (e.egg_count || 0), 0);
+
+  // Group filtered eggs by production_date
+  const dailySummary = useMemo(() => {
+    const map: Record<string, { date: string; total: number; familyIds: Set<string>; rows: any[]; notes: string[] }> = {};
+    filtered.forEach((e: any) => {
+      const d = e.production_date;
+      if (!map[d]) map[d] = { date: d, total: 0, familyIds: new Set(), rows: [], notes: [] };
+      map[d].total += e.egg_count || 0;
+      if (e.family_id) map[d].familyIds.add(e.family_id);
+      map[d].rows.push(e);
+      if (e.notes) map[d].notes.push(e.notes);
+    });
+    return Object.values(map)
+      .map((g) => ({
+        date: g.date,
+        total: g.total,
+        familiesCount: g.familyIds.size,
+        familyNumbers: Array.from(g.familyIds).map(familyName).join("، "),
+        avg: g.familyIds.size ? +(g.total / g.familyIds.size).toFixed(2) : 0,
+        notes: Array.from(new Set(g.notes)).join(" | "),
+        rows: g.rows,
+      }))
+      .sort((a, b) => (a.date < b.date ? 1 : -1));
+  }, [filtered, families]);
+
+  const detailDay = useMemo(() => dailySummary.find((d) => d.date === detailDate) || null, [dailySummary, detailDate]);
+
+  // KPI cards
+  const kpis = useMemo(() => {
+    const tdy = today();
+    const mStart = monthStart();
+    const todayRows = eggs.filter((e: any) => e.production_date === tdy);
+    const todayTotal = todayRows.reduce((s: number, e: any) => s + (e.egg_count || 0), 0);
+    const todayFamilies = new Set(todayRows.map((e: any) => e.family_id).filter(Boolean)).size;
+    const monthRows = eggs.filter((e: any) => e.production_date >= mStart && e.production_date <= tdy);
+    const monthTotal = monthRows.reduce((s: number, e: any) => s + (e.egg_count || 0), 0);
+    const byDay: Record<string, number> = {};
+    monthRows.forEach((e: any) => { byDay[e.production_date] = (byDay[e.production_date] || 0) + (e.egg_count || 0); });
+    const dayKeys = Object.keys(byDay);
+    const avgDaily = dayKeys.length ? Math.round(monthTotal / dayKeys.length) : 0;
+    let topDay = { date: "-", total: 0 };
+    dayKeys.forEach((k) => { if (byDay[k] > topDay.total) topDay = { date: k, total: byDay[k] }; });
+    return { todayTotal, todayFamilies, monthTotal, avgDaily, topDay };
+  }, [eggs]);
 
   const exportReport = () => {
     if (filtered.length === 0) { toast.error("لا توجد بيانات للتصدير"); return; }
-    // Group by family
-    const byFamily: Record<string, { name: string; total: number; days: number }> = {};
-    filtered.forEach((e: any) => {
-      const fname = familyName(e.family_id);
-      if (!byFamily[e.family_id]) byFamily[e.family_id] = { name: fname, total: 0, days: 0 };
-      byFamily[e.family_id].total += e.egg_count || 0;
-      byFamily[e.family_id].days += 1;
-    });
-    const summaryRows = Object.values(byFamily).map((f) => ({
-      "الأسرة": f.name, "إجمالي البيض": f.total, "عدد الأيام": f.days, "متوسط يومي": +(f.total / (f.days || 1)).toFixed(1),
+    const summaryRows = dailySummary.map((d) => ({
+      "التاريخ": d.date,
+      "عدد الأسر المنتجة": d.familiesCount,
+      "إجمالي البيض": d.total,
+      "الأسر المنتجة": d.familyNumbers,
+      "متوسط إنتاج الأسرة": d.avg,
+      "ملاحظات": d.notes || "",
     }));
-    summaryRows.push({ "الأسرة": "الإجمالي", "إجمالي البيض": total, "عدد الأيام": filtered.length, "متوسط يومي": +(total / (filtered.length || 1)).toFixed(1) });
-
+    summaryRows.push({
+      "التاريخ": "الإجمالي", "عدد الأسر المنتجة": "" as any, "إجمالي البيض": total,
+      "الأسر المنتجة": "", "متوسط إنتاج الأسرة": "" as any, "ملاحظات": "",
+    });
     const detailRows = filtered.map((e: any) => ({
       "التاريخ": e.production_date, "الأسرة": familyName(e.family_id), "عدد البيض": e.egg_count, "ملاحظات": e.notes || "",
     }));
-
     const wb = XLSX.utils.book_new();
-    const ws1 = XLSX.utils.json_to_sheet(summaryRows);
-    XLSX.utils.book_append_sheet(wb, ws1, "ملخص الأسر");
-    const ws2 = XLSX.utils.json_to_sheet(detailRows);
-    XLSX.utils.book_append_sheet(wb, ws2, "تفاصيل الإنتاج");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), "ملخص الإنتاج اليومي");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(detailRows), "تفاصيل الإنتاج");
     const period = `${fFrom || "بداية"}_${fTo || "نهاية"}`;
     XLSX.writeFile(wb, `تقرير_إنتاج_البيض_${period}.xlsx`);
     toast.success("تم تصدير التقرير بنجاح");
   };
 
-  return (
-    <Card className="p-4">
-      <div className="flex justify-between mb-3">
-        <h3 className="font-bold">إنتاج البيض اليومي ({total.toLocaleString()} بيضة)</h3>
-        <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={exportReport} className="gap-1">
-            <Download className="w-4 h-4" />تصدير تقرير
-          </Button>
-          <Dialog open={open} onOpenChange={(v) => (v ? openDialog() : setOpen(false))}>
-            <DialogTrigger asChild><Button size="sm" onClick={openDialog}><Plus className="w-4 h-4 ml-1" />تسجيل إنتاج</Button></DialogTrigger>
-            <DialogContent dir="rtl" className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>تسجيل إنتاج البيض اليومي</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <Label>التاريخ</Label>
-                    <Input type="date" value={bulkDate} onChange={(e) => setBulkDate(e.target.value)} />
-                  </div>
-                  <div>
-                    <Label>بحث برقم الأسرة / الملعب</Label>
-                    <Input value={bulkSearch} onChange={(e) => setBulkSearch(e.target.value)} placeholder="مثال: 9" />
-                  </div>
-                </div>
-                <div className="flex items-center justify-between text-xs text-muted-foreground bg-muted/40 rounded-md px-3 py-2">
-                  <span>الأسر المعبأة: <b className="text-foreground">{filledCount}</b> / {families.length}</span>
-                  <span>إجمالي البيض: <b className="text-orange-600">{totalBulk.toLocaleString()}</b></span>
-                </div>
-                <div className="border rounded-md max-h-[340px] overflow-auto">
-                  <Table>
-                    <TableHeader className="sticky top-0 bg-background">
-                      <TableRow>
-                        <TableHead className="w-24">الأسرة</TableHead>
-                        <TableHead className="w-20">الملعب</TableHead>
-                        <TableHead>عدد البيض</TableHead>
-                        <TableHead className="w-32 text-xs">مسجل سابقاً</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {visibleFamilies.map((f: any) => {
-                        const already = recordedForDate[f.id] || 0;
-                        return (
-                          <TableRow key={f.id}>
-                            <TableCell className="font-bold">{f.family_number}</TableCell>
-                            <TableCell className="text-muted-foreground">{f.pen || "-"}</TableCell>
-                            <TableCell>
-                              <Input
-                                type="number"
-                                min="0"
-                                inputMode="numeric"
-                                value={bulkCounts[f.id] ?? ""}
-                                onChange={(e) => setBulkCounts(prev => ({ ...prev, [f.id]: e.target.value }))}
-                                placeholder="0"
-                                className="h-8"
-                              />
-                            </TableCell>
-                            <TableCell className="text-xs">
-                              {already > 0 ? <Badge variant="secondary">{already} بيضة</Badge> : <span className="text-muted-foreground">—</span>}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                      {visibleFamilies.length === 0 && (
-                        <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-4">لا توجد أسر مطابقة</TableCell></TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-                <div>
-                  <Label>ملاحظات (اختياري - تطبق على كل السجلات)</Label>
-                  <Textarea value={bulkNotes} onChange={(e) => setBulkNotes(e.target.value)} rows={2} />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setBulkCounts({})}>مسح الكل</Button>
-                <Button onClick={() => save.mutate()} disabled={save.isPending || filledCount === 0}>
-                  حفظ {filledCount > 0 ? `(${filledCount})` : ""}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+  const printDay = (day: typeof dailySummary[number]) => {
+    const rowsHtml = day.rows.map((r: any, i: number) => `
+      <tr><td>${i + 1}</td><td>${familyName(r.family_id)}</td><td>${r.egg_count}</td><td>${r.notes || "-"}</td></tr>
+    `).join("");
+    const html = `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8">
+      <title>تقرير إنتاج البيض ${day.date}</title>
+      <style>
+        @page { size:A4; margin:14mm; }
+        body{ font-family:'Cairo','Tajawal',sans-serif; direction:rtl; color:#111; }
+        h1{ color:#7c3aed; margin:0 0 4px; } h2{ margin:6px 0; color:#444; font-size:14px; }
+        .meta{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin:10px 0; font-size:13px; }
+        .meta b{ color:#333; }
+        table{ width:100%; border-collapse:collapse; font-size:13px; margin-top:8px; }
+        th,td{ border:1px solid #ccc; padding:6px 8px; text-align:right; }
+        th{ background:#f3f0ff; color:#4c1d95; }
+        tfoot td{ font-weight:bold; background:#fafafa; }
+        .sign{ margin-top:50px; display:grid; grid-template-columns:1fr 1fr; gap:60px; font-size:13px; }
+        .sign div{ border-top:1px solid #333; padding-top:6px; text-align:center; }
+      </style></head><body>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #7c3aed;padding-bottom:8px;">
+        <div><h1>نعام العاصمة</h1><div>Capital Ostrich</div></div>
+        <div style="background:#f97316;color:#fff;padding:6px 14px;border-radius:6px;font-weight:bold;">
+          تقرير إنتاج البيض اليومي لمزرعة الأمهات
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">
-        <Select value={fFamily} onValueChange={setFFamily}>
-          <SelectTrigger><SelectValue placeholder="كل الأسر" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">كل الأسر</SelectItem>
-            {families.map((f: any) => <SelectItem key={f.id} value={f.id}>{f.family_number}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Input type="date" value={fFrom} onChange={(e) => setFFrom(e.target.value)} placeholder="من" />
-        <Input type="date" value={fTo} onChange={(e) => setFTo(e.target.value)} placeholder="إلى" />
+      <div class="meta">
+        <div><b>التاريخ:</b> ${day.date}</div>
+        <div><b>إجمالي البيض:</b> ${day.total}</div>
+        <div><b>عدد الأسر المنتجة:</b> ${day.familiesCount}</div>
       </div>
-      <div className="overflow-auto max-h-[600px]">
-        <Table>
-          <TableHeader><TableRow><TableHead>التاريخ</TableHead><TableHead>الأسرة</TableHead><TableHead>البيض</TableHead><TableHead>ملاحظات</TableHead><TableHead></TableHead></TableRow></TableHeader>
-          <TableBody>
-            {filtered.slice(0, 500).map((e: any) => (
-              <TableRow key={e.id}>
-                <TableCell>{e.production_date}</TableCell>
-                <TableCell>{familyName(e.family_id)}</TableCell>
-                <TableCell className="font-bold text-orange-600">{e.egg_count}</TableCell>
-                <TableCell className="text-xs text-muted-foreground">{e.notes || "-"}</TableCell>
-                <TableCell><Button size="icon" variant="ghost" onClick={() => del.mutate(e.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button></TableCell>
+      <h2>تفاصيل الأسر المنتجة</h2>
+      <table>
+        <thead><tr><th style="width:40px">#</th><th>الأسرة</th><th>عدد البيض</th><th>ملاحظات</th></tr></thead>
+        <tbody>${rowsHtml}</tbody>
+        <tfoot><tr><td colspan="2">الإجمالي</td><td>${day.total}</td><td>-</td></tr></tfoot>
+      </table>
+      <div class="sign">
+        <div>توقيع مسؤول المزرعة</div>
+        <div>توقيع الإدارة</div>
+      </div>
+      <script>window.addEventListener('load',()=>setTimeout(()=>window.print(),250));</script>
+      </body></html>`;
+    const w = window.open("", "_blank", "width=900,height=700");
+    if (!w) { toast.error("الرجاء السماح بالنوافذ المنبثقة"); return; }
+    w.document.write(html); w.document.close();
+  };
+
+  // Year/month options
+  const years = useMemo(() => {
+    const s = new Set<string>(); eggs.forEach((e: any) => e.production_date && s.add(e.production_date.slice(0, 4)));
+    return Array.from(s).sort((a, b) => b.localeCompare(a));
+  }, [eggs]);
+
+  return (
+    <div className="space-y-4">
+      {/* KPI cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+        <Card className="p-3"><div className="text-xs text-muted-foreground">إنتاج اليوم</div><div className="text-2xl font-bold text-orange-600">{kpis.todayTotal.toLocaleString()}</div></Card>
+        <Card className="p-3"><div className="text-xs text-muted-foreground">إنتاج هذا الشهر</div><div className="text-2xl font-bold text-primary">{kpis.monthTotal.toLocaleString()}</div></Card>
+        <Card className="p-3"><div className="text-xs text-muted-foreground">عدد الأسر المنتجة اليوم</div><div className="text-2xl font-bold">{kpis.todayFamilies}</div></Card>
+        <Card className="p-3"><div className="text-xs text-muted-foreground">متوسط الإنتاج اليومي (الشهر)</div><div className="text-2xl font-bold">{kpis.avgDaily.toLocaleString()}</div></Card>
+        <Card className="p-3"><div className="text-xs text-muted-foreground">أعلى يوم إنتاجاً (الشهر)</div><div className="text-lg font-bold">{kpis.topDay.total.toLocaleString()}</div><div className="text-xs text-muted-foreground">{kpis.topDay.date}</div></Card>
+      </div>
+
+      <Card className="p-4">
+        <div className="flex justify-between mb-3 flex-wrap gap-2">
+          <h3 className="font-bold">ملخص الإنتاج اليومي ({total.toLocaleString()} بيضة)</h3>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={exportReport} className="gap-1">
+              <Download className="w-4 h-4" />تصدير Excel
+            </Button>
+            <Dialog open={open} onOpenChange={(v) => (v ? openDialog() : setOpen(false))}>
+              <DialogTrigger asChild><Button size="sm" onClick={openDialog}><Plus className="w-4 h-4 ml-1" />تسجيل إنتاج</Button></DialogTrigger>
+              <DialogContent dir="rtl" className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>تسجيل إنتاج البيض اليومي</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <Label>التاريخ</Label>
+                      <Input type="date" value={bulkDate} onChange={(e) => setBulkDate(e.target.value)} />
+                    </div>
+                    <div>
+                      <Label>بحث برقم الأسرة / الملعب</Label>
+                      <Input value={bulkSearch} onChange={(e) => setBulkSearch(e.target.value)} placeholder="مثال: 9" />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground bg-muted/40 rounded-md px-3 py-2">
+                    <span>الأسر المعبأة: <b className="text-foreground">{filledCount}</b> / {families.length}</span>
+                    <span>إجمالي البيض: <b className="text-orange-600">{totalBulk.toLocaleString()}</b></span>
+                  </div>
+                  <div className="border rounded-md max-h-[340px] overflow-auto">
+                    <Table>
+                      <TableHeader className="sticky top-0 bg-background">
+                        <TableRow>
+                          <TableHead className="w-24">الأسرة</TableHead>
+                          <TableHead className="w-20">الملعب</TableHead>
+                          <TableHead>عدد البيض</TableHead>
+                          <TableHead className="w-32 text-xs">مسجل سابقاً</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {visibleFamilies.map((f: any) => {
+                          const already = recordedForDate[f.id] || 0;
+                          return (
+                            <TableRow key={f.id}>
+                              <TableCell className="font-bold">{f.family_number}</TableCell>
+                              <TableCell className="text-muted-foreground">{f.pen || "-"}</TableCell>
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  inputMode="numeric"
+                                  value={bulkCounts[f.id] ?? ""}
+                                  onChange={(e) => setBulkCounts(prev => ({ ...prev, [f.id]: e.target.value }))}
+                                  placeholder="0"
+                                  className="h-8"
+                                />
+                              </TableCell>
+                              <TableCell className="text-xs">
+                                {already > 0 ? <Badge variant="secondary">{already} بيضة</Badge> : <span className="text-muted-foreground">—</span>}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                        {visibleFamilies.length === 0 && (
+                          <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-4">لا توجد أسر مطابقة</TableCell></TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <div>
+                    <Label>ملاحظات (اختياري - تطبق على كل السجلات)</Label>
+                    <Textarea value={bulkNotes} onChange={(e) => setBulkNotes(e.target.value)} rows={2} />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setBulkCounts({})}>مسح الكل</Button>
+                  <Button onClick={() => save.mutate()} disabled={save.isPending || filledCount === 0}>
+                    حفظ {filledCount > 0 ? `(${filledCount})` : ""}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-3">
+          <Select value={fFamily} onValueChange={setFFamily}>
+            <SelectTrigger><SelectValue placeholder="كل الأسر" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">كل الأسر</SelectItem>
+              {families.map((f: any) => <SelectItem key={f.id} value={f.id}>{f.family_number}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Input type="date" value={fFrom} onChange={(e) => setFFrom(e.target.value)} placeholder="من" />
+          <Input type="date" value={fTo} onChange={(e) => setFTo(e.target.value)} placeholder="إلى" />
+          <Select value={fMonth} onValueChange={setFMonth}>
+            <SelectTrigger><SelectValue placeholder="الشهر" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">كل الشهور</SelectItem>
+              {Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0")).map((m) => (
+                <SelectItem key={m} value={m}>{m}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={fYear} onValueChange={setFYear}>
+            <SelectTrigger><SelectValue placeholder="السنة" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">كل السنوات</SelectItem>
+              {years.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Daily summary table */}
+        <div className="overflow-auto max-h-[600px]">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>التاريخ</TableHead>
+                <TableHead>عدد الأسر المنتجة</TableHead>
+                <TableHead>إجمالي البيض</TableHead>
+                <TableHead>الأسر المنتجة</TableHead>
+                <TableHead>متوسط إنتاج الأسرة</TableHead>
+                <TableHead>ملاحظات</TableHead>
+                <TableHead className="text-center">إجراءات</TableHead>
               </TableRow>
-            ))}
-            {filtered.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">لا يوجد إنتاج مطابق</TableCell></TableRow>}
-          </TableBody>
-        </Table>
-        {filtered.length > 500 && <p className="text-xs text-center text-muted-foreground py-2">عرض أول 500 من {filtered.length}</p>}
-      </div>
-    </Card>
+            </TableHeader>
+            <TableBody>
+              {dailySummary.map((d) => (
+                <TableRow key={d.date}>
+                  <TableCell className="font-medium">{d.date}</TableCell>
+                  <TableCell>{d.familiesCount}</TableCell>
+                  <TableCell className="font-bold text-orange-600">{d.total}</TableCell>
+                  <TableCell className="text-xs">{d.familyNumbers}</TableCell>
+                  <TableCell>{d.avg}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{d.notes || "-"}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-1 justify-center">
+                      <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => setDetailDate(d.date)}>
+                        <Eye className="w-3 h-3" />رؤية
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => printDay(d)}>
+                        <Printer className="w-3 h-3" />طباعة
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {dailySummary.length === 0 && (
+                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">لا يوجد إنتاج مطابق</TableCell></TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </Card>
+
+      {/* Details dialog */}
+      <Dialog open={!!detailDate} onOpenChange={(v) => !v && setDetailDate(null)}>
+        <DialogContent dir="rtl" className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>تفاصيل إنتاج يوم {detailDate}</DialogTitle>
+          </DialogHeader>
+          {detailDay && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 gap-2 text-sm">
+                <Card className="p-3"><div className="text-xs text-muted-foreground">التاريخ</div><div className="font-bold">{detailDay.date}</div></Card>
+                <Card className="p-3"><div className="text-xs text-muted-foreground">إجمالي البيض</div><div className="font-bold text-orange-600">{detailDay.total}</div></Card>
+                <Card className="p-3"><div className="text-xs text-muted-foreground">عدد الأسر المنتجة</div><div className="font-bold">{detailDay.familiesCount}</div></Card>
+              </div>
+              <div className="border rounded-md max-h-[400px] overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>رقم الأسرة</TableHead>
+                      <TableHead>عدد البيض</TableHead>
+                      <TableHead>ملاحظات</TableHead>
+                      <TableHead>وقت التسجيل</TableHead>
+                      <TableHead></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {detailDay.rows.map((r: any) => (
+                      <TableRow key={r.id}>
+                        <TableCell className="font-bold">{familyName(r.family_id)}</TableCell>
+                        <TableCell className="text-orange-600 font-bold">{r.egg_count}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{r.notes || "-"}</TableCell>
+                        <TableCell className="text-xs">{r.created_at ? new Date(r.created_at).toLocaleString("ar-EG") : "-"}</TableCell>
+                        <TableCell>
+                          <Button size="icon" variant="ghost" onClick={() => del.mutate(r.id)}>
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="flex justify-between items-center bg-muted/40 rounded-md px-3 py-2 text-sm">
+                <span>إجمالي اليوم</span>
+                <b className="text-orange-600">{detailDay.total} بيضة</b>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => printDay(detailDay)} className="gap-1">
+                  <Printer className="w-4 h-4" />طباعة التقرير
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 };
 
