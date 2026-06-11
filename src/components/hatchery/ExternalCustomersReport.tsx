@@ -226,6 +226,20 @@ export default function ExternalCustomersReport() {
       if (!row.lastPayment || p.payment_date > row.lastPayment) row.lastPayment = p.payment_date;
     }
     const rows = Array.from(map.values()).map((r) => {
+      // Override brooding aggregates from per-customer lot data (real hatch→pickup periods)
+      const br = broodingByCustomer.get(r.customer.id);
+      if (br) {
+        // Replace batch-derived approximation with actual lot data
+        r.broodingFee = br.feesActual;
+        r.broodingChicks = br.chicksBrooded;
+        r.broodingDays = br.daysSum;
+        r.pendingChicks = br.pendingChicks;
+        r.broodingFeeProjected = br.feesProjected;
+        // Recompute totalDue using replaced brooding component
+        r.totalDue = r.infertileFee + r.candle2Fee + r.chicksFee + r.broodingFee;
+      } else {
+        r.broodingChicks = 0; r.broodingDays = 0; r.pendingChicks = 0; r.broodingFeeProjected = 0;
+      }
       r.remaining = r.totalDue - r.totalPaid;
       r.hatchRate = r.totalEggs > 0 ? (r.totalChicks / r.totalEggs) * 100 : 0;
       r.statusKey = r.remaining > 0.5 ? "owes" : r.remaining < -0.5 ? "credit" : "paid";
