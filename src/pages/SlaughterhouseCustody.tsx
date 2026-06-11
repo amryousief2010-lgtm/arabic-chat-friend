@@ -604,6 +604,14 @@ export default function SlaughterhouseCustody() {
                   </Select>
                 </div>
                 <div><Label>الجهة / المستفيد</Label><Input value={form.beneficiary} onChange={(e) => setForm({ ...form, beneficiary: e.target.value })} /></div>
+                <div>
+                  <Label>رقم لوحة العربية <span className="text-muted-foreground text-[10px]">(اختياري — لو المصروف على عربية)</span></Label>
+                  <Input value={form.vehicle_plate} onChange={(e) => setForm({ ...form, vehicle_plate: e.target.value })} placeholder="مثال: 1234 أ ب ج" />
+                </div>
+                <div>
+                  <Label>اسم/كود العربية <span className="text-muted-foreground text-[10px]">(اختياري)</span></Label>
+                  <Input value={form.vehicle_label} onChange={(e) => setForm({ ...form, vehicle_label: e.target.value })} placeholder="مثال: عربية التوصيل 1" />
+                </div>
                 <div className="flex items-end gap-2"><Label className="flex items-center gap-2"><input type="checkbox" checked={form.has_invoice} onChange={(e) => setForm({ ...form, has_invoice: e.target.checked })} />يوجد فاتورة / إيصال</Label></div>
                 <div className="md:col-span-2 lg:col-span-3"><Label>الوصف التفصيلي {form.category === "other" && <span className="text-destructive">*</span>}</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder={form.category === "other" ? "إجباري — اشرح المصروف بالتفصيل" : "اختياري"} /></div>
                 <div><Label>صورة الفاتورة / الإيصال</Label><Input type="file" accept="image/*,application/pdf" onChange={(e) => setReceiptFile(e.target.files?.[0] || null)} /></div>
