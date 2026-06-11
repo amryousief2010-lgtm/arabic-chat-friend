@@ -58,13 +58,10 @@ export default function IncomingCustodyTransfers({ onReceived }: { onReceived?: 
 
   const confirm = async (r: Row) => {
     setBusy(r.id);
-    const { error } = await supabase
-      .from("main_treasury_to_custody_transfers")
-      .update({ received_at: new Date().toISOString(), received_by: user?.id, status: "received" })
-      .eq("id", r.id);
+    const { error } = await supabase.rpc("confirm_main_to_custody_transfer" as any, { p_transfer_id: r.id });
     setBusy(null);
     if (error) { toast.error("تعذر تأكيد الاستلام: " + error.message); return; }
-    toast.success("تم تأكيد استلام التحويل وإضافته لرصيد العهدة");
+    toast.success("تم تأكيد الاستلام وإضافة المبلغ إلى رصيد خزنة العهدة");
     await load();
     onReceived?.();
   };
