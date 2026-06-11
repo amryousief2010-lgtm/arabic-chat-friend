@@ -39,7 +39,10 @@ export default function HistoricalReceivables() {
   const { user, isGeneralManager, isExecutiveManager, roles } = useAuth();
   const isApprover = isGeneralManager || isExecutiveManager || roles.includes("lab_treasury_approver");
   const canRequestPayment =
-    isApprover || roles.includes("lab_treasury_keeper");
+    isApprover ||
+    roles.includes("lab_treasury_keeper") ||
+    roles.includes("slaughterhouse_custody_keeper") ||
+    roles.includes("slaughterhouse_manager");
 
   const [head, setHead] = useState<Head | null>(null);
   const [items, setItems] = useState<Item[]>([]);
