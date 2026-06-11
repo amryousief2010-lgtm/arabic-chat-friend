@@ -1079,8 +1079,13 @@ const LotActionDialog = ({ lot, type, settings, onClose, onDone }: any) => {
       event = "moved_to_brooding"; payload = patch;
     } else if (type === "deliver") {
       const out = new Date();
-      const inDate = new Date(lot.brooding_in_at);
-      const days = Math.max(0, Math.round((out.getTime() - inDate.getTime()) / 86400000));
+      // Brooding period starts at HATCH date (hatcher_out_at), fallback to brooding_in_at; inclusive day count (+1)
+      const startISO = lot.hatcher_out_at || lot.brooding_in_at;
+      const startDate = startISO ? new Date(startISO) : out;
+      const dayMs = 86400000;
+      const startDay = Math.floor(startDate.getTime() / dayMs);
+      const endDay = Math.floor(out.getTime() / dayMs);
+      const days = Math.max(1, endDay - startDay + 1);
       patch = { brooding_out_at: out.toISOString(), brooding_days: days };
       event = "delivered"; payload = patch;
     }
