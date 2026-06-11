@@ -15427,6 +15427,13 @@ export type Database = {
         }
         Returns: Json
       }
+      list_slaughterhouse_custody_keepers: {
+        Args: never
+        Returns: {
+          full_name: string
+          id: string
+        }[]
+      }
       mark_duplicate_order_approval_used: {
         Args: { p_id: string; p_order_id: string }
         Returns: {
