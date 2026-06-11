@@ -64,7 +64,7 @@ export default function LabToCustodyTransferDialog({ onCreated }: { onCreated?: 
     });
     setBusy(false);
     if (error) { toast.error("فشل التحويل: " + error.message); return; }
-    toast.success("تم خصم المبلغ من خزنة المعمل وإرسال التحويل لخزنة العهدة بانتظار التأكيد");
+    toast.success("تم خصم المبلغ من خزنة المعمل وإرسال التحويل للخزنة الرئيسية للمجزر بانتظار التأكيد");
     setOpen(false);
     setForm({ amount: "", payment_method: "cash", transfer_date: today(), custody_keeper_id: form.custody_keeper_id, notes: "" });
     onCreated?.();
@@ -74,11 +74,11 @@ export default function LabToCustodyTransferDialog({ onCreated }: { onCreated?: 
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" className="gap-2 border-primary/40">
-          <Send className="w-4 h-4" /> تحويل لخزنة عهدة المجزر
+          <Send className="w-4 h-4" /> تحويل إلى الخزنة الرئيسية للمجزر
         </Button>
       </DialogTrigger>
       <DialogContent>
-        <DialogHeader><DialogTitle>تحويل من خزنة المعمل إلى خزنة عهدة المجزر</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>تحويل من خزنة المعمل إلى الخزنة الرئيسية للمجزر</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div><Label>المبلغ</Label>
@@ -95,7 +95,7 @@ export default function LabToCustodyTransferDialog({ onCreated }: { onCreated?: 
             <div><Label>تاريخ التحويل</Label>
               <Input type="date" value={form.transfer_date} onChange={e => setForm({ ...form, transfer_date: e.target.value })} />
             </div>
-            <div><Label>أمين العهدة المستلم</Label>
+            <div><Label>المسؤول عن تأكيد الاستلام</Label>
               <Select value={form.custody_keeper_id} onValueChange={v => setForm({ ...form, custody_keeper_id: v })}>
                 <SelectTrigger><SelectValue placeholder="اختر..." /></SelectTrigger>
                 <SelectContent>
@@ -107,8 +107,11 @@ export default function LabToCustodyTransferDialog({ onCreated }: { onCreated?: 
           <div><Label>ملاحظات</Label>
             <Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
           </div>
+          <div className="text-xs text-amber-700 bg-amber-50 dark:bg-amber-950/20 border border-amber-300/40 rounded p-2">
+            التحويل يتم إلى <b>الخزنة الرئيسية للمجزر</b>، وليس إلى خزنة العهدة. خزنة العهدة خزنة فرعية يتم تمويلها لاحقًا من الخزنة الرئيسية.
+          </div>
           <div className="text-xs text-muted-foreground">
-            سيتم تسجيل مصروف معتمد في خزنة المعمل فورًا، وسيظهر التحويل لأمين العهدة لتأكيد الاستلام — ولن يُضاف إلى رصيد العهدة إلا بعد التأكيد.
+            سيتم خصم المبلغ من خزنة المعمل فورًا كمصروف معتمد، ويظهر كتحويل وارد بانتظار التأكيد على الخزنة الرئيسية للمجزر — ولن يزيد رصيد الخزنة الرئيسية إلا بعد التأكيد.
           </div>
         </div>
         <DialogFooter>
