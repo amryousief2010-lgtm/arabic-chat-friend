@@ -6,6 +6,7 @@ import SwipeIndicator from "./SwipeIndicator";
 import StartOfDayDialog from "@/components/StartOfDayDialog";
 import ClockCalendarWidget from "@/components/ClockCalendarWidget";
 import PendingApprovalsAlert from "@/components/lab-treasury/PendingApprovalsAlert";
+import ExecutiveApprovalsAlert from "@/components/executive/ExecutiveApprovalsAlert";
 import UnreadMessagesBanner from "@/components/internal-messages/UnreadMessagesBanner";
 import { useOrderNotifications } from "@/hooks/useOrderNotifications";
 import { useDailyReminders } from "@/hooks/useDailyReminders";
@@ -48,6 +49,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   return (
     <div className="min-h-screen bg-background">
       <PendingApprovalsAlert />
+      <ExecutiveApprovalsAlert />
       {/* Desktop Sidebar */}
       <div className="hidden md:block">
         <AppSidebar />
