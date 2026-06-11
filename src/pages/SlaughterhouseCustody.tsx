@@ -457,7 +457,8 @@ export default function SlaughterhouseCustody() {
             />
 
             {/* Incoming transfers from main treasury */}
-            <IncomingCustodyTransfers onReceived={() => { /* trigger reload via key remount */ window.dispatchEvent(new Event('custody:refresh')); }} />
+            <IncomingCustodyTransfers onReceived={() => { window.dispatchEvent(new Event('custody:refresh')); }} />
+            <IncomingLabCustodyTransfers onReceived={() => { window.dispatchEvent(new Event('custody:refresh')); }} />
 
 
 
