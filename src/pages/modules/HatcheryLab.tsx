@@ -994,8 +994,8 @@ const BatchDetailDialog = ({ batch, lots, clients, settings, canManage, onClose,
                         {!l.candling_recorded_at && <Button size="sm" variant="outline" onClick={() => openAction(l, "candling")}>كشف</Button>}
                         {l.candling_recorded_at && !l.transferred_to_hatcher_at && <Button size="sm" variant="outline" onClick={() => openAction(l, "hatcher")}>هاتشر</Button>}
                         {l.transferred_to_hatcher_at && !l.hatcher_out_at && <Button size="sm" variant="outline" onClick={() => openAction(l, "hatch")}>فقس</Button>}
-                        {l.hatcher_out_at && !l.brooding_in_at && <Button size="sm" variant="outline" onClick={() => openAction(l, "brooding_in")}>حضانة</Button>}
-                        {l.brooding_in_at && !l.brooding_out_at && <Button size="sm" variant="outline" onClick={() => openAction(l, "deliver")}>تسليم</Button>}
+                        {l.hatcher_out_at && !l.brooding_in_at && !l.brooding_out_at && <Button size="sm" variant="outline" onClick={() => openAction(l, "brooding_in")}>حضانة</Button>}
+                        {l.hatcher_out_at && !l.brooding_out_at && <Button size="sm" variant="default" onClick={() => openAction(l, "deliver")}>تسليم للعميل</Button>}
                       </>
                     )}
                   </TableCell>
