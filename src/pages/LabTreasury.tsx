@@ -1073,6 +1073,10 @@ export default function LabTreasury() {
               </AlertDescription>
             </Alert>
 
+            <div className="flex justify-end">
+              <LabToCustodyTransferDialog onCreated={() => load()} />
+            </div>
+
             {/* Main KPIs */}
             <div>
               <SectionTitle icon={<Activity />} title="مؤشرات الخزنة الرئيسية" />
