@@ -20,6 +20,7 @@ import { openPrintWindow, escapeHtml, fmtNum, fmtDate } from "@/lib/printPdf";
 import * as XLSX from "xlsx";
 import CustodyExpenseAnalytics from "@/components/treasury/CustodyExpenseAnalytics";
 import VehicleExpenseAnalysis from "@/components/treasury/VehicleExpenseAnalysis";
+import IncomingCustodyTransfers from "@/components/treasury/IncomingCustodyTransfers";
 import {
   Wallet, Plus, ShieldAlert, CheckCircle2, XCircle, MessageSquare, Upload,
   Printer, FileSpreadsheet, AlertTriangle, ScrollText, Beef, Sparkles, Clock, Activity, Receipt, TrendingDown,
@@ -453,6 +454,11 @@ export default function SlaughterhouseCustody() {
                 </Button>
               ) : null}
             />
+
+            {/* Incoming transfers from main treasury */}
+            <IncomingCustodyTransfers onReceived={() => { /* trigger reload via key remount */ window.dispatchEvent(new Event('custody:refresh')); }} />
+
+
 
             {/* Weekly limit progress */}
             {limitAmt > 0 && (
