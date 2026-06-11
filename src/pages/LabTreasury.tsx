@@ -32,6 +32,7 @@ import { OpeningBalancesPanel, ExternalCollectionsPanel, ExternalSummaryCard, To
 import { PremiumStat, HeroSummary, SectionTitle, StatusPill, DashboardSkeleton, EmptyState, ActivityTimeline, getCairoNow } from "@/components/treasury/PremiumUI";
 import LabExpenseAnalytics from "@/components/treasury/LabExpenseAnalytics";
 import LabHatcheryClientsRevenue from "@/components/treasury/LabHatcheryClientsRevenue";
+import LabToCustodyTransferDialog from "@/components/treasury/LabToCustodyTransferDialog";
 
 type PaymentMethod = "cash" | "vodafone_cash" | "instapay" | "bank_transfer";
 type MovementType = "income" | "expense";
