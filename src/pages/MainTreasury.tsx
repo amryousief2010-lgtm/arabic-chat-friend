@@ -964,6 +964,32 @@ export default function MainTreasury() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={newCatDlg.open} onOpenChange={o => !o && setNewCatDlg({open:false, label:"", notes:"", busy:false})}>
+        <DialogContent dir="rtl">
+          <DialogHeader><DialogTitle>إضافة بند مصروف جديد</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>اسم بند المصروف *</Label>
+              <Input value={newCatDlg.label} onChange={e=>setNewCatDlg(s=>({...s, label:e.target.value}))} placeholder="مثل: صيانة عربية" autoFocus/>
+            </div>
+            <div>
+              <Label>ملاحظات</Label>
+              <Textarea value={newCatDlg.notes} onChange={e=>setNewCatDlg(s=>({...s, notes:e.target.value}))} rows={2}/>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              الخزنة المرتبطة: الخزنة الرئيسية للمجزر · يظهر في الخزنة الرئيسية: نعم · الحالة: نشط
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={()=>setNewCatDlg({open:false, label:"", notes:"", busy:false})}>إلغاء</Button>
+            <Button onClick={createExpenseCategory} disabled={newCatDlg.busy} className="gap-2">
+              <Plus className="h-4 w-4"/>{newCatDlg.busy ? "جارٍ الحفظ..." : "حفظ البند"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
       <Dialog open={editOpenBal.open} onOpenChange={o => !o && setEditOpenBal({open:false, value:""})}>
         <DialogContent dir="rtl">
           <DialogHeader><DialogTitle>تعديل الرصيد الافتتاحي — {editOpenBal.account?.name}</DialogTitle></DialogHeader>
