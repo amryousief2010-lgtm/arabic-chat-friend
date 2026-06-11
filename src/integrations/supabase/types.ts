@@ -12012,6 +12012,9 @@ export type Database = {
       slaughter_batches: {
         Row: {
           actual_yield_pct: number | null
+          approval_status: string
+          approved_at: string | null
+          approved_by: string | null
           batch_number: string
           birds_slaughtered: number
           butcher_1_id: string | null
@@ -12030,7 +12033,10 @@ export type Database = {
           low_yield_requested_by: string | null
           notes: string | null
           pre_slaughter_dead: number
+          rejected_at: string | null
           rejected_birds: number
+          rejected_by: string | null
+          rejection_reason: string | null
           shift: string
           slaughter_date: string
           start_time: string | null
@@ -12043,6 +12049,9 @@ export type Database = {
         }
         Insert: {
           actual_yield_pct?: number | null
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
           batch_number: string
           birds_slaughtered?: number
           butcher_1_id?: string | null
@@ -12061,7 +12070,10 @@ export type Database = {
           low_yield_requested_by?: string | null
           notes?: string | null
           pre_slaughter_dead?: number
+          rejected_at?: string | null
           rejected_birds?: number
+          rejected_by?: string | null
+          rejection_reason?: string | null
           shift?: string
           slaughter_date?: string
           start_time?: string | null
@@ -12074,6 +12086,9 @@ export type Database = {
         }
         Update: {
           actual_yield_pct?: number | null
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
           batch_number?: string
           birds_slaughtered?: number
           butcher_1_id?: string | null
@@ -12092,7 +12107,10 @@ export type Database = {
           low_yield_requested_by?: string | null
           notes?: string | null
           pre_slaughter_dead?: number
+          rejected_at?: string | null
           rejected_birds?: number
+          rejected_by?: string | null
+          rejection_reason?: string | null
           shift?: string
           slaughter_date?: string
           start_time?: string | null
@@ -14615,6 +14633,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      approve_slaughter_batch: {
+        Args: { p_batch_id: string }
+        Returns: undefined
+      }
       approve_warehouse_transfer: {
         Args: { p_approved_lines?: Json; p_transfer_id: string }
         Returns: Json
@@ -15655,6 +15677,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      reject_slaughter_batch: {
+        Args: { p_batch_id: string; p_reason: string }
+        Returns: undefined
       }
       reject_transfer_line: {
         Args: { p_line_id: string; p_reason: string }
