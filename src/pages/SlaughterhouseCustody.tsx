@@ -393,6 +393,7 @@ export default function SlaughterhouseCustody() {
             <TabsTrigger value="dashboard">لوحة الخزنة</TabsTrigger>
             <TabsTrigger value="add">إضافة مصروف</TabsTrigger>
             <TabsTrigger value="expenses">المصروفات</TabsTrigger>
+            <TabsTrigger value="analytics">تحليل المصروفات</TabsTrigger>
             {isManager && <TabsTrigger value="limit">الحد الأسبوعي</TabsTrigger>}
             {isManager && <TabsTrigger value="openings">رصيد افتتاحي</TabsTrigger>}
             {isManager && <TabsTrigger value="audit">سجل التدقيق</TabsTrigger>}
