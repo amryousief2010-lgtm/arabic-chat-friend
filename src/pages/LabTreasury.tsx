@@ -32,6 +32,7 @@ import { OpeningBalancesPanel, ExternalCollectionsPanel, ExternalSummaryCard, To
 import { PremiumStat, HeroSummary, SectionTitle, StatusPill, DashboardSkeleton, EmptyState, ActivityTimeline, getCairoNow } from "@/components/treasury/PremiumUI";
 import LabExpenseAnalytics from "@/components/treasury/LabExpenseAnalytics";
 import LabHatcheryClientsRevenue from "@/components/treasury/LabHatcheryClientsRevenue";
+import LabToCustodyTransferDialog from "@/components/treasury/LabToCustodyTransferDialog";
 
 type PaymentMethod = "cash" | "vodafone_cash" | "instapay" | "bank_transfer";
 type MovementType = "income" | "expense";
@@ -1071,6 +1072,10 @@ export default function LabTreasury() {
                 هذه الخزنة خاصة <b>بإيرادات التفريخ وبيع الكتاكيت</b> والتحصيلات الخارجية. تحصيلات شعلة (فودافون كاش) لا تُحتسب ضمن الرصيد إلا بعد التوريد والاعتماد. <a href="/slaughterhouse-custody" className="underline font-semibold">عرض خزنة عهدة المجزر</a>
               </AlertDescription>
             </Alert>
+
+            <div className="flex justify-end">
+              <LabToCustodyTransferDialog onCreated={() => fetchData()} />
+            </div>
 
             {/* Main KPIs */}
             <div>

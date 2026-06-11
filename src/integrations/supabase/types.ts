@@ -7019,6 +7019,73 @@ export type Database = {
         }
         Relationships: []
       }
+      lab_treasury_to_custody_transfers: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          custody_keeper_id: string
+          id: string
+          lab_movement_id: string
+          notes: string | null
+          payment_method: string
+          received_at: string | null
+          received_by: string | null
+          status: string
+          transfer_date: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          custody_keeper_id: string
+          id?: string
+          lab_movement_id: string
+          notes?: string | null
+          payment_method?: string
+          received_at?: string | null
+          received_by?: string | null
+          status?: string
+          transfer_date?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          custody_keeper_id?: string
+          id?: string
+          lab_movement_id?: string
+          notes?: string | null
+          payment_method?: string
+          received_at?: string | null
+          received_by?: string | null
+          status?: string
+          transfer_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_treasury_to_custody_transfers_lab_movement_id_fkey"
+            columns: ["lab_movement_id"]
+            isOneToOne: true
+            referencedRelation: "lab_treasury_movements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_treasury_to_custody_transfers_lab_movement_id_fkey"
+            columns: ["lab_movement_id"]
+            isOneToOne: true
+            referencedRelation: "v_lab_treasury_potential_duplicates"
+            referencedColumns: ["duplicate_id"]
+          },
+          {
+            foreignKeyName: "lab_treasury_to_custody_transfers_lab_movement_id_fkey"
+            columns: ["lab_movement_id"]
+            isOneToOne: true
+            referencedRelation: "v_lab_treasury_potential_duplicates"
+            referencedColumns: ["first_id"]
+          },
+        ]
+      }
       main_treasury_accounts: {
         Row: {
           account_number: string | null
@@ -12407,6 +12474,7 @@ export type Database = {
           id: string
           instapay_amount: number
           notes: string | null
+          source_lab_movement_id: string | null
           source_main_txn_id: string | null
           status: Database["public"]["Enums"]["slaughter_custody_status"]
           total_amount: number
@@ -12424,6 +12492,7 @@ export type Database = {
           id?: string
           instapay_amount?: number
           notes?: string | null
+          source_lab_movement_id?: string | null
           source_main_txn_id?: string | null
           status?: Database["public"]["Enums"]["slaughter_custody_status"]
           total_amount?: number
@@ -12441,6 +12510,7 @@ export type Database = {
           id?: string
           instapay_amount?: number
           notes?: string | null
+          source_lab_movement_id?: string | null
           source_main_txn_id?: string | null
           status?: Database["public"]["Enums"]["slaughter_custody_status"]
           total_amount?: number
@@ -14817,6 +14887,10 @@ export type Database = {
         Returns: Json
       }
       compute_hatchery_invoice: { Args: { _lot_id: string }; Returns: string }
+      confirm_lab_to_custody_transfer: {
+        Args: { p_transfer_id: string }
+        Returns: undefined
+      }
       confirm_main_to_custody_transfer: {
         Args: { p_transfer_id: string }
         Returns: string
@@ -14833,6 +14907,16 @@ export type Database = {
           p_source_warehouse_id: string
         }
         Returns: Json
+      }
+      create_lab_to_custody_transfer: {
+        Args: {
+          p_amount: number
+          p_custody_keeper_id: string
+          p_notes?: string
+          p_payment_method?: string
+          p_transfer_date: string
+        }
+        Returns: string
       }
       customer_has_other_order_today: {
         Args: { p_customer_id: string; p_user_id: string }
