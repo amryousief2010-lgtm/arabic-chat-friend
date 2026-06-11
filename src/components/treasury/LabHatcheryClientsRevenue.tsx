@@ -137,9 +137,18 @@ export default function LabHatcheryClientsRevenue() {
   const monthInv = invoices.filter(i => monthKey(i.issued_at) === cm);
   const monthPay = payments.filter(p => monthKey(p.paid_at) === cm);
   const monthDue = monthInv.reduce((s, i) => s + Number(i.total_amount || 0), 0);
-  const monthCollected = monthPay.reduce((s, p) => s + Number(p.amount || 0), 0);
+  const monthCollectedPayments = monthPay.reduce((s, p) => s + Number(p.amount || 0), 0);
+  // Approved at lab treasury this month (official confirmed collected — pending excluded)
+  const monthCollectedApproved = approvedLabCollections
+    .filter(m => monthKey(m.movement_date) === cm)
+    .reduce((s, m) => s + Number(m.amount || 0), 0);
+  const monthPendingApproval = pendingLabCollections
+    .filter(m => monthKey(m.movement_date) === cm)
+    .reduce((s, m) => s + Number(m.amount || 0), 0);
   const monthRemaining = invoices.reduce((s, i) => s + Number(i.remaining_amount || 0), 0);
   const monthClients = new Set(monthInv.map(i => i.client_name_snapshot || "—")).size;
+  // alias kept for chart/PDF compatibility
+  const monthCollected = monthCollectedPayments;
 
   // top client current month
   const topClientMap: Record<string, number> = {};
@@ -149,11 +158,11 @@ export default function LabHatcheryClientsRevenue() {
   });
   const topClient = Object.entries(topClientMap).sort((a, b) => b[1] - a[1])[0];
 
-  // Approximate net (current month) - subtract approved lab expenses this month
+  // Approximate net (current month) — approved collections minus approved lab expenses
   const monthExpensesApproved = movements.filter(m =>
     m.movement_type === "expense" && m.status === "approved" && monthKey(m.movement_date) === cm
   ).reduce((s, m) => s + Number(m.amount || 0), 0);
-  const approxNet = monthCollected - monthExpensesApproved;
+  const approxNet = monthCollectedApproved - monthExpensesApproved;
 
   // last 12 months chart
   const months12 = useMemo(() => {
@@ -267,19 +276,32 @@ export default function LabHatcheryClientsRevenue() {
         </AlertDescription>
       </Alert>
 
-      {/* main KPI cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+      {/* main KPI cards — clearly separated */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
         <Card className="border-primary/30">
-          <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Receipt className="w-4 h-4 text-primary" /> فواتير الشهر</CardTitle></CardHeader>
-          <CardContent><div className="text-2xl font-bold tabular-nums">{fmtNum(monthDue, 2)}</div><div className="text-xs text-muted-foreground">{monthInv.length} فاتورة</div></CardContent>
+          <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Receipt className="w-4 h-4 text-primary" /> إجمالي المستحق</CardTitle></CardHeader>
+          <CardContent><div className="text-2xl font-bold tabular-nums">{fmtNum(monthDue, 2)}</div><div className="text-xs text-muted-foreground">{monthInv.length} فاتورة هذا الشهر</div></CardContent>
         </Card>
-        <Card className="border-[hsl(var(--success))]/30">
-          <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-[hsl(var(--success))]" /> المحصل فعلياً</CardTitle></CardHeader>
-          <CardContent><div className="text-2xl font-bold tabular-nums text-[hsl(var(--success))]">{fmtNum(monthCollected, 2)}</div><div className="text-xs text-muted-foreground">{monthPay.length} دفعة</div></CardContent>
+        <Card className="border-[hsl(var(--success))]/40">
+          <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-[hsl(var(--success))]" /> المحصل الفعلي المعتمد</CardTitle></CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold tabular-nums text-[hsl(var(--success))]">{fmtNum(monthCollectedApproved, 2)}</div>
+            <div className="text-[11px] text-muted-foreground">من حركات خزنة المعمل المعتمدة فقط (pending مستبعدة)</div>
+          </CardContent>
         </Card>
         <Card className="border-amber-400/40">
-          <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Clock className="w-4 h-4 text-amber-600" /> بانتظار اعتماد الخزنة</CardTitle></CardHeader>
-          <CardContent><div className="text-2xl font-bold tabular-nums text-amber-600">{fmtNum(pendingLabAmount, 2)}</div><div className="text-xs text-muted-foreground">{pendingLabCollections.length} حركة</div></CardContent>
+          <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Clock className="w-4 h-4 text-amber-600" /> المحصل بانتظار الاعتماد</CardTitle></CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold tabular-nums text-amber-600">{fmtNum(monthPendingApproval, 2)}</div>
+            <div className="text-[11px] text-muted-foreground">{pendingLabCollections.length} حركة pending — لا تدخل في الرصيد الرسمي</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Wallet className="w-4 h-4 text-primary" /> المحصل من المدفوعات</CardTitle></CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold tabular-nums">{fmtNum(monthCollectedPayments, 2)}</div>
+            <div className="text-[11px] text-muted-foreground">{monthPay.length} دفعة مسجلة (قبل اعتماد الخزنة)</div>
+          </CardContent>
         </Card>
         <Card className="border-destructive/30">
           <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-destructive" /> المتبقي على العملاء</CardTitle></CardHeader>
@@ -303,10 +325,11 @@ export default function LabHatcheryClientsRevenue() {
           </CardContent>
         </Card>
         <Card className="border-[hsl(var(--success))]/30">
-          <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Wallet className="w-4 h-4 text-[hsl(var(--success))]" /> صافي تفريخ العملاء التقريبي</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Wallet className="w-4 h-4 text-[hsl(var(--success))]" /> صافي تقريبي بعد مصروفات المعمل</CardTitle></CardHeader>
           <CardContent>
             <div className="text-xl font-bold tabular-nums">{fmtNum(approxNet, 2)}</div>
-            <div className="text-[11px] text-muted-foreground">= محصل ({fmtNum(monthCollected,0)}) − مصروفات معتمدة ({fmtNum(monthExpensesApproved,0)}). قيمة تقريبية وليست صافي ربح محاسبي.</div>
+            <div className="text-[11px] text-muted-foreground">= المحصل المعتمد ({fmtNum(monthCollectedApproved,0)}) − مصروفات المعمل المعتمدة ({fmtNum(monthExpensesApproved,0)}).</div>
+            <div className="text-[11px] text-amber-700 mt-1">هذا الرقم تقديري وليس صافي ربح محاسبي نهائي.</div>
           </CardContent>
         </Card>
       </div>
