@@ -51,6 +51,7 @@ export default function ExternalCustomersReport() {
   const [statusFilter, setStatusFilter] = useState<string>("all"); // all | paid | owes | credit
   const [sortKey, setSortKey] = useState<SortKey>("eggs");
   const [detailsCustomerId, setDetailsCustomerId] = useState<string | null>(null);
+  const [openLotId, setOpenLotId] = useState<string | null>(null);
 
   const { data: customers = [] } = useQuery({
     queryKey: ["ecr_customers"],
