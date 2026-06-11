@@ -252,7 +252,7 @@ export default function LabHatcheryClientsRevenue() {
       </table>
       <p style="margin-top:20px;color:#666;font-size:11px">هذا التقرير قراءة وتحليل فقط ولا يؤثر على أرصدة الخزنة.</p>
     `;
-    openPrintWindow({ title: "إيراد تفريخ العملاء الشهري", body: html });
+    openPrintWindow("إيراد تفريخ العملاء الشهري", html);
   }
 
   if (loading) return <Card><CardContent className="p-6 text-center text-muted-foreground">جاري التحميل...</CardContent></Card>;
