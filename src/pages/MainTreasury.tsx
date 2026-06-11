@@ -85,6 +85,7 @@ export default function MainTreasury() {
   const [transferDupWarn, setTransferDupWarn] = useState<string>("");
   const [newAccount, setNewAccount] = useState({ name:"", account_type:"cash" as Account["account_type"], bank_name:"", opening_balance:"" });
   const [rejectDlg, setRejectDlg] = useState<{open:boolean; txn?:Txn; reason:string}>({ open:false, reason:"" });
+  const [newCatDlg, setNewCatDlg] = useState<{open:boolean; label:string; notes:string; busy:boolean}>({ open:false, label:"", notes:"", busy:false });
   const [editOpenBal, setEditOpenBal] = useState<{open:boolean; account?:Account; value:string}>({ open:false, value:"" });
   const [logFilter, setLogFilter] = useState({ account_id: "all", txn_type: "all", status: "all", from: "", to: "", search: "" });
   const [busy, setBusy] = useState(false);
@@ -299,6 +300,49 @@ export default function MainTreasury() {
     setNewAccount({ name:"", account_type:"cash", bank_name:"", opening_balance:"" });
     fetchAll();
   }
+
+  async function createExpenseCategory() {
+    const label = newCatDlg.label.trim();
+    if (!label) return toast.error("اسم بند المصروف مطلوب");
+    setNewCatDlg(s => ({ ...s, busy: true }));
+    try {
+      // Duplicate check by label (case/space-insensitive)
+      const normalized = label.replace(/\s+/g, " ").trim();
+      const exists = cats.find(c => c.label.replace(/\s+/g, " ").trim().toLowerCase() === normalized.toLowerCase());
+      if (exists) {
+        toast.error("بند المصروف موجود بالفعل");
+        setNewCatDlg(s => ({ ...s, busy: false }));
+        return;
+      }
+      // Generate unique code from label (slug + timestamp)
+      const slug = label
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}]+/gu, "_")
+        .replace(/^_+|_+$/g, "")
+        .slice(0, 40) || "cat";
+      const code = `${slug}_${Date.now().toString(36)}`;
+      const maxSort = cats.reduce((m, c: any) => Math.max(m, (c as any).sort_order ?? 0), 0);
+      const { data, error } = await (supabase as any)
+        .from("main_treasury_expense_categories")
+        .insert({ code, label, is_active: true, sort_order: maxSort + 10 })
+        .select("id,code,label")
+        .single();
+      if (error) {
+        if ((error.message || "").toLowerCase().includes("duplicate")) toast.error("بند المصروف موجود بالفعل");
+        else toast.error(error.message);
+        setNewCatDlg(s => ({ ...s, busy: false }));
+        return;
+      }
+      setCats(prev => [...prev, data as Category]);
+      setTxnForm(f => ({ ...f, category_id: data.id }));
+      toast.success("تم إضافة بند المصروف بنجاح");
+      setNewCatDlg({ open: false, label: "", notes: "", busy: false });
+    } catch (e: any) {
+      toast.error(e?.message || "خطأ غير معروف");
+      setNewCatDlg(s => ({ ...s, busy: false }));
+    }
+  }
+
 
   async function saveOpeningBalance() {
     if (!editOpenBal.account) return;
@@ -516,7 +560,16 @@ export default function MainTreasury() {
               <div><Label>المبلغ *</Label><Input type="number" step="0.01" value={txnForm.amount} onChange={e=>setTxnForm({...txnForm, amount: e.target.value})}/></div>
               <div><Label>التاريخ</Label><Input type="date" value={txnForm.txn_date} onChange={e=>setTxnForm({...txnForm, txn_date: e.target.value})}/></div>
               {(txnForm.txn_type === "expense") && (
-                <div><Label>بند المصروف *</Label>
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <Label>بند المصروف *</Label>
+                    {canWrite && (
+                      <Button type="button" size="sm" variant="outline" className="h-7 gap-1 text-xs"
+                        onClick={() => setNewCatDlg({ open: true, label: "", notes: "", busy: false })}>
+                        <Plus className="h-3.5 w-3.5"/> إضافة بند مصروف
+                      </Button>
+                    )}
+                  </div>
                   <Select value={txnForm.category_id} onValueChange={v => setTxnForm({...txnForm, category_id: v})}>
                     <SelectTrigger><SelectValue placeholder="اختر"/></SelectTrigger>
                     <SelectContent>{cats.map(c => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}</SelectContent>
@@ -910,6 +963,32 @@ export default function MainTreasury() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={newCatDlg.open} onOpenChange={o => !o && setNewCatDlg({open:false, label:"", notes:"", busy:false})}>
+        <DialogContent dir="rtl">
+          <DialogHeader><DialogTitle>إضافة بند مصروف جديد</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>اسم بند المصروف *</Label>
+              <Input value={newCatDlg.label} onChange={e=>setNewCatDlg(s=>({...s, label:e.target.value}))} placeholder="مثل: صيانة عربية" autoFocus/>
+            </div>
+            <div>
+              <Label>ملاحظات</Label>
+              <Textarea value={newCatDlg.notes} onChange={e=>setNewCatDlg(s=>({...s, notes:e.target.value}))} rows={2}/>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              الخزنة المرتبطة: الخزنة الرئيسية للمجزر · يظهر في الخزنة الرئيسية: نعم · الحالة: نشط
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={()=>setNewCatDlg({open:false, label:"", notes:"", busy:false})}>إلغاء</Button>
+            <Button onClick={createExpenseCategory} disabled={newCatDlg.busy} className="gap-2">
+              <Plus className="h-4 w-4"/>{newCatDlg.busy ? "جارٍ الحفظ..." : "حفظ البند"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
       <Dialog open={editOpenBal.open} onOpenChange={o => !o && setEditOpenBal({open:false, value:""})}>
         <DialogContent dir="rtl">
