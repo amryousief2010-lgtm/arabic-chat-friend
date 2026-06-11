@@ -21,6 +21,7 @@ import FarmShipmentsInbox from "@/components/hatchery/FarmShipmentsInbox";
 import HatcheryDashboard from "@/components/hatchery/HatcheryDashboard";
 import HatcheryTreasury from "@/components/hatchery/HatcheryTreasury";
 import HatcheryMovementsLog from "@/components/hatchery/HatcheryMovementsLog";
+import ExternalCustomersReport from "@/components/hatchery/ExternalCustomersReport";
 import { useTestMode } from "@/hooks/useTestMode";
 import { History } from "lucide-react";
 import { toast } from "sonner";
@@ -150,13 +151,14 @@ const Hatchery = () => {
         </div>
 
         <Tabs defaultValue="dashboard" dir="rtl">
-          <TabsList className="grid grid-cols-2 md:grid-cols-11 w-full">
+          <TabsList className="grid grid-cols-2 md:grid-cols-12 w-full">
             <TabsTrigger value="dashboard"><BarChart3 className="w-4 h-4 ml-1" />Dashboard</TabsTrigger>
             <TabsTrigger value="incoming"><Inbox className="w-4 h-4 ml-1" />وارد المزرعة</TabsTrigger>
             <TabsTrigger value="batches"><FlaskConical className="w-4 h-4 ml-1" />الدفعات</TabsTrigger>
             <TabsTrigger value="charts"><BarChart3 className="w-4 h-4 ml-1" />تحليلات</TabsTrigger>
             <TabsTrigger value="quality"><TrendingUp className="w-4 h-4 ml-1" />الجودة</TabsTrigger>
             <TabsTrigger value="customers"><Users className="w-4 h-4 ml-1" />العملاء</TabsTrigger>
+            <TabsTrigger value="ext_report"><FileText className="w-4 h-4 ml-1" />كشف العملاء الخارجيين</TabsTrigger>
             <TabsTrigger value="ops"><Activity className="w-4 h-4 ml-1" />التشغيل</TabsTrigger>
             <TabsTrigger value="maint"><Wrench className="w-4 h-4 ml-1" />الصيانة</TabsTrigger>
             <TabsTrigger value="chicks"><Bird className="w-4 h-4 ml-1" />الكتاكيت</TabsTrigger>
@@ -170,6 +172,7 @@ const Hatchery = () => {
           <TabsContent value="charts"><BatchesChartsTab batches={batches} customers={customers} /></TabsContent>
           <TabsContent value="quality"><QualityTab stats={stats} /></TabsContent>
           <TabsContent value="customers"><CustomersTab customers={customers} batches={batches} qc={qc} /></TabsContent>
+          <TabsContent value="ext_report"><ExternalCustomersReport /></TabsContent>
           <TabsContent value="ops"><OpsTab ops={ops} qc={qc} /></TabsContent>
           <TabsContent value="maint"><MaintTab maint={maint} qc={qc} /></TabsContent>
           <TabsContent value="chicks"><ChicksTab chicks={chicks} qc={qc} /></TabsContent>
