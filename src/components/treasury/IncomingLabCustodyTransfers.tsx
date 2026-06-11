@@ -49,7 +49,7 @@ export default function IncomingLabCustodyTransfers({ onReceived }: { onReceived
     const { error } = await supabase.rpc("confirm_lab_to_custody_transfer" as any, { p_transfer_id: r.id });
     setBusy(null);
     if (error) { toast.error("تعذر تأكيد الاستلام: " + error.message); return; }
-    toast.success("تم تأكيد الاستلام وإضافة المبلغ إلى رصيد خزنة العهدة");
+    toast.success("تم تأكيد الاستلام وإضافة المبلغ إلى رصيد الخزنة الرئيسية للمجزر");
     await load();
     onReceived?.();
   };
@@ -61,7 +61,7 @@ export default function IncomingLabCustodyTransfers({ onReceived }: { onReceived
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           <Inbox className="w-5 h-5 text-amber-600" />
-          تحويلات واردة من خزنة المعمل — بانتظار الاستلام
+          تحويلات واردة من خزنة المعمل إلى الخزنة الرئيسية للمجزر — بانتظار التأكيد
           {rows.length > 0 && <Badge variant="destructive" className="mr-2">{rows.length}</Badge>}
         </CardTitle>
       </CardHeader>
