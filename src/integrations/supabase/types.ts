@@ -7027,6 +7027,7 @@ export type Database = {
           custody_keeper_id: string
           id: string
           lab_movement_id: string
+          main_txn_id: string | null
           notes: string | null
           payment_method: string
           received_at: string | null
@@ -7041,6 +7042,7 @@ export type Database = {
           custody_keeper_id: string
           id?: string
           lab_movement_id: string
+          main_txn_id?: string | null
           notes?: string | null
           payment_method?: string
           received_at?: string | null
@@ -7055,6 +7057,7 @@ export type Database = {
           custody_keeper_id?: string
           id?: string
           lab_movement_id?: string
+          main_txn_id?: string | null
           notes?: string | null
           payment_method?: string
           received_at?: string | null
@@ -7083,6 +7086,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "v_lab_treasury_potential_duplicates"
             referencedColumns: ["first_id"]
+          },
+          {
+            foreignKeyName: "lab_treasury_to_custody_transfers_main_txn_id_fkey"
+            columns: ["main_txn_id"]
+            isOneToOne: false
+            referencedRelation: "main_treasury_transactions"
+            referencedColumns: ["id"]
           },
         ]
       }
