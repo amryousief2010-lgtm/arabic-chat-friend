@@ -46,22 +46,23 @@ export default function MainExpenseAnalytics({ txns, categories, typeLabels }: P
     return m;
   }, [categories]);
 
-  const rows: AnalyticsRow[] = useMemo(() => txns.map(t => {
-    const isIncome = INCOME_TYPES.has(t.txn_type);
-    // Prefer expense category, then transaction type label as fallback
-    const categoryFromBucket = t.category_id ? catMap[t.category_id] : null;
-    const fallback = typeLabels[t.txn_type] || t.txn_type;
-    return {
-      id: t.id,
-      date: t.txn_date,
-      category: categoryFromBucket || fallback,
-      amount: Number(t.amount),
-      type: isIncome ? "income" as const : "expense" as const,
-      status: t.status,
-      paymentMethod: (t as any).payment_method,
-      createdByName: t.created_by ? (userMap[t.created_by] || t.created_by.slice(0, 8)) : "—",
-    };
-  }).filter(r => INCOME_TYPES.has((txns.find(t => t.id === r.id) as any).txn_type) || EXPENSE_TYPES.has((txns.find(t => t.id === r.id) as any).txn_type)), [txns, catMap, typeLabels, userMap]);
+  const rows: AnalyticsRow[] = useMemo(() => txns
+    .filter(t => INCOME_TYPES.has(t.txn_type) || EXPENSE_TYPES.has(t.txn_type))
+    .map(t => {
+      const isIncome = INCOME_TYPES.has(t.txn_type);
+      const categoryFromBucket = t.category_id ? catMap[t.category_id] : null;
+      const fallback = typeLabels[t.txn_type] || t.txn_type;
+      return {
+        id: t.id,
+        date: t.txn_date,
+        category: categoryFromBucket || fallback,
+        amount: Number(t.amount),
+        type: isIncome ? "income" as const : "expense" as const,
+        status: t.status,
+        paymentMethod: (t as any).payment_method,
+        createdByName: t.created_by ? (userMap[t.created_by] || t.created_by.slice(0, 8)) : "—",
+      };
+    }), [txns, catMap, typeLabels, userMap]);
 
   return (
     <ExpenseAnalyticsPanel
