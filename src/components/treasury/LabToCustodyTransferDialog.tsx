@@ -38,15 +38,13 @@ export default function LabToCustodyTransferDialog({ onCreated }: { onCreated?: 
   useEffect(() => {
     if (!open) return;
     (async () => {
-      const { data: ur } = await (supabase as any)
-        .from("user_roles").select("user_id").eq("role", "slaughterhouse_custody_keeper");
-      const ids = (ur || []).map((r: any) => r.user_id);
-      if (!ids.length) { setKeepers([]); return; }
-      const { data: profs } = await (supabase as any)
-        .from("profiles").select("id, full_name").in("id", ids);
-      const list = (profs || []) as Keeper[];
+      const { data, error } = await (supabase as any).rpc("list_slaughterhouse_custody_keepers");
+      if (error) { console.error("list_slaughterhouse_custody_keepers", error); setKeepers([]); return; }
+      const list = (data || []) as Keeper[];
       setKeepers(list);
-      setForm(f => ({ ...f, custody_keeper_id: f.custody_keeper_id || list[0]?.id || "" }));
+      // Default to محمد شعلة when present
+      const shola = list.find(k => /شعل/.test(k.full_name || ""));
+      setForm(f => ({ ...f, custody_keeper_id: f.custody_keeper_id || shola?.id || list[0]?.id || "" }));
     })();
   }, [open]);
 
