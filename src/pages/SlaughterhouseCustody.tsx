@@ -773,6 +773,11 @@ export default function SlaughterhouseCustody() {
           <TabsContent value="analytics">
             <CustodyExpenseAnalytics expenses={expenses as any} catLabel={CAT_LBL} />
           </TabsContent>
+
+          {/* ===== Vehicle Expense Analysis ===== */}
+          <TabsContent value="vehicles">
+            <VehicleExpenseAnalysis catLabel={CAT_LBL} />
+          </TabsContent>
         </Tabs>
 
         {/* Review dialog */}
