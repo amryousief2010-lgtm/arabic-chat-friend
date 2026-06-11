@@ -1013,6 +1013,7 @@ export default function LabTreasury() {
                 <TabsTrigger value="advances" className={tabCls}>العُهد</TabsTrigger>
                 {canApprove && <TabsTrigger value="duplicates" className={tabCls}>المكررات</TabsTrigger>}
                 <TabsTrigger value="reconcile" className={tabCls}>مطابقة الخزنة</TabsTrigger>
+                <TabsTrigger value="analytics" className={tabCls}>تحليل المصروفات</TabsTrigger>
                 <TabsTrigger value="reports" className={tabCls}>التقارير</TabsTrigger>
                 {canApprove && <TabsTrigger value="audit" className={tabCls}>سجل التدقيق</TabsTrigger>}
               </>;
