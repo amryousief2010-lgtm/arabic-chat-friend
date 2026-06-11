@@ -23,7 +23,7 @@ interface Keeper { id: string; full_name: string }
 
 export default function LabToCustodyTransferDialog({ onCreated }: { onCreated?: () => void }) {
   const { roles, isGeneralManager, isExecutiveManager } = useAuth();
-  const canSend = isGeneralManager || isExecutiveManager || (roles || []).includes("lab_treasury_approver");
+  const canSend = isGeneralManager || isExecutiveManager || (roles || []).includes("lab_treasury_approver") || (roles || []).includes("lab_treasury_keeper");
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [keepers, setKeepers] = useState<Keeper[]>([]);
