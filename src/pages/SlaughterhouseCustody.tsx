@@ -19,6 +19,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate } from "@/lib/printPdf";
 import * as XLSX from "xlsx";
 import CustodyExpenseAnalytics from "@/components/treasury/CustodyExpenseAnalytics";
+import VehicleExpenseAnalysis from "@/components/treasury/VehicleExpenseAnalysis";
 import {
   Wallet, Plus, ShieldAlert, CheckCircle2, XCircle, MessageSquare, Upload,
   Printer, FileSpreadsheet, AlertTriangle, ScrollText, Beef, Sparkles, Clock, Activity, Receipt, TrendingDown,
@@ -102,6 +103,7 @@ export default function SlaughterhouseCustody() {
   const [form, setForm] = useState({
     expense_date: today(), category: "maintenance" as Category, description: "",
     amount: "", payment_method: "cash" as PM, beneficiary: "", has_invoice: false, notes: "",
+    vehicle_plate: "", vehicle_label: "",
   });
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
 
@@ -174,15 +176,39 @@ export default function SlaughterhouseCustody() {
     }
 
     const receipt_url = await uploadReceipt();
-    const { error } = await (supabase as any).from("slaughter_custody_expenses").insert({
+    const insertPayload: any = {
       expense_date: form.expense_date, category: form.category, description: form.description,
       amount: amt, payment_method: form.payment_method, beneficiary: form.beneficiary || null,
       has_invoice: form.has_invoice, receipt_url, notes: form.notes || null,
+      vehicle_plate: form.vehicle_plate.trim() || null,
+      vehicle_label: form.vehicle_label.trim() || null,
       created_by: user!.id,
-    });
+    };
+    const { error } = await (supabase as any).from("slaughter_custody_expenses").insert(insertPayload);
     if (error) return toast.error("فشل التسجيل: " + error.message);
     toast.success("تم تسجيل المصروف — بانتظار المراجعة");
-    setForm({ expense_date: today(), category: "maintenance", description: "", amount: "", payment_method: "cash", beneficiary: "", has_invoice: false, notes: "" });
+
+    // Vehicle monthly threshold pre-check (8000 EGP per vehicle+category+month)
+    if (insertPayload.vehicle_plate) {
+      const month = form.expense_date.slice(0, 7);
+      const { data: monthRows } = await (supabase as any)
+        .from("slaughter_custody_expenses")
+        .select("amount")
+        .eq("vehicle_plate", insertPayload.vehicle_plate)
+        .eq("category", form.category)
+        .gte("expense_date", `${month}-01`)
+        .lte("expense_date", `${month}-31`)
+        .neq("status", "rejected");
+      const total = (monthRows || []).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+      if (total > 8000) {
+        toast.warning(
+          `تنبيه: إجمالي مصروف ${CAT_LBL[form.category] || form.category} لهذه العربية خلال الشهر أصبح ${fmtNum(total, 2)} جنيه، وسيتم إخطار المحاسب محمد شعلة للمراجعة.`,
+          { duration: 8000 }
+        );
+      }
+    }
+
+    setForm({ expense_date: today(), category: "maintenance", description: "", amount: "", payment_method: "cash", beneficiary: "", has_invoice: false, notes: "", vehicle_plate: "", vehicle_label: "" });
     setReceiptFile(null);
     fetchAll();
   }
@@ -395,6 +421,7 @@ export default function SlaughterhouseCustody() {
             <TabsTrigger value="add">إضافة مصروف</TabsTrigger>
             <TabsTrigger value="expenses">المصروفات</TabsTrigger>
             <TabsTrigger value="analytics">تحليل المصروفات</TabsTrigger>
+            <TabsTrigger value="vehicles">تحليل العربيات</TabsTrigger>
             {isManager && <TabsTrigger value="limit">الحد الأسبوعي</TabsTrigger>}
             {isManager && <TabsTrigger value="openings">رصيد افتتاحي</TabsTrigger>}
             {isManager && <TabsTrigger value="audit">سجل التدقيق</TabsTrigger>}
@@ -579,6 +606,14 @@ export default function SlaughterhouseCustody() {
                   </Select>
                 </div>
                 <div><Label>الجهة / المستفيد</Label><Input value={form.beneficiary} onChange={(e) => setForm({ ...form, beneficiary: e.target.value })} /></div>
+                <div>
+                  <Label>رقم لوحة العربية <span className="text-muted-foreground text-[10px]">(اختياري — لو المصروف على عربية)</span></Label>
+                  <Input value={form.vehicle_plate} onChange={(e) => setForm({ ...form, vehicle_plate: e.target.value })} placeholder="مثال: 1234 أ ب ج" />
+                </div>
+                <div>
+                  <Label>اسم/كود العربية <span className="text-muted-foreground text-[10px]">(اختياري)</span></Label>
+                  <Input value={form.vehicle_label} onChange={(e) => setForm({ ...form, vehicle_label: e.target.value })} placeholder="مثال: عربية التوصيل 1" />
+                </div>
                 <div className="flex items-end gap-2"><Label className="flex items-center gap-2"><input type="checkbox" checked={form.has_invoice} onChange={(e) => setForm({ ...form, has_invoice: e.target.checked })} />يوجد فاتورة / إيصال</Label></div>
                 <div className="md:col-span-2 lg:col-span-3"><Label>الوصف التفصيلي {form.category === "other" && <span className="text-destructive">*</span>}</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder={form.category === "other" ? "إجباري — اشرح المصروف بالتفصيل" : "اختياري"} /></div>
                 <div><Label>صورة الفاتورة / الإيصال</Label><Input type="file" accept="image/*,application/pdf" onChange={(e) => setReceiptFile(e.target.files?.[0] || null)} /></div>
@@ -737,6 +772,11 @@ export default function SlaughterhouseCustody() {
           {/* ===== Expense Analytics ===== */}
           <TabsContent value="analytics">
             <CustodyExpenseAnalytics expenses={expenses as any} catLabel={CAT_LBL} />
+          </TabsContent>
+
+          {/* ===== Vehicle Expense Analysis ===== */}
+          <TabsContent value="vehicles">
+            <VehicleExpenseAnalysis catLabel={CAT_LBL} />
           </TabsContent>
         </Tabs>
 

@@ -12339,6 +12339,8 @@ export type Database = {
           reviewed_by: string | null
           status: Database["public"]["Enums"]["slaughter_custody_status"]
           updated_at: string
+          vehicle_label: string | null
+          vehicle_plate: string | null
           week_start_date: string | null
         }
         Insert: {
@@ -12362,6 +12364,8 @@ export type Database = {
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["slaughter_custody_status"]
           updated_at?: string
+          vehicle_label?: string | null
+          vehicle_plate?: string | null
           week_start_date?: string | null
         }
         Update: {
@@ -12385,6 +12389,8 @@ export type Database = {
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["slaughter_custody_status"]
           updated_at?: string
+          vehicle_label?: string | null
+          vehicle_plate?: string | null
           week_start_date?: string | null
         }
         Relationships: []
@@ -13776,6 +13782,53 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      vehicle_expense_alerts: {
+        Row: {
+          alert_type: string
+          created_at: string
+          expense_category: string
+          id: string
+          month: string
+          threshold_amount: number
+          total_amount: number
+          triggering_expense_id: string | null
+          triggering_user_id: string | null
+          vehicle_plate: string
+        }
+        Insert: {
+          alert_type?: string
+          created_at?: string
+          expense_category: string
+          id?: string
+          month: string
+          threshold_amount?: number
+          total_amount: number
+          triggering_expense_id?: string | null
+          triggering_user_id?: string | null
+          vehicle_plate: string
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string
+          expense_category?: string
+          id?: string
+          month?: string
+          threshold_amount?: number
+          total_amount?: number
+          triggering_expense_id?: string | null
+          triggering_user_id?: string | null
+          vehicle_plate?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_expense_alerts_triggering_expense_id_fkey"
+            columns: ["triggering_expense_id"]
+            isOneToOne: false
+            referencedRelation: "slaughter_custody_expenses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       warehouse_opening_balances: {
         Row: {
