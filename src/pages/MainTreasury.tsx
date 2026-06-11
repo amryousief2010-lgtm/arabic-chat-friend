@@ -921,6 +921,59 @@ export default function MainTreasury() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={lastDetailOpen} onOpenChange={setLastDetailOpen}>
+        <DialogContent dir="rtl" className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>تفاصيل تحويل إلى خزنة العهدة — {lastTransferTxn?.reference_no || "—"}</DialogTitle>
+          </DialogHeader>
+          {lastTransferTxn ? (() => {
+            const keeperName = custodyKeepers.find(k => k.user_id === lastTransferLink?.custody_keeper_id)?.name || "—";
+            const reason = lastTransferTxn.description?.replace("توريد إلى خزنة العهدة — ", "") || "—";
+            const pm = lastTransferTxn.payment_method === "cash" ? "نقدي" : lastTransferTxn.payment_method === "transfer" ? "تحويل بنكي / محفظة" : lastTransferTxn.payment_method || "—";
+            return (
+              <div className="space-y-3 text-sm">
+                <div className="grid grid-cols-2 gap-3">
+                  <div><span className="text-muted-foreground text-xs block">رقم الحركة</span><span className="font-mono font-semibold">{lastTransferTxn.reference_no}</span></div>
+                  <div><span className="text-muted-foreground text-xs block">المبلغ</span><span className="font-mono font-bold text-primary">{fmtNum(lastTransferTxn.amount,2)} ج.م</span></div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><span className="text-muted-foreground text-xs block">التاريخ</span><span className="font-semibold">{lastTransferTxn.txn_date}</span></div>
+                  <div><span className="text-muted-foreground text-xs block">وقت التسجيل</span><span className="font-semibold">{fmtDate(lastTransferTxn.created_at)}</span></div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><span className="text-muted-foreground text-xs block">الخزنة المصدر</span><span className="font-semibold">الخزنة الرئيسية</span></div>
+                  <div><span className="text-muted-foreground text-xs block">الخزنة المستلمة</span><span className="font-semibold">خزنة العهدة</span></div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><span className="text-muted-foreground text-xs block">أمين العهدة المستلم</span><span className="font-semibold">{keeperName}</span></div>
+                  <div><span className="text-muted-foreground text-xs block">طريقة التسليم</span><span className="font-semibold">{pm}</span></div>
+                </div>
+                <div><span className="text-muted-foreground text-xs block">سبب التوريد</span><span className="font-semibold">{reason}</span></div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><span className="text-muted-foreground text-xs block">الحالة</span><Badge variant={STATUS_TONE[lastTransferTxn.status]}>{STATUS_LBL[lastTransferTxn.status] || lastTransferTxn.status}</Badge></div>
+                  <div><span className="text-muted-foreground text-xs block">تم التسجيل بواسطة</span><span className="font-semibold">{lastTransferUserNames[lastTransferTxn.created_by] || lastTransferTxn.created_by.slice(0,8)}</span></div>
+                </div>
+                {lastTransferTxn.approver_1_id && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><span className="text-muted-foreground text-xs block">تم الاعتماد بواسطة</span><span className="font-semibold">{lastTransferUserNames[lastTransferTxn.approver_1_id] || lastTransferTxn.approver_1_id.slice(0,8)}</span></div>
+                    <div><span className="text-muted-foreground text-xs block">تاريخ الاعتماد</span><span className="font-semibold">{fmtDate(lastTransferTxn.approver_1_at)}</span></div>
+                  </div>
+                )}
+                {lastTransferTxn.rejection_reason && (
+                  <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm">
+                    <span className="text-muted-foreground text-xs block">سبب الرفض</span>
+                    <span className="text-destructive font-semibold">{lastTransferTxn.rejection_reason}</span>
+                  </div>
+                )}
+              </div>
+            );
+          })() : null}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLastDetailOpen(false)}>إغلاق</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
