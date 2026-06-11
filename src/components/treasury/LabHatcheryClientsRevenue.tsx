@@ -137,9 +137,18 @@ export default function LabHatcheryClientsRevenue() {
   const monthInv = invoices.filter(i => monthKey(i.issued_at) === cm);
   const monthPay = payments.filter(p => monthKey(p.paid_at) === cm);
   const monthDue = monthInv.reduce((s, i) => s + Number(i.total_amount || 0), 0);
-  const monthCollected = monthPay.reduce((s, p) => s + Number(p.amount || 0), 0);
+  const monthCollectedPayments = monthPay.reduce((s, p) => s + Number(p.amount || 0), 0);
+  // Approved at lab treasury this month (official confirmed collected — pending excluded)
+  const monthCollectedApproved = approvedLabCollections
+    .filter(m => monthKey(m.movement_date) === cm)
+    .reduce((s, m) => s + Number(m.amount || 0), 0);
+  const monthPendingApproval = pendingLabCollections
+    .filter(m => monthKey(m.movement_date) === cm)
+    .reduce((s, m) => s + Number(m.amount || 0), 0);
   const monthRemaining = invoices.reduce((s, i) => s + Number(i.remaining_amount || 0), 0);
   const monthClients = new Set(monthInv.map(i => i.client_name_snapshot || "—")).size;
+  // alias kept for chart/PDF compatibility
+  const monthCollected = monthCollectedPayments;
 
   // top client current month
   const topClientMap: Record<string, number> = {};
@@ -149,11 +158,11 @@ export default function LabHatcheryClientsRevenue() {
   });
   const topClient = Object.entries(topClientMap).sort((a, b) => b[1] - a[1])[0];
 
-  // Approximate net (current month) - subtract approved lab expenses this month
+  // Approximate net (current month) — approved collections minus approved lab expenses
   const monthExpensesApproved = movements.filter(m =>
     m.movement_type === "expense" && m.status === "approved" && monthKey(m.movement_date) === cm
   ).reduce((s, m) => s + Number(m.amount || 0), 0);
-  const approxNet = monthCollected - monthExpensesApproved;
+  const approxNet = monthCollectedApproved - monthExpensesApproved;
 
   // last 12 months chart
   const months12 = useMemo(() => {
