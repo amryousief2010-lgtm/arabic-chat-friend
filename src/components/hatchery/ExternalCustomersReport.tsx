@@ -257,7 +257,7 @@ export default function ExternalCustomersReport() {
       name: (a, b) => a.customer.name.localeCompare(b.customer.name, "ar"),
     };
     return filtered.sort(sorters[sortKey]);
-  }, [customers, externalBatches, payments, pricing, customerFilter, statusFilter, sortKey, fromDate, toDate]);
+  }, [customers, externalBatches, payments, pricing, customerFilter, statusFilter, sortKey, fromDate, toDate, broodingByCustomer]);
 
   // Top-level KPIs
   const totals = useMemo(() => {
