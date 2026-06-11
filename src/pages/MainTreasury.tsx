@@ -66,6 +66,8 @@ export default function MainTreasury() {
   const [txns, setTxns] = useState<Txn[]>([]);
   const [custodyKeepers, setCustodyKeepers] = useState<Array<{user_id:string; name:string}>>([]);
   const [transfers, setTransfers] = useState<CustodyTransfer[]>([]);
+  const [lastTransferUserNames, setLastTransferUserNames] = useState<Record<string,string>>({});
+  const [lastDetailOpen, setLastDetailOpen] = useState(false);
 
   // forms
   const [txnForm, setTxnForm] = useState({
