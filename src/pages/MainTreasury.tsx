@@ -468,7 +468,7 @@ export default function MainTreasury() {
 
         {/* Dashboard */}
         <TabsContent value="dashboard" className="mt-4 space-y-3">
-          <IncomingLabCustodyTransfers onReceived={() => { fetchAll?.(); }} />
+          <IncomingLabCustodyTransfers onReceived={fetchAll} />
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
             {balances.length === 0 ? <Card><CardContent className="p-8 text-center text-muted-foreground">لا توجد حسابات بعد — أضف من تبويب "إعدادات"</CardContent></Card> :
               balances.map(b => (
