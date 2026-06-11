@@ -97,19 +97,37 @@ export function useExecutiveApprovals() {
       );
       const profiles = await resolveProfiles(allCreators);
 
-      const treasury: ApprovalItem[] = (treasuryRes.data || []).map((t: any) => ({
-        id: t.id,
-        category: "treasury",
-        source: "حركة خزنة رئيسية",
-        title: `${t.txn_type === "income" ? "إيراد" : t.txn_type === "expense" ? "مصروف" : t.txn_type === "transfer_out" ? "توريد/تحويل" : "حركة"}${t.deposit_purpose ? ` — ${t.deposit_purpose}` : ""}${t.incoming_source ? ` — ${t.incoming_source}` : ""}`,
-        subtitle: `${t.reference_no || ""} ${t.counterparty ? "— " + t.counterparty : ""}${t.description ? " — " + t.description : ""}`.trim(),
-        amount: Number(t.amount || 0),
-        created_at: t.created_at,
-        created_by: t.created_by,
-        creator_name: profiles[t.created_by] || null,
-        status: t.status,
-        raw: t,
-      }));
+      const treasury: ApprovalItem[] = (treasuryRes.data || []).map((t: any) => {
+        const isToCustody = t.txn_type === "transfer_to_custody";
+        const typeLabel =
+          isToCustody ? "توريد إلى خزنة العهدة"
+          : t.txn_type === "income" ? "إيراد"
+          : t.txn_type === "expense" ? "مصروف"
+          : t.txn_type === "transfer_out" ? "توريد/تحويل"
+          : "حركة";
+        const title = `${typeLabel}${t.deposit_purpose ? ` — ${t.deposit_purpose}` : ""}${t.incoming_source ? ` — ${t.incoming_source}` : ""}`;
+        const keeperPart = isToCustody && t.counterparty ? `أمين العهدة: ${t.counterparty}` : "";
+        const subtitleParts = [
+          t.reference_no || "",
+          keeperPart,
+          !isToCustody && t.counterparty ? t.counterparty : "",
+          t.description || "",
+          t.payment_method ? `طريقة: ${t.payment_method}` : "",
+        ].filter(Boolean);
+        return {
+          id: t.id,
+          category: "treasury",
+          source: isToCustody ? "توريد للخزنة العهدة" : "حركة خزنة رئيسية",
+          title,
+          subtitle: subtitleParts.join(" — "),
+          amount: Number(t.amount || 0),
+          created_at: t.created_at,
+          created_by: t.created_by,
+          creator_name: profiles[t.created_by] || null,
+          status: t.status,
+          raw: t,
+        };
+      });
 
       const lab: ApprovalItem[] = (labRes.data || []).map((m: any) => ({
         id: m.id,
