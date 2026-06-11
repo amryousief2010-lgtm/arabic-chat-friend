@@ -105,6 +105,52 @@ export default function ExternalCustomersReport() {
     },
   });
 
+  // Per-customer lots (hatchery_batch_lots) — source of truth for brooding period
+  const { data: lots = [] } = useQuery({
+    queryKey: ["ecr_lots", fromDate, toDate],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hatchery_batch_lots" as any)
+        .select("client_id,chicks_hatched,hatcher_out_at,brooding_in_at,brooding_out_at,brooding_days,cancelled,owner_type")
+        .eq("owner_type", "external_client")
+        .eq("cancelled", false);
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+
+  // Aggregate brooding info per customer
+  const broodingByCustomer = useMemo(() => {
+    const dailyPrice = num(pricing?.daily_brooding_price);
+    const today = new Date();
+    const m = new Map<string, { chicksBrooded: number; daysSum: number; feesActual: number; pendingChicks: number; feesProjected: number }>();
+    for (const l of lots) {
+      if (!l.client_id) continue;
+      const chicks = num(l.chicks_hatched);
+      if (chicks <= 0) continue;
+      const startISO = l.hatcher_out_at || l.brooding_in_at;
+      if (!startISO) continue;
+      const start = new Date(startISO);
+      const e = m.get(l.client_id) || { chicksBrooded: 0, daysSum: 0, feesActual: 0, pendingChicks: 0, feesProjected: 0 };
+      const dayMs = 86400000;
+      const startDay = Math.floor(start.getTime() / dayMs);
+      if (l.brooding_out_at) {
+        const end = new Date(l.brooding_out_at);
+        const days = Math.max(1, Math.floor(end.getTime() / dayMs) - startDay + 1);
+        e.chicksBrooded += chicks;
+        e.daysSum += days;
+        e.feesActual += chicks * days * dailyPrice;
+      } else {
+        const days = Math.max(1, Math.floor(today.getTime() / dayMs) - startDay + 1);
+        e.pendingChicks += chicks;
+        e.feesProjected += chicks * days * dailyPrice;
+      }
+      m.set(l.client_id, e);
+    }
+    return m;
+  }, [lots, pricing]);
+
+
   // External customer ids only
   const externalIds = useMemo(() => new Set(customers.map((c) => c.id)), [customers]);
   const customerById = useMemo(() => {
@@ -180,6 +226,20 @@ export default function ExternalCustomersReport() {
       if (!row.lastPayment || p.payment_date > row.lastPayment) row.lastPayment = p.payment_date;
     }
     const rows = Array.from(map.values()).map((r) => {
+      // Override brooding aggregates from per-customer lot data (real hatch→pickup periods)
+      const br = broodingByCustomer.get(r.customer.id);
+      if (br) {
+        // Replace batch-derived approximation with actual lot data
+        r.broodingFee = br.feesActual;
+        r.broodingChicks = br.chicksBrooded;
+        r.broodingDays = br.daysSum;
+        r.pendingChicks = br.pendingChicks;
+        r.broodingFeeProjected = br.feesProjected;
+        // Recompute totalDue using replaced brooding component
+        r.totalDue = r.infertileFee + r.candle2Fee + r.chicksFee + r.broodingFee;
+      } else {
+        r.broodingChicks = 0; r.broodingDays = 0; r.pendingChicks = 0; r.broodingFeeProjected = 0;
+      }
       r.remaining = r.totalDue - r.totalPaid;
       r.hatchRate = r.totalEggs > 0 ? (r.totalChicks / r.totalEggs) * 100 : 0;
       r.statusKey = r.remaining > 0.5 ? "owes" : r.remaining < -0.5 ? "credit" : "paid";
@@ -197,7 +257,7 @@ export default function ExternalCustomersReport() {
       name: (a, b) => a.customer.name.localeCompare(b.customer.name, "ar"),
     };
     return filtered.sort(sorters[sortKey]);
-  }, [customers, externalBatches, payments, pricing, customerFilter, statusFilter, sortKey, fromDate, toDate]);
+  }, [customers, externalBatches, payments, pricing, customerFilter, statusFilter, sortKey, fromDate, toDate, broodingByCustomer]);
 
   // Top-level KPIs
   const totals = useMemo(() => {
@@ -254,6 +314,10 @@ export default function ExternalCustomersReport() {
       "المخصب": r.totalFertile,
       "الكتاكيت": r.totalChicks,
       "نسبة الفقس %": r.hatchRate.toFixed(1),
+      "كتاكيت محضنة": r.broodingChicks || 0,
+      "أيام تحضين": r.broodingDays || 0,
+      "كتاكيت لم تستلم": r.pendingChicks || 0,
+      "رسوم تحضين متوقعة": Math.round(r.broodingFeeProjected || 0),
       "رسوم اللايح": Math.round(r.infertileFee),
       "رسوم كشف 2": Math.round(r.candle2Fee),
       "رسوم الكتاكيت": Math.round(r.chicksFee),
@@ -425,6 +489,11 @@ export default function ExternalCustomersReport() {
                 <TableHead>مخصب</TableHead>
                 <TableHead>كتاكيت</TableHead>
                 <TableHead>نسبة فقس</TableHead>
+                <TableHead className="bg-amber-50">كتاكيت محضنة</TableHead>
+                <TableHead className="bg-amber-50">أيام تحضين</TableHead>
+                <TableHead className="bg-amber-50">رسوم تحضين</TableHead>
+                <TableHead className="bg-orange-50">كتاكيت لم تستلم</TableHead>
+                <TableHead className="bg-orange-50">تحضين متوقع</TableHead>
                 <TableHead>المستحق</TableHead>
                 <TableHead>المدفوع</TableHead>
                 <TableHead>المتبقي</TableHead>
@@ -434,7 +503,7 @@ export default function ExternalCustomersReport() {
             </TableHeader>
             <TableBody>
               {customerRows.length === 0 ? (
-                <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">لا توجد بيانات في الفترة المختارة</TableCell></TableRow>
+                <TableRow><TableCell colSpan={17} className="text-center py-8 text-muted-foreground">لا توجد بيانات في الفترة المختارة</TableCell></TableRow>
               ) : customerRows.map((r) => (
                 <TableRow key={r.customer.id}>
                   <TableCell className="font-medium">{r.customer.name}</TableCell>
@@ -444,6 +513,11 @@ export default function ExternalCustomersReport() {
                   <TableCell>{fmt(r.totalFertile)}</TableCell>
                   <TableCell>{fmt(r.totalChicks)}</TableCell>
                   <TableCell>{r.hatchRate.toFixed(1)}%</TableCell>
+                  <TableCell className="bg-amber-50/50">{fmt(r.broodingChicks || 0)}</TableCell>
+                  <TableCell className="bg-amber-50/50">{fmt(r.broodingDays || 0)}</TableCell>
+                  <TableCell className="bg-amber-50/50 font-semibold">{fmt(Math.round(r.broodingFee || 0))}</TableCell>
+                  <TableCell className="bg-orange-50/50">{r.pendingChicks ? fmt(r.pendingChicks) : "—"}</TableCell>
+                  <TableCell className="bg-orange-50/50 text-orange-700">{r.broodingFeeProjected ? fmt(Math.round(r.broodingFeeProjected)) : "—"}</TableCell>
                   <TableCell className="font-bold text-primary">{fmt(Math.round(r.totalDue))}</TableCell>
                   <TableCell className="text-green-600">{fmt(Math.round(r.totalPaid))}</TableCell>
                   <TableCell className={r.remaining > 0 ? "text-red-600 font-bold" : r.remaining < 0 ? "text-blue-600" : ""}>{fmt(Math.round(r.remaining))}</TableCell>
