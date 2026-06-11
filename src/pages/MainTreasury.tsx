@@ -425,6 +425,7 @@ export default function MainTreasury() {
           {isApprover && <TabsTrigger value="approve">بانتظار الاعتماد {pendingTxns.length>0 && <Badge className="mr-2">{pendingTxns.length}</Badge>}</TabsTrigger>}
           <TabsTrigger value="log">سجل الحركات</TabsTrigger>
           <TabsTrigger value="transfers">سجل التحويلات</TabsTrigger>
+          <TabsTrigger value="analytics">تحليل المصروفات</TabsTrigger>
           <TabsTrigger value="audit">Audit Log</TabsTrigger>
           <TabsTrigger value="settings">إعدادات</TabsTrigger>
         </TabsList>
