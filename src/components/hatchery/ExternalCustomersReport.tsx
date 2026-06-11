@@ -632,7 +632,56 @@ export default function ExternalCustomersReport() {
               </div>
 
               <div>
-                <h3 className="font-semibold mb-2">المدفوعات في الفترة</h3>
+                <h3 className="font-semibold mb-2">حسابات الدفعات (لكل دفعة على حدة)</h3>
+                <div className="overflow-x-auto rounded border">
+                  <Table>
+                    <TableHeader><TableRow>
+                      <TableHead>رقم الدفعة</TableHead>
+                      <TableHead>تاريخ الدخول</TableHead>
+                      <TableHead>تاريخ الفقس</TableHead>
+                      <TableHead>تاريخ الاستلام</TableHead>
+                      <TableHead>بيض</TableHead>
+                      <TableHead>كتاكيت</TableHead>
+                      <TableHead>الفاتورة</TableHead>
+                      <TableHead>المتبقي</TableHead>
+                      <TableHead>الحالة</TableHead>
+                      <TableHead></TableHead>
+                    </TableRow></TableHeader>
+                    <TableBody>
+                      {customerLots.length === 0 ? (
+                        <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-4">لا توجد دفعات لهذا العميل</TableCell></TableRow>
+                      ) : customerLots.map((l: any) => {
+                        const inv = invoiceByLot.get(l.id);
+                        return (
+                          <TableRow key={l.id}>
+                            <TableCell className="font-mono text-xs">{l.batch?.batch_number || "—"}</TableCell>
+                            <TableCell className="text-xs">{l.batch?.entry_date || "—"}</TableCell>
+                            <TableCell className="text-xs">{l.hatcher_out_at?.slice(0,10) || "—"}</TableCell>
+                            <TableCell className="text-xs">{l.brooding_out_at?.slice(0,10) || "—"}</TableCell>
+                            <TableCell>{fmt(l.eggs_in)}</TableCell>
+                            <TableCell>{fmt(l.chicks_hatched)}</TableCell>
+                            <TableCell className="text-xs font-mono">{inv?.invoice_no || "—"}</TableCell>
+                            <TableCell className="text-red-600">{inv ? fmtMoney(inv.remaining_amount) : "—"}</TableCell>
+                            <TableCell>
+                              {inv ? (
+                                <Badge variant={inv.payment_status === "paid" ? "default" : inv.payment_status === "partial" ? "secondary" : "destructive"}>
+                                  {inv.payment_status === "paid" ? "مدفوعة" : inv.payment_status === "partial" ? "جزئيًا" : "غير مدفوعة"}
+                                </Badge>
+                              ) : <Badge variant="outline">بدون فاتورة</Badge>}
+                            </TableCell>
+                            <TableCell>
+                              <Button size="sm" variant="outline" onClick={() => setOpenLotId(l.id)}>فتح حساب الدفعة</Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-semibold mb-2">المدفوعات اليدوية في الفترة</h3>
                 <div className="overflow-x-auto rounded border">
                   <Table>
                     <TableHeader><TableRow>
@@ -640,7 +689,7 @@ export default function ExternalCustomersReport() {
                     </TableRow></TableHeader>
                     <TableBody>
                       {detailsPayments.length === 0 ? (
-                        <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-4">لا توجد مدفوعات</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-4">لا توجد مدفوعات يدوية</TableCell></TableRow>
                       ) : detailsPayments.map((p) => (
                         <TableRow key={p.id}>
                           <TableCell>{p.payment_date}</TableCell>
@@ -656,6 +705,14 @@ export default function ExternalCustomersReport() {
           )}
         </DialogContent>
       </Dialog>
+
+      {openLotId && detailsRow && (
+        <BatchAccountDialog
+          lotId={openLotId}
+          customerName={detailsRow.customer.name}
+          onClose={() => { setOpenLotId(null); refetchCustomerLots(); refetchCustomerInvoices(); }}
+        />
+      )}
     </div>
   );
 }
