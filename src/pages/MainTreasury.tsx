@@ -560,7 +560,16 @@ export default function MainTreasury() {
               <div><Label>المبلغ *</Label><Input type="number" step="0.01" value={txnForm.amount} onChange={e=>setTxnForm({...txnForm, amount: e.target.value})}/></div>
               <div><Label>التاريخ</Label><Input type="date" value={txnForm.txn_date} onChange={e=>setTxnForm({...txnForm, txn_date: e.target.value})}/></div>
               {(txnForm.txn_type === "expense") && (
-                <div><Label>بند المصروف *</Label>
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <Label>بند المصروف *</Label>
+                    {canWrite && (
+                      <Button type="button" size="sm" variant="outline" className="h-7 gap-1 text-xs"
+                        onClick={() => setNewCatDlg({ open: true, label: "", notes: "", busy: false })}>
+                        <Plus className="h-3.5 w-3.5"/> إضافة بند مصروف
+                      </Button>
+                    )}
+                  </div>
                   <Select value={txnForm.category_id} onValueChange={v => setTxnForm({...txnForm, category_id: v})}>
                     <SelectTrigger><SelectValue placeholder="اختر"/></SelectTrigger>
                     <SelectContent>{cats.map(c => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}</SelectContent>
