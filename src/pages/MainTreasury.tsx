@@ -27,7 +27,8 @@ type Txn = {
   id: string; reference_no: string; account_id: string; txn_type: string; amount: number; txn_date: string;
   category_id: string | null; counterparty: string | null; description: string; status: string;
   requires_dual_approval: boolean; rejection_reason: string | null; created_at: string; created_by: string;
-  approver_1_id: string | null; approver_2_id: string | null; posted_at: string | null;
+  approver_1_id: string | null; approver_1_at: string | null; approver_2_id: string | null; posted_at: string | null;
+  payment_method: string | null;
 };
 type CustodyTransfer = { id: string; main_txn_id: string; custody_keeper_id: string; amount: number; transfer_date: string; status: string; received_at: string|null };
 
