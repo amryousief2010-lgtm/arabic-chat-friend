@@ -21,7 +21,7 @@ import * as XLSX from "xlsx";
 import CustodyExpenseAnalytics from "@/components/treasury/CustodyExpenseAnalytics";
 import VehicleExpenseAnalysis from "@/components/treasury/VehicleExpenseAnalysis";
 import IncomingCustodyTransfers from "@/components/treasury/IncomingCustodyTransfers";
-import IncomingLabCustodyTransfers from "@/components/treasury/IncomingLabCustodyTransfers";
+
 import {
   Wallet, Plus, ShieldAlert, CheckCircle2, XCircle, MessageSquare, Upload,
   Printer, FileSpreadsheet, AlertTriangle, ScrollText, Beef, Sparkles, Clock, Activity, Receipt, TrendingDown,
