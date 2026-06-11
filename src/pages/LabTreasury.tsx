@@ -1074,7 +1074,7 @@ export default function LabTreasury() {
             </Alert>
 
             <div className="flex justify-end">
-              <LabToCustodyTransferDialog onCreated={() => load()} />
+              <LabToCustodyTransferDialog onCreated={() => fetchData()} />
             </div>
 
             {/* Main KPIs */}
