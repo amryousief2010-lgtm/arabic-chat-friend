@@ -27,7 +27,8 @@ type Txn = {
   id: string; reference_no: string; account_id: string; txn_type: string; amount: number; txn_date: string;
   category_id: string | null; counterparty: string | null; description: string; status: string;
   requires_dual_approval: boolean; rejection_reason: string | null; created_at: string; created_by: string;
-  approver_1_id: string | null; approver_2_id: string | null; posted_at: string | null;
+  approver_1_id: string | null; approver_1_at: string | null; approver_2_id: string | null; posted_at: string | null;
+  payment_method: string | null;
 };
 type CustodyTransfer = { id: string; main_txn_id: string; custody_keeper_id: string; amount: number; transfer_date: string; status: string; received_at: string|null };
 
@@ -66,6 +67,8 @@ export default function MainTreasury() {
   const [txns, setTxns] = useState<Txn[]>([]);
   const [custodyKeepers, setCustodyKeepers] = useState<Array<{user_id:string; name:string}>>([]);
   const [transfers, setTransfers] = useState<CustodyTransfer[]>([]);
+  const [lastTransferUserNames, setLastTransferUserNames] = useState<Record<string,string>>({});
+  const [lastDetailOpen, setLastDetailOpen] = useState(false);
 
   // forms
   const [txnForm, setTxnForm] = useState({
@@ -131,6 +134,27 @@ export default function MainTreasury() {
     setLoading(false);
   }
   useEffect(() => { if (user) fetchAll(); /* eslint-disable-next-line */ }, [user?.id]);
+
+  const lastTransferTxn = useMemo(() => {
+    const list = txns.filter(t => t.txn_type === "transfer_to_custody")
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return list[0] || null;
+  }, [txns]);
+
+  const lastTransferLink = useMemo(() =>
+    lastTransferTxn ? (transfers.find(tr => tr.main_txn_id === lastTransferTxn.id) || null) : null,
+  [transfers, lastTransferTxn]);
+
+  useEffect(() => {
+    if (!lastTransferTxn) return;
+    const ids = [lastTransferTxn.created_by, lastTransferTxn.approver_1_id].filter(Boolean) as string[];
+    if (!ids.length) return;
+    (supabase as any).from("profile_directory").select("id, full_name").in("id", ids).then(({ data }: any) => {
+      const m: Record<string, string> = {};
+      (data || []).forEach((p: any) => { if (p.full_name) m[p.id] = p.full_name; });
+      setLastTransferUserNames(prev => ({ ...prev, ...m }));
+    });
+  }, [lastTransferTxn?.id]);
 
   const totalBalance = useMemo(() => balances.reduce((s,b)=>s+Number(b.current_balance||0), 0), [balances]);
   const totalPending = useMemo(() => balances.reduce((s,b)=>s+Number(b.pending_amount||0), 0), [balances]);
@@ -513,7 +537,48 @@ export default function MainTreasury() {
         </TabsContent>
 
         {/* Transfer */}
-        <TabsContent value="transfer" className="mt-4">
+        <TabsContent value="transfer" className="mt-4 space-y-3">
+          {/* آخر حركة تحويل إلى خزنة العهدة */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <History className="h-4 w-4 text-[hsl(280_60%_50%)]"/>آخر حركة تحويل إلى خزنة العهدة
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {lastTransferTxn ? (() => {
+                const keeperName = custodyKeepers.find(k => k.user_id === lastTransferLink?.custody_keeper_id)?.name || "—";
+                const reason = lastTransferTxn.description?.replace("توريد إلى خزنة العهدة — ", "") || "—";
+                const pm = lastTransferTxn.payment_method === "cash" ? "نقدي" : lastTransferTxn.payment_method === "transfer" ? "تحويل بنكي / محفظة" : lastTransferTxn.payment_method || "—";
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-2 text-sm">
+                    <div><span className="text-muted-foreground text-xs">رقم الحركة</span><div className="font-mono font-semibold">{lastTransferTxn.reference_no}</div></div>
+                    <div><span className="text-muted-foreground text-xs">التاريخ والوقت</span><div className="font-semibold">{fmtDate(lastTransferTxn.created_at)}</div></div>
+                    <div><span className="text-muted-foreground text-xs">المبلغ</span><div className="font-mono font-bold text-primary">{fmtNum(lastTransferTxn.amount,2)} ج.م</div></div>
+                    <div><span className="text-muted-foreground text-xs">الخزنة المصدر</span><div className="font-semibold">الخزنة الرئيسية</div></div>
+                    <div><span className="text-muted-foreground text-xs">الخزنة المستلمة</span><div className="font-semibold">خزنة العهدة</div></div>
+                    <div><span className="text-muted-foreground text-xs">أمين العهدة المستلم</span><div className="font-semibold">{keeperName}</div></div>
+                    <div><span className="text-muted-foreground text-xs">سبب التوريد</span><div className="font-semibold">{reason}</div></div>
+                    <div><span className="text-muted-foreground text-xs">طريقة التسليم</span><div className="font-semibold">{pm}</div></div>
+                    <div><span className="text-muted-foreground text-xs">الحالة</span><div><Badge variant={STATUS_TONE[lastTransferTxn.status]}>{STATUS_LBL[lastTransferTxn.status] || lastTransferTxn.status}</Badge></div></div>
+                    <div><span className="text-muted-foreground text-xs">تم التسجيل بواسطة</span><div className="font-semibold">{lastTransferUserNames[lastTransferTxn.created_by] || lastTransferTxn.created_by.slice(0,8)}</div></div>
+                    {lastTransferTxn.approver_1_id && (
+                      <>
+                        <div><span className="text-muted-foreground text-xs">تم الاعتماد بواسطة</span><div className="font-semibold">{lastTransferUserNames[lastTransferTxn.approver_1_id] || lastTransferTxn.approver_1_id.slice(0,8)}</div></div>
+                        <div><span className="text-muted-foreground text-xs">تاريخ الاعتماد</span><div className="font-semibold">{fmtDate(lastTransferTxn.approver_1_at)}</div></div>
+                      </>
+                    )}
+                    <div className="md:col-span-3 pt-1">
+                      <Button variant="outline" size="sm" onClick={() => setLastDetailOpen(true)}>عرض التفاصيل</Button>
+                    </div>
+                  </div>
+                );
+              })() : (
+                <div className="text-center text-muted-foreground py-6">لا توجد تحويلات سابقة إلى خزنة العهدة</div>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><Send className="h-4 w-4"/>توريد إلى خزنة العهدة</CardTitle></CardHeader>
             <CardContent className="grid md:grid-cols-2 gap-3">
@@ -853,6 +918,59 @@ export default function MainTreasury() {
           <DialogFooter>
             <Button variant="ghost" onClick={()=>setEditOpenBal({open:false, value:""})}>إلغاء</Button>
             <Button onClick={saveOpeningBalance} disabled={busy}>حفظ</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={lastDetailOpen} onOpenChange={setLastDetailOpen}>
+        <DialogContent dir="rtl" className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>تفاصيل تحويل إلى خزنة العهدة — {lastTransferTxn?.reference_no || "—"}</DialogTitle>
+          </DialogHeader>
+          {lastTransferTxn ? (() => {
+            const keeperName = custodyKeepers.find(k => k.user_id === lastTransferLink?.custody_keeper_id)?.name || "—";
+            const reason = lastTransferTxn.description?.replace("توريد إلى خزنة العهدة — ", "") || "—";
+            const pm = lastTransferTxn.payment_method === "cash" ? "نقدي" : lastTransferTxn.payment_method === "transfer" ? "تحويل بنكي / محفظة" : lastTransferTxn.payment_method || "—";
+            return (
+              <div className="space-y-3 text-sm">
+                <div className="grid grid-cols-2 gap-3">
+                  <div><span className="text-muted-foreground text-xs block">رقم الحركة</span><span className="font-mono font-semibold">{lastTransferTxn.reference_no}</span></div>
+                  <div><span className="text-muted-foreground text-xs block">المبلغ</span><span className="font-mono font-bold text-primary">{fmtNum(lastTransferTxn.amount,2)} ج.م</span></div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><span className="text-muted-foreground text-xs block">التاريخ</span><span className="font-semibold">{lastTransferTxn.txn_date}</span></div>
+                  <div><span className="text-muted-foreground text-xs block">وقت التسجيل</span><span className="font-semibold">{fmtDate(lastTransferTxn.created_at)}</span></div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><span className="text-muted-foreground text-xs block">الخزنة المصدر</span><span className="font-semibold">الخزنة الرئيسية</span></div>
+                  <div><span className="text-muted-foreground text-xs block">الخزنة المستلمة</span><span className="font-semibold">خزنة العهدة</span></div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><span className="text-muted-foreground text-xs block">أمين العهدة المستلم</span><span className="font-semibold">{keeperName}</span></div>
+                  <div><span className="text-muted-foreground text-xs block">طريقة التسليم</span><span className="font-semibold">{pm}</span></div>
+                </div>
+                <div><span className="text-muted-foreground text-xs block">سبب التوريد</span><span className="font-semibold">{reason}</span></div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><span className="text-muted-foreground text-xs block">الحالة</span><Badge variant={STATUS_TONE[lastTransferTxn.status]}>{STATUS_LBL[lastTransferTxn.status] || lastTransferTxn.status}</Badge></div>
+                  <div><span className="text-muted-foreground text-xs block">تم التسجيل بواسطة</span><span className="font-semibold">{lastTransferUserNames[lastTransferTxn.created_by] || lastTransferTxn.created_by.slice(0,8)}</span></div>
+                </div>
+                {lastTransferTxn.approver_1_id && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><span className="text-muted-foreground text-xs block">تم الاعتماد بواسطة</span><span className="font-semibold">{lastTransferUserNames[lastTransferTxn.approver_1_id] || lastTransferTxn.approver_1_id.slice(0,8)}</span></div>
+                    <div><span className="text-muted-foreground text-xs block">تاريخ الاعتماد</span><span className="font-semibold">{fmtDate(lastTransferTxn.approver_1_at)}</span></div>
+                  </div>
+                )}
+                {lastTransferTxn.rejection_reason && (
+                  <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm">
+                    <span className="text-muted-foreground text-xs block">سبب الرفض</span>
+                    <span className="text-destructive font-semibold">{lastTransferTxn.rejection_reason}</span>
+                  </div>
+                )}
+              </div>
+            );
+          })() : null}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLastDetailOpen(false)}>إغلاق</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
