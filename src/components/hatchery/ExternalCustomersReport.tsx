@@ -105,6 +105,52 @@ export default function ExternalCustomersReport() {
     },
   });
 
+  // Per-customer lots (hatchery_batch_lots) — source of truth for brooding period
+  const { data: lots = [] } = useQuery({
+    queryKey: ["ecr_lots", fromDate, toDate],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hatchery_batch_lots" as any)
+        .select("client_id,chicks_hatched,hatcher_out_at,brooding_in_at,brooding_out_at,brooding_days,cancelled,owner_type")
+        .eq("owner_type", "external_client")
+        .eq("cancelled", false);
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+
+  // Aggregate brooding info per customer
+  const broodingByCustomer = useMemo(() => {
+    const dailyPrice = num(pricing?.daily_brooding_price);
+    const today = new Date();
+    const m = new Map<string, { chicksBrooded: number; daysSum: number; feesActual: number; pendingChicks: number; feesProjected: number }>();
+    for (const l of lots) {
+      if (!l.client_id) continue;
+      const chicks = num(l.chicks_hatched);
+      if (chicks <= 0) continue;
+      const startISO = l.hatcher_out_at || l.brooding_in_at;
+      if (!startISO) continue;
+      const start = new Date(startISO);
+      const e = m.get(l.client_id) || { chicksBrooded: 0, daysSum: 0, feesActual: 0, pendingChicks: 0, feesProjected: 0 };
+      const dayMs = 86400000;
+      const startDay = Math.floor(start.getTime() / dayMs);
+      if (l.brooding_out_at) {
+        const end = new Date(l.brooding_out_at);
+        const days = Math.max(1, Math.floor(end.getTime() / dayMs) - startDay + 1);
+        e.chicksBrooded += chicks;
+        e.daysSum += days;
+        e.feesActual += chicks * days * dailyPrice;
+      } else {
+        const days = Math.max(1, Math.floor(today.getTime() / dayMs) - startDay + 1);
+        e.pendingChicks += chicks;
+        e.feesProjected += chicks * days * dailyPrice;
+      }
+      m.set(l.client_id, e);
+    }
+    return m;
+  }, [lots, pricing]);
+
+
   // External customer ids only
   const externalIds = useMemo(() => new Set(customers.map((c) => c.id)), [customers]);
   const customerById = useMemo(() => {
