@@ -30,6 +30,7 @@ import {
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { OpeningBalancesPanel, ExternalCollectionsPanel, ExternalSummaryCard, TotalLabFundsCard } from "@/pages/lab-treasury/LabTreasuryExtras";
 import { PremiumStat, HeroSummary, SectionTitle, StatusPill, DashboardSkeleton, EmptyState, ActivityTimeline, getCairoNow } from "@/components/treasury/PremiumUI";
+import LabExpenseAnalytics from "@/components/treasury/LabExpenseAnalytics";
 
 type PaymentMethod = "cash" | "vodafone_cash" | "instapay" | "bank_transfer";
 type MovementType = "income" | "expense";
