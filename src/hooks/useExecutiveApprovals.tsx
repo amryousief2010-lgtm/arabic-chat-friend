@@ -403,6 +403,9 @@ export function useExecutiveApprovals() {
             payload: { source: "executive_approvals", reason: r },
           });
         }
+      } else if (item.category === "slaughter") {
+        const { error } = await (supabase as any).rpc("reject_slaughter_batch" as any, { p_batch_id: item.id, p_reason: r });
+        if (error) throw error;
       }
       await refetch();
     },
@@ -414,7 +417,7 @@ export function useExecutiveApprovals() {
       isApprover,
       isLoading,
       items: data?.items ?? [],
-      counts: data?.counts ?? { all: 0, treasury: 0, lab: 0, meat: 0, custody: 0 },
+      counts: data?.counts ?? { all: 0, treasury: 0, lab: 0, meat: 0, custody: 0, slaughter: 0 },
       refetch,
       approve,
       reject,

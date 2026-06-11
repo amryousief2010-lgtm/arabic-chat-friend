@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Bell, CheckCircle2, XCircle, ShieldAlert, Wallet, Beef, Drumstick, FlaskConical } from "lucide-react";
+import { Bell, CheckCircle2, XCircle, ShieldAlert, Wallet, Beef, Drumstick, FlaskConical, Scissors } from "lucide-react";
 import { useExecutiveApprovals, type ApprovalItem, type ApprovalCategory } from "@/hooks/useExecutiveApprovals";
 
 const SESSION_KEY = "executive_approvals_dismissed_at";
@@ -21,18 +21,21 @@ const CAT_LABEL: Record<ApprovalCategory, string> = {
   treasury: "الخزن",
   meat: "مصنع اللحوم",
   custody: "عهدة الدبح",
+  slaughter: "تقسيمة الدبح",
   lab: "المعمل",
 };
 const CAT_ICON: Record<ApprovalCategory, JSX.Element> = {
   treasury: <Wallet className="h-4 w-4" />,
   meat: <Beef className="h-4 w-4" />,
   custody: <Drumstick className="h-4 w-4" />,
+  slaughter: <Scissors className="h-4 w-4" />,
   lab: <FlaskConical className="h-4 w-4" />,
 };
 const CAT_COLOR: Record<ApprovalCategory, string> = {
   treasury: "bg-amber-100 text-amber-800 border-amber-300",
   meat: "bg-red-100 text-red-800 border-red-300",
   custody: "bg-orange-100 text-orange-800 border-orange-300",
+  slaughter: "bg-rose-100 text-rose-800 border-rose-300",
   lab: "bg-blue-100 text-blue-800 border-blue-300",
 };
 
