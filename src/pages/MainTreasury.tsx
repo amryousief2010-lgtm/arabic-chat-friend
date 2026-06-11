@@ -95,7 +95,7 @@ export default function MainTreasury() {
       (supabase as any).from("v_main_treasury_balance").select("*"),
       (supabase as any).from("main_treasury_expense_categories").select("id,code,label").eq("is_active", true).order("sort_order"),
       (supabase as any).from("main_treasury_transactions").select("*").order("created_at", { ascending: false }).limit(500),
-      (supabase as any).from("user_roles").select("user_id, profiles:profiles!user_roles_user_id_fkey(full_name)").eq("role", "slaughterhouse_custody_keeper"),
+      (supabase as any).from("user_roles").select("user_id").eq("role", "slaughterhouse_custody_keeper"),
       (supabase as any).from("main_treasury_to_custody_transfers").select("*").order("created_at", { ascending: false }).limit(200),
       (supabase as any).from("main_treasury_audit_log").select("*").order("performed_at", { ascending: false }).limit(300),
     ]);
@@ -106,7 +106,13 @@ export default function MainTreasury() {
     setCats(c.data || []);
     setTxns(t.data || []);
     setTransfers(x.data || []);
-    const keepers = (k.data || []).map((r: any) => ({ user_id: r.user_id, name: r.profiles?.full_name || r.user_id.slice(0,8) }));
+    const keeperIds = (k.data || []).map((r: any) => r.user_id);
+    let nameMap: Record<string, string> = {};
+    if (keeperIds.length) {
+      const { data: pd } = await (supabase as any).from("profile_directory").select("id, full_name").in("id", keeperIds);
+      nameMap = Object.fromEntries((pd || []).map((p: any) => [p.id, p.full_name]));
+    }
+    const keepers = keeperIds.map((uid: string) => ({ user_id: uid, name: nameMap[uid] || uid.slice(0, 8) }));
     // Sort: محمد شعلة first (default custody keeper)
     keepers.sort((x: any, y: any) => {
       const xs = /شعلة|شعله/.test(x.name) ? 0 : 1;
