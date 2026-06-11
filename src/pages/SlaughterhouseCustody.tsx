@@ -102,6 +102,7 @@ export default function SlaughterhouseCustody() {
   const [form, setForm] = useState({
     expense_date: today(), category: "maintenance" as Category, description: "",
     amount: "", payment_method: "cash" as PM, beneficiary: "", has_invoice: false, notes: "",
+    vehicle_plate: "", vehicle_label: "",
   });
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
 
