@@ -1,63 +1,78 @@
-## الخطة المقترحة — تنفيذ على 3 مراحل متتابعة
+## لوحة "اعتمادات مطلوبة" للمدير التنفيذي
 
-النظام الحالي عنده بالفعل: `meat_factory_raw_items`، `meat_factory_inventory_moves`، `meat_manufacturing_invoices` + lines، وزر تحويل للمخزن الرئيسي بموافقة الاستلام، وفاتورة تصنيع تخصم الخامات عند الاعتماد. هابني فوق ده بدون حذف.
+شاشة موحّدة تظهر تلقائيًا أول ما يفتح المدير التنفيذي (أو المدير العام) السيستم، تجمع كل الاعتمادات المعلّقة من كل الأقسام، مع تحديث تلقائي وزر اعتماد/رفض داخل اللوحة.
 
----
+### مكان الظهور
+- إضافة مكوّن `ExecutiveApprovalsAlert` داخل `DashboardLayout.tsx` فوق المحتوى (بنفس نمط `PendingApprovalsAlert` الموجود حاليًا للمعمل).
+- يظهر فقط لـ `executive_manager` أو `general_manager`.
+- جرس عائم في الأعلى يحمل عداد ("لديك N اعتماد بانتظار المراجعة"). أول دخول في الجلسة → فتح تلقائي للّوحة. بعد الإغلاق تظل الفقاعة ظاهرة مع العداد.
+- لا أي عنصر جديد في السايد بار.
 
-### المرحلة 1 — المشتريات + خامات التغليف (هذه الرسالة)
+### مصادر البيانات (المؤكدة في الكود/الـ DB)
 
-**قاعدة البيانات (migration واحد):**
-- توسيع `meat_factory_raw_items` بإضافة:
-  - `kind` (`raw` | `spice` | `packaging`) — defaults `raw`، تُحدّث الصفوف القديمة حسب التصنيف الحالي.
-  - `reorder_threshold` numeric، `is_active` boolean default true.
-- جدول `meat_factory_purchase_invoices`:
-  - رقم تلقائي `MPI-YYYYMM-####`، تاريخ، المورد، نوع الفاتورة، طريقة الدفع، رقم الإيصال، مرفق، ملاحظات، الحالة (`pending` / `approved` / `rejected` / `cancelled`)، `purchase_invoice_uuid` (unique) لمنع التكرار، `created_by`، `approved_by`، `approved_at`، `total`.
-- جدول `meat_factory_purchase_invoice_lines`: الصنف، القسم، الوحدة، الكمية، سعر الشراء، إجمالي السطر، تاريخ الصلاحية، ملاحظات.
-- دالة `approve_meat_purchase_invoice(p_id)`:
-  - تتحقق من الصلاحية (مدير عام/تنفيذي).
-  - لكل سطر: تزيد `current_stock`، تحدّث متوسط `unit_cost`، تُدخل صف في `meat_factory_inventory_moves` مع `stock_before`/`stock_after` و `reason='purchase'` و `source_id` للفاتورة.
-  - تحدّث حالة الفاتورة لـ `approved`، تسجّل في `meat_factory_audit_log`.
-  - فهرس فريد على `(source_type='purchase_invoice', source_id)` لمنع التكرار.
-- RLS: قراءة لكل مستخدمي المصنع، إنشاء لمسؤول المصنع، اعتماد للمدراء فقط.
+| التبويب | الجدول | شرط pending | جدول الـAudit |
+|---|---|---|---|
+| الخزن (الرئيسية) | `main_treasury_transactions` | `status='pending_approval'` | `main_treasury_audit_log` |
+| الخزن (تحويلات) | `treasury_transfers` + `treasury_transfer_settlements` | `status='pending'` | `treasury_transfer_audit_log` |
+| المعمل | `lab_treasury_movements` | `status='pending'` | `lab_treasury_audit_log` |
+| مصنع اللحوم | `meat_manufacturing_invoices` + `meat_factory_manufacturing` | `status='draft'` | `manager_review_audit` |
+| تقسيمة الدبح | `slaughter_custody_expenses` | `status IN ('pending_review','over_limit_pending')` | `slaughter_custody_audit` |
 
-**الواجهة:**
-- صفحة جديدة `/meat-factory/purchase-invoices` بتبويبين:
-  - **فاتورة جديدة**: نموذج رأس + جدول أسطر + رفع مرفق، حفظ بحالة `pending`.
-  - **سجل الفواتير**: فلاتر (تاريخ، حالة، مورد)، شارة الحالة، زر **اعتماد** للمدير العام/التنفيذي، زر **رفض**، زر **طباعة**، تصدير Excel/PDF.
-- في صفحة مخزن الخامات: تبويب جديد **خامات التغليف** يفلتر `kind='packaging'`، مع نفس أزرار إضافة/تعديل الصنف وعرض حد التنبيه و"غير نشط".
-- إدخال 14 صنف تغليف افتتاحي بصفر رصيد (علبة برجر/كفتة/سجق/مفروم/حواوشي/شاورما/شيش/رول استرتش/أكياس/استيكرات/أطباق فوم/رول فاكيوم/شنط/أخرى) — هتزيد أرصدتها من فاتورة المشتريات.
-- رابط في القائمة الجانبية تحت مصنع اللحوم.
+ملاحظات صريحة من الفحص:
+- جداول `feed_factory_treasury_txns` / `hatchery_treasury_txns` / `meat_factory_treasury_txns` / `mf_treasury` **ليس فيها عمود status** — هي journals مباشرة بدون اعتماد، فلن تظهر في اللوحة.
+- جدول `slaughter_batches` نفسه ليس فيه حالة "بانتظار الاعتماد" — أقرب طابور اعتماد فعلي للدبح هو `slaughter_custody_expenses` (عهدة المسلخ). سيُستخدم كتبويب "تقسيمة/عهدة الدبح".
+- توريد التفريخ → ينتهي بـ row في `lab_treasury_movements` بحالة pending → يظهر تلقائيًا في تبويب المعمل.
 
-**الاختبار:** فاتورة مشتريات لـ 100 علبة برجر × 2ج، اعتمادها، التأكد أن رصيد علبة برجر = 100 وحركة `purchase` ظهرت، ومحاولة اعتماد مرتين لا تكرر.
+### التبويبات
+`الكل (N) | الخزن (n) | مصنع اللحوم (n) | عهدة الدبح (n) | المعمل (n)` — كل تبويب يعرض عدّاد.
 
----
+كل كارت يحتوي على: النوع، الخزنة/المخزن/الفاتورة، المبلغ/الكمية، المستخدم المُسجِّل، التاريخ، الحالة، أزرار **عرض التفاصيل / اعتماد / رفض** (الرفض يفتح مربع لكتابة السبب).
 
-### المرحلة 2 — ترقية فاتورة التصنيع (الرسالة التالية بعد قبول هذه)
+### الاعتماد والرفض
+- يستخدم نفس RPC/منطق الاعتماد القائم في كل قسم (بدون تغيير منطق الاعتماد الحالي):
+  - الخزنة الرئيسية: تحديث `status='approved'/'rejected'` + كتابة في `main_treasury_audit_log`.
+  - تحويلات الخزنة: تحديث الحالة + `treasury_transfer_audit_log`.
+  - المعمل: عبر hook `useLabTreasuryApprovals` الموجود.
+  - فواتير تصنيع اللحوم: تحديث `status='approved'` + `approved_by/at` + `manager_review_audit` (الـ trigger الحالي يخصم الخامات ويضيف المنتج).
+  - عهدة الدبح: تحديث الحالة + `slaughter_custody_audit`.
+- منع التكرار: قبل أي اعتماد نتحقق من الحالة الحالية في DB؛ إذا تغيّرت تظهر رسالة "تم التعامل مع هذا الطلب بالفعل" ويُعاد تحميل القائمة.
 
-- إضافة `kind` لكل سطر مكونات + جدول مستقل في الواجهة لخامات التغليف داخل نفس فاتورة التصنيع.
-- حقول جديدة: `packaging_cost`، `extra_cost`، `total_manufacturing_cost`، `unit_cost` (محسوبة).
-- حقل `destination_kind` (`factory_warehouse` | `main_warehouse_direct`):
-  - عند الاعتماد ومع اختيار "توريد مباشر" يتم إنشاء `meat_production_transfer` تلقائيًا.
-- تعديل دالة `approve_meat_manufacturing_invoice` لتخصم خامات + تغليف معًا، تتحقق من كفاية الرصيد قبل أي خصم، وتسجّل `stock_before/after` لكل سطر، وتمنع الاعتماد المزدوج.
-- زر **طباعة فاتورة تصنيع** عبر `openPrintWindow` من `@/lib/printPdf` (يدعم العربية): شعار، رؤوس، جدولان للخامات وللتغليف، إجماليات، تكلفة الوحدة، توقيعات.
-- صفحة **سجل التصنيع** الكاملة `/meat-factory/manufacturing-log` بكل الأعمدة المطلوبة + Drawer للتفاصيل + أزرار طباعة/توريد/عرض.
+### التحديث التلقائي
+- React Query مع `refetchInterval: 30s` + `refetchOnWindowFocus`.
+- Realtime subscription على الجداول الخمسة عند توفّرها في `supabase_realtime` (إن لم تكن مفعّلة، migration بسيط لإضافتها).
+- العداد يتحدث فورًا. إذا ظهر طلب جديد بينما اللوحة مغلقة → toast: "يوجد اعتماد جديد بانتظارك".
 
----
+### الصلاحية
+- اللوحة + كل الـ RPCs محميّة بـ `has_role(auth.uid(),'executive_manager')` أو `general_manager` (السياسات الحالية بالفعل تسمح لهذين الدورين).
 
-### المرحلة 3 — التقارير والاختبار E2E (الرسالة الأخيرة)
+### الملفات
 
-- تقارير: استهلاك الخامات، استهلاك التغليف، تكلفة المنتجات، فواتير المشتريات الشهرية، فواتير التصنيع اليومية/الشهرية، أرصدة الخامات، التوريد للمخزن الرئيسي — كلها مع فلاتر وتصدير Excel/PDF.
-- تشغيل سيناريو الاختبار الكامل من طلبك (مشتريات 100 علبة → تصنيع 10 كجم برجر باستخدام 8 كجم لحم + 10 علب → اعتماد → خصم → ظهور في السجل → طباعة → توريد → منع التكرار → اختبار رصيد غير كافٍ) وعرض تقرير النتائج بقيم قبل/بعد.
+ملفات جديدة:
+```
+src/hooks/useExecutiveApprovals.tsx          # يجمع 5 queries + counts
+src/components/executive/ExecutiveApprovalsAlert.tsx  # الجرس + الفقاعة + auto-open
+src/components/executive/ExecutiveApprovalsDialog.tsx # الـDialog بالتبويبات
+src/components/executive/cards/TreasuryApprovalCard.tsx
+src/components/executive/cards/TransferApprovalCard.tsx
+src/components/executive/cards/LabMovementApprovalCard.tsx
+src/components/executive/cards/MeatInvoiceApprovalCard.tsx
+src/components/executive/cards/CustodyExpenseApprovalCard.tsx
+src/components/executive/RejectReasonDialog.tsx
+```
 
----
+ملف معدّل:
+```
+src/components/layout/DashboardLayout.tsx    # حقن <ExecutiveApprovalsAlert/>
+```
 
-### تفاصيل تقنية مختصرة (للمراجعة)
+Migration (اختياري حسب الحاجة):
+```
+supabase/migrations/*_realtime_exec_approvals.sql
+  ALTER PUBLICATION supabase_realtime ADD TABLE <جداول الخمسة إن لم تكن مضافة>;
+```
 
-- منع التكرار: عمود `*_uuid unique` على كل من فاتورة المشتريات وفاتورة التصنيع والتوريد + فهرس فريد `(source_type, source_id)` على `meat_factory_inventory_moves`.
-- متوسط التكلفة: `new_unit_cost = (old_stock*old_cost + qty*purchase_price) / (old_stock+qty)` يطبق فقط للأصناف ذات `kind in ('raw','spice','packaging')`.
-- الصلاحيات: `has_role(uid,'general_manager') or has_role(uid,'executive_manager')` للاعتماد؛ مسؤول المصنع للإنشاء؛ المحاسبة للقراءة.
-- كل الـ Audit في `meat_factory_audit_log` الموجود.
+### خارج النطاق (للتأكيد)
+1. لن أضيف عمود `status` لجداول `feed_factory_treasury_txns`/`hatchery_treasury_txns`/`meat_factory_treasury_txns` — هي ledgers append-only. لو محتاج اعتماد عليها لازم تصميم منفصل.
+2. لن أضيف حالة اعتماد جديدة لـ `slaughter_batches` — استخدمت `slaughter_custody_expenses` كأقرب طابور موجود فعلاً. لو المقصود اعتماد التقسيمة نفسها بعد الدبح، يحتاج migration وتصميم لاحق.
 
----
-
-أبدأ بتنفيذ **المرحلة 1 فقط** الآن. عند انتهائها واختبارها معك، أنتقل للمرحلة 2.
+هل أبدأ التنفيذ بهذا النطاق؟
