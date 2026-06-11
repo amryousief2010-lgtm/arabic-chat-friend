@@ -732,6 +732,11 @@ export default function SlaughterhouseCustody() {
               </CardContent></Card>
             </TabsContent>
           )}
+
+          {/* ===== Expense Analytics ===== */}
+          <TabsContent value="analytics">
+            <CustodyExpenseAnalytics expenses={expenses as any} catLabel={CAT_LBL} />
+          </TabsContent>
         </Tabs>
 
         {/* Review dialog */}
