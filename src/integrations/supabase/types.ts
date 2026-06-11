@@ -14817,6 +14817,10 @@ export type Database = {
         Returns: Json
       }
       compute_hatchery_invoice: { Args: { _lot_id: string }; Returns: string }
+      confirm_main_to_custody_transfer: {
+        Args: { p_transfer_id: string }
+        Returns: string
+      }
       confirm_transfer_receipt: {
         Args: { p_lines: Json; p_notes?: string; p_transfer_id: string }
         Returns: Json
