@@ -241,16 +241,21 @@ export function useExecutiveApprovals() {
           });
         }
       } else if (item.category === "meat") {
-        const rpcName =
-          item.raw._source_table === "meat_manufacturing_invoices"
-            ? "approve_meat_manufacturing_invoice"
-            : "approve_meat_factory_manufacturing";
-        const param =
-          item.raw._source_table === "meat_manufacturing_invoices"
-            ? { p_invoice_id: item.id }
-            : { p_id: item.id };
-        const { error } = await (supabase as any).rpc(rpcName as any, param);
-        if (error) throw error;
+        if (item.raw._source_table === "meat_manufacturing_invoices") {
+          const { error } = await (supabase as any).rpc("approve_meat_manufacturing_invoice" as any, { p_invoice_id: item.id });
+          if (error) throw error;
+        } else {
+          // meat_factory_manufacturing — direct status update (no RPC defined)
+          const { error } = await (supabase as any)
+            .from("meat_factory_manufacturing")
+            .update({
+              status: "approved",
+              approved_by: user?.id,
+              approved_at: new Date().toISOString(),
+            })
+            .eq("id", item.id);
+          if (error) throw error;
+        }
         if (user) {
           await (supabase as any).from("manager_review_audit").insert({
             action: "approve",
