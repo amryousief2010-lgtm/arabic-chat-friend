@@ -1714,6 +1714,15 @@ export default function LabTreasury() {
             <ExternalCollectionsPanel />
           </TabsContent>
 
+          {/* Expense analytics */}
+          <TabsContent value="analytics" className="space-y-3">
+            <LabExpenseAnalytics
+              movements={movements as any}
+              incomeLabels={INCOME_LABELS}
+              expenseLabels={EXPENSE_LABELS}
+            />
+          </TabsContent>
+
           {/* Reports */}
           <TabsContent value="reports" className="space-y-3">
             <Card>
