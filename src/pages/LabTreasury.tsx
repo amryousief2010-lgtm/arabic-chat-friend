@@ -31,6 +31,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { OpeningBalancesPanel, ExternalCollectionsPanel, ExternalSummaryCard, TotalLabFundsCard } from "@/pages/lab-treasury/LabTreasuryExtras";
 import { PremiumStat, HeroSummary, SectionTitle, StatusPill, DashboardSkeleton, EmptyState, ActivityTimeline, getCairoNow } from "@/components/treasury/PremiumUI";
 import LabExpenseAnalytics from "@/components/treasury/LabExpenseAnalytics";
+import LabHatcheryClientsRevenue from "@/components/treasury/LabHatcheryClientsRevenue";
 
 type PaymentMethod = "cash" | "vodafone_cash" | "instapay" | "bank_transfer";
 type MovementType = "income" | "expense";
@@ -1170,6 +1171,9 @@ export default function LabTreasury() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* External hatchery clients revenue analytics */}
+            <LabHatcheryClientsRevenue />
             </>
             )}
           </TabsContent>
