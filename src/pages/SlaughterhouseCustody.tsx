@@ -21,7 +21,7 @@ import * as XLSX from "xlsx";
 import CustodyExpenseAnalytics from "@/components/treasury/CustodyExpenseAnalytics";
 import VehicleExpenseAnalysis from "@/components/treasury/VehicleExpenseAnalysis";
 import IncomingCustodyTransfers from "@/components/treasury/IncomingCustodyTransfers";
-import IncomingLabCustodyTransfers from "@/components/treasury/IncomingLabCustodyTransfers";
+
 import {
   Wallet, Plus, ShieldAlert, CheckCircle2, XCircle, MessageSquare, Upload,
   Printer, FileSpreadsheet, AlertTriangle, ScrollText, Beef, Sparkles, Clock, Activity, Receipt, TrendingDown,
@@ -456,9 +456,9 @@ export default function SlaughterhouseCustody() {
               ) : null}
             />
 
-            {/* Incoming transfers from main treasury */}
+            {/* Incoming transfers from main treasury (to custody) */}
             <IncomingCustodyTransfers onReceived={() => { window.dispatchEvent(new Event('custody:refresh')); }} />
-            <IncomingLabCustodyTransfers onReceived={() => { window.dispatchEvent(new Event('custody:refresh')); }} />
+            {/* Note: تحويلات خزنة المعمل → الخزنة الرئيسية للمجزر تم نقلها إلى صفحة الخزنة الرئيسية للمجزر */}
 
 
 

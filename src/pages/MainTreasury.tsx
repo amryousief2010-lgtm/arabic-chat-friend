@@ -19,6 +19,7 @@ import { openPrintWindow, escapeHtml, fmtNum, fmtDate } from "@/lib/printPdf";
 import * as XLSX from "xlsx";
 import BankAccountPanel from "@/components/main-treasury/BankAccountPanel";
 import MainExpenseAnalytics from "@/components/treasury/MainExpenseAnalytics";
+import IncomingLabCustodyTransfers from "@/components/treasury/IncomingLabCustodyTransfers";
 
 type Account = { id: string; name: string; account_type: "cash"|"bank"|"wallet"; bank_name: string|null; opening_balance: number; is_active: boolean };
 type Balance = { account_id: string; name: string; account_type: string; bank_name: string|null; opening_balance: number; current_balance: number; pending_amount: number; pending_count: number };
@@ -466,25 +467,28 @@ export default function MainTreasury() {
 
 
         {/* Dashboard */}
-        <TabsContent value="dashboard" className="mt-4 grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {balances.length === 0 ? <Card><CardContent className="p-8 text-center text-muted-foreground">لا توجد حسابات بعد — أضف من تبويب "إعدادات"</CardContent></Card> :
-            balances.map(b => (
-              <Card key={b.account_id}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-base flex items-center gap-2">{acctIcon(b.account_type)} {b.name}</CardTitle>
-                  <Badge variant="outline">{b.account_type === "cash"?"نقدي":b.account_type==="bank"?"بنك":"محفظة"}</Badge>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold font-mono text-primary">{fmtNum(b.current_balance, 2)}</div>
-                  <div className="text-xs text-muted-foreground">ج.م — رصيد حالي</div>
-                  <div className="mt-2 text-xs flex justify-between border-t pt-2">
-                    <span>افتتاحي: <b>{fmtNum(b.opening_balance,0)}</b></span>
-                    {b.pending_count > 0 && <span className="text-[hsl(var(--warning,38_92%_50%))]">بانتظار: {fmtNum(b.pending_amount,0)}</span>}
-                  </div>
-                  {b.bank_name && <div className="text-xs text-muted-foreground mt-1">{b.bank_name}</div>}
-                </CardContent>
-              </Card>
-            ))}
+        <TabsContent value="dashboard" className="mt-4 space-y-3">
+          <IncomingLabCustodyTransfers onReceived={fetchAll} />
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {balances.length === 0 ? <Card><CardContent className="p-8 text-center text-muted-foreground">لا توجد حسابات بعد — أضف من تبويب "إعدادات"</CardContent></Card> :
+              balances.map(b => (
+                <Card key={b.account_id}>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-base flex items-center gap-2">{acctIcon(b.account_type)} {b.name}</CardTitle>
+                    <Badge variant="outline">{b.account_type === "cash"?"نقدي":b.account_type==="bank"?"بنك":"محفظة"}</Badge>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold font-mono text-primary">{fmtNum(b.current_balance, 2)}</div>
+                    <div className="text-xs text-muted-foreground">ج.م — رصيد حالي</div>
+                    <div className="mt-2 text-xs flex justify-between border-t pt-2">
+                      <span>افتتاحي: <b>{fmtNum(b.opening_balance,0)}</b></span>
+                      {b.pending_count > 0 && <span className="text-[hsl(var(--warning,38_92%_50%))]">بانتظار: {fmtNum(b.pending_amount,0)}</span>}
+                    </div>
+                    {b.bank_name && <div className="text-xs text-muted-foreground mt-1">{b.bank_name}</div>}
+                  </CardContent>
+                </Card>
+              ))}
+          </div>
         </TabsContent>
 
         {/* New Txn */}
