@@ -139,10 +139,11 @@ export default function ExecutiveApprovalsAlert() {
             </div>
           ) : (
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="flex-1 overflow-hidden flex flex-col">
-              <TabsList className="grid grid-cols-5 w-full">
+              <TabsList className="grid grid-cols-6 w-full">
                 <TabsTrigger value="all">الكل ({counts.all})</TabsTrigger>
                 <TabsTrigger value="treasury">الخزن ({counts.treasury})</TabsTrigger>
                 <TabsTrigger value="meat">مصنع اللحوم ({counts.meat})</TabsTrigger>
+                <TabsTrigger value="slaughter">تقسيمة الدبح ({counts.slaughter})</TabsTrigger>
                 <TabsTrigger value="custody">عهدة الدبح ({counts.custody})</TabsTrigger>
                 <TabsTrigger value="lab">المعمل ({counts.lab})</TabsTrigger>
               </TabsList>
@@ -160,6 +161,7 @@ export default function ExecutiveApprovalsAlert() {
                               <span className="ml-1">{CAT_ICON[item.category]}</span>
                               {CAT_LABEL[item.category]}
                             </Badge>
+                            <Badge variant="secondary" className="text-[10px]">{item.source}</Badge>
                             <span className="font-semibold text-sm">{item.title}</span>
                           </div>
                           {item.amount != null && (
