@@ -3,14 +3,15 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-export type ApprovalCategory = "treasury" | "meat" | "custody" | "lab";
+export type ApprovalCategory = "treasury" | "meat" | "custody" | "slaughter" | "lab";
 
 export type ApprovalItem = {
   id: string;
   category: ApprovalCategory;
-  title: string;          // نوع/منتج
-  subtitle?: string;      // الخزنة/المخزن/الفاتورة
-  amount?: number | null; // المبلغ
+  source: string;         // human-readable source label (e.g. "فاتورة تصنيع", "تصنيع داخلي", "تقسيمة دبح")
+  title: string;
+  subtitle?: string;
+  amount?: number | null;
   qty?: number | null;
   unit?: string | null;
   created_at: string;
@@ -24,6 +25,7 @@ const TREASURY_PENDING = "pending_approval";
 const LAB_PENDING = "pending";
 const MEAT_PENDING = "draft";
 const CUSTODY_PENDING = ["pending_review", "over_limit_pending"];
+const SLAUGHTER_BATCH_PENDING = "pending";
 
 async function resolveProfiles(ids: string[]): Promise<Record<string, string>> {
   const unique = Array.from(new Set(ids.filter(Boolean)));
@@ -50,7 +52,7 @@ export function useExecutiveApprovals() {
     refetchOnWindowFocus: true,
     staleTime: 15_000,
     queryFn: async () => {
-      const [treasuryRes, labRes, meatInvRes, meatMfgRes, custodyRes] = await Promise.all([
+      const [treasuryRes, labRes, meatInvRes, meatMfgRes, custodyRes, slaughterRes] = await Promise.all([
         (supabase as any)
           .from("main_treasury_transactions")
           .select("id, reference_no, txn_type, amount, txn_date, counterparty, description, status, created_at, created_by, payment_method, deposit_purpose, incoming_source")
@@ -65,7 +67,7 @@ export function useExecutiveApprovals() {
           .limit(200),
         (supabase as any)
           .from("meat_manufacturing_invoices")
-          .select("id, invoice_no, product_name, finished_qty, unit, total_manufacturing_cost, materials_total_cost, packaging_cost, status, created_at, created_by, notes")
+          .select("id, invoice_no, product_name, finished_qty, unit, total_manufacturing_cost, materials_total_cost, packaging_cost, status, created_at, created_by, notes, manufacturing_invoice_uuid")
           .eq("status", MEAT_PENDING)
           .order("created_at", { ascending: false })
           .limit(200),
@@ -81,10 +83,16 @@ export function useExecutiveApprovals() {
           .in("status", CUSTODY_PENDING)
           .order("created_at", { ascending: false })
           .limit(200),
+        (supabase as any)
+          .from("slaughter_batches")
+          .select("id, batch_number, slaughter_date, shift, birds_slaughtered, total_live_weight_kg, total_meat_kg, actual_yield_pct, approval_status, created_at, created_by, notes")
+          .eq("approval_status", SLAUGHTER_BATCH_PENDING)
+          .order("created_at", { ascending: false })
+          .limit(200),
       ]);
 
       const allCreators: string[] = [];
-      [treasuryRes, labRes, meatInvRes, meatMfgRes, custodyRes].forEach((r) =>
+      [treasuryRes, labRes, meatInvRes, meatMfgRes, custodyRes, slaughterRes].forEach((r) =>
         (r.data || []).forEach((x: any) => x.created_by && allCreators.push(x.created_by))
       );
       const profiles = await resolveProfiles(allCreators);
@@ -92,6 +100,7 @@ export function useExecutiveApprovals() {
       const treasury: ApprovalItem[] = (treasuryRes.data || []).map((t: any) => ({
         id: t.id,
         category: "treasury",
+        source: "حركة خزنة رئيسية",
         title: `${t.txn_type === "income" ? "إيراد" : t.txn_type === "expense" ? "مصروف" : t.txn_type === "transfer_out" ? "توريد/تحويل" : "حركة"}${t.deposit_purpose ? ` — ${t.deposit_purpose}` : ""}${t.incoming_source ? ` — ${t.incoming_source}` : ""}`,
         subtitle: `${t.reference_no || ""} ${t.counterparty ? "— " + t.counterparty : ""}${t.description ? " — " + t.description : ""}`.trim(),
         amount: Number(t.amount || 0),
@@ -105,6 +114,7 @@ export function useExecutiveApprovals() {
       const lab: ApprovalItem[] = (labRes.data || []).map((m: any) => ({
         id: m.id,
         category: "lab",
+        source: "خزنة المعمل",
         title: `${m.movement_type === "income" ? "إيراد معمل" : "مصروف معمل"}${m.income_category ? " — " + m.income_category : ""}${m.expense_category ? " — " + m.expense_category : ""}`,
         subtitle: `${m.customer_name || m.beneficiary || ""}${m.description ? " — " + m.description : ""}`.trim() || (m.notes || ""),
         amount: Number(m.amount || 0),
@@ -115,9 +125,19 @@ export function useExecutiveApprovals() {
         raw: m,
       }));
 
+      // Build meat list with defensive de-duplication:
+      // - meat_manufacturing_invoices = formal invoice with material lines + warehouse transfer (the authoritative invoice)
+      // - meat_factory_manufacturing  = lighter internal production record (separate workflow)
+      // They are two independent flows today. If a meat_factory_manufacturing row is ever linked to an
+      // invoice via manufacturing_invoice_uuid, hide it from the queue so the same item never appears twice.
+      const linkedInvoiceIds = new Set(
+        (meatInvRes.data || []).map((i: any) => i.manufacturing_invoice_uuid).filter(Boolean)
+      );
+
       const meatInv: ApprovalItem[] = (meatInvRes.data || []).map((i: any) => ({
         id: i.id,
         category: "meat",
+        source: "فاتورة تصنيع رسمية",
         title: `فاتورة تصنيع — ${i.product_name}`,
         subtitle: `${i.invoice_no}${i.notes ? " — " + i.notes : ""}`,
         amount: Number(i.total_manufacturing_cost || i.materials_total_cost || 0),
@@ -130,24 +150,28 @@ export function useExecutiveApprovals() {
         raw: { ...i, _source_table: "meat_manufacturing_invoices" },
       }));
 
-      const meatMfg: ApprovalItem[] = (meatMfgRes.data || []).map((m: any) => ({
-        id: m.id,
-        category: "meat",
-        title: `تصنيع — ${m.finished_item_name}`,
-        subtitle: `${m.invoice_number}${m.notes ? " — " + m.notes : ""}`,
-        amount: Number(m.total_cost || 0),
-        qty: Number(m.produced_qty || 0),
-        created_at: m.created_at,
-        created_by: m.created_by,
-        creator_name: profiles[m.created_by] || null,
-        status: m.status,
-        raw: { ...m, _source_table: "meat_factory_manufacturing" },
-      }));
+      const meatMfg: ApprovalItem[] = (meatMfgRes.data || [])
+        .filter((m: any) => !linkedInvoiceIds.has(m.id))
+        .map((m: any) => ({
+          id: m.id,
+          category: "meat" as ApprovalCategory,
+          source: "تصنيع داخلي",
+          title: `تصنيع داخلي — ${m.finished_item_name}`,
+          subtitle: `${m.invoice_number}${m.notes ? " — " + m.notes : ""}`,
+          amount: Number(m.total_cost || 0),
+          qty: Number(m.produced_qty || 0),
+          created_at: m.created_at,
+          created_by: m.created_by,
+          creator_name: profiles[m.created_by] || null,
+          status: m.status,
+          raw: { ...m, _source_table: "meat_factory_manufacturing" },
+        }));
 
       const custody: ApprovalItem[] = (custodyRes.data || []).map((e: any) => ({
         id: e.id,
         category: "custody",
-        title: `عهدة المسلخ — ${e.category}${e.over_limit ? " (تجاوز الحد)" : ""}`,
+        source: "مصروف عهدة المسلخ",
+        title: `مصروف عهدة — ${e.category}${e.over_limit ? " (تجاوز الحد)" : ""}`,
         subtitle: `${e.beneficiary || ""}${e.description ? " — " + e.description : ""}`.trim(),
         amount: Number(e.amount || 0),
         created_at: e.created_at,
@@ -157,7 +181,23 @@ export function useExecutiveApprovals() {
         raw: e,
       }));
 
-      const items: ApprovalItem[] = [...treasury, ...lab, ...meatInv, ...meatMfg, ...custody].sort(
+      const slaughter: ApprovalItem[] = (slaughterRes.data || []).map((b: any) => ({
+        id: b.id,
+        category: "slaughter",
+        source: "تقسيمة دبح نعام",
+        title: `تقسيمة ${b.batch_number} — ${b.birds_slaughtered || 0} نعامة`,
+        subtitle: `وزن حي: ${Number(b.total_live_weight_kg || 0).toFixed(1)} كجم • لحم ناتج: ${Number(b.total_meat_kg || 0).toFixed(1)} كجم • نسبة التصافي: ${Number(b.actual_yield_pct || 0).toFixed(1)}%${b.notes ? " — " + b.notes : ""}`,
+        amount: null,
+        qty: Number(b.birds_slaughtered || 0),
+        unit: "نعامة",
+        created_at: b.created_at,
+        created_by: b.created_by,
+        creator_name: profiles[b.created_by] || null,
+        status: b.approval_status,
+        raw: b,
+      }));
+
+      const items: ApprovalItem[] = [...treasury, ...lab, ...meatInv, ...meatMfg, ...custody, ...slaughter].sort(
         (a, b) => +new Date(b.created_at) - +new Date(a.created_at)
       );
 
@@ -169,6 +209,7 @@ export function useExecutiveApprovals() {
           lab: lab.length,
           meat: meatInv.length + meatMfg.length,
           custody: custody.length,
+          slaughter: slaughter.length,
         },
       };
     },
