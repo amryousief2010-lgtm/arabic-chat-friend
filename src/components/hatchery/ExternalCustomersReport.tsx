@@ -306,6 +306,40 @@ export default function ExternalCustomersReport() {
       .sort((a, b) => b.payment_date.localeCompare(a.payment_date));
   }, [payments, detailsCustomerId, fromDate, toDate]);
 
+  // Per-customer lots + invoices for the "Batch Accounts" section in details dialog
+  const { data: customerLots = [], refetch: refetchCustomerLots } = useQuery({
+    queryKey: ["ecr_customer_lots", detailsCustomerId],
+    enabled: !!detailsCustomerId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hatchery_batch_lots" as any)
+        .select("id,batch_id,eggs_in,infertile_eggs,completed_unhatched,chicks_hatched,hatcher_out_at,brooding_out_at,brooding_days,cancelled,batch:hatchery_batches(batch_number,entry_date,status)")
+        .eq("client_id", detailsCustomerId!)
+        .eq("owner_type", "external_client")
+        .eq("cancelled", false)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+  const { data: customerInvoices = [], refetch: refetchCustomerInvoices } = useQuery({
+    queryKey: ["ecr_customer_invoices", detailsCustomerId],
+    enabled: !!detailsCustomerId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hatchery_client_invoices" as any)
+        .select("id,lot_id,invoice_no,total_amount,paid_amount,remaining_amount,payment_status")
+        .eq("client_id", detailsCustomerId!);
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+  const invoiceByLot = useMemo(() => {
+    const m = new Map<string, any>();
+    customerInvoices.forEach((i) => i.lot_id && m.set(i.lot_id, i));
+    return m;
+  }, [customerInvoices]);
+
   // Exports
   const handleExportCsv = () => {
     const rows = customerRows.map((r) => ({
