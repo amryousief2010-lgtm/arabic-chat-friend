@@ -85,6 +85,7 @@ export default function MainTreasury() {
   const [transferDupWarn, setTransferDupWarn] = useState<string>("");
   const [newAccount, setNewAccount] = useState({ name:"", account_type:"cash" as Account["account_type"], bank_name:"", opening_balance:"" });
   const [rejectDlg, setRejectDlg] = useState<{open:boolean; txn?:Txn; reason:string}>({ open:false, reason:"" });
+  const [newCatDlg, setNewCatDlg] = useState<{open:boolean; label:string; notes:string; busy:boolean}>({ open:false, label:"", notes:"", busy:false });
   const [editOpenBal, setEditOpenBal] = useState<{open:boolean; account?:Account; value:string}>({ open:false, value:"" });
   const [logFilter, setLogFilter] = useState({ account_id: "all", txn_type: "all", status: "all", from: "", to: "", search: "" });
   const [busy, setBusy] = useState(false);
