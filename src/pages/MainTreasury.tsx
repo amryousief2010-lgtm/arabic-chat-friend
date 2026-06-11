@@ -134,6 +134,27 @@ export default function MainTreasury() {
   }
   useEffect(() => { if (user) fetchAll(); /* eslint-disable-next-line */ }, [user?.id]);
 
+  const lastTransferTxn = useMemo(() => {
+    const list = txns.filter(t => t.txn_type === "transfer_to_custody")
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return list[0] || null;
+  }, [txns]);
+
+  const lastTransferLink = useMemo(() =>
+    lastTransferTxn ? (transfers.find(tr => tr.main_txn_id === lastTransferTxn.id) || null) : null,
+  [transfers, lastTransferTxn]);
+
+  useEffect(() => {
+    if (!lastTransferTxn) return;
+    const ids = [lastTransferTxn.created_by, lastTransferTxn.approver_1_id].filter(Boolean) as string[];
+    if (!ids.length) return;
+    (supabase as any).from("profile_directory").select("id, full_name").in("id", ids).then(({ data }: any) => {
+      const m: Record<string, string> = {};
+      (data || []).forEach((p: any) => { if (p.full_name) m[p.id] = p.full_name; });
+      setLastTransferUserNames(prev => ({ ...prev, ...m }));
+    });
+  }, [lastTransferTxn?.id]);
+
   const totalBalance = useMemo(() => balances.reduce((s,b)=>s+Number(b.current_balance||0), 0), [balances]);
   const totalPending = useMemo(() => balances.reduce((s,b)=>s+Number(b.pending_amount||0), 0), [balances]);
   const pendingTxns = useMemo(() => txns.filter(t => t.status === "pending_approval"), [txns]);
