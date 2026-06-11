@@ -21,6 +21,7 @@ import FarmShipmentsInbox from "@/components/hatchery/FarmShipmentsInbox";
 import HatcheryDashboard from "@/components/hatchery/HatcheryDashboard";
 import HatcheryTreasury from "@/components/hatchery/HatcheryTreasury";
 import HatcheryMovementsLog from "@/components/hatchery/HatcheryMovementsLog";
+import ExternalCustomersReport from "@/components/hatchery/ExternalCustomersReport";
 import { useTestMode } from "@/hooks/useTestMode";
 import { History } from "lucide-react";
 import { toast } from "sonner";
