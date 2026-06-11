@@ -236,6 +236,9 @@ export function useExecutiveApprovals() {
       .on("postgres_changes" as any, { event: "*", schema: "public", table: "slaughter_custody_expenses" }, () =>
         queryClient.invalidateQueries({ queryKey: ["executive-approvals"] })
       )
+      .on("postgres_changes" as any, { event: "*", schema: "public", table: "slaughter_batches" }, () =>
+        queryClient.invalidateQueries({ queryKey: ["executive-approvals"] })
+      )
       .subscribe();
     return () => {
       try { supabase.removeChannel(ch); } catch {}
@@ -250,15 +253,19 @@ export function useExecutiveApprovals() {
         item.category === "treasury" ? "main_treasury_transactions" :
         item.category === "lab" ? "lab_treasury_movements" :
         item.category === "custody" ? "slaughter_custody_expenses" :
+        item.category === "slaughter" ? "slaughter_batches" :
         item.raw._source_table;
 
-      const { data: fresh } = await (supabase as any).from(tbl).select("status").eq("id", item.id).maybeSingle();
+      const statusCol = item.category === "slaughter" ? "approval_status" : "status";
+      const { data: fresh } = await (supabase as any).from(tbl).select(statusCol).eq("id", item.id).maybeSingle();
       if (!fresh) throw new Error("تم التعامل مع هذا الطلب بالفعل");
+      const freshStatus = (fresh as any)[statusCol];
       const isPending =
-        (item.category === "treasury" && fresh.status === TREASURY_PENDING) ||
-        (item.category === "lab" && fresh.status === LAB_PENDING) ||
-        (item.category === "meat" && fresh.status === MEAT_PENDING) ||
-        (item.category === "custody" && CUSTODY_PENDING.includes(fresh.status));
+        (item.category === "treasury" && freshStatus === TREASURY_PENDING) ||
+        (item.category === "lab" && freshStatus === LAB_PENDING) ||
+        (item.category === "meat" && freshStatus === MEAT_PENDING) ||
+        (item.category === "custody" && CUSTODY_PENDING.includes(freshStatus)) ||
+        (item.category === "slaughter" && freshStatus === SLAUGHTER_BATCH_PENDING);
       if (!isPending) throw new Error("تم التعامل مع هذا الطلب بالفعل");
 
       if (item.category === "treasury") {
@@ -326,6 +333,10 @@ export function useExecutiveApprovals() {
             payload: { source: "executive_approvals", amount: item.amount },
           });
         }
+      } else if (item.category === "slaughter") {
+        const { error } = await (supabase as any).rpc("approve_slaughter_batch" as any, { p_batch_id: item.id });
+        if (error) throw error;
+        // RPC writes its own audit row.
       }
       await refetch();
     },
