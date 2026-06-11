@@ -64,7 +64,7 @@ export default function LabToCustodyTransferDialog({ onCreated }: { onCreated?: 
     });
     setBusy(false);
     if (error) { toast.error("فشل التحويل: " + error.message); return; }
-    toast.success("تم خصم المبلغ من خزنة المعمل وإرسال التحويل لخزنة العهدة بانتظار التأكيد");
+    toast.success("تم خصم المبلغ من خزنة المعمل وإرسال التحويل للخزنة الرئيسية للمجزر بانتظار التأكيد");
     setOpen(false);
     setForm({ amount: "", payment_method: "cash", transfer_date: today(), custody_keeper_id: form.custody_keeper_id, notes: "" });
     onCreated?.();
