@@ -485,6 +485,11 @@ export default function ExternalCustomersReport() {
                 <TableHead>مخصب</TableHead>
                 <TableHead>كتاكيت</TableHead>
                 <TableHead>نسبة فقس</TableHead>
+                <TableHead className="bg-amber-50">كتاكيت محضنة</TableHead>
+                <TableHead className="bg-amber-50">أيام تحضين</TableHead>
+                <TableHead className="bg-amber-50">رسوم تحضين</TableHead>
+                <TableHead className="bg-orange-50">كتاكيت لم تستلم</TableHead>
+                <TableHead className="bg-orange-50">تحضين متوقع</TableHead>
                 <TableHead>المستحق</TableHead>
                 <TableHead>المدفوع</TableHead>
                 <TableHead>المتبقي</TableHead>
@@ -494,7 +499,7 @@ export default function ExternalCustomersReport() {
             </TableHeader>
             <TableBody>
               {customerRows.length === 0 ? (
-                <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">لا توجد بيانات في الفترة المختارة</TableCell></TableRow>
+                <TableRow><TableCell colSpan={17} className="text-center py-8 text-muted-foreground">لا توجد بيانات في الفترة المختارة</TableCell></TableRow>
               ) : customerRows.map((r) => (
                 <TableRow key={r.customer.id}>
                   <TableCell className="font-medium">{r.customer.name}</TableCell>
@@ -504,6 +509,11 @@ export default function ExternalCustomersReport() {
                   <TableCell>{fmt(r.totalFertile)}</TableCell>
                   <TableCell>{fmt(r.totalChicks)}</TableCell>
                   <TableCell>{r.hatchRate.toFixed(1)}%</TableCell>
+                  <TableCell className="bg-amber-50/50">{fmt(r.broodingChicks || 0)}</TableCell>
+                  <TableCell className="bg-amber-50/50">{fmt(r.broodingDays || 0)}</TableCell>
+                  <TableCell className="bg-amber-50/50 font-semibold">{fmt(Math.round(r.broodingFee || 0))}</TableCell>
+                  <TableCell className="bg-orange-50/50">{r.pendingChicks ? fmt(r.pendingChicks) : "—"}</TableCell>
+                  <TableCell className="bg-orange-50/50 text-orange-700">{r.broodingFeeProjected ? fmt(Math.round(r.broodingFeeProjected)) : "—"}</TableCell>
                   <TableCell className="font-bold text-primary">{fmt(Math.round(r.totalDue))}</TableCell>
                   <TableCell className="text-green-600">{fmt(Math.round(r.totalPaid))}</TableCell>
                   <TableCell className={r.remaining > 0 ? "text-red-600 font-bold" : r.remaining < 0 ? "text-blue-600" : ""}>{fmt(Math.round(r.remaining))}</TableCell>
