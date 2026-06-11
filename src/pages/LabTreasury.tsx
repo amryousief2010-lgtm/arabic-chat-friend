@@ -30,6 +30,7 @@ import {
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { OpeningBalancesPanel, ExternalCollectionsPanel, ExternalSummaryCard, TotalLabFundsCard } from "@/pages/lab-treasury/LabTreasuryExtras";
 import { PremiumStat, HeroSummary, SectionTitle, StatusPill, DashboardSkeleton, EmptyState, ActivityTimeline, getCairoNow } from "@/components/treasury/PremiumUI";
+import LabExpenseAnalytics from "@/components/treasury/LabExpenseAnalytics";
 
 type PaymentMethod = "cash" | "vodafone_cash" | "instapay" | "bank_transfer";
 type MovementType = "income" | "expense";
@@ -1012,6 +1013,7 @@ export default function LabTreasury() {
                 <TabsTrigger value="advances" className={tabCls}>العُهد</TabsTrigger>
                 {canApprove && <TabsTrigger value="duplicates" className={tabCls}>المكررات</TabsTrigger>}
                 <TabsTrigger value="reconcile" className={tabCls}>مطابقة الخزنة</TabsTrigger>
+                <TabsTrigger value="analytics" className={tabCls}>تحليل المصروفات</TabsTrigger>
                 <TabsTrigger value="reports" className={tabCls}>التقارير</TabsTrigger>
                 {canApprove && <TabsTrigger value="audit" className={tabCls}>سجل التدقيق</TabsTrigger>}
               </>;
@@ -1710,6 +1712,15 @@ export default function LabTreasury() {
           {/* External collections (عُهَد) */}
           <TabsContent value="external" className="space-y-3">
             <ExternalCollectionsPanel />
+          </TabsContent>
+
+          {/* Expense analytics */}
+          <TabsContent value="analytics" className="space-y-3">
+            <LabExpenseAnalytics
+              movements={movements as any}
+              incomeLabels={INCOME_LABELS}
+              expenseLabels={EXPENSE_LABELS}
+            />
           </TabsContent>
 
           {/* Reports */}

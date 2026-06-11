@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate } from "@/lib/printPdf";
 import * as XLSX from "xlsx";
+import CustodyExpenseAnalytics from "@/components/treasury/CustodyExpenseAnalytics";
 import {
   Wallet, Plus, ShieldAlert, CheckCircle2, XCircle, MessageSquare, Upload,
   Printer, FileSpreadsheet, AlertTriangle, ScrollText, Beef, Sparkles, Clock, Activity, Receipt, TrendingDown,
@@ -393,6 +394,7 @@ export default function SlaughterhouseCustody() {
             <TabsTrigger value="dashboard">لوحة الخزنة</TabsTrigger>
             <TabsTrigger value="add">إضافة مصروف</TabsTrigger>
             <TabsTrigger value="expenses">المصروفات</TabsTrigger>
+            <TabsTrigger value="analytics">تحليل المصروفات</TabsTrigger>
             {isManager && <TabsTrigger value="limit">الحد الأسبوعي</TabsTrigger>}
             {isManager && <TabsTrigger value="openings">رصيد افتتاحي</TabsTrigger>}
             {isManager && <TabsTrigger value="audit">سجل التدقيق</TabsTrigger>}
@@ -731,6 +733,11 @@ export default function SlaughterhouseCustody() {
               </CardContent></Card>
             </TabsContent>
           )}
+
+          {/* ===== Expense Analytics ===== */}
+          <TabsContent value="analytics">
+            <CustodyExpenseAnalytics expenses={expenses as any} catLabel={CAT_LBL} />
+          </TabsContent>
         </Tabs>
 
         {/* Review dialog */}
