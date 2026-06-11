@@ -17,6 +17,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import { exportCSV } from "@/lib/csvExport";
 import { openPrintWindow } from "@/lib/printPdf";
 import { toast } from "sonner";
+import BatchAccountDialog from "./BatchAccountDialog";
 
 type Customer = { id: string; name: string; customer_type: string; is_active: boolean; notes: string | null; is_test?: boolean | null };
 type Batch = {
