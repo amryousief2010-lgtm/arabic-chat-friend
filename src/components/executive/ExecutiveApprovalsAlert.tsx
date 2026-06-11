@@ -174,6 +174,12 @@ export default function ExecutiveApprovalsAlert() {
                           <div>المسجِّل: <span className="text-foreground">{item.creator_name || "—"}</span></div>
                           {item.qty != null && <div>الكمية: <span className="text-foreground">{item.qty} {item.unit || ""}</span></div>}
                         </div>
+                        {item.category === "slaughter" && (
+                          <div className="text-[11px] rounded-md border border-amber-300 bg-amber-50 text-amber-900 px-2 py-1 leading-relaxed">
+                            ملاحظة: اعتماد التقسيمة يثبت الحالة فقط، ولا يضيف نواتج الدبح إلى المخزون تلقائيًا. إدخال النواتج يتم عبر دورة حركة المخزون المنفصلة.
+                          </div>
+                        )}
+
                         <div className="flex flex-wrap gap-2 pt-1">
                           <Button size="sm" disabled={busyId === item.id} onClick={() => doApprove(item)}>
                             <CheckCircle2 className="h-4 w-4 ml-1" /> اعتماد
