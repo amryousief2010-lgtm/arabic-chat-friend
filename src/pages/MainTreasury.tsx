@@ -819,7 +819,11 @@ export default function MainTreasury() {
             </CardContent>
           </Card>
         </TabsContent>
+        <TabsContent value="analytics" className="mt-4">
+          <MainExpenseAnalytics txns={txns as any} categories={cats} typeLabels={TYPE_LBL} />
+        </TabsContent>
       </Tabs>
+
 
       <Dialog open={rejectDlg.open} onOpenChange={o => !o && setRejectDlg({open:false, reason:""})}>
         <DialogContent dir="rtl">
