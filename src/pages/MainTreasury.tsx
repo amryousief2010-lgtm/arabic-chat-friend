@@ -301,6 +301,49 @@ export default function MainTreasury() {
     fetchAll();
   }
 
+  async function createExpenseCategory() {
+    const label = newCatDlg.label.trim();
+    if (!label) return toast.error("اسم بند المصروف مطلوب");
+    setNewCatDlg(s => ({ ...s, busy: true }));
+    try {
+      // Duplicate check by label (case/space-insensitive)
+      const normalized = label.replace(/\s+/g, " ").trim();
+      const exists = cats.find(c => c.label.replace(/\s+/g, " ").trim().toLowerCase() === normalized.toLowerCase());
+      if (exists) {
+        toast.error("بند المصروف موجود بالفعل");
+        setNewCatDlg(s => ({ ...s, busy: false }));
+        return;
+      }
+      // Generate unique code from label (slug + timestamp)
+      const slug = label
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}]+/gu, "_")
+        .replace(/^_+|_+$/g, "")
+        .slice(0, 40) || "cat";
+      const code = `${slug}_${Date.now().toString(36)}`;
+      const maxSort = cats.reduce((m, c: any) => Math.max(m, (c as any).sort_order ?? 0), 0);
+      const { data, error } = await (supabase as any)
+        .from("main_treasury_expense_categories")
+        .insert({ code, label, is_active: true, sort_order: maxSort + 10 })
+        .select("id,code,label")
+        .single();
+      if (error) {
+        if ((error.message || "").toLowerCase().includes("duplicate")) toast.error("بند المصروف موجود بالفعل");
+        else toast.error(error.message);
+        setNewCatDlg(s => ({ ...s, busy: false }));
+        return;
+      }
+      setCats(prev => [...prev, data as Category]);
+      setTxnForm(f => ({ ...f, category_id: data.id }));
+      toast.success("تم إضافة بند المصروف بنجاح");
+      setNewCatDlg({ open: false, label: "", notes: "", busy: false });
+    } catch (e: any) {
+      toast.error(e?.message || "خطأ غير معروف");
+      setNewCatDlg(s => ({ ...s, busy: false }));
+    }
+  }
+
+
   async function saveOpeningBalance() {
     if (!editOpenBal.account) return;
     const v = Number(editOpenBal.value);
