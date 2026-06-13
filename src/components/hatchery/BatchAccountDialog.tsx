@@ -28,6 +28,13 @@ export default function BatchAccountDialog({
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<string>("cash");
   const [notes, setNotes] = useState("");
+  const [receiptOpen, setReceiptOpen] = useState(false);
+  const [receiptDate, setReceiptDate] = useState(new Date().toISOString().slice(0, 10));
+  const [savingReceipt, setSavingReceipt] = useState(false);
+  const [hatchEditOpen, setHatchEditOpen] = useState(false);
+  const [hatchDate, setHatchDate] = useState("");
+  const [savingHatch, setSavingHatch] = useState(false);
+
 
   const { data: lot, refetch: refetchLot } = useQuery({
     queryKey: ["batch_account_lot", lotId],
@@ -78,6 +85,10 @@ export default function BatchAccountDialog({
 
   const createInvoice = async () => {
     if (invoice) { toast.info("الفاتورة موجودة بالفعل"); return; }
+    if (!lot?.brooding_out_at) {
+      toast.error("سجّل تاريخ استلام الكتاكيت أولًا قبل إنشاء الفاتورة النهائية");
+      return;
+    }
     setCreating(true);
     const { error } = await supabase.rpc("compute_hatchery_invoice" as any, { _lot_id: lotId });
     setCreating(false);
@@ -86,10 +97,44 @@ export default function BatchAccountDialog({
     refreshAll();
   };
 
+  const saveReceiptDate = async () => {
+    if (!receiptDate) return toast.error("اختر تاريخ الاستلام");
+    if (lot?.hatcher_out_at && new Date(receiptDate) < new Date(lot.hatcher_out_at.slice(0, 10))) {
+      return toast.error("تاريخ الاستلام لا يمكن أن يكون قبل تاريخ الفقس");
+    }
+    setSavingReceipt(true);
+    const { error } = await supabase.from("hatchery_batch_lots" as any)
+      .update({ brooding_out_at: new Date(receiptDate + "T12:00:00").toISOString() } as any)
+      .eq("id", lotId);
+    setSavingReceipt(false);
+    if (error) return toast.error(error.message);
+    toast.success("تم تسجيل تاريخ الاستلام");
+    setReceiptOpen(false);
+    refreshAll();
+  };
+
+  const saveHatchDate = async () => {
+    if (!hatchDate) return toast.error("اختر تاريخ الفقس");
+    setSavingHatch(true);
+    const { error } = await supabase.from("hatchery_batch_lots" as any)
+      .update({ hatcher_out_at: new Date(hatchDate + "T08:00:00").toISOString() } as any)
+      .eq("id", lotId);
+    setSavingHatch(false);
+    if (error) return toast.error(error.message);
+    toast.success("تم تحديث تاريخ الفقس");
+    setHatchEditOpen(false);
+    // If invoice already exists, recompute it
+    if (invoice) {
+      await supabase.rpc("compute_hatchery_invoice" as any, { _lot_id: lotId });
+    }
+    refreshAll();
+  };
+
   const addPayment = async () => {
     const amt = +amount;
     if (!invoice) return;
     if (!amt || amt <= 0) return toast.error("أدخل مبلغًا صحيحًا");
+
     const remaining = num(invoice.remaining_amount);
     if (amt > remaining + 0.01) return toast.error(`المبلغ يتجاوز المتبقي (${fmtMoney(remaining)})`);
     const uid = (await supabase.auth.getUser()).data.user?.id;
@@ -144,7 +189,16 @@ export default function BatchAccountDialog({
             <Info label="اسم العميل" value={customerName} />
             <Info label="رقم الدفعة" value={b.batch_number || "—"} />
             <Info label="تاريخ الدخول" value={b.entry_date || "—"} />
-            <Info label="تاريخ الفقس" value={lot.hatcher_out_at?.slice(0,10) || "—"} />
+            <Info label="تاريخ الفقس" value={
+              <span className="inline-flex items-center gap-1">
+                {lot.hatcher_out_at?.slice(0,10) || "—"}
+                <button
+                  type="button"
+                  className="text-[10px] text-primary underline"
+                  onClick={() => { setHatchDate(lot.hatcher_out_at?.slice(0,10) || new Date().toISOString().slice(0,10)); setHatchEditOpen(true); }}
+                >تعديل</button>
+              </span>
+            } />
             <Info label="تاريخ الاستلام" value={lot.brooding_out_at?.slice(0,10) || "لم يستلم بعد"} />
             <Info label="عدد البيض" value={fmt(lot.eggs_in)} />
             <Info label="عدد اللايح" value={fmt(lot.infertile_eggs)} />
@@ -153,18 +207,49 @@ export default function BatchAccountDialog({
             <Info label="أيام التحضين" value={fmt(lot.brooding_days)} />
           </div>
 
+          {/* Projected brooding when customer hasn't received chicks yet */}
+          {!lot.brooding_out_at && num(lot.chicks_hatched) > 0 && lot.hatcher_out_at && (() => {
+            const start = new Date(lot.hatcher_out_at.slice(0, 10));
+            const today = new Date(new Date().toISOString().slice(0, 10));
+            const days = Math.max(1, Math.round((today.getTime() - start.getTime()) / 86400000) + 1);
+            const proj = days * num(lot.chicks_hatched) * 10;
+            return (
+              <div className="rounded border p-3 bg-blue-50 dark:bg-blue-950/30 text-sm flex items-center justify-between gap-2 flex-wrap">
+                <div>
+                  <Badge variant="outline" className="ml-2">تقديري — لم يتم الاستلام</Badge>
+                  <span>أيام التحضين حتى اليوم: <b>{days}</b> &nbsp;|&nbsp; رسوم التحضين المتوقعة: <b>{fmtMoney(proj)}</b></span>
+                  <p className="text-xs text-muted-foreground mt-1">يتم تثبيت الرسوم النهائية عند تسجيل تاريخ الاستلام.</p>
+                </div>
+                <Button size="sm" onClick={() => setReceiptOpen(true)}>
+                  تسجيل تاريخ الاستلام
+                </Button>
+              </div>
+            );
+          })()}
+
           {!invoice && (
             <div className="rounded border p-4 bg-amber-50 dark:bg-amber-950/30 flex items-center justify-between gap-3">
               <div className="text-sm">
                 <p className="font-semibold">لم يتم إنشاء فاتورة لهذه الدفعة بعد.</p>
-                <p className="text-xs text-muted-foreground">إنشاء الفاتورة لا يؤثر على خزنة المعمل. الخزنة لا تتغير إلا عند التحصيل.</p>
+                <p className="text-xs text-muted-foreground">
+                  {lot.brooding_out_at
+                    ? "إنشاء الفاتورة لا يؤثر على خزنة المعمل. الخزنة لا تتغير إلا عند التحصيل."
+                    : "سجّل تاريخ استلام الكتاكيت أولًا لتثبيت رسوم التحضين النهائية."}
+                </p>
               </div>
-              <Button onClick={createInvoice} disabled={creating}>
-                <FileText className="w-4 h-4 ml-1" />
-                {creating ? "جارٍ..." : "إنشاء فاتورة استلام كتاكيت"}
-              </Button>
+              {lot.brooding_out_at ? (
+                <Button onClick={createInvoice} disabled={creating}>
+                  <FileText className="w-4 h-4 ml-1" />
+                  {creating ? "جارٍ..." : "إنشاء فاتورة استلام كتاكيت"}
+                </Button>
+              ) : (
+                <Button onClick={() => setReceiptOpen(true)}>
+                  تسجيل تاريخ الاستلام
+                </Button>
+              )}
             </div>
           )}
+
 
           {invoice && (
             <div className="rounded border p-3 space-y-3">
@@ -254,10 +339,59 @@ export default function BatchAccountDialog({
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Receipt-date dialog */}
+        <Dialog open={receiptOpen} onOpenChange={setReceiptOpen}>
+          <DialogContent dir="rtl" className="max-w-md">
+            <DialogHeader><DialogTitle>تسجيل تاريخ استلام الكتاكيت</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div className="text-xs text-muted-foreground">
+                تاريخ الفقس: <b>{lot.hatcher_out_at?.slice(0, 10) || "—"}</b>
+              </div>
+              <div>
+                <Label>تاريخ الاستلام</Label>
+                <Input type="date" value={receiptDate} onChange={(e) => setReceiptDate(e.target.value)} />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                أيام التحضين = (تاريخ الاستلام − تاريخ الفقس) + 1، ورسوم التحضين = الأيام × عدد الكتاكيت × 10 ج.م.
+                تسجيل التاريخ لا يؤثر على خزنة المعمل.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setReceiptOpen(false)}>إلغاء</Button>
+              <Button onClick={saveReceiptDate} disabled={savingReceipt}>
+                {savingReceipt ? "جارٍ..." : "حفظ"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Hatch-date edit dialog */}
+        <Dialog open={hatchEditOpen} onOpenChange={setHatchEditOpen}>
+          <DialogContent dir="rtl" className="max-w-md">
+            <DialogHeader><DialogTitle>تعديل تاريخ الفقس لهذا العميل</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <Label>تاريخ الفقس</Label>
+                <Input type="date" value={hatchDate} onChange={(e) => setHatchDate(e.target.value)} />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                التعديل يطبَّق على هذا العميل فقط داخل الدفعة. سيتم إعادة حساب رسوم التحضين تلقائيًا لو الفاتورة موجودة.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setHatchEditOpen(false)}>إلغاء</Button>
+              <Button onClick={saveHatchDate} disabled={savingHatch}>
+                {savingHatch ? "جارٍ..." : "حفظ"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   );
 }
+
 
 const Info = ({ label, value, highlight }: { label: string; value: any; highlight?: boolean }) => (
   <div className="p-2 rounded border bg-background">
