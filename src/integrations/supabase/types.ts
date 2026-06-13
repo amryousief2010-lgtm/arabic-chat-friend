@@ -10678,6 +10678,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_gift: boolean
           is_half_kg: boolean
           offer_name: string | null
           order_id: string
@@ -10692,6 +10693,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          is_gift?: boolean
           is_half_kg?: boolean
           offer_name?: string | null
           order_id: string
@@ -10706,6 +10708,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          is_gift?: boolean
           is_half_kg?: boolean
           offer_name?: string | null
           order_id?: string

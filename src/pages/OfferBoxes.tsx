@@ -83,6 +83,55 @@ interface Product {
   image_url: string | null;
 }
 
+// Inline editor for an offer-box item's unit price (managers only).
+// Shows total = unit × qty as a hint; commits on Enter / blur / save button.
+const InlineItemPriceEditor = ({
+  initialPrice,
+  quantity,
+  onSave,
+  disabled,
+}: {
+  initialPrice: number;
+  quantity: number;
+  onSave: (newPrice: number) => void;
+  disabled?: boolean;
+}) => {
+  const [val, setVal] = useState<string>(String(initialPrice));
+  const numeric = Number(val);
+  const dirty = !isNaN(numeric) && numeric !== initialPrice && numeric >= 0;
+  const commit = () => {
+    if (dirty) onSave(numeric);
+  };
+  return (
+    <div className="flex items-center gap-2">
+      <Input
+        type="number"
+        min={0}
+        step="0.01"
+        value={val}
+        disabled={disabled}
+        onChange={(e) => setVal(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            (e.target as HTMLInputElement).blur();
+          }
+        }}
+        className="h-8 w-24 text-center"
+      />
+      <span className="text-xs text-muted-foreground whitespace-nowrap">
+        × {quantity} = {(numeric * quantity).toLocaleString()} ج.م
+      </span>
+      {dirty && (
+        <Badge variant="outline" className="text-[10px] border-amber-400 text-amber-700">
+          غير محفوظ
+        </Badge>
+      )}
+    </div>
+  );
+};
+
 const OfferBoxes = () => {
   const { toast } = useToast();
   const { role, user } = useAuth();
@@ -330,6 +379,24 @@ const OfferBoxes = () => {
     },
     onError: (e: any) => {
       toast({ title: 'فشل الحذف', description: e?.message || 'خطأ غير معروف', variant: 'destructive' });
+    },
+  });
+
+  // Update item unit price (managers only — sales_manager / general / executive)
+  const updateItemPriceMutation = useMutation({
+    mutationFn: async ({ id, custom_price }: { id: string; custom_price: number }) => {
+      const { error } = await supabase
+        .from('offer_box_items')
+        .update({ custom_price })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['offer-box-items'] });
+      toast({ title: 'تم تحديث سعر المنتج داخل العرض' });
+    },
+    onError: (e: any) => {
+      toast({ title: 'فشل تحديث السعر', description: e?.message || 'خطأ غير معروف', variant: 'destructive' });
     },
   });
 
@@ -856,7 +923,21 @@ const OfferBoxes = () => {
                             {lineOriginal.toLocaleString()} ج.م
                           </TableCell>
                           <TableCell className={item.is_gift ? 'text-primary font-semibold' : 'text-green-600 font-semibold'}>
-                            {item.is_gift ? 'مجاني' : `${lineCustom.toLocaleString()} ج.م`}
+                            {item.is_gift ? (
+                              'مجاني'
+                            ) : isManager ? (
+                              <InlineItemPriceEditor
+                                key={`${item.id}-${item.custom_price}`}
+                                initialPrice={Number(item.custom_price)}
+                                quantity={Number(item.quantity)}
+                                onSave={(newPrice) =>
+                                  updateItemPriceMutation.mutate({ id: item.id, custom_price: newPrice })
+                                }
+                                disabled={updateItemPriceMutation.isPending}
+                              />
+                            ) : (
+                              `${lineCustom.toLocaleString()} ج.م`
+                            )}
                           </TableCell>
                           <TableCell>{item.quantity}</TableCell>
                           <TableCell>

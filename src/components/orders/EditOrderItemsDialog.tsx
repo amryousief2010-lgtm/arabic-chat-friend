@@ -53,6 +53,7 @@ interface Props {
     unit_price: number;
     offer_name?: string | null;
     is_half_kg?: boolean;
+    is_gift?: boolean;
   }>;
   initialDiscount?: number;
   initialDeliveryFee?: number;
@@ -81,6 +82,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
         unit_price: it.unit_price,
         offer_name: it.offer_name ?? null,
         is_half_kg: !!it.is_half_kg,
+        is_gift: !!it.is_gift,
         _original: {
           product_id: it.product_id ?? null,
           quantity: it.quantity,
@@ -259,6 +261,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
             quantity: it.quantity,
             unit_price: it.unit_price,
             total_price: total,
+            is_gift: !!it.is_gift,
           })
           .eq("id", it.id!);
         if (error) throw error;
@@ -274,6 +277,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
           quantity: it.quantity,
           unit_price: it.unit_price,
           total_price: Number(it.quantity) * Number(it.unit_price),
+          is_gift: !!it.is_gift,
         }));
       if (toInsert.length) {
         const { error } = await supabase.from("order_items").insert(toInsert);
