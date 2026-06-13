@@ -874,7 +874,21 @@ const OfferBoxes = () => {
                             {lineOriginal.toLocaleString()} ج.م
                           </TableCell>
                           <TableCell className={item.is_gift ? 'text-primary font-semibold' : 'text-green-600 font-semibold'}>
-                            {item.is_gift ? 'مجاني' : `${lineCustom.toLocaleString()} ج.م`}
+                            {item.is_gift ? (
+                              'مجاني'
+                            ) : isManager ? (
+                              <InlineItemPriceEditor
+                                key={`${item.id}-${item.custom_price}`}
+                                initialPrice={Number(item.custom_price)}
+                                quantity={Number(item.quantity)}
+                                onSave={(newPrice) =>
+                                  updateItemPriceMutation.mutate({ id: item.id, custom_price: newPrice })
+                                }
+                                disabled={updateItemPriceMutation.isPending}
+                              />
+                            ) : (
+                              `${lineCustom.toLocaleString()} ج.م`
+                            )}
                           </TableCell>
                           <TableCell>{item.quantity}</TableCell>
                           <TableCell>
