@@ -261,6 +261,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
             quantity: it.quantity,
             unit_price: it.unit_price,
             total_price: total,
+            is_gift: !!it.is_gift,
           })
           .eq("id", it.id!);
         if (error) throw error;
@@ -276,6 +277,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
           quantity: it.quantity,
           unit_price: it.unit_price,
           total_price: Number(it.quantity) * Number(it.unit_price),
+          is_gift: !!it.is_gift,
         }));
       if (toInsert.length) {
         const { error } = await supabase.from("order_items").insert(toInsert);
