@@ -339,10 +339,59 @@ export default function BatchAccountDialog({
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Receipt-date dialog */}
+        <Dialog open={receiptOpen} onOpenChange={setReceiptOpen}>
+          <DialogContent dir="rtl" className="max-w-md">
+            <DialogHeader><DialogTitle>تسجيل تاريخ استلام الكتاكيت</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div className="text-xs text-muted-foreground">
+                تاريخ الفقس: <b>{lot.hatcher_out_at?.slice(0, 10) || "—"}</b>
+              </div>
+              <div>
+                <Label>تاريخ الاستلام</Label>
+                <Input type="date" value={receiptDate} onChange={(e) => setReceiptDate(e.target.value)} />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                أيام التحضين = (تاريخ الاستلام − تاريخ الفقس) + 1، ورسوم التحضين = الأيام × عدد الكتاكيت × 10 ج.م.
+                تسجيل التاريخ لا يؤثر على خزنة المعمل.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setReceiptOpen(false)}>إلغاء</Button>
+              <Button onClick={saveReceiptDate} disabled={savingReceipt}>
+                {savingReceipt ? "جارٍ..." : "حفظ"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Hatch-date edit dialog */}
+        <Dialog open={hatchEditOpen} onOpenChange={setHatchEditOpen}>
+          <DialogContent dir="rtl" className="max-w-md">
+            <DialogHeader><DialogTitle>تعديل تاريخ الفقس لهذا العميل</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <Label>تاريخ الفقس</Label>
+                <Input type="date" value={hatchDate} onChange={(e) => setHatchDate(e.target.value)} />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                التعديل يطبَّق على هذا العميل فقط داخل الدفعة. سيتم إعادة حساب رسوم التحضين تلقائيًا لو الفاتورة موجودة.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setHatchEditOpen(false)}>إلغاء</Button>
+              <Button onClick={saveHatchDate} disabled={savingHatch}>
+                {savingHatch ? "جارٍ..." : "حفظ"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   );
 }
+
 
 const Info = ({ label, value, highlight }: { label: string; value: any; highlight?: boolean }) => (
   <div className="p-2 rounded border bg-background">
