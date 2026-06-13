@@ -550,7 +550,78 @@ export default function MeatPurchaseInvoices() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <Dialog open={newItemDlg.open} onOpenChange={(v) => !v && setNewItemDlg({ open: false, lineTmp: null })}>
+          <DialogContent className="max-w-lg" dir="rtl">
+            <DialogHeader>
+              <DialogTitle>إضافة صنف جديد لمخزن خامات مصنع اللحوم</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 text-sm">
+              <div>
+                <Label>اسم الصنف *</Label>
+                <Input value={newItem.name} onChange={e => setNewItem(s => ({ ...s, name: e.target.value }))} placeholder="مثال: علبة برجر كبيرة" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>القسم / النوع</Label>
+                  <Select value={newItem.kind} onValueChange={(v: Kind) => setNewItem(s => ({ ...s, kind: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="raw">خامات (raw)</SelectItem>
+                      <SelectItem value="spice">بهارات (spice)</SelectItem>
+                      <SelectItem value="packaging">تغليف (packaging)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>وحدة القياس</Label>
+                  <Select value={newItem.unit} onValueChange={(v) => setNewItem(s => ({ ...s, unit: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="كجم">كجم</SelectItem>
+                      <SelectItem value="جرام">جرام</SelectItem>
+                      <SelectItem value="قطعة">قطعة</SelectItem>
+                      <SelectItem value="علبة">علبة</SelectItem>
+                      <SelectItem value="رول">رول</SelectItem>
+                      <SelectItem value="كيس">كيس</SelectItem>
+                      <SelectItem value="أخرى">أخرى</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>سعر شراء افتراضي</Label>
+                  <Input type="number" step="0.01" value={newItem.avg_cost || ""} onChange={e => setNewItem(s => ({ ...s, avg_cost: Number(e.target.value) }))} />
+                </div>
+                <div>
+                  <Label>حد تنبيه إعادة الطلب</Label>
+                  <Input type="number" step="0.01" value={newItem.low_stock_threshold || ""} onChange={e => setNewItem(s => ({ ...s, low_stock_threshold: Number(e.target.value) }))} />
+                </div>
+              </div>
+              <div>
+                <Label>تاريخ صلاحية افتراضي (اختياري)</Label>
+                <Input type="date" value={newItem.expiry_date} onChange={e => setNewItem(s => ({ ...s, expiry_date: e.target.value }))} />
+              </div>
+              <div>
+                <Label>ملاحظات</Label>
+                <Textarea value={newItem.notes} onChange={e => setNewItem(s => ({ ...s, notes: e.target.value }))} placeholder="اختياري" />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                ملاحظة: إنشاء الصنف لا يزيد المخزون. الزيادة تتم بعد اعتماد فاتورة المشتريات.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setNewItemDlg({ open: false, lineTmp: null })}>إلغاء</Button>
+              <Button onClick={saveNewItem} disabled={savingItem} className="bg-red-600 hover:bg-red-700">
+                {savingItem ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <Plus className="w-4 h-4 ml-1" />}
+                حفظ الصنف
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );
 }
+
