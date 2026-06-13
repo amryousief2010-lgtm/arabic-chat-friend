@@ -30,11 +30,11 @@ type Txn = {
 };
 
 const INCOMING_SOURCES = [
-  { value: "hyper_healthy", label: "هايبر هيلثي تيست", attachmentRequired: true },
-  { value: "carrefour", label: "كارفور", attachmentRequired: true },
-  { value: "external_customer", label: "عميل خارجي", attachmentRequired: true },
-  { value: "direct_customer", label: "عميل مباشر", attachmentRequired: true },
-  { value: "other", label: "جهة أخرى", attachmentRequired: true },
+  { value: "hyper_healthy", label: "هايبر هيلثي تيست", attachmentRequired: false },
+  { value: "carrefour", label: "كارفور", attachmentRequired: false },
+  { value: "external_customer", label: "عميل خارجي", attachmentRequired: false },
+  { value: "direct_customer", label: "عميل مباشر", attachmentRequired: false },
+  { value: "other", label: "جهة أخرى", attachmentRequired: false },
 ];
 const SOURCE_LBL: Record<string,string> = Object.fromEntries(INCOMING_SOURCES.map(s => [s.value, s.label]));
 
@@ -243,13 +243,10 @@ export default function BankAccountPanel() {
     if (needsCat && !form.bank_category_id) return toast.error("اختر بند المصروف البنكي");
     if (form.txn_type === "loan_installment" && !form.loan_number.trim()) return toast.error("رقم القرض مطلوب");
 
-    // Incoming transfer: validate attachment for Hyper/Carrefour
+    // Incoming transfer: attachment is OPTIONAL — warn but allow save without receipt
     const isIncoming = form.txn_type === "bank_deposit";
-    const srcDef = INCOMING_SOURCES.find(s => s.value === form.incoming_source);
     if (isIncoming && !form.incoming_source) return toast.error("اختر مصدر التحويل الوارد");
-    if (isIncoming && srcDef?.attachmentRequired && !file) {
-      return toast.error("يجب إرفاق إيصال التحويل قبل حفظ حركة التوريد البنكي");
-    }
+    const incomingWithoutReceipt = isIncoming && !file;
 
     setBusy(true);
     let attachmentPath: string | null = null;
@@ -284,7 +281,11 @@ export default function BankAccountPanel() {
       if (error.code === "23505") return toast.error("هذه الحركة مسجلة بالفعل (تم منع التكرار)");
       return toast.error(error.message);
     }
-    toast.success("تم تسجيل الحركة البنكية — حسب القيمة قد تحتاج اعتماد");
+    if (incomingWithoutReceipt) {
+      toast.warning("تم حفظ الحركة بدون إيصال تحويل. يمكن رفع الإيصال لاحقًا قبل أو أثناء المراجعة.");
+    } else {
+      toast.success("تم تسجيل الحركة البنكية — حسب القيمة قد تحتاج اعتماد");
+    }
     setTxnDlg(false);
     fetchAll();
   }
@@ -657,8 +658,8 @@ export default function BankAccountPanel() {
                                 else toast.error("تعذر فتح الصورة");
                               }}><Paperclip className="h-3 w-3"/>عرض</Button>
                             ) : (
-                              <span className={"text-xs " + (missing ? "text-destructive font-bold" : "text-muted-foreground")}>
-                                {missing ? "⚠ لا توجد صورة" : "لا توجد صورة"}
+                              <span className="text-xs text-amber-600 dark:text-amber-400 font-semibold">
+                                بدون إيصال
                               </span>
                             )}
                             {canChange && (
@@ -674,8 +675,9 @@ export default function BankAccountPanel() {
                           {isPending && isApprover && !isOwn ? (
                             <div className="flex gap-1">
                               <Button size="sm" variant="default" disabled={busy} onClick={async ()=>{
-                                if (missing) return toast.error("يجب إرفاق صورة التحويل قبل اعتماد هذه الحركة");
-                                if (requiresAttach && t.attachment_url) {
+                                if (t.txn_type === "bank_deposit" && !t.attachment_url) {
+                                  if (!window.confirm("تنبيه: هذه الحركة لا تحتوي على إيصال تحويل مرفق. هل تريد الاعتماد على مسؤوليتك؟")) return;
+                                } else if (t.attachment_url) {
                                   const u = await getAttachmentUrl(t.attachment_url); if (u) window.open(u, "_blank");
                                   if (!window.confirm("هل راجعت صورة التحويل وتريد الاعتماد؟")) return;
                                 }
@@ -833,7 +835,7 @@ export default function BankAccountPanel() {
               })()}
             </div>
             <div className="md:col-span-2 text-xs text-muted-foreground border rounded p-2 bg-muted/30">
-              ملاحظة: لا تؤثر هذه الحركة على الرصيد إلا بعد الاعتماد. الحركات ≤ 5,000 تُرحَّل تلقائيًا، من 5,000.01 إلى 50,000 اعتماد فردي، أكثر من 50,000 اعتماد مزدوج. <b>أي تحويل وارد للحساب البنكي (هايبر / كارفور / هايبر هيلثي / عميل خارجي / عميل مباشر / أي جهة أخرى) لا يُحفظ ولا يُعتمد بدون إيصال تحويل مرفق.</b>
+              ملاحظة: لا تؤثر هذه الحركة على الرصيد إلا بعد الاعتماد. الحركات ≤ 5,000 تُرحَّل تلقائيًا، من 5,000.01 إلى 50,000 اعتماد فردي، أكثر من 50,000 اعتماد مزدوج. <b>إيصال التحويل اختياري</b> — يمكن حفظ الحركة بدونه، ويُمكن رفع الإيصال لاحقًا قبل أو أثناء المراجعة. سيظهر للمدير تنبيه عند اعتماد حركة بدون إيصال.
             </div>
           </div>
           <DialogFooter>
