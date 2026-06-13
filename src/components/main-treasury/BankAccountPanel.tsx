@@ -675,8 +675,9 @@ export default function BankAccountPanel() {
                           {isPending && isApprover && !isOwn ? (
                             <div className="flex gap-1">
                               <Button size="sm" variant="default" disabled={busy} onClick={async ()=>{
-                                if (missing) return toast.error("يجب إرفاق صورة التحويل قبل اعتماد هذه الحركة");
-                                if (requiresAttach && t.attachment_url) {
+                                if (t.txn_type === "bank_deposit" && !t.attachment_url) {
+                                  if (!window.confirm("تنبيه: هذه الحركة لا تحتوي على إيصال تحويل مرفق. هل تريد الاعتماد على مسؤوليتك؟")) return;
+                                } else if (t.attachment_url) {
                                   const u = await getAttachmentUrl(t.attachment_url); if (u) window.open(u, "_blank");
                                   if (!window.confirm("هل راجعت صورة التحويل وتريد الاعتماد؟")) return;
                                 }
