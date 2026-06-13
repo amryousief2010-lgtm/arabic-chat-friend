@@ -286,6 +286,8 @@ export default function BankAccountPanel() {
     } else {
       toast.success("تم تسجيل الحركة البنكية — حسب القيمة قد تحتاج اعتماد");
     }
+    setTxnDlg(false);
+    fetchAll();
   }
 
   async function submitChangeAttachment() {
