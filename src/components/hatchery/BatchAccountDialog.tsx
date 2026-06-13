@@ -114,6 +114,10 @@ export default function BatchAccountDialog({
     if (error) return toast.error(error.message);
     toast.success("تم تسجيل تاريخ الاستلام");
     setReceiptOpen(false);
+    // Recompute the invoice if it already exists (before any collection)
+    if (invoice && num(invoice.paid_amount) === 0) {
+      await supabase.rpc("compute_hatchery_invoice" as any, { _lot_id: lotId });
+    }
     refreshAll();
   };
 
