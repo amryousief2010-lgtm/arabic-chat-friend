@@ -32,8 +32,9 @@ type Txn = {
 const INCOMING_SOURCES = [
   { value: "hyper_healthy", label: "هايبر هيلثي تيست", attachmentRequired: true },
   { value: "carrefour", label: "كارفور", attachmentRequired: true },
-  { value: "direct_customer", label: "عميل مباشر", attachmentRequired: false },
-  { value: "other", label: "جهة أخرى", attachmentRequired: false },
+  { value: "external_customer", label: "عميل خارجي", attachmentRequired: true },
+  { value: "direct_customer", label: "عميل مباشر", attachmentRequired: true },
+  { value: "other", label: "جهة أخرى", attachmentRequired: true },
 ];
 const SOURCE_LBL: Record<string,string> = Object.fromEntries(INCOMING_SOURCES.map(s => [s.value, s.label]));
 
@@ -247,7 +248,7 @@ export default function BankAccountPanel() {
     const srcDef = INCOMING_SOURCES.find(s => s.value === form.incoming_source);
     if (isIncoming && !form.incoming_source) return toast.error("اختر مصدر التحويل الوارد");
     if (isIncoming && srcDef?.attachmentRequired && !file) {
-      return toast.error(`صورة التحويل إجبارية لمصدر "${srcDef.label}"`);
+      return toast.error("يجب إرفاق إيصال التحويل قبل حفظ حركة التوريد البنكي");
     }
 
     setBusy(true);
@@ -832,7 +833,7 @@ export default function BankAccountPanel() {
               })()}
             </div>
             <div className="md:col-span-2 text-xs text-muted-foreground border rounded p-2 bg-muted/30">
-              ملاحظة: لا تؤثر هذه الحركة على الرصيد إلا بعد الاعتماد. الحركات ≤ 5,000 تُرحَّل تلقائيًا، من 5,000.01 إلى 50,000 اعتماد فردي، أكثر من 50,000 اعتماد مزدوج. تحويلات هايبر هيلثي تيست وكارفور لا يمكن اعتمادها بدون صورة تحويل مرفقة.
+              ملاحظة: لا تؤثر هذه الحركة على الرصيد إلا بعد الاعتماد. الحركات ≤ 5,000 تُرحَّل تلقائيًا، من 5,000.01 إلى 50,000 اعتماد فردي، أكثر من 50,000 اعتماد مزدوج. <b>أي تحويل وارد للحساب البنكي (هايبر / كارفور / هايبر هيلثي / عميل خارجي / عميل مباشر / أي جهة أخرى) لا يُحفظ ولا يُعتمد بدون إيصال تحويل مرفق.</b>
             </div>
           </div>
           <DialogFooter>
