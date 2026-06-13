@@ -333,6 +333,24 @@ const OfferBoxes = () => {
     },
   });
 
+  // Update item unit price (managers only — sales_manager / general / executive)
+  const updateItemPriceMutation = useMutation({
+    mutationFn: async ({ id, custom_price }: { id: string; custom_price: number }) => {
+      const { error } = await supabase
+        .from('offer_box_items')
+        .update({ custom_price })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['offer-box-items'] });
+      toast({ title: 'تم تحديث سعر المنتج داخل العرض' });
+    },
+    onError: (e: any) => {
+      toast({ title: 'فشل تحديث السعر', description: e?.message || 'خطأ غير معروف', variant: 'destructive' });
+    },
+  });
+
   const handleOpenDialog = (box?: OfferBox) => {
     if (box) {
       setEditingBox(box);
