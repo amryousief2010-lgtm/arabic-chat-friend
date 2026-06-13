@@ -85,8 +85,12 @@ export default function BatchAccountDialog({
 
   const createInvoice = async () => {
     if (invoice) { toast.info("الفاتورة موجودة بالفعل"); return; }
+    if (!lot?.hatcher_out_at) {
+      toast.error("يجب تسجيل تاريخ الفقس أولًا لحساب رسوم التحضين");
+      return;
+    }
     if (!lot?.brooding_out_at) {
-      toast.error("سجّل تاريخ استلام الكتاكيت أولًا قبل إنشاء الفاتورة النهائية");
+      toast.error("يجب تسجيل تاريخ استلام الكتاكيت أولًا حتى يتم حساب التحضين وإنشاء الفاتورة");
       return;
     }
     setCreating(true);
