@@ -248,7 +248,7 @@ export default function BankAccountPanel() {
     const srcDef = INCOMING_SOURCES.find(s => s.value === form.incoming_source);
     if (isIncoming && !form.incoming_source) return toast.error("اختر مصدر التحويل الوارد");
     if (isIncoming && srcDef?.attachmentRequired && !file) {
-      return toast.error(`صورة التحويل إجبارية لمصدر "${srcDef.label}"`);
+      return toast.error("يجب إرفاق إيصال التحويل قبل حفظ حركة التوريد البنكي");
     }
 
     setBusy(true);
