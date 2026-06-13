@@ -30,11 +30,11 @@ type Txn = {
 };
 
 const INCOMING_SOURCES = [
-  { value: "hyper_healthy", label: "هايبر هيلثي تيست", attachmentRequired: true },
-  { value: "carrefour", label: "كارفور", attachmentRequired: true },
-  { value: "external_customer", label: "عميل خارجي", attachmentRequired: true },
-  { value: "direct_customer", label: "عميل مباشر", attachmentRequired: true },
-  { value: "other", label: "جهة أخرى", attachmentRequired: true },
+  { value: "hyper_healthy", label: "هايبر هيلثي تيست", attachmentRequired: false },
+  { value: "carrefour", label: "كارفور", attachmentRequired: false },
+  { value: "external_customer", label: "عميل خارجي", attachmentRequired: false },
+  { value: "direct_customer", label: "عميل مباشر", attachmentRequired: false },
+  { value: "other", label: "جهة أخرى", attachmentRequired: false },
 ];
 const SOURCE_LBL: Record<string,string> = Object.fromEntries(INCOMING_SOURCES.map(s => [s.value, s.label]));
 
