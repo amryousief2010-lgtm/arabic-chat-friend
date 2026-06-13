@@ -85,8 +85,12 @@ export default function BatchAccountDialog({
 
   const createInvoice = async () => {
     if (invoice) { toast.info("الفاتورة موجودة بالفعل"); return; }
+    if (!lot?.hatcher_out_at) {
+      toast.error("يجب تسجيل تاريخ الفقس أولًا لحساب رسوم التحضين");
+      return;
+    }
     if (!lot?.brooding_out_at) {
-      toast.error("سجّل تاريخ استلام الكتاكيت أولًا قبل إنشاء الفاتورة النهائية");
+      toast.error("يجب تسجيل تاريخ استلام الكتاكيت أولًا حتى يتم حساب التحضين وإنشاء الفاتورة");
       return;
     }
     setCreating(true);
@@ -110,6 +114,10 @@ export default function BatchAccountDialog({
     if (error) return toast.error(error.message);
     toast.success("تم تسجيل تاريخ الاستلام");
     setReceiptOpen(false);
+    // Recompute the invoice if it already exists (before any collection)
+    if (invoice && num(invoice.paid_amount) === 0) {
+      await supabase.rpc("compute_hatchery_invoice" as any, { _lot_id: lotId });
+    }
     refreshAll();
   };
 
@@ -212,12 +220,13 @@ export default function BatchAccountDialog({
             const start = new Date(lot.hatcher_out_at.slice(0, 10));
             const today = new Date(new Date().toISOString().slice(0, 10));
             const days = Math.max(1, Math.round((today.getTime() - start.getTime()) / 86400000) + 1);
-            const proj = days * num(lot.chicks_hatched) * 10;
+            const chicks = num(lot.chicks_hatched);
+            const proj = days * chicks * 10;
             return (
               <div className="rounded border p-3 bg-blue-50 dark:bg-blue-950/30 text-sm flex items-center justify-between gap-2 flex-wrap">
                 <div>
-                  <Badge variant="outline" className="ml-2">تقديري — لم يتم الاستلام</Badge>
-                  <span>أيام التحضين حتى اليوم: <b>{days}</b> &nbsp;|&nbsp; رسوم التحضين المتوقعة: <b>{fmtMoney(proj)}</b></span>
+                  <Badge variant="outline" className="ml-2">تحضين تقديري حتى اليوم</Badge>
+                  <span>{chicks} كتكوت × {days} يوم × 10 ج.م = <b>{fmtMoney(proj)}</b></span>
                   <p className="text-xs text-muted-foreground mt-1">يتم تثبيت الرسوم النهائية عند تسجيل تاريخ الاستلام.</p>
                 </div>
                 <Button size="sm" onClick={() => setReceiptOpen(true)}>
@@ -227,24 +236,46 @@ export default function BatchAccountDialog({
             );
           })()}
 
+          {/* Final brooding preview when both dates are set but no invoice yet */}
+          {!invoice && lot.hatcher_out_at && lot.brooding_out_at && num(lot.chicks_hatched) > 0 && (() => {
+            const start = new Date(lot.hatcher_out_at.slice(0, 10));
+            const end = new Date(lot.brooding_out_at.slice(0, 10));
+            const days = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1);
+            const chicks = num(lot.chicks_hatched);
+            const total = days * chicks * 10;
+            return (
+              <div className="rounded border p-3 bg-emerald-50 dark:bg-emerald-950/30 text-sm space-y-1">
+                <div className="font-semibold">معاينة رسوم التحضين</div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                  <Info label="عدد الكتاكيت" value={fmt(chicks)} />
+                  <Info label="أيام التحضين" value={fmt(days)} />
+                  <Info label="سعر اليوم/كتكوت" value="10 ج.م" />
+                  <Info label="إجمالي رسوم التحضين" value={fmtMoney(total)} highlight />
+                </div>
+              </div>
+            );
+          })()}
+
           {!invoice && (
             <div className="rounded border p-4 bg-amber-50 dark:bg-amber-950/30 flex items-center justify-between gap-3">
               <div className="text-sm">
                 <p className="font-semibold">لم يتم إنشاء فاتورة لهذه الدفعة بعد.</p>
                 <p className="text-xs text-muted-foreground">
-                  {lot.brooding_out_at
-                    ? "إنشاء الفاتورة لا يؤثر على خزنة المعمل. الخزنة لا تتغير إلا عند التحصيل."
-                    : "سجّل تاريخ استلام الكتاكيت أولًا لتثبيت رسوم التحضين النهائية."}
+                  {!lot.hatcher_out_at
+                    ? "يجب تسجيل تاريخ الفقس أولًا لحساب رسوم التحضين."
+                    : !lot.brooding_out_at
+                    ? "سجّل تاريخ استلام الكتاكيت أولًا لتثبيت رسوم التحضين النهائية."
+                    : "إنشاء الفاتورة لا يؤثر على خزنة المعمل. الخزنة لا تتغير إلا عند التحصيل."}
                 </p>
               </div>
-              {lot.brooding_out_at ? (
+              {lot.hatcher_out_at && lot.brooding_out_at ? (
                 <Button onClick={createInvoice} disabled={creating}>
                   <FileText className="w-4 h-4 ml-1" />
                   {creating ? "جارٍ..." : "إنشاء فاتورة استلام كتاكيت"}
                 </Button>
               ) : (
-                <Button onClick={() => setReceiptOpen(true)}>
-                  تسجيل تاريخ الاستلام
+                <Button onClick={() => !lot.hatcher_out_at ? setHatchEditOpen(true) : setReceiptOpen(true)}>
+                  {!lot.hatcher_out_at ? "تسجيل تاريخ الفقس" : "تسجيل تاريخ الاستلام"}
                 </Button>
               )}
             </div>
