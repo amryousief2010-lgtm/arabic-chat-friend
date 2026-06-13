@@ -243,13 +243,10 @@ export default function BankAccountPanel() {
     if (needsCat && !form.bank_category_id) return toast.error("اختر بند المصروف البنكي");
     if (form.txn_type === "loan_installment" && !form.loan_number.trim()) return toast.error("رقم القرض مطلوب");
 
-    // Incoming transfer: validate attachment for Hyper/Carrefour
+    // Incoming transfer: attachment is OPTIONAL — warn but allow save without receipt
     const isIncoming = form.txn_type === "bank_deposit";
-    const srcDef = INCOMING_SOURCES.find(s => s.value === form.incoming_source);
     if (isIncoming && !form.incoming_source) return toast.error("اختر مصدر التحويل الوارد");
-    if (isIncoming && srcDef?.attachmentRequired && !file) {
-      return toast.error("يجب إرفاق إيصال التحويل قبل حفظ حركة التوريد البنكي");
-    }
+    const incomingWithoutReceipt = isIncoming && !file;
 
     setBusy(true);
     let attachmentPath: string | null = null;
