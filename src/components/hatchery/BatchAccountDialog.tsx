@@ -28,6 +28,13 @@ export default function BatchAccountDialog({
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<string>("cash");
   const [notes, setNotes] = useState("");
+  const [receiptOpen, setReceiptOpen] = useState(false);
+  const [receiptDate, setReceiptDate] = useState(new Date().toISOString().slice(0, 10));
+  const [savingReceipt, setSavingReceipt] = useState(false);
+  const [hatchEditOpen, setHatchEditOpen] = useState(false);
+  const [hatchDate, setHatchDate] = useState("");
+  const [savingHatch, setSavingHatch] = useState(false);
+
 
   const { data: lot, refetch: refetchLot } = useQuery({
     queryKey: ["batch_account_lot", lotId],
