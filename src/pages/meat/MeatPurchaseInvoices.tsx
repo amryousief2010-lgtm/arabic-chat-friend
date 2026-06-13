@@ -390,19 +390,25 @@ export default function MeatPurchaseInvoices() {
                         const it = items.find(x => x.id === l.raw_item_id);
                         return (
                           <TableRow key={l.tmp}>
-                            <TableCell className="min-w-[220px]">
-                              <Select value={l.raw_item_id} onValueChange={v => updateLine(l.tmp, { raw_item_id: v })}>
-                                <SelectTrigger><SelectValue placeholder="اختر صنف" /></SelectTrigger>
-                                <SelectContent className="max-h-80">
-                                  {itemsByKind.map(r => (
-                                    <SelectItem key={r.id} value={r.id}>
-                                      <span className="text-xs text-muted-foreground ml-2">[{KIND_LABEL[r.kind]}]</span>
-                                      {r.name} ({r.unit})
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                            <TableCell className="min-w-[260px]">
+                              <div className="flex items-center gap-1">
+                                <Select value={l.raw_item_id} onValueChange={v => updateLine(l.tmp, { raw_item_id: v })}>
+                                  <SelectTrigger><SelectValue placeholder="اختر صنف" /></SelectTrigger>
+                                  <SelectContent className="max-h-80">
+                                    {itemsByKind.map(r => (
+                                      <SelectItem key={r.id} value={r.id}>
+                                        <span className="text-xs text-muted-foreground ml-2">[{KIND_LABEL[r.kind]}]</span>
+                                        {r.name} ({r.unit})
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <Button type="button" size="icon" variant="outline" className="shrink-0" title="إضافة صنف جديد" onClick={() => openNewItemDlg(l.tmp)}>
+                                  <Plus className="w-4 h-4" />
+                                </Button>
+                              </div>
                             </TableCell>
+
                             <TableCell><Badge variant="outline">{KIND_LABEL[l.kind]}</Badge></TableCell>
                             <TableCell>{l.unit}</TableCell>
                             <TableCell><Input type="number" step="0.01" className="w-24" value={l.quantity || ""} onChange={e => updateLine(l.tmp, { quantity: Number(e.target.value) })} /></TableCell>
