@@ -61,6 +61,75 @@ export default function MeatPurchaseInvoices() {
   const [fStatus, setFStatus] = useState<string>("all");
   const [fSupplier, setFSupplier] = useState("");
 
+  // new-item dialog (add a new raw item from inside the purchase invoice)
+  const [newItemDlg, setNewItemDlg] = useState<{ open: boolean; lineTmp: string | null }>({ open: false, lineTmp: null });
+  const [newItem, setNewItem] = useState({
+    name: "", kind: "raw" as Kind, unit: "كجم", avg_cost: 0,
+    low_stock_threshold: 0, expiry_date: "", notes: "",
+  });
+  const [savingItem, setSavingItem] = useState(false);
+
+  const openNewItemDlg = (lineTmp: string) => {
+    setNewItem({ name: "", kind: "raw", unit: "كجم", avg_cost: 0, low_stock_threshold: 0, expiry_date: "", notes: "" });
+    setNewItemDlg({ open: true, lineTmp });
+  };
+
+  const saveNewItem = async () => {
+    const name = newItem.name.trim();
+    if (!name) { toast.error("أدخل اسم الصنف"); return; }
+    const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+    const { data: existing } = await supabase
+      .from("meat_factory_raw_items" as any)
+      .select("id,name,unit,current_stock,avg_cost,kind,is_active")
+      .eq("kind", newItem.kind);
+    const dup = (existing as any[] | null)?.find(r => norm(r.name) === norm(name));
+    if (dup) {
+      const useExisting = window.confirm("هذا الصنف موجود بالفعل في مخزن خامات مصنع اللحوم.\nهل تريد استخدام الصنف الموجود؟");
+      if (useExisting && newItemDlg.lineTmp) {
+        setItems(prev => prev.some(p => p.id === dup.id) ? prev : [...prev, dup as Item]);
+        updateLine(newItemDlg.lineTmp, { raw_item_id: dup.id });
+        setNewItemDlg({ open: false, lineTmp: null });
+      }
+      return;
+    }
+    setSavingItem(true);
+    try {
+      const { data, error } = await supabase
+        .from("meat_factory_raw_items" as any)
+        .insert({
+          name, kind: newItem.kind, unit: newItem.unit,
+          avg_cost: Number(newItem.avg_cost || 0),
+          low_stock_threshold: Number(newItem.low_stock_threshold || 0),
+          notes: newItem.notes || null, is_active: true, current_stock: 0,
+        } as any)
+        .select("id,name,unit,current_stock,avg_cost,kind,is_active")
+        .single();
+      if (error) throw error;
+      const created = data as any as Item;
+      await supabase.from("meat_factory_audit_log" as any).insert({
+        table_name: "meat_factory_raw_items",
+        row_id: created.id,
+        action: "create_from_purchase_invoice",
+        new_value: {
+          name: created.name, kind: created.kind, unit: created.unit,
+          avg_cost: created.avg_cost, low_stock_threshold: newItem.low_stock_threshold,
+          expiry_date: newItem.expiry_date || null, notes: newItem.notes || null,
+          source: "meat_factory_purchase_invoice",
+        },
+        performed_by: user?.id || null,
+      } as any);
+      setItems(prev => [...prev, created].sort((a, b) => a.name.localeCompare(b.name, "ar")));
+      if (newItemDlg.lineTmp) updateLine(newItemDlg.lineTmp, { raw_item_id: created.id });
+      toast.success("تم إضافة الصنف بنجاح");
+      setNewItemDlg({ open: false, lineTmp: null });
+    } catch (e: any) {
+      toast.error(e.message || "فشل إضافة الصنف");
+    } finally {
+      setSavingItem(false);
+    }
+  };
+
+
   const refresh = async () => {
     setLoading(true);
     const [it, pr] = await Promise.all([
