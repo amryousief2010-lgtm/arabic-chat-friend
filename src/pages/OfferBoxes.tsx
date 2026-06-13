@@ -83,6 +83,55 @@ interface Product {
   image_url: string | null;
 }
 
+// Inline editor for an offer-box item's unit price (managers only).
+// Shows total = unit × qty as a hint; commits on Enter / blur / save button.
+const InlineItemPriceEditor = ({
+  initialPrice,
+  quantity,
+  onSave,
+  disabled,
+}: {
+  initialPrice: number;
+  quantity: number;
+  onSave: (newPrice: number) => void;
+  disabled?: boolean;
+}) => {
+  const [val, setVal] = useState<string>(String(initialPrice));
+  const numeric = Number(val);
+  const dirty = !isNaN(numeric) && numeric !== initialPrice && numeric >= 0;
+  const commit = () => {
+    if (dirty) onSave(numeric);
+  };
+  return (
+    <div className="flex items-center gap-2">
+      <Input
+        type="number"
+        min={0}
+        step="0.01"
+        value={val}
+        disabled={disabled}
+        onChange={(e) => setVal(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            (e.target as HTMLInputElement).blur();
+          }
+        }}
+        className="h-8 w-24 text-center"
+      />
+      <span className="text-xs text-muted-foreground whitespace-nowrap">
+        × {quantity} = {(numeric * quantity).toLocaleString()} ج.م
+      </span>
+      {dirty && (
+        <Badge variant="outline" className="text-[10px] border-amber-400 text-amber-700">
+          غير محفوظ
+        </Badge>
+      )}
+    </div>
+  );
+};
+
 const OfferBoxes = () => {
   const { toast } = useToast();
   const { role, user } = useAuth();
