@@ -1779,6 +1779,7 @@ const Orders = () => {
             quantity: it.quantity,
             unit_price: it.unit_price,
             is_half_kg: !!(it as any).is_half_kg,
+            is_gift: !!(it as any).is_gift,
           }))}
           initialDiscount={editingOrder.discount}
           initialDeliveryFee={editingOrder.delivery_fee}
