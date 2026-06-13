@@ -1,78 +1,83 @@
-## لوحة "اعتمادات مطلوبة" للمدير التنفيذي
 
-شاشة موحّدة تظهر تلقائيًا أول ما يفتح المدير التنفيذي (أو المدير العام) السيستم، تجمع كل الاعتمادات المعلّقة من كل الأقسام، مع تحديث تلقائي وزر اعتماد/رفض داخل اللوحة.
+## الوضع الحالي (ما هو موجود فعلًا)
 
-### مكان الظهور
-- إضافة مكوّن `ExecutiveApprovalsAlert` داخل `DashboardLayout.tsx` فوق المحتوى (بنفس نمط `PendingApprovalsAlert` الموجود حاليًا للمعمل).
-- يظهر فقط لـ `executive_manager` أو `general_manager`.
-- جرس عائم في الأعلى يحمل عداد ("لديك N اعتماد بانتظار المراجعة"). أول دخول في الجلسة → فتح تلقائي للّوحة. بعد الإغلاق تظل الفقاعة ظاهرة مع العداد.
-- لا أي عنصر جديد في السايد بار.
+النظام فيه مسارَين متوازيَين للدفعات:
 
-### مصادر البيانات (المؤكدة في الكود/الـ DB)
+**1. المسار القديم — `hatch_batches`**: عميل واحد لكل دفعة، تشحن السجل المحاسبي تلقائيًا في `lab_customer_ledger` عند `status='completed'`. تم بالفعل إغلاق الدفعات `operational_batch_no ≤ 15` تاريخيًا بقيد `entry_type='historical_closeout'` و `payment_method='historical_settlement'` بدون أي تأثير على الخزنة.
 
-| التبويب | الجدول | شرط pending | جدول الـAudit |
-|---|---|---|---|
-| الخزن (الرئيسية) | `main_treasury_transactions` | `status='pending_approval'` | `main_treasury_audit_log` |
-| الخزن (تحويلات) | `treasury_transfers` + `treasury_transfer_settlements` | `status='pending'` | `treasury_transfer_audit_log` |
-| المعمل | `lab_treasury_movements` | `status='pending'` | `lab_treasury_audit_log` |
-| مصنع اللحوم | `meat_manufacturing_invoices` + `meat_factory_manufacturing` | `status='draft'` | `manager_review_audit` |
-| تقسيمة الدبح | `slaughter_custody_expenses` | `status IN ('pending_review','over_limit_pending')` | `slaughter_custody_audit` |
+**2. المسار الجديد — `hatchery_batches` + `hatchery_batch_lots`**: متعدد العملاء داخل نفس الدفعة، فيه فعليًا:
+- زر "إضافة نتيجة الفقس" (`HatchResultsEntryDialog`)
+- "فتح حساب العميل" + "إنشاء/عرض الفاتورة" (`BatchAccountDialog` يستدعي `compute_hatchery_invoice` RPC)
+- "تحصيل" (`InvoicesTab` ينشئ `hatchery_invoice_payments` → trigger ينشئ صف pending في `lab_treasury_movements`)
+- `hatcher_out_at` يلعب دور **تاريخ الفقس** لكل عميل
+- `brooding_out_at` يلعب دور **تاريخ الاستلام** لكل عميل
 
-ملاحظات صريحة من الفحص:
-- جداول `feed_factory_treasury_txns` / `hatchery_treasury_txns` / `meat_factory_treasury_txns` / `mf_treasury` **ليس فيها عمود status** — هي journals مباشرة بدون اعتماد، فلن تظهر في اللوحة.
-- جدول `slaughter_batches` نفسه ليس فيه حالة "بانتظار الاعتماد" — أقرب طابور اعتماد فعلي للدبح هو `slaughter_custody_expenses` (عهدة المسلخ). سيُستخدم كتبويب "تقسيمة/عهدة الدبح".
-- توريد التفريخ → ينتهي بـ row في `lab_treasury_movements` بحالة pending → يظهر تلقائيًا في تبويب المعمل.
+يعني المسار الجديد ده **هو فعلًا اللي طلبت تشغيله من دفعة 18 وما بعدها** — مش محتاج بناء نظام جديد، محتاج فقط ضبطات صغيرة.
 
-### التبويبات
-`الكل (N) | الخزن (n) | مصنع اللحوم (n) | عهدة الدبح (n) | المعمل (n)` — كل تبويب يعرض عدّاد.
+---
 
-كل كارت يحتوي على: النوع، الخزنة/المخزن/الفاتورة، المبلغ/الكمية، المستخدم المُسجِّل، التاريخ، الحالة، أزرار **عرض التفاصيل / اعتماد / رفض** (الرفض يفتح مربع لكتابة السبب).
+## الفجوات التي يجب سدّها
 
-### الاعتماد والرفض
-- يستخدم نفس RPC/منطق الاعتماد القائم في كل قسم (بدون تغيير منطق الاعتماد الحالي):
-  - الخزنة الرئيسية: تحديث `status='approved'/'rejected'` + كتابة في `main_treasury_audit_log`.
-  - تحويلات الخزنة: تحديث الحالة + `treasury_transfer_audit_log`.
-  - المعمل: عبر hook `useLabTreasuryApprovals` الموجود.
-  - فواتير تصنيع اللحوم: تحديث `status='approved'` + `approved_by/at` + `manager_review_audit` (الـ trigger الحالي يخصم الخامات ويضيف المنتج).
-  - عهدة الدبح: تحديث الحالة + `slaughter_custody_audit`.
-- منع التكرار: قبل أي اعتماد نتحقق من الحالة الحالية في DB؛ إذا تغيّرت تظهر رسالة "تم التعامل مع هذا الطلب بالفعل" ويُعاد تحميل القائمة.
+| # | الفجوة | الحل |
+|---|---|---|
+| 1 | الإغلاق التاريخي يصل لـ ≤15 فقط | امتداد لـ ≤17 لتغطية دفعتي 16 و 17 |
+| 2 | سعر التحضين اليومي في `hatchery_pricing_settings.daily_brooding_price = 15` بينما المطلوب 10 | تحديث الإعداد لـ 10 |
+| 3 | معادلة التحضين في `compute_hatchery_invoice` تستخدم `(brooding_out_at − hatcher_out_at) + 1` | المعادلة دي مطابقة تمامًا لطلبك: (تاريخ الاستلام − تاريخ الفقس + 1). موجودة بالفعل — لا تغيير. |
+| 4 | لو العميل لم يستلم بعد (`brooding_out_at IS NULL`)، الفاتورة الحالية ترفض الحساب النهائي | إضافة عرض تقديري في الواجهة فقط (لا فاتورة نهائية) — استخدام `today()` بدل `brooding_out_at` في حساب أيام التحضين كـ "متوقع" |
+| 5 | `hatcher_out_at` (تاريخ الفقس) لكل عميل قابل للتعديل بالفعل في DB لكن مش معروض كحقل واضح في UI الفقس | إضافة حقل افتراضي للدفعة + تجاوز اختياري لكل عميل في `HatchResultsEntryDialog` |
+| 6 | description للتحصيل = "تحصيل عميل تفريخ #..." بدل "توريد تفريخ" | تعديل trigger ليكتب "توريد تفريخ — <العميل> — <رقم الفاتورة>" |
 
-### التحديث التلقائي
-- React Query مع `refetchInterval: 30s` + `refetchOnWindowFocus`.
-- Realtime subscription على الجداول الخمسة عند توفّرها في `supabase_realtime` (إن لم تكن مفعّلة، migration بسيط لإضافتها).
-- العداد يتحدث فورًا. إذا ظهر طلب جديد بينما اللوحة مغلقة → toast: "يوجد اعتماد جديد بانتظارك".
+---
 
-### الصلاحية
-- اللوحة + كل الـ RPCs محميّة بـ `has_role(auth.uid(),'executive_manager')` أو `general_manager` (السياسات الحالية بالفعل تسمح لهذين الدورين).
+## التنفيذ المقترح
 
-### الملفات
+### الجزء 1 — Migration واحد فقط (تغييرات الـ DB)
 
-ملفات جديدة:
-```
-src/hooks/useExecutiveApprovals.tsx          # يجمع 5 queries + counts
-src/components/executive/ExecutiveApprovalsAlert.tsx  # الجرس + الفقاعة + auto-open
-src/components/executive/ExecutiveApprovalsDialog.tsx # الـDialog بالتبويبات
-src/components/executive/cards/TreasuryApprovalCard.tsx
-src/components/executive/cards/TransferApprovalCard.tsx
-src/components/executive/cards/LabMovementApprovalCard.tsx
-src/components/executive/cards/MeatInvoiceApprovalCard.tsx
-src/components/executive/cards/CustodyExpenseApprovalCard.tsx
-src/components/executive/RejectReasonDialog.tsx
-```
+أ. **تحديث سعر التحضين**: `UPDATE hatchery_pricing_settings SET daily_brooding_price = 10`
 
-ملف معدّل:
-```
-src/components/layout/DashboardLayout.tsx    # حقن <ExecutiveApprovalsAlert/>
-```
+ب. **إغلاق تاريخي للدفعات 16 و 17** (نفس نمط `20260608143144.sql`):
+- بحث عن الدفعات `operational_batch_no IN (16, 17)` في `hatch_batches`
+- لكل عميل مرتبط: حساب الرصيد المتبقي ثم إدراج صف `entry_type='historical_closeout'` بـ `credit = remaining_balance` و `payment_method='historical_settlement'` و `notes='إغلاق تاريخي للدفعات من 1 إلى 17 بناءً على اعتماد الإدارة'`
+- **مع `ON CONFLICT DO NOTHING` على `(source_type, source_id, customer_id)` لمنع التكرار لو تم التشغيل سابقًا**
+- إدراج صف واحد في `hatch_batch_edit_audit` لكل دفعة مغلقة (عدد العملاء، إجمالي التصفير، السبب)
+- **لا يُدرَج أي سجل في `lab_treasury_movements`** ولا تتغير الخزنة (مطابق لإغلاق ≤15 الموجود)
 
-Migration (اختياري حسب الحاجة):
-```
-supabase/migrations/*_realtime_exec_approvals.sql
-  ALTER PUBLICATION supabase_realtime ADD TABLE <جداول الخمسة إن لم تكن مضافة>;
-```
+ج. **تعديل `compute_hatchery_invoice`** لقراءة `daily_brooding_price` من الإعدادات (الـ DEFAULT الجديد = 10) — كده دفعة 18+ هتحسب تلقائيًا بسعر 10.
 
-### خارج النطاق (للتأكيد)
-1. لن أضيف عمود `status` لجداول `feed_factory_treasury_txns`/`hatchery_treasury_txns`/`meat_factory_treasury_txns` — هي ledgers append-only. لو محتاج اعتماد عليها لازم تصميم منفصل.
-2. لن أضيف حالة اعتماد جديدة لـ `slaughter_batches` — استخدمت `slaughter_custody_expenses` كأقرب طابور موجود فعلاً. لو المقصود اعتماد التقسيمة نفسها بعد الدبح، يحتاج migration وتصميم لاحق.
+د. **تعديل trigger `trg_lab_treasury_from_invoice_payment`** ليكتب description = `'توريد تفريخ — ' || client_name || ' — فاتورة ' || invoice_no` بدل النص الحالي.
 
-هل أبدأ التنفيذ بهذا النطاق؟
+### الجزء 2 — تغييرات الواجهة (الملفات الأمامية)
+
+أ. **`HatchResultsEntryDialog.tsx`**:
+- إضافة حقل واضح "تاريخ الفقس (افتراضي للدفعة)" بجانب نتائج الفقس — يحفظ في `hatcher_out_at` لكل lot في الدفعة.
+- إضافة قدرة تجاوز اختياري لكل عميل (input صغير في صف الـ lot).
+
+ب. **`BatchAccountDialog.tsx`**:
+- إذا `brooding_out_at IS NULL` (العميل لم يستلم بعد): عرض حساب التحضين **التقديري** باستخدام `today()` كتاريخ افتراضي + شارة "تقديري — لم يتم الاستلام" + إخفاء زر "إنشاء فاتورة" واستبداله بـ "تسجيل تاريخ الاستلام أولًا".
+- زر "تسجيل تاريخ الاستلام" يفتح dialog صغير يحفظ `brooding_out_at` ثم يفعّل زر إنشاء الفاتورة.
+
+ج. **`HatcheryLab.tsx` BatchesTab**: تنبيه/شارة "مغلقة تاريخيًا" على دفعات ≤17 من المسار القديم + إخفاؤها من قائمة "المفتوحة" افتراضيًا (تظهر فقط في tab "تاريخية").
+
+### الجزء 3 — اختبار
+
+بعد التنفيذ:
+1. تشغيل الإغلاق التاريخي والتحقق أن دفعتي 16 و 17 أُغلقتا، رصيد عملائهم = 0، خزنة المعمل لم تتغير، Audit Log فيه السجل، تشغيل ثاني مرة لا يكرر شيء.
+2. إنشاء lot اختباري في دفعة 18: تاريخ فقس 2026-06-13، 10 كتاكيت، تاريخ استلام 2026-06-17 → التحضين = 5 × 10 × 10 = 500 ج.
+3. تحصيل جزء من الفاتورة → التأكد أن `lab_treasury_movements` فيه صف pending بـ description "توريد تفريخ — ..." بدون تكرار عند الـ refresh.
+
+---
+
+## ما لن أفعله
+
+- **لن أحذف** أي دفعة أو عميل أو سجل.
+- **لن أبني نظام فواتير/تحصيل جديد** — موجود فعلًا في `hatchery_batch_lots/_client_invoices`.
+- **لن أمسّ الخزنة** بأي حركة جديدة بسبب الإغلاق التاريخي.
+- **لن أوحّد المسارَين القديم والجديد** (هذا تغيير معماري كبير خارج النطاق) — سأكتفي بإغلاق القديم تاريخيًا واستخدام الجديد للتشغيل من 18+.
+- **لن أغيّر** تسعير الدفعات المغلقة التاريخية (الـ 10 ج/يوم محفوظة فيها بالفعل).
+
+---
+
+## تأكيد قبل التنفيذ
+
+1. هل تريد أن يبدأ التشغيل الفعلي من 18+ على المسار الجديد `hatchery_batches/_batch_lots` (الفواتير الحديثة بمتعدد العملاء)؟ أم تريد إضافة نفس القدرات للمسار القديم `hatch_batches`؟ الأفضل والأقل مخاطرة هو الأول.
+2. هل أبدأ التنفيذ الآن بهذه الخطة؟
