@@ -85,6 +85,10 @@ export default function BatchAccountDialog({
 
   const createInvoice = async () => {
     if (invoice) { toast.info("الفاتورة موجودة بالفعل"); return; }
+    if (!lot?.brooding_out_at) {
+      toast.error("سجّل تاريخ استلام الكتاكيت أولًا قبل إنشاء الفاتورة النهائية");
+      return;
+    }
     setCreating(true);
     const { error } = await supabase.rpc("compute_hatchery_invoice" as any, { _lot_id: lotId });
     setCreating(false);
@@ -93,10 +97,44 @@ export default function BatchAccountDialog({
     refreshAll();
   };
 
+  const saveReceiptDate = async () => {
+    if (!receiptDate) return toast.error("اختر تاريخ الاستلام");
+    if (lot?.hatcher_out_at && new Date(receiptDate) < new Date(lot.hatcher_out_at.slice(0, 10))) {
+      return toast.error("تاريخ الاستلام لا يمكن أن يكون قبل تاريخ الفقس");
+    }
+    setSavingReceipt(true);
+    const { error } = await supabase.from("hatchery_batch_lots" as any)
+      .update({ brooding_out_at: new Date(receiptDate + "T12:00:00").toISOString() } as any)
+      .eq("id", lotId);
+    setSavingReceipt(false);
+    if (error) return toast.error(error.message);
+    toast.success("تم تسجيل تاريخ الاستلام");
+    setReceiptOpen(false);
+    refreshAll();
+  };
+
+  const saveHatchDate = async () => {
+    if (!hatchDate) return toast.error("اختر تاريخ الفقس");
+    setSavingHatch(true);
+    const { error } = await supabase.from("hatchery_batch_lots" as any)
+      .update({ hatcher_out_at: new Date(hatchDate + "T08:00:00").toISOString() } as any)
+      .eq("id", lotId);
+    setSavingHatch(false);
+    if (error) return toast.error(error.message);
+    toast.success("تم تحديث تاريخ الفقس");
+    setHatchEditOpen(false);
+    // If invoice already exists, recompute it
+    if (invoice) {
+      await supabase.rpc("compute_hatchery_invoice" as any, { _lot_id: lotId });
+    }
+    refreshAll();
+  };
+
   const addPayment = async () => {
     const amt = +amount;
     if (!invoice) return;
     if (!amt || amt <= 0) return toast.error("أدخل مبلغًا صحيحًا");
+
     const remaining = num(invoice.remaining_amount);
     if (amt > remaining + 0.01) return toast.error(`المبلغ يتجاوز المتبقي (${fmtMoney(remaining)})`);
     const uid = (await supabase.auth.getUser()).data.user?.id;
