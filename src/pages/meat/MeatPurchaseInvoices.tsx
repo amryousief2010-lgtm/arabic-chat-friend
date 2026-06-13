@@ -61,6 +61,75 @@ export default function MeatPurchaseInvoices() {
   const [fStatus, setFStatus] = useState<string>("all");
   const [fSupplier, setFSupplier] = useState("");
 
+  // new-item dialog (add a new raw item from inside the purchase invoice)
+  const [newItemDlg, setNewItemDlg] = useState<{ open: boolean; lineTmp: string | null }>({ open: false, lineTmp: null });
+  const [newItem, setNewItem] = useState({
+    name: "", kind: "raw" as Kind, unit: "كجم", avg_cost: 0,
+    low_stock_threshold: 0, expiry_date: "", notes: "",
+  });
+  const [savingItem, setSavingItem] = useState(false);
+
+  const openNewItemDlg = (lineTmp: string) => {
+    setNewItem({ name: "", kind: "raw", unit: "كجم", avg_cost: 0, low_stock_threshold: 0, expiry_date: "", notes: "" });
+    setNewItemDlg({ open: true, lineTmp });
+  };
+
+  const saveNewItem = async () => {
+    const name = newItem.name.trim();
+    if (!name) { toast.error("أدخل اسم الصنف"); return; }
+    const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+    const { data: existing } = await supabase
+      .from("meat_factory_raw_items" as any)
+      .select("id,name,unit,current_stock,avg_cost,kind,is_active")
+      .eq("kind", newItem.kind);
+    const dup = (existing as any[] | null)?.find(r => norm(r.name) === norm(name));
+    if (dup) {
+      const useExisting = window.confirm("هذا الصنف موجود بالفعل في مخزن خامات مصنع اللحوم.\nهل تريد استخدام الصنف الموجود؟");
+      if (useExisting && newItemDlg.lineTmp) {
+        setItems(prev => prev.some(p => p.id === dup.id) ? prev : [...prev, dup as Item]);
+        updateLine(newItemDlg.lineTmp, { raw_item_id: dup.id });
+        setNewItemDlg({ open: false, lineTmp: null });
+      }
+      return;
+    }
+    setSavingItem(true);
+    try {
+      const { data, error } = await supabase
+        .from("meat_factory_raw_items" as any)
+        .insert({
+          name, kind: newItem.kind, unit: newItem.unit,
+          avg_cost: Number(newItem.avg_cost || 0),
+          low_stock_threshold: Number(newItem.low_stock_threshold || 0),
+          notes: newItem.notes || null, is_active: true, current_stock: 0,
+        } as any)
+        .select("id,name,unit,current_stock,avg_cost,kind,is_active")
+        .single();
+      if (error) throw error;
+      const created = data as any as Item;
+      await supabase.from("meat_factory_audit_log" as any).insert({
+        table_name: "meat_factory_raw_items",
+        row_id: created.id,
+        action: "create_from_purchase_invoice",
+        new_value: {
+          name: created.name, kind: created.kind, unit: created.unit,
+          avg_cost: created.avg_cost, low_stock_threshold: newItem.low_stock_threshold,
+          expiry_date: newItem.expiry_date || null, notes: newItem.notes || null,
+          source: "meat_factory_purchase_invoice",
+        },
+        performed_by: user?.id || null,
+      } as any);
+      setItems(prev => [...prev, created].sort((a, b) => a.name.localeCompare(b.name, "ar")));
+      if (newItemDlg.lineTmp) updateLine(newItemDlg.lineTmp, { raw_item_id: created.id });
+      toast.success("تم إضافة الصنف بنجاح");
+      setNewItemDlg({ open: false, lineTmp: null });
+    } catch (e: any) {
+      toast.error(e.message || "فشل إضافة الصنف");
+    } finally {
+      setSavingItem(false);
+    }
+  };
+
+
   const refresh = async () => {
     setLoading(true);
     const [it, pr] = await Promise.all([
@@ -321,19 +390,25 @@ export default function MeatPurchaseInvoices() {
                         const it = items.find(x => x.id === l.raw_item_id);
                         return (
                           <TableRow key={l.tmp}>
-                            <TableCell className="min-w-[220px]">
-                              <Select value={l.raw_item_id} onValueChange={v => updateLine(l.tmp, { raw_item_id: v })}>
-                                <SelectTrigger><SelectValue placeholder="اختر صنف" /></SelectTrigger>
-                                <SelectContent className="max-h-80">
-                                  {itemsByKind.map(r => (
-                                    <SelectItem key={r.id} value={r.id}>
-                                      <span className="text-xs text-muted-foreground ml-2">[{KIND_LABEL[r.kind]}]</span>
-                                      {r.name} ({r.unit})
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                            <TableCell className="min-w-[260px]">
+                              <div className="flex items-center gap-1">
+                                <Select value={l.raw_item_id} onValueChange={v => updateLine(l.tmp, { raw_item_id: v })}>
+                                  <SelectTrigger><SelectValue placeholder="اختر صنف" /></SelectTrigger>
+                                  <SelectContent className="max-h-80">
+                                    {itemsByKind.map(r => (
+                                      <SelectItem key={r.id} value={r.id}>
+                                        <span className="text-xs text-muted-foreground ml-2">[{KIND_LABEL[r.kind]}]</span>
+                                        {r.name} ({r.unit})
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <Button type="button" size="icon" variant="outline" className="shrink-0" title="إضافة صنف جديد" onClick={() => openNewItemDlg(l.tmp)}>
+                                  <Plus className="w-4 h-4" />
+                                </Button>
+                              </div>
                             </TableCell>
+
                             <TableCell><Badge variant="outline">{KIND_LABEL[l.kind]}</Badge></TableCell>
                             <TableCell>{l.unit}</TableCell>
                             <TableCell><Input type="number" step="0.01" className="w-24" value={l.quantity || ""} onChange={e => updateLine(l.tmp, { quantity: Number(e.target.value) })} /></TableCell>
@@ -475,7 +550,78 @@ export default function MeatPurchaseInvoices() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <Dialog open={newItemDlg.open} onOpenChange={(v) => !v && setNewItemDlg({ open: false, lineTmp: null })}>
+          <DialogContent className="max-w-lg" dir="rtl">
+            <DialogHeader>
+              <DialogTitle>إضافة صنف جديد لمخزن خامات مصنع اللحوم</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 text-sm">
+              <div>
+                <Label>اسم الصنف *</Label>
+                <Input value={newItem.name} onChange={e => setNewItem(s => ({ ...s, name: e.target.value }))} placeholder="مثال: علبة برجر كبيرة" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>القسم / النوع</Label>
+                  <Select value={newItem.kind} onValueChange={(v: Kind) => setNewItem(s => ({ ...s, kind: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="raw">خامات (raw)</SelectItem>
+                      <SelectItem value="spice">بهارات (spice)</SelectItem>
+                      <SelectItem value="packaging">تغليف (packaging)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>وحدة القياس</Label>
+                  <Select value={newItem.unit} onValueChange={(v) => setNewItem(s => ({ ...s, unit: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="كجم">كجم</SelectItem>
+                      <SelectItem value="جرام">جرام</SelectItem>
+                      <SelectItem value="قطعة">قطعة</SelectItem>
+                      <SelectItem value="علبة">علبة</SelectItem>
+                      <SelectItem value="رول">رول</SelectItem>
+                      <SelectItem value="كيس">كيس</SelectItem>
+                      <SelectItem value="أخرى">أخرى</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>سعر شراء افتراضي</Label>
+                  <Input type="number" step="0.01" value={newItem.avg_cost || ""} onChange={e => setNewItem(s => ({ ...s, avg_cost: Number(e.target.value) }))} />
+                </div>
+                <div>
+                  <Label>حد تنبيه إعادة الطلب</Label>
+                  <Input type="number" step="0.01" value={newItem.low_stock_threshold || ""} onChange={e => setNewItem(s => ({ ...s, low_stock_threshold: Number(e.target.value) }))} />
+                </div>
+              </div>
+              <div>
+                <Label>تاريخ صلاحية افتراضي (اختياري)</Label>
+                <Input type="date" value={newItem.expiry_date} onChange={e => setNewItem(s => ({ ...s, expiry_date: e.target.value }))} />
+              </div>
+              <div>
+                <Label>ملاحظات</Label>
+                <Textarea value={newItem.notes} onChange={e => setNewItem(s => ({ ...s, notes: e.target.value }))} placeholder="اختياري" />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                ملاحظة: إنشاء الصنف لا يزيد المخزون. الزيادة تتم بعد اعتماد فاتورة المشتريات.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setNewItemDlg({ open: false, lineTmp: null })}>إلغاء</Button>
+              <Button onClick={saveNewItem} disabled={savingItem} className="bg-red-600 hover:bg-red-700">
+                {savingItem ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <Plus className="w-4 h-4 ml-1" />}
+                حفظ الصنف
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );
 }
+
