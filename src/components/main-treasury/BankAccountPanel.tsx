@@ -281,9 +281,11 @@ export default function BankAccountPanel() {
       if (error.code === "23505") return toast.error("هذه الحركة مسجلة بالفعل (تم منع التكرار)");
       return toast.error(error.message);
     }
-    toast.success("تم تسجيل الحركة البنكية — حسب القيمة قد تحتاج اعتماد");
-    setTxnDlg(false);
-    fetchAll();
+    if (incomingWithoutReceipt) {
+      toast.warning("تم حفظ الحركة بدون إيصال تحويل. يمكن رفع الإيصال لاحقًا قبل أو أثناء المراجعة.");
+    } else {
+      toast.success("تم تسجيل الحركة البنكية — حسب القيمة قد تحتاج اعتماد");
+    }
   }
 
   async function submitChangeAttachment() {
