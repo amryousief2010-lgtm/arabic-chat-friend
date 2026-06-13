@@ -189,7 +189,16 @@ export default function BatchAccountDialog({
             <Info label="اسم العميل" value={customerName} />
             <Info label="رقم الدفعة" value={b.batch_number || "—"} />
             <Info label="تاريخ الدخول" value={b.entry_date || "—"} />
-            <Info label="تاريخ الفقس" value={lot.hatcher_out_at?.slice(0,10) || "—"} />
+            <Info label="تاريخ الفقس" value={
+              <span className="inline-flex items-center gap-1">
+                {lot.hatcher_out_at?.slice(0,10) || "—"}
+                <button
+                  type="button"
+                  className="text-[10px] text-primary underline"
+                  onClick={() => { setHatchDate(lot.hatcher_out_at?.slice(0,10) || new Date().toISOString().slice(0,10)); setHatchEditOpen(true); }}
+                >تعديل</button>
+              </span>
+            } />
             <Info label="تاريخ الاستلام" value={lot.brooding_out_at?.slice(0,10) || "لم يستلم بعد"} />
             <Info label="عدد البيض" value={fmt(lot.eggs_in)} />
             <Info label="عدد اللايح" value={fmt(lot.infertile_eggs)} />
@@ -198,18 +207,49 @@ export default function BatchAccountDialog({
             <Info label="أيام التحضين" value={fmt(lot.brooding_days)} />
           </div>
 
+          {/* Projected brooding when customer hasn't received chicks yet */}
+          {!lot.brooding_out_at && num(lot.chicks_hatched) > 0 && lot.hatcher_out_at && (() => {
+            const start = new Date(lot.hatcher_out_at.slice(0, 10));
+            const today = new Date(new Date().toISOString().slice(0, 10));
+            const days = Math.max(1, Math.round((today.getTime() - start.getTime()) / 86400000) + 1);
+            const proj = days * num(lot.chicks_hatched) * 10;
+            return (
+              <div className="rounded border p-3 bg-blue-50 dark:bg-blue-950/30 text-sm flex items-center justify-between gap-2 flex-wrap">
+                <div>
+                  <Badge variant="outline" className="ml-2">تقديري — لم يتم الاستلام</Badge>
+                  <span>أيام التحضين حتى اليوم: <b>{days}</b> &nbsp;|&nbsp; رسوم التحضين المتوقعة: <b>{fmtMoney(proj)}</b></span>
+                  <p className="text-xs text-muted-foreground mt-1">يتم تثبيت الرسوم النهائية عند تسجيل تاريخ الاستلام.</p>
+                </div>
+                <Button size="sm" onClick={() => setReceiptOpen(true)}>
+                  تسجيل تاريخ الاستلام
+                </Button>
+              </div>
+            );
+          })()}
+
           {!invoice && (
             <div className="rounded border p-4 bg-amber-50 dark:bg-amber-950/30 flex items-center justify-between gap-3">
               <div className="text-sm">
                 <p className="font-semibold">لم يتم إنشاء فاتورة لهذه الدفعة بعد.</p>
-                <p className="text-xs text-muted-foreground">إنشاء الفاتورة لا يؤثر على خزنة المعمل. الخزنة لا تتغير إلا عند التحصيل.</p>
+                <p className="text-xs text-muted-foreground">
+                  {lot.brooding_out_at
+                    ? "إنشاء الفاتورة لا يؤثر على خزنة المعمل. الخزنة لا تتغير إلا عند التحصيل."
+                    : "سجّل تاريخ استلام الكتاكيت أولًا لتثبيت رسوم التحضين النهائية."}
+                </p>
               </div>
-              <Button onClick={createInvoice} disabled={creating}>
-                <FileText className="w-4 h-4 ml-1" />
-                {creating ? "جارٍ..." : "إنشاء فاتورة استلام كتاكيت"}
-              </Button>
+              {lot.brooding_out_at ? (
+                <Button onClick={createInvoice} disabled={creating}>
+                  <FileText className="w-4 h-4 ml-1" />
+                  {creating ? "جارٍ..." : "إنشاء فاتورة استلام كتاكيت"}
+                </Button>
+              ) : (
+                <Button onClick={() => setReceiptOpen(true)}>
+                  تسجيل تاريخ الاستلام
+                </Button>
+              )}
             </div>
           )}
+
 
           {invoice && (
             <div className="rounded border p-3 space-y-3">
