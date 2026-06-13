@@ -53,6 +53,7 @@ interface Props {
     unit_price: number;
     offer_name?: string | null;
     is_half_kg?: boolean;
+    is_gift?: boolean;
   }>;
   initialDiscount?: number;
   initialDeliveryFee?: number;
