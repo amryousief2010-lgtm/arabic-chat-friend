@@ -82,6 +82,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
         unit_price: it.unit_price,
         offer_name: it.offer_name ?? null,
         is_half_kg: !!it.is_half_kg,
+        is_gift: !!it.is_gift,
         _original: {
           product_id: it.product_id ?? null,
           quantity: it.quantity,
