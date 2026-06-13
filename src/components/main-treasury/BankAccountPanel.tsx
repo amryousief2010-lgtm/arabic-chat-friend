@@ -658,8 +658,8 @@ export default function BankAccountPanel() {
                                 else toast.error("تعذر فتح الصورة");
                               }}><Paperclip className="h-3 w-3"/>عرض</Button>
                             ) : (
-                              <span className={"text-xs " + (missing ? "text-destructive font-bold" : "text-muted-foreground")}>
-                                {missing ? "⚠ لا توجد صورة" : "لا توجد صورة"}
+                              <span className="text-xs text-amber-600 dark:text-amber-400 font-semibold">
+                                بدون إيصال
                               </span>
                             )}
                             {canChange && (
