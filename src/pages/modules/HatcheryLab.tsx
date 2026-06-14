@@ -590,6 +590,7 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
             rows={rows}
             stageMeta={groupedStageMeta}
             todayStr={todayStr}
+            sortOrder={sortOrder}
             onRefresh={() => {
               qc.invalidateQueries({ queryKey: ["hatch_batches_lab"] });
               qc.invalidateQueries({ queryKey: ["hatch_batches_dash"] });
