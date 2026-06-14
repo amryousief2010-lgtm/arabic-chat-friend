@@ -781,7 +781,7 @@ const MovementCard = ({ title, data, canManage, onReload, exportName, columns, f
             {data.map((r: any) => (
               <TableRow key={r.id}>
                 {columns.map((c: any) => (
-                  <TableCell key={c.key} className={c.className}>{c.render ? c.render(r[c.key]) : (r[c.key] ?? "-")}</TableCell>
+                  <TableCell key={c.key} className={c.className}>{c.render ? c.render(r[c.key], r) : (r[c.key] ?? "-")}</TableCell>
                 ))}
               </TableRow>
             ))}
