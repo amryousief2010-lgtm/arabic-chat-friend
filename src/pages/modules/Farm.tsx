@@ -682,7 +682,7 @@ const EggsTab = ({ eggs, families, qc }: any) => {
 // ============ TRANSFERS ============
 const emptyRow = () => ({ transfer_date: today(), family_id: "", quantity: "", damaged: "", notes: "" });
 
-const TransfersTab = ({ transfers, families, qc }: any) => {
+const TransfersTab = ({ transfers, families, eggs = [], qc }: any) => {
   const [open, setOpen] = useState(false);
   const [batchFrom, setBatchFrom] = useState(today());
   const [batchTo, setBatchTo] = useState(today());
