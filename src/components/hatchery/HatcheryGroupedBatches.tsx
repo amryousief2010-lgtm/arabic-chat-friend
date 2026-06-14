@@ -641,6 +641,24 @@ const GroupDetailDialog = ({ group, stageMeta, onClose, onOpenResults, onRefresh
                         <Pencil className="w-3 h-3 ml-1" /> تعديل
                       </Button>
                     </TableCell>
+                    {accountsEnabled && (
+                      <TableCell>
+                        {c.type === "internal" || !c._raw?.customer_id ? (
+                          <span className="text-[10px] text-muted-foreground">—</span>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                            disabled={openingAccount === c.id}
+                            onClick={() => openCustomerAccount(c)}
+                          >
+                            <Wallet className="w-3 h-3 ml-1" />
+                            {openingAccount === c.id ? "..." : "حساب العميل"}
+                          </Button>
+                        )}
+                      </TableCell>
+                    )}
                   </TableRow>
                 );
               })}
