@@ -1392,12 +1392,71 @@ const ChartsTab = ({ eggs, transfers, families }: any) => {
   );
 };
 // ============ FEED ============
+const MOTHER_FEED_START_DATE = "2026-06-14";
+
 const FeedTab = ({ logs, qc }: any) => {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<any>({ log_date: today(), feed_type: "", quantity: 0, unit: "كجم", notes: "" });
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [viewDay, setViewDay] = useState<string | null>(null);
+  const [busyDay, setBusyDay] = useState<string | null>(null);
+
+  // Existing daily withdrawals from mother farm feed inventory
+  const { data: withdrawnDays = [] } = useQuery({
+    queryKey: ["mff_consumption_days"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("mother_farm_feed_movements" as any)
+        .select("consumption_day, weight_kg, id")
+        .eq("movement_type", "daily_consumption")
+        .order("consumption_day", { ascending: false })
+        .limit(2000);
+      if (error) throw error;
+      return (data as any[]) || [];
+    },
+  });
+  const withdrawnMap = useMemo(() => {
+    const m = new Map<string, { id: string; weight_kg: number }>();
+    withdrawnDays.forEach((d: any) => { if (d.consumption_day) m.set(d.consumption_day, { id: d.id, weight_kg: Number(d.weight_kg) }); });
+    return m;
+  }, [withdrawnDays]);
+
+  const withdrawDay = useMutation({
+    mutationFn: async (day: { date: string; total: number }) => {
+      if (day.date < MOTHER_FEED_START_DATE) {
+        throw new Error("هذا اليوم قبل بداية التشغيل الفعلي لسحب علف الأمهات ولا يتم خصمه من المخزون");
+      }
+      if (withdrawnMap.has(day.date)) {
+        throw new Error("تم سحب علف هذا اليوم من قبل");
+      }
+      if (!(day.total > 0)) throw new Error("لا يوجد كمية للسحب");
+      const { error } = await supabase.from("mother_farm_feed_movements" as any).insert({
+        movement_date: day.date,
+        movement_type: "daily_consumption",
+        weight_kg: day.total,
+        consumption_day: day.date,
+        notes: `سحب يدوي من سجل الأمهات — reference_id=mother_feed_consumption_${day.date} — source=mother_farm_feed_daily_consumption`,
+      });
+      if (error) throw error;
+      return day;
+    },
+    onSuccess: (r) => {
+      toast.success(`تم سحب ${r.total.toLocaleString()} كجم من مخزون علف الأمهات ليوم ${r.date}`);
+      qc.invalidateQueries({ queryKey: ["mff_consumption_days"] });
+      qc.invalidateQueries({ queryKey: ["mff_balance"] });
+      qc.invalidateQueries({ queryKey: ["mff_movements"] });
+      setBusyDay(null);
+    },
+    onError: (e: any) => { toast.error(e.message); setBusyDay(null); },
+  });
+
+  const handleWithdraw = (d: { date: string; total: number }) => {
+    if (busyDay) return;
+    if (!confirm(`سحب ${d.total.toLocaleString()} كجم من مخزون علف الأمهات ليوم ${d.date}؟`)) return;
+    setBusyDay(d.date);
+    withdrawDay.mutate(d);
+  };
 
   const save = useMutation({
     mutationFn: async () => { const { error } = await supabase.from("farm_feed_log").insert(form); if (error) throw error; },
