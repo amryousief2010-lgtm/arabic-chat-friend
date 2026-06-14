@@ -5,21 +5,39 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Save, X, Plus, ShieldAlert, Lock } from "lucide-react";
+import { Save, X, Plus, Trash2, ShieldAlert, Lock } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 interface Props {
-  group: any; // grouped operational batch from HatcheryGroupedBatches
+  group: any;
   onClose: () => void;
   onSaved?: () => void;
 }
 
 const ALLOWED_ROLES = ["general_manager", "executive_manager", "hatchery_manager", "farm_manager"] as const;
-
 const today = () => new Date().toISOString().slice(0, 10);
+
+type AddRow = {
+  customer_id: string;
+  qty: string;
+  add_date: string;
+  source: string;
+  notes: string;
+  reason: string;
+};
+
+const blankRow = (): AddRow => ({
+  customer_id: "",
+  qty: "",
+  add_date: today(),
+  source: "external",
+  notes: "",
+  reason: "",
+});
 
 export default function BatchAddEggsDialog({ group, onClose, onSaved }: Props) {
   const { roles, profile, user } = useAuth();
@@ -28,7 +46,6 @@ export default function BatchAddEggsDialog({ group, onClose, onSaved }: Props) {
     [roles]
   );
 
-  // Lock: don't allow adding eggs once any row in the group has hatch results / closed / exit
   const locked = useMemo(() => {
     return (group?.customers || []).some((c: any) => {
       const r = c._raw || {};
@@ -52,179 +69,220 @@ export default function BatchAddEggsDialog({ group, onClose, onSaved }: Props) {
     },
   });
 
-  const [customerId, setCustomerId] = useState<string>("");
-  const [qty, setQty] = useState<string>("");
-  const [addDate, setAddDate] = useState<string>(today());
-  const [source, setSource] = useState<string>("external");
-  const [notes, setNotes] = useState<string>("");
-  const [reason, setReason] = useState<string>("");
+  const [rows, setRows] = useState<AddRow[]>([blankRow()]);
   const [saving, setSaving] = useState(false);
 
   const totalBefore = group?.total_eggs || 0;
-  const existingForCustomer = useMemo(
-    () => (group?.customers || []).find((c: any) => c._raw?.customer_id === customerId),
-    [group, customerId]
-  );
+  const addedTotal = rows.reduce((s, r) => s + (Number(r.qty) || 0), 0);
+
+  const setRow = (i: number, patch: Partial<AddRow>) =>
+    setRows((p) => p.map((r, j) => (i === j ? { ...r, ...patch } : r)));
+  const addRow = () => setRows((p) => [...p, blankRow()]);
+  const removeRow = (i: number) => setRows((p) => p.filter((_, j) => j !== i));
+
+  const findExisting = (customerId: string) =>
+    (group?.customers || []).find((c: any) => c._raw?.customer_id === customerId);
+
+  const validate = (): string | null => {
+    if (!rows.length) return "أضف صفًا واحدًا على الأقل";
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r.customer_id) return `الصف ${i + 1}: اختر العميل`;
+      const q = Number(r.qty);
+      if (!q || q <= 0) return `الصف ${i + 1}: كمية البيض يجب أن تكون أكبر من صفر`;
+    }
+    // Internal duplicate check (same customer + date + qty)
+    const seen = new Set<string>();
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      const key = `${r.customer_id}|${r.add_date}|${Number(r.qty)}`;
+      if (seen.has(key)) return `الصف ${i + 1}: نفس العميل بنفس التاريخ والكمية مكرر داخل الفورم`;
+      seen.add(key);
+    }
+    return null;
+  };
 
   const save = async () => {
     if (!canEdit) return toast.error("لا تملك صلاحية الإضافة");
-    if (locked) return toast.error("الدفعة مقفلة (نتيجة فقس/إغلاق)");
-    if (!customerId) return toast.error("اختر العميل");
-    const q = Number(qty);
-    if (!q || q <= 0) return toast.error("أدخل عدد بيض صحيح");
+    if (locked) return toast.error("لا يمكن إضافة بيض على دفعة مقفلة أو تم تسجيل نتيجة فقس لها");
+    const err = validate();
+    if (err) return toast.error(err);
     if (saving) return;
     setSaving(true);
-    try {
-      const opNo = group.op_seq;
-      const machine = group.machine || null;
-      const entryDate = group.entry_date;
-      const userId = user?.id || null;
-      const refId = `late_egg_addition_${opNo}_${customerId}_${addDate}_${q}`;
 
-      // Duplicate guard: search audit log for same reference_id in last 24h
-      const { data: dup } = await supabase
-        .from("hatch_batch_edit_audit")
+    const batchOperationId = (crypto as any).randomUUID?.() || `op-${Date.now()}`;
+    const opNo = group.op_seq;
+    const machine = group.machine || null;
+    const entryDate = group.entry_date;
+    const userId = user?.id || null;
+
+    const report = { ok: 0, skipped: 0, failed: 0, details: [] as string[] };
+
+    try {
+      // Find/create hatchery_batches header once
+      let headerId: string | null = null;
+      const { data: header } = await supabase
+        .from("hatchery_batches" as any)
         .select("id")
-        .contains("changes", { reference_id: refId } as any)
+        .eq("entry_date", entryDate)
+        .eq("incubator_machine_no", machine)
+        .order("created_at", { ascending: true })
         .limit(1)
         .maybeSingle();
-      if (dup) {
-        toast.error("تم تسجيل هذه الإضافة بالفعل (منع التكرار)");
-        return;
+      headerId = (header as any)?.id || null;
+      if (!headerId) {
+        const { data: created, error: hErr } = await supabase
+          .from("hatchery_batches" as any)
+          .insert({
+            entry_date: entryDate,
+            batch_type: "mixed",
+            incubator_machine_no: machine,
+            notes: `Auto-created for op_seq ${opNo}`,
+            created_by: userId,
+          })
+          .select()
+          .single();
+        if (hErr) throw hErr;
+        headerId = (created as any).id;
       }
 
-      // 1) Find/create hatchery_batches header for this op
-      let headerId: string | null = null;
-      {
-        const { data: header } = await supabase
-          .from("hatchery_batches" as any)
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+        const q = Number(r.qty);
+        const cust = customers.find((c: any) => c.id === r.customer_id);
+        const refId = `late_egg_addition_${opNo}_${r.customer_id}_${r.add_date}_${q}`;
+
+        // Duplicate guard against audit log
+        const { data: dup } = await supabase
+          .from("hatch_batch_edit_audit")
           .select("id")
-          .eq("entry_date", entryDate)
-          .eq("incubator_machine_no", machine)
-          .order("created_at", { ascending: true })
+          .contains("changes", { reference_id: refId } as any)
           .limit(1)
           .maybeSingle();
-        headerId = (header as any)?.id || null;
-        if (!headerId) {
-          const { data: created, error: hErr } = await supabase
-            .from("hatchery_batches" as any)
+        if (dup) {
+          report.skipped += 1;
+          report.details.push(`تم تسجيل هذه الإضافة لـ ${cust?.name} من قبل`);
+          continue;
+        }
+
+        try {
+          const ownerType = cust?.customer_type === "internal" ? "capital_ostrich" : "external_client";
+          const { data: lot, error: lotErr } = await supabase
+            .from("hatchery_batch_lots" as any)
             .insert({
-              entry_date: entryDate,
-              batch_type: "mixed",
-              incubator_machine_no: machine,
-              notes: `Auto-created for op_seq ${opNo}`,
-              created_by: userId,
+              batch_id: headerId,
+              owner_type: ownerType,
+              source: r.source || (ownerType === "capital_ostrich" ? "mother_farm" : "external"),
+              eggs_in: q,
+              client_id: ownerType === "external_client" ? r.customer_id : null,
+              client_name_snapshot: cust?.name || null,
             })
             .select()
             .single();
-          if (hErr) throw hErr;
-          headerId = (created as any).id;
+          if (lotErr) throw lotErr;
+
+          const existing = findExisting(r.customer_id);
+          let mirrorId = existing?.id || null;
+          let beforeQty = 0;
+          if (mirrorId) {
+            const before = existing._raw || {};
+            beforeQty = before.received_eggs || 0;
+            const newReceived = (before.received_eggs || 0) + q;
+            const newNet = (before.net_eggs || 0) + q;
+            const { error: uErr } = await supabase
+              .from("hatch_batches")
+              .update({
+                received_eggs: newReceived,
+                net_eggs: newNet,
+                notes: r.notes
+                  ? `${before.notes ? before.notes + "\n" : ""}+${q} بيضة متأخرة بتاريخ ${r.add_date} — ${r.notes}`
+                  : before.notes,
+              })
+              .eq("id", mirrorId);
+            if (uErr) throw uErr;
+          } else {
+            const ts = Date.now() + i;
+            const { data: ins, error: iErr } = await supabase
+              .from("hatch_batches")
+              .insert({
+                batch_number: `HB-${String(opNo).padStart(5, "0")}-${ts}`,
+                operational_batch_no: opNo,
+                receive_date: r.add_date,
+                entry_date: entryDate,
+                machine,
+                received_eggs: q,
+                net_eggs: q,
+                customer_id: r.customer_id,
+                status: "pending",
+                notes: r.notes || `بيض متأخر مضاف بتاريخ ${r.add_date}`,
+                created_by: userId,
+                is_test: false,
+              } as any)
+              .select("id")
+              .single();
+            if (iErr) throw iErr;
+            mirrorId = (ins as any).id;
+          }
+
+          await supabase.from("hatch_batch_edit_audit").insert({
+            batch_id: mirrorId,
+            batch_number: existing?.batch_number || null,
+            operational_batch_no: opNo,
+            customer_id: r.customer_id,
+            customer_name: cust?.name || null,
+            actor_id: userId,
+            actor_name: profile?.full_name || user?.email || null,
+            changes: {
+              action: "late_eggs_added",
+              reference_id: refId,
+              batch_operation_id: batchOperationId,
+              eggs_added: q,
+              eggs_before: beforeQty,
+              eggs_after: beforeQty + q,
+              add_date: r.add_date,
+              source: r.source,
+              lot_id: (lot as any).id,
+              header_id: headerId,
+              notes: r.notes,
+            },
+            reason: r.reason?.trim() || "إضافة بيض متأخر للدفعة",
+          });
+
+          await supabase.from("hatchery_batch_movements" as any).insert({
+            batch_id: headerId,
+            lot_id: (lot as any).id,
+            event_type: "created",
+            payload: {
+              kind: "late_eggs_added",
+              operational_batch_no: opNo,
+              batch_operation_id: batchOperationId,
+              customer_id: r.customer_id,
+              customer_name: cust?.name,
+              eggs_added: q,
+              eggs_before: beforeQty,
+              eggs_after: beforeQty + q,
+              add_date: r.add_date,
+              reference_id: refId,
+            },
+            created_by: userId,
+          });
+
+          report.ok += 1;
+        } catch (e: any) {
+          report.failed += 1;
+          report.details.push(`فشل ${cust?.name}: ${e?.message || "خطأ"}`);
         }
       }
 
-      // 2) Insert a new hatchery_batch_lot for the added eggs (audit trail)
-      const cust = customers.find((c: any) => c.id === customerId);
-      const ownerType = cust?.customer_type === "internal" ? "capital_ostrich" : "external_client";
-      const { data: lot, error: lotErr } = await supabase
-        .from("hatchery_batch_lots" as any)
-        .insert({
-          batch_id: headerId,
-          owner_type: ownerType,
-          source: source || (ownerType === "capital_ostrich" ? "mother_farm" : "external"),
-          eggs_in: q,
-          client_id: ownerType === "external_client" ? customerId : null,
-          client_name_snapshot: cust?.name || null,
-        })
-        .select()
-        .single();
-      if (lotErr) throw lotErr;
-
-      // 3) Mirror in hatch_batches: either add to existing customer row, or create new mirror row
-      let mirrorId = existingForCustomer?.id || null;
-      if (mirrorId) {
-        const before = existingForCustomer._raw || {};
-        const newReceived = (before.received_eggs || 0) + q;
-        const newNet = (before.net_eggs || 0) + q;
-        const { error: uErr } = await supabase
-          .from("hatch_batches")
-          .update({
-            received_eggs: newReceived,
-            net_eggs: newNet,
-            notes: notes
-              ? `${before.notes ? before.notes + "\n" : ""}+${q} بيضة متأخرة بتاريخ ${addDate} — ${notes}`
-              : before.notes,
-          })
-          .eq("id", mirrorId);
-        if (uErr) throw uErr;
-      } else {
-        const ts = Date.now();
-        const { data: ins, error: iErr } = await supabase
-          .from("hatch_batches")
-          .insert({
-            batch_number: `HB-${String(opNo).padStart(5, "0")}-${ts}`,
-            operational_batch_no: opNo,
-            receive_date: addDate,
-            entry_date: entryDate,
-            machine,
-            received_eggs: q,
-            net_eggs: q,
-            customer_id: customerId,
-            status: "pending",
-            notes: notes || `بيض متأخر مضاف بتاريخ ${addDate}`,
-            created_by: userId,
-            is_test: false,
-          } as any)
-          .select("id")
-          .single();
-        if (iErr) throw iErr;
-        mirrorId = (ins as any).id;
+      if (report.ok > 0) {
+        toast.success(`تمت إضافة ${report.ok} عميل بإجمالي ${addedTotal} بيضة`);
       }
-
-      // 4) Audit log + movement
-      await supabase.from("hatch_batch_edit_audit").insert({
-        batch_id: mirrorId,
-        batch_number: existingForCustomer?.batch_number || null,
-        operational_batch_no: opNo,
-        customer_id: customerId,
-        customer_name: cust?.name || null,
-        actor_id: userId,
-        actor_name: profile?.full_name || user?.email || null,
-        changes: {
-          action: "late_eggs_added",
-          reference_id: refId,
-          eggs_added: q,
-          total_eggs_before: totalBefore,
-          total_eggs_after: totalBefore + q,
-          add_date: addDate,
-          source,
-          lot_id: (lot as any).id,
-          header_id: headerId,
-          notes,
-        },
-        reason: reason.trim() || "إضافة بيض متأخر للدفعة",
-      });
-
-      await supabase.from("hatchery_batch_movements" as any).insert({
-        batch_id: headerId,
-        lot_id: (lot as any).id,
-        event_type: "created",
-        payload: {
-          kind: "late_eggs_added",
-          operational_batch_no: opNo,
-          customer_id: customerId,
-          customer_name: cust?.name,
-          eggs_added: q,
-          add_date: addDate,
-          reference_id: refId,
-          total_eggs_before: totalBefore,
-          total_eggs_after: totalBefore + q,
-        },
-        created_by: userId,
-      });
-
-      toast.success(`تمت إضافة ${q} بيضة للدفعة رقم ${opNo}`);
-      onSaved?.();
-      onClose();
+      if (report.skipped > 0) toast.warning(`تم تخطي ${report.skipped} (مكرر سابقًا)`);
+      if (report.failed > 0) toast.error(`فشل ${report.failed} صف`);
+      if (report.ok > 0) {
+        onSaved?.();
+        onClose();
+      }
     } catch (e: any) {
       toast.error(e?.message || "فشل الحفظ");
     } finally {
@@ -254,85 +312,135 @@ export default function BatchAddEggsDialog({ group, onClose, onSaved }: Props) {
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 flex-wrap">
             <Plus className="w-5 h-5 text-purple-600" />
             إضافة بيض للدفعة — {group?.op_number}
+            <span className="text-xs text-muted-foreground mr-2">
+              إجمالي الدفعة الحالي: <b>{totalBefore}</b>
+            </span>
           </DialogTitle>
         </DialogHeader>
 
         {locked && (
           <div className="bg-red-50 border border-red-200 rounded p-3 text-sm text-red-700 flex items-start gap-2">
             <Lock className="w-4 h-4 mt-0.5" />
-            <div>
-              لا يمكن إضافة بيض على هذه الدفعة بعد تسجيل نتيجة الفقس أو إغلاق الدفعة.
-              يمكن عمل تسوية معتمدة من المدير العام فقط.
-            </div>
+            <div>لا يمكن إضافة بيض على دفعة مقفلة أو تم تسجيل نتيجة فقس لها.</div>
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div className="md:col-span-2">
-            <Label>العميل *</Label>
-            <Select value={customerId} onValueChange={setCustomerId} disabled={locked}>
-              <SelectTrigger><SelectValue placeholder="اختر العميل" /></SelectTrigger>
-              <SelectContent>
-                {customers.map((c: any) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name} {c.customer_type === "internal" ? "(عاصمة)" : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {existingForCustomer && (
-              <div className="text-xs text-emerald-700 mt-1">
-                العميل موجود بالفعل في الدفعة برصيد {existingForCustomer.total_eggs} بيضة — ستتم زيادة الكمية الحالية.
-              </div>
-            )}
-          </div>
+        <div className="border rounded-lg overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-10">#</TableHead>
+                <TableHead className="min-w-[180px]">العميل *</TableHead>
+                <TableHead className="w-24">الكمية *</TableHead>
+                <TableHead className="w-36">تاريخ الإضافة</TableHead>
+                <TableHead className="w-32">المصدر</TableHead>
+                <TableHead>ملاحظات</TableHead>
+                <TableHead>سبب الإضافة</TableHead>
+                <TableHead className="w-10"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((r, i) => {
+                const existing = r.customer_id ? findExisting(r.customer_id) : null;
+                return (
+                  <TableRow key={i}>
+                    <TableCell className="text-xs text-muted-foreground">{i + 1}</TableCell>
+                    <TableCell>
+                      <Select
+                        value={r.customer_id}
+                        onValueChange={(v) => setRow(i, { customer_id: v })}
+                        disabled={locked}
+                      >
+                        <SelectTrigger><SelectValue placeholder="اختر العميل" /></SelectTrigger>
+                        <SelectContent>
+                          {customers.map((c: any) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.name} {c.customer_type === "internal" ? "(عاصمة)" : ""}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {existing && (
+                        <div className="text-[10px] text-emerald-700 mt-0.5">
+                          موجود: {existing.total_eggs} بيضة (سيُزاد)
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={r.qty}
+                        onChange={(e) => setRow(i, { qty: e.target.value })}
+                        disabled={locked}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="date"
+                        value={r.add_date}
+                        onChange={(e) => setRow(i, { add_date: e.target.value })}
+                        disabled={locked}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Select value={r.source} onValueChange={(v) => setRow(i, { source: v })} disabled={locked}>
+                        <SelectTrigger /><SelectContent>
+                          <SelectItem value="mother_farm">مزرعة الأمهات</SelectItem>
+                          <SelectItem value="external">عميل خارجي</SelectItem>
+                          <SelectItem value="other">أخرى</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell>
+                      <Textarea
+                        rows={1}
+                        value={r.notes}
+                        onChange={(e) => setRow(i, { notes: e.target.value })}
+                        disabled={locked}
+                        className="min-h-[36px]"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Textarea
+                        rows={1}
+                        value={r.reason}
+                        onChange={(e) => setRow(i, { reason: e.target.value })}
+                        disabled={locked}
+                        className="min-h-[36px]"
+                        placeholder="سبب الإضافة"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => removeRow(i)}
+                        disabled={rows.length === 1 || locked}
+                      >
+                        <Trash2 className="w-4 h-4 text-red-600" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
 
-          <div>
-            <Label>عدد البيض المضاف *</Label>
-            <Input type="number" min={1} value={qty} onChange={(e) => setQty(e.target.value)} disabled={locked} />
-          </div>
-          <div>
-            <Label>تاريخ الإضافة</Label>
-            <Input type="date" value={addDate} onChange={(e) => setAddDate(e.target.value)} disabled={locked} />
-          </div>
-          <div className="md:col-span-2">
-            <Label>المصدر</Label>
-            <Select value={source} onValueChange={setSource} disabled={locked}>
-              <SelectTrigger /><SelectContent>
-                <SelectItem value="mother_farm">مزرعة الأمهات</SelectItem>
-                <SelectItem value="external">عميل خارجي</SelectItem>
-                <SelectItem value="other">أخرى</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="md:col-span-2">
-            <Label>ملاحظات</Label>
-            <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} disabled={locked} />
-          </div>
-          <div className="md:col-span-2">
-            <Label>سبب الإضافة</Label>
-            <Textarea
-              rows={2}
-              placeholder="مثال: العميل أحضر بيض متأخر بعد بدء التشغيل"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              disabled={locked}
-            />
-          </div>
-
-          <div className="md:col-span-2 text-xs bg-slate-50 border rounded p-2">
-            <div>إجمالي البيض الحالي للدفعة: <b>{totalBefore}</b></div>
-            <div>بعد الإضافة: <b>{totalBefore + (Number(qty) || 0)}</b></div>
-            <div className="text-muted-foreground mt-1">
-              سيتم تحديث الجداول: <span className="font-mono">hatchery_batch_lots</span> +{" "}
-              <span className="font-mono">hatch_batches</span> +{" "}
-              <span className="font-mono">hatchery_batch_movements</span> (سجل تدقيق)
-            </div>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={addRow} disabled={locked}>
+            <Plus className="w-4 h-4 ml-1" /> إضافة عميل آخر
+          </Button>
+          <div className="text-sm bg-slate-50 border rounded px-3 py-1.5">
+            عدد العملاء المضافين: <b>{rows.length}</b> &nbsp;|&nbsp;
+            إجمالي البيض المضاف: <b className="text-purple-700">{addedTotal}</b> &nbsp;|&nbsp;
+            إجمالي الدفعة بعد الحفظ: <b className="text-emerald-700">{totalBefore + addedTotal}</b>
           </div>
         </div>
 
@@ -342,10 +450,10 @@ export default function BatchAddEggsDialog({ group, onClose, onSaved }: Props) {
           </Button>
           <Button
             onClick={save}
-            disabled={saving || locked || !customerId || !qty}
+            disabled={saving || locked || addedTotal === 0}
             className="bg-purple-600 hover:bg-purple-700"
           >
-            <Save className="w-4 h-4 ml-1" /> {saving ? "جاري الحفظ..." : "حفظ الإضافة"}
+            <Save className="w-4 h-4 ml-1" /> {saving ? "جاري الحفظ..." : `حفظ (${rows.length})`}
           </Button>
         </DialogFooter>
       </DialogContent>
