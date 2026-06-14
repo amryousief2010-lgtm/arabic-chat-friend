@@ -161,14 +161,14 @@ export default function SlaughterhouseFeedStore() {
         </tr>`;
       })
       .join("");
-    openPrintWindow({
-      title: "سجل صرف علف نعام التسمين",
-      bodyHtml: `<h2>سجل صرف علف نعام التسمين</h2>
+    openPrintWindow(
+      "سجل صرف علف نعام التسمين",
+      `<h2>سجل صرف علف نعام التسمين</h2>
         <table border="1" cellspacing="0" cellpadding="6" style="width:100%;border-collapse:collapse">
           <thead><tr><th>التاريخ</th><th>نوع العلف</th><th>الكمية (كجم)</th><th>عدد النعام</th><th>المسؤول</th><th>الرصيد قبل</th><th>الرصيد بعد</th><th>ملاحظات</th></tr></thead>
           <tbody>${rows || `<tr><td colspan="8" style="text-align:center">لا توجد حركات</td></tr>`}</tbody>
         </table>`,
-    });
+    );
   };
 
   return (
