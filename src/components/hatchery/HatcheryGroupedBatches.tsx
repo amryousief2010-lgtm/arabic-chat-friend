@@ -477,6 +477,28 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr, sortOrder = "asc", 
 const GroupDetailDialog = ({ group, stageMeta, onClose, onOpenResults, onRefresh }: any) => {
   const [editRow, setEditRow] = useState<any>(null);
   const [addEggsOpen, setAddEggsOpen] = useState(false);
+  const [accountLotId, setAccountLotId] = useState<string | null>(null);
+  const [accountName, setAccountName] = useState<string>("");
+  const [openingAccount, setOpeningAccount] = useState<string | null>(null);
+  const opNo = Number(group.op_seq ?? 0);
+  const accountsEnabled = opNo >= 18;
+
+  const openCustomerAccount = async (c: any) => {
+    if (!accountsEnabled) {
+      toast.error("حسابات العملاء متاحة فقط للدفعات من رقم 18 وما بعدها");
+      return;
+    }
+    if (!c._raw?.customer_id) {
+      toast.error("لا يوجد عميل مرتبط بهذا الصف");
+      return;
+    }
+    setOpeningAccount(c.id);
+    const { data, error } = await supabase.rpc("ensure_hatch_batch_lot" as any, { p_hatch_batch_id: c.id });
+    setOpeningAccount(null);
+    if (error) { toast.error(error.message); return; }
+    setAccountLotId(data as unknown as string);
+    setAccountName(c.customer_name || "عميل");
+  };
   const meta = stageMeta[group.stage] || { label: group.stage, color: "bg-gray-500" };
   const locked = (group.customers || []).some((c: any) => {
     const r = c._raw || {};
