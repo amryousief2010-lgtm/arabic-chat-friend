@@ -21,6 +21,7 @@ interface Props {
   rows: any[];
   stageMeta: Record<string, StageMeta>;
   todayStr: string;
+  sortOrder?: "asc" | "desc";
   onRefresh?: () => void;
 }
 
@@ -39,7 +40,7 @@ const addDaysISO = (iso: string, days: number) => {
   return d.toISOString().slice(0, 10);
 };
 
-const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr, onRefresh }: Props) => {
+const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr, sortOrder = "asc", onRefresh }: Props) => {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<
     | "all" | "external" | "internal" | "in_progress" | "completed" | "overdue"
@@ -166,11 +167,12 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr, onRefresh }: Props)
       g.op_number = `دفعة ${seq}${g.machine ? ` — ${g.machine}` : ""}`;
     });
 
-    // Sort ascending by machine then by sheet batch number (mirrors Excel order).
+    // Sort primarily by operational batch number, then case-insensitive by machine.
+    const dir = sortOrder === "desc" ? -1 : 1;
     arr.sort((a, b) => {
-      const m = String(a.machine || "").localeCompare(String(b.machine || ""));
-      if (m !== 0) return m;
-      return (a.op_seq || 0) - (b.op_seq || 0);
+      const seqDiff = (a.op_seq || 0) - (b.op_seq || 0);
+      if (seqDiff !== 0) return dir * seqDiff;
+      return String(a.machine || "").toLowerCase().localeCompare(String(b.machine || "").toLowerCase());
     });
     return arr;
   }, [rows]);

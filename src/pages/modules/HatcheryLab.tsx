@@ -379,6 +379,7 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
   const [detailBatch, setDetailBatch] = useState<any>(null);
   const [filter, setFilter] = useState<QuickFilter>("all");
   const [viewMode, setViewMode] = useState<"grouped" | "detailed">("grouped");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
 
   useEffect(() => {
@@ -397,7 +398,7 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
       const { data, error } = await supabase
         .from("hatch_batches")
         .select("id, batch_number, operational_batch_no, receive_date, entry_date, machine, received_eggs, net_eggs, hatched_chicks, hatcher_dead, candle1_date, candle1_fertile, candle1_infertile, candle2_date, candle2_fertile, candle2_dead, exit_date, status, customer_id, notes, created_at, hatch_customers(id,name,customer_type)")
-        .order("receive_date", { ascending: false })
+        .order("operational_batch_no", { ascending: true })
         .limit(1000);
       if (error) throw error;
       return (data as any) || [];
@@ -493,7 +494,7 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
   }, [rows, todayStr]);
 
   const filtered = useMemo(() => {
-    return rows.filter((r) => {
+    const result = rows.filter((r) => {
       if (search && !String(r.batch_number ?? "").toLowerCase().includes(search.toLowerCase()) && !r.customer_name.includes(search)) return false;
       switch (filter) {
         case "internal": return r.type === "internal";
@@ -527,7 +528,11 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
         default: return true;
       }
     });
-  }, [rows, search, filter, todayStr]);
+    return result.sort((a: any, b: any) => {
+      const diff = (a.op_seq || 0) - (b.op_seq || 0);
+      return sortOrder === "asc" ? diff : -diff;
+    });
+  }, [rows, search, filter, todayStr, sortOrder]);
 
   const filterBtn = (key: QuickFilter, label: string, count: number, tone?: string) => (
     <Button
@@ -578,9 +583,15 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
             عرض تفصيلي (لكل عميل)
           </Button>
         </div>
-        {canManage && (
-          <Button onClick={() => setShowNew(true)}><Plus className="w-4 h-4 ml-1" />دفعة جديدة</Button>
-        )}
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1 p-1 bg-muted rounded-lg">
+            <Button size="sm" variant={sortOrder === "asc" ? "default" : "ghost"} onClick={() => setSortOrder("asc")}>الأقدم أولًا</Button>
+            <Button size="sm" variant={sortOrder === "desc" ? "default" : "ghost"} onClick={() => setSortOrder("desc")}>الأحدث أولًا</Button>
+          </div>
+          {canManage && (
+            <Button onClick={() => setShowNew(true)}><Plus className="w-4 h-4 ml-1" />دفعة جديدة</Button>
+          )}
+        </div>
       </div>
 
       {viewMode === "grouped" ? (
@@ -589,6 +600,7 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
             rows={rows}
             stageMeta={groupedStageMeta}
             todayStr={todayStr}
+            sortOrder={sortOrder}
             onRefresh={() => {
               qc.invalidateQueries({ queryKey: ["hatch_batches_lab"] });
               qc.invalidateQueries({ queryKey: ["hatch_batches_dash"] });
