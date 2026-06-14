@@ -9166,22 +9166,8 @@ export type Database = {
             foreignKeyName: "meat_manufacturing_invoice_lines_item_id_fkey"
             columns: ["item_id"]
             isOneToOne: false
-            referencedRelation: "inventory_items"
+            referencedRelation: "meat_factory_raw_items"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "meat_manufacturing_invoice_lines_item_id_fkey"
-            columns: ["item_id"]
-            isOneToOne: false
-            referencedRelation: "v_inventory_balances"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "meat_manufacturing_invoice_lines_item_id_fkey"
-            columns: ["item_id"]
-            isOneToOne: false
-            referencedRelation: "v_product_stock_availability"
-            referencedColumns: ["inventory_item_id"]
           },
         ]
       }
