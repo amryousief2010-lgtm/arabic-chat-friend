@@ -506,22 +506,38 @@ export default function ManufacturingInvoices() {
                   <div><b>تكلفة الوحدة:</b> {fmt(viewing.unit_cost)}</div>
                   <div><b>التاريخ:</b> {(viewing.created_at || "").slice(0,10)}</div>
                 </div>
-                <Table>
-                  <TableHeader><TableRow><TableHead>الصنف</TableHead><TableHead>النوع</TableHead><TableHead>الكمية</TableHead><TableHead>السعر</TableHead><TableHead>الإجمالي</TableHead><TableHead>قبل</TableHead><TableHead>بعد</TableHead></TableRow></TableHeader>
-                  <TableBody>
-                    {viewLines.map((l: any) => (
-                      <TableRow key={l.id}>
-                        <TableCell>{l.item_name}</TableCell>
-                        <TableCell><Badge variant="outline">{KIND_LABEL[(l.kind as Kind)||"raw"]}</Badge></TableCell>
-                        <TableCell>{fmt(l.quantity)} {l.unit}</TableCell>
-                        <TableCell>{fmt(l.unit_cost)}</TableCell>
-                        <TableCell>{fmt(l.line_total)}</TableCell>
-                        <TableCell>{l.stock_before != null ? fmt(l.stock_before) : "—"}</TableCell>
-                        <TableCell>{l.stock_after != null ? fmt(l.stock_after) : "—"}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                {viewLines.length === 0 ? (
+                  <div className="border-2 border-dashed border-amber-300 bg-amber-50 dark:bg-amber-950/20 rounded-lg p-4 space-y-3">
+                    <div className="text-amber-800 dark:text-amber-200 text-sm font-medium">
+                      ⚠️ لا توجد بنود خامات/تغليف محفوظة لهذه الفاتورة (الإجماليات أعلاه قديمة).
+                    </div>
+                    {viewing.status === "draft" && isApprover && (
+                      <AddLinesForViewedInvoice
+                        invoice={viewing}
+                        rawCandidates={rawCandidates}
+                        packCandidates={packCandidates}
+                        onSaved={async () => { await openView(viewing); await fetchAll(); }}
+                      />
+                    )}
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader><TableRow><TableHead>الصنف</TableHead><TableHead>النوع</TableHead><TableHead>الكمية</TableHead><TableHead>السعر</TableHead><TableHead>الإجمالي</TableHead><TableHead>قبل</TableHead><TableHead>بعد</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                      {viewLines.map((l: any) => (
+                        <TableRow key={l.id}>
+                          <TableCell>{l.item_name}</TableCell>
+                          <TableCell><Badge variant="outline">{KIND_LABEL[(l.kind as Kind)||"raw"]}</Badge></TableCell>
+                          <TableCell>{fmt(l.quantity)} {l.unit}</TableCell>
+                          <TableCell>{fmt(l.unit_cost)}</TableCell>
+                          <TableCell>{fmt(l.line_total)}</TableCell>
+                          <TableCell>{viewing.status === "draft" ? <span className="text-muted-foreground text-xs">لم تعتمد بعد</span> : (l.stock_before != null ? fmt(l.stock_before) : "—")}</TableCell>
+                          <TableCell>{viewing.status === "draft" ? <span className="text-muted-foreground text-xs">لم تعتمد بعد</span> : (l.stock_after != null ? fmt(l.stock_after) : "—")}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
               </div>
             )}
             <DialogFooter>
