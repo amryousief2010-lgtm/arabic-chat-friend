@@ -600,6 +600,7 @@ const GroupDetailDialog = ({ group, stageMeta, onClose, onOpenResults, onRefresh
                 <TableHead>% فقس</TableHead>
                 <TableHead>الحساب التقديري</TableHead>
                 <TableHead>تعديل</TableHead>
+                {accountsEnabled && <TableHead>حساب العميل</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
