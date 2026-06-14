@@ -1392,12 +1392,71 @@ const ChartsTab = ({ eggs, transfers, families }: any) => {
   );
 };
 // ============ FEED ============
+const MOTHER_FEED_START_DATE = "2026-06-14";
+
 const FeedTab = ({ logs, qc }: any) => {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<any>({ log_date: today(), feed_type: "", quantity: 0, unit: "كجم", notes: "" });
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [viewDay, setViewDay] = useState<string | null>(null);
+  const [busyDay, setBusyDay] = useState<string | null>(null);
+
+  // Existing daily withdrawals from mother farm feed inventory
+  const { data: withdrawnDays = [] } = useQuery({
+    queryKey: ["mff_consumption_days"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("mother_farm_feed_movements" as any)
+        .select("consumption_day, weight_kg, id")
+        .eq("movement_type", "daily_consumption")
+        .order("consumption_day", { ascending: false })
+        .limit(2000);
+      if (error) throw error;
+      return (data as any[]) || [];
+    },
+  });
+  const withdrawnMap = useMemo(() => {
+    const m = new Map<string, { id: string; weight_kg: number }>();
+    withdrawnDays.forEach((d: any) => { if (d.consumption_day) m.set(d.consumption_day, { id: d.id, weight_kg: Number(d.weight_kg) }); });
+    return m;
+  }, [withdrawnDays]);
+
+  const withdrawDay = useMutation({
+    mutationFn: async (day: { date: string; total: number }) => {
+      if (day.date < MOTHER_FEED_START_DATE) {
+        throw new Error("هذا اليوم قبل بداية التشغيل الفعلي لسحب علف الأمهات ولا يتم خصمه من المخزون");
+      }
+      if (withdrawnMap.has(day.date)) {
+        throw new Error("تم سحب علف هذا اليوم من قبل");
+      }
+      if (!(day.total > 0)) throw new Error("لا يوجد كمية للسحب");
+      const { error } = await supabase.from("mother_farm_feed_movements" as any).insert({
+        movement_date: day.date,
+        movement_type: "daily_consumption",
+        weight_kg: day.total,
+        consumption_day: day.date,
+        notes: `سحب يدوي من سجل الأمهات — reference_id=mother_feed_consumption_${day.date} — source=mother_farm_feed_daily_consumption`,
+      });
+      if (error) throw error;
+      return day;
+    },
+    onSuccess: (r) => {
+      toast.success(`تم سحب ${r.total.toLocaleString()} كجم من مخزون علف الأمهات ليوم ${r.date}`);
+      qc.invalidateQueries({ queryKey: ["mff_consumption_days"] });
+      qc.invalidateQueries({ queryKey: ["mff_balance"] });
+      qc.invalidateQueries({ queryKey: ["mff_movements"] });
+      setBusyDay(null);
+    },
+    onError: (e: any) => { toast.error(e.message); setBusyDay(null); },
+  });
+
+  const handleWithdraw = (d: { date: string; total: number }) => {
+    if (busyDay) return;
+    if (!confirm(`سحب ${d.total.toLocaleString()} كجم من مخزون علف الأمهات ليوم ${d.date}؟`)) return;
+    setBusyDay(d.date);
+    withdrawDay.mutate(d);
+  };
 
   const save = useMutation({
     mutationFn: async () => { const { error } = await supabase.from("farm_feed_log").insert(form); if (error) throw error; },
@@ -1501,25 +1560,45 @@ const FeedTab = ({ logs, qc }: any) => {
             <TableHead>إجمالي العلف (كجم)</TableHead>
             <TableHead>متوسط/تسجيل</TableHead>
             <TableHead>الأنواع</TableHead>
+            <TableHead>حالة السحب</TableHead>
             <TableHead>إجراءات</TableHead>
           </TableRow></TableHeader>
           <TableBody>
-            {byDay.map((d) => (
-              <TableRow key={d.date}>
-                <TableCell className="font-bold">{d.date}</TableCell>
-                <TableCell>{d.count}</TableCell>
-                <TableCell className="font-bold text-primary">{d.total.toLocaleString()}</TableCell>
-                <TableCell>{(d.total / d.count).toFixed(1)}</TableCell>
-                <TableCell className="text-xs">{Array.from(d.types).join("، ") || "-"}</TableCell>
-                <TableCell>
-                  <div className="flex gap-1">
-                    <Button size="icon" variant="ghost" onClick={() => setViewDay(d.date)}><Eye className="w-4 h-4" /></Button>
-                    <Button size="icon" variant="ghost" onClick={() => printDay(d)}><Printer className="w-4 h-4" /></Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-            {byDay.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">لا يوجد سجل علف</TableCell></TableRow>}
+            {byDay.map((d) => {
+              const withdrawn = withdrawnMap.get(d.date);
+              const beforeStart = d.date < MOTHER_FEED_START_DATE;
+              const isBusy = busyDay === d.date;
+              return (
+                <TableRow key={d.date}>
+                  <TableCell className="font-bold">{d.date}</TableCell>
+                  <TableCell>{d.count}</TableCell>
+                  <TableCell className="font-bold text-primary">{d.total.toLocaleString()}</TableCell>
+                  <TableCell>{(d.total / d.count).toFixed(1)}</TableCell>
+                  <TableCell className="text-xs">{Array.from(d.types).join("، ") || "-"}</TableCell>
+                  <TableCell>
+                    {beforeStart ? (
+                      <Badge variant="outline" className="text-muted-foreground">قبل التشغيل</Badge>
+                    ) : withdrawn ? (
+                      <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-300">تم السحب ({Number(withdrawn.weight_kg).toLocaleString()} كجم)</Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-amber-700 border-amber-300">لم يُسحب</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-1 items-center">
+                      <Button size="icon" variant="ghost" onClick={() => setViewDay(d.date)}><Eye className="w-4 h-4" /></Button>
+                      <Button size="icon" variant="ghost" onClick={() => printDay(d)}><Printer className="w-4 h-4" /></Button>
+                      {!beforeStart && !withdrawn && (
+                        <Button size="sm" disabled={isBusy} onClick={() => handleWithdraw({ date: d.date, total: d.total })}>
+                          <Wheat className="w-4 h-4 ml-1" />{isBusy ? "..." : "سحب العلف"}
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+            {byDay.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">لا يوجد سجل علف</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>
