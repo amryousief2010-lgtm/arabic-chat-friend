@@ -961,6 +961,9 @@ ${batchNotes ? `<div class="notes"><b>ملاحظات الدفعة:</b> ${esc(bat
 
   return (
     <Card className="p-4">
+      <div className="mb-3 rounded-md border border-amber-300 bg-amber-50 text-amber-900 px-3 py-2 text-xs leading-6">
+        <b>اعتماد نقل تاريخي:</b> تم اعتماد نقل كل البيض السابق حتى <b>13-06-2026</b> إلى معمل التفريخ، مع استثناء بيضة <b>الأسرة 13 بتاريخ 13-06-2026</b> لتكون بداية الدفعة الجديدة. حركة النقل القادمة ستعرض هذه البيضة وما بعدها فقط.
+      </div>
       <div className="flex flex-wrap justify-between items-center gap-2 mb-3">
         <h3 className="font-bold">نقل البيض للمعمل (المنقول: {totals.q.toLocaleString()} - هالك: {totals.d.toLocaleString()})</h3>
         <div className="flex gap-2">
