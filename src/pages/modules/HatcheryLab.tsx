@@ -825,42 +825,112 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
   const [lots, setLots] = useState<any[]>([
     { owner_type: "capital_ostrich", source: "mother_farm", eggs_in: "", client_id: "" },
   ]);
+  const [saving, setSaving] = useState(false);
+
+  // Auto-numbering preview: next operational_batch_no for the lab batches screen
+  const { data: nextOpNo } = useQuery<number>({
+    queryKey: ["hatch_next_op_no"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("hatch_batches")
+        .select("operational_batch_no")
+        .eq("is_test", false)
+        .not("operational_batch_no", "is", null)
+        .order("operational_batch_no", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return ((data as any)?.operational_batch_no || 0) + 1;
+    },
+  });
 
   const addLot = () => setLots([...lots, { owner_type: "external_client", source: "external", eggs_in: "", client_id: "" }]);
   const removeLot = (i: number) => setLots(lots.filter((_, j) => j !== i));
   const updateLot = (i: number, patch: any) => setLots(lots.map((l, j) => j === i ? { ...l, ...patch } : l));
 
   const save = async () => {
+    if (saving) return;
     if (!entry_date || !batch_type) return toast.error("بيانات ناقصة");
     if (lots.some(l => !l.eggs_in || +l.eggs_in <= 0)) return toast.error("أدخل عدد البيض لكل lot");
     if (lots.some(l => l.owner_type === "external_client" && !l.client_id)) return toast.error("اختر عميل للـ lot الخارجي");
+    setSaving(true);
+    try {
+      const userId = (await supabase.auth.getUser()).data.user?.id;
 
-    const { data: batch, error } = await supabase.from("hatchery_batches" as any)
-      .insert({ entry_date, batch_type, incubator_machine_no: machine || null, notes: notes || null, created_by: (await supabase.auth.getUser()).data.user?.id })
-      .select().single();
-    if (error) return toast.error(error.message);
+      // 1) Create logical batch in hatchery_batches with its lots
+      const { data: batch, error } = await supabase.from("hatchery_batches" as any)
+        .insert({ entry_date, batch_type, incubator_machine_no: machine || null, notes: notes || null, created_by: userId })
+        .select().single();
+      if (error) { toast.error(error.message); return; }
 
-    const lotRows = lots.map(l => {
-      const client = clients.find((c: any) => c.id === l.client_id);
-      return {
-        batch_id: (batch as any).id,
-        owner_type: l.owner_type,
-        source: l.source,
-        eggs_in: +l.eggs_in,
-        client_id: l.owner_type === "external_client" ? l.client_id : null,
-        client_name_snapshot: client?.name || null,
-      };
-    });
-    const { error: e2 } = await supabase.from("hatchery_batch_lots" as any).insert(lotRows);
-    if (e2) return toast.error(e2.message);
+      const lotRows = lots.map(l => {
+        const client = clients.find((c: any) => c.id === l.client_id);
+        return {
+          batch_id: (batch as any).id,
+          owner_type: l.owner_type,
+          source: l.source,
+          eggs_in: +l.eggs_in,
+          client_id: l.owner_type === "external_client" ? l.client_id : null,
+          client_name_snapshot: client?.name || null,
+        };
+      });
+      const { error: e2 } = await supabase.from("hatchery_batch_lots" as any).insert(lotRows);
+      if (e2) { toast.error(e2.message); return; }
 
-    await supabase.from("hatchery_batch_movements" as any).insert({
-      batch_id: (batch as any).id, event_type: "created",
-      payload: { lots_count: lots.length, total_eggs: lots.reduce((s, l) => s + +l.eggs_in, 0) },
-      created_by: (await supabase.auth.getUser()).data.user?.id,
-    });
-    toast.success("تم إنشاء الدفعة");
-    onSaved();
+      // 2) Mirror into hatch_batches so the batch appears on the lab batches screen.
+      // Auto-pick the next operational_batch_no (skipping test/deleted rows).
+      const { data: maxRow } = await supabase
+        .from("hatch_batches")
+        .select("operational_batch_no")
+        .eq("is_test", false)
+        .not("operational_batch_no", "is", null)
+        .order("operational_batch_no", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const opNo = (((maxRow as any)?.operational_batch_no as number) || 0) + 1;
+
+      // Default internal customer for capital_ostrich lots
+      const { data: internal } = await supabase
+        .from("hatch_customers")
+        .select("id")
+        .eq("customer_type", "internal")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      const internalId = (internal as any)?.id || null;
+
+      const ts = Date.now();
+      const hatchRows = lots.map((l, idx) => ({
+        batch_number: `HB-${opNo.toString().padStart(5, "0")}-${ts}-${idx}`,
+        operational_batch_no: opNo,
+        receive_date: entry_date,
+        entry_date,
+        machine: machine || null,
+        received_eggs: +l.eggs_in,
+        net_eggs: +l.eggs_in,
+        customer_id: l.owner_type === "external_client" ? l.client_id : internalId,
+        status: "pending",
+        notes: notes || null,
+        created_by: userId,
+        is_test: false,
+      }));
+      const { error: e3 } = await supabase.from("hatch_batches").insert(hatchRows as any);
+      if (e3) { toast.error(`فشل إنشاء سجل الدفعة في شاشة المعمل: ${e3.message}`); return; }
+
+      await supabase.from("hatchery_batch_movements" as any).insert({
+        batch_id: (batch as any).id, event_type: "created",
+        payload: {
+          lots_count: lots.length,
+          total_eggs: lots.reduce((s, l) => s + +l.eggs_in, 0),
+          operational_batch_no: opNo,
+          auto_numbered: true,
+        },
+        created_by: userId,
+      });
+      toast.success(`تم إنشاء الدفعة رقم ${opNo}`);
+      onSaved();
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
