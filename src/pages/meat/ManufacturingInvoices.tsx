@@ -176,6 +176,12 @@ export default function ManufacturingInvoices() {
 
   const approve = async (id: string) => {
     if (!isApprover) { toast.error("الاعتماد متاح للمدير العام/التنفيذي/مدير المصنع فقط"); return; }
+    const { count } = await supabase.from("meat_manufacturing_invoice_lines" as any)
+      .select("id", { count: "exact", head: true }).eq("invoice_id", id);
+    if (!count || count === 0) {
+      toast.error("لا يمكن اعتماد فاتورة تصنيع بدون بنود خامات وتغليف");
+      return;
+    }
     setBusy(true);
     const { error } = await supabase.rpc("approve_meat_manufacturing_invoice" as any, { p_invoice_id: id });
     setBusy(false);
