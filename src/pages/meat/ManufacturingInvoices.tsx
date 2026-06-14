@@ -682,56 +682,77 @@ function AddLinesForViewedInvoice({
     }
   };
 
+  const renderSection = (title: string, kindFilter: Kind[], candidates: RawItem[], defaultKind: Kind) => {
+    const sectionRows = rows.filter(l => kindFilter.includes(l.kind) || (!l.item_id && l.kind === defaultKind));
+    return (
+      <div className="space-y-1 border rounded-md p-2 bg-white/60 dark:bg-background/40">
+        <div className="flex items-center justify-between">
+          <h4 className="font-semibold text-sm text-purple-700">{title}</h4>
+          <span className="text-xs text-muted-foreground">عدد الأصناف المتاحة: {candidates.length}</span>
+        </div>
+        {candidates.length === 0 && (
+          <div className="text-xs text-red-600">لا توجد أصناف نشطة في مخزن خامات مصنع اللحوم لهذا النوع.</div>
+        )}
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>الصنف</TableHead>
+              <TableHead>الوحدة</TableHead>
+              <TableHead>الكمية</TableHead>
+              <TableHead>سعر الوحدة</TableHead>
+              <TableHead>الإجمالي</TableHead>
+              <TableHead></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {sectionRows.length === 0 ? (
+              <TableRow><TableCell colSpan={6} className="text-center text-xs text-muted-foreground py-2">لا توجد بنود — اضغط إضافة سطر</TableCell></TableRow>
+            ) : sectionRows.map(l => (
+              <TableRow key={l.tmp}>
+                <TableCell className="min-w-[200px]">
+                  <Select value={l.item_id} onValueChange={v => update(l.tmp, { item_id: v })}>
+                    <SelectTrigger><SelectValue placeholder="اختر صنف" /></SelectTrigger>
+                    <SelectContent className="max-h-72">
+                      {candidates.map(c => (
+                        <SelectItem key={c.id} value={c.id}>
+                          <span className="text-xs text-muted-foreground ml-2">[{KIND_LABEL[c.kind]}]</span>{c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </TableCell>
+                <TableCell className="w-16 text-xs">{l.unit || "—"}</TableCell>
+                <TableCell className="w-24">
+                  <Input type="number" min={0} value={l.quantity || ""} onChange={e => update(l.tmp, { quantity: Number(e.target.value) })} />
+                </TableCell>
+                <TableCell className="w-24">
+                  <Input type="number" min={0} value={l.unit_cost || ""} onChange={e => update(l.tmp, { unit_cost: Number(e.target.value) })} />
+                </TableCell>
+                <TableCell className="text-xs">{fmt(l.line_total)}</TableCell>
+                <TableCell>
+                  <Button size="icon" variant="ghost" onClick={() => setRows(rs => rs.filter(x => x.tmp !== l.tmp))}>
+                    <Trash2 className="w-4 h-4 text-red-600" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        <Button size="sm" variant="outline" onClick={() => setRows(rs => [...rs, newLine(defaultKind)])}>
+          <Plus className="w-4 h-4 ml-1" /> إضافة سطر {title}
+        </Button>
+      </div>
+    );
+  };
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <div className="text-xs text-amber-800 dark:text-amber-200">
         أدخل البنود الفعلية للفاتورة. سيتم إعادة احتساب الإجماليات تلقائيًا.
       </div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>الصنف</TableHead>
-            <TableHead>الكمية</TableHead>
-            <TableHead>سعر الوحدة</TableHead>
-            <TableHead>الإجمالي</TableHead>
-            <TableHead></TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map(l => (
-            <TableRow key={l.tmp}>
-              <TableCell className="min-w-[220px]">
-                <Select value={l.item_id} onValueChange={v => update(l.tmp, { item_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="اختر صنف" /></SelectTrigger>
-                  <SelectContent className="max-h-72">
-                    {allCandidates.map(c => (
-                      <SelectItem key={c.id} value={c.id}>
-                        <span className="text-xs text-muted-foreground ml-2">[{KIND_LABEL[c.kind]}]</span>{c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </TableCell>
-              <TableCell className="w-28">
-                <Input type="number" min={0} value={l.quantity || ""} onChange={e => update(l.tmp, { quantity: Number(e.target.value) })} />
-              </TableCell>
-              <TableCell className="w-28">
-                <Input type="number" min={0} value={l.unit_cost || ""} onChange={e => update(l.tmp, { unit_cost: Number(e.target.value) })} />
-              </TableCell>
-              <TableCell>{fmt(l.line_total)}</TableCell>
-              <TableCell>
-                <Button size="icon" variant="ghost" onClick={() => setRows(rs => rs.filter(x => x.tmp !== l.tmp))} disabled={rows.length === 1}>
-                  <Trash2 className="w-4 h-4 text-red-600" />
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <Button size="sm" variant="outline" onClick={() => setRows(rs => [...rs, newLine("raw")])}>
-          <Plus className="w-4 h-4 ml-1" /> إضافة سطر
-        </Button>
+      {renderSection("مواد خام وبهارات", ["raw", "spice"], rawCandidates, "raw")}
+      {renderSection("خامات التغليف", ["packaging"], packCandidates, "packaging")}
+      <div className="flex items-center justify-between flex-wrap gap-2 border-t pt-2">
         <div className="text-xs">
           خامات: <b>{fmt(totals.raw)}</b> | بهارات: <b>{fmt(totals.spice)}</b> | تغليف: <b>{fmt(totals.pack)}</b> | الإجمالي: <b className="text-purple-700">{fmt(totals.all)}</b>
         </div>
