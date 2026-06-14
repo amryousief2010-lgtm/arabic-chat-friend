@@ -936,7 +936,14 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>دفعة تفريخ جديدة</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>
+            دفعة تفريخ جديدة
+            {nextOpNo != null && (
+              <Badge variant="secondary" className="mr-2">رقم الدفعة التلقائي: {nextOpNo}</Badge>
+            )}
+          </DialogTitle>
+        </DialogHeader>
         <div className="space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             <div><Label>تاريخ الدخول</Label><Input type="date" value={entry_date} onChange={e => setEntryDate(e.target.value)} /></div>
