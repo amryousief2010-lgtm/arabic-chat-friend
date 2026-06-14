@@ -5,12 +5,15 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Search, Printer, FileSpreadsheet, Eye, Sparkles, Pencil, Plus, Lock } from "lucide-react";
+import { Search, Printer, FileSpreadsheet, Eye, Sparkles, Pencil, Plus, Lock, Wallet } from "lucide-react";
 import { openPrintWindow, escapeHtml, fmtNum } from "@/lib/printPdf";
 import * as XLSX from "xlsx";
 import HatchResultsEntryDialog from "./HatchResultsEntryDialog";
 import HatchBatchRowEditDialog from "./HatchBatchRowEditDialog";
 import BatchAddEggsDialog from "./BatchAddEggsDialog";
+import BatchAccountDialog from "./BatchAccountDialog";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 // row[] is the same shape produced by BatchesTab.rows (id, batch_number, entry_date, machine,
 // type, customer_name, total_eggs, net_eggs, chicks, candle1_date, candle2_date, exit_date,
