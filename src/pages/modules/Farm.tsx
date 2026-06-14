@@ -135,7 +135,7 @@ const Farm = () => {
           <TabsContent value="dashboard"><MotherFarmDashboard families={families} eggs={eggs} transfers={transfers} /></TabsContent>
           <TabsContent value="families"><FamiliesTab families={families} qc={qc} /></TabsContent>
           <TabsContent value="eggs"><EggsTab eggs={eggs} families={families} qc={qc} /></TabsContent>
-          <TabsContent value="transfers"><TransfersTab transfers={transfers} families={families} qc={qc} /></TabsContent>
+          <TabsContent value="transfers"><TransfersTab transfers={transfers} families={families} eggs={eggs} qc={qc} /></TabsContent>
           <TabsContent value="feed_inventory"><MotherFarmFeedInventory /></TabsContent>
           <TabsContent value="feed"><FeedTab logs={feedLogs} qc={qc} /></TabsContent>
           <TabsContent value="meds"><MedsTab meds={meds} families={families} qc={qc} /></TabsContent>
