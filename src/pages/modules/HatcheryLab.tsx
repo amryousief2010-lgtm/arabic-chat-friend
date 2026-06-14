@@ -379,6 +379,7 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
   const [detailBatch, setDetailBatch] = useState<any>(null);
   const [filter, setFilter] = useState<QuickFilter>("all");
   const [viewMode, setViewMode] = useState<"grouped" | "detailed">("grouped");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
 
   useEffect(() => {
