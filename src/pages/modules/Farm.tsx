@@ -1560,25 +1560,45 @@ const FeedTab = ({ logs, qc }: any) => {
             <TableHead>إجمالي العلف (كجم)</TableHead>
             <TableHead>متوسط/تسجيل</TableHead>
             <TableHead>الأنواع</TableHead>
+            <TableHead>حالة السحب</TableHead>
             <TableHead>إجراءات</TableHead>
           </TableRow></TableHeader>
           <TableBody>
-            {byDay.map((d) => (
-              <TableRow key={d.date}>
-                <TableCell className="font-bold">{d.date}</TableCell>
-                <TableCell>{d.count}</TableCell>
-                <TableCell className="font-bold text-primary">{d.total.toLocaleString()}</TableCell>
-                <TableCell>{(d.total / d.count).toFixed(1)}</TableCell>
-                <TableCell className="text-xs">{Array.from(d.types).join("، ") || "-"}</TableCell>
-                <TableCell>
-                  <div className="flex gap-1">
-                    <Button size="icon" variant="ghost" onClick={() => setViewDay(d.date)}><Eye className="w-4 h-4" /></Button>
-                    <Button size="icon" variant="ghost" onClick={() => printDay(d)}><Printer className="w-4 h-4" /></Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-            {byDay.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">لا يوجد سجل علف</TableCell></TableRow>}
+            {byDay.map((d) => {
+              const withdrawn = withdrawnMap.get(d.date);
+              const beforeStart = d.date < MOTHER_FEED_START_DATE;
+              const isBusy = busyDay === d.date;
+              return (
+                <TableRow key={d.date}>
+                  <TableCell className="font-bold">{d.date}</TableCell>
+                  <TableCell>{d.count}</TableCell>
+                  <TableCell className="font-bold text-primary">{d.total.toLocaleString()}</TableCell>
+                  <TableCell>{(d.total / d.count).toFixed(1)}</TableCell>
+                  <TableCell className="text-xs">{Array.from(d.types).join("، ") || "-"}</TableCell>
+                  <TableCell>
+                    {beforeStart ? (
+                      <Badge variant="outline" className="text-muted-foreground">قبل التشغيل</Badge>
+                    ) : withdrawn ? (
+                      <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-300">تم السحب ({Number(withdrawn.weight_kg).toLocaleString()} كجم)</Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-amber-700 border-amber-300">لم يُسحب</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-1 items-center">
+                      <Button size="icon" variant="ghost" onClick={() => setViewDay(d.date)}><Eye className="w-4 h-4" /></Button>
+                      <Button size="icon" variant="ghost" onClick={() => printDay(d)}><Printer className="w-4 h-4" /></Button>
+                      {!beforeStart && !withdrawn && (
+                        <Button size="sm" disabled={isBusy} onClick={() => handleWithdraw({ date: d.date, total: d.total })}>
+                          <Wheat className="w-4 h-4 ml-1" />{isBusy ? "..." : "سحب العلف"}
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+            {byDay.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">لا يوجد سجل علف</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>
