@@ -682,6 +682,191 @@ const EggsTab = ({ eggs, families, qc }: any) => {
 // ============ TRANSFERS ============
 const emptyRow = () => ({ transfer_date: today(), family_id: "", quantity: "", damaged: "", notes: "" });
 
+// =================== Pending eggs grouped by day ===================
+const PendingByDayPanel = ({ eggs, transfers, families, qc, familyName }: any) => {
+  const [viewDate, setViewDate] = useState<string | null>(null);
+  const [busyDate, setBusyDate] = useState<string | null>(null);
+
+  // Per-family last transfer date (heuristic)
+  const lastTransferByFamily = useMemo(() => {
+    const m: Record<string, string> = {};
+    (transfers || []).forEach((t: any) => {
+      if (!t.family_id) return;
+      const prev = m[t.family_id];
+      if (!prev || t.transfer_date > prev) m[t.family_id] = t.transfer_date;
+    });
+    return m;
+  }, [transfers]);
+
+  // Transferred (family,date) pairs for explicit duplicate guard
+  const transferredPairs = useMemo(() => {
+    const s = new Set<string>();
+    (transfers || []).forEach((t: any) => {
+      if (t.family_id && t.transfer_date && (t.quantity || 0) > 0) {
+        s.add(`${t.family_id}|${t.transfer_date}`);
+      }
+    });
+    return s;
+  }, [transfers]);
+
+  const pendingByDay = useMemo(() => {
+    const td = today();
+    const map = new Map<string, { date: string; entries: any[]; totalQty: number; familyCount: number }>();
+    (eggs || []).forEach((e: any) => {
+      if (!e.family_id || !e.production_date) return;
+      if (e.production_date > td) return;
+      const last = lastTransferByFamily[e.family_id];
+      if (last && e.production_date <= last) return;
+      if (transferredPairs.has(`${e.family_id}|${e.production_date}`)) return;
+      const k = e.production_date;
+      const cur = map.get(k) || { date: k, entries: [], totalQty: 0, familyCount: 0 };
+      // merge per family
+      const existing = cur.entries.find((x) => x.family_id === e.family_id);
+      if (existing) {
+        existing.qty += e.egg_count || 0;
+        existing.records.push(e);
+      } else {
+        cur.entries.push({ family_id: e.family_id, qty: e.egg_count || 0, records: [e] });
+      }
+      cur.totalQty += e.egg_count || 0;
+      map.set(k, cur);
+    });
+    map.forEach((v) => { v.familyCount = v.entries.length; });
+    return Array.from(map.values())
+      .filter((d) => d.totalQty > 0)
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [eggs, lastTransferByFamily, transferredPairs]);
+
+  const transferDay = useMutation({
+    mutationFn: async (day: { date: string; entries: { family_id: string; qty: number }[] }) => {
+      // Duplicate guard
+      const dup = day.entries.find((e) => transferredPairs.has(`${e.family_id}|${day.date}`));
+      if (dup) throw new Error("تم نقل بيض هذا اليوم إلى المعمل من قبل");
+      const rows = day.entries
+        .filter((e) => e.qty > 0)
+        .map((e) => ({
+          transfer_date: day.date,
+          family_id: e.family_id,
+          quantity: e.qty,
+          damaged: 0,
+          notes: `نقل تلقائي ليوم ${day.date} — source=mother_farm_daily_egg_transfer`,
+        }));
+      if (!rows.length) throw new Error("لا يوجد بيض للنقل");
+      const { error } = await supabase.from("farm_transfers").insert(rows);
+      if (error) throw error;
+      return { count: rows.length, qty: rows.reduce((s, r) => s + r.quantity, 0), date: day.date };
+    },
+    onSuccess: (r) => {
+      toast.success(`تم نقل ${r.qty} بيضة ليوم ${r.date} إلى المعمل (${r.count} حركة)`);
+      qc.invalidateQueries({ queryKey: ["farm_transfers"] });
+      qc.invalidateQueries({ queryKey: ["farm_egg_production"] });
+      setBusyDate(null);
+    },
+    onError: (e: any) => { toast.error(e.message); setBusyDate(null); },
+  });
+
+  const handleTransfer = (day: any) => {
+    if (busyDate) return;
+    if (!confirm(`نقل ${day.totalQty} بيضة من ${day.familyCount} أسرة ليوم ${day.date} إلى معمل التفريخ؟`)) return;
+    setBusyDate(day.date);
+    transferDay.mutate({ date: day.date, entries: day.entries });
+  };
+
+  const viewing = viewDate ? pendingByDay.find((d) => d.date === viewDate) : null;
+
+  return (
+    <Card className="p-4 mb-4 border-purple-200">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-bold text-purple-700">البيض غير المنقول — مجمع حسب اليوم</h3>
+        <Badge variant="secondary">{pendingByDay.length} يوم • إجمالي {pendingByDay.reduce((s, d) => s + d.totalQty, 0)} بيضة</Badge>
+      </div>
+      {pendingByDay.length === 0 ? (
+        <div className="text-sm text-muted-foreground text-center py-6">لا يوجد بيض غير منقول حاليًا.</div>
+      ) : (
+        <div className="overflow-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>التاريخ</TableHead>
+                <TableHead>عدد الأسر</TableHead>
+                <TableHead>إجمالي البيض</TableHead>
+                <TableHead>تفاصيل مختصرة</TableHead>
+                <TableHead className="text-center">إجراءات</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {pendingByDay.map((d) => {
+                const preview = d.entries.slice(0, 4).map((e) => `أسرة ${familyName(e.family_id)}: ${e.qty}`).join(" • ");
+                const more = d.entries.length > 4 ? ` +${d.entries.length - 4}` : "";
+                const isBusy = busyDate === d.date;
+                return (
+                  <TableRow key={d.date}>
+                    <TableCell className="font-medium">{d.date}</TableCell>
+                    <TableCell><Badge variant="outline">{d.familyCount}</Badge></TableCell>
+                    <TableCell className="font-bold text-purple-600">{d.totalQty.toLocaleString()}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground max-w-[320px] truncate">{preview}{more}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-2 justify-center">
+                        <Button size="sm" variant="outline" onClick={() => setViewDate(d.date)}>
+                          <Eye className="w-4 h-4 ml-1" />رؤية
+                        </Button>
+                        <Button size="sm" disabled={isBusy} onClick={() => handleTransfer(d)}>
+                          <Truck className="w-4 h-4 ml-1" />{isBusy ? "جارٍ النقل..." : "نقل للمعمل"}
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      <Dialog open={!!viewDate} onOpenChange={(v) => !v && setViewDate(null)}>
+        <DialogContent dir="rtl" className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>تفاصيل بيض يوم {viewDate}</DialogTitle>
+          </DialogHeader>
+          {viewing && (
+            <div className="space-y-3">
+              <div className="text-sm text-muted-foreground">
+                إجمالي: <b className="text-purple-600">{viewing.totalQty}</b> بيضة من <b>{viewing.familyCount}</b> أسرة
+              </div>
+              <div className="overflow-auto max-h-[60vh]">
+                <Table>
+                  <TableHeader><TableRow>
+                    <TableHead>الأسرة</TableHead><TableHead>الكمية</TableHead>
+                    <TableHead>وقت التسجيل</TableHead><TableHead>الحالة</TableHead>
+                    <TableHead>ملاحظات</TableHead>
+                  </TableRow></TableHeader>
+                  <TableBody>
+                    {viewing.entries.flatMap((e: any) => e.records.map((r: any, i: number) => (
+                      <TableRow key={r.id || `${e.family_id}-${i}`}>
+                        <TableCell>{familyName(e.family_id)}</TableCell>
+                        <TableCell className="font-bold">{r.egg_count}</TableCell>
+                        <TableCell className="text-xs">{r.created_at ? new Date(r.created_at).toLocaleString("ar-EG") : "-"}</TableCell>
+                        <TableCell><Badge variant="outline" className="text-amber-700 border-amber-300">غير منقول</Badge></TableCell>
+                        <TableCell className="text-xs">{r.notes || "-"}</TableCell>
+                      </TableRow>
+                    )))}
+                  </TableBody>
+                </Table>
+              </div>
+              <DialogFooter>
+                <Button onClick={() => { handleTransfer(viewing); setViewDate(null); }}>
+                  <Truck className="w-4 h-4 ml-1" />نقل هذا اليوم للمعمل
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+};
+
+
 const TransfersTab = ({ transfers, families, eggs = [], qc }: any) => {
   const [open, setOpen] = useState(false);
   const [batchFrom, setBatchFrom] = useState(today());
