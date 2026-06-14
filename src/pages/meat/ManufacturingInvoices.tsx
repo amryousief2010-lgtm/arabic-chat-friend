@@ -623,7 +623,8 @@ function AddLinesForViewedInvoice({
   onSaved: () => Promise<void> | void;
 }) {
   const allCandidates = useMemo(() => [...rawCandidates, ...packCandidates], [rawCandidates, packCandidates]);
-  const [rows, setRows] = useState<Line[]>([newLine("raw")]);
+  void allCandidates;
+  const [rows, setRows] = useState<Line[]>([newLine("raw"), newLine("packaging")]);
   const [saving, setSaving] = useState(false);
 
   const update = (tmp: string, patch: Partial<Line>) => {
