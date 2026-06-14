@@ -583,9 +583,15 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
             عرض تفصيلي (لكل عميل)
           </Button>
         </div>
-        {canManage && (
-          <Button onClick={() => setShowNew(true)}><Plus className="w-4 h-4 ml-1" />دفعة جديدة</Button>
-        )}
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1 p-1 bg-muted rounded-lg">
+            <Button size="sm" variant={sortOrder === "asc" ? "default" : "ghost"} onClick={() => setSortOrder("asc")}>الأقدم أولًا</Button>
+            <Button size="sm" variant={sortOrder === "desc" ? "default" : "ghost"} onClick={() => setSortOrder("desc")}>الأحدث أولًا</Button>
+          </div>
+          {canManage && (
+            <Button onClick={() => setShowNew(true)}><Plus className="w-4 h-4 ml-1" />دفعة جديدة</Button>
+          )}
+        </div>
       </div>
 
       {viewMode === "grouped" ? (
