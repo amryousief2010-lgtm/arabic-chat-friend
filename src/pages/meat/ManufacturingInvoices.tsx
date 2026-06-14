@@ -157,7 +157,11 @@ export default function ManufacturingInvoices() {
           notes: l.notes,
         })) as any
       );
-      if (linesErr) throw linesErr;
+      if (linesErr) {
+        // Atomic rollback: delete the orphan header so the totals don't appear without lines
+        await supabase.from("meat_manufacturing_invoices" as any).delete().eq("id", (inv as any).id);
+        throw linesErr;
+      }
 
       toast.success(`تم حفظ الفاتورة ${invoiceNo} بحالة مسودة — اضغط اعتماد للخصم`);
       resetForm();
