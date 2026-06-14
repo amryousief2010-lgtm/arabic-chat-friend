@@ -683,6 +683,20 @@ const GroupDetailDialog = ({ group, stageMeta, onClose, onOpenResults, onRefresh
           />
         )}
 
+        {accountLotId && (
+          <BatchAccountDialog
+            lotId={accountLotId}
+            customerName={accountName}
+            onClose={() => { setAccountLotId(null); onRefresh?.(); }}
+          />
+        )}
+
+        {!accountsEnabled && opNo > 0 && opNo < 18 && (
+          <div className="rounded border border-amber-300 bg-amber-50 dark:bg-amber-950/30 text-xs p-2 text-amber-800 dark:text-amber-200">
+            دفعة قديمة (رقم {opNo}) — حسابات العملاء وإصدار الفواتير متاحة من دفعة 18 وما بعدها فقط.
+          </div>
+        )}
+
         <DialogFooter className="gap-2 flex-wrap">
           <Button variant="outline" onClick={onClose}>
             إغلاق
