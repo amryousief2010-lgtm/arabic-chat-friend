@@ -157,7 +157,11 @@ export default function ManufacturingInvoices() {
           notes: l.notes,
         })) as any
       );
-      if (linesErr) throw linesErr;
+      if (linesErr) {
+        // Atomic rollback: delete the orphan header so the totals don't appear without lines
+        await supabase.from("meat_manufacturing_invoices" as any).delete().eq("id", (inv as any).id);
+        throw linesErr;
+      }
 
       toast.success(`تم حفظ الفاتورة ${invoiceNo} بحالة مسودة — اضغط اعتماد للخصم`);
       resetForm();
@@ -502,22 +506,38 @@ export default function ManufacturingInvoices() {
                   <div><b>تكلفة الوحدة:</b> {fmt(viewing.unit_cost)}</div>
                   <div><b>التاريخ:</b> {(viewing.created_at || "").slice(0,10)}</div>
                 </div>
-                <Table>
-                  <TableHeader><TableRow><TableHead>الصنف</TableHead><TableHead>النوع</TableHead><TableHead>الكمية</TableHead><TableHead>السعر</TableHead><TableHead>الإجمالي</TableHead><TableHead>قبل</TableHead><TableHead>بعد</TableHead></TableRow></TableHeader>
-                  <TableBody>
-                    {viewLines.map((l: any) => (
-                      <TableRow key={l.id}>
-                        <TableCell>{l.item_name}</TableCell>
-                        <TableCell><Badge variant="outline">{KIND_LABEL[(l.kind as Kind)||"raw"]}</Badge></TableCell>
-                        <TableCell>{fmt(l.quantity)} {l.unit}</TableCell>
-                        <TableCell>{fmt(l.unit_cost)}</TableCell>
-                        <TableCell>{fmt(l.line_total)}</TableCell>
-                        <TableCell>{l.stock_before != null ? fmt(l.stock_before) : "—"}</TableCell>
-                        <TableCell>{l.stock_after != null ? fmt(l.stock_after) : "—"}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                {viewLines.length === 0 ? (
+                  <div className="border-2 border-dashed border-amber-300 bg-amber-50 dark:bg-amber-950/20 rounded-lg p-4 space-y-3">
+                    <div className="text-amber-800 dark:text-amber-200 text-sm font-medium">
+                      ⚠️ لا توجد بنود خامات/تغليف محفوظة لهذه الفاتورة (الإجماليات أعلاه قديمة).
+                    </div>
+                    {viewing.status === "draft" && isApprover && (
+                      <AddLinesForViewedInvoice
+                        invoice={viewing}
+                        rawCandidates={rawCandidates}
+                        packCandidates={packCandidates}
+                        onSaved={async () => { await openView(viewing); await fetchAll(); }}
+                      />
+                    )}
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader><TableRow><TableHead>الصنف</TableHead><TableHead>النوع</TableHead><TableHead>الكمية</TableHead><TableHead>السعر</TableHead><TableHead>الإجمالي</TableHead><TableHead>قبل</TableHead><TableHead>بعد</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                      {viewLines.map((l: any) => (
+                        <TableRow key={l.id}>
+                          <TableCell>{l.item_name}</TableCell>
+                          <TableCell><Badge variant="outline">{KIND_LABEL[(l.kind as Kind)||"raw"]}</Badge></TableCell>
+                          <TableCell>{fmt(l.quantity)} {l.unit}</TableCell>
+                          <TableCell>{fmt(l.unit_cost)}</TableCell>
+                          <TableCell>{fmt(l.line_total)}</TableCell>
+                          <TableCell>{viewing.status === "draft" ? <span className="text-muted-foreground text-xs">لم تعتمد بعد</span> : (l.stock_before != null ? fmt(l.stock_before) : "—")}</TableCell>
+                          <TableCell>{viewing.status === "draft" ? <span className="text-muted-foreground text-xs">لم تعتمد بعد</span> : (l.stock_after != null ? fmt(l.stock_after) : "—")}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
               </div>
             )}
             <DialogFooter>
@@ -556,5 +576,136 @@ export default function ManufacturingInvoices() {
         </Dialog>
       </div>
     </DashboardLayout>
+  );
+}
+
+// =========== Inline form to add missing lines to an existing draft invoice ===========
+function AddLinesForViewedInvoice({
+  invoice, rawCandidates, packCandidates, onSaved,
+}: {
+  invoice: Invoice;
+  rawCandidates: RawItem[];
+  packCandidates: RawItem[];
+  onSaved: () => Promise<void> | void;
+}) {
+  const allCandidates = useMemo(() => [...rawCandidates, ...packCandidates], [rawCandidates, packCandidates]);
+  const [rows, setRows] = useState<Line[]>([newLine("raw")]);
+  const [saving, setSaving] = useState(false);
+
+  const update = (tmp: string, patch: Partial<Line>) => {
+    setRows(rs => rs.map(l => {
+      if (l.tmp !== tmp) return l;
+      const m: Line = { ...l, ...patch };
+      if (patch.item_id) {
+        const it = allCandidates.find(x => x.id === patch.item_id);
+        if (it) { m.item_name = it.name; m.unit = it.unit; m.kind = it.kind; if (!m.unit_cost) m.unit_cost = Number(it.avg_cost || 0); }
+      }
+      m.line_total = Number((Number(m.quantity || 0) * Number(m.unit_cost || 0)).toFixed(3));
+      return m;
+    }));
+  };
+
+  const totals = useMemo(() => {
+    const raw = rows.filter(l => l.kind === "raw").reduce((s,l) => s + Number(l.line_total||0), 0);
+    const spice = rows.filter(l => l.kind === "spice").reduce((s,l) => s + Number(l.line_total||0), 0);
+    const pack = rows.filter(l => l.kind === "packaging").reduce((s,l) => s + Number(l.line_total||0), 0);
+    return { raw, spice, pack, all: raw + spice + pack };
+  }, [rows]);
+
+  const save = async () => {
+    const valid = rows.filter(l => l.item_id && l.quantity > 0);
+    if (valid.length === 0) { toast.error("أضف صنفًا واحدًا على الأقل بكمية > 0"); return; }
+    setSaving(true);
+    try {
+      const { error: e1 } = await supabase.from("meat_manufacturing_invoice_lines" as any).insert(
+        valid.map(l => ({
+          invoice_id: invoice.id,
+          item_id: l.item_id, item_name: l.item_name, kind: l.kind,
+          unit: l.unit, quantity: l.quantity, unit_cost: l.unit_cost, line_total: l.line_total,
+        })) as any
+      );
+      if (e1) throw e1;
+
+      const extra = Number(invoice.extra_cost || 0);
+      const total = totals.all + extra;
+      const unitCost = Number(invoice.finished_qty || 0) > 0 ? total / Number(invoice.finished_qty) : 0;
+      const { error: e2 } = await supabase.from("meat_manufacturing_invoices" as any).update({
+        raw_cost: totals.raw,
+        spice_cost: totals.spice,
+        packaging_cost: totals.pack,
+        materials_total_cost: totals.all,
+        total_manufacturing_cost: total,
+        unit_cost: unitCost,
+      }).eq("id", invoice.id);
+      if (e2) throw e2;
+
+      toast.success(`تم إضافة ${valid.length} بند وتحديث الإجماليات`);
+      await onSaved();
+    } catch (e: any) {
+      toast.error(e?.message || "فشل الحفظ");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="text-xs text-amber-800 dark:text-amber-200">
+        أدخل البنود الفعلية للفاتورة. سيتم إعادة احتساب الإجماليات تلقائيًا.
+      </div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>الصنف</TableHead>
+            <TableHead>الكمية</TableHead>
+            <TableHead>سعر الوحدة</TableHead>
+            <TableHead>الإجمالي</TableHead>
+            <TableHead></TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map(l => (
+            <TableRow key={l.tmp}>
+              <TableCell className="min-w-[220px]">
+                <Select value={l.item_id} onValueChange={v => update(l.tmp, { item_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="اختر صنف" /></SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    {allCandidates.map(c => (
+                      <SelectItem key={c.id} value={c.id}>
+                        <span className="text-xs text-muted-foreground ml-2">[{KIND_LABEL[c.kind]}]</span>{c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </TableCell>
+              <TableCell className="w-28">
+                <Input type="number" min={0} value={l.quantity || ""} onChange={e => update(l.tmp, { quantity: Number(e.target.value) })} />
+              </TableCell>
+              <TableCell className="w-28">
+                <Input type="number" min={0} value={l.unit_cost || ""} onChange={e => update(l.tmp, { unit_cost: Number(e.target.value) })} />
+              </TableCell>
+              <TableCell>{fmt(l.line_total)}</TableCell>
+              <TableCell>
+                <Button size="icon" variant="ghost" onClick={() => setRows(rs => rs.filter(x => x.tmp !== l.tmp))} disabled={rows.length === 1}>
+                  <Trash2 className="w-4 h-4 text-red-600" />
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <Button size="sm" variant="outline" onClick={() => setRows(rs => [...rs, newLine("raw")])}>
+          <Plus className="w-4 h-4 ml-1" /> إضافة سطر
+        </Button>
+        <div className="text-xs">
+          خامات: <b>{fmt(totals.raw)}</b> | بهارات: <b>{fmt(totals.spice)}</b> | تغليف: <b>{fmt(totals.pack)}</b> | الإجمالي: <b className="text-purple-700">{fmt(totals.all)}</b>
+        </div>
+        <Button onClick={save} disabled={saving} className="bg-purple-600 hover:bg-purple-700">
+          {saving ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <CheckCircle2 className="w-4 h-4 ml-1" />}
+          حفظ البنود
+        </Button>
+      </div>
+    </div>
   );
 }
