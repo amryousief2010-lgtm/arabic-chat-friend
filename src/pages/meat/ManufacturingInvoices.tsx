@@ -514,9 +514,12 @@ export default function ManufacturingInvoices() {
                   <div><b>التاريخ:</b> {(viewing.created_at || "").slice(0,10)}</div>
                 </div>
                 {viewLines.length === 0 ? (
-                  <div className="border-2 border-dashed border-amber-300 bg-amber-50 dark:bg-amber-950/20 rounded-lg p-4 space-y-3">
-                    <div className="text-amber-800 dark:text-amber-200 text-sm font-medium">
-                      ⚠️ لا توجد بنود خامات محفوظة لهذه الفاتورة، برجاء مراجعة حفظ بنود التصنيع.
+                  <div className="border-2 border-dashed border-amber-400 bg-amber-50 dark:bg-amber-950/20 rounded-lg p-4 space-y-3">
+                    <div className="text-amber-900 dark:text-amber-200 text-sm font-semibold">
+                      ⚠️ فاتورة قديمة بدون بنود خامات محفوظة — لا يُنصح باعتمادها.
+                    </div>
+                    <div className="text-xs text-amber-800 dark:text-amber-300">
+                      لن يتم خصم أي خامات أو إضافة منتج نهائي للمخزون، ولن تدخل هذه الفاتورة في تقارير التصنيع المعتمدة. يمكن إدخال البنود يدويًا أدناه إذا أردت استكمالها.
                     </div>
                     {viewing.status === "draft" && isApprover && (
                       <AddLinesForViewedInvoice
