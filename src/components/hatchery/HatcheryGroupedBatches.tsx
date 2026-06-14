@@ -621,6 +621,14 @@ const GroupDetailDialog = ({ group, stageMeta, onClose, onOpenResults, onRefresh
           />
         )}
 
+        {addEggsOpen && (
+          <BatchAddEggsDialog
+            group={group}
+            onClose={() => setAddEggsOpen(false)}
+            onSaved={() => { setAddEggsOpen(false); onRefresh?.(); }}
+          />
+        )}
+
         <DialogFooter className="gap-2 flex-wrap">
           <Button variant="outline" onClick={onClose}>
             إغلاق
