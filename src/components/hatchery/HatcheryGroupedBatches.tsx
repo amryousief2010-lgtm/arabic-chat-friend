@@ -40,7 +40,7 @@ const addDaysISO = (iso: string, days: number) => {
   return d.toISOString().slice(0, 10);
 };
 
-const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr, onRefresh }: Props) => {
+const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr, sortOrder = "asc", onRefresh }: Props) => {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<
     | "all" | "external" | "internal" | "in_progress" | "completed" | "overdue"
