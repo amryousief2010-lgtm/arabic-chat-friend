@@ -179,6 +179,55 @@ const printTable = (
   openPrintWindow(title, html);
 };
 
+const paymentLabel = (m?: string | null) =>
+  m === "cash" ? "نقدي" : m === "bank" ? "تحويل بنكي" : m === "credit" ? "آجل" : (m || "-");
+
+const printSaleReceipt = (sale: any, batchLabelText: string, settings: BroodingSettings = DEFAULT_SETTINGS) => {
+  const header = settings.print_header_color;
+  const accent = settings.print_accent_color;
+  const invoiceNo = String(sale.id || "").slice(0, 8).toUpperCase();
+  const rows: [string, string][] = [
+    ["رقم الفاتورة", invoiceNo],
+    ["التاريخ", sale.sale_date || "-"],
+    ["الدفعة", batchLabelText || "-"],
+    ["العميل", sale.customer_name || "-"],
+    ["عمر الكتاكيت", sale.age_label_snapshot || (sale.age_at_sale_days ? `${sale.age_at_sale_days} يوم` : "-")],
+    ["عدد الكتاكيت", fmt(Number(sale.count || 0))],
+    ["سعر الكتكوت", fmtMoney(Number(sale.unit_price || 0))],
+    ["إجمالي الفاتورة", fmtMoney(Number(sale.total_amount || 0))],
+    ["طريقة الدفع", paymentLabel(sale.payment_method)],
+    ["الخزنة", sale.treasury || "-"],
+    ["ملاحظات", sale.notes || "-"],
+  ];
+  const html = `
+    <div style="font-family:'Cairo',sans-serif;direction:rtl">
+      <div style="border-bottom:3px solid ${header};padding-bottom:10px;margin-bottom:15px">
+        <h1 style="margin:0;text-align:center;color:${header};font-size:26px">${settings.company_name}</h1>
+        <h2 style="margin:4px 0 0;text-align:center;color:#555;font-size:16px;font-weight:normal">فاتورة مبيعات كتاكيت</h2>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:8px;background:${accent};border-radius:6px;margin-bottom:12px;font-size:13px">
+        <div><strong>رقم الفاتورة:</strong> ${invoiceNo}</div>
+        <div><strong>تاريخ الطباعة:</strong> ${new Date().toLocaleString('ar-EG')}</div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;border:1px solid #999">
+        <tbody>${rows.map((r, i) => `
+          <tr style="background:${i % 2 ? '#fafafa' : '#fff'}">
+            <td style="padding:8px;border:1px solid #ccc;font-weight:bold;width:35%;background:${accent};color:${header}">${r[0]}</td>
+            <td style="padding:8px;border:1px solid #ccc">${r[1]}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+      <div style="margin-top:18px;padding:10px;border:2px solid ${header};border-radius:6px;text-align:center;font-size:16px;font-weight:bold;color:${header}">
+        الإجمالي المستحق: ${fmtMoney(Number(sale.total_amount || 0))}
+      </div>
+      <div style="margin-top:40px;display:flex;justify-content:space-between;font-size:13px">
+        <div style="border-top:1px solid #333;padding-top:6px;min-width:180px;text-align:center">توقيع المستلم</div>
+        <div style="border-top:1px solid #333;padding-top:6px;min-width:180px;text-align:center">توقيع مسؤول الحضانة</div>
+      </div>
+    </div>`;
+  openPrintWindow(`فاتورة بيع كتاكيت ${invoiceNo}`, html);
+};
+
 // ===== Component =====
 const Brooding = () => {
   const { roles, role } = useAuth();
