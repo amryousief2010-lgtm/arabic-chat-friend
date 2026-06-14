@@ -1208,6 +1208,9 @@ const ChartsTab = ({ eggs, transfers, families }: any) => {
 const FeedTab = ({ logs, qc }: any) => {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<any>({ log_date: today(), feed_type: "", quantity: 0, unit: "كجم", notes: "" });
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [viewDay, setViewDay] = useState<string | null>(null);
 
   const save = useMutation({
     mutationFn: async () => { const { error } = await supabase.from("farm_feed_log").insert(form); if (error) throw error; },
@@ -1219,10 +1222,59 @@ const FeedTab = ({ logs, qc }: any) => {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["farm_feed_log"] }),
   });
 
+  const filtered = useMemo(() => {
+    return logs.filter((l: any) => {
+      if (fromDate && l.log_date < fromDate) return false;
+      if (toDate && l.log_date > toDate) return false;
+      return true;
+    });
+  }, [logs, fromDate, toDate]);
+
+  const byDay = useMemo(() => {
+    const m = new Map<string, { date: string; total: number; count: number; types: Set<string>; rows: any[] }>();
+    filtered.forEach((l: any) => {
+      const cur = m.get(l.log_date) || { date: l.log_date, total: 0, count: 0, types: new Set<string>(), rows: [] };
+      cur.total += Number(l.quantity || 0);
+      cur.count += 1;
+      if (l.feed_type) cur.types.add(l.feed_type);
+      cur.rows.push(l);
+      m.set(l.log_date, cur);
+    });
+    return Array.from(m.values()).sort((a, b) => b.date.localeCompare(a.date));
+  }, [filtered]);
+
+  const cards = useMemo(() => {
+    const td = today();
+    const ms = monthStart();
+    const todayTotal = filtered.filter((l: any) => l.log_date === td).reduce((s: number, l: any) => s + Number(l.quantity || 0), 0);
+    const monthTotal = filtered.filter((l: any) => l.log_date >= ms).reduce((s: number, l: any) => s + Number(l.quantity || 0), 0);
+    const days = byDay.length;
+    const avg = days > 0 ? (byDay.reduce((s, d) => s + d.total, 0) / days) : 0;
+    const top = byDay.reduce((acc: any, d) => (d.total > (acc?.total || 0) ? d : acc), null as any);
+    return { todayTotal, monthTotal, avg, top };
+  }, [filtered, byDay]);
+
+  const viewDayData = viewDay ? byDay.find((d) => d.date === viewDay) : null;
+
+  const printDay = (day: { date: string; total: number; count: number; rows: any[] }) => {
+    const win = window.open("", "_blank", "width=900,height=700");
+    if (!win) return;
+    const rowsHtml = day.rows.map((r: any) => `<tr><td>${r.feed_type || "-"}</td><td>${Number(r.quantity).toLocaleString()}</td><td>${r.unit || "-"}</td><td>${r.notes || "-"}</td></tr>`).join("");
+    win.document.write(`<!doctype html><html dir="rtl"><head><meta charset="utf-8"><title>تقرير علف ${day.date}</title>
+      <style>body{font-family:Tahoma,Arial;padding:24px}h1{text-align:center}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border:1px solid #999;padding:6px;text-align:center}.k{background:#eee}.sig{margin-top:60px;display:flex;justify-content:space-between}</style>
+      </head><body>
+      <h1>تقرير استهلاك العلف اليومي - مزرعة الأمهات</h1>
+      <p><b>التاريخ:</b> ${day.date} &nbsp; <b>عدد التسجيلات:</b> ${day.count} &nbsp; <b>إجمالي العلف:</b> ${day.total.toLocaleString()} كجم</p>
+      <table><thead class="k"><tr><th>نوع العلف</th><th>الكمية</th><th>الوحدة</th><th>ملاحظات</th></tr></thead><tbody>${rowsHtml}</tbody></table>
+      <div class="sig"><div>توقيع مسؤول المزرعة: ____________</div><div>توقيع الإدارة: ____________</div></div>
+      <script>window.print()</script></body></html>`);
+    win.document.close();
+  };
+
   return (
-    <Card className="p-4">
-      <div className="flex justify-between mb-3">
-        <h3 className="font-bold">سجل العلف</h3>
+    <Card className="p-4 space-y-4">
+      <div className="flex justify-between flex-wrap gap-2">
+        <h3 className="font-bold">ملخص استهلاك العلف اليومي</h3>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild><Button size="sm"><Plus className="w-4 h-4 ml-1" />تسجيل صرف</Button></DialogTrigger>
           <DialogContent dir="rtl">
@@ -1240,24 +1292,79 @@ const FeedTab = ({ logs, qc }: any) => {
           </DialogContent>
         </Dialog>
       </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <Card className="p-3"><div className="text-xs text-muted-foreground">استهلاك اليوم</div><div className="text-xl font-bold">{cards.todayTotal.toLocaleString()} كجم</div></Card>
+        <Card className="p-3"><div className="text-xs text-muted-foreground">استهلاك الشهر</div><div className="text-xl font-bold">{cards.monthTotal.toLocaleString()} كجم</div></Card>
+        <Card className="p-3"><div className="text-xs text-muted-foreground">متوسط يومي</div><div className="text-xl font-bold">{cards.avg.toFixed(1)} كجم</div></Card>
+        <Card className="p-3"><div className="text-xs text-muted-foreground">أعلى يوم</div><div className="text-xl font-bold">{cards.top ? `${cards.top.total.toLocaleString()} كجم` : "-"}</div><div className="text-[10px] text-muted-foreground">{cards.top?.date || ""}</div></Card>
+      </div>
+
+      <div className="flex gap-2 items-end flex-wrap">
+        <div><Label className="text-xs">من تاريخ</Label><Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="h-9 w-40" /></div>
+        <div><Label className="text-xs">إلى تاريخ</Label><Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="h-9 w-40" /></div>
+        {(fromDate || toDate) && <Button size="sm" variant="ghost" onClick={() => { setFromDate(""); setToDate(""); }}>مسح</Button>}
+      </div>
+
       <div className="overflow-auto">
         <Table>
-          <TableHeader><TableRow><TableHead>التاريخ</TableHead><TableHead>النوع</TableHead><TableHead>الكمية</TableHead><TableHead>الوحدة</TableHead><TableHead>ملاحظات</TableHead><TableHead></TableHead></TableRow></TableHeader>
+          <TableHeader><TableRow>
+            <TableHead>التاريخ</TableHead>
+            <TableHead>عدد التسجيلات</TableHead>
+            <TableHead>إجمالي العلف (كجم)</TableHead>
+            <TableHead>متوسط/تسجيل</TableHead>
+            <TableHead>الأنواع</TableHead>
+            <TableHead>إجراءات</TableHead>
+          </TableRow></TableHeader>
           <TableBody>
-            {logs.map((l: any) => (
-              <TableRow key={l.id}>
-                <TableCell>{l.log_date}</TableCell>
-                <TableCell>{l.feed_type}</TableCell>
-                <TableCell className="font-bold">{l.quantity}</TableCell>
-                <TableCell>{l.unit}</TableCell>
-                <TableCell className="text-xs">{l.notes || "-"}</TableCell>
-                <TableCell><Button size="icon" variant="ghost" onClick={() => del.mutate(l.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button></TableCell>
+            {byDay.map((d) => (
+              <TableRow key={d.date}>
+                <TableCell className="font-bold">{d.date}</TableCell>
+                <TableCell>{d.count}</TableCell>
+                <TableCell className="font-bold text-primary">{d.total.toLocaleString()}</TableCell>
+                <TableCell>{(d.total / d.count).toFixed(1)}</TableCell>
+                <TableCell className="text-xs">{Array.from(d.types).join("، ") || "-"}</TableCell>
+                <TableCell>
+                  <div className="flex gap-1">
+                    <Button size="icon" variant="ghost" onClick={() => setViewDay(d.date)}><Eye className="w-4 h-4" /></Button>
+                    <Button size="icon" variant="ghost" onClick={() => printDay(d)}><Printer className="w-4 h-4" /></Button>
+                  </div>
+                </TableCell>
               </TableRow>
             ))}
-            {logs.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">لا يوجد سجل علف</TableCell></TableRow>}
+            {byDay.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">لا يوجد سجل علف</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>
+
+      <Dialog open={!!viewDay} onOpenChange={(v) => !v && setViewDay(null)}>
+        <DialogContent dir="rtl" className="max-w-3xl">
+          <DialogHeader><DialogTitle>تفاصيل استهلاك العلف - {viewDay}</DialogTitle></DialogHeader>
+          {viewDayData && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 gap-2 text-sm">
+                <Card className="p-2"><div className="text-xs text-muted-foreground">الإجمالي</div><div className="font-bold">{viewDayData.total.toLocaleString()} كجم</div></Card>
+                <Card className="p-2"><div className="text-xs text-muted-foreground">عدد التسجيلات</div><div className="font-bold">{viewDayData.count}</div></Card>
+                <Card className="p-2"><div className="text-xs text-muted-foreground">عدد الأنواع</div><div className="font-bold">{viewDayData.types.size}</div></Card>
+              </div>
+              <Table>
+                <TableHeader><TableRow><TableHead>نوع العلف</TableHead><TableHead>الكمية</TableHead><TableHead>الوحدة</TableHead><TableHead>ملاحظات</TableHead><TableHead></TableHead></TableRow></TableHeader>
+                <TableBody>
+                  {viewDayData.rows.map((r: any) => (
+                    <TableRow key={r.id}>
+                      <TableCell>{r.feed_type || "-"}</TableCell>
+                      <TableCell className="font-bold">{Number(r.quantity).toLocaleString()}</TableCell>
+                      <TableCell>{r.unit || "-"}</TableCell>
+                      <TableCell className="text-xs">{r.notes || "-"}</TableCell>
+                      <TableCell><Button size="icon" variant="ghost" onClick={() => del.mutate(r.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button></TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };
