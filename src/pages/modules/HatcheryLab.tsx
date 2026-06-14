@@ -1001,7 +1001,7 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
             </div>
           </div>
         </div>
-        <DialogFooter><Button onClick={save}>حفظ الدفعة</Button></DialogFooter>
+        <DialogFooter><Button onClick={save} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ الدفعة"}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   );
