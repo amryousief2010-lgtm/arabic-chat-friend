@@ -15043,6 +15043,10 @@ export type Database = {
         Args: { _feed_name: string }
         Returns: string
       }
+      ensure_hatch_batch_lot: {
+        Args: { p_hatch_batch_id: string }
+        Returns: string
+      }
       ensure_slaughter_feed_row: {
         Args: { _feed_name: string; _feed_product_id: string }
         Returns: string
