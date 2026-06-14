@@ -127,6 +127,9 @@ const HatcheryLab = () => {
     qc.invalidateQueries({ queryKey: ["hatchery_client_invoices"] });
     qc.invalidateQueries({ queryKey: ["hatchery_kpis"] });
     qc.invalidateQueries({ queryKey: ["hatchery_balances"] });
+    qc.invalidateQueries({ queryKey: ["hatch_batches_lab"] });
+    qc.invalidateQueries({ queryKey: ["hatch_batches_dash"] });
+    qc.invalidateQueries({ queryKey: ["hatch_next_op_no"] });
   };
 
   return (
