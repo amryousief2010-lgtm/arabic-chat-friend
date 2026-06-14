@@ -115,11 +115,13 @@ export default function ManufacturingInvoices() {
     if (!factoryWarehouseId) { toast.error("اختر مخزن مصنع اللحوم"); return; }
     if (!finalProductName) { toast.error("اختر/أدخل اسم المنتج النهائي"); return; }
     if (!finishedQty || finishedQty <= 0) { toast.error("أدخل كمية المنتج التام"); return; }
-    const allLines = [
-      ...rawLines.filter(l => l.item_id && l.quantity > 0),
-      ...packLines.filter(l => l.item_id && l.quantity > 0),
-    ];
-    if (allLines.length === 0) { toast.error("أضف على الأقل خامة أو خامة تغليف"); return; }
+    const validRaw = rawLines.filter(l => l.item_id && l.quantity > 0);
+    const validPack = packLines.filter(l => l.item_id && l.quantity > 0);
+    const allLines = [...validRaw, ...validPack];
+    if (validRaw.length === 0 || validPack.length === 0) {
+      toast.error("لا يمكن حفظ فاتورة تصنيع بدون بنود خامات وتغليف");
+      return;
+    }
 
     setSaving(true);
     try {
