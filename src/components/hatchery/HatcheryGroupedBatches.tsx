@@ -405,16 +405,26 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr, sortOrder = "asc", 
                   </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <div className="flex gap-1 flex-wrap">
-                      {(g.stage === "in_hatcher" || g.stage === "completed") && (
-                        <Button
-                          size="sm"
-                          className="bg-purple-600 hover:bg-purple-700 text-white"
-                          onClick={() => setResultsGroup(g)}
-                        >
-                          <Sparkles className="w-3 h-3 ml-1" />
-                          {g.stage === "completed" ? "تعديل نتائج الفقس" : "إدخال نتائج الفقس"}
-                        </Button>
-                      )}
+                      {(() => {
+                        const hasResults = g.chicks > 0 || g.c1_fertile > 0 || g.c2_fertile > 0 || g.exit_dates.size > 0;
+                        const isLocked = g.stage === "completed" && g.exited && hasResults;
+                        const label = isLocked
+                          ? "عرض نتائج الفقس"
+                          : hasResults
+                            ? "تعديل نتائج الفقس"
+                            : "إدخال نتائج الفقس";
+                        return (
+                          <Button
+                            size="sm"
+                            className="bg-purple-600 hover:bg-purple-700 text-white"
+                            onClick={() => setResultsGroup(g)}
+                          >
+                            <Sparkles className="w-3 h-3 ml-1" />
+                            {label}
+                          </Button>
+                        );
+                      })()}
+
                       <Button size="sm" variant="outline" onClick={() => setOpenGroup(g)}>
                         <Eye className="w-3 h-3 ml-1" /> تفاصيل
                       </Button>
