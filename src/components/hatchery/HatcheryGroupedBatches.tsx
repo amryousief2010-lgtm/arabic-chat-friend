@@ -21,6 +21,7 @@ interface Props {
   rows: any[];
   stageMeta: Record<string, StageMeta>;
   todayStr: string;
+  sortOrder?: "asc" | "desc";
   onRefresh?: () => void;
 }
 
