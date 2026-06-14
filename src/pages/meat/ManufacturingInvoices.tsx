@@ -115,11 +115,13 @@ export default function ManufacturingInvoices() {
     if (!factoryWarehouseId) { toast.error("اختر مخزن مصنع اللحوم"); return; }
     if (!finalProductName) { toast.error("اختر/أدخل اسم المنتج النهائي"); return; }
     if (!finishedQty || finishedQty <= 0) { toast.error("أدخل كمية المنتج التام"); return; }
-    const allLines = [
-      ...rawLines.filter(l => l.item_id && l.quantity > 0),
-      ...packLines.filter(l => l.item_id && l.quantity > 0),
-    ];
-    if (allLines.length === 0) { toast.error("أضف على الأقل خامة أو خامة تغليف"); return; }
+    const validRaw = rawLines.filter(l => l.item_id && l.quantity > 0);
+    const validPack = packLines.filter(l => l.item_id && l.quantity > 0);
+    const allLines = [...validRaw, ...validPack];
+    if (validRaw.length === 0 || validPack.length === 0) {
+      toast.error("لا يمكن حفظ فاتورة تصنيع بدون بنود خامات وتغليف");
+      return;
+    }
 
     setSaving(true);
     try {
@@ -158,9 +160,8 @@ export default function ManufacturingInvoices() {
         })) as any
       );
       if (linesErr) {
-        // Atomic rollback: delete the orphan header so the totals don't appear without lines
         await supabase.from("meat_manufacturing_invoices" as any).delete().eq("id", (inv as any).id);
-        throw linesErr;
+        throw new Error("فشل حفظ بنود الفاتورة، لم يتم إنشاء الفاتورة");
       }
 
       toast.success(`تم حفظ الفاتورة ${invoiceNo} بحالة مسودة — اضغط اعتماد للخصم`);
@@ -513,9 +514,12 @@ export default function ManufacturingInvoices() {
                   <div><b>التاريخ:</b> {(viewing.created_at || "").slice(0,10)}</div>
                 </div>
                 {viewLines.length === 0 ? (
-                  <div className="border-2 border-dashed border-amber-300 bg-amber-50 dark:bg-amber-950/20 rounded-lg p-4 space-y-3">
-                    <div className="text-amber-800 dark:text-amber-200 text-sm font-medium">
-                      ⚠️ لا توجد بنود خامات محفوظة لهذه الفاتورة، برجاء مراجعة حفظ بنود التصنيع.
+                  <div className="border-2 border-dashed border-amber-400 bg-amber-50 dark:bg-amber-950/20 rounded-lg p-4 space-y-3">
+                    <div className="text-amber-900 dark:text-amber-200 text-sm font-semibold">
+                      ⚠️ فاتورة قديمة بدون بنود خامات محفوظة — لا يُنصح باعتمادها.
+                    </div>
+                    <div className="text-xs text-amber-800 dark:text-amber-300">
+                      لن يتم خصم أي خامات أو إضافة منتج نهائي للمخزون، ولن تدخل هذه الفاتورة في تقارير التصنيع المعتمدة. يمكن إدخال البنود يدويًا أدناه إذا أردت استكمالها.
                     </div>
                     {viewing.status === "draft" && isApprover && (
                       <AddLinesForViewedInvoice
