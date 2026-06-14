@@ -509,7 +509,7 @@ export default function ManufacturingInvoices() {
                 {viewLines.length === 0 ? (
                   <div className="border-2 border-dashed border-amber-300 bg-amber-50 dark:bg-amber-950/20 rounded-lg p-4 space-y-3">
                     <div className="text-amber-800 dark:text-amber-200 text-sm font-medium">
-                      ⚠️ لا توجد بنود خامات/تغليف محفوظة لهذه الفاتورة (الإجماليات أعلاه قديمة).
+                      ⚠️ لا توجد بنود خامات محفوظة لهذه الفاتورة، برجاء مراجعة حفظ بنود التصنيع.
                     </div>
                     {viewing.status === "draft" && isApprover && (
                       <AddLinesForViewedInvoice
@@ -520,24 +520,52 @@ export default function ManufacturingInvoices() {
                       />
                     )}
                   </div>
-                ) : (
-                  <Table>
-                    <TableHeader><TableRow><TableHead>الصنف</TableHead><TableHead>النوع</TableHead><TableHead>الكمية</TableHead><TableHead>السعر</TableHead><TableHead>الإجمالي</TableHead><TableHead>قبل</TableHead><TableHead>بعد</TableHead></TableRow></TableHeader>
-                    <TableBody>
-                      {viewLines.map((l: any) => (
-                        <TableRow key={l.id}>
-                          <TableCell>{l.item_name}</TableCell>
-                          <TableCell><Badge variant="outline">{KIND_LABEL[(l.kind as Kind)||"raw"]}</Badge></TableCell>
-                          <TableCell>{fmt(l.quantity)} {l.unit}</TableCell>
-                          <TableCell>{fmt(l.unit_cost)}</TableCell>
-                          <TableCell>{fmt(l.line_total)}</TableCell>
-                          <TableCell>{viewing.status === "draft" ? <span className="text-muted-foreground text-xs">لم تعتمد بعد</span> : (l.stock_before != null ? fmt(l.stock_before) : "—")}</TableCell>
-                          <TableCell>{viewing.status === "draft" ? <span className="text-muted-foreground text-xs">لم تعتمد بعد</span> : (l.stock_after != null ? fmt(l.stock_after) : "—")}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
+                ) : (() => {
+                  const rawSpice = viewLines.filter((l: any) => l.kind !== "packaging");
+                  const pack = viewLines.filter((l: any) => l.kind === "packaging");
+                  const isDraft = viewing.status === "draft";
+                  const renderTable = (rows: any[], title: string, emptyText: string) => (
+                    <div className="space-y-1">
+                      <h3 className="font-semibold text-sm text-purple-700">{title}</h3>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>الصنف</TableHead>
+                            <TableHead>النوع</TableHead>
+                            <TableHead>الوحدة</TableHead>
+                            <TableHead>الكمية</TableHead>
+                            <TableHead>سعر الوحدة</TableHead>
+                            <TableHead>إجمالي السطر</TableHead>
+                            <TableHead>الرصيد قبل</TableHead>
+                            <TableHead>الرصيد بعد</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {rows.length === 0 ? (
+                            <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-3">{emptyText}</TableCell></TableRow>
+                          ) : rows.map((l: any) => (
+                            <TableRow key={l.id}>
+                              <TableCell className="font-medium">{l.item_name}</TableCell>
+                              <TableCell><Badge variant="outline">{KIND_LABEL[(l.kind as Kind)||"raw"]}</Badge></TableCell>
+                              <TableCell>{l.unit}</TableCell>
+                              <TableCell>{fmt(l.quantity)}</TableCell>
+                              <TableCell>{fmt(l.unit_cost)}</TableCell>
+                              <TableCell className="font-semibold">{fmt(l.line_total)}</TableCell>
+                              <TableCell>{isDraft ? <span className="text-muted-foreground text-xs">لم تعتمد بعد</span> : (l.stock_before != null ? fmt(l.stock_before) : "—")}</TableCell>
+                              <TableCell>{isDraft ? <span className="text-muted-foreground text-xs">لم تعتمد بعد</span> : (l.stock_after != null ? fmt(l.stock_after) : "—")}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  );
+                  return (
+                    <div className="space-y-4">
+                      {renderTable(rawSpice, "المواد الخام والبهارات المستخدمة", "لا توجد خامات/بهارات")}
+                      {renderTable(pack, "خامات التغليف المستخدمة", "لا توجد خامات تغليف")}
+                    </div>
+                  );
+                })()}
               </div>
             )}
             <DialogFooter>
