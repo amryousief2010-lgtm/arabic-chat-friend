@@ -5,12 +5,15 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Search, Printer, FileSpreadsheet, Eye, Sparkles, Pencil, Plus, Lock } from "lucide-react";
+import { Search, Printer, FileSpreadsheet, Eye, Sparkles, Pencil, Plus, Lock, Wallet } from "lucide-react";
 import { openPrintWindow, escapeHtml, fmtNum } from "@/lib/printPdf";
 import * as XLSX from "xlsx";
 import HatchResultsEntryDialog from "./HatchResultsEntryDialog";
 import HatchBatchRowEditDialog from "./HatchBatchRowEditDialog";
 import BatchAddEggsDialog from "./BatchAddEggsDialog";
+import BatchAccountDialog from "./BatchAccountDialog";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 // row[] is the same shape produced by BatchesTab.rows (id, batch_number, entry_date, machine,
 // type, customer_name, total_eggs, net_eggs, chicks, candle1_date, candle2_date, exit_date,
@@ -474,6 +477,28 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr, sortOrder = "asc", 
 const GroupDetailDialog = ({ group, stageMeta, onClose, onOpenResults, onRefresh }: any) => {
   const [editRow, setEditRow] = useState<any>(null);
   const [addEggsOpen, setAddEggsOpen] = useState(false);
+  const [accountLotId, setAccountLotId] = useState<string | null>(null);
+  const [accountName, setAccountName] = useState<string>("");
+  const [openingAccount, setOpeningAccount] = useState<string | null>(null);
+  const opNo = Number(group.op_seq ?? 0);
+  const accountsEnabled = opNo >= 18;
+
+  const openCustomerAccount = async (c: any) => {
+    if (!accountsEnabled) {
+      toast.error("حسابات العملاء متاحة فقط للدفعات من رقم 18 وما بعدها");
+      return;
+    }
+    if (!c._raw?.customer_id) {
+      toast.error("لا يوجد عميل مرتبط بهذا الصف");
+      return;
+    }
+    setOpeningAccount(c.id);
+    const { data, error } = await supabase.rpc("ensure_hatch_batch_lot" as any, { p_hatch_batch_id: c.id });
+    setOpeningAccount(null);
+    if (error) { toast.error(error.message); return; }
+    setAccountLotId(data as unknown as string);
+    setAccountName(c.customer_name || "عميل");
+  };
   const meta = stageMeta[group.stage] || { label: group.stage, color: "bg-gray-500" };
   const locked = (group.customers || []).some((c: any) => {
     const r = c._raw || {};
@@ -575,6 +600,7 @@ const GroupDetailDialog = ({ group, stageMeta, onClose, onOpenResults, onRefresh
                 <TableHead>% فقس</TableHead>
                 <TableHead>الحساب التقديري</TableHead>
                 <TableHead>تعديل</TableHead>
+                {accountsEnabled && <TableHead>حساب العميل</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -615,6 +641,24 @@ const GroupDetailDialog = ({ group, stageMeta, onClose, onOpenResults, onRefresh
                         <Pencil className="w-3 h-3 ml-1" /> تعديل
                       </Button>
                     </TableCell>
+                    {accountsEnabled && (
+                      <TableCell>
+                        {c.type === "internal" || !c._raw?.customer_id ? (
+                          <span className="text-[10px] text-muted-foreground">—</span>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                            disabled={openingAccount === c.id}
+                            onClick={() => openCustomerAccount(c)}
+                          >
+                            <Wallet className="w-3 h-3 ml-1" />
+                            {openingAccount === c.id ? "..." : "حساب العميل"}
+                          </Button>
+                        )}
+                      </TableCell>
+                    )}
                   </TableRow>
                 );
               })}
@@ -637,6 +681,20 @@ const GroupDetailDialog = ({ group, stageMeta, onClose, onOpenResults, onRefresh
             onClose={() => setAddEggsOpen(false)}
             onSaved={() => { setAddEggsOpen(false); onRefresh?.(); }}
           />
+        )}
+
+        {accountLotId && (
+          <BatchAccountDialog
+            lotId={accountLotId}
+            customerName={accountName}
+            onClose={() => { setAccountLotId(null); onRefresh?.(); }}
+          />
+        )}
+
+        {!accountsEnabled && opNo > 0 && opNo < 18 && (
+          <div className="rounded border border-amber-300 bg-amber-50 dark:bg-amber-950/30 text-xs p-2 text-amber-800 dark:text-amber-200">
+            دفعة قديمة (رقم {opNo}) — حسابات العملاء وإصدار الفواتير متاحة من دفعة 18 وما بعدها فقط.
+          </div>
         )}
 
         <DialogFooter className="gap-2 flex-wrap">
