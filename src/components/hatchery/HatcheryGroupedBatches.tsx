@@ -463,7 +463,12 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr, sortOrder = "asc", 
 // ============== Group Detail Dialog ==============
 const GroupDetailDialog = ({ group, stageMeta, onClose, onOpenResults, onRefresh }: any) => {
   const [editRow, setEditRow] = useState<any>(null);
+  const [addEggsOpen, setAddEggsOpen] = useState(false);
   const meta = stageMeta[group.stage] || { label: group.stage, color: "bg-gray-500" };
+  const locked = (group.customers || []).some((c: any) => {
+    const r = c._raw || {};
+    return (r.hatched_chicks || 0) > 0 || r.exit_date || r.status === "closed" || r.status === "completed";
+  });
   const Row = ({ label, value }: { label: string; value: any }) => (
     <div className="flex justify-between border-b py-1 text-sm">
       <span className="text-muted-foreground">{label}</span>
@@ -477,18 +482,36 @@ const GroupDetailDialog = ({ group, stageMeta, onClose, onOpenResults, onRefresh
           <DialogTitle className="flex items-center gap-2 flex-wrap">
             دفعة تشغيلية: {group.op_number}
             <Badge className={`${meta.color} text-white`}>{meta.label}</Badge>
-            {(group.stage === "in_hatcher" || group.stage === "completed") && onOpenResults && (
-              <Button
-                size="sm"
-                className="bg-purple-600 hover:bg-purple-700 text-white mr-auto"
-                onClick={() => onOpenResults(group)}
-              >
-                <Sparkles className="w-3 h-3 ml-1" />
-                {group.stage === "completed" ? "تعديل نتائج الفقس" : "إدخال نتائج الفقس"}
-              </Button>
+            {locked && (
+              <Badge variant="outline" className="text-red-700 border-red-300">
+                <Lock className="w-3 h-3 ml-1" /> مقفلة
+              </Badge>
             )}
+            <div className="mr-auto flex gap-2 flex-wrap">
+              {!locked && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-purple-300 text-purple-700 hover:bg-purple-50"
+                  onClick={() => setAddEggsOpen(true)}
+                >
+                  <Plus className="w-3 h-3 ml-1" /> إضافة بيض للدفعة
+                </Button>
+              )}
+              {(group.stage === "in_hatcher" || group.stage === "completed") && onOpenResults && (
+                <Button
+                  size="sm"
+                  className="bg-purple-600 hover:bg-purple-700 text-white"
+                  onClick={() => onOpenResults(group)}
+                >
+                  <Sparkles className="w-3 h-3 ml-1" />
+                  {group.stage === "completed" ? "تعديل نتائج الفقس" : "إدخال نتائج الفقس"}
+                </Button>
+              )}
+            </div>
           </DialogTitle>
         </DialogHeader>
+
 
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
