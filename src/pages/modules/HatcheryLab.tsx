@@ -494,7 +494,7 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
   }, [rows, todayStr]);
 
   const filtered = useMemo(() => {
-    return rows.filter((r) => {
+    const result = rows.filter((r) => {
       if (search && !String(r.batch_number ?? "").toLowerCase().includes(search.toLowerCase()) && !r.customer_name.includes(search)) return false;
       switch (filter) {
         case "internal": return r.type === "internal";
@@ -528,7 +528,11 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
         default: return true;
       }
     });
-  }, [rows, search, filter, todayStr]);
+    return result.sort((a: any, b: any) => {
+      const diff = (a.op_seq || 0) - (b.op_seq || 0);
+      return sortOrder === "asc" ? diff : -diff;
+    });
+  }, [rows, search, filter, todayStr, sortOrder]);
 
   const filterBtn = (key: QuickFilter, label: string, count: number, tone?: string) => (
     <Button
