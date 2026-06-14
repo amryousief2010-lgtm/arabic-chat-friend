@@ -674,6 +674,7 @@ const Brooding = () => {
                     <Printer className="w-3.5 h-3.5 ml-1" />فاتورة
                   </Button>
                 ) },
+              ]}
               form={(b, close) => <SaleForm batches={batches} onDone={() => { close(); loadAll(); }} />}
               addLabel="فاتورة بيع"
             />
