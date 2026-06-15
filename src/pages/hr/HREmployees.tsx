@@ -300,6 +300,19 @@ const HREmployees = () => {
                     {locations.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
+                {canViewDocs && (
+                  <Select value={docFilter} onValueChange={(v: any) => setDocFilter(v)}>
+                    <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">كل المستندات</SelectItem>
+                      <SelectItem value="id_yes">بطاقة مرفوعة</SelectItem>
+                      <SelectItem value="id_no">بطاقة غير مرفوعة</SelectItem>
+                      <SelectItem value="contract_yes">عقد مرفوع</SelectItem>
+                      <SelectItem value="contract_no">عقد غير مرفوع</SelectItem>
+                      <SelectItem value="missing">مستندات ناقصة</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
                 <div className="relative w-64">
                   <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   <Input placeholder="بحث بالكود أو الاسم أو الهاتف..." value={search} onChange={(e) => setSearch(e.target.value)} className="pr-9" />
