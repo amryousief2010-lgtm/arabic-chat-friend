@@ -842,7 +842,7 @@ const AnimatedRoutes = () => {
             </ProtectedRoute>
           } />
           <Route path="/hr/employees" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'hr_manager', 'accountant', 'financial_manager']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant']}>
               <PageTransition><HREmployees /></PageTransition>
             </ProtectedRoute>
           } />
