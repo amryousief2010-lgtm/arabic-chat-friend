@@ -428,7 +428,38 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
             <Lock className="w-4 h-4 ml-1" />
             إقفال الدفعة
           </Button>
+          {isLocked && canReopen && (
+            <Button
+              variant="outline"
+              className="border-amber-500 text-amber-700 hover:bg-amber-50"
+              onClick={() => setConfirmReopen(true)}
+              disabled={saving}
+            >
+              <Unlock className="w-4 h-4 ml-1" />
+              إعادة فتح الدفعة
+            </Button>
+          )}
         </DialogFooter>
+
+        <AlertDialog open={confirmReopen} onOpenChange={setConfirmReopen}>
+          <AlertDialogContent dir="rtl">
+            <AlertDialogHeader>
+              <AlertDialogTitle>تأكيد إعادة فتح الدفعة</AlertDialogTitle>
+              <AlertDialogDescription>
+                ستعاد الدفعة <b>{group.op_number}</b> ({(group.customers || []).length} عميل) إلى حالة "قيد التشغيل" لتعديل النتائج،
+                وسيتم إزالة تاريخ الخروج المسجل. هذا الإجراء متاح للمدير العام والمدير التنفيذي فقط ويُسجَّل في سجل التعديلات.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={saving}>إلغاء</AlertDialogCancel>
+              <AlertDialogAction onClick={handleReopen} disabled={saving}>
+                {saving ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <Unlock className="w-4 h-4 ml-1" />}
+                نعم، إعادة فتح
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
 
         <AlertDialog open={confirmClose} onOpenChange={setConfirmClose}>
           <AlertDialogContent dir="rtl">
