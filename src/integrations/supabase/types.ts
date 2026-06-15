@@ -4689,6 +4689,7 @@ export type Database = {
       }
       hatch_customers: {
         Row: {
+          address: string | null
           created_at: string
           customer_type: string
           hatcher_price: number
@@ -4699,9 +4700,11 @@ export type Database = {
           is_test: boolean
           name: string
           notes: string | null
+          phone: string | null
           updated_at: string
         }
         Insert: {
+          address?: string | null
           created_at?: string
           customer_type?: string
           hatcher_price?: number
@@ -4712,9 +4715,11 @@ export type Database = {
           is_test?: boolean
           name: string
           notes?: string | null
+          phone?: string | null
           updated_at?: string
         }
         Update: {
+          address?: string | null
           created_at?: string
           customer_type?: string
           hatcher_price?: number
@@ -4725,6 +4730,7 @@ export type Database = {
           is_test?: boolean
           name?: string
           notes?: string | null
+          phone?: string | null
           updated_at?: string
         }
         Relationships: []

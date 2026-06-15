@@ -6,11 +6,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Save, X, Plus, Trash2, ShieldAlert, Lock } from "lucide-react";
+import { Save, X, Plus, Trash2, ShieldAlert, Lock, UserPlus } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import QuickAddHatchCustomerDialog from "./QuickAddHatchCustomerDialog";
 
 interface Props {
   group: any;
@@ -58,12 +59,13 @@ export default function BatchAddEggsDialog({ group, onClose, onSaved }: Props) {
     });
   }, [group]);
 
+  const qc = useQueryClient();
   const { data: customers = [] } = useQuery<any[]>({
     queryKey: ["hatch_customers_for_add_eggs"],
     queryFn: async () => {
       const { data } = await supabase
         .from("hatch_customers" as any)
-        .select("id,name,customer_type")
+        .select("id,name,customer_type,phone")
         .order("name");
       return (data as any[]) || [];
     },
@@ -71,6 +73,7 @@ export default function BatchAddEggsDialog({ group, onClose, onSaved }: Props) {
 
   const [rows, setRows] = useState<AddRow[]>([blankRow()]);
   const [saving, setSaving] = useState(false);
+  const [quickAddForRow, setQuickAddForRow] = useState<number | null>(null);
 
   const totalBefore = group?.total_eggs || 0;
   const addedTotal = rows.reduce((s, r) => s + (Number(r.qty) || 0), 0);
@@ -351,20 +354,33 @@ export default function BatchAddEggsDialog({ group, onClose, onSaved }: Props) {
                   <TableRow key={i}>
                     <TableCell className="text-xs text-muted-foreground">{i + 1}</TableCell>
                     <TableCell>
-                      <Select
-                        value={r.customer_id}
-                        onValueChange={(v) => setRow(i, { customer_id: v })}
-                        disabled={locked}
-                      >
-                        <SelectTrigger><SelectValue placeholder="اختر العميل" /></SelectTrigger>
-                        <SelectContent>
-                          {customers.map((c: any) => (
-                            <SelectItem key={c.id} value={c.id}>
-                              {c.name} {c.customer_type === "internal" ? "(عاصمة)" : ""}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <div className="flex items-center gap-1">
+                        <Select
+                          value={r.customer_id}
+                          onValueChange={(v) => setRow(i, { customer_id: v })}
+                          disabled={locked}
+                        >
+                          <SelectTrigger><SelectValue placeholder="اختر العميل" /></SelectTrigger>
+                          <SelectContent>
+                            {customers.map((c: any) => (
+                              <SelectItem key={c.id} value={c.id}>
+                                {c.name} {c.customer_type === "internal" ? "(عاصمة)" : ""}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          type="button"
+                          onClick={() => setQuickAddForRow(i)}
+                          disabled={locked}
+                          title="إضافة عميل جديد"
+                          className="shrink-0 h-9 w-9 text-purple-700 hover:bg-purple-50"
+                        >
+                          <UserPlus className="w-4 h-4" />
+                        </Button>
+                      </div>
                       {existing && (
                         <div className="text-[10px] text-emerald-700 mt-0.5">
                           موجود: {existing.total_eggs} بيضة (سيُزاد)
@@ -456,6 +472,20 @@ export default function BatchAddEggsDialog({ group, onClose, onSaved }: Props) {
             <Save className="w-4 h-4 ml-1" /> {saving ? "جاري الحفظ..." : `حفظ (${rows.length})`}
           </Button>
         </DialogFooter>
+
+        <QuickAddHatchCustomerDialog
+          open={quickAddForRow !== null}
+          onClose={() => setQuickAddForRow(null)}
+          existing={customers as any}
+          onCreated={(cust) => {
+            qc.invalidateQueries({ queryKey: ["hatch_customers_for_add_eggs"] });
+            qc.invalidateQueries({ queryKey: ["hatch_customers"] });
+            if (quickAddForRow !== null) {
+              setRow(quickAddForRow, { customer_id: cust.id });
+            }
+            setQuickAddForRow(null);
+          }}
+        />
       </DialogContent>
     </Dialog>
   );
