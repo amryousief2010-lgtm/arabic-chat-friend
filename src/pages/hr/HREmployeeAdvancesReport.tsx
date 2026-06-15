@@ -128,9 +128,10 @@ const HREmployeeAdvancesReport = () => {
   async function loadAll() {
     setLoading(true);
     try {
-      const [empRes, locRes, slRes, labRes, mainRes, firstSlRes, firstLabRes, firstMainRes] = await Promise.all([
+      const [empRes, locRes, aliasRes, slRes, labRes, mainRes, firstSlRes, firstLabRes, firstMainRes] = await Promise.all([
         supabase.from("hr_employees").select("id, full_name, department, current_location_id").eq("status", "active"),
         supabase.from("hr_work_locations").select("id, name, department"),
+        supabase.from("hr_employee_name_aliases" as any).select("id, normalized_name, employee_id, raw_name"),
         supabase.from("slaughter_custody_expenses").select("id, expense_date, category, description, amount, beneficiary, status, payment_method, notes, created_by, approved_by").or("description.ilike.%سلف%,description.ilike.%advance%,category.ilike.%سلف%,category.ilike.%advance%"),
         supabase.from("lab_treasury_movements").select("id, movement_date, description, amount, beneficiary, status, payment_method, notes, created_by, approved_by, expense_category").or("description.ilike.%سلف%,description.ilike.%advance%,expense_category.ilike.%advance%").eq("movement_type", "expense"),
         supabase.from("main_treasury_transactions").select("id, txn_date, description, amount, counterparty, status, payment_method, created_by, reference_no").or("description.ilike.%سلف%,description.ilike.%advance%"),
@@ -141,8 +142,34 @@ const HREmployeeAdvancesReport = () => {
 
       const emps: Employee[] = (empRes.data as any) || [];
       const locs: Location[] = (locRes.data as any) || [];
+      const aliasList: Array<{ id: string; normalized_name: string; employee_id: string; raw_name: string }> =
+        (aliasRes.data as any) || [];
       setEmployees(emps);
       setLocations(locs);
+      setAliases(aliasList);
+
+      // Build alias lookup: normalized_name -> employee_id
+      const aliasMap = new Map<string, string>();
+      for (const a of aliasList) aliasMap.set(a.normalized_name, a.employee_id);
+      const empById = new Map(emps.map(e => [e.id, e]));
+
+      const resolveMatch = (text: string, rawName: string | null): Employee | null => {
+        // 1) alias on raw beneficiary
+        const nRaw = normalize(rawName || "");
+        if (nRaw && aliasMap.has(nRaw)) {
+          const e = empById.get(aliasMap.get(nRaw)!);
+          if (e) return e;
+        }
+        // 2) alias scan over the full text
+        for (const [k, eid] of aliasMap) {
+          if (k && normalize(text).includes(k)) {
+            const e = empById.get(eid);
+            if (e) return e;
+          }
+        }
+        // 3) fuzzy match
+        return tryMatchEmployee(text, emps);
+      };
 
       const locMap = new Map(locs.map(l => [l.id, l]));
 
