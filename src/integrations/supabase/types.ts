@@ -14734,6 +14734,7 @@ export type Database = {
           location: string | null
           manager_id: string | null
           name: string
+          operational_start_date: string | null
           type: string
           updated_at: string
         }
@@ -14745,6 +14746,7 @@ export type Database = {
           location?: string | null
           manager_id?: string | null
           name: string
+          operational_start_date?: string | null
           type?: string
           updated_at?: string
         }
@@ -14756,6 +14758,7 @@ export type Database = {
           location?: string | null
           manager_id?: string | null
           name?: string
+          operational_start_date?: string | null
           type?: string
           updated_at?: string
         }

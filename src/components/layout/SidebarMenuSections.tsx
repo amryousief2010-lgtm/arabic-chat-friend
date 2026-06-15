@@ -46,6 +46,7 @@ import {
   KeyRound,
   Receipt,
   MapPin,
+  CalendarClock,
 } from "lucide-react";
 import { useAuth, AppRole } from "@/hooks/useAuth";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
@@ -251,6 +252,7 @@ export const moduleSections: ModuleSection[] = [
       { icon: Warehouse, label: "هايبر هيلثي تيست", path: "/warehouse-stock/hyper-healthy-test", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'] },
       { icon: Warehouse, label: "هايبر كارفور", path: "/warehouse-stock/hyper-carrefour", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'] },
       { icon: MapPin, label: "المخازن حسب الموقع الجغرافي", path: "/modules/warehouses/by-location", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager', 'agouza_warehouse_keeper', 'meat_factory_manager', 'feed_factory_manager', 'slaughterhouse_manager'] },
+      { icon: CalendarClock, label: "تواريخ بداية التشغيل الفعلي", path: "/modules/warehouses/operational-dates", roles: ['general_manager', 'executive_manager'] },
       { icon: Wallet, label: "تحصيل المندوب الخاص", path: "/private-delivery-collection", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'accountant', 'financial_manager'] },
       // تنبيهات وتشغيل
       { icon: AlertTriangle, label: "مخزون منخفض", path: "/low-stock", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager'] },
