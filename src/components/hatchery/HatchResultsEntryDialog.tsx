@@ -14,7 +14,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Save, Loader2, AlertCircle, Lock } from "lucide-react";
+import { Save, Loader2, AlertCircle, Lock, Unlock } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -58,9 +59,16 @@ const toNum = (v: any) => {
  * Validates that no stage exceeds the remaining net from the previous stage.
  */
 const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
+  const { roles } = useAuth();
+  const canReopen = roles?.some((r) => r === "general_manager" || r === "executive_manager");
+  const isLocked = (group.customers || []).every((c: any) => {
+    const s = c._raw?.status ?? c.status;
+    return s === "completed" || s === "closed";
+  }) && (group.customers || []).length > 0;
   const today = new Date().toISOString().slice(0, 10);
   const [exitDate, setExitDate] = useState(today);
   const [saving, setSaving] = useState(false);
+  const [confirmReopen, setConfirmReopen] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, RowDraft>>(() => {
     const m: Record<string, RowDraft> = {};
     (group.customers || []).forEach((c: any) => {
@@ -229,6 +237,42 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
     }
   };
 
+  const handleReopen = async () => {
+    setSaving(true);
+    try {
+      const ids = (group.customers || []).map((c: any) => c.id);
+      const { error } = await supabase
+        .from("hatch_batches")
+        .update({ status: "received", exit_date: null, updated_at: new Date().toISOString() })
+        .in("id", ids);
+      if (error) throw error;
+      try {
+        const { data: u } = await supabase.auth.getUser();
+        await supabase.from("hatch_batch_edit_audit" as any).insert(
+          (group.customers || []).map((c: any) => ({
+            batch_id: c.id,
+            batch_number: c.batch_number,
+            operational_batch_no: group.op_number,
+            customer_name: c.customer_name,
+            actor_id: u?.user?.id,
+            actor_name: (u?.user?.user_metadata as any)?.full_name || u?.user?.email || null,
+            changes: { action: "reopen_hatching_batch" },
+            reason: "إعادة فتح الدفعة بعد الإقفال — بصلاحية إدارية",
+          })),
+        );
+      } catch { /* audit best-effort */ }
+      toast.success("تم إعادة فتح الدفعة — أصبحت قابلة للتعديل");
+      onSaved?.();
+      onClose();
+    } catch (e: any) {
+      console.error(e);
+      toast.error("فشل إعادة فتح الدفعة: " + (e?.message || "خطأ غير معروف"));
+    } finally {
+      setSaving(false);
+      setConfirmReopen(false);
+    }
+  };
+
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-[95vw] md:max-w-6xl max-h-[92vh] overflow-y-auto" dir="rtl">
@@ -384,7 +428,38 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
             <Lock className="w-4 h-4 ml-1" />
             إقفال الدفعة
           </Button>
+          {isLocked && canReopen && (
+            <Button
+              variant="outline"
+              className="border-amber-500 text-amber-700 hover:bg-amber-50"
+              onClick={() => setConfirmReopen(true)}
+              disabled={saving}
+            >
+              <Unlock className="w-4 h-4 ml-1" />
+              إعادة فتح الدفعة
+            </Button>
+          )}
         </DialogFooter>
+
+        <AlertDialog open={confirmReopen} onOpenChange={setConfirmReopen}>
+          <AlertDialogContent dir="rtl">
+            <AlertDialogHeader>
+              <AlertDialogTitle>تأكيد إعادة فتح الدفعة</AlertDialogTitle>
+              <AlertDialogDescription>
+                ستعاد الدفعة <b>{group.op_number}</b> ({(group.customers || []).length} عميل) إلى حالة "قيد التشغيل" لتعديل النتائج،
+                وسيتم إزالة تاريخ الخروج المسجل. هذا الإجراء متاح للمدير العام والمدير التنفيذي فقط ويُسجَّل في سجل التعديلات.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={saving}>إلغاء</AlertDialogCancel>
+              <AlertDialogAction onClick={handleReopen} disabled={saving}>
+                {saving ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <Unlock className="w-4 h-4 ml-1" />}
+                نعم، إعادة فتح
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
 
         <AlertDialog open={confirmClose} onOpenChange={setConfirmClose}>
           <AlertDialogContent dir="rtl">
