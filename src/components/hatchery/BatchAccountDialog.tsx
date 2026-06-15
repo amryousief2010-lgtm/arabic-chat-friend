@@ -426,13 +426,23 @@ export default function BatchAccountDialog({
           {invoice && (
             <div className="rounded border p-3 space-y-3">
               <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-sm text-muted-foreground">رقم الفاتورة:</span>
                   <span className="font-mono font-bold">{invoice.invoice_no}</span>
                   <Badge className={`${statusColors[invoice.payment_status]} text-white`}>{statusLabels[invoice.payment_status]}</Badge>
+                  {num(invoice.discount_amount) > 0 && (
+                    <Badge className="bg-purple-600 text-white">بها خصم</Badge>
+                  )}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   <Button variant="outline" size="sm" onClick={printAccount}><Printer className="w-4 h-4 ml-1" />طباعة</Button>
+                  {num(invoice.remaining_amount) > 0 && canDiscount && (
+                    <Button variant="outline" size="sm"
+                      className="border-purple-400 text-purple-700 hover:bg-purple-50"
+                      onClick={() => { setDiscAmount(""); setDiscReason(""); setDiscNotes(""); setDiscOpen(true); }}>
+                      <Percent className="w-4 h-4 ml-1" />خصم / تسوية
+                    </Button>
+                  )}
                   {num(invoice.remaining_amount) > 0 && (
                     <Button size="sm" onClick={() => { setAmount(String(num(invoice.remaining_amount))); setPayOpen(true); }}>
                       <Wallet className="w-4 h-4 ml-1" />تحصيل
@@ -440,35 +450,57 @@ export default function BatchAccountDialog({
                   )}
                 </div>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
                 <Info label="رسوم اللايح" value={fmtMoney(invoice.infertile_amount)} />
                 <Info label="رسوم الكشف الثاني" value={fmtMoney(invoice.completed_unhatched_amount)} />
                 <Info label="رسوم الكتاكيت" value={fmtMoney(invoice.chicks_amount)} />
                 <Info label={`رسوم التحضين (${invoice.brooding_days} يوم)`} value={fmtMoney(invoice.brooding_amount)} />
                 <Info label="إجمالي المستحق" value={fmtMoney(invoice.total_amount)} highlight />
-                <Info label="المدفوع" value={fmtMoney(invoice.paid_amount)} />
+                <Info label="إجمالي الخصومات" value={fmtMoney(invoice.discount_amount)} />
+                <Info label="إجمالي المدفوع" value={fmtMoney(invoice.paid_amount)} />
                 <Info label="المتبقي" value={fmtMoney(invoice.remaining_amount)} highlight />
               </div>
 
               <div>
-                <h4 className="font-semibold text-sm mb-2">سجل التحصيلات (توريد تفريخ)</h4>
+                <h4 className="font-semibold text-sm mb-2">كشف حساب الفاتورة (تحصيلات + خصومات)</h4>
                 <div className="rounded border overflow-x-auto">
                   <Table>
                     <TableHeader><TableRow>
-                      <TableHead>التاريخ</TableHead><TableHead>المبلغ</TableHead>
-                      <TableHead>طريقة الدفع</TableHead><TableHead>ملاحظات</TableHead>
+                      <TableHead>التاريخ</TableHead><TableHead>البيان</TableHead>
+                      <TableHead>المبلغ</TableHead><TableHead>طريقة الدفع / السبب</TableHead>
+                      <TableHead>ملاحظات</TableHead><TableHead></TableHead>
                     </TableRow></TableHeader>
                     <TableBody>
-                      {payments.length === 0 ? (
-                        <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-3">لا توجد تحصيلات بعد</TableCell></TableRow>
-                      ) : payments.map((p) => (
-                        <TableRow key={p.id}>
-                          <TableCell className="text-xs">{p.paid_at?.slice(0,16).replace("T"," ")}</TableCell>
-                          <TableCell className="font-bold text-green-600">{fmtMoney(p.amount)}</TableCell>
-                          <TableCell>{p.method || "—"}</TableCell>
-                          <TableCell className="text-xs">{p.notes || "—"}</TableCell>
-                        </TableRow>
-                      ))}
+                      {(payments.length + discounts.length) === 0 ? (
+                        <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-3">لا توجد حركات بعد</TableCell></TableRow>
+                      ) : (
+                        [
+                          ...payments.map((p:any) => ({ ...p, _type: "payment", _date: p.paid_at })),
+                          ...discounts.map((d:any) => ({ ...d, _type: "discount", _date: d.created_at })),
+                        ].sort((a:any,b:any) => (b._date||"").localeCompare(a._date||"")).map((row:any) => (
+                          <TableRow key={`${row._type}-${row.id}`} className={row._type === "discount" ? "bg-purple-50/50" : ""}>
+                            <TableCell className="text-xs">{row._date?.slice(0,16).replace("T"," ")}</TableCell>
+                            <TableCell className="text-xs font-medium">
+                              {row._type === "discount" ? "خصم / تسوية على الفاتورة" : "تحصيل"}
+                            </TableCell>
+                            <TableCell className={`font-bold ${row._type === "discount" ? "text-purple-700" : "text-green-600"}`}>
+                              {fmtMoney(row.amount)}
+                            </TableCell>
+                            <TableCell className="text-xs">
+                              {row._type === "discount" ? (row.reason || "—") : (methodLabels[row.method] || row.method || "—")}
+                            </TableCell>
+                            <TableCell className="text-xs">{row.notes || "—"}</TableCell>
+                            <TableCell>
+                              {row._type === "payment" && (
+                                <Button size="sm" variant="ghost" className="h-6 px-2 text-xs"
+                                  onClick={() => printReceipt(row)}>
+                                  <ReceiptIcon className="w-3 h-3 ml-1" />إيصال
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
                     </TableBody>
                   </Table>
                 </div>
