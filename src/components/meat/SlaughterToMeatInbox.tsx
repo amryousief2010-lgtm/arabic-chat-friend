@@ -154,25 +154,37 @@ export function SlaughterToMeatInbox() {
   };
 
   const confirmReceive = async () => {
-    if (!receiveBatch || !receiveWarehouseId) {
-      toast.error("اختر المخزن"); return;
-    }
-    const items = receiveBatch.outputs.map((o: any) => ({
-      id: o.id,
-      received_weight_kg: verifyMap[o.id]?.received_weight_kg ?? Number(o.actual_weight_kg || 0),
-      quality_status: verifyMap[o.id]?.quality_status ?? (o.quality_status || 'accepted'),
-      notes: verifyMap[o.id]?.notes || null,
-    }));
+    if (!receiveBatch) return;
     setReceiving(true);
-    const { data, error } = await supabase.rpc('receive_slaughter_batch_verified', {
-      p_batch_id: receiveBatch.batch_id,
-      p_warehouse_id: receiveWarehouseId,
-      p_items: items as any,
-    });
+    let ok = 0, skipped = 0, totalKg = 0;
+    const errors: string[] = [];
+    for (const o of receiveBatch.outputs) {
+      const v = verifyMap[o.id];
+      const newQty = v?.received_weight_kg ?? Number(o.actual_weight_kg || 0);
+      const newQuality = v?.quality_status ?? (o.quality_status || "accepted");
+      // Apply qty/quality adjustments first if changed
+      const patch: any = {};
+      if (newQty !== Number(o.actual_weight_kg || 0)) patch.actual_weight_kg = newQty;
+      if (newQuality !== o.quality_status) patch.quality_status = newQuality;
+      if (Object.keys(patch).length) {
+        await supabase.from("slaughter_batch_outputs" as any).update(patch).eq("id", o.id);
+      }
+      const { data, error } = await supabase.rpc(
+        "receive_slaughter_output_to_meat_factory" as any,
+        { p_output_id: o.id } as any
+      );
+      if (error) {
+        if (/ALREADY_RECEIVED/.test(error.message)) { skipped++; continue; }
+        errors.push(`${o.cut_name_ar}: ${error.message}`);
+        continue;
+      }
+      const r: any = data || {};
+      if (r.added_to_stock) { ok++; totalKg += Number(r.qty || 0); }
+      else { skipped++; }
+    }
     setReceiving(false);
-    if (error) { toast.error(error.message); return; }
-    const r: any = data || {};
-    toast.success(`تم الاستلام: ${r.received_count || 0} صنف • مضاف للمخزون: ${r.added_to_stock || 0} • ${Number(r.total_kg || 0).toFixed(2)} كجم`);
+    if (errors.length) toast.error(errors.join("\n"));
+    toast.success(`تم الاستلام في مخزون مصنع اللحوم: ${ok} صنف • ${totalKg.toFixed(2)} كجم${skipped ? ` • تم تخطي ${skipped}` : ""}`);
     setReceiveBatch(null);
     fetchAll();
   };
