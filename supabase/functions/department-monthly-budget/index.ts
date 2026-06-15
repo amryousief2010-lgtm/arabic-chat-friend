@@ -487,6 +487,50 @@ async function computeMonth(supabase: any, year: number, month: number) {
       }
     }
   }
+  // Actual sale value for slaughter products via order_items (comparison only — does not add to cashRevenue
+  // because cash flows through main treasury, not slaughter's books)
+  const slaughterProductIds = Array.from(new Set(
+    (sOutputs ?? []).map((o: any) => o.product_id).filter(Boolean),
+  ));
+  let actualSaleValue = 0, actualSaleQty = 0;
+  if (slaughterProductIds.length) {
+    const { data: ordersInMonth } = await supabase
+      .from("orders").select("id,created_at,status")
+      .gte("created_at", tsStart).lt("created_at", tsEnd)
+      .neq("status", "cancelled");
+    const orderIds = (ordersInMonth ?? []).map((o: any) => o.id);
+    if (orderIds.length) {
+      // Chunk in 500s to be safe
+      for (let i = 0; i < orderIds.length; i += 500) {
+        const chunk = orderIds.slice(i, i + 500);
+        const { data: oi } = await supabase
+          .from("order_items")
+          .select("product_id,product_name,quantity,unit_price,total_price")
+          .in("order_id", chunk).in("product_id", slaughterProductIds);
+        for (const it of oi ?? []) {
+          const v = Number(it.total_price || (Number(it.quantity || 0) * Number(it.unit_price || 0)));
+          if (v > 0) {
+            actualSaleValue += v;
+            actualSaleQty += Number(it.quantity || 0);
+          }
+        }
+      }
+    }
+  }
+  slaughter.actualSaleValue = actualSaleValue;
+  slaughter.opsMetrics = {
+    birds: totalBirds, totalMeatKg: Math.round(totalMeatKg),
+    totalLiveKg: Math.round(totalLiveKg),
+    actualSaleValue: Math.round(actualSaleValue),
+    actualSaleQty: Math.round(actualSaleQty),
+    costBasis: Math.round(slaughter.productionCost),
+  };
+  if (actualSaleValue > 0) {
+    slaughter.pricingWarnings.push(
+      `سعر البيع الفعلي للمنتجات المباعة عبر الطلبات: ${Math.round(actualSaleValue).toLocaleString()} ج.م (للعرض فقط — لا يضاف للإيراد النقدي لأن التحصيل يقع على الخزنة الرئيسية)`,
+    );
+  }
+
 
   // ============ Feed Factory ============
   const { data: fSales } = await supabase
