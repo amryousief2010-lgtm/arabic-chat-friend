@@ -58,6 +58,7 @@ interface DeptResult {
   topExpenseItem?: { source: string; amount: number };
   actualSaleValue?: number;
   opsMetrics?: Record<string, number>;
+  deepAnalysis?: any;
 }
 interface BudgetData {
   year: number; month: number;
