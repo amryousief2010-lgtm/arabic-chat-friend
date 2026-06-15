@@ -634,6 +634,18 @@ const HREmployees = () => {
                 </SelectContent>
               </Select>
             </div>
+            {editing && (
+              <div className="md:col-span-2 rounded-lg border bg-muted/30 p-3 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold">يوم صرف الراتب الحالي:</span>
+                  <Badge className={PAY_DAY_BADGE[editing.pay_day] || "bg-muted"}>يوم {editing.pay_day} من كل شهر</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  يُحسب آليًا حسب القاعدة: البواب=1، التسويق/ألاء=5، شركة الشحن=15، الباقي=1.
+                  أي تغيير في مكان العمل أو القسم يُحدّث هذا اليوم تلقائيًا.
+                </p>
+              </div>
+            )}
             <div className="md:col-span-2">
               <Label>ملاحظات</Label>
               <Textarea value={form.notes || ""} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} />
