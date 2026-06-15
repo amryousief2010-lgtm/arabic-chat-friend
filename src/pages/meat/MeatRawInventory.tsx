@@ -49,8 +49,8 @@ export default function MeatRawInventory() {
     queryFn: async () => (await supabase.from("meat_factory_inventory_moves" as any).select("*").order("created_at", { ascending: false }).limit(1000)).data || [],
   });
 
-  const itemsArr = items as RawItem[];
-  const movesArr = moves as Move[];
+  const itemsArr = items as unknown as RawItem[];
+  const movesArr = moves as unknown as Move[];
 
   // Per-item last dates
   const lastByItem = useMemo(() => {
