@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { UsersRound, MapPin, Wallet, CalendarCheck, Receipt, Award, BarChart3, Settings as SettingsIcon } from "lucide-react";
+import { UsersRound, MapPin, Wallet, CalendarCheck, Receipt, Award, BarChart3, Settings as SettingsIcon, PieChart } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
