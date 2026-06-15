@@ -508,12 +508,92 @@ export default function DepartmentMonthlyBudget() {
             </CardContent>
           </Card>
 
+          {/* Top products across all departments */}
+          {((data.topProfitProducts?.length ?? 0) + (data.topLossProducts?.length ?? 0)) > 0 && (
+            <div className="grid lg:grid-cols-2 gap-4">
+              <Card>
+                <CardHeader><CardTitle className="text-base flex items-center gap-2">
+                  <Crown className="h-4 w-4 text-amber-500" /> أكثر المنتجات ربحًا
+                </CardTitle></CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader><TableRow>
+                      <TableHead>المنتج</TableHead><TableHead>القسم</TableHead>
+                      <TableHead>الكمية</TableHead><TableHead>الإيراد</TableHead>
+                      <TableHead>التكلفة</TableHead><TableHead>الربح</TableHead>
+                      <TableHead>الهامش</TableHead>
+                    </TableRow></TableHeader>
+                    <TableBody>
+                      {(data.topProfitProducts ?? []).filter(p => p.profit > 0).length === 0 && (
+                        <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">
+                          لا توجد منتجات مربحة هذا الشهر
+                        </TableCell></TableRow>
+                      )}
+                      {(data.topProfitProducts ?? []).filter(p => p.profit > 0).map((p, i) => (
+                        <TableRow key={i}>
+                          <TableCell>{p.name}</TableCell>
+                          <TableCell className="text-xs">{p.dept}</TableCell>
+                          <TableCell className="tabular-nums">{fmt(p.qty)}</TableCell>
+                          <TableCell className="tabular-nums">{fmt(p.revenue)}</TableCell>
+                          <TableCell className="tabular-nums text-muted-foreground">{fmt(p.cost)}</TableCell>
+                          <TableCell className="tabular-nums text-green-700 font-bold">{fmt(p.profit)}</TableCell>
+                          <TableCell className="tabular-nums">{p.margin.toFixed(1)}%</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader><CardTitle className="text-base flex items-center gap-2">
+                  <Skull className="h-4 w-4 text-red-500" /> أكثر المنتجات خسارة
+                </CardTitle></CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader><TableRow>
+                      <TableHead>المنتج</TableHead><TableHead>القسم</TableHead>
+                      <TableHead>الكمية</TableHead><TableHead>الإيراد</TableHead>
+                      <TableHead>التكلفة</TableHead><TableHead>الخسارة</TableHead>
+                      <TableHead>الهامش</TableHead>
+                    </TableRow></TableHeader>
+                    <TableBody>
+                      {(data.topLossProducts?.length ?? 0) === 0 && (
+                        <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">
+                          لا توجد منتجات خاسرة هذا الشهر ✅
+                        </TableCell></TableRow>
+                      )}
+                      {(data.topLossProducts ?? []).map((p, i) => (
+                        <TableRow key={i}>
+                          <TableCell>{p.name}</TableCell>
+                          <TableCell className="text-xs">{p.dept}</TableCell>
+                          <TableCell className="tabular-nums">{fmt(p.qty)}</TableCell>
+                          <TableCell className="tabular-nums">{fmt(p.revenue)}</TableCell>
+                          <TableCell className="tabular-nums text-muted-foreground">{fmt(p.cost)}</TableCell>
+                          <TableCell className="tabular-nums text-red-700 font-bold">{fmt(p.profit)}</TableCell>
+                          <TableCell className="tabular-nums">{p.margin.toFixed(1)}%</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
           <Card>
-            <CardHeader><CardTitle className="text-base">ضمانات النزاهة المالية</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">ضمانات النزاهة المالية ومصادر الأرقام</CardTitle></CardHeader>
             <CardContent className="text-sm text-muted-foreground space-y-1">
               <div>• {data.meta?.note ?? "القيم التشغيلية الداخلية والأصول المتبقية للعرض فقط."}</div>
+              <div>• تكلفة الإنتاج: <b className={data.meta?.usedActualProductionCost ? "text-green-700" : "text-amber-700"}>
+                {data.meta?.usedActualProductionCost ? "✅ من فواتير التصنيع الفعلية" : "تقديرية"}
+              </b></div>
+              <div>• سعر البيع: <b className={data.meta?.usedActualSalePrice ? "text-green-700" : "text-amber-700"}>
+                {data.meta?.usedActualSalePrice ? "✅ من فواتير المبيعات الفعلية" : "تقديري"}
+              </b></div>
+              <div>• إجمالي تكلفة الإنتاج للأقسام: <b>{fmt(data.totals.productionCost ?? 0)}</b> ج.م</div>
+              <div>• إجمالي المصروفات التشغيلية (غير الإنتاجية): <b>{fmt(data.totals.operatingExpenses ?? 0)}</b> ج.م</div>
               <div>• عدد حركات الخزنة التي أنشأها هذا التقرير: <b className="text-green-700">{data.meta?.treasuryMovementsCreated ?? 0}</b></div>
-              <div>• يمكن تعديل أسعار البيع الداخلية من صفحة <code className="bg-muted px-1 rounded">إعدادات الأسعار الداخلية</code> ولن تنشئ أي حركة خزنة.</div>
+              <div>• الأسعار الداخلية: <a href="/modules/internal-prices-settings" className="text-primary underline">إعدادات الأسعار الداخلية</a></div>
             </CardContent>
           </Card>
         </>
