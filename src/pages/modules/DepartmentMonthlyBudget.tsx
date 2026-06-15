@@ -425,6 +425,102 @@ export default function DepartmentMonthlyBudget() {
             </Card>
           )}
 
+          {/* P&L Summary — explicit answer to "تكلفتنا كام / بعنا بكام / كسب أم خسارة" */}
+          <Card className="border-2 border-primary/30">
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between flex-wrap gap-2">
+                <span className="flex items-center gap-2">
+                  <Wallet className="h-5 w-5 text-primary" />
+                  ملخص الربح والخسارة الشهري — {MONTHS_AR[month - 1]} {year}
+                </span>
+                <span className="text-xs font-normal text-muted-foreground">
+                  للعرض فقط — لا حركة خزنة أو مخزون
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="font-bold">القسم</TableHead>
+                    <TableHead title="تكلفة الإنتاج / التصنيع من فواتير المصانع">تكلفة الإنتاج</TableHead>
+                    <TableHead title="مصروفات تشغيلية غير إنتاجية">مصروفات أخرى</TableHead>
+                    <TableHead className="font-bold text-red-700" title="تكلفة الإنتاج + المصروفات الأخرى">إجمالي التكلفة علينا</TableHead>
+                    <TableHead title="بيع فعلي تحصّل نقدًا من الفواتير والطلبات">إجمالي البيع النقدي</TableHead>
+                    <TableHead title="تحويلات داخلية مسعّرة (بدون خزنة)">قيمة تشغيلية داخلية</TableHead>
+                    <TableHead title="مخزون متبقٍ بقيمته كأصل">قيمة المخزون المتبقي</TableHead>
+                    <TableHead className="font-bold text-green-700" title="بيع نقدي + قيمة داخلية + مخزون">إجمالي القيمة المحسوبة</TableHead>
+                    <TableHead className="font-bold" title="إجمالي القيمة - إجمالي التكلفة">صافي الربح / الخسارة</TableHead>
+                    <TableHead>هامش الربح</TableHead>
+                    <TableHead>الحالة</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.departments.map(d => {
+                    const totalCost = (d.productionCost ?? 0) + (d.operatingExpenses ?? 0);
+                    const margin = d.totalComputedValue > 0 ? (d.operationalNet / d.totalComputedValue) * 100 : 0;
+                    return (
+                      <TableRow key={d.key} className="cursor-pointer hover:bg-muted/40" onClick={() => setSelectedDept(d)}>
+                        <TableCell className="font-medium">{d.name}</TableCell>
+                        <TableCell className="tabular-nums text-orange-700">{fmt(d.productionCost ?? 0)}</TableCell>
+                        <TableCell className="tabular-nums text-red-600">{fmt(d.operatingExpenses ?? 0)}</TableCell>
+                        <TableCell className="tabular-nums font-bold text-red-700">{fmt(totalCost)}</TableCell>
+                        <TableCell className="tabular-nums text-green-700">{fmt(d.cashRevenue)}</TableCell>
+                        <TableCell className="tabular-nums text-blue-700">{fmt(d.internalValue)}</TableCell>
+                        <TableCell className="tabular-nums text-purple-700">{fmt(d.remainingInventoryValue)}</TableCell>
+                        <TableCell className="tabular-nums font-bold text-green-700">{fmt(d.totalComputedValue)}</TableCell>
+                        <TableCell className={`tabular-nums font-bold ${d.operationalNet >= 0 ? "text-green-700" : "text-red-700"}`}>
+                          {d.operationalNet >= 0 ? "+" : ""}{fmt(d.operationalNet)}
+                        </TableCell>
+                        <TableCell className={`tabular-nums ${margin >= 0 ? "text-green-700" : "text-red-700"}`}>
+                          {margin.toFixed(1)}%
+                        </TableCell>
+                        <TableCell>{statusBadge(d.status)}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {/* Grand totals */}
+                  {(() => {
+                    const totals = data.totals;
+                    const totalCost = (totals.productionCost ?? 0) + (totals.operatingExpenses ?? 0);
+                    const margin = totals.totalComputedValue > 0 ? (totals.operationalNet / totals.totalComputedValue) * 100 : 0;
+                    return (
+                      <TableRow className="bg-primary/10 font-bold border-t-2">
+                        <TableCell>الإجمالي العام للشركة</TableCell>
+                        <TableCell className="tabular-nums text-orange-800">{fmt(totals.productionCost ?? 0)}</TableCell>
+                        <TableCell className="tabular-nums text-red-700">{fmt(totals.operatingExpenses ?? 0)}</TableCell>
+                        <TableCell className="tabular-nums text-red-800">{fmt(totalCost)}</TableCell>
+                        <TableCell className="tabular-nums text-green-800">{fmt(totals.cashRevenue)}</TableCell>
+                        <TableCell className="tabular-nums text-blue-800">{fmt(totals.internalValue)}</TableCell>
+                        <TableCell className="tabular-nums text-purple-800">{fmt(totals.remainingInventoryValue)}</TableCell>
+                        <TableCell className="tabular-nums text-green-800">{fmt(totals.totalComputedValue)}</TableCell>
+                        <TableCell className={`tabular-nums ${totals.operationalNet >= 0 ? "text-green-800" : "text-red-800"}`}>
+                          {totals.operationalNet >= 0 ? "+" : ""}{fmt(totals.operationalNet)}
+                        </TableCell>
+                        <TableCell className={`tabular-nums ${margin >= 0 ? "text-green-800" : "text-red-800"}`}>
+                          {margin.toFixed(1)}%
+                        </TableCell>
+                        <TableCell>{totals.operationalNet > 0 ? <Badge className="bg-green-600">كسبان</Badge> : totals.operationalNet < 0 ? <Badge variant="destructive">خسران</Badge> : <Badge variant="secondary">تعادل</Badge>}</TableCell>
+                      </TableRow>
+                    );
+                  })()}
+                </TableBody>
+              </Table>
+              <div className="mt-3 grid sm:grid-cols-3 gap-2 text-xs">
+                <div className="rounded p-2 bg-red-50 border border-red-200">
+                  <b>إجمالي التكلفة علينا:</b> {fmt((data.totals.productionCost ?? 0) + (data.totals.operatingExpenses ?? 0))} ج.م
+                </div>
+                <div className="rounded p-2 bg-green-50 border border-green-200">
+                  <b>إجمالي البيع والقيمة:</b> {fmt(data.totals.totalComputedValue)} ج.م
+                </div>
+                <div className={`rounded p-2 border ${data.totals.operationalNet >= 0 ? "bg-emerald-50 border-emerald-300" : "bg-rose-50 border-rose-300"}`}>
+                  <b>صافي الربح / الخسارة:</b> {data.totals.operationalNet >= 0 ? "+" : ""}{fmt(data.totals.operationalNet)} ج.م
+                  {" "}({data.totals.operationalNet >= 0 ? "كسبان ✅" : "خسران ⚠"})
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Comparison table */}
           <Card>
             <CardHeader>
