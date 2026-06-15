@@ -472,6 +472,20 @@ export default function BatchAddEggsDialog({ group, onClose, onSaved }: Props) {
             <Save className="w-4 h-4 ml-1" /> {saving ? "جاري الحفظ..." : `حفظ (${rows.length})`}
           </Button>
         </DialogFooter>
+
+        <QuickAddHatchCustomerDialog
+          open={quickAddForRow !== null}
+          onClose={() => setQuickAddForRow(null)}
+          existing={customers as any}
+          onCreated={(cust) => {
+            qc.invalidateQueries({ queryKey: ["hatch_customers_for_add_eggs"] });
+            qc.invalidateQueries({ queryKey: ["hatch_customers"] });
+            if (quickAddForRow !== null) {
+              setRow(quickAddForRow, { customer_id: cust.id });
+            }
+            setQuickAddForRow(null);
+          }}
+        />
       </DialogContent>
     </Dialog>
   );
