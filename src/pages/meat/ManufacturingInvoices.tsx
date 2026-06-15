@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
@@ -12,8 +13,12 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Factory, Plus, Trash2, CheckCircle2, Send, Loader2, Printer, Eye } from "lucide-react";
+import { Factory, Plus, Trash2, CheckCircle2, Send, Loader2, Printer, Eye, ChefHat } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import recipesData from "@/data/meatRecipes.json";
+
+type MeatRecipe = { key: string; product: string; code: number; batch_qty: number; unit: string; wages: number; lines: { code: number; name: string; kind: "raw"|"spice"|"packaging"; unit: string; qty: number; price: number; total: number }[] };
+const MEAT_RECIPES = recipesData as MeatRecipe[];
 
 type Kind = "raw" | "spice" | "packaging";
 type Warehouse = { id: string; name: string; type: string };
@@ -110,6 +115,65 @@ export default function ManufacturingInvoices() {
     setExtraCost(0); setDestinationKind("factory_warehouse");
     setInvoiceUuid(crypto.randomUUID());
   };
+
+  const [selectedRecipeKey, setSelectedRecipeKey] = useState<string>("");
+  const loadRecipe = (key: string, qtyOverride?: number) => {
+    const r = MEAT_RECIPES.find(x => x.key === key);
+    if (!r) return;
+    setSelectedRecipeKey(key);
+    const requested = qtyOverride && qtyOverride > 0 ? qtyOverride : r.batch_qty;
+    const factor = requested / r.batch_qty;
+    // Match product to preset or use "other"
+    if (PRODUCT_PRESETS.includes(r.product)) { setProductName(r.product); setProductNameOther(""); }
+    else { setProductName("أخرى"); setProductNameOther(r.product); }
+    setFinishedQty(requested);
+    setUnit(r.unit || "كجم");
+    setExtraCost(Number((r.wages * factor).toFixed(2)));
+    const rawSpice = r.lines.filter(l => l.kind !== "packaging").map(l => {
+      const match = items.find(it => it.name?.trim() === l.name.trim());
+      return {
+        tmp: crypto.randomUUID(),
+        item_id: match?.id || "",
+        item_name: l.name,
+        kind: l.kind,
+        unit: l.unit,
+        quantity: Number((l.qty * factor).toFixed(3)),
+        unit_cost: Number(l.price.toFixed(3)),
+        line_total: Number((l.qty * factor * l.price).toFixed(3)),
+        notes: match ? null : "⚠ غير موجود في المخزن — اختر صنف بديل قبل الاعتماد",
+      } as Line;
+    });
+    const pack = r.lines.filter(l => l.kind === "packaging").map(l => {
+      const match = items.find(it => it.name?.trim() === l.name.trim());
+      return {
+        tmp: crypto.randomUUID(),
+        item_id: match?.id || "",
+        item_name: l.name,
+        kind: "packaging" as Kind,
+        unit: l.unit,
+        quantity: Number((l.qty * factor).toFixed(3)),
+        unit_cost: Number(l.price.toFixed(3)),
+        line_total: Number((l.qty * factor * l.price).toFixed(3)),
+        notes: match ? null : "⚠ غير موجود في المخزن — اختر صنف بديل قبل الاعتماد",
+      } as Line;
+    });
+    setRawLines(rawSpice.length ? rawSpice : [newLine("raw")]);
+    setPackLines(pack.length ? pack : [newLine("packaging")]);
+    const missing = [...rawSpice, ...pack].filter(l => !l.item_id).length;
+    if (missing > 0) toast.warning(`تم تحميل التركيبة — ${missing} صنف لم يُطابق المخزن، اختر بديل قبل الاعتماد`);
+    else toast.success(`تم تحميل تركيبة ${r.product} (×${factor.toFixed(2)})`);
+  };
+
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    const k = searchParams.get("recipe");
+    const q = Number(searchParams.get("qty") || 0);
+    if (k && items.length > 0 && k !== selectedRecipeKey) {
+      loadRecipe(k, q || undefined);
+      setTab("new");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, items.length]);
 
   const submitDraft = async () => {
     if (!factoryWarehouseId) { toast.error("اختر مخزن مصنع اللحوم"); return; }
@@ -371,6 +435,19 @@ export default function ManufacturingInvoices() {
                 <CardDescription>تُحفظ بحالة مسودة. الاعتماد يخصم الكميات ويضيف المنتج النهائي.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="p-3 border border-purple-200 bg-purple-50/50 dark:bg-purple-950/20 rounded-md flex flex-wrap items-end gap-2">
+                  <ChefHat className="w-5 h-5 text-purple-600 mb-2" />
+                  <div className="flex-1 min-w-[200px]">
+                    <Label className="text-xs">اختيار تركيبة جاهزة (يحمّل الخامات تلقائيًا)</Label>
+                    <Select value={selectedRecipeKey} onValueChange={v => loadRecipe(v, finishedQty || undefined)}>
+                      <SelectTrigger><SelectValue placeholder="— اختر تركيبة —" /></SelectTrigger>
+                      <SelectContent>{MEAT_RECIPES.map(r => <SelectItem key={r.key} value={r.key}>{r.product} (تشغيلة {r.batch_qty} {r.unit})</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  {selectedRecipeKey && (
+                    <Button size="sm" variant="outline" onClick={() => { setSelectedRecipeKey(""); resetForm(); }}>إلغاء التركيبة</Button>
+                  )}
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                   <div>
                     <Label>مخزن مصنع اللحوم</Label>
