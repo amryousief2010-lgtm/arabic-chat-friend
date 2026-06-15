@@ -45,6 +45,7 @@ const Settings = lazy(() => import("@/pages/Settings"));
 const Employees = lazy(() => import("@/pages/Employees"));
 const NewOrder = lazy(() => import("@/pages/NewOrder"));
 const WarehouseStockView = lazy(() => import("@/pages/WarehouseStockView"));
+const MainWarehouseGuide = lazy(() => import("@/pages/MainWarehouseGuide"));
 const CustomerWarehouseView = lazy(() => import("@/pages/CustomerWarehouseView"));
 const ModeratorWarehouseStock = lazy(() => import("@/pages/ModeratorWarehouseStock"));
 const Notifications = lazy(() => import("@/pages/Notifications"));
@@ -302,6 +303,11 @@ const AnimatedRoutes = () => {
           <Route path="/warehouse-stock/main" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'warehouse_supervisor']}>
               <PageTransition><WarehouseStockView scope="main" /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/warehouse-stock/main/guide" element={
+            <ProtectedRoute>
+              <PageTransition><MainWarehouseGuide /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/warehouse-stock/hyper-healthy-test" element={
