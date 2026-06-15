@@ -5036,6 +5036,7 @@ export type Database = {
           completed_unhatched_amount: number
           completed_unhatched_count: number
           completed_unhatched_unit_price: number
+          discount_amount: number
           eggs_in: number
           id: string
           infertile_amount: number
@@ -5067,6 +5068,7 @@ export type Database = {
           completed_unhatched_amount?: number
           completed_unhatched_count?: number
           completed_unhatched_unit_price?: number
+          discount_amount?: number
           eggs_in?: number
           id?: string
           infertile_amount?: number
@@ -5098,6 +5100,7 @@ export type Database = {
           completed_unhatched_amount?: number
           completed_unhatched_count?: number
           completed_unhatched_unit_price?: number
+          discount_amount?: number
           eggs_in?: number
           id?: string
           infertile_amount?: number
@@ -5156,6 +5159,50 @@ export type Database = {
             columns: ["lot_id"]
             isOneToOne: true
             referencedRelation: "hatchery_batch_lots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hatchery_invoice_discounts: {
+        Row: {
+          amount: number
+          approved_by: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          invoice_id: string
+          notes: string | null
+          reason: string
+          reference_id: string | null
+        }
+        Insert: {
+          amount: number
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invoice_id: string
+          notes?: string | null
+          reason: string
+          reference_id?: string | null
+        }
+        Update: {
+          amount?: number
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invoice_id?: string
+          notes?: string | null
+          reason?: string
+          reference_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hatchery_invoice_discounts_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "hatchery_client_invoices"
             referencedColumns: ["id"]
           },
         ]
@@ -14545,6 +14592,7 @@ export type Database = {
         Row: {
           client_id: string | null
           client_name: string | null
+          discount_amount: number | null
           invoices_count: number | null
           paid_amount: number | null
           remaining_amount: number | null
@@ -14563,6 +14611,7 @@ export type Database = {
           in_brooding: number | null
           in_hatcher: number | null
           internal_eggs: number | null
+          invoices_discount: number | null
           invoices_paid: number | null
           invoices_remaining: number | null
           invoices_total: number | null

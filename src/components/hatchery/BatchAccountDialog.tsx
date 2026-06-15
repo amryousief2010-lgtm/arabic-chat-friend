@@ -9,8 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { FileText, Wallet, Printer } from "lucide-react";
+import { FileText, Wallet, Printer, Percent, Receipt as ReceiptIcon } from "lucide-react";
 import { openPrintWindow } from "@/lib/printPdf";
+import { useAuth } from "@/hooks/useAuth";
 
 const num = (v: any) => (v == null || isNaN(Number(v)) ? 0 : Number(v));
 const fmt = (v: any) => num(v).toLocaleString("ar-EG");
@@ -19,21 +20,41 @@ const fmtMoney = (v: any) => `${num(v).toLocaleString("ar-EG", { maximumFraction
 const statusLabels: Record<string, string> = { unpaid: "غير مدفوعة", partial: "مدفوعة جزئيًا", paid: "مدفوعة" };
 const statusColors: Record<string, string> = { unpaid: "bg-red-500", partial: "bg-amber-500", paid: "bg-emerald-600" };
 
+const methodLabels: Record<string, string> = {
+  cash: "نقدي",
+  instapay: "إنستاباي",
+  vodafone_cash: "فودافون كاش",
+  bank_transfer: "تحويل بنكي",
+  credit_balance: "خصم من رصيد سابق",
+};
+
 export default function BatchAccountDialog({
   lotId, customerName, onClose,
 }: { lotId: string; customerName: string; onClose: () => void }) {
   const qc = useQueryClient();
+  const { roles } = useAuth();
+  const canDiscount = ["general_manager","executive_manager","hatchery_manager","accountant"]
+    .some(r => roles?.includes(r as any));
+
   const [creating, setCreating] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<string>("cash");
   const [notes, setNotes] = useState("");
+  const [paying, setPaying] = useState(false);
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [receiptDate, setReceiptDate] = useState(new Date().toISOString().slice(0, 10));
   const [savingReceipt, setSavingReceipt] = useState(false);
   const [hatchEditOpen, setHatchEditOpen] = useState(false);
   const [hatchDate, setHatchDate] = useState("");
   const [savingHatch, setSavingHatch] = useState(false);
+
+  // Discount state
+  const [discOpen, setDiscOpen] = useState(false);
+  const [discAmount, setDiscAmount] = useState("");
+  const [discReason, setDiscReason] = useState("");
+  const [discNotes, setDiscNotes] = useState("");
+  const [savingDisc, setSavingDisc] = useState(false);
 
 
   const { data: lot, refetch: refetchLot } = useQuery({
@@ -90,8 +111,22 @@ export default function BatchAccountDialog({
     },
   });
 
+  const { data: discounts = [], refetch: refetchDiscounts } = useQuery({
+    queryKey: ["batch_account_discounts", invoice?.id],
+    enabled: !!invoice?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hatchery_invoice_discounts" as any)
+        .select("*")
+        .eq("invoice_id", invoice!.id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+
   const refreshAll = () => {
-    refetchLot(); refetchInvoice(); refetchPayments();
+    refetchLot(); refetchInvoice(); refetchPayments(); refetchDiscounts();
     qc.invalidateQueries({ queryKey: ["ecr_"] });
     qc.invalidateQueries({ queryKey: ["hatchery_client_invoices"] });
     qc.invalidateQueries({ queryKey: ["lab_treasury_movements"] });
@@ -153,19 +188,56 @@ export default function BatchAccountDialog({
   };
 
   const addPayment = async () => {
+    if (paying) return;
     const amt = +amount;
     if (!invoice) return;
     if (!amt || amt <= 0) return toast.error("أدخل مبلغًا صحيحًا");
 
     const remaining = num(invoice.remaining_amount);
     if (amt > remaining + 0.01) return toast.error(`المبلغ يتجاوز المتبقي (${fmtMoney(remaining)})`);
+    setPaying(true);
     const uid = (await supabase.auth.getUser()).data.user?.id;
+    const ref = `hatch_invoice_payment_${invoice.id}_${Date.now()}`;
     const { error } = await supabase.from("hatchery_invoice_payments" as any).insert({
-      invoice_id: invoice.id, amount: amt, method, notes: notes || null, received_by: uid,
+      invoice_id: invoice.id, amount: amt, method, notes: notes ? `${notes} • ref:${ref}` : `ref:${ref}`, received_by: uid,
     });
+    setPaying(false);
     if (error) return toast.error(error.message);
-    toast.success("تم التحصيل وتسجيل توريد تفريخ في خزنة المعمل");
+    toast.success(
+      method === "credit_balance"
+        ? "تم تسجيل التحصيل من رصيد سابق (بدون حركة خزنة)"
+        : "تم التحصيل وتسجيل توريد تفريخ في خزنة المعمل"
+    );
     setPayOpen(false); setAmount(""); setNotes("");
+    refreshAll();
+  };
+
+  const addDiscount = async () => {
+    if (savingDisc) return;
+    if (!invoice) return;
+    if (!canDiscount) return toast.error("لا تملك صلاحية اعتماد خصم على الفاتورة");
+    const amt = +discAmount;
+    if (!amt || amt <= 0) return toast.error("أدخل مبلغ خصم صحيح");
+    if (!discReason.trim()) return toast.error("أدخل سبب الخصم");
+
+    const remaining = num(invoice.remaining_amount);
+    if (amt > remaining + 0.01) return toast.error(`الخصم يتجاوز المتبقي (${fmtMoney(remaining)})`);
+    setSavingDisc(true);
+    const uid = (await supabase.auth.getUser()).data.user?.id;
+    const reference_id = `hatch_invoice_discount_${invoice.id}_${Date.now()}`;
+    const { error } = await supabase.from("hatchery_invoice_discounts" as any).insert({
+      invoice_id: invoice.id,
+      amount: amt,
+      reason: discReason.trim(),
+      notes: discNotes || null,
+      approved_by: uid,
+      created_by: uid,
+      reference_id,
+    });
+    setSavingDisc(false);
+    if (error) return toast.error(error.message);
+    toast.success("تم تسجيل الخصم (بدون أي حركة خزنة)");
+    setDiscOpen(false); setDiscAmount(""); setDiscReason(""); setDiscNotes("");
     refreshAll();
   };
 
@@ -188,12 +260,47 @@ export default function BatchAccountDialog({
         <tr><th>رسوم الكتاكيت</th><td>${fmtMoney(i.chicks_amount)}</td></tr>
         <tr><th>رسوم التحضين (${i.brooding_days} يوم × ${i.brooding_chicks_count})</th><td>${fmtMoney(i.brooding_amount)}</td></tr>
         <tr><th>إجمالي المستحق</th><td><b>${fmtMoney(i.total_amount)}</b></td></tr>
-        <tr><th>المدفوع</th><td>${fmtMoney(i.paid_amount)}</td></tr>
+        <tr><th>إجمالي الخصومات</th><td>${fmtMoney(i.discount_amount)}</td></tr>
+        <tr><th>إجمالي المدفوع</th><td>${fmtMoney(i.paid_amount)}</td></tr>
         <tr><th>المتبقي</th><td><b>${fmtMoney(i.remaining_amount)}</b></td></tr>
-        <tr><th>الحالة</th><td>${statusLabels[i.payment_status] || i.payment_status}</td></tr>
+        <tr><th>الحالة</th><td>${statusLabels[i.payment_status] || i.payment_status}${num(i.discount_amount) > 0 ? " • بها خصم" : ""}</td></tr>
+      </table>
+
+      <h3>كشف الحساب</h3>
+      <table>
+        <thead><tr><th>التاريخ</th><th>البيان</th><th>مدين</th><th>دائن</th></tr></thead>
+        <tbody>
+          <tr><td>${i.issued_at?.slice(0,10) || "—"}</td><td>فاتورة ${i.invoice_no}</td><td>${fmtMoney(i.total_amount)}</td><td>—</td></tr>
+          ${[...payments, ...discounts.map((d:any)=>({...d, _isDisc:true}))]
+            .sort((a:any,b:any)=> (a.paid_at||a.created_at).localeCompare(b.paid_at||b.created_at))
+            .map((row:any) => row._isDisc
+              ? `<tr><td>${row.created_at?.slice(0,10)}</td><td>خصم / تسوية — ${row.reason||""}</td><td>—</td><td>${fmtMoney(row.amount)}</td></tr>`
+              : `<tr><td>${row.paid_at?.slice(0,10)}</td><td>تحصيل (${methodLabels[row.method] || row.method || "—"})</td><td>—</td><td>${fmtMoney(row.amount)}</td></tr>`
+            ).join("")}
+        </tbody>
       </table>` : `<p><i>لم يتم إنشاء فاتورة بعد.</i></p>`}
     `;
     openPrintWindow(`حساب دفعة — ${customerName}`, html);
+  };
+
+  const printReceipt = (p: any) => {
+    if (!invoice) return;
+    const html = `
+      <h1>إيصال تحصيل</h1>
+      <table>
+        <tr><th>اسم العميل</th><td>${customerName}</td></tr>
+        <tr><th>رقم الفاتورة</th><td>${invoice.invoice_no}</td></tr>
+        <tr><th>رقم الدفعة</th><td>${lot?.batch?.batch_number || "—"}</td></tr>
+        <tr><th>المبلغ المدفوع</th><td><b>${fmtMoney(p.amount)}</b></td></tr>
+        <tr><th>طريقة الدفع</th><td>${methodLabels[p.method] || p.method || "—"}</td></tr>
+        <tr><th>تاريخ التحصيل</th><td>${p.paid_at?.slice(0,16).replace("T"," ") || "—"}</td></tr>
+        <tr><th>المتبقي بعد التحصيل</th><td>${fmtMoney(invoice.remaining_amount)}</td></tr>
+      </table>
+      <div style="margin-top:60px;display:grid;grid-template-columns:1fr 1fr;gap:24px;text-align:center;">
+        <div style="border-top:1px solid #555;padding-top:6px;">توقيع المستلم</div>
+        <div style="border-top:1px solid #555;padding-top:6px;">توقيع المسؤول</div>
+      </div>`;
+    openPrintWindow(`إيصال تحصيل — ${customerName}`, html);
   };
 
   if (!lot) return null;
@@ -319,13 +426,23 @@ export default function BatchAccountDialog({
           {invoice && (
             <div className="rounded border p-3 space-y-3">
               <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-sm text-muted-foreground">رقم الفاتورة:</span>
                   <span className="font-mono font-bold">{invoice.invoice_no}</span>
                   <Badge className={`${statusColors[invoice.payment_status]} text-white`}>{statusLabels[invoice.payment_status]}</Badge>
+                  {num(invoice.discount_amount) > 0 && (
+                    <Badge className="bg-purple-600 text-white">بها خصم</Badge>
+                  )}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   <Button variant="outline" size="sm" onClick={printAccount}><Printer className="w-4 h-4 ml-1" />طباعة</Button>
+                  {num(invoice.remaining_amount) > 0 && canDiscount && (
+                    <Button variant="outline" size="sm"
+                      className="border-purple-400 text-purple-700 hover:bg-purple-50"
+                      onClick={() => { setDiscAmount(""); setDiscReason(""); setDiscNotes(""); setDiscOpen(true); }}>
+                      <Percent className="w-4 h-4 ml-1" />خصم / تسوية
+                    </Button>
+                  )}
                   {num(invoice.remaining_amount) > 0 && (
                     <Button size="sm" onClick={() => { setAmount(String(num(invoice.remaining_amount))); setPayOpen(true); }}>
                       <Wallet className="w-4 h-4 ml-1" />تحصيل
@@ -333,35 +450,57 @@ export default function BatchAccountDialog({
                   )}
                 </div>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
                 <Info label="رسوم اللايح" value={fmtMoney(invoice.infertile_amount)} />
                 <Info label="رسوم الكشف الثاني" value={fmtMoney(invoice.completed_unhatched_amount)} />
                 <Info label="رسوم الكتاكيت" value={fmtMoney(invoice.chicks_amount)} />
                 <Info label={`رسوم التحضين (${invoice.brooding_days} يوم)`} value={fmtMoney(invoice.brooding_amount)} />
                 <Info label="إجمالي المستحق" value={fmtMoney(invoice.total_amount)} highlight />
-                <Info label="المدفوع" value={fmtMoney(invoice.paid_amount)} />
+                <Info label="إجمالي الخصومات" value={fmtMoney(invoice.discount_amount)} />
+                <Info label="إجمالي المدفوع" value={fmtMoney(invoice.paid_amount)} />
                 <Info label="المتبقي" value={fmtMoney(invoice.remaining_amount)} highlight />
               </div>
 
               <div>
-                <h4 className="font-semibold text-sm mb-2">سجل التحصيلات (توريد تفريخ)</h4>
+                <h4 className="font-semibold text-sm mb-2">كشف حساب الفاتورة (تحصيلات + خصومات)</h4>
                 <div className="rounded border overflow-x-auto">
                   <Table>
                     <TableHeader><TableRow>
-                      <TableHead>التاريخ</TableHead><TableHead>المبلغ</TableHead>
-                      <TableHead>طريقة الدفع</TableHead><TableHead>ملاحظات</TableHead>
+                      <TableHead>التاريخ</TableHead><TableHead>البيان</TableHead>
+                      <TableHead>المبلغ</TableHead><TableHead>طريقة الدفع / السبب</TableHead>
+                      <TableHead>ملاحظات</TableHead><TableHead></TableHead>
                     </TableRow></TableHeader>
                     <TableBody>
-                      {payments.length === 0 ? (
-                        <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-3">لا توجد تحصيلات بعد</TableCell></TableRow>
-                      ) : payments.map((p) => (
-                        <TableRow key={p.id}>
-                          <TableCell className="text-xs">{p.paid_at?.slice(0,16).replace("T"," ")}</TableCell>
-                          <TableCell className="font-bold text-green-600">{fmtMoney(p.amount)}</TableCell>
-                          <TableCell>{p.method || "—"}</TableCell>
-                          <TableCell className="text-xs">{p.notes || "—"}</TableCell>
-                        </TableRow>
-                      ))}
+                      {(payments.length + discounts.length) === 0 ? (
+                        <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-3">لا توجد حركات بعد</TableCell></TableRow>
+                      ) : (
+                        [
+                          ...payments.map((p:any) => ({ ...p, _type: "payment", _date: p.paid_at })),
+                          ...discounts.map((d:any) => ({ ...d, _type: "discount", _date: d.created_at })),
+                        ].sort((a:any,b:any) => (b._date||"").localeCompare(a._date||"")).map((row:any) => (
+                          <TableRow key={`${row._type}-${row.id}`} className={row._type === "discount" ? "bg-purple-50/50" : ""}>
+                            <TableCell className="text-xs">{row._date?.slice(0,16).replace("T"," ")}</TableCell>
+                            <TableCell className="text-xs font-medium">
+                              {row._type === "discount" ? "خصم / تسوية على الفاتورة" : "تحصيل"}
+                            </TableCell>
+                            <TableCell className={`font-bold ${row._type === "discount" ? "text-purple-700" : "text-green-600"}`}>
+                              {fmtMoney(row.amount)}
+                            </TableCell>
+                            <TableCell className="text-xs">
+                              {row._type === "discount" ? (row.reason || "—") : (methodLabels[row.method] || row.method || "—")}
+                            </TableCell>
+                            <TableCell className="text-xs">{row.notes || "—"}</TableCell>
+                            <TableCell>
+                              {row._type === "payment" && (
+                                <Button size="sm" variant="ghost" className="h-6 px-2 text-xs"
+                                  onClick={() => printReceipt(row)}>
+                                  <ReceiptIcon className="w-3 h-3 ml-1" />إيصال
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
                     </TableBody>
                   </Table>
                 </div>
@@ -390,17 +529,67 @@ export default function BatchAccountDialog({
                     <SelectItem value="instapay">إنستاباي</SelectItem>
                     <SelectItem value="vodafone_cash">فودافون كاش</SelectItem>
                     <SelectItem value="bank_transfer">تحويل بنكي</SelectItem>
+                    <SelectItem value="credit_balance">خصم من رصيد سابق (بدون خزنة)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div><Label>ملاحظات</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
               <p className="text-xs text-muted-foreground">
-                سيتم تسجيل حركة "توريد تفريخ" في خزنة المعمل تحتوي على العميل ورقم الدفعة ورقم الفاتورة.
+                {method === "credit_balance"
+                  ? "لن يتم إنشاء أي حركة في خزنة المعمل — يُعتبر تحصيلًا من رصيد سابق فقط."
+                  : "سيتم تسجيل حركة \"توريد تفريخ\" في خزنة المعمل تحتوي على العميل ورقم الدفعة ورقم الفاتورة."}
               </p>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setPayOpen(false)}>إلغاء</Button>
-              <Button onClick={addPayment}>تأكيد التحصيل</Button>
+              <Button variant="outline" onClick={() => setPayOpen(false)} disabled={paying}>إلغاء</Button>
+              <Button onClick={addPayment} disabled={paying}>{paying ? "جارٍ..." : "تأكيد التحصيل"}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Discount dialog */}
+        <Dialog open={discOpen} onOpenChange={setDiscOpen}>
+          <DialogContent dir="rtl" className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Percent className="w-4 h-4 text-purple-600" />
+                خصم / تسوية على فاتورة {invoice?.invoice_no}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="text-sm rounded bg-muted/40 p-2 space-y-1">
+                <div>إجمالي الفاتورة: <b>{fmtMoney(invoice?.total_amount)}</b></div>
+                <div>المدفوع: <b>{fmtMoney(invoice?.paid_amount)}</b> • الخصم الحالي: <b>{fmtMoney(invoice?.discount_amount)}</b></div>
+                <div>المتبقي: <b className="text-primary">{fmtMoney(invoice?.remaining_amount)}</b></div>
+              </div>
+              <div>
+                <Label>مبلغ الخصم</Label>
+                <Input type="number" value={discAmount} onChange={(e) => setDiscAmount(e.target.value)} />
+              </div>
+              <div>
+                <Label>سبب الخصم</Label>
+                <Select value={discReason} onValueChange={setDiscReason}>
+                  <SelectTrigger><SelectValue placeholder="اختر السبب..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="عميل دائم">عميل دائم</SelectItem>
+                    <SelectItem value="مشكلة في الفقس">مشكلة في الفقس</SelectItem>
+                    <SelectItem value="تسوية حساب">تسوية حساب</SelectItem>
+                    <SelectItem value="عرض ترويجي">عرض ترويجي</SelectItem>
+                    <SelectItem value="موافقة الإدارة">موافقة الإدارة</SelectItem>
+                    <SelectItem value="أخرى">أخرى</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div><Label>ملاحظات</Label><Input value={discNotes} onChange={(e) => setDiscNotes(e.target.value)} /></div>
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+                الخصم لا يؤثر على خزنة المعمل ولا يعتبر تحصيلًا. يحتاج صلاحية اعتماد خصومات.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDiscOpen(false)} disabled={savingDisc}>إلغاء</Button>
+              <Button onClick={addDiscount} disabled={savingDisc || !canDiscount}>
+                {savingDisc ? "جارٍ..." : "تأكيد الخصم"}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
