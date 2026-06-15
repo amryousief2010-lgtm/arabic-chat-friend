@@ -124,6 +124,14 @@ const HREmployees = () => {
     return employees.filter((e) => {
       if (statusFilter !== "all" && e.status !== statusFilter) return false;
       if (locFilter !== "all" && e.current_location_id !== locFilter) return false;
+      if (docFilter !== "all") {
+        const ds = docsSummary[e.id] || { id: false, contract: false };
+        if (docFilter === "id_yes" && !ds.id) return false;
+        if (docFilter === "id_no" && ds.id) return false;
+        if (docFilter === "contract_yes" && !ds.contract) return false;
+        if (docFilter === "contract_no" && ds.contract) return false;
+        if (docFilter === "missing" && ds.id && ds.contract) return false;
+      }
       if (!q) return true;
       return (
         e.code.toLowerCase().includes(q) ||
@@ -132,7 +140,7 @@ const HREmployees = () => {
         (e.job_title || "").toLowerCase().includes(q)
       );
     });
-  }, [employees, search, statusFilter, locFilter]);
+  }, [employees, search, statusFilter, locFilter, docFilter, docsSummary]);
 
   const openCreate = () => {
     setEditing(null);
