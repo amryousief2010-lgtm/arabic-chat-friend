@@ -292,6 +292,18 @@ export const moduleSections: ModuleSection[] = [
     ],
   },
   {
+    id: "hr",
+    icon: UsersRound,
+    label: "شؤون الموظفين",
+    roles: ['general_manager', 'executive_manager', 'hr_manager'],
+    items: [
+      { icon: LayoutDashboard, label: "لوحة شؤون الموظفين", path: "/hr", roles: ['general_manager', 'executive_manager', 'hr_manager'] },
+      { icon: UsersRound, label: "بيانات الموظفين", path: "/hr/employees", roles: ['general_manager', 'executive_manager', 'hr_manager', 'accountant', 'financial_manager'] },
+      { icon: Network, label: "أماكن العمل والأقسام", path: "/hr/work-locations", roles: ['general_manager', 'executive_manager', 'hr_manager'] },
+      { icon: KeyRound, label: "حسابات دخول الموظفين", path: "/modules/hr", roles: ['general_manager', 'executive_manager'] },
+    ],
+  },
+  {
     id: "system",
     icon: Settings,
     label: "النظام",
