@@ -54,6 +54,8 @@ interface DeptResult {
   revenueItems: LineItem[]; expenseItems: LineItem[];
   topRevenueSource?: { source: string; amount: number };
   topExpenseItem?: { source: string; amount: number };
+  actualSaleValue?: number;
+  opsMetrics?: Record<string, number>;
 }
 interface BudgetData {
   year: number; month: number;
