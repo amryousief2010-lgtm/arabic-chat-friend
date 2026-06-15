@@ -324,6 +324,17 @@ const HREmployees = () => {
     setTransfers((data || []) as Transfer[]);
   };
 
+  if (!canAccessPage) {
+    return (
+      <DashboardLayout>
+        <div className="p-8 text-center text-muted-foreground">
+          <h2 className="text-lg font-bold mb-2">غير مصرح بالدخول</h2>
+          <p>صفحة بيانات الموظفين متاحة فقط للمدير العام والمدير التنفيذي ومحمد شعلة.</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6">

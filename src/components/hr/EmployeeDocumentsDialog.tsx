@@ -46,9 +46,10 @@ const BUCKET = "hr-employee-documents";
 const ACCEPT = "image/jpeg,image/png,image/jpg,application/pdf";
 
 export default function EmployeeDocumentsDialog({ open, onOpenChange, employeeId, employeeName, onChanged }: Props) {
-  const { user, isGeneralManager, isExecutiveManager, roles } = useAuth();
-  const canManage = isGeneralManager || isExecutiveManager || roles.includes("hr_manager");
-  const canView = canManage || roles.includes("accountant") || roles.includes("financial_manager");
+  const { user, isGeneralManager, isExecutiveManager } = useAuth();
+  // Only General Manager + Executive Manager can view or manage HR documents
+  const canManage = isGeneralManager || isExecutiveManager;
+  const canView = canManage;
 
   const [docs, setDocs] = useState<DocRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -284,7 +285,7 @@ export default function EmployeeDocumentsDialog({ open, onOpenChange, employeeId
         <DialogContent>
           <DialogHeader>
             <DialogTitle>غير مصرح</DialogTitle>
-            <DialogDescription>عرض مستندات الموظفين متاح للمدير العام / التنفيذي / الموارد البشرية / المحاسبين فقط.</DialogDescription>
+            <DialogDescription>عرض وطباعة مستندات الموظفين متاح فقط للمدير العام والمدير التنفيذي.</DialogDescription>
           </DialogHeader>
         </DialogContent>
       </Dialog>

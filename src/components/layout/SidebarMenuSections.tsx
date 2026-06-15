@@ -304,7 +304,7 @@ export const moduleSections: ModuleSection[] = [
     roles: ['general_manager', 'executive_manager', 'hr_manager', 'accountant', 'financial_manager'],
     items: [
       { icon: LayoutDashboard, label: "لوحة شؤون الموظفين", path: "/hr", roles: ['general_manager', 'executive_manager', 'hr_manager'] },
-      { icon: UsersRound, label: "بيانات الموظفين", path: "/hr/employees", roles: ['general_manager', 'executive_manager', 'hr_manager', 'accountant', 'financial_manager'] },
+      { icon: UsersRound, label: "بيانات الموظفين", path: "/hr/employees", roles: ['general_manager', 'executive_manager', 'accountant'] },
       { icon: Network, label: "أماكن العمل والأقسام", path: "/hr/work-locations", roles: ['general_manager', 'executive_manager', 'hr_manager'] },
       { icon: Receipt, label: "تقرير سلف الموظفين", path: "/hr/advances-report", roles: ['general_manager', 'executive_manager', 'hr_manager', 'accountant', 'financial_manager'] },
       { icon: Receipt, label: "خصومات الموظفين", path: "/hr/deductions", roles: ['general_manager', 'executive_manager', 'hr_manager', 'accountant', 'financial_manager'] },
