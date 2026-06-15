@@ -9,11 +9,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { UsersRound, Plus, Search, Edit, History as HistoryIcon, Printer } from "lucide-react";
+import { UsersRound, Plus, Search, Edit, History as HistoryIcon, Printer, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import PrintEmployeesAdvancesDialog from "@/components/hr/PrintEmployeesAdvancesDialog";
+import EmployeeDocumentsDialog from "@/components/hr/EmployeeDocumentsDialog";
 
 interface Location { id: string; name: string; department: string | null }
 interface Employee {
@@ -58,6 +59,8 @@ const blankForm = (): Partial<Employee> => ({
 const HREmployees = () => {
   const { user, isGeneralManager, isExecutiveManager, roles } = useAuth();
   const canManage = isGeneralManager || isExecutiveManager || roles.includes("hr_manager");
+  const canViewDocs =
+    canManage || roles.includes("accountant") || roles.includes("financial_manager");
 
   const [loading, setLoading] = useState(true);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -65,6 +68,9 @@ const HREmployees = () => {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("active");
   const [locFilter, setLocFilter] = useState<string>("all");
+  const [docFilter, setDocFilter] = useState<
+    "all" | "id_yes" | "id_no" | "contract_yes" | "contract_no" | "missing"
+  >("all");
 
   const [editing, setEditing] = useState<Employee | null>(null);
   const [form, setForm] = useState<Partial<Employee>>(blankForm());
@@ -75,6 +81,11 @@ const HREmployees = () => {
   const [transfers, setTransfers] = useState<Transfer[]>([]);
   const [printOpen, setPrintOpen] = useState(false);
 
+  const [docsOf, setDocsOf] = useState<Employee | null>(null);
+  const [docsSummary, setDocsSummary] = useState<
+    Record<string, { id: boolean; contract: boolean }>
+  >({});
+
   const load = async () => {
     setLoading(true);
     const [emp, loc] = await Promise.all([
@@ -83,6 +94,20 @@ const HREmployees = () => {
     ]);
     setEmployees((emp.data || []) as Employee[]);
     setLocations((loc.data || []) as Location[]);
+
+    if (canViewDocs) {
+      const { data: docs } = await supabase
+        .from("hr_employee_documents")
+        .select("employee_id, document_type")
+        .eq("is_active", true);
+      const map: Record<string, { id: boolean; contract: boolean }> = {};
+      (docs || []).forEach((d: any) => {
+        if (!map[d.employee_id]) map[d.employee_id] = { id: false, contract: false };
+        if (d.document_type === "national_id_card") map[d.employee_id].id = true;
+        if (d.document_type === "work_contract") map[d.employee_id].contract = true;
+      });
+      setDocsSummary(map);
+    }
     setLoading(false);
   };
 
@@ -99,6 +124,14 @@ const HREmployees = () => {
     return employees.filter((e) => {
       if (statusFilter !== "all" && e.status !== statusFilter) return false;
       if (locFilter !== "all" && e.current_location_id !== locFilter) return false;
+      if (docFilter !== "all") {
+        const ds = docsSummary[e.id] || { id: false, contract: false };
+        if (docFilter === "id_yes" && !ds.id) return false;
+        if (docFilter === "id_no" && ds.id) return false;
+        if (docFilter === "contract_yes" && !ds.contract) return false;
+        if (docFilter === "contract_no" && ds.contract) return false;
+        if (docFilter === "missing" && ds.id && ds.contract) return false;
+      }
       if (!q) return true;
       return (
         e.code.toLowerCase().includes(q) ||
@@ -107,7 +140,7 @@ const HREmployees = () => {
         (e.job_title || "").toLowerCase().includes(q)
       );
     });
-  }, [employees, search, statusFilter, locFilter]);
+  }, [employees, search, statusFilter, locFilter, docFilter, docsSummary]);
 
   const openCreate = () => {
     setEditing(null);
@@ -267,6 +300,19 @@ const HREmployees = () => {
                     {locations.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
+                {canViewDocs && (
+                  <Select value={docFilter} onValueChange={(v: any) => setDocFilter(v)}>
+                    <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">كل المستندات</SelectItem>
+                      <SelectItem value="id_yes">بطاقة مرفوعة</SelectItem>
+                      <SelectItem value="id_no">بطاقة غير مرفوعة</SelectItem>
+                      <SelectItem value="contract_yes">عقد مرفوع</SelectItem>
+                      <SelectItem value="contract_no">عقد غير مرفوع</SelectItem>
+                      <SelectItem value="missing">مستندات ناقصة</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
                 <div className="relative w-64">
                   <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   <Input placeholder="بحث بالكود أو الاسم أو الهاتف..." value={search} onChange={(e) => setSearch(e.target.value)} className="pr-9" />
@@ -286,15 +332,16 @@ const HREmployees = () => {
                     <TableHead>نوع التعيين</TableHead>
                     <TableHead>المرتب / اليومية</TableHead>
                     <TableHead>الهاتف</TableHead>
+                    {canViewDocs && <TableHead>المستندات</TableHead>}
                     <TableHead>الحالة</TableHead>
                     <TableHead className="text-left">إجراءات</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loading ? (
-                    <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">جارٍ التحميل...</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={canViewDocs ? 10 : 9} className="text-center py-8 text-muted-foreground">جارٍ التحميل...</TableCell></TableRow>
                   ) : filtered.length === 0 ? (
-                    <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">لا يوجد موظفون مطابقون</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={canViewDocs ? 10 : 9} className="text-center py-8 text-muted-foreground">لا يوجد موظفون مطابقون</TableCell></TableRow>
                   ) : (
                     filtered.map((e) => (
                       <TableRow key={e.id}>
@@ -311,6 +358,28 @@ const HREmployees = () => {
                             : `${Number(e.base_salary).toLocaleString("ar-EG")} / شهر`}
                         </TableCell>
                         <TableCell className="font-mono text-xs">{e.phone || "—"}</TableCell>
+                        {canViewDocs && (
+                          <TableCell>
+                            {(() => {
+                              const ds = docsSummary[e.id] || { id: false, contract: false };
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => setDocsOf(e)}
+                                  className="flex flex-col gap-0.5 text-xs hover:opacity-80"
+                                  title="عرض / رفع المستندات"
+                                >
+                                  <span className={ds.id ? "text-emerald-700" : "text-muted-foreground"}>
+                                    بطاقة {ds.id ? "✅" : "❌"}
+                                  </span>
+                                  <span className={ds.contract ? "text-emerald-700" : "text-muted-foreground"}>
+                                    عقد {ds.contract ? "✅" : "❌"}
+                                  </span>
+                                </button>
+                              );
+                            })()}
+                          </TableCell>
+                        )}
                         <TableCell>
                           {e.status === "active"
                             ? <Badge className="bg-emerald-500/15 text-emerald-700">نشط</Badge>
@@ -321,6 +390,11 @@ const HREmployees = () => {
                             <Button size="sm" variant="ghost" onClick={() => openHistory(e)} title="سجل النقل">
                               <HistoryIcon className="w-4 h-4" />
                             </Button>
+                            {canViewDocs && (
+                              <Button size="sm" variant="ghost" onClick={() => setDocsOf(e)} title="المستندات">
+                                <FileText className="w-4 h-4" />
+                              </Button>
+                            )}
                             {canManage && (
                               <Button size="sm" variant="outline" onClick={() => openEdit(e)}>
                                 <Edit className="w-3.5 h-3.5 ml-1" />تعديل
@@ -462,6 +536,17 @@ const HREmployees = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Documents Dialog */}
+      {docsOf && (
+        <EmployeeDocumentsDialog
+          open={!!docsOf}
+          onOpenChange={(o) => !o && setDocsOf(null)}
+          employeeId={docsOf.id}
+          employeeName={`${docsOf.full_name} (${docsOf.code})`}
+          onChanged={load}
+        />
+      )}
     </DashboardLayout>
   );
 };
