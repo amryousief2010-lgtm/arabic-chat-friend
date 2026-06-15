@@ -45,6 +45,7 @@ const Settings = lazy(() => import("@/pages/Settings"));
 const Employees = lazy(() => import("@/pages/Employees"));
 const NewOrder = lazy(() => import("@/pages/NewOrder"));
 const WarehouseStockView = lazy(() => import("@/pages/WarehouseStockView"));
+const MainWarehouseGuide = lazy(() => import("@/pages/MainWarehouseGuide"));
 const CustomerWarehouseView = lazy(() => import("@/pages/CustomerWarehouseView"));
 const ModeratorWarehouseStock = lazy(() => import("@/pages/ModeratorWarehouseStock"));
 const Notifications = lazy(() => import("@/pages/Notifications"));
