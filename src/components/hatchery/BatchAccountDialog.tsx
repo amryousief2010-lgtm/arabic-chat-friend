@@ -564,7 +564,7 @@ export default function BatchAccountDialog({
                     </Button>
                   )}
                   {num(invoice.remaining_amount) > 0 && (
-                    <Button size="sm" onClick={() => { setAmount(""); setPayOpen(true); }}>
+                    <Button size="sm" onClick={() => { setAmount(""); setRemainderAction("keep"); setPayOpen(true); }}>
                       <Wallet className="w-4 h-4 ml-1" />تحصيل
                     </Button>
                   )}
