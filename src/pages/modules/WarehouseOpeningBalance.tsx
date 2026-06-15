@@ -322,6 +322,28 @@ export default function WarehouseOpeningBalance() {
                   <CardDescription>اكتب الكمية الفعلية وسعر التكلفة، احفظ، ثم اعتمد ليُسجل الرصيد الافتتاحي رسميًا.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
+                  <div className="flex flex-wrap items-center gap-2 justify-between border rounded-md p-2 bg-muted/30">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button size="sm" variant="outline" onClick={downloadTemplate} disabled={!items.length}>
+                        <FileSpreadsheet className="w-3 h-3 ml-1" /> تحميل ملف الجرد (Excel)
+                      </Button>
+                      <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden"
+                        onChange={(e) => e.target.files?.[0] && importExcel(e.target.files[0])} />
+                      <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()}>
+                        <Upload className="w-3 h-3 ml-1" /> رفع نتائج الجرد
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={saveAll} disabled={busy === "__save_all__"}>
+                        <Save className="w-3 h-3 ml-1" /> حفظ الكل كمسودة
+                      </Button>
+                      <Button size="sm" onClick={approveAll}
+                        disabled={!canApprove || busy === "__approve_all__" || Object.values(obs).every((o) => o.status === "approved")}>
+                        <CheckCheck className="w-3 h-3 ml-1" /> اعتماد الكل
+                      </Button>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      الترتيب: تحميل الملف → جرد فعلي → رفع → حفظ → اعتماد → تحديد تاريخ التشغيل.
+                    </div>
+                  </div>
                   <div className="flex items-center gap-2">
                     <Search className="w-4 h-4 text-muted-foreground" />
                     <Input placeholder="بحث باسم الصنف..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-md" />
