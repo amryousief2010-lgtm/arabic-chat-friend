@@ -7,10 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PackagePlus, Save, ShieldCheck, Info, Search } from "lucide-react";
+import { PackagePlus, Save, ShieldCheck, Info, Search, FileSpreadsheet, Upload, CheckCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import * as XLSX from "xlsx";
+import { useRef } from "react";
 
 interface Warehouse { id: string; name: string; operational_start_date: string | null }
 interface Item { id: string; name: string; unit: string; stock: number; unit_cost: number }
