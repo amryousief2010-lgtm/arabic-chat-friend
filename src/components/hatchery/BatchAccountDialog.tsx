@@ -529,17 +529,67 @@ export default function BatchAccountDialog({
                     <SelectItem value="instapay">إنستاباي</SelectItem>
                     <SelectItem value="vodafone_cash">فودافون كاش</SelectItem>
                     <SelectItem value="bank_transfer">تحويل بنكي</SelectItem>
+                    <SelectItem value="credit_balance">خصم من رصيد سابق (بدون خزنة)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div><Label>ملاحظات</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
               <p className="text-xs text-muted-foreground">
-                سيتم تسجيل حركة "توريد تفريخ" في خزنة المعمل تحتوي على العميل ورقم الدفعة ورقم الفاتورة.
+                {method === "credit_balance"
+                  ? "لن يتم إنشاء أي حركة في خزنة المعمل — يُعتبر تحصيلًا من رصيد سابق فقط."
+                  : "سيتم تسجيل حركة \"توريد تفريخ\" في خزنة المعمل تحتوي على العميل ورقم الدفعة ورقم الفاتورة."}
               </p>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setPayOpen(false)}>إلغاء</Button>
-              <Button onClick={addPayment}>تأكيد التحصيل</Button>
+              <Button variant="outline" onClick={() => setPayOpen(false)} disabled={paying}>إلغاء</Button>
+              <Button onClick={addPayment} disabled={paying}>{paying ? "جارٍ..." : "تأكيد التحصيل"}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Discount dialog */}
+        <Dialog open={discOpen} onOpenChange={setDiscOpen}>
+          <DialogContent dir="rtl" className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Percent className="w-4 h-4 text-purple-600" />
+                خصم / تسوية على فاتورة {invoice?.invoice_no}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="text-sm rounded bg-muted/40 p-2 space-y-1">
+                <div>إجمالي الفاتورة: <b>{fmtMoney(invoice?.total_amount)}</b></div>
+                <div>المدفوع: <b>{fmtMoney(invoice?.paid_amount)}</b> • الخصم الحالي: <b>{fmtMoney(invoice?.discount_amount)}</b></div>
+                <div>المتبقي: <b className="text-primary">{fmtMoney(invoice?.remaining_amount)}</b></div>
+              </div>
+              <div>
+                <Label>مبلغ الخصم</Label>
+                <Input type="number" value={discAmount} onChange={(e) => setDiscAmount(e.target.value)} />
+              </div>
+              <div>
+                <Label>سبب الخصم</Label>
+                <Select value={discReason} onValueChange={setDiscReason}>
+                  <SelectTrigger><SelectValue placeholder="اختر السبب..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="عميل دائم">عميل دائم</SelectItem>
+                    <SelectItem value="مشكلة في الفقس">مشكلة في الفقس</SelectItem>
+                    <SelectItem value="تسوية حساب">تسوية حساب</SelectItem>
+                    <SelectItem value="عرض ترويجي">عرض ترويجي</SelectItem>
+                    <SelectItem value="موافقة الإدارة">موافقة الإدارة</SelectItem>
+                    <SelectItem value="أخرى">أخرى</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div><Label>ملاحظات</Label><Input value={discNotes} onChange={(e) => setDiscNotes(e.target.value)} /></div>
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+                الخصم لا يؤثر على خزنة المعمل ولا يعتبر تحصيلًا. يحتاج صلاحية اعتماد خصومات.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDiscOpen(false)} disabled={savingDisc}>إلغاء</Button>
+              <Button onClick={addDiscount} disabled={savingDisc || !canDiscount}>
+                {savingDisc ? "جارٍ..." : "تأكيد الخصم"}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
