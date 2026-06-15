@@ -138,6 +138,105 @@ export default function WarehouseOpeningBalance() {
     } finally { setBusy(null); }
   };
 
+  const fileRef = useRef<HTMLInputElement | null>(null);
+
+  const downloadTemplate = () => {
+    const wh = warehouses.find((w) => w.id === activeWh);
+    if (!wh) return;
+    const rows = items.map((it) => {
+      const ob = obs[it.id];
+      const d = drafts[it.id];
+      return {
+        "كود الصنف": it.id,
+        "الصنف": it.name,
+        "الوحدة": it.unit,
+        "الكمية الفعلية بعد الجرد": d?.qty || "",
+        "سعر التكلفة": d?.unit_cost || it.unit_cost || 0,
+        "ملاحظات": d?.notes || "",
+        "الحالة": ob?.status === "approved" ? "معتمد" : ob ? "مسودة" : "لم يدخل",
+      };
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws["!cols"] = [{ wch: 38 }, { wch: 32 }, { wch: 10 }, { wch: 22 }, { wch: 14 }, { wch: 28 }, { wch: 12 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "الرصيد الافتتاحي");
+    XLSX.writeFile(wb, `رصيد-افتتاحي-${wh.name}-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    toast.success("تم تحميل ملف الجرد. املأ الكميات وأعد رفعه.");
+  };
+
+  const importExcel = async (file: File) => {
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json<any>(ws);
+      let updated = 0, skipped = 0;
+      const newDrafts = { ...drafts };
+      for (const r of rows) {
+        const itemId = String(r["كود الصنف"] || "").trim();
+        if (!itemId || !items.find((i) => i.id === itemId)) { skipped++; continue; }
+        const qty = r["الكمية الفعلية بعد الجرد"];
+        if (qty === undefined || qty === null || qty === "") { skipped++; continue; }
+        const ob = obs[itemId];
+        if (ob?.status === "approved") { skipped++; continue; }
+        newDrafts[itemId] = {
+          qty: String(qty),
+          unit_cost: String(r["سعر التكلفة"] ?? newDrafts[itemId]?.unit_cost ?? 0),
+          notes: String(r["ملاحظات"] || newDrafts[itemId]?.notes || ""),
+        };
+        updated++;
+      }
+      setDrafts(newDrafts);
+      toast.success(`تم تحميل ${updated} صف. تخطي ${skipped}. اضغط "حفظ الكل" ثم اعتمد.`);
+    } catch (e: any) {
+      toast.error("فشل قراءة الملف: " + (e?.message || e));
+    } finally {
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  const saveAll = async () => {
+    setBusy("__save_all__");
+    let ok = 0, fail = 0;
+    for (const it of items) {
+      const d = drafts[it.id];
+      const ob = obs[it.id];
+      if (!d || d.qty === "" || ob?.status === "approved") continue;
+      try {
+        const payload: any = {
+          warehouse_id: activeWh, item_id: it.id,
+          qty: Number(d.qty), unit_cost: Number(d.unit_cost || 0),
+          notes: d.notes || null, opened_by: user?.id,
+          counted_by: user?.id, status: "draft",
+        };
+        if (ob) await supabase.from("warehouse_opening_balances").update(payload).eq("id", ob.id);
+        else await supabase.from("warehouse_opening_balances").insert(payload);
+        ok++;
+      } catch { fail++; }
+    }
+    setBusy(null);
+    toast[fail ? "warning" : "success"](`حُفظ ${ok} ${fail ? `— فشل ${fail}` : ""}`);
+    await loadItems(activeWh);
+  };
+
+  const approveAll = async () => {
+    if (!canApprove) { toast.error("ليست لديك صلاحية الاعتماد"); return; }
+    if (!confirm("اعتماد كل المسودات الحالية؟ بعد الاعتماد لا يمكن التعديل.")) return;
+    setBusy("__approve_all__");
+    let ok = 0, fail = 0;
+    for (const ob of Object.values(obs)) {
+      if (ob.status === "approved") continue;
+      try {
+        const { error } = await supabase.rpc("approve_warehouse_opening_balance", { p_id: ob.id });
+        if (error) throw error;
+        ok++;
+      } catch { fail++; }
+    }
+    setBusy(null);
+    toast[fail ? "warning" : "success"](`اعتُمد ${ok}${fail ? ` — فشل ${fail}` : ""}`);
+    await loadItems(activeWh);
+  };
+
   const filtered = useMemo(() => {
     const q = search.trim();
     if (!q) return items;
