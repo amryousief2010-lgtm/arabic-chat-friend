@@ -16620,6 +16620,7 @@ export type Database = {
         Returns: Json
       }
       slaughter_daily_summary: { Args: { p_date: string }; Returns: Json }
+      slaughter_outputs_backfill_product_ids: { Args: never; Returns: number }
       submit_proposal_for_review: {
         Args: { p_id: string; p_note?: string }
         Returns: {
