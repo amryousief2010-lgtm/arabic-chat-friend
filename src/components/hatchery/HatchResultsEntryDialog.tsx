@@ -59,9 +59,16 @@ const toNum = (v: any) => {
  * Validates that no stage exceeds the remaining net from the previous stage.
  */
 const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
+  const { roles } = useAuth();
+  const canReopen = roles?.some((r) => r === "general_manager" || r === "executive_manager");
+  const isLocked = (group.customers || []).every((c: any) => {
+    const s = c._raw?.status ?? c.status;
+    return s === "completed" || s === "closed";
+  }) && (group.customers || []).length > 0;
   const today = new Date().toISOString().slice(0, 10);
   const [exitDate, setExitDate] = useState(today);
   const [saving, setSaving] = useState(false);
+  const [confirmReopen, setConfirmReopen] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, RowDraft>>(() => {
     const m: Record<string, RowDraft> = {};
     (group.customers || []).forEach((c: any) => {
