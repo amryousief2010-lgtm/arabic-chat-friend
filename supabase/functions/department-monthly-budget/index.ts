@@ -855,7 +855,7 @@ async function computeMonth(supabase: any, year: number, month: number) {
   meatF.remainingInventoryValue = mAsset;
 
   // ============ Finalize ============
-  const depts = [hatchery, brooding, slaughter, feedF, meatF];
+  const depts = [motherFarm, hatchery, brooding, slaughter, feedF, meatF];
   for (const d of depts) {
     d.expenses = d.productionCost + d.operatingExpenses;
     d.totalComputedValue = d.cashRevenue + d.internalValue + d.remainingInventoryValue;
