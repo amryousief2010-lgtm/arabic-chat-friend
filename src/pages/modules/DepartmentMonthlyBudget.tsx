@@ -173,11 +173,7 @@ export default function DepartmentMonthlyBudget() {
       <tr><td>${r.source}</td><td>${r.dept}</td><td class="num">${fmt(r.amount)}</td><td>${r.pctOfTotal.toFixed(1)}%</td></tr>`).join("");
     const topExp = data.topExpenseItems.slice(0, 10).map(r => `
       <tr><td>${r.source}</td><td>${r.dept}</td><td class="num">${fmt(r.amount)}</td><td>${r.pctOfTotal.toFixed(1)}%</td></tr>`).join("");
-    const html = `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8">
-      <title>الميزانية الشهرية</title><style>${PRINT_BASE_CSS}
-      .sig{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:40px;font-size:11px}
-      .sig div{text-align:center;border-top:1px solid #888;padding-top:6px}</style></head>
-      <body><div class="no-print"><button onclick="window.print()">طباعة / حفظ PDF</button></div>
+    const body = `
       <header><div><h1>${COMPANY_AR}</h1><div class="en">Monthly Department Budget</div></div>
         <div class="meta">الشهر: ${MONTHS_AR[month - 1]} ${year}<br>تاريخ التقرير: ${new Date().toLocaleDateString("ar-EG")}</div>
       </header>
@@ -194,8 +190,10 @@ export default function DepartmentMonthlyBudget() {
       <h2>أكبر بنود المصروفات</h2>
       <table><thead><tr><th>البند</th><th>القسم</th><th>المبلغ</th><th>النسبة</th></tr></thead><tbody>${topExp}</tbody></table>
       <div class="sig"><div>المحاسب</div><div>المدير التنفيذي</div><div>المدير العام</div></div>
-      </body></html>`;
-    openPrintWindow(html);
+    `;
+    const css = `.sig{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:40px;font-size:11px}
+                 .sig div{text-align:center;border-top:1px solid #888;padding-top:6px}`;
+    openPrintWindow(`الميزانية الشهرية ${MONTHS_AR[month - 1]} ${year}`, body, css);
   };
 
   return (
