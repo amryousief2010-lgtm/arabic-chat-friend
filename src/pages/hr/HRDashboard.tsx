@@ -8,8 +8,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
 const HRDashboard = () => {
-  const { isGeneralManager, isExecutiveManager, hasRole } = useAuth();
-  const canView = isGeneralManager || isExecutiveManager || hasRole("hr_manager");
+  const { isGeneralManager, isExecutiveManager, roles } = useAuth();
+  const canView = isGeneralManager || isExecutiveManager || roles.includes("hr_manager");
 
   const [stats, setStats] = useState({ active: 0, inactive: 0, locations: 0, totalBaseSalary: 0 });
   const [loading, setLoading] = useState(true);

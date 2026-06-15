@@ -16,8 +16,8 @@ import { toast } from "sonner";
 interface Location { id: string; name: string; department: string | null; sort_order: number; is_active: boolean; notes: string | null }
 
 const HRWorkLocations = () => {
-  const { isGeneralManager, isExecutiveManager, hasRole } = useAuth();
-  const canManage = isGeneralManager || isExecutiveManager || hasRole("hr_manager");
+  const { isGeneralManager, isExecutiveManager, roles } = useAuth();
+  const canManage = isGeneralManager || isExecutiveManager || roles.includes("hr_manager");
 
   const [rows, setRows] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);

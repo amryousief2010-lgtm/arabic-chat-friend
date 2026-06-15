@@ -55,8 +55,8 @@ const blankForm = (): Partial<Employee> => ({
 });
 
 const HREmployees = () => {
-  const { user, isGeneralManager, isExecutiveManager, hasRole } = useAuth();
-  const canManage = isGeneralManager || isExecutiveManager || hasRole("hr_manager");
+  const { user, isGeneralManager, isExecutiveManager, roles } = useAuth();
+  const canManage = isGeneralManager || isExecutiveManager || roles.includes("hr_manager");
 
   const [loading, setLoading] = useState(true);
   const [employees, setEmployees] = useState<Employee[]>([]);
