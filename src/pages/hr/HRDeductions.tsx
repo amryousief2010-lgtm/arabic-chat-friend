@@ -409,7 +409,7 @@ const HRDeductions = () => {
         </thead>
         <tbody>${rowsHtml}</tbody>
       </table>`;
-    openPrintWindow({ title: "تقرير خصومات الموظفين", bodyHtml: html });
+    openPrintWindow("تقرير خصومات الموظفين", html);
   };
 
   const monthOptions = [
