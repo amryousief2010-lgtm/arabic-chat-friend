@@ -177,6 +177,7 @@ const HREmployees = () => {
     return employees.filter((e) => {
       if (statusFilter !== "all" && e.status !== statusFilter) return false;
       if (locFilter !== "all" && e.current_location_id !== locFilter) return false;
+      if (payDayFilter !== "all" && String(e.pay_day) !== payDayFilter) return false;
       if (docFilter !== "all") {
         const ds = docsSummary[e.id] || { id: false, contract: false };
         if (docFilter === "id_yes" && !ds.id) return false;
@@ -193,7 +194,25 @@ const HREmployees = () => {
         (e.job_title || "").toLowerCase().includes(q)
       );
     });
-  }, [employees, search, statusFilter, locFilter, docFilter, docsSummary]);
+  }, [employees, search, statusFilter, locFilter, payDayFilter, docFilter, docsSummary]);
+
+  // Dashboard rollup by pay day on the filtered set
+  const payDayStats = useMemo(() => {
+    const groups: Record<number, { count: number; salaries: number; deductions: number; net: number }> = {
+      1: { count: 0, salaries: 0, deductions: 0, net: 0 },
+      5: { count: 0, salaries: 0, deductions: 0, net: 0 },
+      15: { count: 0, salaries: 0, deductions: 0, net: 0 },
+    };
+    filtered.forEach((e) => {
+      const g = groups[e.pay_day] || (groups[e.pay_day] = { count: 0, salaries: 0, deductions: 0, net: 0 });
+      const ded = deductionsMap[e.id]?.total_approved || 0;
+      g.count += 1;
+      g.salaries += Number(e.base_salary) || 0;
+      g.deductions += ded;
+      g.net += Math.max(0, (Number(e.base_salary) || 0) - ded);
+    });
+    return groups;
+  }, [filtered, deductionsMap]);
 
   const openCreate = () => {
     setEditing(null);
