@@ -23,20 +23,31 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { openPrintWindow, COMPANY_AR } from "@/lib/printPdf";
 
-type DeptKey = "hatchery" | "brooding" | "slaughterhouse" | "feed_factory";
+type DeptKey = "hatchery" | "brooding" | "slaughterhouse" | "feed_factory" | "meat_factory";
 
 interface LineItem {
   date: string; label: string; source: string; amount: number;
   category?: "cash" | "internal" | "asset";
   reference?: string; treasury?: string; notes?: string;
-  priceSource?: "internal_price" | "avg_cost" | "transfer_unit_price";
+  priceSource?: "internal_price" | "avg_cost" | "transfer_unit_price" | "production_cost" | "sale_price";
+}
+interface ProductMetric {
+  name: string; qty: number;
+  revenue: number; cost: number; profit: number; margin: number;
+  dept?: string;
 }
 interface DeptResult {
   key: DeptKey; name: string;
   cashRevenue: number; internalValue: number; remainingInventoryValue: number;
+  productionCost: number; operatingExpenses: number;
   totalComputedValue: number; cashNet: number; operationalNet: number;
+  grossMargin: number;
   cashStatus: "profit" | "loss" | "even";
   pricingWarnings: string[];
+  productMetrics: ProductMetric[];
+  topProfitProduct?: ProductMetric;
+  topLossProduct?: ProductMetric;
+  topCostItem?: { name: string; amount: number };
   // aliases for legacy code
   revenue: number; expenses: number; net: number;
   expenseRatio: number; status: "profit" | "loss" | "even";
@@ -49,8 +60,8 @@ interface BudgetData {
   departments: DeptResult[];
   totals: {
     cashRevenue: number; internalValue: number; remainingInventoryValue: number;
-    totalComputedValue: number; expenses: number;
-    cashNet: number; operationalNet: number;
+    totalComputedValue: number; productionCost: number; operatingExpenses: number;
+    expenses: number; cashNet: number; operationalNet: number;
     revenue: number; net: number;
   };
   highlights: {
@@ -60,9 +71,13 @@ interface BudgetData {
     topExpenseDept?: { name: string; expenses: number };
     biggestRevenueSource?: { source: string; dept: string; amount: number };
     biggestExpenseItem?: { source: string; dept: string; amount: number };
+    topProfitProduct?: ProductMetric;
+    topLossProduct?: ProductMetric;
   };
   topRevenueSources: { source: string; dept: string; amount: number; pctOfTotal: number; category?: string }[];
   topExpenseItems: { source: string; dept: string; amount: number; pctOfTotal: number }[];
+  topProfitProducts?: ProductMetric[];
+  topLossProducts?: ProductMetric[];
   comparison: {
     name: string;
     currentNet: number; previousNet: number;
@@ -73,7 +88,10 @@ interface BudgetData {
     revenuePct: number | null; expensesPct: number | null;
   }[];
   alerts: { level: "warn" | "danger" | "info"; message: string }[];
-  meta?: { note: string; treasuryMovementsCreated: number };
+  meta?: {
+    note: string; treasuryMovementsCreated: number;
+    usedActualProductionCost?: boolean; usedActualSalePrice?: boolean;
+  };
 }
 
 const MONTHS_AR = [
