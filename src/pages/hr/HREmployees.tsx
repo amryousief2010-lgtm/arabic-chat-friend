@@ -73,6 +73,7 @@ const HREmployees = () => {
 
   const [historyOf, setHistoryOf] = useState<Employee | null>(null);
   const [transfers, setTransfers] = useState<Transfer[]>([]);
+  const [printOpen, setPrintOpen] = useState(false);
 
   const load = async () => {
     setLoading(true);
