@@ -171,7 +171,7 @@ async function computeMonth(supabase: any, year: number, month: number) {
     .filter((s: any) => !s.is_test && s.status !== "rejected")
     .reduce((a: number, r: any) => a + Number(r.received_egg_count || r.egg_count || 0), 0);
   const activeFamilies = (mfFamilies ?? []).filter((f: any) => f.status === "active");
-  const totalBirds = activeFamilies.reduce((a: number, f: any) => a + Number(f.female_count || 0) + Number(f.male_count || 0), 0);
+  const motherFarmBirds = activeFamilies.reduce((a: number, f: any) => a + Number(f.female_count || 0) + Number(f.male_count || 0), 0);
 
   // Mother-farm feed cost: weight in × avg feed unit cost (use feed_products avg or feed_internal_prices)
   let mfFeedWeightKg = 0;
