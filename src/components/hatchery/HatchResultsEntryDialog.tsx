@@ -14,7 +14,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Save, Loader2, AlertCircle, Lock } from "lucide-react";
+import { Save, Loader2, AlertCircle, Lock, Unlock } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 import {
   AlertDialog,
   AlertDialogAction,
