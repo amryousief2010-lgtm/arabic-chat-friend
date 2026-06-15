@@ -35,6 +35,8 @@ interface ProductMetric {
   name: string; qty: number;
   revenue: number; cost: number; profit: number; margin: number;
   dept?: string;
+  costSource?: string;
+  sourceDept?: string;
 }
 interface DeptResult {
   key: DeptKey; name: string;
