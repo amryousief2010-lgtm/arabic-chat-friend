@@ -2364,6 +2364,7 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
               <TableHead className="text-emerald-600">المتاح (كجم)</TableHead>
               <TableHead>السعر/كجم</TableHead>
               <TableHead>الإجمالي</TableHead>
+              <TableHead>الوجهة</TableHead>
               <TableHead>الفرع</TableHead>
               <TableHead>عبوات</TableHead>
               <TableHead></TableHead>
