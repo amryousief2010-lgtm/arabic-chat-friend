@@ -275,15 +275,17 @@ export default function LabCustomerStatement() {
           </TableHeader>
           <TableBody>
             {!customerId && (
-              <TableRow><TableCell colSpan={18} className="text-center text-muted-foreground py-8">اختر عميلًا لعرض كشف الحساب</TableCell></TableRow>
+              <TableRow><TableCell colSpan={19} className="text-center text-muted-foreground py-8">اختر عميلًا لعرض كشف الحساب</TableCell></TableRow>
             )}
             {customerId && loading && (
-              <TableRow><TableCell colSpan={18} className="text-center py-8">جاري التحميل…</TableCell></TableRow>
+              <TableRow><TableCell colSpan={19} className="text-center py-8">جاري التحميل…</TableCell></TableRow>
             )}
             {customerId && !loading && rows.length === 0 && (
-              <TableRow><TableCell colSpan={18} className="text-center text-muted-foreground py-8">لا توجد حركات</TableCell></TableRow>
+              <TableRow><TableCell colSpan={19} className="text-center text-muted-foreground py-8">لا توجد حركات</TableCell></TableRow>
             )}
-            {rows.map(r => (
+            {rows.map(r => {
+              const ti = treasuryImpact(r);
+              return (
               <TableRow key={r.id}>
                 <TableCell className="whitespace-nowrap text-xs">{r.entry_date}</TableCell>
                 <TableCell className="text-xs">{r.operational_batch_no ?? r.batch_number ?? "—"}</TableCell>
@@ -301,10 +303,16 @@ export default function LabCustomerStatement() {
                 <TableCell className="text-xs font-medium text-green-600">{r.credit ? fmtNum(r.credit, 2) : "—"}</TableCell>
                 <TableCell className="text-xs font-bold">{fmtNum(r.running_balance, 2)}</TableCell>
                 <TableCell className="text-xs">{r.payment_method || "—"}</TableCell>
+                <TableCell className="text-xs">
+                  <Badge variant={ti.affected ? "default" : "outline"} className={ti.affected ? "bg-emerald-600 hover:bg-emerald-600" : ""}>
+                    {ti.label}
+                  </Badge>
+                </TableCell>
                 <TableCell className="text-xs">{r.receipt_no || "—"}</TableCell>
                 <TableCell className="text-xs max-w-[160px] truncate">{r.notes || "—"}</TableCell>
               </TableRow>
-            ))}
+              );
+            })}
           </TableBody>
         </Table>
       </Card>
