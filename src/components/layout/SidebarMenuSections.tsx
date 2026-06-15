@@ -43,6 +43,7 @@ import {
   Undo2,
   ClipboardCheck,
   FileText,
+  KeyRound,
 } from "lucide-react";
 import { useAuth, AppRole } from "@/hooks/useAuth";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
