@@ -586,9 +586,19 @@ const HREmployeeAdvancesReport = () => {
                         <TableCell className="whitespace-nowrap">{fmtDate(r.date)}</TableCell>
                         <TableCell>
                           {r.matchedName ? r.matchedName : (
-                            <span className="text-amber-700 flex items-center gap-1">
-                              <AlertTriangle className="h-3 w-3" /> {r.beneficiary?.trim() || "غير مربوط"}
-                            </span>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-amber-700 flex items-center gap-1">
+                                <AlertTriangle className="h-3 w-3" /> {r.beneficiary?.trim() || "غير مربوط"}
+                              </span>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 px-2 text-xs border-purple-300 text-purple-700 hover:bg-purple-50"
+                                onClick={() => setLinkRow(r)}
+                              >
+                                <Link2 className="h-3 w-3 ml-1" /> ربط بموظف
+                              </Button>
+                            </div>
                           )}
                         </TableCell>
                         <TableCell>{r.department ?? "—"}</TableCell>
