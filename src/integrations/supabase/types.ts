@@ -15780,6 +15780,10 @@ export type Database = {
         Args: { p_output_id: string; p_warehouse_id: string }
         Returns: Json
       }
+      receive_slaughter_output_to_meat_factory: {
+        Args: { p_output_id: string }
+        Returns: Json
+      }
       recompute_feed_batch_cost: { Args: { p_batch: string }; Returns: number }
       recompute_meat_batch_cost: { Args: { p_batch_id: string }; Returns: Json }
       reject_low_yield_transfer: {

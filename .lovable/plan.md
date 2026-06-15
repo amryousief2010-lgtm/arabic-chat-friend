@@ -1,83 +1,62 @@
+## Goal
+Close the loop between the slaughterhouse and the meat factory so that cuts dispatched from a slaughter batch land in the real meat-factory raw inventory (`meat_factory_raw_items` / `meat_factory_inventory_moves`) — separate from the generic main warehouse — and are then consumed by manufacturing invoices.
 
-## الوضع الحالي (ما هو موجود فعلًا)
+## Current state (relevant findings)
+- `slaughter_batch_outputs.destination` already supports `meat_factory` (CHECK constraint allows it).
+- The distribution dialog in `src/pages/modules/Slaughterhouse.tsx` only exposes a branch selector — there's no row-level destination dropdown, so rows are always saved with `destination='branch'`.
+- `SlaughterToMeatInbox` exists and calls RPC `receive_slaughter_batch_verified` → `receive_slaughter_output`, but that RPC writes to `inventory_items` / `inventory_movements` in a regular warehouse named "مصنع اللحوم", **not** to `meat_factory_raw_items` / `meat_factory_inventory_moves`. So manufacturing invoices can't actually see the stock.
+- `meat_manufacturing_invoice_lines.item_id` already references `meat_factory_raw_items` (fixed in a previous migration).
 
-النظام فيه مسارَين متوازيَين للدفعات:
+## Changes
 
-**1. المسار القديم — `hatch_batches`**: عميل واحد لكل دفعة، تشحن السجل المحاسبي تلقائيًا في `lab_customer_ledger` عند `status='completed'`. تم بالفعل إغلاق الدفعات `operational_batch_no ≤ 15` تاريخيًا بقيد `entry_type='historical_closeout'` و `payment_method='historical_settlement'` بدون أي تأثير على الخزنة.
+### 1. Distribution dialog — add destination picker (`src/pages/modules/Slaughterhouse.tsx`)
+- Add a `destination` Select per row with three options: `warehouse` (المخزن الرئيسي), `meat_factory` (مصنع اللحوم), `branch` (فرع).
+- Show the branch selector only when `destination='branch'`.
+- Default new rows to `warehouse` instead of `branch`.
+- Persist `destination` and clear `branch_id` when not branch.
 
-**2. المسار الجديد — `hatchery_batches` + `hatchery_batch_lots`**: متعدد العملاء داخل نفس الدفعة، فيه فعليًا:
-- زر "إضافة نتيجة الفقس" (`HatchResultsEntryDialog`)
-- "فتح حساب العميل" + "إنشاء/عرض الفاتورة" (`BatchAccountDialog` يستدعي `compute_hatchery_invoice` RPC)
-- "تحصيل" (`InvoicesTab` ينشئ `hatchery_invoice_payments` → trigger ينشئ صف pending في `lab_treasury_movements`)
-- `hatcher_out_at` يلعب دور **تاريخ الفقس** لكل عميل
-- `brooding_out_at` يلعب دور **تاريخ الاستلام** لكل عميل
+### 2. New RPC `receive_slaughter_output_to_meat_factory(p_output_id uuid)`
+- Auth: `general_manager`, `executive_manager`, `meat_factory_manager`, `warehouse_supervisor`.
+- Validates `destination='meat_factory'`, `received_status<>'received'`, `quality_status='accepted'`.
+- Duplicate guard: unique index on `meat_factory_inventory_moves(ref_table='slaughter_batch_outputs', ref_id=output_id, direction='IN')`.
+- Upserts a `meat_factory_raw_items` row by name with `kind='raw'`, `unit='كجم'`.
+- Computes weighted-average `avg_cost` and updates `current_stock`.
+- Inserts `meat_factory_inventory_moves` with `direction='IN'`, `reason='وارد من المجزر'`, `ref_table='slaughter_batch_outputs'`, `ref_id=output_id`, and `stock_before` / `stock_after`.
+- Marks the output `received_status='received'`, sets `received_warehouse_id=NULL`, `received_by`, `received_at`.
+- Writes a `slaughter_audit_log` row.
 
-يعني المسار الجديد ده **هو فعلًا اللي طلبت تشغيله من دفعة 18 وما بعدها** — مش محتاج بناء نظام جديد، محتاج فقط ضبطات صغيرة.
+### 3. Update `SlaughterToMeatInbox` (`src/components/meat/SlaughterToMeatInbox.tsx`)
+- Stop requiring a warehouse pick when receiving — call the new RPC per accepted output (loop or new batch RPC `receive_slaughter_batch_to_meat_factory`).
+- Show toast with count + total kg.
 
----
+### 4. Manufacturing invoice (already wired)
+- Existing approval RPC consumes from `meat_factory_raw_items` via `meat_factory_inventory_moves` (`uq_meat_moves_mfg_invoice_item` unique guard). No code change needed, but verify the read dropdown filters by `is_active`.
 
-## الفجوات التي يجب سدّها
+### 5. Meat factory raw inventory screen
+- Reuse `src/pages/meat/MeatWarehouses.tsx`. Add columns: balance × avg_cost = value, last "وارد من المجزر" date, last "صرف تصنيع" date, low-stock badge.
+- Filters: kind tabs (raw / spice / packaging), movement source (slaughter / purchase / mfg out).
 
-| # | الفجوة | الحل |
-|---|---|---|
-| 1 | الإغلاق التاريخي يصل لـ ≤15 فقط | امتداد لـ ≤17 لتغطية دفعتي 16 و 17 |
-| 2 | سعر التحضين اليومي في `hatchery_pricing_settings.daily_brooding_price = 15` بينما المطلوب 10 | تحديث الإعداد لـ 10 |
-| 3 | معادلة التحضين في `compute_hatchery_invoice` تستخدم `(brooding_out_at − hatcher_out_at) + 1` | المعادلة دي مطابقة تمامًا لطلبك: (تاريخ الاستلام − تاريخ الفقس + 1). موجودة بالفعل — لا تغيير. |
-| 4 | لو العميل لم يستلم بعد (`brooding_out_at IS NULL`)، الفاتورة الحالية ترفض الحساب النهائي | إضافة عرض تقديري في الواجهة فقط (لا فاتورة نهائية) — استخدام `today()` بدل `brooding_out_at` في حساب أيام التحضين كـ "متوقع" |
-| 5 | `hatcher_out_at` (تاريخ الفقس) لكل عميل قابل للتعديل بالفعل في DB لكن مش معروض كحقل واضح في UI الفقس | إضافة حقل افتراضي للدفعة + تجاوز اختياري لكل عميل في `HatchResultsEntryDialog` |
-| 6 | description للتحصيل = "تحصيل عميل تفريخ #..." بدل "توريد تفريخ" | تعديل trigger ليكتب "توريد تفريخ — <العميل> — <رقم الفاتورة>" |
+### 6. Meat factory dashboard (`src/pages/meat/MeatFactoryOverviewDashboard.tsx`)
+- Cards: stock value (raw, spice, packaging, total), this-month in-from-slaughter kg + value, this-month purchases value, this-month consumed-for-mfg value, mfg invoice count, total mfg cost, products produced (count + kg).
+- Section "إنتاج مصنع اللحوم من أول الشهر" table grouped by `meat_manufacturing_invoices.product_name`.
+- Use Cairo TZ via `@/lib/cairoDate` for month boundaries.
 
----
+### 7. Reports
+- Three reports in `src/pages/meat/` (or inline tabs on dashboard): inbound-from-slaughter, mfg consumption, monthly production, stock value. Each with print (via `openPrintWindow`) and Excel export (`xlsx`).
 
-## التنفيذ المقترح
+### 8. RLS / permissions
+- `meat_factory_inventory_moves` and `meat_factory_raw_items` already restrict insert to `meat_factory_manager` and admins; nothing new needed beyond granting the RPC.
 
-### الجزء 1 — Migration واحد فقط (تغييرات الـ DB)
+## Tests after implementation
+1. Edit a slaughter batch → set one row's destination to "مصنع اللحوم" with 10 kg "لحم نعام فرم" → save.
+2. Open مصنع اللحوم → Inbox → استلام → confirm stock added to `meat_factory_raw_items` only (not main warehouse).
+3. Create a manufacturing invoice that consumes 5 kg "لحم نعام فرم" → approve → stock decreases by 5.
+4. Dashboard shows month-to-date inbound-from-slaughter, consumption, products produced.
+5. Re-run RPC on the same output → returns "already received" without double-adding.
 
-أ. **تحديث سعر التحضين**: `UPDATE hatchery_pricing_settings SET daily_brooding_price = 10`
-
-ب. **إغلاق تاريخي للدفعات 16 و 17** (نفس نمط `20260608143144.sql`):
-- بحث عن الدفعات `operational_batch_no IN (16, 17)` في `hatch_batches`
-- لكل عميل مرتبط: حساب الرصيد المتبقي ثم إدراج صف `entry_type='historical_closeout'` بـ `credit = remaining_balance` و `payment_method='historical_settlement'` و `notes='إغلاق تاريخي للدفعات من 1 إلى 17 بناءً على اعتماد الإدارة'`
-- **مع `ON CONFLICT DO NOTHING` على `(source_type, source_id, customer_id)` لمنع التكرار لو تم التشغيل سابقًا**
-- إدراج صف واحد في `hatch_batch_edit_audit` لكل دفعة مغلقة (عدد العملاء، إجمالي التصفير، السبب)
-- **لا يُدرَج أي سجل في `lab_treasury_movements`** ولا تتغير الخزنة (مطابق لإغلاق ≤15 الموجود)
-
-ج. **تعديل `compute_hatchery_invoice`** لقراءة `daily_brooding_price` من الإعدادات (الـ DEFAULT الجديد = 10) — كده دفعة 18+ هتحسب تلقائيًا بسعر 10.
-
-د. **تعديل trigger `trg_lab_treasury_from_invoice_payment`** ليكتب description = `'توريد تفريخ — ' || client_name || ' — فاتورة ' || invoice_no` بدل النص الحالي.
-
-### الجزء 2 — تغييرات الواجهة (الملفات الأمامية)
-
-أ. **`HatchResultsEntryDialog.tsx`**:
-- إضافة حقل واضح "تاريخ الفقس (افتراضي للدفعة)" بجانب نتائج الفقس — يحفظ في `hatcher_out_at` لكل lot في الدفعة.
-- إضافة قدرة تجاوز اختياري لكل عميل (input صغير في صف الـ lot).
-
-ب. **`BatchAccountDialog.tsx`**:
-- إذا `brooding_out_at IS NULL` (العميل لم يستلم بعد): عرض حساب التحضين **التقديري** باستخدام `today()` كتاريخ افتراضي + شارة "تقديري — لم يتم الاستلام" + إخفاء زر "إنشاء فاتورة" واستبداله بـ "تسجيل تاريخ الاستلام أولًا".
-- زر "تسجيل تاريخ الاستلام" يفتح dialog صغير يحفظ `brooding_out_at` ثم يفعّل زر إنشاء الفاتورة.
-
-ج. **`HatcheryLab.tsx` BatchesTab**: تنبيه/شارة "مغلقة تاريخيًا" على دفعات ≤17 من المسار القديم + إخفاؤها من قائمة "المفتوحة" افتراضيًا (تظهر فقط في tab "تاريخية").
-
-### الجزء 3 — اختبار
-
-بعد التنفيذ:
-1. تشغيل الإغلاق التاريخي والتحقق أن دفعتي 16 و 17 أُغلقتا، رصيد عملائهم = 0، خزنة المعمل لم تتغير، Audit Log فيه السجل، تشغيل ثاني مرة لا يكرر شيء.
-2. إنشاء lot اختباري في دفعة 18: تاريخ فقس 2026-06-13، 10 كتاكيت، تاريخ استلام 2026-06-17 → التحضين = 5 × 10 × 10 = 500 ج.
-3. تحصيل جزء من الفاتورة → التأكد أن `lab_treasury_movements` فيه صف pending بـ description "توريد تفريخ — ..." بدون تكرار عند الـ refresh.
+## Reporting back
+After tests I'll report: batch # used, item, qty in/out, stock before/after, dashboard month totals, duplicate guard confirmation.
 
 ---
 
-## ما لن أفعله
-
-- **لن أحذف** أي دفعة أو عميل أو سجل.
-- **لن أبني نظام فواتير/تحصيل جديد** — موجود فعلًا في `hatchery_batch_lots/_client_invoices`.
-- **لن أمسّ الخزنة** بأي حركة جديدة بسبب الإغلاق التاريخي.
-- **لن أوحّد المسارَين القديم والجديد** (هذا تغيير معماري كبير خارج النطاق) — سأكتفي بإغلاق القديم تاريخيًا واستخدام الجديد للتشغيل من 18+.
-- **لن أغيّر** تسعير الدفعات المغلقة التاريخية (الـ 10 ج/يوم محفوظة فيها بالفعل).
-
----
-
-## تأكيد قبل التنفيذ
-
-1. هل تريد أن يبدأ التشغيل الفعلي من 18+ على المسار الجديد `hatchery_batches/_batch_lots` (الفواتير الحديثة بمتعدد العملاء)؟ أم تريد إضافة نفس القدرات للمسار القديم `hatch_batches`؟ الأفضل والأقل مخاطرة هو الأول.
-2. هل أبدأ التنفيذ الآن بهذه الخطة؟
+This is sizeable (1 migration + ~6 file edits). Reply **approve** and I'll start with the migration.
