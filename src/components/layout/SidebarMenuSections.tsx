@@ -158,6 +158,8 @@ export const moduleSections: ModuleSection[] = [
     roles: ['general_manager', 'executive_manager', 'brooding_manager', 'brooding_dashboard_viewer'],
     items: [
       { icon: Bird, label: "لوحة التحضين والتسمين", path: "/modules/brooding", roles: ['general_manager', 'executive_manager', 'brooding_manager', 'brooding_dashboard_viewer'] },
+      { icon: Wallet, label: "كشف حساب العملاء", path: "/lab-treasury/customer-statement", roles: ['general_manager', 'executive_manager', 'brooding_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper'] },
+      { icon: Wallet, label: "أرصدة العملاء", path: "/lab-treasury/customer-balances", roles: ['general_manager', 'executive_manager', 'brooding_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper'] },
     ],
   },
   {
