@@ -11,7 +11,7 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
 };
 
-type DeptKey = "hatchery" | "brooding" | "slaughterhouse" | "feed_factory" | "meat_factory";
+type DeptKey = "mother_farm" | "hatchery" | "brooding" | "slaughterhouse" | "feed_factory" | "meat_factory";
 type LineCategory = "cash" | "internal" | "asset";
 
 interface LineItem {
