@@ -183,6 +183,13 @@ export default function ExecutiveApprovalsAlert() {
                         )}
 
                         <div className="flex flex-wrap gap-2 pt-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setDetailsFor(item)}
+                          >
+                            <Eye className="h-4 w-4 ml-1" /> تفاصيل
+                          </Button>
                           <Button size="sm" disabled={busyId === item.id} onClick={() => doApprove(item)}>
                             <CheckCircle2 className="h-4 w-4 ml-1" /> اعتماد
                           </Button>
