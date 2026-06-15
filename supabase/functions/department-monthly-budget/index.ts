@@ -531,6 +531,16 @@ async function computeMonth(supabase: any, year: number, month: number) {
       `سعر البيع الفعلي للمنتجات المباعة عبر الطلبات: ${Math.round(actualSaleValue).toLocaleString()} ج.م (للعرض فقط — لا يضاف للإيراد النقدي لأن التحصيل يقع على الخزنة الرئيسية)`,
     );
   }
+  // Detect unmapped slaughter outputs (this month) → user can't get accurate slaughter cost
+  const unmappedOutputs = (sOutputs ?? []).filter((o: any) => !o.product_id);
+  if (unmappedOutputs.length > 0) {
+    const cutNames = Array.from(new Set(unmappedOutputs.map((o: any) => o.cut_name_ar))).slice(0, 8);
+    slaughter.pricingWarnings.push(
+      `يوجد ${unmappedOutputs.length} ناتج ذبح غير مربوط بمنتج (${cutNames.join("، ")}${cutNames.length >= 8 ? "..." : ""}) — سيتم استخدام cost_price بدل تكلفة الذبح الفعلية. اربط الأصناف من: /modules/slaughterhouse/product-mapping`,
+    );
+    (slaughter.opsMetrics as any).unmappedOutputCount = unmappedOutputs.length;
+  }
+
 
   // ============ Sold-Product Profitability (links order_items → cost source) ============
   // Cost source priority per product_id:

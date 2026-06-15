@@ -88,6 +88,7 @@ const SlaughterPermit = lazy(() => import("@/pages/modules/SlaughterPermit"));
 const SlaughterTransfersLog = lazy(() => import("@/pages/slaughterhouse/TransfersLog"));
 const ButchersPayroll = lazy(() => import("@/pages/slaughterhouse/ButchersPayroll"));
 const SlaughterhouseFeedStore = lazy(() => import("@/pages/slaughterhouse/SlaughterhouseFeedStore"));
+const SlaughterProductMapping = lazy(() => import("@/pages/slaughterhouse/ProductMapping"));
 const MeatFactory = lazy(() => import("@/pages/modules/MeatFactory"));
 const MeatFactoryOps = lazy(() => import("@/pages/modules/MeatFactoryOps"));
 const FeedFactory = lazy(() => import("@/pages/modules/FeedFactory"));
@@ -803,6 +804,11 @@ const AnimatedRoutes = () => {
           <Route path="/modules/slaughterhouse/transfers" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'slaughterhouse_manager', 'production_manager', 'quality_manager', 'warehouse_supervisor', 'meat_factory_manager']}>
               <PageTransition><SlaughterTransfersLog /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/modules/slaughterhouse/product-mapping" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'slaughterhouse_manager', 'production_manager', 'accountant', 'financial_manager']}>
+              <PageTransition><SlaughterProductMapping /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/modules/slaughterhouse/payroll" element={
