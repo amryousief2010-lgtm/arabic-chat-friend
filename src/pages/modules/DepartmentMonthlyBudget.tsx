@@ -1246,6 +1246,11 @@ function AnalysisDialog({ dept, onClose }: { dept: DeptResult | null; onClose: (
             </Card>
           </div>
 
+          {/* Deep analysis (slaughterhouse / hatchery) */}
+          {dept.deepAnalysis && <DeepAnalysisSection data={dept.deepAnalysis} />}
+
+
+
           {/* Recommendations */}
           {a.recs.length > 0 && (
             <Card>
