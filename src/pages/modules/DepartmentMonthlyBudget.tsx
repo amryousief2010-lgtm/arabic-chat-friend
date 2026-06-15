@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { openPrintWindow, PRINT_BASE_CSS, COMPANY_AR } from "@/lib/printPdf";
+import { openPrintWindow, COMPANY_AR } from "@/lib/printPdf";
 
 type DeptKey = "hatchery" | "brooding" | "slaughterhouse" | "feed_factory";
 
