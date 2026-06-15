@@ -691,6 +691,17 @@ const HREmployees = () => {
           onChanged={load}
         />
       )}
+
+      {/* Deductions Dialog */}
+      {deductionsOf && (
+        <EmployeeDeductionsDialog
+          open={!!deductionsOf}
+          onOpenChange={(o) => !o && setDeductionsOf(null)}
+          employeeId={deductionsOf.id}
+          employeeName={`${deductionsOf.full_name} (${deductionsOf.code})`}
+          baseSalary={Number(deductionsOf.base_salary) || 0}
+        />
+      )}
     </DashboardLayout>
   );
 };
