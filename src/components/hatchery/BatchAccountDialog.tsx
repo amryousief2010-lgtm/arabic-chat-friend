@@ -111,8 +111,22 @@ export default function BatchAccountDialog({
     },
   });
 
+  const { data: discounts = [], refetch: refetchDiscounts } = useQuery({
+    queryKey: ["batch_account_discounts", invoice?.id],
+    enabled: !!invoice?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hatchery_invoice_discounts" as any)
+        .select("*")
+        .eq("invoice_id", invoice!.id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+
   const refreshAll = () => {
-    refetchLot(); refetchInvoice(); refetchPayments();
+    refetchLot(); refetchInvoice(); refetchPayments(); refetchDiscounts();
     qc.invalidateQueries({ queryKey: ["ecr_"] });
     qc.invalidateQueries({ queryKey: ["hatchery_client_invoices"] });
     qc.invalidateQueries({ queryKey: ["lab_treasury_movements"] });
