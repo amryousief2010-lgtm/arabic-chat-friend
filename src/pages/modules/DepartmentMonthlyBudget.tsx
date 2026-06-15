@@ -109,7 +109,17 @@ export default function DepartmentMonthlyBudget() {
         { body: { year, month } },
       );
       if (error) throw error;
-      setData(res as BudgetData);
+      const r = res as any;
+      // Backward-compat aliases so legacy UI keeps working
+      for (const d of r.departments ?? []) {
+        d.revenue = d.totalComputedValue ?? 0;
+        d.net = d.operationalNet ?? 0;
+      }
+      if (r.totals) {
+        r.totals.revenue = r.totals.totalComputedValue ?? 0;
+        r.totals.net = r.totals.operationalNet ?? 0;
+      }
+      setData(r as BudgetData);
     } catch (e: any) {
       toast.error("تعذّر تحميل الميزانية: " + (e?.message ?? e));
     } finally {
