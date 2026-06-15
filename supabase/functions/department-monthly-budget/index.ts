@@ -154,8 +154,7 @@ async function computeMonth(supabase: any, year: number, month: number) {
   const { data: mfShipments } = await supabase
     .from("farm_to_hatchery_shipments")
     .select("production_date,family_number,egg_count,received_egg_count,damaged_count,status,received_at,is_test")
-    .or(`production_date.gte.${dStart},received_at.gte.${tsStart}`)
-    .lt("production_date", dEnd);
+    .gte("production_date", dStart).lt("production_date", dEnd);
   const { data: mfMeds } = await supabase
     .from("farm_medications")
     .select("med_date,name,dose")
