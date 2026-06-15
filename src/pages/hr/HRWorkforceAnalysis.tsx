@@ -60,7 +60,7 @@ export default function HRWorkforceAnalysis() {
     roles.includes("hr_manager") || roles.includes("accountant") || roles.includes("financial_manager");
   const init = currentCairoYearMonth();
   const [year, setYear] = useState(init.year);
-  const [month, setMonth] = useState(init.month);
+  const [month, setMonth] = useState(init.monthIndex0 + 1);
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<SectorRow[]>([]);
   const [unassignedNames, setUnassignedNames] = useState<string[]>([]);
