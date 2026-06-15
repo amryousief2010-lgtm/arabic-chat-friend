@@ -619,12 +619,51 @@ export default function DepartmentMonthlyBudget() {
                   accent={selectedDept.operationalNet >= 0 ? "text-green-700" : "text-red-700"} />
                 <KpiCard title="نسبة المصروفات" value={`${selectedDept.expenseRatio.toFixed(1)}%`} />
               </div>
+              {/* Production cost breakdown */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <KpiCard title="تكلفة الإنتاج / التصنيع" value={fmt(selectedDept.productionCost ?? 0)} accent="text-orange-700" />
+                <KpiCard title="مصروفات تشغيلية أخرى" value={fmt(selectedDept.operatingExpenses ?? 0)} accent="text-red-600" />
+                <KpiCard title="هامش الربح الإجمالي"
+                  value={`${(selectedDept.grossMargin ?? 0).toFixed(1)}%`}
+                  accent={(selectedDept.grossMargin ?? 0) >= 0 ? "text-green-700" : "text-red-700"} />
+                <KpiCard title="أعلى بند تكلفة"
+                  value={selectedDept.topCostItem?.name ?? "—"}
+                  sub={selectedDept.topCostItem ? fmt(selectedDept.topCostItem.amount) : ""} />
+              </div>
               {selectedDept.pricingWarnings.length > 0 && (
                 <div className="rounded-md p-3 bg-amber-50 border border-amber-200 text-sm">
                   {selectedDept.pricingWarnings.map((w, i) => (
                     <div key={i} className="flex gap-2"><AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" /> {w}</div>
                   ))}
                 </div>
+              )}
+              {(selectedDept.productMetrics?.length ?? 0) > 0 && (
+                <Card>
+                  <CardHeader><CardTitle className="text-base">ربحية المنتجات</CardTitle></CardHeader>
+                  <CardContent className="overflow-x-auto">
+                    <Table>
+                      <TableHeader><TableRow>
+                        <TableHead>المنتج</TableHead><TableHead>الكمية</TableHead>
+                        <TableHead>الإيراد</TableHead><TableHead>التكلفة</TableHead>
+                        <TableHead>الربح</TableHead><TableHead>الهامش</TableHead>
+                      </TableRow></TableHeader>
+                      <TableBody>
+                        {selectedDept.productMetrics.map((p, i) => (
+                          <TableRow key={i}>
+                            <TableCell>{p.name}</TableCell>
+                            <TableCell className="tabular-nums">{fmt(p.qty)}</TableCell>
+                            <TableCell className="tabular-nums">{fmt(p.revenue)}</TableCell>
+                            <TableCell className="tabular-nums text-muted-foreground">{fmt(p.cost)}</TableCell>
+                            <TableCell className={`tabular-nums font-bold ${p.profit >= 0 ? "text-green-700" : "text-red-700"}`}>
+                              {fmt(p.profit)}
+                            </TableCell>
+                            <TableCell className="tabular-nums">{p.margin.toFixed(1)}%</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
               )}
               <Tabs defaultValue="rev">
                 <TabsList>
