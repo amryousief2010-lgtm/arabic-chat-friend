@@ -121,6 +121,7 @@ export const moduleSections: ModuleSection[] = [
       { icon: BarChart3, label: "التقارير", path: "/reports", roles: ['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'financial_manager', 'quality_manager'] },
       { icon: TrendingUp, label: "تحليل الأداء اليومي وخطة الشهر", path: "/sales/daily-performance-analysis", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager', 'financial_manager', 'accountant'] },
       { icon: Wallet, label: "التقارير المالية", path: "/financial-reports", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'sales_manager'] },
+      { icon: Wallet, label: "الميزانية الشهرية للأقسام", path: "/modules/department-monthly-budget", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager'] },
       { icon: Upload, label: "استيراد البيانات", path: "/import-sales", roles: ['general_manager'] },
     ],
   },
