@@ -127,16 +127,6 @@ export default function ManufacturingInvoices() {
     setInvoiceUuid(crypto.randomUUID());
   };
 
-  const [selectedRecipeKey, setSelectedRecipeKey] = useState<string>("");
-  const loadRecipe = (key: string, qtyOverride?: number) => {
-    const r = MEAT_RECIPES.find(x => x.key === key);
-    if (!r) return;
-    setSelectedRecipeKey(key);
-    const requested = qtyOverride && qtyOverride > 0 ? qtyOverride : r.batch_qty;
-    const factor = requested / r.batch_qty;
-    // Match product to preset or use "other"
-    if (PRODUCT_PRESETS.includes(r.product)) { setProductName(r.product); setProductNameOther(""); }
-    else { setProductName("أخرى"); setProductNameOther(r.product); }
   const resolveItem = (name: string, kind: Kind): RawItem | undefined => {
     const map = mappingsIndex.get(mapKey(name, kind));
     if (map) {
