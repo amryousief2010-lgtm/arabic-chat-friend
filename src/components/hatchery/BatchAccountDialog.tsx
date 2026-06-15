@@ -42,6 +42,7 @@ export default function BatchAccountDialog({
   const [method, setMethod] = useState<string>("cash");
   const [notes, setNotes] = useState("");
   const [paying, setPaying] = useState(false);
+  const [remainderAction, setRemainderAction] = useState<"keep" | "carryover" | "discount">("keep");
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [receiptDate, setReceiptDate] = useState(new Date().toISOString().slice(0, 10));
   const [savingReceipt, setSavingReceipt] = useState(false);
@@ -55,6 +56,7 @@ export default function BatchAccountDialog({
   const [discReason, setDiscReason] = useState("");
   const [discNotes, setDiscNotes] = useState("");
   const [savingDisc, setSavingDisc] = useState(false);
+  const [applyingCarry, setApplyingCarry] = useState<string | null>(null);
 
 
   const { data: lot, refetch: refetchLot } = useQuery({
