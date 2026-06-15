@@ -655,6 +655,13 @@ const HREmployeeAdvancesReport = () => {
             </Card>
           </TabsContent>
         </Tabs>
+
+        <LinkEmployeeDialog
+          row={linkRow}
+          onClose={() => setLinkRow(null)}
+          suggestions={suggestionsFor(linkRow)}
+          onSave={(empId) => linkRow && saveAlias(linkRow, empId)}
+        />
       </div>
     </DashboardLayout>
   );
