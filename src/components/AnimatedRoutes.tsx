@@ -89,6 +89,9 @@ const MeatFactory = lazy(() => import("@/pages/modules/MeatFactory"));
 const MeatFactoryOps = lazy(() => import("@/pages/modules/MeatFactoryOps"));
 const FeedFactory = lazy(() => import("@/pages/modules/FeedFactory"));
 const HumanResources = lazy(() => import("@/pages/modules/HumanResources"));
+const HRDashboard = lazy(() => import("@/pages/hr/HRDashboard"));
+const HREmployees = lazy(() => import("@/pages/hr/HREmployees"));
+const HRWorkLocations = lazy(() => import("@/pages/hr/HRWorkLocations"));
 const Warehouses = lazy(() => import("@/pages/modules/Warehouses"));
 const RecipeDetail = lazy(() => import("@/pages/modules/feed/RecipeDetail"));
 const BatchTracking = lazy(() => import("@/pages/modules/feed/BatchTracking"));
@@ -822,6 +825,21 @@ const AnimatedRoutes = () => {
           <Route path="/modules/hr" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'hr_manager']}>
               <PageTransition><HumanResources /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/hr" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'hr_manager']}>
+              <PageTransition><HRDashboard /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/hr/employees" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'hr_manager', 'accountant', 'financial_manager']}>
+              <PageTransition><HREmployees /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/hr/work-locations" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'hr_manager']}>
+              <PageTransition><HRWorkLocations /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/modules/warehouses" element={
