@@ -94,6 +94,20 @@ const HREmployees = () => {
     ]);
     setEmployees((emp.data || []) as Employee[]);
     setLocations((loc.data || []) as Location[]);
+
+    if (canViewDocs) {
+      const { data: docs } = await supabase
+        .from("hr_employee_documents")
+        .select("employee_id, document_type")
+        .eq("is_active", true);
+      const map: Record<string, { id: boolean; contract: boolean }> = {};
+      (docs || []).forEach((d: any) => {
+        if (!map[d.employee_id]) map[d.employee_id] = { id: false, contract: false };
+        if (d.document_type === "national_id_card") map[d.employee_id].id = true;
+        if (d.document_type === "work_contract") map[d.employee_id].contract = true;
+      });
+      setDocsSummary(map);
+    }
     setLoading(false);
   };
 
