@@ -72,11 +72,17 @@ const blankForm = (): Partial<Employee> => ({
   notes: "",
 });
 
+const MOHAMED_SHAALA_UID = "d1d37093-182a-4ee9-932c-d2a2b45f33ec";
+
 const HREmployees = () => {
   const { user, isGeneralManager, isExecutiveManager, roles } = useAuth();
+  const isShaala = user?.id === MOHAMED_SHAALA_UID;
+  const canAccessPage = isGeneralManager || isExecutiveManager || isShaala;
   const canManage = isGeneralManager || isExecutiveManager || roles.includes("hr_manager");
-  const canViewDocs =
-    canManage || roles.includes("accountant") || roles.includes("financial_manager");
+  // Only GM + Executive can open / download / print documents
+  const canViewDocs = isGeneralManager || isExecutiveManager;
+  // Shaala + managers can see document status badges (✅/❌) only — no open/print
+  const canSeeDocStatus = canViewDocs || isShaala;
 
   const [loading, setLoading] = useState(true);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -136,16 +142,12 @@ const HREmployees = () => {
     setEmployees((emp.data || []) as Employee[]);
     setLocations((loc.data || []) as Location[]);
 
-    if (canViewDocs) {
-      const { data: docs } = await supabase
-        .from("hr_employee_documents")
-        .select("employee_id, document_type")
-        .eq("is_active", true);
+    if (canSeeDocStatus) {
+      // Use SECURITY DEFINER RPC — returns ONLY status (has_id/has_contract), never file URLs.
+      const { data: docs } = await supabase.rpc("get_hr_documents_status");
       const map: Record<string, { id: boolean; contract: boolean }> = {};
       (docs || []).forEach((d: any) => {
-        if (!map[d.employee_id]) map[d.employee_id] = { id: false, contract: false };
-        if (d.document_type === "national_id_card") map[d.employee_id].id = true;
-        if (d.document_type === "work_contract") map[d.employee_id].contract = true;
+        map[d.employee_id] = { id: !!d.has_id, contract: !!d.has_contract };
       });
       setDocsSummary(map);
     }
@@ -498,25 +500,30 @@ const HREmployees = () => {
                             <div className="font-mono font-bold text-primary">{net.toLocaleString("ar-EG")}</div>
                           </TableCell>
                           <TableCell className="font-mono text-xs">{e.phone || "—"}</TableCell>
-                          {canViewDocs && (
+                          {canSeeDocStatus && (
                             <TableCell>
                               {(() => {
                                 const ds = docsSummary[e.id] || { id: false, contract: false };
-                                return (
-                                  <button
-                                    type="button"
-                                    onClick={() => setDocsOf(e)}
-                                    className="flex flex-col gap-0.5 text-xs hover:opacity-80"
-                                    title="عرض / رفع المستندات"
-                                  >
+                                const content = (
+                                  <div className="flex flex-col gap-0.5 text-xs">
                                     <span className={ds.id ? "text-emerald-700" : "text-muted-foreground"}>
                                       بطاقة {ds.id ? "✅" : "❌"}
                                     </span>
                                     <span className={ds.contract ? "text-emerald-700" : "text-muted-foreground"}>
                                       عقد {ds.contract ? "✅" : "❌"}
                                     </span>
-                                  </button>
+                                  </div>
                                 );
+                                return canViewDocs ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setDocsOf(e)}
+                                    className="hover:opacity-80"
+                                    title="عرض / رفع المستندات"
+                                  >
+                                    {content}
+                                  </button>
+                                ) : content;
                               })()}
                             </TableCell>
                           )}
