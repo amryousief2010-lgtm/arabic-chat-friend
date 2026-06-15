@@ -530,16 +530,28 @@ export default function DepartmentMonthlyBudget() {
                       <TableHead>المرجع</TableHead><TableHead>الجهة</TableHead>
                     </TableRow></TableHeader>
                     <TableBody>
-                      {selectedDept.revenueItems.map((i, k) => (
-                        <TableRow key={k}>
-                          <TableCell>{i.date?.slice(0, 10)}</TableCell>
-                          <TableCell>{i.label}</TableCell>
-                          <TableCell>{i.source}</TableCell>
-                          <TableCell className="tabular-nums text-green-700">{fmt(i.amount)}</TableCell>
-                          <TableCell className="text-xs">{i.reference || ""}</TableCell>
-                          <TableCell className="text-xs">{i.treasury || ""}</TableCell>
-                        </TableRow>
-                      ))}
+                      {selectedDept.revenueItems.map((i, k) => {
+                        const cat = i.category ?? "cash";
+                        const catLabel = cat === "cash" ? "نقدي" : cat === "internal" ? "تشغيلي داخلي" : "أصل / مخزون";
+                        const catColor = cat === "cash" ? "bg-green-100 text-green-800" :
+                          cat === "internal" ? "bg-blue-100 text-blue-800" : "bg-purple-100 text-purple-800";
+                        return (
+                          <TableRow key={k}>
+                            <TableCell>{i.date?.slice(0, 10)}</TableCell>
+                            <TableCell>{i.label}</TableCell>
+                            <TableCell>{i.source}</TableCell>
+                            <TableCell>
+                              <span className={`text-[10px] px-2 py-0.5 rounded ${catColor}`}>{catLabel}</span>
+                              {i.priceSource === "avg_cost" && (
+                                <span className="text-[10px] mr-1 text-amber-700">(متوسط تكلفة)</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="tabular-nums text-green-700">{fmt(i.amount)}</TableCell>
+                            <TableCell className="text-xs">{i.reference || ""}</TableCell>
+                            <TableCell className="text-xs">{i.treasury || ""}</TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </TabsContent>
