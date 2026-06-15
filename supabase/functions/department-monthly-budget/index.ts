@@ -314,6 +314,62 @@ async function computeMonth(supabase: any, year: number, month: number) {
       source: "علف الحضانات", amount: amt, category: "cash", notes: f.notes,
     });
   }
+  // Transfers to slaughter as internal value + mortality (loss event)
+  const { data: bToSlaughter } = await supabase
+    .from("brooding_to_slaughter_transfers")
+    .select("transfer_date,count,total_weight_kg,transferred_cost,valuation_amount,live_price_per_kg")
+    .gte("transfer_date", dStart).lt("transfer_date", dEnd);
+  const { data: bMortality } = await supabase
+    .from("brooding_mortality")
+    .select("event_date,count")
+    .gte("event_date", dStart).lt("event_date", dEnd);
+  const { data: bActiveBatches } = await supabase
+    .from("brooding_batches")
+    .select("batch_number,current_count,cost_per_bird,status")
+    .neq("status", "closed");
+
+  let transferredCount = 0, transferredValue = 0;
+  for (const t of bToSlaughter ?? []) {
+    const v = Number(t.valuation_amount || t.transferred_cost || 0);
+    transferredCount += Number(t.count || 0);
+    if (v > 0) {
+      transferredValue += v;
+      brooding.internalValue += v;
+      brooding.revenueItems.push({
+        date: t.transfer_date,
+        label: `تحويل ${t.count} كتكوت للمجزر (${t.total_weight_kg} كجم)`,
+        source: "قيمة كتاكيت محوّلة للمجزر", amount: v,
+        category: "internal", priceSource: t.live_price_per_kg ? "sale_price" : "production_cost",
+      });
+    }
+  }
+  // Remaining chicks asset
+  let chicksRemaining = 0, chicksRemainingValue = 0;
+  for (const b of bActiveBatches ?? []) {
+    const c = Number(b.current_count || 0);
+    const cpb = Number(b.cost_per_bird || 0);
+    if (c > 0 && cpb > 0) {
+      chicksRemaining += c;
+      const v = c * cpb;
+      chicksRemainingValue += v;
+      brooding.remainingInventoryValue += v;
+      brooding.revenueItems.push({
+        date: dEnd, label: `كتاكيت في الحضانات (${b.batch_number}: ${c}×${cpb.toFixed(2)})`,
+        source: "قيمة كتاكيت متبقية", amount: v,
+        category: "asset", priceSource: "production_cost",
+      });
+    }
+  }
+  const mortalityCount = (bMortality ?? []).reduce((a: number, r: any) => a + Number(r.count || 0), 0);
+  brooding.opsMetrics = {
+    soldCount: (bSales ?? []).reduce((a: number, s: any) => a + Number(s.count || 0), 0),
+    transferredToSlaughter: transferredCount,
+    mortalityCount,
+    chicksRemaining,
+    chicksRemainingValue: Math.round(chicksRemainingValue),
+    transferredValue: Math.round(transferredValue),
+  };
+
 
   // ============ Slaughterhouse ============
   const { data: sBatches } = await supabase
