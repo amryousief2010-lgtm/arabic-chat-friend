@@ -318,7 +318,7 @@ export default function DepartmentMonthlyBudget() {
             </SelectContent>
           </Select>
           <Button onClick={printReport} variant="outline" disabled={!data}>
-            <Printer className="h-4 w-4 ml-1" /> طباعة / PDF
+            <Printer className="h-4 w-4 ml-1" /> طباعة تقرير الربح والخسارة
           </Button>
           <Button onClick={exportExcel} variant="outline" disabled={!data}>
             <FileSpreadsheet className="h-4 w-4 ml-1" /> Excel
