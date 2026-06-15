@@ -106,7 +106,9 @@ const HREmployeeAdvancesReport = () => {
   const [rows, setRows] = useState<AdvanceRow[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [aliases, setAliases] = useState<Array<{ id: string; normalized_name: string; employee_id: string; raw_name: string }>>([]);
   const [firstDate, setFirstDate] = useState<string>("");
+  const [linkRow, setLinkRow] = useState<AdvanceRow | null>(null);
 
   // Filters
   const [fromDate, setFromDate] = useState<string>("");
