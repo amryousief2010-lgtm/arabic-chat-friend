@@ -479,11 +479,11 @@ export default function DepartmentMonthlyBudget() {
           </Card>
 
           <Card>
-            <CardHeader><CardTitle>الحركات غير المصنفة</CardTitle></CardHeader>
-            <CardContent className="text-sm text-muted-foreground">
-              {data.unclassified.count === 0
-                ? data.unclassified.note
-                : `يوجد ${data.unclassified.count} حركة تحتاج تحديد القسم`}
+            <CardHeader><CardTitle className="text-base">ضمانات النزاهة المالية</CardTitle></CardHeader>
+            <CardContent className="text-sm text-muted-foreground space-y-1">
+              <div>• {data.meta?.note ?? "القيم التشغيلية الداخلية والأصول المتبقية للعرض فقط."}</div>
+              <div>• عدد حركات الخزنة التي أنشأها هذا التقرير: <b className="text-green-700">{data.meta?.treasuryMovementsCreated ?? 0}</b></div>
+              <div>• يمكن تعديل أسعار البيع الداخلية من صفحة <code className="bg-muted px-1 rounded">إعدادات الأسعار الداخلية</code> ولن تنشئ أي حركة خزنة.</div>
             </CardContent>
           </Card>
         </>
