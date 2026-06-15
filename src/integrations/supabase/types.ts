@@ -5773,6 +5773,7 @@ export type Database = {
           job_title: string | null
           national_id: string | null
           notes: string | null
+          pay_day: number
           phone: string | null
           start_date: string | null
           status: Database["public"]["Enums"]["hr_employee_status"]
@@ -5793,6 +5794,7 @@ export type Database = {
           job_title?: string | null
           national_id?: string | null
           notes?: string | null
+          pay_day?: number
           phone?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["hr_employee_status"]
@@ -5813,6 +5815,7 @@ export type Database = {
           job_title?: string | null
           national_id?: string | null
           notes?: string | null
+          pay_day?: number
           phone?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["hr_employee_status"]
@@ -15860,6 +15863,14 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      hr_compute_pay_day: {
+        Args: {
+          p_department: string
+          p_full_name: string
+          p_location_id: string
+        }
+        Returns: number
       }
       import_post_catalog: { Args: { p_run_id: string }; Returns: Json }
       import_post_stock_snapshot: {
