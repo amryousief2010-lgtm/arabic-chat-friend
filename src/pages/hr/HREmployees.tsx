@@ -230,10 +230,22 @@ const HREmployees = () => {
               <p className="text-muted-foreground mt-1">إضافة وتعديل بيانات كل موظف ومكان عمله</p>
             </div>
           </div>
-          {canManage && (
-            <Button onClick={openCreate}><Plus className="w-4 h-4 ml-1" />إضافة موظف</Button>
-          )}
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" onClick={() => setPrintOpen(true)}>
+              <Printer className="w-4 h-4 ml-1" />طباعة بيان الموظفين والسلف
+            </Button>
+            {canManage && (
+              <Button onClick={openCreate}><Plus className="w-4 h-4 ml-1" />إضافة موظف</Button>
+            )}
+          </div>
         </div>
+
+        <PrintEmployeesAdvancesDialog
+          open={printOpen}
+          onOpenChange={setPrintOpen}
+          employees={employees}
+          locations={locations}
+        />
 
         <Card>
           <CardHeader>
