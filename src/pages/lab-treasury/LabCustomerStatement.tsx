@@ -131,7 +131,9 @@ export default function LabCustomerStatement() {
       <div class="stat"><div class="k">الرصيد المتبقي</div><div class="v num">${fmtNum(summary.balance, 2)}</div></div>
       <div class="stat"><div class="k">عدد الدفعات</div><div class="v num">${fmtNum(summary.batches)}</div></div>
     </div>`;
-    const tableRows = rows.map(r => `<tr>
+    const tableRows = rows.map(r => {
+      const ti = treasuryImpact(r);
+      return `<tr>
       <td>${fmtDate(r.entry_date)}</td>
       <td>${escapeHtml(r.operational_batch_no ?? r.batch_number ?? "—")}</td>
       <td>${escapeHtml(ENTRY_LABEL[r.entry_type] || r.entry_type)}</td>
@@ -144,7 +146,10 @@ export default function LabCustomerStatement() {
       <td class="num">${fmtNum(r.credit, 2)}</td>
       <td class="num"><b>${fmtNum(r.running_balance, 2)}</b></td>
       <td>${escapeHtml(r.payment_method ?? "")}</td>
-    </tr>`).join("");
+      <td style="color:${ti.affected ? "#047857" : "#6b7280"}">${escapeHtml(ti.label)}</td>
+      <td>${escapeHtml(r.notes ?? "")}</td>
+    </tr>`;
+    }).join("");
     const body = `
       <header>
         <div><h1>كشف حساب عميل معمل التفريخ</h1>
@@ -159,6 +164,7 @@ export default function LabCustomerStatement() {
           <th>التاريخ</th><th>الدفعة</th><th>نوع الحركة</th><th>البيان</th>
           <th>لايح</th><th>كشف 2</th><th>كتاكيت</th><th>تحضين</th>
           <th>مدين</th><th>دائن</th><th>الرصيد</th><th>طريقة الدفع</th>
+          <th>تأثير الخزنة</th><th>ملاحظات</th>
         </tr></thead>
         <tbody>${tableRows}</tbody>
       </table>`;
