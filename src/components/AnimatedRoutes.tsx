@@ -38,6 +38,7 @@ const OrderStatusAudit = lazy(() => import("@/pages/OrderStatusAudit"));
 const SendMessage = lazy(() => import("@/pages/SendMessage"));
 const FinancialReports = lazy(() => import("@/pages/FinancialReports"));
 const DepartmentMonthlyBudget = lazy(() => import("@/pages/modules/DepartmentMonthlyBudget"));
+const InternalPricesSettings = lazy(() => import("@/pages/modules/InternalPricesSettings"));
 const Orders = lazy(() => import("@/pages/Orders"));
 const Customers = lazy(() => import("@/pages/Customers"));
 const Reports = lazy(() => import("@/pages/Reports"));
