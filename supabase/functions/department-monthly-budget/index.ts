@@ -1113,7 +1113,7 @@ Deno.serve(async (req) => {
     // Cross-dept top profitable / losing products
     const allProducts: Array<ProductMetric & { dept: string }> = [];
     for (const d of current) {
-      for (const p of d.productMetrics) allProducts.push({ ...p, dept: d.name });
+      for (const p of d.productMetrics) allProducts.push({ ...p, dept: p.sourceDept ?? d.name });
     }
     const topProfitProducts = [...allProducts].sort((a, b) => b.profit - a.profit).slice(0, 10);
     const topLossProducts = [...allProducts].sort((a, b) => a.profit - b.profit)
