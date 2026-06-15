@@ -107,6 +107,7 @@ const HRDashboard = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <QuickLink to="/hr/employees" icon={UsersRound} label="بيانات الموظفين" desc="إضافة وتعديل وعرض بيانات كل موظف" />
             <QuickLink to="/hr/work-locations" icon={MapPin} label="أماكن العمل والأقسام" desc="إدارة الأقسام التي يعمل بها الموظفون" />
+            <QuickLink to="/hr/workforce-analysis" icon={PieChart} label="تحليل توزيع العمالة والترشيد" desc="تحليل القطاعات وتوصيات النظام (للعرض فقط)" />
             <QuickLink to="#" icon={CalendarCheck} label="حضور وغياب الموظفين" desc="قريبًا — المرحلة 2" disabled />
             <QuickLink to="#" icon={Receipt} label="سلف الموظفين" desc="قريبًا — المرحلة 2" disabled />
             <QuickLink to="#" icon={Award} label="خصومات وإضافي ومكافآت" desc="قريبًا — المرحلة 2" disabled />
