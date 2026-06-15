@@ -23,7 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { openPrintWindow, COMPANY_AR } from "@/lib/printPdf";
 
-type DeptKey = "hatchery" | "brooding" | "slaughterhouse" | "feed_factory" | "meat_factory";
+type DeptKey = "mother_farm" | "hatchery" | "brooding" | "slaughterhouse" | "feed_factory" | "meat_factory";
 
 interface LineItem {
   date: string; label: string; source: string; amount: number;
@@ -54,6 +54,8 @@ interface DeptResult {
   revenueItems: LineItem[]; expenseItems: LineItem[];
   topRevenueSource?: { source: string; amount: number };
   topExpenseItem?: { source: string; amount: number };
+  actualSaleValue?: number;
+  opsMetrics?: Record<string, number>;
 }
 interface BudgetData {
   year: number; month: number;
@@ -88,6 +90,8 @@ interface BudgetData {
     revenuePct: number | null; expensesPct: number | null;
   }[];
   alerts: { level: "warn" | "danger" | "info"; message: string }[];
+  flowMap?: { from: string; to: string; label: string; amount: number; note?: string }[];
+  verification?: Record<string, any>;
   meta?: {
     note: string; treasuryMovementsCreated: number;
     usedActualProductionCost?: boolean; usedActualSalePrice?: boolean;
@@ -342,6 +346,81 @@ export default function DepartmentMonthlyBudget() {
                     <AlertTriangle className="h-4 w-4" /> {a.message}
                   </div>
                 ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Internal flow map */}
+          {data.flowMap && data.flowMap.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <ArrowUpCircle className="h-4 w-4 text-blue-600" />
+                  خريطة التدفقات الداخلية بين الأقسام (بدون حركة خزنة)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {data.flowMap.map((f, i) => (
+                    <div key={i} className="rounded-md border bg-muted/30 p-3 text-sm">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-semibold text-blue-800">{f.from}</span>
+                        <span className="text-muted-foreground">←</span>
+                        <span className="font-semibold text-purple-800">{f.to}</span>
+                      </div>
+                      <div className="mt-1 flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">{f.label}</span>
+                        <span className="tabular-nums font-bold">{fmt(f.amount)} ج.م</span>
+                      </div>
+                      {f.note && <div className="text-[10px] text-muted-foreground mt-1">{f.note}</div>}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Verification panel */}
+          {data.verification && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Lightbulb className="h-4 w-4 text-amber-500" /> تقرير التحقق
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid sm:grid-cols-2 gap-2 text-sm">
+                  {[
+                    ["هل المجزر يستخدم سعر البيع الفعلي للمنتجات المباعة؟",
+                      data.verification.slaughterUsesActualSalePrice,
+                      data.verification.slaughterActualSaleValue
+                        ? `${fmt(data.verification.slaughterActualSaleValue)} ج.م (للعرض فقط)`
+                        : "لا توجد مبيعات لمنتجات المجزر هذا الشهر"],
+                    ["هل المجزر يستخدم سعر داخلي للمحوّل للمخزن/مصنع اللحوم؟",
+                      data.verification.slaughterUsesInternalPrice, null],
+                    ["هل مصنع العلف حسب قيمة العلف المحوّل داخليًا؟",
+                      data.verification.feedFactoryCountedInternal,
+                      `${fmt(data.verification.feedFactoryInternalValue)} ج.م`],
+                    ["هل تم إنشاء ميزانية مستقلة لحضانات التسمين؟",
+                      data.verification.broodingBudgetIncluded, null],
+                    ["هل تم إنشاء ميزانية مستقلة لمزرعة الأمهات؟",
+                      data.verification.motherFarmBudgetIncluded,
+                      `قيمة بيض للمعمل: ${fmt(data.verification.motherFarmEggValueToHatchery)} ج.م`],
+                    ["هل كل قسم يظهر صافي نقدي وصافي تشغيلي؟",
+                      data.verification.eachDeptHasCashAndOperationalNet, null],
+                    ["هل تم إنشاء أي حركة خزنة؟",
+                      data.verification.treasuryMovementsCreated === 0,
+                      `${data.verification.treasuryMovementsCreated} حركة`],
+                  ].map(([q, ok, note], i) => (
+                    <div key={i} className={`rounded-md border p-2 ${ok ? "bg-green-50 border-green-200" : "bg-amber-50 border-amber-200"}`}>
+                      <div className="flex items-start gap-2">
+                        <Badge className={ok ? "bg-green-600" : "bg-amber-500"}>{ok ? "نعم" : "لا"}</Badge>
+                        <span>{q as string}</span>
+                      </div>
+                      {note ? <div className="text-xs text-muted-foreground mt-1 mr-12">{note as string}</div> : null}
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           )}

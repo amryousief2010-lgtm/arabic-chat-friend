@@ -11,7 +11,7 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
 };
 
-type DeptKey = "hatchery" | "brooding" | "slaughterhouse" | "feed_factory" | "meat_factory";
+type DeptKey = "mother_farm" | "hatchery" | "brooding" | "slaughterhouse" | "feed_factory" | "meat_factory";
 type LineCategory = "cash" | "internal" | "asset";
 
 interface LineItem {
@@ -41,13 +41,13 @@ interface DeptResult {
   cashRevenue: number;
   internalValue: number;
   remainingInventoryValue: number;
-  productionCost: number;        // NEW: cost of producing goods this month
-  operatingExpenses: number;     // NEW: non-production overhead
+  productionCost: number;        // cost of producing goods this month
+  operatingExpenses: number;     // non-production overhead
   expenses: number;              // = productionCost + operatingExpenses
   totalComputedValue: number;
   cashNet: number;
   operationalNet: number;
-  grossMargin: number;           // (cashRevenue+internalValue - productionCost)/sales
+  grossMargin: number;
   expenseRatio: number;
   status: "profit" | "loss" | "even";
   cashStatus: "profit" | "loss" | "even";
@@ -56,13 +56,18 @@ interface DeptResult {
   topRevenueSource?: { source: string; amount: number };
   topExpenseItem?: { source: string; amount: number };
   pricingWarnings: string[];
-  productMetrics: ProductMetric[];        // sorted by profit desc
+  productMetrics: ProductMetric[];
   topProfitProduct?: ProductMetric;
   topLossProduct?: ProductMetric;
   topCostItem?: { name: string; amount: number };
+  // NEW: comparison fields
+  actualSaleValue?: number;      // realized sale price when items were actually sold
+  costBasisOfOutputs?: number;   // cost basis of items produced/output this month
+  opsMetrics?: Record<string, number>; // dept-specific physical metrics (eggs, birds, etc.)
 }
 
 const DEPT_NAMES: Record<DeptKey, string> = {
+  mother_farm: "مزرعة الأمهات",
   hatchery: "معمل التفريخ",
   brooding: "حضانات التسمين",
   slaughterhouse: "المجزر",
@@ -109,6 +114,8 @@ function mkDept(key: DeptKey): DeptResult {
     status: "even", cashStatus: "even",
     revenueItems: [], expenseItems: [], pricingWarnings: [],
     productMetrics: [],
+    actualSaleValue: 0, costBasisOfOutputs: 0,
+    opsMetrics: {},
   };
 }
 
@@ -129,6 +136,94 @@ async function computeMonth(supabase: any, year: number, month: number) {
     effective_from: r.effective_from, is_active: r.is_active,
   }));
 
+  // ============ Mother Farm (NEW) ============
+  // Eggs produced → transferred internally to hatchery (no treasury). Feed cost is the main expense.
+  const motherFarm = mkDept("mother_farm");
+  const { data: mfEggs } = await supabase
+    .from("farm_egg_production")
+    .select("production_date,egg_count")
+    .gte("production_date", dStart).lt("production_date", dEnd);
+  const { data: mfWaste } = await supabase
+    .from("farm_egg_waste")
+    .select("waste_date,egg_count")
+    .gte("waste_date", dStart).lt("waste_date", dEnd);
+  const { data: mfFeedMoves } = await supabase
+    .from("mother_farm_feed_movements")
+    .select("movement_date,movement_type,bags,weight_kg,notes,supplier,reason")
+    .gte("movement_date", dStart).lt("movement_date", dEnd);
+  const { data: mfShipments } = await supabase
+    .from("farm_to_hatchery_shipments")
+    .select("production_date,family_number,egg_count,received_egg_count,damaged_count,status,received_at,is_test")
+    .gte("production_date", dStart).lt("production_date", dEnd);
+  const { data: mfMeds } = await supabase
+    .from("farm_medications")
+    .select("med_date,name,dose")
+    .gte("med_date", dStart).lt("med_date", dEnd);
+  const { data: mfFamilies } = await supabase
+    .from("farm_families")
+    .select("female_count,male_count,status");
+
+  const eggsProduced = (mfEggs ?? []).reduce((a: number, r: any) => a + Number(r.egg_count || 0), 0);
+  const eggsWasted = (mfWaste ?? []).reduce((a: number, r: any) => a + Number(r.egg_count || 0), 0);
+  const eggsNet = Math.max(0, eggsProduced - eggsWasted);
+  const eggsToHatchery = (mfShipments ?? [])
+    .filter((s: any) => !s.is_test && s.status !== "rejected")
+    .reduce((a: number, r: any) => a + Number(r.received_egg_count || r.egg_count || 0), 0);
+  const activeFamilies = (mfFamilies ?? []).filter((f: any) => f.status === "active");
+  const motherFarmBirds = activeFamilies.reduce((a: number, f: any) => a + Number(f.female_count || 0) + Number(f.male_count || 0), 0);
+
+  // Mother-farm feed cost: weight in × avg feed unit cost (use feed_products avg or feed_internal_prices)
+  let mfFeedWeightKg = 0;
+  for (const m of mfFeedMoves ?? []) {
+    if (m.movement_type === "in") mfFeedWeightKg += Number(m.weight_kg || (Number(m.bags || 0) * 25));
+  }
+  // Estimate avg feed unit cost from active feed products
+  const { data: feedProdAvg } = await supabase
+    .from("feed_products").select("latest_unit_cost,archived_at").is("archived_at", null);
+  const avgFeedUnitCost = (() => {
+    const arr = (feedProdAvg ?? []).map((p: any) => Number(p.latest_unit_cost || 0)).filter((n: number) => n > 0);
+    return arr.length ? arr.reduce((a: number, b: number) => a + b, 0) / arr.length : 0;
+  })();
+  const mfFeedCost = mfFeedWeightKg * avgFeedUnitCost;
+  if (mfFeedWeightKg > 0 && avgFeedUnitCost <= 0) {
+    motherFarm.pricingWarnings.push("لا توجد تكلفة وحدة معتمدة للعلف — لم تُحتسب تكلفة علف الأمهات");
+  } else if (mfFeedCost > 0) {
+    motherFarm.productionCost += mfFeedCost;
+    motherFarm.expenseItems.push({
+      date: dStart, label: `علف الأمهات (${mfFeedWeightKg} كجم × ${avgFeedUnitCost.toFixed(2)} ج/كجم)`,
+      source: "علف الأمهات", amount: mfFeedCost, category: "cash", priceSource: "avg_cost",
+    });
+  }
+  // Cost per egg this month (used to value eggs sent to hatchery internally)
+  const costPerEgg = eggsNet > 0 && motherFarm.productionCost > 0
+    ? motherFarm.productionCost / eggsNet : 0;
+  const eggsValueToHatchery = eggsToHatchery * costPerEgg;
+  if (eggsValueToHatchery > 0) {
+    motherFarm.internalValue += eggsValueToHatchery;
+    motherFarm.revenueItems.push({
+      date: dEnd, label: `بيض محوّل للمعمل (${eggsToHatchery} بيضة × ${costPerEgg.toFixed(2)} ج/بيضة)`,
+      source: "قيمة بيض محوّل للمعمل", amount: eggsValueToHatchery,
+      category: "internal", priceSource: "production_cost",
+    });
+  }
+  // Remaining eggs not yet shipped → asset
+  const remainingEggs = Math.max(0, eggsNet - eggsToHatchery);
+  const remainingEggsValue = remainingEggs * costPerEgg;
+  if (remainingEggsValue > 0) {
+    motherFarm.remainingInventoryValue += remainingEggsValue;
+    motherFarm.revenueItems.push({
+      date: dEnd, label: `بيض متبقٍ غير محوّل (${remainingEggs} بيضة)`,
+      source: "قيمة بيض متبقٍ", amount: remainingEggsValue,
+      category: "asset", priceSource: "production_cost",
+    });
+  }
+  motherFarm.opsMetrics = {
+    eggsProduced, eggsWasted, eggsNet, eggsToHatchery,
+    remainingEggs, costPerEgg: Number(costPerEgg.toFixed(3)),
+    feedWeightKg: mfFeedWeightKg, families: activeFamilies.length, birds: motherFarmBirds,
+    medicationDoses: (mfMeds ?? []).length,
+  };
+
   // ============ Hatchery ============
   const { data: hInv } = await supabase
     .from("hatchery_client_invoices")
@@ -139,6 +234,17 @@ async function computeMonth(supabase: any, year: number, month: number) {
     .select("txn_date,direction,category,amount,notes")
     .gte("txn_date", dStart).lt("txn_date", dEnd);
   const hatchery = mkDept("hatchery");
+  // Eggs received from mother farm = production input cost on the hatchery
+  if (eggsValueToHatchery > 0) {
+    hatchery.productionCost += eggsValueToHatchery;
+    hatchery.expenseItems.push({
+      date: dStart,
+      label: `بيض داخل من مزرعة الأمهات (${eggsToHatchery} بيضة × ${costPerEgg.toFixed(2)})`,
+      source: "تكلفة بيض الإنتاج (داخلي)", amount: eggsValueToHatchery,
+      category: "internal", priceSource: "production_cost",
+    });
+  }
+  hatchery.opsMetrics = { eggsIn: eggsToHatchery, costPerEgg: Number(costPerEgg.toFixed(3)) };
   for (const inv of hInv ?? []) {
     const parts: Array<[string, number]> = [
       ["رسوم الكتاكيت", Number(inv.chicks_amount || 0)],
@@ -152,6 +258,7 @@ async function computeMonth(supabase: any, year: number, month: number) {
         hatchery.revenueItems.push({
           date: inv.issued_at, label, source: label, amount: amt,
           category: "cash", reference: inv.invoice_no, treasury: inv.client_name_snapshot,
+          priceSource: "sale_price",
         });
       }
     }
@@ -206,6 +313,62 @@ async function computeMonth(supabase: any, year: number, month: number) {
       source: "علف الحضانات", amount: amt, category: "cash", notes: f.notes,
     });
   }
+  // Transfers to slaughter as internal value + mortality (loss event)
+  const { data: bToSlaughter } = await supabase
+    .from("brooding_to_slaughter_transfers")
+    .select("transfer_date,count,total_weight_kg,transferred_cost,valuation_amount,live_price_per_kg")
+    .gte("transfer_date", dStart).lt("transfer_date", dEnd);
+  const { data: bMortality } = await supabase
+    .from("brooding_mortality")
+    .select("mortality_date,count")
+    .gte("mortality_date", dStart).lt("mortality_date", dEnd);
+  const { data: bActiveBatches } = await supabase
+    .from("brooding_batches")
+    .select("batch_number,current_count,cost_per_bird,status")
+    .neq("status", "closed");
+
+  let transferredCount = 0, transferredValue = 0;
+  for (const t of bToSlaughter ?? []) {
+    const v = Number(t.valuation_amount || t.transferred_cost || 0);
+    transferredCount += Number(t.count || 0);
+    if (v > 0) {
+      transferredValue += v;
+      brooding.internalValue += v;
+      brooding.revenueItems.push({
+        date: t.transfer_date,
+        label: `تحويل ${t.count} كتكوت للمجزر (${t.total_weight_kg} كجم)`,
+        source: "قيمة كتاكيت محوّلة للمجزر", amount: v,
+        category: "internal", priceSource: t.live_price_per_kg ? "sale_price" : "production_cost",
+      });
+    }
+  }
+  // Remaining chicks asset
+  let chicksRemaining = 0, chicksRemainingValue = 0;
+  for (const b of bActiveBatches ?? []) {
+    const c = Number(b.current_count || 0);
+    const cpb = Number(b.cost_per_bird || 0);
+    if (c > 0 && cpb > 0) {
+      chicksRemaining += c;
+      const v = c * cpb;
+      chicksRemainingValue += v;
+      brooding.remainingInventoryValue += v;
+      brooding.revenueItems.push({
+        date: dEnd, label: `كتاكيت في الحضانات (${b.batch_number}: ${c}×${cpb.toFixed(2)})`,
+        source: "قيمة كتاكيت متبقية", amount: v,
+        category: "asset", priceSource: "production_cost",
+      });
+    }
+  }
+  const mortalityCount = (bMortality ?? []).reduce((a: number, r: any) => a + Number(r.count || 0), 0);
+  brooding.opsMetrics = {
+    soldCount: (bSales ?? []).reduce((a: number, s: any) => a + Number(s.count || 0), 0),
+    transferredToSlaughter: transferredCount,
+    mortalityCount,
+    chicksRemaining,
+    chicksRemainingValue: Math.round(chicksRemainingValue),
+    transferredValue: Math.round(transferredValue),
+  };
+
 
   // ============ Slaughterhouse ============
   const { data: sBatches } = await supabase
@@ -323,6 +486,50 @@ async function computeMonth(supabase: any, year: number, month: number) {
       }
     }
   }
+  // Actual sale value for slaughter products via order_items (comparison only — does not add to cashRevenue
+  // because cash flows through main treasury, not slaughter's books)
+  const slaughterProductIds = Array.from(new Set(
+    (sOutputs ?? []).map((o: any) => o.product_id).filter(Boolean),
+  ));
+  let actualSaleValue = 0, actualSaleQty = 0;
+  if (slaughterProductIds.length) {
+    const { data: ordersInMonth } = await supabase
+      .from("orders").select("id,created_at,status")
+      .gte("created_at", tsStart).lt("created_at", tsEnd)
+      .neq("status", "cancelled");
+    const orderIds = (ordersInMonth ?? []).map((o: any) => o.id);
+    if (orderIds.length) {
+      // Chunk in 500s to be safe
+      for (let i = 0; i < orderIds.length; i += 500) {
+        const chunk = orderIds.slice(i, i + 500);
+        const { data: oi } = await supabase
+          .from("order_items")
+          .select("product_id,product_name,quantity,unit_price,total_price")
+          .in("order_id", chunk).in("product_id", slaughterProductIds);
+        for (const it of oi ?? []) {
+          const v = Number(it.total_price || (Number(it.quantity || 0) * Number(it.unit_price || 0)));
+          if (v > 0) {
+            actualSaleValue += v;
+            actualSaleQty += Number(it.quantity || 0);
+          }
+        }
+      }
+    }
+  }
+  slaughter.actualSaleValue = actualSaleValue;
+  slaughter.opsMetrics = {
+    birds: totalBirds, totalMeatKg: Math.round(totalMeatKg),
+    totalLiveKg: Math.round(totalLiveKg),
+    actualSaleValue: Math.round(actualSaleValue),
+    actualSaleQty: Math.round(actualSaleQty),
+    costBasis: Math.round(slaughter.productionCost),
+  };
+  if (actualSaleValue > 0) {
+    slaughter.pricingWarnings.push(
+      `سعر البيع الفعلي للمنتجات المباعة عبر الطلبات: ${Math.round(actualSaleValue).toLocaleString()} ج.م (للعرض فقط — لا يضاف للإيراد النقدي لأن التحصيل يقع على الخزنة الرئيسية)`,
+    );
+  }
+
 
   // ============ Feed Factory ============
   const { data: fSales } = await supabase
@@ -648,7 +855,7 @@ async function computeMonth(supabase: any, year: number, month: number) {
   meatF.remainingInventoryValue = mAsset;
 
   // ============ Finalize ============
-  const depts = [hatchery, brooding, slaughter, feedF, meatF];
+  const depts = [motherFarm, hatchery, brooding, slaughter, feedF, meatF];
   for (const d of depts) {
     d.expenses = d.productionCost + d.operatingExpenses;
     d.totalComputedValue = d.cashRevenue + d.internalValue + d.remainingInventoryValue;
@@ -674,6 +881,53 @@ async function computeMonth(supabase: any, year: number, month: number) {
     }
   }
   return depts;
+}
+
+function buildFlowMap(depts: DeptResult[]) {
+  const find = (k: DeptKey) => depts.find(d => d.key === k);
+  const mf = find("mother_farm"), h = find("hatchery"), br = find("brooding");
+  const sl = find("slaughterhouse"), ff = find("feed_factory"), me = find("meat_factory");
+  const flows: Array<{ from: string; to: string; label: string; amount: number; note?: string }> = [];
+  if (mf && mf.opsMetrics?.eggsToHatchery)
+    flows.push({ from: "مزرعة الأمهات", to: "معمل التفريخ",
+      label: `بيض (${mf.opsMetrics.eggsToHatchery})`, amount: Math.round(mf.internalValue),
+      note: `${(mf.opsMetrics.costPerEgg || 0).toFixed(2)} ج/بيضة` });
+  if (br && br.opsMetrics?.transferredToSlaughter)
+    flows.push({ from: "حضانات التسمين", to: "المجزر",
+      label: `كتاكيت (${br.opsMetrics.transferredToSlaughter})`,
+      amount: br.opsMetrics.transferredValue || 0 });
+  // Feed factory → consumers (sum of feed-related internal flows on receiving depts)
+  if (ff && ff.internalValue > 0)
+    flows.push({ from: "مصنع العلف", to: "أقسام داخلية (حضانات/مجزر/أمهات)",
+      label: "علف موَرَّد داخليًا", amount: Math.round(ff.internalValue) });
+  if (sl && sl.internalValue > 0)
+    flows.push({ from: "المجزر", to: "المخزن الرئيسي / مصنع اللحوم",
+      label: "ناتج ذبح محوَّل", amount: Math.round(sl.internalValue) });
+  if (me && me.cashRevenue > 0)
+    flows.push({ from: "مصنع اللحوم", to: "البيع الخارجي",
+      label: "مبيعات منتج نهائي", amount: Math.round(me.cashRevenue) });
+  return flows;
+}
+
+function buildVerification(depts: DeptResult[]) {
+  const sl = depts.find(d => d.key === "slaughterhouse");
+  const ff = depts.find(d => d.key === "feed_factory");
+  const br = depts.find(d => d.key === "brooding");
+  const mf = depts.find(d => d.key === "mother_farm");
+  return {
+    slaughterUsesActualSalePrice: !!(sl?.actualSaleValue && sl.actualSaleValue > 0),
+    slaughterActualSaleValue: sl?.actualSaleValue ?? 0,
+    slaughterUsesInternalPrice: !!(sl?.internalValue && sl.internalValue > 0),
+    feedFactoryCountedInternal: !!(ff?.internalValue && ff.internalValue > 0),
+    feedFactoryInternalValue: ff?.internalValue ?? 0,
+    broodingBudgetIncluded: !!br,
+    motherFarmBudgetIncluded: !!mf,
+    motherFarmEggValueToHatchery: mf?.internalValue ?? 0,
+    treasuryMovementsCreated: 0,
+    eachDeptHasCashAndOperationalNet: depts.every(d =>
+      typeof d.cashNet === "number" && typeof d.operationalNet === "number",
+    ),
+  };
 }
 
 Deno.serve(async (req) => {
@@ -817,6 +1071,8 @@ Deno.serve(async (req) => {
         topLossProducts,
         comparison,
         alerts,
+        flowMap: buildFlowMap(current),
+        verification: buildVerification(current),
         meta: {
           note: "تكلفة الإنتاج من فواتير التصنيع الفعلية + سعر البيع الفعلي من فواتير المبيعات. القيم التشغيلية والأصول لا تنشئ أي حركة خزنة.",
           treasuryMovementsCreated: 0,
