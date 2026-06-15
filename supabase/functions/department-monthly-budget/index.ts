@@ -681,6 +681,123 @@ async function computeMonth(supabase: any, year: number, month: number) {
     (slaughter.opsMetrics as any).unmappedOutputCount = unmappedOutputs.length;
   }
 
+  // ---- Slaughterhouse DEEP ANALYSIS ----
+  {
+    const liveReceiptIds = Array.from(new Set((sBatches ?? []).map((b: any) => b.live_receipt_id).filter(Boolean)));
+    let birdsCost = 0, birdsCount = 0, birdsKg = 0;
+    if (liveReceiptIds.length) {
+      const { data: lr } = await supabase
+        .from("slaughter_live_receipts")
+        .select("id,total_cost,bird_count,total_weight_kg")
+        .in("id", liveReceiptIds);
+      for (const r of lr ?? []) {
+        birdsCost += Number(r.total_cost || 0);
+        birdsCount += Number(r.bird_count || 0);
+        birdsKg += Number(r.total_weight_kg || 0);
+      }
+    }
+    const feedCostSL = (sFeed ?? []).filter((f: any) => f.movement_type !== "in")
+      .reduce((a: number, f: any) => a + Number(f.total_cost || 0), 0);
+    const SL_CAT_LBL: Record<string, string> = {
+      daily_labor: "عمالة يومية", labor: "عمالة", fuel: "وقود",
+      utilities: "كهرباء/مياه", maintenance: "صيانة", transport: "نقل",
+      sanitation: "تنظيف", cleaning: "تنظيف", veterinary: "بيطري",
+      hospitality: "ضيافة", other: "أخرى",
+    };
+    const custodyByCat: Record<string, number> = {};
+    for (const e of sExp ?? []) {
+      if (e.status === "rejected") continue;
+      const k = e.category || "other";
+      custodyByCat[k] = (custodyByCat[k] || 0) + Number(e.amount || 0);
+    }
+    const custodyBreakdown = Object.entries(custodyByCat).map(([code, amount]) => ({
+      code, label: SL_CAT_LBL[code] || code, amount,
+    })).sort((a, b) => b.amount - a.amount);
+
+    // Outputs aggregated per cut
+    const outAgg = new Map<string, { cut: string; qty: number; ucTotal: number; qtyWithCost: number; transferred: number; unmapped: number }>();
+    for (const o of sOutputs ?? []) {
+      const cut = (o.cut_name_ar || "—").trim();
+      const cur = outAgg.get(cut) || { cut, qty: 0, ucTotal: 0, qtyWithCost: 0, transferred: 0, unmapped: 0 };
+      const w = Number(o.actual_weight_kg || 0);
+      const uc = Number(o.unit_cost || 0);
+      cur.qty += w;
+      if (uc > 0) { cur.ucTotal += w * uc; cur.qtyWithCost += w; }
+      if (!o.product_id) cur.unmapped++;
+      outAgg.set(cut, cur);
+    }
+    for (const t of sTrans ?? []) {
+      if (t.status === "rejected") continue;
+      const cut = (t.cut_name_ar || "—").trim();
+      const cur = outAgg.get(cut) || { cut, qty: 0, ucTotal: 0, qtyWithCost: 0, transferred: 0, unmapped: 0 };
+      cur.transferred += Number(t.total_value || (Number(t.weight_kg || 0) * Number(t.unit_price || 0)));
+      outAgg.set(cut, cur);
+    }
+    const outputsTable = [...outAgg.values()].map((r) => {
+      const ip = pickPrice(slPrices, r.cut, dEnd);
+      const avgCost = r.qtyWithCost > 0 ? r.ucTotal / r.qtyWithCost : 0;
+      return {
+        cut: r.cut, qty: Math.round(r.qty * 100) / 100,
+        avgUnitCost: Math.round(avgCost * 100) / 100,
+        internalPrice: ip ?? 0,
+        valueAtCost: Math.round(r.ucTotal),
+        valueAtInternal: ip ? Math.round(r.qty * ip) : 0,
+        transferredValue: Math.round(r.transferred),
+        unmappedCount: r.unmapped,
+      };
+    }).sort((a, b) => b.qty - a.qty);
+
+    const totalKg = outputsTable.reduce((a, r) => a + r.qty, 0);
+    const totalAtCost = outputsTable.reduce((a, r) => a + r.valueAtCost, 0);
+    const totalAtInternal = outputsTable.reduce((a, r) => a + r.valueAtInternal, 0);
+    const totalTransferred = outputsTable.reduce((a, r) => a + r.transferredValue, 0);
+    const unmappedTotal = outputsTable.reduce((a, r) => a + r.unmappedCount, 0);
+    const noInternalPriceCuts = outputsTable.filter((r) => r.qty > 0 && r.internalPrice <= 0);
+
+    const grandCost = slaughter.productionCost + slaughter.operatingExpenses;
+    const breakEvenPricePerKg = totalKg > 0 ? grandCost / totalKg : 0;
+
+    const slRoot: string[] = [];
+    if (unmappedTotal > 0) slRoot.push(`${unmappedTotal} ناتج ذبح غير مربوط بمنتج — يقلل دقة ربحية المنتجات`);
+    if (noInternalPriceCuts.length) slRoot.push(`${noInternalPriceCuts.length} صنف بدون سعر داخلي معتمد (${noInternalPriceCuts.slice(0, 3).map((c) => c.cut).join("، ")}) — لا تدخل بقيمة تشغيلية كاملة`);
+    if (grandCost > totalAtInternal + slaughter.remainingInventoryValue && totalAtInternal > 0) {
+      slRoot.push(`تكلفة المجزر (${Math.round(grandCost).toLocaleString()}) أعلى من قيمة المخرجات بالسعر الداخلي (${Math.round(totalAtInternal).toLocaleString()}) — السعر الداخلي منخفض أو تكلفة الذبح مرتفعة`);
+    }
+    const laborAmt = (custodyByCat["daily_labor"] || 0) + (custodyByCat["labor"] || 0);
+    if (laborAmt > 0 && grandCost > 0 && (laborAmt / grandCost) > 0.4) {
+      slRoot.push(`العمالة تمثل ${((laborAmt / grandCost) * 100).toFixed(0)}% من تكلفة المجزر`);
+    }
+    if (birdsCost > 0 && grandCost > 0 && (birdsCost / grandCost) > 0.6) {
+      slRoot.push(`تكلفة النعام/الطيور تمثل ${((birdsCost / grandCost) * 100).toFixed(0)}% من تكلفة المجزر — أكبر بند`);
+    }
+
+    (slaughter as any).deepAnalysis = {
+      type: "slaughterhouse",
+      costBreakdown: {
+        birds: Math.round(birdsCost),
+        birdsCount, birdsKg: Math.round(birdsKg),
+        feed: Math.round(feedCostSL),
+        custodyTotal: Math.round(slaughter.operatingExpenses),
+        custodyByCategory: custodyBreakdown,
+        productionCostTotal: Math.round(slaughter.productionCost),
+        grandTotal: Math.round(grandCost),
+      },
+      outputs: outputsTable,
+      outputTotals: {
+        totalKg: Math.round(totalKg * 100) / 100,
+        valueAtCost: totalAtCost,
+        valueAtInternalPrice: totalAtInternal,
+        valueOfTransfers: totalTransferred,
+        actualSalesValue: Math.round(actualSaleValue),
+        remainingInventoryValue: Math.round(slaughter.remainingInventoryValue),
+      },
+      breakEvenPricePerKg: Math.round(breakEvenPricePerKg * 100) / 100,
+      rootCauses: slRoot,
+    };
+  }
+
+
+
 
   // ============ Sold-Product Profitability (links order_items → cost source) ============
   // Cost source priority per product_id:
