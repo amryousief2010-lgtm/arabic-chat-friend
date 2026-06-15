@@ -570,6 +570,55 @@ export default function BatchAccountDialog({
                   )}
                 </div>
               </div>
+              {/* Incoming carryovers alert: other open carryovers for the same client */}
+              {incomingCarryovers.length > 0 && (
+                <div className="rounded-lg border-2 border-amber-500 bg-amber-50 dark:bg-amber-950/30 p-3 space-y-2">
+                  <p className="font-semibold text-amber-800 dark:text-amber-200 text-sm">
+                    🔔 يوجد متبقي مرحّل لهذا العميل من فاتورة سابقة
+                  </p>
+                  <div className="space-y-1">
+                    {incomingCarryovers.map((c: any) => (
+                      <div key={c.id} className="flex items-center justify-between gap-2 text-xs bg-background rounded border p-2">
+                        <div>
+                          متبقي مرحّل من فاتورة <b className="font-mono">{c.source_invoice?.invoice_no || c.source_invoice_id?.slice(0,8)}</b>
+                          <span className="mx-2">—</span>
+                          <b className="text-primary">{fmtMoney(c.amount)}</b>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button size="sm" className="h-7 text-xs"
+                            disabled={applyingCarry === c.id}
+                            onClick={() => applyCarryover(c.id)}>
+                            {applyingCarry === c.id ? "..." : "إضافة لهذه الفاتورة"}
+                          </Button>
+                          {canDiscount && (
+                            <Button size="sm" variant="ghost" className="h-7 text-xs"
+                              onClick={() => cancelCarryover(c.id)}>إلغاء</Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Carryover summary on this invoice */}
+              {(num(invoice.carryover_out_amount) > 0 || num(invoice.carryover_in_amount) > 0) && (
+                <div className="rounded border bg-blue-50 dark:bg-blue-950/30 p-2 text-xs space-y-1">
+                  {num(invoice.carryover_in_amount) > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span>متبقي مرحّل وارد (أُضيف من فواتير سابقة):</span>
+                      <b className="text-blue-700">{fmtMoney(invoice.carryover_in_amount)}</b>
+                    </div>
+                  )}
+                  {num(invoice.carryover_out_amount) > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span>متبقي مرحّل صادر (تم ترحيله لفاتورة لاحقة):</span>
+                      <b className="text-amber-700">{fmtMoney(invoice.carryover_out_amount)}</b>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
                 <Info label="رسوم اللايح" value={fmtMoney(invoice.infertile_amount)} />
                 <Info label="رسوم الكشف الثاني" value={fmtMoney(invoice.completed_unhatched_amount)} />
