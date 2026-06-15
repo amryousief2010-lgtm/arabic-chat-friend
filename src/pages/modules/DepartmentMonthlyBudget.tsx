@@ -496,22 +496,37 @@ export default function DepartmentMonthlyBudget() {
           {selectedDept && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <KpiCard title="الإيرادات" value={fmt(selectedDept.revenue)} accent="text-green-700" />
+                <KpiCard title="إيراد نقدي" value={fmt(selectedDept.cashRevenue)} accent="text-green-700" />
+                <KpiCard title="قيمة تشغيلية داخلية" value={fmt(selectedDept.internalValue)} accent="text-blue-700" />
+                <KpiCard title="قيمة مخزون متبقٍ" value={fmt(selectedDept.remainingInventoryValue)} accent="text-purple-700" />
+                <KpiCard title="إجمالي القيمة" value={fmt(selectedDept.totalComputedValue)} accent="text-foreground" />
                 <KpiCard title="المصروفات" value={fmt(selectedDept.expenses)} accent="text-red-700" />
-                <KpiCard title="الصافي" value={fmt(selectedDept.net)}
-                  accent={selectedDept.net >= 0 ? "text-green-700" : "text-red-700"} />
+                <KpiCard title="صافي نقدي"
+                  value={fmt(selectedDept.cashNet)}
+                  accent={selectedDept.cashNet >= 0 ? "text-green-700" : "text-red-700"} />
+                <KpiCard title="صافي تشغيلي"
+                  value={fmt(selectedDept.operationalNet)}
+                  accent={selectedDept.operationalNet >= 0 ? "text-green-700" : "text-red-700"} />
                 <KpiCard title="نسبة المصروفات" value={`${selectedDept.expenseRatio.toFixed(1)}%`} />
               </div>
+              {selectedDept.pricingWarnings.length > 0 && (
+                <div className="rounded-md p-3 bg-amber-50 border border-amber-200 text-sm">
+                  {selectedDept.pricingWarnings.map((w, i) => (
+                    <div key={i} className="flex gap-2"><AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" /> {w}</div>
+                  ))}
+                </div>
+              )}
               <Tabs defaultValue="rev">
                 <TabsList>
-                  <TabsTrigger value="rev">الإيرادات ({selectedDept.revenueItems.length})</TabsTrigger>
+                  <TabsTrigger value="rev">الإيرادات والقيم ({selectedDept.revenueItems.length})</TabsTrigger>
                   <TabsTrigger value="exp">المصروفات ({selectedDept.expenseItems.length})</TabsTrigger>
                 </TabsList>
                 <TabsContent value="rev">
                   <Table>
                     <TableHeader><TableRow>
                       <TableHead>التاريخ</TableHead><TableHead>البيان</TableHead>
-                      <TableHead>المصدر</TableHead><TableHead>المبلغ</TableHead>
+                      <TableHead>المصدر</TableHead><TableHead>النوع</TableHead>
+                      <TableHead>المبلغ</TableHead>
                       <TableHead>المرجع</TableHead><TableHead>الجهة</TableHead>
                     </TableRow></TableHeader>
                     <TableBody>
