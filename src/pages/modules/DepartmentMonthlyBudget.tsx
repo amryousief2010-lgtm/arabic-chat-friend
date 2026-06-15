@@ -1292,3 +1292,231 @@ function KpiCard({ title, value, sub, icon, accent }: {
     </Card>
   );
 }
+
+function DeepAnalysisSection({ data }: { data: any }) {
+  if (!data) return null;
+  if (data.type === "slaughterhouse") return <SlaughterDeepAnalysis d={data} />;
+  if (data.type === "hatchery") return <HatcheryDeepAnalysis d={data} />;
+  return null;
+}
+
+function SlaughterDeepAnalysis({ d }: { d: any }) {
+  const cb = d.costBreakdown || {};
+  const ot = d.outputTotals || {};
+  const outs: any[] = d.outputs || [];
+  const cats: any[] = cb.custodyByCategory || [];
+  const causes: string[] = d.rootCauses || [];
+  const diff = (ot.valueAtInternalPrice || 0) - (cb.grandTotal || 0);
+
+  return (
+    <div className="space-y-4 mt-2">
+      <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-3">
+        <div className="font-bold text-primary mb-2">تحليل تفصيلي — المجزر</div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <KpiCard title="تكلفة الطيور/النعام" value={fmt(cb.birds)} sub={`${fmt(cb.birdsCount || 0)} طائر · ${fmt(cb.birdsKg || 0)} كجم`} accent="text-orange-700" />
+          <KpiCard title="علف المجزر" value={fmt(cb.feed)} accent="text-orange-700" />
+          <KpiCard title="عهدة المجزر (إجمالي)" value={fmt(cb.custodyTotal)} accent="text-red-700" />
+          <KpiCard title="تكلفة الذبح المباشرة" value={fmt(cb.productionCostTotal)} accent="text-red-700" />
+        </div>
+      </div>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">تفصيل مصروفات العهدة</CardTitle></CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader><TableRow><TableHead>البند</TableHead><TableHead>المبلغ</TableHead><TableHead>%</TableHead></TableRow></TableHeader>
+            <TableBody>
+              {cats.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground">لا توجد مصروفات عهدة</TableCell></TableRow>}
+              {cats.map((c, i) => (
+                <TableRow key={i}>
+                  <TableCell>{c.label}</TableCell>
+                  <TableCell className="tabular-nums text-red-700">{fmt(c.amount)}</TableCell>
+                  <TableCell className="tabular-nums">{cb.custodyTotal > 0 ? ((c.amount / cb.custodyTotal) * 100).toFixed(0) : 0}%</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">ناتج الذبح — تفصيل لكل صنف</CardTitle></CardHeader>
+        <CardContent className="overflow-x-auto">
+          <Table>
+            <TableHeader><TableRow>
+              <TableHead>الصنف</TableHead>
+              <TableHead>كجم</TableHead>
+              <TableHead>تكلفة/كجم</TableHead>
+              <TableHead>سعر داخلي</TableHead>
+              <TableHead>قيمة بالتكلفة</TableHead>
+              <TableHead>قيمة بالسعر الداخلي</TableHead>
+              <TableHead>قيمة المحول</TableHead>
+              <TableHead>غير مربوط</TableHead>
+            </TableRow></TableHeader>
+            <TableBody>
+              {outs.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">لا توجد مخرجات</TableCell></TableRow>}
+              {outs.map((o, i) => (
+                <TableRow key={i} className={o.internalPrice <= 0 ? "bg-amber-50" : ""}>
+                  <TableCell>{o.cut}</TableCell>
+                  <TableCell className="tabular-nums">{fmt(o.qty)}</TableCell>
+                  <TableCell className="tabular-nums">{fmt(o.avgUnitCost)}</TableCell>
+                  <TableCell className="tabular-nums">{o.internalPrice > 0 ? fmt(o.internalPrice) : <Badge variant="destructive" className="text-[10px]">بدون سعر</Badge>}</TableCell>
+                  <TableCell className="tabular-nums">{fmt(o.valueAtCost)}</TableCell>
+                  <TableCell className="tabular-nums text-blue-700">{fmt(o.valueAtInternal)}</TableCell>
+                  <TableCell className="tabular-nums text-green-700">{fmt(o.transferredValue)}</TableCell>
+                  <TableCell className="tabular-nums">{o.unmappedCount > 0 ? <Badge variant="destructive" className="text-[10px]">{o.unmappedCount}</Badge> : "—"}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">جدول ربح/خسارة المجزر</CardTitle></CardHeader>
+        <CardContent>
+          <Table>
+            <TableBody>
+              <TableRow><TableCell>إجمالي تكلفة المجزر</TableCell><TableCell className="tabular-nums text-red-700">{fmt(cb.grandTotal)}</TableCell></TableRow>
+              <TableRow><TableCell>قيمة المخرجات بسعر التكلفة</TableCell><TableCell className="tabular-nums">{fmt(ot.valueAtCost)}</TableCell></TableRow>
+              <TableRow><TableCell>قيمة المخرجات بالسعر الداخلي</TableCell><TableCell className="tabular-nums text-blue-700">{fmt(ot.valueAtInternalPrice)}</TableCell></TableRow>
+              <TableRow><TableCell>قيمة التحويلات الفعلية للمخزن/مصنع اللحوم</TableCell><TableCell className="tabular-nums text-green-700">{fmt(ot.valueOfTransfers)}</TableCell></TableRow>
+              <TableRow><TableCell>قيمة المبيعات الفعلية للمنتجات</TableCell><TableCell className="tabular-nums text-green-700">{fmt(ot.actualSalesValue)}</TableCell></TableRow>
+              <TableRow><TableCell>قيمة المخزون المتبقي</TableCell><TableCell className="tabular-nums text-purple-700">{fmt(ot.remainingInventoryValue)}</TableCell></TableRow>
+              <TableRow className="font-bold border-t-2"><TableCell>الفرق (قيمة داخلية − تكلفة)</TableCell><TableCell className={`tabular-nums ${diff >= 0 ? "text-green-700" : "text-red-700"}`}>{fmt(diff)}</TableCell></TableRow>
+              <TableRow><TableCell>سعر تعادل/كجم مطلوب</TableCell><TableCell className="tabular-nums">{fmt(d.breakEvenPricePerKg)} ج/كجم</TableCell></TableRow>
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {causes.length > 0 && (
+        <Card className="border-red-300 bg-red-50">
+          <CardHeader><CardTitle className="text-base flex items-center gap-2 text-red-800">
+            <AlertTriangle className="h-4 w-4" /> أسباب الخسارة المحتملة
+          </CardTitle></CardHeader>
+          <CardContent>
+            <ul className="space-y-2 text-sm">
+              {causes.map((c, i) => <li key={i} className="flex gap-2"><span className="text-red-700 font-bold">•</span><span>{c}</span></li>)}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function HatcheryDeepAnalysis({ d }: { d: any }) {
+  const rev = d.revenueByService || {};
+  const col = d.collections || {};
+  const exp = d.expenses || {};
+  const causes: string[] = d.rootCauses || [];
+  const byMethod: any[] = col.byMethod || [];
+  const expCats: any[] = exp.byCategory || [];
+  const cashNet = (col.total || 0) - (exp.total || 0);
+  const opNet = (d.invoicedTotal || 0) - (d.discountsTotal || 0) - (exp.total || 0);
+
+  return (
+    <div className="space-y-4 mt-2">
+      <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-3">
+        <div className="font-bold text-primary mb-2">تحليل تفصيلي — معمل التفريخ</div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <KpiCard title="إجمالي فواتير التفريخ" value={fmt(d.invoicedTotal)} accent="text-blue-700" />
+          <KpiCard title="إجمالي المحصل نقديًا" value={fmt(col.total)} accent="text-green-700" />
+          <KpiCard title="متبقي على العملاء" value={fmt(d.outstandingOnCustomers)} accent="text-red-700" />
+          <KpiCard title="مصروفات المعمل" value={fmt(exp.total)} accent="text-red-700" />
+        </div>
+      </div>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">تفصيل إيرادات الفواتير حسب الخدمة</CardTitle></CardHeader>
+        <CardContent>
+          <Table>
+            <TableBody>
+              <TableRow><TableCell>رسوم الكتاكيت</TableCell><TableCell className="tabular-nums text-green-700">{fmt(rev.chicks)}</TableCell></TableRow>
+              <TableRow><TableCell>رسوم التحضين</TableCell><TableCell className="tabular-nums text-green-700">{fmt(rev.brooding)}</TableCell></TableRow>
+              <TableRow><TableCell>رسوم اللايح (مكتمل بدون فقس)</TableCell><TableCell className="tabular-nums text-green-700">{fmt(rev.completed_unhatched)}</TableCell></TableRow>
+              <TableRow><TableCell>رسوم الكشف (لقاح)</TableCell><TableCell className="tabular-nums text-green-700">{fmt(rev.infertile)}</TableCell></TableRow>
+              <TableRow className="font-bold border-t-2"><TableCell>إجمالي الفواتير</TableCell><TableCell className="tabular-nums">{fmt(d.invoicedTotal)}</TableCell></TableRow>
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">التحصيلات النقدية بالتفصيل</CardTitle></CardHeader>
+        <CardContent>
+          <Table>
+            <TableBody>
+              <TableRow><TableCell>تحصيلات على فواتير محددة</TableCell><TableCell className="tabular-nums">{fmt(col.fromInvoicePayments)}</TableCell></TableRow>
+              <TableRow><TableCell>تحصيلات على حساب العميل (دفعات)</TableCell><TableCell className="tabular-nums">{fmt(col.fromCustomerDeposits)}</TableCell></TableRow>
+              <TableRow><TableCell>خزنة المعمل — معتمدة</TableCell><TableCell className="tabular-nums text-green-700">{fmt(col.fromLabTreasuryApproved)}</TableCell></TableRow>
+              <TableRow><TableCell>خزنة المعمل — قيد الاعتماد (pending)</TableCell><TableCell className="tabular-nums text-amber-700">{fmt(col.labTreasuryPending)}</TableCell></TableRow>
+              <TableRow className="font-bold border-t-2"><TableCell>إجمالي المحصل نقديًا (معتمد)</TableCell><TableCell className="tabular-nums text-green-700">{fmt(col.total)}</TableCell></TableRow>
+            </TableBody>
+          </Table>
+          {byMethod.length > 0 && (
+            <div className="mt-3">
+              <div className="text-xs text-muted-foreground mb-2">حسب وسيلة الدفع:</div>
+              <div className="flex flex-wrap gap-2">
+                {byMethod.map((m, i) => (
+                  <Badge key={i} variant="outline" className="text-xs">{m.label}: {fmt(m.amount)}</Badge>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">مصروفات المعمل بالتفصيل</CardTitle></CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader><TableRow><TableHead>البند</TableHead><TableHead>المبلغ</TableHead><TableHead>%</TableHead></TableRow></TableHeader>
+            <TableBody>
+              {expCats.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground">لا توجد مصروفات معمل معتمدة</TableCell></TableRow>}
+              {expCats.map((c, i) => (
+                <TableRow key={i}>
+                  <TableCell>{c.label}</TableCell>
+                  <TableCell className="tabular-nums text-red-700">{fmt(c.amount)}</TableCell>
+                  <TableCell className="tabular-nums">{exp.total > 0 ? ((c.amount / exp.total) * 100).toFixed(0) : 0}%</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">جدول ربح/خسارة معمل التفريخ</CardTitle></CardHeader>
+        <CardContent>
+          <Table>
+            <TableBody>
+              <TableRow><TableCell>إجمالي فواتير التفريخ</TableCell><TableCell className="tabular-nums">{fmt(d.invoicedTotal)}</TableCell></TableRow>
+              <TableRow><TableCell>إجمالي المحصل نقديًا</TableCell><TableCell className="tabular-nums text-green-700">{fmt(col.total)}</TableCell></TableRow>
+              <TableRow><TableCell>المسدد من رصيد سابق (لا يدخل النقدي)</TableCell><TableCell className="tabular-nums">{fmt(d.previousBalanceSettlements)}</TableCell></TableRow>
+              <TableRow><TableCell>الخصومات</TableCell><TableCell className="tabular-nums text-amber-700">{fmt(d.discountsTotal)}</TableCell></TableRow>
+              <TableRow><TableCell>متبقي على العملاء</TableCell><TableCell className="tabular-nums text-red-700">{fmt(d.outstandingOnCustomers)}</TableCell></TableRow>
+              <TableRow><TableCell>مصروفات المعمل</TableCell><TableCell className="tabular-nums text-red-700">{fmt(exp.total)}</TableCell></TableRow>
+              <TableRow className="font-bold border-t-2"><TableCell>صافي نقدي (محصل − مصروفات)</TableCell><TableCell className={`tabular-nums ${cashNet >= 0 ? "text-green-700" : "text-red-700"}`}>{fmt(cashNet)}</TableCell></TableRow>
+              <TableRow className="font-bold"><TableCell>صافي تشغيلي (فواتير − خصومات − مصروفات)</TableCell><TableCell className={`tabular-nums ${opNet >= 0 ? "text-green-700" : "text-red-700"}`}>{fmt(opNet)}</TableCell></TableRow>
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {causes.length > 0 && (
+        <Card className="border-red-300 bg-red-50">
+          <CardHeader><CardTitle className="text-base flex items-center gap-2 text-red-800">
+            <AlertTriangle className="h-4 w-4" /> أسباب الخسارة المحتملة
+          </CardTitle></CardHeader>
+          <CardContent>
+            <ul className="space-y-2 text-sm">
+              {causes.map((c, i) => <li key={i} className="flex gap-2"><span className="text-red-700 font-bold">•</span><span>{c}</span></li>)}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
