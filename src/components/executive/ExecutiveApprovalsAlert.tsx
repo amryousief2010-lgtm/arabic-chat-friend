@@ -47,6 +47,7 @@ export default function ExecutiveApprovalsAlert() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [rejectFor, setRejectFor] = useState<ApprovalItem | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [detailsFor, setDetailsFor] = useState<ApprovalItem | null>(null);
   const lastTotalRef = useRef<number>(-1);
 
   // Auto-open once per session
