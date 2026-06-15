@@ -260,12 +260,47 @@ export default function BatchAccountDialog({
         <tr><th>رسوم الكتاكيت</th><td>${fmtMoney(i.chicks_amount)}</td></tr>
         <tr><th>رسوم التحضين (${i.brooding_days} يوم × ${i.brooding_chicks_count})</th><td>${fmtMoney(i.brooding_amount)}</td></tr>
         <tr><th>إجمالي المستحق</th><td><b>${fmtMoney(i.total_amount)}</b></td></tr>
-        <tr><th>المدفوع</th><td>${fmtMoney(i.paid_amount)}</td></tr>
+        <tr><th>إجمالي الخصومات</th><td>${fmtMoney(i.discount_amount)}</td></tr>
+        <tr><th>إجمالي المدفوع</th><td>${fmtMoney(i.paid_amount)}</td></tr>
         <tr><th>المتبقي</th><td><b>${fmtMoney(i.remaining_amount)}</b></td></tr>
-        <tr><th>الحالة</th><td>${statusLabels[i.payment_status] || i.payment_status}</td></tr>
+        <tr><th>الحالة</th><td>${statusLabels[i.payment_status] || i.payment_status}${num(i.discount_amount) > 0 ? " • بها خصم" : ""}</td></tr>
+      </table>
+
+      <h3>كشف الحساب</h3>
+      <table>
+        <thead><tr><th>التاريخ</th><th>البيان</th><th>مدين</th><th>دائن</th></tr></thead>
+        <tbody>
+          <tr><td>${i.issued_at?.slice(0,10) || "—"}</td><td>فاتورة ${i.invoice_no}</td><td>${fmtMoney(i.total_amount)}</td><td>—</td></tr>
+          ${[...payments, ...discounts.map((d:any)=>({...d, _isDisc:true}))]
+            .sort((a:any,b:any)=> (a.paid_at||a.created_at).localeCompare(b.paid_at||b.created_at))
+            .map((row:any) => row._isDisc
+              ? `<tr><td>${row.created_at?.slice(0,10)}</td><td>خصم / تسوية — ${row.reason||""}</td><td>—</td><td>${fmtMoney(row.amount)}</td></tr>`
+              : `<tr><td>${row.paid_at?.slice(0,10)}</td><td>تحصيل (${methodLabels[row.method] || row.method || "—"})</td><td>—</td><td>${fmtMoney(row.amount)}</td></tr>`
+            ).join("")}
+        </tbody>
       </table>` : `<p><i>لم يتم إنشاء فاتورة بعد.</i></p>`}
     `;
     openPrintWindow(`حساب دفعة — ${customerName}`, html);
+  };
+
+  const printReceipt = (p: any) => {
+    if (!invoice) return;
+    const html = `
+      <h1>إيصال تحصيل</h1>
+      <table>
+        <tr><th>اسم العميل</th><td>${customerName}</td></tr>
+        <tr><th>رقم الفاتورة</th><td>${invoice.invoice_no}</td></tr>
+        <tr><th>رقم الدفعة</th><td>${lot?.batch?.batch_number || "—"}</td></tr>
+        <tr><th>المبلغ المدفوع</th><td><b>${fmtMoney(p.amount)}</b></td></tr>
+        <tr><th>طريقة الدفع</th><td>${methodLabels[p.method] || p.method || "—"}</td></tr>
+        <tr><th>تاريخ التحصيل</th><td>${p.paid_at?.slice(0,16).replace("T"," ") || "—"}</td></tr>
+        <tr><th>المتبقي بعد التحصيل</th><td>${fmtMoney(invoice.remaining_amount)}</td></tr>
+      </table>
+      <div style="margin-top:60px;display:grid;grid-template-columns:1fr 1fr;gap:24px;text-align:center;">
+        <div style="border-top:1px solid #555;padding-top:6px;">توقيع المستلم</div>
+        <div style="border-top:1px solid #555;padding-top:6px;">توقيع المسؤول</div>
+      </div>`;
+    openPrintWindow(`إيصال تحصيل — ${customerName}`, html);
   };
 
   if (!lot) return null;
