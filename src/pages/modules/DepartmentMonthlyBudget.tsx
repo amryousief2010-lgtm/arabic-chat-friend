@@ -23,7 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { openPrintWindow, COMPANY_AR } from "@/lib/printPdf";
 
-type DeptKey = "hatchery" | "brooding" | "slaughterhouse" | "feed_factory" | "meat_factory";
+type DeptKey = "mother_farm" | "hatchery" | "brooding" | "slaughterhouse" | "feed_factory" | "meat_factory";
 
 interface LineItem {
   date: string; label: string; source: string; amount: number;
