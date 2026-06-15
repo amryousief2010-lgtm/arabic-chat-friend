@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Receipt, Printer, FileSpreadsheet, FileText, AlertTriangle, Users, Wallet } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Receipt, Printer, FileSpreadsheet, FileText, AlertTriangle, Users, Wallet, Link2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -105,7 +106,9 @@ const HREmployeeAdvancesReport = () => {
   const [rows, setRows] = useState<AdvanceRow[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [aliases, setAliases] = useState<Array<{ id: string; normalized_name: string; employee_id: string; raw_name: string }>>([]);
   const [firstDate, setFirstDate] = useState<string>("");
+  const [linkRow, setLinkRow] = useState<AdvanceRow | null>(null);
 
   // Filters
   const [fromDate, setFromDate] = useState<string>("");
@@ -125,9 +128,10 @@ const HREmployeeAdvancesReport = () => {
   async function loadAll() {
     setLoading(true);
     try {
-      const [empRes, locRes, slRes, labRes, mainRes, firstSlRes, firstLabRes, firstMainRes] = await Promise.all([
+      const [empRes, locRes, aliasRes, slRes, labRes, mainRes, firstSlRes, firstLabRes, firstMainRes] = await Promise.all([
         supabase.from("hr_employees").select("id, full_name, department, current_location_id").eq("status", "active"),
         supabase.from("hr_work_locations").select("id, name, department"),
+        supabase.from("hr_employee_name_aliases" as any).select("id, normalized_name, employee_id, raw_name"),
         supabase.from("slaughter_custody_expenses").select("id, expense_date, category, description, amount, beneficiary, status, payment_method, notes, created_by, approved_by").or("description.ilike.%سلف%,description.ilike.%advance%,category.ilike.%سلف%,category.ilike.%advance%"),
         supabase.from("lab_treasury_movements").select("id, movement_date, description, amount, beneficiary, status, payment_method, notes, created_by, approved_by, expense_category").or("description.ilike.%سلف%,description.ilike.%advance%,expense_category.ilike.%advance%").eq("movement_type", "expense"),
         supabase.from("main_treasury_transactions").select("id, txn_date, description, amount, counterparty, status, payment_method, created_by, reference_no").or("description.ilike.%سلف%,description.ilike.%advance%"),
@@ -138,8 +142,34 @@ const HREmployeeAdvancesReport = () => {
 
       const emps: Employee[] = (empRes.data as any) || [];
       const locs: Location[] = (locRes.data as any) || [];
+      const aliasList: Array<{ id: string; normalized_name: string; employee_id: string; raw_name: string }> =
+        (aliasRes.data as any) || [];
       setEmployees(emps);
       setLocations(locs);
+      setAliases(aliasList);
+
+      // Build alias lookup: normalized_name -> employee_id
+      const aliasMap = new Map<string, string>();
+      for (const a of aliasList) aliasMap.set(a.normalized_name, a.employee_id);
+      const empById = new Map(emps.map(e => [e.id, e]));
+
+      const resolveMatch = (text: string, rawName: string | null): Employee | null => {
+        // 1) alias on raw beneficiary
+        const nRaw = normalize(rawName || "");
+        if (nRaw && aliasMap.has(nRaw)) {
+          const e = empById.get(aliasMap.get(nRaw)!);
+          if (e) return e;
+        }
+        // 2) alias scan over the full text
+        for (const [k, eid] of aliasMap) {
+          if (k && normalize(text).includes(k)) {
+            const e = empById.get(eid);
+            if (e) return e;
+          }
+        }
+        // 3) fuzzy match
+        return tryMatchEmployee(text, emps);
+      };
 
       const locMap = new Map(locs.map(l => [l.id, l]));
 
@@ -149,7 +179,7 @@ const HREmployeeAdvancesReport = () => {
       for (const r of (slRes.data as any[]) || []) {
         const text = `${r.description ?? ""} ${r.beneficiary ?? ""}`;
         if (!ADVANCE_REGEX.test(text) && !ADVANCE_REGEX.test(r.category ?? "")) continue;
-        const matched = tryMatchEmployee(text, emps);
+        const matched = resolveMatch(text, r.beneficiary ?? r.counterparty ?? null);
         const loc = matched?.current_location_id ? locMap.get(matched.current_location_id) : null;
         out.push({
           id: r.id, source: "slaughter", sourceLabel: SRC_LABEL.slaughter,
@@ -165,7 +195,7 @@ const HREmployeeAdvancesReport = () => {
       for (const r of (labRes.data as any[]) || []) {
         const text = `${r.description ?? ""} ${r.beneficiary ?? ""}`;
         if (!ADVANCE_REGEX.test(text)) continue;
-        const matched = tryMatchEmployee(text, emps);
+        const matched = resolveMatch(text, r.beneficiary ?? r.counterparty ?? null);
         const loc = matched?.current_location_id ? locMap.get(matched.current_location_id) : null;
         out.push({
           id: r.id, source: "lab", sourceLabel: SRC_LABEL.lab,
@@ -181,7 +211,7 @@ const HREmployeeAdvancesReport = () => {
       for (const r of (mainRes.data as any[]) || []) {
         const text = `${r.description ?? ""} ${r.counterparty ?? ""}`;
         if (!ADVANCE_REGEX.test(text)) continue;
-        const matched = tryMatchEmployee(text, emps);
+        const matched = resolveMatch(text, r.beneficiary ?? r.counterparty ?? null);
         const loc = matched?.current_location_id ? locMap.get(matched.current_location_id) : null;
         out.push({
           id: r.id, source: "main", sourceLabel: SRC_LABEL.main,
@@ -362,6 +392,50 @@ const HREmployeeAdvancesReport = () => {
     openPrintWindow("تقرير سلف الموظفين", buildPrintHtml());
   }
 
+  async function saveAlias(row: AdvanceRow, employeeId: string) {
+    const rawName = (row.beneficiary || row.description || "").trim();
+    if (!rawName || !employeeId) return;
+    const normalized = normalize(rawName);
+    const sourceTable =
+      row.source === "main" ? "main_treasury_transactions" :
+      row.source === "lab" ? "lab_treasury_movements" : "slaughter_custody_expenses";
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      const { error } = await supabase.from("hr_employee_name_aliases" as any).insert({
+        raw_name: rawName,
+        normalized_name: normalized,
+        employee_id: employeeId,
+        source_table: sourceTable,
+        source_id: row.id,
+        confidence: "manual",
+        created_by: u?.user?.id ?? null,
+      });
+      if (error && !String(error.message).includes("duplicate")) throw error;
+      toast.success("تم ربط الاسم بالموظف");
+      setLinkRow(null);
+      await loadAll();
+    } catch (e: any) {
+      toast.error("فشل حفظ الربط", { description: e.message });
+    }
+  }
+
+  // Smart suggestions for the link dialog: prioritize employees in the same dept/source
+  function suggestionsFor(row: AdvanceRow | null): Employee[] {
+    if (!row) return employees;
+    const text = normalize(`${row.beneficiary ?? ""} ${row.description ?? ""}`);
+    const sourceDept =
+      row.source === "slaughter" ? "المجزر" :
+      row.source === "lab" ? "المعمل" : null;
+    const score = (e: Employee) => {
+      let s = 0;
+      const tokens = normalize(e.full_name).split(" ").filter(t => t.length >= 2);
+      for (const t of tokens) if (text.includes(t)) s += 5;
+      if (sourceDept && (e.department || "").includes(sourceDept)) s += 2;
+      return s;
+    };
+    return [...employees].sort((a, b) => score(b) - score(a));
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6 p-4">
@@ -512,9 +586,19 @@ const HREmployeeAdvancesReport = () => {
                         <TableCell className="whitespace-nowrap">{fmtDate(r.date)}</TableCell>
                         <TableCell>
                           {r.matchedName ? r.matchedName : (
-                            <span className="text-amber-700 flex items-center gap-1">
-                              <AlertTriangle className="h-3 w-3" /> {r.beneficiary?.trim() || "غير مربوط"}
-                            </span>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-amber-700 flex items-center gap-1">
+                                <AlertTriangle className="h-3 w-3" /> {r.beneficiary?.trim() || "غير مربوط"}
+                              </span>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 px-2 text-xs border-purple-300 text-purple-700 hover:bg-purple-50"
+                                onClick={() => setLinkRow(r)}
+                              >
+                                <Link2 className="h-3 w-3 ml-1" /> ربط بموظف
+                              </Button>
+                            </div>
                           )}
                         </TableCell>
                         <TableCell>{r.department ?? "—"}</TableCell>
@@ -571,6 +655,13 @@ const HREmployeeAdvancesReport = () => {
             </Card>
           </TabsContent>
         </Tabs>
+
+        <LinkEmployeeDialog
+          row={linkRow}
+          onClose={() => setLinkRow(null)}
+          suggestions={suggestionsFor(linkRow)}
+          onSave={(empId) => linkRow && saveAlias(linkRow, empId)}
+        />
       </div>
     </DashboardLayout>
   );
@@ -586,6 +677,58 @@ function SummaryCard({ icon: Icon, label, value, color, small }: { icon?: any; l
         <div className={`font-bold mt-1 ${color} ${small ? "text-sm" : "text-lg"}`}>{value}</div>
       </CardContent>
     </Card>
+  );
+}
+
+function LinkEmployeeDialog({
+  row, onClose, suggestions, onSave,
+}: {
+  row: AdvanceRow | null;
+  onClose: () => void;
+  suggestions: Employee[];
+  onSave: (employeeId: string) => void;
+}) {
+  const [selected, setSelected] = useState<string>("");
+  useEffect(() => { setSelected(""); }, [row?.id]);
+  if (!row) return null;
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent dir="rtl" className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Link2 className="h-4 w-4 text-purple-600" /> ربط الاسم بموظف
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 text-sm">
+          <div className="rounded-md border bg-muted/30 p-3 space-y-1">
+            <div><b>الاسم في حركة الخزنة:</b> <span className="text-amber-700">{row.beneficiary?.trim() || "—"}</span></div>
+            <div><b>الخزنة:</b> {row.sourceLabel}</div>
+            <div className="truncate"><b>الوصف:</b> {row.description}</div>
+            <div><b>المبلغ:</b> {fmtNum(row.amount, 2)} ج • {fmtDate(row.date)}</div>
+          </div>
+          <div>
+            <Label>اختر الموظف الصحيح من جدول الموظفين</Label>
+            <Select value={selected} onValueChange={setSelected}>
+              <SelectTrigger><SelectValue placeholder="اختر موظفًا..." /></SelectTrigger>
+              <SelectContent>
+                {suggestions.map(e => (
+                  <SelectItem key={e.id} value={e.id}>
+                    {e.full_name}{e.department ? ` — ${e.department}` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground mt-1">
+              لن يتم تعديل وصف حركة الخزنة الأصلية. سيتم حفظ الربط فقط في جدول الـ alias.
+            </p>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>إلغاء</Button>
+          <Button disabled={!selected} onClick={() => onSave(selected)}>حفظ الربط</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
