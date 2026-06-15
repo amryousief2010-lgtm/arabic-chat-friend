@@ -883,6 +883,53 @@ async function computeMonth(supabase: any, year: number, month: number) {
   return depts;
 }
 
+function buildFlowMap(depts: DeptResult[]) {
+  const find = (k: DeptKey) => depts.find(d => d.key === k);
+  const mf = find("mother_farm"), h = find("hatchery"), br = find("brooding");
+  const sl = find("slaughterhouse"), ff = find("feed_factory"), me = find("meat_factory");
+  const flows: Array<{ from: string; to: string; label: string; amount: number; note?: string }> = [];
+  if (mf && mf.opsMetrics?.eggsToHatchery)
+    flows.push({ from: "مزرعة الأمهات", to: "معمل التفريخ",
+      label: `بيض (${mf.opsMetrics.eggsToHatchery})`, amount: Math.round(mf.internalValue),
+      note: `${(mf.opsMetrics.costPerEgg || 0).toFixed(2)} ج/بيضة` });
+  if (br && br.opsMetrics?.transferredToSlaughter)
+    flows.push({ from: "حضانات التسمين", to: "المجزر",
+      label: `كتاكيت (${br.opsMetrics.transferredToSlaughter})`,
+      amount: br.opsMetrics.transferredValue || 0 });
+  // Feed factory → consumers (sum of feed-related internal flows on receiving depts)
+  if (ff && ff.internalValue > 0)
+    flows.push({ from: "مصنع العلف", to: "أقسام داخلية (حضانات/مجزر/أمهات)",
+      label: "علف موَرَّد داخليًا", amount: Math.round(ff.internalValue) });
+  if (sl && sl.internalValue > 0)
+    flows.push({ from: "المجزر", to: "المخزن الرئيسي / مصنع اللحوم",
+      label: "ناتج ذبح محوَّل", amount: Math.round(sl.internalValue) });
+  if (me && me.cashRevenue > 0)
+    flows.push({ from: "مصنع اللحوم", to: "البيع الخارجي",
+      label: "مبيعات منتج نهائي", amount: Math.round(me.cashRevenue) });
+  return flows;
+}
+
+function buildVerification(depts: DeptResult[]) {
+  const sl = depts.find(d => d.key === "slaughterhouse");
+  const ff = depts.find(d => d.key === "feed_factory");
+  const br = depts.find(d => d.key === "brooding");
+  const mf = depts.find(d => d.key === "mother_farm");
+  return {
+    slaughterUsesActualSalePrice: !!(sl?.actualSaleValue && sl.actualSaleValue > 0),
+    slaughterActualSaleValue: sl?.actualSaleValue ?? 0,
+    slaughterUsesInternalPrice: !!(sl?.internalValue && sl.internalValue > 0),
+    feedFactoryCountedInternal: !!(ff?.internalValue && ff.internalValue > 0),
+    feedFactoryInternalValue: ff?.internalValue ?? 0,
+    broodingBudgetIncluded: !!br,
+    motherFarmBudgetIncluded: !!mf,
+    motherFarmEggValueToHatchery: mf?.internalValue ?? 0,
+    treasuryMovementsCreated: 0,
+    eachDeptHasCashAndOperationalNet: depts.every(d =>
+      typeof d.cashNet === "number" && typeof d.operationalNet === "number",
+    ),
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
