@@ -318,16 +318,26 @@ export default function DepartmentMonthlyBudget() {
 
           {/* Comparison table */}
           <Card>
-            <CardHeader><CardTitle>مقارنة الأقسام</CardTitle></CardHeader>
-            <CardContent>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span>مقارنة الأقسام — قيمة نقدية + قيمة تشغيلية</span>
+                <span className="text-xs font-normal text-muted-foreground">
+                  قيمة تشغيلية = تحويلات داخلية / مخزون متبقٍ (لا تنشئ حركة خزنة)
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>القسم</TableHead>
-                    <TableHead>الإيرادات</TableHead>
-                    <TableHead>المصروفات</TableHead>
-                    <TableHead>الصافي</TableHead>
-                    <TableHead>نسبة المصروفات</TableHead>
+                    <TableHead title="فلوس فعلية دخلت خزنة">إيراد نقدي</TableHead>
+                    <TableHead title="تحويلات داخلية بقيمتها (بدون خزنة)">قيمة تشغيلية داخلية</TableHead>
+                    <TableHead title="مخزون متبقٍ بقيمته كأصل">قيمة مخزون متبقٍ</TableHead>
+                    <TableHead>إجمالي القيمة</TableHead>
+                    <TableHead>مصروفات</TableHead>
+                    <TableHead title="إيراد نقدي - مصروفات">صافي نقدي</TableHead>
+                    <TableHead title="إجمالي القيمة - مصروفات">صافي تشغيلي</TableHead>
                     <TableHead>الحالة</TableHead>
                     <TableHead></TableHead>
                   </TableRow>
@@ -337,12 +347,17 @@ export default function DepartmentMonthlyBudget() {
                     <TableRow key={d.key} className="cursor-pointer hover:bg-muted/50"
                       onClick={() => setSelectedDept(d)}>
                       <TableCell className="font-medium">{d.name}</TableCell>
-                      <TableCell className="text-green-700 tabular-nums">{fmt(d.revenue)}</TableCell>
+                      <TableCell className="tabular-nums text-green-700">{fmt(d.cashRevenue)}</TableCell>
+                      <TableCell className="tabular-nums text-blue-700">{fmt(d.internalValue)}</TableCell>
+                      <TableCell className="tabular-nums text-purple-700">{fmt(d.remainingInventoryValue)}</TableCell>
+                      <TableCell className="tabular-nums font-semibold">{fmt(d.totalComputedValue)}</TableCell>
                       <TableCell className="text-red-700 tabular-nums">{fmt(d.expenses)}</TableCell>
-                      <TableCell className={`tabular-nums font-bold ${d.net >= 0 ? "text-green-700" : "text-red-700"}`}>
-                        {fmt(d.net)}
+                      <TableCell className={`tabular-nums ${d.cashNet >= 0 ? "text-green-700" : "text-red-700"}`}>
+                        {fmt(d.cashNet)}
                       </TableCell>
-                      <TableCell className="tabular-nums">{d.expenseRatio.toFixed(1)}%</TableCell>
+                      <TableCell className={`tabular-nums font-bold ${d.operationalNet >= 0 ? "text-green-700" : "text-red-700"}`}>
+                        {fmt(d.operationalNet)}
+                      </TableCell>
                       <TableCell>{statusBadge(d.status)}</TableCell>
                       <TableCell>
                         <div className="flex gap-1 justify-end">
@@ -351,7 +366,7 @@ export default function DepartmentMonthlyBudget() {
                           </Button>
                           <Button size="sm" variant={d.status === "loss" ? "default" : "outline"}
                             onClick={(e) => { e.stopPropagation(); setAnalysisDept(d); }}>
-                            <Microscope className="h-3 w-3 ml-1" /> تحليل سبب الربح/الخسارة
+                            <Microscope className="h-3 w-3 ml-1" /> تحليل
                           </Button>
                         </div>
                       </TableCell>
@@ -359,6 +374,12 @@ export default function DepartmentMonthlyBudget() {
                   ))}
                 </TableBody>
               </Table>
+              {data.departments.some(d => d.cashStatus === "loss" && d.status !== "loss") && (
+                <div className="mt-3 text-xs text-blue-800 bg-blue-50 border border-blue-200 rounded p-2 flex gap-2">
+                  <Lightbulb className="h-4 w-4 mt-0.5 shrink-0" />
+                  <span>بعض الأقسام لا تحقق تحصيلًا نقديًا مباشرًا لكنها تنتج قيمة تشغيلية داخلية موجبة (تظهر كسبانة بعد احتساب التحويلات والمخزون).</span>
+                </div>
+              )}
             </CardContent>
           </Card>
 
