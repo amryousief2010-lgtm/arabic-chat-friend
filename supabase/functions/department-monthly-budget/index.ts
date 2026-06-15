@@ -1024,6 +1024,8 @@ Deno.serve(async (req) => {
         topLossProducts,
         comparison,
         alerts,
+        flowMap: buildFlowMap(current),
+        verification: buildVerification(current),
         meta: {
           note: "تكلفة الإنتاج من فواتير التصنيع الفعلية + سعر البيع الفعلي من فواتير المبيعات. القيم التشغيلية والأصول لا تنشئ أي حركة خزنة.",
           treasuryMovementsCreated: 0,
