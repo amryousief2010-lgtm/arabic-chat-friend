@@ -41,13 +41,13 @@ interface DeptResult {
   cashRevenue: number;
   internalValue: number;
   remainingInventoryValue: number;
-  productionCost: number;        // NEW: cost of producing goods this month
-  operatingExpenses: number;     // NEW: non-production overhead
+  productionCost: number;        // cost of producing goods this month
+  operatingExpenses: number;     // non-production overhead
   expenses: number;              // = productionCost + operatingExpenses
   totalComputedValue: number;
   cashNet: number;
   operationalNet: number;
-  grossMargin: number;           // (cashRevenue+internalValue - productionCost)/sales
+  grossMargin: number;
   expenseRatio: number;
   status: "profit" | "loss" | "even";
   cashStatus: "profit" | "loss" | "even";
@@ -56,13 +56,18 @@ interface DeptResult {
   topRevenueSource?: { source: string; amount: number };
   topExpenseItem?: { source: string; amount: number };
   pricingWarnings: string[];
-  productMetrics: ProductMetric[];        // sorted by profit desc
+  productMetrics: ProductMetric[];
   topProfitProduct?: ProductMetric;
   topLossProduct?: ProductMetric;
   topCostItem?: { name: string; amount: number };
+  // NEW: comparison fields
+  actualSaleValue?: number;      // realized sale price when items were actually sold
+  costBasisOfOutputs?: number;   // cost basis of items produced/output this month
+  opsMetrics?: Record<string, number>; // dept-specific physical metrics (eggs, birds, etc.)
 }
 
 const DEPT_NAMES: Record<DeptKey, string> = {
+  mother_farm: "مزرعة الأمهات",
   hatchery: "معمل التفريخ",
   brooding: "حضانات التسمين",
   slaughterhouse: "المجزر",
