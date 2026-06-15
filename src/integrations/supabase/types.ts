@@ -5353,6 +5353,207 @@ export type Database = {
           },
         ]
       }
+      hr_audit_log: {
+        Row: {
+          action: string
+          after_data: Json | null
+          before_data: Json | null
+          created_at: string
+          employee_id: string | null
+          entity_id: string | null
+          entity_type: string
+          id: string
+          performed_by: string | null
+          reason: string | null
+        }
+        Insert: {
+          action: string
+          after_data?: Json | null
+          before_data?: Json | null
+          created_at?: string
+          employee_id?: string | null
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          performed_by?: string | null
+          reason?: string | null
+        }
+        Update: {
+          action?: string
+          after_data?: Json | null
+          before_data?: Json | null
+          created_at?: string
+          employee_id?: string | null
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          performed_by?: string | null
+          reason?: string | null
+        }
+        Relationships: []
+      }
+      hr_employee_transfers: {
+        Row: {
+          created_at: string
+          employee_id: string
+          from_location_id: string | null
+          id: string
+          notes: string | null
+          performed_by: string | null
+          reason: string | null
+          to_location_id: string
+          transfer_date: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          from_location_id?: string | null
+          id?: string
+          notes?: string | null
+          performed_by?: string | null
+          reason?: string | null
+          to_location_id: string
+          transfer_date?: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          from_location_id?: string | null
+          id?: string
+          notes?: string | null
+          performed_by?: string | null
+          reason?: string | null
+          to_location_id?: string
+          transfer_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_employee_transfers_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_employee_transfers_from_location_id_fkey"
+            columns: ["from_location_id"]
+            isOneToOne: false
+            referencedRelation: "hr_work_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_employee_transfers_to_location_id_fkey"
+            columns: ["to_location_id"]
+            isOneToOne: false
+            referencedRelation: "hr_work_locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_employees: {
+        Row: {
+          base_salary: number
+          code: string
+          created_at: string
+          created_by: string | null
+          current_location_id: string | null
+          daily_rate: number | null
+          department: string | null
+          employment_type: Database["public"]["Enums"]["hr_employment_type"]
+          full_name: string
+          id: string
+          job_title: string | null
+          national_id: string | null
+          notes: string | null
+          phone: string | null
+          start_date: string | null
+          status: Database["public"]["Enums"]["hr_employee_status"]
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          base_salary?: number
+          code: string
+          created_at?: string
+          created_by?: string | null
+          current_location_id?: string | null
+          daily_rate?: number | null
+          department?: string | null
+          employment_type?: Database["public"]["Enums"]["hr_employment_type"]
+          full_name: string
+          id?: string
+          job_title?: string | null
+          national_id?: string | null
+          notes?: string | null
+          phone?: string | null
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["hr_employee_status"]
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          base_salary?: number
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          current_location_id?: string | null
+          daily_rate?: number | null
+          department?: string | null
+          employment_type?: Database["public"]["Enums"]["hr_employment_type"]
+          full_name?: string
+          id?: string
+          job_title?: string | null
+          national_id?: string | null
+          notes?: string | null
+          phone?: string | null
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["hr_employee_status"]
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_employees_current_location_id_fkey"
+            columns: ["current_location_id"]
+            isOneToOne: false
+            referencedRelation: "hr_work_locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_work_locations: {
+        Row: {
+          created_at: string
+          department: string | null
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          department?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          department?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       import_audit_log: {
         Row: {
           action: string
@@ -16078,6 +16279,8 @@ export type Database = {
         | "rejected"
         | "posted"
       feed_qc_result: "pass" | "fail" | "needs_review"
+      hr_employee_status: "active" | "inactive"
+      hr_employment_type: "monthly" | "daily" | "temporary"
       lab_external_source: "hatching" | "chick_sales" | "general" | "other"
       lab_external_status:
         | "not_deposited"
@@ -16395,6 +16598,8 @@ export const Constants = {
         "posted",
       ],
       feed_qc_result: ["pass", "fail", "needs_review"],
+      hr_employee_status: ["active", "inactive"],
+      hr_employment_type: ["monthly", "daily", "temporary"],
       lab_external_source: ["hatching", "chick_sales", "general", "other"],
       lab_external_status: [
         "not_deposited",

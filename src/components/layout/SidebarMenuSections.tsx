@@ -43,6 +43,7 @@ import {
   Undo2,
   ClipboardCheck,
   FileText,
+  KeyRound,
 } from "lucide-react";
 import { useAuth, AppRole } from "@/hooks/useAuth";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
@@ -289,6 +290,18 @@ export const moduleSections: ModuleSection[] = [
       { icon: ClipboardList, label: "تقرير السوشيال ميديا الأسبوعي", path: "/social-media/weekly", roles: ['general_manager', 'executive_manager', 'marketing_sales_manager', 'social_media_manager'] },
       { icon: History, label: "تقاريري السابقة", path: "/social-media/my-reports", roles: ['social_media_manager'] },
       { icon: ShieldCheck, label: "مراجعة تقارير السوشيال ميديا", path: "/social-media/review", roles: ['general_manager', 'executive_manager', 'marketing_sales_manager'] },
+    ],
+  },
+  {
+    id: "hr",
+    icon: UsersRound,
+    label: "شؤون الموظفين",
+    roles: ['general_manager', 'executive_manager', 'hr_manager'],
+    items: [
+      { icon: LayoutDashboard, label: "لوحة شؤون الموظفين", path: "/hr", roles: ['general_manager', 'executive_manager', 'hr_manager'] },
+      { icon: UsersRound, label: "بيانات الموظفين", path: "/hr/employees", roles: ['general_manager', 'executive_manager', 'hr_manager', 'accountant', 'financial_manager'] },
+      { icon: Network, label: "أماكن العمل والأقسام", path: "/hr/work-locations", roles: ['general_manager', 'executive_manager', 'hr_manager'] },
+      { icon: KeyRound, label: "حسابات دخول الموظفين", path: "/modules/hr", roles: ['general_manager', 'executive_manager'] },
     ],
   },
   {
