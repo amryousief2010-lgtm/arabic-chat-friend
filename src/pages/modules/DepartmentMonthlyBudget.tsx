@@ -4,6 +4,7 @@ import * as XLSX from "xlsx";
 import {
   Wallet, TrendingUp, TrendingDown, AlertTriangle, Printer,
   FileSpreadsheet, Loader2, Crown, Skull, ArrowUpCircle, ArrowDownCircle,
+  Microscope, Lightbulb,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -85,6 +86,7 @@ export default function DepartmentMonthlyBudget() {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<BudgetData | null>(null);
   const [selectedDept, setSelectedDept] = useState<DeptResult | null>(null);
+  const [analysisDept, setAnalysisDept] = useState<DeptResult | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -320,9 +322,15 @@ export default function DepartmentMonthlyBudget() {
                       <TableCell className="tabular-nums">{d.expenseRatio.toFixed(1)}%</TableCell>
                       <TableCell>{statusBadge(d.status)}</TableCell>
                       <TableCell>
-                        <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setSelectedDept(d); }}>
-                          تفاصيل
-                        </Button>
+                        <div className="flex gap-1 justify-end">
+                          <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setSelectedDept(d); }}>
+                            تفاصيل
+                          </Button>
+                          <Button size="sm" variant={d.status === "loss" ? "default" : "outline"}
+                            onClick={(e) => { e.stopPropagation(); setAnalysisDept(d); }}>
+                            <Microscope className="h-3 w-3 ml-1" /> تحليل سبب الربح/الخسارة
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
