@@ -221,7 +221,7 @@ async function computeMonth(supabase: any, year: number, month: number) {
   motherFarm.opsMetrics = {
     eggsProduced, eggsWasted, eggsNet, eggsToHatchery,
     remainingEggs, costPerEgg: Number(costPerEgg.toFixed(3)),
-    feedWeightKg: mfFeedWeightKg, families: activeFamilies.length, birds: totalBirds,
+    feedWeightKg: mfFeedWeightKg, families: activeFamilies.length, birds: motherFarmBirds,
     medicationDoses: (mfMeds ?? []).length,
   };
 
