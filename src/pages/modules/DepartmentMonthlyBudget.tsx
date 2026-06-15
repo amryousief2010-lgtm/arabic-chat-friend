@@ -510,7 +510,257 @@ export default function DepartmentMonthlyBudget() {
           )}
         </DialogContent>
       </Dialog>
+
+      <AnalysisDialog dept={analysisDept} onClose={() => setAnalysisDept(null)} />
     </motion.div>
+  );
+}
+
+// ============ Profit / Loss root-cause analysis ============
+function groupSources(items: LineItem[]) {
+  const m = new Map<string, number>();
+  for (const i of items) m.set(i.source, (m.get(i.source) || 0) + i.amount);
+  return [...m.entries()]
+    .map(([source, amount]) => ({ source, amount }))
+    .sort((a, b) => b.amount - a.amount);
+}
+
+function analyzeDept(d: DeptResult) {
+  const expGrouped = groupSources(d.expenseItems);
+  const revGrouped = groupSources(d.revenueItems);
+  const top10Exp = expGrouped.slice(0, 10).map(e => ({
+    ...e, pct: d.expenses > 0 ? (e.amount / d.expenses) * 100 : 0,
+  }));
+  const top10Rev = revGrouped.slice(0, 10).map(e => ({
+    ...e, pct: d.revenue > 0 ? (e.amount / d.revenue) * 100 : 0,
+  }));
+
+  // Outlier expense (single bucket > 50% of dept expenses)
+  const outliers = top10Exp.filter(e => e.pct >= 50);
+
+  // Missing revenue flags by department
+  const missingRevenue: string[] = [];
+  if (d.key === "slaughterhouse") {
+    if (d.revenue === 0)
+      missingRevenue.push("لم تُسجل قيمة لناتج الذبح أو التحويلات للمخزن الرئيسي / مصنع اللحوم هذا الشهر.");
+    else if (d.revenue < d.expenses * 0.5)
+      missingRevenue.push("قيمة ناتج الذبح المسجّلة أقل بكثير من المصروفات — يحتمل وجود تحويلات بدون أسعار بيع داخلية.");
+  }
+  if (d.key === "feed_factory") {
+    if (d.revenue === 0)
+      missingRevenue.push("لا توجد توريدات داخلية معتمدة ولا مبيعات خارجية مسجّلة هذا الشهر.");
+    const internal = revGrouped.find(r => r.source.includes("داخلي"))?.amount ?? 0;
+    const external = revGrouped.find(r => r.source.includes("خارجي"))?.amount ?? 0;
+    if (internal === 0 && d.expenses > 0)
+      missingRevenue.push("لا توجد توريدات داخلية معتمدة — الإنتاج المصروف للأقسام الأخرى قد يكون غير مسعّر.");
+    if (external === 0)
+      missingRevenue.push("لا توجد مبيعات علف خارجية هذا الشهر.");
+    missingRevenue.push("قيمة المخزون المتبقي من الخامات والعلف الجاهز غير محسوبة كأصل (يجب احتسابها لتحديد التكلفة الحقيقية للكيلو).");
+  }
+  if (d.key === "hatchery" && d.revenue === 0 && d.expenses > 0) {
+    missingRevenue.push("لا توجد فواتير عملاء صادرة هذا الشهر — قد تكون هناك دفعات لم تُغلق بفواتير.");
+  }
+  if (d.key === "brooding" && d.revenue === 0 && d.expenses > 0) {
+    missingRevenue.push("لا توجد مبيعات كتاكيت مسجّلة هذا الشهر مقابل المصروفات.");
+  }
+
+  // Build recommendation text
+  const top = top10Exp[0];
+  const topRev = top10Rev[0];
+  let summary = "";
+  if (d.status === "profit") {
+    summary = `${d.name} كسبان بصافي ${Math.round(d.net).toLocaleString()} ج.م. ` +
+      (topRev ? `أكبر مصدر إيراد: ${topRev.source} (${topRev.pct.toFixed(0)}% من الإيرادات). ` : "") +
+      (top ? `أكبر بند مصروف: ${top.source} (${top.pct.toFixed(0)}% من المصروفات).` : "");
+  } else if (d.status === "loss") {
+    summary = `${d.name} خسران بصافي ${Math.round(d.net).toLocaleString()} ج.م. `;
+    if (top) summary += `السبب الرئيسي: بند "${top.source}" يمثّل ${top.pct.toFixed(0)}% من إجمالي مصروفات القسم. `;
+    if (d.revenue === 0) summary += "لا توجد إيرادات مسجّلة هذا الشهر مقابل المصروفات. ";
+    else if (d.revenue < d.expenses) summary += `الإيرادات المسجّلة (${Math.round(d.revenue).toLocaleString()}) أقل من المصروفات (${Math.round(d.expenses).toLocaleString()}). `;
+    if (outliers.length) summary += `يوجد بند مصروف غير طبيعي يستحوذ على أغلب المصروفات. `;
+  } else {
+    summary = `${d.name} متعادل.`;
+  }
+
+  // Recommendations
+  const recs: string[] = [];
+  if (d.key === "slaughterhouse" && d.status === "loss") {
+    recs.push("راجع تسعير ناتج الذبح المحوّل للمخزن الرئيسي ومصنع اللحوم — لو التحويل بسعر صفر سيظهر القسم خسران.");
+    recs.push("افصل عمالة الذبح الثابتة عن المتغيرة لمعرفة التكلفة الحقيقية للكيلو.");
+  }
+  if (d.key === "feed_factory" && d.status === "loss") {
+    recs.push("اعتمد التوريدات الداخلية شهريًا حتى تظهر كإيراد للمصنع.");
+    recs.push("احسب قيمة المخزون المتبقي (خامات + علف جاهز) واخصمه من المصروفات الحقيقية للشهر.");
+    recs.push("راجع تكلفة الكيلو الفعلية مقابل السعر الذي يدفعه القسم المستهلك.");
+  }
+  if (outliers.length) {
+    recs.push(`بند "${outliers[0].source}" يستحوذ على ${outliers[0].pct.toFixed(0)}% من مصروفات القسم — تأكد من عدم وجود إدخال مكرر أو خطأ في المبلغ.`);
+  }
+  if (d.revenue === 0 && d.expenses > 0) {
+    recs.push("سجّل الإيرادات أو التحويلات الداخلية بقيمتها الحقيقية حتى لا يظهر القسم خسران مزيف.");
+  }
+  if (recs.length === 0 && d.status === "profit") {
+    recs.push("استمر في نفس النمط مع متابعة أكبر بند مصروف لتفادي الانحراف الشهر القادم.");
+  }
+
+  return { top10Exp, top10Rev, outliers, missingRevenue, summary, recs };
+}
+
+function AnalysisDialog({ dept, onClose }: { dept: DeptResult | null; onClose: () => void }) {
+  if (!dept) return null;
+  const a = analyzeDept(dept);
+  return (
+    <Dialog open={!!dept} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-5xl max-h-[88vh] overflow-y-auto" dir="rtl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Microscope className="h-5 w-5 text-primary" />
+            تحليل سبب الربح / الخسارة — {dept.name}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* Summary card */}
+          <div className={`rounded-lg p-4 border-2 ${
+            dept.status === "loss" ? "bg-red-50 border-red-300" :
+            dept.status === "profit" ? "bg-green-50 border-green-300" :
+            "bg-muted border-border"
+          }`}>
+            <div className="flex items-start gap-2">
+              <Lightbulb className="h-5 w-5 mt-0.5 text-amber-600 shrink-0" />
+              <div>
+                <div className="font-bold mb-1">الخلاصة التحليلية</div>
+                <div className="text-sm leading-7">{a.summary}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Comparison cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <KpiCard title="إجمالي الإيرادات" value={fmt(dept.revenue)} accent="text-green-700" />
+            <KpiCard title="إجمالي المصروفات" value={fmt(dept.expenses)} accent="text-red-700" />
+            <KpiCard title="الصافي" value={fmt(dept.net)}
+              accent={dept.net >= 0 ? "text-green-700" : "text-red-700"} />
+            <KpiCard title="نسبة المصروفات للإيرادات"
+              value={dept.revenue > 0 ? `${dept.expenseRatio.toFixed(1)}%` : "—"} />
+          </div>
+
+          {/* Outliers */}
+          {a.outliers.length > 0 && (
+            <div className="rounded-md p-3 bg-amber-50 border border-amber-200 text-sm flex gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+              <div>
+                <b>بند مصروف غير طبيعي: </b>
+                {a.outliers.map(o => `${o.source} (${o.pct.toFixed(0)}%)`).join("، ")}
+                {" — "}راجعه قبل إقفال الشهر.
+              </div>
+            </div>
+          )}
+
+          {/* Missing revenue */}
+          {a.missingRevenue.length > 0 && (
+            <div className="rounded-md p-3 bg-orange-50 border border-orange-200 text-sm">
+              <div className="font-bold mb-1 flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-orange-600" />
+                إيرادات أو قيم تشغيلية محتملة غير مسجّلة
+              </div>
+              <ul className="list-disc pr-5 space-y-1">
+                {a.missingRevenue.map((m, i) => <li key={i}>{m}</li>)}
+              </ul>
+            </div>
+          )}
+
+          <div className="grid lg:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader><CardTitle className="text-base">أكبر 10 بنود مصروفات</CardTitle></CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader><TableRow>
+                    <TableHead>#</TableHead><TableHead>البند</TableHead>
+                    <TableHead>المبلغ</TableHead><TableHead>% من المصروفات</TableHead>
+                  </TableRow></TableHeader>
+                  <TableBody>
+                    {a.top10Exp.length === 0 && (
+                      <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">
+                        لا توجد مصروفات
+                      </TableCell></TableRow>
+                    )}
+                    {a.top10Exp.map((e, i) => (
+                      <TableRow key={i}>
+                        <TableCell>{i + 1}</TableCell>
+                        <TableCell>{e.source}</TableCell>
+                        <TableCell className="tabular-nums text-red-700">{fmt(e.amount)}</TableCell>
+                        <TableCell className="tabular-nums">
+                          <div className="flex items-center gap-2">
+                            <div className="w-16 h-2 bg-muted rounded overflow-hidden">
+                              <div className="h-full bg-red-500" style={{ width: `${Math.min(e.pct, 100)}%` }} />
+                            </div>
+                            {e.pct.toFixed(1)}%
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader><CardTitle className="text-base">أكبر 10 مصادر إيراد / قيمة تشغيلية</CardTitle></CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader><TableRow>
+                    <TableHead>#</TableHead><TableHead>المصدر</TableHead>
+                    <TableHead>المبلغ</TableHead><TableHead>% من الإيرادات</TableHead>
+                  </TableRow></TableHeader>
+                  <TableBody>
+                    {a.top10Rev.length === 0 && (
+                      <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">
+                        لا توجد إيرادات مسجّلة
+                      </TableCell></TableRow>
+                    )}
+                    {a.top10Rev.map((e, i) => (
+                      <TableRow key={i}>
+                        <TableCell>{i + 1}</TableCell>
+                        <TableCell>{e.source}</TableCell>
+                        <TableCell className="tabular-nums text-green-700">{fmt(e.amount)}</TableCell>
+                        <TableCell className="tabular-nums">
+                          <div className="flex items-center gap-2">
+                            <div className="w-16 h-2 bg-muted rounded overflow-hidden">
+                              <div className="h-full bg-green-500" style={{ width: `${Math.min(e.pct, 100)}%` }} />
+                            </div>
+                            {e.pct.toFixed(1)}%
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Recommendations */}
+          {a.recs.length > 0 && (
+            <Card>
+              <CardHeader><CardTitle className="text-base flex items-center gap-2">
+                <Lightbulb className="h-4 w-4 text-amber-500" /> توصيات
+              </CardTitle></CardHeader>
+              <CardContent>
+                <ul className="space-y-2 text-sm">
+                  {a.recs.map((r, i) => (
+                    <li key={i} className="flex gap-2">
+                      <span className="text-primary font-bold">•</span>
+                      <span>{r}</span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
