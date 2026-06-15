@@ -392,6 +392,50 @@ const HREmployeeAdvancesReport = () => {
     openPrintWindow("تقرير سلف الموظفين", buildPrintHtml());
   }
 
+  async function saveAlias(row: AdvanceRow, employeeId: string) {
+    const rawName = (row.beneficiary || row.description || "").trim();
+    if (!rawName || !employeeId) return;
+    const normalized = normalize(rawName);
+    const sourceTable =
+      row.source === "main" ? "main_treasury_transactions" :
+      row.source === "lab" ? "lab_treasury_movements" : "slaughter_custody_expenses";
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      const { error } = await supabase.from("hr_employee_name_aliases" as any).insert({
+        raw_name: rawName,
+        normalized_name: normalized,
+        employee_id: employeeId,
+        source_table: sourceTable,
+        source_id: row.id,
+        confidence: "manual",
+        created_by: u?.user?.id ?? null,
+      });
+      if (error && !String(error.message).includes("duplicate")) throw error;
+      toast.success("تم ربط الاسم بالموظف");
+      setLinkRow(null);
+      await loadAll();
+    } catch (e: any) {
+      toast.error("فشل حفظ الربط", { description: e.message });
+    }
+  }
+
+  // Smart suggestions for the link dialog: prioritize employees in the same dept/source
+  function suggestionsFor(row: AdvanceRow | null): Employee[] {
+    if (!row) return employees;
+    const text = normalize(`${row.beneficiary ?? ""} ${row.description ?? ""}`);
+    const sourceDept =
+      row.source === "slaughter" ? "المجزر" :
+      row.source === "lab" ? "المعمل" : null;
+    const score = (e: Employee) => {
+      let s = 0;
+      const tokens = normalize(e.full_name).split(" ").filter(t => t.length >= 2);
+      for (const t of tokens) if (text.includes(t)) s += 5;
+      if (sourceDept && (e.department || "").includes(sourceDept)) s += 2;
+      return s;
+    };
+    return [...employees].sort((a, b) => score(b) - score(a));
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6 p-4">
