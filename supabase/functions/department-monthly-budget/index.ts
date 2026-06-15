@@ -276,6 +276,146 @@ async function computeMonth(supabase: any, year: number, month: number) {
     }
   }
 
+  // ---- Hatchery DEEP ANALYSIS ----
+  {
+    const hInvoiced = (hInv ?? []).reduce((a: number, i: any) => a + Number(i.total_amount || 0), 0);
+    const hPaidOnInvoices = (hInv ?? []).reduce((a: number, i: any) => a + Number(i.paid_amount || 0), 0);
+    const hOutstanding = Math.max(0, hInvoiced - hPaidOnInvoices);
+    const revByService = {
+      chicks: (hInv ?? []).reduce((a: number, i: any) => a + Number(i.chicks_amount || 0), 0),
+      brooding: (hInv ?? []).reduce((a: number, i: any) => a + Number(i.brooding_amount || 0), 0),
+      completed_unhatched: (hInv ?? []).reduce((a: number, i: any) => a + Number(i.completed_unhatched_amount || 0), 0),
+      infertile: (hInv ?? []).reduce((a: number, i: any) => a + Number(i.infertile_amount || 0), 0),
+    };
+    const { data: hDisc } = await supabase
+      .from("hatchery_invoice_discounts").select("amount,created_at")
+      .gte("created_at", tsStart).lt("created_at", tsEnd);
+    const discountTotal = (hDisc ?? []).reduce((a: number, d: any) => a + Number(d.amount || 0), 0);
+
+    const invIds = (hInv ?? []).map((i: any) => i.id);
+    const invPayByMethod: Record<string, number> = {}; let invPayTotal = 0;
+    for (let i = 0; i < invIds.length; i += 500) {
+      const chunk = invIds.slice(i, i + 500);
+      const { data: pays } = await supabase
+        .from("hatchery_invoice_payments").select("amount,method,paid_at")
+        .in("invoice_id", chunk).gte("paid_at", tsStart).lt("paid_at", tsEnd);
+      for (const p of pays ?? []) {
+        const m = p.method || "cash"; const amt = Number(p.amount || 0);
+        invPayByMethod[m] = (invPayByMethod[m] || 0) + amt; invPayTotal += amt;
+      }
+    }
+    const { data: hCustPays } = await supabase
+      .from("hatch_customer_payments").select("amount,payment_method,payment_date")
+      .gte("payment_date", dStart).lt("payment_date", dEnd);
+    const custPayByMethod: Record<string, number> = {}; let custPayTotal = 0;
+    for (const p of hCustPays ?? []) {
+      const m = p.payment_method || "cash"; const amt = Number(p.amount || 0);
+      custPayByMethod[m] = (custPayByMethod[m] || 0) + amt; custPayTotal += amt;
+    }
+    const { data: labHatchInc } = await supabase
+      .from("lab_treasury_movements")
+      .select("amount,payment_method,movement_date,status,income_category")
+      .eq("movement_type", "income").eq("income_category", "hatching")
+      .gte("movement_date", dStart).lt("movement_date", dEnd);
+    let labApprovedTotal = 0, labPendingTotal = 0;
+    const labByMethod: Record<string, number> = {};
+    for (const m of labHatchInc ?? []) {
+      const amt = Number(m.amount || 0);
+      if (m.status === "approved") {
+        labApprovedTotal += amt;
+        const k = m.payment_method || "cash";
+        labByMethod[k] = (labByMethod[k] || 0) + amt;
+      } else if (m.status === "pending") labPendingTotal += amt;
+    }
+    const { data: ledgerCloseouts } = await supabase
+      .from("lab_customer_ledger").select("amount,entry_type,entry_date")
+      .eq("entry_type", "historical_closeout")
+      .gte("entry_date", dStart).lt("entry_date", dEnd);
+    const previousBalanceSettlements = (ledgerCloseouts ?? [])
+      .reduce((a: number, r: any) => a + Number(r.amount || 0), 0);
+
+    const { data: labExp } = await supabase
+      .from("lab_treasury_movements")
+      .select("amount,expense_category,movement_date,status")
+      .eq("movement_type", "expense").eq("status", "approved")
+      .gte("movement_date", dStart).lt("movement_date", dEnd);
+    const LAB_EXP_LABELS: Record<string, string> = {
+      electricity: "كهرباء", maintenance: "صيانة", medicine: "أدوية/مطهرات",
+      salaries_hatchery: "عمالة معمل", salaries_mother_farm: "عمالة أمهات",
+      tools: "أدوات", other: "أخرى",
+    };
+    const labExpByCat: Record<string, number> = {}; let labExpTotal = 0;
+    for (const e of labExp ?? []) {
+      const k = e.expense_category || "other";
+      const amt = Number(e.amount || 0);
+      labExpByCat[k] = (labExpByCat[k] || 0) + amt; labExpTotal += amt;
+    }
+    const labExpBreakdown = Object.entries(labExpByCat).map(([code, amount]) => ({
+      code, label: LAB_EXP_LABELS[code] || code, amount,
+    })).sort((a, b) => b.amount - a.amount);
+    if (labExpTotal > 0) {
+      hatchery.operatingExpenses += labExpTotal;
+      for (const e of labExpBreakdown) {
+        hatchery.expenseItems.push({
+          date: dStart, label: `معمل: ${e.label}`,
+          source: `مصروفات معمل — ${e.label}`, amount: e.amount, category: "cash",
+        });
+      }
+    }
+
+    const totalCollections = invPayTotal + custPayTotal + labApprovedTotal;
+    const PM_LBL: Record<string, string> = {
+      cash: "نقدي", vodafone_cash: "فودافون كاش", instapay: "إنستا باي", bank_transfer: "تحويل بنكي",
+    };
+    const mergeByMethod = (...maps: Record<string, number>[]) => {
+      const out: Record<string, number> = {};
+      for (const m of maps) for (const [k, v] of Object.entries(m)) out[k] = (out[k] || 0) + v;
+      return Object.entries(out).map(([code, amount]) => ({ code, label: PM_LBL[code] || code, amount }))
+        .sort((a, b) => b.amount - a.amount);
+    };
+
+    const { data: completedBatches } = await supabase
+      .from("hatch_batches").select("id,customer_id,is_test,status,exit_date")
+      .eq("status", "completed")
+      .gte("exit_date", dStart).lt("exit_date", dEnd);
+    const completedNotTest = (completedBatches ?? []).filter((b: any) => !b.is_test && b.customer_id);
+    const invoicedBatchIds = new Set((hInv ?? []).map((i: any) => i.batch_id).filter(Boolean));
+    const batchesWithoutInvoices = completedNotTest.filter((b: any) => !invoicedBatchIds.has(b.id)).length;
+
+    const rootCauses: string[] = [];
+    if (hOutstanding > 0) rootCauses.push(`متبقي على العملاء ${Math.round(hOutstanding).toLocaleString()} ج — فواتير مستحقة غير محصلة`);
+    if (labPendingTotal > 0) rootCauses.push(`${Math.round(labPendingTotal).toLocaleString()} ج تحصيلات pending في خزنة المعمل لم تُعتمد بعد`);
+    if (previousBalanceSettlements > 0) rootCauses.push(`${Math.round(previousBalanceSettlements).toLocaleString()} ج سداد من رصيد سابق — يسدد فواتير لكنه لا يدخل النقدي`);
+    if (discountTotal > 0) rootCauses.push(`${Math.round(discountTotal).toLocaleString()} ج خصومات أثرت على صافي المستحق`);
+    if (labExpTotal > totalCollections && labExpTotal > 0) {
+      rootCauses.push(`مصروفات المعمل (${Math.round(labExpTotal).toLocaleString()}) أعلى من التحصيلات النقدية (${Math.round(totalCollections).toLocaleString()})`);
+    }
+    if (batchesWithoutInvoices > 0) rootCauses.push(`${batchesWithoutInvoices} دفعة فقس مكتملة بدون فاتورة منشأة`);
+
+    (hatchery as any).deepAnalysis = {
+      type: "hatchery",
+      revenueByService: revByService,
+      invoicedTotal: Math.round(hInvoiced),
+      paidOnInvoices: Math.round(hPaidOnInvoices),
+      outstandingOnCustomers: Math.round(hOutstanding),
+      discountsTotal: Math.round(discountTotal),
+      previousBalanceSettlements: Math.round(previousBalanceSettlements),
+      collections: {
+        fromInvoicePayments: Math.round(invPayTotal),
+        fromCustomerDeposits: Math.round(custPayTotal),
+        fromLabTreasuryApproved: Math.round(labApprovedTotal),
+        labTreasuryPending: Math.round(labPendingTotal),
+        total: Math.round(totalCollections),
+        byMethod: mergeByMethod(invPayByMethod, custPayByMethod, labByMethod),
+      },
+      expenses: { total: Math.round(labExpTotal), byCategory: labExpBreakdown },
+      batchesCompletedWithoutInvoice: batchesWithoutInvoices,
+      rootCauses,
+    };
+  }
+
+
+
   // ============ Brooding ============
   const { data: bSales } = await supabase
     .from("brooding_chick_sales")
