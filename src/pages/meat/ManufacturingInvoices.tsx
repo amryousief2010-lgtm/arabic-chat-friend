@@ -116,6 +116,70 @@ export default function ManufacturingInvoices() {
     setInvoiceUuid(crypto.randomUUID());
   };
 
+  const [selectedRecipeKey, setSelectedRecipeKey] = useState<string>("");
+  const loadRecipe = (key: string, qtyOverride?: number) => {
+    const r = MEAT_RECIPES.find(x => x.key === key);
+    if (!r) return;
+    setSelectedRecipeKey(key);
+    const requested = qtyOverride && qtyOverride > 0 ? qtyOverride : r.batch_qty;
+    const factor = requested / r.batch_qty;
+    // Match product to preset or use "other"
+    if (PRODUCT_PRESETS.includes(r.product)) { setProductName(r.product); setProductNameOther(""); }
+    else { setProductName("أخرى"); setProductNameOther(r.product); }
+    setFinishedQty(requested);
+    setUnit(r.unit || "كجم");
+    setExtraCost(Number((r.wages * factor).toFixed(2)));
+    const rawSpice = r.lines.filter(l => l.kind !== "packaging").map(l => {
+      const match = items.find(it => it.name?.trim() === l.name.trim());
+      return {
+        tmp: crypto.randomUUID(),
+        item_id: match?.id || "",
+        item_name: l.name,
+        kind: l.kind,
+        unit: l.unit,
+        quantity: Number((l.qty * factor).toFixed(3)),
+        unit_cost: Number(l.price.toFixed(3)),
+        line_total: Number((l.qty * factor * l.price).toFixed(3)),
+        notes: match ? null : "⚠ غير موجود في المخزن — اختر صنف بديل قبل الاعتماد",
+      } as Line;
+    });
+    const pack = r.lines.filter(l => l.kind === "packaging").map(l => {
+      const match = items.find(it => it.name?.trim() === l.name.trim());
+      return {
+        tmp: crypto.randomUUID(),
+        item_id: match?.id || "",
+        item_name: l.name,
+        kind: "packaging" as Kind,
+        unit: l.unit,
+        quantity: Number((l.qty * factor).toFixed(3)),
+        unit_cost: Number(l.price.toFixed(3)),
+        line_total: Number((l.qty * factor * l.price).toFixed(3)),
+        notes: match ? null : "⚠ غير موجود في المخزن — اختر صنف بديل قبل الاعتماد",
+      } as Line;
+    });
+    setRawLines(rawSpice.length ? rawSpice : [newLine("raw")]);
+    setPackLines(pack.length ? pack : [newLine("packaging")]);
+    const missing = [...rawSpice, ...pack].filter(l => !l.item_id).length;
+    if (missing > 0) toast.warning(`تم تحميل التركيبة — ${missing} صنف لم يُطابق المخزن، اختر بديل قبل الاعتماد`);
+    else toast.success(`تم تحميل تركيبة ${r.product} (×${factor.toFixed(2)})`);
+  };
+
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    const k = searchParams.get("recipe");
+    const q = Number(searchParams.get("qty") || 0);
+    if (k && items.length > 0 && k !== selectedRecipeKey) {
+      loadRecipe(k, q || undefined);
+      setTab("new");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, items.length]);
+
+  const submitDraft = async () => {
+    if (!factoryWarehouseId) { toast.error("اختر مخزن مصنع اللحوم"); return; }
+    if (!finalProductName) { toast.error("اختر/أدخل اسم المنتج النهائي"); return; }
+    if (!finishedQty || finishedQty <= 0) { toast.error("أدخل كمية المنتج التام"); return; }
+
   const submitDraft = async () => {
     if (!factoryWarehouseId) { toast.error("اختر مخزن مصنع اللحوم"); return; }
     if (!finalProductName) { toast.error("اختر/أدخل اسم المنتج النهائي"); return; }
