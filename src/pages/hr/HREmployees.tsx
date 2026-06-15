@@ -9,10 +9,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { UsersRound, Plus, Search, Edit, History as HistoryIcon } from "lucide-react";
+import { UsersRound, Plus, Search, Edit, History as HistoryIcon, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import PrintEmployeesAdvancesDialog from "@/components/hr/PrintEmployeesAdvancesDialog";
 
 interface Location { id: string; name: string; department: string | null }
 interface Employee {
@@ -72,6 +73,7 @@ const HREmployees = () => {
 
   const [historyOf, setHistoryOf] = useState<Employee | null>(null);
   const [transfers, setTransfers] = useState<Transfer[]>([]);
+  const [printOpen, setPrintOpen] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -228,10 +230,22 @@ const HREmployees = () => {
               <p className="text-muted-foreground mt-1">إضافة وتعديل بيانات كل موظف ومكان عمله</p>
             </div>
           </div>
-          {canManage && (
-            <Button onClick={openCreate}><Plus className="w-4 h-4 ml-1" />إضافة موظف</Button>
-          )}
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" onClick={() => setPrintOpen(true)}>
+              <Printer className="w-4 h-4 ml-1" />طباعة بيان الموظفين والسلف
+            </Button>
+            {canManage && (
+              <Button onClick={openCreate}><Plus className="w-4 h-4 ml-1" />إضافة موظف</Button>
+            )}
+          </div>
         </div>
+
+        <PrintEmployeesAdvancesDialog
+          open={printOpen}
+          onOpenChange={setPrintOpen}
+          employees={employees}
+          locations={locations}
+        />
 
         <Card>
           <CardHeader>
