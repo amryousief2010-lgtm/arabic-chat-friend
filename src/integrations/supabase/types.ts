@@ -14463,33 +14463,57 @@ export type Database = {
       }
       warehouse_opening_balances: {
         Row: {
+          approved_at: string | null
+          approved_by: string | null
+          counted_by: string | null
           id: string
           item_id: string
           notes: string | null
           opened_at: string
           opened_by: string | null
+          posted_movement_id: string | null
           product_id: string | null
           qty: number
+          status: string
+          total_value: number | null
+          unit_cost: number
+          updated_at: string
           warehouse_id: string
         }
         Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          counted_by?: string | null
           id?: string
           item_id: string
           notes?: string | null
           opened_at?: string
           opened_by?: string | null
+          posted_movement_id?: string | null
           product_id?: string | null
           qty?: number
+          status?: string
+          total_value?: number | null
+          unit_cost?: number
+          updated_at?: string
           warehouse_id: string
         }
         Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          counted_by?: string | null
           id?: string
           item_id?: string
           notes?: string | null
           opened_at?: string
           opened_by?: string | null
+          posted_movement_id?: string | null
           product_id?: string | null
           qty?: number
+          status?: string
+          total_value?: number | null
+          unit_cost?: number
+          updated_at?: string
           warehouse_id?: string
         }
         Relationships: []
@@ -15325,6 +15349,10 @@ export type Database = {
       approve_slaughter_batch: {
         Args: { p_batch_id: string }
         Returns: undefined
+      }
+      approve_warehouse_opening_balance: {
+        Args: { p_id: string }
+        Returns: string
       }
       approve_warehouse_transfer: {
         Args: { p_approved_lines?: Json; p_transfer_id: string }

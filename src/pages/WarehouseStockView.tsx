@@ -367,7 +367,21 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
         </Card>
       )}
 
-
+      {(scope === "main" || scope === "agouza") && (
+        <div className="flex flex-wrap gap-2 mb-3">
+          <Button variant="outline" size="sm" onClick={() => navigate("/modules/warehouses/opening-balance")}>
+            <PackageCheck className="w-4 h-4 ml-1" /> الرصيد الافتتاحي
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => navigate("/warehouse-stock/main/guide")}>
+            <Search className="w-4 h-4 ml-1" /> دليل تشغيل المخزن
+          </Button>
+          {(isGeneralManager || isExecutiveManager) && (
+            <Button variant="outline" size="sm" onClick={() => navigate("/modules/warehouses/operational-dates")}>
+              <Lock className="w-4 h-4 ml-1" /> تواريخ بداية التشغيل
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* ملخص سريع */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
