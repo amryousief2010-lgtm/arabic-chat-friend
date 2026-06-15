@@ -9,11 +9,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { UsersRound, Plus, Search, Edit, History as HistoryIcon, Printer } from "lucide-react";
+import { UsersRound, Plus, Search, Edit, History as HistoryIcon, Printer, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import PrintEmployeesAdvancesDialog from "@/components/hr/PrintEmployeesAdvancesDialog";
+import EmployeeDocumentsDialog from "@/components/hr/EmployeeDocumentsDialog";
 
 interface Location { id: string; name: string; department: string | null }
 interface Employee {
