@@ -500,9 +500,11 @@ const GroupDetailDialog = ({ group, stageMeta, onClose, onOpenResults, onRefresh
     setAccountName(c.customer_name || "عميل");
   };
   const meta = stageMeta[group.stage] || { label: group.stage, color: "bg-gray-500" };
+  // Batch is "locked" ONLY once explicitly closed (status = closed/completed).
+  // Saving partial hatch results no longer locks the batch.
   const locked = (group.customers || []).some((c: any) => {
     const r = c._raw || {};
-    return (r.hatched_chicks || 0) > 0 || r.exit_date || r.status === "closed" || r.status === "completed";
+    return r.status === "closed" || r.status === "completed";
   });
   const Row = ({ label, value }: { label: string; value: any }) => (
     <div className="flex justify-between border-b py-1 text-sm">
