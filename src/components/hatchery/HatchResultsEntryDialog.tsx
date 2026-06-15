@@ -237,6 +237,42 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
     }
   };
 
+  const handleReopen = async () => {
+    setSaving(true);
+    try {
+      const ids = (group.customers || []).map((c: any) => c.id);
+      const { error } = await supabase
+        .from("hatch_batches")
+        .update({ status: "received", exit_date: null, updated_at: new Date().toISOString() })
+        .in("id", ids);
+      if (error) throw error;
+      try {
+        const { data: u } = await supabase.auth.getUser();
+        await supabase.from("hatch_batch_edit_audit" as any).insert(
+          (group.customers || []).map((c: any) => ({
+            batch_id: c.id,
+            batch_number: c.batch_number,
+            operational_batch_no: group.op_number,
+            customer_name: c.customer_name,
+            actor_id: u?.user?.id,
+            actor_name: (u?.user?.user_metadata as any)?.full_name || u?.user?.email || null,
+            changes: { action: "reopen_hatching_batch" },
+            reason: "إعادة فتح الدفعة بعد الإقفال — بصلاحية إدارية",
+          })),
+        );
+      } catch { /* audit best-effort */ }
+      toast.success("تم إعادة فتح الدفعة — أصبحت قابلة للتعديل");
+      onSaved?.();
+      onClose();
+    } catch (e: any) {
+      console.error(e);
+      toast.error("فشل إعادة فتح الدفعة: " + (e?.message || "خطأ غير معروف"));
+    } finally {
+      setSaving(false);
+      setConfirmReopen(false);
+    }
+  };
+
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-[95vw] md:max-w-6xl max-h-[92vh] overflow-y-auto" dir="rtl">
