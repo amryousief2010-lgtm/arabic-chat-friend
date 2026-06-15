@@ -262,6 +262,11 @@ export default function DepartmentMonthlyBudget() {
           <Button onClick={exportExcel} variant="outline" disabled={!data}>
             <FileSpreadsheet className="h-4 w-4 ml-1" /> Excel
           </Button>
+          <Button asChild variant="outline">
+            <a href="/modules/internal-prices-settings">
+              <Tag className="h-4 w-4 ml-1" /> الأسعار الداخلية
+            </a>
+          </Button>
         </div>
       </div>
 
