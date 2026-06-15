@@ -1,5 +1,6 @@
 // Department Monthly Budget — read-only aggregation across 4 departments
 // hatchery / brooding / slaughterhouse / feed_factory
+// Includes internal operational values (NOT treasury) + remaining inventory assets
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -10,29 +11,43 @@ const corsHeaders = {
 };
 
 type DeptKey = "hatchery" | "brooding" | "slaughterhouse" | "feed_factory";
+type LineCategory = "cash" | "internal" | "asset";
 
 interface LineItem {
   date: string;
   label: string;
   source: string;
   amount: number;
+  category: LineCategory; // cash = real money; internal = operational value; asset = remaining stock value
   reference?: string;
   treasury?: string;
   notes?: string;
+  priceSource?: "internal_price" | "avg_cost" | "transfer_unit_price";
 }
 
 interface DeptResult {
   key: DeptKey;
   name: string;
-  revenue: number;
+  // Totals split
+  cashRevenue: number;
+  internalValue: number;       // operational internal value (transfers, internal feed supply)
+  remainingInventoryValue: number; // remaining stock assets (feed factory)
   expenses: number;
-  net: number;
-  expenseRatio: number;
-  status: "profit" | "loss" | "even";
-  revenueItems: LineItem[];
+  // Computed
+  totalComputedValue: number;  // cash + internal + remaining
+  cashNet: number;             // cashRevenue - expenses
+  operationalNet: number;      // totalComputedValue - expenses
+  expenseRatio: number;        // expenses / totalComputedValue
+  status: "profit" | "loss" | "even";          // based on operationalNet
+  cashStatus: "profit" | "loss" | "even";      // based on cashNet
+  // Items
+  revenueItems: LineItem[];    // all positive items (cash + internal + asset)
   expenseItems: LineItem[];
+  // Top
   topRevenueSource?: { source: string; amount: number };
   topExpenseItem?: { source: string; amount: number };
+  // Pricing alerts
+  pricingWarnings: string[];
 }
 
 const DEPT_NAMES: Record<DeptKey, string> = {
@@ -43,13 +58,10 @@ const DEPT_NAMES: Record<DeptKey, string> = {
 };
 
 function cairoMonthRange(year: number, month: number): { start: string; end: string } {
-  // month is 1-12. Use simple UTC range for date columns; for timestamptz cols,
-  // shift by Cairo offset (use +02:00 worst-case — acceptable for monthly buckets).
   const startD = new Date(Date.UTC(year, month - 1, 1, -2));
   const endD = new Date(Date.UTC(year, month, 1, -2));
   return { start: startD.toISOString(), end: endD.toISOString() };
 }
-
 function dateOnlyRange(year: number, month: number): { start: string; end: string } {
   const pad = (n: number) => String(n).padStart(2, "0");
   const start = `${year}-${pad(month)}-01`;
@@ -59,9 +71,43 @@ function dateOnlyRange(year: number, month: number): { start: string; end: strin
   return { start, end };
 }
 
+// Pick most recent active internal price effective on/before `onDate` matching name (case-insensitive contains)
+function pickPrice(
+  rows: Array<{ name: string; price: number; effective_from: string; is_active: boolean }>,
+  productName: string,
+  onDate: string,
+): number | null {
+  if (!productName) return null;
+  const target = productName.trim().toLowerCase();
+  const candidates = rows
+    .filter((r) => r.is_active && r.effective_from <= onDate.slice(0, 10))
+    .filter((r) => {
+      const n = (r.name || "").trim().toLowerCase();
+      return n === target || target.includes(n) || n.includes(target);
+    })
+    .sort((a, b) => (a.effective_from < b.effective_from ? 1 : -1));
+  return candidates[0]?.price ?? null;
+}
+
 async function computeMonth(supabase: any, year: number, month: number) {
   const { start: tsStart, end: tsEnd } = cairoMonthRange(year, month);
   const { start: dStart, end: dEnd } = dateOnlyRange(year, month);
+
+  // Pricing tables (small reference data)
+  const { data: slPriceRows } = await supabase
+    .from("slaughter_internal_prices")
+    .select("product_name,price_per_kg,effective_from,is_active");
+  const { data: feedPriceRows } = await supabase
+    .from("feed_internal_prices")
+    .select("feed_name,feed_code,price_per_kg,effective_from,is_active");
+  const slPrices = (slPriceRows ?? []).map((r: any) => ({
+    name: r.product_name, price: Number(r.price_per_kg || 0),
+    effective_from: r.effective_from, is_active: r.is_active,
+  }));
+  const feedPrices = (feedPriceRows ?? []).map((r: any) => ({
+    name: r.feed_name, price: Number(r.price_per_kg || 0),
+    effective_from: r.effective_from, is_active: r.is_active,
+  }));
 
   // ============ Hatchery ============
   const { data: hInv } = await supabase
@@ -73,13 +119,7 @@ async function computeMonth(supabase: any, year: number, month: number) {
     .select("txn_date,direction,category,amount,notes")
     .gte("txn_date", dStart).lt("txn_date", dEnd);
 
-  const hatchery: DeptResult = {
-    key: "hatchery", name: DEPT_NAMES.hatchery,
-    revenue: 0, expenses: 0, net: 0, expenseRatio: 0, status: "even",
-    revenueItems: [], expenseItems: [],
-  };
-
-  // Break invoice into per-source rows
+  const hatchery: DeptResult = mkDept("hatchery");
   for (const inv of hInv ?? []) {
     const parts: Array<[string, number]> = [
       ["رسوم الكتاكيت", Number(inv.chicks_amount || 0)],
@@ -89,23 +129,21 @@ async function computeMonth(supabase: any, year: number, month: number) {
     ];
     for (const [label, amt] of parts) {
       if (amt > 0) {
-        hatchery.revenue += amt;
+        hatchery.cashRevenue += amt;
         hatchery.revenueItems.push({
-          date: inv.issued_at, label, source: label,
-          amount: amt, reference: inv.invoice_no, treasury: inv.client_name_snapshot,
+          date: inv.issued_at, label, source: label, amount: amt,
+          category: "cash", reference: inv.invoice_no, treasury: inv.client_name_snapshot,
         });
       }
     }
   }
-  // treasury inflows that aren't already counted as invoices: skip to avoid double-count.
-  // Use only outflows as expenses.
   for (const t of hTrx ?? []) {
     if (t.direction === "out") {
       const amt = Number(t.amount || 0);
       hatchery.expenses += amt;
       hatchery.expenseItems.push({
         date: t.txn_date, label: t.category || "مصروف",
-        source: t.category || "مصروف", amount: amt, notes: t.notes,
+        source: t.category || "مصروف", amount: amt, category: "cash", notes: t.notes,
       });
     }
   }
@@ -124,17 +162,13 @@ async function computeMonth(supabase: any, year: number, month: number) {
     .select("issue_date,feed_name,quantity_kg,total_cost,notes")
     .gte("issue_date", dStart).lt("issue_date", dEnd);
 
-  const brooding: DeptResult = {
-    key: "brooding", name: DEPT_NAMES.brooding,
-    revenue: 0, expenses: 0, net: 0, expenseRatio: 0, status: "even",
-    revenueItems: [], expenseItems: [],
-  };
+  const brooding: DeptResult = mkDept("brooding");
   for (const s of bSales ?? []) {
     const amt = Number(s.total_amount || 0);
-    brooding.revenue += amt;
+    brooding.cashRevenue += amt;
     brooding.revenueItems.push({
       date: s.sale_date, label: `مبيعات كتاكيت (${s.count})`,
-      source: "مبيعات كتاكيت", amount: amt, treasury: s.customer_name,
+      source: "مبيعات كتاكيت", amount: amt, category: "cash", treasury: s.customer_name,
     });
   }
   for (const e of bExp ?? []) {
@@ -142,7 +176,8 @@ async function computeMonth(supabase: any, year: number, month: number) {
     brooding.expenses += amt;
     brooding.expenseItems.push({
       date: e.expense_date, label: e.item_name || e.expense_type,
-      source: e.expense_type || "مصروف", amount: amt, treasury: e.treasury, notes: e.notes,
+      source: e.expense_type || "مصروف", amount: amt, category: "cash",
+      treasury: e.treasury, notes: e.notes,
     });
   }
   for (const f of bFeed ?? []) {
@@ -150,14 +185,15 @@ async function computeMonth(supabase: any, year: number, month: number) {
     brooding.expenses += amt;
     brooding.expenseItems.push({
       date: f.issue_date, label: `علف: ${f.feed_name} (${f.quantity_kg} كجم)`,
-      source: "علف الحضانات", amount: amt, notes: f.notes,
+      source: "علف الحضانات", amount: amt, category: "cash", notes: f.notes,
     });
   }
 
   // ============ Slaughterhouse ============
+  // Internal transfers — these are NOT cash; they are internal operational value
   const { data: sTrans } = await supabase
     .from("slaughter_branch_transfers")
-    .select("transferred_at,cut_name_ar,weight_kg,total_value")
+    .select("transferred_at,cut_name_ar,weight_kg,unit_price,total_value")
     .gte("transferred_at", tsStart).lt("transferred_at", tsEnd);
   const { data: sExp } = await supabase
     .from("slaughter_custody_expenses")
@@ -168,18 +204,35 @@ async function computeMonth(supabase: any, year: number, month: number) {
     .select("performed_at,movement_type,quantity_kg,total_cost,notes")
     .gte("performed_at", tsStart).lt("performed_at", tsEnd);
 
-  const slaughter: DeptResult = {
-    key: "slaughterhouse", name: DEPT_NAMES.slaughterhouse,
-    revenue: 0, expenses: 0, net: 0, expenseRatio: 0, status: "even",
-    revenueItems: [], expenseItems: [],
-  };
+  const slaughter: DeptResult = mkDept("slaughterhouse");
+  let slMissingPrice = 0;
   for (const t of sTrans ?? []) {
-    const amt = Number(t.total_value || 0);
-    slaughter.revenue += amt;
-    slaughter.revenueItems.push({
-      date: t.transferred_at, label: `${t.cut_name_ar} (${t.weight_kg} كجم)`,
-      source: "تحويلات للمخزن/المصنع", amount: amt,
-    });
+    const weight = Number(t.weight_kg || 0);
+    let unitPrice = Number(t.unit_price || 0);
+    let priceSource: LineItem["priceSource"] = "transfer_unit_price";
+    if (unitPrice <= 0) {
+      const p = pickPrice(slPrices, t.cut_name_ar || "", t.transferred_at);
+      if (p && p > 0) { unitPrice = p; priceSource = "internal_price"; }
+      else { slMissingPrice++; priceSource = "avg_cost"; }
+    } else {
+      // override with internal price if defined
+      const p = pickPrice(slPrices, t.cut_name_ar || "", t.transferred_at);
+      if (p && p > 0) { unitPrice = p; priceSource = "internal_price"; }
+    }
+    const amt = weight * unitPrice;
+    if (amt > 0) {
+      slaughter.internalValue += amt;
+      slaughter.revenueItems.push({
+        date: t.transferred_at, label: `${t.cut_name_ar} (${weight} كجم)`,
+        source: "قيمة ناتج ذبح محوّل داخليًا", amount: amt,
+        category: "internal", priceSource,
+      });
+    }
+  }
+  if (slMissingPrice > 0) {
+    slaughter.pricingWarnings.push(
+      `${slMissingPrice} تحويل بدون سعر داخلي معتمد — تم استخدام السعر الافتراضي/الصفر`,
+    );
   }
   for (const e of sExp ?? []) {
     if (e.status === "rejected") continue;
@@ -187,7 +240,8 @@ async function computeMonth(supabase: any, year: number, month: number) {
     slaughter.expenses += amt;
     slaughter.expenseItems.push({
       date: e.expense_date, label: e.description || e.category,
-      source: e.category || "عهدة المجزر", amount: amt, treasury: e.beneficiary,
+      source: e.category || "عهدة المجزر", amount: amt, category: "cash",
+      treasury: e.beneficiary,
     });
   }
   for (const f of sFeed ?? []) {
@@ -197,7 +251,7 @@ async function computeMonth(supabase: any, year: number, month: number) {
         slaughter.expenses += amt;
         slaughter.expenseItems.push({
           date: f.performed_at, label: `علف المجزر (${f.quantity_kg} كجم)`,
-          source: "علف المجزر", amount: amt, notes: f.notes,
+          source: "علف المجزر", amount: amt, category: "cash", notes: f.notes,
         });
       }
     }
@@ -220,28 +274,46 @@ async function computeMonth(supabase: any, year: number, month: number) {
     .from("feed_factory_treasury_txns")
     .select("txn_date,direction,kind,amount,party,note")
     .gte("txn_date", dStart).lt("txn_date", dEnd);
+  // Remaining inventory snapshot (asset value as of "now" — not month-specific)
+  const { data: fRaw } = await supabase
+    .from("feed_raw_materials")
+    .select("name,stock,unit_cost,is_active");
+  const { data: fProd } = await supabase
+    .from("feed_products")
+    .select("name,feed_code,current_stock,latest_unit_cost,archived_at");
 
-  const feedF: DeptResult = {
-    key: "feed_factory", name: DEPT_NAMES.feed_factory,
-    revenue: 0, expenses: 0, net: 0, expenseRatio: 0, status: "even",
-    revenueItems: [], expenseItems: [],
-  };
+  const feedF: DeptResult = mkDept("feed_factory");
+  let fdMissingPrice = 0;
+
   for (const s of fSales ?? []) {
     const amt = Number(s.total_amount || 0);
-    feedF.revenue += amt;
-    feedF.revenueItems.push({
-      date: s.sale_date, label: `مبيعات علف — ${s.customer || ""}`,
-      source: s.destination_type === "internal" ? "توريد داخلي" : "مبيعات خارجية",
-      amount: amt, reference: s.sale_no,
-    });
+    if (amt <= 0) continue;
+    const isInternal = s.destination_type && s.destination_type !== "external_customer";
+    if (isInternal) {
+      feedF.internalValue += amt;
+      feedF.revenueItems.push({
+        date: s.sale_date,
+        label: `توريد علف داخلي — ${s.customer || s.destination_type}`,
+        source: "قيمة توريد علف داخلي", amount: amt,
+        category: "internal", reference: s.sale_no,
+      });
+    } else {
+      feedF.cashRevenue += amt;
+      feedF.revenueItems.push({
+        date: s.sale_date, label: `مبيعات علف — ${s.customer || ""}`,
+        source: "مبيعات خارجية", amount: amt, category: "cash", reference: s.sale_no,
+      });
+    }
   }
   for (const p of fInternal ?? []) {
     if (p.status === "rejected") continue;
     const amt = Number(p.amount || 0);
-    feedF.revenue += amt;
+    feedF.internalValue += amt;
     feedF.revenueItems.push({
-      date: p.payment_date, label: `توريد داخلي — ${p.department_type}`,
-      source: "توريدات داخلية", amount: amt, reference: p.payment_no,
+      date: p.payment_date,
+      label: `سداد داخلي — ${p.department_type}`,
+      source: "قيمة توريد علف داخلي", amount: amt,
+      category: "internal", reference: p.payment_no,
     });
   }
   for (const p of fPur ?? []) {
@@ -250,7 +322,7 @@ async function computeMonth(supabase: any, year: number, month: number) {
     feedF.expenses += amt;
     feedF.expenseItems.push({
       date: p.purchase_date, label: `خامات علف — ${p.supplier || ""}`,
-      source: "خامات العلف", amount: amt, reference: p.purchase_no,
+      source: "خامات العلف", amount: amt, category: "cash", reference: p.purchase_no,
     });
   }
   for (const t of fTrx ?? []) {
@@ -259,30 +331,87 @@ async function computeMonth(supabase: any, year: number, month: number) {
       feedF.expenses += amt;
       feedF.expenseItems.push({
         date: t.txn_date, label: t.kind || "مصروف",
-        source: t.kind || "مصروف", amount: amt, treasury: t.party, notes: t.note,
+        source: t.kind || "مصروف", amount: amt, category: "cash",
+        treasury: t.party, notes: t.note,
       });
     }
   }
 
+  // Remaining inventory — asset value
+  let rawAsset = 0, prodAsset = 0;
+  for (const r of fRaw ?? []) {
+    if (r.is_active === false) continue;
+    const stock = Number(r.stock || 0);
+    if (stock <= 0) continue;
+    let unit = Number(r.unit_cost || 0);
+    let src: LineItem["priceSource"] = "avg_cost";
+    const p = pickPrice(feedPrices, r.name || "", dEnd);
+    if (p && p > 0) { unit = p; src = "internal_price"; }
+    else if (unit <= 0) fdMissingPrice++;
+    const value = stock * unit;
+    if (value > 0) {
+      rawAsset += value;
+      feedF.revenueItems.push({
+        date: dEnd, label: `مخزون خامات: ${r.name} (${stock})`,
+        source: "قيمة مخزون متبقٍ — خامات", amount: value,
+        category: "asset", priceSource: src,
+      });
+    }
+  }
+  for (const p of fProd ?? []) {
+    if (p.archived_at) continue;
+    const stock = Number(p.current_stock || 0);
+    if (stock <= 0) continue;
+    let unit = Number(p.latest_unit_cost || 0);
+    let src: LineItem["priceSource"] = "avg_cost";
+    const ip = pickPrice(feedPrices, p.name || "", dEnd);
+    if (ip && ip > 0) { unit = ip; src = "internal_price"; }
+    else if (unit <= 0) fdMissingPrice++;
+    const value = stock * unit;
+    if (value > 0) {
+      prodAsset += value;
+      feedF.revenueItems.push({
+        date: dEnd, label: `علف جاهز: ${p.name} (${stock})`,
+        source: "قيمة مخزون متبقٍ — علف جاهز", amount: value,
+        category: "asset", priceSource: src,
+      });
+    }
+  }
+  feedF.remainingInventoryValue = rawAsset + prodAsset;
+  if (fdMissingPrice > 0) {
+    feedF.pricingWarnings.push(
+      `${fdMissingPrice} صنف بدون سعر داخلي معتمد — تم استخدام متوسط التكلفة`,
+    );
+  }
+
   const depts = [hatchery, brooding, slaughter, feedF];
   for (const d of depts) {
-    d.net = d.revenue - d.expenses;
-    d.expenseRatio = d.revenue > 0 ? (d.expenses / d.revenue) * 100 : 0;
-    d.status = d.net > 0 ? "profit" : d.net < 0 ? "loss" : "even";
-    // top sources
+    d.totalComputedValue = d.cashRevenue + d.internalValue + d.remainingInventoryValue;
+    d.cashNet = d.cashRevenue - d.expenses;
+    d.operationalNet = d.totalComputedValue - d.expenses;
+    d.expenseRatio = d.totalComputedValue > 0 ? (d.expenses / d.totalComputedValue) * 100 : 0;
+    d.status = d.operationalNet > 0 ? "profit" : d.operationalNet < 0 ? "loss" : "even";
+    d.cashStatus = d.cashNet > 0 ? "profit" : d.cashNet < 0 ? "loss" : "even";
     const groupBy = (arr: LineItem[]) => {
       const m = new Map<string, number>();
       for (const i of arr) m.set(i.source, (m.get(i.source) || 0) + i.amount);
       return [...m.entries()].map(([source, amount]) => ({ source, amount }))
         .sort((a, b) => b.amount - a.amount);
     };
-    const rev = groupBy(d.revenueItems);
-    const exp = groupBy(d.expenseItems);
-    d.topRevenueSource = rev[0];
-    d.topExpenseItem = exp[0];
+    d.topRevenueSource = groupBy(d.revenueItems)[0];
+    d.topExpenseItem = groupBy(d.expenseItems)[0];
   }
-
   return depts;
+}
+
+function mkDept(key: DeptKey): DeptResult {
+  return {
+    key, name: DEPT_NAMES[key],
+    cashRevenue: 0, internalValue: 0, remainingInventoryValue: 0, expenses: 0,
+    totalComputedValue: 0, cashNet: 0, operationalNet: 0, expenseRatio: 0,
+    status: "even", cashStatus: "even",
+    revenueItems: [], expenseItems: [], pricingWarnings: [],
+  };
 }
 
 Deno.serve(async (req) => {
@@ -315,19 +444,25 @@ Deno.serve(async (req) => {
 
     const totals = current.reduce(
       (acc, d) => {
-        acc.revenue += d.revenue; acc.expenses += d.expenses; acc.net += d.net;
+        acc.cashRevenue += d.cashRevenue;
+        acc.internalValue += d.internalValue;
+        acc.remainingInventoryValue += d.remainingInventoryValue;
+        acc.totalComputedValue += d.totalComputedValue;
+        acc.expenses += d.expenses;
+        acc.cashNet += d.cashNet;
+        acc.operationalNet += d.operationalNet;
         return acc;
       },
-      { revenue: 0, expenses: 0, net: 0 },
+      { cashRevenue: 0, internalValue: 0, remainingInventoryValue: 0,
+        totalComputedValue: 0, expenses: 0, cashNet: 0, operationalNet: 0 },
     );
 
-    // Aggregate top revenue sources & expense items across all depts
-    const aggRev = new Map<string, { source: string; dept: string; amount: number }>();
+    const aggRev = new Map<string, { source: string; dept: string; amount: number; category: LineCategory }>();
     const aggExp = new Map<string, { source: string; dept: string; amount: number }>();
     for (const d of current) {
       for (const i of d.revenueItems) {
         const k = `${d.key}|${i.source}`;
-        const cur = aggRev.get(k) || { source: i.source, dept: d.name, amount: 0 };
+        const cur = aggRev.get(k) || { source: i.source, dept: d.name, amount: 0, category: i.category };
         cur.amount += i.amount;
         aggRev.set(k, cur);
       }
@@ -340,64 +475,52 @@ Deno.serve(async (req) => {
     }
     const topRevenueSources = [...aggRev.values()]
       .sort((a, b) => b.amount - a.amount).slice(0, 15)
-      .map(r => ({ ...r, pctOfTotal: totals.revenue > 0 ? (r.amount / totals.revenue) * 100 : 0 }));
+      .map(r => ({ ...r, pctOfTotal: totals.totalComputedValue > 0 ? (r.amount / totals.totalComputedValue) * 100 : 0 }));
     const topExpenseItems = [...aggExp.values()]
       .sort((a, b) => b.amount - a.amount).slice(0, 15)
       .map(r => ({ ...r, pctOfTotal: totals.expenses > 0 ? (r.amount / totals.expenses) * 100 : 0 }));
 
-    // Highlights
-    const profitable = [...current].sort((a, b) => b.net - a.net);
+    const profitable = [...current].sort((a, b) => b.operationalNet - a.operationalNet);
     const mostProfit = profitable[0];
     const mostLoss = profitable[profitable.length - 1];
-    const byRev = [...current].sort((a, b) => b.revenue - a.revenue)[0];
+    const byRev = [...current].sort((a, b) => b.totalComputedValue - a.totalComputedValue)[0];
     const byExp = [...current].sort((a, b) => b.expenses - a.expenses)[0];
 
-    // Previous-month comparison
     const comparison = current.map(d => {
       const prev = previous.find(p => p.key === d.key)!;
       return {
         key: d.key, name: d.name,
-        currentNet: d.net, previousNet: prev.net,
-        currentRevenue: d.revenue, previousRevenue: prev.revenue,
+        currentNet: d.operationalNet, previousNet: prev.operationalNet,
+        currentCashNet: d.cashNet, previousCashNet: prev.cashNet,
+        currentRevenue: d.totalComputedValue, previousRevenue: prev.totalComputedValue,
         currentExpenses: d.expenses, previousExpenses: prev.expenses,
-        revenueDelta: d.revenue - prev.revenue,
+        revenueDelta: d.totalComputedValue - prev.totalComputedValue,
         expensesDelta: d.expenses - prev.expenses,
-        netDelta: d.net - prev.net,
-        revenuePct: prev.revenue > 0 ? ((d.revenue - prev.revenue) / prev.revenue) * 100 : null,
+        netDelta: d.operationalNet - prev.operationalNet,
+        revenuePct: prev.totalComputedValue > 0 ? ((d.totalComputedValue - prev.totalComputedValue) / prev.totalComputedValue) * 100 : null,
         expensesPct: prev.expenses > 0 ? ((d.expenses - prev.expenses) / prev.expenses) * 100 : null,
       };
     });
 
-    // Alerts
     const alerts: { level: "warn" | "danger" | "info"; message: string }[] = [];
     for (const d of current) {
       if (d.status === "loss") {
-        alerts.push({ level: "danger", message: `${d.name}: خسارة بقيمة ${Math.abs(d.net).toLocaleString()} ج.م` });
+        alerts.push({ level: "danger", message: `${d.name}: خسارة تشغيلية بقيمة ${Math.abs(d.operationalNet).toLocaleString()} ج.م` });
+      } else if (d.cashStatus === "loss" && d.status !== "loss") {
+        alerts.push({ level: "info", message: `${d.name}: لا يحقق تحصيلًا نقديًا مباشرًا لكنه ينتج قيمة تشغيلية داخلية (صافي تشغيلي +${d.operationalNet.toLocaleString()})` });
       }
       if (d.expenseRatio > 100) {
-        alerts.push({ level: "danger", message: `${d.name}: المصروفات أعلى من الإيرادات (${d.expenseRatio.toFixed(0)}%)` });
-      } else if (d.expenseRatio > 85 && d.revenue > 0) {
+        alerts.push({ level: "danger", message: `${d.name}: المصروفات أعلى من إجمالي القيمة (${d.expenseRatio.toFixed(0)}%)` });
+      } else if (d.expenseRatio > 85 && d.totalComputedValue > 0) {
         alerts.push({ level: "warn", message: `${d.name}: نسبة المصروفات مرتفعة (${d.expenseRatio.toFixed(0)}%)` });
+      }
+      for (const w of d.pricingWarnings) {
+        alerts.push({ level: "warn", message: `${d.name}: ${w}` });
       }
     }
     for (const c of comparison) {
       if (c.expensesPct != null && c.expensesPct > 25) {
         alerts.push({ level: "warn", message: `${c.name}: مصروفات الشهر زادت بنسبة ${c.expensesPct.toFixed(0)}% عن الشهر السابق` });
-      }
-      if (c.revenuePct != null && c.revenuePct < -25) {
-        alerts.push({ level: "warn", message: `${c.name}: إيرادات الشهر انخفضت بنسبة ${Math.abs(c.revenuePct).toFixed(0)}% عن الشهر السابق` });
-      }
-    }
-    // High-ratio expense buckets
-    for (const d of current) {
-      if (d.expenses === 0) continue;
-      const buckets = new Map<string, number>();
-      for (const i of d.expenseItems) buckets.set(i.source, (buckets.get(i.source) || 0) + i.amount);
-      for (const [src, amt] of buckets) {
-        const pct = (amt / d.expenses) * 100;
-        if (pct >= 60) {
-          alerts.push({ level: "info", message: `${d.name}: بند "${src}" يمثل ${pct.toFixed(0)}% من مصروفات القسم` });
-        }
       }
     }
 
@@ -408,9 +531,9 @@ Deno.serve(async (req) => {
         previous,
         totals,
         highlights: {
-          mostProfit: mostProfit && { key: mostProfit.key, name: mostProfit.name, net: mostProfit.net },
-          mostLoss: mostLoss && { key: mostLoss.key, name: mostLoss.name, net: mostLoss.net },
-          topRevenueDept: byRev && { key: byRev.key, name: byRev.name, revenue: byRev.revenue },
+          mostProfit: mostProfit && { key: mostProfit.key, name: mostProfit.name, net: mostProfit.operationalNet },
+          mostLoss: mostLoss && { key: mostLoss.key, name: mostLoss.name, net: mostLoss.operationalNet },
+          topRevenueDept: byRev && { key: byRev.key, name: byRev.name, revenue: byRev.totalComputedValue },
           topExpenseDept: byExp && { key: byExp.key, name: byExp.name, expenses: byExp.expenses },
           biggestRevenueSource: topRevenueSources[0],
           biggestExpenseItem: topExpenseItems[0],
@@ -419,13 +542,16 @@ Deno.serve(async (req) => {
         topExpenseItems,
         comparison,
         alerts,
-        unclassified: { count: 0, note: "كل الحركات الحالية مرتبطة بأقسامها مباشرة." },
+        meta: {
+          note: "القيم التشغيلية الداخلية والأصول المتبقية لا تنشئ أي حركة خزنة — للتحليل فقط",
+          treasuryMovementsCreated: 0,
+        },
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
     console.error("dept-budget error", err);
-    return new Response(JSON.stringify({ error: String(err?.message ?? err) }),
+    return new Response(JSON.stringify({ error: String((err as any)?.message ?? err) }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
