@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
@@ -12,8 +13,12 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Factory, Plus, Trash2, CheckCircle2, Send, Loader2, Printer, Eye } from "lucide-react";
+import { Factory, Plus, Trash2, CheckCircle2, Send, Loader2, Printer, Eye, ChefHat } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import recipesData from "@/data/meatRecipes.json";
+
+type MeatRecipe = { key: string; product: string; code: number; batch_qty: number; unit: string; wages: number; lines: { code: number; name: string; kind: "raw"|"spice"|"packaging"; unit: string; qty: number; price: number; total: number }[] };
+const MEAT_RECIPES = recipesData as MeatRecipe[];
 
 type Kind = "raw" | "spice" | "packaging";
 type Warehouse = { id: string; name: string; type: string };
