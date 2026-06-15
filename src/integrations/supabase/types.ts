@@ -3074,6 +3074,45 @@ export type Database = {
         }
         Relationships: []
       }
+      feed_internal_prices: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          effective_from: string
+          feed_code: string | null
+          feed_name: string
+          id: string
+          is_active: boolean
+          notes: string | null
+          price_per_kg: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          effective_from?: string
+          feed_code?: string | null
+          feed_name: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          price_per_kg: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          effective_from?: string
+          feed_code?: string | null
+          feed_name?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          price_per_kg?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       feed_invoice_batches: {
         Row: {
           approved_output_qty: number | null
@@ -13166,6 +13205,42 @@ export type Database = {
           updated_at?: string
           week_end_date?: string
           week_start_date?: string
+        }
+        Relationships: []
+      }
+      slaughter_internal_prices: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          effective_from: string
+          id: string
+          is_active: boolean
+          notes: string | null
+          price_per_kg: number
+          product_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          effective_from?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          price_per_kg: number
+          product_name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          effective_from?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          price_per_kg?: number
+          product_name?: string
+          updated_at?: string
         }
         Relationships: []
       }
