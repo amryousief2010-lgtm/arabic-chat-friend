@@ -14,7 +14,17 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Save, Loader2, AlertCircle } from "lucide-react";
+import { Save, Loader2, AlertCircle, Lock } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Props {
   group: any;
@@ -114,42 +124,78 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
 
   const firstError = Object.values(computed).find((c) => c.error)?.error || null;
 
-  const handleSave = async () => {
-    // Validate all rows
-    const errors: string[] = [];
+  const [confirmClose, setConfirmClose] = useState(false);
+
+  const anyResultsEntered = useMemo(
+    () =>
+      Object.values(drafts).some(
+        (r) =>
+          toNum(r.hatched_chicks) > 0 ||
+          toNum(r.hatcher_dead) > 0 ||
+          toNum(r.candle1_infertile) > 0 ||
+          toNum(r.candle2_dead) > 0,
+      ),
+    [drafts],
+  );
+
+  const persistRows = async (closing: boolean) => {
+    const rows = Object.values(drafts);
+    for (const r of rows) {
+      const eggs = toNum(r.total_eggs);
+      const c1 = toNum(r.candle1_infertile);
+      const netC1 = Math.max(0, eggs - c1);
+      const payload: any = {
+        candle1_infertile: c1,
+        candle1_fertile: netC1,
+        candle2_dead: toNum(r.candle2_dead),
+        hatcher_dead: toNum(r.hatcher_dead),
+        hatched_chicks: toNum(r.hatched_chicks),
+        notes: r.notes || null,
+        updated_at: new Date().toISOString(),
+      };
+      if (closing) {
+        payload.exit_date = exitDate;
+        payload.status = "completed";
+      }
+      const { error } = await supabase.from("hatch_batches").update(payload).eq("id", r.id);
+      if (error) throw error;
+    }
+    // Best-effort audit log (RLS may restrict; ignore failures)
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      const actor_id = u?.user?.id;
+      const actor_name = (u?.user?.user_metadata as any)?.full_name || u?.user?.email || null;
+      const auditRows = rows.map((r) => ({
+        batch_id: r.id,
+        batch_number: r.batch_number,
+        operational_batch_no: group.op_number,
+        customer_name: r.customer_name,
+        actor_id,
+        actor_name,
+        changes: { action: closing ? "close_hatching_batch" : "save_hatching_results" },
+        reason: closing ? "إقفال الدفعة بعد اكتمال النتائج" : "حفظ مرحلي لنتائج الفقس",
+      }));
+      await supabase.from("hatch_batch_edit_audit" as any).insert(auditRows);
+    } catch {
+      /* audit best-effort */
+    }
+  };
+
+  const validateAll = (): string | null => {
     for (const r of Object.values(drafts)) {
       const e = computed[r.id]?.error;
-      if (e) errors.push(`${r.customer_name}: ${e}`);
+      if (e) return `${r.customer_name}: ${e}`;
     }
-    if (errors.length) {
-      toast.error(errors[0]);
-      return;
-    }
+    return null;
+  };
 
+  const handleSave = async () => {
+    const err = validateAll();
+    if (err) { toast.error(err); return; }
     setSaving(true);
     try {
-      const rows = Object.values(drafts);
-      for (const r of rows) {
-        const eggs = toNum(r.total_eggs);
-        const c1 = toNum(r.candle1_infertile);
-        const netC1 = Math.max(0, eggs - c1);
-        const { error } = await supabase
-          .from("hatch_batches")
-          .update({
-            candle1_infertile: c1,
-            candle1_fertile: netC1, // mirror: fertile after candle1 = eggs - infertile
-            candle2_dead: toNum(r.candle2_dead),
-            hatcher_dead: toNum(r.hatcher_dead),
-            hatched_chicks: toNum(r.hatched_chicks),
-            notes: r.notes || null,
-            exit_date: exitDate,
-            status: "completed",
-            updated_at: new Date().toISOString(),
-          } as any)
-          .eq("id", r.id);
-        if (error) throw error;
-      }
-      toast.success(`تم حفظ نتائج ${rows.length} عميل — الدفعة الآن مكتملة (فقست)`);
+      await persistRows(false);
+      toast.success(`تم حفظ النتائج لـ ${Object.keys(drafts).length} عميل — الدفعة لا تزال مفتوحة للتعديل`);
       onSaved?.();
       onClose();
     } catch (e: any) {
@@ -157,6 +203,29 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
       toast.error("فشل حفظ النتائج: " + (e?.message || "خطأ غير معروف"));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleClose = async () => {
+    const err = validateAll();
+    if (err) { toast.error(err); setConfirmClose(false); return; }
+    if (!anyResultsEntered) {
+      toast.error("لا يمكن إقفال الدفعة قبل إدخال نتائج الفقس");
+      setConfirmClose(false);
+      return;
+    }
+    setSaving(true);
+    try {
+      await persistRows(true);
+      toast.success("تم إقفال الدفعة نهائيًا");
+      onSaved?.();
+      onClose();
+    } catch (e: any) {
+      console.error(e);
+      toast.error("فشل إقفال الدفعة: " + (e?.message || "خطأ غير معروف"));
+    } finally {
+      setSaving(false);
+      setConfirmClose(false);
     }
   };
 
@@ -294,7 +363,7 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
           <Card className="p-2 border-primary border-2"><div className="text-muted-foreground">إجمالي الكتاكيت</div><div className="font-bold text-primary">{totals.chicks}</div></Card>
         </div>
 
-        <DialogFooter className="gap-2 mt-3">
+        <DialogFooter className="gap-2 mt-3 flex-wrap">
           <Button variant="outline" onClick={onClose} disabled={saving}>
             إلغاء
           </Button>
@@ -304,9 +373,37 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
             ) : (
               <Save className="w-4 h-4 ml-1" />
             )}
-            حفظ النتائج وإقفال الدفعة
+            حفظ النتائج
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={() => setConfirmClose(true)}
+            disabled={saving || !!firstError || !anyResultsEntered}
+            title={!anyResultsEntered ? "أدخل نتائج الفقس أولًا" : undefined}
+          >
+            <Lock className="w-4 h-4 ml-1" />
+            إقفال الدفعة
           </Button>
         </DialogFooter>
+
+        <AlertDialog open={confirmClose} onOpenChange={setConfirmClose}>
+          <AlertDialogContent dir="rtl">
+            <AlertDialogHeader>
+              <AlertDialogTitle>تأكيد إقفال الدفعة</AlertDialogTitle>
+              <AlertDialogDescription>
+                هل أنت متأكد من إقفال الدفعة؟ بعد الإقفال لن يمكن تعديل نتائج الفقس إلا بصلاحية إدارية.
+                سيتم حفظ النتائج الحالية وتسجيل تاريخ الخروج: <b>{exitDate}</b>.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={saving}>إلغاء</AlertDialogCancel>
+              <AlertDialogAction onClick={handleClose} disabled={saving}>
+                {saving ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <Lock className="w-4 h-4 ml-1" />}
+                نعم، إقفال الدفعة
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </DialogContent>
     </Dialog>
   );
