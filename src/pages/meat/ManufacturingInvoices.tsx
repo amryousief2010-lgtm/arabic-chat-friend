@@ -435,6 +435,19 @@ export default function ManufacturingInvoices() {
                 <CardDescription>تُحفظ بحالة مسودة. الاعتماد يخصم الكميات ويضيف المنتج النهائي.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="p-3 border border-purple-200 bg-purple-50/50 dark:bg-purple-950/20 rounded-md flex flex-wrap items-end gap-2">
+                  <ChefHat className="w-5 h-5 text-purple-600 mb-2" />
+                  <div className="flex-1 min-w-[200px]">
+                    <Label className="text-xs">اختيار تركيبة جاهزة (يحمّل الخامات تلقائيًا)</Label>
+                    <Select value={selectedRecipeKey} onValueChange={v => loadRecipe(v, finishedQty || undefined)}>
+                      <SelectTrigger><SelectValue placeholder="— اختر تركيبة —" /></SelectTrigger>
+                      <SelectContent>{MEAT_RECIPES.map(r => <SelectItem key={r.key} value={r.key}>{r.product} (تشغيلة {r.batch_qty} {r.unit})</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  {selectedRecipeKey && (
+                    <Button size="sm" variant="outline" onClick={() => { setSelectedRecipeKey(""); resetForm(); }}>إلغاء التركيبة</Button>
+                  )}
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                   <div>
                     <Label>مخزن مصنع اللحوم</Label>
