@@ -518,8 +518,29 @@ export default function BatchAccountDialog({
           <DialogContent dir="rtl" className="max-w-md">
             <DialogHeader><DialogTitle>تحصيل من فاتورة {invoice?.invoice_no}</DialogTitle></DialogHeader>
             <div className="space-y-3">
-              <div className="text-sm rounded bg-muted/40 p-2">المتبقي: <b>{fmtMoney(invoice?.remaining_amount)}</b></div>
-              <div><Label>المبلغ</Label><Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} /></div>
+              <div className="rounded border bg-muted/30 p-3 text-sm space-y-1">
+                <div className="flex justify-between"><span className="text-muted-foreground">إجمالي الفاتورة</span><b>{fmtMoney(invoice?.total_amount)}</b></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">المدفوع سابقًا</span><b className="text-green-600">{fmtMoney(invoice?.paid_amount)}</b></div>
+                {num(invoice?.discount_amount) > 0 && (
+                  <div className="flex justify-between"><span className="text-muted-foreground">الخصومات</span><b className="text-purple-700">{fmtMoney(invoice?.discount_amount)}</b></div>
+                )}
+                <div className="flex justify-between border-t pt-1 mt-1"><span className="text-muted-foreground">المتبقي الحالي</span><b className="text-primary text-base">{fmtMoney(invoice?.remaining_amount)}</b></div>
+              </div>
+              <div>
+                <Label>المبلغ المدفوع الآن</Label>
+                <Input type="number" step="0.01" placeholder="أدخل المبلغ (يمكن أن يكون جزئيًا)" value={amount} onChange={(e) => setAmount(e.target.value)} />
+                <div className="flex gap-2 mt-1">
+                  <Button type="button" size="sm" variant="outline" className="text-xs h-7"
+                    onClick={() => setAmount(String(num(invoice?.remaining_amount)))}>
+                    سداد المتبقي كامل ({fmtMoney(invoice?.remaining_amount)})
+                  </Button>
+                </div>
+                {amount && Number(amount) > 0 && Number(amount) < num(invoice?.remaining_amount) && (
+                  <div className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                    تحصيل جزئي — سيتبقى {fmtMoney(num(invoice?.remaining_amount) - Number(amount))} على العميل.
+                  </div>
+                )}
+              </div>
               <div>
                 <Label>طريقة الدفع</Label>
                 <Select value={method} onValueChange={setMethod}>
@@ -537,7 +558,7 @@ export default function BatchAccountDialog({
               <p className="text-xs text-muted-foreground">
                 {method === "credit_balance"
                   ? "لن يتم إنشاء أي حركة في خزنة المعمل — يُعتبر تحصيلًا من رصيد سابق فقط."
-                  : "سيتم تسجيل حركة \"توريد تفريخ\" في خزنة المعمل تحتوي على العميل ورقم الدفعة ورقم الفاتورة."}
+                  : "حركة الخزنة ستكون بالمبلغ المدفوع فعليًا فقط، وأي متبقٍ يظل مفتوحًا على الفاتورة لتحصيله لاحقًا."}
               </p>
             </div>
             <DialogFooter>
