@@ -32,17 +32,29 @@ export default function BatchAccountDialog({
   lotId, customerName, onClose,
 }: { lotId: string; customerName: string; onClose: () => void }) {
   const qc = useQueryClient();
+  const { roles } = useAuth();
+  const canDiscount = ["general_manager","executive_manager","hatchery_manager","accountant"]
+    .some(r => roles?.includes(r as any));
+
   const [creating, setCreating] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<string>("cash");
   const [notes, setNotes] = useState("");
+  const [paying, setPaying] = useState(false);
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [receiptDate, setReceiptDate] = useState(new Date().toISOString().slice(0, 10));
   const [savingReceipt, setSavingReceipt] = useState(false);
   const [hatchEditOpen, setHatchEditOpen] = useState(false);
   const [hatchDate, setHatchDate] = useState("");
   const [savingHatch, setSavingHatch] = useState(false);
+
+  // Discount state
+  const [discOpen, setDiscOpen] = useState(false);
+  const [discAmount, setDiscAmount] = useState("");
+  const [discReason, setDiscReason] = useState("");
+  const [discNotes, setDiscNotes] = useState("");
+  const [savingDisc, setSavingDisc] = useState(false);
 
 
   const { data: lot, refetch: refetchLot } = useQuery({
