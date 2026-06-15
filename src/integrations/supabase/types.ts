@@ -5392,6 +5392,56 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_employee_name_aliases: {
+        Row: {
+          confidence: string | null
+          created_at: string
+          created_by: string | null
+          employee_id: string
+          id: string
+          normalized_name: string
+          notes: string | null
+          raw_name: string
+          source_id: string | null
+          source_table: string | null
+          updated_at: string
+        }
+        Insert: {
+          confidence?: string | null
+          created_at?: string
+          created_by?: string | null
+          employee_id: string
+          id?: string
+          normalized_name: string
+          notes?: string | null
+          raw_name: string
+          source_id?: string | null
+          source_table?: string | null
+          updated_at?: string
+        }
+        Update: {
+          confidence?: string | null
+          created_at?: string
+          created_by?: string | null
+          employee_id?: string
+          id?: string
+          normalized_name?: string
+          notes?: string | null
+          raw_name?: string
+          source_id?: string | null
+          source_table?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_employee_name_aliases_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_employee_transfers: {
         Row: {
           created_at: string
