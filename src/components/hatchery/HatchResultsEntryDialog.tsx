@@ -363,7 +363,7 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
           <Card className="p-2 border-primary border-2"><div className="text-muted-foreground">إجمالي الكتاكيت</div><div className="font-bold text-primary">{totals.chicks}</div></Card>
         </div>
 
-        <DialogFooter className="gap-2 mt-3">
+        <DialogFooter className="gap-2 mt-3 flex-wrap">
           <Button variant="outline" onClick={onClose} disabled={saving}>
             إلغاء
           </Button>
@@ -373,9 +373,37 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
             ) : (
               <Save className="w-4 h-4 ml-1" />
             )}
-            حفظ النتائج وإقفال الدفعة
+            حفظ النتائج
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={() => setConfirmClose(true)}
+            disabled={saving || !!firstError || !anyResultsEntered}
+            title={!anyResultsEntered ? "أدخل نتائج الفقس أولًا" : undefined}
+          >
+            <Lock className="w-4 h-4 ml-1" />
+            إقفال الدفعة
           </Button>
         </DialogFooter>
+
+        <AlertDialog open={confirmClose} onOpenChange={setConfirmClose}>
+          <AlertDialogContent dir="rtl">
+            <AlertDialogHeader>
+              <AlertDialogTitle>تأكيد إقفال الدفعة</AlertDialogTitle>
+              <AlertDialogDescription>
+                هل أنت متأكد من إقفال الدفعة؟ بعد الإقفال لن يمكن تعديل نتائج الفقس إلا بصلاحية إدارية.
+                سيتم حفظ النتائج الحالية وتسجيل تاريخ الخروج: <b>{exitDate}</b>.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={saving}>إلغاء</AlertDialogCancel>
+              <AlertDialogAction onClick={handleClose} disabled={saving}>
+                {saving ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <Lock className="w-4 h-4 ml-1" />}
+                نعم، إقفال الدفعة
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </DialogContent>
     </Dialog>
   );
