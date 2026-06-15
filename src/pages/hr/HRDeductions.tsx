@@ -71,10 +71,14 @@ const blankForm = () => ({
   notes: "",
 });
 
+// Mohamed Shaala — sole authorized recorder for HR deductions/attendance
+const MOHAMED_SHAALA_ID = "d1d37093-182a-4ee9-932c-d2a2b45f33ec";
+
 const HRDeductions = () => {
   const { user, isGeneralManager, isExecutiveManager, roles } = useAuth();
-  const canRecord = isGeneralManager || isExecutiveManager || roles.includes("hr_manager") || roles.includes("accountant") || roles.includes("financial_manager");
-  const canApprove = isGeneralManager || isExecutiveManager || roles.includes("hr_manager");
+  const isMohamedShaala = user?.id === MOHAMED_SHAALA_ID;
+  const canRecord = isMohamedShaala || isGeneralManager || isExecutiveManager;
+  const canApprove = isGeneralManager || isExecutiveManager;
 
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [deductions, setDeductions] = useState<Deduction[]>([]);
