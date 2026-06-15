@@ -9,8 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { FileText, Wallet, Printer } from "lucide-react";
+import { FileText, Wallet, Printer, Percent, Receipt as ReceiptIcon } from "lucide-react";
 import { openPrintWindow } from "@/lib/printPdf";
+import { useAuth } from "@/hooks/useAuth";
 
 const num = (v: any) => (v == null || isNaN(Number(v)) ? 0 : Number(v));
 const fmt = (v: any) => num(v).toLocaleString("ar-EG");
@@ -18,6 +19,14 @@ const fmtMoney = (v: any) => `${num(v).toLocaleString("ar-EG", { maximumFraction
 
 const statusLabels: Record<string, string> = { unpaid: "غير مدفوعة", partial: "مدفوعة جزئيًا", paid: "مدفوعة" };
 const statusColors: Record<string, string> = { unpaid: "bg-red-500", partial: "bg-amber-500", paid: "bg-emerald-600" };
+
+const methodLabels: Record<string, string> = {
+  cash: "نقدي",
+  instapay: "إنستاباي",
+  vodafone_cash: "فودافون كاش",
+  bank_transfer: "تحويل بنكي",
+  credit_balance: "خصم من رصيد سابق",
+};
 
 export default function BatchAccountDialog({
   lotId, customerName, onClose,
