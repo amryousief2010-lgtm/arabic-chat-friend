@@ -179,7 +179,7 @@ const HREmployeeAdvancesReport = () => {
       for (const r of (slRes.data as any[]) || []) {
         const text = `${r.description ?? ""} ${r.beneficiary ?? ""}`;
         if (!ADVANCE_REGEX.test(text) && !ADVANCE_REGEX.test(r.category ?? "")) continue;
-        const matched = tryMatchEmployee(text, emps);
+        const matched = resolveMatch(text, r.beneficiary ?? r.counterparty ?? null);
         const loc = matched?.current_location_id ? locMap.get(matched.current_location_id) : null;
         out.push({
           id: r.id, source: "slaughter", sourceLabel: SRC_LABEL.slaughter,
@@ -195,7 +195,7 @@ const HREmployeeAdvancesReport = () => {
       for (const r of (labRes.data as any[]) || []) {
         const text = `${r.description ?? ""} ${r.beneficiary ?? ""}`;
         if (!ADVANCE_REGEX.test(text)) continue;
-        const matched = tryMatchEmployee(text, emps);
+        const matched = resolveMatch(text, r.beneficiary ?? r.counterparty ?? null);
         const loc = matched?.current_location_id ? locMap.get(matched.current_location_id) : null;
         out.push({
           id: r.id, source: "lab", sourceLabel: SRC_LABEL.lab,
@@ -211,7 +211,7 @@ const HREmployeeAdvancesReport = () => {
       for (const r of (mainRes.data as any[]) || []) {
         const text = `${r.description ?? ""} ${r.counterparty ?? ""}`;
         if (!ADVANCE_REGEX.test(text)) continue;
-        const matched = tryMatchEmployee(text, emps);
+        const matched = resolveMatch(text, r.beneficiary ?? r.counterparty ?? null);
         const loc = matched?.current_location_id ? locMap.get(matched.current_location_id) : null;
         out.push({
           id: r.id, source: "main", sourceLabel: SRC_LABEL.main,
