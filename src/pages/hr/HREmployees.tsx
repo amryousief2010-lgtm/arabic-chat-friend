@@ -332,15 +332,16 @@ const HREmployees = () => {
                     <TableHead>نوع التعيين</TableHead>
                     <TableHead>المرتب / اليومية</TableHead>
                     <TableHead>الهاتف</TableHead>
+                    {canViewDocs && <TableHead>المستندات</TableHead>}
                     <TableHead>الحالة</TableHead>
                     <TableHead className="text-left">إجراءات</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loading ? (
-                    <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">جارٍ التحميل...</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={canViewDocs ? 10 : 9} className="text-center py-8 text-muted-foreground">جارٍ التحميل...</TableCell></TableRow>
                   ) : filtered.length === 0 ? (
-                    <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">لا يوجد موظفون مطابقون</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={canViewDocs ? 10 : 9} className="text-center py-8 text-muted-foreground">لا يوجد موظفون مطابقون</TableCell></TableRow>
                   ) : (
                     filtered.map((e) => (
                       <TableRow key={e.id}>
