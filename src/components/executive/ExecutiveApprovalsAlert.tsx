@@ -236,6 +236,8 @@ export default function ExecutiveApprovalsAlert() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ApprovalDetailsDialog item={detailsFor} onClose={() => setDetailsFor(null)} />
     </>
   );
 }
