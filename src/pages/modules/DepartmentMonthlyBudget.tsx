@@ -628,72 +628,7 @@ export default function DepartmentMonthlyBudget() {
                   <TableBody>
                     {data.topExpenseItems.length === 0 && (
                       <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">لا توجد مصروفات</TableCell></TableRow>
-          )}
-
-          {/* Unified product profitability table */}
-          {(() => {
-            const all = [
-              ...(data.topProfitProducts ?? []),
-              ...(data.topLossProducts ?? []),
-            ];
-            // de-duplicate by name+dept
-            const seen = new Set<string>();
-            const unique = all.filter(p => {
-              const k = `${p.dept}|${p.name}`;
-              if (seen.has(k)) return false; seen.add(k); return true;
-            }).sort((a, b) => b.profit - a.profit);
-            if (unique.length === 0) return null;
-            return (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between flex-wrap gap-2">
-                    <span>ربحية المنتجات — تكلفة فعلية × سعر بيع فعلي</span>
-                    <span className="text-xs font-normal text-muted-foreground">
-                      مرتبة من الأعلى ربحًا للأكثر خسارة
-                    </span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>المنتج</TableHead>
-                        <TableHead>القسم</TableHead>
-                        <TableHead>الكمية المباعة</TableHead>
-                        <TableHead>تكلفة الكمية</TableHead>
-                        <TableHead>قيمة البيع</TableHead>
-                        <TableHead>الربح / الخسارة</TableHead>
-                        <TableHead>هامش %</TableHead>
-                        <TableHead>الحالة</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {unique.map((p, i) => (
-                        <TableRow key={i}>
-                          <TableCell className="font-medium">{p.name}</TableCell>
-                          <TableCell className="text-xs text-muted-foreground">{p.dept}</TableCell>
-                          <TableCell className="tabular-nums">{fmt(p.qty)}</TableCell>
-                          <TableCell className="tabular-nums text-muted-foreground">{fmt(p.cost)}</TableCell>
-                          <TableCell className="tabular-nums text-green-700">{fmt(p.revenue)}</TableCell>
-                          <TableCell className={`tabular-nums font-bold ${p.profit >= 0 ? "text-green-700" : "text-red-700"}`}>
-                            {p.profit >= 0 ? "+" : ""}{fmt(p.profit)}
-                          </TableCell>
-                          <TableCell className={`tabular-nums ${p.margin >= 0 ? "text-green-700" : "text-red-700"}`}>
-                            {p.margin.toFixed(1)}%
-                          </TableCell>
-                          <TableCell>
-                            {p.profit > 0 ? <Badge className="bg-green-600">كسبان</Badge>
-                              : p.profit < 0 ? <Badge variant="destructive">خسران</Badge>
-                              : <Badge variant="secondary">تعادل</Badge>}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            );
-          })()}
+                    )}
                     {data.topExpenseItems.map((r, i) => (
                       <TableRow key={i}>
                         <TableCell>{r.source}</TableCell>
