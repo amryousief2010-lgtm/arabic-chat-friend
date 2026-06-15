@@ -2410,7 +2410,24 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
                       onChange={e => updateRow(i, { unit_price: +e.target.value })} /></TableCell>
                     <TableCell className="font-semibold">{(accepted * Number(r.unit_price || 0)).toFixed(0)}</TableCell>
                     <TableCell>
-                      <Select value={r.branch_id} onValueChange={v => updateRow(i, { branch_id: v })}>
+                      <Select
+                        value={r.destination || "warehouse"}
+                        onValueChange={v => updateRow(i, { destination: v, branch_id: v === "branch" ? r.branch_id : "" })}
+                      >
+                        <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="warehouse">المخزن الرئيسي</SelectItem>
+                          <SelectItem value="meat_factory">مصنع اللحوم</SelectItem>
+                          <SelectItem value="branch">فرع</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell>
+                      <Select
+                        value={r.branch_id}
+                        onValueChange={v => updateRow(i, { branch_id: v })}
+                        disabled={(r.destination || "warehouse") !== "branch"}
+                      >
                         <SelectTrigger className="w-32"><SelectValue placeholder="—" /></SelectTrigger>
                         <SelectContent>
                           {branches.map(b => <SelectItem key={b.id} value={b.id}>{b.name_ar}</SelectItem>)}
