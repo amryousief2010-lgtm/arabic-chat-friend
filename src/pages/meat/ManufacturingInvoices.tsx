@@ -555,8 +555,80 @@ export default function ManufacturingInvoices() {
                   <div><Label>تكلفة إضافية</Label><Input type="number" step="0.01" value={extraCost || ""} onChange={e => setExtraCost(Number(e.target.value))} /></div>
                 </div>
 
+                {unmappedLines.length > 0 && (
+                  <Card className="border-amber-300 bg-amber-50 dark:bg-amber-950/20">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base flex items-center gap-2 text-amber-800 dark:text-amber-200">
+                        <AlertTriangle className="w-5 h-5" />
+                        مطابقة أصناف التركيبة مع المخزون ({unmappedLines.length})
+                      </CardTitle>
+                      <CardDescription>
+                        الأصناف التالية غير مرتبطة بمخزون مصنع اللحوم. اختر البديل من المخزون لكل صنف. سيتم حفظ الربط ليُطبَّق تلقائيًا في التركيبات القادمة.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>اسم الصنف في التركيبة</TableHead>
+                            <TableHead>النوع</TableHead>
+                            <TableHead>الوحدة</TableHead>
+                            <TableHead>الكمية المطلوبة</TableHead>
+                            <TableHead>الصنف البديل من المخزون</TableHead>
+                            <TableHead>الرصيد</TableHead>
+                            <TableHead>متوسط التكلفة</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {unmappedLines.map(l => {
+                            const cands = l.kind === "packaging" ? packCandidates : rawCandidates.filter(c => c.kind === l.kind);
+                            return (
+                              <TableRow key={l.tmp}>
+                                <TableCell className="font-medium">{l.item_name}</TableCell>
+                                <TableCell><Badge variant="outline">{KIND_LABEL[l.kind]}</Badge></TableCell>
+                                <TableCell className="text-xs">{l.unit}</TableCell>
+                                <TableCell>{fmt(l.quantity)}</TableCell>
+                                <TableCell className="min-w-[260px]">
+                                  <Select onValueChange={v => saveMapping(l.item_name, l.kind, v)}>
+                                    <SelectTrigger><SelectValue placeholder="اختر بديلًا من المخزون" /></SelectTrigger>
+                                    <SelectContent className="max-h-80">
+                                      {cands.map(c => (
+                                        <SelectItem key={c.id} value={c.id}>
+                                          {c.name} <span className="text-xs text-muted-foreground">— {c.unit} — رصيد {fmt(c.current_stock)} — متوسط {fmt(c.avg_cost)}</span>
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </TableCell>
+                                <TableCell className="text-xs">—</TableCell>
+                                <TableCell className="text-xs">—</TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                      <div className="text-xs text-amber-700 dark:text-amber-300 mt-3 flex items-center gap-1">
+                        <Link2 className="w-3 h-3" /> الربط يُحفظ في جدول مطابقة الأصناف ويُستخدم تلقائيًا للتركيبات اللاحقة.
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {insufficientLines.length > 0 && unmappedLines.length === 0 && (
+                  <div className="p-3 border border-red-300 bg-red-50 dark:bg-red-950/20 rounded-md text-sm text-red-700 dark:text-red-300">
+                    <div className="flex items-center gap-2 font-semibold mb-1"><AlertTriangle className="w-4 h-4" /> رصيد غير كافٍ</div>
+                    <ul className="list-disc pr-5 space-y-0.5">
+                      {insufficientLines.map(l => {
+                        const it = items.find(x => x.id === l.item_id);
+                        return <li key={l.tmp}>الرصيد غير كافٍ للصنف: <b>{l.item_name}</b> — المطلوب: {fmt(l.quantity)}، المتاح: {fmt(it?.current_stock || 0)}.</li>;
+                      })}
+                    </ul>
+                  </div>
+                )}
+
                 {renderLineTable(rawLines, setRawLines, rawCandidates, "المواد الخام والبهارات المستخدمة")}
                 {renderLineTable(packLines, setPackLines, packCandidates, "خامات التغليف المستخدمة")}
+
 
                 <Card className="border-purple-200 bg-purple-50/50 dark:bg-purple-950/20">
                   <CardContent className="pt-4 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
