@@ -710,6 +710,45 @@ export default function BatchAccountDialog({
                   </div>
                 )}
               </div>
+
+              {/* Remainder action: only when partial */}
+              {amount && Number(amount) > 0 && Number(amount) < num(invoice?.remaining_amount) && (
+                <div className="rounded border-2 border-amber-300 bg-amber-50/60 dark:bg-amber-950/20 p-3 space-y-2">
+                  <Label className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                    التعامل مع المتبقي ({fmtMoney(num(invoice?.remaining_amount) - Number(amount))})
+                  </Label>
+                  <div className="space-y-1 text-sm">
+                    <label className="flex items-start gap-2 cursor-pointer p-2 rounded hover:bg-background/60">
+                      <input type="radio" name="remainder" className="mt-1"
+                        checked={remainderAction === "keep"}
+                        onChange={() => setRemainderAction("keep")} />
+                      <div>
+                        <div className="font-medium">إبقاء المتبقي للتحصيل لاحقًا</div>
+                        <div className="text-xs text-muted-foreground">يظل المتبقي مفتوحًا على نفس الفاتورة ويمكن تحصيله لاحقًا.</div>
+                      </div>
+                    </label>
+                    <label className="flex items-start gap-2 cursor-pointer p-2 rounded hover:bg-background/60">
+                      <input type="radio" name="remainder" className="mt-1"
+                        checked={remainderAction === "carryover"}
+                        onChange={() => setRemainderAction("carryover")} />
+                      <div>
+                        <div className="font-medium">ترحيل المتبقي للفاتورة القادمة</div>
+                        <div className="text-xs text-muted-foreground">يُغلق المتبقي على هذه الفاتورة ويظهر تنبيه عند فتح فاتورة جديدة للعميل لإضافته إليها.</div>
+                      </div>
+                    </label>
+                    <label className={`flex items-start gap-2 p-2 rounded hover:bg-background/60 ${canDiscount ? "cursor-pointer" : "opacity-50 cursor-not-allowed"}`}>
+                      <input type="radio" name="remainder" className="mt-1"
+                        disabled={!canDiscount}
+                        checked={remainderAction === "discount"}
+                        onChange={() => setRemainderAction("discount")} />
+                      <div>
+                        <div className="font-medium">خصم المتبقي بخصم معتمد {!canDiscount && <span className="text-xs text-red-600">(يتطلب صلاحية)</span>}</div>
+                        <div className="text-xs text-muted-foreground">سيُفتح فورم الخصم بعد التحصيل لإدخال السبب واعتماده.</div>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              )}
               <div>
                 <Label>طريقة الدفع</Label>
                 <Select value={method} onValueChange={setMethod}>
