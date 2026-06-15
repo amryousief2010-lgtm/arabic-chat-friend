@@ -98,9 +98,34 @@ const HREmployees = () => {
   const [printOpen, setPrintOpen] = useState(false);
 
   const [docsOf, setDocsOf] = useState<Employee | null>(null);
+  const [deductionsOf, setDeductionsOf] = useState<Employee | null>(null);
+  const [payDayFilter, setPayDayFilter] = useState<"all" | "1" | "5" | "15">("all");
   const [docsSummary, setDocsSummary] = useState<
     Record<string, { id: boolean; contract: boolean }>
   >({});
+  const [deductionsMap, setDeductionsMap] = useState<Record<string, DeductionSummary>>({});
+
+  const loadDeductions = async () => {
+    const { data } = await supabase
+      .from("hr_deductions")
+      .select("employee_id, deduction_type, amount, status, deduction_date, reason")
+      .order("deduction_date", { ascending: false });
+    const map: Record<string, DeductionSummary> = {};
+    (data || []).forEach((d: any) => {
+      const e = map[d.employee_id] ||= {
+        total_approved: 0, total_pending: 0, by_type: {}, last_date: null, last_reason: null,
+      };
+      const amt = Number(d.amount) || 0;
+      if (d.status === "approved") {
+        e.total_approved += amt;
+        e.by_type[d.deduction_type] = (e.by_type[d.deduction_type] || 0) + amt;
+      } else if (d.status === "pending") {
+        e.total_pending += amt;
+      }
+      if (!e.last_date) { e.last_date = d.deduction_date; e.last_reason = d.reason; }
+    });
+    setDeductionsMap(map);
+  };
 
   const load = async () => {
     setLoading(true);
@@ -124,10 +149,22 @@ const HREmployees = () => {
       });
       setDocsSummary(map);
     }
+    await loadDeductions();
     setLoading(false);
   };
 
   useEffect(() => { load(); }, []);
+
+  // Realtime updates for deductions — instantly refresh totals when added/approved/rejected.
+  useEffect(() => {
+    const ch = supabase
+      .channel("hr-deductions-employees-page")
+      .on("postgres_changes", { event: "*", schema: "public", table: "hr_deductions" }, () => {
+        loadDeductions();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
 
   const locById = useMemo(() => {
     const m = new Map<string, Location>();
