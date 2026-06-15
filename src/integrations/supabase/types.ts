@@ -5514,6 +5514,68 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_employee_documents: {
+        Row: {
+          created_at: string
+          deactivated_at: string | null
+          deactivated_by: string | null
+          document_type: string
+          employee_id: string
+          file_name: string
+          file_size: number | null
+          file_type: string | null
+          id: string
+          is_active: boolean
+          notes: string | null
+          storage_path: string
+          updated_at: string
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          deactivated_at?: string | null
+          deactivated_by?: string | null
+          document_type: string
+          employee_id: string
+          file_name: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          storage_path: string
+          updated_at?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          deactivated_at?: string | null
+          deactivated_by?: string | null
+          document_type?: string
+          employee_id?: string
+          file_name?: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          storage_path?: string
+          updated_at?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_employee_documents_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_employee_name_aliases: {
         Row: {
           confidence: string | null
@@ -15209,10 +15271,12 @@ export type Database = {
       can_manage_chick_orders: { Args: { _user_id: string }; Returns: boolean }
       can_manage_feed_batch: { Args: { _uid: string }; Returns: boolean }
       can_manage_feed_recipes: { Args: { _user_id: string }; Returns: boolean }
+      can_manage_hr_documents: { Args: { _uid: string }; Returns: boolean }
       can_manage_lab_advances: { Args: { _uid: string }; Returns: boolean }
       can_manage_meat_batch: { Args: { _uid: string }; Returns: boolean }
       can_manage_review: { Args: { _uid: string }; Returns: boolean }
       can_post_inventory: { Args: { _uid: string }; Returns: boolean }
+      can_view_hr_documents: { Args: { _uid: string }; Returns: boolean }
       can_view_treasury_transfer: {
         Args: { _user_id: string }
         Returns: boolean
