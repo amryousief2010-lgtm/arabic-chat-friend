@@ -62,6 +62,20 @@ export default function BatchAccountDialog({
     },
   });
 
+  const { data: pricing } = useQuery({
+    queryKey: ["hatchery_pricing_settings_active"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hatchery_pricing_settings" as any)
+        .select("*")
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data as any;
+    },
+  });
+
   const { data: payments = [], refetch: refetchPayments } = useQuery({
     queryKey: ["batch_account_payments", invoice?.id],
     enabled: !!invoice?.id,
@@ -236,48 +250,68 @@ export default function BatchAccountDialog({
             );
           })()}
 
-          {/* Final brooding preview when both dates are set but no invoice yet */}
-          {!invoice && lot.hatcher_out_at && lot.brooding_out_at && num(lot.chicks_hatched) > 0 && (() => {
+          {/* Full account summary before invoice creation — review BEFORE generating invoice */}
+          {!invoice && lot.hatcher_out_at && lot.brooding_out_at && pricing && (() => {
             const start = new Date(lot.hatcher_out_at.slice(0, 10));
             const end = new Date(lot.brooding_out_at.slice(0, 10));
             const days = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1);
             const chicks = num(lot.chicks_hatched);
-            const total = days * chicks * 10;
+            const infertile = num(lot.infertile_eggs);
+            const unhatched = num(lot.completed_unhatched);
+            const infPrice = num(pricing.infertile_egg_price);
+            const chPrice = num(pricing.chick_price);
+            const unPrice = num(pricing.completed_unhatched_price);
+            const dailyPrice = num(pricing.daily_brooding_price);
+            const infAmt = infertile * infPrice;
+            const unAmt = unhatched * unPrice;
+            const chAmt = chicks * chPrice;
+            const brAmt = chicks * days * dailyPrice;
+            const total = infAmt + unAmt + chAmt + brAmt;
+            const paid = 0; const remaining = total - paid;
             return (
-              <div className="rounded border p-3 bg-emerald-50 dark:bg-emerald-950/30 text-sm space-y-1">
-                <div className="font-semibold">معاينة رسوم التحضين</div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-                  <Info label="عدد الكتاكيت" value={fmt(chicks)} />
-                  <Info label="أيام التحضين" value={fmt(days)} />
-                  <Info label="سعر اليوم/كتكوت" value="10 ج.م" />
-                  <Info label="إجمالي رسوم التحضين" value={fmtMoney(total)} highlight />
+              <div className="rounded-lg border-2 border-emerald-500 p-4 bg-emerald-50 dark:bg-emerald-950/30 space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="font-bold text-emerald-700 dark:text-emerald-300">
+                    📋 ملخص حساب العميل — للمراجعة قبل إنشاء الفاتورة
+                  </h3>
+                  <Badge variant="outline">لم يتم الإنشاء بعد</Badge>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+                  <Info label="أيام التحضين" value={`${days} يوم`} />
+                  <Info label={`رسوم اللايح (${infertile} × ${infPrice})`} value={fmtMoney(infAmt)} />
+                  <Info label={`رسوم الكشف الثاني (${unhatched} × ${unPrice})`} value={fmtMoney(unAmt)} />
+                  <Info label={`رسوم الكتاكيت (${chicks} × ${chPrice})`} value={fmtMoney(chAmt)} />
+                  <Info label={`رسوم التحضين (${chicks} × ${days} × ${dailyPrice})`} value={fmtMoney(brAmt)} />
+                  <Info label="إجمالي المستحق" value={fmtMoney(total)} highlight />
+                  <Info label="المدفوع" value={fmtMoney(paid)} />
+                  <Info label="المتبقي" value={fmtMoney(remaining)} highlight />
+                </div>
+                <div className="flex items-center justify-between gap-2 pt-2 border-t">
+                  <p className="text-xs text-muted-foreground">
+                    راجع الأرقام جيدًا. إنشاء الفاتورة لا يُحرّك الخزنة — الخزنة لا تتأثر إلا عند التحصيل.
+                  </p>
+                  <Button onClick={createInvoice} disabled={creating} size="lg">
+                    <FileText className="w-4 h-4 ml-1" />
+                    {creating ? "جارٍ الإنشاء..." : "إنشاء فاتورة"}
+                  </Button>
                 </div>
               </div>
             );
           })()}
 
-          {!invoice && (
+          {!invoice && (!lot.hatcher_out_at || !lot.brooding_out_at) && (
             <div className="rounded border p-4 bg-amber-50 dark:bg-amber-950/30 flex items-center justify-between gap-3">
               <div className="text-sm">
                 <p className="font-semibold">لم يتم إنشاء فاتورة لهذه الدفعة بعد.</p>
                 <p className="text-xs text-muted-foreground">
                   {!lot.hatcher_out_at
                     ? "يجب تسجيل تاريخ الفقس أولًا لحساب رسوم التحضين."
-                    : !lot.brooding_out_at
-                    ? "سجّل تاريخ استلام الكتاكيت أولًا لتثبيت رسوم التحضين النهائية."
-                    : "إنشاء الفاتورة لا يؤثر على خزنة المعمل. الخزنة لا تتغير إلا عند التحصيل."}
+                    : "سجّل تاريخ استلام الكتاكيت أولًا لعرض ملخص الحساب للمراجعة قبل إنشاء الفاتورة."}
                 </p>
               </div>
-              {lot.hatcher_out_at && lot.brooding_out_at ? (
-                <Button onClick={createInvoice} disabled={creating}>
-                  <FileText className="w-4 h-4 ml-1" />
-                  {creating ? "جارٍ..." : "إنشاء فاتورة استلام كتاكيت"}
-                </Button>
-              ) : (
-                <Button onClick={() => !lot.hatcher_out_at ? setHatchEditOpen(true) : setReceiptOpen(true)}>
-                  {!lot.hatcher_out_at ? "تسجيل تاريخ الفقس" : "تسجيل تاريخ الاستلام"}
-                </Button>
-              )}
+              <Button onClick={() => !lot.hatcher_out_at ? setHatchEditOpen(true) : setReceiptOpen(true)}>
+                {!lot.hatcher_out_at ? "تسجيل تاريخ الفقس" : "تسجيل تاريخ الاستلام"}
+              </Button>
             </div>
           )}
 
