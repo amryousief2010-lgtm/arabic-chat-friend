@@ -16584,6 +16584,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      submit_stock_adjustment: {
+        Args: { p_actual_qty: number; p_item_id: string; p_reason: string }
+        Returns: string
+      }
       suggest_hatch_batch_for_shipment: {
         Args: { p_shipment_id: string }
         Returns: string
