@@ -246,20 +246,89 @@ export default function BatchAccountDialog({
 
     const remaining = num(invoice.remaining_amount);
     if (amt > remaining + 0.01) return toast.error(`المبلغ يتجاوز المتبقي (${fmtMoney(remaining)})`);
+    const leftover = +(remaining - amt).toFixed(2);
     setPaying(true);
     const uid = (await supabase.auth.getUser()).data.user?.id;
     const ref = `hatch_invoice_payment_${invoice.id}_${Date.now()}`;
     const { error } = await supabase.from("hatchery_invoice_payments" as any).insert({
       invoice_id: invoice.id, amount: amt, method, notes: notes ? `${notes} • ref:${ref}` : `ref:${ref}`, received_by: uid,
     });
+    if (error) { setPaying(false); return toast.error(error.message); }
+
+    // Handle remainder action when this is a partial payment
+    if (leftover > 0.001 && remainderAction === "carryover") {
+      // Prevent duplicate open carryover
+      const { data: existingOpen } = await supabase
+        .from("hatchery_invoice_carryovers" as any)
+        .select("id")
+        .eq("source_invoice_id", invoice.id)
+        .eq("status", "open")
+        .maybeSingle();
+      if (!existingOpen) {
+        const { error: cErr } = await supabase.from("hatchery_invoice_carryovers" as any).insert({
+          source_invoice_id: invoice.id,
+          client_id: invoice.client_id,
+          amount: leftover,
+          status: "open",
+          reason: "ترحيل متبقي بعد تحصيل جزئي",
+          notes: notes || null,
+          created_by: uid,
+        });
+        if (cErr) {
+          setPaying(false);
+          return toast.error(`تم التحصيل، لكن فشل ترحيل المتبقي: ${cErr.message}`);
+        }
+        toast.success(`تم التحصيل وترحيل ${fmtMoney(leftover)} كمتبقي مرحّل لفاتورة قادمة`);
+      } else {
+        toast.warning("تم التحصيل — يوجد متبقٍ مرحّل مفتوح بالفعل لهذه الفاتورة");
+      }
+    } else if (leftover > 0.001 && remainderAction === "discount") {
+      toast.success("تم التحصيل — افتح فورم الخصم لاعتماد المتبقي");
+      // Pre-fill discount dialog with leftover
+      setDiscAmount(String(leftover));
+      setDiscReason("");
+      setDiscNotes("");
+      setTimeout(() => setDiscOpen(true), 200);
+    } else {
+      toast.success(
+        method === "credit_balance"
+          ? "تم تسجيل التحصيل من رصيد سابق (بدون حركة خزنة)"
+          : "تم التحصيل وتسجيل توريد تفريخ في خزنة المعمل"
+      );
+    }
     setPaying(false);
+    setPayOpen(false); setAmount(""); setNotes(""); setRemainderAction("keep");
+    refreshAll();
+  };
+
+  const applyCarryover = async (carryoverId: string) => {
+    if (!invoice) return;
+    setApplyingCarry(carryoverId);
+    const uid = (await supabase.auth.getUser()).data.user?.id;
+    const { error } = await supabase.from("hatchery_invoice_carryovers" as any)
+      .update({
+        status: "applied",
+        applied_to_invoice_id: invoice.id,
+        applied_by: uid,
+        applied_at: new Date().toISOString(),
+      })
+      .eq("id", carryoverId)
+      .eq("status", "open");
+    setApplyingCarry(null);
     if (error) return toast.error(error.message);
-    toast.success(
-      method === "credit_balance"
-        ? "تم تسجيل التحصيل من رصيد سابق (بدون حركة خزنة)"
-        : "تم التحصيل وتسجيل توريد تفريخ في خزنة المعمل"
-    );
-    setPayOpen(false); setAmount(""); setNotes("");
+    toast.success("تم إضافة المتبقي المرحل لهذه الفاتورة");
+    refreshAll();
+  };
+
+  const cancelCarryover = async (carryoverId: string) => {
+    if (!canDiscount) return toast.error("لا تملك صلاحية إلغاء الترحيل");
+    if (!confirm("تأكيد إلغاء هذا الترحيل؟")) return;
+    const uid = (await supabase.auth.getUser()).data.user?.id;
+    const { error } = await supabase.from("hatchery_invoice_carryovers" as any)
+      .update({ status: "cancelled", cancelled_by: uid, cancelled_at: new Date().toISOString() })
+      .eq("id", carryoverId);
+    if (error) return toast.error(error.message);
+    toast.success("تم إلغاء الترحيل");
     refreshAll();
   };
 
