@@ -140,8 +140,15 @@ export default function DepartmentMonthlyBudget() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
       data.departments.map(d => ({
-        القسم: d.name, الإيرادات: d.revenue, المصروفات: d.expenses,
-        الصافي: d.net, "نسبة المصروفات %": d.expenseRatio.toFixed(1),
+        القسم: d.name,
+        "إيراد نقدي": d.cashRevenue,
+        "قيمة تشغيلية داخلية": d.internalValue,
+        "قيمة مخزون متبقٍ": d.remainingInventoryValue,
+        "إجمالي القيمة": d.totalComputedValue,
+        المصروفات: d.expenses,
+        "صافي نقدي": d.cashNet,
+        "صافي تشغيلي": d.operationalNet,
+        "نسبة المصروفات %": d.expenseRatio.toFixed(1),
         الحالة: d.status === "profit" ? "كسبان" : d.status === "loss" ? "خسران" : "تعادل",
       })),
     ), "ملخص الأقسام");
