@@ -302,14 +302,8 @@ export function SlaughterToMeatInbox() {
             <DialogTitle>تعديل الكميات واستلام الدفعة {receiveBatch?.batch_number}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <div>
-              <label className="text-sm font-medium mb-1 block">المخزن المستلِم</label>
-              <Select value={receiveWarehouseId} onValueChange={setReceiveWarehouseId}>
-                <SelectTrigger><SelectValue placeholder="اختر مخزن خامات مصنع اللحوم" /></SelectTrigger>
-                <SelectContent>
-                  {warehouses.map(w => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+            <div className="text-xs text-orange-800 bg-orange-50 border border-orange-200 rounded p-2">
+              سيتم إضافة الكميات المقبولة مباشرةً إلى <b>مخزون خامات مصنع اللحوم</b> (kind = raw، وحدة = كجم) مع احتساب متوسط التكلفة وتسجيل حركة "وارد من المجزر".
             </div>
             <Table>
               <TableHeader>
