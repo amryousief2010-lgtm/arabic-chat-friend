@@ -986,6 +986,15 @@ export default function LabTreasury() {
             <Button
               variant="outline"
               size="sm"
+              onClick={() => navigate("/lab-treasury/customer-statement")}
+              className="gap-2 border-primary/30 bg-gradient-to-br from-background to-primary/5 hover:from-primary/5 hover:to-primary/10 hover:border-primary/50 shadow-sm transition-all"
+            >
+              <Users className="w-4 h-4" />
+              كشف حساب العملاء
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={printCensus}
               className="gap-2 relative overflow-hidden border-primary/30 bg-gradient-to-br from-background to-primary/5 hover:from-primary/5 hover:to-primary/10 hover:border-primary/50 shadow-sm hover:shadow-md hover:shadow-primary/10 transition-all"
             >

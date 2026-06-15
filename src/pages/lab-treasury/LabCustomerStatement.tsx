@@ -35,6 +35,22 @@ const ENTRY_LABEL: Record<string, string> = {
   historical_closeout: "تسوية تاريخية (حتى الدفعة 15)",
 };
 
+// Determine treasury impact for a ledger row based on entry_type + payment_method
+const PRIOR_BALANCE_PMS = ["credit_prior_balance", "opening_credit", "prior_balance", "historical_settlement"];
+function treasuryImpact(r: LedgerRow): { affected: boolean; label: string } {
+  const pm = (r.payment_method || "").toLowerCase();
+  if (["batch_charge", "adjustment", "discount", "opening_balance", "internal_settlement", "historical_closeout"].includes(r.entry_type)) {
+    if (r.entry_type === "opening_balance") return { affected: false, label: "رصيد سابق — لا تؤثر" };
+    if (r.entry_type === "historical_closeout") return { affected: false, label: "تسوية تاريخية — لا تؤثر" };
+    if (r.entry_type === "internal_settlement") return { affected: false, label: "تسوية داخلية — لا تؤثر" };
+    return { affected: false, label: "لا تؤثر على الخزنة" };
+  }
+  if (PRIOR_BALANCE_PMS.includes(pm) || pm.includes("prior_balance") || pm.includes("رصيد")) {
+    return { affected: false, label: "خصم من رصيد سابق — لا تؤثر" };
+  }
+  return { affected: true, label: "أثرت على خزنة المعمل" };
+}
+
 export default function LabCustomerStatement() {
   const [params, setParams] = useSearchParams();
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -115,7 +131,9 @@ export default function LabCustomerStatement() {
       <div class="stat"><div class="k">الرصيد المتبقي</div><div class="v num">${fmtNum(summary.balance, 2)}</div></div>
       <div class="stat"><div class="k">عدد الدفعات</div><div class="v num">${fmtNum(summary.batches)}</div></div>
     </div>`;
-    const tableRows = rows.map(r => `<tr>
+    const tableRows = rows.map(r => {
+      const ti = treasuryImpact(r);
+      return `<tr>
       <td>${fmtDate(r.entry_date)}</td>
       <td>${escapeHtml(r.operational_batch_no ?? r.batch_number ?? "—")}</td>
       <td>${escapeHtml(ENTRY_LABEL[r.entry_type] || r.entry_type)}</td>
@@ -128,7 +146,10 @@ export default function LabCustomerStatement() {
       <td class="num">${fmtNum(r.credit, 2)}</td>
       <td class="num"><b>${fmtNum(r.running_balance, 2)}</b></td>
       <td>${escapeHtml(r.payment_method ?? "")}</td>
-    </tr>`).join("");
+      <td style="color:${ti.affected ? "#047857" : "#6b7280"}">${escapeHtml(ti.label)}</td>
+      <td>${escapeHtml(r.notes ?? "")}</td>
+    </tr>`;
+    }).join("");
     const body = `
       <header>
         <div><h1>كشف حساب عميل معمل التفريخ</h1>
@@ -143,6 +164,7 @@ export default function LabCustomerStatement() {
           <th>التاريخ</th><th>الدفعة</th><th>نوع الحركة</th><th>البيان</th>
           <th>لايح</th><th>كشف 2</th><th>كتاكيت</th><th>تحضين</th>
           <th>مدين</th><th>دائن</th><th>الرصيد</th><th>طريقة الدفع</th>
+          <th>تأثير الخزنة</th><th>ملاحظات</th>
         </tr></thead>
         <tbody>${tableRows}</tbody>
       </table>`;
@@ -246,21 +268,24 @@ export default function LabCustomerStatement() {
               <TableHead>دائن</TableHead>
               <TableHead>الرصيد</TableHead>
               <TableHead>طريقة الدفع</TableHead>
+              <TableHead>تأثير الخزنة</TableHead>
               <TableHead>إيصال</TableHead>
               <TableHead>ملاحظات</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {!customerId && (
-              <TableRow><TableCell colSpan={18} className="text-center text-muted-foreground py-8">اختر عميلًا لعرض كشف الحساب</TableCell></TableRow>
+              <TableRow><TableCell colSpan={19} className="text-center text-muted-foreground py-8">اختر عميلًا لعرض كشف الحساب</TableCell></TableRow>
             )}
             {customerId && loading && (
-              <TableRow><TableCell colSpan={18} className="text-center py-8">جاري التحميل…</TableCell></TableRow>
+              <TableRow><TableCell colSpan={19} className="text-center py-8">جاري التحميل…</TableCell></TableRow>
             )}
             {customerId && !loading && rows.length === 0 && (
-              <TableRow><TableCell colSpan={18} className="text-center text-muted-foreground py-8">لا توجد حركات</TableCell></TableRow>
+              <TableRow><TableCell colSpan={19} className="text-center text-muted-foreground py-8">لا توجد حركات</TableCell></TableRow>
             )}
-            {rows.map(r => (
+            {rows.map(r => {
+              const ti = treasuryImpact(r);
+              return (
               <TableRow key={r.id}>
                 <TableCell className="whitespace-nowrap text-xs">{r.entry_date}</TableCell>
                 <TableCell className="text-xs">{r.operational_batch_no ?? r.batch_number ?? "—"}</TableCell>
@@ -278,10 +303,16 @@ export default function LabCustomerStatement() {
                 <TableCell className="text-xs font-medium text-green-600">{r.credit ? fmtNum(r.credit, 2) : "—"}</TableCell>
                 <TableCell className="text-xs font-bold">{fmtNum(r.running_balance, 2)}</TableCell>
                 <TableCell className="text-xs">{r.payment_method || "—"}</TableCell>
+                <TableCell className="text-xs">
+                  <Badge variant={ti.affected ? "default" : "outline"} className={ti.affected ? "bg-emerald-600 hover:bg-emerald-600" : ""}>
+                    {ti.label}
+                  </Badge>
+                </TableCell>
                 <TableCell className="text-xs">{r.receipt_no || "—"}</TableCell>
                 <TableCell className="text-xs max-w-[160px] truncate">{r.notes || "—"}</TableCell>
               </TableRow>
-            ))}
+              );
+            })}
           </TableBody>
         </Table>
       </Card>
