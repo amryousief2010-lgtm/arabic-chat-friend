@@ -47,6 +47,7 @@ import {
   Receipt,
   MapPin,
   CalendarClock,
+  ArrowLeftRight,
 } from "lucide-react";
 import { useAuth, AppRole } from "@/hooks/useAuth";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
@@ -252,6 +253,10 @@ export const moduleSections: ModuleSection[] = [
       { icon: CalendarClock, label: "تواريخ بداية التشغيل الفعلي", path: "/modules/warehouses/operational-dates", roles: ['general_manager', 'executive_manager'] },
       { icon: Package, label: "الرصيد الافتتاحي للمخازن", path: "/modules/warehouses/opening-balance", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'] },
       { icon: BookOpen, label: "دليل تشغيل المخزن الرئيسي", path: "/warehouse-stock/main/guide", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper'] },
+      { icon: Activity, label: "سجل حركات المخازن الموحد", path: "/modules/warehouses/movements-log", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper', 'accountant', 'financial_manager'] },
+      { icon: ArrowLeftRight, label: "التحويلات المعلقة", path: "/modules/warehouses/pending-transfers", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper'] },
+      { icon: ClipboardList, label: "الجرد والتسويات", path: "/modules/warehouses/stocktaking", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'] },
+      { icon: BarChart3, label: "تقارير المخازن", path: "/modules/warehouses/reports", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'accountant', 'financial_manager'] },
       { icon: Wallet, label: "تحصيل المندوب الخاص", path: "/private-delivery-collection", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'accountant', 'financial_manager'] },
       // تنبيهات وتشغيل
       { icon: AlertTriangle, label: "مخزون منخفض", path: "/low-stock", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager'] },

@@ -99,6 +99,10 @@ const Warehouses = lazy(() => import("@/pages/modules/Warehouses"));
 const WarehousesByLocation = lazy(() => import("@/pages/modules/WarehousesByLocation"));
 const WarehouseOperationalDates = lazy(() => import("@/pages/modules/WarehouseOperationalDates"));
 const WarehouseOpeningBalance = lazy(() => import("@/pages/modules/WarehouseOpeningBalance"));
+const WarehouseMovementsLog = lazy(() => import("@/pages/modules/WarehouseMovementsLog"));
+const WarehousePendingTransfers = lazy(() => import("@/pages/modules/WarehousePendingTransfers"));
+const WarehouseStocktaking = lazy(() => import("@/pages/modules/WarehouseStocktaking"));
+const WarehouseReports = lazy(() => import("@/pages/modules/WarehouseReports"));
 const RecipeDetail = lazy(() => import("@/pages/modules/feed/RecipeDetail"));
 const BatchTracking = lazy(() => import("@/pages/modules/feed/BatchTracking"));
 const FeedDashboard = lazy(() => import("@/pages/modules/feed/FeedDashboard"));
@@ -881,6 +885,26 @@ const AnimatedRoutes = () => {
           <Route path="/modules/warehouses/opening-balance" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor']}>
               <PageTransition><WarehouseOpeningBalance /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/modules/warehouses/movements-log" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper', 'accountant', 'financial_manager']}>
+              <PageTransition><WarehouseMovementsLog /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/modules/warehouses/pending-transfers" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper']}>
+              <PageTransition><WarehousePendingTransfers /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/modules/warehouses/stocktaking" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor']}>
+              <PageTransition><WarehouseStocktaking /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/modules/warehouses/reports" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'accountant', 'financial_manager']}>
+              <PageTransition><WarehouseReports /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/modules/warehouses/main-guide" element={
