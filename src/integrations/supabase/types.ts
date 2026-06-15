@@ -9864,6 +9864,50 @@ export type Database = {
         }
         Relationships: []
       }
+      meat_recipe_item_mappings: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          mapped_raw_item_id: string
+          mapped_raw_item_name: string
+          notes: string | null
+          recipe_item_kind: string
+          recipe_item_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          mapped_raw_item_id: string
+          mapped_raw_item_name: string
+          notes?: string | null
+          recipe_item_kind: string
+          recipe_item_name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          mapped_raw_item_id?: string
+          mapped_raw_item_name?: string
+          notes?: string | null
+          recipe_item_kind?: string
+          recipe_item_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meat_recipe_item_mappings_mapped_raw_item_id_fkey"
+            columns: ["mapped_raw_item_id"]
+            isOneToOne: false
+            referencedRelation: "meat_factory_raw_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meat_recipe_version_status: {
         Row: {
           activated_at: string | null
