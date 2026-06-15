@@ -66,11 +66,21 @@ export default function ManufacturingInvoices() {
   const [transferDestId, setTransferDestId] = useState<string>("");
   const [busy, setBusy] = useState(false);
 
+  type Mapping = { recipe_item_name: string; recipe_item_kind: Kind; mapped_raw_item_id: string; mapped_raw_item_name: string };
+  const [mappings, setMappings] = useState<Mapping[]>([]);
+  const mapKey = (name: string, kind: Kind) => `${(name || "").trim().toLowerCase()}|${kind}`;
+  const mappingsIndex = useMemo(() => {
+    const m = new Map<string, Mapping>();
+    mappings.forEach(x => m.set(mapKey(x.recipe_item_name, x.recipe_item_kind), x));
+    return m;
+  }, [mappings]);
+
   const fetchAll = async () => {
-    const [whs, inv, ri] = await Promise.all([
+    const [whs, inv, ri, mp] = await Promise.all([
       supabase.from("warehouses").select("id, name, type").order("name"),
       supabase.from("meat_manufacturing_invoices" as any).select("*").order("created_at", { ascending: false }).limit(200),
       supabase.from("meat_factory_raw_items" as any).select("id,name,unit,current_stock,avg_cost,kind,is_active").eq("is_active", true).order("name"),
+      supabase.from("meat_recipe_item_mappings" as any).select("recipe_item_name,recipe_item_kind,mapped_raw_item_id,mapped_raw_item_name"),
     ]);
     if (whs.data) {
       const factory = whs.data.filter(w => w.name?.includes("مصنع اللحوم"));
@@ -81,6 +91,7 @@ export default function ManufacturingInvoices() {
     }
     if (inv.data) setInvoices(inv.data as any);
     if (ri.data) setItems(ri.data as any);
+    if (mp.data) setMappings(mp.data as any);
   };
 
   useEffect(() => { fetchAll(); }, []);
