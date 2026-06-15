@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Factory, Plus, Trash2, CheckCircle2, Send, Loader2, Printer, Eye, ChefHat } from "lucide-react";
+import { Factory, Plus, Trash2, CheckCircle2, Send, Loader2, Printer, Eye, ChefHat, AlertTriangle, Link2 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import recipesData from "@/data/meatRecipes.json";
 
@@ -66,11 +66,21 @@ export default function ManufacturingInvoices() {
   const [transferDestId, setTransferDestId] = useState<string>("");
   const [busy, setBusy] = useState(false);
 
+  type Mapping = { recipe_item_name: string; recipe_item_kind: Kind; mapped_raw_item_id: string; mapped_raw_item_name: string };
+  const [mappings, setMappings] = useState<Mapping[]>([]);
+  const mapKey = (name: string, kind: Kind) => `${(name || "").trim().toLowerCase()}|${kind}`;
+  const mappingsIndex = useMemo(() => {
+    const m = new Map<string, Mapping>();
+    mappings.forEach(x => m.set(mapKey(x.recipe_item_name, x.recipe_item_kind), x));
+    return m;
+  }, [mappings]);
+
   const fetchAll = async () => {
-    const [whs, inv, ri] = await Promise.all([
+    const [whs, inv, ri, mp] = await Promise.all([
       supabase.from("warehouses").select("id, name, type").order("name"),
       supabase.from("meat_manufacturing_invoices" as any).select("*").order("created_at", { ascending: false }).limit(200),
       supabase.from("meat_factory_raw_items" as any).select("id,name,unit,current_stock,avg_cost,kind,is_active").eq("is_active", true).order("name"),
+      supabase.from("meat_recipe_item_mappings" as any).select("recipe_item_name,recipe_item_kind,mapped_raw_item_id,mapped_raw_item_name"),
     ]);
     if (whs.data) {
       const factory = whs.data.filter(w => w.name?.includes("مصنع اللحوم"));
@@ -81,6 +91,7 @@ export default function ManufacturingInvoices() {
     }
     if (inv.data) setInvoices(inv.data as any);
     if (ri.data) setItems(ri.data as any);
+    if (mp.data) setMappings(mp.data as any);
   };
 
   useEffect(() => { fetchAll(); }, []);
@@ -116,6 +127,15 @@ export default function ManufacturingInvoices() {
     setInvoiceUuid(crypto.randomUUID());
   };
 
+  const resolveItem = (name: string, kind: Kind): RawItem | undefined => {
+    const map = mappingsIndex.get(mapKey(name, kind));
+    if (map) {
+      const it = items.find(i => i.id === map.mapped_raw_item_id);
+      if (it) return it;
+    }
+    return items.find(it => it.name?.trim() === name.trim() && (kind === "raw" ? (it.kind === "raw" || it.kind === "spice") : it.kind === kind));
+  };
+
   const [selectedRecipeKey, setSelectedRecipeKey] = useState<string>("");
   const loadRecipe = (key: string, qtyOverride?: number) => {
     const r = MEAT_RECIPES.find(x => x.key === key);
@@ -123,44 +143,31 @@ export default function ManufacturingInvoices() {
     setSelectedRecipeKey(key);
     const requested = qtyOverride && qtyOverride > 0 ? qtyOverride : r.batch_qty;
     const factor = requested / r.batch_qty;
-    // Match product to preset or use "other"
     if (PRODUCT_PRESETS.includes(r.product)) { setProductName(r.product); setProductNameOther(""); }
     else { setProductName("أخرى"); setProductNameOther(r.product); }
     setFinishedQty(requested);
     setUnit(r.unit || "كجم");
     setExtraCost(Number((r.wages * factor).toFixed(2)));
-    const rawSpice = r.lines.filter(l => l.kind !== "packaging").map(l => {
-      const match = items.find(it => it.name?.trim() === l.name.trim());
+    const buildLine = (l: { code: number; name: string; kind: Kind; unit: string; qty: number; price: number }): Line => {
+      const match = resolveItem(l.name, l.kind);
       return {
         tmp: crypto.randomUUID(),
         item_id: match?.id || "",
         item_name: l.name,
         kind: l.kind,
-        unit: l.unit,
+        unit: match?.unit || l.unit,
         quantity: Number((l.qty * factor).toFixed(3)),
-        unit_cost: Number(l.price.toFixed(3)),
-        line_total: Number((l.qty * factor * l.price).toFixed(3)),
-        notes: match ? null : "⚠ غير موجود في المخزن — اختر صنف بديل قبل الاعتماد",
-      } as Line;
-    });
-    const pack = r.lines.filter(l => l.kind === "packaging").map(l => {
-      const match = items.find(it => it.name?.trim() === l.name.trim());
-      return {
-        tmp: crypto.randomUUID(),
-        item_id: match?.id || "",
-        item_name: l.name,
-        kind: "packaging" as Kind,
-        unit: l.unit,
-        quantity: Number((l.qty * factor).toFixed(3)),
-        unit_cost: Number(l.price.toFixed(3)),
-        line_total: Number((l.qty * factor * l.price).toFixed(3)),
-        notes: match ? null : "⚠ غير موجود في المخزن — اختر صنف بديل قبل الاعتماد",
-      } as Line;
-    });
+        unit_cost: match ? Number(match.avg_cost || l.price) : Number(l.price.toFixed(3)),
+        line_total: Number((l.qty * factor * (match ? Number(match.avg_cost || l.price) : l.price)).toFixed(3)),
+        notes: match ? null : "⚠ غير مربوط بمخزون مصنع اللحوم — اختر بديل من جدول المطابقة",
+      };
+    };
+    const rawSpice = r.lines.filter(l => l.kind !== "packaging").map(buildLine);
+    const pack = r.lines.filter(l => l.kind === "packaging").map(buildLine);
     setRawLines(rawSpice.length ? rawSpice : [newLine("raw")]);
     setPackLines(pack.length ? pack : [newLine("packaging")]);
     const missing = [...rawSpice, ...pack].filter(l => !l.item_id).length;
-    if (missing > 0) toast.warning(`تم تحميل التركيبة — ${missing} صنف لم يُطابق المخزن، اختر بديل قبل الاعتماد`);
+    if (missing > 0) toast.warning(`تم تحميل التركيبة، لكن يوجد ${missing} صنف غير مرتبط بمخزون مصنع اللحوم. اختر الصنف البديل من المخزون قبل حفظ أو اعتماد الفاتورة.`);
     else toast.success(`تم تحميل تركيبة ${r.product} (×${factor.toFixed(2)})`);
   };
 
@@ -175,10 +182,68 @@ export default function ManufacturingInvoices() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, items.length]);
 
+  const unmappedLines = useMemo(
+    () => [...rawLines, ...packLines].filter(l => (l.item_name?.trim() || "") && !l.item_id),
+    [rawLines, packLines]
+  );
+  const insufficientLines = useMemo(() => {
+    const all = [...rawLines, ...packLines];
+    return all.filter(l => {
+      if (!l.item_id || !l.quantity) return false;
+      const it = items.find(x => x.id === l.item_id);
+      return it && Number(l.quantity) > Number(it.current_stock || 0);
+    });
+  }, [rawLines, packLines, items]);
+
+  const saveMapping = async (recipeName: string, kind: Kind, rawItemId: string) => {
+    const it = items.find(i => i.id === rawItemId);
+    if (!it) { toast.error("اختر صنفًا من المخزون"); return; }
+    const { error } = await supabase.from("meat_recipe_item_mappings" as any).upsert({
+      recipe_item_name: recipeName.trim(),
+      recipe_item_kind: kind,
+      mapped_raw_item_id: rawItemId,
+      mapped_raw_item_name: it.name,
+      created_by: user?.id || null,
+    } as any, { onConflict: "recipe_item_name,recipe_item_kind" } as any);
+    if (error && !String(error.message || "").includes("duplicate")) {
+      // fallback: ignore upsert spec if unique index doesn't match — just insert
+      await supabase.from("meat_recipe_item_mappings" as any).insert({
+        recipe_item_name: recipeName.trim(),
+        recipe_item_kind: kind,
+        mapped_raw_item_id: rawItemId,
+        mapped_raw_item_name: it.name,
+        created_by: user?.id || null,
+      } as any);
+    }
+    setMappings(prev => {
+      const others = prev.filter(m => mapKey(m.recipe_item_name, m.recipe_item_kind) !== mapKey(recipeName, kind));
+      return [...others, { recipe_item_name: recipeName.trim(), recipe_item_kind: kind, mapped_raw_item_id: rawItemId, mapped_raw_item_name: it.name }];
+    });
+    // rebind matching lines in current invoice
+    const rebind = (l: Line): Line => {
+      if (l.item_id || l.item_name?.trim() !== recipeName.trim() || l.kind !== kind) return l;
+      const cost = Number(it.avg_cost || l.unit_cost || 0);
+      return { ...l, item_id: rawItemId, item_name: l.item_name, unit: it.unit, unit_cost: cost || l.unit_cost, line_total: Number((Number(l.quantity || 0) * (cost || l.unit_cost || 0)).toFixed(3)), notes: null };
+    };
+    setRawLines(ls => ls.map(rebind));
+    setPackLines(ls => ls.map(rebind));
+    toast.success(`تم ربط "${recipeName}" بـ "${it.name}" — سيتم تطبيقه تلقائيًا في التركيبات القادمة`);
+  };
+
   const submitDraft = async () => {
     if (!factoryWarehouseId) { toast.error("اختر مخزن مصنع اللحوم"); return; }
     if (!finalProductName) { toast.error("اختر/أدخل اسم المنتج النهائي"); return; }
     if (!finishedQty || finishedQty <= 0) { toast.error("أدخل كمية المنتج التام"); return; }
+    if (unmappedLines.length > 0) {
+      toast.error("لا يمكن حفظ الفاتورة قبل مطابقة كل أصناف التركيبة مع مخزون مصنع اللحوم.");
+      return;
+    }
+    if (insufficientLines.length > 0) {
+      const first = insufficientLines[0];
+      const it = items.find(x => x.id === first.item_id);
+      toast.error(`الرصيد غير كافٍ للصنف: ${first.item_name}. المطلوب: ${first.quantity}، المتاح: ${it?.current_stock ?? 0}.`);
+      return;
+    }
     const validRaw = rawLines.filter(l => l.item_id && l.quantity > 0);
     const validPack = packLines.filter(l => l.item_id && l.quantity > 0);
     const allLines = [...validRaw, ...validPack];
@@ -490,8 +555,80 @@ export default function ManufacturingInvoices() {
                   <div><Label>تكلفة إضافية</Label><Input type="number" step="0.01" value={extraCost || ""} onChange={e => setExtraCost(Number(e.target.value))} /></div>
                 </div>
 
+                {unmappedLines.length > 0 && (
+                  <Card className="border-amber-300 bg-amber-50 dark:bg-amber-950/20">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base flex items-center gap-2 text-amber-800 dark:text-amber-200">
+                        <AlertTriangle className="w-5 h-5" />
+                        مطابقة أصناف التركيبة مع المخزون ({unmappedLines.length})
+                      </CardTitle>
+                      <CardDescription>
+                        الأصناف التالية غير مرتبطة بمخزون مصنع اللحوم. اختر البديل من المخزون لكل صنف. سيتم حفظ الربط ليُطبَّق تلقائيًا في التركيبات القادمة.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>اسم الصنف في التركيبة</TableHead>
+                            <TableHead>النوع</TableHead>
+                            <TableHead>الوحدة</TableHead>
+                            <TableHead>الكمية المطلوبة</TableHead>
+                            <TableHead>الصنف البديل من المخزون</TableHead>
+                            <TableHead>الرصيد</TableHead>
+                            <TableHead>متوسط التكلفة</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {unmappedLines.map(l => {
+                            const cands = l.kind === "packaging" ? packCandidates : rawCandidates.filter(c => c.kind === l.kind);
+                            return (
+                              <TableRow key={l.tmp}>
+                                <TableCell className="font-medium">{l.item_name}</TableCell>
+                                <TableCell><Badge variant="outline">{KIND_LABEL[l.kind]}</Badge></TableCell>
+                                <TableCell className="text-xs">{l.unit}</TableCell>
+                                <TableCell>{fmt(l.quantity)}</TableCell>
+                                <TableCell className="min-w-[260px]">
+                                  <Select onValueChange={v => saveMapping(l.item_name, l.kind, v)}>
+                                    <SelectTrigger><SelectValue placeholder="اختر بديلًا من المخزون" /></SelectTrigger>
+                                    <SelectContent className="max-h-80">
+                                      {cands.map(c => (
+                                        <SelectItem key={c.id} value={c.id}>
+                                          {c.name} <span className="text-xs text-muted-foreground">— {c.unit} — رصيد {fmt(c.current_stock)} — متوسط {fmt(c.avg_cost)}</span>
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </TableCell>
+                                <TableCell className="text-xs">—</TableCell>
+                                <TableCell className="text-xs">—</TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                      <div className="text-xs text-amber-700 dark:text-amber-300 mt-3 flex items-center gap-1">
+                        <Link2 className="w-3 h-3" /> الربط يُحفظ في جدول مطابقة الأصناف ويُستخدم تلقائيًا للتركيبات اللاحقة.
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {insufficientLines.length > 0 && unmappedLines.length === 0 && (
+                  <div className="p-3 border border-red-300 bg-red-50 dark:bg-red-950/20 rounded-md text-sm text-red-700 dark:text-red-300">
+                    <div className="flex items-center gap-2 font-semibold mb-1"><AlertTriangle className="w-4 h-4" /> رصيد غير كافٍ</div>
+                    <ul className="list-disc pr-5 space-y-0.5">
+                      {insufficientLines.map(l => {
+                        const it = items.find(x => x.id === l.item_id);
+                        return <li key={l.tmp}>الرصيد غير كافٍ للصنف: <b>{l.item_name}</b> — المطلوب: {fmt(l.quantity)}، المتاح: {fmt(it?.current_stock || 0)}.</li>;
+                      })}
+                    </ul>
+                  </div>
+                )}
+
                 {renderLineTable(rawLines, setRawLines, rawCandidates, "المواد الخام والبهارات المستخدمة")}
                 {renderLineTable(packLines, setPackLines, packCandidates, "خامات التغليف المستخدمة")}
+
 
                 <Card className="border-purple-200 bg-purple-50/50 dark:bg-purple-950/20">
                   <CardContent className="pt-4 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
