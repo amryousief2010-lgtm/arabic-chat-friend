@@ -305,6 +305,11 @@ const AnimatedRoutes = () => {
               <PageTransition><WarehouseStockView scope="main" /></PageTransition>
             </ProtectedRoute>
           } />
+          <Route path="/warehouse-stock/main/guide" element={
+            <ProtectedRoute>
+              <PageTransition><MainWarehouseGuide /></PageTransition>
+            </ProtectedRoute>
+          } />
           <Route path="/warehouse-stock/hyper-healthy-test" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor']}>
               <PageTransition>
