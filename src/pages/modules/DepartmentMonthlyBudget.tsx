@@ -4,7 +4,7 @@ import * as XLSX from "xlsx";
 import {
   Wallet, TrendingUp, TrendingDown, AlertTriangle, Printer,
   FileSpreadsheet, Loader2, Crown, Skull, ArrowUpCircle, ArrowDownCircle,
-  Microscope, Lightbulb,
+  Microscope, Lightbulb, Tag,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,10 +27,17 @@ type DeptKey = "hatchery" | "brooding" | "slaughterhouse" | "feed_factory";
 
 interface LineItem {
   date: string; label: string; source: string; amount: number;
+  category?: "cash" | "internal" | "asset";
   reference?: string; treasury?: string; notes?: string;
+  priceSource?: "internal_price" | "avg_cost" | "transfer_unit_price";
 }
 interface DeptResult {
   key: DeptKey; name: string;
+  cashRevenue: number; internalValue: number; remainingInventoryValue: number;
+  totalComputedValue: number; cashNet: number; operationalNet: number;
+  cashStatus: "profit" | "loss" | "even";
+  pricingWarnings: string[];
+  // aliases for legacy code
   revenue: number; expenses: number; net: number;
   expenseRatio: number; status: "profit" | "loss" | "even";
   revenueItems: LineItem[]; expenseItems: LineItem[];
@@ -40,7 +47,12 @@ interface DeptResult {
 interface BudgetData {
   year: number; month: number;
   departments: DeptResult[];
-  totals: { revenue: number; expenses: number; net: number };
+  totals: {
+    cashRevenue: number; internalValue: number; remainingInventoryValue: number;
+    totalComputedValue: number; expenses: number;
+    cashNet: number; operationalNet: number;
+    revenue: number; net: number;
+  };
   highlights: {
     mostProfit?: { name: string; net: number };
     mostLoss?: { name: string; net: number };
@@ -49,18 +61,19 @@ interface BudgetData {
     biggestRevenueSource?: { source: string; dept: string; amount: number };
     biggestExpenseItem?: { source: string; dept: string; amount: number };
   };
-  topRevenueSources: { source: string; dept: string; amount: number; pctOfTotal: number }[];
+  topRevenueSources: { source: string; dept: string; amount: number; pctOfTotal: number; category?: string }[];
   topExpenseItems: { source: string; dept: string; amount: number; pctOfTotal: number }[];
   comparison: {
     name: string;
     currentNet: number; previousNet: number;
+    currentCashNet?: number; previousCashNet?: number;
     currentRevenue: number; previousRevenue: number;
     currentExpenses: number; previousExpenses: number;
     revenueDelta: number; expensesDelta: number; netDelta: number;
     revenuePct: number | null; expensesPct: number | null;
   }[];
   alerts: { level: "warn" | "danger" | "info"; message: string }[];
-  unclassified: { count: number; note: string };
+  meta?: { note: string; treasuryMovementsCreated: number };
 }
 
 const MONTHS_AR = [
@@ -96,7 +109,17 @@ export default function DepartmentMonthlyBudget() {
         { body: { year, month } },
       );
       if (error) throw error;
-      setData(res as BudgetData);
+      const r = res as any;
+      // Backward-compat aliases so legacy UI keeps working
+      for (const d of r.departments ?? []) {
+        d.revenue = d.totalComputedValue ?? 0;
+        d.net = d.operationalNet ?? 0;
+      }
+      if (r.totals) {
+        r.totals.revenue = r.totals.totalComputedValue ?? 0;
+        r.totals.net = r.totals.operationalNet ?? 0;
+      }
+      setData(r as BudgetData);
     } catch (e: any) {
       toast.error("تعذّر تحميل الميزانية: " + (e?.message ?? e));
     } finally {
@@ -117,8 +140,15 @@ export default function DepartmentMonthlyBudget() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
       data.departments.map(d => ({
-        القسم: d.name, الإيرادات: d.revenue, المصروفات: d.expenses,
-        الصافي: d.net, "نسبة المصروفات %": d.expenseRatio.toFixed(1),
+        القسم: d.name,
+        "إيراد نقدي": d.cashRevenue,
+        "قيمة تشغيلية داخلية": d.internalValue,
+        "قيمة مخزون متبقٍ": d.remainingInventoryValue,
+        "إجمالي القيمة": d.totalComputedValue,
+        المصروفات: d.expenses,
+        "صافي نقدي": d.cashNet,
+        "صافي تشغيلي": d.operationalNet,
+        "نسبة المصروفات %": d.expenseRatio.toFixed(1),
         الحالة: d.status === "profit" ? "كسبان" : d.status === "loss" ? "خسران" : "تعادل",
       })),
     ), "ملخص الأقسام");
@@ -232,6 +262,11 @@ export default function DepartmentMonthlyBudget() {
           <Button onClick={exportExcel} variant="outline" disabled={!data}>
             <FileSpreadsheet className="h-4 w-4 ml-1" /> Excel
           </Button>
+          <Button asChild variant="outline">
+            <a href="/modules/internal-prices-settings">
+              <Tag className="h-4 w-4 ml-1" /> الأسعار الداخلية
+            </a>
+          </Button>
         </div>
       </div>
 
@@ -295,16 +330,26 @@ export default function DepartmentMonthlyBudget() {
 
           {/* Comparison table */}
           <Card>
-            <CardHeader><CardTitle>مقارنة الأقسام</CardTitle></CardHeader>
-            <CardContent>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span>مقارنة الأقسام — قيمة نقدية + قيمة تشغيلية</span>
+                <span className="text-xs font-normal text-muted-foreground">
+                  قيمة تشغيلية = تحويلات داخلية / مخزون متبقٍ (لا تنشئ حركة خزنة)
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>القسم</TableHead>
-                    <TableHead>الإيرادات</TableHead>
-                    <TableHead>المصروفات</TableHead>
-                    <TableHead>الصافي</TableHead>
-                    <TableHead>نسبة المصروفات</TableHead>
+                    <TableHead title="فلوس فعلية دخلت خزنة">إيراد نقدي</TableHead>
+                    <TableHead title="تحويلات داخلية بقيمتها (بدون خزنة)">قيمة تشغيلية داخلية</TableHead>
+                    <TableHead title="مخزون متبقٍ بقيمته كأصل">قيمة مخزون متبقٍ</TableHead>
+                    <TableHead>إجمالي القيمة</TableHead>
+                    <TableHead>مصروفات</TableHead>
+                    <TableHead title="إيراد نقدي - مصروفات">صافي نقدي</TableHead>
+                    <TableHead title="إجمالي القيمة - مصروفات">صافي تشغيلي</TableHead>
                     <TableHead>الحالة</TableHead>
                     <TableHead></TableHead>
                   </TableRow>
@@ -314,12 +359,17 @@ export default function DepartmentMonthlyBudget() {
                     <TableRow key={d.key} className="cursor-pointer hover:bg-muted/50"
                       onClick={() => setSelectedDept(d)}>
                       <TableCell className="font-medium">{d.name}</TableCell>
-                      <TableCell className="text-green-700 tabular-nums">{fmt(d.revenue)}</TableCell>
+                      <TableCell className="tabular-nums text-green-700">{fmt(d.cashRevenue)}</TableCell>
+                      <TableCell className="tabular-nums text-blue-700">{fmt(d.internalValue)}</TableCell>
+                      <TableCell className="tabular-nums text-purple-700">{fmt(d.remainingInventoryValue)}</TableCell>
+                      <TableCell className="tabular-nums font-semibold">{fmt(d.totalComputedValue)}</TableCell>
                       <TableCell className="text-red-700 tabular-nums">{fmt(d.expenses)}</TableCell>
-                      <TableCell className={`tabular-nums font-bold ${d.net >= 0 ? "text-green-700" : "text-red-700"}`}>
-                        {fmt(d.net)}
+                      <TableCell className={`tabular-nums ${d.cashNet >= 0 ? "text-green-700" : "text-red-700"}`}>
+                        {fmt(d.cashNet)}
                       </TableCell>
-                      <TableCell className="tabular-nums">{d.expenseRatio.toFixed(1)}%</TableCell>
+                      <TableCell className={`tabular-nums font-bold ${d.operationalNet >= 0 ? "text-green-700" : "text-red-700"}`}>
+                        {fmt(d.operationalNet)}
+                      </TableCell>
                       <TableCell>{statusBadge(d.status)}</TableCell>
                       <TableCell>
                         <div className="flex gap-1 justify-end">
@@ -328,7 +378,7 @@ export default function DepartmentMonthlyBudget() {
                           </Button>
                           <Button size="sm" variant={d.status === "loss" ? "default" : "outline"}
                             onClick={(e) => { e.stopPropagation(); setAnalysisDept(d); }}>
-                            <Microscope className="h-3 w-3 ml-1" /> تحليل سبب الربح/الخسارة
+                            <Microscope className="h-3 w-3 ml-1" /> تحليل
                           </Button>
                         </div>
                       </TableCell>
@@ -336,6 +386,12 @@ export default function DepartmentMonthlyBudget() {
                   ))}
                 </TableBody>
               </Table>
+              {data.departments.some(d => d.cashStatus === "loss" && d.status !== "loss") && (
+                <div className="mt-3 text-xs text-blue-800 bg-blue-50 border border-blue-200 rounded p-2 flex gap-2">
+                  <Lightbulb className="h-4 w-4 mt-0.5 shrink-0" />
+                  <span>بعض الأقسام لا تحقق تحصيلًا نقديًا مباشرًا لكنها تنتج قيمة تشغيلية داخلية موجبة (تظهر كسبانة بعد احتساب التحويلات والمخزون).</span>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -435,11 +491,11 @@ export default function DepartmentMonthlyBudget() {
           </Card>
 
           <Card>
-            <CardHeader><CardTitle>الحركات غير المصنفة</CardTitle></CardHeader>
-            <CardContent className="text-sm text-muted-foreground">
-              {data.unclassified.count === 0
-                ? data.unclassified.note
-                : `يوجد ${data.unclassified.count} حركة تحتاج تحديد القسم`}
+            <CardHeader><CardTitle className="text-base">ضمانات النزاهة المالية</CardTitle></CardHeader>
+            <CardContent className="text-sm text-muted-foreground space-y-1">
+              <div>• {data.meta?.note ?? "القيم التشغيلية الداخلية والأصول المتبقية للعرض فقط."}</div>
+              <div>• عدد حركات الخزنة التي أنشأها هذا التقرير: <b className="text-green-700">{data.meta?.treasuryMovementsCreated ?? 0}</b></div>
+              <div>• يمكن تعديل أسعار البيع الداخلية من صفحة <code className="bg-muted px-1 rounded">إعدادات الأسعار الداخلية</code> ولن تنشئ أي حركة خزنة.</div>
             </CardContent>
           </Card>
         </>
@@ -452,35 +508,62 @@ export default function DepartmentMonthlyBudget() {
           {selectedDept && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <KpiCard title="الإيرادات" value={fmt(selectedDept.revenue)} accent="text-green-700" />
+                <KpiCard title="إيراد نقدي" value={fmt(selectedDept.cashRevenue)} accent="text-green-700" />
+                <KpiCard title="قيمة تشغيلية داخلية" value={fmt(selectedDept.internalValue)} accent="text-blue-700" />
+                <KpiCard title="قيمة مخزون متبقٍ" value={fmt(selectedDept.remainingInventoryValue)} accent="text-purple-700" />
+                <KpiCard title="إجمالي القيمة" value={fmt(selectedDept.totalComputedValue)} accent="text-foreground" />
                 <KpiCard title="المصروفات" value={fmt(selectedDept.expenses)} accent="text-red-700" />
-                <KpiCard title="الصافي" value={fmt(selectedDept.net)}
-                  accent={selectedDept.net >= 0 ? "text-green-700" : "text-red-700"} />
+                <KpiCard title="صافي نقدي"
+                  value={fmt(selectedDept.cashNet)}
+                  accent={selectedDept.cashNet >= 0 ? "text-green-700" : "text-red-700"} />
+                <KpiCard title="صافي تشغيلي"
+                  value={fmt(selectedDept.operationalNet)}
+                  accent={selectedDept.operationalNet >= 0 ? "text-green-700" : "text-red-700"} />
                 <KpiCard title="نسبة المصروفات" value={`${selectedDept.expenseRatio.toFixed(1)}%`} />
               </div>
+              {selectedDept.pricingWarnings.length > 0 && (
+                <div className="rounded-md p-3 bg-amber-50 border border-amber-200 text-sm">
+                  {selectedDept.pricingWarnings.map((w, i) => (
+                    <div key={i} className="flex gap-2"><AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" /> {w}</div>
+                  ))}
+                </div>
+              )}
               <Tabs defaultValue="rev">
                 <TabsList>
-                  <TabsTrigger value="rev">الإيرادات ({selectedDept.revenueItems.length})</TabsTrigger>
+                  <TabsTrigger value="rev">الإيرادات والقيم ({selectedDept.revenueItems.length})</TabsTrigger>
                   <TabsTrigger value="exp">المصروفات ({selectedDept.expenseItems.length})</TabsTrigger>
                 </TabsList>
                 <TabsContent value="rev">
                   <Table>
                     <TableHeader><TableRow>
                       <TableHead>التاريخ</TableHead><TableHead>البيان</TableHead>
-                      <TableHead>المصدر</TableHead><TableHead>المبلغ</TableHead>
+                      <TableHead>المصدر</TableHead><TableHead>النوع</TableHead>
+                      <TableHead>المبلغ</TableHead>
                       <TableHead>المرجع</TableHead><TableHead>الجهة</TableHead>
                     </TableRow></TableHeader>
                     <TableBody>
-                      {selectedDept.revenueItems.map((i, k) => (
-                        <TableRow key={k}>
-                          <TableCell>{i.date?.slice(0, 10)}</TableCell>
-                          <TableCell>{i.label}</TableCell>
-                          <TableCell>{i.source}</TableCell>
-                          <TableCell className="tabular-nums text-green-700">{fmt(i.amount)}</TableCell>
-                          <TableCell className="text-xs">{i.reference || ""}</TableCell>
-                          <TableCell className="text-xs">{i.treasury || ""}</TableCell>
-                        </TableRow>
-                      ))}
+                      {selectedDept.revenueItems.map((i, k) => {
+                        const cat = i.category ?? "cash";
+                        const catLabel = cat === "cash" ? "نقدي" : cat === "internal" ? "تشغيلي داخلي" : "أصل / مخزون";
+                        const catColor = cat === "cash" ? "bg-green-100 text-green-800" :
+                          cat === "internal" ? "bg-blue-100 text-blue-800" : "bg-purple-100 text-purple-800";
+                        return (
+                          <TableRow key={k}>
+                            <TableCell>{i.date?.slice(0, 10)}</TableCell>
+                            <TableCell>{i.label}</TableCell>
+                            <TableCell>{i.source}</TableCell>
+                            <TableCell>
+                              <span className={`text-[10px] px-2 py-0.5 rounded ${catColor}`}>{catLabel}</span>
+                              {i.priceSource === "avg_cost" && (
+                                <span className="text-[10px] mr-1 text-amber-700">(متوسط تكلفة)</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="tabular-nums text-green-700">{fmt(i.amount)}</TableCell>
+                            <TableCell className="text-xs">{i.reference || ""}</TableCell>
+                            <TableCell className="text-xs">{i.treasury || ""}</TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </TabsContent>
