@@ -656,6 +656,11 @@ const AnimatedRoutes = () => {
               <PageTransition><DepartmentMonthlyBudget /></PageTransition>
             </ProtectedRoute>
           } />
+          <Route path="/modules/internal-prices-settings" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'financial_manager', 'slaughterhouse_manager', 'production_manager']}>
+              <PageTransition><InternalPricesSettings /></PageTransition>
+            </ProtectedRoute>
+          } />
           <Route path="/install" element={
             <PageTransition><Install /></PageTransition>
           } />
