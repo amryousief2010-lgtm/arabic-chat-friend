@@ -358,6 +358,28 @@ const HREmployees = () => {
                             : `${Number(e.base_salary).toLocaleString("ar-EG")} / شهر`}
                         </TableCell>
                         <TableCell className="font-mono text-xs">{e.phone || "—"}</TableCell>
+                        {canViewDocs && (
+                          <TableCell>
+                            {(() => {
+                              const ds = docsSummary[e.id] || { id: false, contract: false };
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => setDocsOf(e)}
+                                  className="flex flex-col gap-0.5 text-xs hover:opacity-80"
+                                  title="عرض / رفع المستندات"
+                                >
+                                  <span className={ds.id ? "text-emerald-700" : "text-muted-foreground"}>
+                                    بطاقة {ds.id ? "✅" : "❌"}
+                                  </span>
+                                  <span className={ds.contract ? "text-emerald-700" : "text-muted-foreground"}>
+                                    عقد {ds.contract ? "✅" : "❌"}
+                                  </span>
+                                </button>
+                              );
+                            })()}
+                          </TableCell>
+                        )}
                         <TableCell>
                           {e.status === "active"
                             ? <Badge className="bg-emerald-500/15 text-emerald-700">نشط</Badge>
@@ -368,6 +390,11 @@ const HREmployees = () => {
                             <Button size="sm" variant="ghost" onClick={() => openHistory(e)} title="سجل النقل">
                               <HistoryIcon className="w-4 h-4" />
                             </Button>
+                            {canViewDocs && (
+                              <Button size="sm" variant="ghost" onClick={() => setDocsOf(e)} title="المستندات">
+                                <FileText className="w-4 h-4" />
+                              </Button>
+                            )}
                             {canManage && (
                               <Button size="sm" variant="outline" onClick={() => openEdit(e)}>
                                 <Edit className="w-3.5 h-3.5 ml-1" />تعديل
