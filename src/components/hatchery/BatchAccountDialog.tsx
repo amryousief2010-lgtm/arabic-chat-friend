@@ -62,6 +62,20 @@ export default function BatchAccountDialog({
     },
   });
 
+  const { data: pricing } = useQuery({
+    queryKey: ["hatchery_pricing_settings_active"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hatchery_pricing_settings" as any)
+        .select("*")
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data as any;
+    },
+  });
+
   const { data: payments = [], refetch: refetchPayments } = useQuery({
     queryKey: ["batch_account_payments", invoice?.id],
     enabled: !!invoice?.id,
