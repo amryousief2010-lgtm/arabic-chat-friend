@@ -182,10 +182,68 @@ export default function ManufacturingInvoices() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, items.length]);
 
+  const unmappedLines = useMemo(
+    () => [...rawLines, ...packLines].filter(l => (l.item_name?.trim() || "") && !l.item_id),
+    [rawLines, packLines]
+  );
+  const insufficientLines = useMemo(() => {
+    const all = [...rawLines, ...packLines];
+    return all.filter(l => {
+      if (!l.item_id || !l.quantity) return false;
+      const it = items.find(x => x.id === l.item_id);
+      return it && Number(l.quantity) > Number(it.current_stock || 0);
+    });
+  }, [rawLines, packLines, items]);
+
+  const saveMapping = async (recipeName: string, kind: Kind, rawItemId: string) => {
+    const it = items.find(i => i.id === rawItemId);
+    if (!it) { toast.error("اختر صنفًا من المخزون"); return; }
+    const { error } = await supabase.from("meat_recipe_item_mappings" as any).upsert({
+      recipe_item_name: recipeName.trim(),
+      recipe_item_kind: kind,
+      mapped_raw_item_id: rawItemId,
+      mapped_raw_item_name: it.name,
+      created_by: user?.id || null,
+    } as any, { onConflict: "recipe_item_name,recipe_item_kind" } as any);
+    if (error && !String(error.message || "").includes("duplicate")) {
+      // fallback: ignore upsert spec if unique index doesn't match — just insert
+      await supabase.from("meat_recipe_item_mappings" as any).insert({
+        recipe_item_name: recipeName.trim(),
+        recipe_item_kind: kind,
+        mapped_raw_item_id: rawItemId,
+        mapped_raw_item_name: it.name,
+        created_by: user?.id || null,
+      } as any);
+    }
+    setMappings(prev => {
+      const others = prev.filter(m => mapKey(m.recipe_item_name, m.recipe_item_kind) !== mapKey(recipeName, kind));
+      return [...others, { recipe_item_name: recipeName.trim(), recipe_item_kind: kind, mapped_raw_item_id: rawItemId, mapped_raw_item_name: it.name }];
+    });
+    // rebind matching lines in current invoice
+    const rebind = (l: Line): Line => {
+      if (l.item_id || l.item_name?.trim() !== recipeName.trim() || l.kind !== kind) return l;
+      const cost = Number(it.avg_cost || l.unit_cost || 0);
+      return { ...l, item_id: rawItemId, item_name: l.item_name, unit: it.unit, unit_cost: cost || l.unit_cost, line_total: Number((Number(l.quantity || 0) * (cost || l.unit_cost || 0)).toFixed(3)), notes: null };
+    };
+    setRawLines(ls => ls.map(rebind));
+    setPackLines(ls => ls.map(rebind));
+    toast.success(`تم ربط "${recipeName}" بـ "${it.name}" — سيتم تطبيقه تلقائيًا في التركيبات القادمة`);
+  };
+
   const submitDraft = async () => {
     if (!factoryWarehouseId) { toast.error("اختر مخزن مصنع اللحوم"); return; }
     if (!finalProductName) { toast.error("اختر/أدخل اسم المنتج النهائي"); return; }
     if (!finishedQty || finishedQty <= 0) { toast.error("أدخل كمية المنتج التام"); return; }
+    if (unmappedLines.length > 0) {
+      toast.error("لا يمكن حفظ الفاتورة قبل مطابقة كل أصناف التركيبة مع مخزون مصنع اللحوم.");
+      return;
+    }
+    if (insufficientLines.length > 0) {
+      const first = insufficientLines[0];
+      const it = items.find(x => x.id === first.item_id);
+      toast.error(`الرصيد غير كافٍ للصنف: ${first.item_name}. المطلوب: ${first.quantity}، المتاح: ${it?.current_stock ?? 0}.`);
+      return;
+    }
     const validRaw = rawLines.filter(l => l.item_id && l.quantity > 0);
     const validPack = packLines.filter(l => l.item_id && l.quantity > 0);
     const allLines = [...validRaw, ...validPack];
