@@ -821,12 +821,13 @@ export default function DepartmentMonthlyBudget() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>المنتج</TableHead>
-                        <TableHead>القسم</TableHead>
+                        <TableHead>القسم المصدر</TableHead>
                         <TableHead>الكمية المباعة</TableHead>
                         <TableHead>تكلفة الكمية</TableHead>
                         <TableHead>قيمة البيع</TableHead>
                         <TableHead>الربح / الخسارة</TableHead>
                         <TableHead>هامش %</TableHead>
+                        <TableHead>مصدر التكلفة</TableHead>
                         <TableHead>الحالة</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -843,6 +844,11 @@ export default function DepartmentMonthlyBudget() {
                           </TableCell>
                           <TableCell className={`tabular-nums ${p.margin >= 0 ? "text-green-700" : "text-red-700"}`}>
                             {p.margin.toFixed(1)}%
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            {p.costSource === "غير محدد"
+                              ? <Badge variant="outline" className="text-amber-700 border-amber-300">غير محدد</Badge>
+                              : <span className="text-muted-foreground">{p.costSource ?? "—"}</span>}
                           </TableCell>
                           <TableCell>
                             {p.profit > 0 ? <Badge className="bg-green-600">كسبان</Badge>
