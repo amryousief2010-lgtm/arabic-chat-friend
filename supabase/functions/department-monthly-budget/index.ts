@@ -33,6 +33,8 @@ interface ProductMetric {
   cost: number;
   profit: number;
   margin: number; // %
+  costSource?: string;   // "تكلفة ذبح" | "تكلفة تصنيع" | "متوسط تكلفة مخزون" | "غير محدد"
+  sourceDept?: string;   // override for cross-dept rollup label
 }
 
 interface DeptResult {
