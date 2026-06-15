@@ -2372,7 +2372,7 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
             <TableBody>
               {rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={11} className="text-center text-muted-foreground py-6">
+                  <TableCell colSpan={12} className="text-center text-muted-foreground py-6">
                     لم يتم إضافة أي صنف بعد. ابحث واختر صنفًا من القائمة أعلاه لبدء التقسيمة.
                   </TableCell>
                 </TableRow>
