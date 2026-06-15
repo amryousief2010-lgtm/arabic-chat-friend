@@ -127,8 +127,57 @@ export default function BatchAccountDialog({
     },
   });
 
+  // Carryover forwarded FROM this invoice (out)
+  const { data: outCarryover, refetch: refetchOutCarry } = useQuery({
+    queryKey: ["batch_account_out_carry", invoice?.id],
+    enabled: !!invoice?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hatchery_invoice_carryovers" as any)
+        .select("*")
+        .eq("source_invoice_id", invoice!.id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+
+  // Open carryovers for the same client coming from OTHER invoices
+  const { data: incomingCarryovers = [], refetch: refetchInCarry } = useQuery({
+    queryKey: ["batch_account_in_carry", invoice?.client_id, invoice?.id],
+    enabled: !!invoice?.client_id && !!invoice?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hatchery_invoice_carryovers" as any)
+        .select("*, source_invoice:hatchery_client_invoices!source_invoice_id(invoice_no)")
+        .eq("client_id", invoice!.client_id)
+        .eq("status", "open")
+        .neq("source_invoice_id", invoice!.id)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+
+  // Carryovers already applied to this invoice (in)
+  const { data: appliedToThis = [], refetch: refetchAppliedThis } = useQuery({
+    queryKey: ["batch_account_applied_this", invoice?.id],
+    enabled: !!invoice?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hatchery_invoice_carryovers" as any)
+        .select("*, source_invoice:hatchery_client_invoices!source_invoice_id(invoice_no)")
+        .eq("applied_to_invoice_id", invoice!.id)
+        .eq("status", "applied")
+        .order("applied_at", { ascending: false });
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+
   const refreshAll = () => {
     refetchLot(); refetchInvoice(); refetchPayments(); refetchDiscounts();
+    refetchOutCarry(); refetchInCarry(); refetchAppliedThis();
     qc.invalidateQueries({ queryKey: ["ecr_"] });
     qc.invalidateQueries({ queryKey: ["hatchery_client_invoices"] });
     qc.invalidateQueries({ queryKey: ["lab_treasury_movements"] });
