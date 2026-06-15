@@ -536,6 +536,17 @@ const HREmployees = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Documents Dialog */}
+      {docsOf && (
+        <EmployeeDocumentsDialog
+          open={!!docsOf}
+          onOpenChange={(o) => !o && setDocsOf(null)}
+          employeeId={docsOf.id}
+          employeeName={`${docsOf.full_name} (${docsOf.code})`}
+          onChanged={load}
+        />
+      )}
     </DashboardLayout>
   );
 };
