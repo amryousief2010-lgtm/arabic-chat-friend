@@ -2047,7 +2047,7 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
       quarantined_weight_kg: 0,
       package_count: 0,
       standard_weight_kg: y ? (Number(batch.total_live_weight_kg) * Number(y.standard_yield_pct)) / 100 : 0,
-      unit_cost: 0, unit_price: 0, destination: "branch", branch_id: "",
+      unit_cost: 0, unit_price: 0, destination: "warehouse", branch_id: "",
     }]);
   };
 
