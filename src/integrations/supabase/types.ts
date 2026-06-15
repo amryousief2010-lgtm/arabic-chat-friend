@@ -5028,6 +5028,8 @@ export type Database = {
           brooding_chicks_count: number
           brooding_daily_price: number
           brooding_days: number
+          carryover_in_amount: number
+          carryover_out_amount: number
           chick_unit_price: number
           chicks_amount: number
           chicks_count: number
@@ -5060,6 +5062,8 @@ export type Database = {
           brooding_chicks_count?: number
           brooding_daily_price?: number
           brooding_days?: number
+          carryover_in_amount?: number
+          carryover_out_amount?: number
           chick_unit_price?: number
           chicks_amount?: number
           chicks_count?: number
@@ -5092,6 +5096,8 @@ export type Database = {
           brooding_chicks_count?: number
           brooding_daily_price?: number
           brooding_days?: number
+          carryover_in_amount?: number
+          carryover_out_amount?: number
           chick_unit_price?: number
           chicks_amount?: number
           chicks_count?: number
@@ -5159,6 +5165,75 @@ export type Database = {
             columns: ["lot_id"]
             isOneToOne: true
             referencedRelation: "hatchery_batch_lots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hatchery_invoice_carryovers: {
+        Row: {
+          amount: number
+          applied_at: string | null
+          applied_by: string | null
+          applied_to_invoice_id: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          client_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          reason: string | null
+          source_invoice_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          applied_at?: string | null
+          applied_by?: string | null
+          applied_to_invoice_id?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          client_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          reason?: string | null
+          source_invoice_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          applied_at?: string | null
+          applied_by?: string | null
+          applied_to_invoice_id?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          client_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          reason?: string | null
+          source_invoice_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hatchery_invoice_carryovers_applied_to_invoice_id_fkey"
+            columns: ["applied_to_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "hatchery_client_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hatchery_invoice_carryovers_source_invoice_id_fkey"
+            columns: ["source_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "hatchery_client_invoices"
             referencedColumns: ["id"]
           },
         ]

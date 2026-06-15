@@ -42,6 +42,7 @@ export default function BatchAccountDialog({
   const [method, setMethod] = useState<string>("cash");
   const [notes, setNotes] = useState("");
   const [paying, setPaying] = useState(false);
+  const [remainderAction, setRemainderAction] = useState<"keep" | "carryover" | "discount">("keep");
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [receiptDate, setReceiptDate] = useState(new Date().toISOString().slice(0, 10));
   const [savingReceipt, setSavingReceipt] = useState(false);
@@ -55,6 +56,7 @@ export default function BatchAccountDialog({
   const [discReason, setDiscReason] = useState("");
   const [discNotes, setDiscNotes] = useState("");
   const [savingDisc, setSavingDisc] = useState(false);
+  const [applyingCarry, setApplyingCarry] = useState<string | null>(null);
 
 
   const { data: lot, refetch: refetchLot } = useQuery({
@@ -125,8 +127,57 @@ export default function BatchAccountDialog({
     },
   });
 
+  // Carryover forwarded FROM this invoice (out)
+  const { data: outCarryover, refetch: refetchOutCarry } = useQuery({
+    queryKey: ["batch_account_out_carry", invoice?.id],
+    enabled: !!invoice?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hatchery_invoice_carryovers" as any)
+        .select("*")
+        .eq("source_invoice_id", invoice!.id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+
+  // Open carryovers for the same client coming from OTHER invoices
+  const { data: incomingCarryovers = [], refetch: refetchInCarry } = useQuery({
+    queryKey: ["batch_account_in_carry", invoice?.client_id, invoice?.id],
+    enabled: !!invoice?.client_id && !!invoice?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hatchery_invoice_carryovers" as any)
+        .select("*, source_invoice:hatchery_client_invoices!source_invoice_id(invoice_no)")
+        .eq("client_id", invoice!.client_id)
+        .eq("status", "open")
+        .neq("source_invoice_id", invoice!.id)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+
+  // Carryovers already applied to this invoice (in)
+  const { data: appliedToThis = [], refetch: refetchAppliedThis } = useQuery({
+    queryKey: ["batch_account_applied_this", invoice?.id],
+    enabled: !!invoice?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hatchery_invoice_carryovers" as any)
+        .select("*, source_invoice:hatchery_client_invoices!source_invoice_id(invoice_no)")
+        .eq("applied_to_invoice_id", invoice!.id)
+        .eq("status", "applied")
+        .order("applied_at", { ascending: false });
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+
   const refreshAll = () => {
     refetchLot(); refetchInvoice(); refetchPayments(); refetchDiscounts();
+    refetchOutCarry(); refetchInCarry(); refetchAppliedThis();
     qc.invalidateQueries({ queryKey: ["ecr_"] });
     qc.invalidateQueries({ queryKey: ["hatchery_client_invoices"] });
     qc.invalidateQueries({ queryKey: ["lab_treasury_movements"] });
@@ -195,20 +246,89 @@ export default function BatchAccountDialog({
 
     const remaining = num(invoice.remaining_amount);
     if (amt > remaining + 0.01) return toast.error(`المبلغ يتجاوز المتبقي (${fmtMoney(remaining)})`);
+    const leftover = +(remaining - amt).toFixed(2);
     setPaying(true);
     const uid = (await supabase.auth.getUser()).data.user?.id;
     const ref = `hatch_invoice_payment_${invoice.id}_${Date.now()}`;
     const { error } = await supabase.from("hatchery_invoice_payments" as any).insert({
       invoice_id: invoice.id, amount: amt, method, notes: notes ? `${notes} • ref:${ref}` : `ref:${ref}`, received_by: uid,
     });
+    if (error) { setPaying(false); return toast.error(error.message); }
+
+    // Handle remainder action when this is a partial payment
+    if (leftover > 0.001 && remainderAction === "carryover") {
+      // Prevent duplicate open carryover
+      const { data: existingOpen } = await supabase
+        .from("hatchery_invoice_carryovers" as any)
+        .select("id")
+        .eq("source_invoice_id", invoice.id)
+        .eq("status", "open")
+        .maybeSingle();
+      if (!existingOpen) {
+        const { error: cErr } = await supabase.from("hatchery_invoice_carryovers" as any).insert({
+          source_invoice_id: invoice.id,
+          client_id: invoice.client_id,
+          amount: leftover,
+          status: "open",
+          reason: "ترحيل متبقي بعد تحصيل جزئي",
+          notes: notes || null,
+          created_by: uid,
+        });
+        if (cErr) {
+          setPaying(false);
+          return toast.error(`تم التحصيل، لكن فشل ترحيل المتبقي: ${cErr.message}`);
+        }
+        toast.success(`تم التحصيل وترحيل ${fmtMoney(leftover)} كمتبقي مرحّل لفاتورة قادمة`);
+      } else {
+        toast.warning("تم التحصيل — يوجد متبقٍ مرحّل مفتوح بالفعل لهذه الفاتورة");
+      }
+    } else if (leftover > 0.001 && remainderAction === "discount") {
+      toast.success("تم التحصيل — افتح فورم الخصم لاعتماد المتبقي");
+      // Pre-fill discount dialog with leftover
+      setDiscAmount(String(leftover));
+      setDiscReason("");
+      setDiscNotes("");
+      setTimeout(() => setDiscOpen(true), 200);
+    } else {
+      toast.success(
+        method === "credit_balance"
+          ? "تم تسجيل التحصيل من رصيد سابق (بدون حركة خزنة)"
+          : "تم التحصيل وتسجيل توريد تفريخ في خزنة المعمل"
+      );
+    }
     setPaying(false);
+    setPayOpen(false); setAmount(""); setNotes(""); setRemainderAction("keep");
+    refreshAll();
+  };
+
+  const applyCarryover = async (carryoverId: string) => {
+    if (!invoice) return;
+    setApplyingCarry(carryoverId);
+    const uid = (await supabase.auth.getUser()).data.user?.id;
+    const { error } = await supabase.from("hatchery_invoice_carryovers" as any)
+      .update({
+        status: "applied",
+        applied_to_invoice_id: invoice.id,
+        applied_by: uid,
+        applied_at: new Date().toISOString(),
+      })
+      .eq("id", carryoverId)
+      .eq("status", "open");
+    setApplyingCarry(null);
     if (error) return toast.error(error.message);
-    toast.success(
-      method === "credit_balance"
-        ? "تم تسجيل التحصيل من رصيد سابق (بدون حركة خزنة)"
-        : "تم التحصيل وتسجيل توريد تفريخ في خزنة المعمل"
-    );
-    setPayOpen(false); setAmount(""); setNotes("");
+    toast.success("تم إضافة المتبقي المرحل لهذه الفاتورة");
+    refreshAll();
+  };
+
+  const cancelCarryover = async (carryoverId: string) => {
+    if (!canDiscount) return toast.error("لا تملك صلاحية إلغاء الترحيل");
+    if (!confirm("تأكيد إلغاء هذا الترحيل؟")) return;
+    const uid = (await supabase.auth.getUser()).data.user?.id;
+    const { error } = await supabase.from("hatchery_invoice_carryovers" as any)
+      .update({ status: "cancelled", cancelled_by: uid, cancelled_at: new Date().toISOString() })
+      .eq("id", carryoverId);
+    if (error) return toast.error(error.message);
+    toast.success("تم إلغاء الترحيل");
     refreshAll();
   };
 
@@ -444,12 +564,61 @@ export default function BatchAccountDialog({
                     </Button>
                   )}
                   {num(invoice.remaining_amount) > 0 && (
-                    <Button size="sm" onClick={() => { setAmount(""); setPayOpen(true); }}>
+                    <Button size="sm" onClick={() => { setAmount(""); setRemainderAction("keep"); setPayOpen(true); }}>
                       <Wallet className="w-4 h-4 ml-1" />تحصيل
                     </Button>
                   )}
                 </div>
               </div>
+              {/* Incoming carryovers alert: other open carryovers for the same client */}
+              {incomingCarryovers.length > 0 && (
+                <div className="rounded-lg border-2 border-amber-500 bg-amber-50 dark:bg-amber-950/30 p-3 space-y-2">
+                  <p className="font-semibold text-amber-800 dark:text-amber-200 text-sm">
+                    🔔 يوجد متبقي مرحّل لهذا العميل من فاتورة سابقة
+                  </p>
+                  <div className="space-y-1">
+                    {incomingCarryovers.map((c: any) => (
+                      <div key={c.id} className="flex items-center justify-between gap-2 text-xs bg-background rounded border p-2">
+                        <div>
+                          متبقي مرحّل من فاتورة <b className="font-mono">{c.source_invoice?.invoice_no || c.source_invoice_id?.slice(0,8)}</b>
+                          <span className="mx-2">—</span>
+                          <b className="text-primary">{fmtMoney(c.amount)}</b>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button size="sm" className="h-7 text-xs"
+                            disabled={applyingCarry === c.id}
+                            onClick={() => applyCarryover(c.id)}>
+                            {applyingCarry === c.id ? "..." : "إضافة لهذه الفاتورة"}
+                          </Button>
+                          {canDiscount && (
+                            <Button size="sm" variant="ghost" className="h-7 text-xs"
+                              onClick={() => cancelCarryover(c.id)}>إلغاء</Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Carryover summary on this invoice */}
+              {(num(invoice.carryover_out_amount) > 0 || num(invoice.carryover_in_amount) > 0) && (
+                <div className="rounded border bg-blue-50 dark:bg-blue-950/30 p-2 text-xs space-y-1">
+                  {num(invoice.carryover_in_amount) > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span>متبقي مرحّل وارد (أُضيف من فواتير سابقة):</span>
+                      <b className="text-blue-700">{fmtMoney(invoice.carryover_in_amount)}</b>
+                    </div>
+                  )}
+                  {num(invoice.carryover_out_amount) > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span>متبقي مرحّل صادر (تم ترحيله لفاتورة لاحقة):</span>
+                      <b className="text-amber-700">{fmtMoney(invoice.carryover_out_amount)}</b>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
                 <Info label="رسوم اللايح" value={fmtMoney(invoice.infertile_amount)} />
                 <Info label="رسوم الكشف الثاني" value={fmtMoney(invoice.completed_unhatched_amount)} />
@@ -541,6 +710,45 @@ export default function BatchAccountDialog({
                   </div>
                 )}
               </div>
+
+              {/* Remainder action: only when partial */}
+              {amount && Number(amount) > 0 && Number(amount) < num(invoice?.remaining_amount) && (
+                <div className="rounded border-2 border-amber-300 bg-amber-50/60 dark:bg-amber-950/20 p-3 space-y-2">
+                  <Label className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                    التعامل مع المتبقي ({fmtMoney(num(invoice?.remaining_amount) - Number(amount))})
+                  </Label>
+                  <div className="space-y-1 text-sm">
+                    <label className="flex items-start gap-2 cursor-pointer p-2 rounded hover:bg-background/60">
+                      <input type="radio" name="remainder" className="mt-1"
+                        checked={remainderAction === "keep"}
+                        onChange={() => setRemainderAction("keep")} />
+                      <div>
+                        <div className="font-medium">إبقاء المتبقي للتحصيل لاحقًا</div>
+                        <div className="text-xs text-muted-foreground">يظل المتبقي مفتوحًا على نفس الفاتورة ويمكن تحصيله لاحقًا.</div>
+                      </div>
+                    </label>
+                    <label className="flex items-start gap-2 cursor-pointer p-2 rounded hover:bg-background/60">
+                      <input type="radio" name="remainder" className="mt-1"
+                        checked={remainderAction === "carryover"}
+                        onChange={() => setRemainderAction("carryover")} />
+                      <div>
+                        <div className="font-medium">ترحيل المتبقي للفاتورة القادمة</div>
+                        <div className="text-xs text-muted-foreground">يُغلق المتبقي على هذه الفاتورة ويظهر تنبيه عند فتح فاتورة جديدة للعميل لإضافته إليها.</div>
+                      </div>
+                    </label>
+                    <label className={`flex items-start gap-2 p-2 rounded hover:bg-background/60 ${canDiscount ? "cursor-pointer" : "opacity-50 cursor-not-allowed"}`}>
+                      <input type="radio" name="remainder" className="mt-1"
+                        disabled={!canDiscount}
+                        checked={remainderAction === "discount"}
+                        onChange={() => setRemainderAction("discount")} />
+                      <div>
+                        <div className="font-medium">خصم المتبقي بخصم معتمد {!canDiscount && <span className="text-xs text-red-600">(يتطلب صلاحية)</span>}</div>
+                        <div className="text-xs text-muted-foreground">سيُفتح فورم الخصم بعد التحصيل لإدخال السبب واعتماده.</div>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              )}
               <div>
                 <Label>طريقة الدفع</Label>
                 <Select value={method} onValueChange={setMethod}>
