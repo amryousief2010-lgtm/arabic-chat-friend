@@ -216,38 +216,77 @@ export default function DepartmentMonthlyBudget() {
 
   const printReport = () => {
     if (!data) return;
-    const rows = data.departments.map(d => `
-      <tr><td>${d.name}</td>
-        <td class="num">${fmt(d.revenue)}</td>
-        <td class="num">${fmt(d.expenses)}</td>
-        <td class="num">${fmt(d.net)}</td>
+    const totalCostAll = (data.totals.productionCost ?? 0) + (data.totals.operatingExpenses ?? 0);
+    const overallMargin = data.totals.totalComputedValue > 0
+      ? (data.totals.operationalNet / data.totals.totalComputedValue) * 100 : 0;
+    const rows = data.departments.map(d => {
+      const tc = (d.productionCost ?? 0) + (d.operatingExpenses ?? 0);
+      const m = d.totalComputedValue > 0 ? (d.operationalNet / d.totalComputedValue) * 100 : 0;
+      return `<tr><td>${d.name}</td>
+        <td class="num">${fmt(d.productionCost ?? 0)}</td>
+        <td class="num">${fmt(d.operatingExpenses ?? 0)}</td>
+        <td class="num"><b>${fmt(tc)}</b></td>
+        <td class="num">${fmt(d.cashRevenue)}</td>
+        <td class="num">${fmt(d.internalValue)}</td>
+        <td class="num">${fmt(d.remainingInventoryValue)}</td>
+        <td class="num"><b>${fmt(d.totalComputedValue)}</b></td>
+        <td class="num"><b>${d.operationalNet >= 0 ? "+" : ""}${fmt(d.operationalNet)}</b></td>
+        <td>${m.toFixed(1)}%</td>
         <td>${d.status === "profit" ? "كسبان" : d.status === "loss" ? "خسران" : "تعادل"}</td>
-      </tr>`).join("");
-    const topRev = data.topRevenueSources.slice(0, 10).map(r => `
-      <tr><td>${r.source}</td><td>${r.dept}</td><td class="num">${fmt(r.amount)}</td><td>${r.pctOfTotal.toFixed(1)}%</td></tr>`).join("");
+      </tr>`;
+    }).join("");
     const topExp = data.topExpenseItems.slice(0, 10).map(r => `
       <tr><td>${r.source}</td><td>${r.dept}</td><td class="num">${fmt(r.amount)}</td><td>${r.pctOfTotal.toFixed(1)}%</td></tr>`).join("");
+    const allProducts = [...(data.topProfitProducts ?? []), ...(data.topLossProducts ?? [])];
+    const seen = new Set<string>();
+    const uniqueProducts = allProducts.filter(p => {
+      const k = `${p.dept}|${p.name}`; if (seen.has(k)) return false; seen.add(k); return true;
+    }).sort((a, b) => b.profit - a.profit);
+    const prodRows = uniqueProducts.map(p => `
+      <tr><td>${p.name}</td><td>${p.dept ?? "—"}</td><td class="num">${fmt(p.qty)}</td>
+      <td class="num">${fmt(p.cost)}</td><td class="num">${fmt(p.revenue)}</td>
+      <td class="num"><b>${p.profit >= 0 ? "+" : ""}${fmt(p.profit)}</b></td>
+      <td>${p.margin.toFixed(1)}%</td>
+      <td>${p.profit > 0 ? "كسبان" : p.profit < 0 ? "خسران" : "تعادل"}</td></tr>`).join("");
     const body = `
-      <header><div><h1>${COMPANY_AR}</h1><div class="en">Monthly Department Budget</div></div>
+      <header><div><h1>${COMPANY_AR}</h1><div class="en">Monthly P&L Report — Departments</div></div>
         <div class="meta">الشهر: ${MONTHS_AR[month - 1]} ${year}<br>تاريخ التقرير: ${new Date().toLocaleDateString("ar-EG")}</div>
       </header>
       <div class="stats">
-        <div class="stat"><div class="k">إجمالي الإيرادات</div><div class="v">${fmt(data.totals.revenue)}</div></div>
-        <div class="stat"><div class="k">إجمالي المصروفات</div><div class="v">${fmt(data.totals.expenses)}</div></div>
-        <div class="stat"><div class="k">صافي الربح/الخسارة</div><div class="v">${fmt(data.totals.net)}</div></div>
-        <div class="stat"><div class="k">أكثر قسم ربحًا</div><div class="v">${data.highlights.mostProfit?.name ?? "—"}</div></div>
+        <div class="stat"><div class="k">إجمالي التكلفة علينا</div><div class="v">${fmt(totalCostAll)}</div></div>
+        <div class="stat"><div class="k">إجمالي البيع / القيمة</div><div class="v">${fmt(data.totals.totalComputedValue)}</div></div>
+        <div class="stat"><div class="k">صافي الربح / الخسارة</div><div class="v">${data.totals.operationalNet >= 0 ? "+" : ""}${fmt(data.totals.operationalNet)}</div></div>
+        <div class="stat"><div class="k">هامش الربح %</div><div class="v">${overallMargin.toFixed(1)}%</div></div>
+        <div class="stat"><div class="k">أكثر قسم كسبان</div><div class="v">${data.highlights.mostProfit?.name ?? "—"}</div></div>
+        <div class="stat"><div class="k">أكثر قسم خسران</div><div class="v">${data.highlights.mostLoss?.name ?? "—"}</div></div>
       </div>
-      <h2>مقارنة الأقسام</h2>
-      <table><thead><tr><th>القسم</th><th>الإيرادات</th><th>المصروفات</th><th>الصافي</th><th>الحالة</th></tr></thead><tbody>${rows}</tbody></table>
-      <h2>أكبر مصادر الإيراد</h2>
-      <table><thead><tr><th>المصدر</th><th>القسم</th><th>المبلغ</th><th>النسبة</th></tr></thead><tbody>${topRev}</tbody></table>
-      <h2>أكبر بنود المصروفات</h2>
+      <h2>ملخص الربح والخسارة الشهري</h2>
+      <table><thead><tr>
+        <th>القسم</th><th>تكلفة إنتاج</th><th>مصروفات أخرى</th><th>إجمالي التكلفة</th>
+        <th>بيع نقدي</th><th>قيمة داخلية</th><th>مخزون متبقٍ</th><th>إجمالي القيمة</th>
+        <th>صافي</th><th>هامش</th><th>الحالة</th>
+      </tr></thead><tbody>${rows}</tbody></table>
+      <h2>ربحية المنتجات</h2>
+      <table><thead><tr>
+        <th>المنتج</th><th>القسم</th><th>الكمية</th><th>تكلفة الكمية</th><th>قيمة البيع</th><th>الربح/الخسارة</th><th>هامش</th><th>الحالة</th>
+      </tr></thead><tbody>${prodRows || '<tr><td colspan="8" style="text-align:center">لا توجد بيانات</td></tr>'}</tbody></table>
+      <h2>أكبر بنود التكلفة</h2>
       <table><thead><tr><th>البند</th><th>القسم</th><th>المبلغ</th><th>النسبة</th></tr></thead><tbody>${topExp}</tbody></table>
+      <h2>التوصيات</h2>
+      <ul>
+        ${data.alerts.map(a => `<li>${a.message}</li>`).join("") || "<li>لا توجد توصيات حرجة هذا الشهر</li>"}
+      </ul>
+      <p style="font-size:11px;color:#666;margin-top:12px">
+        الأرقام مبنية على تكاليف الإنتاج الفعلية من فواتير التصنيع وأسعار البيع الفعلية من فواتير المبيعات والطلبات.
+        التقرير عرض فقط ولا يُنشئ أي حركة خزنة أو يعدّل أي مخزون (حركات الخزنة: 0).
+      </p>
       <div class="sig"><div>المحاسب</div><div>المدير التنفيذي</div><div>المدير العام</div></div>
     `;
     const css = `.sig{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:40px;font-size:11px}
-                 .sig div{text-align:center;border-top:1px solid #888;padding-top:6px}`;
-    openPrintWindow(`الميزانية الشهرية ${MONTHS_AR[month - 1]} ${year}`, body, css);
+                 .sig div{text-align:center;border-top:1px solid #888;padding-top:6px}
+                 table{font-size:10px}
+                 .num{text-align:left;font-variant-numeric:tabular-nums}`;
+    openPrintWindow(`تقرير الربح والخسارة ${MONTHS_AR[month - 1]} ${year}`, body, css);
   };
 
   return (
