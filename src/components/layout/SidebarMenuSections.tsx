@@ -42,6 +42,7 @@ import {
   Activity,
   Undo2,
   ClipboardCheck,
+  FileText,
 } from "lucide-react";
 import { useAuth, AppRole } from "@/hooks/useAuth";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
