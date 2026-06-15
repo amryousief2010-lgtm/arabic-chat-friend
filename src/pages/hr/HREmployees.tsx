@@ -372,6 +372,15 @@ const HREmployees = () => {
                     {locations.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
+                <Select value={payDayFilter} onValueChange={(v: any) => setPayDayFilter(v)}>
+                  <SelectTrigger className="w-40"><SelectValue placeholder="يوم الصرف" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">كل أيام الصرف</SelectItem>
+                    <SelectItem value="1">يوم 1 (الرواتب العامة)</SelectItem>
+                    <SelectItem value="5">يوم 5 (التسويق)</SelectItem>
+                    <SelectItem value="15">يوم 15 (شركة الشحن)</SelectItem>
+                  </SelectContent>
+                </Select>
                 {canViewDocs && (
                   <Select value={docFilter} onValueChange={(v: any) => setDocFilter(v)}>
                     <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
