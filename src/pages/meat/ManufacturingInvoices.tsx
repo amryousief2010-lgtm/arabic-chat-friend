@@ -137,41 +137,47 @@ export default function ManufacturingInvoices() {
     // Match product to preset or use "other"
     if (PRODUCT_PRESETS.includes(r.product)) { setProductName(r.product); setProductNameOther(""); }
     else { setProductName("أخرى"); setProductNameOther(r.product); }
+  const resolveItem = (name: string, kind: Kind): RawItem | undefined => {
+    const map = mappingsIndex.get(mapKey(name, kind));
+    if (map) {
+      const it = items.find(i => i.id === map.mapped_raw_item_id);
+      if (it) return it;
+    }
+    return items.find(it => it.name?.trim() === name.trim() && (kind === "raw" ? (it.kind === "raw" || it.kind === "spice") : it.kind === kind));
+  };
+
+  const [selectedRecipeKey, setSelectedRecipeKey] = useState<string>("");
+  const loadRecipe = (key: string, qtyOverride?: number) => {
+    const r = MEAT_RECIPES.find(x => x.key === key);
+    if (!r) return;
+    setSelectedRecipeKey(key);
+    const requested = qtyOverride && qtyOverride > 0 ? qtyOverride : r.batch_qty;
+    const factor = requested / r.batch_qty;
+    if (PRODUCT_PRESETS.includes(r.product)) { setProductName(r.product); setProductNameOther(""); }
+    else { setProductName("أخرى"); setProductNameOther(r.product); }
     setFinishedQty(requested);
     setUnit(r.unit || "كجم");
     setExtraCost(Number((r.wages * factor).toFixed(2)));
-    const rawSpice = r.lines.filter(l => l.kind !== "packaging").map(l => {
-      const match = items.find(it => it.name?.trim() === l.name.trim());
+    const buildLine = (l: { code: number; name: string; kind: Kind; unit: string; qty: number; price: number }): Line => {
+      const match = resolveItem(l.name, l.kind);
       return {
         tmp: crypto.randomUUID(),
         item_id: match?.id || "",
         item_name: l.name,
         kind: l.kind,
-        unit: l.unit,
+        unit: match?.unit || l.unit,
         quantity: Number((l.qty * factor).toFixed(3)),
-        unit_cost: Number(l.price.toFixed(3)),
-        line_total: Number((l.qty * factor * l.price).toFixed(3)),
-        notes: match ? null : "⚠ غير موجود في المخزن — اختر صنف بديل قبل الاعتماد",
-      } as Line;
-    });
-    const pack = r.lines.filter(l => l.kind === "packaging").map(l => {
-      const match = items.find(it => it.name?.trim() === l.name.trim());
-      return {
-        tmp: crypto.randomUUID(),
-        item_id: match?.id || "",
-        item_name: l.name,
-        kind: "packaging" as Kind,
-        unit: l.unit,
-        quantity: Number((l.qty * factor).toFixed(3)),
-        unit_cost: Number(l.price.toFixed(3)),
-        line_total: Number((l.qty * factor * l.price).toFixed(3)),
-        notes: match ? null : "⚠ غير موجود في المخزن — اختر صنف بديل قبل الاعتماد",
-      } as Line;
-    });
+        unit_cost: match ? Number(match.avg_cost || l.price) : Number(l.price.toFixed(3)),
+        line_total: Number((l.qty * factor * (match ? Number(match.avg_cost || l.price) : l.price)).toFixed(3)),
+        notes: match ? null : "⚠ غير مربوط بمخزون مصنع اللحوم — اختر بديل من جدول المطابقة",
+      };
+    };
+    const rawSpice = r.lines.filter(l => l.kind !== "packaging").map(buildLine);
+    const pack = r.lines.filter(l => l.kind === "packaging").map(buildLine);
     setRawLines(rawSpice.length ? rawSpice : [newLine("raw")]);
     setPackLines(pack.length ? pack : [newLine("packaging")]);
     const missing = [...rawSpice, ...pack].filter(l => !l.item_id).length;
-    if (missing > 0) toast.warning(`تم تحميل التركيبة — ${missing} صنف لم يُطابق المخزن، اختر بديل قبل الاعتماد`);
+    if (missing > 0) toast.warning(`تم تحميل التركيبة، لكن يوجد ${missing} صنف غير مرتبط بمخزون مصنع اللحوم. اختر الصنف البديل من المخزون قبل حفظ أو اعتماد الفاتورة.`);
     else toast.success(`تم تحميل تركيبة ${r.product} (×${factor.toFixed(2)})`);
   };
 
