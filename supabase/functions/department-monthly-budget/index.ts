@@ -136,6 +136,95 @@ async function computeMonth(supabase: any, year: number, month: number) {
     effective_from: r.effective_from, is_active: r.is_active,
   }));
 
+  // ============ Mother Farm (NEW) ============
+  // Eggs produced → transferred internally to hatchery (no treasury). Feed cost is the main expense.
+  const motherFarm = mkDept("mother_farm");
+  const { data: mfEggs } = await supabase
+    .from("farm_egg_production")
+    .select("production_date,egg_count")
+    .gte("production_date", dStart).lt("production_date", dEnd);
+  const { data: mfWaste } = await supabase
+    .from("farm_egg_waste")
+    .select("waste_date,egg_count")
+    .gte("waste_date", dStart).lt("waste_date", dEnd);
+  const { data: mfFeedMoves } = await supabase
+    .from("mother_farm_feed_movements")
+    .select("movement_date,movement_type,bags,weight_kg,notes,supplier,reason")
+    .gte("movement_date", dStart).lt("movement_date", dEnd);
+  const { data: mfShipments } = await supabase
+    .from("farm_to_hatchery_shipments")
+    .select("production_date,family_number,egg_count,received_egg_count,damaged_count,status,received_at,is_test")
+    .or(`production_date.gte.${dStart},received_at.gte.${tsStart}`)
+    .lt("production_date", dEnd);
+  const { data: mfMeds } = await supabase
+    .from("farm_medications")
+    .select("med_date,name,dose")
+    .gte("med_date", dStart).lt("med_date", dEnd);
+  const { data: mfFamilies } = await supabase
+    .from("farm_families")
+    .select("female_count,male_count,status");
+
+  const eggsProduced = (mfEggs ?? []).reduce((a: number, r: any) => a + Number(r.egg_count || 0), 0);
+  const eggsWasted = (mfWaste ?? []).reduce((a: number, r: any) => a + Number(r.egg_count || 0), 0);
+  const eggsNet = Math.max(0, eggsProduced - eggsWasted);
+  const eggsToHatchery = (mfShipments ?? [])
+    .filter((s: any) => !s.is_test && s.status !== "rejected")
+    .reduce((a: number, r: any) => a + Number(r.received_egg_count || r.egg_count || 0), 0);
+  const activeFamilies = (mfFamilies ?? []).filter((f: any) => f.status === "active");
+  const totalBirds = activeFamilies.reduce((a: number, f: any) => a + Number(f.female_count || 0) + Number(f.male_count || 0), 0);
+
+  // Mother-farm feed cost: weight in × avg feed unit cost (use feed_products avg or feed_internal_prices)
+  let mfFeedWeightKg = 0;
+  for (const m of mfFeedMoves ?? []) {
+    if (m.movement_type === "in") mfFeedWeightKg += Number(m.weight_kg || (Number(m.bags || 0) * 25));
+  }
+  // Estimate avg feed unit cost from active feed products
+  const { data: feedProdAvg } = await supabase
+    .from("feed_products").select("latest_unit_cost,archived_at").is("archived_at", null);
+  const avgFeedUnitCost = (() => {
+    const arr = (feedProdAvg ?? []).map((p: any) => Number(p.latest_unit_cost || 0)).filter((n: number) => n > 0);
+    return arr.length ? arr.reduce((a: number, b: number) => a + b, 0) / arr.length : 0;
+  })();
+  const mfFeedCost = mfFeedWeightKg * avgFeedUnitCost;
+  if (mfFeedWeightKg > 0 && avgFeedUnitCost <= 0) {
+    motherFarm.pricingWarnings.push("لا توجد تكلفة وحدة معتمدة للعلف — لم تُحتسب تكلفة علف الأمهات");
+  } else if (mfFeedCost > 0) {
+    motherFarm.productionCost += mfFeedCost;
+    motherFarm.expenseItems.push({
+      date: dStart, label: `علف الأمهات (${mfFeedWeightKg} كجم × ${avgFeedUnitCost.toFixed(2)} ج/كجم)`,
+      source: "علف الأمهات", amount: mfFeedCost, category: "cash", priceSource: "avg_cost",
+    });
+  }
+  // Cost per egg this month (used to value eggs sent to hatchery internally)
+  const costPerEgg = eggsNet > 0 && motherFarm.productionCost > 0
+    ? motherFarm.productionCost / eggsNet : 0;
+  const eggsValueToHatchery = eggsToHatchery * costPerEgg;
+  if (eggsValueToHatchery > 0) {
+    motherFarm.internalValue += eggsValueToHatchery;
+    motherFarm.revenueItems.push({
+      date: dEnd, label: `بيض محوّل للمعمل (${eggsToHatchery} بيضة × ${costPerEgg.toFixed(2)} ج/بيضة)`,
+      source: "قيمة بيض محوّل للمعمل", amount: eggsValueToHatchery,
+      category: "internal", priceSource: "production_cost",
+    });
+  }
+  // Remaining eggs not yet shipped → asset
+  const remainingEggs = Math.max(0, eggsNet - eggsToHatchery);
+  const remainingEggsValue = remainingEggs * costPerEgg;
+  if (remainingEggsValue > 0) {
+    motherFarm.remainingInventoryValue += remainingEggsValue;
+    motherFarm.revenueItems.push({
+      date: dEnd, label: `بيض متبقٍ غير محوّل (${remainingEggs} بيضة)`,
+      source: "قيمة بيض متبقٍ", amount: remainingEggsValue,
+      category: "asset", priceSource: "production_cost",
+    });
+  }
+  motherFarm.opsMetrics = {
+    eggsProduced, eggsWasted, eggsNet, eggsToHatchery,
+    remainingEggs, costPerEgg: Number(costPerEgg.toFixed(3)),
+    feedWeightKg: mfFeedWeightKg, families: activeFamilies.length, birds: totalBirds,
+    medicationDoses: (mfMeds ?? []).length,
+  };
+
   // ============ Hatchery ============
   const { data: hInv } = await supabase
     .from("hatchery_client_invoices")
@@ -146,6 +235,17 @@ async function computeMonth(supabase: any, year: number, month: number) {
     .select("txn_date,direction,category,amount,notes")
     .gte("txn_date", dStart).lt("txn_date", dEnd);
   const hatchery = mkDept("hatchery");
+  // Eggs received from mother farm = production input cost on the hatchery
+  if (eggsValueToHatchery > 0) {
+    hatchery.productionCost += eggsValueToHatchery;
+    hatchery.expenseItems.push({
+      date: dStart,
+      label: `بيض داخل من مزرعة الأمهات (${eggsToHatchery} بيضة × ${costPerEgg.toFixed(2)})`,
+      source: "تكلفة بيض الإنتاج (داخلي)", amount: eggsValueToHatchery,
+      category: "internal", priceSource: "production_cost",
+    });
+  }
+  hatchery.opsMetrics = { eggsIn: eggsToHatchery, costPerEgg: Number(costPerEgg.toFixed(3)) };
   for (const inv of hInv ?? []) {
     const parts: Array<[string, number]> = [
       ["رسوم الكتاكيت", Number(inv.chicks_amount || 0)],
@@ -159,6 +259,7 @@ async function computeMonth(supabase: any, year: number, month: number) {
         hatchery.revenueItems.push({
           date: inv.issued_at, label, source: label, amount: amt,
           category: "cash", reference: inv.invoice_no, treasury: inv.client_name_snapshot,
+          priceSource: "sale_price",
         });
       }
     }
