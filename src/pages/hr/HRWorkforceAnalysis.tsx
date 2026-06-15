@@ -73,8 +73,8 @@ export default function HRWorkforceAnalysis() {
     if (!canView) return;
     setLoading(true);
     try {
-      const monthStart = cairoMonthStartUTC(year, month);
-      const monthEnd = cairoMonthStartUTC(month === 12 ? year + 1 : year, month === 12 ? 1 : month + 1);
+      const monthStart = cairoMonthStartUTC(year, month - 1).toISOString();
+      const monthEnd = cairoMonthStartUTC(month === 12 ? year + 1 : year, month === 12 ? 0 : month).toISOString();
       const dStart = `${year}-${String(month).padStart(2, "0")}-01`;
       const ny = month === 12 ? year + 1 : year;
       const nm = month === 12 ? 1 : month + 1;
