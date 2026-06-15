@@ -2047,7 +2047,7 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
       quarantined_weight_kg: 0,
       package_count: 0,
       standard_weight_kg: y ? (Number(batch.total_live_weight_kg) * Number(y.standard_yield_pct)) / 100 : 0,
-      unit_cost: 0, unit_price: 0, destination: "branch", branch_id: "",
+      unit_cost: 0, unit_price: 0, destination: "warehouse", branch_id: "",
     }]);
   };
 
@@ -2364,6 +2364,7 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
               <TableHead className="text-emerald-600">المتاح (كجم)</TableHead>
               <TableHead>السعر/كجم</TableHead>
               <TableHead>الإجمالي</TableHead>
+              <TableHead>الوجهة</TableHead>
               <TableHead>الفرع</TableHead>
               <TableHead>عبوات</TableHead>
               <TableHead></TableHead>
@@ -2371,7 +2372,7 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
             <TableBody>
               {rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={11} className="text-center text-muted-foreground py-6">
+                  <TableCell colSpan={12} className="text-center text-muted-foreground py-6">
                     لم يتم إضافة أي صنف بعد. ابحث واختر صنفًا من القائمة أعلاه لبدء التقسيمة.
                   </TableCell>
                 </TableRow>
@@ -2409,7 +2410,24 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
                       onChange={e => updateRow(i, { unit_price: +e.target.value })} /></TableCell>
                     <TableCell className="font-semibold">{(accepted * Number(r.unit_price || 0)).toFixed(0)}</TableCell>
                     <TableCell>
-                      <Select value={r.branch_id} onValueChange={v => updateRow(i, { branch_id: v })}>
+                      <Select
+                        value={r.destination || "warehouse"}
+                        onValueChange={v => updateRow(i, { destination: v, branch_id: v === "branch" ? r.branch_id : "" })}
+                      >
+                        <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="warehouse">المخزن الرئيسي</SelectItem>
+                          <SelectItem value="meat_factory">مصنع اللحوم</SelectItem>
+                          <SelectItem value="branch">فرع</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell>
+                      <Select
+                        value={r.branch_id}
+                        onValueChange={v => updateRow(i, { branch_id: v })}
+                        disabled={(r.destination || "warehouse") !== "branch"}
+                      >
                         <SelectTrigger className="w-32"><SelectValue placeholder="—" /></SelectTrigger>
                         <SelectContent>
                           {branches.map(b => <SelectItem key={b.id} value={b.id}>{b.name_ar}</SelectItem>)}
