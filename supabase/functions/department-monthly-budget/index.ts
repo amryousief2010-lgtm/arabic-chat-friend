@@ -321,8 +321,8 @@ async function computeMonth(supabase: any, year: number, month: number) {
     .gte("transfer_date", dStart).lt("transfer_date", dEnd);
   const { data: bMortality } = await supabase
     .from("brooding_mortality")
-    .select("event_date,count")
-    .gte("event_date", dStart).lt("event_date", dEnd);
+    .select("mortality_date,count")
+    .gte("mortality_date", dStart).lt("mortality_date", dEnd);
   const { data: bActiveBatches } = await supabase
     .from("brooding_batches")
     .select("batch_number,current_count,cost_per_bird,status")
