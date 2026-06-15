@@ -27,10 +27,17 @@ type DeptKey = "hatchery" | "brooding" | "slaughterhouse" | "feed_factory";
 
 interface LineItem {
   date: string; label: string; source: string; amount: number;
+  category?: "cash" | "internal" | "asset";
   reference?: string; treasury?: string; notes?: string;
+  priceSource?: "internal_price" | "avg_cost" | "transfer_unit_price";
 }
 interface DeptResult {
   key: DeptKey; name: string;
+  cashRevenue: number; internalValue: number; remainingInventoryValue: number;
+  totalComputedValue: number; cashNet: number; operationalNet: number;
+  cashStatus: "profit" | "loss" | "even";
+  pricingWarnings: string[];
+  // aliases for legacy code
   revenue: number; expenses: number; net: number;
   expenseRatio: number; status: "profit" | "loss" | "even";
   revenueItems: LineItem[]; expenseItems: LineItem[];
@@ -40,7 +47,12 @@ interface DeptResult {
 interface BudgetData {
   year: number; month: number;
   departments: DeptResult[];
-  totals: { revenue: number; expenses: number; net: number };
+  totals: {
+    cashRevenue: number; internalValue: number; remainingInventoryValue: number;
+    totalComputedValue: number; expenses: number;
+    cashNet: number; operationalNet: number;
+    revenue: number; net: number;
+  };
   highlights: {
     mostProfit?: { name: string; net: number };
     mostLoss?: { name: string; net: number };
@@ -49,18 +61,19 @@ interface BudgetData {
     biggestRevenueSource?: { source: string; dept: string; amount: number };
     biggestExpenseItem?: { source: string; dept: string; amount: number };
   };
-  topRevenueSources: { source: string; dept: string; amount: number; pctOfTotal: number }[];
+  topRevenueSources: { source: string; dept: string; amount: number; pctOfTotal: number; category?: string }[];
   topExpenseItems: { source: string; dept: string; amount: number; pctOfTotal: number }[];
   comparison: {
     name: string;
     currentNet: number; previousNet: number;
+    currentCashNet?: number; previousCashNet?: number;
     currentRevenue: number; previousRevenue: number;
     currentExpenses: number; previousExpenses: number;
     revenueDelta: number; expensesDelta: number; netDelta: number;
     revenuePct: number | null; expensesPct: number | null;
   }[];
   alerts: { level: "warn" | "danger" | "info"; message: string }[];
-  unclassified: { count: number; note: string };
+  meta?: { note: string; treasuryMovementsCreated: number };
 }
 
 const MONTHS_AR = [
