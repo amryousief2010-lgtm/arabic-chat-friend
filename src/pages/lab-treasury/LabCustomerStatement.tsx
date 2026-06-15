@@ -268,6 +268,7 @@ export default function LabCustomerStatement() {
               <TableHead>دائن</TableHead>
               <TableHead>الرصيد</TableHead>
               <TableHead>طريقة الدفع</TableHead>
+              <TableHead>تأثير الخزنة</TableHead>
               <TableHead>إيصال</TableHead>
               <TableHead>ملاحظات</TableHead>
             </TableRow>
