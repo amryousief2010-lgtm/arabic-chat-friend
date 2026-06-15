@@ -99,7 +99,6 @@ const Warehouses = lazy(() => import("@/pages/modules/Warehouses"));
 const WarehousesByLocation = lazy(() => import("@/pages/modules/WarehousesByLocation"));
 const WarehouseOperationalDates = lazy(() => import("@/pages/modules/WarehouseOperationalDates"));
 const WarehouseOpeningBalance = lazy(() => import("@/pages/modules/WarehouseOpeningBalance"));
-const MainWarehouseGuide = lazy(() => import("@/pages/modules/MainWarehouseGuide"));
 const RecipeDetail = lazy(() => import("@/pages/modules/feed/RecipeDetail"));
 const BatchTracking = lazy(() => import("@/pages/modules/feed/BatchTracking"));
 const FeedDashboard = lazy(() => import("@/pages/modules/feed/FeedDashboard"));
