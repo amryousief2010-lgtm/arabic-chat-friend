@@ -97,6 +97,7 @@ const HREmployees = lazy(() => import("@/pages/hr/HREmployees"));
 const HRWorkLocations = lazy(() => import("@/pages/hr/HRWorkLocations"));
 const HREmployeeAdvancesReport = lazy(() => import("@/pages/hr/HREmployeeAdvancesReport"));
 const HRDeductions = lazy(() => import("@/pages/hr/HRDeductions"));
+const HRWorkforceAnalysis = lazy(() => import("@/pages/hr/HRWorkforceAnalysis"));
 const Warehouses = lazy(() => import("@/pages/modules/Warehouses"));
 const WarehousesByLocation = lazy(() => import("@/pages/modules/WarehousesByLocation"));
 const WarehouseOperationalDates = lazy(() => import("@/pages/modules/WarehouseOperationalDates"));
