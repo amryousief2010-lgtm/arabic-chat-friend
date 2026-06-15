@@ -532,6 +532,118 @@ async function computeMonth(supabase: any, year: number, month: number) {
     );
   }
 
+  // ============ Sold-Product Profitability (links order_items → cost source) ============
+  // Cost source priority per product_id:
+  //   1) slaughter_batch_outputs.unit_cost (weighted avg this month) → "تكلفة ذبح"
+  //   2) products.cost_price                                          → "متوسط تكلفة مخزون"
+  //   3) inventory_movements.unit_cost (out-movements this month)     → "متوسط تكلفة مخزون"
+  //   4) none                                                          → "غير محدد"
+  const productCostMap = new Map<string, { unitCost: number; source: string; deptName: string }>();
+  const slaughterByProduct = new Map<string, { totalCost: number; totalQty: number }>();
+  for (const o of sOutputs ?? []) {
+    if (!o.product_id) continue;
+    const qty = Number(o.actual_weight_kg || 0);
+    const uc = Number(o.unit_cost || 0);
+    if (qty <= 0 || uc <= 0) continue;
+    const cur = slaughterByProduct.get(o.product_id) || { totalCost: 0, totalQty: 0 };
+    cur.totalCost += qty * uc;
+    cur.totalQty += qty;
+    slaughterByProduct.set(o.product_id, cur);
+  }
+  for (const [pid, agg] of slaughterByProduct) {
+    productCostMap.set(pid, {
+      unitCost: agg.totalCost / agg.totalQty,
+      source: "تكلفة ذبح",
+      deptName: "المجزر",
+    });
+  }
+
+  // All sold items this month (skip cancelled)
+  const { data: ordersForProf } = await supabase
+    .from("orders").select("id")
+    .gte("created_at", tsStart).lt("created_at", tsEnd).neq("status", "cancelled");
+  const profOrderIds = (ordersForProf ?? []).map((o: any) => o.id);
+  const soldItems: any[] = [];
+  for (let i = 0; i < profOrderIds.length; i += 500) {
+    const chunk = profOrderIds.slice(i, i + 500);
+    const { data: oi } = await supabase
+      .from("order_items")
+      .select("product_id,product_name,quantity,unit_price,total_price")
+      .in("order_id", chunk)
+      .not("product_id", "is", null);
+    if (oi) soldItems.push(...oi);
+  }
+
+  const soldPids = Array.from(new Set(soldItems.map((i: any) => i.product_id)));
+  const unknownPids = soldPids.filter((pid) => !productCostMap.has(pid));
+  if (unknownPids.length) {
+    const { data: prodRows } = await supabase
+      .from("products").select("id,cost_price").in("id", unknownPids);
+    for (const p of prodRows ?? []) {
+      const cp = Number(p.cost_price || 0);
+      if (cp > 0) {
+        productCostMap.set(p.id, {
+          unitCost: cp, source: "متوسط تكلفة مخزون", deptName: "المخزن الرئيسي",
+        });
+      }
+    }
+    const stillUnknown = unknownPids.filter((p) => !productCostMap.has(p));
+    if (stillUnknown.length) {
+      const { data: mv } = await supabase
+        .from("inventory_movements")
+        .select("product_id,quantity,unit_cost")
+        .in("product_id", stillUnknown)
+        .eq("movement_type", "out")
+        .gt("unit_cost", 0)
+        .gte("performed_at", tsStart).lt("performed_at", tsEnd);
+      const agg = new Map<string, { q: number; c: number }>();
+      for (const m of mv ?? []) {
+        const q = Number(m.quantity || 0);
+        const uc = Number(m.unit_cost || 0);
+        if (q <= 0 || uc <= 0) continue;
+        const cur = agg.get(m.product_id) || { q: 0, c: 0 };
+        cur.q += q; cur.c += q * uc;
+        agg.set(m.product_id, cur);
+      }
+      for (const [pid, a] of agg) {
+        productCostMap.set(pid, {
+          unitCost: a.c / a.q, source: "متوسط تكلفة مخزون", deptName: "المخزن الرئيسي",
+        });
+      }
+    }
+  }
+
+  const soldAgg = new Map<string, ProductMetric>();
+  let unknownCostCount = 0;
+  for (const it of soldItems) {
+    const pid = it.product_id;
+    const cost = productCostMap.get(pid);
+    const qty = Number(it.quantity || 0);
+    const rev = Number(it.total_price || qty * Number(it.unit_price || 0));
+    const lineCost = cost ? cost.unitCost * qty : 0;
+    if (!cost) unknownCostCount++;
+    const cur = soldAgg.get(pid) || {
+      name: it.product_name || "غير معروف",
+      qty: 0, revenue: 0, cost: 0, profit: 0, margin: 0,
+      costSource: cost?.source ?? "غير محدد",
+      sourceDept: cost?.deptName ?? "غير محدد",
+    };
+    cur.qty += qty; cur.revenue += rev; cur.cost += lineCost;
+    soldAgg.set(pid, cur);
+  }
+  for (const p of soldAgg.values()) {
+    p.profit = p.revenue - p.cost;
+    p.margin = p.revenue > 0 ? (p.profit / p.revenue) * 100 : 0;
+    slaughter.productMetrics.push(p);
+  }
+  slaughter.productMetrics.sort((a, b) => b.profit - a.profit);
+  if (unknownCostCount > 0) {
+    slaughter.pricingWarnings.push(
+      `${unknownCostCount} منتج مباع بدون تكلفة محفوظة — لا يمكن حساب ربحيته بدقة`,
+    );
+  }
+
+
 
   // ============ Feed Factory ============
   const { data: fSales } = await supabase
