@@ -61,6 +61,8 @@ interface MenuItem {
   label: string;
   path: string;
   roles: AppRole[];
+  /** Optional sub-group label. Items sharing the same group label appear inside a nested collapsible. */
+  group?: string;
 }
 
 interface ModuleSection {
@@ -185,26 +187,21 @@ export const moduleSections: ModuleSection[] = [
     label: "6. مصنع اللحوم",
     roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'quality_manager', 'accountant', 'financial_manager', 'warehouse_supervisor'],
     items: [
-      // 1. لوحة التحكم
-      { icon: Factory, label: "── لوحة التحكم ──", path: "/meat-factory/dashboard", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'quality_manager', 'accountant', 'financial_manager'] },
-      { icon: Factory, label: "لوحة مصنع اللحوم", path: "/meat-factory/dashboard", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'quality_manager', 'accountant', 'financial_manager'] },
-      { icon: Factory, label: "لوحة المشتريات والتصنيع (متقدم)", path: "/meat-factory/overview-dashboard", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'accountant', 'financial_manager', 'warehouse_supervisor'] },
-      // 2. التصنيع
-      { icon: Factory, label: "── التصنيع ──", path: "/meat-factory/manufacturing", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager'] },
-      { icon: Factory, label: "فاتورة تصنيع / سجل الفواتير", path: "/meat-factory/manufacturing", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager'] },
-      { icon: Factory, label: "تركيبات التصنيع (مرجع)", path: "/meat-factory/recipes", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'quality_manager', 'accountant', 'financial_manager'] },
-      { icon: Factory, label: "تصنيع المنتجات (شاشة قديمة)", path: "/modules/meat-factory", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'quality_manager'] },
-      // 3. المخزون
-      { icon: Beef, label: "── مخزون المصنع ──", path: "/meat-factory/raw-inventory", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'financial_manager', 'warehouse_supervisor', 'accountant'] },
-      { icon: Boxes, label: "مخزون خامات مصنع اللحوم (موسّع)", path: "/meat-factory/raw-inventory", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'financial_manager', 'warehouse_supervisor', 'accountant', 'quality_manager'] },
-      { icon: Beef, label: "مخازن مصنع اللحوم (خامات/بهارات/تغليف)", path: "/meat-factory/factory-warehouses", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'financial_manager', 'warehouse_supervisor', 'accountant'] },
-      { icon: Package, label: "مخزن مواد التغليف والتعبئة", path: "/meat-factory/packaging-inventory", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'warehouse_supervisor', 'accountant', 'financial_manager'] },
-      // 4. المشتريات
-      { icon: ShoppingCart, label: "── المشتريات ──", path: "/meat-factory/purchase-invoices", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'warehouse_supervisor', 'accountant', 'financial_manager'] },
-      { icon: ShoppingCart, label: "فواتير مشتريات مصنع اللحوم", path: "/meat-factory/purchase-invoices", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'warehouse_supervisor', 'accountant', 'financial_manager'] },
-      // 5. التقارير
-      { icon: FileText, label: "── التقارير ──", path: "/meat-factory/reports", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'accountant', 'financial_manager', 'warehouse_supervisor', 'quality_manager'] },
-      { icon: FileText, label: "تقارير مصنع اللحوم (وارد/صرف/إنتاج/مخزون)", path: "/meat-factory/reports", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'accountant', 'financial_manager', 'warehouse_supervisor', 'quality_manager'] },
+      // لوحة التحكم
+      { group: "لوحة التحكم", icon: Factory, label: "لوحة مصنع اللحوم", path: "/meat-factory/dashboard", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'quality_manager', 'accountant', 'financial_manager'] },
+      { group: "لوحة التحكم", icon: Factory, label: "لوحة المشتريات والتصنيع (متقدم)", path: "/meat-factory/overview-dashboard", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'accountant', 'financial_manager', 'warehouse_supervisor'] },
+      // التصنيع والتشغيل
+      { group: "التصنيع والتشغيل", icon: Factory, label: "فاتورة تصنيع / سجل الفواتير", path: "/meat-factory/manufacturing", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager'] },
+      { group: "التصنيع والتشغيل", icon: Factory, label: "تركيبات التصنيع (مرجع)", path: "/meat-factory/recipes", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'quality_manager', 'accountant', 'financial_manager'] },
+      { group: "التصنيع والتشغيل", icon: Factory, label: "تصنيع المنتجات (شاشة قديمة)", path: "/modules/meat-factory", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'quality_manager'] },
+      // مخزون المصنع
+      { group: "مخزون المصنع", icon: Boxes, label: "مخزون خامات مصنع اللحوم (موسّع)", path: "/meat-factory/raw-inventory", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'financial_manager', 'warehouse_supervisor', 'accountant', 'quality_manager'] },
+      { group: "مخزون المصنع", icon: Beef, label: "مخازن مصنع اللحوم (خامات/بهارات/تغليف)", path: "/meat-factory/factory-warehouses", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'financial_manager', 'warehouse_supervisor', 'accountant'] },
+      { group: "مخزون المصنع", icon: Package, label: "مخزن مواد التغليف والتعبئة", path: "/meat-factory/packaging-inventory", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'warehouse_supervisor', 'accountant', 'financial_manager'] },
+      // المشتريات والموردين
+      { group: "المشتريات والموردين", icon: ShoppingCart, label: "فواتير مشتريات مصنع اللحوم", path: "/meat-factory/purchase-invoices", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'warehouse_supervisor', 'accountant', 'financial_manager'] },
+      // التقارير
+      { group: "التقارير", icon: FileText, label: "تقارير مصنع اللحوم (وارد/صرف/إنتاج/مخزون)", path: "/meat-factory/reports", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'accountant', 'financial_manager', 'warehouse_supervisor', 'quality_manager'] },
     ],
   },
   {
@@ -390,43 +387,85 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
             </CollapsibleTrigger>
             <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
               <div className="mt-1 mr-3 space-y-1 border-r-2 border-sidebar-border pr-3">
-                {section.items.map((item) => {
-                  const targetPath = ordersPathOverride && item.path === "/orders" ? ordersPathOverride : item.path;
-                  const isActive = location.pathname === targetPath;
-                  const showBadge = item.path === "/notifications" && unreadCount > 0;
-                  const showLabBadge = item.path === "/lab-treasury" && labApprovalsCount > 0;
-                  const showInternalMsgBadge = item.path === "/internal-messages" && unreadInternalMessages > 0;
-                  return (
-                    <Link
-                      key={item.path}
-                      to={targetPath}
-                      onClick={onItemClick}
-                      className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-                        isActive
-                          ? "bg-sidebar-primary text-sidebar-primary-foreground font-semibold"
-                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                      }`}
-                    >
-                      <item.icon className="w-4 h-4 shrink-0" />
-                      <span className="flex-1">{item.label}</span>
-                      {showBadge && (
-                        <Badge variant="destructive" className="h-5 min-w-5 px-1.5 text-xs">
-                          {unreadCount > 99 ? "99+" : unreadCount}
-                        </Badge>
-                      )}
-                      {showLabBadge && (
-                        <Badge className="h-5 min-w-5 px-1.5 text-xs bg-amber-500 hover:bg-amber-600">
-                          {labApprovalsCount > 99 ? "99+" : labApprovalsCount}
-                        </Badge>
-                      )}
-                      {showInternalMsgBadge && (
-                        <Badge variant="destructive" className="h-5 min-w-5 px-1.5 text-xs">
-                          {unreadInternalMessages > 99 ? "99+" : unreadInternalMessages}
-                        </Badge>
-                      )}
-                    </Link>
-                  );
-                })}
+                {(() => {
+                  // If any item has a `group`, render grouped collapsibles; otherwise flat.
+                  const hasGroups = section.items.some((i) => i.group);
+                  const renderLink = (item: MenuItem) => {
+                    const targetPath = ordersPathOverride && item.path === "/orders" ? ordersPathOverride : item.path;
+                    const isActive = location.pathname === targetPath;
+                    const showBadge = item.path === "/notifications" && unreadCount > 0;
+                    const showLabBadge = item.path === "/lab-treasury" && labApprovalsCount > 0;
+                    const showInternalMsgBadge = item.path === "/internal-messages" && unreadInternalMessages > 0;
+                    return (
+                      <Link
+                        key={item.path + item.label}
+                        to={targetPath}
+                        onClick={onItemClick}
+                        className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                          isActive
+                            ? "bg-sidebar-primary text-sidebar-primary-foreground font-semibold"
+                            : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                        }`}
+                      >
+                        <item.icon className="w-4 h-4 shrink-0" />
+                        <span className="flex-1">{item.label}</span>
+                        {showBadge && (
+                          <Badge variant="destructive" className="h-5 min-w-5 px-1.5 text-xs">
+                            {unreadCount > 99 ? "99+" : unreadCount}
+                          </Badge>
+                        )}
+                        {showLabBadge && (
+                          <Badge className="h-5 min-w-5 px-1.5 text-xs bg-amber-500 hover:bg-amber-600">
+                            {labApprovalsCount > 99 ? "99+" : labApprovalsCount}
+                          </Badge>
+                        )}
+                        {showInternalMsgBadge && (
+                          <Badge variant="destructive" className="h-5 min-w-5 px-1.5 text-xs">
+                            {unreadInternalMessages > 99 ? "99+" : unreadInternalMessages}
+                          </Badge>
+                        )}
+                      </Link>
+                    );
+                  };
+
+                  if (!hasGroups) return section.items.map(renderLink);
+
+                  // Build ordered groups preserving first-occurrence order.
+                  const groupOrder: string[] = [];
+                  const groupMap = new Map<string, MenuItem[]>();
+                  for (const it of section.items) {
+                    const g = it.group || "أخرى";
+                    if (!groupMap.has(g)) { groupMap.set(g, []); groupOrder.push(g); }
+                    groupMap.get(g)!.push(it);
+                  }
+                  return groupOrder.map((g) => {
+                    const groupItems = groupMap.get(g)!;
+                    const groupKey = `${section.id}::${g}`;
+                    const groupHasActive = groupItems.some((i) => i.path === location.pathname);
+                    const groupOpen = openSections[groupKey] ?? groupHasActive;
+                    return (
+                      <Collapsible
+                        key={groupKey}
+                        open={groupOpen}
+                        onOpenChange={() => toggleSection(groupKey)}
+                      >
+                        <CollapsibleTrigger
+                          className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs font-semibold transition-colors text-right ${
+                            groupHasActive ? "bg-sidebar-accent/70 text-sidebar-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/40"
+                          }`}
+                        >
+                          <span className="flex-1 text-right">{g}</span>
+                          <ChevronDown className={`w-3.5 h-3.5 transition-transform ${groupOpen ? "rotate-180" : ""}`} />
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+                          <div className="mt-1 mr-2 space-y-1 border-r border-sidebar-border/60 pr-2">
+                            {groupItems.map(renderLink)}
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    );
+                  });
+                })()}
               </div>
             </CollapsibleContent>
           </Collapsible>
