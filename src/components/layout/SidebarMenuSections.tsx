@@ -95,6 +95,16 @@ export const moduleSections: ModuleSection[] = [
     ],
   },
   {
+    id: "management",
+    icon: BarChart3,
+    label: "الإدارة والتقارير",
+    roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager'],
+    items: [
+      { icon: Wallet, label: "الميزانية الشهرية للأقسام", path: "/modules/department-monthly-budget", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager'] },
+      { icon: Wallet, label: "التقارير المالية", path: "/financial-reports", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'sales_manager'] },
+    ],
+  },
+  {
     id: "internal-messages",
     icon: Mail,
     label: "الرسائل الداخلية",
