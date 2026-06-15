@@ -114,6 +114,8 @@ function mkDept(key: DeptKey): DeptResult {
     status: "even", cashStatus: "even",
     revenueItems: [], expenseItems: [], pricingWarnings: [],
     productMetrics: [],
+    actualSaleValue: 0, costBasisOfOutputs: 0,
+    opsMetrics: {},
   };
 }
 
