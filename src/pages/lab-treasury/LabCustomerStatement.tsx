@@ -35,6 +35,22 @@ const ENTRY_LABEL: Record<string, string> = {
   historical_closeout: "تسوية تاريخية (حتى الدفعة 15)",
 };
 
+// Determine treasury impact for a ledger row based on entry_type + payment_method
+const PRIOR_BALANCE_PMS = ["credit_prior_balance", "opening_credit", "prior_balance", "historical_settlement"];
+function treasuryImpact(r: LedgerRow): { affected: boolean; label: string } {
+  const pm = (r.payment_method || "").toLowerCase();
+  if (["batch_charge", "adjustment", "discount", "opening_balance", "internal_settlement", "historical_closeout"].includes(r.entry_type)) {
+    if (r.entry_type === "opening_balance") return { affected: false, label: "رصيد سابق — لا تؤثر" };
+    if (r.entry_type === "historical_closeout") return { affected: false, label: "تسوية تاريخية — لا تؤثر" };
+    if (r.entry_type === "internal_settlement") return { affected: false, label: "تسوية داخلية — لا تؤثر" };
+    return { affected: false, label: "لا تؤثر على الخزنة" };
+  }
+  if (PRIOR_BALANCE_PMS.includes(pm) || pm.includes("prior_balance") || pm.includes("رصيد")) {
+    return { affected: false, label: "خصم من رصيد سابق — لا تؤثر" };
+  }
+  return { affected: true, label: "أثرت على خزنة المعمل" };
+}
+
 export default function LabCustomerStatement() {
   const [params, setParams] = useSearchParams();
   const [customers, setCustomers] = useState<Customer[]>([]);
