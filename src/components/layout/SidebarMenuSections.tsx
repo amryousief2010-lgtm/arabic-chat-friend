@@ -387,43 +387,85 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
             </CollapsibleTrigger>
             <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
               <div className="mt-1 mr-3 space-y-1 border-r-2 border-sidebar-border pr-3">
-                {section.items.map((item) => {
-                  const targetPath = ordersPathOverride && item.path === "/orders" ? ordersPathOverride : item.path;
-                  const isActive = location.pathname === targetPath;
-                  const showBadge = item.path === "/notifications" && unreadCount > 0;
-                  const showLabBadge = item.path === "/lab-treasury" && labApprovalsCount > 0;
-                  const showInternalMsgBadge = item.path === "/internal-messages" && unreadInternalMessages > 0;
-                  return (
-                    <Link
-                      key={item.path}
-                      to={targetPath}
-                      onClick={onItemClick}
-                      className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-                        isActive
-                          ? "bg-sidebar-primary text-sidebar-primary-foreground font-semibold"
-                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                      }`}
-                    >
-                      <item.icon className="w-4 h-4 shrink-0" />
-                      <span className="flex-1">{item.label}</span>
-                      {showBadge && (
-                        <Badge variant="destructive" className="h-5 min-w-5 px-1.5 text-xs">
-                          {unreadCount > 99 ? "99+" : unreadCount}
-                        </Badge>
-                      )}
-                      {showLabBadge && (
-                        <Badge className="h-5 min-w-5 px-1.5 text-xs bg-amber-500 hover:bg-amber-600">
-                          {labApprovalsCount > 99 ? "99+" : labApprovalsCount}
-                        </Badge>
-                      )}
-                      {showInternalMsgBadge && (
-                        <Badge variant="destructive" className="h-5 min-w-5 px-1.5 text-xs">
-                          {unreadInternalMessages > 99 ? "99+" : unreadInternalMessages}
-                        </Badge>
-                      )}
-                    </Link>
-                  );
-                })}
+                {(() => {
+                  // If any item has a `group`, render grouped collapsibles; otherwise flat.
+                  const hasGroups = section.items.some((i) => i.group);
+                  const renderLink = (item: MenuItem) => {
+                    const targetPath = ordersPathOverride && item.path === "/orders" ? ordersPathOverride : item.path;
+                    const isActive = location.pathname === targetPath;
+                    const showBadge = item.path === "/notifications" && unreadCount > 0;
+                    const showLabBadge = item.path === "/lab-treasury" && labApprovalsCount > 0;
+                    const showInternalMsgBadge = item.path === "/internal-messages" && unreadInternalMessages > 0;
+                    return (
+                      <Link
+                        key={item.path + item.label}
+                        to={targetPath}
+                        onClick={onItemClick}
+                        className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                          isActive
+                            ? "bg-sidebar-primary text-sidebar-primary-foreground font-semibold"
+                            : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                        }`}
+                      >
+                        <item.icon className="w-4 h-4 shrink-0" />
+                        <span className="flex-1">{item.label}</span>
+                        {showBadge && (
+                          <Badge variant="destructive" className="h-5 min-w-5 px-1.5 text-xs">
+                            {unreadCount > 99 ? "99+" : unreadCount}
+                          </Badge>
+                        )}
+                        {showLabBadge && (
+                          <Badge className="h-5 min-w-5 px-1.5 text-xs bg-amber-500 hover:bg-amber-600">
+                            {labApprovalsCount > 99 ? "99+" : labApprovalsCount}
+                          </Badge>
+                        )}
+                        {showInternalMsgBadge && (
+                          <Badge variant="destructive" className="h-5 min-w-5 px-1.5 text-xs">
+                            {unreadInternalMessages > 99 ? "99+" : unreadInternalMessages}
+                          </Badge>
+                        )}
+                      </Link>
+                    );
+                  };
+
+                  if (!hasGroups) return section.items.map(renderLink);
+
+                  // Build ordered groups preserving first-occurrence order.
+                  const groupOrder: string[] = [];
+                  const groupMap = new Map<string, MenuItem[]>();
+                  for (const it of section.items) {
+                    const g = it.group || "أخرى";
+                    if (!groupMap.has(g)) { groupMap.set(g, []); groupOrder.push(g); }
+                    groupMap.get(g)!.push(it);
+                  }
+                  return groupOrder.map((g) => {
+                    const groupItems = groupMap.get(g)!;
+                    const groupKey = `${section.id}::${g}`;
+                    const groupHasActive = groupItems.some((i) => i.path === location.pathname);
+                    const groupOpen = openSections[groupKey] ?? groupHasActive;
+                    return (
+                      <Collapsible
+                        key={groupKey}
+                        open={groupOpen}
+                        onOpenChange={() => toggleSection(groupKey)}
+                      >
+                        <CollapsibleTrigger
+                          className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs font-semibold transition-colors text-right ${
+                            groupHasActive ? "bg-sidebar-accent/70 text-sidebar-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/40"
+                          }`}
+                        >
+                          <span className="flex-1 text-right">{g}</span>
+                          <ChevronDown className={`w-3.5 h-3.5 transition-transform ${groupOpen ? "rotate-180" : ""}`} />
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+                          <div className="mt-1 mr-2 space-y-1 border-r border-sidebar-border/60 pr-2">
+                            {groupItems.map(renderLink)}
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    );
+                  });
+                })()}
               </div>
             </CollapsibleContent>
           </Collapsible>
