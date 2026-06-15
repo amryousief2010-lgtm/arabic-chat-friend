@@ -402,6 +402,35 @@ const HREmployees = () => {
             </div>
           </CardHeader>
           <CardContent>
+            {/* Pay-day rollup */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+              {[1, 5, 15].map((d) => {
+                const s = payDayStats[d];
+                return (
+                  <div key={d} className={`rounded-lg border p-3 ${PAY_DAY_BADGE[d].replace("text-", "border-")}`}>
+                    <div className="flex items-center justify-between mb-1">
+                      <Badge className={PAY_DAY_BADGE[d]}>يوم الصرف {d}</Badge>
+                      <span className="text-xs text-muted-foreground">{s.count} موظف</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-xs">
+                      <div>
+                        <div className="text-muted-foreground">إجمالي الرواتب</div>
+                        <div className="font-mono font-semibold">{s.salaries.toLocaleString("ar-EG")}</div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground">الخصومات</div>
+                        <div className="font-mono font-semibold text-rose-700">{s.deductions.toLocaleString("ar-EG")}</div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground">الصافي</div>
+                        <div className="font-mono font-semibold text-primary">{s.net.toLocaleString("ar-EG")}</div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -410,8 +439,10 @@ const HREmployees = () => {
                     <TableHead>الاسم</TableHead>
                     <TableHead>الوظيفة</TableHead>
                     <TableHead>مكان العمل</TableHead>
-                    <TableHead>نوع التعيين</TableHead>
-                    <TableHead>المرتب / اليومية</TableHead>
+                    <TableHead>يوم الصرف</TableHead>
+                    <TableHead>المرتب</TableHead>
+                    <TableHead>الخصومات</TableHead>
+                    <TableHead>صافي الراتب</TableHead>
                     <TableHead>الهاتف</TableHead>
                     {canViewDocs && <TableHead>المستندات</TableHead>}
                     <TableHead>الحالة</TableHead>
@@ -420,71 +451,103 @@ const HREmployees = () => {
                 </TableHeader>
                 <TableBody>
                   {loading ? (
-                    <TableRow><TableCell colSpan={canViewDocs ? 10 : 9} className="text-center py-8 text-muted-foreground">جارٍ التحميل...</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={canViewDocs ? 12 : 11} className="text-center py-8 text-muted-foreground">جارٍ التحميل...</TableCell></TableRow>
                   ) : filtered.length === 0 ? (
-                    <TableRow><TableCell colSpan={canViewDocs ? 10 : 9} className="text-center py-8 text-muted-foreground">لا يوجد موظفون مطابقون</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={canViewDocs ? 12 : 11} className="text-center py-8 text-muted-foreground">لا يوجد موظفون مطابقون</TableCell></TableRow>
                   ) : (
-                    filtered.map((e) => (
-                      <TableRow key={e.id}>
-                        <TableCell className="font-mono text-xs">{e.code}</TableCell>
-                        <TableCell className="font-medium">{e.full_name}</TableCell>
-                        <TableCell>{e.job_title || "—"}</TableCell>
-                        <TableCell>{e.current_location_id ? locById.get(e.current_location_id)?.name || "—" : "—"}</TableCell>
-                        <TableCell>
-                          <Badge className={empTypeColor[e.employment_type]}>{empTypeLabel[e.employment_type]}</Badge>
-                        </TableCell>
-                        <TableCell className="font-mono text-sm">
-                          {e.employment_type === "daily"
-                            ? `${Number(e.daily_rate || 0).toLocaleString("ar-EG")} / يوم`
-                            : `${Number(e.base_salary).toLocaleString("ar-EG")} / شهر`}
-                        </TableCell>
-                        <TableCell className="font-mono text-xs">{e.phone || "—"}</TableCell>
-                        {canViewDocs && (
+                    filtered.map((e) => {
+                      const ded = deductionsMap[e.id];
+                      const totalApproved = ded?.total_approved || 0;
+                      const totalPending = ded?.total_pending || 0;
+                      const base = Number(e.base_salary) || 0;
+                      const net = Math.max(0, base - totalApproved);
+                      const byType = ded?.by_type || {};
+                      return (
+                        <TableRow key={e.id}>
+                          <TableCell className="font-mono text-xs">{e.code}</TableCell>
+                          <TableCell className="font-medium">{e.full_name}</TableCell>
+                          <TableCell>{e.job_title || "—"}</TableCell>
+                          <TableCell>{e.current_location_id ? locById.get(e.current_location_id)?.name || "—" : "—"}</TableCell>
                           <TableCell>
-                            {(() => {
-                              const ds = docsSummary[e.id] || { id: false, contract: false };
-                              return (
-                                <button
-                                  type="button"
-                                  onClick={() => setDocsOf(e)}
-                                  className="flex flex-col gap-0.5 text-xs hover:opacity-80"
-                                  title="عرض / رفع المستندات"
-                                >
-                                  <span className={ds.id ? "text-emerald-700" : "text-muted-foreground"}>
-                                    بطاقة {ds.id ? "✅" : "❌"}
-                                  </span>
-                                  <span className={ds.contract ? "text-emerald-700" : "text-muted-foreground"}>
-                                    عقد {ds.contract ? "✅" : "❌"}
-                                  </span>
-                                </button>
-                              );
-                            })()}
+                            <Badge className={PAY_DAY_BADGE[e.pay_day] || "bg-muted"}>يوم {e.pay_day}</Badge>
                           </TableCell>
-                        )}
-                        <TableCell>
-                          {e.status === "active"
-                            ? <Badge className="bg-emerald-500/15 text-emerald-700">نشط</Badge>
-                            : <Badge variant="outline" className="text-muted-foreground">غير نشط</Badge>}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1 justify-end">
-                            <Button size="sm" variant="ghost" onClick={() => openHistory(e)} title="سجل النقل">
-                              <HistoryIcon className="w-4 h-4" />
-                            </Button>
-                            {canViewDocs && (
-                              <Button size="sm" variant="ghost" onClick={() => setDocsOf(e)} title="المستندات">
-                                <FileText className="w-4 h-4" />
+                          <TableCell className="font-mono text-sm">
+                            {e.employment_type === "daily"
+                              ? `${Number(e.daily_rate || 0).toLocaleString("ar-EG")} / يوم`
+                              : `${base.toLocaleString("ar-EG")}`}
+                          </TableCell>
+                          <TableCell>
+                            <button
+                              type="button"
+                              onClick={() => setDeductionsOf(e)}
+                              className="text-right hover:opacity-80"
+                              title="تفاصيل الخصومات"
+                            >
+                              <div className={`font-mono text-sm font-semibold ${totalApproved > 0 ? "text-rose-700" : "text-muted-foreground"}`}>
+                                {totalApproved > 0 ? `- ${totalApproved.toLocaleString("ar-EG")}` : "—"}
+                              </div>
+                              <div className="text-[10px] text-muted-foreground space-x-1 rtl:space-x-reverse">
+                                {byType.absence > 0 && <span>غياب: {byType.absence}</span>}
+                                {byType.administrative > 0 && <span>إداري: {byType.administrative}</span>}
+                                {byType.advance_repayment > 0 && <span>سلف: {byType.advance_repayment}</span>}
+                                {totalPending > 0 && <span className="text-amber-700">(معلق: {totalPending})</span>}
+                              </div>
+                            </button>
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-mono font-bold text-primary">{net.toLocaleString("ar-EG")}</div>
+                          </TableCell>
+                          <TableCell className="font-mono text-xs">{e.phone || "—"}</TableCell>
+                          {canViewDocs && (
+                            <TableCell>
+                              {(() => {
+                                const ds = docsSummary[e.id] || { id: false, contract: false };
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={() => setDocsOf(e)}
+                                    className="flex flex-col gap-0.5 text-xs hover:opacity-80"
+                                    title="عرض / رفع المستندات"
+                                  >
+                                    <span className={ds.id ? "text-emerald-700" : "text-muted-foreground"}>
+                                      بطاقة {ds.id ? "✅" : "❌"}
+                                    </span>
+                                    <span className={ds.contract ? "text-emerald-700" : "text-muted-foreground"}>
+                                      عقد {ds.contract ? "✅" : "❌"}
+                                    </span>
+                                  </button>
+                                );
+                              })()}
+                            </TableCell>
+                          )}
+                          <TableCell>
+                            {e.status === "active"
+                              ? <Badge className="bg-emerald-500/15 text-emerald-700">نشط</Badge>
+                              : <Badge variant="outline" className="text-muted-foreground">غير نشط</Badge>}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-1 justify-end">
+                              <Button size="sm" variant="ghost" onClick={() => setDeductionsOf(e)} title="الخصومات">
+                                <Wallet className="w-4 h-4" />
                               </Button>
-                            )}
-                            {canManage && (
-                              <Button size="sm" variant="outline" onClick={() => openEdit(e)}>
-                                <Edit className="w-3.5 h-3.5 ml-1" />تعديل
+                              <Button size="sm" variant="ghost" onClick={() => openHistory(e)} title="سجل النقل">
+                                <HistoryIcon className="w-4 h-4" />
                               </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                              {canViewDocs && (
+                                <Button size="sm" variant="ghost" onClick={() => setDocsOf(e)} title="المستندات">
+                                  <FileText className="w-4 h-4" />
+                                </Button>
+                              )}
+                              {canManage && (
+                                <Button size="sm" variant="outline" onClick={() => openEdit(e)}>
+                                  <Edit className="w-3.5 h-3.5 ml-1" />تعديل
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>
