@@ -6,8 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Bell, CheckCircle2, XCircle, ShieldAlert, Wallet, Beef, Drumstick, FlaskConical, Scissors } from "lucide-react";
+import { Bell, CheckCircle2, XCircle, ShieldAlert, Wallet, Beef, Drumstick, FlaskConical, Scissors, Eye } from "lucide-react";
 import { useExecutiveApprovals, type ApprovalItem, type ApprovalCategory } from "@/hooks/useExecutiveApprovals";
+import ApprovalDetailsDialog from "./ApprovalDetailsDialog";
 
 const SESSION_KEY = "executive_approvals_dismissed_at";
 const LAST_SEEN_KEY = "executive_approvals_last_seen_total";
@@ -46,6 +47,7 @@ export default function ExecutiveApprovalsAlert() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [rejectFor, setRejectFor] = useState<ApprovalItem | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [detailsFor, setDetailsFor] = useState<ApprovalItem | null>(null);
   const lastTotalRef = useRef<number>(-1);
 
   // Auto-open once per session
@@ -181,6 +183,13 @@ export default function ExecutiveApprovalsAlert() {
                         )}
 
                         <div className="flex flex-wrap gap-2 pt-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setDetailsFor(item)}
+                          >
+                            <Eye className="h-4 w-4 ml-1" /> تفاصيل
+                          </Button>
                           <Button size="sm" disabled={busyId === item.id} onClick={() => doApprove(item)}>
                             <CheckCircle2 className="h-4 w-4 ml-1" /> اعتماد
                           </Button>
@@ -227,6 +236,8 @@ export default function ExecutiveApprovalsAlert() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ApprovalDetailsDialog item={detailsFor} onClose={() => setDetailsFor(null)} />
     </>
   );
 }
