@@ -179,11 +179,6 @@ export default function ManufacturingInvoices() {
     if (!factoryWarehouseId) { toast.error("اختر مخزن مصنع اللحوم"); return; }
     if (!finalProductName) { toast.error("اختر/أدخل اسم المنتج النهائي"); return; }
     if (!finishedQty || finishedQty <= 0) { toast.error("أدخل كمية المنتج التام"); return; }
-
-  const submitDraft = async () => {
-    if (!factoryWarehouseId) { toast.error("اختر مخزن مصنع اللحوم"); return; }
-    if (!finalProductName) { toast.error("اختر/أدخل اسم المنتج النهائي"); return; }
-    if (!finishedQty || finishedQty <= 0) { toast.error("أدخل كمية المنتج التام"); return; }
     const validRaw = rawLines.filter(l => l.item_id && l.quantity > 0);
     const validPack = packLines.filter(l => l.item_id && l.quantity > 0);
     const allLines = [...validRaw, ...validPack];
