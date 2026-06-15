@@ -152,7 +152,7 @@ export default function MeatPackagingInventory() {
         </tr>`).join("")}</tbody>
         <tfoot><tr style="background:#fef3c7;font-weight:bold"><td colspan="4">الإجمالي</td><td>${fmt(total)} ج.م</td><td colspan="2"></td></tr></tfoot>
       </table>`;
-    openPrintWindow({ title: "مخزن مواد التغليف والتعبئة", bodyHtml: html });
+    openPrintWindow("مخزن مواد التغليف والتعبئة", html);
   }
 
   return (
