@@ -4,7 +4,7 @@ import * as XLSX from "xlsx";
 import {
   Wallet, TrendingUp, TrendingDown, AlertTriangle, Printer,
   FileSpreadsheet, Loader2, Crown, Skull, ArrowUpCircle, ArrowDownCircle,
-  Microscope, Lightbulb,
+  Microscope, Lightbulb, Tag,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
