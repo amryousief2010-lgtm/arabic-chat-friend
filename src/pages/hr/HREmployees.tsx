@@ -9,12 +9,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { UsersRound, Plus, Search, Edit, History as HistoryIcon, Printer, FileText } from "lucide-react";
+import { UsersRound, Plus, Search, Edit, History as HistoryIcon, Printer, FileText, Wallet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import PrintEmployeesAdvancesDialog from "@/components/hr/PrintEmployeesAdvancesDialog";
 import EmployeeDocumentsDialog from "@/components/hr/EmployeeDocumentsDialog";
+import EmployeeDeductionsDialog from "@/components/hr/EmployeeDeductionsDialog";
 
 interface Location { id: string; name: string; department: string | null }
 interface Employee {
@@ -26,7 +27,22 @@ interface Employee {
   start_date: string | null;
   status: "active" | "inactive";
   notes: string | null;
+  pay_day: number;
 }
+
+interface DeductionSummary {
+  total_approved: number;
+  total_pending: number;
+  by_type: Record<string, number>; // approved-only breakdown
+  last_date: string | null;
+  last_reason: string | null;
+}
+
+const PAY_DAY_BADGE: Record<number, string> = {
+  1: "bg-sky-500/15 text-sky-700",
+  5: "bg-fuchsia-500/15 text-fuchsia-700",
+  15: "bg-amber-500/15 text-amber-700",
+};
 
 interface Transfer {
   id: string; transfer_date: string; reason: string | null;
