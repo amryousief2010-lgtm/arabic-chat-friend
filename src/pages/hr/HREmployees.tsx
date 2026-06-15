@@ -59,6 +59,8 @@ const blankForm = (): Partial<Employee> => ({
 const HREmployees = () => {
   const { user, isGeneralManager, isExecutiveManager, roles } = useAuth();
   const canManage = isGeneralManager || isExecutiveManager || roles.includes("hr_manager");
+  const canViewDocs =
+    canManage || roles.includes("accountant") || roles.includes("financial_manager");
 
   const [loading, setLoading] = useState(true);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -66,6 +68,9 @@ const HREmployees = () => {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("active");
   const [locFilter, setLocFilter] = useState<string>("all");
+  const [docFilter, setDocFilter] = useState<
+    "all" | "id_yes" | "id_no" | "contract_yes" | "contract_no" | "missing"
+  >("all");
 
   const [editing, setEditing] = useState<Employee | null>(null);
   const [form, setForm] = useState<Partial<Employee>>(blankForm());
@@ -75,6 +80,11 @@ const HREmployees = () => {
   const [historyOf, setHistoryOf] = useState<Employee | null>(null);
   const [transfers, setTransfers] = useState<Transfer[]>([]);
   const [printOpen, setPrintOpen] = useState(false);
+
+  const [docsOf, setDocsOf] = useState<Employee | null>(null);
+  const [docsSummary, setDocsSummary] = useState<
+    Record<string, { id: boolean; contract: boolean }>
+  >({});
 
   const load = async () => {
     setLoading(true);
