@@ -15808,6 +15808,14 @@ export type Database = {
         }[]
       }
       get_dashboard_overview: { Args: never; Returns: Json }
+      get_hr_documents_status: {
+        Args: never
+        Returns: {
+          employee_id: string
+          has_contract: boolean
+          has_id: boolean
+        }[]
+      }
       get_potential_duplicate_orders_report: {
         Args: { p_limit?: number }
         Returns: {
