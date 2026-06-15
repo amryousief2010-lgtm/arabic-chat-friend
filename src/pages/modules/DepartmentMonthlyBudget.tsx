@@ -88,6 +88,8 @@ interface BudgetData {
     revenuePct: number | null; expensesPct: number | null;
   }[];
   alerts: { level: "warn" | "danger" | "info"; message: string }[];
+  flowMap?: { from: string; to: string; label: string; amount: number; note?: string }[];
+  verification?: Record<string, any>;
   meta?: {
     note: string; treasuryMovementsCreated: number;
     usedActualProductionCost?: boolean; usedActualSalePrice?: boolean;
