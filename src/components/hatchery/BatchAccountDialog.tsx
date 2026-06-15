@@ -188,19 +188,56 @@ export default function BatchAccountDialog({
   };
 
   const addPayment = async () => {
+    if (paying) return;
     const amt = +amount;
     if (!invoice) return;
     if (!amt || amt <= 0) return toast.error("أدخل مبلغًا صحيحًا");
 
     const remaining = num(invoice.remaining_amount);
     if (amt > remaining + 0.01) return toast.error(`المبلغ يتجاوز المتبقي (${fmtMoney(remaining)})`);
+    setPaying(true);
     const uid = (await supabase.auth.getUser()).data.user?.id;
+    const ref = `hatch_invoice_payment_${invoice.id}_${Date.now()}`;
     const { error } = await supabase.from("hatchery_invoice_payments" as any).insert({
-      invoice_id: invoice.id, amount: amt, method, notes: notes || null, received_by: uid,
+      invoice_id: invoice.id, amount: amt, method, notes: notes ? `${notes} • ref:${ref}` : `ref:${ref}`, received_by: uid,
     });
+    setPaying(false);
     if (error) return toast.error(error.message);
-    toast.success("تم التحصيل وتسجيل توريد تفريخ في خزنة المعمل");
+    toast.success(
+      method === "credit_balance"
+        ? "تم تسجيل التحصيل من رصيد سابق (بدون حركة خزنة)"
+        : "تم التحصيل وتسجيل توريد تفريخ في خزنة المعمل"
+    );
     setPayOpen(false); setAmount(""); setNotes("");
+    refreshAll();
+  };
+
+  const addDiscount = async () => {
+    if (savingDisc) return;
+    if (!invoice) return;
+    if (!canDiscount) return toast.error("لا تملك صلاحية اعتماد خصم على الفاتورة");
+    const amt = +discAmount;
+    if (!amt || amt <= 0) return toast.error("أدخل مبلغ خصم صحيح");
+    if (!discReason.trim()) return toast.error("أدخل سبب الخصم");
+
+    const remaining = num(invoice.remaining_amount);
+    if (amt > remaining + 0.01) return toast.error(`الخصم يتجاوز المتبقي (${fmtMoney(remaining)})`);
+    setSavingDisc(true);
+    const uid = (await supabase.auth.getUser()).data.user?.id;
+    const reference_id = `hatch_invoice_discount_${invoice.id}_${Date.now()}`;
+    const { error } = await supabase.from("hatchery_invoice_discounts" as any).insert({
+      invoice_id: invoice.id,
+      amount: amt,
+      reason: discReason.trim(),
+      notes: discNotes || null,
+      approved_by: uid,
+      created_by: uid,
+      reference_id,
+    });
+    setSavingDisc(false);
+    if (error) return toast.error(error.message);
+    toast.success("تم تسجيل الخصم (بدون أي حركة خزنة)");
+    setDiscOpen(false); setDiscAmount(""); setDiscReason(""); setDiscNotes("");
     refreshAll();
   };
 
