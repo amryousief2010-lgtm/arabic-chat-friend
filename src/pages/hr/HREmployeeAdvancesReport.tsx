@@ -680,4 +680,56 @@ function SummaryCard({ icon: Icon, label, value, color, small }: { icon?: any; l
   );
 }
 
+function LinkEmployeeDialog({
+  row, onClose, suggestions, onSave,
+}: {
+  row: AdvanceRow | null;
+  onClose: () => void;
+  suggestions: Employee[];
+  onSave: (employeeId: string) => void;
+}) {
+  const [selected, setSelected] = useState<string>("");
+  useEffect(() => { setSelected(""); }, [row?.id]);
+  if (!row) return null;
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent dir="rtl" className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Link2 className="h-4 w-4 text-purple-600" /> ربط الاسم بموظف
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 text-sm">
+          <div className="rounded-md border bg-muted/30 p-3 space-y-1">
+            <div><b>الاسم في حركة الخزنة:</b> <span className="text-amber-700">{row.beneficiary?.trim() || "—"}</span></div>
+            <div><b>الخزنة:</b> {row.sourceLabel}</div>
+            <div className="truncate"><b>الوصف:</b> {row.description}</div>
+            <div><b>المبلغ:</b> {fmtNum(row.amount, 2)} ج • {fmtDate(row.date)}</div>
+          </div>
+          <div>
+            <Label>اختر الموظف الصحيح من جدول الموظفين</Label>
+            <Select value={selected} onValueChange={setSelected}>
+              <SelectTrigger><SelectValue placeholder="اختر موظفًا..." /></SelectTrigger>
+              <SelectContent>
+                {suggestions.map(e => (
+                  <SelectItem key={e.id} value={e.id}>
+                    {e.full_name}{e.department ? ` — ${e.department}` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground mt-1">
+              لن يتم تعديل وصف حركة الخزنة الأصلية. سيتم حفظ الربط فقط في جدول الـ alias.
+            </p>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>إلغاء</Button>
+          <Button disabled={!selected} onClick={() => onSave(selected)}>حفظ الربط</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default HREmployeeAdvancesReport;
