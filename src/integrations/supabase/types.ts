@@ -5514,6 +5514,80 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_deductions: {
+        Row: {
+          amount: number
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          created_by: string | null
+          deduction_date: string
+          deduction_type: string
+          employee_id: string
+          id: string
+          month: number
+          notes: string | null
+          reason: string | null
+          reference_id: string | null
+          rejected_at: string | null
+          rejected_by: string | null
+          rejection_reason: string | null
+          status: string
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          amount: number
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          deduction_date?: string
+          deduction_type: string
+          employee_id: string
+          id?: string
+          month: number
+          notes?: string | null
+          reason?: string | null
+          reference_id?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
+          status?: string
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          amount?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          deduction_date?: string
+          deduction_type?: string
+          employee_id?: string
+          id?: string
+          month?: number
+          notes?: string | null
+          reason?: string | null
+          reference_id?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
+          status?: string
+          updated_at?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_deductions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_employee_documents: {
         Row: {
           created_at: string
@@ -15255,6 +15329,7 @@ export type Database = {
       can_approve_batch: { Args: { _uid: string }; Returns: boolean }
       can_approve_feed_cost: { Args: { _user_id: string }; Returns: boolean }
       can_approve_feed_qc: { Args: { _user_id: string }; Returns: boolean }
+      can_approve_hr_deductions: { Args: { _uid: string }; Returns: boolean }
       can_approve_inventory_override: {
         Args: { _uid: string }
         Returns: boolean
@@ -15276,6 +15351,8 @@ export type Database = {
       can_manage_meat_batch: { Args: { _uid: string }; Returns: boolean }
       can_manage_review: { Args: { _uid: string }; Returns: boolean }
       can_post_inventory: { Args: { _uid: string }; Returns: boolean }
+      can_record_hr_deductions: { Args: { _uid: string }; Returns: boolean }
+      can_view_hr_deductions: { Args: { _uid: string }; Returns: boolean }
       can_view_hr_documents: { Args: { _uid: string }; Returns: boolean }
       can_view_treasury_transfer: {
         Args: { _user_id: string }
