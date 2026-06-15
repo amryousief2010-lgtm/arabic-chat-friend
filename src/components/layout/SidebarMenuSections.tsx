@@ -44,6 +44,7 @@ import {
   ClipboardCheck,
   FileText,
   KeyRound,
+  Receipt,
 } from "lucide-react";
 import { useAuth, AppRole } from "@/hooks/useAuth";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
@@ -303,6 +304,7 @@ export const moduleSections: ModuleSection[] = [
       { icon: LayoutDashboard, label: "لوحة شؤون الموظفين", path: "/hr", roles: ['general_manager', 'executive_manager', 'hr_manager'] },
       { icon: UsersRound, label: "بيانات الموظفين", path: "/hr/employees", roles: ['general_manager', 'executive_manager', 'hr_manager', 'accountant', 'financial_manager'] },
       { icon: Network, label: "أماكن العمل والأقسام", path: "/hr/work-locations", roles: ['general_manager', 'executive_manager', 'hr_manager'] },
+      { icon: Receipt, label: "تقرير سلف الموظفين", path: "/hr/advances-report", roles: ['general_manager', 'executive_manager', 'hr_manager', 'accountant', 'financial_manager'] },
       { icon: KeyRound, label: "حسابات دخول الموظفين", path: "/modules/hr", roles: ['general_manager', 'executive_manager'] },
     ],
   },
