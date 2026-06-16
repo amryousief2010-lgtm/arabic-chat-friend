@@ -720,6 +720,21 @@ export default function ManufacturingInvoices() {
                   </div>
                 )}
 
+                {serviceCostLines.length > 0 && (
+                  <Card className="border-orange-200 bg-orange-50/60 dark:bg-orange-950/20">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base">تكاليف إضافية</CardTitle>
+                      <CardDescription>بنود خدمة تدخل في تكلفة التصنيع فقط ولا تخصم من مخزون الخامات أو التغليف.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-0 overflow-x-auto">
+                      <Table>
+                        <TableHeader><TableRow><TableHead>البند</TableHead><TableHead>الوحدة</TableHead><TableHead>الكمية</TableHead><TableHead>سعر الوحدة</TableHead><TableHead>الإجمالي</TableHead></TableRow></TableHeader>
+                        <TableBody>{serviceCostLines.map(l => <TableRow key={l.tmp}><TableCell className="font-medium">{l.item_name}</TableCell><TableCell>{l.unit}</TableCell><TableCell>{fmt(l.quantity)}</TableCell><TableCell>{fmt(l.unit_cost)}</TableCell><TableCell className="font-semibold">{fmt(l.line_total)}</TableCell></TableRow>)}</TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                )}
+
                 {renderLineTable(rawLines, setRawLines, rawCandidates, "المواد الخام والبهارات المستخدمة")}
                 {renderLineTable(packLines, setPackLines, packCandidates, "خامات التغليف المستخدمة")}
 
@@ -729,7 +744,7 @@ export default function ManufacturingInvoices() {
                     <div><div className="text-muted-foreground">إجمالي الخامات</div><div className="font-bold text-lg">{fmt(rawCost)}</div></div>
                     <div><div className="text-muted-foreground">إجمالي البهارات</div><div className="font-bold text-lg">{fmt(spiceCost)}</div></div>
                     <div><div className="text-muted-foreground">إجمالي التغليف</div><div className="font-bold text-lg">{fmt(packCost)}</div></div>
-                    <div><div className="text-muted-foreground">تكلفة إضافية</div><div className="font-bold text-lg">{fmt(extraCost)}</div></div>
+                    <div><div className="text-muted-foreground">تكلفة إضافية</div><div className="font-bold text-lg">{fmt(totalExtraCost)}</div></div>
                     <div className="col-span-2"><div className="text-muted-foreground">إجمالي تكلفة التصنيع</div><div className="font-bold text-xl text-purple-700">{fmt(totalCost)} ج</div></div>
                     <div className="col-span-2"><div className="text-muted-foreground">تكلفة الوحدة</div><div className="font-bold text-xl text-purple-700">{fmt(unitCost)} ج / {unit}</div></div>
                   </CardContent>
