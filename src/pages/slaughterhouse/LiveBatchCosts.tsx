@@ -19,6 +19,7 @@ export default function LiveBatchCosts() {
   const qc = useQueryClient();
   const [feedOpen, setFeedOpen] = useState(false);
   const [mortOpen, setMortOpen] = useState(false);
+  const [openingOpen, setOpeningOpen] = useState(false);
   const [activeBatchId, setActiveBatchId] = useState<string | null>(null);
 
   const receiptsQ = useQuery({
