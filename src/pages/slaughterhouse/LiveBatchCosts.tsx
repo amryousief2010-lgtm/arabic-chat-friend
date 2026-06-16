@@ -5,12 +5,13 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Drumstick, Skull, Calculator, RefreshCw, Wheat, Beef } from "lucide-react";
+import { Drumstick, Skull, Calculator, RefreshCw, Wheat, Beef, Coins } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { OstrichFeedConsumptionDialog } from "@/components/slaughterhouse/OstrichFeedConsumptionDialog";
 import { LiveBatchMortalityDialog } from "@/components/slaughterhouse/LiveBatchMortalityDialog";
+import { OpeningCostDialog } from "@/components/slaughterhouse/OpeningCostDialog";
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("en-US", { maximumFractionDigits: 2 });
 
@@ -18,6 +19,7 @@ export default function LiveBatchCosts() {
   const qc = useQueryClient();
   const [feedOpen, setFeedOpen] = useState(false);
   const [mortOpen, setMortOpen] = useState(false);
+  const [openingOpen, setOpeningOpen] = useState(false);
   const [activeBatchId, setActiveBatchId] = useState<string | null>(null);
 
   const receiptsQ = useQuery({
@@ -186,7 +188,11 @@ export default function LiveBatchCosts() {
                         <TableCell className="font-bold">{fmt(r.total_batch_cost)}</TableCell>
                         <TableCell className="font-bold text-primary">{fmt(r.cost_per_bird_current)}</TableCell>
                         <TableCell>
-                          <div className="flex gap-1">
+                          <div className="flex gap-1 flex-wrap">
+                            <Button size="sm" variant="secondary" onClick={() => { setActiveBatchId(r.id); setOpeningOpen(true); }}>
+                              <Coins className="h-3 w-3 ml-1" />
+                              {Number(r.opening_cost_total || 0) > 0 ? "تعديل افتتاحية" : "تكلفة افتتاحية"}
+                            </Button>
                             <Button size="sm" variant="outline" onClick={() => { setActiveBatchId(r.id); setFeedOpen(true); }}>
                               <Wheat className="h-3 w-3 ml-1" />علف
                             </Button>
@@ -277,6 +283,12 @@ export default function LiveBatchCosts() {
         open={mortOpen}
         onOpenChange={setMortOpen}
         liveBatch={activeBatch as any}
+        onSaved={refresh}
+      />
+      <OpeningCostDialog
+        open={openingOpen}
+        onOpenChange={setOpeningOpen}
+        batch={activeBatch as any}
         onSaved={refresh}
       />
     </DashboardLayout>

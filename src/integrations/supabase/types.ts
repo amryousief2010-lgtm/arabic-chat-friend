@@ -13450,6 +13450,7 @@ export type Database = {
           mortality_cost_loaded: number
           mortality_count: number
           notes: string | null
+          opening_cost_total: number
           other_costs_loaded: number
           price_per_kg: number
           receipt_date: string
@@ -13479,6 +13480,7 @@ export type Database = {
           mortality_cost_loaded?: number
           mortality_count?: number
           notes?: string | null
+          opening_cost_total?: number
           other_costs_loaded?: number
           price_per_kg?: number
           receipt_date?: string
@@ -13508,6 +13510,7 @@ export type Database = {
           mortality_cost_loaded?: number
           mortality_count?: number
           notes?: string | null
+          opening_cost_total?: number
           other_costs_loaded?: number
           price_per_kg?: number
           receipt_date?: string
@@ -16870,6 +16873,14 @@ export type Database = {
       }
       reverse_slaughter_receipt: {
         Args: { p_output_id: string; p_reason?: string }
+        Returns: Json
+      }
+      set_opening_live_ostrich_cost: {
+        Args: {
+          p_live_batch_id: string
+          p_reason?: string
+          p_total_cost: number
+        }
         Returns: Json
       }
       slaughter_daily_summary: { Args: { p_date: string }; Returns: Json }
