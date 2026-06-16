@@ -478,6 +478,10 @@ export default function ManufacturingInvoices() {
       <table><thead><tr><th>الصنف</th><th>النوع</th><th>الوحدة</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th><th>المخزون قبل</th><th>المخزون بعد</th></tr></thead>
       <tbody>${packRows.map(rowHtml).join("") || `<tr><td colspan="8" style="text-align:center">لا توجد</td></tr>`}</tbody></table>
 
+      <h2>تكاليف إضافية</h2>
+      <table><thead><tr><th>البند</th></tr></thead>
+      <tbody>${serviceNotesFromInvoice(inv.notes).map(n => `<tr><td>${esc(n.replace("[service_cost]", "" ).trim())}</td></tr>`).join("") || `<tr><td style="text-align:center">لا توجد بنود خدمة منفصلة</td></tr>`}</tbody></table>
+
       <div class="summary">
         <table>
           <tr><th>إجمالي تكلفة الخامات</th><td>${fmt(inv.raw_cost)} ج</td><th>إجمالي تكلفة البهارات</th><td>${fmt(inv.spice_cost)} ج</td></tr>
