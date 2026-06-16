@@ -216,7 +216,10 @@ export default function SlaughterhouseFeedStore() {
             <Button variant="outline" size="sm" onClick={refresh}><RefreshCw className="h-4 w-4 ml-1" />تحديث</Button>
             {canManage && (
               <>
-                <Button onClick={() => setFatteningOpen(true)} className="bg-orange-600 hover:bg-orange-700">
+                <Button onClick={() => setOstrichOpen(true)} className="bg-orange-600 hover:bg-orange-700">
+                  <Drumstick className="h-4 w-4 ml-1" />صرف علف للنعام (دفعات الدبح)
+                </Button>
+                <Button variant="outline" onClick={() => setFatteningOpen(true)}>
                   <Drumstick className="h-4 w-4 ml-1" />صرف علف للنعام التسمين
                 </Button>
                 <Button variant="outline" onClick={() => setIssueOpen(true)}>
