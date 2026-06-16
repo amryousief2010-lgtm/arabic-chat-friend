@@ -89,6 +89,8 @@ const SlaughterTransfersLog = lazy(() => import("@/pages/slaughterhouse/Transfer
 const ButchersPayroll = lazy(() => import("@/pages/slaughterhouse/ButchersPayroll"));
 const SlaughterhouseFeedStore = lazy(() => import("@/pages/slaughterhouse/SlaughterhouseFeedStore"));
 const SlaughterProductMapping = lazy(() => import("@/pages/slaughterhouse/ProductMapping"));
+const SlaughterLiveBatchCosts = lazy(() => import("@/pages/slaughterhouse/LiveBatchCosts"));
+const SlaughterOstrichFeedLog = lazy(() => import("@/pages/slaughterhouse/OstrichFeedLog"));
 const MeatFactory = lazy(() => import("@/pages/modules/MeatFactory"));
 const MeatFactoryOps = lazy(() => import("@/pages/modules/MeatFactoryOps"));
 const FeedFactory = lazy(() => import("@/pages/modules/FeedFactory"));
