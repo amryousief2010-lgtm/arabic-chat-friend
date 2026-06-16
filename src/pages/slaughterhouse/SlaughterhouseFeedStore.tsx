@@ -251,6 +251,7 @@ export default function SlaughterhouseFeedStore() {
           <TabsList className="bg-muted/60 p-2 flex-wrap h-auto">
             <TabsTrigger value="balances">الأرصدة</TabsTrigger>
             <TabsTrigger value="inflow">وارد من المصنع</TabsTrigger>
+            <TabsTrigger value="ostrich-log">سجل صرف العلف للنعام (الدبح)</TabsTrigger>
             <TabsTrigger value="fattening">سجل صرف علف نعام التسمين</TabsTrigger>
             <TabsTrigger value="outflow">كل المصروفات</TabsTrigger>
             <TabsTrigger value="all">كل الحركات</TabsTrigger>
