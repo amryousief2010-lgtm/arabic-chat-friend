@@ -894,6 +894,15 @@ export default function ManufacturingInvoices() {
                   );
                   return (
                     <div className="space-y-4">
+                      {serviceNotesFromInvoice(viewing.notes).length > 0 && (
+                        <div className="space-y-1">
+                          <h3 className="font-semibold text-sm text-purple-700">تكاليف إضافية</h3>
+                          <Table>
+                            <TableHeader><TableRow><TableHead>البند</TableHead></TableRow></TableHeader>
+                            <TableBody>{serviceNotesFromInvoice(viewing.notes).map((n, idx) => <TableRow key={idx}><TableCell>{n.replace("[service_cost]", "").trim()}</TableCell></TableRow>)}</TableBody>
+                          </Table>
+                        </div>
+                      )}
                       {renderTable(rawSpice, "المواد الخام والبهارات المستخدمة", "لا توجد خامات/بهارات")}
                       {renderTable(pack, "خامات التغليف المستخدمة", "لا توجد خامات تغليف")}
                     </div>
