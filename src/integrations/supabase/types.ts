@@ -3487,6 +3487,100 @@ export type Database = {
           },
         ]
       }
+      feed_production_invoice_expenses: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          description: string | null
+          expense_date: string
+          expense_type: string
+          id: string
+          invoice_id: string
+          notes: string | null
+          paid_from_treasury: boolean
+          payment_method: string | null
+          receipt_url: string | null
+          reference_id: string
+          reverse_reason: string | null
+          reverse_treasury_txn_id: string | null
+          reversed_at: string | null
+          reversed_by: string | null
+          status: string
+          treasury_kind: string | null
+          treasury_txn_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          expense_date?: string
+          expense_type: string
+          id?: string
+          invoice_id: string
+          notes?: string | null
+          paid_from_treasury?: boolean
+          payment_method?: string | null
+          receipt_url?: string | null
+          reference_id: string
+          reverse_reason?: string | null
+          reverse_treasury_txn_id?: string | null
+          reversed_at?: string | null
+          reversed_by?: string | null
+          status?: string
+          treasury_kind?: string | null
+          treasury_txn_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          expense_date?: string
+          expense_type?: string
+          id?: string
+          invoice_id?: string
+          notes?: string | null
+          paid_from_treasury?: boolean
+          payment_method?: string | null
+          receipt_url?: string | null
+          reference_id?: string
+          reverse_reason?: string | null
+          reverse_treasury_txn_id?: string | null
+          reversed_at?: string | null
+          reversed_by?: string | null
+          status?: string
+          treasury_kind?: string | null
+          treasury_txn_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_production_invoice_expenses_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "feed_production_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feed_production_invoice_expenses_reverse_treasury_txn_id_fkey"
+            columns: ["reverse_treasury_txn_id"]
+            isOneToOne: false
+            referencedRelation: "feed_factory_treasury_txns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feed_production_invoice_expenses_treasury_txn_id_fkey"
+            columns: ["treasury_txn_id"]
+            isOneToOne: false
+            referencedRelation: "feed_factory_treasury_txns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feed_production_invoice_items: {
         Row: {
           id: string
@@ -15546,6 +15640,22 @@ export type Database = {
         Args: { p_notes?: string; p_product_code: string; p_version: number }
         Returns: Json
       }
+      add_feed_invoice_expense: {
+        Args: {
+          p_amount: number
+          p_description: string
+          p_expense_date?: string
+          p_expense_type: string
+          p_invoice_id: string
+          p_notes?: string
+          p_paid_from_treasury?: boolean
+          p_payment_method?: string
+          p_receipt_url?: string
+          p_reference_id?: string
+          p_treasury_kind?: string
+        }
+        Returns: string
+      }
       adjust_main_warehouse_stock: {
         Args: { p_item_id: string; p_new_qty: number; p_reason: string }
         Returns: Json
@@ -16711,6 +16821,10 @@ export type Database = {
         }[]
       }
       recalc_brooding_batch: { Args: { _batch_id: string }; Returns: undefined }
+      recalc_feed_invoice_totals: {
+        Args: { _invoice_id: string }
+        Returns: undefined
+      }
       recalc_live_batch_cost: {
         Args: { p_live_batch_id: string }
         Returns: undefined
@@ -16870,6 +16984,10 @@ export type Database = {
       return_order_stock: {
         Args: { p_order_id: string; p_reason?: string }
         Returns: Json
+      }
+      reverse_feed_invoice_expense: {
+        Args: { p_expense_id: string; p_reason: string }
+        Returns: undefined
       }
       reverse_slaughter_receipt: {
         Args: { p_output_id: string; p_reason?: string }
