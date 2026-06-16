@@ -241,7 +241,7 @@ export default function ManufacturingInvoices() {
         tmp: crypto.randomUUID(),
         item_id: match?.id || "",
         item_name: l.name,
-        kind: l.kind,
+        kind: match?.kind || l.kind,
         unit: match?.unit || l.unit,
         quantity: Number((l.qty * factor).toFixed(3)),
         unit_cost: match ? Number(match.avg_cost || l.price) : Number(l.price.toFixed(3)),
@@ -361,10 +361,10 @@ export default function ManufacturingInvoices() {
         manufacturing_invoice_uuid: invoiceUuid,
         materials_total_cost: rawCost + spiceCost + packCost,
         raw_cost: rawCost, spice_cost: spiceCost, packaging_cost: packCost,
-        extra_cost: Number(extraCost || 0), total_manufacturing_cost: totalCost,
+        extra_cost: totalExtraCost, total_manufacturing_cost: totalCost,
         unit_cost: unitCost,
         status: "draft",
-        notes: notes || null,
+        notes: [notes, ...serviceCostLines.map(l => `[service_cost] ${l.item_name}: ${fmt(l.quantity)} ${l.unit} × ${fmt(l.unit_cost)} = ${fmt(l.line_total)}`)].filter(Boolean).join("\n") || null,
         created_by: user?.id || null,
       } as any).select("id").single();
       if (insErr) throw insErr;
