@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import FeedInternalDebtDashboard from "@/components/feed/FeedInternalDebtDashboard";
 import { openPrintWindow } from "@/lib/printPdf";
+import { OstrichFeedConsumptionDialog } from "@/components/slaughterhouse/OstrichFeedConsumptionDialog";
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("en-US", { maximumFractionDigits: 2 });
 
@@ -71,6 +72,33 @@ export default function SlaughterhouseFeedStore() {
 
   const [issueOpen, setIssueOpen] = useState(false);
   const [fatteningOpen, setFatteningOpen] = useState(false);
+  const [ostrichOpen, setOstrichOpen] = useState(false);
+
+  const liveBatchesQ = useQuery({
+    queryKey: ["sl_live_batches_for_feed"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("slaughter_live_receipts" as any)
+        .select("id,receipt_number,receipt_date,bird_count,current_alive_count,cost_per_bird_current")
+        .gt("current_alive_count", 0)
+        .order("receipt_date", { ascending: false });
+      if (error) throw error;
+      return (data as any[]) || [];
+    },
+  });
+
+  const ostrichLogQ = useQuery({
+    queryKey: ["sl_ostrich_feed_log_tab"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("slaughter_ostrich_feed_consumption" as any)
+        .select("*, live:slaughter_live_receipts!live_batch_id(receipt_number)")
+        .order("consumption_date", { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      return (data as any[]) || [];
+    },
+  });
 
   const movs = movQ.data || [];
   const inv = invQ.data || [];
@@ -141,6 +169,8 @@ export default function SlaughterhouseFeedStore() {
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["sl_feed_inv"] });
     qc.invalidateQueries({ queryKey: ["sl_feed_mov"] });
+    qc.invalidateQueries({ queryKey: ["sl_ostrich_feed_log_tab"] });
+    qc.invalidateQueries({ queryKey: ["sl_live_batches_for_feed"] });
   };
 
   const printFattening = () => {
@@ -186,7 +216,10 @@ export default function SlaughterhouseFeedStore() {
             <Button variant="outline" size="sm" onClick={refresh}><RefreshCw className="h-4 w-4 ml-1" />تحديث</Button>
             {canManage && (
               <>
-                <Button onClick={() => setFatteningOpen(true)} className="bg-orange-600 hover:bg-orange-700">
+                <Button onClick={() => setOstrichOpen(true)} className="bg-orange-600 hover:bg-orange-700">
+                  <Drumstick className="h-4 w-4 ml-1" />صرف علف للنعام (دفعات الدبح)
+                </Button>
+                <Button variant="outline" onClick={() => setFatteningOpen(true)}>
                   <Drumstick className="h-4 w-4 ml-1" />صرف علف للنعام التسمين
                 </Button>
                 <Button variant="outline" onClick={() => setIssueOpen(true)}>
@@ -218,6 +251,7 @@ export default function SlaughterhouseFeedStore() {
           <TabsList className="bg-muted/60 p-2 flex-wrap h-auto">
             <TabsTrigger value="balances">الأرصدة</TabsTrigger>
             <TabsTrigger value="inflow">وارد من المصنع</TabsTrigger>
+            <TabsTrigger value="ostrich-log">سجل صرف العلف للنعام (الدبح)</TabsTrigger>
             <TabsTrigger value="fattening">سجل صرف علف نعام التسمين</TabsTrigger>
             <TabsTrigger value="outflow">كل المصروفات</TabsTrigger>
             <TabsTrigger value="all">كل الحركات</TabsTrigger>
@@ -286,6 +320,43 @@ export default function SlaughterhouseFeedStore() {
             </Card>
           </TabsContent>
 
+          <TabsContent value="ostrich-log">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">سجل صرف العلف للنعام (محمّل على دفعات الدبح)</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3">
+                <Table>
+                  <TableHeader><TableRow>
+                    <TableHead>التاريخ</TableHead><TableHead>الدفعة</TableHead>
+                    <TableHead>نوع العلف</TableHead><TableHead>الكمية (كجم)</TableHead>
+                    <TableHead>سعر/كجم</TableHead><TableHead>إجمالي التكلفة</TableHead>
+                    <TableHead>الرصيد قبل</TableHead><TableHead>الرصيد بعد</TableHead>
+                    <TableHead>الحالة</TableHead>
+                  </TableRow></TableHeader>
+                  <TableBody>
+                    {(ostrichLogQ.data || []).map((r: any) => (
+                      <TableRow key={r.id} className={r.reversed_at ? "opacity-60" : ""}>
+                        <TableCell className="text-xs">{r.consumption_date}</TableCell>
+                        <TableCell className="text-xs font-medium">{r.live?.receipt_number || "—"}</TableCell>
+                        <TableCell>{r.feed_name}</TableCell>
+                        <TableCell className="font-bold">{fmt(r.quantity_kg)}</TableCell>
+                        <TableCell>{fmt(r.unit_cost)}</TableCell>
+                        <TableCell className="font-bold text-orange-700">{fmt(r.total_cost)}</TableCell>
+                        <TableCell>{fmt(r.stock_before)}</TableCell>
+                        <TableCell className="font-medium">{fmt(r.stock_after)}</TableCell>
+                        <TableCell>{r.reversed_at ? <Badge variant="destructive">عكس: {r.reversal_reason}</Badge> : <Badge variant="default">نشطة</Badge>}</TableCell>
+                      </TableRow>
+                    ))}
+                    {!(ostrichLogQ.data || []).length && (
+                      <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground">لا توجد حركات</TableCell></TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="outflow"><MovementsTable rows={outflowRows} inventory={inv} /></TabsContent>
           <TabsContent value="all"><MovementsTable rows={movs} inventory={inv} /></TabsContent>
         </Tabs>
@@ -293,6 +364,13 @@ export default function SlaughterhouseFeedStore() {
 
       <IssueFeedDialog open={issueOpen} onOpenChange={setIssueOpen} inventory={inv} onSaved={refresh} />
       <FatteningFeedDialog open={fatteningOpen} onOpenChange={setFatteningOpen} inventory={inv} onSaved={refresh} />
+      <OstrichFeedConsumptionDialog
+        open={ostrichOpen}
+        onOpenChange={setOstrichOpen}
+        liveBatches={(liveBatchesQ.data || []) as any}
+        feedInventory={inv as any}
+        onSaved={refresh}
+      />
     </DashboardLayout>
   );
 }
