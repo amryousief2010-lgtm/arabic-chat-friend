@@ -5,12 +5,13 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Drumstick, Skull, Calculator, RefreshCw, Wheat, Beef } from "lucide-react";
+import { Drumstick, Skull, Calculator, RefreshCw, Wheat, Beef, Coins } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { OstrichFeedConsumptionDialog } from "@/components/slaughterhouse/OstrichFeedConsumptionDialog";
 import { LiveBatchMortalityDialog } from "@/components/slaughterhouse/LiveBatchMortalityDialog";
+import { OpeningCostDialog } from "@/components/slaughterhouse/OpeningCostDialog";
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("en-US", { maximumFractionDigits: 2 });
 
