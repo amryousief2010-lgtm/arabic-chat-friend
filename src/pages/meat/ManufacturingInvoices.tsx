@@ -241,13 +241,13 @@ export default function ManufacturingInvoices() {
       return {
         tmp: crypto.randomUUID(),
         item_id: match?.id || "",
-        item_name: l.name,
+        item_name: match?.name || l.name,
         kind: match?.kind || l.kind,
         unit: match?.unit || l.unit,
         quantity: Number((l.qty * factor).toFixed(3)),
         unit_cost: match ? Number(match.avg_cost || l.price) : Number(l.price.toFixed(3)),
         line_total: Number((l.qty * factor * (match ? Number(match.avg_cost || l.price) : l.price)).toFixed(3)),
-        notes: match ? null : "⚠ غير مربوط بمخزون مصنع اللحوم — اختر بديل من جدول المطابقة",
+        notes: match ? (match.name !== l.name ? `اسم التركيبة: ${l.name}` : null) : "⚠ غير مربوط بمخزون مصنع اللحوم — اختر بديل من جدول المطابقة",
       };
     };
 
@@ -313,7 +313,7 @@ export default function ManufacturingInvoices() {
     const rebind = (l: Line): Line => {
       if (l.item_id || l.item_name?.trim() !== recipeName.trim() || l.kind !== kind) return l;
       const cost = Number(it.avg_cost || l.unit_cost || 0);
-      return { ...l, item_id: rawItemId, item_name: l.item_name, unit: it.unit, unit_cost: cost || l.unit_cost, line_total: Number((Number(l.quantity || 0) * (cost || l.unit_cost || 0)).toFixed(3)), notes: null };
+      return { ...l, item_id: rawItemId, item_name: it.name, kind: it.kind, unit: it.unit, unit_cost: cost || l.unit_cost, line_total: Number((Number(l.quantity || 0) * (cost || l.unit_cost || 0)).toFixed(3)), notes: it.name !== recipeName ? `اسم التركيبة: ${recipeName}` : null };
     };
     setRawLines(ls => ls.map(rebind));
     setPackLines(ls => ls.map(rebind));
