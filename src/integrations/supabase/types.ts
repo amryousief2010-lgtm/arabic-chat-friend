@@ -12520,6 +12520,69 @@ export type Database = {
         }
         Relationships: []
       }
+      slaughter_batch_cost_breakdown: {
+        Row: {
+          birds_count: number
+          birds_original_cost: number
+          cost_per_kg: number
+          created_at: string
+          direct_expenses: number
+          feed_cost: number
+          live_batch_id: string | null
+          mortality_cost: number
+          other_costs: number
+          slaughter_batch_id: string
+          total_cost: number
+          total_output_kg: number
+          updated_at: string
+        }
+        Insert: {
+          birds_count?: number
+          birds_original_cost?: number
+          cost_per_kg?: number
+          created_at?: string
+          direct_expenses?: number
+          feed_cost?: number
+          live_batch_id?: string | null
+          mortality_cost?: number
+          other_costs?: number
+          slaughter_batch_id: string
+          total_cost?: number
+          total_output_kg?: number
+          updated_at?: string
+        }
+        Update: {
+          birds_count?: number
+          birds_original_cost?: number
+          cost_per_kg?: number
+          created_at?: string
+          direct_expenses?: number
+          feed_cost?: number
+          live_batch_id?: string | null
+          mortality_cost?: number
+          other_costs?: number
+          slaughter_batch_id?: string
+          total_cost?: number
+          total_output_kg?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slaughter_batch_cost_breakdown_live_batch_id_fkey"
+            columns: ["live_batch_id"]
+            isOneToOne: false
+            referencedRelation: "slaughter_live_receipts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slaughter_batch_cost_breakdown_slaughter_batch_id_fkey"
+            columns: ["slaughter_batch_id"]
+            isOneToOne: true
+            referencedRelation: "slaughter_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       slaughter_batch_outputs: {
         Row: {
           actual_weight_kg: number
@@ -12687,9 +12750,13 @@ export type Database = {
           butcher_1_id: string | null
           butcher_2_id: string | null
           butcher_3_id: string | null
+          cost_allocation_done: boolean
+          cost_allocation_ref: string | null
+          cost_per_bird_snapshot: number
           cost_per_kg_meat: number
           created_at: string
           created_by: string | null
+          direct_slaughter_expenses: number
           end_time: string | null
           id: string
           live_receipt_id: string | null
@@ -12708,6 +12775,8 @@ export type Database = {
           slaughter_date: string
           start_time: string | null
           status: string
+          total_allocatable_cost: number
+          total_birds_cost: number
           total_live_weight_kg: number
           total_meat_kg: number
           total_waste_kg: number
@@ -12724,9 +12793,13 @@ export type Database = {
           butcher_1_id?: string | null
           butcher_2_id?: string | null
           butcher_3_id?: string | null
+          cost_allocation_done?: boolean
+          cost_allocation_ref?: string | null
+          cost_per_bird_snapshot?: number
           cost_per_kg_meat?: number
           created_at?: string
           created_by?: string | null
+          direct_slaughter_expenses?: number
           end_time?: string | null
           id?: string
           live_receipt_id?: string | null
@@ -12745,6 +12818,8 @@ export type Database = {
           slaughter_date?: string
           start_time?: string | null
           status?: string
+          total_allocatable_cost?: number
+          total_birds_cost?: number
           total_live_weight_kg?: number
           total_meat_kg?: number
           total_waste_kg?: number
@@ -12761,9 +12836,13 @@ export type Database = {
           butcher_1_id?: string | null
           butcher_2_id?: string | null
           butcher_3_id?: string | null
+          cost_allocation_done?: boolean
+          cost_allocation_ref?: string | null
+          cost_per_bird_snapshot?: number
           cost_per_kg_meat?: number
           created_at?: string
           created_by?: string | null
+          direct_slaughter_expenses?: number
           end_time?: string | null
           id?: string
           live_receipt_id?: string | null
@@ -12782,6 +12861,8 @@ export type Database = {
           slaughter_date?: string
           start_time?: string | null
           status?: string
+          total_allocatable_cost?: number
+          total_birds_cost?: number
           total_live_weight_kg?: number
           total_meat_kg?: number
           total_waste_kg?: number
@@ -13291,23 +13372,92 @@ export type Database = {
           },
         ]
       }
+      slaughter_live_mortality: {
+        Row: {
+          cost_per_bird_before: number
+          created_at: string
+          created_by: string | null
+          dead_count: number
+          id: string
+          live_batch_id: string
+          load_on_remaining: boolean
+          mortality_date: string
+          notes: string | null
+          reason: string | null
+          reference_id: string
+          reversal_reason: string | null
+          reversed_at: string | null
+          reversed_by: string | null
+          total_loss_cost: number
+        }
+        Insert: {
+          cost_per_bird_before?: number
+          created_at?: string
+          created_by?: string | null
+          dead_count: number
+          id?: string
+          live_batch_id: string
+          load_on_remaining?: boolean
+          mortality_date?: string
+          notes?: string | null
+          reason?: string | null
+          reference_id: string
+          reversal_reason?: string | null
+          reversed_at?: string | null
+          reversed_by?: string | null
+          total_loss_cost?: number
+        }
+        Update: {
+          cost_per_bird_before?: number
+          created_at?: string
+          created_by?: string | null
+          dead_count?: number
+          id?: string
+          live_batch_id?: string
+          load_on_remaining?: boolean
+          mortality_date?: string
+          notes?: string | null
+          reason?: string | null
+          reference_id?: string
+          reversal_reason?: string | null
+          reversed_at?: string | null
+          reversed_by?: string | null
+          total_loss_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slaughter_live_mortality_live_batch_id_fkey"
+            columns: ["live_batch_id"]
+            isOneToOne: false
+            referencedRelation: "slaughter_live_receipts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       slaughter_live_receipts: {
         Row: {
           avg_age_days: number | null
           avg_weight_kg: number | null
           bird_count: number
+          cost_per_bird_current: number
           created_at: string
           created_by: string | null
+          current_alive_count: number
           dead_on_arrival: number
           farm_transfer_id: string | null
+          feed_cost_loaded: number
           id: string
+          mortality_cost_loaded: number
+          mortality_count: number
           notes: string | null
+          other_costs_loaded: number
           price_per_kg: number
           receipt_date: string
           receipt_number: string
           source_name: string | null
           source_type: string
           status: string
+          total_batch_cost: number
           total_cost: number | null
           total_weight_kg: number
           updated_at: string
@@ -13318,18 +13468,25 @@ export type Database = {
           avg_age_days?: number | null
           avg_weight_kg?: number | null
           bird_count?: number
+          cost_per_bird_current?: number
           created_at?: string
           created_by?: string | null
+          current_alive_count?: number
           dead_on_arrival?: number
           farm_transfer_id?: string | null
+          feed_cost_loaded?: number
           id?: string
+          mortality_cost_loaded?: number
+          mortality_count?: number
           notes?: string | null
+          other_costs_loaded?: number
           price_per_kg?: number
           receipt_date?: string
           receipt_number: string
           source_name?: string | null
           source_type?: string
           status?: string
+          total_batch_cost?: number
           total_cost?: number | null
           total_weight_kg?: number
           updated_at?: string
@@ -13340,18 +13497,25 @@ export type Database = {
           avg_age_days?: number | null
           avg_weight_kg?: number | null
           bird_count?: number
+          cost_per_bird_current?: number
           created_at?: string
           created_by?: string | null
+          current_alive_count?: number
           dead_on_arrival?: number
           farm_transfer_id?: string | null
+          feed_cost_loaded?: number
           id?: string
+          mortality_cost_loaded?: number
+          mortality_count?: number
           notes?: string | null
+          other_costs_loaded?: number
           price_per_kg?: number
           receipt_date?: string
           receipt_number?: string
           source_name?: string | null
           source_type?: string
           status?: string
+          total_batch_cost?: number
           total_cost?: number | null
           total_weight_kg?: number
           updated_at?: string
@@ -13389,6 +13553,87 @@ export type Database = {
           reason?: string | null
         }
         Relationships: []
+      }
+      slaughter_ostrich_feed_consumption: {
+        Row: {
+          birds_count_at_time: number
+          consumption_date: string
+          created_at: string
+          created_by: string | null
+          feed_inventory_id: string
+          feed_name: string
+          id: string
+          live_batch_id: string
+          notes: string | null
+          quantity_kg: number
+          reference_id: string
+          responsible_user_id: string | null
+          reversal_reason: string | null
+          reversed_at: string | null
+          reversed_by: string | null
+          stock_after: number
+          stock_before: number
+          total_cost: number
+          unit_cost: number
+        }
+        Insert: {
+          birds_count_at_time?: number
+          consumption_date?: string
+          created_at?: string
+          created_by?: string | null
+          feed_inventory_id: string
+          feed_name: string
+          id?: string
+          live_batch_id: string
+          notes?: string | null
+          quantity_kg: number
+          reference_id: string
+          responsible_user_id?: string | null
+          reversal_reason?: string | null
+          reversed_at?: string | null
+          reversed_by?: string | null
+          stock_after?: number
+          stock_before?: number
+          total_cost?: number
+          unit_cost?: number
+        }
+        Update: {
+          birds_count_at_time?: number
+          consumption_date?: string
+          created_at?: string
+          created_by?: string | null
+          feed_inventory_id?: string
+          feed_name?: string
+          id?: string
+          live_batch_id?: string
+          notes?: string | null
+          quantity_kg?: number
+          reference_id?: string
+          responsible_user_id?: string | null
+          reversal_reason?: string | null
+          reversed_at?: string | null
+          reversed_by?: string | null
+          stock_after?: number
+          stock_before?: number
+          total_cost?: number
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slaughter_ostrich_feed_consumption_feed_inventory_id_fkey"
+            columns: ["feed_inventory_id"]
+            isOneToOne: false
+            referencedRelation: "slaughterhouse_feed_inventory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slaughter_ostrich_feed_consumption_live_batch_id_fkey"
+            columns: ["live_batch_id"]
+            isOneToOne: false
+            referencedRelation: "slaughter_live_receipts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       slaughter_payroll_settings: {
         Row: {
@@ -15314,6 +15559,10 @@ export type Database = {
           total_deducted_kg: number
         }[]
       }
+      apply_slaughter_cost_allocation: {
+        Args: { p_slaughter_batch_id: string }
+        Returns: Json
+      }
       approve_feed_batch_cost: {
         Args: {
           p_batch: string
@@ -16459,6 +16708,10 @@ export type Database = {
         }[]
       }
       recalc_brooding_batch: { Args: { _batch_id: string }; Returns: undefined }
+      recalc_live_batch_cost: {
+        Args: { p_live_batch_id: string }
+        Returns: undefined
+      }
       receive_slaughter_batch: {
         Args: { p_batch_id: string; p_warehouse_id: string }
         Returns: Json
