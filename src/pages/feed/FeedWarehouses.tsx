@@ -1255,6 +1255,25 @@ function TreasuryDialog({ open, onOpenChange, onSaved }: { open: boolean; onOpen
 type ProdLine = { id: string; raw_id: string; qty: number };
 const newProdLine = (): ProdLine => ({ id: crypto.randomUUID(), raw_id: "", qty: 0 });
 
+type ExpLine = {
+  id: string;
+  expense_type: string;
+  description: string;
+  amount: number;
+  paid_from_treasury: boolean;
+  notes: string;
+};
+const EXPENSE_TYPES_FORM = [
+  { v: "transport", l: "نقل علف", k: "transport_expense" },
+  { v: "tobacco", l: "دخان تنزيل علف", k: "tobacco_expense" },
+  { v: "loading_labor", l: "عمالة تحميل", k: "general_expense" },
+  { v: "car_rent", l: "أجرة سيارة", k: "transport_expense" },
+  { v: "electricity", l: "كهرباء تشغيل", k: "general_expense" },
+  { v: "maintenance", l: "صيانة", k: "general_expense" },
+  { v: "other", l: "أخرى", k: "other" },
+];
+const newExpLine = (): ExpLine => ({ id: crypto.randomUUID(), expense_type: "transport", description: "", amount: 0, paid_from_treasury: false, notes: "" });
+
 function ProductionDialog({ open, onOpenChange, rawMaterials, products, onSaved }: any) {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [productId, setProductId] = useState<string>("");
@@ -1263,6 +1282,7 @@ function ProductionDialog({ open, onOpenChange, rawMaterials, products, onSaved 
   const [laborCost, setLaborCost] = useState<number>(0);
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<ProdLine[]>([newProdLine()]);
+  const [expenses, setExpenses] = useState<ExpLine[]>([]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -1270,6 +1290,7 @@ function ProductionDialog({ open, onOpenChange, rawMaterials, products, onSaved 
       setDate(new Date().toISOString().slice(0, 10));
       setProductId(""); setQtyProduced(0); setBags(0); setLaborCost(0); setNotes("");
       setLines([newProdLine()]);
+      setExpenses([]);
     }
   }, [open]);
 
@@ -1284,7 +1305,8 @@ function ProductionDialog({ open, onOpenChange, rawMaterials, products, onSaved 
     const m = rawMaterials.find((r: any) => r.id === l.raw_id);
     return s + (Number(m?.unit_cost || 0) * Number(l.qty || 0));
   }, 0), [lines, rawMaterials]);
-  const estTotalCost = estMaterialsCost + Number(laborCost || 0);
+  const estExpensesCost = useMemo(() => expenses.reduce((s, e) => s + Number(e.amount || 0), 0), [expenses]);
+  const estTotalCost = estMaterialsCost + Number(laborCost || 0) + estExpensesCost;
   const estUnitCost = qtyProduced > 0 ? estTotalCost / qtyProduced : 0;
 
   const save = async () => {
@@ -1292,6 +1314,7 @@ function ProductionDialog({ open, onOpenChange, rawMaterials, products, onSaved 
     if (!qtyProduced || qtyProduced <= 0) return toast.error("اكتب الكمية المنتجة");
     const valid = lines.filter((l) => l.raw_id && l.qty > 0);
     if (!valid.length) return toast.error("أضف خامة واحدة على الأقل");
+    const validExp = expenses.filter((e) => e.amount > 0);
 
     setSaving(true);
     try {
@@ -1307,7 +1330,29 @@ function ProductionDialog({ open, onOpenChange, rawMaterials, products, onSaved 
       if (e2) throw e2;
       const { error: e3 } = await (supabase as any).rpc("finalize_feed_production", { _invoice_id: head.id });
       if (e3) throw e3;
-      toast.success("تم تسجيل فاتورة التصنيع — خُصمت الخامات وأُضيفت الكمية لمخزن الجاهز");
+
+      // Save expenses after invoice is created — trigger recalculates totals
+      for (let i = 0; i < validExp.length; i++) {
+        const exp = validExp[i];
+        const kind = EXPENSE_TYPES_FORM.find(t => t.v === exp.expense_type)?.k || "general_expense";
+        const refId = `feed_invoice_expense_${head.id}_${exp.expense_type}_${i}`;
+        const { error: eExp } = await (supabase as any).rpc("add_feed_invoice_expense", {
+          p_invoice_id: head.id,
+          p_expense_type: exp.expense_type,
+          p_description: exp.description || null,
+          p_amount: exp.amount,
+          p_expense_date: date,
+          p_payment_method: null,
+          p_paid_from_treasury: exp.paid_from_treasury,
+          p_treasury_kind: kind,
+          p_receipt_url: null,
+          p_notes: exp.notes || null,
+          p_reference_id: refId,
+        });
+        if (eExp) throw new Error(`فشل حفظ مصروف "${EXPENSE_TYPES_FORM.find(t=>t.v===exp.expense_type)?.l}": ${eExp.message}`);
+      }
+
+      toast.success(`تم تسجيل فاتورة التصنيع${validExp.length ? ` مع ${validExp.length} مصروف` : ""}`);
       onOpenChange(false); onSaved();
     } catch (err: any) { toast.error(err.message || "فشل الحفظ"); }
     finally { setSaving(false); }
@@ -1357,12 +1402,45 @@ function ProductionDialog({ open, onOpenChange, rawMaterials, products, onSaved 
             );
           })}
         </div>
+
+        <div className="space-y-2 border-t pt-3">
+          <div className="flex items-center justify-between">
+            <Label className="text-primary font-bold">مصروفات التصنيع</Label>
+            <Button size="sm" variant="outline" onClick={() => setExpenses([...expenses, newExpLine()])}>
+              <Plus className="h-3 w-3 ml-1" />إضافة مصروف
+            </Button>
+          </div>
+          {expenses.length === 0 && (
+            <div className="text-xs text-muted-foreground">لا توجد مصروفات. اضغط "إضافة مصروف" لإدخال نقل / دخان / عمالة … إلخ.</div>
+          )}
+          {expenses.map((e) => (
+            <div key={e.id} className="grid grid-cols-12 gap-2 items-end border-b pb-2">
+              <div className="col-span-3">
+                <Select value={e.expense_type} onValueChange={(v) => setExpenses(expenses.map(x => x.id === e.id ? { ...x, expense_type: v } : x))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {EXPENSE_TYPES_FORM.map(t => <SelectItem key={t.v} value={t.v}>{t.l}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="col-span-4"><Input placeholder="البيان" value={e.description} onChange={(ev) => setExpenses(expenses.map(x => x.id === e.id ? { ...x, description: ev.target.value } : x))} /></div>
+              <div className="col-span-2"><Input type="number" placeholder="المبلغ" value={e.amount || ""} onChange={(ev) => setExpenses(expenses.map(x => x.id === e.id ? { ...x, amount: Number(ev.target.value) } : x))} /></div>
+              <div className="col-span-2 flex items-center gap-1 text-xs">
+                <input type="checkbox" checked={e.paid_from_treasury} onChange={(ev) => setExpenses(expenses.map(x => x.id === e.id ? { ...x, paid_from_treasury: ev.target.checked } : x))} id={`ft-${e.id}`} />
+                <label htmlFor={`ft-${e.id}`}>من خزنة</label>
+              </div>
+              <div className="col-span-1"><Button size="icon" variant="ghost" onClick={() => setExpenses(expenses.filter(x => x.id !== e.id))}><Trash2 className="h-4 w-4"/></Button></div>
+            </div>
+          ))}
+        </div>
+
         <div><Label>ملاحظات</Label><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} /></div>
         <div className="border-t pt-3 flex items-center justify-between flex-wrap gap-3">
-          <div className="text-sm">تكلفة الخامات: <b>{fmt(estMaterialsCost)}</b> ج.م</div>
+          <div className="text-sm">الخامات: <b>{fmt(estMaterialsCost)}</b> ج.م</div>
           <div className="text-sm">أجرة التصنيع: <b>{fmt(Number(laborCost || 0))}</b> ج.م</div>
+          <div className="text-sm">المصروفات: <b>{fmt(estExpensesCost)}</b> ج.م</div>
           <div className="text-sm">الإجمالي: <b>{fmt(estTotalCost)}</b> ج.م</div>
-          <div className="text-sm">تكلفة الكيلو المنتج: <b className="text-primary">{fmt(estUnitCost)}</b> ج/كجم</div>
+          <div className="text-sm">تكلفة الكيلو: <b className="text-primary">{fmt(estUnitCost)}</b> ج/كجم</div>
         </div>
         <DialogFooter><Button onClick={save} disabled={saving}>{saving ? "جاري التصنيع..." : "حفظ فاتورة التصنيع"}</Button></DialogFooter>
       </DialogContent>
