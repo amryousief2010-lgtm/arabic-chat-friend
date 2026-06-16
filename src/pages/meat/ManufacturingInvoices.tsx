@@ -657,7 +657,7 @@ export default function ManufacturingInvoices() {
                         مطابقة أصناف التركيبة مع المخزون ({unmappedLines.length})
                       </CardTitle>
                       <CardDescription>
-                        الأصناف التالية غير مرتبطة بمخزون مصنع اللحوم. اختر البديل من المخزون لكل صنف. سيتم حفظ الربط ليُطبَّق تلقائيًا في التركيبات القادمة.
+                        هذه الأصناف غير مرتبطة بمخزون مصنع اللحوم. اختر البديل الصحيح أو أنشئ الصنف في المخزون. لا يتم الاعتماد قبل اكتمال الربط.
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -675,7 +675,7 @@ export default function ManufacturingInvoices() {
                         </TableHeader>
                         <TableBody>
                           {unmappedLines.map(l => {
-                            const cands = l.kind === "packaging" ? packCandidates : rawCandidates.filter(c => c.kind === l.kind);
+                            const cands = l.kind === "packaging" ? packCandidates : rawCandidates;
                             return (
                               <TableRow key={l.tmp}>
                                 <TableCell className="font-medium">{l.item_name}</TableCell>
