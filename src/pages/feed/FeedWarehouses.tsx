@@ -647,6 +647,7 @@ export default function FeedWarehouses() {
         {canStockCount && <StockCountDialog open={countOpen} onOpenChange={setCountOpen} rawMaterials={rawQ.data || []} products={prodQ.data || []} onSaved={() => qc.invalidateQueries({ queryKey: ["feed-stock-counts"] })} />}
         {canTreasury && <TreasuryDialog open={treasuryOpen} onOpenChange={setTreasuryOpen} onSaved={() => qc.invalidateQueries({ queryKey: ["feed-treasury"] })} />}
         {canProduce && <ProductionDialog open={productionOpen} onOpenChange={setProductionOpen} rawMaterials={rawQ.data || []} products={prodQ.data || []} onSaved={() => { qc.invalidateQueries({ queryKey: ["feed-prod-invoices"] }); qc.invalidateQueries({ queryKey: ["feed-raw-materials"] }); qc.invalidateQueries({ queryKey: ["feed-products"] }); }} />}
+        <FeedInvoiceDetailsDialog open={!!detailsInv} onOpenChange={(o) => !o && setDetailsInv(null)} invoice={detailsInv} />
       </div>
     </DashboardLayout>
   );
