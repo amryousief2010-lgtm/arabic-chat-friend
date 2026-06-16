@@ -89,6 +89,8 @@ const SlaughterTransfersLog = lazy(() => import("@/pages/slaughterhouse/Transfer
 const ButchersPayroll = lazy(() => import("@/pages/slaughterhouse/ButchersPayroll"));
 const SlaughterhouseFeedStore = lazy(() => import("@/pages/slaughterhouse/SlaughterhouseFeedStore"));
 const SlaughterProductMapping = lazy(() => import("@/pages/slaughterhouse/ProductMapping"));
+const SlaughterLiveBatchCosts = lazy(() => import("@/pages/slaughterhouse/LiveBatchCosts"));
+const SlaughterOstrichFeedLog = lazy(() => import("@/pages/slaughterhouse/OstrichFeedLog"));
 const MeatFactory = lazy(() => import("@/pages/modules/MeatFactory"));
 const MeatFactoryOps = lazy(() => import("@/pages/modules/MeatFactoryOps"));
 const FeedFactory = lazy(() => import("@/pages/modules/FeedFactory"));
@@ -819,6 +821,16 @@ const AnimatedRoutes = () => {
           <Route path="/modules/slaughterhouse/feed-store" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'slaughterhouse_manager', 'warehouse_supervisor', 'feed_factory_manager', 'production_manager']}>
               <PageTransition><SlaughterhouseFeedStore /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/modules/slaughterhouse/live-batch-costs" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'slaughterhouse_manager', 'production_manager', 'accountant', 'financial_manager']}>
+              <PageTransition><SlaughterLiveBatchCosts /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/modules/slaughterhouse/ostrich-feed-log" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'slaughterhouse_manager', 'warehouse_supervisor', 'feed_factory_manager', 'production_manager', 'accountant', 'financial_manager']}>
+              <PageTransition><SlaughterOstrichFeedLog /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/modules/meat-factory" element={
