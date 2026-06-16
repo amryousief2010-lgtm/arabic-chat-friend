@@ -479,7 +479,7 @@ export default function FeedWarehouses() {
               </CardHeader>
               <CardContent>
                 <Table>
-                  <TableHeader><TableRow><TableHead>الرقم</TableHead><TableHead>التاريخ</TableHead><TableHead>المنتج</TableHead><TableHead>الكمية المنتجة</TableHead><TableHead>عدد الشكاير</TableHead><TableHead>إجمالي التكلفة</TableHead><TableHead>تكلفة الكيلو</TableHead><TableHead>الخامات</TableHead>{canManageAll && <TableHead className="w-16">حذف</TableHead>}</TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>الرقم</TableHead><TableHead>التاريخ</TableHead><TableHead>المنتج</TableHead><TableHead>الكمية المنتجة</TableHead><TableHead>عدد الشكاير</TableHead><TableHead>إجمالي التكلفة</TableHead><TableHead>تكلفة الكيلو</TableHead><TableHead>الخامات</TableHead><TableHead className="w-44">إجراءات</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {(prodInvQ.data || []).map((p: any) => (
                       <TableRow key={p.id}>
@@ -491,10 +491,19 @@ export default function FeedWarehouses() {
                         <TableCell className="font-bold">{fmt(p.total_cost)} ج.م</TableCell>
                         <TableCell>{fmt(p.unit_cost)} ج/كجم</TableCell>
                         <TableCell className="text-xs text-muted-foreground">{(p.feed_production_invoice_items||[]).map((i:any)=>`${i.feed_raw_materials?.name||''} ${fmt(i.quantity)}`).join(" • ")}</TableCell>
-                        {canManageAll && <TableCell><Button size="icon" variant="ghost" className="text-destructive" onClick={() => delProduction(p)}><Trash2 className="h-4 w-4" /></Button></TableCell>}
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button size="sm" variant="outline" onClick={() => setDetailsInv(p)}><Eye className="h-4 w-4 ml-1"/>تفاصيل</Button>
+                            <Button size="sm" variant="ghost" onClick={async () => {
+                              const { data: exps } = await (supabase as any).from("feed_production_invoice_expenses").select("*").eq("invoice_id", p.id);
+                              printFeedInvoice(p, p.feed_production_invoice_items || [], exps || []);
+                            }}><Printer className="h-4 w-4 ml-1"/>طباعة</Button>
+                            {canManageAll && <Button size="icon" variant="ghost" className="text-destructive" onClick={() => delProduction(p)}><Trash2 className="h-4 w-4" /></Button>}
+                          </div>
+                        </TableCell>
                       </TableRow>
                     ))}
-                    {!prodInvQ.data?.length && <TableRow><TableCell colSpan={canManageAll ? 9 : 8} className="text-center text-muted-foreground py-6">لا توجد فواتير تصنيع بعد</TableCell></TableRow>}
+                    {!prodInvQ.data?.length && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-6">لا توجد فواتير تصنيع بعد</TableCell></TableRow>}
                   </TableBody>
                 </Table>
               </CardContent>
