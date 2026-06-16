@@ -9190,6 +9190,7 @@ export type Database = {
       meat_factory_raw_items: {
         Row: {
           avg_cost: number
+          code: string | null
           created_at: string
           current_stock: number
           id: string
@@ -9203,6 +9204,7 @@ export type Database = {
         }
         Insert: {
           avg_cost?: number
+          code?: string | null
           created_at?: string
           current_stock?: number
           id?: string
@@ -9216,6 +9218,7 @@ export type Database = {
         }
         Update: {
           avg_cost?: number
+          code?: string | null
           created_at?: string
           current_stock?: number
           id?: string
