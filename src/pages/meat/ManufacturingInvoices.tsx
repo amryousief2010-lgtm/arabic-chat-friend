@@ -139,19 +139,47 @@ export default function ManufacturingInvoices() {
     .trim();
   const arTokens = (s: string) => normalizeAr(s).split(" ").filter(Boolean);
 
-  const resolveItem = (name: string, kind: Kind): RawItem | undefined => {
+  // Hardcoded aliases for known recipe-vs-inventory name mismatches.
+  // Match priority: saved mapping → code → hard alias → exact normalized name → token-subset.
+  const HARD_ALIASES: Array<{ recipe: string; kind: Kind; target: string; code?: number }> = [
+    { recipe: "فرم نعام", kind: "raw", target: "لحم نعام فرم", code: 12019 },
+    { recipe: "علب كفته", kind: "packaging", target: "علب كفته" },
+    { recipe: "علب كفتة", kind: "packaging", target: "علب كفته" },
+    { recipe: "دهن نعام", kind: "raw", target: "دهن نعام", code: 12014 },
+    { recipe: "لحم برازيلي", kind: "raw", target: "لحم بقري (برازيلي)", code: 17001 },
+    { recipe: "لحم بقري", kind: "raw", target: "لحم بقري (برازيلي)", code: 17001 },
+  ];
+
+  const resolveItem = (name: string, kind: Kind, code?: number): RawItem | undefined => {
+    // 0) saved mapping wins
     const map = mappingsIndex.get(mapKey(name, kind));
     if (map) {
       const it = items.find(i => i.id === map.mapped_raw_item_id);
       if (it) return it;
     }
     const pool = items.filter(it => kind === "raw" ? (it.kind === "raw" || it.kind === "spice") : it.kind === kind);
+    // 1) match by code if present
+    if (code) {
+      const byCode = pool.find(it => Number((it as any).code) === Number(code));
+      if (byCode) return byCode;
+    }
     const target = normalizeAr(name);
     if (!target) return undefined;
-    // 1) exact normalized name
+    // 2) hardcoded alias
+    const alias = HARD_ALIASES.find(a => normalizeAr(a.recipe) === target && (a.kind === kind || (kind === "raw" && a.kind === "raw")));
+    if (alias) {
+      if (alias.code) {
+        const byCode = pool.find(it => Number((it as any).code) === alias.code);
+        if (byCode) return byCode;
+      }
+      const aliasTarget = normalizeAr(alias.target);
+      const byName = pool.find(it => normalizeAr(it.name) === aliasTarget);
+      if (byName) return byName;
+    }
+    // 3) exact normalized name
     const exact = pool.find(it => normalizeAr(it.name) === target);
     if (exact) return exact;
-    // 2) subset-token match: every recipe token appears in candidate name (normalized)
+    // 4) subset-token match: every recipe token appears in candidate name (normalized)
     const recTokens = arTokens(name);
     if (recTokens.length === 0) return undefined;
     let best: { it: RawItem; score: number } | undefined;
@@ -159,7 +187,6 @@ export default function ManufacturingInvoices() {
       const candNorm = normalizeAr(it.name);
       const candTokens = arTokens(it.name);
       if (!recTokens.every(t => candNorm.includes(t))) continue;
-      // prefer candidates with fewer extra tokens (closer match)
       const score = recTokens.length / Math.max(candTokens.length, 1);
       if (!best || score > best.score) best = { it, score };
     }
@@ -179,7 +206,7 @@ export default function ManufacturingInvoices() {
     setUnit(r.unit || "كجم");
     setExtraCost(Number((r.wages * factor).toFixed(2)));
     const buildLine = (l: { code: number; name: string; kind: Kind; unit: string; qty: number; price: number }): Line => {
-      const match = resolveItem(l.name, l.kind);
+      const match = resolveItem(l.name, l.kind, l.code);
       return {
         tmp: crypto.randomUUID(),
         item_id: match?.id || "",
@@ -192,6 +219,7 @@ export default function ManufacturingInvoices() {
         notes: match ? null : "⚠ غير مربوط بمخزون مصنع اللحوم — اختر بديل من جدول المطابقة",
       };
     };
+
     const rawSpice = r.lines.filter(l => l.kind !== "packaging").map(buildLine);
     const pack = r.lines.filter(l => l.kind === "packaging").map(buildLine);
     setRawLines(rawSpice.length ? rawSpice : [newLine("raw")]);
