@@ -72,6 +72,33 @@ export default function SlaughterhouseFeedStore() {
 
   const [issueOpen, setIssueOpen] = useState(false);
   const [fatteningOpen, setFatteningOpen] = useState(false);
+  const [ostrichOpen, setOstrichOpen] = useState(false);
+
+  const liveBatchesQ = useQuery({
+    queryKey: ["sl_live_batches_for_feed"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("slaughter_live_receipts" as any)
+        .select("id,receipt_number,receipt_date,bird_count,current_alive_count,cost_per_bird_current")
+        .gt("current_alive_count", 0)
+        .order("receipt_date", { ascending: false });
+      if (error) throw error;
+      return (data as any[]) || [];
+    },
+  });
+
+  const ostrichLogQ = useQuery({
+    queryKey: ["sl_ostrich_feed_log_tab"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("slaughter_ostrich_feed_consumption" as any)
+        .select("*, live:slaughter_live_receipts!live_batch_id(receipt_number)")
+        .order("consumption_date", { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      return (data as any[]) || [];
+    },
+  });
 
   const movs = movQ.data || [];
   const inv = invQ.data || [];
