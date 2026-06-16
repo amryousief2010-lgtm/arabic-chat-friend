@@ -221,6 +221,20 @@ export default function ManufacturingInvoices() {
     setFinishedQty(requested);
     setUnit(r.unit || "كجم");
     setExtraCost(Number((r.wages * factor).toFixed(2)));
+    const serviceLines: ServiceCostLine[] = r.lines.filter(l => isServiceCostItem(l.name, l.code)).map(l => {
+      const quantity = Number((l.qty * factor).toFixed(3));
+      const unitCost = Number(l.price.toFixed(3));
+      return {
+        tmp: crypto.randomUUID(),
+        item_name: l.name,
+        unit: l.unit,
+        quantity,
+        unit_cost: unitCost,
+        line_total: Number((quantity * unitCost).toFixed(3)),
+        notes: "service_cost — تكلفة إضافية لا تخصم من المخزون",
+      };
+    });
+    setServiceCostLines(serviceLines);
     const buildLine = (l: { code: number; name: string; kind: Kind; unit: string; qty: number; price: number }): Line => {
       const match = resolveItem(l.name, l.kind, l.code);
       return {
@@ -236,12 +250,13 @@ export default function ManufacturingInvoices() {
       };
     };
 
-    const rawSpice = r.lines.filter(l => l.kind !== "packaging").map(buildLine);
-    const pack = r.lines.filter(l => l.kind === "packaging").map(buildLine);
+    const stockLines = r.lines.filter(l => !isServiceCostItem(l.name, l.code));
+    const rawSpice = stockLines.filter(l => l.kind !== "packaging").map(buildLine);
+    const pack = stockLines.filter(l => l.kind === "packaging").map(buildLine);
     setRawLines(rawSpice.length ? rawSpice : [newLine("raw")]);
     setPackLines(pack.length ? pack : [newLine("packaging")]);
     const missing = [...rawSpice, ...pack].filter(l => !l.item_id).length;
-    if (missing > 0) toast.warning(`تم تحميل التركيبة، لكن يوجد ${missing} صنف غير مرتبط بمخزون مصنع اللحوم. اختر الصنف البديل من المخزون قبل حفظ أو اعتماد الفاتورة.`);
+    if (missing > 0) toast.warning(`هذه الأصناف غير مرتبطة بمخزون مصنع اللحوم. اختر البديل الصحيح أو أنشئ الصنف في المخزون. لا يتم الاعتماد قبل اكتمال الربط.`);
     else toast.success(`تم تحميل تركيبة ${r.product} (×${factor.toFixed(2)})`);
   };
 
