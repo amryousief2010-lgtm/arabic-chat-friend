@@ -22,8 +22,9 @@ const MEAT_RECIPES = recipesData as MeatRecipe[];
 
 type Kind = "raw" | "spice" | "packaging";
 type Warehouse = { id: string; name: string; type: string };
-type RawItem = { id: string; name: string; unit: string; current_stock: number; avg_cost: number; kind: Kind; is_active: boolean };
+type RawItem = { id: string; name: string; unit: string; current_stock: number; avg_cost: number; kind: Kind; is_active: boolean; code?: string | null };
 type Line = { tmp: string; item_id: string; item_name: string; kind: Kind; unit: string; quantity: number; unit_cost: number; line_total: number; notes: string | null };
+type ServiceCostLine = { tmp: string; item_name: string; unit: string; quantity: number; unit_cost: number; line_total: number; notes: string | null };
 type Invoice = {
   id: string; invoice_no: string | null; product_name: string; finished_qty: number; unit: string;
   status: string; raw_cost: number; spice_cost: number; packaging_cost: number; extra_cost: number;
@@ -38,6 +39,7 @@ const PRODUCT_PRESETS = ["برجر نعام", "كفتة نعام", "سجق نع�
 const newLine = (k: Kind = "raw"): Line => ({ tmp: crypto.randomUUID(), item_id: "", item_name: "", kind: k, unit: "كجم", quantity: 0, unit_cost: 0, line_total: 0, notes: null });
 const esc = (s: any) => String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
 const fmt = (n: any) => Number(n || 0).toLocaleString("ar-EG", { maximumFractionDigits: 2 });
+const serviceNotesFromInvoice = (notes?: string | null) => String(notes || "").split("\n").filter(l => l.startsWith("[service_cost]"));
 
 export default function ManufacturingInvoices() {
   const { user, roles } = useAuth();
@@ -56,6 +58,7 @@ export default function ManufacturingInvoices() {
   const [extraCost, setExtraCost] = useState<number>(0);
   const [rawLines, setRawLines] = useState<Line[]>([newLine("raw")]);
   const [packLines, setPackLines] = useState<Line[]>([newLine("packaging")]);
+  const [serviceCostLines, setServiceCostLines] = useState<ServiceCostLine[]>([]);
   const [saving, setSaving] = useState(false);
   const [invoiceUuid, setInvoiceUuid] = useState<string>(() => crypto.randomUUID());
 
@@ -66,7 +69,7 @@ export default function ManufacturingInvoices() {
   const [transferDestId, setTransferDestId] = useState<string>("");
   const [busy, setBusy] = useState(false);
 
-  type Mapping = { recipe_item_name: string; recipe_item_kind: Kind; mapped_raw_item_id: string; mapped_raw_item_name: string };
+  type Mapping = { id?: string; recipe_item_name: string; recipe_item_kind: Kind; mapped_raw_item_id: string; mapped_raw_item_name: string };
   const [mappings, setMappings] = useState<Mapping[]>([]);
   const mapKey = (name: string, kind: Kind) => `${(name || "").trim().toLowerCase()}|${kind}`;
   const mappingsIndex = useMemo(() => {
@@ -79,8 +82,8 @@ export default function ManufacturingInvoices() {
     const [whs, inv, ri, mp] = await Promise.all([
       supabase.from("warehouses").select("id, name, type").order("name"),
       supabase.from("meat_manufacturing_invoices" as any).select("*").order("created_at", { ascending: false }).limit(200),
-      supabase.from("meat_factory_raw_items" as any).select("id,name,unit,current_stock,avg_cost,kind,is_active").eq("is_active", true).order("name"),
-      supabase.from("meat_recipe_item_mappings" as any).select("recipe_item_name,recipe_item_kind,mapped_raw_item_id,mapped_raw_item_name"),
+      supabase.from("meat_factory_raw_items" as any).select("id,name,unit,current_stock,avg_cost,kind,is_active,code").eq("is_active", true).order("name"),
+      supabase.from("meat_recipe_item_mappings" as any).select("id,recipe_item_name,recipe_item_kind,mapped_raw_item_id,mapped_raw_item_name"),
     ]);
     if (whs.data) {
       const factory = whs.data.filter(w => w.name?.includes("مصنع اللحوم"));
@@ -115,13 +118,16 @@ export default function ManufacturingInvoices() {
   const rawCost = useMemo(() => rawLines.filter(l => l.kind === "raw").reduce((s,l) => s + Number(l.line_total||0), 0), [rawLines]);
   const spiceCost = useMemo(() => rawLines.filter(l => l.kind === "spice").reduce((s,l) => s + Number(l.line_total||0), 0), [rawLines]);
   const packCost = useMemo(() => packLines.reduce((s,l) => s + Number(l.line_total||0), 0), [packLines]);
-  const totalCost = rawCost + spiceCost + packCost + Number(extraCost || 0);
+  const serviceCost = useMemo(() => serviceCostLines.reduce((s,l) => s + Number(l.line_total||0), 0), [serviceCostLines]);
+  const totalExtraCost = Number(extraCost || 0) + serviceCost;
+  const totalCost = rawCost + spiceCost + packCost + totalExtraCost;
   const unitCost = finishedQty > 0 ? totalCost / finishedQty : 0;
 
   const finalProductName = productName === "أخرى" ? productNameOther.trim() : productName;
 
   const resetForm = () => {
     setRawLines([newLine("raw")]); setPackLines([newLine("packaging")]);
+    setServiceCostLines([]);
     setProductName(""); setProductNameOther(""); setFinishedQty(0); setNotes("");
     setExtraCost(0); setDestinationKind("factory_warehouse");
     setInvoiceUuid(crypto.randomUUID());
@@ -130,14 +136,18 @@ export default function ManufacturingInvoices() {
   const normalizeAr = (s: string) => (s || "")
     .toLowerCase()
     .replace(/[\u064B-\u0652\u0670]/g, "")
+    .replace(/[×x]/g, "*")
     .replace(/[إأآا]/g, "ا")
     .replace(/ى/g, "ي")
     .replace(/ؤ/g, "و")
     .replace(/ئ/g, "ي")
+    .replace(/سودا/g, "سوده")
     .replace(/ة/g, "ه")
     .replace(/\s+/g, " ")
     .trim();
   const arTokens = (s: string) => normalizeAr(s).split(" ").filter(Boolean);
+
+  const isServiceCostItem = (name: string, code?: number) => Number(code) === 15009 || normalizeAr(name).includes("ماده خدميه");
 
   // Hardcoded aliases for known recipe-vs-inventory name mismatches.
   // Match priority: saved mapping → code → hard alias → exact normalized name → token-subset.
@@ -148,6 +158,13 @@ export default function ManufacturingInvoices() {
     { recipe: "دهن نعام", kind: "raw", target: "دهن نعام", code: 12014 },
     { recipe: "لحم برازيلي", kind: "raw", target: "لحم بقري (برازيلي)", code: 17001 },
     { recipe: "لحم بقري", kind: "raw", target: "لحم بقري (برازيلي)", code: 17001 },
+    { recipe: "ازازه زيت", kind: "raw", target: "زيت طعام" },
+    { recipe: "لازو زيت", kind: "raw", target: "زيت طعام" },
+    { recipe: "عصير جهينه", kind: "raw", target: "عصير" },
+    { recipe: "عصر جبنة", kind: "raw", target: "عصير" },
+    { recipe: "اكياس سودا مقاس 20*30", kind: "packaging", target: "أكياس سمراء" },
+    { recipe: "أكياس سودة مقاس 30*20", kind: "packaging", target: "أكياس سمراء" },
+    { recipe: "اكياس سودة مقاس 30*20", kind: "packaging", target: "أكياس سمراء" },
   ];
 
   const resolveItem = (name: string, kind: Kind, code?: number): RawItem | undefined => {
@@ -205,27 +222,42 @@ export default function ManufacturingInvoices() {
     setFinishedQty(requested);
     setUnit(r.unit || "كجم");
     setExtraCost(Number((r.wages * factor).toFixed(2)));
+    const serviceLines: ServiceCostLine[] = r.lines.filter(l => isServiceCostItem(l.name, l.code)).map(l => {
+      const quantity = Number((l.qty * factor).toFixed(3));
+      const unitCost = Number(l.price.toFixed(3));
+      return {
+        tmp: crypto.randomUUID(),
+        item_name: l.name,
+        unit: l.unit,
+        quantity,
+        unit_cost: unitCost,
+        line_total: Number((quantity * unitCost).toFixed(3)),
+        notes: "service_cost — تكلفة إضافية لا تخصم من المخزون",
+      };
+    });
+    setServiceCostLines(serviceLines);
     const buildLine = (l: { code: number; name: string; kind: Kind; unit: string; qty: number; price: number }): Line => {
       const match = resolveItem(l.name, l.kind, l.code);
       return {
         tmp: crypto.randomUUID(),
         item_id: match?.id || "",
-        item_name: l.name,
-        kind: l.kind,
+        item_name: match?.name || l.name,
+        kind: match?.kind || l.kind,
         unit: match?.unit || l.unit,
         quantity: Number((l.qty * factor).toFixed(3)),
         unit_cost: match ? Number(match.avg_cost || l.price) : Number(l.price.toFixed(3)),
         line_total: Number((l.qty * factor * (match ? Number(match.avg_cost || l.price) : l.price)).toFixed(3)),
-        notes: match ? null : "⚠ غير مربوط بمخزون مصنع اللحوم — اختر بديل من جدول المطابقة",
+        notes: match ? (match.name !== l.name ? `اسم التركيبة: ${l.name}` : null) : "⚠ غير مربوط بمخزون مصنع اللحوم — اختر بديل من جدول المطابقة",
       };
     };
 
-    const rawSpice = r.lines.filter(l => l.kind !== "packaging").map(buildLine);
-    const pack = r.lines.filter(l => l.kind === "packaging").map(buildLine);
+    const stockLines = r.lines.filter(l => !isServiceCostItem(l.name, l.code));
+    const rawSpice = stockLines.filter(l => l.kind !== "packaging").map(buildLine);
+    const pack = stockLines.filter(l => l.kind === "packaging").map(buildLine);
     setRawLines(rawSpice.length ? rawSpice : [newLine("raw")]);
     setPackLines(pack.length ? pack : [newLine("packaging")]);
     const missing = [...rawSpice, ...pack].filter(l => !l.item_id).length;
-    if (missing > 0) toast.warning(`تم تحميل التركيبة، لكن يوجد ${missing} صنف غير مرتبط بمخزون مصنع اللحوم. اختر الصنف البديل من المخزون قبل حفظ أو اعتماد الفاتورة.`);
+    if (missing > 0) toast.warning(`هذه الأصناف غير مرتبطة بمخزون مصنع اللحوم. اختر البديل الصحيح أو أنشئ الصنف في المخزون. لا يتم الاعتماد قبل اكتمال الربط.`);
     else toast.success(`تم تحميل تركيبة ${r.product} (×${factor.toFixed(2)})`);
   };
 
@@ -256,32 +288,27 @@ export default function ManufacturingInvoices() {
   const saveMapping = async (recipeName: string, kind: Kind, rawItemId: string) => {
     const it = items.find(i => i.id === rawItemId);
     if (!it) { toast.error("اختر صنفًا من المخزون"); return; }
-    const { error } = await supabase.from("meat_recipe_item_mappings" as any).upsert({
+    const existing = mappingsIndex.get(mapKey(recipeName, kind));
+    const payload = {
       recipe_item_name: recipeName.trim(),
       recipe_item_kind: kind,
       mapped_raw_item_id: rawItemId,
       mapped_raw_item_name: it.name,
       created_by: user?.id || null,
-    } as any, { onConflict: "recipe_item_name,recipe_item_kind" } as any);
-    if (error && !String(error.message || "").includes("duplicate")) {
-      // fallback: ignore upsert spec if unique index doesn't match — just insert
-      await supabase.from("meat_recipe_item_mappings" as any).insert({
-        recipe_item_name: recipeName.trim(),
-        recipe_item_kind: kind,
-        mapped_raw_item_id: rawItemId,
-        mapped_raw_item_name: it.name,
-        created_by: user?.id || null,
-      } as any);
-    }
+    } as any;
+    const { error } = existing?.id
+      ? await supabase.from("meat_recipe_item_mappings" as any).update(payload).eq("id", existing.id)
+      : await supabase.from("meat_recipe_item_mappings" as any).insert(payload);
+    if (error) { toast.error(error.message || "فشل حفظ الربط"); return; }
     setMappings(prev => {
       const others = prev.filter(m => mapKey(m.recipe_item_name, m.recipe_item_kind) !== mapKey(recipeName, kind));
-      return [...others, { recipe_item_name: recipeName.trim(), recipe_item_kind: kind, mapped_raw_item_id: rawItemId, mapped_raw_item_name: it.name }];
+      return [...others, { id: existing?.id, recipe_item_name: recipeName.trim(), recipe_item_kind: kind, mapped_raw_item_id: rawItemId, mapped_raw_item_name: it.name }];
     });
     // rebind matching lines in current invoice
     const rebind = (l: Line): Line => {
       if (l.item_id || l.item_name?.trim() !== recipeName.trim() || l.kind !== kind) return l;
       const cost = Number(it.avg_cost || l.unit_cost || 0);
-      return { ...l, item_id: rawItemId, item_name: l.item_name, unit: it.unit, unit_cost: cost || l.unit_cost, line_total: Number((Number(l.quantity || 0) * (cost || l.unit_cost || 0)).toFixed(3)), notes: null };
+      return { ...l, item_id: rawItemId, item_name: it.name, kind: it.kind, unit: it.unit, unit_cost: cost || l.unit_cost, line_total: Number((Number(l.quantity || 0) * (cost || l.unit_cost || 0)).toFixed(3)), notes: it.name !== recipeName ? `اسم التركيبة: ${recipeName}` : null };
     };
     setRawLines(ls => ls.map(rebind));
     setPackLines(ls => ls.map(rebind));
@@ -330,10 +357,10 @@ export default function ManufacturingInvoices() {
         manufacturing_invoice_uuid: invoiceUuid,
         materials_total_cost: rawCost + spiceCost + packCost,
         raw_cost: rawCost, spice_cost: spiceCost, packaging_cost: packCost,
-        extra_cost: Number(extraCost || 0), total_manufacturing_cost: totalCost,
+        extra_cost: totalExtraCost, total_manufacturing_cost: totalCost,
         unit_cost: unitCost,
         status: "draft",
-        notes: notes || null,
+        notes: [notes, ...serviceCostLines.map(l => `[service_cost] ${l.item_name}: ${fmt(l.quantity)} ${l.unit} × ${fmt(l.unit_cost)} = ${fmt(l.line_total)}`)].filter(Boolean).join("\n") || null,
         created_by: user?.id || null,
       } as any).select("id").single();
       if (insErr) throw insErr;
@@ -445,6 +472,10 @@ export default function ManufacturingInvoices() {
       <h2>خامات التغليف المستخدمة</h2>
       <table><thead><tr><th>الصنف</th><th>النوع</th><th>الوحدة</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th><th>المخزون قبل</th><th>المخزون بعد</th></tr></thead>
       <tbody>${packRows.map(rowHtml).join("") || `<tr><td colspan="8" style="text-align:center">لا توجد</td></tr>`}</tbody></table>
+
+      <h2>تكاليف إضافية</h2>
+      <table><thead><tr><th>البند</th></tr></thead>
+      <tbody>${serviceNotesFromInvoice(inv.notes).map(n => `<tr><td>${esc(n.replace("[service_cost]", "" ).trim())}</td></tr>`).join("") || `<tr><td style="text-align:center">لا توجد بنود خدمة منفصلة</td></tr>`}</tbody></table>
 
       <div class="summary">
         <table>
@@ -621,7 +652,7 @@ export default function ManufacturingInvoices() {
                         مطابقة أصناف التركيبة مع المخزون ({unmappedLines.length})
                       </CardTitle>
                       <CardDescription>
-                        الأصناف التالية غير مرتبطة بمخزون مصنع اللحوم. اختر البديل من المخزون لكل صنف. سيتم حفظ الربط ليُطبَّق تلقائيًا في التركيبات القادمة.
+                        هذه الأصناف غير مرتبطة بمخزون مصنع اللحوم. اختر البديل الصحيح أو أنشئ الصنف في المخزون. لا يتم الاعتماد قبل اكتمال الربط.
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -639,7 +670,7 @@ export default function ManufacturingInvoices() {
                         </TableHeader>
                         <TableBody>
                           {unmappedLines.map(l => {
-                            const cands = l.kind === "packaging" ? packCandidates : rawCandidates.filter(c => c.kind === l.kind);
+                            const cands = l.kind === "packaging" ? packCandidates : rawCandidates;
                             return (
                               <TableRow key={l.tmp}>
                                 <TableCell className="font-medium">{l.item_name}</TableCell>
@@ -684,6 +715,21 @@ export default function ManufacturingInvoices() {
                   </div>
                 )}
 
+                {serviceCostLines.length > 0 && (
+                  <Card className="border-orange-200 bg-orange-50/60 dark:bg-orange-950/20">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base">تكاليف إضافية</CardTitle>
+                      <CardDescription>بنود خدمة تدخل في تكلفة التصنيع فقط ولا تخصم من مخزون الخامات أو التغليف.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-0 overflow-x-auto">
+                      <Table>
+                        <TableHeader><TableRow><TableHead>البند</TableHead><TableHead>الوحدة</TableHead><TableHead>الكمية</TableHead><TableHead>سعر الوحدة</TableHead><TableHead>الإجمالي</TableHead></TableRow></TableHeader>
+                        <TableBody>{serviceCostLines.map(l => <TableRow key={l.tmp}><TableCell className="font-medium">{l.item_name}</TableCell><TableCell>{l.unit}</TableCell><TableCell>{fmt(l.quantity)}</TableCell><TableCell>{fmt(l.unit_cost)}</TableCell><TableCell className="font-semibold">{fmt(l.line_total)}</TableCell></TableRow>)}</TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                )}
+
                 {renderLineTable(rawLines, setRawLines, rawCandidates, "المواد الخام والبهارات المستخدمة")}
                 {renderLineTable(packLines, setPackLines, packCandidates, "خامات التغليف المستخدمة")}
 
@@ -693,7 +739,7 @@ export default function ManufacturingInvoices() {
                     <div><div className="text-muted-foreground">إجمالي الخامات</div><div className="font-bold text-lg">{fmt(rawCost)}</div></div>
                     <div><div className="text-muted-foreground">إجمالي البهارات</div><div className="font-bold text-lg">{fmt(spiceCost)}</div></div>
                     <div><div className="text-muted-foreground">إجمالي التغليف</div><div className="font-bold text-lg">{fmt(packCost)}</div></div>
-                    <div><div className="text-muted-foreground">تكلفة إضافية</div><div className="font-bold text-lg">{fmt(extraCost)}</div></div>
+                    <div><div className="text-muted-foreground">تكلفة إضافية</div><div className="font-bold text-lg">{fmt(totalExtraCost)}</div></div>
                     <div className="col-span-2"><div className="text-muted-foreground">إجمالي تكلفة التصنيع</div><div className="font-bold text-xl text-purple-700">{fmt(totalCost)} ج</div></div>
                     <div className="col-span-2"><div className="text-muted-foreground">تكلفة الوحدة</div><div className="font-bold text-xl text-purple-700">{fmt(unitCost)} ج / {unit}</div></div>
                   </CardContent>
@@ -843,6 +889,15 @@ export default function ManufacturingInvoices() {
                   );
                   return (
                     <div className="space-y-4">
+                      {serviceNotesFromInvoice(viewing.notes).length > 0 && (
+                        <div className="space-y-1">
+                          <h3 className="font-semibold text-sm text-purple-700">تكاليف إضافية</h3>
+                          <Table>
+                            <TableHeader><TableRow><TableHead>البند</TableHead></TableRow></TableHeader>
+                            <TableBody>{serviceNotesFromInvoice(viewing.notes).map((n, idx) => <TableRow key={idx}><TableCell>{n.replace("[service_cost]", "").trim()}</TableCell></TableRow>)}</TableBody>
+                          </Table>
+                        </div>
+                      )}
                       {renderTable(rawSpice, "المواد الخام والبهارات المستخدمة", "لا توجد خامات/بهارات")}
                       {renderTable(pack, "خامات التغليف المستخدمة", "لا توجد خامات تغليف")}
                     </div>
