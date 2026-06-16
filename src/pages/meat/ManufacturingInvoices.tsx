@@ -127,13 +127,43 @@ export default function ManufacturingInvoices() {
     setInvoiceUuid(crypto.randomUUID());
   };
 
+  const normalizeAr = (s: string) => (s || "")
+    .toLowerCase()
+    .replace(/[\u064B-\u0652\u0670]/g, "")
+    .replace(/[إأآا]/g, "ا")
+    .replace(/ى/g, "ي")
+    .replace(/ؤ/g, "و")
+    .replace(/ئ/g, "ي")
+    .replace(/ة/g, "ه")
+    .replace(/\s+/g, " ")
+    .trim();
+  const arTokens = (s: string) => normalizeAr(s).split(" ").filter(Boolean);
+
   const resolveItem = (name: string, kind: Kind): RawItem | undefined => {
     const map = mappingsIndex.get(mapKey(name, kind));
     if (map) {
       const it = items.find(i => i.id === map.mapped_raw_item_id);
       if (it) return it;
     }
-    return items.find(it => it.name?.trim() === name.trim() && (kind === "raw" ? (it.kind === "raw" || it.kind === "spice") : it.kind === kind));
+    const pool = items.filter(it => kind === "raw" ? (it.kind === "raw" || it.kind === "spice") : it.kind === kind);
+    const target = normalizeAr(name);
+    if (!target) return undefined;
+    // 1) exact normalized name
+    const exact = pool.find(it => normalizeAr(it.name) === target);
+    if (exact) return exact;
+    // 2) subset-token match: every recipe token appears in candidate name (normalized)
+    const recTokens = arTokens(name);
+    if (recTokens.length === 0) return undefined;
+    let best: { it: RawItem; score: number } | undefined;
+    for (const it of pool) {
+      const candNorm = normalizeAr(it.name);
+      const candTokens = arTokens(it.name);
+      if (!recTokens.every(t => candNorm.includes(t))) continue;
+      // prefer candidates with fewer extra tokens (closer match)
+      const score = recTokens.length / Math.max(candTokens.length, 1);
+      if (!best || score > best.score) best = { it, score };
+    }
+    return best?.it;
   };
 
   const [selectedRecipeKey, setSelectedRecipeKey] = useState<string>("");
