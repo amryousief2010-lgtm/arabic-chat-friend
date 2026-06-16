@@ -320,6 +320,43 @@ export default function SlaughterhouseFeedStore() {
             </Card>
           </TabsContent>
 
+          <TabsContent value="ostrich-log">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">سجل صرف العلف للنعام (محمّل على دفعات الدبح)</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3">
+                <Table>
+                  <TableHeader><TableRow>
+                    <TableHead>التاريخ</TableHead><TableHead>الدفعة</TableHead>
+                    <TableHead>نوع العلف</TableHead><TableHead>الكمية (كجم)</TableHead>
+                    <TableHead>سعر/كجم</TableHead><TableHead>إجمالي التكلفة</TableHead>
+                    <TableHead>الرصيد قبل</TableHead><TableHead>الرصيد بعد</TableHead>
+                    <TableHead>الحالة</TableHead>
+                  </TableRow></TableHeader>
+                  <TableBody>
+                    {(ostrichLogQ.data || []).map((r: any) => (
+                      <TableRow key={r.id} className={r.reversed_at ? "opacity-60" : ""}>
+                        <TableCell className="text-xs">{r.consumption_date}</TableCell>
+                        <TableCell className="text-xs font-medium">{r.live?.receipt_number || "—"}</TableCell>
+                        <TableCell>{r.feed_name}</TableCell>
+                        <TableCell className="font-bold">{fmt(r.quantity_kg)}</TableCell>
+                        <TableCell>{fmt(r.unit_cost)}</TableCell>
+                        <TableCell className="font-bold text-orange-700">{fmt(r.total_cost)}</TableCell>
+                        <TableCell>{fmt(r.stock_before)}</TableCell>
+                        <TableCell className="font-medium">{fmt(r.stock_after)}</TableCell>
+                        <TableCell>{r.reversed_at ? <Badge variant="destructive">عكس: {r.reversal_reason}</Badge> : <Badge variant="default">نشطة</Badge>}</TableCell>
+                      </TableRow>
+                    ))}
+                    {!(ostrichLogQ.data || []).length && (
+                      <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground">لا توجد حركات</TableCell></TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="outflow"><MovementsTable rows={outflowRows} inventory={inv} /></TabsContent>
           <TabsContent value="all"><MovementsTable rows={movs} inventory={inv} /></TabsContent>
         </Tabs>
@@ -327,6 +364,13 @@ export default function SlaughterhouseFeedStore() {
 
       <IssueFeedDialog open={issueOpen} onOpenChange={setIssueOpen} inventory={inv} onSaved={refresh} />
       <FatteningFeedDialog open={fatteningOpen} onOpenChange={setFatteningOpen} inventory={inv} onSaved={refresh} />
+      <OstrichFeedConsumptionDialog
+        open={ostrichOpen}
+        onOpenChange={setOstrichOpen}
+        liveBatches={(liveBatchesQ.data || []) as any}
+        feedInventory={inv as any}
+        onSaved={refresh}
+      />
     </DashboardLayout>
   );
 }
