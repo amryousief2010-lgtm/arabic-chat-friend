@@ -191,6 +191,8 @@ export const moduleSections: ModuleSection[] = [
       { icon: Wallet, label: "خزنة عهدة المجزر — محمد شعلة", path: "/slaughterhouse-custody", roles: ['general_manager', 'executive_manager', 'slaughterhouse_manager', 'lab_treasury_approver', 'slaughterhouse_custody_keeper'] },
       { icon: ShieldCheck, label: "الخزنة الرئيسية للشركة — أ. محمد شعلة", path: "/main-treasury", roles: ['general_manager', 'executive_manager', 'financial_manager', 'main_treasury_accountant' as any, 'main_treasury_approver' as any] },
       { icon: Wheat, label: "مخزن علف المجزر — علف النعام التسمين", path: "/modules/slaughterhouse/feed-store", roles: ['general_manager', 'executive_manager', 'slaughterhouse_manager', 'warehouse_supervisor', 'feed_factory_manager', 'production_manager'] },
+      { icon: Beef, label: "تكلفة النعام الجاهز للدبح", path: "/modules/slaughterhouse/live-batch-costs", roles: ['general_manager', 'executive_manager', 'slaughterhouse_manager', 'production_manager', 'accountant', 'financial_manager'] },
+      { icon: Wheat, label: "سجل صرف علف نعام المجزر", path: "/modules/slaughterhouse/ostrich-feed-log", roles: ['general_manager', 'executive_manager', 'slaughterhouse_manager', 'warehouse_supervisor', 'feed_factory_manager', 'production_manager', 'accountant', 'financial_manager'] },
     ],
   },
   {
