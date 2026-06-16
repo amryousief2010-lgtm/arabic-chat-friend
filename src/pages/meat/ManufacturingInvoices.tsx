@@ -22,8 +22,9 @@ const MEAT_RECIPES = recipesData as MeatRecipe[];
 
 type Kind = "raw" | "spice" | "packaging";
 type Warehouse = { id: string; name: string; type: string };
-type RawItem = { id: string; name: string; unit: string; current_stock: number; avg_cost: number; kind: Kind; is_active: boolean };
+type RawItem = { id: string; name: string; unit: string; current_stock: number; avg_cost: number; kind: Kind; is_active: boolean; code?: string | null };
 type Line = { tmp: string; item_id: string; item_name: string; kind: Kind; unit: string; quantity: number; unit_cost: number; line_total: number; notes: string | null };
+type ServiceCostLine = { tmp: string; item_name: string; unit: string; quantity: number; unit_cost: number; line_total: number; notes: string | null };
 type Invoice = {
   id: string; invoice_no: string | null; product_name: string; finished_qty: number; unit: string;
   status: string; raw_cost: number; spice_cost: number; packaging_cost: number; extra_cost: number;
@@ -56,6 +57,7 @@ export default function ManufacturingInvoices() {
   const [extraCost, setExtraCost] = useState<number>(0);
   const [rawLines, setRawLines] = useState<Line[]>([newLine("raw")]);
   const [packLines, setPackLines] = useState<Line[]>([newLine("packaging")]);
+  const [serviceCostLines, setServiceCostLines] = useState<ServiceCostLine[]>([]);
   const [saving, setSaving] = useState(false);
   const [invoiceUuid, setInvoiceUuid] = useState<string>(() => crypto.randomUUID());
 
@@ -79,7 +81,7 @@ export default function ManufacturingInvoices() {
     const [whs, inv, ri, mp] = await Promise.all([
       supabase.from("warehouses").select("id, name, type").order("name"),
       supabase.from("meat_manufacturing_invoices" as any).select("*").order("created_at", { ascending: false }).limit(200),
-      supabase.from("meat_factory_raw_items" as any).select("id,name,unit,current_stock,avg_cost,kind,is_active").eq("is_active", true).order("name"),
+      supabase.from("meat_factory_raw_items" as any).select("id,name,unit,current_stock,avg_cost,kind,is_active,code").eq("is_active", true).order("name"),
       supabase.from("meat_recipe_item_mappings" as any).select("recipe_item_name,recipe_item_kind,mapped_raw_item_id,mapped_raw_item_name"),
     ]);
     if (whs.data) {
@@ -122,6 +124,7 @@ export default function ManufacturingInvoices() {
 
   const resetForm = () => {
     setRawLines([newLine("raw")]); setPackLines([newLine("packaging")]);
+    setServiceCostLines([]);
     setProductName(""); setProductNameOther(""); setFinishedQty(0); setNotes("");
     setExtraCost(0); setDestinationKind("factory_warehouse");
     setInvoiceUuid(crypto.randomUUID());
