@@ -117,7 +117,9 @@ export default function ManufacturingInvoices() {
   const rawCost = useMemo(() => rawLines.filter(l => l.kind === "raw").reduce((s,l) => s + Number(l.line_total||0), 0), [rawLines]);
   const spiceCost = useMemo(() => rawLines.filter(l => l.kind === "spice").reduce((s,l) => s + Number(l.line_total||0), 0), [rawLines]);
   const packCost = useMemo(() => packLines.reduce((s,l) => s + Number(l.line_total||0), 0), [packLines]);
-  const totalCost = rawCost + spiceCost + packCost + Number(extraCost || 0);
+  const serviceCost = useMemo(() => serviceCostLines.reduce((s,l) => s + Number(l.line_total||0), 0), [serviceCostLines]);
+  const totalExtraCost = Number(extraCost || 0) + serviceCost;
+  const totalCost = rawCost + spiceCost + packCost + totalExtraCost;
   const unitCost = finishedQty > 0 ? totalCost / finishedQty : 0;
 
   const finalProductName = productName === "أخرى" ? productNameOther.trim() : productName;
