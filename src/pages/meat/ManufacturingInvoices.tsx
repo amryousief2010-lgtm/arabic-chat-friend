@@ -69,7 +69,7 @@ export default function ManufacturingInvoices() {
   const [transferDestId, setTransferDestId] = useState<string>("");
   const [busy, setBusy] = useState(false);
 
-  type Mapping = { recipe_item_name: string; recipe_item_kind: Kind; mapped_raw_item_id: string; mapped_raw_item_name: string };
+  type Mapping = { id?: string; recipe_item_name: string; recipe_item_kind: Kind; mapped_raw_item_id: string; mapped_raw_item_name: string };
   const [mappings, setMappings] = useState<Mapping[]>([]);
   const mapKey = (name: string, kind: Kind) => `${(name || "").trim().toLowerCase()}|${kind}`;
   const mappingsIndex = useMemo(() => {
@@ -83,7 +83,7 @@ export default function ManufacturingInvoices() {
       supabase.from("warehouses").select("id, name, type").order("name"),
       supabase.from("meat_manufacturing_invoices" as any).select("*").order("created_at", { ascending: false }).limit(200),
       supabase.from("meat_factory_raw_items" as any).select("id,name,unit,current_stock,avg_cost,kind,is_active,code").eq("is_active", true).order("name"),
-      supabase.from("meat_recipe_item_mappings" as any).select("recipe_item_name,recipe_item_kind,mapped_raw_item_id,mapped_raw_item_name"),
+      supabase.from("meat_recipe_item_mappings" as any).select("id,recipe_item_name,recipe_item_kind,mapped_raw_item_id,mapped_raw_item_name"),
     ]);
     if (whs.data) {
       const factory = whs.data.filter(w => w.name?.includes("مصنع اللحوم"));
@@ -288,26 +288,21 @@ export default function ManufacturingInvoices() {
   const saveMapping = async (recipeName: string, kind: Kind, rawItemId: string) => {
     const it = items.find(i => i.id === rawItemId);
     if (!it) { toast.error("اختر صنفًا من المخزون"); return; }
-    const { error } = await supabase.from("meat_recipe_item_mappings" as any).upsert({
+    const existing = mappingsIndex.get(mapKey(recipeName, kind));
+    const payload = {
       recipe_item_name: recipeName.trim(),
       recipe_item_kind: kind,
       mapped_raw_item_id: rawItemId,
       mapped_raw_item_name: it.name,
       created_by: user?.id || null,
-    } as any, { onConflict: "recipe_item_name,recipe_item_kind" } as any);
-    if (error && !String(error.message || "").includes("duplicate")) {
-      // fallback: ignore upsert spec if unique index doesn't match — just insert
-      await supabase.from("meat_recipe_item_mappings" as any).insert({
-        recipe_item_name: recipeName.trim(),
-        recipe_item_kind: kind,
-        mapped_raw_item_id: rawItemId,
-        mapped_raw_item_name: it.name,
-        created_by: user?.id || null,
-      } as any);
-    }
+    } as any;
+    const { error } = existing?.id
+      ? await supabase.from("meat_recipe_item_mappings" as any).update(payload).eq("id", existing.id)
+      : await supabase.from("meat_recipe_item_mappings" as any).insert(payload);
+    if (error) { toast.error(error.message || "فشل حفظ الربط"); return; }
     setMappings(prev => {
       const others = prev.filter(m => mapKey(m.recipe_item_name, m.recipe_item_kind) !== mapKey(recipeName, kind));
-      return [...others, { recipe_item_name: recipeName.trim(), recipe_item_kind: kind, mapped_raw_item_id: rawItemId, mapped_raw_item_name: it.name }];
+      return [...others, { id: existing?.id, recipe_item_name: recipeName.trim(), recipe_item_kind: kind, mapped_raw_item_id: rawItemId, mapped_raw_item_name: it.name }];
     });
     // rebind matching lines in current invoice
     const rebind = (l: Line): Line => {
