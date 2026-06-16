@@ -823,6 +823,16 @@ const AnimatedRoutes = () => {
               <PageTransition><SlaughterhouseFeedStore /></PageTransition>
             </ProtectedRoute>
           } />
+          <Route path="/modules/slaughterhouse/live-batch-costs" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'slaughterhouse_manager', 'production_manager', 'accountant', 'financial_manager']}>
+              <PageTransition><SlaughterLiveBatchCosts /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/modules/slaughterhouse/ostrich-feed-log" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'slaughterhouse_manager', 'warehouse_supervisor', 'feed_factory_manager', 'production_manager', 'accountant', 'financial_manager']}>
+              <PageTransition><SlaughterOstrichFeedLog /></PageTransition>
+            </ProtectedRoute>
+          } />
           <Route path="/modules/meat-factory" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'quality_manager']}>
               <PageTransition><MeatFactory /></PageTransition>
