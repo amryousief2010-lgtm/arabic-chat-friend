@@ -285,6 +285,12 @@ export default function LiveBatchCosts() {
         liveBatch={activeBatch as any}
         onSaved={refresh}
       />
+      <OpeningCostDialog
+        open={openingOpen}
+        onOpenChange={setOpeningOpen}
+        batch={activeBatch as any}
+        onSaved={refresh}
+      />
     </DashboardLayout>
   );
 }
