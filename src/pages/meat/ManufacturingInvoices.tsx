@@ -135,14 +135,18 @@ export default function ManufacturingInvoices() {
   const normalizeAr = (s: string) => (s || "")
     .toLowerCase()
     .replace(/[\u064B-\u0652\u0670]/g, "")
+    .replace(/[×x]/g, "*")
     .replace(/[إأآا]/g, "ا")
     .replace(/ى/g, "ي")
     .replace(/ؤ/g, "و")
     .replace(/ئ/g, "ي")
+    .replace(/سودا/g, "سوده")
     .replace(/ة/g, "ه")
     .replace(/\s+/g, " ")
     .trim();
   const arTokens = (s: string) => normalizeAr(s).split(" ").filter(Boolean);
+
+  const isServiceCostItem = (name: string, code?: number) => Number(code) === 15009 || normalizeAr(name).includes("ماده خدميه");
 
   // Hardcoded aliases for known recipe-vs-inventory name mismatches.
   // Match priority: saved mapping → code → hard alias → exact normalized name → token-subset.
@@ -153,6 +157,13 @@ export default function ManufacturingInvoices() {
     { recipe: "دهن نعام", kind: "raw", target: "دهن نعام", code: 12014 },
     { recipe: "لحم برازيلي", kind: "raw", target: "لحم بقري (برازيلي)", code: 17001 },
     { recipe: "لحم بقري", kind: "raw", target: "لحم بقري (برازيلي)", code: 17001 },
+    { recipe: "ازازه زيت", kind: "raw", target: "زيت طعام" },
+    { recipe: "لازو زيت", kind: "raw", target: "زيت طعام" },
+    { recipe: "عصير جهينه", kind: "raw", target: "عصير" },
+    { recipe: "عصر جبنة", kind: "raw", target: "عصير" },
+    { recipe: "اكياس سودا مقاس 20*30", kind: "packaging", target: "أكياس سمراء" },
+    { recipe: "أكياس سودة مقاس 30*20", kind: "packaging", target: "أكياس سمراء" },
+    { recipe: "اكياس سودة مقاس 30*20", kind: "packaging", target: "أكياس سمراء" },
   ];
 
   const resolveItem = (name: string, kind: Kind, code?: number): RawItem | undefined => {
