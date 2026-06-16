@@ -169,6 +169,8 @@ export default function SlaughterhouseFeedStore() {
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["sl_feed_inv"] });
     qc.invalidateQueries({ queryKey: ["sl_feed_mov"] });
+    qc.invalidateQueries({ queryKey: ["sl_ostrich_feed_log_tab"] });
+    qc.invalidateQueries({ queryKey: ["sl_live_batches_for_feed"] });
   };
 
   const printFattening = () => {
