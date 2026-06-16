@@ -188,7 +188,11 @@ export default function LiveBatchCosts() {
                         <TableCell className="font-bold">{fmt(r.total_batch_cost)}</TableCell>
                         <TableCell className="font-bold text-primary">{fmt(r.cost_per_bird_current)}</TableCell>
                         <TableCell>
-                          <div className="flex gap-1">
+                          <div className="flex gap-1 flex-wrap">
+                            <Button size="sm" variant="secondary" onClick={() => { setActiveBatchId(r.id); setOpeningOpen(true); }}>
+                              <Coins className="h-3 w-3 ml-1" />
+                              {Number(r.opening_cost_total || 0) > 0 ? "تعديل افتتاحية" : "تكلفة افتتاحية"}
+                            </Button>
                             <Button size="sm" variant="outline" onClick={() => { setActiveBatchId(r.id); setFeedOpen(true); }}>
                               <Wheat className="h-3 w-3 ml-1" />علف
                             </Button>
