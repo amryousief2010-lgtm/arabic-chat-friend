@@ -218,26 +218,46 @@ export default function FeedHistoricalReference() {
     }
   };
 
+  const isMotherFarmRow = (r: Row) => {
+    const d = (r.destination ?? "") + " " + (r.counterparty ?? "") + " " + (r.notes ?? "");
+    return /mother_?farm|mothers_farm|أمهات|الأمهات/i.test(d);
+  };
+
   const totals = useMemo(() => {
-    const t = { purchaseFattening: 0, purchaseLayer: 0, purchaseAll: 0, externalSales: 0, internal: 0 };
+    const t = {
+      purchaseFattening: 0,
+      purchaseLayer: 0,
+      purchaseAll: 0,
+      externalSales: 0,
+      internalMotherFarm: 0,
+      internalOther: 0,
+    };
     for (const r of rows) {
+      const a = Number(r.amount);
       if (r.record_type === "purchase") {
-        t.purchaseAll += Number(r.amount);
-        if (r.feed_type === "تسمين") t.purchaseFattening += Number(r.amount);
-        if (r.feed_type === "بياض") t.purchaseLayer += Number(r.amount);
+        t.purchaseAll += a;
+        if (r.feed_type === "تسمين") t.purchaseFattening += a;
+        if (r.feed_type === "بياض") t.purchaseLayer += a;
       } else if (r.record_type === "external_sale") {
-        t.externalSales += Number(r.amount);
-      } else {
-        t.internal += Number(r.amount);
+        t.externalSales += a;
+      } else if (r.record_type === "internal_sale") {
+        if (isMotherFarmRow(r)) t.internalMotherFarm += a;
+        else t.internalOther += a;
       }
     }
     return t;
   }, [rows]);
 
-  const filtered = useMemo(
-    () => (filterType === "all" ? rows : rows.filter((r) => r.record_type === filterType)),
-    [rows, filterType]
-  );
+  // Combined internal mother farm = historical reference + operational feed_sales
+  const motherFarmCombined = totals.internalMotherFarm + systemTotals.internalMotherFarm;
+  const totalSalesReference = totals.externalSales + totals.internalMotherFarm;
+  const totalSalesOperational = systemTotals.externalSales + systemTotals.internalMotherFarm;
+
+  const filtered = useMemo(() => {
+    if (filterType === "all") return rows;
+    if (filterType === "mother_farm") return rows.filter(isMotherFarmRow);
+    return rows.filter((r) => r.record_type === filterType);
+  }, [rows, filterType]);
 
   return (
     <DashboardLayout>
