@@ -118,7 +118,7 @@ const HRDeductions = () => {
   const load = async () => {
     setLoading(true);
     const [emp, ded] = await Promise.all([
-      supabase.from("hr_employees").select("id, code, full_name, department").order("full_name"),
+      supabase.from("hr_employees").select("id, code, full_name, department, base_salary").order("full_name"),
       supabase.from("hr_deductions").select("*").order("deduction_date", { ascending: false }).limit(2000),
     ]);
     setEmployees((emp.data || []) as Employee[]);
