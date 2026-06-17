@@ -92,9 +92,12 @@ export default function FeedInternalPaymentDialog({ open, onOpenChange, departme
               <SelectContent>
                 <SelectItem value="brooding">حضانات التسمين</SelectItem>
                 <SelectItem value="slaughterhouse">مخزن علف المجزر</SelectItem>
+                <SelectItem value="mother_farm">مزرعة الأمهات</SelectItem>
               </SelectContent>
             </Select>
-          </div>
+            {dept === "mother_farm" && (
+              <p className="text-xs text-muted-foreground mt-1">سيُسجَّل السداد من خزنة المعمل عند الاعتماد.</p>
+            )}
           {remainingDebt !== undefined && (
             <div className="text-sm text-muted-foreground">
               المديونية المتبقية: <b className="text-foreground">{remainingDebt.toLocaleString("ar-EG")} ج.م</b>
