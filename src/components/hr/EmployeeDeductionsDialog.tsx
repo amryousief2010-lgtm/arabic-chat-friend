@@ -24,6 +24,12 @@ interface Deduction {
   created_by: string | null;
   approved_by: string | null;
   approved_at: string | null;
+  days_count: number | null;
+  daily_value: number | null;
+  days_per_month: number | null;
+  monthly_salary_snapshot: number | null;
+  month: number;
+  year: number;
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -33,6 +39,7 @@ const TYPE_LABEL: Record<string, string> = {
   damages: "تلفيات",
   advance_repayment: "خصم سلفة",
   administrative: "خصم إداري",
+  days_deduction: "خصم أيام",
   other: "أخرى",
 };
 
@@ -54,7 +61,7 @@ export default function EmployeeDeductionsDialog({
       setLoading(true);
       const { data } = await supabase
         .from("hr_deductions")
-        .select("id, deduction_date, deduction_type, amount, status, reason, notes, created_by, approved_by, approved_at")
+        .select("id, deduction_date, deduction_type, amount, status, reason, notes, created_by, approved_by, approved_at, days_count, daily_value, days_per_month, monthly_salary_snapshot, month, year")
         .eq("employee_id", employeeId)
         .order("deduction_date", { ascending: false });
       setRows((data || []) as Deduction[]);
@@ -106,7 +113,9 @@ export default function EmployeeDeductionsDialog({
             <TableHeader>
               <TableRow>
                 <TableHead>التاريخ</TableHead>
+                <TableHead>الشهر</TableHead>
                 <TableHead>النوع</TableHead>
+                <TableHead>التفاصيل</TableHead>
                 <TableHead>المبلغ</TableHead>
                 <TableHead>الحالة</TableHead>
                 <TableHead>السبب</TableHead>
@@ -115,10 +124,21 @@ export default function EmployeeDeductionsDialog({
             <TableBody>
               {rows.map((r) => {
                 const st = STATUS_LABEL[r.status];
+                const isDays = r.deduction_type === "days_deduction";
                 return (
                   <TableRow key={r.id}>
                     <TableCell className="font-mono text-xs">{r.deduction_date}</TableCell>
+                    <TableCell className="font-mono text-xs">{r.month}/{r.year}</TableCell>
                     <TableCell>{TYPE_LABEL[r.deduction_type] || r.deduction_type}</TableCell>
+                    <TableCell className="text-xs">
+                      {isDays && r.days_count ? (
+                        <div className="space-y-0.5">
+                          <div>عدد الأيام: <b>{Number(r.days_count)}</b></div>
+                          <div>قيمة اليوم: <b>{Number(r.daily_value || 0).toLocaleString("ar-EG", { maximumFractionDigits: 2 })}</b></div>
+                          {r.days_per_month && <div className="text-muted-foreground">/ {r.days_per_month} يوم</div>}
+                        </div>
+                      ) : "—"}
+                    </TableCell>
                     <TableCell className="font-mono">{Number(r.amount).toLocaleString("ar-EG")}</TableCell>
                     <TableCell><Badge className={st.cls}>{st.ar}</Badge></TableCell>
                     <TableCell className="text-sm text-muted-foreground">{r.reason || "—"}</TableCell>

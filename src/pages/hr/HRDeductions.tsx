@@ -16,9 +16,9 @@ import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { openPrintWindow } from "@/lib/printPdf";
 
-interface Employee { id: string; code: string; full_name: string; department: string | null; }
+interface Employee { id: string; code: string; full_name: string; department: string | null; base_salary?: number | null; }
 
-type DeductionType = "absence"|"late"|"penalty"|"damages"|"advance_repayment"|"administrative"|"other";
+type DeductionType = "absence"|"late"|"penalty"|"damages"|"advance_repayment"|"administrative"|"days_deduction"|"other";
 type Status = "pending"|"approved"|"rejected";
 
 interface Deduction {
@@ -40,6 +40,10 @@ interface Deduction {
   rejected_at: string | null;
   rejection_reason: string | null;
   created_at: string;
+  days_count?: number | null;
+  daily_value?: number | null;
+  days_per_month?: number | null;
+  monthly_salary_snapshot?: number | null;
 }
 
 const typeLabel: Record<DeductionType, string> = {
@@ -49,6 +53,7 @@ const typeLabel: Record<DeductionType, string> = {
   damages: "تلفيات",
   advance_repayment: "سلفة تخصم من الراتب",
   administrative: "خصم إداري",
+  days_deduction: "خصم أيام",
   other: "أخرى",
 };
 
@@ -58,6 +63,8 @@ const statusColor: Record<Status, string> = {
   approved: "bg-emerald-500/15 text-emerald-700",
   rejected: "bg-rose-500/15 text-rose-700",
 };
+
+const DEFAULT_DAYS_PER_MONTH = 30;
 
 const now = new Date();
 const blankForm = () => ({
@@ -69,6 +76,8 @@ const blankForm = () => ({
   amount: 0,
   reason: "",
   notes: "",
+  days_count: 0,
+  days_per_month: DEFAULT_DAYS_PER_MONTH,
 });
 
 // Mohamed Shaala — sole authorized recorder for HR deductions/attendance
@@ -109,7 +118,7 @@ const HRDeductions = () => {
   const load = async () => {
     setLoading(true);
     const [emp, ded] = await Promise.all([
-      supabase.from("hr_employees").select("id, code, full_name, department").order("full_name"),
+      supabase.from("hr_employees").select("id, code, full_name, department, base_salary").order("full_name"),
       supabase.from("hr_deductions").select("*").order("deduction_date", { ascending: false }).limit(2000),
     ]);
     setEmployees((emp.data || []) as Employee[]);
@@ -203,33 +212,92 @@ const HRDeductions = () => {
       amount: Number(d.amount),
       reason: d.reason || "",
       notes: d.notes || "",
+      days_count: Number(d.days_count || 0),
+      days_per_month: Number(d.days_per_month || DEFAULT_DAYS_PER_MONTH),
     });
     setOpen(true);
   };
 
+  const selectedEmp = useMemo(() => empById.get(form.employee_id), [empById, form.employee_id]);
+  const empSalary = Number(selectedEmp?.base_salary || 0);
+  const isDays = form.deduction_type === "days_deduction";
+  const dailyValue = isDays && form.days_per_month > 0 ? empSalary / form.days_per_month : 0;
+  const computedDaysAmount = isDays ? +(dailyValue * (form.days_count || 0)).toFixed(2) : 0;
+
   const save = async () => {
     if (!canRecord) return;
     if (!form.employee_id) return toast.error("اختر الموظف");
-    if (!form.amount || form.amount <= 0) return toast.error("أدخل مبلغ صحيح");
     if (!form.deduction_type) return toast.error("اختر نوع الخصم");
+
+    let finalAmount = form.amount;
+    let daysCount: number | null = null;
+    let dailyVal: number | null = null;
+    let daysPerMonth: number | null = null;
+    let salarySnapshot: number | null = null;
+
+    if (isDays) {
+      if (!empSalary || empSalary <= 0) {
+        return toast.error("لا يمكن حساب خصم الأيام لأن راتب الموظف غير مسجل");
+      }
+      if (!form.days_per_month || form.days_per_month <= 0) {
+        return toast.error("عدد أيام الشهر يجب أن يكون أكبر من صفر");
+      }
+      if (!form.days_count || form.days_count <= 0) {
+        return toast.error("عدد الأيام المخصومة يجب أن يكون أكبر من صفر");
+      }
+      if (form.days_count > form.days_per_month) {
+        return toast.error("عدد الأيام المخصومة لا يمكن أن يتجاوز عدد أيام الشهر");
+      }
+      finalAmount = computedDaysAmount;
+      daysCount = form.days_count;
+      dailyVal = +dailyValue.toFixed(4);
+      daysPerMonth = form.days_per_month;
+      salarySnapshot = empSalary;
+    } else {
+      if (!finalAmount || finalAmount <= 0) return toast.error("أدخل مبلغ صحيح");
+    }
 
     setSaving(true);
     try {
-      const refId = `employee_deduction_${form.employee_id}_${form.deduction_date}_${form.amount}_${form.deduction_type}`;
+      const refId = `employee_deduction_${form.employee_id}_${form.deduction_date}_${finalAmount}_${form.deduction_type}${isDays ? `_${daysCount}d` : ""}`;
+
+      // Soft duplicate warning (same employee/month/type/reason/days)
+      if (!editing) {
+        const dupSimilar = deductions.find(
+          (x) =>
+            x.employee_id === form.employee_id &&
+            x.month === form.month &&
+            x.year === form.year &&
+            x.deduction_type === form.deduction_type &&
+            (x.reason || "") === (form.reason || "") &&
+            (isDays ? Number(x.days_count || 0) === Number(daysCount) : true) &&
+            x.status !== "rejected"
+        );
+        if (dupSimilar) {
+          if (!confirm("يوجد خصم مشابه لهذا الموظف في نفس الشهر — هل تريد المتابعة؟")) {
+            setSaving(false);
+            return;
+          }
+        }
+      }
+
+      const payload: any = {
+        employee_id: form.employee_id,
+        deduction_date: form.deduction_date,
+        month: form.month,
+        year: form.year,
+        deduction_type: form.deduction_type,
+        amount: finalAmount,
+        reason: form.reason || null,
+        notes: form.notes || null,
+        days_count: daysCount,
+        daily_value: dailyVal,
+        days_per_month: daysPerMonth,
+        monthly_salary_snapshot: salarySnapshot,
+      };
+
       if (editing) {
-        const { error } = await supabase
-          .from("hr_deductions")
-          .update({
-            employee_id: form.employee_id,
-            deduction_date: form.deduction_date,
-            month: form.month,
-            year: form.year,
-            deduction_type: form.deduction_type,
-            amount: form.amount,
-            reason: form.reason || null,
-            notes: form.notes || null,
-          })
-          .eq("id", editing.id);
+        const { error } = await supabase.from("hr_deductions").update(payload).eq("id", editing.id);
         if (error) throw error;
         await supabase.from("hr_audit_log").insert({
           entity_type: "hr_deduction",
@@ -237,7 +305,7 @@ const HRDeductions = () => {
           employee_id: form.employee_id,
           action: "update",
           before_data: editing as any,
-          after_data: form as any,
+          after_data: payload,
           performed_by: user?.id,
           reason: "تعديل خصم",
         });
@@ -245,19 +313,7 @@ const HRDeductions = () => {
       } else {
         const { data, error } = await supabase
           .from("hr_deductions")
-          .insert({
-            employee_id: form.employee_id,
-            deduction_date: form.deduction_date,
-            month: form.month,
-            year: form.year,
-            deduction_type: form.deduction_type,
-            amount: form.amount,
-            reason: form.reason || null,
-            notes: form.notes || null,
-            status: "pending",
-            reference_id: refId,
-            created_by: user?.id,
-          })
+          .insert({ ...payload, status: "pending", reference_id: refId, created_by: user?.id })
           .select()
           .single();
         if (error) throw error;
@@ -268,7 +324,9 @@ const HRDeductions = () => {
           action: "create",
           after_data: data as any,
           performed_by: user?.id,
-          reason: `تسجيل خصم ${typeLabel[form.deduction_type]}`,
+          reason: isDays
+            ? `تسجيل خصم أيام (${daysCount} يوم × ${dailyVal} = ${finalAmount})`
+            : `تسجيل خصم ${typeLabel[form.deduction_type]}`,
         });
         toast.success("تم تسجيل الخصم بحالة بانتظار الاعتماد");
       }
@@ -653,8 +711,15 @@ const HRDeductions = () => {
               />
             </div>
             <div>
-              <Label>المبلغ *</Label>
-              <Input type="number" step="0.01" value={form.amount || ""} onChange={(e) => setForm({ ...form, amount: parseFloat(e.target.value) || 0 })} />
+              <Label>المبلغ *{isDays && <span className="text-xs text-muted-foreground"> (محسوب تلقائيًا)</span>}</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={isDays ? computedDaysAmount || "" : (form.amount || "")}
+                onChange={(e) => setForm({ ...form, amount: parseFloat(e.target.value) || 0 })}
+                readOnly={isDays}
+                className={isDays ? "bg-muted" : ""}
+              />
             </div>
             <div>
               <Label>الشهر *</Label>
@@ -678,6 +743,53 @@ const HRDeductions = () => {
                 </SelectContent>
               </Select>
             </div>
+
+            {isDays && (
+              <div className="md:col-span-2 rounded-lg border bg-primary/5 p-3 space-y-3">
+                {!empSalary ? (
+                  <div className="text-sm text-rose-700">⚠ لا يمكن حساب خصم الأيام لأن راتب الموظف غير مسجل</div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                      <div>
+                        <div className="text-xs text-muted-foreground">الراتب الشهري</div>
+                        <div className="font-mono font-bold">{empSalary.toLocaleString("ar-EG")} ج.م</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground">قيمة اليوم</div>
+                        <div className="font-mono font-bold text-primary">{dailyValue.toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground">إجمالي الخصم</div>
+                        <div className="font-mono font-bold text-rose-700">{computedDaysAmount.toLocaleString("ar-EG")} ج.م</div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label>عدد أيام الشهر المعتمد *</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={31}
+                          value={form.days_per_month}
+                          onChange={(e) => setForm({ ...form, days_per_month: parseInt(e.target.value) || DEFAULT_DAYS_PER_MONTH })}
+                        />
+                      </div>
+                      <div>
+                        <Label>عدد الأيام المخصومة *</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          step="0.5"
+                          value={form.days_count || ""}
+                          onChange={(e) => setForm({ ...form, days_count: parseFloat(e.target.value) || 0 })}
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
             <div className="md:col-span-2">
               <Label>سبب الخصم</Label>
               <Input value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="مثال: غياب يوم 15" />
