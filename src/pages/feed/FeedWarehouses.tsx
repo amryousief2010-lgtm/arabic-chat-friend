@@ -569,38 +569,52 @@ export default function FeedWarehouses() {
               <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
                 <div><CardTitle>مبيعات العلف</CardTitle><CardDescription>سجل المبيعات والأرباح — اضغط الطباعة لإصدار فاتورة العميل</CardDescription></div>
                 <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={printSalesList}><Printer className="h-4 w-4 ml-1"/>طباعة القائمة</Button>
                   <Button size="sm" variant="outline" onClick={exportSales}><FileSpreadsheet className="h-4 w-4 ml-1"/>Excel</Button>
                   <Button onClick={() => setSaleOpen(true)}><Plus className="h-4 w-4 ml-1" />فاتورة بيع</Button>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-muted-foreground">فلتر نوع البيع:</span>
+                  <Button size="sm" variant={salesFilter === "all" ? "default" : "outline"} onClick={() => setSalesFilter("all")}>الكل</Button>
+                  <Button size="sm" variant={salesFilter === "internal" ? "default" : "outline"} onClick={() => setSalesFilter("internal")} className={salesFilter === "internal" ? "bg-blue-600 hover:bg-blue-700" : ""}>مبيعات داخلية</Button>
+                  <Button size="sm" variant={salesFilter === "external" ? "default" : "outline"} onClick={() => setSalesFilter("external")} className={salesFilter === "external" ? "bg-emerald-600 hover:bg-emerald-700" : ""}>مبيعات خارجية</Button>
+                  <Badge variant="outline" className="ml-auto">{salesFilterLabel}</Badge>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <div className="rounded border p-2 bg-muted/40"><div className="text-xs text-muted-foreground">عدد الفواتير</div><div className="text-lg font-bold">{salesKpi.count}</div></div>
+                  <div className="rounded border p-2 bg-muted/40"><div className="text-xs text-muted-foreground">إجمالي المبيعات</div><div className="text-lg font-bold">{fmt(salesKpi.total)} ج.م</div></div>
+                  <div className="rounded border p-2 bg-muted/40"><div className="text-xs text-muted-foreground">إجمالي التكلفة</div><div className="text-lg font-bold">{fmt(salesKpi.cost)} ج.م</div></div>
+                  <div className="rounded border p-2 bg-muted/40"><div className="text-xs text-muted-foreground">إجمالي الربح</div><div className="text-lg font-bold text-success">{fmt(salesKpi.profit)} ج.م</div></div>
+                </div>
                 <Table>
-                  <TableHeader><TableRow><TableHead>الرقم</TableHead><TableHead>التاريخ</TableHead><TableHead>العميل</TableHead><TableHead>الإجمالي</TableHead><TableHead>التكلفة</TableHead><TableHead>الربح</TableHead><TableHead className="w-28">إجراءات</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>الرقم</TableHead><TableHead>التاريخ</TableHead><TableHead>نوع البيع</TableHead><TableHead>الجهة / العميل</TableHead><TableHead>الإجمالي</TableHead><TableHead>التكلفة</TableHead><TableHead>الربح</TableHead><TableHead className="w-28">إجراءات</TableHead></TableRow></TableHeader>
                   <TableBody>
-                    {(salesQ.data || []).map((s: any) => (
-                      <TableRow key={s.id}>
-                        <TableCell className="font-mono text-xs">{s.sale_no}</TableCell>
-                        <TableCell>{s.sale_date}</TableCell>
-                        <TableCell>
-                          {s.destination_type === "brooding_feed_store"
-                            ? <Badge className="bg-blue-100 text-blue-800 border-blue-200">توريد → حضانات تسمين</Badge>
-                            : s.destination_type === "slaughterhouse_feed_store"
-                            ? <Badge className="bg-orange-100 text-orange-800 border-orange-200">توريد → مخزن علف المجزر</Badge>
-                            : s.destination_type === "mother_farm_feed_store"
-                            ? <Badge className="bg-purple-100 text-purple-800 border-purple-200">توريد → مزرعة الأمهات</Badge>
-                            : (s.customer || "-")}
-                        </TableCell>
-                        <TableCell>{fmt(Number(s.total_amount))}</TableCell>
-                        <TableCell className="text-muted-foreground">{fmt(Number(s.total_cost))}</TableCell>
-                        <TableCell className="font-bold text-success">{fmt(Number(s.profit))}</TableCell>
-                        <TableCell className="flex gap-1">
-                          <Button size="icon" variant="ghost" onClick={() => printSale(s)}><Printer className="h-4 w-4" /></Button>
-                          {canManageAll && <Button size="icon" variant="ghost" onClick={() => setSaleEdit(s)}><Pencil className="h-4 w-4" /></Button>}
-                          {canManageAll && <Button size="icon" variant="ghost" className="text-destructive" onClick={() => delSale(s)}><Trash2 className="h-4 w-4" /></Button>}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {!salesQ.data?.length && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">لا توجد مبيعات</TableCell></TableRow>}
+                    {filteredSales.map((s: any) => {
+                      const internal = isInternalSale(s);
+                      return (
+                        <TableRow key={s.id}>
+                          <TableCell className="font-mono text-xs">{s.sale_no}</TableCell>
+                          <TableCell>{s.sale_date}</TableCell>
+                          <TableCell>
+                            {internal
+                              ? <Badge className="bg-blue-100 text-blue-800 border-blue-200">داخلي</Badge>
+                              : <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">خارجي</Badge>}
+                          </TableCell>
+                          <TableCell>{saleDestLabel(s)}</TableCell>
+                          <TableCell>{fmt(Number(s.total_amount))}</TableCell>
+                          <TableCell className="text-muted-foreground">{fmt(Number(s.total_cost))}</TableCell>
+                          <TableCell className="font-bold text-success">{fmt(Number(s.profit))}</TableCell>
+                          <TableCell className="flex gap-1">
+                            <Button size="icon" variant="ghost" onClick={() => printSale(s)}><Printer className="h-4 w-4" /></Button>
+                            {canManageAll && <Button size="icon" variant="ghost" onClick={() => setSaleEdit(s)}><Pencil className="h-4 w-4" /></Button>}
+                            {canManageAll && <Button size="icon" variant="ghost" className="text-destructive" onClick={() => delSale(s)}><Trash2 className="h-4 w-4" /></Button>}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {!filteredSales.length && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-6">لا توجد مبيعات بهذا الفلتر</TableCell></TableRow>}
                   </TableBody>
                 </Table>
               </CardContent>
