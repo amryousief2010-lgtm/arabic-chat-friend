@@ -1010,7 +1010,13 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
       }
       for (const l of valid) {
         if (isInternal && l.kind !== "finished") throw new Error("التوريد الداخلي يقبل علف جاهز فقط — لا يقبل خامات");
-        const payload: any = { sale_id: saleId, quantity: l.qty, unit_price: l.price };
+        // Internal sales: force unit_price = unit_cost so debt/total are cost-based, not sale-price-based
+        let unitPrice = l.price;
+        if (isInternal) {
+          const prod: any = products.find((x: any) => x.id === l.ref_id);
+          unitPrice = Number(prod?.latest_unit_cost || 0);
+        }
+        const payload: any = { sale_id: saleId, quantity: l.qty, unit_price: unitPrice };
         if (l.kind === "finished") payload.feed_product_id = l.ref_id;
         else payload.raw_material_id = l.ref_id;
         const { error } = await supabase.from("feed_sale_items").insert(payload);
