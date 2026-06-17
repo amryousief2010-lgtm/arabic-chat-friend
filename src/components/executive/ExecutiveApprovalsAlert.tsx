@@ -144,13 +144,14 @@ export default function ExecutiveApprovalsAlert() {
             </div>
           ) : (
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="flex-1 overflow-hidden flex flex-col">
-              <TabsList className="grid grid-cols-6 w-full">
+              <TabsList className="grid grid-cols-7 w-full">
                 <TabsTrigger value="all">الكل ({counts.all})</TabsTrigger>
                 <TabsTrigger value="treasury">الخزن ({counts.treasury})</TabsTrigger>
                 <TabsTrigger value="meat">مصنع اللحوم ({counts.meat})</TabsTrigger>
                 <TabsTrigger value="slaughter">تقسيمة الدبح ({counts.slaughter})</TabsTrigger>
                 <TabsTrigger value="custody">عهدة الدبح ({counts.custody})</TabsTrigger>
                 <TabsTrigger value="lab">المعمل ({counts.lab})</TabsTrigger>
+                <TabsTrigger value="hr">خصومات الموظفين ({counts.hr})</TabsTrigger>
               </TabsList>
 
               <TabsContent value={activeTab} className="flex-1 overflow-y-auto mt-3 space-y-2">
