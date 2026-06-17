@@ -61,7 +61,7 @@ export default function EmployeeDeductionsDialog({
       setLoading(true);
       const { data } = await supabase
         .from("hr_deductions")
-        .select("id, deduction_date, deduction_type, amount, status, reason, notes, created_by, approved_by, approved_at")
+        .select("id, deduction_date, deduction_type, amount, status, reason, notes, created_by, approved_by, approved_at, days_count, daily_value, days_per_month, monthly_salary_snapshot, month, year")
         .eq("employee_id", employeeId)
         .order("deduction_date", { ascending: false });
       setRows((data || []) as Deduction[]);
