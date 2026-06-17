@@ -259,7 +259,40 @@ export default function FeedWarehouses() {
   const exportRaw = () => exportCSV("raw_materials.csv", (rawQ.data||[]).map((r:any)=>{const sp=Number(r.sale_price||0);const uc=Number(r.unit_cost||0);return ({الصنف:r.name,الكود:r.item_code||"",الرصيد:r.stock,الوحدة:r.unit,متوسط_التكلفة:uc,سعر_البيع:sp,القيمة_تكلفة:Number(r.stock)*uc,القيمة_بيع:Number(r.stock)*sp,هامش_الربح:sp>0?sp-uc:0,نسبة_الهامش:sp>0?((sp-uc)/sp*100).toFixed(2)+"%":"",المورد:r.supplier||""});}));
   const exportProd = () => exportCSV("finished_products.csv", (prodQ.data||[]).map((p:any)=>({المنتج:p.name,المرحلة:p.stage,الكمية_كجم:p.current_stock,عدد_الشكاير:Number(p.default_bag_kg||50)>0?Number(p.current_stock)/Number(p.default_bag_kg||50):0,وزن_الشيكارة:p.default_bag_kg,متوسط_التكلفة:p.latest_unit_cost,سعر_البيع:p.selling_price,القيمة:Number(p.current_stock||0)*Number(p.latest_unit_cost||0)})));
   const exportPur = () => exportCSV("purchases.csv", (purQ.data||[]).map((p:any)=>({الرقم:p.purchase_no,التاريخ:p.purchase_date,المورد:p.supplier||"",رقم_فاتورة_المورد:p.supplier_invoice_no||"",عدد_البنود:p.feed_raw_purchase_items?.length||0,الإجمالي:p.total_amount})));
-  const exportSales = () => exportCSV("sales.csv", (salesQ.data||[]).map((s:any)=>({الرقم:s.sale_no,التاريخ:s.sale_date,العميل:s.customer||"",الإجمالي:s.total_amount,التكلفة:s.total_cost,الربح:s.profit})));
+  const isInternalSale = (s: any) => s.destination_type && s.destination_type !== "external_customer";
+  const saleDestLabel = (s: any) => {
+    switch (s.destination_type) {
+      case "brooding_feed_store": return "حضانات التسمين";
+      case "slaughterhouse_feed_store": return "مخزن علف المجزر";
+      case "mother_farm_feed_store": return "مزرعة الأمهات";
+      default: return s.customer || "عميل خارجي";
+    }
+  };
+  const filteredSales = (salesQ.data || []).filter((s: any) => {
+    if (salesFilter === "internal") return isInternalSale(s);
+    if (salesFilter === "external") return !isInternalSale(s);
+    return true;
+  });
+  const salesFilterLabel = salesFilter === "internal" ? "المبيعات الداخلية" : salesFilter === "external" ? "المبيعات الخارجية" : "كل المبيعات";
+  const salesKpi = {
+    count: filteredSales.length,
+    total: filteredSales.reduce((sum: number, s: any) => sum + Number(s.total_amount || 0), 0),
+    cost: filteredSales.reduce((sum: number, s: any) => sum + Number(s.total_cost || 0), 0),
+    profit: filteredSales.reduce((sum: number, s: any) => sum + Number(s.profit || 0), 0),
+  };
+  const exportSales = () => exportCSV(`sales_${salesFilter}.csv`, filteredSales.map((s: any) => ({
+    الرقم: s.sale_no,
+    التاريخ: s.sale_date,
+    نوع_البيع: isInternalSale(s) ? "داخلي" : "خارجي",
+    الجهة_العميل: saleDestLabel(s),
+    الإجمالي: s.total_amount,
+    التكلفة: s.total_cost,
+    الربح: s.profit,
+  })));
+  const printSalesList = () => {
+    const rows = filteredSales.map((s: any) => `<tr><td>${s.sale_no}</td><td>${s.sale_date}</td><td>${isInternalSale(s) ? "داخلي" : "خارجي"}</td><td>${saleDestLabel(s)}</td><td>${fmt(Number(s.total_amount||0))}</td><td>${fmt(Number(s.total_cost||0))}</td><td>${fmt(Number(s.profit||0))}</td></tr>`).join("");
+    openPrintWindow(`<h2 style="text-align:center">مبيعات مصنع الأعلاف — ${salesFilterLabel}</h2><div style="text-align:center;margin-bottom:8px">عدد الفواتير: ${salesKpi.count} — الإجمالي: ${fmt(salesKpi.total)} ج.م — التكلفة: ${fmt(salesKpi.cost)} ج.م — الربح: ${fmt(salesKpi.profit)} ج.م</div><table border="1" cellpadding="6" style="width:100%;border-collapse:collapse"><thead><tr><th>الرقم</th><th>التاريخ</th><th>النوع</th><th>الجهة/العميل</th><th>الإجمالي</th><th>التكلفة</th><th>الربح</th></tr></thead><tbody>${rows}</tbody></table>`, `feed-sales-${salesFilter}`);
+  };
   const exportCounts = () => exportCSV("stock_counts.csv", (countsQ.data||[]).map((c:any)=>({الرقم:c.count_no,التاريخ:c.count_date,النوع:c.warehouse_kind,عدد_الأصناف:c.feed_stock_count_items?.length||0,الحالة:c.status})));
   const exportTreasury = () => exportCSV("treasury.csv", (treasuryQ.data||[]).map((t:any)=>({الرقم:t.txn_no,التاريخ:t.txn_date,النوع:KIND_LABEL[t.kind]||t.kind,الجهة:t.party||"",وارد:t.direction==="in"?t.amount:0,منصرف:t.direction==="out"?t.amount:0,البيان:t.note||""})));
 
