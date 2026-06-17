@@ -54,7 +54,7 @@ export default function Recipes() {
   const fetchAll = async () => {
     setLoading(true);
     const [r, m, p] = await Promise.all([
-      supabase.from("feed_recipes").select("*, items:feed_recipe_items(id, raw_material_id, quantity, raw_material:feed_raw_materials(id, name, unit, unit_cost, stock))").order("created_at", { ascending: false }),
+      supabase.from("feed_recipes").select("*, feed_product:feed_products(id,name,feed_code), items:feed_recipe_items(id, raw_material_id, quantity, raw_material:feed_raw_materials(id, name, unit, unit_cost, stock))").order("created_at", { ascending: false }),
       supabase.from("feed_raw_materials").select("id, name, unit, unit_cost, stock").eq("is_active", true).order("name"),
       supabase.from("feed_products").select("id, name, feed_code").is("archived_at", null).order("name"),
     ]);
