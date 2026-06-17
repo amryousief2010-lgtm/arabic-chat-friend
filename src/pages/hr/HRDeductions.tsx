@@ -16,9 +16,9 @@ import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { openPrintWindow } from "@/lib/printPdf";
 
-interface Employee { id: string; code: string; full_name: string; department: string | null; }
+interface Employee { id: string; code: string; full_name: string; department: string | null; base_salary?: number | null; }
 
-type DeductionType = "absence"|"late"|"penalty"|"damages"|"advance_repayment"|"administrative"|"other";
+type DeductionType = "absence"|"late"|"penalty"|"damages"|"advance_repayment"|"administrative"|"days_deduction"|"other";
 type Status = "pending"|"approved"|"rejected";
 
 interface Deduction {
@@ -40,6 +40,10 @@ interface Deduction {
   rejected_at: string | null;
   rejection_reason: string | null;
   created_at: string;
+  days_count?: number | null;
+  daily_value?: number | null;
+  days_per_month?: number | null;
+  monthly_salary_snapshot?: number | null;
 }
 
 const typeLabel: Record<DeductionType, string> = {
@@ -49,6 +53,7 @@ const typeLabel: Record<DeductionType, string> = {
   damages: "تلفيات",
   advance_repayment: "سلفة تخصم من الراتب",
   administrative: "خصم إداري",
+  days_deduction: "خصم أيام",
   other: "أخرى",
 };
 
@@ -58,6 +63,8 @@ const statusColor: Record<Status, string> = {
   approved: "bg-emerald-500/15 text-emerald-700",
   rejected: "bg-rose-500/15 text-rose-700",
 };
+
+const DEFAULT_DAYS_PER_MONTH = 30;
 
 const now = new Date();
 const blankForm = () => ({
@@ -69,6 +76,8 @@ const blankForm = () => ({
   amount: 0,
   reason: "",
   notes: "",
+  days_count: 0,
+  days_per_month: DEFAULT_DAYS_PER_MONTH,
 });
 
 // Mohamed Shaala — sole authorized recorder for HR deductions/attendance
