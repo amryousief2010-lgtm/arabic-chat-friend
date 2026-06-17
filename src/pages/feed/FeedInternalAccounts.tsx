@@ -56,6 +56,49 @@ export default function FeedInternalAccounts() {
 
   useEffect(() => { load(); }, []);
 
+  const approve = async (p: any) => {
+    if (!canApprove) { toast.error("لا تملك صلاحية الاعتماد"); return; }
+    setBusy(p.id);
+    const { error } = await supabase.from("feed_internal_payments" as any)
+      .update({ status: "approved", approved_by: user?.id || null, approved_at: new Date().toISOString() })
+      .eq("id", p.id).eq("status", "pending");
+    setBusy(null);
+    if (error) { toast.error("فشل الاعتماد: " + error.message); return; }
+    toast.success("تم الاعتماد — تم تسجيل حركات الخزن");
+    load();
+  };
+  const reject = async () => {
+    if (!rejectFor) return;
+    if (!rejectReason.trim()) { toast.error("اكتب سبب الرفض"); return; }
+    setBusy(rejectFor.id);
+    const { error } = await supabase.from("feed_internal_payments" as any)
+      .update({ status: "rejected", rejected_reason: rejectReason, approved_by: user?.id || null, approved_at: new Date().toISOString() })
+      .eq("id", rejectFor.id).eq("status", "pending");
+    setBusy(null);
+    if (error) { toast.error("فشل الرفض: " + error.message); return; }
+    toast.success("تم الرفض");
+    setRejectFor(null); setRejectReason("");
+    load();
+  };
+  const openDetails = async (p: any) => {
+    setDetailsFor(p);
+    setDetailsTxns({});
+    const [inq, labq, mainq] = await Promise.all([
+      supabase.from("feed_factory_treasury_txns" as any).select("*").eq("ref_table","feed_internal_payments").eq("ref_id", p.id),
+      p.department_type === "brooding"
+        ? supabase.from("lab_treasury_movements" as any).select("*").eq("source_table","feed_internal_payments").eq("source_id", p.id)
+        : Promise.resolve({ data: [] }),
+      p.department_type === "slaughterhouse"
+        ? supabase.from("main_treasury_transactions" as any).select("*").eq("reference_no", `FEEDPAY-MAIN-OUT-${p.id}`)
+        : Promise.resolve({ data: [] }),
+    ]);
+    setDetailsTxns({
+      in: (inq.data as any[])?.find((t: any) => t.kind === "internal_collection") || null,
+      out: ((labq as any).data as any[])?.[0] || ((mainq as any).data as any[])?.[0] || null,
+    });
+  };
+
+
   const filteredPayments = payments.filter((p) => {
     if (filter.dept !== "all" && p.department_type !== filter.dept) return false;
     if (filter.status !== "all" && p.status !== filter.status) return false;
