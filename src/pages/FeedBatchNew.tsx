@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,21 +11,46 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { Loader2, Wheat, AlertTriangle, ShieldAlert } from "lucide-react";
 
+type RecipeRow = {
+  id: string; name: string; version: number; batch_size: number; unit: string;
+  source_invoice: string | null; is_active: boolean; recipe_status: string;
+  labor_total_cost?: number | null; other_expenses_total?: number | null;
+};
+
 export default function FeedBatchNew() {
   const nav = useNavigate();
-  const [recipes, setRecipes] = useState<any[]>([]);
+  const [recipes, setRecipes] = useState<RecipeRow[]>([]);
   const [recipeId, setRecipeId] = useState("");
   const [qty, setQty] = useState<number>(1000);
   const [plan, setPlan] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // labor + other expenses (auto-scaled, but editable)
+  const [laborCost, setLaborCost] = useState<number>(0);
+  const [otherCost, setOtherCost] = useState<number>(0);
+  const [laborTouched, setLaborTouched] = useState(false);
+  const [otherTouched, setOtherTouched] = useState(false);
+
   useEffect(() => {
-    supabase.from("feed_recipes")
-      .select("id,name,version,batch_size,unit,source_invoice,is_active,recipe_status")
+    supabase.from("feed_recipes" as any)
+      .select("id,name,version,batch_size,unit,source_invoice,is_active,recipe_status,labor_total_cost,other_expenses_total")
       .eq("is_active", true).order("name")
-      .then(({ data }) => setRecipes((data || []).filter(r => !r.source_invoice || !r.source_invoice.includes("164"))));
+      .then(({ data }) => setRecipes(((data as any[]) || []).filter(r => !r.source_invoice || !r.source_invoice.includes("164"))));
   }, []);
+
+  const selectedRecipe = useMemo(() => recipes.find(r => r.id === recipeId) || null, [recipes, recipeId]);
+
+  // Auto-scale labor/other based on qty unless user edited
+  useEffect(() => {
+    if (!selectedRecipe) return;
+    const factor = selectedRecipe.batch_size > 0 ? qty / Number(selectedRecipe.batch_size) : 1;
+    if (!laborTouched) setLaborCost(Number(((selectedRecipe.labor_total_cost || 0) * factor).toFixed(2)));
+    if (!otherTouched) setOtherCost(Number(((selectedRecipe.other_expenses_total || 0) * factor).toFixed(2)));
+  }, [selectedRecipe, qty, laborTouched, otherTouched]);
+
+  // Reset overrides when recipe changes
+  useEffect(() => { setLaborTouched(false); setOtherTouched(false); }, [recipeId]);
 
   const runPlan = async () => {
     if (!recipeId || qty <= 0) return;
@@ -38,6 +63,10 @@ export default function FeedBatchNew() {
     setPlan(data);
   };
 
+  const rawCost = Number(plan?.total_cost_estimate || 0);
+  const finalTotalCost = rawCost + Number(laborCost || 0) + Number(otherCost || 0);
+  const costPerKg = qty > 0 ? finalTotalCost / qty : 0;
+
   const save = async () => {
     if (!recipeId || qty <= 0) return;
     if (plan?.blockers?.length) return toast.error("لا يمكن الحفظ — يوجد عوائق");
@@ -49,9 +78,16 @@ export default function FeedBatchNew() {
     });
     if (error) { setSaving(false); return toast.error(error.message); }
     const { error: perr } = await supabase.rpc("fd_feed_persist_lines" as any, { p_batch_id: batchId });
+    if (perr) { setSaving(false); return toast.error("تم إنشاء المسودة لكن فشل حفظ بنود الاستهلاك: " + perr.message); }
+
+    // Persist labor & other expenses on the batch (no treasury movement)
+    const { error: uerr } = await supabase
+      .from("feed_production_batches" as any)
+      .update({ labor_cost: laborCost, other_cost: otherCost } as any)
+      .eq("id", batchId as any);
     setSaving(false);
-    if (perr) return toast.error("تم إنشاء المسودة لكن فشل حفظ بنود الاستهلاك: " + perr.message);
-    toast.success("تم إنشاء الدفعة مع بنود الاستهلاك");
+    if (uerr) return toast.error("تم الحفظ لكن فشل تحديث الأجور/المصاريف: " + uerr.message);
+    toast.success("تم إنشاء الدفعة مع بنود الاستهلاك والمصاريف");
     nav("/feed-factory/batches");
   };
 
@@ -99,7 +135,7 @@ export default function FeedBatchNew() {
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <span>{plan.recipe_name} — v{plan.recipe_version}</span>
-              <Badge>تكلفة/كجم ≈ {Number(plan.cost_per_kg_estimate || 0).toFixed(2)}</Badge>
+              <Badge>تكلفة/كجم ≈ {costPerKg.toFixed(2)}</Badge>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -153,12 +189,38 @@ export default function FeedBatchNew() {
                 </tbody>
                 <tfoot>
                   <tr className="border-t font-semibold bg-muted/40">
-                    <td className="p-2 text-right" colSpan={4}>إجمالي تكلفة المواد</td>
-                    <td className="p-2 text-center" colSpan={2}>{Number(plan.total_cost_estimate || 0).toFixed(2)}</td>
+                    <td className="p-2 text-right" colSpan={4}>إجمالي تكلفة الخامات</td>
+                    <td className="p-2 text-center" colSpan={2}>{rawCost.toFixed(2)}</td>
                   </tr>
                 </tfoot>
               </table>
             </div>
+
+            {/* Labor & other expenses */}
+            <Card className="bg-muted/30">
+              <CardHeader className="pb-2"><CardTitle className="text-base">مصاريف التصنيع</CardTitle></CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <Label>إجمالي الأجور {selectedRecipe && !laborTouched && <span className="text-xs text-muted-foreground">(محمَّل من الوصفة، مُحجَّم)</span>}</Label>
+                  <Input type="number" min={0} step="0.01" value={laborCost}
+                    onChange={e => { setLaborTouched(true); setLaborCost(Number(e.target.value)); }} />
+                </div>
+                <div>
+                  <Label>إجمالي المصاريف الأخرى {selectedRecipe && !otherTouched && <span className="text-xs text-muted-foreground">(محمَّل من الوصفة، مُحجَّم)</span>}</Label>
+                  <Input type="number" min={0} step="0.01" value={otherCost}
+                    onChange={e => { setOtherTouched(true); setOtherCost(Number(e.target.value)); }} />
+                </div>
+                <div className="md:col-span-2 grid grid-cols-2 md:grid-cols-4 gap-2 text-sm pt-2 border-t">
+                  <div><span className="text-muted-foreground">تكلفة الخامات:</span> <b>{rawCost.toFixed(2)}</b></div>
+                  <div><span className="text-muted-foreground">الأجور:</span> <b>{Number(laborCost).toFixed(2)}</b></div>
+                  <div><span className="text-muted-foreground">مصاريف أخرى:</span> <b>{Number(otherCost).toFixed(2)}</b></div>
+                  <div><span className="text-muted-foreground">إجمالي التصنيع:</span> <b className="text-primary">{finalTotalCost.toFixed(2)}</b></div>
+                  <div className="col-span-2 md:col-span-4"><span className="text-muted-foreground">تكلفة الكيلو:</span> <b className="text-primary">{costPerKg.toFixed(4)}</b> ج/كجم</div>
+                </div>
+                <p className="md:col-span-2 text-xs text-muted-foreground">ملاحظة: هذه المصاريف للحساب فقط — لا يتم إنشاء أي حركة خزنة تلقائيًا.</p>
+              </CardContent>
+            </Card>
+
             <div className="flex gap-2">
               <Button onClick={save} disabled={saving || blockers.length > 0}>
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "حفظ كمسودة"}
