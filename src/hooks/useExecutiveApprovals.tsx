@@ -422,6 +422,37 @@ export function useExecutiveApprovals() {
         const { error } = await (supabase as any).rpc("approve_slaughter_batch" as any, { p_batch_id: item.id });
         if (error) throw error;
         // RPC writes its own audit row.
+      } else if (item.category === "hr") {
+        const { error } = await (supabase as any)
+          .from("hr_deductions")
+          .update({
+            status: "approved",
+            approved_by: user?.id,
+            approved_at: new Date().toISOString(),
+          })
+          .eq("id", item.id)
+          .eq("status", HR_PENDING);
+        if (error) throw error;
+        if (user) {
+          await (supabase as any).from("hr_audit_log").insert({
+            entity_type: "hr_deduction",
+            entity_id: item.id,
+            employee_id: item.raw.employee_id,
+            action: "approve",
+            after_data: {
+              status: "approved",
+              deduction_type: item.raw.deduction_type,
+              amount: item.raw.amount,
+              days_count: item.raw.days_count,
+              daily_value: item.raw.daily_value,
+              month: item.raw.month,
+              year: item.raw.year,
+              reason: item.raw.reason,
+            } as any,
+            performed_by: user.id,
+            reason: `اعتماد خصم موظف (${HR_TYPE_LABEL[item.raw.deduction_type] || item.raw.deduction_type})`,
+          });
+        }
       }
       await refetch();
     },
