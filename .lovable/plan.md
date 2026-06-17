@@ -1,104 +1,73 @@
-# خطة: دورة تكلفة النعام الجاهز للدبح
 
-ميزة كبيرة متعددة الطبقات تربط مخزن علف المجزر بدفعات النعام الحي، ثم بتقسيمة الذبح، ثم بتكلفة المنتجات الناتجة. سأنفذها على مراحل قابلة للاختبار.
+## الهدف
+السماح في شاشة "دفعة ذبح جديدة" باختيار أكثر من دفعة نعام كمصدر، مع خصم العدد من كل دفعة، وحساب تكلفة دقيقة قابلة للتوزيع على نواتج الذبح.
 
----
+## 1) تغييرات قاعدة البيانات (Migration)
+إنشاء جدول الربط الجديد:
 
-## 1) قاعدة البيانات (Migration واحدة)
+```text
+slaughter_batch_live_sources
+  id                       uuid PK
+  slaughter_batch_id       uuid FK → slaughter_batches(id) ON DELETE CASCADE
+  live_receipt_id          uuid FK → slaughter_live_receipts(id) RESTRICT
+  birds_count              int  > 0
+  cost_per_bird_snapshot   numeric(14,4)   -- لقطة وقت الدبح
+  total_birds_cost         numeric(14,4)   -- birds_count × snapshot
+  notes                    text
+  reference_id             text UNIQUE      -- slaughter_source_{batch}_{receipt}
+  created_by               uuid
+  created_at, updated_at   timestamptz
+  UNIQUE (slaughter_batch_id, live_receipt_id)  -- منع تكرار نفس الدفعة
+```
 
-### تعديلات على جداول قائمة
-- `slaughter_live_receipts` (دفعات النعام الحي الجاهز للدبح): إضافة
-  - `original_count` (عدد أصلي), `current_alive_count`, `mortality_count`
-  - `original_cost_total` (تكلفة شراء/استلام النعام)
-  - `feed_cost_loaded` (إجمالي تكلفة العلف المحملة)
-  - `mortality_cost_loaded` (تكلفة النافق المحملة على الباقي)
-  - `other_costs_loaded`
-  - `total_batch_cost` (محسوب)
-  - `cost_per_bird_current` (محسوب = total / current_alive)
-- `slaughter_batches` (دفعة الذبح): إضافة
-  - `source_live_batch_id` → `slaughter_live_receipts.id`
-  - `birds_in_count`, `cost_per_bird_snapshot`, `total_birds_cost`
-  - `direct_slaughter_expenses`, `total_allocatable_cost`
-  - `cost_allocation_done` boolean + `cost_allocation_ref` نص فريد
+- GRANT للقراءة/الكتابة لـ `authenticated` و `ALL` لـ `service_role`.
+- RLS مفعّل + سياسات بنفس صلاحيات `slaughter_batches`.
+- Trigger `BEFORE INSERT` يتحقق أن `birds_count ≤ current_alive_count` للدفعة المصدر، ويخصم تلقائيًا من `slaughter_live_receipts.current_alive_count`، ويكتب سطر في `slaughter_audit_log`.
+- `cost_per_bird_snapshot` تُلتقط تلقائيًا من الدفعة المصدر إن لم يحدد المستخدم قيمة.
 
-### جداول جديدة
-1. `slaughter_ostrich_feed_consumption`
-   - `id`, `consumption_date`, `live_batch_id` (FK), `feed_item_id` (FK → slaughterhouse_feed_inventory), `feed_type`, `quantity_kg`, `birds_count_at_time`, `unit_cost`, `total_cost`, `stock_before`, `stock_after`, `responsible_user_id`, `notes`, `reference_id` UNIQUE, `reversed_by`, `reversal_reason`, `created_by`, `created_at`
-2. `slaughter_live_mortality`
-   - `id`, `live_batch_id` (FK), `mortality_date`, `dead_count`, `reason`, `cost_per_bird_before`, `total_loss_cost`, `load_on_remaining` boolean default true, `notes`, `reference_id` UNIQUE, `reversed_by`, `reversal_reason`, `created_by`, `created_at`
-3. `slaughter_batch_cost_breakdown` (لقطة تكلفة وقت تقسيمة الذبح — قراءة فقط للتاريخ)
-   - `slaughter_batch_id` PK, `birds_count`, `birds_original_cost`, `feed_cost`, `mortality_cost`, `other_costs`, `direct_expenses`, `total_cost`, `total_output_kg`, `cost_per_kg`, `created_at`
+## 2) واجهة `SlaughterBatchDialog`
+- استبدال حقل "استلام حي مرتبط" الفردي بقسم **"مصادر النعام الداخل للدبح"**.
+- جدول صفوف ديناميكي، كل صف:
+  - Select لدفعة النعام (يستبعد الدفعات المختارة بالفعل).
+  - عرض: العدد المتاح + تكلفة النعامة الحالية.
+  - Input لعدد المسحوب (validation: 1 ≤ x ≤ available).
+  - حقل محسوب: إجمالي تكلفة المصدر.
+- زر **"+ إضافة دفعة أخرى"**.
+- إجمالي عدد النعام وإجمالي تكلفة المصادر معروضان في الأسفل.
+- تعبئة `birds_slaughtered` و `total_live_weight_kg` تلقائيًا (وزن تقريبي بناءً على المتوسط من الدفعات المصدر) مع إمكانية التعديل.
+- منع الحفظ لو:
+  - لا يوجد مصدر واحد على الأقل.
+  - أي صف عدده > المتاح.
+  - تكرار نفس الدفعة.
 
-### دوال SQL
-- `recalc_live_batch_cost(p_live_batch_id uuid)` — يحسب الإجماليات ويحدّث الدفعة (يستدعى من triggers بعد كل صرف علف / نفوق).
-- `apply_slaughter_cost_allocation(p_slaughter_batch_id uuid)` — يحفظ snapshot في `slaughter_batch_cost_breakdown` ويحدّث `unit_cost` لكل `slaughter_batch_outputs` بالقسمة على الكيلو الناتج. مع reference_id لمنع التكرار.
+## 3) `saveBatch` في `Slaughterhouse.tsx`
+- بعد `INSERT` في `slaughter_batches` نأخذ `batch.id` ونعمل `INSERT` متعدد في `slaughter_batch_live_sources` مع `reference_id = slaughter_source_{batch.id}_{receipt.id}`.
+- إذا فشل أي إدراج، نعمل rollback يدوي للدفعة (حذف `slaughter_batches`) لتجنّب البقايا.
+- الخصم من `current_alive_count` يحدث تلقائيًا عبر الـ trigger في الـ DB.
+- نحفظ `live_receipt_id` (القديم) = أول مصدر للحفاظ على التوافق مع الكود الحالي.
 
-### Triggers
-- بعد INSERT على `slaughter_ostrich_feed_consumption`:
-  - خصم من `slaughterhouse_feed_inventory` (مع حفظ stock_before/after)
-  - تسجيل حركة في `slaughterhouse_feed_movements` بنوع `slaughter_ostrich_feed_consumption`
-  - استدعاء `recalc_live_batch_cost`
-- بعد INSERT على `slaughter_live_mortality`: تحديث `mortality_count`, `current_alive_count`, ثم `recalc_live_batch_cost`.
+## 4) شاشة تفاصيل الدفعة
+إضافة كرت "مصادر النعام" يعرض من `slaughter_batch_live_sources`:
+رقم الدفعة، عدد المسحوب، تكلفة النعامة وقت الدبح، إجمالي التكلفة، العدد المتبقي حاليًا في الدفعة المصدر.
 
-### GRANT + RLS
-- جداول مرتبطة بالمجزر → نفس نمط `slaughter_*` الحالية: قراءة/كتابة للأدوار `slaughterhouse_manager`, `general_manager`, `executive_manager`, مع منع DELETE (عكس بحركة عكسية).
+## 5) توزيع التكلفة على نواتج الذبح
+- `إجمالي تكلفة النعام للدبح = SUM(total_birds_cost)`.
+- يضاف لمصروفات الدبح المباشرة الموجودة حاليًا.
+- منطق توزيع `cost_per_kg` الحالي يبقى كما هو، لكن المصدر الجديد للتكلفة هو الجدول الجديد.
 
----
+## 6) منع التكرار + Audit
+- `UNIQUE (slaughter_batch_id, live_receipt_id)` على مستوى DB.
+- `UNIQUE reference_id` كحاجز ثاني.
+- Trigger يسجّل في `slaughter_audit_log` كل سحب نعام مع snapshot.
 
-## 2) الواجهة (Frontend)
+## ملفات ستُعدّل
+- migration جديد (جدول + trigger + RLS + GRANT).
+- `src/components/slaughterhouse/SlaughterBatchDialog.tsx` (Step 1: استبدال الـ Select بجدول صفوف).
+- `src/pages/modules/Slaughterhouse.tsx` (`saveBatch` + كرت تفاصيل المصادر).
+- `BatchDraft` يضيف `sources: Array<{ live_receipt_id; birds_count }>`.
 
-### A. صفحة مخزن علف المجزر
-زر جديد بارز: **"صرف علف للنعام"** يفتح Dialog (`SlaughterOstrichFeedConsumptionDialog.tsx`) بالحقول المطلوبة. بعد الحفظ: refresh للمخزون والحركات.
-
-### B. صفحة دفعات النعام الحي
-- أعمدة جديدة: الأصلي / الحي / النافق / تكلفة العلف / تكلفة النافق / تكلفة النعامة الحالية.
-- زر **"تسجيل نفوق"** لكل صف → Dialog `LiveBatchMortalityDialog.tsx`.
-- زر **"تفاصيل التكلفة"** يعرض الـ breakdown.
-
-### C. شاشة تقسيمة الذبح (`SlaughterBatchDialog.tsx`)
-- اختيار دفعة المصدر `source_live_batch_id`.
-- عند اختيار الدفعة + إدخال عدد النعام، يعرض panel معاينة:
-  - تكلفة النعامة الفعلية × العدد = إجمالي تكلفة النعام الداخل للدبح
-  - + مصروفات ذبح مباشرة = إجمالي القابل للتوزيع
-- بعد حفظ نواتج الذبح: استدعاء `apply_slaughter_cost_allocation` لتعبئة `unit_cost`.
-
-### D. تقريران جديدان
-- `/modules/slaughterhouse/live-batch-costs` — تكلفة النعام الجاهز للدبح.
-- `/modules/slaughterhouse/ostrich-feed-log` — سجل صرف علف النعام.
-
-روابط في السايد بار تحت قسم المجزر.
-
----
-
-## 3) منع التكرار (Idempotency)
-- `reference_id` فريد على كل من: صرف علف، نفوق، توزيع تكلفة الذبح. أي محاولة تكرار → رسالة "تم تسجيل هذه الحركة من قبل".
+## ملاحظة
+دفعات النعام الحالية المتاحة بعد التسوية: `OPENING-LIVE-OSTRICH-21` (13 حي، تكلفة 17,769.23). يمكن استخدامها لاختبار السيناريو، مع ملاحظة أنه لا توجد دفعة ثانية فعّالة الآن لاختبار المصدر المزدوج (LR-20260602-7312 حالتها rejected).
 
 ---
-
-## 4) الصلاحيات
-- INSERT: `slaughterhouse_manager` + GM/Executive.
-- UPDATE/Reverse: GM/Executive فقط (حركة عكسية بسبب).
-- DELETE: ممنوع على مستوى RLS.
-
----
-
-## 5) ربط بربحية المنتجات والميزانية
-- `productCostMap` في تقرير الربحية يقرأ بالفعل `unit_cost` من `slaughter_batch_outputs` — هذا التحديث يجعل القيمة دقيقة تلقائيًا.
-- Edge function `department-monthly-budget`: نضيف بند **تكلفة العلف على النعام** و**تكلفة النافق** للمجزر من الجدولين الجديدين بدل/بجانب الحساب الحالي.
-
----
-
-## 6) الاختبار اليدوي بعد التنفيذ
-السيناريو الكامل المذكور في الطلب (دفعة 10 نعام → صرف علف → نفوق → تقسيمة لـ 3 → نواتج → ربحية).
-
----
-
-## ملف ملاحظات تقني
-- لن نلمس `auth`, `storage`, `slaughter_custody_*` (الخزنة منفصلة تمامًا).
-- صرف العلف لا ينشئ حركة خزنة — فقط حركة مخزون + تحميل تكلفة.
-- كل دوال SQL `SECURITY DEFINER` + `SET search_path = public`.
-- استخدام `cairoDate` للتواريخ في التقارير الشهرية.
-
----
-
-موافقتك على هذه الخطة تبدأ التنفيذ بمايجريشن واحدة شاملة ثم الواجهات تباعًا.
+موافقتك تعني تنفيذ الـ migration أولًا، ثم تعديل الواجهة وحفظ الدفعة دفعة واحدة بعد قبول الـ migration.
