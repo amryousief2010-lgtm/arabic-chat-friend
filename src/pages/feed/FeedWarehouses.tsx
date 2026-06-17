@@ -98,11 +98,17 @@ const printCount = (c: any) => {
 
 // ---- list printers ----
 const printRawList = (rows: any[]) => {
-  const body = rows.map((r) => `<tr><td>${esc(r.name)}</td><td>${fmt(r.stock)}</td><td>${esc(r.unit||'كجم')}</td><td>${fmt(r.unit_cost)}</td><td>${fmt(Number(r.stock)*Number(r.unit_cost))}</td><td>${esc(r.supplier||'-')}</td></tr>`).join("");
+  const body = rows.map((r) => {
+    const sp = Number(r.sale_price||0);
+    const uc = Number(r.unit_cost||0);
+    const margin = sp>0 ? sp - uc : 0;
+    return `<tr><td>${esc(r.name)}</td><td>${esc(r.item_code||'-')}</td><td>${fmt(r.stock)}</td><td>${esc(r.unit||'كجم')}</td><td>${fmt(uc)}</td><td>${fmt(sp)}</td><td>${fmt(Number(r.stock)*uc)}</td><td>${fmt(Number(r.stock)*sp)}</td><td>${sp>0?fmt(margin):'-'}</td><td>${esc(r.supplier||'-')}</td></tr>`;
+  }).join("");
   const total = rows.reduce((s,r)=>s+Number(r.stock)*Number(r.unit_cost),0);
   printHtml("جرد المواد الخام", `<div class="header"><div><div class="brand">عاصمة النعام</div><div>مصنع الأعلاف — كشف المواد الخام</div></div><div style="text-align:left"><b>التاريخ:</b> ${new Date().toLocaleDateString('ar-EG')}</div></div>
-  <table><thead><tr><th>الصنف</th><th>الرصيد</th><th>الوحدة</th><th>متوسط التكلفة</th><th>القيمة</th><th>المورد</th></tr></thead><tbody>${body}</tbody><tfoot><tr><td colspan="4">إجمالي قيمة المخزون</td><td colspan="2">${fmt(total)} ج.م</td></tr></tfoot></table>`);
+  <table><thead><tr><th>الصنف</th><th>الكود</th><th>الرصيد</th><th>الوحدة</th><th>متوسط التكلفة</th><th>سعر البيع</th><th>القيمة (تكلفة)</th><th>القيمة (بيع)</th><th>الهامش</th><th>المورد</th></tr></thead><tbody>${body}</tbody><tfoot><tr><td colspan="6">إجمالي قيمة المخزون (تكلفة)</td><td colspan="4">${fmt(total)} ج.م</td></tr></tfoot></table>`);
 };
+
 const printProdList = (rows: any[]) => {
   const body = rows.map((p)=>{const bag=Number(p.default_bag_kg||50);const st=Number(p.current_stock||0);return `<tr><td>${esc(p.name)}</td><td>${esc(p.stage||'-')}</td><td>${fmt(st)}</td><td>${fmt(bag>0?st/bag:0)}</td><td>${fmt(p.latest_unit_cost)}</td><td>${fmt(p.selling_price)}</td><td>${fmt(st*Number(p.latest_unit_cost||0))}</td></tr>`}).join("");
   const total = rows.reduce((s,p)=>s+Number(p.current_stock||0)*Number(p.latest_unit_cost||0),0);
