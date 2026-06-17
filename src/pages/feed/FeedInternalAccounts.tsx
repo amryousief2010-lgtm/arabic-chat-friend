@@ -115,6 +115,7 @@ export default function FeedInternalAccounts() {
   const filteredSupplies = supplies.filter((s) => {
     if (filter.dept === "brooding" && s.destination_type !== "brooding_feed_store") return false;
     if (filter.dept === "slaughterhouse" && s.destination_type !== "slaughterhouse_feed_store") return false;
+    if (filter.dept === "mother_farm" && s.destination_type !== "mother_farm_feed_store") return false;
     if (filter.from && s.sale_date < filter.from) return false;
     if (filter.to && s.sale_date > filter.to) return false;
     if (filter.ref && !(s.sale_no || "").includes(filter.ref)) return false;
