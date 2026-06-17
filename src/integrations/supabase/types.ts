@@ -5750,11 +5750,15 @@ export type Database = {
           approved_by: string | null
           created_at: string
           created_by: string | null
+          daily_value: number | null
+          days_count: number | null
+          days_per_month: number | null
           deduction_date: string
           deduction_type: string
           employee_id: string
           id: string
           month: number
+          monthly_salary_snapshot: number | null
           notes: string | null
           reason: string | null
           reference_id: string | null
@@ -5771,11 +5775,15 @@ export type Database = {
           approved_by?: string | null
           created_at?: string
           created_by?: string | null
+          daily_value?: number | null
+          days_count?: number | null
+          days_per_month?: number | null
           deduction_date?: string
           deduction_type: string
           employee_id: string
           id?: string
           month: number
+          monthly_salary_snapshot?: number | null
           notes?: string | null
           reason?: string | null
           reference_id?: string | null
@@ -5792,11 +5800,15 @@ export type Database = {
           approved_by?: string | null
           created_at?: string
           created_by?: string | null
+          daily_value?: number | null
+          days_count?: number | null
+          days_per_month?: number | null
           deduction_date?: string
           deduction_type?: string
           employee_id?: string
           id?: string
           month?: number
+          monthly_salary_snapshot?: number | null
           notes?: string | null
           reason?: string | null
           reference_id?: string | null
