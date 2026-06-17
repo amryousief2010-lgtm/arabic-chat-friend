@@ -889,7 +889,7 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<string>("cash");
-  const [destinationType, setDestinationType] = useState<"external_customer" | "brooding_feed_store" | "slaughterhouse_feed_store">("external_customer");
+  const [destinationType, setDestinationType] = useState<"external_customer" | "brooding_feed_store" | "slaughterhouse_feed_store" | "mother_farm_feed_store">("external_customer");
   const [lines, setLines] = useState<SaleLine[]>([newSaleLine()]);
   const [saving, setSaving] = useState(false);
   const total = lines.reduce((s, l) => s + l.qty * l.price, 0);
