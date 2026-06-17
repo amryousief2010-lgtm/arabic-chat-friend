@@ -332,25 +332,35 @@ export default function FeedWarehouses() {
               </CardHeader>
               <CardContent>
                 <Table>
-                  <TableHeader><TableRow><TableHead>الصنف</TableHead><TableHead>الرصيد</TableHead><TableHead>الوحدة</TableHead><TableHead>متوسط التكلفة</TableHead><TableHead>القيمة</TableHead><TableHead>المورد</TableHead>{canEditStock && <TableHead></TableHead>}</TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>الصنف</TableHead><TableHead>الكود</TableHead><TableHead>الرصيد</TableHead><TableHead>الوحدة</TableHead><TableHead>متوسط التكلفة</TableHead><TableHead>سعر البيع</TableHead><TableHead>قيمة (تكلفة)</TableHead><TableHead>قيمة (بيع)</TableHead><TableHead>الهامش</TableHead><TableHead>%</TableHead><TableHead>المورد</TableHead>{canEditStock && <TableHead></TableHead>}</TableRow></TableHeader>
                   <TableBody>
                     {(rawQ.data || []).map((r: any) => {
                       const low = Number(r.stock) <= Number(r.low_stock_threshold || 0);
+                      const sp = Number(r.sale_price || 0);
+                      const uc = Number(r.unit_cost || 0);
+                      const margin = sp > 0 ? sp - uc : 0;
+                      const marginPct = sp > 0 ? (margin / sp) * 100 : 0;
                       return (
                         <TableRow key={r.id}>
                           <TableCell className="font-medium">{r.name} {low && <AlertTriangle className="inline h-3 w-3 text-destructive" />}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{r.item_code || "-"}</TableCell>
                           <TableCell className={low ? "text-destructive font-bold" : ""}>{fmt(Number(r.stock))}</TableCell>
                           <TableCell>{r.unit || "كجم"}</TableCell>
-                          <TableCell>{fmt(Number(r.unit_cost))}</TableCell>
-                          <TableCell className="font-bold">{fmt(Number(r.stock) * Number(r.unit_cost))}</TableCell>
+                          <TableCell>{fmt(uc)}</TableCell>
+                          <TableCell className={sp > 0 ? "font-semibold text-primary" : "text-muted-foreground"}>{sp > 0 ? `${fmt(sp)} ج/كجم` : "—"}</TableCell>
+                          <TableCell className="font-bold">{fmt(Number(r.stock) * uc)}</TableCell>
+                          <TableCell className="font-bold text-primary">{sp > 0 ? fmt(Number(r.stock) * sp) : "—"}</TableCell>
+                          <TableCell className={margin > 0 ? "text-green-600 font-semibold" : margin < 0 ? "text-destructive" : ""}>{sp > 0 ? fmt(margin) : "—"}</TableCell>
+                          <TableCell className="text-xs">{sp > 0 ? `${marginPct.toFixed(1)}%` : "—"}</TableCell>
                           <TableCell className="text-muted-foreground text-xs">{r.supplier || "-"}</TableCell>
                           {canEditStock && <TableCell><Button size="icon" variant="ghost" onClick={() => setEditRaw(r)}><Pencil className="h-4 w-4" /></Button></TableCell>}
                         </TableRow>
                       );
                     })}
-                    {!rawQ.data?.length && <TableRow><TableCell colSpan={canEditStock ? 7 : 6} className="text-center text-muted-foreground py-6">لا توجد خامات</TableCell></TableRow>}
+                    {!rawQ.data?.length && <TableRow><TableCell colSpan={canEditStock ? 12 : 11} className="text-center text-muted-foreground py-6">لا توجد خامات</TableCell></TableRow>}
                   </TableBody>
                 </Table>
+
               </CardContent>
             </Card>
           </TabsContent>
