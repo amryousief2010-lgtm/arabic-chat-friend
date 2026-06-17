@@ -571,7 +571,7 @@ export default function FeedWarehouses() {
               <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
                 <div><CardTitle>العلف الجاهز للبيع</CardTitle><CardDescription>الرصيد بالكيلو والشكاير لكل منتج</CardDescription></div>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => printProdList(prodQ.data || [])}><Printer className="h-4 w-4 ml-1"/>طباعة</Button>
+                  <Button size="sm" variant="outline" onClick={() => printProdList(prodQ.data || [], getReadyRaws())}><Printer className="h-4 w-4 ml-1"/>طباعة</Button>
                   <Button size="sm" variant="outline" onClick={exportProd}><FileSpreadsheet className="h-4 w-4 ml-1"/>Excel</Button>
                   {canEditStock && <Button onClick={() => setEditProd({})}><Plus className="h-4 w-4 ml-1" />إضافة منتج</Button>}
                 </div>
