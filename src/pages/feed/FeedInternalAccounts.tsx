@@ -18,6 +18,9 @@ import { openPrintWindow } from "@/lib/printPdf";
 import { useAuth } from "@/hooks/useAuth";
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("ar-EG", { maximumFractionDigits: 2 });
+const DEPT_LABEL: Record<string, string> = { brooding: "حضانات التسمين", slaughterhouse: "مخزن علف المجزر", mother_farm: "مزرعة الأمهات" };
+const DEPT_SHORT: Record<string, string> = { brooding: "حضانات", slaughterhouse: "مجزر", mother_farm: "مزرعة الأمهات" };
+const deptOutLabel = (d: string) => d === "slaughterhouse" ? "حركة الخزنة الرئيسية (مصروف)" : "حركة خزنة المعمل (مصروف)";
 const STATUS_LABEL: Record<string, string> = { pending: "بانتظار الاعتماد", approved: "معتمد", rejected: "مرفوض", cancelled: "ملغي" };
 const STATUS_CLASS: Record<string, string> = {
   pending: "bg-amber-100 text-amber-800 border-amber-300",
