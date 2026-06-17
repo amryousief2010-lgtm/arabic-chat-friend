@@ -713,6 +713,67 @@ export default function FeedWarehouses() {
                     {!filteredSales.length && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-6">لا توجد مبيعات بهذا الفلتر</TableCell></TableRow>}
                   </TableBody>
                 </Table>
+
+                {/* Cost analysis per feed type */}
+                <Card className="mt-4 border-primary/40">
+                  <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2 pb-2">
+                    <div>
+                      <CardTitle className="text-base">تحليل تكلفة المبيعات حسب نوع العلف</CardTitle>
+                      <CardDescription className="text-xs">يحترم الفلاتر المختارة أعلى الصفحة</CardDescription>
+                    </div>
+                    <Button size="sm" variant="outline" onClick={exportCostAnalysis}><FileSpreadsheet className="h-4 w-4 ml-1"/>Excel</Button>
+                  </CardHeader>
+                  <CardContent>
+                    {costByProduct.anyFallback && (
+                      <div className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 mb-2">
+                        * بعض الفواتير القديمة محسوبة بمتوسط التكلفة الحالي لعدم وجود تكلفة محفوظة وقت البيع.
+                      </div>
+                    )}
+                    <Table>
+                      <TableHeader><TableRow><TableHead>نوع العلف</TableHead><TableHead>الكمية المباعة</TableHead><TableHead>قيمة المبيعات</TableHead><TableHead>إجمالي تكلفة المبيعات</TableHead><TableHead>متوسط تكلفة المبيعات</TableHead><TableHead>متوسط سعر البيع</TableHead><TableHead>الربح</TableHead><TableHead>هامش %</TableHead></TableRow></TableHeader>
+                      <TableBody>
+                        {costByProduct.rows.map((r) => {
+                          const avgCost = r.qty > 0 ? r.cost / r.qty : 0;
+                          const avgPrice = r.qty > 0 ? r.revenue / r.qty : 0;
+                          const profit = r.revenue - r.cost;
+                          const margin = r.revenue > 0 ? (profit / r.revenue) * 100 : 0;
+                          return (
+                            <TableRow key={r.name}>
+                              <TableCell className="font-medium">{r.name}{r.hasFallback && <span className="text-amber-600 mx-1" title="بمتوسط التكلفة الحالي">*</span>}</TableCell>
+                              <TableCell>{fmt(r.qty)}</TableCell>
+                              <TableCell>{fmt(r.revenue)}</TableCell>
+                              <TableCell className="text-muted-foreground">{fmt(r.cost)}</TableCell>
+                              <TableCell>{fmt(avgCost)}</TableCell>
+                              <TableCell className="text-primary">{fmt(avgPrice)}</TableCell>
+                              <TableCell className={profit > 0 ? "font-bold text-success" : profit < 0 ? "text-destructive" : ""}>{fmt(profit)}</TableCell>
+                              <TableCell className="text-xs">{r.revenue > 0 ? `${margin.toFixed(1)}%` : "—"}</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                        {!costByProduct.rows.length && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-6">لا توجد بنود مبيعات</TableCell></TableRow>}
+                      </TableBody>
+                      {!!costByProduct.rows.length && (() => {
+                        const t = costByProduct.rows.reduce((a, r) => ({ qty: a.qty + r.qty, rev: a.rev + r.revenue, cost: a.cost + r.cost }), { qty: 0, rev: 0, cost: 0 });
+                        const p = t.rev - t.cost;
+                        const m = t.rev > 0 ? (p / t.rev) * 100 : 0;
+                        return (
+                          <tfoot className="bg-muted/50 font-bold">
+                            <tr>
+                              <td className="p-3">الإجمالي</td>
+                              <td className="p-3">{fmt(t.qty)}</td>
+                              <td className="p-3">{fmt(t.rev)}</td>
+                              <td className="p-3">{fmt(t.cost)}</td>
+                              <td className="p-3">{t.qty > 0 ? fmt(t.cost / t.qty) : "—"}</td>
+                              <td className="p-3">{t.qty > 0 ? fmt(t.rev / t.qty) : "—"}</td>
+                              <td className={`p-3 ${p > 0 ? "text-success" : p < 0 ? "text-destructive" : ""}`}>{fmt(p)}</td>
+                              <td className="p-3">{t.rev > 0 ? `${m.toFixed(1)}%` : "—"}</td>
+                            </tr>
+                          </tfoot>
+                        );
+                      })()}
+                    </Table>
+                  </CardContent>
+                </Card>
               </CardContent>
             </Card>
           </TabsContent>
