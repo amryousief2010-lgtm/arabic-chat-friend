@@ -416,6 +416,59 @@ export default function Recipes() {
           </DialogContent>
         </Dialog>
 
+        {/* Detail dialog */}
+        <Dialog open={!!detailRecipe} onOpenChange={(o) => !o && setDetailRecipe(null)}>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" dir="rtl">
+            {detailRecipe && (() => {
+              const t = computeTotals(detailRecipe);
+              return (
+                <>
+                  <DialogHeader>
+                    <DialogTitle>تفاصيل التركيبة — {detailRecipe.name}</DialogTitle>
+                    <DialogDescription>
+                      {detailRecipe.feed_product ? `${detailRecipe.feed_product.feed_code} — ${detailRecipe.feed_product.name}` : "بدون منتج مرتبط"} • النوع: {detailRecipe.feed_type} • الكمية القياسية: {fmt(detailRecipe.batch_size, 0)} {detailRecipe.unit}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <Card>
+                      <CardHeader className="pb-2"><CardTitle className="text-base">الخامات المستخدمة</CardTitle></CardHeader>
+                      <CardContent className="p-0">
+                        <Table>
+                          <TableHeader><TableRow><TableHead>الخامة</TableHead><TableHead>الكمية</TableHead><TableHead>الوحدة</TableHead><TableHead>سعر التكلفة</TableHead><TableHead>الإجمالي</TableHead></TableRow></TableHeader>
+                          <TableBody>
+                            {(detailRecipe.items || []).map(it => {
+                              const cost = Number(it.quantity) * (Number(it.raw_material?.unit_cost) || 0);
+                              return (<TableRow key={it.id}>
+                                <TableCell>{it.raw_material?.name || "—"}</TableCell>
+                                <TableCell>{fmt(Number(it.quantity), 2)}</TableCell>
+                                <TableCell>{it.raw_material?.unit || "كجم"}</TableCell>
+                                <TableCell>{fmt(Number(it.raw_material?.unit_cost) || 0, 3)}</TableCell>
+                                <TableCell className="font-medium">{fmt(cost, 2)}</TableCell>
+                              </TableRow>);
+                            })}
+                          </TableBody>
+                        </Table>
+                      </CardContent>
+                    </Card>
+                    <div className="grid gap-3 md:grid-cols-5">
+                      <Card><CardHeader className="pb-2"><CardDescription>إجمالي الخامات</CardDescription><CardTitle className="text-lg">{fmt(t.matCost, 2)}</CardTitle></CardHeader></Card>
+                      <Card><CardHeader className="pb-2"><CardDescription>إجمالي الأجور</CardDescription><CardTitle className="text-lg">{fmt(t.labor, 2)}</CardTitle></CardHeader></Card>
+                      <Card><CardHeader className="pb-2"><CardDescription>مصاريف أخرى</CardDescription><CardTitle className="text-lg">{fmt(t.other, 2)}</CardTitle></CardHeader></Card>
+                      <Card><CardHeader className="pb-2"><CardDescription>إجمالي التصنيع</CardDescription><CardTitle className="text-lg">{fmt(t.total, 2)}</CardTitle></CardHeader></Card>
+                      <Card><CardHeader className="pb-2"><CardDescription>تكلفة الكيلو</CardDescription><CardTitle className="text-lg text-primary">{fmt(t.perKg, 3)}</CardTitle></CardHeader></Card>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => printRecipe(detailRecipe)}><Printer className="w-4 h-4 ml-2" />طباعة</Button>
+                    <Button onClick={() => { const id = detailRecipe.id; setDetailRecipe(null); nav(`/feed-factory/batches/new?recipe=${id}`); }}>استخدام في فاتورة تصنيع</Button>
+                  </DialogFooter>
+                </>
+              );
+            })()}
+          </DialogContent>
+        </Dialog>
+
+
         {/* Delete confirm */}
         <Dialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
           <DialogContent dir="rtl">
