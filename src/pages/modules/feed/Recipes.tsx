@@ -33,6 +33,7 @@ const fmt = (n: number, d = 2) => (Number.isFinite(n) ? n : 0).toLocaleString("e
 export default function Recipes() {
   const { canManageFeedFactory, user } = useAuth();
   const { toast } = useToast();
+  const nav = useNavigate();
   const [loading, setLoading] = useState(true);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
