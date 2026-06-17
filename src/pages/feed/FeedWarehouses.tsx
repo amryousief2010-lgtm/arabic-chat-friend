@@ -680,18 +680,20 @@ function RawMaterialDialog({ item, onClose, onSaved }: { item: any | null; onClo
   const [unitCost, setUnitCost] = useState<number>(0);
   const [lowThr, setLowThr] = useState<number>(0);
   const [supplier, setSupplier] = useState("");
+  const [salePrice, setSalePrice] = useState<number>(0);
   const [saving, setSaving] = useState(false);
   useEffect(() => {
     setName(item?.name || ""); setUnit(item?.unit || "كجم");
     setStock(Number(item?.stock || 0)); setUnitCost(Number(item?.unit_cost || 0));
     setLowThr(Number(item?.low_stock_threshold || 0)); setSupplier(item?.supplier || "");
+    setSalePrice(Number(item?.sale_price || 0));
   }, [item?.id]);
 
   const save = async () => {
     if (!name.trim()) return toast.error("اكتب اسم الخامة");
     setSaving(true);
     try {
-      const payload = { name, unit, stock, unit_cost: unitCost, low_stock_threshold: lowThr, supplier, is_active: true };
+      const payload: any = { name, unit, stock, unit_cost: unitCost, low_stock_threshold: lowThr, supplier, sale_price: salePrice || null, is_active: true };
       const { error } = isEdit
         ? await supabase.from("feed_raw_materials").update(payload).eq("id", item.id)
         : await supabase.from("feed_raw_materials").insert(payload);
@@ -712,7 +714,9 @@ function RawMaterialDialog({ item, onClose, onSaved }: { item: any | null; onClo
           <div><Label>المورد</Label><Input value={supplier} onChange={(e) => setSupplier(e.target.value)} /></div>
           <div><Label>الرصيد الحالي</Label><Input type="number" value={stock} onChange={(e) => setStock(Number(e.target.value))} /></div>
           <div><Label>متوسط التكلفة</Label><Input type="number" value={unitCost} onChange={(e) => setUnitCost(Number(e.target.value))} /></div>
+          <div><Label>سعر البيع (ج/كجم)</Label><Input type="number" value={salePrice} onChange={(e) => setSalePrice(Number(e.target.value))} /></div>
           <div><Label>حد التنبيه</Label><Input type="number" value={lowThr} onChange={(e) => setLowThr(Number(e.target.value))} /></div>
+
         </div>
         <DialogFooter><Button onClick={save} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ"}</Button></DialogFooter>
       </DialogContent>
