@@ -2972,6 +2972,93 @@ export type Database = {
           },
         ]
       }
+      feed_historical_reference: {
+        Row: {
+          affects_avg_cost: boolean
+          affects_debt: boolean
+          affects_inventory: boolean
+          affects_treasury: boolean
+          amount: number
+          counterparty: string | null
+          created_at: string
+          currency: string | null
+          description: string | null
+          destination: string | null
+          document_no: string | null
+          feed_type: string | null
+          id: string
+          imported_at: string
+          imported_by: string | null
+          is_historical_reference: boolean
+          notes: string | null
+          record_type: string
+          reference_id: string
+          sale_type: string | null
+          source_file: string | null
+          source_system: string | null
+          updated_at: string
+          voucher_date: string | null
+          voucher_no: string | null
+          voucher_type: string | null
+        }
+        Insert: {
+          affects_avg_cost?: boolean
+          affects_debt?: boolean
+          affects_inventory?: boolean
+          affects_treasury?: boolean
+          amount?: number
+          counterparty?: string | null
+          created_at?: string
+          currency?: string | null
+          description?: string | null
+          destination?: string | null
+          document_no?: string | null
+          feed_type?: string | null
+          id?: string
+          imported_at?: string
+          imported_by?: string | null
+          is_historical_reference?: boolean
+          notes?: string | null
+          record_type: string
+          reference_id: string
+          sale_type?: string | null
+          source_file?: string | null
+          source_system?: string | null
+          updated_at?: string
+          voucher_date?: string | null
+          voucher_no?: string | null
+          voucher_type?: string | null
+        }
+        Update: {
+          affects_avg_cost?: boolean
+          affects_debt?: boolean
+          affects_inventory?: boolean
+          affects_treasury?: boolean
+          amount?: number
+          counterparty?: string | null
+          created_at?: string
+          currency?: string | null
+          description?: string | null
+          destination?: string | null
+          document_no?: string | null
+          feed_type?: string | null
+          id?: string
+          imported_at?: string
+          imported_by?: string | null
+          is_historical_reference?: boolean
+          notes?: string | null
+          record_type?: string
+          reference_id?: string
+          sale_type?: string | null
+          source_file?: string | null
+          source_system?: string | null
+          updated_at?: string
+          voucher_date?: string | null
+          voucher_no?: string | null
+          voucher_type?: string | null
+        }
+        Relationships: []
+      }
       feed_internal_payments: {
         Row: {
           amount: number
