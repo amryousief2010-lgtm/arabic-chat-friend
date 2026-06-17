@@ -830,6 +830,31 @@ export default function FeedWarehouses() {
                   <div className="rounded border p-2 bg-muted/40"><div className="text-xs text-muted-foreground">إجمالي المتبقي</div><div className={`text-lg font-bold ${salesKpi.remaining>0?'text-warning':''}`}>{fmt(salesKpi.remaining)} ج.م</div></div>
                   <div className="rounded border p-2 bg-muted/40 col-span-2 md:col-span-1"><div className="text-xs text-muted-foreground">إجمالي الربح (خارجي)</div><div className="text-lg font-bold text-success">{fmt(salesKpi.profit)} ج.م</div></div>
                 </div>
+
+                {/* المرجع الرسمي من ملف Excel — تفصيل مبيعات LV */}
+                <div className="rounded-md border-2 border-amber-400 bg-amber-50 p-3 space-y-2">
+                  <div className="flex items-center gap-2 text-amber-800 font-semibold text-sm">
+                    <FileSpreadsheet className="h-4 w-4" />
+                    المرجع الرسمي من ملف Excel — تفصيل المبيعات (LV_KPI) — كل القيم محسوبة ديناميكياً من <code className="font-mono text-[10px]">src/data/feedFactoryLV.ts</code>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                    <div className="rounded border p-2 bg-white"><div className="text-[11px] text-muted-foreground">مبيعات خارجية</div><div className="text-base font-bold text-blue-700">{fmt(lvKpi("external_sales_value_egp").value)} ج.م</div></div>
+                    <div className="rounded border p-2 bg-white"><div className="text-[11px] text-muted-foreground">توريد مزرعة الأمهات (داخلي)</div><div className="text-base font-bold text-emerald-700">{fmt(lvKpi("mother_farm_supply_value_egp").value)} ج.م</div></div>
+                    <div className="rounded border p-2 bg-white"><div className="text-[11px] text-muted-foreground">مبيعات داخلية للتحضين</div><div className="text-base font-bold text-purple-700">{fmt(lvKpi("brooding_internal_sales_value_egp").value)} ج.م</div></div>
+                    <div className="rounded border p-2 bg-white"><div className="text-[11px] text-muted-foreground">مبيعات داخلية للمجزر</div><div className="text-base font-bold text-red-700">{fmt(lvKpi("slaughterhouse_internal_sales_value_egp").value)} ج.م</div></div>
+                    <div className="rounded border-2 border-amber-500 p-2 bg-amber-100"><div className="text-[11px] text-amber-900 font-semibold">إجمالي المبيعات (الكل)</div><div className="text-base font-bold text-amber-900">{fmt(lvTotalSalesValue())} ج.م</div><div className="text-[10px] text-amber-700">منها داخلي: {fmt(lvInternalSalesValue())}</div></div>
+                  </div>
+                  {(() => {
+                    const dbTotal = salesKpi.total || 0;
+                    const lvTotal = lvTotalSalesValue();
+                    const diff = lvTotal - dbTotal;
+                    return (
+                      <div className="text-[11px] text-muted-foreground border-t border-amber-300 pt-2">
+                        المعروض في النظام أعلاه ({salesFilterLabel}): <span className="font-semibold text-foreground">{fmt(dbTotal)} ج.م</span> — إجمالي Excel LV: <span className="font-semibold text-amber-700">{fmt(lvTotal)} ج.م</span> — الفرق: <span className={`font-semibold ${Math.abs(diff) < 0.5 ? 'text-success' : 'text-destructive'}`}>{fmt(diff)} ج.م</span> {Math.abs(diff) < 0.5 ? '✓ مطابق' : ''}
+                      </div>
+                    );
+                  })()}
+                </div>
                 <Table>
                   <TableHeader><TableRow><TableHead>الرقم</TableHead><TableHead>التاريخ</TableHead><TableHead>نوع البيع</TableHead><TableHead>الجهة / العميل</TableHead><TableHead>الإجمالي</TableHead><TableHead>التكلفة</TableHead><TableHead>الربح</TableHead><TableHead className="w-28">إجراءات</TableHead></TableRow></TableHeader>
                   <TableBody>
