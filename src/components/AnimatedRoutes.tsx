@@ -130,6 +130,8 @@ const FeedMonthlyReport = lazy(() => import("@/pages/feed/FeedMonthlyReport"));
 const FeedInternalAccounts = lazy(() => import("@/pages/feed/FeedInternalAccounts"));
 const FeedOpeningBalances = lazy(() => import("@/pages/feed/FeedOpeningBalances"));
 const FeedHistoricalReference = lazy(() => import("@/pages/feed/FeedHistoricalReference"));
+const FeedFactoryLVDashboard = lazy(() => import("@/pages/feed/FeedFactoryLVDashboard"));
+
 const MeatProductionWarehouses = lazy(() => import("@/pages/meat/MeatProductionWarehouses"));
 const MeatWarehouses = lazy(() => import("@/pages/meat/MeatWarehouses"));
 const ManufacturingInvoices = lazy(() => import("@/pages/meat/ManufacturingInvoices"));
