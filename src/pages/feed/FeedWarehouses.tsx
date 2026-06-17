@@ -515,6 +515,9 @@ export default function FeedWarehouses() {
                         {ready.map((r: any) => {
                           const stock = Number(r.stock || 0);
                           const cost = Number(r.unit_cost || 0);
+                          const sp = Number(r.sale_price || 0);
+                          const hasPrice = sp > 0;
+                          const margin = hasPrice ? sp - cost : 0;
                           return (
                             <Card key={r.id} className="border-secondary/30">
                               <CardContent className="p-3 space-y-1">
@@ -528,8 +531,13 @@ export default function FeedWarehouses() {
                                 <div className="grid grid-cols-2 gap-2 text-sm">
                                   <div><div className="text-xs text-muted-foreground">المتاح</div><div className="font-bold text-lg text-secondary">{fmt(stock)}</div></div>
                                   <div><div className="text-xs text-muted-foreground">متوسط التكلفة</div><div>{fmt(cost)} ج</div></div>
+                                  <div><div className="text-xs text-muted-foreground">سعر البيع</div><div className={hasPrice ? "font-bold text-primary" : "text-muted-foreground italic"}>{hasPrice ? `${fmt(sp)} ج` : "غير محدد"}</div></div>
+                                  <div><div className="text-xs text-muted-foreground">الهامش / كجم</div><div className={hasPrice ? (margin > 0 ? "text-green-600 font-semibold" : margin < 0 ? "text-destructive font-semibold" : "") : "text-muted-foreground italic"}>{hasPrice ? `${fmt(margin)} ج` : "—"}</div></div>
                                 </div>
-                                <div className="pt-1 border-t flex justify-between text-xs"><span className="text-muted-foreground">القيمة</span><span className="font-bold">{fmt(stock * cost)} ج.م</span></div>
+                                <div className="pt-1 border-t space-y-0.5">
+                                  <div className="flex justify-between text-xs"><span className="text-muted-foreground">القيمة (تكلفة)</span><span className="font-bold">{fmt(stock * cost)} ج.م</span></div>
+                                  <div className="flex justify-between text-xs"><span className="text-muted-foreground">القيمة (بيع)</span><span className={hasPrice ? "font-bold text-primary" : "text-muted-foreground italic"}>{hasPrice ? `${fmt(stock * sp)} ج.م` : "غير محدد"}</span></div>
+                                </div>
                               </CardContent>
                             </Card>
                           );
