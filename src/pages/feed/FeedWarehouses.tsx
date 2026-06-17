@@ -270,19 +270,33 @@ export default function FeedWarehouses() {
       default: return s.customer || "عميل خارجي";
     }
   };
+  const DEPT_LABEL: Record<string, string> = {
+    brooding_feed_store: "حضانات التسمين",
+    slaughterhouse_feed_store: "المجزر",
+    mother_farm_feed_store: "مزرعة الأمهات",
+  };
   const filteredSales = (salesQ.data || []).filter((s: any) => {
-    if (salesFilter === "internal") return isInternalSale(s);
+    if (salesFilter === "internal") {
+      if (!isInternalSale(s)) return false;
+      if (internalDept !== "all" && s.destination_type !== internalDept) return false;
+      return true;
+    }
     if (salesFilter === "external") return !isInternalSale(s);
     return true;
   });
-  const salesFilterLabel = salesFilter === "internal" ? "المبيعات الداخلية" : salesFilter === "external" ? "المبيعات الخارجية" : "كل المبيعات";
+  const salesFilterLabel = salesFilter === "internal"
+    ? (internalDept === "all" ? "المبيعات الداخلية" : `المبيعات الداخلية / ${DEPT_LABEL[internalDept]}`)
+    : salesFilter === "external" ? "المبيعات الخارجية" : "كل المبيعات";
+  const salesFileSuffix = salesFilter === "internal"
+    ? (internalDept === "all" ? "internal_all" : `internal_${internalDept.replace("_feed_store","")}`)
+    : salesFilter;
   const salesKpi = {
     count: filteredSales.length,
     total: filteredSales.reduce((sum: number, s: any) => sum + Number(s.total_amount || 0), 0),
     cost: filteredSales.reduce((sum: number, s: any) => sum + Number(s.total_cost || 0), 0),
     profit: filteredSales.reduce((sum: number, s: any) => sum + Number(s.profit || 0), 0),
   };
-  const exportSales = () => exportCSV(`sales_${salesFilter}.csv`, filteredSales.map((s: any) => ({
+  const exportSales = () => exportCSV(`feed_sales_${salesFileSuffix}.csv`, filteredSales.map((s: any) => ({
     الرقم: s.sale_no,
     التاريخ: s.sale_date,
     نوع_البيع: isInternalSale(s) ? "داخلي" : "خارجي",
@@ -293,7 +307,7 @@ export default function FeedWarehouses() {
   })));
   const printSalesList = () => {
     const rows = filteredSales.map((s: any) => `<tr><td>${s.sale_no}</td><td>${s.sale_date}</td><td>${isInternalSale(s) ? "داخلي" : "خارجي"}</td><td>${saleDestLabel(s)}</td><td>${fmt(Number(s.total_amount||0))}</td><td>${fmt(Number(s.total_cost||0))}</td><td>${fmt(Number(s.profit||0))}</td></tr>`).join("");
-    openPrintWindow(`<h2 style="text-align:center">مبيعات مصنع الأعلاف — ${salesFilterLabel}</h2><div style="text-align:center;margin-bottom:8px">عدد الفواتير: ${salesKpi.count} — الإجمالي: ${fmt(salesKpi.total)} ج.م — التكلفة: ${fmt(salesKpi.cost)} ج.م — الربح: ${fmt(salesKpi.profit)} ج.م</div><table border="1" cellpadding="6" style="width:100%;border-collapse:collapse"><thead><tr><th>الرقم</th><th>التاريخ</th><th>النوع</th><th>الجهة/العميل</th><th>الإجمالي</th><th>التكلفة</th><th>الربح</th></tr></thead><tbody>${rows}</tbody></table>`, `feed-sales-${salesFilter}`);
+    openPrintWindow(`<h2 style="text-align:center">تقرير مبيعات مصنع الأعلاف — ${salesFilterLabel}</h2><div style="text-align:center;margin-bottom:8px">عدد الفواتير: ${salesKpi.count} — الإجمالي: ${fmt(salesKpi.total)} ج.م — التكلفة: ${fmt(salesKpi.cost)} ج.م — الربح: ${fmt(salesKpi.profit)} ج.م</div><table border="1" cellpadding="6" style="width:100%;border-collapse:collapse"><thead><tr><th>الرقم</th><th>التاريخ</th><th>النوع</th><th>الجهة/العميل</th><th>الإجمالي</th><th>التكلفة</th><th>الربح</th></tr></thead><tbody>${rows}</tbody></table>`, `feed-sales-${salesFileSuffix}`);
   };
   const exportCounts = () => exportCSV("stock_counts.csv", (countsQ.data||[]).map((c:any)=>({الرقم:c.count_no,التاريخ:c.count_date,النوع:c.warehouse_kind,عدد_الأصناف:c.feed_stock_count_items?.length||0,الحالة:c.status})));
   const exportTreasury = () => exportCSV("treasury.csv", (treasuryQ.data||[]).map((t:any)=>({الرقم:t.txn_no,التاريخ:t.txn_date,النوع:KIND_LABEL[t.kind]||t.kind,الجهة:t.party||"",وارد:t.direction==="in"?t.amount:0,منصرف:t.direction==="out"?t.amount:0,البيان:t.note||""})));
