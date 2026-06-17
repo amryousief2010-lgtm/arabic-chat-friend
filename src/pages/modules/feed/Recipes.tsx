@@ -80,11 +80,13 @@ export default function Recipes() {
       setForm({
         name: r.name, feed_type: r.feed_type, batch_size: Number(r.batch_size), unit: r.unit,
         description: r.description || "", feed_product_id: r.feed_product_id || "",
+        labor_total_cost: Number(r.labor_total_cost || 0),
+        other_expenses_total: Number(r.other_expenses_total || 0),
       });
       setItems((r.items || []).map(i => ({ raw_material_id: i.raw_material_id, quantity: Number(i.quantity) })));
     } else {
       setEditing(null);
-      setForm({ name: "", feed_type: "تسمين", batch_size: 1000, unit: "كجم", description: "", feed_product_id: "" });
+      setForm({ name: "", feed_type: "تسمين", batch_size: 1000, unit: "كجم", description: "", feed_product_id: "", labor_total_cost: 0, other_expenses_total: 0 });
       setItems([]);
     }
     setDialog(true);
