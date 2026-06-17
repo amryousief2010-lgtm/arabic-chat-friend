@@ -9,7 +9,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 
-export type Department = "brooding" | "slaughterhouse";
+export type Department = "brooding" | "slaughterhouse" | "mother_farm";
+
+const DEPT_LABEL: Record<Department, string> = {
+  brooding: "حضانات التسمين",
+  slaughterhouse: "مخزن علف المجزر",
+  mother_farm: "مزرعة الأمهات",
+};
 
 interface Props {
   open: boolean;
