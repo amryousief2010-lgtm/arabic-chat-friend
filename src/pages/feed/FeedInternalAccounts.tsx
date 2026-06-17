@@ -9,11 +9,22 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Download, RefreshCw, Wallet } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Plus, Download, RefreshCw, Wallet, Check, X, Eye } from "lucide-react";
+import { toast } from "sonner";
 import FeedInternalPaymentDialog from "@/components/feed/FeedInternalPaymentDialog";
 import { openPrintWindow } from "@/lib/printPdf";
+import { useAuth } from "@/hooks/useAuth";
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("ar-EG", { maximumFractionDigits: 2 });
+const STATUS_LABEL: Record<string, string> = { pending: "بانتظار الاعتماد", approved: "معتمد", rejected: "مرفوض", cancelled: "ملغي" };
+const STATUS_CLASS: Record<string, string> = {
+  pending: "bg-amber-100 text-amber-800 border-amber-300",
+  approved: "bg-emerald-100 text-emerald-800 border-emerald-300",
+  rejected: "bg-rose-100 text-rose-800 border-rose-300",
+  cancelled: "bg-gray-200 text-gray-700 border-gray-300",
+};
 
 export default function FeedInternalAccounts() {
   const [balances, setBalances] = useState<any[]>([]);
