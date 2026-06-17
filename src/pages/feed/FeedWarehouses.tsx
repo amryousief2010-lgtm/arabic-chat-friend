@@ -153,6 +153,7 @@ export default function FeedWarehouses() {
   const [productionOpen, setProductionOpen] = useState(false);
   const [detailsInv, setDetailsInv] = useState<any | null>(null);
   const [salesFilter, setSalesFilter] = useState<"all" | "internal" | "external">("all");
+  const [internalDept, setInternalDept] = useState<"all" | "brooding_feed_store" | "slaughterhouse_feed_store" | "mother_farm_feed_store">("all");
   const canTreasury = roles.some((r) => ["general_manager","executive_manager","feed_factory_manager","warehouse_supervisor"].includes(r));
   const canProduce = roles.some((r) => ["general_manager","executive_manager","feed_factory_manager","warehouse_supervisor","production_manager"].includes(r));
 
