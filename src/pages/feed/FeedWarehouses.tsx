@@ -721,8 +721,8 @@ export default function FeedWarehouses() {
                           </TableCell>
                           <TableCell>{saleDestLabel(s)}</TableCell>
                           <TableCell>{fmt(Number(s.total_amount))}</TableCell>
-                          <TableCell className="text-muted-foreground">{fmt(Number(s.total_cost))}</TableCell>
-                          <TableCell className="font-bold text-success">{fmt(Number(s.profit))}</TableCell>
+                          <TableCell className="text-muted-foreground">{fmt(calcSaleCost(s))}</TableCell>
+                          <TableCell className="font-bold text-success">{fmt(Number(s.total_amount || 0) - calcSaleCost(s))}</TableCell>
                           <TableCell className="flex gap-1">
                             <Button size="icon" variant="ghost" onClick={() => printSale(s)}><Printer className="h-4 w-4" /></Button>
                             {canManageAll && <Button size="icon" variant="ghost" onClick={() => setSaleEdit(s)}><Pencil className="h-4 w-4" /></Button>}
