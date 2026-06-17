@@ -407,8 +407,24 @@ export default function FeedHistoricalReference() {
 
           <TabsContent value="reconcile" className="space-y-3">
             <Card>
-              <CardHeader><CardTitle>مطابقة مصنع العلف مع المحتسب</CardTitle></CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>مطابقة مصنع العلف مع المحتسب من أول السنة</CardTitle>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => exportReconcileCSV()}>
+                    <Download className="h-4 w-4 ml-1" /> Excel/CSV
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => printReconcile()}>
+                    <Printer className="h-4 w-4 ml-1" /> طباعة
+                  </Button>
+                </div>
+              </CardHeader>
               <CardContent>
+                <Alert className="mb-3">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    البيانات المرجعية لا تؤثر على المخزون أو الخزنة — مقارنة فقط مع برنامج المحتسب.
+                  </AlertDescription>
+                </Alert>
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -431,32 +447,51 @@ export default function FeedHistoricalReference() {
                       <TableCell className="text-left font-mono text-muted-foreground">—</TableCell>
                       <TableCell className="text-left font-mono">—</TableCell>
                     </TableRow>
-                    <TableRow className="font-semibold">
+                    <TableRow className="font-semibold bg-muted/30">
                       <TableCell>إجمالي مشتريات خامات العلف</TableCell>
                       <TableCell className="text-left font-mono">{fmt(totals.purchaseAll)}</TableCell>
                       <TableCell className="text-left font-mono">{fmt(systemTotals.purchases)}</TableCell>
                       <TableCell className="text-left font-mono">{fmt(totals.purchaseAll - systemTotals.purchases)}</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell>إجمالي مبيعات الأعلاف الخارجية</TableCell>
+                      <TableCell>مبيعات خارجية</TableCell>
                       <TableCell className="text-left font-mono">{fmt(totals.externalSales)}</TableCell>
                       <TableCell className="text-left font-mono">{fmt(systemTotals.externalSales)}</TableCell>
                       <TableCell className="text-left font-mono">{fmt(totals.externalSales - systemTotals.externalSales)}</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell>المبيعات الداخلية — مزرعة الأمهات</TableCell>
-                      <TableCell className="text-left font-mono">{fmt(totals.internal)}</TableCell>
-                      <TableCell className="text-left font-mono text-muted-foreground">—</TableCell>
-                      <TableCell className="text-left font-mono">—</TableCell>
+                      <TableCell>مبيعات داخلية — مزرعة الأمهات (بسعر التكلفة)</TableCell>
+                      <TableCell className="text-left font-mono">{fmt(totals.internalMotherFarm)}</TableCell>
+                      <TableCell className="text-left font-mono">{fmt(systemTotals.internalMotherFarm)}</TableCell>
+                      <TableCell className="text-left font-mono">{fmt(totals.internalMotherFarm - systemTotals.internalMotherFarm)}</TableCell>
                     </TableRow>
+                    <TableRow className="font-bold bg-muted/50">
+                      <TableCell>إجمالي المبيعات (خارجية + مزرعة الأمهات)</TableCell>
+                      <TableCell className="text-left font-mono">{fmt(totalSalesReference)}</TableCell>
+                      <TableCell className="text-left font-mono">{fmt(totalSalesOperational)}</TableCell>
+                      <TableCell className="text-left font-mono">{fmt(totalSalesReference - totalSalesOperational)}</TableCell>
+                    </TableRow>
+                    {totals.internalOther > 0 && (
+                      <TableRow className="text-muted-foreground">
+                        <TableCell>مبيعات داخلية أخرى (مرجعي)</TableCell>
+                        <TableCell className="text-left font-mono">{fmt(totals.internalOther)}</TableCell>
+                        <TableCell className="text-left font-mono">—</TableCell>
+                        <TableCell className="text-left font-mono">—</TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
-                <div className="mt-3 text-xs text-muted-foreground">
-                  بيانات المحتسب مرجعية فقط ولم تنشئ أي حركة مخزون أو خزنة. مقارنات السيستم هنا تستند إلى
-                  <span className="font-mono mx-1">feed_raw_purchases.total_amount</span>
-                  و
-                  <span className="font-mono mx-1">feed_sales.total_amount</span>
-                  منذ 2026-01-01.
+                <div className="mt-3 text-xs text-muted-foreground space-y-1">
+                  <div>
+                    علف مزرعة الأمهات — التشغيلي = مجموع
+                    <span className="font-mono mx-1">feed_sales.total_cost</span>
+                    عند
+                    <span className="font-mono mx-1">destination_type = mother_farm_feed_store</span>
+                    منذ 2026-01-01 (بسعر التكلفة).
+                  </div>
+                  <div>
+                    البيع الداخلي مرجعي/تشغيلي معاً = {fmt(motherFarmCombined)} ج.م.
+                  </div>
                 </div>
               </CardContent>
             </Card>
