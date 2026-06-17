@@ -124,6 +124,8 @@ export default function Recipes() {
       unit: form.unit,
       description: form.description || null,
       feed_product_id: form.feed_product_id || null,
+      labor_total_cost: form.labor_total_cost || 0,
+      other_expenses_total: form.other_expenses_total || 0,
       created_by: user?.id,
     };
     let recipeId = editing?.id;
