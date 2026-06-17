@@ -98,11 +98,17 @@ const printCount = (c: any) => {
 
 // ---- list printers ----
 const printRawList = (rows: any[]) => {
-  const body = rows.map((r) => `<tr><td>${esc(r.name)}</td><td>${fmt(r.stock)}</td><td>${esc(r.unit||'كجم')}</td><td>${fmt(r.unit_cost)}</td><td>${fmt(Number(r.stock)*Number(r.unit_cost))}</td><td>${esc(r.supplier||'-')}</td></tr>`).join("");
+  const body = rows.map((r) => {
+    const sp = Number(r.sale_price||0);
+    const uc = Number(r.unit_cost||0);
+    const margin = sp>0 ? sp - uc : 0;
+    return `<tr><td>${esc(r.name)}</td><td>${esc(r.item_code||'-')}</td><td>${fmt(r.stock)}</td><td>${esc(r.unit||'كجم')}</td><td>${fmt(uc)}</td><td>${fmt(sp)}</td><td>${fmt(Number(r.stock)*uc)}</td><td>${fmt(Number(r.stock)*sp)}</td><td>${sp>0?fmt(margin):'-'}</td><td>${esc(r.supplier||'-')}</td></tr>`;
+  }).join("");
   const total = rows.reduce((s,r)=>s+Number(r.stock)*Number(r.unit_cost),0);
   printHtml("جرد المواد الخام", `<div class="header"><div><div class="brand">عاصمة النعام</div><div>مصنع الأعلاف — كشف المواد الخام</div></div><div style="text-align:left"><b>التاريخ:</b> ${new Date().toLocaleDateString('ar-EG')}</div></div>
-  <table><thead><tr><th>الصنف</th><th>الرصيد</th><th>الوحدة</th><th>متوسط التكلفة</th><th>القيمة</th><th>المورد</th></tr></thead><tbody>${body}</tbody><tfoot><tr><td colspan="4">إجمالي قيمة المخزون</td><td colspan="2">${fmt(total)} ج.م</td></tr></tfoot></table>`);
+  <table><thead><tr><th>الصنف</th><th>الكود</th><th>الرصيد</th><th>الوحدة</th><th>متوسط التكلفة</th><th>سعر البيع</th><th>القيمة (تكلفة)</th><th>القيمة (بيع)</th><th>الهامش</th><th>المورد</th></tr></thead><tbody>${body}</tbody><tfoot><tr><td colspan="6">إجمالي قيمة المخزون (تكلفة)</td><td colspan="4">${fmt(total)} ج.م</td></tr></tfoot></table>`);
 };
+
 const printProdList = (rows: any[]) => {
   const body = rows.map((p)=>{const bag=Number(p.default_bag_kg||50);const st=Number(p.current_stock||0);return `<tr><td>${esc(p.name)}</td><td>${esc(p.stage||'-')}</td><td>${fmt(st)}</td><td>${fmt(bag>0?st/bag:0)}</td><td>${fmt(p.latest_unit_cost)}</td><td>${fmt(p.selling_price)}</td><td>${fmt(st*Number(p.latest_unit_cost||0))}</td></tr>`}).join("");
   const total = rows.reduce((s,p)=>s+Number(p.current_stock||0)*Number(p.latest_unit_cost||0),0);
@@ -249,7 +255,7 @@ export default function FeedWarehouses() {
   const treasuryBalance = useMemo(() => (treasuryQ.data || []).reduce((s: number, t: any) => s + (t.direction === "in" ? 1 : -1) * Number(t.amount || 0), 0), [treasuryQ.data]);
   const loanFromNaam = useMemo(() => (treasuryQ.data || []).filter((t: any) => t.kind === "loan_from_naam").reduce((s: number, t: any) => s + Number(t.amount), 0) - (treasuryQ.data || []).filter((t: any) => t.kind === "loan_to_naam").reduce((s: number, t: any) => s + Number(t.amount), 0), [treasuryQ.data]);
 
-  const exportRaw = () => exportCSV("raw_materials.csv", (rawQ.data||[]).map((r:any)=>({الصنف:r.name,الرصيد:r.stock,الوحدة:r.unit,متوسط_التكلفة:r.unit_cost,القيمة:Number(r.stock)*Number(r.unit_cost),المورد:r.supplier||""})));
+  const exportRaw = () => exportCSV("raw_materials.csv", (rawQ.data||[]).map((r:any)=>{const sp=Number(r.sale_price||0);const uc=Number(r.unit_cost||0);return ({الصنف:r.name,الكود:r.item_code||"",الرصيد:r.stock,الوحدة:r.unit,متوسط_التكلفة:uc,سعر_البيع:sp,القيمة_تكلفة:Number(r.stock)*uc,القيمة_بيع:Number(r.stock)*sp,هامش_الربح:sp>0?sp-uc:0,نسبة_الهامش:sp>0?((sp-uc)/sp*100).toFixed(2)+"%":"",المورد:r.supplier||""});}));
   const exportProd = () => exportCSV("finished_products.csv", (prodQ.data||[]).map((p:any)=>({المنتج:p.name,المرحلة:p.stage,الكمية_كجم:p.current_stock,عدد_الشكاير:Number(p.default_bag_kg||50)>0?Number(p.current_stock)/Number(p.default_bag_kg||50):0,وزن_الشيكارة:p.default_bag_kg,متوسط_التكلفة:p.latest_unit_cost,سعر_البيع:p.selling_price,القيمة:Number(p.current_stock||0)*Number(p.latest_unit_cost||0)})));
   const exportPur = () => exportCSV("purchases.csv", (purQ.data||[]).map((p:any)=>({الرقم:p.purchase_no,التاريخ:p.purchase_date,المورد:p.supplier||"",رقم_فاتورة_المورد:p.supplier_invoice_no||"",عدد_البنود:p.feed_raw_purchase_items?.length||0,الإجمالي:p.total_amount})));
   const exportSales = () => exportCSV("sales.csv", (salesQ.data||[]).map((s:any)=>({الرقم:s.sale_no,التاريخ:s.sale_date,العميل:s.customer||"",الإجمالي:s.total_amount,التكلفة:s.total_cost,الربح:s.profit})));
@@ -326,25 +332,35 @@ export default function FeedWarehouses() {
               </CardHeader>
               <CardContent>
                 <Table>
-                  <TableHeader><TableRow><TableHead>الصنف</TableHead><TableHead>الرصيد</TableHead><TableHead>الوحدة</TableHead><TableHead>متوسط التكلفة</TableHead><TableHead>القيمة</TableHead><TableHead>المورد</TableHead>{canEditStock && <TableHead></TableHead>}</TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>الصنف</TableHead><TableHead>الكود</TableHead><TableHead>الرصيد</TableHead><TableHead>الوحدة</TableHead><TableHead>متوسط التكلفة</TableHead><TableHead>سعر البيع</TableHead><TableHead>قيمة (تكلفة)</TableHead><TableHead>قيمة (بيع)</TableHead><TableHead>الهامش</TableHead><TableHead>%</TableHead><TableHead>المورد</TableHead>{canEditStock && <TableHead></TableHead>}</TableRow></TableHeader>
                   <TableBody>
                     {(rawQ.data || []).map((r: any) => {
                       const low = Number(r.stock) <= Number(r.low_stock_threshold || 0);
+                      const sp = Number(r.sale_price || 0);
+                      const uc = Number(r.unit_cost || 0);
+                      const margin = sp > 0 ? sp - uc : 0;
+                      const marginPct = sp > 0 ? (margin / sp) * 100 : 0;
                       return (
                         <TableRow key={r.id}>
                           <TableCell className="font-medium">{r.name} {low && <AlertTriangle className="inline h-3 w-3 text-destructive" />}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{r.item_code || "-"}</TableCell>
                           <TableCell className={low ? "text-destructive font-bold" : ""}>{fmt(Number(r.stock))}</TableCell>
                           <TableCell>{r.unit || "كجم"}</TableCell>
-                          <TableCell>{fmt(Number(r.unit_cost))}</TableCell>
-                          <TableCell className="font-bold">{fmt(Number(r.stock) * Number(r.unit_cost))}</TableCell>
+                          <TableCell>{fmt(uc)}</TableCell>
+                          <TableCell className={sp > 0 ? "font-semibold text-primary" : "text-muted-foreground"}>{sp > 0 ? `${fmt(sp)} ج/كجم` : "—"}</TableCell>
+                          <TableCell className="font-bold">{fmt(Number(r.stock) * uc)}</TableCell>
+                          <TableCell className="font-bold text-primary">{sp > 0 ? fmt(Number(r.stock) * sp) : "—"}</TableCell>
+                          <TableCell className={margin > 0 ? "text-green-600 font-semibold" : margin < 0 ? "text-destructive" : ""}>{sp > 0 ? fmt(margin) : "—"}</TableCell>
+                          <TableCell className="text-xs">{sp > 0 ? `${marginPct.toFixed(1)}%` : "—"}</TableCell>
                           <TableCell className="text-muted-foreground text-xs">{r.supplier || "-"}</TableCell>
                           {canEditStock && <TableCell><Button size="icon" variant="ghost" onClick={() => setEditRaw(r)}><Pencil className="h-4 w-4" /></Button></TableCell>}
                         </TableRow>
                       );
                     })}
-                    {!rawQ.data?.length && <TableRow><TableCell colSpan={canEditStock ? 7 : 6} className="text-center text-muted-foreground py-6">لا توجد خامات</TableCell></TableRow>}
+                    {!rawQ.data?.length && <TableRow><TableCell colSpan={canEditStock ? 12 : 11} className="text-center text-muted-foreground py-6">لا توجد خامات</TableCell></TableRow>}
                   </TableBody>
                 </Table>
+
               </CardContent>
             </Card>
           </TabsContent>
@@ -664,18 +680,20 @@ function RawMaterialDialog({ item, onClose, onSaved }: { item: any | null; onClo
   const [unitCost, setUnitCost] = useState<number>(0);
   const [lowThr, setLowThr] = useState<number>(0);
   const [supplier, setSupplier] = useState("");
+  const [salePrice, setSalePrice] = useState<number>(0);
   const [saving, setSaving] = useState(false);
   useEffect(() => {
     setName(item?.name || ""); setUnit(item?.unit || "كجم");
     setStock(Number(item?.stock || 0)); setUnitCost(Number(item?.unit_cost || 0));
     setLowThr(Number(item?.low_stock_threshold || 0)); setSupplier(item?.supplier || "");
+    setSalePrice(Number(item?.sale_price || 0));
   }, [item?.id]);
 
   const save = async () => {
     if (!name.trim()) return toast.error("اكتب اسم الخامة");
     setSaving(true);
     try {
-      const payload = { name, unit, stock, unit_cost: unitCost, low_stock_threshold: lowThr, supplier, is_active: true };
+      const payload: any = { name, unit, stock, unit_cost: unitCost, low_stock_threshold: lowThr, supplier, sale_price: salePrice || null, is_active: true };
       const { error } = isEdit
         ? await supabase.from("feed_raw_materials").update(payload).eq("id", item.id)
         : await supabase.from("feed_raw_materials").insert(payload);
@@ -696,7 +714,9 @@ function RawMaterialDialog({ item, onClose, onSaved }: { item: any | null; onClo
           <div><Label>المورد</Label><Input value={supplier} onChange={(e) => setSupplier(e.target.value)} /></div>
           <div><Label>الرصيد الحالي</Label><Input type="number" value={stock} onChange={(e) => setStock(Number(e.target.value))} /></div>
           <div><Label>متوسط التكلفة</Label><Input type="number" value={unitCost} onChange={(e) => setUnitCost(Number(e.target.value))} /></div>
+          <div><Label>سعر البيع (ج/كجم)</Label><Input type="number" value={salePrice} onChange={(e) => setSalePrice(Number(e.target.value))} /></div>
           <div><Label>حد التنبيه</Label><Input type="number" value={lowThr} onChange={(e) => setLowThr(Number(e.target.value))} /></div>
+
         </div>
         <DialogFooter><Button onClick={save} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ"}</Button></DialogFooter>
       </DialogContent>
