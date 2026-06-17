@@ -338,9 +338,31 @@ export default function FeedWarehouses() {
     التكلفة: s.total_cost,
     الربح: s.profit,
   })));
+  const exportCostAnalysis = () => exportCSV(`feed_sales_cost_analysis_${salesFileSuffix}.csv`, costByProduct.rows.map((r) => ({
+    نوع_العلف: r.name,
+    الكمية_المباعة: r.qty,
+    قيمة_المبيعات: r.revenue.toFixed(2),
+    إجمالي_تكلفة_المبيعات: r.cost.toFixed(2),
+    متوسط_تكلفة_المبيعات: r.qty > 0 ? (r.cost / r.qty).toFixed(2) : 0,
+    متوسط_سعر_البيع: r.qty > 0 ? (r.revenue / r.qty).toFixed(2) : 0,
+    الربح: (r.revenue - r.cost).toFixed(2),
+    هامش_الربح_نسبة: r.revenue > 0 ? ((r.revenue - r.cost) / r.revenue * 100).toFixed(2) + "%" : "—",
+    ملاحظة: r.hasFallback ? "بعض الأسطر بمتوسط التكلفة الحالي" : "",
+  })));
   const printSalesList = () => {
     const rows = filteredSales.map((s: any) => `<tr><td>${s.sale_no}</td><td>${s.sale_date}</td><td>${isInternalSale(s) ? "داخلي" : "خارجي"}</td><td>${saleDestLabel(s)}</td><td>${fmt(Number(s.total_amount||0))}</td><td>${fmt(Number(s.total_cost||0))}</td><td>${fmt(Number(s.profit||0))}</td></tr>`).join("");
-    openPrintWindow(`<h2 style="text-align:center">تقرير مبيعات مصنع الأعلاف — ${salesFilterLabel}</h2><div style="text-align:center;margin-bottom:8px">عدد الفواتير: ${salesKpi.count} — الإجمالي: ${fmt(salesKpi.total)} ج.م — التكلفة: ${fmt(salesKpi.cost)} ج.م — الربح: ${fmt(salesKpi.profit)} ج.م</div><table border="1" cellpadding="6" style="width:100%;border-collapse:collapse"><thead><tr><th>الرقم</th><th>التاريخ</th><th>النوع</th><th>الجهة/العميل</th><th>الإجمالي</th><th>التكلفة</th><th>الربح</th></tr></thead><tbody>${rows}</tbody></table>`, `feed-sales-${salesFileSuffix}`);
+    const analysisRows = costByProduct.rows.map((r) => {
+      const avgCost = r.qty > 0 ? r.cost / r.qty : 0;
+      const avgPrice = r.qty > 0 ? r.revenue / r.qty : 0;
+      const profit = r.revenue - r.cost;
+      const margin = r.revenue > 0 ? (profit / r.revenue) * 100 : 0;
+      return `<tr><td>${esc(r.name)}${r.hasFallback ? ' *' : ''}</td><td>${fmt(r.qty)}</td><td>${fmt(r.revenue)}</td><td>${fmt(r.cost)}</td><td>${fmt(avgCost)}</td><td>${fmt(avgPrice)}</td><td>${fmt(profit)}</td><td>${r.revenue > 0 ? margin.toFixed(1) + '%' : '—'}</td></tr>`;
+    }).join("");
+    const totals = costByProduct.rows.reduce((a, r) => ({ qty: a.qty + r.qty, rev: a.rev + r.revenue, cost: a.cost + r.cost }), { qty: 0, rev: 0, cost: 0 });
+    const totalProfit = totals.rev - totals.cost;
+    const totalMargin = totals.rev > 0 ? (totalProfit / totals.rev) * 100 : 0;
+    const fallbackNote = costByProduct.anyFallback ? `<div style="font-size:11px;color:#92400e;margin:6px 0">* بعض الفواتير القديمة محسوبة بمتوسط التكلفة الحالي لعدم وجود تكلفة محفوظة وقت البيع</div>` : "";
+    openPrintWindow(`<h2 style="text-align:center">تقرير مبيعات مصنع الأعلاف — ${salesFilterLabel}</h2><div style="text-align:center;margin-bottom:8px">عدد الفواتير: ${salesKpi.count} — الإجمالي: ${fmt(salesKpi.total)} ج.م — التكلفة: ${fmt(salesKpi.cost)} ج.م — الربح: ${fmt(salesKpi.profit)} ج.م</div><table border="1" cellpadding="6" style="width:100%;border-collapse:collapse"><thead><tr><th>الرقم</th><th>التاريخ</th><th>النوع</th><th>الجهة/العميل</th><th>الإجمالي</th><th>التكلفة</th><th>الربح</th></tr></thead><tbody>${rows}</tbody></table><h3 style="margin-top:18px">تحليل تكلفة المبيعات حسب نوع العلف</h3>${fallbackNote}<table border="1" cellpadding="6" style="width:100%;border-collapse:collapse"><thead><tr><th>نوع العلف</th><th>الكمية المباعة</th><th>قيمة المبيعات</th><th>إجمالي تكلفة المبيعات</th><th>متوسط تكلفة المبيعات</th><th>متوسط سعر البيع</th><th>الربح</th><th>هامش الربح %</th></tr></thead><tbody>${analysisRows}</tbody><tfoot><tr style="font-weight:bold;background:#f3f4f6"><td>الإجمالي</td><td>${fmt(totals.qty)}</td><td>${fmt(totals.rev)}</td><td>${fmt(totals.cost)}</td><td>${totals.qty > 0 ? fmt(totals.cost / totals.qty) : '—'}</td><td>${totals.qty > 0 ? fmt(totals.rev / totals.qty) : '—'}</td><td>${fmt(totalProfit)}</td><td>${totals.rev > 0 ? totalMargin.toFixed(1) + '%' : '—'}</td></tr></tfoot></table>`, `feed-sales-${salesFileSuffix}`);
   };
   const exportCounts = () => exportCSV("stock_counts.csv", (countsQ.data||[]).map((c:any)=>({الرقم:c.count_no,التاريخ:c.count_date,النوع:c.warehouse_kind,عدد_الأصناف:c.feed_stock_count_items?.length||0,الحالة:c.status})));
   const exportTreasury = () => exportCSV("treasury.csv", (treasuryQ.data||[]).map((t:any)=>({الرقم:t.txn_no,التاريخ:t.txn_date,النوع:KIND_LABEL[t.kind]||t.kind,الجهة:t.party||"",وارد:t.direction==="in"?t.amount:0,منصرف:t.direction==="out"?t.amount:0,البيان:t.note||""})));
