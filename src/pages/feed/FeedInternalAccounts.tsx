@@ -18,6 +18,9 @@ import { openPrintWindow } from "@/lib/printPdf";
 import { useAuth } from "@/hooks/useAuth";
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("ar-EG", { maximumFractionDigits: 2 });
+const DEPT_LABEL: Record<string, string> = { brooding: "حضانات التسمين", slaughterhouse: "مخزن علف المجزر", mother_farm: "مزرعة الأمهات" };
+const DEPT_SHORT: Record<string, string> = { brooding: "حضانات", slaughterhouse: "مجزر", mother_farm: "مزرعة الأمهات" };
+const deptOutLabel = (d: string) => d === "slaughterhouse" ? "حركة الخزنة الرئيسية (مصروف)" : "حركة خزنة المعمل (مصروف)";
 const STATUS_LABEL: Record<string, string> = { pending: "بانتظار الاعتماد", approved: "معتمد", rejected: "مرفوض", cancelled: "ملغي" };
 const STATUS_CLASS: Record<string, string> = {
   pending: "bg-amber-100 text-amber-800 border-amber-300",
@@ -85,7 +88,7 @@ export default function FeedInternalAccounts() {
     setDetailsTxns({});
     const [inq, labq, mainq] = await Promise.all([
       supabase.from("feed_factory_treasury_txns" as any).select("*").eq("ref_table","feed_internal_payments").eq("ref_id", p.id),
-      p.department_type === "brooding"
+      (p.department_type === "brooding" || p.department_type === "mother_farm")
         ? supabase.from("lab_treasury_movements" as any).select("*").eq("source_table","feed_internal_payments").eq("source_id", p.id)
         : Promise.resolve({ data: [] }),
       p.department_type === "slaughterhouse"
@@ -112,6 +115,7 @@ export default function FeedInternalAccounts() {
   const filteredSupplies = supplies.filter((s) => {
     if (filter.dept === "brooding" && s.destination_type !== "brooding_feed_store") return false;
     if (filter.dept === "slaughterhouse" && s.destination_type !== "slaughterhouse_feed_store") return false;
+    if (filter.dept === "mother_farm" && s.destination_type !== "mother_farm_feed_store") return false;
     if (filter.from && s.sale_date < filter.from) return false;
     if (filter.to && s.sale_date > filter.to) return false;
     if (filter.ref && !(s.sale_no || "").includes(filter.ref)) return false;
@@ -183,7 +187,7 @@ export default function FeedInternalAccounts() {
           <CardHeader><CardTitle className="text-base">فلاتر</CardTitle></CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-sm">
-              <div><Label>القسم</Label><Select value={filter.dept} onValueChange={(v)=>setFilter({...filter,dept:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="all">الكل</SelectItem><SelectItem value="brooding">الحضانات</SelectItem><SelectItem value="slaughterhouse">المجزر</SelectItem></SelectContent></Select></div>
+              <div><Label>القسم</Label><Select value={filter.dept} onValueChange={(v)=>setFilter({...filter,dept:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="all">الكل</SelectItem><SelectItem value="brooding">الحضانات</SelectItem><SelectItem value="slaughterhouse">المجزر</SelectItem><SelectItem value="mother_farm">مزرعة الأمهات</SelectItem></SelectContent></Select></div>
               <div><Label>الحالة</Label><Select value={filter.status} onValueChange={(v)=>setFilter({...filter,status:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="all">الكل</SelectItem><SelectItem value="pending">معلق</SelectItem><SelectItem value="approved">معتمد</SelectItem><SelectItem value="rejected">مرفوض</SelectItem><SelectItem value="cancelled">ملغي</SelectItem></SelectContent></Select></div>
               <div><Label>طريقة السداد</Label><Select value={filter.method} onValueChange={(v)=>setFilter({...filter,method:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="all">الكل</SelectItem><SelectItem value="cash">نقدي</SelectItem><SelectItem value="vodafone_cash">فودافون</SelectItem><SelectItem value="instapay">إنستا باي</SelectItem><SelectItem value="bank_transfer">تحويل</SelectItem><SelectItem value="internal_settlement">تسوية</SelectItem></SelectContent></Select></div>
               <div><Label>من</Label><Input type="date" value={filter.from} onChange={(e)=>setFilter({...filter,from:e.target.value})}/></div>
@@ -212,7 +216,7 @@ export default function FeedInternalAccounts() {
                     <TableRow key={p.id}>
                       <TableCell className="font-mono text-xs">{p.payment_no}</TableCell>
                       <TableCell>{p.payment_date}</TableCell>
-                      <TableCell>{p.department_type === "brooding" ? "حضانات" : "مجزر"}</TableCell>
+                      <TableCell>{DEPT_SHORT[p.department_type] || p.department_type}</TableCell>
                       <TableCell className="font-bold">{fmt(p.amount)}</TableCell>
                       <TableCell className="text-xs">{p.payment_method}</TableCell>
                       <TableCell>{p.reference_no || "—"}</TableCell>
@@ -286,7 +290,7 @@ export default function FeedInternalAccounts() {
             {detailsFor && (
               <div className="space-y-3 text-sm">
                 <div className="grid grid-cols-2 gap-2 p-3 bg-muted/40 rounded">
-                  <div>القسم: <b>{detailsFor.department_type === "brooding" ? "حضانات التسمين" : "المجزر"}</b></div>
+                  <div>القسم: <b>{DEPT_LABEL[detailsFor.department_type] || detailsFor.department_type}</b></div>
                   <div>المبلغ: <b>{fmt(detailsFor.amount)} ج.م</b></div>
                   <div>الطريقة: <b>{detailsFor.payment_method}</b></div>
                   <div>التاريخ: <b>{detailsFor.payment_date}</b></div>
@@ -311,7 +315,7 @@ export default function FeedInternalAccounts() {
 
                 <div className="border rounded p-3">
                   <div className="font-bold mb-1 text-rose-700">
-                    {detailsFor.department_type === "brooding" ? "حركة خزنة المعمل/الحضانات (مصروف)" : "حركة الخزنة الرئيسية (مصروف)"}
+                    {deptOutLabel(detailsFor.department_type)}
                   </div>
                   {detailsTxns.out ? (
                     <div className="text-xs space-y-1">

@@ -9,7 +9,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 
-export type Department = "brooding" | "slaughterhouse";
+export type Department = "brooding" | "slaughterhouse" | "mother_farm";
+
+const DEPT_LABEL: Record<Department, string> = {
+  brooding: "حضانات التسمين",
+  slaughterhouse: "مخزن علف المجزر",
+  mother_farm: "مزرعة الأمهات",
+};
 
 interface Props {
   open: boolean;
@@ -86,8 +92,12 @@ export default function FeedInternalPaymentDialog({ open, onOpenChange, departme
               <SelectContent>
                 <SelectItem value="brooding">حضانات التسمين</SelectItem>
                 <SelectItem value="slaughterhouse">مخزن علف المجزر</SelectItem>
+                <SelectItem value="mother_farm">مزرعة الأمهات</SelectItem>
               </SelectContent>
             </Select>
+            {dept === "mother_farm" && (
+              <p className="text-xs text-muted-foreground mt-1">سيُسجَّل السداد من خزنة المعمل عند الاعتماد.</p>
+            )}
           </div>
           {remainingDebt !== undefined && (
             <div className="text-sm text-muted-foreground">

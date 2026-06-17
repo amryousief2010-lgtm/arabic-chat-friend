@@ -551,6 +551,8 @@ export default function FeedWarehouses() {
                             ? <Badge className="bg-blue-100 text-blue-800 border-blue-200">توريد → حضانات تسمين</Badge>
                             : s.destination_type === "slaughterhouse_feed_store"
                             ? <Badge className="bg-orange-100 text-orange-800 border-orange-200">توريد → مخزن علف المجزر</Badge>
+                            : s.destination_type === "mother_farm_feed_store"
+                            ? <Badge className="bg-purple-100 text-purple-800 border-purple-200">توريد → مزرعة الأمهات</Badge>
                             : (s.customer || "-")}
                         </TableCell>
                         <TableCell>{fmt(Number(s.total_amount))}</TableCell>
@@ -889,7 +891,7 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<string>("cash");
-  const [destinationType, setDestinationType] = useState<"external_customer" | "brooding_feed_store" | "slaughterhouse_feed_store">("external_customer");
+  const [destinationType, setDestinationType] = useState<"external_customer" | "brooding_feed_store" | "slaughterhouse_feed_store" | "mother_farm_feed_store">("external_customer");
   const [lines, setLines] = useState<SaleLine[]>([newSaleLine()]);
   const [saving, setSaving] = useState(false);
   const total = lines.reduce((s, l) => s + l.qty * l.price, 0);
@@ -984,6 +986,7 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
               <SelectItem value="external_customer">بيع خارجي لعميل</SelectItem>
               <SelectItem value="brooding_feed_store">توريد داخلي → مخزن علف حضانات تسمين الكتاكيت</SelectItem>
               <SelectItem value="slaughterhouse_feed_store">توريد داخلي → مخزن علف المجزر (علف النعام التسمين)</SelectItem>
+              <SelectItem value="mother_farm_feed_store">توريد داخلي → مخزن علف مزرعة الأمهات</SelectItem>
             </SelectContent>
           </Select>
           {isInternal && (
@@ -999,7 +1002,7 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
             <div><Label>رقم العميل</Label><Input type="tel" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="01xxxxxxxxx" /></div>
           </>}
           {isInternal && <div className="md:col-span-2"><Label>الجهة المستلمة</Label>
-            <Input value={destinationType === "brooding_feed_store" ? "حضانات تسمين الكتاكيت" : "مخزن علف المجزر"} disabled />
+            <Input value={destinationType === "brooding_feed_store" ? "حضانات تسمين الكتاكيت" : destinationType === "slaughterhouse_feed_store" ? "مخزن علف المجزر" : "مخزن علف مزرعة الأمهات"} disabled />
           </div>}
           <div><Label>{isInternal ? "أمين المخزن المسلِّم" : "اسم البائع"}</Label><Input value={salesperson} onChange={(e) => setSalesperson(e.target.value)} /></div>
           <div><Label>التاريخ</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
