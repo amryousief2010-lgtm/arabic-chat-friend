@@ -17,6 +17,7 @@ import { Warehouse, Package, ShoppingCart, Banknote, Plus, Trash2, AlertTriangle
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { exportCSV } from "@/lib/csvExport";
+import { openPrintWindow } from "@/lib/printPdf";
 import FeedInvoiceDetailsDialog, { printInvoice as printFeedInvoice } from "@/components/feed/FeedInvoiceDetailsDialog";
 
 type Line = { id: string; ref_id: string; qty: number; price: number };
