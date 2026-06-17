@@ -275,6 +275,19 @@ export default function FeedWarehouses() {
     slaughterhouse_feed_store: "المجزر",
     mother_farm_feed_store: "مزرعة الأمهات",
   };
+  const calcSaleCost = (s: any) => {
+    const items: any[] = s.feed_sale_items || [];
+    return items.reduce((sum: number, it: any) => {
+      const qty = Number(it.quantity || 0);
+      let unitCost = Number(it.unit_cost || 0);
+      if (!unitCost) {
+        const prod = (prodQ.data || []).find((p: any) => p.id === it.feed_product_id);
+        const raw = (rawQ.data || []).find((r: any) => r.id === it.raw_material_id);
+        unitCost = Number(prod?.latest_unit_cost || raw?.unit_cost || 0);
+      }
+      return sum + Number(it.line_cost || qty * unitCost);
+    }, 0);
+  };
   const filteredSales = (salesQ.data || []).filter((s: any) => {
     if (salesFilter === "internal") {
       if (!isInternalSale(s)) return false;
@@ -293,8 +306,8 @@ export default function FeedWarehouses() {
   const salesKpi = {
     count: filteredSales.length,
     total: filteredSales.reduce((sum: number, s: any) => sum + Number(s.total_amount || 0), 0),
-    cost: filteredSales.reduce((sum: number, s: any) => sum + Number(s.total_cost || 0), 0),
-    profit: filteredSales.reduce((sum: number, s: any) => sum + Number(s.profit || 0), 0),
+    cost: filteredSales.reduce((sum: number, s: any) => sum + calcSaleCost(s), 0),
+    get profit() { return this.total - this.cost; },
   };
   // ---- Cost analysis per product/feed type (respects filteredSales) ----
   type CostAgg = { name: string; qty: number; revenue: number; cost: number; hasFallback: boolean };
@@ -335,7 +348,7 @@ export default function FeedWarehouses() {
     نوع_البيع: isInternalSale(s) ? "داخلي" : "خارجي",
     الجهة_العميل: saleDestLabel(s),
     الإجمالي: s.total_amount,
-    التكلفة: s.total_cost,
+    التكلفة: calcSaleCost(s),
     الربح: s.profit,
   })));
   const exportCostAnalysis = () => exportCSV(`feed_sales_cost_analysis_${salesFileSuffix}.csv`, costByProduct.rows.map((r) => ({
@@ -350,7 +363,7 @@ export default function FeedWarehouses() {
     ملاحظة: r.hasFallback ? "بعض الأسطر بمتوسط التكلفة الحالي" : "",
   })));
   const printSalesList = () => {
-    const rows = filteredSales.map((s: any) => `<tr><td>${s.sale_no}</td><td>${s.sale_date}</td><td>${isInternalSale(s) ? "داخلي" : "خارجي"}</td><td>${saleDestLabel(s)}</td><td>${fmt(Number(s.total_amount||0))}</td><td>${fmt(Number(s.total_cost||0))}</td><td>${fmt(Number(s.profit||0))}</td></tr>`).join("");
+    const rows = filteredSales.map((s: any) => `<tr><td>${s.sale_no}</td><td>${s.sale_date}</td><td>${isInternalSale(s) ? "داخلي" : "خارجي"}</td><td>${saleDestLabel(s)}</td><td>${fmt(Number(s.total_amount||0))}</td><td>${fmt(calcSaleCost(s))}</td><td>${fmt(Number(s.total_amount||0) - calcSaleCost(s))}</td></tr>`).join("");
     const analysisRows = costByProduct.rows.map((r) => {
       const avgCost = r.qty > 0 ? r.cost / r.qty : 0;
       const avgPrice = r.qty > 0 ? r.revenue / r.qty : 0;
@@ -708,8 +721,8 @@ export default function FeedWarehouses() {
                           </TableCell>
                           <TableCell>{saleDestLabel(s)}</TableCell>
                           <TableCell>{fmt(Number(s.total_amount))}</TableCell>
-                          <TableCell className="text-muted-foreground">{fmt(Number(s.total_cost))}</TableCell>
-                          <TableCell className="font-bold text-success">{fmt(Number(s.profit))}</TableCell>
+                          <TableCell className="text-muted-foreground">{fmt(calcSaleCost(s))}</TableCell>
+                          <TableCell className="font-bold text-success">{fmt(Number(s.total_amount || 0) - calcSaleCost(s))}</TableCell>
                           <TableCell className="flex gap-1">
                             <Button size="icon" variant="ghost" onClick={() => printSale(s)}><Printer className="h-4 w-4" /></Button>
                             {canManageAll && <Button size="icon" variant="ghost" onClick={() => setSaleEdit(s)}><Pencil className="h-4 w-4" /></Button>}
