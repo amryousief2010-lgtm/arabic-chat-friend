@@ -943,7 +943,13 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
   const [destinationType, setDestinationType] = useState<"external_customer" | "brooding_feed_store" | "slaughterhouse_feed_store" | "mother_farm_feed_store">("external_customer");
   const [lines, setLines] = useState<SaleLine[]>([newSaleLine()]);
   const [saving, setSaving] = useState(false);
-  const total = lines.reduce((s, l) => s + l.qty * l.price, 0);
+  const total = lines.reduce((s, l) => {
+    if (l.ref_id && destinationType !== "external_customer") {
+      const prod: any = products.find((x: any) => x.id === l.ref_id);
+      return s + l.qty * Number(prod?.latest_unit_cost || 0);
+    }
+    return s + l.qty * l.price;
+  }, 0);
   const isInternal = destinationType !== "external_customer";
 
   useEffect(() => {
