@@ -279,7 +279,13 @@ export default function FeedWarehouses() {
   const loanFromNaam = useMemo(() => (treasuryQ.data || []).filter((t: any) => t.kind === "loan_from_naam").reduce((s: number, t: any) => s + Number(t.amount), 0) - (treasuryQ.data || []).filter((t: any) => t.kind === "loan_to_naam").reduce((s: number, t: any) => s + Number(t.amount), 0), [treasuryQ.data]);
 
   const exportRaw = () => exportCSV("raw_materials.csv", (rawQ.data||[]).map((r:any)=>{const sp=Number(r.sale_price||0);const uc=Number(r.unit_cost||0);return ({الصنف:r.name,الكود:r.item_code||"",الرصيد:r.stock,الوحدة:r.unit,متوسط_التكلفة:uc,سعر_البيع:sp,القيمة_تكلفة:Number(r.stock)*uc,القيمة_بيع:Number(r.stock)*sp,هامش_الربح:sp>0?sp-uc:0,نسبة_الهامش:sp>0?((sp-uc)/sp*100).toFixed(2)+"%":"",المورد:r.supplier||""});}));
-  const exportProd = () => exportCSV("finished_products.csv", (prodQ.data||[]).map((p:any)=>({المنتج:p.name,المرحلة:p.stage,الكمية_كجم:p.current_stock,عدد_الشكاير:Number(p.default_bag_kg||50)>0?Number(p.current_stock)/Number(p.default_bag_kg||50):0,وزن_الشيكارة:p.default_bag_kg,متوسط_التكلفة:p.latest_unit_cost,سعر_البيع:p.selling_price,القيمة:Number(p.current_stock||0)*Number(p.latest_unit_cost||0)})));
+  const getReadyRaws = () => (rawQ.data||[]).filter((r:any)=>{const n=String(r.name||"").toLowerCase();return n.includes("بريمكس")||n.includes("دريس")||n.includes("premix")||n.includes("dress");});
+  const exportProd = () => {
+    const prods = (prodQ.data||[]).map((p:any)=>({المنتج:p.name,المرحلة:p.stage||"جاهز للبيع",الكمية_كجم:Number(p.current_stock||0),عدد_الشكاير:Number(p.default_bag_kg||50)>0?Number(p.current_stock||0)/Number(p.default_bag_kg||50):0,وزن_الشيكارة:p.default_bag_kg,متوسط_التكلفة:Number(p.latest_unit_cost||0),سعر_البيع:Number(p.selling_price||0),قيمة_تكلفة:Number(p.current_stock||0)*Number(p.latest_unit_cost||0),قيمة_بيع:Number(p.current_stock||0)*Number(p.selling_price||0)}));
+    const raws = getReadyRaws().map((r:any)=>({المنتج:r.name,المرحلة:"بريمكس / دريس",الكمية_كجم:Number(r.stock||0),عدد_الشكاير:0,وزن_الشيكارة:"",متوسط_التكلفة:Number(r.unit_cost||0),سعر_البيع:Number(r.sale_price||0),قيمة_تكلفة:Number(r.stock||0)*Number(r.unit_cost||0),قيمة_بيع:Number(r.stock||0)*Number(r.sale_price||0)}));
+    exportCSV("finished_products.csv", [...prods, ...raws]);
+  };
+
   const exportPur = () => exportCSV("purchases.csv", (purQ.data||[]).map((p:any)=>({الرقم:p.purchase_no,التاريخ:p.purchase_date,المورد:p.supplier||"",رقم_فاتورة_المورد:p.supplier_invoice_no||"",عدد_البنود:p.feed_raw_purchase_items?.length||0,الإجمالي:p.total_amount})));
   const isInternalSale = (s: any) => s.destination_type && s.destination_type !== "external_customer";
   const saleDestLabel = (s: any) => {
