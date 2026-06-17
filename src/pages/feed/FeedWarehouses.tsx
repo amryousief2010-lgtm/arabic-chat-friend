@@ -339,10 +339,22 @@ export default function FeedWarehouses() {
   };
   const saleQty = (s: any) =>
     (s.feed_sale_items || []).reduce((a: number, it: any) => a + Number(it.quantity || 0), 0);
+  // إجمالي المبيعات المعروض — يُؤخذ من المرجع الرسمي LV (Excel) بدلاً من DB
+  const lvDisplayedTotal = (() => {
+    if (salesFilter === "external") return lvKpi("external_sales_value_egp").value;
+    if (salesFilter === "internal") {
+      if (internalDept === "mother_farm_feed_store") return lvKpi("mother_farm_supply_value_egp").value;
+      if (internalDept === "brooding_feed_store") return lvKpi("brooding_internal_sales_value_egp").value;
+      if (internalDept === "slaughterhouse_feed_store") return lvKpi("slaughterhouse_internal_sales_value_egp").value;
+      return lvInternalSalesValue();
+    }
+    return lvTotalSalesValue();
+  })();
   const salesKpi = {
     count: filteredSales.length,
     qty: filteredSales.reduce((sum: number, s: any) => sum + saleQty(s), 0),
-    total: filteredSales.reduce((sum: number, s: any) => sum + saleEffectiveTotal(s), 0),
+    // total = القيمة المعتمدة من Excel LV (المرجع الرسمي)
+    total: lvDisplayedTotal,
     cost: filteredSales.reduce((sum: number, s: any) => sum + calcSaleCost(s), 0),
     paid: filteredSales.reduce((sum: number, s: any) => sum + salePaid(s), 0),
     get remaining() { return this.total - this.paid; },
