@@ -330,6 +330,8 @@ export default function Recipes() {
                 </Select>
               </div>
               <div><Label>حجم الدفعة</Label><Input type="number" value={form.batch_size} onChange={e => setForm({ ...form, batch_size: Number(e.target.value) })} /></div>
+              <div><Label>إجمالي الأجور</Label><Input type="number" step="0.01" value={form.labor_total_cost} onChange={e => setForm({ ...form, labor_total_cost: Number(e.target.value) })} /></div>
+              <div><Label>إجمالي المصاريف الأخرى</Label><Input type="number" step="0.01" value={form.other_expenses_total} onChange={e => setForm({ ...form, other_expenses_total: Number(e.target.value) })} /></div>
               <div>
                 <Label>الوحدة</Label>
                 <Select value={form.unit} onValueChange={v => setForm({ ...form, unit: v })}>
