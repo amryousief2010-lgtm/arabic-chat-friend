@@ -331,8 +331,13 @@ export default function FeedWarehouses() {
   const salesFileSuffix = salesFilter === "internal"
     ? (internalDept === "all" ? "internal_all" : `internal_${internalDept.replace("_feed_store","")}`)
     : salesFilter;
-  const saleEffectiveTotal = (s: any) =>
-    isInternalSale(s) ? calcSaleCost(s) : Number(s.total_amount || 0);
+  const saleEffectiveTotal = (s: any) => {
+    if (!isInternalSale(s)) return Number(s.total_amount || 0);
+    // الفواتير الداخلية: نستخدم تكلفة البنود إن وُجدت، وإلا نرجع لقيمة الفاتورة المسجلة
+    // (الفواتير التاريخية المُدخلة كرأس فقط بدون بنود).
+    const cost = calcSaleCost(s);
+    return cost > 0 ? cost : Number(s.total_amount || 0);
+  };
   const salePaid = (s: any) => {
     const pm = String(s.payment_method || "").toLowerCase();
     if (["cash", "paid", "نقدي", "مدفوع"].includes(pm)) return Number(s.total_amount || 0);
