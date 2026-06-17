@@ -3,12 +3,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-export type ApprovalCategory = "treasury" | "meat" | "custody" | "slaughter" | "lab";
+export type ApprovalCategory = "treasury" | "meat" | "custody" | "slaughter" | "lab" | "hr";
 
 export type ApprovalItem = {
   id: string;
   category: ApprovalCategory;
-  source: string;         // human-readable source label (e.g. "فاتورة تصنيع", "تصنيع داخلي", "تقسيمة دبح")
+  source: string;
   title: string;
   subtitle?: string;
   amount?: number | null;
@@ -26,6 +26,18 @@ const LAB_PENDING = "pending";
 const MEAT_PENDING = "draft";
 const CUSTODY_PENDING = ["pending_review", "over_limit_pending"];
 const SLAUGHTER_BATCH_PENDING = "pending";
+const HR_PENDING = "pending";
+
+const HR_TYPE_LABEL: Record<string, string> = {
+  absence: "غياب",
+  late: "تأخير",
+  penalty: "جزاء",
+  damages: "تلفيات",
+  advance_repayment: "سلفة تخصم من الراتب",
+  administrative: "خصم إداري",
+  days_deduction: "خصم أيام",
+  other: "أخرى",
+};
 
 async function resolveProfiles(ids: string[]): Promise<Record<string, string>> {
   const unique = Array.from(new Set(ids.filter(Boolean)));
@@ -52,7 +64,7 @@ export function useExecutiveApprovals() {
     refetchOnWindowFocus: true,
     staleTime: 15_000,
     queryFn: async () => {
-      const [treasuryRes, labRes, meatInvRes, meatMfgRes, custodyRes, slaughterRes] = await Promise.all([
+      const [treasuryRes, labRes, meatInvRes, meatMfgRes, custodyRes, slaughterRes, hrRes] = await Promise.all([
         (supabase as any)
           .from("main_treasury_transactions")
           .select("id, reference_no, txn_type, amount, txn_date, counterparty, description, status, created_at, created_by, payment_method, deposit_purpose, incoming_source")
@@ -89,13 +101,32 @@ export function useExecutiveApprovals() {
           .eq("approval_status", SLAUGHTER_BATCH_PENDING)
           .order("created_at", { ascending: false })
           .limit(200),
+        (supabase as any)
+          .from("hr_deductions")
+          .select("id, employee_id, deduction_date, month, year, deduction_type, amount, reason, notes, status, days_count, daily_value, days_per_month, monthly_salary_snapshot, created_by, created_at")
+          .eq("status", HR_PENDING)
+          .order("created_at", { ascending: false })
+          .limit(200),
       ]);
 
       const allCreators: string[] = [];
-      [treasuryRes, labRes, meatInvRes, meatMfgRes, custodyRes, slaughterRes].forEach((r) =>
+      [treasuryRes, labRes, meatInvRes, meatMfgRes, custodyRes, slaughterRes, hrRes].forEach((r) =>
         (r.data || []).forEach((x: any) => x.created_by && allCreators.push(x.created_by))
       );
       const profiles = await resolveProfiles(allCreators);
+
+      // Resolve employees for HR items
+      const empIds = Array.from(new Set((hrRes.data || []).map((d: any) => d.employee_id).filter(Boolean)));
+      const empMap: Record<string, { full_name: string; department: string | null; job_title: string | null }> = {};
+      if (empIds.length) {
+        const { data: emps } = await (supabase as any)
+          .from("hr_employees")
+          .select("id, full_name, department, job_title")
+          .in("id", empIds);
+        (emps || []).forEach((e: any) => {
+          empMap[e.id] = { full_name: e.full_name || "—", department: e.department, job_title: e.job_title };
+        });
+      }
 
       const treasury: ApprovalItem[] = (treasuryRes.data || []).map((t: any) => {
         const isToCustody = t.txn_type === "transfer_to_custody";
@@ -215,7 +246,32 @@ export function useExecutiveApprovals() {
         raw: b,
       }));
 
-      const items: ApprovalItem[] = [...treasury, ...lab, ...meatInv, ...meatMfg, ...custody, ...slaughter].sort(
+      const hr: ApprovalItem[] = (hrRes.data || []).map((d: any) => {
+        const emp = empMap[d.employee_id] || { full_name: "موظف غير معروف", department: null, job_title: null };
+        const isDays = d.deduction_type === "days_deduction";
+        const typeArLabel = HR_TYPE_LABEL[d.deduction_type] || d.deduction_type;
+        const parts: string[] = [];
+        if (emp.department) parts.push(emp.department);
+        if (emp.job_title) parts.push(emp.job_title);
+        parts.push(`الشهر ${d.month}/${d.year}`);
+        if (isDays && d.days_count) parts.push(`${d.days_count} يوم × ${Number(d.daily_value || 0).toLocaleString("ar-EG", { maximumFractionDigits: 2 })}`);
+        if (d.reason) parts.push(d.reason);
+        return {
+          id: d.id,
+          category: "hr" as ApprovalCategory,
+          source: "خصم موظف",
+          title: `${typeArLabel} — ${emp.full_name}`,
+          subtitle: parts.join(" • "),
+          amount: Number(d.amount || 0),
+          created_at: d.created_at,
+          created_by: d.created_by,
+          creator_name: profiles[d.created_by] || null,
+          status: d.status,
+          raw: { ...d, _employee: emp },
+        };
+      });
+
+      const items: ApprovalItem[] = [...treasury, ...lab, ...meatInv, ...meatMfg, ...custody, ...slaughter, ...hr].sort(
         (a, b) => +new Date(b.created_at) - +new Date(a.created_at)
       );
 
@@ -228,6 +284,7 @@ export function useExecutiveApprovals() {
           meat: meatInv.length + meatMfg.length,
           custody: custody.length,
           slaughter: slaughter.length,
+          hr: hr.length,
         },
       };
     },
@@ -257,6 +314,9 @@ export function useExecutiveApprovals() {
       .on("postgres_changes" as any, { event: "*", schema: "public", table: "slaughter_batches" }, () =>
         queryClient.invalidateQueries({ queryKey: ["executive-approvals"] })
       )
+      .on("postgres_changes" as any, { event: "*", schema: "public", table: "hr_deductions" }, () =>
+        queryClient.invalidateQueries({ queryKey: ["executive-approvals"] })
+      )
       .subscribe();
     return () => {
       try { supabase.removeChannel(ch); } catch {}
@@ -272,6 +332,7 @@ export function useExecutiveApprovals() {
         item.category === "lab" ? "lab_treasury_movements" :
         item.category === "custody" ? "slaughter_custody_expenses" :
         item.category === "slaughter" ? "slaughter_batches" :
+        item.category === "hr" ? "hr_deductions" :
         item.raw._source_table;
 
       const statusCol = item.category === "slaughter" ? "approval_status" : "status";
@@ -283,8 +344,14 @@ export function useExecutiveApprovals() {
         (item.category === "lab" && freshStatus === LAB_PENDING) ||
         (item.category === "meat" && freshStatus === MEAT_PENDING) ||
         (item.category === "custody" && CUSTODY_PENDING.includes(freshStatus)) ||
-        (item.category === "slaughter" && freshStatus === SLAUGHTER_BATCH_PENDING);
-      if (!isPending) throw new Error("تم التعامل مع هذا الطلب بالفعل");
+        (item.category === "slaughter" && freshStatus === SLAUGHTER_BATCH_PENDING) ||
+        (item.category === "hr" && freshStatus === HR_PENDING);
+      if (!isPending) {
+        if (item.category === "hr" && freshStatus === "approved") {
+          throw new Error("تم اعتماد هذا الخصم من قبل");
+        }
+        throw new Error("تم التعامل مع هذا الطلب بالفعل");
+      }
 
       if (item.category === "treasury") {
         const { error } = await (supabase as any).rpc("mt_approve_txn", { p_txn_id: item.id });
@@ -355,6 +422,37 @@ export function useExecutiveApprovals() {
         const { error } = await (supabase as any).rpc("approve_slaughter_batch" as any, { p_batch_id: item.id });
         if (error) throw error;
         // RPC writes its own audit row.
+      } else if (item.category === "hr") {
+        const { error } = await (supabase as any)
+          .from("hr_deductions")
+          .update({
+            status: "approved",
+            approved_by: user?.id,
+            approved_at: new Date().toISOString(),
+          })
+          .eq("id", item.id)
+          .eq("status", HR_PENDING);
+        if (error) throw error;
+        if (user) {
+          await (supabase as any).from("hr_audit_log").insert({
+            entity_type: "hr_deduction",
+            entity_id: item.id,
+            employee_id: item.raw.employee_id,
+            action: "approve",
+            after_data: {
+              status: "approved",
+              deduction_type: item.raw.deduction_type,
+              amount: item.raw.amount,
+              days_count: item.raw.days_count,
+              daily_value: item.raw.daily_value,
+              month: item.raw.month,
+              year: item.raw.year,
+              reason: item.raw.reason,
+            } as any,
+            performed_by: user.id,
+            reason: `اعتماد خصم موظف (${HR_TYPE_LABEL[item.raw.deduction_type] || item.raw.deduction_type})`,
+          });
+        }
       }
       await refetch();
     },
@@ -424,6 +522,28 @@ export function useExecutiveApprovals() {
       } else if (item.category === "slaughter") {
         const { error } = await (supabase as any).rpc("reject_slaughter_batch" as any, { p_batch_id: item.id, p_reason: r });
         if (error) throw error;
+      } else if (item.category === "hr") {
+        const { error } = await (supabase as any)
+          .from("hr_deductions")
+          .update({
+            status: "rejected",
+            rejected_by: user?.id,
+            rejected_at: new Date().toISOString(),
+            rejection_reason: r,
+          })
+          .eq("id", item.id);
+        if (error) throw error;
+        if (user) {
+          await (supabase as any).from("hr_audit_log").insert({
+            entity_type: "hr_deduction",
+            entity_id: item.id,
+            employee_id: item.raw.employee_id,
+            action: "reject",
+            after_data: { status: "rejected", rejection_reason: r } as any,
+            performed_by: user.id,
+            reason: r,
+          });
+        }
       }
       await refetch();
     },
@@ -435,7 +555,7 @@ export function useExecutiveApprovals() {
       isApprover,
       isLoading,
       items: data?.items ?? [],
-      counts: data?.counts ?? { all: 0, treasury: 0, lab: 0, meat: 0, custody: 0, slaughter: 0 },
+      counts: data?.counts ?? { all: 0, treasury: 0, lab: 0, meat: 0, custody: 0, slaughter: 0, hr: 0 },
       refetch,
       approve,
       reject,
