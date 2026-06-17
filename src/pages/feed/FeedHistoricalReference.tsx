@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { safeParseExcel } from "@/lib/safeExcel";
 import { toast } from "sonner";
-import { AlertTriangle, Upload, CheckCircle2, FileSpreadsheet, Loader2 } from "lucide-react";
+import { AlertTriangle, Upload, CheckCircle2, FileSpreadsheet, Loader2, Printer, Download } from "lucide-react";
+import { openPrintWindow } from "@/lib/printPdf";
 
 type Row = {
   id?: string;
