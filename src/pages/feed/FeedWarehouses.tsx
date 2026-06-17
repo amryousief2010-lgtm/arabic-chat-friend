@@ -303,11 +303,23 @@ export default function FeedWarehouses() {
   const salesFileSuffix = salesFilter === "internal"
     ? (internalDept === "all" ? "internal_all" : `internal_${internalDept.replace("_feed_store","")}`)
     : salesFilter;
+  const saleEffectiveTotal = (s: any) =>
+    isInternalSale(s) ? calcSaleCost(s) : Number(s.total_amount || 0);
+  const salePaid = (s: any) => {
+    const pm = String(s.payment_method || "").toLowerCase();
+    if (["cash", "paid", "نقدي", "مدفوع"].includes(pm)) return Number(s.total_amount || 0);
+    return 0;
+  };
+  const saleQty = (s: any) =>
+    (s.feed_sale_items || []).reduce((a: number, it: any) => a + Number(it.quantity || 0), 0);
   const salesKpi = {
     count: filteredSales.length,
-    total: filteredSales.reduce((sum: number, s: any) => sum + Number(s.total_amount || 0), 0),
+    qty: filteredSales.reduce((sum: number, s: any) => sum + saleQty(s), 0),
+    total: filteredSales.reduce((sum: number, s: any) => sum + saleEffectiveTotal(s), 0),
     cost: filteredSales.reduce((sum: number, s: any) => sum + calcSaleCost(s), 0),
-    get profit() { return this.total - this.cost; },
+    paid: filteredSales.reduce((sum: number, s: any) => sum + salePaid(s), 0),
+    get remaining() { return this.total - this.paid; },
+    get profit() { return filteredSales.reduce((sum: number, s: any) => sum + (isInternalSale(s) ? 0 : (Number(s.total_amount || 0) - calcSaleCost(s))), 0); },
   };
   // ---- Cost analysis per product/feed type (respects filteredSales) ----
   type CostAgg = { name: string; qty: number; revenue: number; cost: number; hasFallback: boolean };
