@@ -201,7 +201,12 @@ export default function FeedInternalAccounts() {
           <TabsContent value="payments">
             <Card><CardContent className="p-3 overflow-x-auto">
               <Table>
-                <TableHeader><TableRow><TableHead>رقم</TableHead><TableHead>التاريخ</TableHead><TableHead>القسم</TableHead><TableHead>المبلغ</TableHead><TableHead>الطريقة</TableHead><TableHead>المرجع</TableHead><TableHead>الحالة</TableHead><TableHead>ملاحظات</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow>
+                  <TableHead>رقم</TableHead><TableHead>التاريخ</TableHead><TableHead>القسم</TableHead>
+                  <TableHead>المبلغ</TableHead><TableHead>الطريقة</TableHead><TableHead>المرجع</TableHead>
+                  <TableHead>الحالة</TableHead><TableHead>ملاحظات</TableHead>
+                  <TableHead className="sticky left-0 bg-background shadow-[-2px_0_4px_rgba(0,0,0,0.05)] text-center">الإجراءات</TableHead>
+                </TableRow></TableHeader>
                 <TableBody>
                   {filteredPayments.map(p => (
                     <TableRow key={p.id}>
@@ -211,11 +216,28 @@ export default function FeedInternalAccounts() {
                       <TableCell className="font-bold">{fmt(p.amount)}</TableCell>
                       <TableCell className="text-xs">{p.payment_method}</TableCell>
                       <TableCell>{p.reference_no || "—"}</TableCell>
-                      <TableCell><Badge variant="outline">{p.status}</Badge></TableCell>
-                      <TableCell className="text-xs">{p.notes || "—"}</TableCell>
+                      <TableCell><Badge variant="outline" className={STATUS_CLASS[p.status] || ""}>{STATUS_LABEL[p.status] || p.status}</Badge></TableCell>
+                      <TableCell className="text-xs max-w-[200px] truncate">{p.notes || "—"}</TableCell>
+                      <TableCell className="sticky left-0 bg-background shadow-[-2px_0_4px_rgba(0,0,0,0.05)]">
+                        <div className="flex gap-1 justify-center">
+                          {p.status === "pending" && canApprove && (
+                            <>
+                              <Button size="sm" variant="default" className="h-8 bg-emerald-600 hover:bg-emerald-700" disabled={busy===p.id} onClick={() => approve(p)} title="اعتماد">
+                                <Check className="h-4 w-4" />
+                              </Button>
+                              <Button size="sm" variant="destructive" className="h-8" disabled={busy===p.id} onClick={() => { setRejectFor(p); setRejectReason(""); }} title="رفض">
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                          <Button size="sm" variant="outline" className="h-8" onClick={() => openDetails(p)} title="تفاصيل">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))}
-                  {filteredPayments.length===0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">لا توجد بيانات</TableCell></TableRow>}
+                  {filteredPayments.length===0 && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground">لا توجد بيانات</TableCell></TableRow>}
                 </TableBody>
               </Table>
             </CardContent></Card>
