@@ -674,12 +674,36 @@ export default function FeedWarehouses() {
                   const totalCount = purchases.length;
                   const totalAmount = purchases.reduce((s: number, p: any) => s + Number(p.total_amount || 0), 0);
                   const totalItems = purchases.reduce((s: number, p: any) => s + (p.feed_raw_purchase_items?.length || 0), 0);
+                  const lvPurchases = lvKpi("raw_material_purchases_egp").value;
+                  const lvMotherTon = lvKpi("mother_farm_supply_ton").value;
+                  const lvMotherVal = lvKpi("mother_farm_supply_value_egp").value;
+                  const lvExternal = lvKpi("external_sales_value_egp").value;
+                  const diff = lvPurchases - totalAmount;
                   return (
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                      <div className="rounded border p-2 bg-muted/40"><div className="text-xs text-muted-foreground">عدد فواتير الشراء</div><div className="text-lg font-bold">{totalCount}</div></div>
-                      <div className="rounded-md border-2 border-primary p-3 bg-primary/10 col-span-1 md:col-span-1"><div className="text-xs text-primary font-semibold">إجمالي المشتريات</div><div className="text-2xl font-bold text-primary">{fmt(totalAmount)} ج.م</div></div>
-                      <div className="rounded border p-2 bg-muted/40"><div className="text-xs text-muted-foreground">إجمالي بنود الشراء</div><div className="text-lg font-bold">{totalItems}</div></div>
-                    </div>
+                    <>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        <div className="rounded border p-2 bg-muted/40"><div className="text-xs text-muted-foreground">عدد فواتير الشراء (قاعدة البيانات)</div><div className="text-lg font-bold">{totalCount}</div></div>
+                        <div className="rounded-md border-2 border-primary p-3 bg-primary/10"><div className="text-xs text-primary font-semibold">إجمالي المشتريات (قاعدة البيانات)</div><div className="text-2xl font-bold text-primary">{fmt(totalAmount)} ج.م</div></div>
+                        <div className="rounded border p-2 bg-muted/40"><div className="text-xs text-muted-foreground">إجمالي بنود الشراء</div><div className="text-lg font-bold">{totalItems}</div></div>
+                      </div>
+
+                      {/* المرجع الرسمي من ملف Excel — LV_KPI */}
+                      <div className="rounded-md border-2 border-amber-400 bg-amber-50 p-3 space-y-2">
+                        <div className="flex items-center gap-2 text-amber-800 font-semibold text-sm">
+                          <FileSpreadsheet className="h-4 w-4" />
+                          المرجع الرسمي من ملف Excel (شيت LV_KPI) — الفترة {LV_PERIOD.start} → {LV_PERIOD.end}
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                          <div className="rounded border p-2 bg-white"><div className="text-[11px] text-muted-foreground">إجمالي مشتريات الخامات — Excel</div><div className="text-lg font-bold text-amber-700">{fmt(lvPurchases)} ج.م</div></div>
+                          <div className="rounded border p-2 bg-white"><div className="text-[11px] text-muted-foreground">فرق Excel − قاعدة البيانات</div><div className={`text-lg font-bold ${diff > 0 ? 'text-destructive' : diff < 0 ? 'text-orange-700' : 'text-success'}`}>{fmt(diff)} ج.م</div><div className="text-[10px] text-muted-foreground">{diff > 0 ? "فواتير ناقصة لم تُدرج بالنظام" : diff < 0 ? "النظام يزيد عن Excel" : "مطابق"}</div></div>
+                          <div className="rounded border p-2 bg-white"><div className="text-[11px] text-muted-foreground">توريد علف لمزرعة الأمهات — الكمية</div><div className="text-lg font-bold text-emerald-700">{lvMotherTon.toLocaleString("en-US")} طن <span className="text-xs">({(lvMotherTon * 1000).toLocaleString("en-US")} كجم)</span></div><div className="text-[10px] text-muted-foreground">علف بياض</div></div>
+                          <div className="rounded border p-2 bg-white"><div className="text-[11px] text-muted-foreground">توريد علف لمزرعة الأمهات — القيمة</div><div className="text-lg font-bold text-emerald-700">{fmt(lvMotherVal)} ج.م</div></div>
+                        </div>
+                        <div className="text-[11px] text-muted-foreground">
+                          المبيعات الخارجية حسب Excel: <span className="font-semibold text-foreground">{fmt(lvExternal)} ج.م</span> — هذه الأرقام مأخوذة من <code className="font-mono">src/data/feedFactoryLV.ts</code> ولا تتأثر بقاعدة البيانات.
+                        </div>
+                      </div>
+                    </>
                   );
                 })()}
                 <Table>
