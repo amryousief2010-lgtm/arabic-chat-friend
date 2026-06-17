@@ -290,7 +290,7 @@ export default function FeedInternalAccounts() {
             {detailsFor && (
               <div className="space-y-3 text-sm">
                 <div className="grid grid-cols-2 gap-2 p-3 bg-muted/40 rounded">
-                  <div>القسم: <b>{detailsFor.department_type === "brooding" ? "حضانات التسمين" : "المجزر"}</b></div>
+                  <div>القسم: <b>{DEPT_LABEL[detailsFor.department_type] || detailsFor.department_type}</b></div>
                   <div>المبلغ: <b>{fmt(detailsFor.amount)} ج.م</b></div>
                   <div>الطريقة: <b>{detailsFor.payment_method}</b></div>
                   <div>التاريخ: <b>{detailsFor.payment_date}</b></div>
