@@ -22,7 +22,9 @@ interface Item { raw_material_id: string; quantity: number; }
 interface Recipe {
   id: string; name: string; feed_type: string; batch_size: number; unit: string;
   description: string | null; is_active: boolean; feed_product_id: string | null;
+  labor_total_cost?: number | null; other_expenses_total?: number | null;
   items?: { id: string; raw_material_id: string; quantity: number; raw_material?: Material }[];
+  feed_product?: { id: string; name: string; feed_code: string } | null;
 }
 interface Product { id: string; name: string; feed_code: string; }
 
