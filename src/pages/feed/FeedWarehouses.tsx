@@ -348,7 +348,7 @@ export default function FeedWarehouses() {
     نوع_البيع: isInternalSale(s) ? "داخلي" : "خارجي",
     الجهة_العميل: saleDestLabel(s),
     الإجمالي: s.total_amount,
-    التكلفة: s.total_cost,
+    التكلفة: calcSaleCost(s),
     الربح: s.profit,
   })));
   const exportCostAnalysis = () => exportCSV(`feed_sales_cost_analysis_${salesFileSuffix}.csv`, costByProduct.rows.map((r) => ({
