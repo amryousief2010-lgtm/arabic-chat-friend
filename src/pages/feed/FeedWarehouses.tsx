@@ -153,6 +153,7 @@ export default function FeedWarehouses() {
   const [productionOpen, setProductionOpen] = useState(false);
   const [detailsInv, setDetailsInv] = useState<any | null>(null);
   const [salesFilter, setSalesFilter] = useState<"all" | "internal" | "external">("all");
+  const [internalDept, setInternalDept] = useState<"all" | "brooding_feed_store" | "slaughterhouse_feed_store" | "mother_farm_feed_store">("all");
   const canTreasury = roles.some((r) => ["general_manager","executive_manager","feed_factory_manager","warehouse_supervisor"].includes(r));
   const canProduce = roles.some((r) => ["general_manager","executive_manager","feed_factory_manager","warehouse_supervisor","production_manager"].includes(r));
 
@@ -269,19 +270,33 @@ export default function FeedWarehouses() {
       default: return s.customer || "عميل خارجي";
     }
   };
+  const DEPT_LABEL: Record<string, string> = {
+    brooding_feed_store: "حضانات التسمين",
+    slaughterhouse_feed_store: "المجزر",
+    mother_farm_feed_store: "مزرعة الأمهات",
+  };
   const filteredSales = (salesQ.data || []).filter((s: any) => {
-    if (salesFilter === "internal") return isInternalSale(s);
+    if (salesFilter === "internal") {
+      if (!isInternalSale(s)) return false;
+      if (internalDept !== "all" && s.destination_type !== internalDept) return false;
+      return true;
+    }
     if (salesFilter === "external") return !isInternalSale(s);
     return true;
   });
-  const salesFilterLabel = salesFilter === "internal" ? "المبيعات الداخلية" : salesFilter === "external" ? "المبيعات الخارجية" : "كل المبيعات";
+  const salesFilterLabel = salesFilter === "internal"
+    ? (internalDept === "all" ? "المبيعات الداخلية" : `المبيعات الداخلية / ${DEPT_LABEL[internalDept]}`)
+    : salesFilter === "external" ? "المبيعات الخارجية" : "كل المبيعات";
+  const salesFileSuffix = salesFilter === "internal"
+    ? (internalDept === "all" ? "internal_all" : `internal_${internalDept.replace("_feed_store","")}`)
+    : salesFilter;
   const salesKpi = {
     count: filteredSales.length,
     total: filteredSales.reduce((sum: number, s: any) => sum + Number(s.total_amount || 0), 0),
     cost: filteredSales.reduce((sum: number, s: any) => sum + Number(s.total_cost || 0), 0),
     profit: filteredSales.reduce((sum: number, s: any) => sum + Number(s.profit || 0), 0),
   };
-  const exportSales = () => exportCSV(`sales_${salesFilter}.csv`, filteredSales.map((s: any) => ({
+  const exportSales = () => exportCSV(`feed_sales_${salesFileSuffix}.csv`, filteredSales.map((s: any) => ({
     الرقم: s.sale_no,
     التاريخ: s.sale_date,
     نوع_البيع: isInternalSale(s) ? "داخلي" : "خارجي",
@@ -292,7 +307,7 @@ export default function FeedWarehouses() {
   })));
   const printSalesList = () => {
     const rows = filteredSales.map((s: any) => `<tr><td>${s.sale_no}</td><td>${s.sale_date}</td><td>${isInternalSale(s) ? "داخلي" : "خارجي"}</td><td>${saleDestLabel(s)}</td><td>${fmt(Number(s.total_amount||0))}</td><td>${fmt(Number(s.total_cost||0))}</td><td>${fmt(Number(s.profit||0))}</td></tr>`).join("");
-    openPrintWindow(`<h2 style="text-align:center">مبيعات مصنع الأعلاف — ${salesFilterLabel}</h2><div style="text-align:center;margin-bottom:8px">عدد الفواتير: ${salesKpi.count} — الإجمالي: ${fmt(salesKpi.total)} ج.م — التكلفة: ${fmt(salesKpi.cost)} ج.م — الربح: ${fmt(salesKpi.profit)} ج.م</div><table border="1" cellpadding="6" style="width:100%;border-collapse:collapse"><thead><tr><th>الرقم</th><th>التاريخ</th><th>النوع</th><th>الجهة/العميل</th><th>الإجمالي</th><th>التكلفة</th><th>الربح</th></tr></thead><tbody>${rows}</tbody></table>`, `feed-sales-${salesFilter}`);
+    openPrintWindow(`<h2 style="text-align:center">تقرير مبيعات مصنع الأعلاف — ${salesFilterLabel}</h2><div style="text-align:center;margin-bottom:8px">عدد الفواتير: ${salesKpi.count} — الإجمالي: ${fmt(salesKpi.total)} ج.م — التكلفة: ${fmt(salesKpi.cost)} ج.م — الربح: ${fmt(salesKpi.profit)} ج.م</div><table border="1" cellpadding="6" style="width:100%;border-collapse:collapse"><thead><tr><th>الرقم</th><th>التاريخ</th><th>النوع</th><th>الجهة/العميل</th><th>الإجمالي</th><th>التكلفة</th><th>الربح</th></tr></thead><tbody>${rows}</tbody></table>`, `feed-sales-${salesFileSuffix}`);
   };
   const exportCounts = () => exportCSV("stock_counts.csv", (countsQ.data||[]).map((c:any)=>({الرقم:c.count_no,التاريخ:c.count_date,النوع:c.warehouse_kind,عدد_الأصناف:c.feed_stock_count_items?.length||0,الحالة:c.status})));
   const exportTreasury = () => exportCSV("treasury.csv", (treasuryQ.data||[]).map((t:any)=>({الرقم:t.txn_no,التاريخ:t.txn_date,النوع:KIND_LABEL[t.kind]||t.kind,الجهة:t.party||"",وارد:t.direction==="in"?t.amount:0,منصرف:t.direction==="out"?t.amount:0,البيان:t.note||""})));
@@ -308,7 +323,8 @@ export default function FeedWarehouses() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+          <Card className="border-primary/60 bg-primary/5"><CardContent className="p-4"><div className="text-xs text-muted-foreground">إجمالي تكلفة المخزون</div><div className="text-2xl font-bold text-primary">{fmt(rawValue + finishedValue)} ج.م</div><div className="text-[10px] text-muted-foreground">خامات + جاهز</div></CardContent></Card>
           <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">قيمة مخزن الخامات</div><div className="text-2xl font-bold text-primary">{fmt(rawValue)} ج.م</div></CardContent></Card>
           <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">قيمة العلف الجاهز</div><div className="text-2xl font-bold text-secondary">{fmt(finishedValue)} ج.م</div></CardContent></Card>
           <Card className="border-success/50"><CardContent className="p-4"><div className="text-xs text-muted-foreground flex items-center gap-1"><Wallet className="h-3 w-3"/>رصيد الخزنة</div><div className={`text-2xl font-bold ${treasuryBalance<0?'text-destructive':'text-success'}`}>{fmt(treasuryBalance)} ج.م</div></CardContent></Card>
@@ -366,6 +382,13 @@ export default function FeedWarehouses() {
                 </div>
               </CardHeader>
               <CardContent>
+                <div className="mb-3 rounded-md border border-primary/40 bg-primary/5 p-3 flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">إجمالي تكلفة المخزون (الخامات):</span>{" "}
+                    <span className="text-lg font-bold text-primary">{fmt(rawValue)} ج.م</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">عدد الأصناف: {rawQ.data?.length || 0} — يحسب من (الرصيد × متوسط التكلفة)</div>
+                </div>
                 <Table>
                   <TableHeader><TableRow><TableHead>الصنف</TableHead><TableHead>الكود</TableHead><TableHead>الرصيد</TableHead><TableHead>الوحدة</TableHead><TableHead>متوسط التكلفة</TableHead><TableHead>سعر البيع</TableHead><TableHead>قيمة (تكلفة)</TableHead><TableHead>قيمة (بيع)</TableHead><TableHead>الهامش</TableHead><TableHead>%</TableHead><TableHead>المورد</TableHead>{canEditStock && <TableHead></TableHead>}</TableRow></TableHeader>
                   <TableBody>
@@ -394,6 +417,15 @@ export default function FeedWarehouses() {
                     })}
                     {!rawQ.data?.length && <TableRow><TableCell colSpan={canEditStock ? 12 : 11} className="text-center text-muted-foreground py-6">لا توجد خامات</TableCell></TableRow>}
                   </TableBody>
+                  {!!rawQ.data?.length && (
+                    <tfoot className="bg-primary/5 font-bold">
+                      <tr>
+                        <td className="p-3" colSpan={6}>إجمالي تكلفة المخزون</td>
+                        <td className="p-3 text-primary">{fmt(rawValue)} ج.م</td>
+                        <td className="p-3" colSpan={canEditStock ? 5 : 4}></td>
+                      </tr>
+                    </tfoot>
+                  )}
                 </Table>
 
               </CardContent>
@@ -577,11 +609,20 @@ export default function FeedWarehouses() {
               <CardContent className="space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-xs text-muted-foreground">فلتر نوع البيع:</span>
-                  <Button size="sm" variant={salesFilter === "all" ? "default" : "outline"} onClick={() => setSalesFilter("all")}>الكل</Button>
+                  <Button size="sm" variant={salesFilter === "all" ? "default" : "outline"} onClick={() => { setSalesFilter("all"); setInternalDept("all"); }}>الكل</Button>
                   <Button size="sm" variant={salesFilter === "internal" ? "default" : "outline"} onClick={() => setSalesFilter("internal")} className={salesFilter === "internal" ? "bg-blue-600 hover:bg-blue-700" : ""}>مبيعات داخلية</Button>
-                  <Button size="sm" variant={salesFilter === "external" ? "default" : "outline"} onClick={() => setSalesFilter("external")} className={salesFilter === "external" ? "bg-emerald-600 hover:bg-emerald-700" : ""}>مبيعات خارجية</Button>
+                  <Button size="sm" variant={salesFilter === "external" ? "default" : "outline"} onClick={() => { setSalesFilter("external"); setInternalDept("all"); }} className={salesFilter === "external" ? "bg-emerald-600 hover:bg-emerald-700" : ""}>مبيعات خارجية</Button>
                   <Badge variant="outline" className="ml-auto">{salesFilterLabel}</Badge>
                 </div>
+                {salesFilter === "internal" && (
+                  <div className="flex flex-wrap items-center gap-2 rounded-md border border-blue-200 bg-blue-50 p-2">
+                    <span className="text-xs text-blue-700 font-semibold">القسم الداخلي:</span>
+                    <Button size="sm" variant={internalDept === "all" ? "default" : "outline"} onClick={() => setInternalDept("all")}>الكل</Button>
+                    <Button size="sm" variant={internalDept === "brooding_feed_store" ? "default" : "outline"} onClick={() => setInternalDept("brooding_feed_store")}>حضانات التسمين</Button>
+                    <Button size="sm" variant={internalDept === "slaughterhouse_feed_store" ? "default" : "outline"} onClick={() => setInternalDept("slaughterhouse_feed_store")}>المجزر</Button>
+                    <Button size="sm" variant={internalDept === "mother_farm_feed_store" ? "default" : "outline"} onClick={() => setInternalDept("mother_farm_feed_store")}>مزرعة الأمهات</Button>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                   <div className="rounded border p-2 bg-muted/40"><div className="text-xs text-muted-foreground">عدد الفواتير</div><div className="text-lg font-bold">{salesKpi.count}</div></div>
                   <div className="rounded border p-2 bg-muted/40"><div className="text-xs text-muted-foreground">إجمالي المبيعات</div><div className="text-lg font-bold">{fmt(salesKpi.total)} ج.م</div></div>
