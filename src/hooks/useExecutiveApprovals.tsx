@@ -555,7 +555,7 @@ export function useExecutiveApprovals() {
       isApprover,
       isLoading,
       items: data?.items ?? [],
-      counts: data?.counts ?? { all: 0, treasury: 0, lab: 0, meat: 0, custody: 0, slaughter: 0 },
+      counts: data?.counts ?? { all: 0, treasury: 0, lab: 0, meat: 0, custody: 0, slaughter: 0, hr: 0 },
       refetch,
       approve,
       reject,
