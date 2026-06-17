@@ -83,30 +83,37 @@ export default function FeedFactoryLVDashboard() {
           </Badge>
         </div>
 
-        {/* KPI CARDS — PRIMARY ROW (TONS) */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          <StatCard icon={Factory}    tone="primary"   label="إجمالي الإنتاج" value={fmtTon(kpi("total_feed_production_ton").value)} sub="معدل ويشمل التام المتبقي" />
-          <StatCard icon={ArrowRightLeft} tone="orange" label="موزع/مباع/مسحوب" value={fmtTon(kpi("distributed_sold_transferred_ton").value)} sub="مجموع كل الحركات الخارجة" />
-          <StatCard icon={TrendingUp}  tone="green"    label="مبيعات خارجية" value={fmtTon(kpi("external_sales_feed_ton").value)} sub="علف تسمين" />
-          <StatCard icon={Building2}   tone="secondary" label="توريد مزرعة الأمهات" value={fmtTon(kpi("mother_farm_supply_ton").value)} sub="علف بياض" />
-          <StatCard icon={Wheat}       tone="purple"   label="سحب تحضين/تسمين" value={fmtTon(kpi("brooding_fattening_withdrawal_ton").value)} sub="علف باديء" />
-          <StatCard icon={Drumstick}   tone="red"      label="سحب المجزر" value={fmtTon(kpi("slaughterhouse_withdrawal_ton").value)} sub="علف تسمين للنعام" />
-        </div>
-
-        {/* KPI CARDS — INVENTORY + MONEY */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          <StatCard icon={Boxes}       tone="primary"   label="مخزون علف تام" value={fmtTon(kpi("finished_goods_inventory_ton").value)} sub="تسمين + باديء" />
-          <StatCard icon={Boxes}       tone="orange"    label="مخزون خامات" value={fmtTon(kpi("raw_material_inventory_ton").value)} sub="بريمكس + دريس (لا يدخل الإنتاج)" />
-          <StatCard icon={Boxes}       tone="secondary" label="إجمالي المخزون المتبقي" value={fmtTon(kpi("total_remaining_inventory_ton").value)} sub="تام + خامات" />
-          <StatCard icon={TrendingDown} tone="red"      label="مشتريات الخامات" value={fmtEgp(kpi("raw_material_purchases_egp").value)} sub="بياض + تسمين" />
-          <StatCard icon={TrendingUp}  tone="green"     label="قيمة المبيعات الخارجية" value={fmtEgp(kpi("external_sales_value_egp").value)} sub="جنيه" />
+        {/* KPI CARDS — المؤشرات الرسمية من LV_KPI (9 مؤشرات) */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-3">
+          <StatCard icon={Factory}        tone="primary"   label="إجمالي الإنتاج"               value={fmtTon(kpi("total_feed_production_ton").value)}        sub="معدل — يشمل التام المتبقي" />
+          <StatCard icon={ArrowRightLeft} tone="orange"    label="إجمالي الموزع/المباع/المسحوب" value={fmtTon(kpi("distributed_sold_transferred_ton").value)} sub="26 + 17 + 1.5 + 1" />
+          <StatCard icon={Boxes}          tone="secondary" label="مخزون العلف التام المتبقي"     value={fmtTon(kpi("finished_goods_inventory_ton").value)}     sub="تسمين + باديء" />
+          <StatCard icon={Boxes}          tone="purple"    label="مخزون الخامات المتبقي"         value={fmtTon(kpi("raw_material_inventory_ton").value)}       sub="بريمكس + دريس (لا يدخل الإنتاج)" />
+          <StatCard icon={Boxes}          tone="green"     label="إجمالي المخزون المتبقي"        value={fmtTon(kpi("total_remaining_inventory_ton").value)}    sub="تام + خامات" />
+          <StatCard icon={TrendingDown}   tone="red"       label="إجمالي مشتريات الخامات"        value={fmtEgp(kpi("raw_material_purchases_egp").value)}       sub="بياض + تسمين" />
+          <StatCard icon={TrendingUp}     tone="green"     label="إجمالي المبيعات الخارجية"      value={fmtEgp(kpi("external_sales_value_egp").value)}         sub="مبيعات لعملاء خارجيين" />
           <StatCard
             icon={kpi("cash_margin_before_expenses_egp").value >= 0 ? TrendingUp : TrendingDown}
             tone={kpi("cash_margin_before_expenses_egp").value >= 0 ? "green" : "red"}
-            label="هامش نقدي قبل المصروفات"
+            label="هامش نقدي تقريبي قبل المصروفات"
             value={fmtEgp(kpi("cash_margin_before_expenses_egp").value)}
-            sub="مبيعات خارجية - مشتريات خامات"
+            sub="مبيعات خارجية − مشتريات خامات"
           />
+          <StatCard
+            icon={CheckCircle2}
+            tone={kpi("production_balance_variance_ton").value === 0 ? "green" : "red"}
+            label="فرق توازن الإنتاج"
+            value={`${fmtTon(kpi("production_balance_variance_ton").value)} — ${kpi("production_balance_variance_ton").value === 0 ? "PASS" : "FAIL"}`}
+            sub="46.779 = 45.5 + 1.279"
+          />
+        </div>
+
+        {/* KPI CARDS — تفصيل الحركات بالطن (مرجعي) */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <StatCard icon={TrendingUp}  tone="green"     label="مبيعات خارجية — علف تسمين" value={fmtTon(kpi("external_sales_feed_ton").value)} sub="لعملاء خارج الشركة" />
+          <StatCard icon={Building2}   tone="secondary" label="توريد مزرعة الأمهات"        value={fmtTon(kpi("mother_farm_supply_ton").value)}  sub="علف بياض" />
+          <StatCard icon={Wheat}       tone="purple"    label="سحب تحضين وتسمين"           value={fmtTon(kpi("brooding_fattening_withdrawal_ton").value)} sub="علف باديء" />
+          <StatCard icon={Drumstick}   tone="red"       label="سحب المجزر"                  value={fmtTon(kpi("slaughterhouse_withdrawal_ton").value)} sub="علف تسمين للنعام قبل الذبح" />
         </div>
 
         {/* TABS */}
