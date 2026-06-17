@@ -63,7 +63,7 @@ export default function FeedHistoricalReference() {
   const [staged, setStaged] = useState<Row[]>([]);
   const [stagedName, setStagedName] = useState("");
   const [importing, setImporting] = useState(false);
-  const [systemTotals, setSystemTotals] = useState({ purchases: 0, externalSales: 0 });
+  const [systemTotals, setSystemTotals] = useState({ purchases: 0, externalSales: 0, internalMotherFarm: 0 });
 
   const load = async () => {
     setLoading(true);
@@ -78,7 +78,6 @@ export default function FeedHistoricalReference() {
   };
 
   const loadSystemTotals = async () => {
-    // operational purchases
     const { data: p } = await supabase
       .from("feed_raw_purchases")
       .select("total_amount, invoice_date")
@@ -86,10 +85,18 @@ export default function FeedHistoricalReference() {
     const purchases = (p ?? []).reduce((s: number, r: any) => s + Number(r.total_amount || 0), 0);
     const { data: s } = await supabase
       .from("feed_sales")
-      .select("total_amount, sale_date")
+      .select("total_amount, total_cost, destination_type, sale_date")
       .gte("sale_date", "2026-01-01");
-    const externalSales = (s ?? []).reduce((acc: number, r: any) => acc + Number(r.total_amount || 0), 0);
-    setSystemTotals({ purchases, externalSales });
+    let externalSales = 0;
+    let internalMotherFarm = 0;
+    for (const r of (s ?? []) as any[]) {
+      if (r.destination_type === "mother_farm_feed_store") {
+        internalMotherFarm += Number(r.total_cost || r.total_amount || 0);
+      } else if (!r.destination_type || r.destination_type === "external_customer") {
+        externalSales += Number(r.total_amount || 0);
+      }
+    }
+    setSystemTotals({ purchases, externalSales, internalMotherFarm });
   };
 
   useEffect(() => {
