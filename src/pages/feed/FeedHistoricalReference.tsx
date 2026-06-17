@@ -259,6 +259,47 @@ export default function FeedHistoricalReference() {
     return rows.filter((r) => r.record_type === filterType);
   }, [rows, filterType]);
 
+  const reconcileRows = () => [
+    ["مشتريات خامات علف تسمين", totals.purchaseFattening, null, null],
+    ["مشتريات خامات علف بياض", totals.purchaseLayer, null, null],
+    ["إجمالي مشتريات خامات العلف", totals.purchaseAll, systemTotals.purchases, totals.purchaseAll - systemTotals.purchases],
+    ["مبيعات خارجية", totals.externalSales, systemTotals.externalSales, totals.externalSales - systemTotals.externalSales],
+    ["مبيعات داخلية — مزرعة الأمهات (بسعر التكلفة)", totals.internalMotherFarm, systemTotals.internalMotherFarm, totals.internalMotherFarm - systemTotals.internalMotherFarm],
+    ["إجمالي المبيعات (خارجية + مزرعة الأمهات)", totalSalesReference, totalSalesOperational, totalSalesReference - totalSalesOperational],
+  ];
+
+  const exportReconcileCSV = () => {
+    const header = ["البند", "المحتسب (مرجعي)", "السيستم (تشغيلي)", "الفرق"];
+    const lines = [header.join(",")];
+    for (const r of reconcileRows()) {
+      lines.push(r.map((c) => (c == null ? "" : typeof c === "number" ? c.toFixed(2) : `"${String(c).replace(/"/g, '""')}"`)).join(","));
+    }
+    const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `feed_factory_reconcile_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const printReconcile = () => {
+    const rowsHtml = reconcileRows()
+      .map(
+        (r) =>
+          `<tr><td>${r[0]}</td><td style="text-align:left;font-family:monospace">${r[1] == null ? "—" : fmt(Number(r[1]))}</td><td style="text-align:left;font-family:monospace">${r[2] == null ? "—" : fmt(Number(r[2]))}</td><td style="text-align:left;font-family:monospace">${r[3] == null ? "—" : fmt(Number(r[3]))}</td></tr>`
+      )
+      .join("");
+    const html = `
+      <div style="text-align:center;font-weight:bold;margin-bottom:8px">مطابقة مصنع العلف مع المحتسب من أول السنة</div>
+      <div style="text-align:center;color:#666;font-size:12px;margin-bottom:12px">البيانات المرجعية لا تؤثر على المخزون أو الخزنة</div>
+      <table style="width:100%;border-collapse:collapse" border="1">
+        <thead><tr><th>البند</th><th>المحتسب (مرجعي)</th><th>السيستم (تشغيلي)</th><th>الفرق</th></tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>`;
+    openPrintWindow("مطابقة مصنع العلف مع المحتسب", html, "table th,table td{padding:6px 8px}");
+  };
+
   return (
     <DashboardLayout>
       <div dir="rtl" className="space-y-4 p-4">
