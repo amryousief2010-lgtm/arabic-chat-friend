@@ -354,15 +354,33 @@ export default function FeedWarehouses() {
     }
     return { rows: Array.from(map.values()).sort((a, b) => b.revenue - a.revenue), anyFallback };
   })();
-  const exportSales = () => exportCSV(`feed_sales_${salesFileSuffix}.csv`, filteredSales.map((s: any) => ({
-    الرقم: s.sale_no,
-    التاريخ: s.sale_date,
-    نوع_البيع: isInternalSale(s) ? "داخلي" : "خارجي",
-    الجهة_العميل: saleDestLabel(s),
-    الإجمالي: s.total_amount,
-    التكلفة: calcSaleCost(s),
-    الربح: s.profit,
-  })));
+  const exportSales = () => {
+    const rows = filteredSales.map((s: any) => ({
+      الرقم: s.sale_no,
+      التاريخ: s.sale_date,
+      نوع_البيع: isInternalSale(s) ? "داخلي" : "خارجي",
+      الجهة_العميل: saleDestLabel(s),
+      الكمية_كجم: saleQty(s),
+      الإجمالي: saleEffectiveTotal(s),
+      التكلفة: calcSaleCost(s),
+      المسدد: salePaid(s),
+      المتبقي: saleEffectiveTotal(s) - salePaid(s),
+      الربح: isInternalSale(s) ? 0 : (Number(s.total_amount || 0) - calcSaleCost(s)),
+    }));
+    rows.push({
+      الرقم: `الإجمالي — ${salesFilterLabel}` as any,
+      التاريخ: "" as any,
+      نوع_البيع: "" as any,
+      الجهة_العميل: "" as any,
+      الكمية_كجم: salesKpi.qty,
+      الإجمالي: salesKpi.total,
+      التكلفة: salesKpi.cost,
+      المسدد: salesKpi.paid,
+      المتبقي: salesKpi.remaining,
+      الربح: salesKpi.profit,
+    });
+    exportCSV(`feed_sales_${salesFileSuffix}.csv`, rows);
+  };
   const exportCostAnalysis = () => exportCSV(`feed_sales_cost_analysis_${salesFileSuffix}.csv`, costByProduct.rows.map((r) => ({
     نوع_العلف: r.name,
     الكمية_المباعة: r.qty,
