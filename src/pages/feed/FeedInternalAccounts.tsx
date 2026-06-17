@@ -27,11 +27,18 @@ const STATUS_CLASS: Record<string, string> = {
 };
 
 export default function FeedInternalAccounts() {
+  const { user, roles } = useAuth() as any;
+  const canApprove = (roles || []).some((r: string) => ["general_manager", "executive_manager", "financial_manager", "accountant"].includes(r));
   const [balances, setBalances] = useState<any[]>([]);
   const [supplies, setSupplies] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [dlg, setDlg] = useState(false);
+  const [rejectFor, setRejectFor] = useState<any | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [detailsFor, setDetailsFor] = useState<any | null>(null);
+  const [detailsTxns, setDetailsTxns] = useState<{ in?: any; out?: any }>({});
+  const [busy, setBusy] = useState<string | null>(null);
   const [filter, setFilter] = useState({ dept: "all", status: "all", method: "all", from: "", to: "", ref: "" });
 
   const load = async () => {
