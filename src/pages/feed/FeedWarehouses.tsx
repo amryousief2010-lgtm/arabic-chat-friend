@@ -943,7 +943,13 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
   const [destinationType, setDestinationType] = useState<"external_customer" | "brooding_feed_store" | "slaughterhouse_feed_store" | "mother_farm_feed_store">("external_customer");
   const [lines, setLines] = useState<SaleLine[]>([newSaleLine()]);
   const [saving, setSaving] = useState(false);
-  const total = lines.reduce((s, l) => s + l.qty * l.price, 0);
+  const total = lines.reduce((s, l) => {
+    if (l.ref_id && destinationType !== "external_customer") {
+      const prod: any = products.find((x: any) => x.id === l.ref_id);
+      return s + l.qty * Number(prod?.latest_unit_cost || 0);
+    }
+    return s + l.qty * l.price;
+  }, 0);
   const isInternal = destinationType !== "external_customer";
 
   useEffect(() => {
@@ -1010,7 +1016,13 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
       }
       for (const l of valid) {
         if (isInternal && l.kind !== "finished") throw new Error("التوريد الداخلي يقبل علف جاهز فقط — لا يقبل خامات");
-        const payload: any = { sale_id: saleId, quantity: l.qty, unit_price: l.price };
+        // Internal sales: force unit_price = unit_cost so debt/total are cost-based, not sale-price-based
+        let unitPrice = l.price;
+        if (isInternal) {
+          const prod: any = products.find((x: any) => x.id === l.ref_id);
+          unitPrice = Number(prod?.latest_unit_cost || 0);
+        }
+        const payload: any = { sale_id: saleId, quantity: l.qty, unit_price: unitPrice };
         if (l.kind === "finished") payload.feed_product_id = l.ref_id;
         else payload.raw_material_id = l.ref_id;
         const { error } = await supabase.from("feed_sale_items").insert(payload);
@@ -1080,7 +1092,10 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
                   <Select value={l.ref_id} onValueChange={(v) => {
                     if (l.kind === "finished") {
                       const prod = products.find((x: any) => x.id === v);
-                      upd(l.id, { ref_id: v, price: Number(prod?.selling_price || 0) || l.price });
+                      const newPrice = isInternal
+                        ? Number(prod?.latest_unit_cost || 0)
+                        : (Number(prod?.selling_price || 0) || l.price);
+                      upd(l.id, { ref_id: v, price: newPrice });
                     } else {
                       const mat = materials.find((x: any) => x.id === v);
                       upd(l.id, { ref_id: v, price: Number(mat?.unit_cost || 0) || l.price });
@@ -1095,11 +1110,27 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
                       ))}
                     </SelectContent>
                   </Select>
-                  {item && <div className="text-xs text-muted-foreground mt-1">تكلفة: {fmt(cost)} — متاح: {fmt(available)} {unit}</div>}
+                  {item && (
+                    <div className="text-xs text-muted-foreground mt-1">
+                      تكلفة: {fmt(cost)} — متاح: {fmt(available)} {unit}
+                      {isInternal && l.kind === "finished" && Number(item?.selling_price || 0) > 0 && (
+                        <span className="mr-2 text-blue-700">| سعر البيع المرجعي: {fmt(Number(item.selling_price))} (للعرض فقط)</span>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="col-span-2"><Input type="number" placeholder={`الكمية ${unit}`} value={l.qty || ""} onChange={(e) => upd(l.id, { qty: Number(e.target.value) })} /></div>
-                <div className="col-span-2"><Input type="number" placeholder="سعر الوحدة" value={l.price || ""} onChange={(e) => upd(l.id, { price: Number(e.target.value) })} /></div>
-                <div className="col-span-1 text-sm font-bold text-left">{fmt(l.qty * l.price)}</div>
+                <div className="col-span-2">
+                  <Input
+                    type="number"
+                    placeholder={isInternal ? "سعر التكلفة" : "سعر الوحدة"}
+                    value={isInternal ? cost : (l.price || "")}
+                    disabled={isInternal}
+                    onChange={(e) => upd(l.id, { price: Number(e.target.value) })}
+                  />
+                  {isInternal && <div className="text-[10px] text-amber-700 mt-1">داخلي: يحسب بسعر التكلفة</div>}
+                </div>
+                <div className="col-span-1 text-sm font-bold text-left">{fmt(l.qty * (isInternal ? cost : l.price))}</div>
                 <div className="col-span-1"><Button size="icon" variant="ghost" onClick={() => setLines(lines.filter((x) => x.id !== l.id))}><Trash2 className="h-4 w-4" /></Button></div>
               </div>
             );
@@ -1121,7 +1152,7 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
           </div>
         )}
         <div><Label>ملاحظات</Label><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} /></div>
-        <div className="text-left text-xl font-bold">الإجمالي: {fmt(total)} ج.م</div>
+        <div className="text-left text-xl font-bold">الإجمالي{isInternal ? " (بسعر التكلفة)" : ""}: {fmt(total)} ج.م</div>
         <DialogFooter><Button onClick={save} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ الفاتورة"}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
