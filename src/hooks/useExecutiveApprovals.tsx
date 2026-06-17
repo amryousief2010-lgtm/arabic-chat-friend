@@ -522,6 +522,28 @@ export function useExecutiveApprovals() {
       } else if (item.category === "slaughter") {
         const { error } = await (supabase as any).rpc("reject_slaughter_batch" as any, { p_batch_id: item.id, p_reason: r });
         if (error) throw error;
+      } else if (item.category === "hr") {
+        const { error } = await (supabase as any)
+          .from("hr_deductions")
+          .update({
+            status: "rejected",
+            rejected_by: user?.id,
+            rejected_at: new Date().toISOString(),
+            rejection_reason: r,
+          })
+          .eq("id", item.id);
+        if (error) throw error;
+        if (user) {
+          await (supabase as any).from("hr_audit_log").insert({
+            entity_type: "hr_deduction",
+            entity_id: item.id,
+            employee_id: item.raw.employee_id,
+            action: "reject",
+            after_data: { status: "rejected", rejection_reason: r } as any,
+            performed_by: user.id,
+            reason: r,
+          });
+        }
       }
       await refetch();
     },
