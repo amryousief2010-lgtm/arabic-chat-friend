@@ -641,7 +641,20 @@ export default function FeedWarehouses() {
                   <Button onClick={() => setPurchaseOpen(true)}><Plus className="h-4 w-4 ml-1" />شراء خامات</Button>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-3">
+                {(() => {
+                  const purchases = purQ.data || [];
+                  const totalCount = purchases.length;
+                  const totalAmount = purchases.reduce((s: number, p: any) => s + Number(p.total_amount || 0), 0);
+                  const totalItems = purchases.reduce((s: number, p: any) => s + (p.feed_raw_purchase_items?.length || 0), 0);
+                  return (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                      <div className="rounded border p-2 bg-muted/40"><div className="text-xs text-muted-foreground">عدد فواتير الشراء</div><div className="text-lg font-bold">{totalCount}</div></div>
+                      <div className="rounded-md border-2 border-primary p-3 bg-primary/10 col-span-1 md:col-span-1"><div className="text-xs text-primary font-semibold">إجمالي المشتريات</div><div className="text-2xl font-bold text-primary">{fmt(totalAmount)} ج.م</div></div>
+                      <div className="rounded border p-2 bg-muted/40"><div className="text-xs text-muted-foreground">إجمالي بنود الشراء</div><div className="text-lg font-bold">{totalItems}</div></div>
+                    </div>
+                  );
+                })()}
                 <Table>
                   <TableHeader><TableRow><TableHead>الرقم</TableHead><TableHead>التاريخ</TableHead><TableHead>المورد</TableHead><TableHead>البنود</TableHead><TableHead>الإجمالي</TableHead><TableHead className="w-28">إجراءات</TableHead></TableRow></TableHeader>
                   <TableBody>
@@ -660,6 +673,18 @@ export default function FeedWarehouses() {
                       </TableRow>
                     ))}
                     {!purQ.data?.length && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">لا توجد مشتريات</TableCell></TableRow>}
+                    {!!purQ.data?.length && (() => {
+                      const total = (purQ.data || []).reduce((s: number, p: any) => s + Number(p.total_amount || 0), 0);
+                      const items = (purQ.data || []).reduce((s: number, p: any) => s + (p.feed_raw_purchase_items?.length || 0), 0);
+                      return (
+                        <TableRow className="font-bold bg-muted/50 border-t-2">
+                          <TableCell colSpan={3}>الإجمالي — {purQ.data?.length} فاتورة</TableCell>
+                          <TableCell>{items} بند</TableCell>
+                          <TableCell className="text-primary">{fmt(total)} ج.م</TableCell>
+                          <TableCell></TableCell>
+                        </TableRow>
+                      );
+                    })()}
                   </TableBody>
                 </Table>
               </CardContent>
