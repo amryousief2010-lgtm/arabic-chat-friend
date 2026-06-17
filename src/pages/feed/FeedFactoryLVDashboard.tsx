@@ -117,6 +117,15 @@ export default function FeedFactoryLVDashboard() {
           <StatCard icon={Drumstick}   tone="red"       label="سحب المجزر"                  value={fmtTon(kpi("slaughterhouse_withdrawal_ton").value)} sub="علف تسمين للنعام قبل الذبح" />
         </div>
 
+        {/* KPI CARDS — تفصيل قيم المبيعات (محسوبة من LV_KPI ديناميكياً) */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <StatCard icon={TrendingUp}     tone="green"     label="قيمة المبيعات الخارجية"        value={fmtEgp(kpi("external_sales_value_egp").value)}              sub="عملاء خارجيين" />
+          <StatCard icon={Building2}      tone="secondary" label="قيمة توريد مزرعة الأمهات"      value={fmtEgp(kpi("mother_farm_supply_value_egp").value)}          sub="داخلي محاسبي" />
+          <StatCard icon={Wheat}          tone="purple"    label="قيمة مبيعات داخلية للتحضين"    value={fmtEgp(kpi("brooding_internal_sales_value_egp").value)}     sub="علف باديء" />
+          <StatCard icon={Drumstick}      tone="red"       label="قيمة مبيعات داخلية للمجزر"     value={fmtEgp(kpi("slaughterhouse_internal_sales_value_egp").value)} sub="علف تسمين للنعام" />
+          <StatCard icon={ArrowRightLeft} tone="orange"    label="إجمالي المبيعات (الكل)"        value={fmtEgp(lvTotalSalesValue())}                                sub={`= خارجية + داخلية (${fmtEgp(lvInternalSalesValue())})`} />
+        </div>
+
         {/* TABS */}
         <Tabs defaultValue="flow" className="space-y-4">
           <TabsList className="grid grid-cols-2 md:grid-cols-5 w-full">
