@@ -393,7 +393,16 @@ export default function FeedWarehouses() {
     ملاحظة: r.hasFallback ? "بعض الأسطر بمتوسط التكلفة الحالي" : "",
   })));
   const printSalesList = () => {
-    const rows = filteredSales.map((s: any) => `<tr><td>${s.sale_no}</td><td>${s.sale_date}</td><td>${isInternalSale(s) ? "داخلي" : "خارجي"}</td><td>${saleDestLabel(s)}</td><td>${fmt(Number(s.total_amount||0))}</td><td>${fmt(calcSaleCost(s))}</td><td>${fmt(Number(s.total_amount||0) - calcSaleCost(s))}</td></tr>`).join("");
+    if (!filteredSales.length) {
+      openPrintWindow(
+        `تقرير مبيعات مصنع الأعلاف — ${salesFilterLabel}`,
+        `<h2 style="text-align:center">تقرير مبيعات مصنع الأعلاف — ${salesFilterLabel}</h2><div style="text-align:center;padding:30px;color:#888">لا توجد مبيعات حسب الفلتر المختار — إجمالي المبيعات = 0</div>`
+      );
+      return;
+    }
+    const rows = filteredSales.map((s: any) => `<tr><td>${s.sale_no}</td><td>${s.sale_date}</td><td>${isInternalSale(s) ? "داخلي" : "خارجي"}</td><td>${saleDestLabel(s)}</td><td>${fmt(saleQty(s))}</td><td>${fmt(saleEffectiveTotal(s))}</td><td>${fmt(calcSaleCost(s))}</td><td>${fmt(salePaid(s))}</td><td>${fmt(saleEffectiveTotal(s)-salePaid(s))}</td><td>${fmt(isInternalSale(s) ? 0 : (Number(s.total_amount||0) - calcSaleCost(s)))}</td></tr>`).join("");
+    const totalsRow = `<tr style="font-weight:bold;background:#f3f4f6"><td colspan="4">الإجمالي — ${salesFilterLabel}</td><td>${fmt(salesKpi.qty)}</td><td>${fmt(salesKpi.total)}</td><td>${fmt(salesKpi.cost)}</td><td>${fmt(salesKpi.paid)}</td><td>${fmt(salesKpi.remaining)}</td><td>${fmt(salesKpi.profit)}</td></tr>`;
+    const noteInternal = salesFilter === "internal" ? '<div style="text-align:center;font-size:11px;color:#666">المبيعات الداخلية محسوبة بسعر التكلفة</div>' : "";
     const analysisRows = costByProduct.rows.map((r) => {
       const avgCost = r.qty > 0 ? r.cost / r.qty : 0;
       const avgPrice = r.qty > 0 ? r.revenue / r.qty : 0;
