@@ -1086,7 +1086,10 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
                   <Select value={l.ref_id} onValueChange={(v) => {
                     if (l.kind === "finished") {
                       const prod = products.find((x: any) => x.id === v);
-                      upd(l.id, { ref_id: v, price: Number(prod?.selling_price || 0) || l.price });
+                      const newPrice = isInternal
+                        ? Number(prod?.latest_unit_cost || 0)
+                        : (Number(prod?.selling_price || 0) || l.price);
+                      upd(l.id, { ref_id: v, price: newPrice });
                     } else {
                       const mat = materials.find((x: any) => x.id === v);
                       upd(l.id, { ref_id: v, price: Number(mat?.unit_cost || 0) || l.price });
@@ -1101,11 +1104,27 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
                       ))}
                     </SelectContent>
                   </Select>
-                  {item && <div className="text-xs text-muted-foreground mt-1">تكلفة: {fmt(cost)} — متاح: {fmt(available)} {unit}</div>}
+                  {item && (
+                    <div className="text-xs text-muted-foreground mt-1">
+                      تكلفة: {fmt(cost)} — متاح: {fmt(available)} {unit}
+                      {isInternal && l.kind === "finished" && Number(item?.selling_price || 0) > 0 && (
+                        <span className="mr-2 text-blue-700">| سعر البيع المرجعي: {fmt(Number(item.selling_price))} (للعرض فقط)</span>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="col-span-2"><Input type="number" placeholder={`الكمية ${unit}`} value={l.qty || ""} onChange={(e) => upd(l.id, { qty: Number(e.target.value) })} /></div>
-                <div className="col-span-2"><Input type="number" placeholder="سعر الوحدة" value={l.price || ""} onChange={(e) => upd(l.id, { price: Number(e.target.value) })} /></div>
-                <div className="col-span-1 text-sm font-bold text-left">{fmt(l.qty * l.price)}</div>
+                <div className="col-span-2">
+                  <Input
+                    type="number"
+                    placeholder={isInternal ? "سعر التكلفة" : "سعر الوحدة"}
+                    value={isInternal ? cost : (l.price || "")}
+                    disabled={isInternal}
+                    onChange={(e) => upd(l.id, { price: Number(e.target.value) })}
+                  />
+                  {isInternal && <div className="text-[10px] text-amber-700 mt-1">داخلي: يحسب بسعر التكلفة</div>}
+                </div>
+                <div className="col-span-1 text-sm font-bold text-left">{fmt(l.qty * (isInternal ? cost : l.price))}</div>
                 <div className="col-span-1"><Button size="icon" variant="ghost" onClick={() => setLines(lines.filter((x) => x.id !== l.id))}><Trash2 className="h-4 w-4" /></Button></div>
               </div>
             );
