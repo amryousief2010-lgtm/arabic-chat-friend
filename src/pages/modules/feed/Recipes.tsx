@@ -207,36 +207,50 @@ export default function Recipes() {
               <TableHeader>
                 <TableRow>
                   <TableHead>الاسم</TableHead>
+                  <TableHead>المنتج النهائي</TableHead>
                   <TableHead>النوع</TableHead>
-                  <TableHead>حجم الدفعة</TableHead>
-                  <TableHead>عدد البنود</TableHead>
-                  <TableHead>تكلفة/كجم</TableHead>
+                  <TableHead>الكمية القياسية</TableHead>
+                  <TableHead>تكلفة الخامات</TableHead>
+                  <TableHead>الأجور</TableHead>
+                  <TableHead>مصاريف أخرى</TableHead>
+                  <TableHead>إجمالي التصنيع</TableHead>
+                  <TableHead>تكلفة الكيلو</TableHead>
                   <TableHead>الحالة</TableHead>
                   <TableHead className="text-left">إجراءات</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">جارٍ التحميل...</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">جارٍ التحميل...</TableCell></TableRow>
                 ) : visible.length === 0 ? (
-                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">لا توجد وصفات</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">لا توجد وصفات</TableCell></TableRow>
                 ) : visible.map(r => {
-                  const tCost = (r.items || []).reduce((s, it) => s + Number(it.quantity) * (Number(it.raw_material?.unit_cost) || 0), 0);
-                  const perKg = r.batch_size > 0 ? tCost / r.batch_size : 0;
+                  const matCost = (r.items || []).reduce((s, it) => s + Number(it.quantity) * (Number(it.raw_material?.unit_cost) || 0), 0);
+                  const labor = Number(r.labor_total_cost || 0);
+                  const other = Number(r.other_expenses_total || 0);
+                  const totalCost = matCost + labor + other;
+                  const perKg = r.batch_size > 0 ? totalCost / r.batch_size : 0;
                   return (
                     <TableRow key={r.id}>
                       <TableCell className="font-medium">{r.name}</TableCell>
+                      <TableCell className="text-xs">{r.feed_product ? `${r.feed_product.feed_code} — ${r.feed_product.name}` : "—"}</TableCell>
                       <TableCell><Badge variant="outline">{r.feed_type}</Badge></TableCell>
                       <TableCell>{fmt(r.batch_size, 0)} {r.unit}</TableCell>
-                      <TableCell>{r.items?.length || 0}</TableCell>
-                      <TableCell>{fmt(perKg, 3)}</TableCell>
+                      <TableCell>{fmt(matCost, 2)}</TableCell>
+                      <TableCell>{fmt(labor, 2)}</TableCell>
+                      <TableCell>{fmt(other, 2)}</TableCell>
+                      <TableCell className="font-semibold">{fmt(totalCost, 2)}</TableCell>
+                      <TableCell className="text-primary font-semibold">{fmt(perKg, 3)}</TableCell>
                       <TableCell>
                         <Badge variant={r.is_active ? "default" : "secondary"}>
                           {r.is_active ? "نشطة" : "موقوفة"}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <div className="flex gap-1 justify-start">
+                        <div className="flex gap-1 justify-start flex-wrap">
+                          <Button size="sm" variant="ghost" onClick={() => setDetailRecipe(r)} title="عرض التفاصيل"><FileText className="w-4 h-4" /></Button>
+                          <Button size="sm" variant="ghost" onClick={() => printRecipe(r)} title="طباعة"><Printer className="w-4 h-4" /></Button>
+                          <Button size="sm" variant="outline" onClick={() => nav(`/feed-factory/batches/new?recipe=${r.id}`)} title="استخدام في فاتورة تصنيع">استخدام</Button>
                           {canManageFeedFactory && (
                             <>
                               <Button size="sm" variant="ghost" onClick={() => openDialog(r)} title="تعديل"><Edit className="w-4 h-4" /></Button>
