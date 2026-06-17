@@ -745,7 +745,16 @@ export default function FeedWarehouses() {
                         </TableRow>
                       );
                     })}
-                    {!filteredSales.length && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-6">لا توجد مبيعات بهذا الفلتر</TableCell></TableRow>}
+                    {!filteredSales.length && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-6">لا توجد مبيعات حسب الفلتر المختار</TableCell></TableRow>}
+                    {filteredSales.length > 0 && (
+                      <TableRow className="font-bold bg-muted/50 border-t-2">
+                        <TableCell colSpan={4}>الإجمالي ({salesFilterLabel}) — كمية: {fmt(salesKpi.qty)} كجم</TableCell>
+                        <TableCell>{fmt(salesKpi.total)}</TableCell>
+                        <TableCell>{fmt(salesKpi.cost)}</TableCell>
+                        <TableCell className="text-success">{fmt(salesKpi.profit)}</TableCell>
+                        <TableCell></TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
 
