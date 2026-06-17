@@ -98,6 +98,7 @@ export default function FeedInternalPaymentDialog({ open, onOpenChange, departme
             {dept === "mother_farm" && (
               <p className="text-xs text-muted-foreground mt-1">سيُسجَّل السداد من خزنة المعمل عند الاعتماد.</p>
             )}
+          </div>
           {remainingDebt !== undefined && (
             <div className="text-sm text-muted-foreground">
               المديونية المتبقية: <b className="text-foreground">{remainingDebt.toLocaleString("ar-EG")} ج.م</b>
