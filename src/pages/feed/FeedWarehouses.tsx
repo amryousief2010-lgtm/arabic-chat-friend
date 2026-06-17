@@ -17,6 +17,7 @@ import { Warehouse, Package, ShoppingCart, Banknote, Plus, Trash2, AlertTriangle
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { exportCSV } from "@/lib/csvExport";
+import { openPrintWindow } from "@/lib/printPdf";
 import FeedInvoiceDetailsDialog, { printInvoice as printFeedInvoice } from "@/components/feed/FeedInvoiceDetailsDialog";
 
 type Line = { id: string; ref_id: string; qty: number; price: number };
@@ -151,6 +152,7 @@ export default function FeedWarehouses() {
   const [treasuryOpen, setTreasuryOpen] = useState(false);
   const [productionOpen, setProductionOpen] = useState(false);
   const [detailsInv, setDetailsInv] = useState<any | null>(null);
+  const [salesFilter, setSalesFilter] = useState<"all" | "internal" | "external">("all");
   const canTreasury = roles.some((r) => ["general_manager","executive_manager","feed_factory_manager","warehouse_supervisor"].includes(r));
   const canProduce = roles.some((r) => ["general_manager","executive_manager","feed_factory_manager","warehouse_supervisor","production_manager"].includes(r));
 
@@ -258,7 +260,40 @@ export default function FeedWarehouses() {
   const exportRaw = () => exportCSV("raw_materials.csv", (rawQ.data||[]).map((r:any)=>{const sp=Number(r.sale_price||0);const uc=Number(r.unit_cost||0);return ({الصنف:r.name,الكود:r.item_code||"",الرصيد:r.stock,الوحدة:r.unit,متوسط_التكلفة:uc,سعر_البيع:sp,القيمة_تكلفة:Number(r.stock)*uc,القيمة_بيع:Number(r.stock)*sp,هامش_الربح:sp>0?sp-uc:0,نسبة_الهامش:sp>0?((sp-uc)/sp*100).toFixed(2)+"%":"",المورد:r.supplier||""});}));
   const exportProd = () => exportCSV("finished_products.csv", (prodQ.data||[]).map((p:any)=>({المنتج:p.name,المرحلة:p.stage,الكمية_كجم:p.current_stock,عدد_الشكاير:Number(p.default_bag_kg||50)>0?Number(p.current_stock)/Number(p.default_bag_kg||50):0,وزن_الشيكارة:p.default_bag_kg,متوسط_التكلفة:p.latest_unit_cost,سعر_البيع:p.selling_price,القيمة:Number(p.current_stock||0)*Number(p.latest_unit_cost||0)})));
   const exportPur = () => exportCSV("purchases.csv", (purQ.data||[]).map((p:any)=>({الرقم:p.purchase_no,التاريخ:p.purchase_date,المورد:p.supplier||"",رقم_فاتورة_المورد:p.supplier_invoice_no||"",عدد_البنود:p.feed_raw_purchase_items?.length||0,الإجمالي:p.total_amount})));
-  const exportSales = () => exportCSV("sales.csv", (salesQ.data||[]).map((s:any)=>({الرقم:s.sale_no,التاريخ:s.sale_date,العميل:s.customer||"",الإجمالي:s.total_amount,التكلفة:s.total_cost,الربح:s.profit})));
+  const isInternalSale = (s: any) => s.destination_type && s.destination_type !== "external_customer";
+  const saleDestLabel = (s: any) => {
+    switch (s.destination_type) {
+      case "brooding_feed_store": return "حضانات التسمين";
+      case "slaughterhouse_feed_store": return "مخزن علف المجزر";
+      case "mother_farm_feed_store": return "مزرعة الأمهات";
+      default: return s.customer || "عميل خارجي";
+    }
+  };
+  const filteredSales = (salesQ.data || []).filter((s: any) => {
+    if (salesFilter === "internal") return isInternalSale(s);
+    if (salesFilter === "external") return !isInternalSale(s);
+    return true;
+  });
+  const salesFilterLabel = salesFilter === "internal" ? "المبيعات الداخلية" : salesFilter === "external" ? "المبيعات الخارجية" : "كل المبيعات";
+  const salesKpi = {
+    count: filteredSales.length,
+    total: filteredSales.reduce((sum: number, s: any) => sum + Number(s.total_amount || 0), 0),
+    cost: filteredSales.reduce((sum: number, s: any) => sum + Number(s.total_cost || 0), 0),
+    profit: filteredSales.reduce((sum: number, s: any) => sum + Number(s.profit || 0), 0),
+  };
+  const exportSales = () => exportCSV(`sales_${salesFilter}.csv`, filteredSales.map((s: any) => ({
+    الرقم: s.sale_no,
+    التاريخ: s.sale_date,
+    نوع_البيع: isInternalSale(s) ? "داخلي" : "خارجي",
+    الجهة_العميل: saleDestLabel(s),
+    الإجمالي: s.total_amount,
+    التكلفة: s.total_cost,
+    الربح: s.profit,
+  })));
+  const printSalesList = () => {
+    const rows = filteredSales.map((s: any) => `<tr><td>${s.sale_no}</td><td>${s.sale_date}</td><td>${isInternalSale(s) ? "داخلي" : "خارجي"}</td><td>${saleDestLabel(s)}</td><td>${fmt(Number(s.total_amount||0))}</td><td>${fmt(Number(s.total_cost||0))}</td><td>${fmt(Number(s.profit||0))}</td></tr>`).join("");
+    openPrintWindow(`<h2 style="text-align:center">مبيعات مصنع الأعلاف — ${salesFilterLabel}</h2><div style="text-align:center;margin-bottom:8px">عدد الفواتير: ${salesKpi.count} — الإجمالي: ${fmt(salesKpi.total)} ج.م — التكلفة: ${fmt(salesKpi.cost)} ج.م — الربح: ${fmt(salesKpi.profit)} ج.م</div><table border="1" cellpadding="6" style="width:100%;border-collapse:collapse"><thead><tr><th>الرقم</th><th>التاريخ</th><th>النوع</th><th>الجهة/العميل</th><th>الإجمالي</th><th>التكلفة</th><th>الربح</th></tr></thead><tbody>${rows}</tbody></table>`, `feed-sales-${salesFilter}`);
+  };
   const exportCounts = () => exportCSV("stock_counts.csv", (countsQ.data||[]).map((c:any)=>({الرقم:c.count_no,التاريخ:c.count_date,النوع:c.warehouse_kind,عدد_الأصناف:c.feed_stock_count_items?.length||0,الحالة:c.status})));
   const exportTreasury = () => exportCSV("treasury.csv", (treasuryQ.data||[]).map((t:any)=>({الرقم:t.txn_no,التاريخ:t.txn_date,النوع:KIND_LABEL[t.kind]||t.kind,الجهة:t.party||"",وارد:t.direction==="in"?t.amount:0,منصرف:t.direction==="out"?t.amount:0,البيان:t.note||""})));
 
@@ -534,38 +569,52 @@ export default function FeedWarehouses() {
               <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
                 <div><CardTitle>مبيعات العلف</CardTitle><CardDescription>سجل المبيعات والأرباح — اضغط الطباعة لإصدار فاتورة العميل</CardDescription></div>
                 <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={printSalesList}><Printer className="h-4 w-4 ml-1"/>طباعة القائمة</Button>
                   <Button size="sm" variant="outline" onClick={exportSales}><FileSpreadsheet className="h-4 w-4 ml-1"/>Excel</Button>
                   <Button onClick={() => setSaleOpen(true)}><Plus className="h-4 w-4 ml-1" />فاتورة بيع</Button>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-muted-foreground">فلتر نوع البيع:</span>
+                  <Button size="sm" variant={salesFilter === "all" ? "default" : "outline"} onClick={() => setSalesFilter("all")}>الكل</Button>
+                  <Button size="sm" variant={salesFilter === "internal" ? "default" : "outline"} onClick={() => setSalesFilter("internal")} className={salesFilter === "internal" ? "bg-blue-600 hover:bg-blue-700" : ""}>مبيعات داخلية</Button>
+                  <Button size="sm" variant={salesFilter === "external" ? "default" : "outline"} onClick={() => setSalesFilter("external")} className={salesFilter === "external" ? "bg-emerald-600 hover:bg-emerald-700" : ""}>مبيعات خارجية</Button>
+                  <Badge variant="outline" className="ml-auto">{salesFilterLabel}</Badge>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <div className="rounded border p-2 bg-muted/40"><div className="text-xs text-muted-foreground">عدد الفواتير</div><div className="text-lg font-bold">{salesKpi.count}</div></div>
+                  <div className="rounded border p-2 bg-muted/40"><div className="text-xs text-muted-foreground">إجمالي المبيعات</div><div className="text-lg font-bold">{fmt(salesKpi.total)} ج.م</div></div>
+                  <div className="rounded border p-2 bg-muted/40"><div className="text-xs text-muted-foreground">إجمالي التكلفة</div><div className="text-lg font-bold">{fmt(salesKpi.cost)} ج.م</div></div>
+                  <div className="rounded border p-2 bg-muted/40"><div className="text-xs text-muted-foreground">إجمالي الربح</div><div className="text-lg font-bold text-success">{fmt(salesKpi.profit)} ج.م</div></div>
+                </div>
                 <Table>
-                  <TableHeader><TableRow><TableHead>الرقم</TableHead><TableHead>التاريخ</TableHead><TableHead>العميل</TableHead><TableHead>الإجمالي</TableHead><TableHead>التكلفة</TableHead><TableHead>الربح</TableHead><TableHead className="w-28">إجراءات</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>الرقم</TableHead><TableHead>التاريخ</TableHead><TableHead>نوع البيع</TableHead><TableHead>الجهة / العميل</TableHead><TableHead>الإجمالي</TableHead><TableHead>التكلفة</TableHead><TableHead>الربح</TableHead><TableHead className="w-28">إجراءات</TableHead></TableRow></TableHeader>
                   <TableBody>
-                    {(salesQ.data || []).map((s: any) => (
-                      <TableRow key={s.id}>
-                        <TableCell className="font-mono text-xs">{s.sale_no}</TableCell>
-                        <TableCell>{s.sale_date}</TableCell>
-                        <TableCell>
-                          {s.destination_type === "brooding_feed_store"
-                            ? <Badge className="bg-blue-100 text-blue-800 border-blue-200">توريد → حضانات تسمين</Badge>
-                            : s.destination_type === "slaughterhouse_feed_store"
-                            ? <Badge className="bg-orange-100 text-orange-800 border-orange-200">توريد → مخزن علف المجزر</Badge>
-                            : s.destination_type === "mother_farm_feed_store"
-                            ? <Badge className="bg-purple-100 text-purple-800 border-purple-200">توريد → مزرعة الأمهات</Badge>
-                            : (s.customer || "-")}
-                        </TableCell>
-                        <TableCell>{fmt(Number(s.total_amount))}</TableCell>
-                        <TableCell className="text-muted-foreground">{fmt(Number(s.total_cost))}</TableCell>
-                        <TableCell className="font-bold text-success">{fmt(Number(s.profit))}</TableCell>
-                        <TableCell className="flex gap-1">
-                          <Button size="icon" variant="ghost" onClick={() => printSale(s)}><Printer className="h-4 w-4" /></Button>
-                          {canManageAll && <Button size="icon" variant="ghost" onClick={() => setSaleEdit(s)}><Pencil className="h-4 w-4" /></Button>}
-                          {canManageAll && <Button size="icon" variant="ghost" className="text-destructive" onClick={() => delSale(s)}><Trash2 className="h-4 w-4" /></Button>}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {!salesQ.data?.length && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">لا توجد مبيعات</TableCell></TableRow>}
+                    {filteredSales.map((s: any) => {
+                      const internal = isInternalSale(s);
+                      return (
+                        <TableRow key={s.id}>
+                          <TableCell className="font-mono text-xs">{s.sale_no}</TableCell>
+                          <TableCell>{s.sale_date}</TableCell>
+                          <TableCell>
+                            {internal
+                              ? <Badge className="bg-blue-100 text-blue-800 border-blue-200">داخلي</Badge>
+                              : <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">خارجي</Badge>}
+                          </TableCell>
+                          <TableCell>{saleDestLabel(s)}</TableCell>
+                          <TableCell>{fmt(Number(s.total_amount))}</TableCell>
+                          <TableCell className="text-muted-foreground">{fmt(Number(s.total_cost))}</TableCell>
+                          <TableCell className="font-bold text-success">{fmt(Number(s.profit))}</TableCell>
+                          <TableCell className="flex gap-1">
+                            <Button size="icon" variant="ghost" onClick={() => printSale(s)}><Printer className="h-4 w-4" /></Button>
+                            {canManageAll && <Button size="icon" variant="ghost" onClick={() => setSaleEdit(s)}><Pencil className="h-4 w-4" /></Button>}
+                            {canManageAll && <Button size="icon" variant="ghost" className="text-destructive" onClick={() => delSale(s)}><Trash2 className="h-4 w-4" /></Button>}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {!filteredSales.length && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-6">لا توجد مبيعات بهذا الفلتر</TableCell></TableRow>}
                   </TableBody>
                 </Table>
               </CardContent>
