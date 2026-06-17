@@ -218,29 +218,86 @@ const HRDeductions = () => {
     setOpen(true);
   };
 
+  const selectedEmp = useMemo(() => empById.get(form.employee_id), [empById, form.employee_id]);
+  const empSalary = Number(selectedEmp?.base_salary || 0);
+  const isDays = form.deduction_type === "days_deduction";
+  const dailyValue = isDays && form.days_per_month > 0 ? empSalary / form.days_per_month : 0;
+  const computedDaysAmount = isDays ? +(dailyValue * (form.days_count || 0)).toFixed(2) : 0;
+
   const save = async () => {
     if (!canRecord) return;
     if (!form.employee_id) return toast.error("اختر الموظف");
-    if (!form.amount || form.amount <= 0) return toast.error("أدخل مبلغ صحيح");
     if (!form.deduction_type) return toast.error("اختر نوع الخصم");
+
+    let finalAmount = form.amount;
+    let daysCount: number | null = null;
+    let dailyVal: number | null = null;
+    let daysPerMonth: number | null = null;
+    let salarySnapshot: number | null = null;
+
+    if (isDays) {
+      if (!empSalary || empSalary <= 0) {
+        return toast.error("لا يمكن حساب خصم الأيام لأن راتب الموظف غير مسجل");
+      }
+      if (!form.days_per_month || form.days_per_month <= 0) {
+        return toast.error("عدد أيام الشهر يجب أن يكون أكبر من صفر");
+      }
+      if (!form.days_count || form.days_count <= 0) {
+        return toast.error("عدد الأيام المخصومة يجب أن يكون أكبر من صفر");
+      }
+      if (form.days_count > form.days_per_month) {
+        return toast.error("عدد الأيام المخصومة لا يمكن أن يتجاوز عدد أيام الشهر");
+      }
+      finalAmount = computedDaysAmount;
+      daysCount = form.days_count;
+      dailyVal = +dailyValue.toFixed(4);
+      daysPerMonth = form.days_per_month;
+      salarySnapshot = empSalary;
+    } else {
+      if (!finalAmount || finalAmount <= 0) return toast.error("أدخل مبلغ صحيح");
+    }
 
     setSaving(true);
     try {
-      const refId = `employee_deduction_${form.employee_id}_${form.deduction_date}_${form.amount}_${form.deduction_type}`;
+      const refId = `employee_deduction_${form.employee_id}_${form.deduction_date}_${finalAmount}_${form.deduction_type}${isDays ? `_${daysCount}d` : ""}`;
+
+      // Soft duplicate warning (same employee/month/type/reason/days)
+      if (!editing) {
+        const dupSimilar = deductions.find(
+          (x) =>
+            x.employee_id === form.employee_id &&
+            x.month === form.month &&
+            x.year === form.year &&
+            x.deduction_type === form.deduction_type &&
+            (x.reason || "") === (form.reason || "") &&
+            (isDays ? Number(x.days_count || 0) === Number(daysCount) : true) &&
+            x.status !== "rejected"
+        );
+        if (dupSimilar) {
+          if (!confirm("يوجد خصم مشابه لهذا الموظف في نفس الشهر — هل تريد المتابعة؟")) {
+            setSaving(false);
+            return;
+          }
+        }
+      }
+
+      const payload: any = {
+        employee_id: form.employee_id,
+        deduction_date: form.deduction_date,
+        month: form.month,
+        year: form.year,
+        deduction_type: form.deduction_type,
+        amount: finalAmount,
+        reason: form.reason || null,
+        notes: form.notes || null,
+        days_count: daysCount,
+        daily_value: dailyVal,
+        days_per_month: daysPerMonth,
+        monthly_salary_snapshot: salarySnapshot,
+      };
+
       if (editing) {
-        const { error } = await supabase
-          .from("hr_deductions")
-          .update({
-            employee_id: form.employee_id,
-            deduction_date: form.deduction_date,
-            month: form.month,
-            year: form.year,
-            deduction_type: form.deduction_type,
-            amount: form.amount,
-            reason: form.reason || null,
-            notes: form.notes || null,
-          })
-          .eq("id", editing.id);
+        const { error } = await supabase.from("hr_deductions").update(payload).eq("id", editing.id);
         if (error) throw error;
         await supabase.from("hr_audit_log").insert({
           entity_type: "hr_deduction",
@@ -248,7 +305,7 @@ const HRDeductions = () => {
           employee_id: form.employee_id,
           action: "update",
           before_data: editing as any,
-          after_data: form as any,
+          after_data: payload,
           performed_by: user?.id,
           reason: "تعديل خصم",
         });
@@ -256,19 +313,7 @@ const HRDeductions = () => {
       } else {
         const { data, error } = await supabase
           .from("hr_deductions")
-          .insert({
-            employee_id: form.employee_id,
-            deduction_date: form.deduction_date,
-            month: form.month,
-            year: form.year,
-            deduction_type: form.deduction_type,
-            amount: form.amount,
-            reason: form.reason || null,
-            notes: form.notes || null,
-            status: "pending",
-            reference_id: refId,
-            created_by: user?.id,
-          })
+          .insert({ ...payload, status: "pending", reference_id: refId, created_by: user?.id })
           .select()
           .single();
         if (error) throw error;
@@ -279,7 +324,9 @@ const HRDeductions = () => {
           action: "create",
           after_data: data as any,
           performed_by: user?.id,
-          reason: `تسجيل خصم ${typeLabel[form.deduction_type]}`,
+          reason: isDays
+            ? `تسجيل خصم أيام (${daysCount} يوم × ${dailyVal} = ${finalAmount})`
+            : `تسجيل خصم ${typeLabel[form.deduction_type]}`,
         });
         toast.success("تم تسجيل الخصم بحالة بانتظار الاعتماد");
       }
