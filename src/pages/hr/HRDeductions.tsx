@@ -711,8 +711,15 @@ const HRDeductions = () => {
               />
             </div>
             <div>
-              <Label>المبلغ *</Label>
-              <Input type="number" step="0.01" value={form.amount || ""} onChange={(e) => setForm({ ...form, amount: parseFloat(e.target.value) || 0 })} />
+              <Label>المبلغ *{isDays && <span className="text-xs text-muted-foreground"> (محسوب تلقائيًا)</span>}</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={isDays ? computedDaysAmount || "" : (form.amount || "")}
+                onChange={(e) => setForm({ ...form, amount: parseFloat(e.target.value) || 0 })}
+                readOnly={isDays}
+                className={isDays ? "bg-muted" : ""}
+              />
             </div>
             <div>
               <Label>الشهر *</Label>
@@ -736,6 +743,53 @@ const HRDeductions = () => {
                 </SelectContent>
               </Select>
             </div>
+
+            {isDays && (
+              <div className="md:col-span-2 rounded-lg border bg-primary/5 p-3 space-y-3">
+                {!empSalary ? (
+                  <div className="text-sm text-rose-700">⚠ لا يمكن حساب خصم الأيام لأن راتب الموظف غير مسجل</div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                      <div>
+                        <div className="text-xs text-muted-foreground">الراتب الشهري</div>
+                        <div className="font-mono font-bold">{empSalary.toLocaleString("ar-EG")} ج.م</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground">قيمة اليوم</div>
+                        <div className="font-mono font-bold text-primary">{dailyValue.toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground">إجمالي الخصم</div>
+                        <div className="font-mono font-bold text-rose-700">{computedDaysAmount.toLocaleString("ar-EG")} ج.م</div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label>عدد أيام الشهر المعتمد *</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={31}
+                          value={form.days_per_month}
+                          onChange={(e) => setForm({ ...form, days_per_month: parseInt(e.target.value) || DEFAULT_DAYS_PER_MONTH })}
+                        />
+                      </div>
+                      <div>
+                        <Label>عدد الأيام المخصومة *</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          step="0.5"
+                          value={form.days_count || ""}
+                          onChange={(e) => setForm({ ...form, days_count: parseFloat(e.target.value) || 0 })}
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
             <div className="md:col-span-2">
               <Label>سبب الخصم</Label>
               <Input value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="مثال: غياب يوم 15" />
