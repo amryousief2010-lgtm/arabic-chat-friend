@@ -551,6 +551,8 @@ export default function FeedWarehouses() {
                             ? <Badge className="bg-blue-100 text-blue-800 border-blue-200">توريد → حضانات تسمين</Badge>
                             : s.destination_type === "slaughterhouse_feed_store"
                             ? <Badge className="bg-orange-100 text-orange-800 border-orange-200">توريد → مخزن علف المجزر</Badge>
+                            : s.destination_type === "mother_farm_feed_store"
+                            ? <Badge className="bg-purple-100 text-purple-800 border-purple-200">توريد → مزرعة الأمهات</Badge>
                             : (s.customer || "-")}
                         </TableCell>
                         <TableCell>{fmt(Number(s.total_amount))}</TableCell>
