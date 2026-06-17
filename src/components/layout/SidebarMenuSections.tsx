@@ -49,6 +49,7 @@ import {
   CalendarClock,
   ArrowLeftRight,
   Tag,
+  FileSpreadsheet,
 } from "lucide-react";
 import { useAuth, AppRole } from "@/hooks/useAuth";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
@@ -231,6 +232,7 @@ export const moduleSections: ModuleSection[] = [
       { icon: Wheat, label: "تقرير توزيع الأعلاف الشهري", path: "/feed-factory/monthly-report", roles: ['general_manager', 'executive_manager', 'feed_factory_manager', 'production_manager', 'accountant', 'financial_manager', 'warehouse_supervisor'] },
       { icon: Wallet, label: "حسابات الأقسام مع مصنع العلف", path: "/feed-factory/internal-accounts", roles: ['general_manager', 'executive_manager', 'feed_factory_manager', 'accountant', 'financial_manager', 'brooding_manager', 'slaughterhouse_manager', 'production_manager'] },
       { icon: Warehouse, label: "الأرصدة الافتتاحية لمخازن العلف", path: "/feed-factory/opening-balances", roles: ['general_manager', 'executive_manager', 'feed_factory_manager', 'accountant', 'financial_manager'] },
+      { icon: FileSpreadsheet, label: "بيانات مرجعية — المحتسب", path: "/feed-factory/historical-reference", roles: ['general_manager', 'executive_manager', 'feed_factory_manager', 'accountant', 'financial_manager'] },
       
       
       { icon: Factory, label: "نظرة عامة على المصانع", path: "/factories/overview", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'feed_factory_manager', 'production_manager', 'accountant', 'financial_manager'] },
