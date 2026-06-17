@@ -85,7 +85,7 @@ export default function FeedInternalAccounts() {
     setDetailsTxns({});
     const [inq, labq, mainq] = await Promise.all([
       supabase.from("feed_factory_treasury_txns" as any).select("*").eq("ref_table","feed_internal_payments").eq("ref_id", p.id),
-      p.department_type === "brooding"
+      (p.department_type === "brooding" || p.department_type === "mother_farm")
         ? supabase.from("lab_treasury_movements" as any).select("*").eq("source_table","feed_internal_payments").eq("source_id", p.id)
         : Promise.resolve({ data: [] }),
       p.department_type === "slaughterhouse"
