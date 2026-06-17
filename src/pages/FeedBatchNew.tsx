@@ -19,8 +19,9 @@ type RecipeRow = {
 
 export default function FeedBatchNew() {
   const nav = useNavigate();
+  const [searchParams] = useSearchParams();
   const [recipes, setRecipes] = useState<RecipeRow[]>([]);
-  const [recipeId, setRecipeId] = useState("");
+  const [recipeId, setRecipeId] = useState(searchParams.get("recipe") || "");
   const [qty, setQty] = useState<number>(1000);
   const [plan, setPlan] = useState<any>(null);
   const [loading, setLoading] = useState(false);
