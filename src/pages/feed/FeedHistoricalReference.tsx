@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { safeParseExcel } from "@/lib/safeExcel";
 import { toast } from "sonner";
-import { AlertTriangle, Upload, CheckCircle2, FileSpreadsheet, Loader2 } from "lucide-react";
+import { AlertTriangle, Upload, CheckCircle2, FileSpreadsheet, Loader2, Printer, Download } from "lucide-react";
+import { openPrintWindow } from "@/lib/printPdf";
 
 type Row = {
   id?: string;
@@ -62,7 +63,7 @@ export default function FeedHistoricalReference() {
   const [staged, setStaged] = useState<Row[]>([]);
   const [stagedName, setStagedName] = useState("");
   const [importing, setImporting] = useState(false);
-  const [systemTotals, setSystemTotals] = useState({ purchases: 0, externalSales: 0 });
+  const [systemTotals, setSystemTotals] = useState({ purchases: 0, externalSales: 0, internalMotherFarm: 0 });
 
   const load = async () => {
     setLoading(true);
@@ -77,7 +78,6 @@ export default function FeedHistoricalReference() {
   };
 
   const loadSystemTotals = async () => {
-    // operational purchases
     const { data: p } = await supabase
       .from("feed_raw_purchases")
       .select("total_amount, invoice_date")
@@ -85,10 +85,18 @@ export default function FeedHistoricalReference() {
     const purchases = (p ?? []).reduce((s: number, r: any) => s + Number(r.total_amount || 0), 0);
     const { data: s } = await supabase
       .from("feed_sales")
-      .select("total_amount, sale_date")
+      .select("total_amount, total_cost, destination_type, sale_date")
       .gte("sale_date", "2026-01-01");
-    const externalSales = (s ?? []).reduce((acc: number, r: any) => acc + Number(r.total_amount || 0), 0);
-    setSystemTotals({ purchases, externalSales });
+    let externalSales = 0;
+    let internalMotherFarm = 0;
+    for (const r of (s ?? []) as any[]) {
+      if (r.destination_type === "mother_farm_feed_store") {
+        internalMotherFarm += Number(r.total_cost || r.total_amount || 0);
+      } else if (!r.destination_type || r.destination_type === "external_customer") {
+        externalSales += Number(r.total_amount || 0);
+      }
+    }
+    setSystemTotals({ purchases, externalSales, internalMotherFarm });
   };
 
   useEffect(() => {
@@ -210,26 +218,87 @@ export default function FeedHistoricalReference() {
     }
   };
 
+  const isMotherFarmRow = (r: Row) => {
+    const d = (r.destination ?? "") + " " + (r.counterparty ?? "") + " " + (r.notes ?? "");
+    return /mother_?farm|mothers_farm|أمهات|الأمهات/i.test(d);
+  };
+
   const totals = useMemo(() => {
-    const t = { purchaseFattening: 0, purchaseLayer: 0, purchaseAll: 0, externalSales: 0, internal: 0 };
+    const t = {
+      purchaseFattening: 0,
+      purchaseLayer: 0,
+      purchaseAll: 0,
+      externalSales: 0,
+      internalMotherFarm: 0,
+      internalOther: 0,
+    };
     for (const r of rows) {
+      const a = Number(r.amount);
       if (r.record_type === "purchase") {
-        t.purchaseAll += Number(r.amount);
-        if (r.feed_type === "تسمين") t.purchaseFattening += Number(r.amount);
-        if (r.feed_type === "بياض") t.purchaseLayer += Number(r.amount);
+        t.purchaseAll += a;
+        if (r.feed_type === "تسمين") t.purchaseFattening += a;
+        if (r.feed_type === "بياض") t.purchaseLayer += a;
       } else if (r.record_type === "external_sale") {
-        t.externalSales += Number(r.amount);
-      } else {
-        t.internal += Number(r.amount);
+        t.externalSales += a;
+      } else if (r.record_type === "internal_sale") {
+        if (isMotherFarmRow(r)) t.internalMotherFarm += a;
+        else t.internalOther += a;
       }
     }
     return t;
   }, [rows]);
 
-  const filtered = useMemo(
-    () => (filterType === "all" ? rows : rows.filter((r) => r.record_type === filterType)),
-    [rows, filterType]
-  );
+  // Combined internal mother farm = historical reference + operational feed_sales
+  const motherFarmCombined = totals.internalMotherFarm + systemTotals.internalMotherFarm;
+  const totalSalesReference = totals.externalSales + totals.internalMotherFarm;
+  const totalSalesOperational = systemTotals.externalSales + systemTotals.internalMotherFarm;
+
+  const filtered = useMemo(() => {
+    if (filterType === "all") return rows;
+    if (filterType === "mother_farm") return rows.filter(isMotherFarmRow);
+    return rows.filter((r) => r.record_type === filterType);
+  }, [rows, filterType]);
+
+  const reconcileRows = () => [
+    ["مشتريات خامات علف تسمين", totals.purchaseFattening, null, null],
+    ["مشتريات خامات علف بياض", totals.purchaseLayer, null, null],
+    ["إجمالي مشتريات خامات العلف", totals.purchaseAll, systemTotals.purchases, totals.purchaseAll - systemTotals.purchases],
+    ["مبيعات خارجية", totals.externalSales, systemTotals.externalSales, totals.externalSales - systemTotals.externalSales],
+    ["مبيعات داخلية — مزرعة الأمهات (بسعر التكلفة)", totals.internalMotherFarm, systemTotals.internalMotherFarm, totals.internalMotherFarm - systemTotals.internalMotherFarm],
+    ["إجمالي المبيعات (خارجية + مزرعة الأمهات)", totalSalesReference, totalSalesOperational, totalSalesReference - totalSalesOperational],
+  ];
+
+  const exportReconcileCSV = () => {
+    const header = ["البند", "المحتسب (مرجعي)", "السيستم (تشغيلي)", "الفرق"];
+    const lines = [header.join(",")];
+    for (const r of reconcileRows()) {
+      lines.push(r.map((c) => (c == null ? "" : typeof c === "number" ? c.toFixed(2) : `"${String(c).replace(/"/g, '""')}"`)).join(","));
+    }
+    const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `feed_factory_reconcile_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const printReconcile = () => {
+    const rowsHtml = reconcileRows()
+      .map(
+        (r) =>
+          `<tr><td>${r[0]}</td><td style="text-align:left;font-family:monospace">${r[1] == null ? "—" : fmt(Number(r[1]))}</td><td style="text-align:left;font-family:monospace">${r[2] == null ? "—" : fmt(Number(r[2]))}</td><td style="text-align:left;font-family:monospace">${r[3] == null ? "—" : fmt(Number(r[3]))}</td></tr>`
+      )
+      .join("");
+    const html = `
+      <div style="text-align:center;font-weight:bold;margin-bottom:8px">مطابقة مصنع العلف مع المحتسب من أول السنة</div>
+      <div style="text-align:center;color:#666;font-size:12px;margin-bottom:12px">البيانات المرجعية لا تؤثر على المخزون أو الخزنة</div>
+      <table style="width:100%;border-collapse:collapse" border="1">
+        <thead><tr><th>البند</th><th>المحتسب (مرجعي)</th><th>السيستم (تشغيلي)</th><th>الفرق</th></tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>`;
+    openPrintWindow("مطابقة مصنع العلف مع المحتسب", html, "table th,table td{padding:6px 8px}");
+  };
 
   return (
     <DashboardLayout>
@@ -330,7 +399,8 @@ export default function FeedHistoricalReference() {
                       <SelectItem value="all">الكل</SelectItem>
                       <SelectItem value="purchase">مشتريات خامات</SelectItem>
                       <SelectItem value="external_sale">مبيعات خارجية</SelectItem>
-                      <SelectItem value="internal_sale">مبيعات داخلية (الأمهات)</SelectItem>
+                      <SelectItem value="internal_sale">مبيعات داخلية</SelectItem>
+                      <SelectItem value="mother_farm">مزرعة الأمهات</SelectItem>
                     </SelectContent>
                   </Select>
                   <Badge variant="secondary">مرجعي — لا يؤثر على المخزون أو الخزنة</Badge>
@@ -378,8 +448,24 @@ export default function FeedHistoricalReference() {
 
           <TabsContent value="reconcile" className="space-y-3">
             <Card>
-              <CardHeader><CardTitle>مطابقة مصنع العلف مع المحتسب</CardTitle></CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>مطابقة مصنع العلف مع المحتسب من أول السنة</CardTitle>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => exportReconcileCSV()}>
+                    <Download className="h-4 w-4 ml-1" /> Excel/CSV
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => printReconcile()}>
+                    <Printer className="h-4 w-4 ml-1" /> طباعة
+                  </Button>
+                </div>
+              </CardHeader>
               <CardContent>
+                <Alert className="mb-3">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    البيانات المرجعية لا تؤثر على المخزون أو الخزنة — مقارنة فقط مع برنامج المحتسب.
+                  </AlertDescription>
+                </Alert>
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -402,32 +488,51 @@ export default function FeedHistoricalReference() {
                       <TableCell className="text-left font-mono text-muted-foreground">—</TableCell>
                       <TableCell className="text-left font-mono">—</TableCell>
                     </TableRow>
-                    <TableRow className="font-semibold">
+                    <TableRow className="font-semibold bg-muted/30">
                       <TableCell>إجمالي مشتريات خامات العلف</TableCell>
                       <TableCell className="text-left font-mono">{fmt(totals.purchaseAll)}</TableCell>
                       <TableCell className="text-left font-mono">{fmt(systemTotals.purchases)}</TableCell>
                       <TableCell className="text-left font-mono">{fmt(totals.purchaseAll - systemTotals.purchases)}</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell>إجمالي مبيعات الأعلاف الخارجية</TableCell>
+                      <TableCell>مبيعات خارجية</TableCell>
                       <TableCell className="text-left font-mono">{fmt(totals.externalSales)}</TableCell>
                       <TableCell className="text-left font-mono">{fmt(systemTotals.externalSales)}</TableCell>
                       <TableCell className="text-left font-mono">{fmt(totals.externalSales - systemTotals.externalSales)}</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell>المبيعات الداخلية — مزرعة الأمهات</TableCell>
-                      <TableCell className="text-left font-mono">{fmt(totals.internal)}</TableCell>
-                      <TableCell className="text-left font-mono text-muted-foreground">—</TableCell>
-                      <TableCell className="text-left font-mono">—</TableCell>
+                      <TableCell>مبيعات داخلية — مزرعة الأمهات (بسعر التكلفة)</TableCell>
+                      <TableCell className="text-left font-mono">{fmt(totals.internalMotherFarm)}</TableCell>
+                      <TableCell className="text-left font-mono">{fmt(systemTotals.internalMotherFarm)}</TableCell>
+                      <TableCell className="text-left font-mono">{fmt(totals.internalMotherFarm - systemTotals.internalMotherFarm)}</TableCell>
                     </TableRow>
+                    <TableRow className="font-bold bg-muted/50">
+                      <TableCell>إجمالي المبيعات (خارجية + مزرعة الأمهات)</TableCell>
+                      <TableCell className="text-left font-mono">{fmt(totalSalesReference)}</TableCell>
+                      <TableCell className="text-left font-mono">{fmt(totalSalesOperational)}</TableCell>
+                      <TableCell className="text-left font-mono">{fmt(totalSalesReference - totalSalesOperational)}</TableCell>
+                    </TableRow>
+                    {totals.internalOther > 0 && (
+                      <TableRow className="text-muted-foreground">
+                        <TableCell>مبيعات داخلية أخرى (مرجعي)</TableCell>
+                        <TableCell className="text-left font-mono">{fmt(totals.internalOther)}</TableCell>
+                        <TableCell className="text-left font-mono">—</TableCell>
+                        <TableCell className="text-left font-mono">—</TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
-                <div className="mt-3 text-xs text-muted-foreground">
-                  بيانات المحتسب مرجعية فقط ولم تنشئ أي حركة مخزون أو خزنة. مقارنات السيستم هنا تستند إلى
-                  <span className="font-mono mx-1">feed_raw_purchases.total_amount</span>
-                  و
-                  <span className="font-mono mx-1">feed_sales.total_amount</span>
-                  منذ 2026-01-01.
+                <div className="mt-3 text-xs text-muted-foreground space-y-1">
+                  <div>
+                    علف مزرعة الأمهات — التشغيلي = مجموع
+                    <span className="font-mono mx-1">feed_sales.total_cost</span>
+                    عند
+                    <span className="font-mono mx-1">destination_type = mother_farm_feed_store</span>
+                    منذ 2026-01-01 (بسعر التكلفة).
+                  </div>
+                  <div>
+                    البيع الداخلي مرجعي/تشغيلي معاً = {fmt(motherFarmCombined)} ج.م.
+                  </div>
                 </div>
               </CardContent>
             </Card>
