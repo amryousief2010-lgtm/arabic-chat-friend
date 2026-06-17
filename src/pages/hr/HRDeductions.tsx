@@ -212,6 +212,8 @@ const HRDeductions = () => {
       amount: Number(d.amount),
       reason: d.reason || "",
       notes: d.notes || "",
+      days_count: Number(d.days_count || 0),
+      days_per_month: Number(d.days_per_month || DEFAULT_DAYS_PER_MONTH),
     });
     setOpen(true);
   };
