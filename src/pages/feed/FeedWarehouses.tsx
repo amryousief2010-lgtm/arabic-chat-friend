@@ -363,7 +363,7 @@ export default function FeedWarehouses() {
     ملاحظة: r.hasFallback ? "بعض الأسطر بمتوسط التكلفة الحالي" : "",
   })));
   const printSalesList = () => {
-    const rows = filteredSales.map((s: any) => `<tr><td>${s.sale_no}</td><td>${s.sale_date}</td><td>${isInternalSale(s) ? "داخلي" : "خارجي"}</td><td>${saleDestLabel(s)}</td><td>${fmt(Number(s.total_amount||0))}</td><td>${fmt(Number(s.total_cost||0))}</td><td>${fmt(Number(s.profit||0))}</td></tr>`).join("");
+    const rows = filteredSales.map((s: any) => `<tr><td>${s.sale_no}</td><td>${s.sale_date}</td><td>${isInternalSale(s) ? "داخلي" : "خارجي"}</td><td>${saleDestLabel(s)}</td><td>${fmt(Number(s.total_amount||0))}</td><td>${fmt(calcSaleCost(s))}</td><td>${fmt(Number(s.total_amount||0) - calcSaleCost(s))}</td></tr>`).join("");
     const analysisRows = costByProduct.rows.map((r) => {
       const avgCost = r.qty > 0 ? r.cost / r.qty : 0;
       const avgPrice = r.qty > 0 ? r.revenue / r.qty : 0;
