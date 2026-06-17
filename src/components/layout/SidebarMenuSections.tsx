@@ -233,6 +233,8 @@ export const moduleSections: ModuleSection[] = [
       { icon: Wallet, label: "حسابات الأقسام مع مصنع العلف", path: "/feed-factory/internal-accounts", roles: ['general_manager', 'executive_manager', 'feed_factory_manager', 'accountant', 'financial_manager', 'brooding_manager', 'slaughterhouse_manager', 'production_manager'] },
       { icon: Warehouse, label: "الأرصدة الافتتاحية لمخازن العلف", path: "/feed-factory/opening-balances", roles: ['general_manager', 'executive_manager', 'feed_factory_manager', 'accountant', 'financial_manager'] },
       { icon: FileSpreadsheet, label: "بيانات مرجعية — المحتسب", path: "/feed-factory/historical-reference", roles: ['general_manager', 'executive_manager', 'feed_factory_manager', 'accountant', 'financial_manager'] },
+      { icon: FileSpreadsheet, label: "لوحة LV — ملف بيانات المصنع الرسمي", path: "/feed-factory/lv-dashboard", roles: ['general_manager', 'executive_manager', 'feed_factory_manager', 'accountant', 'financial_manager'] },
+
       
       
       { icon: Factory, label: "نظرة عامة على المصانع", path: "/factories/overview", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'feed_factory_manager', 'production_manager', 'accountant', 'financial_manager'] },
