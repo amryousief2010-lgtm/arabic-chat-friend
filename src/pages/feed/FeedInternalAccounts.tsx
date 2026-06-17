@@ -265,6 +265,74 @@ export default function FeedInternalAccounts() {
         </Tabs>
 
         <FeedInternalPaymentDialog open={dlg} onOpenChange={setDlg} department="brooding" onSaved={load} />
+
+        <Dialog open={!!rejectFor} onOpenChange={(o) => !o && setRejectFor(null)}>
+          <DialogContent dir="rtl">
+            <DialogHeader><DialogTitle>رفض السداد رقم {rejectFor?.payment_no}</DialogTitle></DialogHeader>
+            <div className="space-y-2">
+              <Label>سبب الرفض</Label>
+              <Textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} rows={3} placeholder="اكتب سبب الرفض..." />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setRejectFor(null)}>إلغاء</Button>
+              <Button variant="destructive" onClick={reject} disabled={busy === rejectFor?.id}>تأكيد الرفض</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={!!detailsFor} onOpenChange={(o) => !o && setDetailsFor(null)}>
+          <DialogContent dir="rtl" className="max-w-2xl">
+            <DialogHeader><DialogTitle>تفاصيل السداد {detailsFor?.payment_no}</DialogTitle></DialogHeader>
+            {detailsFor && (
+              <div className="space-y-3 text-sm">
+                <div className="grid grid-cols-2 gap-2 p-3 bg-muted/40 rounded">
+                  <div>القسم: <b>{detailsFor.department_type === "brooding" ? "حضانات التسمين" : "المجزر"}</b></div>
+                  <div>المبلغ: <b>{fmt(detailsFor.amount)} ج.م</b></div>
+                  <div>الطريقة: <b>{detailsFor.payment_method}</b></div>
+                  <div>التاريخ: <b>{detailsFor.payment_date}</b></div>
+                  <div>المرجع: <b>{detailsFor.reference_no || "—"}</b></div>
+                  <div>الحالة: <Badge variant="outline" className={STATUS_CLASS[detailsFor.status]}>{STATUS_LABEL[detailsFor.status]}</Badge></div>
+                  <div className="col-span-2">ملاحظات: {detailsFor.notes || "—"}</div>
+                  {detailsFor.rejected_reason && <div className="col-span-2 text-rose-700">سبب الرفض: {detailsFor.rejected_reason}</div>}
+                  {detailsFor.approved_at && <div className="col-span-2 text-xs text-muted-foreground">تاريخ الاعتماد: {new Date(detailsFor.approved_at).toLocaleString("ar-EG")}</div>}
+                </div>
+
+                <div className="border rounded p-3">
+                  <div className="font-bold mb-1 text-emerald-700">حركة خزنة مصنع العلف (وارد)</div>
+                  {detailsTxns.in ? (
+                    <div className="text-xs space-y-1">
+                      <div>رقم الحركة: <span className="font-mono">{detailsTxns.in.txn_no}</span></div>
+                      <div>القيمة: <b>{fmt(detailsTxns.in.amount)} ج.م</b></div>
+                      <div>التاريخ: {detailsTxns.in.txn_date}</div>
+                      <div>الوصف: {detailsTxns.in.note}</div>
+                    </div>
+                  ) : <div className="text-xs text-muted-foreground">لا توجد حركة بعد (السداد لم يُعتمد).</div>}
+                </div>
+
+                <div className="border rounded p-3">
+                  <div className="font-bold mb-1 text-rose-700">
+                    {detailsFor.department_type === "brooding" ? "حركة خزنة المعمل/الحضانات (مصروف)" : "حركة الخزنة الرئيسية (مصروف)"}
+                  </div>
+                  {detailsTxns.out ? (
+                    <div className="text-xs space-y-1">
+                      <div>رقم الحركة: <span className="font-mono">{detailsTxns.out.reference_no || detailsTxns.out.id}</span></div>
+                      <div>القيمة: <b>{fmt(detailsTxns.out.amount)} ج.م</b></div>
+                      <div>التاريخ: {detailsTxns.out.movement_date || detailsTxns.out.txn_date}</div>
+                      <div>الوصف: {detailsTxns.out.description}</div>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-muted-foreground">
+                      {detailsFor.payment_method === "internal_settlement"
+                        ? "تسوية داخلية — لا توجد حركة نقدية مقابلة."
+                        : "لا توجد حركة بعد."}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            <DialogFooter><Button variant="outline" onClick={() => setDetailsFor(null)}>إغلاق</Button></DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );
