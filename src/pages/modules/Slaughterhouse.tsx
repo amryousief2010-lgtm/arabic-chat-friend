@@ -300,21 +300,56 @@ const Slaughterhouse = () => {
     fetchAll();
   };
 
-  const saveBatch = async (formData?: typeof batchForm): Promise<boolean> => {
-    const data = formData || batchForm;
-    if (!data.birds_slaughtered || !data.total_live_weight_kg) { toast.error("أدخل عدد الطيور المذبوحة والوزن الحي"); return false; }
+  const saveBatch = async (formData?: any): Promise<boolean> => {
+    const data: any = formData || batchForm;
+    const sources: Array<{ live_receipt_id: string; birds_count: number }> = Array.isArray(data.sources) ? data.sources : [];
+    // Back-compat: legacy single live_receipt_id
+    if (sources.length === 0 && data.live_receipt_id && data.birds_slaughtered) {
+      sources.push({ live_receipt_id: data.live_receipt_id, birds_count: Number(data.birds_slaughtered) || 0 });
+    }
+    const validSources = sources.filter((s) => s.live_receipt_id && Number(s.birds_count) > 0);
+    if (validSources.length === 0) { toast.error("اختر دفعة نعام واحدة على الأقل كمصدر"); return false; }
+    if (!data.total_live_weight_kg) { toast.error("أدخل الوزن الحي الإجمالي"); return false; }
+
+    const totalBirds = validSources.reduce((s, x) => s + Number(x.birds_count || 0), 0);
     const batch_number = `SB-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(Math.random() * 9999).toString().padStart(4, "0")}`;
     const { data: { user } } = await supabase.auth.getUser();
-    const payload: any = { ...data, batch_number, created_by: user?.id };
-    if (!payload.live_receipt_id) delete payload.live_receipt_id;
-    if (!payload.start_time) delete payload.start_time;
-    // Convert empty butcher selections to null (UUID columns reject "")
+    const payload: any = {
+      batch_number,
+      shift: data.shift,
+      birds_slaughtered: totalBirds,
+      total_live_weight_kg: data.total_live_weight_kg,
+      pre_slaughter_dead: data.pre_slaughter_dead || 0,
+      rejected_birds: data.rejected_birds || 0,
+      notes: data.notes || null,
+      live_receipt_id: validSources[0].live_receipt_id, // first source for back-compat
+      created_by: user?.id,
+    };
+    if (data.start_time) payload.start_time = data.start_time;
     for (const k of ["butcher_1_id", "butcher_2_id", "butcher_3_id"]) {
-      if (!payload[k]) payload[k] = null;
+      if (data[k]) payload[k] = data[k];
     }
-    const { error } = await supabase.from("slaughter_batches" as any).insert(payload);
-    if (error) { toast.error(error.message); return false; }
-    toast.success("تم إنشاء دفعة الذبح");
+
+    const { data: inserted, error } = await supabase.from("slaughter_batches" as any).insert(payload).select("id").single();
+    if (error || !inserted) { toast.error(error?.message || "تعذّر إنشاء الدفعة"); return false; }
+    const batchId = (inserted as any).id as string;
+
+    // Insert sources (trigger auto-deducts + audits)
+    const rows = validSources.map((s) => ({
+      slaughter_batch_id: batchId,
+      live_receipt_id: s.live_receipt_id,
+      birds_count: Number(s.birds_count),
+      created_by: user?.id,
+    }));
+    const { error: srcErr } = await supabase.from("slaughter_batch_live_sources" as any).insert(rows);
+    if (srcErr) {
+      // Roll back the parent batch
+      await supabase.from("slaughter_batches" as any).delete().eq("id", batchId);
+      toast.error("تعذّر حفظ مصادر النعام", { description: srcErr.message });
+      return false;
+    }
+
+    toast.success(`تم إنشاء دفعة الذبح من ${validSources.length} مصدر — ${totalBirds} نعامة`);
     setBatchOpen(false);
     setBatchForm({ live_receipt_id: "", shift: "morning", birds_slaughtered: 0, total_live_weight_kg: 0, pre_slaughter_dead: 0, rejected_birds: 0, start_time: "", notes: "" });
     fetchAll();
