@@ -382,6 +382,13 @@ export default function FeedWarehouses() {
                 </div>
               </CardHeader>
               <CardContent>
+                <div className="mb-3 rounded-md border border-primary/40 bg-primary/5 p-3 flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">إجمالي تكلفة المخزون (الخامات):</span>{" "}
+                    <span className="text-lg font-bold text-primary">{fmt(rawValue)} ج.م</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">عدد الأصناف: {rawQ.data?.length || 0} — يحسب من (الرصيد × متوسط التكلفة)</div>
+                </div>
                 <Table>
                   <TableHeader><TableRow><TableHead>الصنف</TableHead><TableHead>الكود</TableHead><TableHead>الرصيد</TableHead><TableHead>الوحدة</TableHead><TableHead>متوسط التكلفة</TableHead><TableHead>سعر البيع</TableHead><TableHead>قيمة (تكلفة)</TableHead><TableHead>قيمة (بيع)</TableHead><TableHead>الهامش</TableHead><TableHead>%</TableHead><TableHead>المورد</TableHead>{canEditStock && <TableHead></TableHead>}</TableRow></TableHeader>
                   <TableBody>
@@ -410,6 +417,15 @@ export default function FeedWarehouses() {
                     })}
                     {!rawQ.data?.length && <TableRow><TableCell colSpan={canEditStock ? 12 : 11} className="text-center text-muted-foreground py-6">لا توجد خامات</TableCell></TableRow>}
                   </TableBody>
+                  {!!rawQ.data?.length && (
+                    <tfoot className="bg-primary/5 font-bold">
+                      <tr>
+                        <td className="p-3" colSpan={6}>إجمالي تكلفة المخزون</td>
+                        <td className="p-3 text-primary">{fmt(rawValue)} ج.م</td>
+                        <td className="p-3" colSpan={canEditStock ? 5 : 4}></td>
+                      </tr>
+                    </tfoot>
+                  )}
                 </Table>
 
               </CardContent>
