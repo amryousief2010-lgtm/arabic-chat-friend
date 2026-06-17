@@ -332,6 +332,7 @@ export function useExecutiveApprovals() {
         item.category === "lab" ? "lab_treasury_movements" :
         item.category === "custody" ? "slaughter_custody_expenses" :
         item.category === "slaughter" ? "slaughter_batches" :
+        item.category === "hr" ? "hr_deductions" :
         item.raw._source_table;
 
       const statusCol = item.category === "slaughter" ? "approval_status" : "status";
@@ -343,8 +344,14 @@ export function useExecutiveApprovals() {
         (item.category === "lab" && freshStatus === LAB_PENDING) ||
         (item.category === "meat" && freshStatus === MEAT_PENDING) ||
         (item.category === "custody" && CUSTODY_PENDING.includes(freshStatus)) ||
-        (item.category === "slaughter" && freshStatus === SLAUGHTER_BATCH_PENDING);
-      if (!isPending) throw new Error("تم التعامل مع هذا الطلب بالفعل");
+        (item.category === "slaughter" && freshStatus === SLAUGHTER_BATCH_PENDING) ||
+        (item.category === "hr" && freshStatus === HR_PENDING);
+      if (!isPending) {
+        if (item.category === "hr" && freshStatus === "approved") {
+          throw new Error("تم اعتماد هذا الخصم من قبل");
+        }
+        throw new Error("تم التعامل مع هذا الطلب بالفعل");
+      }
 
       if (item.category === "treasury") {
         const { error } = await (supabase as any).rpc("mt_approve_txn", { p_txn_id: item.id });
