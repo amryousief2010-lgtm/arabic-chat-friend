@@ -296,6 +296,39 @@ export default function FeedWarehouses() {
     cost: filteredSales.reduce((sum: number, s: any) => sum + Number(s.total_cost || 0), 0),
     profit: filteredSales.reduce((sum: number, s: any) => sum + Number(s.profit || 0), 0),
   };
+  // ---- Cost analysis per product/feed type (respects filteredSales) ----
+  type CostAgg = { name: string; qty: number; revenue: number; cost: number; hasFallback: boolean };
+  const costByProduct = (() => {
+    const map = new Map<string, CostAgg>();
+    let anyFallback = false;
+    for (const s of filteredSales) {
+      const items: any[] = s.feed_sale_items || [];
+      for (const it of items) {
+        const name = it.feed_products?.name || it.feed_raw_materials?.name || "غير محدد";
+        const qty = Number(it.quantity || 0);
+        const lineTotal = Number(it.line_total || qty * Number(it.unit_price || 0));
+        // unit_cost is saved per-line at sale time. If missing, fall back.
+        let unitCost = Number(it.unit_cost || 0);
+        let fallback = false;
+        if (!unitCost) {
+          // fallback to latest cost from products list
+          const prod = (prodQ.data || []).find((p: any) => p.id === it.feed_product_id);
+          const raw = (rawQ.data || []).find((r: any) => r.id === it.raw_material_id);
+          unitCost = Number(prod?.latest_unit_cost || raw?.unit_cost || 0);
+          if (unitCost) fallback = true;
+        }
+        const lineCost = Number(it.line_cost || qty * unitCost);
+        if (fallback) anyFallback = true;
+        const prev = map.get(name) || { name, qty: 0, revenue: 0, cost: 0, hasFallback: false };
+        prev.qty += qty;
+        prev.revenue += lineTotal;
+        prev.cost += lineCost;
+        if (fallback) prev.hasFallback = true;
+        map.set(name, prev);
+      }
+    }
+    return { rows: Array.from(map.values()).sort((a, b) => b.revenue - a.revenue), anyFallback };
+  })();
   const exportSales = () => exportCSV(`feed_sales_${salesFileSuffix}.csv`, filteredSales.map((s: any) => ({
     الرقم: s.sale_no,
     التاريخ: s.sale_date,
