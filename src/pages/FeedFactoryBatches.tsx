@@ -95,7 +95,10 @@ export default function FeedFactoryBatches() {
                 <div><b>تاريخ:</b> {openDetail.production_date}</div>
                 <div><b>مخطط:</b> {openDetail.target_quantity} كجم</div>
                 <div><b>فعلي:</b> {openDetail.actual_quantity ?? "—"} كجم</div>
-                <div><b>إجمالي التكلفة:</b> {Number(openDetail.total_cost || 0).toFixed(2)}</div>
+                <div><b>تكلفة الخامات:</b> {Number(openDetail.total_cost || 0).toFixed(2)}</div>
+                <div><b>الأجور:</b> {Number(openDetail.labor_cost || 0).toFixed(2)}</div>
+                <div><b>مصاريف أخرى:</b> {Number((openDetail.other_cost || 0) + (openDetail.service_cost || 0)).toFixed(2)}</div>
+                <div><b>إجمالي التصنيع:</b> {(Number(openDetail.total_cost || 0) + Number(openDetail.labor_cost || 0) + Number(openDetail.other_cost || 0) + Number(openDetail.service_cost || 0)).toFixed(2)}</div>
                 <div><b>تكلفة/كجم:</b> {openDetail.cost_per_kg ? Number(openDetail.cost_per_kg).toFixed(4) : "—"}</div>
               </div>
             </div>
