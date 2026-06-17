@@ -984,6 +984,7 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
               <SelectItem value="external_customer">بيع خارجي لعميل</SelectItem>
               <SelectItem value="brooding_feed_store">توريد داخلي → مخزن علف حضانات تسمين الكتاكيت</SelectItem>
               <SelectItem value="slaughterhouse_feed_store">توريد داخلي → مخزن علف المجزر (علف النعام التسمين)</SelectItem>
+              <SelectItem value="mother_farm_feed_store">توريد داخلي → مخزن علف مزرعة الأمهات</SelectItem>
             </SelectContent>
           </Select>
           {isInternal && (
