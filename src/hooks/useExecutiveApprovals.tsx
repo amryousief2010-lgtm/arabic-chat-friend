@@ -3,12 +3,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-export type ApprovalCategory = "treasury" | "meat" | "custody" | "slaughter" | "lab";
+export type ApprovalCategory = "treasury" | "meat" | "custody" | "slaughter" | "lab" | "hr";
 
 export type ApprovalItem = {
   id: string;
   category: ApprovalCategory;
-  source: string;         // human-readable source label (e.g. "فاتورة تصنيع", "تصنيع داخلي", "تقسيمة دبح")
+  source: string;
   title: string;
   subtitle?: string;
   amount?: number | null;
@@ -26,6 +26,18 @@ const LAB_PENDING = "pending";
 const MEAT_PENDING = "draft";
 const CUSTODY_PENDING = ["pending_review", "over_limit_pending"];
 const SLAUGHTER_BATCH_PENDING = "pending";
+const HR_PENDING = "pending";
+
+const HR_TYPE_LABEL: Record<string, string> = {
+  absence: "غياب",
+  late: "تأخير",
+  penalty: "جزاء",
+  damages: "تلفيات",
+  advance_repayment: "سلفة تخصم من الراتب",
+  administrative: "خصم إداري",
+  days_deduction: "خصم أيام",
+  other: "أخرى",
+};
 
 async function resolveProfiles(ids: string[]): Promise<Record<string, string>> {
   const unique = Array.from(new Set(ids.filter(Boolean)));
