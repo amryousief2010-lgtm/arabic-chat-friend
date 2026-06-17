@@ -1000,7 +1000,7 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
             <div><Label>رقم العميل</Label><Input type="tel" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="01xxxxxxxxx" /></div>
           </>}
           {isInternal && <div className="md:col-span-2"><Label>الجهة المستلمة</Label>
-            <Input value={destinationType === "brooding_feed_store" ? "حضانات تسمين الكتاكيت" : "مخزن علف المجزر"} disabled />
+            <Input value={destinationType === "brooding_feed_store" ? "حضانات تسمين الكتاكيت" : destinationType === "slaughterhouse_feed_store" ? "مخزن علف المجزر" : "مخزن علف مزرعة الأمهات"} disabled />
           </div>}
           <div><Label>{isInternal ? "أمين المخزن المسلِّم" : "اسم البائع"}</Label><Input value={salesperson} onChange={(e) => setSalesperson(e.target.value)} /></div>
           <div><Label>التاريخ</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
