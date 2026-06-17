@@ -172,6 +172,43 @@ export default function Recipes() {
     setDeleteId(null);
   };
 
+  const computeTotals = (r: Recipe) => {
+    const matCost = (r.items || []).reduce((s, it) => s + Number(it.quantity) * (Number(it.raw_material?.unit_cost) || 0), 0);
+    const labor = Number(r.labor_total_cost || 0);
+    const other = Number(r.other_expenses_total || 0);
+    const total = matCost + labor + other;
+    const perKg = r.batch_size > 0 ? total / r.batch_size : 0;
+    return { matCost, labor, other, total, perKg };
+  };
+
+  const printRecipe = (r: Recipe) => {
+    const t = computeTotals(r);
+    const itemsRows = (r.items || []).map(it => {
+      const cost = Number(it.quantity) * (Number(it.raw_material?.unit_cost) || 0);
+      return `<tr><td>${it.raw_material?.name || "—"}</td><td>${fmt(Number(it.quantity), 2)}</td><td>${it.raw_material?.unit || "كجم"}</td><td>${fmt(Number(it.raw_material?.unit_cost) || 0, 3)}</td><td>${fmt(cost, 2)}</td></tr>`;
+    }).join("");
+    const html = `
+      <div style="text-align:center;margin-bottom:16px"><h2 style="margin:0">نعام العاصمة</h2><h3 style="margin:4px 0">تركيبة علف — ${r.name}</h3></div>
+      <table style="width:100%;margin-bottom:12px"><tr><td><b>المنتج النهائي:</b> ${r.feed_product ? `${r.feed_product.feed_code} — ${r.feed_product.name}` : "—"}</td><td><b>النوع:</b> ${r.feed_type}</td><td><b>الكمية القياسية:</b> ${fmt(r.batch_size, 0)} ${r.unit}</td></tr></table>
+      <h4>الخامات</h4>
+      <table border="1" style="width:100%;border-collapse:collapse" cellpadding="6">
+        <thead><tr><th>الخامة</th><th>الكمية</th><th>الوحدة</th><th>سعر التكلفة</th><th>الإجمالي</th></tr></thead>
+        <tbody>${itemsRows || `<tr><td colspan="5" style="text-align:center">لا توجد بنود</td></tr>`}</tbody>
+      </table>
+      <h4 style="margin-top:16px">ملخص التكلفة</h4>
+      <table border="1" style="width:100%;border-collapse:collapse" cellpadding="6">
+        <tr><td>إجمالي الخامات</td><td>${fmt(t.matCost, 2)}</td></tr>
+        <tr><td>إجمالي الأجور</td><td>${fmt(t.labor, 2)}</td></tr>
+        <tr><td>إجمالي المصاريف الأخرى</td><td>${fmt(t.other, 2)}</td></tr>
+        <tr><td><b>إجمالي تكلفة التصنيع</b></td><td><b>${fmt(t.total, 2)}</b></td></tr>
+        <tr><td><b>تكلفة الكيلو</b></td><td><b>${fmt(t.perKg, 3)}</b></td></tr>
+      </table>
+      <div style="margin-top:24px;font-size:12px"><div>تاريخ الطباعة: ${new Date().toLocaleString("ar-EG")}</div></div>
+      <div style="display:flex;justify-content:space-between;margin-top:48px"><div>توقيع مسؤول مصنع العلف: ____________</div><div>توقيع المدير المعتمد: ____________</div></div>`;
+    openPrintWindow(`تركيبة علف — ${r.name}`, html);
+  };
+
+
   return (
     <DashboardLayout>
       <div className="space-y-6" dir="rtl">
