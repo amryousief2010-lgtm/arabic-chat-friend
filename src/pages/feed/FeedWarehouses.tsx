@@ -110,12 +110,32 @@ const printRawList = (rows: any[]) => {
   <table><thead><tr><th>الصنف</th><th>الكود</th><th>الرصيد</th><th>الوحدة</th><th>متوسط التكلفة</th><th>سعر البيع</th><th>القيمة (تكلفة)</th><th>القيمة (بيع)</th><th>الهامش</th><th>المورد</th></tr></thead><tbody>${body}</tbody><tfoot><tr><td colspan="6">إجمالي قيمة المخزون (تكلفة)</td><td colspan="4">${fmt(total)} ج.م</td></tr></tfoot></table>`);
 };
 
-const printProdList = (rows: any[]) => {
-  const body = rows.map((p)=>{const bag=Number(p.default_bag_kg||50);const st=Number(p.current_stock||0);return `<tr><td>${esc(p.name)}</td><td>${esc(p.stage||'-')}</td><td>${fmt(st)}</td><td>${fmt(bag>0?st/bag:0)}</td><td>${fmt(p.latest_unit_cost)}</td><td>${fmt(p.selling_price)}</td><td>${fmt(st*Number(p.latest_unit_cost||0))}</td></tr>`}).join("");
-  const total = rows.reduce((s,p)=>s+Number(p.current_stock||0)*Number(p.latest_unit_cost||0),0);
-  printHtml("جرد العلف الجاهز", `<div class="header"><div><div class="brand">عاصمة النعام</div><div>مصنع الأعلاف — كشف العلف الجاهز</div></div><div style="text-align:left"><b>التاريخ:</b> ${new Date().toLocaleDateString('ar-EG')}</div></div>
-  <table><thead><tr><th>المنتج</th><th>المرحلة</th><th>الكمية كجم</th><th>عدد الشكاير</th><th>متوسط التكلفة</th><th>سعر البيع</th><th>القيمة</th></tr></thead><tbody>${body}</tbody><tfoot><tr><td colspan="6">إجمالي قيمة العلف</td><td>${fmt(total)} ج.م</td></tr></tfoot></table>`);
+const printProdList = (rows: any[], readyRaws: any[] = []) => {
+  const prodBody = rows.map((p)=>{
+    const bag=Number(p.default_bag_kg||50);
+    const st=Number(p.current_stock||0);
+    const uc=Number(p.latest_unit_cost||0);
+    const sp=Number(p.selling_price||0);
+    return `<tr><td>${esc(p.name)}</td><td>${esc(p.stage||'جاهز للبيع')}</td><td>${fmt(st)}</td><td>${fmt(bag>0?st/bag:0)}</td><td>${fmt(uc)}</td><td>${fmt(sp)}</td><td>${fmt(st*uc)}</td><td>${sp>0?fmt(st*sp):'-'}</td></tr>`;
+  }).join("");
+  const rawBody = readyRaws.map((r)=>{
+    const st=Number(r.stock||0);
+    const uc=Number(r.unit_cost||0);
+    const sp=Number(r.sale_price||0);
+    return `<tr><td>${esc(r.name)}</td><td>بريمكس / دريس</td><td>${fmt(st)}</td><td>-</td><td>${fmt(uc)}</td><td>${sp>0?fmt(sp):'-'}</td><td>${fmt(st*uc)}</td><td>${sp>0?fmt(st*sp):'-'}</td></tr>`;
+  }).join("");
+  const body = prodBody + rawBody;
+  const totalCost = rows.reduce((s,p)=>s+Number(p.current_stock||0)*Number(p.latest_unit_cost||0),0)
+    + readyRaws.reduce((s,r)=>s+Number(r.stock||0)*Number(r.unit_cost||0),0);
+  const totalSale = rows.reduce((s,p)=>s+Number(p.current_stock||0)*Number(p.selling_price||0),0)
+    + readyRaws.reduce((s,r)=>s+Number(r.stock||0)*Number(r.sale_price||0),0);
+  const totalQty = rows.reduce((s,p)=>s+Number(p.current_stock||0),0)
+    + readyRaws.reduce((s,r)=>s+Number(r.stock||0),0);
+  const totalItems = rows.length + readyRaws.length;
+  printHtml("جرد العلف الجاهز", `<div class="header"><div><div class="brand">عاصمة النعام</div><div>مصنع الأعلاف — كشف العلف الجاهز للبيع</div></div><div style="text-align:left"><b>التاريخ:</b> ${new Date().toLocaleDateString('ar-EG')}<br/><b>عدد المنتجات:</b> ${totalItems}</div></div>
+  <table><thead><tr><th>المنتج</th><th>المرحلة</th><th>الكمية كجم</th><th>عدد الشكاير</th><th>متوسط التكلفة</th><th>سعر البيع</th><th>قيمة (تكلفة)</th><th>قيمة (بيع)</th></tr></thead><tbody>${body || '<tr><td colspan="8" style="text-align:center">لا توجد منتجات</td></tr>'}</tbody><tfoot><tr><td colspan="2">الإجماليات</td><td>${fmt(totalQty)}</td><td>-</td><td colspan="2">-</td><td>${fmt(totalCost)} ج.م</td><td>${fmt(totalSale)} ج.م</td></tr></tfoot></table>`);
 };
+
 const printTreasury = (rows: any[], balance: number) => {
   const body = rows.map((t)=>`<tr><td>${esc(t.txn_no)}</td><td>${esc(t.txn_date)}</td><td>${esc(KIND_LABEL[t.kind]||t.kind)}</td><td>${esc(t.party||'-')}</td><td>${esc(t.note||'-')}</td><td style="color:#059669">${t.direction==='in'?fmt(t.amount):'-'}</td><td style="color:#dc2626">${t.direction==='out'?fmt(t.amount):'-'}</td></tr>`).join("");
   const tin = rows.filter(r=>r.direction==='in').reduce((s,r)=>s+Number(r.amount),0);
@@ -259,7 +279,13 @@ export default function FeedWarehouses() {
   const loanFromNaam = useMemo(() => (treasuryQ.data || []).filter((t: any) => t.kind === "loan_from_naam").reduce((s: number, t: any) => s + Number(t.amount), 0) - (treasuryQ.data || []).filter((t: any) => t.kind === "loan_to_naam").reduce((s: number, t: any) => s + Number(t.amount), 0), [treasuryQ.data]);
 
   const exportRaw = () => exportCSV("raw_materials.csv", (rawQ.data||[]).map((r:any)=>{const sp=Number(r.sale_price||0);const uc=Number(r.unit_cost||0);return ({الصنف:r.name,الكود:r.item_code||"",الرصيد:r.stock,الوحدة:r.unit,متوسط_التكلفة:uc,سعر_البيع:sp,القيمة_تكلفة:Number(r.stock)*uc,القيمة_بيع:Number(r.stock)*sp,هامش_الربح:sp>0?sp-uc:0,نسبة_الهامش:sp>0?((sp-uc)/sp*100).toFixed(2)+"%":"",المورد:r.supplier||""});}));
-  const exportProd = () => exportCSV("finished_products.csv", (prodQ.data||[]).map((p:any)=>({المنتج:p.name,المرحلة:p.stage,الكمية_كجم:p.current_stock,عدد_الشكاير:Number(p.default_bag_kg||50)>0?Number(p.current_stock)/Number(p.default_bag_kg||50):0,وزن_الشيكارة:p.default_bag_kg,متوسط_التكلفة:p.latest_unit_cost,سعر_البيع:p.selling_price,القيمة:Number(p.current_stock||0)*Number(p.latest_unit_cost||0)})));
+  const getReadyRaws = () => (rawQ.data||[]).filter((r:any)=>{const n=String(r.name||"").toLowerCase();return n.includes("بريمكس")||n.includes("دريس")||n.includes("premix")||n.includes("dress");});
+  const exportProd = () => {
+    const prods = (prodQ.data||[]).map((p:any)=>({المنتج:p.name,المرحلة:p.stage||"جاهز للبيع",الكمية_كجم:Number(p.current_stock||0),عدد_الشكاير:Number(p.default_bag_kg||50)>0?Number(p.current_stock||0)/Number(p.default_bag_kg||50):0,وزن_الشيكارة:p.default_bag_kg,متوسط_التكلفة:Number(p.latest_unit_cost||0),سعر_البيع:Number(p.selling_price||0),قيمة_تكلفة:Number(p.current_stock||0)*Number(p.latest_unit_cost||0),قيمة_بيع:Number(p.current_stock||0)*Number(p.selling_price||0)}));
+    const raws = getReadyRaws().map((r:any)=>({المنتج:r.name,المرحلة:"بريمكس / دريس",الكمية_كجم:Number(r.stock||0),عدد_الشكاير:0,وزن_الشيكارة:"",متوسط_التكلفة:Number(r.unit_cost||0),سعر_البيع:Number(r.sale_price||0),قيمة_تكلفة:Number(r.stock||0)*Number(r.unit_cost||0),قيمة_بيع:Number(r.stock||0)*Number(r.sale_price||0)}));
+    exportCSV("finished_products.csv", [...prods, ...raws]);
+  };
+
   const exportPur = () => exportCSV("purchases.csv", (purQ.data||[]).map((p:any)=>({الرقم:p.purchase_no,التاريخ:p.purchase_date,المورد:p.supplier||"",رقم_فاتورة_المورد:p.supplier_invoice_no||"",عدد_البنود:p.feed_raw_purchase_items?.length||0,الإجمالي:p.total_amount})));
   const isInternalSale = (s: any) => s.destination_type && s.destination_type !== "external_customer";
   const saleDestLabel = (s: any) => {
@@ -545,7 +571,7 @@ export default function FeedWarehouses() {
               <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
                 <div><CardTitle>العلف الجاهز للبيع</CardTitle><CardDescription>الرصيد بالكيلو والشكاير لكل منتج</CardDescription></div>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => printProdList(prodQ.data || [])}><Printer className="h-4 w-4 ml-1"/>طباعة</Button>
+                  <Button size="sm" variant="outline" onClick={() => printProdList(prodQ.data || [], getReadyRaws())}><Printer className="h-4 w-4 ml-1"/>طباعة</Button>
                   <Button size="sm" variant="outline" onClick={exportProd}><FileSpreadsheet className="h-4 w-4 ml-1"/>Excel</Button>
                   {canEditStock && <Button onClick={() => setEditProd({})}><Plus className="h-4 w-4 ml-1" />إضافة منتج</Button>}
                 </div>
