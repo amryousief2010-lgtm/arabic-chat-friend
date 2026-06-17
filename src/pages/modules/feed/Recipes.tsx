@@ -10,7 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Wheat, Plus, Edit, Trash2, ArrowLeft, RefreshCw } from "lucide-react";
+import { Wheat, Plus, Edit, Trash2, ArrowLeft, RefreshCw, Printer, FileText } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { openPrintWindow } from "@/lib/printPdf";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
