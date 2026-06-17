@@ -296,6 +296,39 @@ export default function FeedWarehouses() {
     cost: filteredSales.reduce((sum: number, s: any) => sum + Number(s.total_cost || 0), 0),
     profit: filteredSales.reduce((sum: number, s: any) => sum + Number(s.profit || 0), 0),
   };
+  // ---- Cost analysis per product/feed type (respects filteredSales) ----
+  type CostAgg = { name: string; qty: number; revenue: number; cost: number; hasFallback: boolean };
+  const costByProduct = (() => {
+    const map = new Map<string, CostAgg>();
+    let anyFallback = false;
+    for (const s of filteredSales) {
+      const items: any[] = s.feed_sale_items || [];
+      for (const it of items) {
+        const name = it.feed_products?.name || it.feed_raw_materials?.name || "غير محدد";
+        const qty = Number(it.quantity || 0);
+        const lineTotal = Number(it.line_total || qty * Number(it.unit_price || 0));
+        // unit_cost is saved per-line at sale time. If missing, fall back.
+        let unitCost = Number(it.unit_cost || 0);
+        let fallback = false;
+        if (!unitCost) {
+          // fallback to latest cost from products list
+          const prod = (prodQ.data || []).find((p: any) => p.id === it.feed_product_id);
+          const raw = (rawQ.data || []).find((r: any) => r.id === it.raw_material_id);
+          unitCost = Number(prod?.latest_unit_cost || raw?.unit_cost || 0);
+          if (unitCost) fallback = true;
+        }
+        const lineCost = Number(it.line_cost || qty * unitCost);
+        if (fallback) anyFallback = true;
+        const prev = map.get(name) || { name, qty: 0, revenue: 0, cost: 0, hasFallback: false };
+        prev.qty += qty;
+        prev.revenue += lineTotal;
+        prev.cost += lineCost;
+        if (fallback) prev.hasFallback = true;
+        map.set(name, prev);
+      }
+    }
+    return { rows: Array.from(map.values()).sort((a, b) => b.revenue - a.revenue), anyFallback };
+  })();
   const exportSales = () => exportCSV(`feed_sales_${salesFileSuffix}.csv`, filteredSales.map((s: any) => ({
     الرقم: s.sale_no,
     التاريخ: s.sale_date,
@@ -305,9 +338,31 @@ export default function FeedWarehouses() {
     التكلفة: s.total_cost,
     الربح: s.profit,
   })));
+  const exportCostAnalysis = () => exportCSV(`feed_sales_cost_analysis_${salesFileSuffix}.csv`, costByProduct.rows.map((r) => ({
+    نوع_العلف: r.name,
+    الكمية_المباعة: r.qty,
+    قيمة_المبيعات: r.revenue.toFixed(2),
+    إجمالي_تكلفة_المبيعات: r.cost.toFixed(2),
+    متوسط_تكلفة_المبيعات: r.qty > 0 ? (r.cost / r.qty).toFixed(2) : 0,
+    متوسط_سعر_البيع: r.qty > 0 ? (r.revenue / r.qty).toFixed(2) : 0,
+    الربح: (r.revenue - r.cost).toFixed(2),
+    هامش_الربح_نسبة: r.revenue > 0 ? ((r.revenue - r.cost) / r.revenue * 100).toFixed(2) + "%" : "—",
+    ملاحظة: r.hasFallback ? "بعض الأسطر بمتوسط التكلفة الحالي" : "",
+  })));
   const printSalesList = () => {
     const rows = filteredSales.map((s: any) => `<tr><td>${s.sale_no}</td><td>${s.sale_date}</td><td>${isInternalSale(s) ? "داخلي" : "خارجي"}</td><td>${saleDestLabel(s)}</td><td>${fmt(Number(s.total_amount||0))}</td><td>${fmt(Number(s.total_cost||0))}</td><td>${fmt(Number(s.profit||0))}</td></tr>`).join("");
-    openPrintWindow(`<h2 style="text-align:center">تقرير مبيعات مصنع الأعلاف — ${salesFilterLabel}</h2><div style="text-align:center;margin-bottom:8px">عدد الفواتير: ${salesKpi.count} — الإجمالي: ${fmt(salesKpi.total)} ج.م — التكلفة: ${fmt(salesKpi.cost)} ج.م — الربح: ${fmt(salesKpi.profit)} ج.م</div><table border="1" cellpadding="6" style="width:100%;border-collapse:collapse"><thead><tr><th>الرقم</th><th>التاريخ</th><th>النوع</th><th>الجهة/العميل</th><th>الإجمالي</th><th>التكلفة</th><th>الربح</th></tr></thead><tbody>${rows}</tbody></table>`, `feed-sales-${salesFileSuffix}`);
+    const analysisRows = costByProduct.rows.map((r) => {
+      const avgCost = r.qty > 0 ? r.cost / r.qty : 0;
+      const avgPrice = r.qty > 0 ? r.revenue / r.qty : 0;
+      const profit = r.revenue - r.cost;
+      const margin = r.revenue > 0 ? (profit / r.revenue) * 100 : 0;
+      return `<tr><td>${esc(r.name)}${r.hasFallback ? ' *' : ''}</td><td>${fmt(r.qty)}</td><td>${fmt(r.revenue)}</td><td>${fmt(r.cost)}</td><td>${fmt(avgCost)}</td><td>${fmt(avgPrice)}</td><td>${fmt(profit)}</td><td>${r.revenue > 0 ? margin.toFixed(1) + '%' : '—'}</td></tr>`;
+    }).join("");
+    const totals = costByProduct.rows.reduce((a, r) => ({ qty: a.qty + r.qty, rev: a.rev + r.revenue, cost: a.cost + r.cost }), { qty: 0, rev: 0, cost: 0 });
+    const totalProfit = totals.rev - totals.cost;
+    const totalMargin = totals.rev > 0 ? (totalProfit / totals.rev) * 100 : 0;
+    const fallbackNote = costByProduct.anyFallback ? `<div style="font-size:11px;color:#92400e;margin:6px 0">* بعض الفواتير القديمة محسوبة بمتوسط التكلفة الحالي لعدم وجود تكلفة محفوظة وقت البيع</div>` : "";
+    openPrintWindow(`<h2 style="text-align:center">تقرير مبيعات مصنع الأعلاف — ${salesFilterLabel}</h2><div style="text-align:center;margin-bottom:8px">عدد الفواتير: ${salesKpi.count} — الإجمالي: ${fmt(salesKpi.total)} ج.م — التكلفة: ${fmt(salesKpi.cost)} ج.م — الربح: ${fmt(salesKpi.profit)} ج.م</div><table border="1" cellpadding="6" style="width:100%;border-collapse:collapse"><thead><tr><th>الرقم</th><th>التاريخ</th><th>النوع</th><th>الجهة/العميل</th><th>الإجمالي</th><th>التكلفة</th><th>الربح</th></tr></thead><tbody>${rows}</tbody></table><h3 style="margin-top:18px">تحليل تكلفة المبيعات حسب نوع العلف</h3>${fallbackNote}<table border="1" cellpadding="6" style="width:100%;border-collapse:collapse"><thead><tr><th>نوع العلف</th><th>الكمية المباعة</th><th>قيمة المبيعات</th><th>إجمالي تكلفة المبيعات</th><th>متوسط تكلفة المبيعات</th><th>متوسط سعر البيع</th><th>الربح</th><th>هامش الربح %</th></tr></thead><tbody>${analysisRows}</tbody><tfoot><tr style="font-weight:bold;background:#f3f4f6"><td>الإجمالي</td><td>${fmt(totals.qty)}</td><td>${fmt(totals.rev)}</td><td>${fmt(totals.cost)}</td><td>${totals.qty > 0 ? fmt(totals.cost / totals.qty) : '—'}</td><td>${totals.qty > 0 ? fmt(totals.rev / totals.qty) : '—'}</td><td>${fmt(totalProfit)}</td><td>${totals.rev > 0 ? totalMargin.toFixed(1) + '%' : '—'}</td></tr></tfoot></table>`, `feed-sales-${salesFileSuffix}`);
   };
   const exportCounts = () => exportCSV("stock_counts.csv", (countsQ.data||[]).map((c:any)=>({الرقم:c.count_no,التاريخ:c.count_date,النوع:c.warehouse_kind,عدد_الأصناف:c.feed_stock_count_items?.length||0,الحالة:c.status})));
   const exportTreasury = () => exportCSV("treasury.csv", (treasuryQ.data||[]).map((t:any)=>({الرقم:t.txn_no,التاريخ:t.txn_date,النوع:KIND_LABEL[t.kind]||t.kind,الجهة:t.party||"",وارد:t.direction==="in"?t.amount:0,منصرف:t.direction==="out"?t.amount:0,البيان:t.note||""})));
@@ -658,6 +713,67 @@ export default function FeedWarehouses() {
                     {!filteredSales.length && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-6">لا توجد مبيعات بهذا الفلتر</TableCell></TableRow>}
                   </TableBody>
                 </Table>
+
+                {/* Cost analysis per feed type */}
+                <Card className="mt-4 border-primary/40">
+                  <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2 pb-2">
+                    <div>
+                      <CardTitle className="text-base">تحليل تكلفة المبيعات حسب نوع العلف</CardTitle>
+                      <CardDescription className="text-xs">يحترم الفلاتر المختارة أعلى الصفحة</CardDescription>
+                    </div>
+                    <Button size="sm" variant="outline" onClick={exportCostAnalysis}><FileSpreadsheet className="h-4 w-4 ml-1"/>Excel</Button>
+                  </CardHeader>
+                  <CardContent>
+                    {costByProduct.anyFallback && (
+                      <div className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 mb-2">
+                        * بعض الفواتير القديمة محسوبة بمتوسط التكلفة الحالي لعدم وجود تكلفة محفوظة وقت البيع.
+                      </div>
+                    )}
+                    <Table>
+                      <TableHeader><TableRow><TableHead>نوع العلف</TableHead><TableHead>الكمية المباعة</TableHead><TableHead>قيمة المبيعات</TableHead><TableHead>إجمالي تكلفة المبيعات</TableHead><TableHead>متوسط تكلفة المبيعات</TableHead><TableHead>متوسط سعر البيع</TableHead><TableHead>الربح</TableHead><TableHead>هامش %</TableHead></TableRow></TableHeader>
+                      <TableBody>
+                        {costByProduct.rows.map((r) => {
+                          const avgCost = r.qty > 0 ? r.cost / r.qty : 0;
+                          const avgPrice = r.qty > 0 ? r.revenue / r.qty : 0;
+                          const profit = r.revenue - r.cost;
+                          const margin = r.revenue > 0 ? (profit / r.revenue) * 100 : 0;
+                          return (
+                            <TableRow key={r.name}>
+                              <TableCell className="font-medium">{r.name}{r.hasFallback && <span className="text-amber-600 mx-1" title="بمتوسط التكلفة الحالي">*</span>}</TableCell>
+                              <TableCell>{fmt(r.qty)}</TableCell>
+                              <TableCell>{fmt(r.revenue)}</TableCell>
+                              <TableCell className="text-muted-foreground">{fmt(r.cost)}</TableCell>
+                              <TableCell>{fmt(avgCost)}</TableCell>
+                              <TableCell className="text-primary">{fmt(avgPrice)}</TableCell>
+                              <TableCell className={profit > 0 ? "font-bold text-success" : profit < 0 ? "text-destructive" : ""}>{fmt(profit)}</TableCell>
+                              <TableCell className="text-xs">{r.revenue > 0 ? `${margin.toFixed(1)}%` : "—"}</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                        {!costByProduct.rows.length && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-6">لا توجد بنود مبيعات</TableCell></TableRow>}
+                      </TableBody>
+                      {!!costByProduct.rows.length && (() => {
+                        const t = costByProduct.rows.reduce((a, r) => ({ qty: a.qty + r.qty, rev: a.rev + r.revenue, cost: a.cost + r.cost }), { qty: 0, rev: 0, cost: 0 });
+                        const p = t.rev - t.cost;
+                        const m = t.rev > 0 ? (p / t.rev) * 100 : 0;
+                        return (
+                          <tfoot className="bg-muted/50 font-bold">
+                            <tr>
+                              <td className="p-3">الإجمالي</td>
+                              <td className="p-3">{fmt(t.qty)}</td>
+                              <td className="p-3">{fmt(t.rev)}</td>
+                              <td className="p-3">{fmt(t.cost)}</td>
+                              <td className="p-3">{t.qty > 0 ? fmt(t.cost / t.qty) : "—"}</td>
+                              <td className="p-3">{t.qty > 0 ? fmt(t.rev / t.qty) : "—"}</td>
+                              <td className={`p-3 ${p > 0 ? "text-success" : p < 0 ? "text-destructive" : ""}`}>{fmt(p)}</td>
+                              <td className="p-3">{t.rev > 0 ? `${m.toFixed(1)}%` : "—"}</td>
+                            </tr>
+                          </tfoot>
+                        );
+                      })()}
+                    </Table>
+                  </CardContent>
+                </Card>
               </CardContent>
             </Card>
           </TabsContent>
