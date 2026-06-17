@@ -203,16 +203,22 @@ const Slaughterhouse = () => {
   const mm = String(deadMonth).padStart(2, "0");
   const monthPrefix = `${deadYear}-${mm}`; // YYYY-MM
   const deadInMonth = useMemo(() => {
+    // النافق عند الوصول — استبعاد الدفعات المرفوضة (لا تُحسب نافق فعلي)
     const doa = receipts
-      .filter(r => (r.receipt_date || "").startsWith(monthPrefix))
+      .filter(r => (r.receipt_date || "").startsWith(monthPrefix) && r.status !== "rejected")
       .reduce((s, r) => s + (r.dead_on_arrival || 0), 0);
+    // نفوق مسجّل على الدفعة الحية (mortality_count) — يشمل تسوية الجرد كنافق فعلي 1
+    const liveMort = receipts
+      .filter(r => (r.receipt_date || "").startsWith(monthPrefix))
+      .reduce((s, r) => s + Number((r as any).mortality_count || 0), 0);
     const activeB = batches.filter(b => b.status !== "cancelled" && (b.slaughter_date || "").startsWith(monthPrefix));
     const preDead = activeB.reduce((s, b) => s + (b.pre_slaughter_dead || 0), 0);
     const rejected = activeB.reduce((s, b) => s + (b.rejected_birds || 0), 0);
+    // تسويات الجرد الإدارية لا تُحتسب نافق
     const adjLoss = adjustments
-      .filter(a => (a.adjustment_date || "").startsWith(monthPrefix) && (a.delta || 0) < 0)
+      .filter(a => (a.adjustment_date || "").startsWith(monthPrefix) && (a.delta || 0) < 0 && !/تسوية جرد|reconciliation/i.test(a.reason || ""))
       .reduce((s, a) => s + Math.abs(a.delta || 0), 0);
-    return { doa, preDead, rejected, adjLoss, total: doa + preDead + rejected + adjLoss };
+    return { doa, preDead, rejected, adjLoss, liveMort, total: doa + preDead + rejected + adjLoss + liveMort };
   }, [receipts, batches, adjustments, monthPrefix]);
   // Years list from data
   const yearsAvailable = useMemo(() => {
