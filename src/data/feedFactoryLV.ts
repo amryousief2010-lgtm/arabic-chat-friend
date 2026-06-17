@@ -26,9 +26,32 @@ export const LV_KPI: KpiRow[] = [
   { key: "raw_material_purchases_egp", ar: "إجمالي مشتريات الخامات", value: 734558, unit: "EGP", source: "تجميعي المشتريات", notes: "مشتريات بياض + مشتريات تسمين" },
   { key: "external_sales_value_egp", ar: "إجمالي المبيعات الخارجية", value: 524974, unit: "EGP", source: "تجميعي مصنع العلف", notes: "مبيعات الأعلاف لعملاء الخارج" },
   { key: "mother_farm_supply_value_egp", ar: "قيمة توريد علف لمزرعة الأمهات", value: 301998.64, unit: "EGP", source: "توريد علف لمزرعة الامهات", notes: "قيمة داخلية محاسبية" },
+  { key: "brooding_internal_sales_value_egp", ar: "قيمة مبيعات داخلية للتحضين والتسمين", value: 5200, unit: "EGP", source: "feed_sales (destination=brooding_feed_store)", notes: "علف باديء — قيمة داخلية" },
+  { key: "slaughterhouse_internal_sales_value_egp", ar: "قيمة مبيعات داخلية للمجزر", value: 3520, unit: "EGP", source: "feed_sales (destination=slaughterhouse_feed_store)", notes: "علف تسمين لأكل النعام قبل الذبح" },
   { key: "cash_margin_before_expenses_egp", ar: "هامش نقدي تقريبي قبل المصروفات", value: -209584, unit: "EGP", source: "تجميعي مصنع العلف", notes: "مبيعات خارجية - مشتريات خامات فقط" },
   { key: "production_balance_variance_ton", ar: "فرق توازن الإنتاج", value: 0, unit: "ton", source: "ملخص الإنتاج", notes: "PASS" },
 ];
+
+// إجمالي المبيعات = خارجية + توريد الأمهات + مبيعات داخلية للتحضين + مبيعات داخلية للمجزر
+// محسوب ديناميكياً من LV_KPI بدون قيم ثابتة
+export const lvTotalSalesValue = (): number =>
+  LV_KPI.filter((k) =>
+    [
+      "external_sales_value_egp",
+      "mother_farm_supply_value_egp",
+      "brooding_internal_sales_value_egp",
+      "slaughterhouse_internal_sales_value_egp",
+    ].includes(k.key),
+  ).reduce((s, k) => s + k.value, 0);
+
+export const lvInternalSalesValue = (): number =>
+  LV_KPI.filter((k) =>
+    [
+      "mother_farm_supply_value_egp",
+      "brooding_internal_sales_value_egp",
+      "slaughterhouse_internal_sales_value_egp",
+    ].includes(k.key),
+  ).reduce((s, k) => s + k.value, 0);
 
 export type FlowRow = {
   id: string;

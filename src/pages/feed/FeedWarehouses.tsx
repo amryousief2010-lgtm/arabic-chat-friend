@@ -18,7 +18,7 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { exportCSV } from "@/lib/csvExport";
 import { openPrintWindow } from "@/lib/printPdf";
-import { kpi as lvKpi, LV_PERIOD } from "@/data/feedFactoryLV";
+import { kpi as lvKpi, LV_PERIOD, lvTotalSalesValue, lvInternalSalesValue } from "@/data/feedFactoryLV";
 import FeedInvoiceDetailsDialog, { printInvoice as printFeedInvoice } from "@/components/feed/FeedInvoiceDetailsDialog";
 
 type Line = { id: string; ref_id: string; qty: number; price: number };
@@ -699,8 +699,16 @@ export default function FeedWarehouses() {
                           <div className="rounded border p-2 bg-white"><div className="text-[11px] text-muted-foreground">توريد علف لمزرعة الأمهات — الكمية</div><div className="text-lg font-bold text-emerald-700">{lvMotherTon.toLocaleString("en-US")} طن <span className="text-xs">({(lvMotherTon * 1000).toLocaleString("en-US")} كجم)</span></div><div className="text-[10px] text-muted-foreground">علف بياض</div></div>
                           <div className="rounded border p-2 bg-white"><div className="text-[11px] text-muted-foreground">توريد علف لمزرعة الأمهات — القيمة</div><div className="text-lg font-bold text-emerald-700">{fmt(lvMotherVal)} ج.م</div></div>
                         </div>
+                        {/* تفصيل المبيعات من LV — كل القيم محسوبة من LV_KPI */}
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 pt-2 border-t border-amber-300">
+                          <div className="rounded border p-2 bg-white"><div className="text-[11px] text-muted-foreground">مبيعات خارجية</div><div className="text-base font-bold text-blue-700">{fmt(lvExternal)} ج.م</div></div>
+                          <div className="rounded border p-2 bg-white"><div className="text-[11px] text-muted-foreground">توريد مزرعة الأمهات (داخلي)</div><div className="text-base font-bold text-emerald-700">{fmt(lvMotherVal)} ج.م</div></div>
+                          <div className="rounded border p-2 bg-white"><div className="text-[11px] text-muted-foreground">مبيعات داخلية للتحضين</div><div className="text-base font-bold text-purple-700">{fmt(lvKpi("brooding_internal_sales_value_egp").value)} ج.م</div></div>
+                          <div className="rounded border p-2 bg-white"><div className="text-[11px] text-muted-foreground">مبيعات داخلية للمجزر</div><div className="text-base font-bold text-red-700">{fmt(lvKpi("slaughterhouse_internal_sales_value_egp").value)} ج.م</div></div>
+                          <div className="rounded border-2 border-amber-500 p-2 bg-amber-100"><div className="text-[11px] text-amber-900 font-semibold">إجمالي المبيعات (الكل)</div><div className="text-base font-bold text-amber-900">{fmt(lvTotalSalesValue())} ج.م</div><div className="text-[10px] text-amber-700">= خارجية + داخلية ({fmt(lvInternalSalesValue())})</div></div>
+                        </div>
                         <div className="text-[11px] text-muted-foreground">
-                          المبيعات الخارجية حسب Excel: <span className="font-semibold text-foreground">{fmt(lvExternal)} ج.م</span> — هذه الأرقام مأخوذة من <code className="font-mono">src/data/feedFactoryLV.ts</code> ولا تتأثر بقاعدة البيانات.
+                          كل الأرقام مأخوذة من <code className="font-mono">src/data/feedFactoryLV.ts</code> والإجمالي محسوب ديناميكياً عبر <code className="font-mono">lvTotalSalesValue()</code> بدون قيم ثابتة.
                         </div>
                       </div>
                     </>

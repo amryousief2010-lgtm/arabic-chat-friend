@@ -7,6 +7,7 @@ import { Factory, TrendingUp, TrendingDown, Boxes, CheckCircle2, AlertTriangle, 
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, PieChart, Pie, Cell } from "recharts";
 import {
   LV_PERIOD, LV_KPI, LV_FEED_FLOW, LV_INVENTORY, LV_MONTHLY, LV_CHECKS, kpi,
+  lvTotalSalesValue, lvInternalSalesValue,
 } from "@/data/feedFactoryLV";
 
 const fmtTon = (n: number) => `${Number(n).toLocaleString("en-US", { maximumFractionDigits: 3 })} طن`;
@@ -114,6 +115,15 @@ export default function FeedFactoryLVDashboard() {
           <StatCard icon={Building2}   tone="secondary" label="توريد مزرعة الأمهات"        value={fmtTon(kpi("mother_farm_supply_ton").value)}  sub="علف بياض" />
           <StatCard icon={Wheat}       tone="purple"    label="سحب تحضين وتسمين"           value={fmtTon(kpi("brooding_fattening_withdrawal_ton").value)} sub="علف باديء" />
           <StatCard icon={Drumstick}   tone="red"       label="سحب المجزر"                  value={fmtTon(kpi("slaughterhouse_withdrawal_ton").value)} sub="علف تسمين للنعام قبل الذبح" />
+        </div>
+
+        {/* KPI CARDS — تفصيل قيم المبيعات (محسوبة من LV_KPI ديناميكياً) */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <StatCard icon={TrendingUp}     tone="green"     label="قيمة المبيعات الخارجية"        value={fmtEgp(kpi("external_sales_value_egp").value)}              sub="عملاء خارجيين" />
+          <StatCard icon={Building2}      tone="secondary" label="قيمة توريد مزرعة الأمهات"      value={fmtEgp(kpi("mother_farm_supply_value_egp").value)}          sub="داخلي محاسبي" />
+          <StatCard icon={Wheat}          tone="purple"    label="قيمة مبيعات داخلية للتحضين"    value={fmtEgp(kpi("brooding_internal_sales_value_egp").value)}     sub="علف باديء" />
+          <StatCard icon={Drumstick}      tone="red"       label="قيمة مبيعات داخلية للمجزر"     value={fmtEgp(kpi("slaughterhouse_internal_sales_value_egp").value)} sub="علف تسمين للنعام" />
+          <StatCard icon={ArrowRightLeft} tone="orange"    label="إجمالي المبيعات (الكل)"        value={fmtEgp(lvTotalSalesValue())}                                sub={`= خارجية + داخلية (${fmtEgp(lvInternalSalesValue())})`} />
         </div>
 
         {/* TABS */}
