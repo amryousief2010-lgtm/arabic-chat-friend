@@ -4134,7 +4134,9 @@ export type Database = {
           id: string
           import_run_id: string | null
           is_active: boolean
+          labor_total_cost: number
           name: string
+          other_expenses_total: number
           recipe_status: string
           source_invoice: string | null
           unit: string
@@ -4153,7 +4155,9 @@ export type Database = {
           id?: string
           import_run_id?: string | null
           is_active?: boolean
+          labor_total_cost?: number
           name: string
+          other_expenses_total?: number
           recipe_status?: string
           source_invoice?: string | null
           unit?: string
@@ -4172,7 +4176,9 @@ export type Database = {
           id?: string
           import_run_id?: string | null
           is_active?: boolean
+          labor_total_cost?: number
           name?: string
+          other_expenses_total?: number
           recipe_status?: string
           source_invoice?: string | null
           unit?: string
