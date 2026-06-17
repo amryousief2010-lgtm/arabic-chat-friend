@@ -49,6 +49,7 @@ import {
   CalendarClock,
   ArrowLeftRight,
   Tag,
+  FileSpreadsheet,
 } from "lucide-react";
 import { useAuth, AppRole } from "@/hooks/useAuth";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
