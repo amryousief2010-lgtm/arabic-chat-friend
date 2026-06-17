@@ -7,6 +7,7 @@ import { Factory, TrendingUp, TrendingDown, Boxes, CheckCircle2, AlertTriangle, 
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, PieChart, Pie, Cell } from "recharts";
 import {
   LV_PERIOD, LV_KPI, LV_FEED_FLOW, LV_INVENTORY, LV_MONTHLY, LV_CHECKS, kpi,
+  lvTotalSalesValue, lvInternalSalesValue,
 } from "@/data/feedFactoryLV";
 
 const fmtTon = (n: number) => `${Number(n).toLocaleString("en-US", { maximumFractionDigits: 3 })} طن`;
