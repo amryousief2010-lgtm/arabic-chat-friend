@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,8 +19,9 @@ type RecipeRow = {
 
 export default function FeedBatchNew() {
   const nav = useNavigate();
+  const [searchParams] = useSearchParams();
   const [recipes, setRecipes] = useState<RecipeRow[]>([]);
-  const [recipeId, setRecipeId] = useState("");
+  const [recipeId, setRecipeId] = useState(searchParams.get("recipe") || "");
   const [qty, setQty] = useState<number>(1000);
   const [plan, setPlan] = useState<any>(null);
   const [loading, setLoading] = useState(false);
