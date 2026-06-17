@@ -64,7 +64,7 @@ export function useExecutiveApprovals() {
     refetchOnWindowFocus: true,
     staleTime: 15_000,
     queryFn: async () => {
-      const [treasuryRes, labRes, meatInvRes, meatMfgRes, custodyRes, slaughterRes] = await Promise.all([
+      const [treasuryRes, labRes, meatInvRes, meatMfgRes, custodyRes, slaughterRes, hrRes] = await Promise.all([
         (supabase as any)
           .from("main_treasury_transactions")
           .select("id, reference_no, txn_type, amount, txn_date, counterparty, description, status, created_at, created_by, payment_method, deposit_purpose, incoming_source")
@@ -101,13 +101,32 @@ export function useExecutiveApprovals() {
           .eq("approval_status", SLAUGHTER_BATCH_PENDING)
           .order("created_at", { ascending: false })
           .limit(200),
+        (supabase as any)
+          .from("hr_deductions")
+          .select("id, employee_id, deduction_date, month, year, deduction_type, amount, reason, notes, status, days_count, daily_value, days_per_month, monthly_salary_snapshot, created_by, created_at")
+          .eq("status", HR_PENDING)
+          .order("created_at", { ascending: false })
+          .limit(200),
       ]);
 
       const allCreators: string[] = [];
-      [treasuryRes, labRes, meatInvRes, meatMfgRes, custodyRes, slaughterRes].forEach((r) =>
+      [treasuryRes, labRes, meatInvRes, meatMfgRes, custodyRes, slaughterRes, hrRes].forEach((r) =>
         (r.data || []).forEach((x: any) => x.created_by && allCreators.push(x.created_by))
       );
       const profiles = await resolveProfiles(allCreators);
+
+      // Resolve employees for HR items
+      const empIds = Array.from(new Set((hrRes.data || []).map((d: any) => d.employee_id).filter(Boolean)));
+      const empMap: Record<string, { full_name: string; department: string | null; job_title: string | null }> = {};
+      if (empIds.length) {
+        const { data: emps } = await (supabase as any)
+          .from("hr_employees")
+          .select("id, full_name, department, job_title")
+          .in("id", empIds);
+        (emps || []).forEach((e: any) => {
+          empMap[e.id] = { full_name: e.full_name || "—", department: e.department, job_title: e.job_title };
+        });
+      }
 
       const treasury: ApprovalItem[] = (treasuryRes.data || []).map((t: any) => {
         const isToCustody = t.txn_type === "transfer_to_custody";
