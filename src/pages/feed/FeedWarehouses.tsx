@@ -711,11 +711,13 @@ export default function FeedWarehouses() {
                     <Button size="sm" variant={internalDept === "mother_farm_feed_store" ? "default" : "outline"} onClick={() => setInternalDept("mother_farm_feed_store")}>مزرعة الأمهات</Button>
                   </div>
                 )}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
                   <div className="rounded border p-2 bg-muted/40"><div className="text-xs text-muted-foreground">عدد الفواتير</div><div className="text-lg font-bold">{salesKpi.count}</div></div>
-                  <div className="rounded border p-2 bg-muted/40"><div className="text-xs text-muted-foreground">إجمالي المبيعات</div><div className="text-lg font-bold">{fmt(salesKpi.total)} ج.م</div></div>
+                  <div className="rounded-md border-2 border-primary p-3 bg-primary/10 col-span-2"><div className="text-xs text-primary font-semibold">إجمالي المبيعات ({salesFilterLabel})</div><div className="text-2xl font-bold text-primary">{fmt(salesKpi.total)} ج.م</div><div className="text-[10px] text-muted-foreground">{salesFilter === "internal" ? "بسعر التكلفة" : salesFilter === "external" ? "بسعر البيع" : "خارجي بسعر البيع + داخلي بسعر التكلفة"}</div></div>
                   <div className="rounded border p-2 bg-muted/40"><div className="text-xs text-muted-foreground">إجمالي التكلفة</div><div className="text-lg font-bold">{fmt(salesKpi.cost)} ج.م</div></div>
-                  <div className="rounded border p-2 bg-muted/40"><div className="text-xs text-muted-foreground">إجمالي الربح</div><div className="text-lg font-bold text-success">{fmt(salesKpi.profit)} ج.م</div></div>
+                  <div className="rounded border p-2 bg-muted/40"><div className="text-xs text-muted-foreground">إجمالي المسدد</div><div className="text-lg font-bold text-success">{fmt(salesKpi.paid)} ج.م</div></div>
+                  <div className="rounded border p-2 bg-muted/40"><div className="text-xs text-muted-foreground">إجمالي المتبقي</div><div className={`text-lg font-bold ${salesKpi.remaining>0?'text-warning':''}`}>{fmt(salesKpi.remaining)} ج.م</div></div>
+                  <div className="rounded border p-2 bg-muted/40 col-span-2 md:col-span-1"><div className="text-xs text-muted-foreground">إجمالي الربح (خارجي)</div><div className="text-lg font-bold text-success">{fmt(salesKpi.profit)} ج.م</div></div>
                 </div>
                 <Table>
                   <TableHeader><TableRow><TableHead>الرقم</TableHead><TableHead>التاريخ</TableHead><TableHead>نوع البيع</TableHead><TableHead>الجهة / العميل</TableHead><TableHead>الإجمالي</TableHead><TableHead>التكلفة</TableHead><TableHead>الربح</TableHead><TableHead className="w-28">إجراءات</TableHead></TableRow></TableHeader>
