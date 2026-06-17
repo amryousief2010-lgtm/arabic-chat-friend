@@ -39,6 +39,7 @@ const TYPE_LABEL: Record<string, string> = {
   damages: "تلفيات",
   advance_repayment: "خصم سلفة",
   administrative: "خصم إداري",
+  days_deduction: "خصم أيام",
   other: "أخرى",
 };
 
