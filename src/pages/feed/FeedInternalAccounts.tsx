@@ -216,7 +216,7 @@ export default function FeedInternalAccounts() {
                     <TableRow key={p.id}>
                       <TableCell className="font-mono text-xs">{p.payment_no}</TableCell>
                       <TableCell>{p.payment_date}</TableCell>
-                      <TableCell>{p.department_type === "brooding" ? "حضانات" : "مجزر"}</TableCell>
+                      <TableCell>{DEPT_SHORT[p.department_type] || p.department_type}</TableCell>
                       <TableCell className="font-bold">{fmt(p.amount)}</TableCell>
                       <TableCell className="text-xs">{p.payment_method}</TableCell>
                       <TableCell>{p.reference_no || "—"}</TableCell>
