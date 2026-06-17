@@ -45,9 +45,11 @@ export default function Recipes() {
   const [form, setForm] = useState({
     name: "", feed_type: "تسمين", batch_size: 1000, unit: "كجم",
     description: "", feed_product_id: "" as string,
+    labor_total_cost: 0, other_expenses_total: 0,
   });
   const [items, setItems] = useState<Item[]>([]);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [detailRecipe, setDetailRecipe] = useState<Recipe | null>(null);
 
   const fetchAll = async () => {
     setLoading(true);
