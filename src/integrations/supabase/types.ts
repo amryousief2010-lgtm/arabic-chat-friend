@@ -12680,6 +12680,63 @@ export type Database = {
           },
         ]
       }
+      slaughter_batch_live_sources: {
+        Row: {
+          birds_count: number
+          cost_per_bird_snapshot: number
+          created_at: string
+          created_by: string | null
+          id: string
+          live_receipt_id: string
+          notes: string | null
+          reference_id: string | null
+          slaughter_batch_id: string
+          total_birds_cost: number
+          updated_at: string
+        }
+        Insert: {
+          birds_count: number
+          cost_per_bird_snapshot?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          live_receipt_id: string
+          notes?: string | null
+          reference_id?: string | null
+          slaughter_batch_id: string
+          total_birds_cost?: number
+          updated_at?: string
+        }
+        Update: {
+          birds_count?: number
+          cost_per_bird_snapshot?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          live_receipt_id?: string
+          notes?: string | null
+          reference_id?: string | null
+          slaughter_batch_id?: string
+          total_birds_cost?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slaughter_batch_live_sources_live_receipt_id_fkey"
+            columns: ["live_receipt_id"]
+            isOneToOne: false
+            referencedRelation: "slaughter_live_receipts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slaughter_batch_live_sources_slaughter_batch_id_fkey"
+            columns: ["slaughter_batch_id"]
+            isOneToOne: false
+            referencedRelation: "slaughter_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       slaughter_batch_outputs: {
         Row: {
           actual_weight_kg: number
