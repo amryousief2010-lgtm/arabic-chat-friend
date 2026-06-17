@@ -358,7 +358,8 @@ export default function FeedHistoricalReference() {
                       <SelectItem value="all">الكل</SelectItem>
                       <SelectItem value="purchase">مشتريات خامات</SelectItem>
                       <SelectItem value="external_sale">مبيعات خارجية</SelectItem>
-                      <SelectItem value="internal_sale">مبيعات داخلية (الأمهات)</SelectItem>
+                      <SelectItem value="internal_sale">مبيعات داخلية</SelectItem>
+                      <SelectItem value="mother_farm">مزرعة الأمهات</SelectItem>
                     </SelectContent>
                   </Select>
                   <Badge variant="secondary">مرجعي — لا يؤثر على المخزون أو الخزنة</Badge>
