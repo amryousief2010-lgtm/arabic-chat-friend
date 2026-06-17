@@ -275,6 +275,19 @@ export default function FeedWarehouses() {
     slaughterhouse_feed_store: "المجزر",
     mother_farm_feed_store: "مزرعة الأمهات",
   };
+  const calcSaleCost = (s: any) => {
+    const items: any[] = s.feed_sale_items || [];
+    return items.reduce((sum: number, it: any) => {
+      const qty = Number(it.quantity || 0);
+      let unitCost = Number(it.unit_cost || 0);
+      if (!unitCost) {
+        const prod = (prodQ.data || []).find((p: any) => p.id === it.feed_product_id);
+        const raw = (rawQ.data || []).find((r: any) => r.id === it.raw_material_id);
+        unitCost = Number(prod?.latest_unit_cost || raw?.unit_cost || 0);
+      }
+      return sum + Number(it.line_cost || qty * unitCost);
+    }, 0);
+  };
   const filteredSales = (salesQ.data || []).filter((s: any) => {
     if (salesFilter === "internal") {
       if (!isInternalSale(s)) return false;
@@ -293,8 +306,8 @@ export default function FeedWarehouses() {
   const salesKpi = {
     count: filteredSales.length,
     total: filteredSales.reduce((sum: number, s: any) => sum + Number(s.total_amount || 0), 0),
-    cost: filteredSales.reduce((sum: number, s: any) => sum + Number(s.total_cost || 0), 0),
-    profit: filteredSales.reduce((sum: number, s: any) => sum + Number(s.profit || 0), 0),
+    cost: filteredSales.reduce((sum: number, s: any) => sum + calcSaleCost(s), 0),
+    get profit() { return this.total - this.cost; },
   };
   // ---- Cost analysis per product/feed type (respects filteredSales) ----
   type CostAgg = { name: string; qty: number; revenue: number; cost: number; hasFallback: boolean };
