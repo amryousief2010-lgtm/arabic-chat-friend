@@ -315,7 +315,7 @@ export default function FeedInternalAccounts() {
 
                 <div className="border rounded p-3">
                   <div className="font-bold mb-1 text-rose-700">
-                    {detailsFor.department_type === "brooding" ? "حركة خزنة المعمل/الحضانات (مصروف)" : "حركة الخزنة الرئيسية (مصروف)"}
+                    {deptOutLabel(detailsFor.department_type)}
                   </div>
                   {detailsTxns.out ? (
                     <div className="text-xs space-y-1">
