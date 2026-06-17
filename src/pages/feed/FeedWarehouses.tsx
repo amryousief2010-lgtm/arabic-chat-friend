@@ -609,11 +609,20 @@ export default function FeedWarehouses() {
               <CardContent className="space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-xs text-muted-foreground">فلتر نوع البيع:</span>
-                  <Button size="sm" variant={salesFilter === "all" ? "default" : "outline"} onClick={() => setSalesFilter("all")}>الكل</Button>
+                  <Button size="sm" variant={salesFilter === "all" ? "default" : "outline"} onClick={() => { setSalesFilter("all"); setInternalDept("all"); }}>الكل</Button>
                   <Button size="sm" variant={salesFilter === "internal" ? "default" : "outline"} onClick={() => setSalesFilter("internal")} className={salesFilter === "internal" ? "bg-blue-600 hover:bg-blue-700" : ""}>مبيعات داخلية</Button>
-                  <Button size="sm" variant={salesFilter === "external" ? "default" : "outline"} onClick={() => setSalesFilter("external")} className={salesFilter === "external" ? "bg-emerald-600 hover:bg-emerald-700" : ""}>مبيعات خارجية</Button>
+                  <Button size="sm" variant={salesFilter === "external" ? "default" : "outline"} onClick={() => { setSalesFilter("external"); setInternalDept("all"); }} className={salesFilter === "external" ? "bg-emerald-600 hover:bg-emerald-700" : ""}>مبيعات خارجية</Button>
                   <Badge variant="outline" className="ml-auto">{salesFilterLabel}</Badge>
                 </div>
+                {salesFilter === "internal" && (
+                  <div className="flex flex-wrap items-center gap-2 rounded-md border border-blue-200 bg-blue-50 p-2">
+                    <span className="text-xs text-blue-700 font-semibold">القسم الداخلي:</span>
+                    <Button size="sm" variant={internalDept === "all" ? "default" : "outline"} onClick={() => setInternalDept("all")}>الكل</Button>
+                    <Button size="sm" variant={internalDept === "brooding_feed_store" ? "default" : "outline"} onClick={() => setInternalDept("brooding_feed_store")}>حضانات التسمين</Button>
+                    <Button size="sm" variant={internalDept === "slaughterhouse_feed_store" ? "default" : "outline"} onClick={() => setInternalDept("slaughterhouse_feed_store")}>المجزر</Button>
+                    <Button size="sm" variant={internalDept === "mother_farm_feed_store" ? "default" : "outline"} onClick={() => setInternalDept("mother_farm_feed_store")}>مزرعة الأمهات</Button>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                   <div className="rounded border p-2 bg-muted/40"><div className="text-xs text-muted-foreground">عدد الفواتير</div><div className="text-lg font-bold">{salesKpi.count}</div></div>
                   <div className="rounded border p-2 bg-muted/40"><div className="text-xs text-muted-foreground">إجمالي المبيعات</div><div className="text-lg font-bold">{fmt(salesKpi.total)} ج.م</div></div>
