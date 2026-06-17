@@ -24,6 +24,12 @@ interface Deduction {
   created_by: string | null;
   approved_by: string | null;
   approved_at: string | null;
+  days_count: number | null;
+  daily_value: number | null;
+  days_per_month: number | null;
+  monthly_salary_snapshot: number | null;
+  month: number;
+  year: number;
 }
 
 const TYPE_LABEL: Record<string, string> = {
