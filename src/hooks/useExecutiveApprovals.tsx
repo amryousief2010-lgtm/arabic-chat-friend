@@ -246,7 +246,32 @@ export function useExecutiveApprovals() {
         raw: b,
       }));
 
-      const items: ApprovalItem[] = [...treasury, ...lab, ...meatInv, ...meatMfg, ...custody, ...slaughter].sort(
+      const hr: ApprovalItem[] = (hrRes.data || []).map((d: any) => {
+        const emp = empMap[d.employee_id] || { full_name: "موظف غير معروف", department: null, job_title: null };
+        const isDays = d.deduction_type === "days_deduction";
+        const typeArLabel = HR_TYPE_LABEL[d.deduction_type] || d.deduction_type;
+        const parts: string[] = [];
+        if (emp.department) parts.push(emp.department);
+        if (emp.job_title) parts.push(emp.job_title);
+        parts.push(`الشهر ${d.month}/${d.year}`);
+        if (isDays && d.days_count) parts.push(`${d.days_count} يوم × ${Number(d.daily_value || 0).toLocaleString("ar-EG", { maximumFractionDigits: 2 })}`);
+        if (d.reason) parts.push(d.reason);
+        return {
+          id: d.id,
+          category: "hr" as ApprovalCategory,
+          source: "خصم موظف",
+          title: `${typeArLabel} — ${emp.full_name}`,
+          subtitle: parts.join(" • "),
+          amount: Number(d.amount || 0),
+          created_at: d.created_at,
+          created_by: d.created_by,
+          creator_name: profiles[d.created_by] || null,
+          status: d.status,
+          raw: { ...d, _employee: emp },
+        };
+      });
+
+      const items: ApprovalItem[] = [...treasury, ...lab, ...meatInv, ...meatMfg, ...custody, ...slaughter, ...hr].sort(
         (a, b) => +new Date(b.created_at) - +new Date(a.created_at)
       );
 
@@ -259,6 +284,7 @@ export function useExecutiveApprovals() {
           meat: meatInv.length + meatMfg.length,
           custody: custody.length,
           slaughter: slaughter.length,
+          hr: hr.length,
         },
       };
     },
