@@ -1152,7 +1152,7 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
           </div>
         )}
         <div><Label>ملاحظات</Label><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} /></div>
-        <div className="text-left text-xl font-bold">الإجمالي: {fmt(total)} ج.م</div>
+        <div className="text-left text-xl font-bold">الإجمالي{isInternal ? " (بسعر التكلفة)" : ""}: {fmt(total)} ج.م</div>
         <DialogFooter><Button onClick={save} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ الفاتورة"}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
