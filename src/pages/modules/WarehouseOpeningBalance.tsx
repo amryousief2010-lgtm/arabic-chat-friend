@@ -414,6 +414,9 @@ export default function WarehouseOpeningBalance() {
                         disabled={!canApprove || busy === "__approve_all__" || Object.values(obs).every((o) => o.status === "approved")}>
                         <CheckCheck className="w-3 h-3 ml-1" /> اعتماد الكل
                       </Button>
+                      <Button size="sm" variant="outline" onClick={printHandover} disabled={!items.length}>
+                        <Printer className="w-3 h-3 ml-1" /> طباعة محضر الجرد والتسليم
+                      </Button>
                     </div>
                     <div className="text-xs text-muted-foreground">
                       الترتيب: تحميل الملف → جرد فعلي → رفع → حفظ → اعتماد → تحديد تاريخ التشغيل.
