@@ -15488,6 +15488,46 @@ export type Database = {
         }
         Relationships: []
       }
+      v_hr_treasury_advances: {
+        Row: {
+          advance_date: string | null
+          amount: number | null
+          created_at: string | null
+          deducted_from_salary: boolean | null
+          employee_id: string | null
+          employee_name: string | null
+          hr_deduction_id: string | null
+          hr_status: string | null
+          month: number | null
+          reason: string | null
+          reference_id: string | null
+          rejection_reason: string | null
+          source_table_part: string | null
+          updated_at: string | null
+          year: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_deductions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_hr_treasury_advances_unmatched: {
+        Row: {
+          advance_date: string | null
+          amount: number | null
+          reason: string | null
+          recipient_name: string | null
+          source_id: string | null
+          source_status: string | null
+          source_table: string | null
+        }
+        Relationships: []
+      }
       v_inventory_balances: {
         Row: {
           available_stock: number | null
@@ -16527,9 +16567,23 @@ export type Database = {
         }
         Returns: string
       }
+      hr_map_source_status: { Args: { p: string }; Returns: string }
       hr_match_employee_by_name: { Args: { p_name: string }; Returns: string }
       hr_norm_name: { Args: { p: string }; Returns: string }
       hr_text_is_advance: { Args: { p: string }; Returns: boolean }
+      hr_upsert_treasury_advance: {
+        Args: {
+          p_amount: number
+          p_date: string
+          p_employee_id: string
+          p_reason: string
+          p_rejection?: string
+          p_source_id: string
+          p_source_table: string
+          p_status: string
+        }
+        Returns: string
+      }
       import_post_catalog: { Args: { p_run_id: string }; Returns: Json }
       import_post_stock_snapshot: {
         Args: { p_run_id: string; p_warehouse_id: string }
