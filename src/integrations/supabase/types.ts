@@ -16820,6 +16820,16 @@ export type Database = {
       }
       meat_batch_close: { Args: { p_batch_id: string }; Returns: Json }
       meat_batch_submit_review: { Args: { p_batch_id: string }; Returns: Json }
+      meat_factory_adjust_stock: {
+        Args: {
+          p_actual_qty: number
+          p_item_id: string
+          p_item_kind: string
+          p_notes?: string
+          p_reason: string
+        }
+        Returns: Json
+      }
       meat_production_transfer_to_main: {
         Args: {
           _invoice_id?: string
