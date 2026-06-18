@@ -74,6 +74,8 @@ interface ModuleSection {
   label: string;
   roles: AppRole[];
   items: MenuItem[];
+  /** If set, clicking the section header navigates here */
+  path?: string;
 }
 
 export const moduleSections: ModuleSection[] = [
