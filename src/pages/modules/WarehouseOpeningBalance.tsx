@@ -387,7 +387,7 @@ export default function WarehouseOpeningBalance() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
-                    <span>أصناف {w.name}</span>
+                    <span>أصناف {displayWarehouseName(w.name)}</span>
                     {activeWhObj?.operational_start_date ? (
                       <Badge className="bg-emerald-500/15 text-emerald-700">تشغيل: {activeWhObj.operational_start_date}</Badge>
                     ) : (
