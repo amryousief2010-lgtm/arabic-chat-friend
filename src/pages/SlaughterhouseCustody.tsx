@@ -24,7 +24,7 @@ import IncomingCustodyTransfers from "@/components/treasury/IncomingCustodyTrans
 
 import {
   Wallet, Plus, ShieldAlert, CheckCircle2, XCircle, MessageSquare, Upload,
-  Printer, FileSpreadsheet, AlertTriangle, ScrollText, Beef, Sparkles, Clock, Activity, Receipt, TrendingDown,
+  Printer, FileSpreadsheet, AlertTriangle, ScrollText, Beef, Sparkles, Clock, Activity, Receipt, TrendingDown, Trash2, Pencil,
 } from "lucide-react";
 import { PremiumStat, HeroSummary, SectionTitle, StatusPill, DashboardSkeleton, EmptyState, ActivityTimeline, ProgressRing, getCairoNow } from "@/components/treasury/PremiumUI";
 
@@ -119,6 +119,22 @@ export default function SlaughterhouseCustody() {
   const [editDlg, setEditDlg] = useState<{ open: boolean; exp: Expense | null; form: { expense_date: string; category: Category; description: string; amount: string; payment_method: PM; beneficiary: string; notes: string } }>({ open: false, exp: null, form: { expense_date: "", category: "maintenance", description: "", amount: "", payment_method: "cash", beneficiary: "", notes: "" } });
 
   const canEditAny = isGeneralManager || isExecutiveManager;
+
+  async function deleteExpense(exp: Expense) {
+    const ok = window.confirm(
+      `هل أنت متأكد من حذف هذا المصروف؟\n\n` +
+      `البند: ${CAT_LBL[exp.category] || exp.category}\n` +
+      `المبلغ: ${Number(exp.amount).toLocaleString("ar-EG")} ج\n` +
+      `التاريخ: ${exp.expense_date}\n\n` +
+      `سيتم إرجاع المبلغ تلقائيًا إلى رصيد الخزنة، وإلغاء أي خصم HR مرتبط (مثل سلف الموظفين).`
+    );
+    if (!ok) return;
+    const { error } = await (supabase as any).from("slaughter_custody_expenses").delete().eq("id", exp.id);
+    if (error) return toast.error("فشل الحذف: " + error.message);
+    toast.success("تم حذف المصروف وإرجاع المبلغ للخزنة");
+    fetchAll();
+  }
+
 
   async function saveEdit() {
     if (!editDlg.exp) return;
@@ -728,7 +744,12 @@ export default function SlaughterhouseCustody() {
                                 beneficiary: e.beneficiary || "",
                                 notes: e.notes || "",
                               }
-                            })}>تعديل</Button>
+                            })}><Pencil className="w-3 h-3 ml-1" />تعديل</Button>
+                          )}
+                          {canEditAny && (
+                            <Button size="sm" variant="destructive" title="حذف المصروف وإرجاع المبلغ للخزنة" onClick={() => deleteExpense(e)}>
+                              <Trash2 className="w-3 h-3 ml-1" />حذف
+                            </Button>
                           )}
                         </TableCell>
                       </TableRow>
