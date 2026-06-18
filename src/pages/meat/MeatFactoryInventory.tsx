@@ -177,9 +177,34 @@ export default function MeatFactoryInventory() {
       return;
     }
     const { error } = await (supabase as any).from("meat_factory_raw_items").delete().eq("id", delDlg.item.id);
-    if (error) return toast.error("فشل الحذف: " + error.message);
-    toast.success("تم حذف الصنف");
+    if (error) {
+      // FK violation → soft archive instead (preserve historical references)
+      const isFk = (error as any).code === "23503" || /foreign key|violates foreign key/i.test(error.message || "");
+      if (isFk) {
+        const { error: upErr } = await (supabase as any)
+          .from("meat_factory_raw_items")
+          .update({ is_active: false })
+          .eq("id", delDlg.item.id);
+        if (upErr) return toast.error("فشل الأرشفة: " + upErr.message);
+        toast.success("الصنف مستخدم في فواتير/حركات سابقة — تمت أرشفته وإخفاؤه من الاستخدام الجديد");
+        setDelDlg({ open: false, item: null });
+        load();
+        return;
+      }
+      return toast.error("فشل الحذف: " + error.message);
+    }
+    toast.success("تم حذف الصنف نهائيًا");
     setDelDlg({ open: false, item: null });
+    load();
+  }
+
+  async function reactivateItem(item: Item) {
+    const { error } = await (supabase as any)
+      .from("meat_factory_raw_items")
+      .update({ is_active: true })
+      .eq("id", item.id);
+    if (error) return toast.error("فشل إعادة التفعيل: " + error.message);
+    toast.success("تمت إعادة تفعيل الصنف");
     load();
   }
 
