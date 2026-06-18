@@ -407,19 +407,50 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
             open={isOpen}
             onOpenChange={() => toggleSection(section.id)}
           >
-            <CollapsibleTrigger
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-right ${
-                hasActiveItem
-                  ? "bg-sidebar-accent text-sidebar-foreground"
-                  : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50"
-              }`}
-            >
-              <section.icon className="w-5 h-5 shrink-0" />
-              <span className="font-semibold text-sm flex-1 text-right">{section.label}</span>
-              <ChevronDown
-                className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
-              />
-            </CollapsibleTrigger>
+            {section.path ? (
+              <div
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-right ${
+                  hasActiveItem
+                    ? "bg-sidebar-accent text-sidebar-foreground"
+                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50"
+                }`}
+              >
+                <Link
+                  to={section.path}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onItemClick?.();
+                  }}
+                  className="flex items-center gap-3 flex-1"
+                >
+                  <section.icon className="w-5 h-5 shrink-0" />
+                  <span className="font-semibold text-sm flex-1 text-right">{section.label}</span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => toggleSection(section.id)}
+                  className="p-1 rounded-md hover:bg-sidebar-accent/50"
+                >
+                  <ChevronDown
+                    className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                  />
+                </button>
+              </div>
+            ) : (
+              <CollapsibleTrigger
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-right ${
+                  hasActiveItem
+                    ? "bg-sidebar-accent text-sidebar-foreground"
+                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50"
+                }`}
+              >
+                <section.icon className="w-5 h-5 shrink-0" />
+                <span className="font-semibold text-sm flex-1 text-right">{section.label}</span>
+                <ChevronDown
+                  className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                />
+              </CollapsibleTrigger>
+            )}
             <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
               <div className="mt-1 mr-3 space-y-1 border-r-2 border-sidebar-border pr-3">
                 {(() => {
