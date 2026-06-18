@@ -453,6 +453,98 @@ export default function MeatFactoryInventory() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Edit / Create dialog */}
+        <Dialog open={editDlg.open} onOpenChange={(o) => setEditDlg({ ...editDlg, open: o })}>
+          <DialogContent className="max-w-xl">
+            <DialogHeader><DialogTitle>{editDlg.mode === "create" ? "إضافة بند جديد" : "تعديل بند مخزون"}</DialogTitle></DialogHeader>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>النوع *</Label>
+                <Select value={editDlg.kind} onValueChange={(v) => setEditDlg({ ...editDlg, kind: v as Kind })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="raw">{KIND_LBL.raw}</SelectItem>
+                    <SelectItem value="spice">{KIND_LBL.spice}</SelectItem>
+                    <SelectItem value="packaging">{KIND_LBL.packaging}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>الكود</Label>
+                <Input value={editDlg.code} onChange={(e) => setEditDlg({ ...editDlg, code: e.target.value })} />
+              </div>
+              <div className="col-span-2">
+                <Label>اسم الصنف *</Label>
+                <Input value={editDlg.name} onChange={(e) => setEditDlg({ ...editDlg, name: e.target.value })} />
+              </div>
+              <div>
+                <Label>الوحدة</Label>
+                <Input value={editDlg.unit} onChange={(e) => setEditDlg({ ...editDlg, unit: e.target.value })} />
+              </div>
+              <div>
+                <Label>الحالة</Label>
+                <Select value={editDlg.is_active ? "1" : "0"} onValueChange={(v) => setEditDlg({ ...editDlg, is_active: v === "1" })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">نشط</SelectItem>
+                    <SelectItem value="0">غير نشط</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>الكمية الحالية</Label>
+                <Input type="number" step="0.01" value={editDlg.current_stock} onChange={(e) => setEditDlg({ ...editDlg, current_stock: e.target.value })} />
+              </div>
+              <div>
+                <Label>متوسط التكلفة (ج)</Label>
+                <Input type="number" step="0.01" value={editDlg.avg_cost} onChange={(e) => setEditDlg({ ...editDlg, avg_cost: e.target.value })} />
+              </div>
+              <div className="col-span-2">
+                <Label>ملاحظات</Label>
+                <Textarea rows={2} value={editDlg.notes} onChange={(e) => setEditDlg({ ...editDlg, notes: e.target.value })} />
+              </div>
+            </div>
+            <Alert>
+              <ShieldAlert className="w-4 h-4" />
+              <AlertDescription className="text-xs">
+                التعديل المباشر يغيّر السعر والكمية بدون إنشاء حركة خزنة. للتسوية بسبب جرد استخدم زر "تسوية".
+              </AlertDescription>
+            </Alert>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditDlg(emptyEdit)}>إلغاء</Button>
+              <Button onClick={submitEdit}>{editDlg.mode === "create" ? "إضافة" : "حفظ التعديلات"}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete confirm */}
+        <Dialog open={delDlg.open} onOpenChange={(o) => setDelDlg({ ...delDlg, open: o })}>
+          <DialogContent className="max-w-md">
+            <DialogHeader><DialogTitle>تأكيد حذف البند</DialogTitle></DialogHeader>
+            <div className="space-y-2 text-sm">
+              <div>هل تريد حذف الصنف التالي نهائيًا؟</div>
+              {delDlg.item && (
+                <div className="p-3 rounded border bg-muted/30">
+                  <div><b>{delDlg.item.name}</b></div>
+                  <div className="text-xs text-muted-foreground">
+                    {KIND_LBL[delDlg.item.kind]} — رصيد: {fmtNum(delDlg.item.current_stock, 2)} {delDlg.item.unit}
+                  </div>
+                </div>
+              )}
+              <Alert variant="destructive">
+                <ShieldAlert className="w-4 h-4" />
+                <AlertDescription className="text-xs">
+                  الحذف نهائي ولا يمكن التراجع عنه. إذا كان الصنف مستخدمًا في فواتير أو وصفات قد يفشل الحذف.
+                </AlertDescription>
+              </Alert>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDelDlg({ open: false, item: null })}>إلغاء</Button>
+              <Button variant="destructive" onClick={submitDelete}>حذف نهائي</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );
