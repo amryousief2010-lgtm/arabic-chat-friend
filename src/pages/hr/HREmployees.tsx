@@ -211,7 +211,8 @@ const HREmployees = () => {
       g.count += 1;
       g.salaries += Number(e.base_salary) || 0;
       g.deductions += ded;
-      g.net += Math.max(0, (Number(e.base_salary) || 0) - ded);
+      const base = Number(e.base_salary) || 0;
+      g.net += base > 0 ? Math.max(0, base - ded) : 0;
     });
     return groups;
   }, [filtered, deductionsMap]);
@@ -473,7 +474,8 @@ const HREmployees = () => {
                       const totalApproved = ded?.total_approved || 0;
                       const totalPending = ded?.total_pending || 0;
                       const base = Number(e.base_salary) || 0;
-                      const net = Math.max(0, base - totalApproved);
+                      const hasMissingSalary = base <= 0;
+                      const net = hasMissingSalary ? null : Math.max(0, base - totalApproved);
                       const byType = ded?.by_type || {};
                       return (
                         <TableRow key={e.id}>
@@ -508,7 +510,13 @@ const HREmployees = () => {
                             </button>
                           </TableCell>
                           <TableCell>
-                            <div className="font-mono font-bold text-primary">{net.toLocaleString("ar-EG")}</div>
+                            {hasMissingSalary && totalApproved > 0 ? (
+                              <div className="max-w-48 text-xs text-amber-700 leading-snug">
+                                راتب الموظف غير مسجل، لا يمكن احتساب صافي الراتب
+                              </div>
+                            ) : (
+                              <div className="font-mono font-bold text-primary">{(net || 0).toLocaleString("ar-EG")}</div>
+                            )}
                           </TableCell>
                           <TableCell className="font-mono text-xs">{e.phone || "—"}</TableCell>
                           {canSeeDocStatus && (
