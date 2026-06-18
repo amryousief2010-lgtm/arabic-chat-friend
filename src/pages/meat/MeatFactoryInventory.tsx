@@ -177,9 +177,34 @@ export default function MeatFactoryInventory() {
       return;
     }
     const { error } = await (supabase as any).from("meat_factory_raw_items").delete().eq("id", delDlg.item.id);
-    if (error) return toast.error("فشل الحذف: " + error.message);
-    toast.success("تم حذف الصنف");
+    if (error) {
+      // FK violation → soft archive instead (preserve historical references)
+      const isFk = (error as any).code === "23503" || /foreign key|violates foreign key/i.test(error.message || "");
+      if (isFk) {
+        const { error: upErr } = await (supabase as any)
+          .from("meat_factory_raw_items")
+          .update({ is_active: false })
+          .eq("id", delDlg.item.id);
+        if (upErr) return toast.error("فشل الأرشفة: " + upErr.message);
+        toast.success("الصنف مستخدم في فواتير/حركات سابقة — تمت أرشفته وإخفاؤه من الاستخدام الجديد");
+        setDelDlg({ open: false, item: null });
+        load();
+        return;
+      }
+      return toast.error("فشل الحذف: " + error.message);
+    }
+    toast.success("تم حذف الصنف نهائيًا");
     setDelDlg({ open: false, item: null });
+    load();
+  }
+
+  async function reactivateItem(item: Item) {
+    const { error } = await (supabase as any)
+      .from("meat_factory_raw_items")
+      .update({ is_active: true })
+      .eq("id", item.id);
+    if (error) return toast.error("فشل إعادة التفعيل: " + error.message);
+    toast.success("تمت إعادة تفعيل الصنف");
     load();
   }
 
@@ -392,6 +417,11 @@ export default function MeatFactoryInventory() {
                             <Button size="sm" variant="destructive" className="gap-1" onClick={() => setDelDlg({ open: true, item: i })}>
                               <Trash2 className="w-3 h-3" /> حذف
                             </Button>
+                            {!i.is_active && (
+                              <Button size="sm" variant="outline" className="gap-1 border-emerald-500 text-emerald-700" onClick={() => reactivateItem(i)}>
+                                إعادة تفعيل
+                              </Button>
+                            )}
                           </>
                         )}
                       </div>
@@ -521,9 +551,9 @@ export default function MeatFactoryInventory() {
         {/* Delete confirm */}
         <Dialog open={delDlg.open} onOpenChange={(o) => setDelDlg({ ...delDlg, open: o })}>
           <DialogContent className="max-w-md">
-            <DialogHeader><DialogTitle>تأكيد حذف البند</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>تأكيد حذف / أرشفة الصنف</DialogTitle></DialogHeader>
             <div className="space-y-2 text-sm">
-              <div>هل تريد حذف الصنف التالي نهائيًا؟</div>
+              <div>هل تريد حذف الصنف التالي؟</div>
               {delDlg.item && (
                 <div className="p-3 rounded border bg-muted/30">
                   <div><b>{delDlg.item.name}</b></div>
@@ -532,16 +562,16 @@ export default function MeatFactoryInventory() {
                   </div>
                 </div>
               )}
-              <Alert variant="destructive">
+              <Alert>
                 <ShieldAlert className="w-4 h-4" />
                 <AlertDescription className="text-xs">
-                  الحذف نهائي ولا يمكن التراجع عنه. إذا كان الصنف مستخدمًا في فواتير أو وصفات قد يفشل الحذف.
+                  إذا كان الصنف مستخدمًا في فواتير مشتريات أو حركات أو وصفات أو جرد سابق، فلن يتم حذفه نهائيًا، بل سيتم أرشفته وإخفاؤه من الاستخدام الجديد بدلًا من حذفه نهائيًا، مع الحفاظ على ظهوره في السجلات التاريخية.
                 </AlertDescription>
               </Alert>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setDelDlg({ open: false, item: null })}>إلغاء</Button>
-              <Button variant="destructive" onClick={submitDelete}>حذف نهائي</Button>
+              <Button variant="destructive" onClick={submitDelete}>حذف / أرشفة</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
