@@ -73,7 +73,8 @@ export default function EmployeeDeductionsDialog({
   const pending = rows.filter((r) => r.status === "pending");
   const totalApproved = approved.reduce((s, r) => s + Number(r.amount), 0);
   const totalPending = pending.reduce((s, r) => s + Number(r.amount), 0);
-  const net = Math.max(0, Number(baseSalary || 0) - totalApproved);
+  const hasMissingSalary = Number(baseSalary || 0) <= 0;
+  const net = hasMissingSalary ? null : Math.max(0, Number(baseSalary || 0) - totalApproved);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -98,9 +99,17 @@ export default function EmployeeDeductionsDialog({
           </div>
           <div className="rounded-lg border p-3 bg-primary/5">
             <div className="text-muted-foreground text-xs">صافي الراتب المتوقع</div>
-            <div className="font-mono font-bold text-lg text-primary">{net.toLocaleString("ar-EG")}</div>
+            <div className="font-mono font-bold text-lg text-primary">
+              {hasMissingSalary ? "—" : net!.toLocaleString("ar-EG")}
+            </div>
           </div>
         </div>
+
+        {hasMissingSalary && rows.some((r) => r.status === "approved") && (
+          <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-300">
+            راتب الموظف غير مسجل، لا يمكن احتساب صافي الراتب. الخصومات المعتمدة ظاهرة كمستحقة الخصم لحين تسجيل الراتب.
+          </div>
+        )}
 
         {loading ? (
           <div className="flex items-center justify-center py-10 text-muted-foreground">
