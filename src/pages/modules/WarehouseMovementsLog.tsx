@@ -79,10 +79,16 @@ export default function WarehouseMovementsLog() {
       const { data: whs } = await supabase.from("warehouses").select("id, name");
       setWarehouses((whs || []) as any);
 
+      // فرض حد أدنى للتاريخ = بداية تشغيل المخزن الرئيسي للجميع، ما لم يكن المدير العام في وضع الأرشيف.
+      const archiveOn = isGeneralManager && showArchive;
+      const effectiveFrom = archiveOn
+        ? from + "T00:00:00"
+        : (from < MAIN_WAREHOUSE_OPERATIONAL_START ? MAIN_WAREHOUSE_OPERATIONAL_START_ISO : from + "T00:00:00");
+
       let q = supabase
         .from("inventory_movements")
         .select("id, movement_no, performed_at, warehouse_id, destination_warehouse_id, source_warehouse_id, item_id, movement_type, quantity, unit_cost, reference_id, reference_type, performed_by, reason, notes, approval_status, module")
-        .gte("performed_at", from + "T00:00:00")
+        .gte("performed_at", effectiveFrom)
         .lte("performed_at", to + "T23:59:59")
         .order("performed_at", { ascending: false })
         .limit(1000);
