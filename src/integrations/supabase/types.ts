@@ -16516,6 +16516,20 @@ export type Database = {
         }
         Returns: number
       }
+      hr_link_advance_to_employee: {
+        Args: {
+          p_amount: number
+          p_date: string
+          p_employee_id: string
+          p_reason: string
+          p_source_id: string
+          p_source_table: string
+        }
+        Returns: string
+      }
+      hr_match_employee_by_name: { Args: { p_name: string }; Returns: string }
+      hr_norm_name: { Args: { p: string }; Returns: string }
+      hr_text_is_advance: { Args: { p: string }; Returns: boolean }
       import_post_catalog: { Args: { p_run_id: string }; Returns: Json }
       import_post_stock_snapshot: {
         Args: { p_run_id: string; p_warehouse_id: string }
