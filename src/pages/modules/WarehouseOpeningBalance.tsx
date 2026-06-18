@@ -7,11 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PackagePlus, Save, ShieldCheck, Info, Search, FileSpreadsheet, Upload, CheckCheck } from "lucide-react";
+import { PackagePlus, Save, ShieldCheck, Info, Search, FileSpreadsheet, Upload, CheckCheck, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+
+// Display name normalization — DB may store "المخزن الرئيسي - المقر" but we surface it as "المخزن الرئيسي"
+const displayWarehouseName = (n: string) =>
+  /رئيسي|main/i.test(n) ? "المخزن الرئيسي" : n;
 
 
 interface Warehouse { id: string; name: string; operational_start_date: string | null }
@@ -243,6 +247,77 @@ export default function WarehouseOpeningBalance() {
     return items.filter((i) => i.name.includes(q));
   }, [items, search]);
 
+  const printHandover = () => {
+    const wh = warehouses.find((w) => w.id === activeWh);
+    if (!wh) return;
+    const whName = displayWarehouseName(wh.name);
+    const rows = items
+      .map((it) => {
+        const d = drafts[it.id];
+        const ob = obs[it.id];
+        const qty = Number(d?.qty || 0);
+        const cost = Number(d?.unit_cost || 0);
+        return { it, qty, cost, total: qty * cost, status: ob?.status === "approved" ? "معتمد" : ob ? "مسودة" : "—" };
+      })
+      .filter((r) => r.qty > 0 || r.status === "معتمد");
+    const totalItems = rows.length;
+    const totalValue = rows.reduce((s, r) => s + r.total, 0);
+    const today = new Date().toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" });
+    const html = `<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>محضر جرد وتسليم ${whName}</title>
+<style>
+  @page { size: A4; margin: 14mm; }
+  body { font-family: "Cairo","Tahoma",sans-serif; color:#111; }
+  .hdr { text-align:center; border-bottom:2px solid #333; padding-bottom:8px; margin-bottom:14px; }
+  .hdr h1 { margin:0; font-size:20px; }
+  .hdr h2 { margin:4px 0 0; font-size:16px; font-weight:600; }
+  .meta { display:flex; justify-content:space-between; font-size:12px; margin-bottom:10px; }
+  table { width:100%; border-collapse:collapse; font-size:12px; }
+  th,td { border:1px solid #999; padding:5px 6px; text-align:center; }
+  th { background:#f3f4f6; }
+  tfoot td { background:#f9fafb; font-weight:bold; }
+  .sig { margin-top:30px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:24px; font-size:12px; }
+  .sig div { border-top:1px solid #333; padding-top:6px; text-align:center; }
+  .notes { margin-top:14px; font-size:11px; color:#555; }
+</style></head><body>
+<div class="hdr">
+  <h1>شركة نعام العاصمة</h1>
+  <h2>محضر جرد وتسليم ${whName}</h2>
+</div>
+<div class="meta">
+  <div><b>المخزن:</b> ${whName}</div>
+  <div><b>التاريخ:</b> ${today}</div>
+  <div><b>تاريخ بداية التشغيل:</b> 2026-06-18</div>
+</div>
+<table>
+  <thead><tr><th>#</th><th>الصنف</th><th>الوحدة</th><th>الكمية الفعلية</th><th>سعر التكلفة</th><th>الإجمالي</th><th>الحالة</th></tr></thead>
+  <tbody>
+    ${rows
+      .map(
+        (r, i) =>
+          `<tr><td>${i + 1}</td><td>${r.it.name}</td><td>${r.it.unit || ""}</td>` +
+          `<td>${r.qty.toLocaleString("ar-EG")}</td><td>${r.cost.toLocaleString("ar-EG")}</td>` +
+          `<td>${r.total.toLocaleString("ar-EG", { maximumFractionDigits: 2 })}</td><td>${r.status}</td></tr>`
+      )
+      .join("")}
+  </tbody>
+  <tfoot>
+    <tr><td colspan="5">إجمالي عدد الأصناف: ${totalItems}</td><td colspan="2">إجمالي قيمة المخزون: ${totalValue.toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م</td></tr>
+  </tfoot>
+</table>
+<div class="notes">جرد وتسليم ${whName} كبداية تشغيل فعلية اعتبارًا من 18-06-2026. هذا المحضر هو الرصيد الافتتاحي المعتمد للمخزن.</div>
+<div class="sig">
+  <div>توقيع مسؤول المخزن</div>
+  <div>توقيع المدير التنفيذي</div>
+  <div>توقيع المدير العام</div>
+</div>
+<script>window.onload=()=>{window.print();}</script>
+</body></html>`;
+    const w = window.open("", "_blank");
+    if (!w) { toast.error("اسمح بالنوافذ المنبثقة للطباعة"); return; }
+    w.document.write(html);
+    w.document.close();
+  };
+
   const totals = useMemo(() => {
     let count = 0, value = 0, approved = 0;
     items.forEach((it) => {
@@ -284,7 +359,7 @@ export default function WarehouseOpeningBalance() {
         <Tabs value={activeWh} onValueChange={setActiveWh}>
           <TabsList>
             {warehouses.map((w) => (
-              <TabsTrigger key={w.id} value={w.id}>{w.name}</TabsTrigger>
+              <TabsTrigger key={w.id} value={w.id}>{displayWarehouseName(w.name)}</TabsTrigger>
             ))}
           </TabsList>
 
@@ -293,7 +368,7 @@ export default function WarehouseOpeningBalance() {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <Card><CardContent className="pt-6">
                   <div className="text-xs text-muted-foreground">المخزن</div>
-                  <div className="font-bold">{w.name}</div>
+                  <div className="font-bold">{displayWarehouseName(w.name)}</div>
                 </CardContent></Card>
                 <Card><CardContent className="pt-6">
                   <div className="text-xs text-muted-foreground">عدد الأصناف</div>
@@ -312,7 +387,7 @@ export default function WarehouseOpeningBalance() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
-                    <span>أصناف {w.name}</span>
+                    <span>أصناف {displayWarehouseName(w.name)}</span>
                     {activeWhObj?.operational_start_date ? (
                       <Badge className="bg-emerald-500/15 text-emerald-700">تشغيل: {activeWhObj.operational_start_date}</Badge>
                     ) : (
@@ -338,6 +413,9 @@ export default function WarehouseOpeningBalance() {
                       <Button size="sm" onClick={approveAll}
                         disabled={!canApprove || busy === "__approve_all__" || Object.values(obs).every((o) => o.status === "approved")}>
                         <CheckCheck className="w-3 h-3 ml-1" /> اعتماد الكل
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={printHandover} disabled={!items.length}>
+                        <Printer className="w-3 h-3 ml-1" /> طباعة محضر الجرد والتسليم
                       </Button>
                     </div>
                     <div className="text-xs text-muted-foreground">
