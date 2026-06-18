@@ -74,6 +74,8 @@ interface ModuleSection {
   label: string;
   roles: AppRole[];
   items: MenuItem[];
+  /** If set, clicking the section header navigates here */
+  path?: string;
 }
 
 export const moduleSections: ModuleSection[] = [
@@ -208,15 +210,22 @@ export const moduleSections: ModuleSection[] = [
       { group: "التصنيع والتشغيل", icon: Factory, label: "فاتورة تصنيع / سجل الفواتير", path: "/meat-factory/manufacturing", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager'] },
       { group: "التصنيع والتشغيل", icon: Factory, label: "تركيبات التصنيع (مرجع)", path: "/meat-factory/recipes", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'quality_manager', 'accountant', 'financial_manager'] },
       { group: "التصنيع والتشغيل", icon: Factory, label: "تصنيع المنتجات (شاشة قديمة)", path: "/modules/meat-factory", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'quality_manager'] },
-      // مخازن مصنع اللحوم
-      { group: "مخازن مصنع اللحوم", icon: Boxes, label: "مخزون مصنع اللحوم (شاشة موحّدة)", path: "/meat-factory/inventory", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'financial_manager', 'warehouse_supervisor', 'accountant', 'quality_manager'] },
-      { group: "مخازن مصنع اللحوم", icon: Boxes, label: "مخزون خامات مصنع اللحوم (موسّع)", path: "/meat-factory/raw-inventory", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'financial_manager', 'warehouse_supervisor', 'accountant', 'quality_manager'] },
-      { group: "مخازن مصنع اللحوم", icon: Beef, label: "مخازن مصنع اللحوم (خامات/بهارات/تغليف)", path: "/meat-factory/factory-warehouses", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'financial_manager', 'warehouse_supervisor', 'accountant'] },
-      { group: "مخازن مصنع اللحوم", icon: Package, label: "مخزن مواد التغليف والتعبئة", path: "/meat-factory/packaging-inventory", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'warehouse_supervisor', 'accountant', 'financial_manager'] },
       // المشتريات والموردين
       { group: "المشتريات والموردين", icon: ShoppingCart, label: "فواتير مشتريات مصنع اللحوم", path: "/meat-factory/purchase-invoices", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'warehouse_supervisor', 'accountant', 'financial_manager'] },
-      // التقارير
-      { group: "التقارير", icon: FileText, label: "تقارير مصنع اللحوم (وارد/صرف/إنتاج/مخزون)", path: "/meat-factory/reports", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'accountant', 'financial_manager', 'warehouse_supervisor', 'quality_manager'] },
+    ],
+  },
+  {
+    id: "meat-factory-warehouses",
+    icon: Boxes,
+    label: "مخازن مصنع اللحوم",
+    path: "/meat-factory/inventory",
+    roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'financial_manager', 'warehouse_supervisor', 'accountant', 'quality_manager'],
+    items: [
+      { icon: Boxes, label: "المخزون الموحد", path: "/meat-factory/inventory", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'financial_manager', 'warehouse_supervisor', 'accountant', 'quality_manager'] },
+      { icon: Boxes, label: "خامات مصنع اللحوم", path: "/meat-factory/raw-inventory", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'financial_manager', 'warehouse_supervisor', 'accountant', 'quality_manager'] },
+      { icon: Beef, label: "خامات / بهارات / تغليف", path: "/meat-factory/factory-warehouses", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'financial_manager', 'warehouse_supervisor', 'accountant'] },
+      { icon: Package, label: "مواد التغليف والتعبئة", path: "/meat-factory/packaging-inventory", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'warehouse_supervisor', 'accountant', 'financial_manager'] },
+      { icon: FileText, label: "التقارير", path: "/meat-factory/reports", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'accountant', 'financial_manager', 'warehouse_supervisor', 'quality_manager'] },
     ],
   },
   {
@@ -398,19 +407,50 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
             open={isOpen}
             onOpenChange={() => toggleSection(section.id)}
           >
-            <CollapsibleTrigger
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-right ${
-                hasActiveItem
-                  ? "bg-sidebar-accent text-sidebar-foreground"
-                  : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50"
-              }`}
-            >
-              <section.icon className="w-5 h-5 shrink-0" />
-              <span className="font-semibold text-sm flex-1 text-right">{section.label}</span>
-              <ChevronDown
-                className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
-              />
-            </CollapsibleTrigger>
+            {section.path ? (
+              <div
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-right ${
+                  hasActiveItem
+                    ? "bg-sidebar-accent text-sidebar-foreground"
+                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50"
+                }`}
+              >
+                <Link
+                  to={section.path}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onItemClick?.();
+                  }}
+                  className="flex items-center gap-3 flex-1"
+                >
+                  <section.icon className="w-5 h-5 shrink-0" />
+                  <span className="font-semibold text-sm flex-1 text-right">{section.label}</span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => toggleSection(section.id)}
+                  className="p-1 rounded-md hover:bg-sidebar-accent/50"
+                >
+                  <ChevronDown
+                    className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                  />
+                </button>
+              </div>
+            ) : (
+              <CollapsibleTrigger
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-right ${
+                  hasActiveItem
+                    ? "bg-sidebar-accent text-sidebar-foreground"
+                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50"
+                }`}
+              >
+                <section.icon className="w-5 h-5 shrink-0" />
+                <span className="font-semibold text-sm flex-1 text-right">{section.label}</span>
+                <ChevronDown
+                  className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                />
+              </CollapsibleTrigger>
+            )}
             <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
               <div className="mt-1 mr-3 space-y-1 border-r-2 border-sidebar-border pr-3">
                 {(() => {
