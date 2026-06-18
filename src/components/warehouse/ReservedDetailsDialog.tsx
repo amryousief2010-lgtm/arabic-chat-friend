@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, Lock, Search, Loader2, CheckCircle2, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { MAIN_WAREHOUSE_OPERATIONAL_START_ISO } from "@/constants/warehouseOperations";
 
 interface Props {
   open: boolean;
@@ -66,12 +67,19 @@ export default function ReservedDetailsDialog({ open, onOpenChange, warehouseId,
     (async () => {
       setLoading(true);
       try {
-        const { data: orders } = await supabase
+        const { data: ordersRaw } = await supabase
           .from("orders")
           .select("id, order_number, status, stock_status, source_warehouse_id, customer_id, fulfillment_type, shipping_company, created_at, created_by, moderator, notes, delivered_at")
           .eq("source_warehouse_id", warehouseId)
           .not("status", "in", "(delivered,cancelled)")
           .or("stock_status.is.null,stock_status.neq.dispatched");
+
+        // المخزن الرئيسي: استبعد أي أوردر قبل تاريخ بداية التشغيل (Cut-off) — لا يدخل في المحجوز.
+        const isMain = (warehouseName || "").includes("الرئيسي") || (warehouseName || "").includes("المقر");
+        const cutoffMs = new Date(MAIN_WAREHOUSE_OPERATIONAL_START_ISO).getTime();
+        const orders = (ordersRaw || []).filter((o: any) =>
+          isMain ? new Date(o.created_at).getTime() >= cutoffMs : true
+        );
 
         const list = orders || [];
         if (list.length === 0) { if (!cancelled) setRows([]); return; }

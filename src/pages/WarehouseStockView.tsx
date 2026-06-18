@@ -12,6 +12,7 @@ import { printWarehouseStock } from "@/lib/printUtils";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import ReservedDetailsDialog from "@/components/warehouse/ReservedDetailsDialog";
+import { MAIN_WAREHOUSE_OPERATIONAL_START, MAIN_WAREHOUSE_OPERATIONAL_START_ISO } from "@/constants/warehouseOperations";
 
 interface Product { id: string; name: string; unit: string; category?: string | null; }
 
@@ -100,16 +101,23 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
         setMainItemIds(mnIds);
 
         // المحجوز = أوردرات لم تُسلَّم/تُلغَ ولم تُخصم فعلًا (stock_status != dispatched)
+        // المخزن الرئيسي: نتجاهل أي أوردر مسجل قبل تاريخ بداية التشغيل (Cut-off) — الجرد اليدوي الحالي هو نقطة البداية الرسمية.
         const { data: pendOrders } = await supabase
           .from("orders")
-          .select("id, source_warehouse_id, status, stock_status")
+          .select("id, source_warehouse_id, status, stock_status, created_at")
           .in("source_warehouse_id", whIds)
           .not("status", "in", "(delivered,cancelled)")
           .or("stock_status.is.null,stock_status.neq.dispatched");
 
-        const orderIds = (pendOrders || []).map((o: any) => o.id);
+        const cutoffMs = new Date(MAIN_WAREHOUSE_OPERATIONAL_START_ISO).getTime();
+        const eligibleOrders = (pendOrders || []).filter((o: any) => {
+          if (o.source_warehouse_id !== main?.id) return true; // العجوزة وغيره: لا cut-off
+          return new Date(o.created_at).getTime() >= cutoffMs;
+        });
+
+        const orderIds = eligibleOrders.map((o: any) => o.id);
         const whByOrder: Record<string, string> = Object.fromEntries(
-          (pendOrders || []).map((o: any) => [o.id, o.source_warehouse_id])
+          eligibleOrders.map((o: any) => [o.id, o.source_warehouse_id])
         );
         const agPend: Record<string, number> = {};
         const mnPend: Record<string, number> = {};
@@ -346,6 +354,25 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
   return (
     <DashboardLayout>
       <Header title={title} subtitle={subtitle} />
+
+      {scope === "main" && (
+        <Card className="mb-3 border-amber-500/40 bg-amber-500/5">
+          <CardContent className="p-3 flex items-center gap-3 text-sm">
+            <div className="p-2 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-300">
+              <Lock className="w-4 h-4" />
+            </div>
+            <div className="flex-1">
+              <div className="text-xs text-muted-foreground">تاريخ بداية تشغيل المخزن الرئيسي (Cut-off)</div>
+              <div className="font-semibold">
+                الجرد اليدوي الحالي معتمد كنقطة بداية رسمية بتاريخ {MAIN_WAREHOUSE_OPERATIONAL_START}
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                الأوردرات المسجلة قبل هذا التاريخ لا تُخصم ولا تدخل في المحجوز للمخزن الرئيسي. فقط الأوردرات من {MAIN_WAREHOUSE_OPERATIONAL_START} وما بعدها هي التي تؤثر على المخزن الرئيسي.
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {scope === "main" && mainOpeningAt && (
         <Card className="mb-3 border-primary/30 bg-primary/5">
