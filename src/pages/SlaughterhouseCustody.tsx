@@ -874,6 +874,37 @@ export default function SlaughterhouseCustody() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Edit expense dialog (GM / Executive Manager) */}
+        <Dialog open={editDlg.open} onOpenChange={(o) => setEditDlg({ ...editDlg, open: o })}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader><DialogTitle>تعديل المصروف</DialogTitle></DialogHeader>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div><Label>التاريخ</Label><Input type="date" value={editDlg.form.expense_date} onChange={(e) => setEditDlg({ ...editDlg, form: { ...editDlg.form, expense_date: e.target.value } })} /></div>
+              <div><Label>المبلغ</Label><Input type="number" step="0.01" value={editDlg.form.amount} onChange={(e) => setEditDlg({ ...editDlg, form: { ...editDlg.form, amount: e.target.value } })} /></div>
+              <div><Label>البند</Label>
+                <Select value={editDlg.form.category} onValueChange={(v) => setEditDlg({ ...editDlg, form: { ...editDlg.form, category: v } })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{(Object.keys(CAT_LBL) as Category[]).map((k) => <SelectItem key={k} value={k}>{CAT_LBL[k]}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div><Label>طريقة الدفع</Label>
+                <Select value={editDlg.form.payment_method} onValueChange={(v) => setEditDlg({ ...editDlg, form: { ...editDlg.form, payment_method: v as PM } })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{(Object.keys(PM_LBL) as PM[]).map((k) => <SelectItem key={k} value={k}>{PM_LBL[k]}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="md:col-span-2"><Label>المستفيد</Label><Input value={editDlg.form.beneficiary} onChange={(e) => setEditDlg({ ...editDlg, form: { ...editDlg.form, beneficiary: e.target.value } })} /></div>
+              <div className="md:col-span-2"><Label>الوصف</Label><Textarea value={editDlg.form.description} onChange={(e) => setEditDlg({ ...editDlg, form: { ...editDlg.form, description: e.target.value } })} /></div>
+              <div className="md:col-span-2"><Label>ملاحظات</Label><Textarea value={editDlg.form.notes} onChange={(e) => setEditDlg({ ...editDlg, form: { ...editDlg.form, notes: e.target.value } })} /></div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditDlg({ ...editDlg, open: false })}>إلغاء</Button>
+              <Button onClick={saveEdit}>حفظ التعديلات</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
       </div>
     </DashboardLayout>
   );
