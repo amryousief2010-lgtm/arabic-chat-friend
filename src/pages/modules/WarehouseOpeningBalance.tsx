@@ -368,7 +368,7 @@ export default function WarehouseOpeningBalance() {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <Card><CardContent className="pt-6">
                   <div className="text-xs text-muted-foreground">المخزن</div>
-                  <div className="font-bold">{w.name}</div>
+                  <div className="font-bold">{displayWarehouseName(w.name)}</div>
                 </CardContent></Card>
                 <Card><CardContent className="pt-6">
                   <div className="text-xs text-muted-foreground">عدد الأصناف</div>
