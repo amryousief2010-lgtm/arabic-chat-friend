@@ -286,6 +286,9 @@ export default function MeatFactoryInventory() {
             </div>
           </div>
           <div className="flex gap-2 flex-wrap">
+            {canAdjust && (
+              <Button size="sm" onClick={openCreate} className="gap-2"><Plus className="w-4 h-4" />إضافة بند جديد</Button>
+            )}
             <Button variant="outline" size="sm" onClick={printReport} className="gap-2"><Printer className="w-4 h-4" />طباعة المخزون</Button>
             <Button variant="outline" size="sm" onClick={exportExcel} className="gap-2"><FileSpreadsheet className="w-4 h-4" />تصدير Excel</Button>
           </div>
