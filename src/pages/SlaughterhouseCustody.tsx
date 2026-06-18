@@ -744,7 +744,12 @@ export default function SlaughterhouseCustody() {
                                 beneficiary: e.beneficiary || "",
                                 notes: e.notes || "",
                               }
-                            })}>تعديل</Button>
+                            })}><Pencil className="w-3 h-3 ml-1" />تعديل</Button>
+                          )}
+                          {canEditAny && (
+                            <Button size="sm" variant="destructive" title="حذف المصروف وإرجاع المبلغ للخزنة" onClick={() => deleteExpense(e)}>
+                              <Trash2 className="w-3 h-3 ml-1" />حذف
+                            </Button>
                           )}
                         </TableCell>
                       </TableRow>
