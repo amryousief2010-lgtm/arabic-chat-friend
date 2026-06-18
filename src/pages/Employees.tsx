@@ -828,11 +828,13 @@ const Employees = () => {
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
                       {employee.roles.map((r) => {
-                        const Icon = roleIcons[r];
+                        const Icon = roleIcons[r] || Users;
+                        const label = roleLabels[r] || (r as string);
+                        const variant = roleBadgeVariants[r] || 'secondary';
                         return (
-                          <Badge key={r} variant={roleBadgeVariants[r]} className="gap-1">
+                          <Badge key={r} variant={variant} className="gap-1">
                             <Icon className="w-3 h-3" />
-                            {roleLabels[r]}
+                            {label}
                           </Badge>
                         );
                       })}
