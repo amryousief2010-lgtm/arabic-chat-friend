@@ -15,7 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate, COMPANY_AR } from "@/lib/printPdf";
 import * as XLSX from "xlsx";
-import { Boxes, Printer, FileSpreadsheet, ShieldAlert, Search, Pencil } from "lucide-react";
+import { Boxes, Printer, FileSpreadsheet, ShieldAlert, Search, Pencil, Plus, Trash2, Settings2 } from "lucide-react";
 
 type Kind = "raw" | "spice" | "packaging" | "finished";
 
@@ -52,6 +52,26 @@ export default function MeatFactoryInventory() {
   const [adjDlg, setAdjDlg] = useState<{ open: boolean; item: Item | null; actual: string; reason: string; notes: string }>({
     open: false, item: null, actual: "", reason: "", notes: "",
   });
+
+  type EditState = {
+    open: boolean;
+    mode: "create" | "edit";
+    id: string | null;
+    kind: Kind;
+    code: string;
+    name: string;
+    unit: string;
+    current_stock: string;
+    avg_cost: string;
+    notes: string;
+    is_active: boolean;
+  };
+  const emptyEdit: EditState = {
+    open: false, mode: "create", id: null, kind: "raw",
+    code: "", name: "", unit: "كجم", current_stock: "0", avg_cost: "0", notes: "", is_active: true,
+  };
+  const [editDlg, setEditDlg] = useState<EditState>(emptyEdit);
+  const [delDlg, setDelDlg] = useState<{ open: boolean; item: Item | null }>({ open: false, item: null });
 
   async function load() {
     setLoading(true);
@@ -105,6 +125,63 @@ export default function MeatFactoryInventory() {
     filtered.forEach((i) => { qty += i.current_stock; value += i.current_stock * i.avg_cost; });
     return { count: filtered.length, qty, value };
   }, [filtered]);
+
+  function openCreate() {
+    setEditDlg({ ...emptyEdit, open: true, mode: "create", kind: fKind === "all" || fKind === "finished" ? "raw" : fKind });
+  }
+  function openEdit(i: Item) {
+    if (i.kind === "finished") {
+      toast.error("تعديل المنتجات المصنعة يتم من شاشة منتجات مصنع اللحوم");
+      return;
+    }
+    setEditDlg({
+      open: true, mode: "edit", id: i.id, kind: i.kind,
+      code: i.code || "", name: i.name, unit: i.unit,
+      current_stock: String(i.current_stock), avg_cost: String(i.avg_cost),
+      notes: i.notes || "", is_active: i.is_active,
+    });
+  }
+  async function submitEdit() {
+    if (!editDlg.name.trim()) return toast.error("اسم الصنف مطلوب");
+    const qty = Number(editDlg.current_stock);
+    const cost = Number(editDlg.avg_cost);
+    if (!isFinite(qty) || qty < 0) return toast.error("الكمية غير صحيحة");
+    if (!isFinite(cost) || cost < 0) return toast.error("التكلفة غير صحيحة");
+    const payload: any = {
+      kind: editDlg.kind,
+      code: editDlg.code.trim() || null,
+      name: editDlg.name.trim(),
+      unit: editDlg.unit.trim() || "كجم",
+      current_stock: qty,
+      avg_cost: cost,
+      notes: editDlg.notes.trim() || null,
+      is_active: editDlg.is_active,
+    };
+    let error: any = null;
+    if (editDlg.mode === "create") {
+      const res = await (supabase as any).from("meat_factory_raw_items").insert(payload);
+      error = res.error;
+    } else {
+      const res = await (supabase as any).from("meat_factory_raw_items").update(payload).eq("id", editDlg.id);
+      error = res.error;
+    }
+    if (error) return toast.error("فشل الحفظ: " + error.message);
+    toast.success(editDlg.mode === "create" ? "تم إضافة الصنف" : "تم تحديث الصنف");
+    setEditDlg(emptyEdit);
+    load();
+  }
+  async function submitDelete() {
+    if (!delDlg.item) return;
+    if (delDlg.item.kind === "finished") {
+      toast.error("حذف المنتجات المصنعة يتم من شاشة منتجات مصنع اللحوم");
+      return;
+    }
+    const { error } = await (supabase as any).from("meat_factory_raw_items").delete().eq("id", delDlg.item.id);
+    if (error) return toast.error("فشل الحذف: " + error.message);
+    toast.success("تم حذف الصنف");
+    setDelDlg({ open: false, item: null });
+    load();
+  }
 
   async function submitAdjust() {
     if (!adjDlg.item) return;
@@ -209,6 +286,9 @@ export default function MeatFactoryInventory() {
             </div>
           </div>
           <div className="flex gap-2 flex-wrap">
+            {canAdjust && (
+              <Button size="sm" onClick={openCreate} className="gap-2"><Plus className="w-4 h-4" />إضافة بند جديد</Button>
+            )}
             <Button variant="outline" size="sm" onClick={printReport} className="gap-2"><Printer className="w-4 h-4" />طباعة المخزون</Button>
             <Button variant="outline" size="sm" onClick={exportExcel} className="gap-2"><FileSpreadsheet className="w-4 h-4" />تصدير Excel</Button>
           </div>
@@ -298,11 +378,23 @@ export default function MeatFactoryInventory() {
                   </TableCell>
                   <TableCell>
                     {canAdjust && (
-                      <Button size="sm" variant="outline" className="gap-1" onClick={() => setAdjDlg({
-                        open: true, item: i, actual: String(i.current_stock), reason: "", notes: "",
-                      })}>
-                        <Pencil className="w-3 h-3" /> تسوية
-                      </Button>
+                      <div className="flex gap-1 flex-wrap">
+                        <Button size="sm" variant="outline" className="gap-1" onClick={() => setAdjDlg({
+                          open: true, item: i, actual: String(i.current_stock), reason: "", notes: "",
+                        })}>
+                          <Pencil className="w-3 h-3" /> تسوية
+                        </Button>
+                        {i.kind !== "finished" && (
+                          <>
+                            <Button size="sm" variant="secondary" className="gap-1" onClick={() => openEdit(i)}>
+                              <Settings2 className="w-3 h-3" /> تعديل
+                            </Button>
+                            <Button size="sm" variant="destructive" className="gap-1" onClick={() => setDelDlg({ open: true, item: i })}>
+                              <Trash2 className="w-3 h-3" /> حذف
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     )}
                   </TableCell>
                 </TableRow>
@@ -358,6 +450,98 @@ export default function MeatFactoryInventory() {
             <DialogFooter>
               <Button variant="outline" onClick={() => setAdjDlg({ ...adjDlg, open: false })}>إلغاء</Button>
               <Button onClick={submitAdjust}>اعتماد التسوية</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit / Create dialog */}
+        <Dialog open={editDlg.open} onOpenChange={(o) => setEditDlg({ ...editDlg, open: o })}>
+          <DialogContent className="max-w-xl">
+            <DialogHeader><DialogTitle>{editDlg.mode === "create" ? "إضافة بند جديد" : "تعديل بند مخزون"}</DialogTitle></DialogHeader>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>النوع *</Label>
+                <Select value={editDlg.kind} onValueChange={(v) => setEditDlg({ ...editDlg, kind: v as Kind })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="raw">{KIND_LBL.raw}</SelectItem>
+                    <SelectItem value="spice">{KIND_LBL.spice}</SelectItem>
+                    <SelectItem value="packaging">{KIND_LBL.packaging}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>الكود</Label>
+                <Input value={editDlg.code} onChange={(e) => setEditDlg({ ...editDlg, code: e.target.value })} />
+              </div>
+              <div className="col-span-2">
+                <Label>اسم الصنف *</Label>
+                <Input value={editDlg.name} onChange={(e) => setEditDlg({ ...editDlg, name: e.target.value })} />
+              </div>
+              <div>
+                <Label>الوحدة</Label>
+                <Input value={editDlg.unit} onChange={(e) => setEditDlg({ ...editDlg, unit: e.target.value })} />
+              </div>
+              <div>
+                <Label>الحالة</Label>
+                <Select value={editDlg.is_active ? "1" : "0"} onValueChange={(v) => setEditDlg({ ...editDlg, is_active: v === "1" })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">نشط</SelectItem>
+                    <SelectItem value="0">غير نشط</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>الكمية الحالية</Label>
+                <Input type="number" step="0.01" value={editDlg.current_stock} onChange={(e) => setEditDlg({ ...editDlg, current_stock: e.target.value })} />
+              </div>
+              <div>
+                <Label>متوسط التكلفة (ج)</Label>
+                <Input type="number" step="0.01" value={editDlg.avg_cost} onChange={(e) => setEditDlg({ ...editDlg, avg_cost: e.target.value })} />
+              </div>
+              <div className="col-span-2">
+                <Label>ملاحظات</Label>
+                <Textarea rows={2} value={editDlg.notes} onChange={(e) => setEditDlg({ ...editDlg, notes: e.target.value })} />
+              </div>
+            </div>
+            <Alert>
+              <ShieldAlert className="w-4 h-4" />
+              <AlertDescription className="text-xs">
+                التعديل المباشر يغيّر السعر والكمية بدون إنشاء حركة خزنة. للتسوية بسبب جرد استخدم زر "تسوية".
+              </AlertDescription>
+            </Alert>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditDlg(emptyEdit)}>إلغاء</Button>
+              <Button onClick={submitEdit}>{editDlg.mode === "create" ? "إضافة" : "حفظ التعديلات"}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete confirm */}
+        <Dialog open={delDlg.open} onOpenChange={(o) => setDelDlg({ ...delDlg, open: o })}>
+          <DialogContent className="max-w-md">
+            <DialogHeader><DialogTitle>تأكيد حذف البند</DialogTitle></DialogHeader>
+            <div className="space-y-2 text-sm">
+              <div>هل تريد حذف الصنف التالي نهائيًا؟</div>
+              {delDlg.item && (
+                <div className="p-3 rounded border bg-muted/30">
+                  <div><b>{delDlg.item.name}</b></div>
+                  <div className="text-xs text-muted-foreground">
+                    {KIND_LBL[delDlg.item.kind]} — رصيد: {fmtNum(delDlg.item.current_stock, 2)} {delDlg.item.unit}
+                  </div>
+                </div>
+              )}
+              <Alert variant="destructive">
+                <ShieldAlert className="w-4 h-4" />
+                <AlertDescription className="text-xs">
+                  الحذف نهائي ولا يمكن التراجع عنه. إذا كان الصنف مستخدمًا في فواتير أو وصفات قد يفشل الحذف.
+                </AlertDescription>
+              </Alert>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDelDlg({ open: false, item: null })}>إلغاء</Button>
+              <Button variant="destructive" onClick={submitDelete}>حذف نهائي</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
