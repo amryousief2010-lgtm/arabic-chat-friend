@@ -116,6 +116,30 @@ export default function SlaughterhouseCustody() {
   // Dialogs
   const [reviewDlg, setReviewDlg] = useState<{ open: boolean; exp: Expense | null; action: "approve" | "reject" | "clarify" | "approve_over"; reason: string }>({ open: false, exp: null, action: "approve", reason: "" });
   const [commentDlg, setCommentDlg] = useState<{ open: boolean; exp: Expense | null; body: string }>({ open: false, exp: null, body: "" });
+  const [editDlg, setEditDlg] = useState<{ open: boolean; exp: Expense | null; form: { expense_date: string; category: Category; description: string; amount: string; payment_method: PM; beneficiary: string; notes: string } }>({ open: false, exp: null, form: { expense_date: "", category: "maintenance", description: "", amount: "", payment_method: "cash", beneficiary: "", notes: "" } });
+
+  const canEditAny = isGeneralManager || isExecutiveManager;
+
+  async function saveEdit() {
+    if (!editDlg.exp) return;
+    const amt = Number(editDlg.form.amount || 0);
+    if (amt <= 0) return toast.error("المبلغ مطلوب");
+    if (!editDlg.form.description.trim()) return toast.error("الوصف مطلوب");
+    const updates: any = {
+      expense_date: editDlg.form.expense_date,
+      category: editDlg.form.category,
+      description: editDlg.form.description,
+      amount: amt,
+      payment_method: editDlg.form.payment_method,
+      beneficiary: editDlg.form.beneficiary || null,
+      notes: editDlg.form.notes || null,
+    };
+    const { error } = await (supabase as any).from("slaughter_custody_expenses").update(updates).eq("id", editDlg.exp.id);
+    if (error) return toast.error("فشل التعديل: " + error.message);
+    toast.success("تم حفظ التعديلات");
+    setEditDlg({ open: false, exp: null, form: { expense_date: "", category: "maintenance", description: "", amount: "", payment_method: "cash", beneficiary: "", notes: "" } });
+    fetchAll();
+  }
 
   // Opening + Limit forms (manager)
   const [openForm, setOpenForm] = useState({ as_of_date: today(), total_amount: "", cash_amount: "", vodafone_cash_amount: "", instapay_amount: "", bank_transfer_amount: "", notes: "" });
