@@ -116,6 +116,30 @@ export default function SlaughterhouseCustody() {
   // Dialogs
   const [reviewDlg, setReviewDlg] = useState<{ open: boolean; exp: Expense | null; action: "approve" | "reject" | "clarify" | "approve_over"; reason: string }>({ open: false, exp: null, action: "approve", reason: "" });
   const [commentDlg, setCommentDlg] = useState<{ open: boolean; exp: Expense | null; body: string }>({ open: false, exp: null, body: "" });
+  const [editDlg, setEditDlg] = useState<{ open: boolean; exp: Expense | null; form: { expense_date: string; category: Category; description: string; amount: string; payment_method: PM; beneficiary: string; notes: string } }>({ open: false, exp: null, form: { expense_date: "", category: "maintenance", description: "", amount: "", payment_method: "cash", beneficiary: "", notes: "" } });
+
+  const canEditAny = isGeneralManager || isExecutiveManager;
+
+  async function saveEdit() {
+    if (!editDlg.exp) return;
+    const amt = Number(editDlg.form.amount || 0);
+    if (amt <= 0) return toast.error("المبلغ مطلوب");
+    if (!editDlg.form.description.trim()) return toast.error("الوصف مطلوب");
+    const updates: any = {
+      expense_date: editDlg.form.expense_date,
+      category: editDlg.form.category,
+      description: editDlg.form.description,
+      amount: amt,
+      payment_method: editDlg.form.payment_method,
+      beneficiary: editDlg.form.beneficiary || null,
+      notes: editDlg.form.notes || null,
+    };
+    const { error } = await (supabase as any).from("slaughter_custody_expenses").update(updates).eq("id", editDlg.exp.id);
+    if (error) return toast.error("فشل التعديل: " + error.message);
+    toast.success("تم حفظ التعديلات");
+    setEditDlg({ open: false, exp: null, form: { expense_date: "", category: "maintenance", description: "", amount: "", payment_method: "cash", beneficiary: "", notes: "" } });
+    fetchAll();
+  }
 
   // Opening + Limit forms (manager)
   const [openForm, setOpenForm] = useState({ as_of_date: today(), total_amount: "", cash_amount: "", vodafone_cash_amount: "", instapay_amount: "", bank_transfer_amount: "", notes: "" });
@@ -692,6 +716,20 @@ export default function SlaughterhouseCustody() {
                           {isKeeper && e.status === "clarification_needed" && (
                             <Button size="sm" variant="outline" onClick={() => setCommentDlg({ open: true, exp: e, body: "" })}><MessageSquare className="w-3 h-3 ml-1" />رد</Button>
                           )}
+                          {canEditAny && (
+                            <Button size="sm" variant="outline" title="تعديل المصروف" onClick={() => setEditDlg({
+                              open: true, exp: e,
+                              form: {
+                                expense_date: e.expense_date,
+                                category: e.category,
+                                description: e.description || "",
+                                amount: String(e.amount),
+                                payment_method: e.payment_method,
+                                beneficiary: e.beneficiary || "",
+                                notes: e.notes || "",
+                              }
+                            })}>تعديل</Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     );
@@ -836,6 +874,37 @@ export default function SlaughterhouseCustody() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Edit expense dialog (GM / Executive Manager) */}
+        <Dialog open={editDlg.open} onOpenChange={(o) => setEditDlg({ ...editDlg, open: o })}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader><DialogTitle>تعديل المصروف</DialogTitle></DialogHeader>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div><Label>التاريخ</Label><Input type="date" value={editDlg.form.expense_date} onChange={(e) => setEditDlg({ ...editDlg, form: { ...editDlg.form, expense_date: e.target.value } })} /></div>
+              <div><Label>المبلغ</Label><Input type="number" step="0.01" value={editDlg.form.amount} onChange={(e) => setEditDlg({ ...editDlg, form: { ...editDlg.form, amount: e.target.value } })} /></div>
+              <div><Label>البند</Label>
+                <Select value={editDlg.form.category} onValueChange={(v) => setEditDlg({ ...editDlg, form: { ...editDlg.form, category: v } })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{(Object.keys(CAT_LBL) as Category[]).map((k) => <SelectItem key={k} value={k}>{CAT_LBL[k]}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div><Label>طريقة الدفع</Label>
+                <Select value={editDlg.form.payment_method} onValueChange={(v) => setEditDlg({ ...editDlg, form: { ...editDlg.form, payment_method: v as PM } })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{(Object.keys(PM_LBL) as PM[]).map((k) => <SelectItem key={k} value={k}>{PM_LBL[k]}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="md:col-span-2"><Label>المستفيد</Label><Input value={editDlg.form.beneficiary} onChange={(e) => setEditDlg({ ...editDlg, form: { ...editDlg.form, beneficiary: e.target.value } })} /></div>
+              <div className="md:col-span-2"><Label>الوصف</Label><Textarea value={editDlg.form.description} onChange={(e) => setEditDlg({ ...editDlg, form: { ...editDlg.form, description: e.target.value } })} /></div>
+              <div className="md:col-span-2"><Label>ملاحظات</Label><Textarea value={editDlg.form.notes} onChange={(e) => setEditDlg({ ...editDlg, form: { ...editDlg.form, notes: e.target.value } })} /></div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditDlg({ ...editDlg, open: false })}>إلغاء</Button>
+              <Button onClick={saveEdit}>حفظ التعديلات</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
       </div>
     </DashboardLayout>
   );
