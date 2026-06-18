@@ -281,8 +281,8 @@ const PrintEmployeesAdvancesDialog = ({ open, onOpenChange, employees, locations
         <td style="font-size:9px">${advDetail}</td>
         <td class="num">${fmtNum(r.deductions, 2)}</td>
         <td class="num">${fmtNum(r.bonuses, 2)}</td>
-        <td class="num" style="font-weight:bold;color:${r.needsAttendance ? "#999" : r.net! < 0 ? "#c00" : "#060"}">
-          ${r.needsAttendance ? "يحتاج حضور" : fmtNum(r.net!, 2)}
+        <td class="num" style="font-weight:bold;color:${r.needsAttendance || r.missingSalary ? "#b45309" : r.net! < 0 ? "#c00" : "#060"}">
+          ${r.missingSalary ? "راتب غير مسجل" : r.needsAttendance ? "يحتاج حضور" : fmtNum(r.net!, 2)}
         </td>
         <td>${r.emp.status === "active" ? "نشط" : "غير نشط"}</td>
         <td style="font-size:9px">${escapeHtml(r.emp.notes || "—")}</td>
@@ -368,7 +368,7 @@ ${report.unmatched.length ? `
       "الخزن": r.sources.join(" / "),
       "خصومات": r.deductions,
       "مكافآت": r.bonuses,
-      "المتبقي في الراتب": r.needsAttendance ? "يحتاج حضور" : r.net,
+      "المتبقي في الراتب": r.missingSalary ? "راتب الموظف غير مسجل، لا يمكن احتساب صافي الراتب" : r.needsAttendance ? "يحتاج حضور" : r.net,
       "الحالة": r.emp.status === "active" ? "نشط" : "غير نشط",
       "ملاحظات": r.emp.notes || "",
     }));
