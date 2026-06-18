@@ -24,7 +24,7 @@ import IncomingCustodyTransfers from "@/components/treasury/IncomingCustodyTrans
 
 import {
   Wallet, Plus, ShieldAlert, CheckCircle2, XCircle, MessageSquare, Upload,
-  Printer, FileSpreadsheet, AlertTriangle, ScrollText, Beef, Sparkles, Clock, Activity, Receipt, TrendingDown,
+  Printer, FileSpreadsheet, AlertTriangle, ScrollText, Beef, Sparkles, Clock, Activity, Receipt, TrendingDown, Trash2, Pencil,
 } from "lucide-react";
 import { PremiumStat, HeroSummary, SectionTitle, StatusPill, DashboardSkeleton, EmptyState, ActivityTimeline, ProgressRing, getCairoNow } from "@/components/treasury/PremiumUI";
 
