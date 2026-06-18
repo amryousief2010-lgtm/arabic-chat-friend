@@ -51,9 +51,15 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function WarehouseMovementsLog() {
+  const { isGeneralManager } = useAuth();
+  // أرشيف ما قبل بداية تشغيل المخزن الرئيسي (2026-06-18) متاح للمدير العام فقط.
+  const [showArchive, setShowArchive] = useState(false);
   const today = new Date().toISOString().slice(0, 10);
   const monthAgo = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
-  const [from, setFrom] = useState(monthAgo);
+  // العرض الافتراضي يبدأ من تاريخ بداية التشغيل أو monthAgo (أيهما أحدث) للجميع،
+  // ما لم يكن المدير العام قد فعّل وضع الأرشيف.
+  const defaultFrom = monthAgo < MAIN_WAREHOUSE_OPERATIONAL_START ? MAIN_WAREHOUSE_OPERATIONAL_START : monthAgo;
+  const [from, setFrom] = useState(defaultFrom);
   const [to, setTo] = useState(today);
   const [whFilter, setWhFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
