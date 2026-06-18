@@ -101,16 +101,23 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
         setMainItemIds(mnIds);
 
         // المحجوز = أوردرات لم تُسلَّم/تُلغَ ولم تُخصم فعلًا (stock_status != dispatched)
+        // المخزن الرئيسي: نتجاهل أي أوردر مسجل قبل تاريخ بداية التشغيل (Cut-off) — الجرد اليدوي الحالي هو نقطة البداية الرسمية.
         const { data: pendOrders } = await supabase
           .from("orders")
-          .select("id, source_warehouse_id, status, stock_status")
+          .select("id, source_warehouse_id, status, stock_status, created_at")
           .in("source_warehouse_id", whIds)
           .not("status", "in", "(delivered,cancelled)")
           .or("stock_status.is.null,stock_status.neq.dispatched");
 
-        const orderIds = (pendOrders || []).map((o: any) => o.id);
+        const cutoffMs = new Date(MAIN_WAREHOUSE_OPERATIONAL_START_ISO).getTime();
+        const eligibleOrders = (pendOrders || []).filter((o: any) => {
+          if (o.source_warehouse_id !== main?.id) return true; // العجوزة وغيره: لا cut-off
+          return new Date(o.created_at).getTime() >= cutoffMs;
+        });
+
+        const orderIds = eligibleOrders.map((o: any) => o.id);
         const whByOrder: Record<string, string> = Object.fromEntries(
-          (pendOrders || []).map((o: any) => [o.id, o.source_warehouse_id])
+          eligibleOrders.map((o: any) => [o.id, o.source_warehouse_id])
         );
         const agPend: Record<string, number> = {};
         const mnPend: Record<string, number> = {};
