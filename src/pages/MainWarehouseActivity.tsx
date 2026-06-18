@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowDownLeft, ArrowUpRight, RefreshCw, Search, Activity, PackageCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { MAIN_WAREHOUSE_OPERATIONAL_START, MAIN_WAREHOUSE_OPERATIONAL_START_ISO } from "@/constants/warehouseOperations";
 
 interface Row {
   id: string;
@@ -66,6 +68,8 @@ const isOut = (mt: string, qty: number) =>
   ["out","stock_out","sales_dispatch","waste_loss"].includes(mt) || qty < 0;
 
 export default function MainWarehouseActivity() {
+  const { isGeneralManager, isExecutiveManager } = useAuth();
+  const isAdmin = isGeneralManager || isExecutiveManager;
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<Row[]>([]);
   const [search, setSearch] = useState("");
@@ -73,7 +77,8 @@ export default function MainWarehouseActivity() {
   const [sourceCat, setSourceCat] = useState<string>("all");
   const [days, setDays] = useState<"7" | "30" | "90" | "all">("30");
   const [openingAt, setOpeningAt] = useState<string | null>(null);
-  // العرض الافتراضي = من Opening Balance فقط. الأرشيف القديم اختياري.
+  // العرض الافتراضي = من تاريخ بداية تشغيل المخزن الرئيسي (2026-06-18) فقط.
+  // الأرشيف القديم متاح للإدارة فقط (المدير العام / التنفيذي).
   const [showArchive, setShowArchive] = useState(false);
 
   const fetchAll = async () => {
@@ -105,8 +110,12 @@ export default function MainWarehouseActivity() {
         .order("performed_at", { ascending: false })
         .limit(1000);
 
-      // فلتر افتراضي: من Opening Balance فقط
-      if (openAt && !showArchive) {
+      // فلتر صارم: لا تظهر أي حركة قبل تاريخ بداية التشغيل (2026-06-18) إلا للإدارة عند تفعيل الأرشيف
+      const archiveOn = isAdmin && showArchive;
+      if (!archiveOn) {
+        q = q.gte("performed_at", MAIN_WAREHOUSE_OPERATIONAL_START_ISO);
+      } else if (openAt) {
+        // الإدارة في وضع الأرشيف: عرض كل شيء من الـ Opening Balance فأقدم
         q = q.gte("performed_at", openAt);
       } else if (days !== "all") {
         const since = new Date();
@@ -195,34 +204,33 @@ export default function MainWarehouseActivity() {
         subtitle="كل وارد وصادر بعد تثبيت الـ Opening Balance — مع المستخدم المنفذ ومصدر الحركة"
       />
 
-      {openingAt && (
-        <Card className={`mb-3 ${showArchive ? "border-amber-500/40 bg-amber-500/5" : "border-primary/30 bg-primary/5"}`}>
-          <CardContent className="p-3 flex flex-col sm:flex-row sm:items-center gap-3 text-sm">
-            <div className={`p-2 rounded-md ${showArchive ? "bg-amber-500/15 text-amber-700" : "bg-primary/15 text-primary"}`}>
-              <PackageCheck className="w-4 h-4" />
+      <Card className={`mb-3 ${showArchive ? "border-amber-500/40 bg-amber-500/5" : "border-primary/30 bg-primary/5"}`}>
+        <CardContent className="p-3 flex flex-col sm:flex-row sm:items-center gap-3 text-sm">
+          <div className={`p-2 rounded-md ${showArchive ? "bg-amber-500/15 text-amber-700" : "bg-primary/15 text-primary"}`}>
+            <PackageCheck className="w-4 h-4" />
+          </div>
+          <div className="flex-1">
+            <div className="font-semibold">
+              {showArchive && isAdmin
+                ? `أرشيف قبل بداية التشغيل — لا يؤثر على الجرد ولا يظهر لموظف المخزن (قبل ${MAIN_WAREHOUSE_OPERATIONAL_START})`
+                : `العرض الافتراضي: من تاريخ بداية تشغيل المخزن الرئيسي ${MAIN_WAREHOUSE_OPERATIONAL_START} فقط`}
             </div>
-            <div className="flex-1">
-              <div className="font-semibold">
-                {showArchive
-                  ? "وضع الأرشيف: يتم عرض الحركات القديمة قبل تثبيت الرصيد الافتتاحي (للمراجعة فقط — لا تؤثر على الرصيد الحالي)"
-                  : "العرض الافتراضي: الحركات من تاريخ الـ Opening Balance فقط"}
-              </div>
-              <div className="text-[11px] text-muted-foreground">
-                Opening Balance: {new Date(openingAt).toLocaleString("ar-EG", { dateStyle: "medium", timeStyle: "short" })}
-                {" — "}
-                الحركات الأقدم محفوظة في القاعدة كأرشيف ولا تدخل في حساب الرصيد الفعلي/المحجوز/المتاح للبيع.
-              </div>
+            <div className="text-[11px] text-muted-foreground">
+              {openingAt && (<>Opening Balance: {new Date(openingAt).toLocaleString("ar-EG", { dateStyle: "medium", timeStyle: "short" })} — </>)}
+              الحركات الأقدم محفوظة كأرشيف ولا تدخل في حساب الرصيد الفعلي/المحجوز/المتاح للبيع.
             </div>
+          </div>
+          {isAdmin && (
             <Button
               size="sm"
               variant={showArchive ? "default" : "outline"}
               onClick={() => setShowArchive((v) => !v)}
             >
-              {showArchive ? "العودة للعرض الحالي" : "عرض الأرشيف القديم"}
+              {showArchive ? "العودة للعرض التشغيلي" : "عرض أرشيف ما قبل التشغيل"}
             </Button>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
 
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">

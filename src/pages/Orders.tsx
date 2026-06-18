@@ -630,8 +630,15 @@ const Orders = () => {
     // مشرف المخزن الرئيسي (هادى) يشوف فقط طلبات المخزن الرئيسي (استلام أو توصيل)
     const matchesWarehouseScope =
       !isWarehouseSupervisor || fulfillmentKey === 'pickup_main' || fulfillmentKey === 'delivery_main';
-    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment && matchesRoute && matchesWarehouseScope;
-  }), [orders, filterStatus, searchQuery, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, filterFulfillment, filterRoute, isWarehouseSupervisor]);
+    // إخفاء أوردرات ما قبل تاريخ بداية تشغيل المخزن الرئيسي (2026-06-18) عن موظف المخزن
+    // الأوردرات لا تُحذف ولا تؤثر على الجرد، لكنها لا تظهر في شاشات التشغيل اليومية
+    const matchesOperationalStart =
+      !isWarehouseSupervisor ||
+      isGeneralManager ||
+      isExecutiveManager ||
+      new Date(order.created_at) >= new Date('2026-06-18T00:00:00+02:00');
+    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment && matchesRoute && matchesWarehouseScope && matchesOperationalStart;
+  }), [orders, filterStatus, searchQuery, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, filterFulfillment, filterRoute, isWarehouseSupervisor, isGeneralManager, isExecutiveManager]);
 
   const availableGovernorates = Array.from(
     new Set(orders.map(o => (o.governorate || "").trim()).filter(Boolean))
