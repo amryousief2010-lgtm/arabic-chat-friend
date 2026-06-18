@@ -225,6 +225,8 @@ export const moduleSections: ModuleSection[] = [
       { icon: Boxes, label: "خامات مصنع اللحوم", path: "/meat-factory/raw-inventory", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'financial_manager', 'warehouse_supervisor', 'accountant', 'quality_manager'] },
       { icon: Beef, label: "خامات / بهارات / تغليف", path: "/meat-factory/factory-warehouses", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'financial_manager', 'warehouse_supervisor', 'accountant'] },
       { icon: Package, label: "مواد التغليف والتعبئة", path: "/meat-factory/packaging-inventory", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'warehouse_supervisor', 'accountant', 'financial_manager'] },
+      { icon: Activity, label: "سجل الحركات", path: "/modules/warehouses/movements-log", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'accountant', 'financial_manager'] },
+      { icon: ClipboardList, label: "جرد وتسوية المخزون", path: "/modules/warehouses/stocktaking", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'] },
       { icon: FileText, label: "التقارير", path: "/meat-factory/reports", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'accountant', 'financial_manager', 'warehouse_supervisor', 'quality_manager'] },
     ],
   },
