@@ -7,11 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PackagePlus, Save, ShieldCheck, Info, Search, FileSpreadsheet, Upload, CheckCheck } from "lucide-react";
+import { PackagePlus, Save, ShieldCheck, Info, Search, FileSpreadsheet, Upload, CheckCheck, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+
+// Display name normalization — DB may store "المخزن الرئيسي - المقر" but we surface it as "المخزن الرئيسي"
+const displayWarehouseName = (n: string) =>
+  /رئيسي|main/i.test(n) ? "المخزن الرئيسي" : n;
 
 
 interface Warehouse { id: string; name: string; operational_start_date: string | null }
