@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, Lock, Search, Loader2, CheckCircle2, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { MAIN_WAREHOUSE_OPERATIONAL_START_ISO } from "@/constants/warehouseOperations";
 
 interface Props {
   open: boolean;
