@@ -19,15 +19,16 @@ interface Employee {
 }
 interface Location { id: string; name: string; department: string | null; }
 interface Advance {
-  id: string; source: "main" | "lab" | "slaughter"; sourceLabel: string;
+  id: string; source: "main" | "lab" | "slaughter" | "hr"; sourceLabel: string;
   date: string; amount: number; description: string; beneficiary: string | null;
   status: string; matchedEmployeeId: string | null;
 }
 
 const SRC_LABEL: Record<string, string> = {
-  main: "الخزنة الرئيسية", lab: "خزنة المعمل", slaughter: "عهدة المجزر",
+  main: "الخزنة الرئيسية", lab: "خزنة المعمل", slaughter: "عهدة المجزر", hr: "HR",
 };
 const ADVANCE_REGEX = /سلف|advance/i;
+const isApprovedStatus = (status: string) => ["approved", "posted"].includes(status);
 const EMP_TYPE_LABEL: Record<string, string> = { monthly: "شهري", daily: "يومية", temporary: "مؤقت" };
 
 const normalize = (s: string) =>
@@ -91,7 +92,7 @@ const PrintEmployeesAdvancesDialog = ({ open, onOpenChange, employees, locations
   async function loadData() {
     setLoading(true);
     try {
-      const [aliasRes, slRes, labRes, mainRes] = await Promise.all([
+      const [aliasRes, slRes, labRes, mainRes, hrRes] = await Promise.all([
         supabase.from("hr_employee_name_aliases" as any).select("normalized_name, employee_id"),
         supabase.from("slaughter_custody_expenses")
           .select("id, expense_date, category, description, amount, beneficiary, status")
@@ -103,6 +104,9 @@ const PrintEmployeesAdvancesDialog = ({ open, onOpenChange, employees, locations
         supabase.from("main_treasury_transactions")
           .select("id, txn_date, description, amount, counterparty, status")
           .or("description.ilike.%سلف%,description.ilike.%advance%"),
+        supabase.from("hr_deductions")
+          .select("id, employee_id, deduction_date, amount, status, reason, notes")
+          .eq("deduction_type", "advance_repayment"),
       ]);
       const aliasList = (aliasRes.data as any[]) || [];
       setAliases(aliasList.map((a) => ({ normalized_name: a.normalized_name, employee_id: a.employee_id })));
@@ -160,6 +164,14 @@ const PrintEmployeesAdvancesDialog = ({ open, onOpenChange, employees, locations
           status: r.status, matchedEmployeeId: m?.id ?? null,
         });
       }
+      for (const r of (hrRes.data as any[]) || []) {
+        out.push({
+          id: r.id, source: "hr", sourceLabel: SRC_LABEL.hr,
+          date: r.deduction_date, amount: Number(r.amount) || 0,
+          description: r.reason ?? r.notes ?? "سلفة موظف معتمدة من HR", beneficiary: null,
+          status: r.status, matchedEmployeeId: r.employee_id ?? null,
+        });
+      }
       out.sort((a, b) => a.date.localeCompare(b.date));
       setAdvances(out);
     } catch (e: any) {
@@ -184,7 +196,7 @@ const PrintEmployeesAdvancesDialog = ({ open, onOpenChange, employees, locations
   // Build report data
   const report = useMemo(() => {
     const validAdv = advances.filter((a) => {
-      if (a.status === "rejected") return false;
+      if (!isApprovedStatus(a.status)) return false;
       if (fromDate && a.date < fromDate) return false;
       if (toDate && a.date > toDate) return false;
       return true;
@@ -216,7 +228,8 @@ const PrintEmployeesAdvancesDialog = ({ open, onOpenChange, employees, locations
       const bonuses = 0;
       const isDaily = e.employment_type === "daily";
       const needsAttendance = isDaily;
-      const net = needsAttendance ? null : base - totalAdv - deductions + bonuses;
+      const missingSalary = base <= 0 && totalAdv > 0;
+      const net = needsAttendance || missingSalary ? null : base - totalAdv - deductions + bonuses;
       return {
         emp: e,
         location: e.current_location_id ? locById.get(e.current_location_id)?.name ?? "—" : "—",
@@ -228,6 +241,7 @@ const PrintEmployeesAdvancesDialog = ({ open, onOpenChange, employees, locations
         bonuses,
         net,
         needsAttendance,
+        missingSalary,
       };
     });
 
@@ -267,8 +281,8 @@ const PrintEmployeesAdvancesDialog = ({ open, onOpenChange, employees, locations
         <td style="font-size:9px">${advDetail}</td>
         <td class="num">${fmtNum(r.deductions, 2)}</td>
         <td class="num">${fmtNum(r.bonuses, 2)}</td>
-        <td class="num" style="font-weight:bold;color:${r.needsAttendance ? "#999" : r.net! < 0 ? "#c00" : "#060"}">
-          ${r.needsAttendance ? "يحتاج حضور" : fmtNum(r.net!, 2)}
+        <td class="num" style="font-weight:bold;color:${r.needsAttendance || r.missingSalary ? "#b45309" : r.net! < 0 ? "#c00" : "#060"}">
+          ${r.missingSalary ? "راتب غير مسجل" : r.needsAttendance ? "يحتاج حضور" : fmtNum(r.net!, 2)}
         </td>
         <td>${r.emp.status === "active" ? "نشط" : "غير نشط"}</td>
         <td style="font-size:9px">${escapeHtml(r.emp.notes || "—")}</td>
@@ -354,7 +368,7 @@ ${report.unmatched.length ? `
       "الخزن": r.sources.join(" / "),
       "خصومات": r.deductions,
       "مكافآت": r.bonuses,
-      "المتبقي في الراتب": r.needsAttendance ? "يحتاج حضور" : r.net,
+      "المتبقي في الراتب": r.missingSalary ? "راتب الموظف غير مسجل، لا يمكن احتساب صافي الراتب" : r.needsAttendance ? "يحتاج حضور" : r.net,
       "الحالة": r.emp.status === "active" ? "نشط" : "غير نشط",
       "ملاحظات": r.emp.notes || "",
     }));
