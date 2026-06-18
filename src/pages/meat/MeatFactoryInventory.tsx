@@ -15,7 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate, COMPANY_AR } from "@/lib/printPdf";
 import * as XLSX from "xlsx";
-import { Boxes, Printer, FileSpreadsheet, ShieldAlert, Search, Pencil } from "lucide-react";
+import { Boxes, Printer, FileSpreadsheet, ShieldAlert, Search, Pencil, Plus, Trash2, Settings2 } from "lucide-react";
 
 type Kind = "raw" | "spice" | "packaging" | "finished";
 
