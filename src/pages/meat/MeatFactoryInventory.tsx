@@ -53,6 +53,26 @@ export default function MeatFactoryInventory() {
     open: false, item: null, actual: "", reason: "", notes: "",
   });
 
+  type EditState = {
+    open: boolean;
+    mode: "create" | "edit";
+    id: string | null;
+    kind: Kind;
+    code: string;
+    name: string;
+    unit: string;
+    current_stock: string;
+    avg_cost: string;
+    notes: string;
+    is_active: boolean;
+  };
+  const emptyEdit: EditState = {
+    open: false, mode: "create", id: null, kind: "raw",
+    code: "", name: "", unit: "كجم", current_stock: "0", avg_cost: "0", notes: "", is_active: true,
+  };
+  const [editDlg, setEditDlg] = useState<EditState>(emptyEdit);
+  const [delDlg, setDelDlg] = useState<{ open: boolean; item: Item | null }>({ open: false, item: null });
+
   async function load() {
     setLoading(true);
     const [rawRes, prodRes, movesRes] = await Promise.all([
