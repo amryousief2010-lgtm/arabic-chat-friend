@@ -546,9 +546,9 @@ export default function MeatFactoryInventory() {
         {/* Delete confirm */}
         <Dialog open={delDlg.open} onOpenChange={(o) => setDelDlg({ ...delDlg, open: o })}>
           <DialogContent className="max-w-md">
-            <DialogHeader><DialogTitle>تأكيد حذف البند</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>تأكيد حذف / أرشفة الصنف</DialogTitle></DialogHeader>
             <div className="space-y-2 text-sm">
-              <div>هل تريد حذف الصنف التالي نهائيًا؟</div>
+              <div>هل تريد حذف الصنف التالي؟</div>
               {delDlg.item && (
                 <div className="p-3 rounded border bg-muted/30">
                   <div><b>{delDlg.item.name}</b></div>
@@ -557,16 +557,16 @@ export default function MeatFactoryInventory() {
                   </div>
                 </div>
               )}
-              <Alert variant="destructive">
+              <Alert>
                 <ShieldAlert className="w-4 h-4" />
                 <AlertDescription className="text-xs">
-                  الحذف نهائي ولا يمكن التراجع عنه. إذا كان الصنف مستخدمًا في فواتير أو وصفات قد يفشل الحذف.
+                  إذا كان الصنف مستخدمًا في فواتير مشتريات أو حركات أو وصفات أو جرد سابق، فلن يتم حذفه نهائيًا، بل سيتم أرشفته وإخفاؤه من الاستخدام الجديد بدلًا من حذفه نهائيًا، مع الحفاظ على ظهوره في السجلات التاريخية.
                 </AlertDescription>
               </Alert>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setDelDlg({ open: false, item: null })}>إلغاء</Button>
-              <Button variant="destructive" onClick={submitDelete}>حذف نهائي</Button>
+              <Button variant="destructive" onClick={submitDelete}>حذف / أرشفة</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
