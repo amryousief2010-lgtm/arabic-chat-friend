@@ -140,6 +140,7 @@ const MeatFactoryOverviewDashboard = lazy(() => import("@/pages/meat/MeatFactory
 const MeatRecipes = lazy(() => import("@/pages/meat/MeatRecipes"));
 const MeatRawInventory = lazy(() => import("@/pages/meat/MeatRawInventory"));
 const MeatPackagingInventory = lazy(() => import("@/pages/meat/MeatPackagingInventory"));
+const MeatFactoryInventory = lazy(() => import("@/pages/meat/MeatFactoryInventory"));
 const MeatFactoryReports = lazy(() => import("@/pages/meat/MeatFactoryReports"));
 const FactoryOverview = lazy(() => import("@/pages/factory/FactoryOverview"));
 const FactoryReports = lazy(() => import("@/pages/factory/FactoryReports"));
