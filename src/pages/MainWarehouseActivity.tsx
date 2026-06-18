@@ -110,8 +110,12 @@ export default function MainWarehouseActivity() {
         .order("performed_at", { ascending: false })
         .limit(1000);
 
-      // فلتر افتراضي: من Opening Balance فقط
-      if (openAt && !showArchive) {
+      // فلتر صارم: لا تظهر أي حركة قبل تاريخ بداية التشغيل (2026-06-18) إلا للإدارة عند تفعيل الأرشيف
+      const archiveOn = isAdmin && showArchive;
+      if (!archiveOn) {
+        q = q.gte("performed_at", MAIN_WAREHOUSE_OPERATIONAL_START_ISO);
+      } else if (openAt) {
+        // الإدارة في وضع الأرشيف: عرض كل شيء من الـ Opening Balance فأقدم
         q = q.gte("performed_at", openAt);
       } else if (days !== "all") {
         const since = new Date();
