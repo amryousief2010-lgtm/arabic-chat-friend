@@ -171,6 +171,22 @@ export default function WarehouseMovementsLog() {
           <Badge variant="outline" className="gap-1"><Lock className="w-3 h-3" /> Read-only</Badge>
         </div>
 
+        <Alert className={showArchive && isGeneralManager ? "border-amber-500/40 bg-amber-500/5" : "border-primary/30 bg-primary/5"}>
+          <AlertDescription className="flex flex-col sm:flex-row sm:items-center gap-2">
+            <Archive className="w-4 h-4 shrink-0" />
+            <span className="flex-1 text-sm">
+              {showArchive && isGeneralManager
+                ? `أرشيف قبل بداية تشغيل المخزن الرئيسي — لا يؤثر على الجرد الحالي (قبل ${MAIN_WAREHOUSE_OPERATIONAL_START})`
+                : `العرض الافتراضي: من تاريخ بداية تشغيل المخزن الرئيسي ${MAIN_WAREHOUSE_OPERATIONAL_START} فقط. الحركات الأقدم محفوظة ولا تظهر هنا.`}
+            </span>
+            {isGeneralManager && (
+              <Button size="sm" variant={showArchive ? "default" : "outline"} onClick={() => setShowArchive(v => !v)}>
+                {showArchive ? "العودة للعرض التشغيلي" : "عرض أرشيف ما قبل التشغيل"}
+              </Button>
+            )}
+          </AlertDescription>
+        </Alert>
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base"><Filter className="w-4 h-4" /> فلاتر</CardTitle>
