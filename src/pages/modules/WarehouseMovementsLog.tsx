@@ -8,8 +8,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Activity, RefreshCw, Download, Lock, Filter } from "lucide-react";
+import { Activity, RefreshCw, Download, Lock, Filter, Archive } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { MAIN_WAREHOUSE_OPERATIONAL_START, MAIN_WAREHOUSE_OPERATIONAL_START_ISO } from "@/constants/warehouseOperations";
 import * as XLSX from "xlsx";
 
 interface Mov {
@@ -49,9 +51,15 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function WarehouseMovementsLog() {
+  const { isGeneralManager } = useAuth();
+  // أرشيف ما قبل بداية تشغيل المخزن الرئيسي (2026-06-18) متاح للمدير العام فقط.
+  const [showArchive, setShowArchive] = useState(false);
   const today = new Date().toISOString().slice(0, 10);
   const monthAgo = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
-  const [from, setFrom] = useState(monthAgo);
+  // العرض الافتراضي يبدأ من تاريخ بداية التشغيل أو monthAgo (أيهما أحدث) للجميع،
+  // ما لم يكن المدير العام قد فعّل وضع الأرشيف.
+  const defaultFrom = monthAgo < MAIN_WAREHOUSE_OPERATIONAL_START ? MAIN_WAREHOUSE_OPERATIONAL_START : monthAgo;
+  const [from, setFrom] = useState(defaultFrom);
   const [to, setTo] = useState(today);
   const [whFilter, setWhFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
@@ -71,10 +79,16 @@ export default function WarehouseMovementsLog() {
       const { data: whs } = await supabase.from("warehouses").select("id, name");
       setWarehouses((whs || []) as any);
 
+      // فرض حد أدنى للتاريخ = بداية تشغيل المخزن الرئيسي للجميع، ما لم يكن المدير العام في وضع الأرشيف.
+      const archiveOn = isGeneralManager && showArchive;
+      const effectiveFrom = archiveOn
+        ? from + "T00:00:00"
+        : (from < MAIN_WAREHOUSE_OPERATIONAL_START ? MAIN_WAREHOUSE_OPERATIONAL_START_ISO : from + "T00:00:00");
+
       let q = supabase
         .from("inventory_movements")
         .select("id, movement_no, performed_at, warehouse_id, destination_warehouse_id, source_warehouse_id, item_id, movement_type, quantity, unit_cost, reference_id, reference_type, performed_by, reason, notes, approval_status, module")
-        .gte("performed_at", from + "T00:00:00")
+        .gte("performed_at", effectiveFrom)
         .lte("performed_at", to + "T23:59:59")
         .order("performed_at", { ascending: false })
         .limit(1000);
@@ -156,6 +170,22 @@ export default function WarehouseMovementsLog() {
           </div>
           <Badge variant="outline" className="gap-1"><Lock className="w-3 h-3" /> Read-only</Badge>
         </div>
+
+        <Alert className={showArchive && isGeneralManager ? "border-amber-500/40 bg-amber-500/5" : "border-primary/30 bg-primary/5"}>
+          <AlertDescription className="flex flex-col sm:flex-row sm:items-center gap-2">
+            <Archive className="w-4 h-4 shrink-0" />
+            <span className="flex-1 text-sm">
+              {showArchive && isGeneralManager
+                ? `أرشيف قبل بداية تشغيل المخزن الرئيسي — لا يؤثر على الجرد الحالي (قبل ${MAIN_WAREHOUSE_OPERATIONAL_START})`
+                : `العرض الافتراضي: من تاريخ بداية تشغيل المخزن الرئيسي ${MAIN_WAREHOUSE_OPERATIONAL_START} فقط. الحركات الأقدم محفوظة ولا تظهر هنا.`}
+            </span>
+            {isGeneralManager && (
+              <Button size="sm" variant={showArchive ? "default" : "outline"} onClick={() => setShowArchive(v => !v)}>
+                {showArchive ? "العودة للعرض التشغيلي" : "عرض أرشيف ما قبل التشغيل"}
+              </Button>
+            )}
+          </AlertDescription>
+        </Alert>
 
         <Card>
           <CardHeader>

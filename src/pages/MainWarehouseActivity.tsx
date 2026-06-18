@@ -68,8 +68,10 @@ const isOut = (mt: string, qty: number) =>
   ["out","stock_out","sales_dispatch","waste_loss"].includes(mt) || qty < 0;
 
 export default function MainWarehouseActivity() {
-  const { isGeneralManager, isExecutiveManager } = useAuth();
-  const isAdmin = isGeneralManager || isExecutiveManager;
+  const { isGeneralManager } = useAuth();
+  // أرشيف ما قبل بداية تشغيل المخزن الرئيسي (2026-06-18) متاح للمدير العام فقط.
+  // المدير التنفيذي ومسؤول/مشرف المخزن لا يرون الأرشيف ولا زر التبديل.
+  const isAdmin = isGeneralManager;
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<Row[]>([]);
   const [search, setSearch] = useState("");
