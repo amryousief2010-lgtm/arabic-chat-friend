@@ -716,6 +716,20 @@ export default function SlaughterhouseCustody() {
                           {isKeeper && e.status === "clarification_needed" && (
                             <Button size="sm" variant="outline" onClick={() => setCommentDlg({ open: true, exp: e, body: "" })}><MessageSquare className="w-3 h-3 ml-1" />رد</Button>
                           )}
+                          {canEditAny && (
+                            <Button size="sm" variant="outline" title="تعديل المصروف" onClick={() => setEditDlg({
+                              open: true, exp: e,
+                              form: {
+                                expense_date: e.expense_date,
+                                category: e.category,
+                                description: e.description || "",
+                                amount: String(e.amount),
+                                payment_method: e.payment_method,
+                                beneficiary: e.beneficiary || "",
+                                notes: e.notes || "",
+                              }
+                            })}>تعديل</Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     );
