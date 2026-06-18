@@ -126,6 +126,63 @@ export default function MeatFactoryInventory() {
     return { count: filtered.length, qty, value };
   }, [filtered]);
 
+  function openCreate() {
+    setEditDlg({ ...emptyEdit, open: true, mode: "create", kind: fKind === "all" || fKind === "finished" ? "raw" : fKind });
+  }
+  function openEdit(i: Item) {
+    if (i.kind === "finished") {
+      toast.error("تعديل المنتجات المصنعة يتم من شاشة منتجات مصنع اللحوم");
+      return;
+    }
+    setEditDlg({
+      open: true, mode: "edit", id: i.id, kind: i.kind,
+      code: i.code || "", name: i.name, unit: i.unit,
+      current_stock: String(i.current_stock), avg_cost: String(i.avg_cost),
+      notes: i.notes || "", is_active: i.is_active,
+    });
+  }
+  async function submitEdit() {
+    if (!editDlg.name.trim()) return toast.error("اسم الصنف مطلوب");
+    const qty = Number(editDlg.current_stock);
+    const cost = Number(editDlg.avg_cost);
+    if (!isFinite(qty) || qty < 0) return toast.error("الكمية غير صحيحة");
+    if (!isFinite(cost) || cost < 0) return toast.error("التكلفة غير صحيحة");
+    const payload: any = {
+      kind: editDlg.kind,
+      code: editDlg.code.trim() || null,
+      name: editDlg.name.trim(),
+      unit: editDlg.unit.trim() || "كجم",
+      current_stock: qty,
+      avg_cost: cost,
+      notes: editDlg.notes.trim() || null,
+      is_active: editDlg.is_active,
+    };
+    let error: any = null;
+    if (editDlg.mode === "create") {
+      const res = await (supabase as any).from("meat_factory_raw_items").insert(payload);
+      error = res.error;
+    } else {
+      const res = await (supabase as any).from("meat_factory_raw_items").update(payload).eq("id", editDlg.id);
+      error = res.error;
+    }
+    if (error) return toast.error("فشل الحفظ: " + error.message);
+    toast.success(editDlg.mode === "create" ? "تم إضافة الصنف" : "تم تحديث الصنف");
+    setEditDlg(emptyEdit);
+    load();
+  }
+  async function submitDelete() {
+    if (!delDlg.item) return;
+    if (delDlg.item.kind === "finished") {
+      toast.error("حذف المنتجات المصنعة يتم من شاشة منتجات مصنع اللحوم");
+      return;
+    }
+    const { error } = await (supabase as any).from("meat_factory_raw_items").delete().eq("id", delDlg.item.id);
+    if (error) return toast.error("فشل الحذف: " + error.message);
+    toast.success("تم حذف الصنف");
+    setDelDlg({ open: false, item: null });
+    load();
+  }
+
   async function submitAdjust() {
     if (!adjDlg.item) return;
     const actual = Number(adjDlg.actual);
