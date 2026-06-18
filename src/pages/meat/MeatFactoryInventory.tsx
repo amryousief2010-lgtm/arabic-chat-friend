@@ -378,11 +378,23 @@ export default function MeatFactoryInventory() {
                   </TableCell>
                   <TableCell>
                     {canAdjust && (
-                      <Button size="sm" variant="outline" className="gap-1" onClick={() => setAdjDlg({
-                        open: true, item: i, actual: String(i.current_stock), reason: "", notes: "",
-                      })}>
-                        <Pencil className="w-3 h-3" /> تسوية
-                      </Button>
+                      <div className="flex gap-1 flex-wrap">
+                        <Button size="sm" variant="outline" className="gap-1" onClick={() => setAdjDlg({
+                          open: true, item: i, actual: String(i.current_stock), reason: "", notes: "",
+                        })}>
+                          <Pencil className="w-3 h-3" /> تسوية
+                        </Button>
+                        {i.kind !== "finished" && (
+                          <>
+                            <Button size="sm" variant="secondary" className="gap-1" onClick={() => openEdit(i)}>
+                              <Settings2 className="w-3 h-3" /> تعديل
+                            </Button>
+                            <Button size="sm" variant="destructive" className="gap-1" onClick={() => setDelDlg({ open: true, item: i })}>
+                              <Trash2 className="w-3 h-3" /> حذف
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     )}
                   </TableCell>
                 </TableRow>
