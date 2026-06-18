@@ -68,6 +68,8 @@ const isOut = (mt: string, qty: number) =>
   ["out","stock_out","sales_dispatch","waste_loss"].includes(mt) || qty < 0;
 
 export default function MainWarehouseActivity() {
+  const { isGeneralManager, isExecutiveManager } = useAuth();
+  const isAdmin = isGeneralManager || isExecutiveManager;
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<Row[]>([]);
   const [search, setSearch] = useState("");
@@ -75,7 +77,8 @@ export default function MainWarehouseActivity() {
   const [sourceCat, setSourceCat] = useState<string>("all");
   const [days, setDays] = useState<"7" | "30" | "90" | "all">("30");
   const [openingAt, setOpeningAt] = useState<string | null>(null);
-  // العرض الافتراضي = من Opening Balance فقط. الأرشيف القديم اختياري.
+  // العرض الافتراضي = من تاريخ بداية تشغيل المخزن الرئيسي (2026-06-18) فقط.
+  // الأرشيف القديم متاح للإدارة فقط (المدير العام / التنفيذي).
   const [showArchive, setShowArchive] = useState(false);
 
   const fetchAll = async () => {
