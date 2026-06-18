@@ -359,7 +359,7 @@ export default function WarehouseOpeningBalance() {
         <Tabs value={activeWh} onValueChange={setActiveWh}>
           <TabsList>
             {warehouses.map((w) => (
-              <TabsTrigger key={w.id} value={w.id}>{w.name}</TabsTrigger>
+              <TabsTrigger key={w.id} value={w.id}>{displayWarehouseName(w.name)}</TabsTrigger>
             ))}
           </TabsList>
 
