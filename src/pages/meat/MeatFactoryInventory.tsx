@@ -417,6 +417,11 @@ export default function MeatFactoryInventory() {
                             <Button size="sm" variant="destructive" className="gap-1" onClick={() => setDelDlg({ open: true, item: i })}>
                               <Trash2 className="w-3 h-3" /> حذف
                             </Button>
+                            {!i.is_active && (
+                              <Button size="sm" variant="outline" className="gap-1 border-emerald-500 text-emerald-700" onClick={() => reactivateItem(i)}>
+                                إعادة تفعيل
+                              </Button>
+                            )}
                           </>
                         )}
                       </div>
