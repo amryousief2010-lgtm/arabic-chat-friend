@@ -5827,6 +5827,13 @@ export type Database = {
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "hr_deductions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "v_hr_employee_monthly_payroll"
+            referencedColumns: ["employee_id"]
+          },
         ]
       }
       hr_employee_documents: {
@@ -5889,6 +5896,13 @@ export type Database = {
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "hr_employee_documents_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "v_hr_employee_monthly_payroll"
+            referencedColumns: ["employee_id"]
+          },
         ]
       }
       hr_employee_name_aliases: {
@@ -5939,6 +5953,13 @@ export type Database = {
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "hr_employee_name_aliases_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "v_hr_employee_monthly_payroll"
+            referencedColumns: ["employee_id"]
+          },
         ]
       }
       hr_employee_transfers: {
@@ -5982,6 +6003,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_employee_transfers_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "v_hr_employee_monthly_payroll"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_employee_transfers_from_location_id_fkey"
@@ -15488,6 +15516,24 @@ export type Database = {
         }
         Relationships: []
       }
+      v_hr_employee_monthly_payroll: {
+        Row: {
+          absence_approved: number | null
+          advances_approved: number | null
+          base_salary: number | null
+          days_deduction_approved: number | null
+          department: string | null
+          employee_id: string | null
+          employee_name: string | null
+          month: number | null
+          net_salary: number | null
+          other_deductions_approved: number | null
+          pending_total: number | null
+          total_deductions_approved: number | null
+          year: number | null
+        }
+        Relationships: []
+      }
       v_hr_treasury_advances: {
         Row: {
           advance_date: string | null
@@ -15513,6 +15559,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_deductions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "v_hr_employee_monthly_payroll"
+            referencedColumns: ["employee_id"]
           },
         ]
       }
