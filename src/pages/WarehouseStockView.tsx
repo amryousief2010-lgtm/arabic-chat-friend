@@ -355,6 +355,25 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
     <DashboardLayout>
       <Header title={title} subtitle={subtitle} />
 
+      {scope === "main" && (
+        <Card className="mb-3 border-amber-500/40 bg-amber-500/5">
+          <CardContent className="p-3 flex items-center gap-3 text-sm">
+            <div className="p-2 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-300">
+              <Lock className="w-4 h-4" />
+            </div>
+            <div className="flex-1">
+              <div className="text-xs text-muted-foreground">تاريخ بداية تشغيل المخزن الرئيسي (Cut-off)</div>
+              <div className="font-semibold">
+                الجرد اليدوي الحالي معتمد كنقطة بداية رسمية بتاريخ {MAIN_WAREHOUSE_OPERATIONAL_START}
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                الأوردرات المسجلة قبل هذا التاريخ لا تُخصم ولا تدخل في المحجوز للمخزن الرئيسي. فقط الأوردرات من {MAIN_WAREHOUSE_OPERATIONAL_START} وما بعدها هي التي تؤثر على المخزن الرئيسي.
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {scope === "main" && mainOpeningAt && (
         <Card className="mb-3 border-primary/30 bg-primary/5">
           <CardContent className="p-3 flex items-center gap-3 text-sm">
