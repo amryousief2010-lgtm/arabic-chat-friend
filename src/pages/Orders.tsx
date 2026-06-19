@@ -286,7 +286,7 @@ const Orders = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 350);
+    const t = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 800);
     return () => clearTimeout(t);
   }, [searchQuery]);
   const now = new Date();
@@ -582,7 +582,7 @@ const Orders = () => {
   const filteredOrders = useMemo(() => orders.filter((order) => {
     const matchesStatus =
       filterStatus === "all" || order.status === filterStatus;
-    const q = searchQuery.trim().toLowerCase();
+    const q = debouncedSearch.trim().toLowerCase();
     const normalizedPhoneQuery = q.replace(/[^\d]/g, "");
     const normalizedOrderPhone = (order.customer_phone || "").replace(/[^\d]/g, "");
     const routeName = (order.route_name || "").toLowerCase();
@@ -637,7 +637,7 @@ const Orders = () => {
       (!isWarehouseSupervisor && !isExecutiveManager) ||
       new Date(order.created_at) >= new Date('2026-06-18T00:00:00+02:00');
     return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment && matchesRoute && matchesWarehouseScope && matchesOperationalStart;
-  }), [orders, filterStatus, searchQuery, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, filterFulfillment, filterRoute, isWarehouseSupervisor, isGeneralManager, isExecutiveManager]);
+  }), [orders, filterStatus, debouncedSearch, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, filterFulfillment, filterRoute, isWarehouseSupervisor, isGeneralManager, isExecutiveManager]);
 
   const availableGovernorates = Array.from(
     new Set(orders.map(o => (o.governorate || "").trim()).filter(Boolean))
