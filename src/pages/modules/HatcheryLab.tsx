@@ -325,7 +325,8 @@ function computeStage(b: any, settings: any): { stage: StageKey; expCandle1?: st
     (b.candle1_infertile || 0) > 0 ||
     (b.candle2_dead || 0) > 0 ||
     (b.hatcher_dead || 0) > 0;
-  if (b.status === "completed" || b.exit_date || hasResults) {
+  const closedStatuses = new Set(["completed","closed","delivered","received_by_customer","finished","settled","cancelled","exited","done"]);
+  if ((b.status && closedStatuses.has(String(b.status).toLowerCase())) || b.exit_date || hasResults) {
     return { stage: "completed", expCandle1, expCandle2, expExit, daysIn };
   }
   if (b.status === "in_hatcher") {
