@@ -77,6 +77,7 @@ const HatcheryImport = lazy(() => import("@/pages/hatchery/HatcheryImport"));
 const HatchBatchesImport = lazy(() => import("@/pages/hatchery/HatchBatchesImport"));
 const HatchBatchesReview = lazy(() => import("@/pages/hatchery/HatchBatchesReview"));
 const HatcheryCustomerStatements = lazy(() => import("@/pages/hatchery/HatcheryCustomerStatements"));
+const HatcheryOperationalStatement = lazy(() => import("@/pages/hatchery/HatcheryOperationalStatement"));
 const HatchBatchEditAudit = lazy(() => import("@/pages/hatchery/HatchBatchEditAudit"));
 const HatchTestData = lazy(() => import("@/pages/hatchery/HatchTestData"));
 const LabCustomerReconciliation = lazy(() => import("@/pages/hatchery/LabCustomerReconciliation"));
