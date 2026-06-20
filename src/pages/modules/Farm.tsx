@@ -872,15 +872,26 @@ const TransfersTab = ({ transfers, families, eggs = [], qc }: any) => {
   const [autoLoading, setAutoLoading] = useState(false);
   const [selectedDays, setSelectedDays] = useState<Set<string>>(new Set());
 
+  // Window for "available days" — defaults to last 7 days (today-6 .. today).
+  // Old historical days are hidden unless the user widens the window.
+  const defaultWinFrom = useMemo(() => {
+    const d = new Date(); d.setDate(d.getDate() - 6);
+    return d.toISOString().slice(0, 10);
+  }, []);
+  const [winFrom, setWinFrom] = useState<string>(defaultWinFrom);
+  const [winTo, setWinTo] = useState<string>(today());
+
   // Per-day availability based on per-(family,date) production minus transferred quantity.
-  // This guarantees days like 18-06-2026 appear whenever they still have un-transferred eggs,
-  // independently of timezones or "last transfer date per family".
+  // Filtered to the current transfer-window [winFrom..winTo] so old historical days
+  // (e.g. January) do not appear in the picker.
   const availableDays = useMemo(() => {
     const td = today();
     const prod = new Map<string, { date: string; family_id: string; produced: number }>();
     (eggs || []).forEach((e: any) => {
       if (!e.family_id || !e.production_date) return;
       if (e.production_date > td) return;
+      if (winFrom && e.production_date < winFrom) return;
+      if (winTo && e.production_date > winTo) return;
       const k = `${e.family_id}|${e.production_date}`;
       const cur = prod.get(k) || { date: e.production_date, family_id: e.family_id, produced: 0 };
       cur.produced += Number(e.egg_count) || 0;
@@ -909,7 +920,8 @@ const TransfersTab = ({ transfers, families, eggs = [], qc }: any) => {
     return Array.from(byDay.values())
       .filter((d) => d.produced > 0)
       .sort((a, b) => a.date.localeCompare(b.date));
-  }, [eggs, transfers]);
+  }, [eggs, transfers, winFrom, winTo]);
+
 
   const toggleDay = (d: string) => setSelectedDays((prev) => {
     const n = new Set(prev); n.has(d) ? n.delete(d) : n.add(d); return n;
