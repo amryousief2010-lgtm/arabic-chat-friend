@@ -38,6 +38,7 @@ import { exportOrdersToCSV, exportOrdersToPDF, exportOrdersToXLSX } from "@/util
 import EditOrderItemsDialog from "@/components/orders/EditOrderItemsDialog";
 import SwapOfferDialog from "@/components/orders/SwapOfferDialog";
 import AddOfferDialog from "@/components/orders/AddOfferDialog";
+import EditAddressWarehouseDialog from "@/components/orders/EditAddressWarehouseDialog";
 import DiscrepancyBanner from "@/components/orders/DiscrepancyBanner";
 import {
   AlertDialog,
@@ -236,6 +237,7 @@ const Orders = () => {
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [swapOfferOrder, setSwapOfferOrder] = useState<Order | null>(null);
   const [addOfferOrder, setAddOfferOrder] = useState<Order | null>(null);
+  const [editAddressOrder, setEditAddressOrder] = useState<Order | null>(null);
 
   const handlePrintOrder = (order: Order) => {
     printOrderInvoice({
@@ -1246,6 +1248,11 @@ const Orders = () => {
                         </Button>
                       )}
                       {canEditThisOrder(order) && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditAddressOrder(order)} title="تعديل العنوان ومخزن الاستلام">
+                          <MapPin className="w-4 h-4 text-primary" />
+                        </Button>
+                      )}
+                      {canEditThisOrder(order) && (
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setAddOfferOrder(order)} title="إضافة بوكس / عرض">
                           <PackagePlus className="w-4 h-4 text-primary" />
                         </Button>
@@ -1792,6 +1799,20 @@ const Orders = () => {
           onSaved={() => {
             setEditingOrder(null);
             fetchOrders();
+          }}
+        />
+      )}
+
+      {editAddressOrder && (
+        <EditAddressWarehouseDialog
+          open={!!editAddressOrder}
+          onOpenChange={(o) => !o && setEditAddressOrder(null)}
+          orderId={editAddressOrder.id}
+          initialAddress={editAddressOrder.delivery_address}
+          initialWarehouseId={editAddressOrder.source_warehouse_id}
+          onSaved={(next) => {
+            setOrders((prev) => prev.map((o) => o.id === editAddressOrder.id ? { ...o, ...next } : o));
+            setEditAddressOrder(null);
           }}
         />
       )}
