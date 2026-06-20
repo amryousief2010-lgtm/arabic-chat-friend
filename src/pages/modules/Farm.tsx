@@ -962,6 +962,22 @@ const ShipmentsLogPanel = ({ families, qc }: any) => {
   const [editRows, setEditRows] = useState<any[]>([]);
   const [editNotes, setEditNotes] = useState("");
 
+  // Source 1: farm_transfers (always present — the actual transfer action).
+  // Source 2: farm_to_hatchery_shipments (lab-side reception; may be absent until generated).
+  // Both grouped by transfer_batch_id so one click = one row, even across multiple days.
+  const { data: transfers = [] } = useQuery({
+    queryKey: ["farm-transfers-log"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("farm_transfers")
+        .select("id, transfer_batch_id, transfer_date, family_id, quantity, notes, created_at")
+        .order("created_at", { ascending: false })
+        .limit(5000);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   const { data: shipments = [] } = useQuery({
     queryKey: ["farm-to-hatchery-shipments-log"],
     queryFn: async () => {
@@ -969,7 +985,7 @@ const ShipmentsLogPanel = ({ families, qc }: any) => {
         .from("farm_to_hatchery_shipments")
         .select("id, farm_transfer_id, transfer_batch_id, production_id, family_id, family_number, production_date, egg_count, status, hatch_batch_id, created_at, receipt_notes")
         .order("created_at", { ascending: false })
-        .limit(2000);
+        .limit(5000);
       if (error) throw error;
       return data || [];
     },
@@ -978,49 +994,64 @@ const ShipmentsLogPanel = ({ families, qc }: any) => {
   const familyName = (id: string) => families?.find((f: any) => f.id === id)?.family_number || "—";
 
   const batches = useMemo(() => {
-    const map = new Map<string, any>();
+    // Index shipments by their batch key for lookup
+    const shipByKey = new Map<string, any[]>();
     (shipments as any[]).forEach((s) => {
-      const key = s.transfer_batch_id || s.farm_transfer_id || s.id;
+      const k = s.transfer_batch_id || s.farm_transfer_id;
+      if (!k) return;
+      if (!shipByKey.has(k)) shipByKey.set(k, []);
+      shipByKey.get(k)!.push(s);
+    });
+
+    // Group farm_transfers by transfer_batch_id (fallback: notes + created_at second)
+    const map = new Map<string, any>();
+    (transfers as any[]).forEach((t) => {
+      const key =
+        t.transfer_batch_id ||
+        `legacy:${t.notes || ""}|${String(t.created_at).slice(0, 19)}`;
       const cur = map.get(key) || {
         key,
-        transfer_batch_id: s.transfer_batch_id || null,
-        rows: [] as any[],
+        transfer_batch_id: t.transfer_batch_id || null,
+        transfers: [] as any[],
         total_eggs: 0,
-        min_date: s.production_date,
-        max_date: s.production_date,
-        created_at: s.created_at,
-        statuses: new Set<string>(),
-        hatch_batch_ids: new Set<string>(),
+        min_date: t.transfer_date,
+        max_date: t.transfer_date,
+        created_at: t.created_at,
         days: new Set<string>(),
+        notes: t.notes || "",
       };
-      cur.rows.push(s);
-      cur.total_eggs += Number(s.egg_count) || 0;
-      if (s.production_date < cur.min_date) cur.min_date = s.production_date;
-      if (s.production_date > cur.max_date) cur.max_date = s.production_date;
-      if (s.created_at < cur.created_at) cur.created_at = s.created_at;
-      cur.statuses.add(s.status);
-      if (s.hatch_batch_id) cur.hatch_batch_ids.add(s.hatch_batch_id);
-      cur.days.add(s.production_date);
+      cur.transfers.push(t);
+      cur.total_eggs += Number(t.quantity) || 0;
+      if (t.transfer_date < cur.min_date) cur.min_date = t.transfer_date;
+      if (t.transfer_date > cur.max_date) cur.max_date = t.transfer_date;
+      if (t.created_at < cur.created_at) cur.created_at = t.created_at;
+      cur.days.add(t.transfer_date);
       map.set(key, cur);
     });
+
     const arr = Array.from(map.values()).map((b) => {
-      const hasHatch = b.hatch_batch_ids.size > 0;
-      const allReceived = b.rows.every((r: any) => r.status === "received");
-      const allPending = b.rows.every((r: any) => r.status === "pending");
-      const status = hasHatch || allReceived ? "received" : allPending ? "pending" : "partial";
-      const notesSample = b.rows.map((r: any) => r.receipt_notes).filter(Boolean)[0] || "";
+      const ships: any[] = (b.transfer_batch_id && shipByKey.get(b.transfer_batch_id)) || [];
+      const hatchIds = Array.from(new Set(ships.map((s: any) => s.hatch_batch_id).filter(Boolean)));
+      const hasHatch = hatchIds.length > 0;
+      const allReceived = ships.length > 0 && ships.every((s: any) => s.status === "received");
+      const allPending = ships.length === 0 || ships.every((s: any) => s.status === "pending");
+      const anyRejected = ships.some((s: any) => s.status === "rejected");
+      const status =
+        hasHatch || allReceived ? "received" :
+        anyRejected ? "rejected" :
+        allPending ? "pending" : "partial";
       return {
         ...b,
         day_count: b.days.size,
+        ship_rows: ships,
         status,
-        hatch_batch_id: Array.from(b.hatch_batch_ids)[0] || null,
-        notes: notesSample,
+        hatch_batch_id: hatchIds[0] || null,
         editable: status === "pending" && !hasHatch,
       };
     });
     arr.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
     return arr;
-  }, [shipments]);
+  }, [transfers, shipments]);
 
   const filtered = useMemo(() => {
     return batches.filter((b) => {
@@ -1048,8 +1079,8 @@ const ShipmentsLogPanel = ({ families, qc }: any) => {
   const cancelBatch = useMutation({
     mutationFn: async (batch: any) => {
       if (!batch.editable) throw new Error("لا يمكن إلغاء دفعة مرتبطة أو مستلمة");
-      const shipIds = batch.rows.map((r: any) => r.id);
-      const transferIds = Array.from(new Set(batch.rows.map((r: any) => r.farm_transfer_id).filter(Boolean)));
+      const shipIds = (batch.ship_rows || []).map((r: any) => r.id);
+      const transferIds = (batch.transfers || []).map((r: any) => r.id);
       if (shipIds.length) {
         const { error } = await (supabase as any).from("farm_to_hatchery_shipments").delete().in("id", shipIds);
         if (error) throw error;
@@ -1058,11 +1089,12 @@ const ShipmentsLogPanel = ({ families, qc }: any) => {
         const { error } = await supabase.from("farm_transfers").delete().in("id", transferIds as string[]);
         if (error) throw error;
       }
-      return shipIds.length;
+      return transferIds.length;
     },
     onSuccess: (n) => {
-      toast.success(`تم إلغاء دفعة النقل (${n} سجل) — رجع البيض كغير منقول`);
+      toast.success(`تم إلغاء دفعة النقل (${n} حركة) — رجع البيض كغير منقول`);
       qc.invalidateQueries({ queryKey: ["farm-to-hatchery-shipments-log"] });
+      qc.invalidateQueries({ queryKey: ["farm-transfers-log"] });
       qc.invalidateQueries({ queryKey: ["farm_transfers"] });
       qc.invalidateQueries({ queryKey: ["farm-to-hatchery-shipments"] });
     },
