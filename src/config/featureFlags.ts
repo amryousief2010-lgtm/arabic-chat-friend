@@ -14,7 +14,16 @@ export const FEATURE_FLAGS = {
    * كل الحركات اليدوية القديمة محفوظة في سجل الحركات.
    */
   allow_manual_main_warehouse_stock_addition: true,
+  /**
+   * مؤقتًا: السماح بإضافة رصيد / توريد مباشر يدوي لأي مخزن (الرئيسي،
+   * العجوزة، مخازن العملاء، ... إلخ) بدون تحويل داخلي ولا فاتورة ولا حركة
+   * خزنة. عند الإيقاف: يختفي زر "إضافة رصيد / توريد مباشر" من كل المخازن
+   * ويُستأنف الاعتماد على التحويلات الداخلية الرسمية. الحركات القديمة
+   * تبقى محفوظة في سجل الحركات.
+   */
+  allow_manual_warehouse_stock_addition: true,
 } as const;
+
 
 export type FeatureFlagKey = keyof typeof FEATURE_FLAGS;
 
