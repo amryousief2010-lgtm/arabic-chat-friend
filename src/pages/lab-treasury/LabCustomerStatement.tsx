@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Printer, FileDown } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate } from "@/lib/printPdf";
 import { toast } from "sonner";
 
@@ -59,6 +60,8 @@ export default function LabCustomerStatement() {
   const [to, setTo] = useState<string>(params.get("to") || "");
   const [batchFilter, setBatchFilter] = useState<string>("");
   const [rows, setRows] = useState<LedgerRow[]>([]);
+  const [lotsByBatch, setLotsByBatch] = useState<Record<string, { eggs_in: number; hatch_mortality: number }>>({});
+  const [quantitiesOnly, setQuantitiesOnly] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -80,7 +83,7 @@ export default function LabCustomerStatement() {
   }, []);
 
   useEffect(() => {
-    if (!customerId) { setRows([]); return; }
+    if (!customerId) { setRows([]); setLotsByBatch({}); return; }
     setLoading(true);
     let q = supabase
       .from("lab_customer_ledger")
@@ -90,9 +93,16 @@ export default function LabCustomerStatement() {
       .order("created_at", { ascending: true });
     if (from) q = q.gte("entry_date", from);
     if (to) q = q.lte("entry_date", to);
-    q.then(({ data, error }) => {
-      if (error) toast.error(error.message);
-      let list = (data || []) as LedgerRow[];
+    Promise.all([
+      q,
+      supabase
+        .from("hatchery_batch_lots")
+        .select("eggs_in,hatch_mortality_count,completed_unhatched,chicks_hatched,transferred_count,hatchery_batches!inner(batch_number)")
+        .eq("client_id", customerId)
+        .eq("cancelled", false),
+    ]).then(([ledRes, lotRes]: any) => {
+      if (ledRes.error) toast.error(ledRes.error.message);
+      let list = (ledRes.data || []) as LedgerRow[];
       if (batchFilter.trim()) {
         const b = batchFilter.trim();
         list = list.filter(r =>
@@ -101,6 +111,15 @@ export default function LabCustomerStatement() {
         );
       }
       setRows(list);
+      const map: Record<string, { eggs_in: number; hatch_mortality: number }> = {};
+      (lotRes.data || []).forEach((l: any) => {
+        const key = String(l.hatchery_batches?.batch_number ?? "");
+        if (!key) return;
+        const hm = Number(l.hatch_mortality_count) || Math.max(0, (Number(l.transferred_count)||0) - (Number(l.chicks_hatched)||0) - (Number(l.completed_unhatched)||0));
+        const prev = map[key] || { eggs_in: 0, hatch_mortality: 0 };
+        map[key] = { eggs_in: prev.eggs_in + (Number(l.eggs_in)||0), hatch_mortality: prev.hatch_mortality + hm };
+      });
+      setLotsByBatch(map);
       setLoading(false);
     });
     setParams(prev => {
@@ -199,7 +218,11 @@ export default function LabCustomerStatement() {
     <div className="space-y-4" dir="rtl">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h1 className="text-2xl font-bold">كشف حساب عملاء معمل التفريخ</h1>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <Switch checked={quantitiesOnly} onCheckedChange={setQuantitiesOnly} />
+            <span>كميات فقط (إخفاء الأرقام المالية)</span>
+          </label>
           <Button variant="outline" onClick={exportCsv} disabled={!rows.length}>
             <FileDown className="w-4 h-4 ml-1" />Excel/CSV
           </Button>
@@ -256,59 +279,73 @@ export default function LabCustomerStatement() {
               <TableHead>الدفعة</TableHead>
               <TableHead>نوع الحركة</TableHead>
               <TableHead>البيان</TableHead>
+              <TableHead>بيض داخل</TableHead>
               <TableHead>لايح</TableHead>
-              <TableHead>قيمة لايح</TableHead>
+              {!quantitiesOnly && <TableHead>قيمة لايح</TableHead>}
               <TableHead>كشف 2</TableHead>
-              <TableHead>قيمة كشف 2</TableHead>
+              {!quantitiesOnly && <TableHead>قيمة كشف 2</TableHead>}
+              <TableHead>نافق هاتش</TableHead>
+              {!quantitiesOnly && <TableHead>قيمة نافق هاتش</TableHead>}
               <TableHead>كتاكيت</TableHead>
-              <TableHead>قيمة كتاكيت</TableHead>
+              {!quantitiesOnly && <TableHead>قيمة كتاكيت</TableHead>}
               <TableHead>تحضين</TableHead>
-              <TableHead>خصم</TableHead>
-              <TableHead>مدين</TableHead>
-              <TableHead>دائن</TableHead>
-              <TableHead>الرصيد</TableHead>
-              <TableHead>طريقة الدفع</TableHead>
-              <TableHead>تأثير الخزنة</TableHead>
-              <TableHead>إيصال</TableHead>
+              {!quantitiesOnly && <>
+                <TableHead>خصم</TableHead>
+                <TableHead>مدين</TableHead>
+                <TableHead>دائن</TableHead>
+                <TableHead>الرصيد</TableHead>
+                <TableHead>طريقة الدفع</TableHead>
+                <TableHead>تأثير الخزنة</TableHead>
+                <TableHead>إيصال</TableHead>
+              </>}
               <TableHead>ملاحظات</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {!customerId && (
-              <TableRow><TableCell colSpan={19} className="text-center text-muted-foreground py-8">اختر عميلًا لعرض كشف الحساب</TableCell></TableRow>
+              <TableRow><TableCell colSpan={20} className="text-center text-muted-foreground py-8">اختر عميلًا لعرض كشف الحساب</TableCell></TableRow>
             )}
             {customerId && loading && (
-              <TableRow><TableCell colSpan={19} className="text-center py-8">جاري التحميل…</TableCell></TableRow>
+              <TableRow><TableCell colSpan={20} className="text-center py-8">جاري التحميل…</TableCell></TableRow>
             )}
             {customerId && !loading && rows.length === 0 && (
-              <TableRow><TableCell colSpan={19} className="text-center text-muted-foreground py-8">لا توجد حركات</TableCell></TableRow>
+              <TableRow><TableCell colSpan={20} className="text-center text-muted-foreground py-8">لا توجد حركات</TableCell></TableRow>
             )}
             {rows.map(r => {
               const ti = treasuryImpact(r);
+              const key = String(r.operational_batch_no ?? r.batch_number ?? "");
+              const lot = lotsByBatch[key];
+              const eggsIn = r.entry_type === "batch_charge" ? (lot?.eggs_in || 0) : 0;
+              const hatchMort = r.entry_type === "batch_charge" ? (lot?.hatch_mortality || 0) : 0;
               return (
               <TableRow key={r.id}>
                 <TableCell className="whitespace-nowrap text-xs">{r.entry_date}</TableCell>
                 <TableCell className="text-xs">{r.operational_batch_no ?? r.batch_number ?? "—"}</TableCell>
                 <TableCell><Badge variant={r.entry_type === "batch_charge" ? "destructive" : "secondary"}>{ENTRY_LABEL[r.entry_type] || r.entry_type}</Badge></TableCell>
                 <TableCell className="text-xs max-w-[200px] truncate">{r.description || "—"}</TableCell>
+                <TableCell className="text-xs font-medium">{eggsIn ? fmtNum(eggsIn) : "—"}</TableCell>
                 <TableCell className="text-xs">{r.infertile_eggs || "—"}</TableCell>
-                <TableCell className="text-xs">{r.infertile_eggs ? fmtNum(r.infertile_eggs * 50) : "—"}</TableCell>
+                {!quantitiesOnly && <TableCell className="text-xs">{r.infertile_eggs ? fmtNum(r.infertile_eggs * 50) : "—"}</TableCell>}
                 <TableCell className="text-xs">{r.candle2_dead || "—"}</TableCell>
-                <TableCell className="text-xs">{r.candle2_dead ? fmtNum(r.candle2_dead * 100) : "—"}</TableCell>
+                {!quantitiesOnly && <TableCell className="text-xs">{r.candle2_dead ? fmtNum(r.candle2_dead * 100) : "—"}</TableCell>}
+                <TableCell className="text-xs">{hatchMort || "—"}</TableCell>
+                {!quantitiesOnly && <TableCell className="text-xs">{hatchMort ? fmtNum(hatchMort * 100) : "—"}</TableCell>}
                 <TableCell className="text-xs">{r.chicks || "—"}</TableCell>
-                <TableCell className="text-xs">{r.chicks ? fmtNum(r.chicks * 150) : "—"}</TableCell>
+                {!quantitiesOnly && <TableCell className="text-xs">{r.chicks ? fmtNum(r.chicks * 150) : "—"}</TableCell>}
                 <TableCell className="text-xs">{r.brooding_days ? `${r.brooding_chicks}×${r.brooding_days}` : "—"}</TableCell>
-                <TableCell className="text-xs">{r.discount ? fmtNum(r.discount, 2) : "—"}</TableCell>
-                <TableCell className="text-xs font-medium text-red-600">{r.debit ? fmtNum(r.debit, 2) : "—"}</TableCell>
-                <TableCell className="text-xs font-medium text-green-600">{r.credit ? fmtNum(r.credit, 2) : "—"}</TableCell>
-                <TableCell className="text-xs font-bold">{fmtNum(r.running_balance, 2)}</TableCell>
-                <TableCell className="text-xs">{r.payment_method || "—"}</TableCell>
-                <TableCell className="text-xs">
-                  <Badge variant={ti.affected ? "default" : "outline"} className={ti.affected ? "bg-emerald-600 hover:bg-emerald-600" : ""}>
-                    {ti.label}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-xs">{r.receipt_no || "—"}</TableCell>
+                {!quantitiesOnly && <>
+                  <TableCell className="text-xs">{r.discount ? fmtNum(r.discount, 2) : "—"}</TableCell>
+                  <TableCell className="text-xs font-medium text-red-600">{r.debit ? fmtNum(r.debit, 2) : "—"}</TableCell>
+                  <TableCell className="text-xs font-medium text-green-600">{r.credit ? fmtNum(r.credit, 2) : "—"}</TableCell>
+                  <TableCell className="text-xs font-bold">{fmtNum(r.running_balance, 2)}</TableCell>
+                  <TableCell className="text-xs">{r.payment_method || "—"}</TableCell>
+                  <TableCell className="text-xs">
+                    <Badge variant={ti.affected ? "default" : "outline"} className={ti.affected ? "bg-emerald-600 hover:bg-emerald-600" : ""}>
+                      {ti.label}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-xs">{r.receipt_no || "—"}</TableCell>
+                </>}
                 <TableCell className="text-xs max-w-[160px] truncate">{r.notes || "—"}</TableCell>
               </TableRow>
               );
