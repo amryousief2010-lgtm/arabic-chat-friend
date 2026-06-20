@@ -13855,6 +13855,9 @@ export type Database = {
       }
       slaughter_live_receipts: {
         Row: {
+          archive_reason: string | null
+          archived: boolean
+          archived_at: string | null
           avg_age_days: number | null
           avg_weight_kg: number | null
           bird_count: number
@@ -13863,6 +13866,7 @@ export type Database = {
           created_by: string | null
           current_alive_count: number
           dead_on_arrival: number
+          excluded_from_costing: boolean
           farm_transfer_id: string | null
           feed_cost_loaded: number
           id: string
@@ -13885,6 +13889,9 @@ export type Database = {
           vet_notes: string | null
         }
         Insert: {
+          archive_reason?: string | null
+          archived?: boolean
+          archived_at?: string | null
           avg_age_days?: number | null
           avg_weight_kg?: number | null
           bird_count?: number
@@ -13893,6 +13900,7 @@ export type Database = {
           created_by?: string | null
           current_alive_count?: number
           dead_on_arrival?: number
+          excluded_from_costing?: boolean
           farm_transfer_id?: string | null
           feed_cost_loaded?: number
           id?: string
@@ -13915,6 +13923,9 @@ export type Database = {
           vet_notes?: string | null
         }
         Update: {
+          archive_reason?: string | null
+          archived?: boolean
+          archived_at?: string | null
           avg_age_days?: number | null
           avg_weight_kg?: number | null
           bird_count?: number
@@ -13923,6 +13934,7 @@ export type Database = {
           created_by?: string | null
           current_alive_count?: number
           dead_on_arrival?: number
+          excluded_from_costing?: boolean
           farm_transfer_id?: string | null
           feed_cost_loaded?: number
           id?: string
