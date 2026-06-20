@@ -60,7 +60,13 @@ export default function LiveBatchCosts() {
     },
   });
 
-  const receipts = receiptsQ.data || [];
+  const allReceipts = receiptsQ.data || [];
+  const receipts = allReceipts.filter(
+    (r) => !r.archived && !r.excluded_from_costing && r.source_type !== 'opening_balance'
+  );
+  const archivedReceipts = allReceipts.filter(
+    (r) => r.archived || r.excluded_from_costing || r.source_type === 'opening_balance'
+  );
   const inv = invQ.data || [];
   const slaughterBatches = slaughterQ.data || [];
 
