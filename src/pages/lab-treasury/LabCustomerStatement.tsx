@@ -525,19 +525,31 @@ export default function LabCustomerStatement() {
     <div className="space-y-4" dir="rtl">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h1 className="text-2xl font-bold">كشف حساب عملاء معمل التفريخ</h1>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <label className="flex items-center gap-2 text-sm cursor-pointer">
             <Switch checked={quantitiesOnly} onCheckedChange={setQuantitiesOnly} />
             <span>كميات فقط (إخفاء الأرقام المالية)</span>
           </label>
-          <Button variant="outline" onClick={exportCsv} disabled={!rows.length}>
-            <FileDown className="w-4 h-4 ml-1" />Excel/CSV
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">عرض التقرير:</span>
+            <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupBy)}>
+              <SelectTrigger className="w-36 h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="batch">حسب الدفعات</SelectItem>
+                <SelectItem value="week">حسب الأسبوع</SelectItem>
+                <SelectItem value="month">حسب الشهر</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button variant="outline" onClick={exportExcel} disabled={!customerId}>
+            <FileSpreadsheet className="w-4 h-4 ml-1" />Excel
           </Button>
-          <Button onClick={printPdf} disabled={!rows.length}>
+          <Button onClick={printPdf} disabled={!customerId}>
             <Printer className="w-4 h-4 ml-1" />طباعة / PDF
           </Button>
         </div>
       </div>
+
 
       <Card className="p-4 grid grid-cols-1 md:grid-cols-4 gap-3">
         <div>
