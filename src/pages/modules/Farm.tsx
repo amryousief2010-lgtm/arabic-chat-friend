@@ -688,61 +688,54 @@ const PendingByDayPanel = ({ eggs, transfers, families, qc, familyName }: any) =
   const [viewDate, setViewDate] = useState<string | null>(null);
   const [busyDate, setBusyDate] = useState<string | null>(null);
 
-  // Per-family last transfer date (heuristic)
-  const lastTransferByFamily = useMemo(() => {
-    const m: Record<string, string> = {};
+  const localDateKey = (value: any) => String(value || "").slice(0, 10);
+
+  const transferredByFamilyDate = useMemo(() => {
+    const m = new Map<string, number>();
     (transfers || []).forEach((t: any) => {
-      if (!t.family_id) return;
-      const prev = m[t.family_id];
-      if (!prev || t.transfer_date > prev) m[t.family_id] = t.transfer_date;
+      const date = localDateKey(t.transfer_date);
+      if (!t.family_id || !date) return;
+      const k = `${t.family_id}|${date}`;
+      m.set(k, (m.get(k) || 0) + (Number(t.quantity) || 0));
     });
     return m;
   }, [transfers]);
 
-  // Transferred (family,date) pairs for explicit duplicate guard
-  const transferredPairs = useMemo(() => {
-    const s = new Set<string>();
-    (transfers || []).forEach((t: any) => {
-      if (t.family_id && t.transfer_date && (t.quantity || 0) > 0) {
-        s.add(`${t.family_id}|${t.transfer_date}`);
-      }
-    });
-    return s;
-  }, [transfers]);
-
   const pendingByDay = useMemo(() => {
     const td = today();
-    const map = new Map<string, { date: string; entries: any[]; totalQty: number; familyCount: number }>();
+    const prod = new Map<string, { date: string; family_id: string; produced: number; records: any[] }>();
+
     (eggs || []).forEach((e: any) => {
-      if (!e.family_id || !e.production_date) return;
-      if (e.production_date > td) return;
-      const last = lastTransferByFamily[e.family_id];
-      if (last && e.production_date <= last) return;
-      if (transferredPairs.has(`${e.family_id}|${e.production_date}`)) return;
-      const k = e.production_date;
-      const cur = map.get(k) || { date: k, entries: [], totalQty: 0, familyCount: 0 };
-      // merge per family
-      const existing = cur.entries.find((x) => x.family_id === e.family_id);
-      if (existing) {
-        existing.qty += e.egg_count || 0;
-        existing.records.push(e);
-      } else {
-        cur.entries.push({ family_id: e.family_id, qty: e.egg_count || 0, records: [e] });
-      }
-      cur.totalQty += e.egg_count || 0;
-      map.set(k, cur);
+      const date = localDateKey(e.production_date);
+      if (!e.family_id || !date) return;
+      if (date > td) return;
+      const k = `${e.family_id}|${date}`;
+      const cur = prod.get(k) || { date, family_id: e.family_id, produced: 0, records: [] };
+      cur.produced += Number(e.egg_count) || 0;
+      cur.records.push(e);
+      prod.set(k, cur);
     });
+
+    const map = new Map<string, { date: string; entries: any[]; totalQty: number; familyCount: number }>();
+
+    prod.forEach((p, k) => {
+      const transferred = transferredByFamilyDate.get(k) || 0;
+      const remaining = Math.max(0, p.produced - transferred);
+      if (remaining <= 0) return;
+      const cur = map.get(p.date) || { date: p.date, entries: [], totalQty: 0, familyCount: 0 };
+      cur.entries.push({ family_id: p.family_id, qty: remaining, produced: p.produced, transferred, records: p.records });
+      cur.totalQty += remaining;
+      map.set(p.date, cur);
+    });
+
     map.forEach((v) => { v.familyCount = v.entries.length; });
     return Array.from(map.values())
       .filter((d) => d.totalQty > 0)
       .sort((a, b) => a.date.localeCompare(b.date));
-  }, [eggs, lastTransferByFamily, transferredPairs]);
+  }, [eggs, transferredByFamilyDate]);
 
   const transferDay = useMutation({
     mutationFn: async (day: { date: string; entries: { family_id: string; qty: number }[] }) => {
-      // Duplicate guard
-      const dup = day.entries.find((e) => transferredPairs.has(`${e.family_id}|${day.date}`));
-      if (dup) throw new Error("تم نقل بيض هذا اليوم إلى المعمل من قبل");
       const rows = day.entries
         .filter((e) => e.qty > 0)
         .map((e) => ({
