@@ -454,6 +454,7 @@ export default function BatchAccountDialog({
             <Info label="عدد اللايح" value={fmt(lot.infertile_eggs)} />
             <Info label="الكشف الثاني" value={fmt(lot.completed_unhatched)} />
             <Info label="عدد الكتاكيت" value={fmt(lot.chicks_hatched)} />
+            <Info label="نافق الهاتش" value={fmt(Math.max(0, (num(lot.transferred_count) || num(lot.fertile_eggs) || Math.max(0, num(lot.eggs_in) - num(lot.infertile_eggs))) - num(lot.chicks_hatched) - num(lot.completed_unhatched)))} />
             <Info label="أيام التحضين" value={fmt(lot.brooding_days)} />
           </div>
 
