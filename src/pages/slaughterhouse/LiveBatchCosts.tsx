@@ -358,6 +358,50 @@ export default function LiveBatchCosts() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          <TabsContent value="archived">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">دفعات مؤرشفة / مستبعدة من التكلفة</CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  هذه الدفعات (افتتاحية أو مستبعدة) لا تدخل في توزيع تكلفة العلف أو النافق، ولا تظهر ضمن الجاهزة للدبح.
+                </p>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>الدفعة</TableHead>
+                      <TableHead>التاريخ</TableHead>
+                      <TableHead>الأصلي</TableHead>
+                      <TableHead>الحي</TableHead>
+                      <TableHead>السبب</TableHead>
+                      <TableHead>الحالة</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {archivedReceipts.map((r) => (
+                      <TableRow key={r.id} className="opacity-70">
+                        <TableCell className="font-medium">{r.receipt_number}</TableCell>
+                        <TableCell className="text-xs">{r.receipt_date}</TableCell>
+                        <TableCell>{r.bird_count}</TableCell>
+                        <TableCell>{r.current_alive_count ?? r.bird_count}</TableCell>
+                        <TableCell className="text-xs">
+                          {r.archive_reason || (r.source_type === 'opening_balance' ? 'دفعة افتتاحية' : '—')}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">مستبعدة من التكلفة</Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {!archivedReceipts.length && (
+                      <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">لا توجد دفعات مؤرشفة</TableCell></TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
 
