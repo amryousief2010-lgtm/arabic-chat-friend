@@ -41,11 +41,9 @@ const isCairoGiza = (g?: string) => !!g && CAIRO_GIZA.some(k => g.includes(k));
 
 const WarehouseDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const { canManageWarehouses, user, isGeneralManager, isExecutiveManager, isWarehouseSupervisor } = useAuth();
+  const { canManageWarehouses, user, isGeneralManager, isExecutiveManager, isWarehouseSupervisor, isAgouzaWarehouseKeeper, isProductionManager } = useAuth();
   const [manualAddOpen, setManualAddOpen] = useState(false);
-  const canManualAdd =
-    isFeatureEnabled("allow_manual_main_warehouse_stock_addition") &&
-    (isGeneralManager || isExecutiveManager || isWarehouseSupervisor);
+
 
   const canDeleteOutletOrder = isGeneralManager || isExecutiveManager;
   const { toast } = useToast();
@@ -92,6 +90,22 @@ const WarehouseDetail = () => {
   const mainWarehouse = useMemo(() => allWarehouses.find(w => w.id !== id && (w.name?.includes("الرئيسي") || w.name?.includes("المقر"))) || allWarehouses.find(w => w.id !== id && w.type === "finished_goods"), [allWarehouses, id]);
   const canCancelTransferRequest = (transfer: any) =>
     isGeneralManager || isExecutiveManager || transfer?.created_by === user?.id;
+
+  // صلاحية الإضافة اليدوية / التوريد المباشر:
+  //  • المدير العام / التنفيذي / مدير الإنتاج: أي مخزن
+  //  • مسؤول المخزن الرئيسي (warehouse_supervisor): المخزن الرئيسي
+  //  • أمين العجوزة (agouza_warehouse_keeper): مخزن العجوزة
+  //  • مسؤول أي مخزن آخر له صلاحية canManageWarehouses: مخزنه
+  const canManualAdd = useMemo(() => {
+    if (!isFeatureEnabled("allow_manual_warehouse_stock_addition")) return false;
+    if (isGeneralManager || isExecutiveManager || isProductionManager) return true;
+    if (isMain && isWarehouseSupervisor) return true;
+    if (isAgouza && (isAgouzaWarehouseKeeper || isWarehouseSupervisor)) return true;
+    // مخازن أخرى: نسمح إذا كان لديه صلاحية إدارة المخازن عامة
+    if (!isMain && !isAgouza && canManageWarehouses) return true;
+    return false;
+  }, [isMain, isAgouza, isGeneralManager, isExecutiveManager, isProductionManager, isWarehouseSupervisor, isAgouzaWarehouseKeeper, canManageWarehouses]);
+
 
 
   const fetchAll = async () => {
@@ -891,12 +905,13 @@ const WarehouseDetail = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {isMain && canManualAdd && (
+            {canManualAdd && (
               <Button onClick={() => setManualAddOpen(true)} className="bg-emerald-600 hover:bg-emerald-700">
                 <PackagePlus className="w-4 h-4 ml-2" />
-                إضافة رصيد يدوي
+                إضافة رصيد / توريد مباشر
               </Button>
             )}
+
             {isAgouza && canManageWarehouses && (
               <Button onClick={openSupplyDialog} disabled={supplyNeeds.length === 0}>
                 <Truck className="w-4 h-4 ml-2" />طلب توريد من المخزن الرئيسي
@@ -1954,7 +1969,7 @@ const WarehouseDetail = () => {
         </DialogContent>
       </Dialog>
 
-      {isMain && canManualAdd && (
+      {canManualAdd && (
         <ManualStockAdditionDialog
           open={manualAddOpen}
           onOpenChange={setManualAddOpen}
@@ -1964,6 +1979,7 @@ const WarehouseDetail = () => {
           onSaved={fetchAll}
         />
       )}
+
     </DashboardLayout>
 
 
