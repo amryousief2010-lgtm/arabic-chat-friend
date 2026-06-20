@@ -169,6 +169,7 @@ export default function LiveBatchCosts() {
             <TabsTrigger value="batches">دفعات النعام الحي</TabsTrigger>
             <TabsTrigger value="slaughter">دفعات الذبح — التكلفة</TabsTrigger>
             <TabsTrigger value="alloc_log">سجل توزيع التكاليف</TabsTrigger>
+            <TabsTrigger value="archived">الأرشيف ({archivedReceipts.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="batches">
