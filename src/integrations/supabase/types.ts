@@ -5057,6 +5057,7 @@ export type Database = {
           created_at: string
           eggs_in: number
           fertile_eggs: number | null
+          hatch_mortality_count: number
           hatcher_machine_no: string | null
           hatcher_out_at: string | null
           hatcher_out_by: string | null
@@ -5088,6 +5089,7 @@ export type Database = {
           created_at?: string
           eggs_in: number
           fertile_eggs?: number | null
+          hatch_mortality_count?: number
           hatcher_machine_no?: string | null
           hatcher_out_at?: string | null
           hatcher_out_by?: string | null
@@ -5119,6 +5121,7 @@ export type Database = {
           created_at?: string
           eggs_in?: number
           fertile_eggs?: number | null
+          hatch_mortality_count?: number
           hatcher_machine_no?: string | null
           hatcher_out_at?: string | null
           hatcher_out_by?: string | null
