@@ -870,21 +870,20 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
         .limit(2000);
       if (ftError) throw ftError;
 
-      const { data: ships, error } = await (supabase as any)
+      const { data: shipRows, error } = await (supabase as any)
         .from("farm_to_hatchery_shipments")
         .select("id, production_date, egg_count, family_number, created_at, status, hatch_batch_id, farm_transfer_id, transfer_batch_id")
-        .eq("status", "pending")
-        .is("hatch_batch_id", null)
         .eq("is_test", false)
         .order("created_at", { ascending: false })
         .limit(2000);
       if (error) throw error;
-      const shipments = ships || [];
+      const allShipments = shipRows || [];
+      const shipments = allShipments.filter((s: any) => s.status === "pending" && !s.hatch_batch_id);
       const transfers = farmTransfers || [];
       if (!shipments.length && !transfers.length) return [];
 
       const shipmentByTransferId = new Map<string, any[]>();
-      shipments.forEach((s: any) => {
+      allShipments.forEach((s: any) => {
         if (!s.farm_transfer_id) return;
         const arr = shipmentByTransferId.get(s.farm_transfer_id) || [];
         arr.push(s);
