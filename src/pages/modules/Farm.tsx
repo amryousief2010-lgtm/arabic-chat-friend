@@ -1025,21 +1025,7 @@ const TransfersTab = ({ transfers, families, eggs = [], qc }: any) => {
         return;
       }
 
-      if (!pending.length) {
-        toast.info("لا يوجد إنتاج جديد بعد آخر نقل");
-        setRows([emptyRow()]);
-        setAutoLoaded({ count: 0, from: "", to: "", totalQty: 0 });
-        return;
-      }
-      const map = new Map<string, { date: string; family_id: string; qty: number }>();
-      pending.forEach((e: any) => {
-        const k = `${e.family_id}|${e.production_date}`;
-        const cur = map.get(k) || { date: e.production_date, family_id: e.family_id, qty: 0 };
-        cur.qty += e.egg_count || 0;
-        map.set(k, cur);
-      });
-      const newRows = Array.from(map.values())
-        .filter((g) => g.qty > 0)
+      const newRows = pending
         .sort((a, b) => a.date.localeCompare(b.date) || String(a.family_id).localeCompare(String(b.family_id)))
         .map((g) => ({
           transfer_date: g.date,
