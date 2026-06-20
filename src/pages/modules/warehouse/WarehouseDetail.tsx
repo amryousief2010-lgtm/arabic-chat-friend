@@ -18,8 +18,11 @@ import { formatDateTime } from "@/lib/dateFormat";
 import { printSupplyRequest, printOrderInvoice } from "@/lib/printUtils";
 import InboundSupplyTab from "@/components/warehouse/InboundSupplyTab";
 import { SlaughterToMainWarehouseInbox } from "@/components/warehouse/SlaughterToMainWarehouseInbox";
+import ManualStockAdditionDialog from "@/components/warehouse/ManualStockAdditionDialog";
+import { isFeatureEnabled } from "@/config/featureFlags";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate, COMPANY_AR } from "@/lib/printPdf";
-import { Printer } from "lucide-react";
+import { Printer, PackagePlus } from "lucide-react";
+
 
 import * as XLSX from "xlsx";
 
@@ -38,7 +41,12 @@ const isCairoGiza = (g?: string) => !!g && CAIRO_GIZA.some(k => g.includes(k));
 
 const WarehouseDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const { canManageWarehouses, user, isGeneralManager, isExecutiveManager } = useAuth();
+  const { canManageWarehouses, user, isGeneralManager, isExecutiveManager, isWarehouseSupervisor } = useAuth();
+  const [manualAddOpen, setManualAddOpen] = useState(false);
+  const canManualAdd =
+    isFeatureEnabled("allow_manual_main_warehouse_stock_addition") &&
+    (isGeneralManager || isExecutiveManager || isWarehouseSupervisor);
+
   const canDeleteOutletOrder = isGeneralManager || isExecutiveManager;
   const { toast } = useToast();
   const [warehouse, setWarehouse] = useState<any>(null);
@@ -882,12 +890,21 @@ const WarehouseDetail = () => {
               </p>
             </div>
           </div>
-          {isAgouza && canManageWarehouses && (
-            <Button onClick={openSupplyDialog} disabled={supplyNeeds.length === 0}>
-              <Truck className="w-4 h-4 ml-2" />طلب توريد من المخزن الرئيسي
-              {supplyNeeds.length > 0 && <Badge variant="destructive" className="mr-2">{supplyNeeds.length}</Badge>}
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {isMain && canManualAdd && (
+              <Button onClick={() => setManualAddOpen(true)} className="bg-emerald-600 hover:bg-emerald-700">
+                <PackagePlus className="w-4 h-4 ml-2" />
+                إضافة رصيد يدوي
+              </Button>
+            )}
+            {isAgouza && canManageWarehouses && (
+              <Button onClick={openSupplyDialog} disabled={supplyNeeds.length === 0}>
+                <Truck className="w-4 h-4 ml-2" />طلب توريد من المخزن الرئيسي
+                {supplyNeeds.length > 0 && <Badge variant="destructive" className="mr-2">{supplyNeeds.length}</Badge>}
+              </Button>
+            )}
+          </div>
+
         </div>
 
         {warehouse.description && (
@@ -1936,7 +1953,19 @@ const WarehouseDetail = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {isMain && canManualAdd && (
+        <ManualStockAdditionDialog
+          open={manualAddOpen}
+          onOpenChange={setManualAddOpen}
+          warehouseId={id!}
+          warehouseName={warehouse?.name}
+          items={items}
+          onSaved={fetchAll}
+        />
+      )}
     </DashboardLayout>
+
 
   );
 };
