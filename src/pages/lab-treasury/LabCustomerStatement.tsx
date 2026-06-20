@@ -61,8 +61,10 @@ export default function LabCustomerStatement() {
   const [batchFilter, setBatchFilter] = useState<string>("");
   const [rows, setRows] = useState<LedgerRow[]>([]);
   const [lotsByBatch, setLotsByBatch] = useState<Record<string, { eggs_in: number; hatch_mortality: number }>>({});
+  const [pricing, setPricing] = useState<{ infertile_egg_price: number; completed_unhatched_price: number; hatch_mortality_price: number; chick_price: number; daily_brooding_price: number }>({ infertile_egg_price: 0, completed_unhatched_price: 0, hatch_mortality_price: 0, chick_price: 0, daily_brooding_price: 0 });
   const [quantitiesOnly, setQuantitiesOnly] = useState(false);
   const [loading, setLoading] = useState(false);
+
 
   useEffect(() => {
     supabase
