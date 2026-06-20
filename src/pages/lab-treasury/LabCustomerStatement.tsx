@@ -121,8 +121,10 @@ export default function LabCustomerStatement() {
 
 
   useEffect(() => {
-    if (!customerId) { setRows([]); setLotsByBatch({}); return; }
+    if (!customerId) { setRows([]); setLotsByBatch({}); setBatchInfos({}); setCustomerPhone(""); return; }
     setLoading(true);
+    const c = customers.find(x => x.id === customerId);
+    setCustomerPhone(c?.phone || "");
     let q = supabase
       .from("lab_customer_ledger")
       .select("*")
@@ -138,7 +140,12 @@ export default function LabCustomerStatement() {
         .select("eggs_in,hatch_mortality_count,completed_unhatched,chicks_hatched,transferred_count,hatchery_batches!inner(batch_number)")
         .eq("client_id", customerId)
         .eq("cancelled", false),
-    ]).then(([ledRes, lotRes]: any) => {
+      supabase
+        .from("hatch_batches")
+        .select("batch_number,operational_batch_no,entry_date,receive_date,received_eggs,net_eggs,candle1_fertile,candle1_infertile,candle2_dead,hatched_chicks,hatcher_dead,brooding_days")
+        .eq("customer_id", customerId)
+        .eq("is_test", false),
+    ]).then(([ledRes, lotRes, batchRes]: any) => {
       if (ledRes.error) toast.error(ledRes.error.message);
       let list = (ledRes.data || []) as LedgerRow[];
       if (batchFilter.trim()) {
@@ -158,6 +165,26 @@ export default function LabCustomerStatement() {
         map[key] = { eggs_in: prev.eggs_in + (Number(l.eggs_in)||0), hatch_mortality: prev.hatch_mortality + hm };
       });
       setLotsByBatch(map);
+      const bmap: Record<string, BatchInfo> = {};
+      (batchRes.data || []).forEach((b: any) => {
+        const info: BatchInfo = {
+          batch_number: String(b.batch_number ?? ""),
+          operational_batch_no: b.operational_batch_no,
+          entry_date: b.entry_date,
+          receive_date: b.receive_date,
+          received_eggs: Number(b.received_eggs) || 0,
+          net_eggs: Number(b.net_eggs) || 0,
+          candle1_fertile: Number(b.candle1_fertile) || 0,
+          candle1_infertile: Number(b.candle1_infertile) || 0,
+          candle2_dead: Number(b.candle2_dead) || 0,
+          hatched_chicks: Number(b.hatched_chicks) || 0,
+          hatcher_dead: Number(b.hatcher_dead) || 0,
+          brooding_days: Number(b.brooding_days) || 0,
+        };
+        if (info.batch_number) bmap[info.batch_number] = info;
+        if (info.operational_batch_no != null) bmap[String(info.operational_batch_no)] = info;
+      });
+      setBatchInfos(bmap);
       setLoading(false);
     });
     setParams(prev => {
@@ -167,7 +194,7 @@ export default function LabCustomerStatement() {
       if (to) p.set("to", to); else p.delete("to");
       return p;
     }, { replace: true });
-  }, [customerId, from, to, batchFilter]);
+  }, [customerId, from, to, batchFilter, customers]);
 
   const summary = useMemo(() => {
     const debit = rows.reduce((a, r) => a + Number(r.debit || 0), 0);
