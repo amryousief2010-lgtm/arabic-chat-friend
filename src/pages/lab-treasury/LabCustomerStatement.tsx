@@ -218,7 +218,11 @@ export default function LabCustomerStatement() {
     <div className="space-y-4" dir="rtl">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h1 className="text-2xl font-bold">كشف حساب عملاء معمل التفريخ</h1>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <Switch checked={quantitiesOnly} onCheckedChange={setQuantitiesOnly} />
+            <span>كميات فقط (إخفاء الأرقام المالية)</span>
+          </label>
           <Button variant="outline" onClick={exportCsv} disabled={!rows.length}>
             <FileDown className="w-4 h-4 ml-1" />Excel/CSV
           </Button>
