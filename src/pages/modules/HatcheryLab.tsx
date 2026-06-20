@@ -1196,7 +1196,7 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
               .from("farm_transfers")
               .select("id, transfer_date, family_id, quantity")
               .in("id", missingTransferIds);
-            const familyIds = Array.from(new Set((transferRows || []).map((r: any) => r.family_id).filter(Boolean)));
+            const familyIds = Array.from(new Set((transferRows || []).map((r: any) => r.family_id).filter(Boolean))) as string[];
             const familyMap = new Map<string, string>();
             if (familyIds.length) {
               const { data: fams } = await supabase.from("farm_families").select("id, family_number").in("id", familyIds);
