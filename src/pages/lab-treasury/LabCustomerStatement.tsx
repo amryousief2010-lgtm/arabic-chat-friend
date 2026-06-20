@@ -89,13 +89,13 @@ export default function LabCustomerStatement() {
   useEffect(() => {
     supabase
       .from("hatch_customers")
-      .select("id,name,customer_type")
+      .select("id,name,customer_type,phone")
       .eq("is_active", true)
       .eq("is_test", false)
       .order("name")
       .then(({ data }) => {
-        const list = data || [];
-        list.sort((a: any, b: any) => {
+        const list = (data || []) as any[];
+        list.sort((a, b) => {
           const aA = /عاصمة/.test(a.name) ? 0 : 1;
           const aB = /عاصمة/.test(b.name) ? 0 : 1;
           return aA - aB;
