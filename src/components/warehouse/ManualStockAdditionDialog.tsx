@@ -100,7 +100,7 @@ const ManualStockAdditionDialog = ({
       // 1) سجّل حركة المخزن
       const ref = `MANUAL-ADD-${Date.now()}`;
       const combinedNotes = [
-        `إضافة يدوية`,
+        `توريد مباشر مؤقت / إضافة يدوية مؤقتة`,
         `السبب: ${reason.trim()}`,
         notes.trim() ? `ملاحظات: ${notes.trim()}` : null,
         `الكمية: ${qtyNum} ${unit}`,
