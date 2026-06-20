@@ -426,7 +426,10 @@ export default function LabTreasury() {
   const normalizedExpensePaymentMethod = normalizePaymentMethod(expForm.payment_method);
   const expAmountRaw = String(expForm.amount ?? "").trim();
   const expAmountNum = Number(expAmountRaw) || 0;
-  const expAvailable = officialByMethod[normalizedExpensePaymentMethod] ?? 0;
+  const expMethodAvailable = officialByMethod[normalizedExpensePaymentMethod] ?? 0;
+  // Available for expense = total official lab treasury balance (pool).
+  // Per-method shown for transparency but not used to block when total covers it.
+  const expAvailable = officialTotal;
   const expExceeds = expAmountNum > 0 && expAmountNum > expAvailable;
 
   async function uploadReceipt(file: File | null): Promise<string | null> {
@@ -664,11 +667,11 @@ export default function LabTreasury() {
       return;
     }
     if (expExceeds && !isManager) {
-      toast.error(`الرصيد المتاح في ${PAYMENT_LABELS[normalizedExpensePaymentMethod]} غير كافٍ (${fmtNum(expAvailable, 2)} ج). يلزم اعتماد المدير العام أو التنفيذي.`);
+      toast.error(`الرصيد الرسمي المعتمد لخزنة المعمل غير كافٍ (${fmtNum(expAvailable, 2)} ج). يلزم اعتماد المدير العام أو التنفيذي.`);
       return;
     }
     if (expExceeds && isManager) {
-      if (!confirm(`تحذير: المبلغ يتجاوز الرصيد المتاح في ${PAYMENT_LABELS[normalizedExpensePaymentMethod]} (${fmtNum(expAvailable, 2)} ج). هل تريد المتابعة بصلاحية الإدارة؟`)) return;
+      if (!confirm(`تحذير: المبلغ يتجاوز الرصيد الرسمي المعتمد لخزنة المعمل (${fmtNum(expAvailable, 2)} ج). هل تريد المتابعة بصلاحية الإدارة؟`)) return;
     }
     const receipt_url = await uploadReceipt(expReceipt);
     const mergedDescription = customLabel
@@ -1412,8 +1415,16 @@ export default function LabTreasury() {
                   <Field label="ملاحظات"><Textarea value={expForm.notes} onChange={(e) => setExpForm({ ...expForm, notes: e.target.value })} /></Field>
                 </div>
                 <div className="md:col-span-2 lg:col-span-3 space-y-2">
-                  <div className="text-sm text-muted-foreground">
-                    الرصيد المتاح في {PAYMENT_LABELS[normalizedExpensePaymentMethod]}: <span className="font-mono font-semibold">{fmtNum(expAvailable, 2)} ج</span>
+                  <div className="text-sm text-muted-foreground space-y-1">
+                    <div>
+                      الرصيد المتاح للصرف من خزنة المعمل (الرصيد الرسمي المعتمد):{" "}
+                      <span className="font-mono font-semibold text-primary">{fmtNum(expAvailable, 2)} ج</span>
+                    </div>
+                    <div className="text-xs">
+                      منه في {PAYMENT_LABELS[normalizedExpensePaymentMethod]}:{" "}
+                      <span className="font-mono">{fmtNum(expMethodAvailable, 2)} ج</span>
+                      {" "}— التحقق يتم على إجمالي رصيد الخزنة وليس على وسيلة دفع واحدة.
+                    </div>
                   </div>
                   {expExceeds && (
                     <Alert variant="destructive">
