@@ -226,21 +226,10 @@ export default function ManufacturingInvoices() {
     else { setProductName("أخرى"); setProductNameOther(r.product); }
     setFinishedQty(requested);
     setUnit(r.unit || "كجم");
-    setExtraCost(Number((r.wages * factor).toFixed(2)));
-    const serviceLines: ServiceCostLine[] = r.lines.filter(l => isServiceCostItem(l.name, l.code)).map(l => {
-      const quantity = Number((l.qty * factor).toFixed(3));
-      const unitCost = Number(l.price.toFixed(3));
-      return {
-        tmp: crypto.randomUUID(),
-        item_name: l.name,
-        unit: l.unit,
-        quantity,
-        unit_cost: unitCost,
-        line_total: Number((quantity * unitCost).toFixed(3)),
-        notes: "service_cost — تكلفة إضافية لا تخصم من المخزون",
-      };
-    });
-    setServiceCostLines(serviceLines);
+    // Extra/service cost is now a single MANUAL numeric field — do not auto-populate
+    // from recipe wages or auto-create service-cost line items.
+    setExtraCost(0);
+    setServiceCostLines([]);
     const buildLine = (l: { code: number; name: string; kind: Kind; unit: string; qty: number; price: number }): Line => {
       const match = resolveItem(l.name, l.kind, l.code);
       return {
