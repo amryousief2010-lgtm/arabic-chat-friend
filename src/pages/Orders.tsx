@@ -1248,6 +1248,11 @@ const Orders = () => {
                         </Button>
                       )}
                       {canEditThisOrder(order) && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditAddressOrder(order)} title="تعديل العنوان ومخزن الاستلام">
+                          <MapPin className="w-4 h-4 text-primary" />
+                        </Button>
+                      )}
+                      {canEditThisOrder(order) && (
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setAddOfferOrder(order)} title="إضافة بوكس / عرض">
                           <PackagePlus className="w-4 h-4 text-primary" />
                         </Button>
