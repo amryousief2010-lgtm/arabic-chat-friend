@@ -688,7 +688,7 @@ const PendingByDayPanel = ({ eggs, transfers, families, qc, familyName }: any) =
   const [viewOpen, setViewOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const defaultFrom = "2026-06-13";
+  const defaultFrom = "2026-06-14";
   const [winFrom, setWinFrom] = useState<string>(defaultFrom);
   const [winTo, setWinTo] = useState<string>("2026-06-19");
 
