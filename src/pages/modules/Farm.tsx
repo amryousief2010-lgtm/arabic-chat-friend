@@ -683,10 +683,17 @@ const EggsTab = ({ eggs, families, qc }: any) => {
 // ============ TRANSFERS ============
 const emptyRow = () => ({ transfer_date: today(), family_id: "", quantity: "", damaged: "", notes: "" });
 
-// =================== Pending eggs grouped by day ===================
+// =================== Pending eggs grouped as ONE batch in current window ===================
 const PendingByDayPanel = ({ eggs, transfers, families, qc, familyName }: any) => {
-  const [viewDate, setViewDate] = useState<string | null>(null);
-  const [busyDate, setBusyDate] = useState<string | null>(null);
+  const [viewOpen, setViewOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const defaultFrom = useMemo(() => {
+    const d = new Date(); d.setDate(d.getDate() - 6);
+    return d.toISOString().slice(0, 10);
+  }, []);
+  const [winFrom, setWinFrom] = useState<string>(defaultFrom);
+  const [winTo, setWinTo] = useState<string>(today());
 
   const localDateKey = (value: any) => String(value || "").slice(0, 10);
 
@@ -709,6 +716,8 @@ const PendingByDayPanel = ({ eggs, transfers, families, qc, familyName }: any) =
       const date = localDateKey(e.production_date);
       if (!e.family_id || !date) return;
       if (date > td) return;
+      if (winFrom && date < winFrom) return;
+      if (winTo && date > winTo) return;
       const k = `${e.family_id}|${date}`;
       const cur = prod.get(k) || { date, family_id: e.family_id, produced: 0, records: [] };
       cur.produced += Number(e.egg_count) || 0;
@@ -716,15 +725,17 @@ const PendingByDayPanel = ({ eggs, transfers, families, qc, familyName }: any) =
       prod.set(k, cur);
     });
 
-    const map = new Map<string, { date: string; entries: any[]; totalQty: number; familyCount: number }>();
+    const map = new Map<string, { date: string; entries: any[]; totalQty: number; transferredTotal: number; producedTotal: number; familyCount: number }>();
 
     prod.forEach((p, k) => {
       const transferred = transferredByFamilyDate.get(k) || 0;
       const remaining = Math.max(0, p.produced - transferred);
       if (remaining <= 0) return;
-      const cur = map.get(p.date) || { date: p.date, entries: [], totalQty: 0, familyCount: 0 };
+      const cur = map.get(p.date) || { date: p.date, entries: [], totalQty: 0, transferredTotal: 0, producedTotal: 0, familyCount: 0 };
       cur.entries.push({ family_id: p.family_id, qty: remaining, produced: p.produced, transferred, records: p.records });
       cur.totalQty += remaining;
+      cur.transferredTotal += transferred;
+      cur.producedTotal += p.produced;
       map.set(p.date, cur);
     });
 
@@ -732,133 +743,165 @@ const PendingByDayPanel = ({ eggs, transfers, families, qc, familyName }: any) =
     return Array.from(map.values())
       .filter((d) => d.totalQty > 0)
       .sort((a, b) => a.date.localeCompare(b.date));
-  }, [eggs, transferredByFamilyDate]);
+  }, [eggs, transferredByFamilyDate, winFrom, winTo]);
 
-  const transferDay = useMutation({
-    mutationFn: async (day: { date: string; entries: { family_id: string; qty: number }[] }) => {
-      const rows = day.entries
-        .filter((e) => e.qty > 0)
-        .map((e) => ({
-          transfer_date: day.date,
+  const batchSummary = useMemo(() => {
+    const totalQty = pendingByDay.reduce((s, d) => s + d.totalQty, 0);
+    const dates = pendingByDay.map((d) => d.date);
+    const minD = dates[0] || winFrom;
+    const maxD = dates[dates.length - 1] || winTo;
+    const shortLabel = dates.map((d) => {
+      const [, mm, dd] = d.split("-");
+      return `${Number(dd)}/${Number(mm)}`;
+    }).join(" + ");
+    return { totalQty, dayCount: dates.length, minD, maxD, shortLabel };
+  }, [pendingByDay, winFrom, winTo]);
+
+  const transferBatch = useMutation({
+    mutationFn: async () => {
+      const rows = pendingByDay.flatMap((d) =>
+        d.entries.filter((e: any) => e.qty > 0).map((e: any) => ({
+          transfer_date: d.date,
           family_id: e.family_id,
           quantity: e.qty,
           damaged: 0,
-          notes: `نقل تلقائي ليوم ${day.date} — source=mother_farm_daily_egg_transfer`,
-        }));
+          notes: `دفعة نقل من ${batchSummary.minD} إلى ${batchSummary.maxD}`,
+        }))
+      );
       if (!rows.length) throw new Error("لا يوجد بيض للنقل");
       const { error } = await supabase.from("farm_transfers").insert(rows);
       if (error) throw error;
-      return { count: rows.length, qty: rows.reduce((s, r) => s + r.quantity, 0), date: day.date };
+      return { count: rows.length, qty: rows.reduce((s, r) => s + r.quantity, 0) };
     },
     onSuccess: (r) => {
-      toast.success(`تم نقل ${r.qty} بيضة ليوم ${r.date} إلى المعمل (${r.count} حركة)`);
+      toast.success(`تم نقل ${r.qty} بيضة (${r.count} حركة) كدفعة واحدة إلى المعمل`);
       qc.invalidateQueries({ queryKey: ["farm_transfers"] });
       qc.invalidateQueries({ queryKey: ["farm_egg_production"] });
-      setBusyDate(null);
+      setBusy(false); setViewOpen(false);
     },
-    onError: (e: any) => { toast.error(e.message); setBusyDate(null); },
+    onError: (e: any) => { toast.error(e.message); setBusy(false); },
   });
 
-  const handleTransfer = (day: any) => {
-    if (busyDate) return;
-    if (!confirm(`نقل ${day.totalQty} بيضة من ${day.familyCount} أسرة ليوم ${day.date} إلى معمل التفريخ؟`)) return;
-    setBusyDate(day.date);
-    transferDay.mutate({ date: day.date, entries: day.entries });
+  const handleTransferBatch = () => {
+    if (busy) return;
+    if (!pendingByDay.length) { toast.error("لا يوجد بيض غير منقول في الفترة المحددة"); return; }
+    if (!confirm(`نقل دفعة كاملة: ${batchSummary.totalQty} بيضة عبر ${batchSummary.dayCount} يوم من ${batchSummary.minD} إلى ${batchSummary.maxD}؟`)) return;
+    setBusy(true);
+    transferBatch.mutate();
   };
-
-  const viewing = viewDate ? pendingByDay.find((d) => d.date === viewDate) : null;
 
   return (
     <Card className="p-4 mb-4 border-purple-200">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="font-bold text-purple-700">البيض غير المنقول — مجمع حسب اليوم</h3>
-        <Badge variant="secondary">{pendingByDay.length} يوم • إجمالي {pendingByDay.reduce((s, d) => s + d.totalQty, 0)} بيضة</Badge>
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <h3 className="font-bold text-purple-700">البيض غير المنقول — دفعة النقل الحالية</h3>
+        <Badge variant="secondary">{batchSummary.dayCount} يوم • إجمالي {batchSummary.totalQty.toLocaleString()} بيضة</Badge>
       </div>
+
+      <div className="flex flex-wrap items-end gap-2 mb-3 p-2 rounded bg-purple-50/40 dark:bg-purple-950/20 border border-purple-200">
+        <div className="text-xs font-medium text-purple-700 dark:text-purple-300 ml-2">فترة النقل الحالية:</div>
+        <div>
+          <Label className="text-xs">من تاريخ</Label>
+          <Input type="date" value={winFrom} onChange={(e) => setWinFrom(e.target.value)} className="h-8 w-[160px]" />
+        </div>
+        <div>
+          <Label className="text-xs">إلى تاريخ</Label>
+          <Input type="date" value={winTo} onChange={(e) => setWinTo(e.target.value)} className="h-8 w-[160px]" />
+        </div>
+        <Button type="button" size="sm" variant="ghost" onClick={() => { setWinFrom(defaultFrom); setWinTo(today()); }}>
+          آخر 7 أيام
+        </Button>
+        <div className="text-xs text-muted-foreground mr-auto">الأيام القديمة خارج هذه الفترة مخفية</div>
+      </div>
+
       {pendingByDay.length === 0 ? (
-        <div className="text-sm text-muted-foreground text-center py-6">لا يوجد بيض غير منقول حاليًا.</div>
+        <div className="text-sm text-muted-foreground text-center py-6">لا يوجد بيض غير منقول داخل الفترة المحددة.</div>
       ) : (
         <div className="overflow-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>التاريخ</TableHead>
-                <TableHead>عدد الأسر</TableHead>
+                <TableHead>اسم الدفعة</TableHead>
+                <TableHead>من — إلى</TableHead>
+                <TableHead>عدد الأيام</TableHead>
                 <TableHead>إجمالي البيض</TableHead>
                 <TableHead>تفاصيل مختصرة</TableHead>
                 <TableHead className="text-center">إجراءات</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {pendingByDay.map((d) => {
-                const preview = d.entries.slice(0, 4).map((e) => `أسرة ${familyName(e.family_id)}: ${e.qty}`).join(" • ");
-                const more = d.entries.length > 4 ? ` +${d.entries.length - 4}` : "";
-                const isBusy = busyDate === d.date;
-                return (
-                  <TableRow key={d.date}>
-                    <TableCell className="font-medium">{d.date}</TableCell>
-                    <TableCell><Badge variant="outline">{d.familyCount}</Badge></TableCell>
-                    <TableCell className="font-bold text-purple-600">{d.totalQty.toLocaleString()}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground max-w-[320px] truncate">{preview}{more}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-2 justify-center">
-                        <Button size="sm" variant="outline" onClick={() => setViewDate(d.date)}>
-                          <Eye className="w-4 h-4 ml-1" />رؤية
-                        </Button>
-                        <Button size="sm" disabled={isBusy} onClick={() => handleTransfer(d)}>
-                          <Truck className="w-4 h-4 ml-1" />{isBusy ? "جارٍ النقل..." : "نقل للمعمل"}
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+              <TableRow>
+                <TableCell className="font-semibold text-purple-700">
+                  دفعة نقل البيض من {batchSummary.minD} إلى {batchSummary.maxD}
+                </TableCell>
+                <TableCell className="text-xs">
+                  <div>من: <b>{batchSummary.minD}</b></div>
+                  <div>إلى: <b>{batchSummary.maxD}</b></div>
+                </TableCell>
+                <TableCell><Badge variant="outline">{batchSummary.dayCount}</Badge></TableCell>
+                <TableCell className="font-bold text-purple-600">{batchSummary.totalQty.toLocaleString()}</TableCell>
+                <TableCell className="text-xs text-muted-foreground max-w-[320px] truncate" title={batchSummary.shortLabel}>
+                  {batchSummary.shortLabel}
+                </TableCell>
+                <TableCell>
+                  <div className="flex gap-2 justify-center">
+                    <Button size="sm" variant="outline" onClick={() => setViewOpen(true)}>
+                      <Eye className="w-4 h-4 ml-1" />رؤية التفاصيل
+                    </Button>
+                    <Button size="sm" disabled={busy} onClick={handleTransferBatch}>
+                      <Truck className="w-4 h-4 ml-1" />{busy ? "جارٍ النقل..." : "نقل للمعمل"}
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
             </TableBody>
           </Table>
         </div>
       )}
 
-      <Dialog open={!!viewDate} onOpenChange={(v) => !v && setViewDate(null)}>
-        <DialogContent dir="rtl" className="max-w-2xl">
+      <Dialog open={viewOpen} onOpenChange={setViewOpen}>
+        <DialogContent dir="rtl" className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>تفاصيل بيض يوم {viewDate}</DialogTitle>
+            <DialogTitle>تفاصيل دفعة النقل من {batchSummary.minD} إلى {batchSummary.maxD}</DialogTitle>
           </DialogHeader>
-          {viewing && (
-            <div className="space-y-3">
-              <div className="text-sm text-muted-foreground">
-                إجمالي: <b className="text-purple-600">{viewing.totalQty}</b> بيضة من <b>{viewing.familyCount}</b> أسرة
-              </div>
-              <div className="overflow-auto max-h-[60vh]">
-                <Table>
-                  <TableHeader><TableRow>
-                    <TableHead>الأسرة</TableHead><TableHead>الكمية</TableHead>
-                    <TableHead>وقت التسجيل</TableHead><TableHead>الحالة</TableHead>
-                    <TableHead>ملاحظات</TableHead>
-                  </TableRow></TableHeader>
-                  <TableBody>
-                    {viewing.entries.flatMap((e: any) => e.records.map((r: any, i: number) => (
-                      <TableRow key={r.id || `${e.family_id}-${i}`}>
-                        <TableCell>{familyName(e.family_id)}</TableCell>
-                        <TableCell className="font-bold">{r.egg_count}</TableCell>
-                        <TableCell className="text-xs">{r.created_at ? new Date(r.created_at).toLocaleString("ar-EG") : "-"}</TableCell>
-                        <TableCell><Badge variant="outline" className="text-amber-700 border-amber-300">غير منقول</Badge></TableCell>
-                        <TableCell className="text-xs">{r.notes || "-"}</TableCell>
-                      </TableRow>
-                    )))}
-                  </TableBody>
-                </Table>
-              </div>
-              <DialogFooter>
-                <Button onClick={() => { handleTransfer(viewing); setViewDate(null); }}>
-                  <Truck className="w-4 h-4 ml-1" />نقل هذا اليوم للمعمل
-                </Button>
-              </DialogFooter>
+          <div className="space-y-3">
+            <div className="text-sm text-muted-foreground">
+              إجمالي: <b className="text-purple-600">{batchSummary.totalQty.toLocaleString()}</b> بيضة عبر <b>{batchSummary.dayCount}</b> يوم
             </div>
-          )}
+            <div className="overflow-auto max-h-[60vh]">
+              <Table>
+                <TableHeader><TableRow>
+                  <TableHead>التاريخ</TableHead>
+                  <TableHead>عدد الأسر</TableHead>
+                  <TableHead>إجمالي البيض</TableHead>
+                  <TableHead>المنقول سابقًا</TableHead>
+                  <TableHead>المتبقي للنقل</TableHead>
+                </TableRow></TableHeader>
+                <TableBody>
+                  {pendingByDay.map((d) => (
+                    <TableRow key={d.date}>
+                      <TableCell className="font-medium">{d.date}</TableCell>
+                      <TableCell><Badge variant="outline">{d.familyCount}</Badge></TableCell>
+                      <TableCell>{d.producedTotal.toLocaleString()}</TableCell>
+                      <TableCell className="text-muted-foreground">{d.transferredTotal.toLocaleString()}</TableCell>
+                      <TableCell className="font-bold text-purple-600">{d.totalQty.toLocaleString()}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            <DialogFooter>
+              <Button onClick={handleTransferBatch} disabled={busy}>
+                <Truck className="w-4 h-4 ml-1" />{busy ? "جارٍ النقل..." : "نقل الدفعة كاملة للمعمل"}
+              </Button>
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </Card>
   );
 };
+
+
 
 
 const TransfersTab = ({ transfers, families, eggs = [], qc }: any) => {
