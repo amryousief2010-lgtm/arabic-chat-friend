@@ -5285,6 +5285,9 @@ export type Database = {
           completed_unhatched_unit_price: number
           discount_amount: number
           eggs_in: number
+          hatch_mortality_amount: number
+          hatch_mortality_count: number
+          hatch_mortality_unit_price: number
           id: string
           infertile_amount: number
           infertile_count: number
@@ -5319,6 +5322,9 @@ export type Database = {
           completed_unhatched_unit_price?: number
           discount_amount?: number
           eggs_in?: number
+          hatch_mortality_amount?: number
+          hatch_mortality_count?: number
+          hatch_mortality_unit_price?: number
           id?: string
           infertile_amount?: number
           infertile_count?: number
@@ -5353,6 +5359,9 @@ export type Database = {
           completed_unhatched_unit_price?: number
           discount_amount?: number
           eggs_in?: number
+          hatch_mortality_amount?: number
+          hatch_mortality_count?: number
+          hatch_mortality_unit_price?: number
           id?: string
           infertile_amount?: number
           infertile_count?: number
@@ -5575,6 +5584,7 @@ export type Database = {
           completed_unhatched_price: number
           created_at: string
           daily_brooding_price: number
+          hatch_mortality_price: number
           hatcher_duration_hours: number
           id: string
           infertile_egg_price: number
@@ -5589,6 +5599,7 @@ export type Database = {
           completed_unhatched_price?: number
           created_at?: string
           daily_brooding_price?: number
+          hatch_mortality_price?: number
           hatcher_duration_hours?: number
           id?: string
           infertile_egg_price?: number
@@ -5603,6 +5614,7 @@ export type Database = {
           completed_unhatched_price?: number
           created_at?: string
           daily_brooding_price?: number
+          hatch_mortality_price?: number
           hatcher_duration_hours?: number
           id?: string
           infertile_egg_price?: number

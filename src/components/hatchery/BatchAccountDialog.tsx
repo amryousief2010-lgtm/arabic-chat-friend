@@ -379,6 +379,7 @@ export default function BatchAccountDialog({
         <tr><th>رسوم الكشف الثاني</th><td>${fmtMoney(i.completed_unhatched_amount)}</td></tr>
         <tr><th>رسوم الكتاكيت</th><td>${fmtMoney(i.chicks_amount)}</td></tr>
         <tr><th>رسوم التحضين (${i.brooding_days} يوم × ${i.brooding_chicks_count})</th><td>${fmtMoney(i.brooding_amount)}</td></tr>
+        <tr><th>رسوم نافق الهاتش (${fmt(i.hatch_mortality_count)} × ${fmt(i.hatch_mortality_unit_price)})</th><td>${fmtMoney(i.hatch_mortality_amount)}</td></tr>
         <tr><th>إجمالي المستحق</th><td><b>${fmtMoney(i.total_amount)}</b></td></tr>
         <tr><th>إجمالي الخصومات</th><td>${fmtMoney(i.discount_amount)}</td></tr>
         <tr><th>إجمالي المدفوع</th><td>${fmtMoney(i.paid_amount)}</td></tr>
@@ -453,6 +454,7 @@ export default function BatchAccountDialog({
             <Info label="عدد اللايح" value={fmt(lot.infertile_eggs)} />
             <Info label="الكشف الثاني" value={fmt(lot.completed_unhatched)} />
             <Info label="عدد الكتاكيت" value={fmt(lot.chicks_hatched)} />
+            <Info label="نافق الهاتش" value={fmt(Math.max(0, (num(lot.transferred_count) || num(lot.fertile_eggs) || Math.max(0, num(lot.eggs_in) - num(lot.infertile_eggs))) - num(lot.chicks_hatched) - num(lot.completed_unhatched)))} />
             <Info label="أيام التحضين" value={fmt(lot.brooding_days)} />
           </div>
 
@@ -485,15 +487,19 @@ export default function BatchAccountDialog({
             const chicks = num(lot.chicks_hatched);
             const infertile = num(lot.infertile_eggs);
             const unhatched = num(lot.completed_unhatched);
+            const transferred = num(lot.transferred_count) || num(lot.fertile_eggs) || Math.max(0, num(lot.eggs_in) - infertile);
+            const hatchMort = Math.max(0, transferred - chicks - unhatched);
             const infPrice = num(pricing.infertile_egg_price);
             const chPrice = num(pricing.chick_price);
             const unPrice = num(pricing.completed_unhatched_price);
             const dailyPrice = num(pricing.daily_brooding_price);
+            const hmPrice = num((pricing as any).hatch_mortality_price) || 100;
             const infAmt = infertile * infPrice;
             const unAmt = unhatched * unPrice;
             const chAmt = chicks * chPrice;
             const brAmt = chicks * days * dailyPrice;
-            const total = infAmt + unAmt + chAmt + brAmt;
+            const hmAmt = hatchMort * hmPrice;
+            const total = infAmt + unAmt + chAmt + brAmt + hmAmt;
             const paid = 0; const remaining = total - paid;
             return (
               <div className="rounded-lg border-2 border-emerald-500 p-4 bg-emerald-50 dark:bg-emerald-950/30 space-y-3">
@@ -509,6 +515,7 @@ export default function BatchAccountDialog({
                   <Info label={`رسوم الكشف الثاني (${unhatched} × ${unPrice})`} value={fmtMoney(unAmt)} />
                   <Info label={`رسوم الكتاكيت (${chicks} × ${chPrice})`} value={fmtMoney(chAmt)} />
                   <Info label={`رسوم التحضين (${chicks} × ${days} × ${dailyPrice})`} value={fmtMoney(brAmt)} />
+                  <Info label={`رسوم نافق الهاتش (${hatchMort} × ${hmPrice})`} value={fmtMoney(hmAmt)} />
                   <Info label="إجمالي المستحق" value={fmtMoney(total)} highlight />
                   <Info label="المدفوع" value={fmtMoney(paid)} />
                   <Info label="المتبقي" value={fmtMoney(remaining)} highlight />
@@ -624,6 +631,7 @@ export default function BatchAccountDialog({
                 <Info label="رسوم الكشف الثاني" value={fmtMoney(invoice.completed_unhatched_amount)} />
                 <Info label="رسوم الكتاكيت" value={fmtMoney(invoice.chicks_amount)} />
                 <Info label={`رسوم التحضين (${invoice.brooding_days} يوم)`} value={fmtMoney(invoice.brooding_amount)} />
+                <Info label={`رسوم نافق الهاتش (${fmt(invoice.hatch_mortality_count)} × ${fmt(invoice.hatch_mortality_unit_price)})`} value={fmtMoney(invoice.hatch_mortality_amount)} />
                 <Info label="إجمالي المستحق" value={fmtMoney(invoice.total_amount)} highlight />
                 <Info label="إجمالي الخصومات" value={fmtMoney(invoice.discount_amount)} />
                 <Info label="إجمالي المدفوع" value={fmtMoney(invoice.paid_amount)} />
