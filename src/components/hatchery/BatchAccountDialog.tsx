@@ -379,6 +379,7 @@ export default function BatchAccountDialog({
         <tr><th>رسوم الكشف الثاني</th><td>${fmtMoney(i.completed_unhatched_amount)}</td></tr>
         <tr><th>رسوم الكتاكيت</th><td>${fmtMoney(i.chicks_amount)}</td></tr>
         <tr><th>رسوم التحضين (${i.brooding_days} يوم × ${i.brooding_chicks_count})</th><td>${fmtMoney(i.brooding_amount)}</td></tr>
+        <tr><th>رسوم نافق الهاتش (${fmt(i.hatch_mortality_count)} × ${fmt(i.hatch_mortality_unit_price)})</th><td>${fmtMoney(i.hatch_mortality_amount)}</td></tr>
         <tr><th>إجمالي المستحق</th><td><b>${fmtMoney(i.total_amount)}</b></td></tr>
         <tr><th>إجمالي الخصومات</th><td>${fmtMoney(i.discount_amount)}</td></tr>
         <tr><th>إجمالي المدفوع</th><td>${fmtMoney(i.paid_amount)}</td></tr>
