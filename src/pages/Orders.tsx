@@ -237,6 +237,7 @@ const Orders = () => {
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [swapOfferOrder, setSwapOfferOrder] = useState<Order | null>(null);
   const [addOfferOrder, setAddOfferOrder] = useState<Order | null>(null);
+  const [editAddressOrder, setEditAddressOrder] = useState<Order | null>(null);
 
   const handlePrintOrder = (order: Order) => {
     printOrderInvoice({
