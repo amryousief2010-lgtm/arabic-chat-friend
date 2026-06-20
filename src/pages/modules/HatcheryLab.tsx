@@ -957,9 +957,34 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
     if (!entry_date || !batch_type) return toast.error("بيانات ناقصة");
     if (lots.some(l => !l.eggs_in || +l.eggs_in <= 0)) return toast.error("أدخل عدد البيض لكل lot");
     if (lots.some(l => l.owner_type === "external_client" && !l.client_id)) return toast.error("اختر عميل للـ lot الخارجي");
+    // تحقق ألا يتجاوز عدد البيض الكمية المتاحة في الشحنة المرتبطة
+    for (const l of lots) {
+      if (l.from_shipment_id && l.max_eggs != null && +l.eggs_in > +l.max_eggs) {
+        return toast.error(`عدد البيض في شحنة المزرعة (${l.shipment_label}) لا يجب أن يتجاوز ${l.max_eggs}`);
+      }
+    }
+    // منع تكرار نفس الشحنة في أكثر من lot داخل نفس الفورم
+    const shipIds = lots.map(l => l.from_shipment_id).filter(Boolean);
+    if (new Set(shipIds).size !== shipIds.length) {
+      return toast.error("لا يمكن استخدام نفس شحنة المزرعة في أكثر من lot");
+    }
     setSaving(true);
     try {
       const userId = (await supabase.auth.getUser()).data.user?.id;
+
+      // re-check shipments are still pending (لا يتم استخدام نفس البيض مرتين)
+      if (shipIds.length) {
+        const { data: stillPending } = await (supabase as any)
+          .from("farm_to_hatchery_shipments")
+          .select("id, status, hatch_batch_id")
+          .in("id", shipIds);
+        const blocked = (stillPending || []).filter((s: any) => s.status !== "pending" || s.hatch_batch_id);
+        if (blocked.length) {
+          toast.error("إحدى الشحنات تم استخدامها بالفعل في دفعة أخرى. يرجى إعادة فتح النافذة.");
+          await refetchShipments();
+          return;
+        }
+      }
 
       // 1) Create logical batch in hatchery_batches with its lots
       const { data: batch, error } = await supabase.from("hatchery_batches" as any)
@@ -982,7 +1007,6 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
       if (e2) { toast.error(e2.message); return; }
 
       // 2) Mirror into hatch_batches so the batch appears on the lab batches screen.
-      // Auto-pick the next operational_batch_no (skipping test/deleted rows).
       const { data: maxRow } = await supabase
         .from("hatch_batches")
         .select("operational_batch_no")
@@ -993,7 +1017,6 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
         .maybeSingle();
       const opNo = (((maxRow as any)?.operational_batch_no as number) || 0) + 1;
 
-      // Default internal customer for capital_ostrich lots
       const { data: internal } = await supabase
         .from("hatch_customers")
         .select("id")
@@ -1014,12 +1037,38 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
         net_eggs: +l.eggs_in,
         customer_id: l.owner_type === "external_client" ? l.client_id : internalId,
         status: "pending",
-        notes: notes || null,
+        notes: l.from_shipment_id
+          ? [notes, `منقولة من مزرعة الأمهات (${l.shipment_label})`].filter(Boolean).join(" — ")
+          : (notes || null),
         created_by: userId,
         is_test: false,
       }));
-      const { error: e3 } = await supabase.from("hatch_batches").insert(hatchRows as any);
+      const { data: insertedHatch, error: e3 } = await supabase
+        .from("hatch_batches")
+        .insert(hatchRows as any)
+        .select("id");
       if (e3) { toast.error(`فشل إنشاء سجل الدفعة في شاشة المعمل: ${e3.message}`); return; }
+
+      // 3) ربط الشحنات بسجلات hatch_batches وتحديث حالتها إلى received
+      for (let i = 0; i < lots.length; i++) {
+        const l = lots[i];
+        if (!l.from_shipment_id) continue;
+        const hbId = (insertedHatch as any[])?.[i]?.id;
+        if (!hbId) continue;
+        await (supabase as any)
+          .from("farm_to_hatchery_shipments")
+          .update({
+            status: "received",
+            hatch_batch_id: hbId,
+            received_egg_count: +l.eggs_in,
+            received_at: new Date().toISOString(),
+            received_by: userId,
+            receipt_notes: `تم ربطها بدفعة تفريخ رقم ${opNo}`,
+          })
+          .eq("id", l.from_shipment_id)
+          .eq("status", "pending")
+          .is("hatch_batch_id", null);
+      }
 
       await supabase.from("hatchery_batch_movements" as any).insert({
         batch_id: (batch as any).id, event_type: "created",
@@ -1028,6 +1077,7 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
           total_eggs: lots.reduce((s, l) => s + +l.eggs_in, 0),
           operational_batch_no: opNo,
           auto_numbered: true,
+          linked_farm_shipments: shipIds,
         },
         created_by: userId,
       });
