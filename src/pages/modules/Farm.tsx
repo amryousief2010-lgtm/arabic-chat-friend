@@ -781,11 +781,14 @@ const PendingByDayPanel = ({ eggs, transfers, families, qc, familyName }: any) =
       if (error) throw error;
 
       // 2) إنشاء شحنات وارد للمعمل (pending) مرتبطة بكل حركة نقل
+      // كل النقرة الواحدة على "نقل دفعة" تشترك في نفس transfer_batch_id لتجميعها كدفعة واحدة في المعمل
+      const transferBatchId = (crypto as any).randomUUID?.() || `tb-${Date.now()}`;
       const shipments = (inserted || []).map((row: any, i: number) => {
         const src = flat[i];
         const fam = families?.find((f: any) => f.id === row.family_id);
         return {
           farm_transfer_id: row.id,
+          transfer_batch_id: transferBatchId,
           production_id: src?.production_id || null,
           family_id: row.family_id,
           family_number: fam?.family_number ? String(fam.family_number) : null,
@@ -795,6 +798,7 @@ const PendingByDayPanel = ({ eggs, transfers, families, qc, familyName }: any) =
           is_test: false,
         };
       });
+
       if (shipments.length) {
         const { error: shErr } = await (supabase as any)
           .from("farm_to_hatchery_shipments")

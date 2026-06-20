@@ -2503,6 +2503,7 @@ export type Database = {
           rejection_reason: string | null
           status: string
           suggested_batch_id: string | null
+          transfer_batch_id: string | null
           updated_at: string
         }
         Insert: {
@@ -2524,6 +2525,7 @@ export type Database = {
           rejection_reason?: string | null
           status?: string
           suggested_batch_id?: string | null
+          transfer_batch_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -2545,6 +2547,7 @@ export type Database = {
           rejection_reason?: string | null
           status?: string
           suggested_batch_id?: string | null
+          transfer_batch_id?: string | null
           updated_at?: string
         }
         Relationships: [
