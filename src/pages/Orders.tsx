@@ -1803,6 +1803,20 @@ const Orders = () => {
         />
       )}
 
+      {editAddressOrder && (
+        <EditAddressWarehouseDialog
+          open={!!editAddressOrder}
+          onOpenChange={(o) => !o && setEditAddressOrder(null)}
+          orderId={editAddressOrder.id}
+          initialAddress={editAddressOrder.delivery_address}
+          initialWarehouseId={editAddressOrder.source_warehouse_id}
+          onSaved={(next) => {
+            setOrders((prev) => prev.map((o) => o.id === editAddressOrder.id ? { ...o, ...next } : o));
+            setEditAddressOrder(null);
+          }}
+        />
+      )}
+
       {swapOfferOrder && (
         <SwapOfferDialog
           open={!!swapOfferOrder}
