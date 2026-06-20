@@ -18,8 +18,11 @@ import { formatDateTime } from "@/lib/dateFormat";
 import { printSupplyRequest, printOrderInvoice } from "@/lib/printUtils";
 import InboundSupplyTab from "@/components/warehouse/InboundSupplyTab";
 import { SlaughterToMainWarehouseInbox } from "@/components/warehouse/SlaughterToMainWarehouseInbox";
+import ManualStockAdditionDialog from "@/components/warehouse/ManualStockAdditionDialog";
+import { isFeatureEnabled } from "@/config/featureFlags";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate, COMPANY_AR } from "@/lib/printPdf";
-import { Printer } from "lucide-react";
+import { Printer, PackagePlus } from "lucide-react";
+
 
 import * as XLSX from "xlsx";
 
