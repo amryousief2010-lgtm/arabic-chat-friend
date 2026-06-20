@@ -1162,7 +1162,12 @@ const TransfersTab = ({ transfers, families, eggs = [], qc }: any) => {
 
   const del = useMutation({
     mutationFn: async (id: string) => { const { error } = await supabase.from("farm_transfers").delete().eq("id", id); if (error) throw error; },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["farm_transfers"] }),
+    onSuccess: () => {
+      toast.success("تم إلغاء النقل — رجع البيض كغير منقول");
+      qc.invalidateQueries({ queryKey: ["farm_transfers"] });
+      qc.invalidateQueries({ queryKey: ["farm-to-hatchery-shipments"] });
+    },
+    onError: (e: any) => toast.error(e.message || "لا يمكن إلغاء النقل"),
   });
 
   const familyName = (id: string) => families.find((f: any) => f.id === id)?.family_number || "-";
