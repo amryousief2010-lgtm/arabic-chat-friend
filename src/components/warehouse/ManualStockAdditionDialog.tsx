@@ -115,7 +115,7 @@ const ManualStockAdditionDialog = ({
         quantity: qtyNum,
         reference: ref,
         reference_type: "manual_addition",
-        party: "إضافة يدوية",
+        party: "توريد مباشر مؤقت",
         reason: reason.trim(),
         notes: combinedNotes,
         module: "warehouse_manual",
