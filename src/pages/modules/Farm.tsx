@@ -1048,11 +1048,10 @@ const TransfersTab = ({ transfers, families, eggs = [], qc }: any) => {
     }
   };
 
-  // Auto-load pending production when opening the dialog
+  // Open dialog — show day-selection checkboxes; user picks days then loads rows.
   const openDialog = async () => {
     resetForm();
     setOpen(true);
-    await autoLoadPending();
   };
 
   const save = useMutation({
