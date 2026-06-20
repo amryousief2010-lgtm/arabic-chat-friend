@@ -983,9 +983,18 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
     return s;
   }, [lots]);
 
+  const usedFarmTransferIds = useMemo(() => {
+    const s = new Set<string>();
+    lots.forEach((l) => (l.from_farm_transfer_ids || []).forEach((id: string) => s.add(id)));
+    return s;
+  }, [lots]);
+
   const availableTransferBatches = useMemo(
-    () => transferBatchesData.filter((g) => g.shipments.every((s: any) => !usedShipmentIds.has(s.id))),
-    [transferBatchesData, usedShipmentIds]
+    () => transferBatchesData.filter((g) =>
+      (g.shipments || []).every((s: any) => !usedShipmentIds.has(s.id)) &&
+      (g.farm_transfer_ids || []).every((id: string) => !usedFarmTransferIds.has(id))
+    ),
+    [transferBatchesData, usedShipmentIds, usedFarmTransferIds]
   );
 
   // آخر دفعة نقل فقط (للعرض في البانر)
