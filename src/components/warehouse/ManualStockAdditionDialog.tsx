@@ -154,13 +154,14 @@ const ManualStockAdditionDialog = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <PackagePlus className="w-5 h-5 text-emerald-600" />
-            إضافة رصيد يدوي — {warehouseName || "المخزن الرئيسي"}
+            إضافة رصيد / توريد مباشر — {warehouseName || "المخزن"}
           </DialogTitle>
           <DialogDescription className="text-xs leading-relaxed">
-            صلاحية مؤقتة للسيطرة على المخزون. لن يتم إنشاء أي فاتورة أو حركة
-            خزنة أو نقل من المجزر/مصنع اللحوم. تُسجَّل الحركة في سجل المخزن
-            باسم <b>"إضافة يدوية"</b>.
+            صلاحية مؤقتة للسيطرة على المخزون. لن يتم إنشاء تحويل داخلي ولا
+            خصم من أي مخزن آخر ولا فاتورة ولا حركة خزنة. تُسجَّل الحركة في
+            سجل المخزن باسم <b>"توريد مباشر مؤقت"</b> ومميَّزة كإضافة يدوية.
           </DialogDescription>
+
         </DialogHeader>
 
         <div className="space-y-3">
