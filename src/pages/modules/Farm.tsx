@@ -1277,26 +1277,30 @@ const ShipmentsLogPanel = ({ families, qc }: any) => {
                   <TableHeader><TableRow>
                     <TableHead>التاريخ</TableHead>
                     <TableHead>الأسرة</TableHead>
-                    <TableHead>عدد البيض</TableHead>
-                    <TableHead>الحالة</TableHead>
+                    <TableHead>عدد البيض المنقول</TableHead>
+                    <TableHead>حالة الاستلام</TableHead>
                     <TableHead>دفعة تفريخ</TableHead>
                   </TableRow></TableHeader>
                   <TableBody>
-                    {detailsBatch.rows
+                    {(detailsBatch.transfers || [])
                       .slice()
-                      .sort((a: any, b: any) => String(a.production_date).localeCompare(String(b.production_date)))
-                      .map((r: any) => (
-                        <TableRow key={r.id}>
-                          <TableCell>{r.production_date}</TableCell>
-                          <TableCell>{familyName(r.family_id)}</TableCell>
-                          <TableCell className="font-semibold">{Number(r.egg_count).toLocaleString()}</TableCell>
-                          <TableCell>{statusBadge(r.status)}</TableCell>
-                          <TableCell className="font-mono text-xs">{r.hatch_batch_id ? String(r.hatch_batch_id).slice(0, 8) : "—"}</TableCell>
-                        </TableRow>
-                      ))}
+                      .sort((a: any, b: any) => String(a.transfer_date).localeCompare(String(b.transfer_date)))
+                      .map((t: any) => {
+                        const ship = (detailsBatch.ship_rows || []).find((s: any) => s.farm_transfer_id === t.id);
+                        return (
+                          <TableRow key={t.id}>
+                            <TableCell>{t.transfer_date}</TableCell>
+                            <TableCell>{familyName(t.family_id)}</TableCell>
+                            <TableCell className="font-semibold">{Number(t.quantity).toLocaleString()}</TableCell>
+                            <TableCell>{statusBadge(ship?.status || "pending")}</TableCell>
+                            <TableCell className="font-mono text-xs">{ship?.hatch_batch_id ? String(ship.hatch_batch_id).slice(0, 8) : "—"}</TableCell>
+                          </TableRow>
+                        );
+                      })}
                   </TableBody>
                 </Table>
               </div>
+
             </div>
           )}
         </DialogContent>
