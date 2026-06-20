@@ -952,6 +952,7 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
             key,
             label: ft?.notes || (ft ? `نقل ${ft.transfer_date}` : `شحنة ${s.production_date}`),
             shipments: [] as any[],
+            farm_transfer_ids: [] as string[],
             total_eggs: 0,
             min_date: s.production_date,
             max_date: s.production_date,
@@ -1007,6 +1008,7 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
               eggs_in: String(g.total_eggs),
               client_id: "",
               from_shipment_ids: g.shipments.map((s: any) => s.id),
+              from_farm_transfer_ids: g.farm_transfer_ids || [],
               max_eggs: g.total_eggs,
               shipment_label: `نقل ${g.transfer_date} · ${g.total_eggs} بيضة · فترة ${periodLabel}`,
             }
@@ -1035,6 +1037,7 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
           eggs_in: "",
           client_id: "",
           from_shipment_ids: [],
+          from_farm_transfer_ids: [],
           max_eggs: null,
           shipment_label: "",
         },
@@ -1045,7 +1048,7 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
     toast.success(`تم تحميل آخر دفعة نقل — ${latestTransferBatch.total_eggs} بيضة`);
   };
 
-  const addLot = () => setLots([...lots, { owner_type: "external_client", source: "external", eggs_in: "", client_id: "", from_shipment_ids: [], max_eggs: null, shipment_label: "" }]);
+  const addLot = () => setLots([...lots, { owner_type: "external_client", source: "external", eggs_in: "", client_id: "", from_shipment_ids: [], from_farm_transfer_ids: [], max_eggs: null, shipment_label: "" }]);
   const removeLot = (i: number) => setLots(lots.filter((_, j) => j !== i));
   const updateLot = (i: number, patch: any) => setLots(lots.map((l, j) => j === i ? { ...l, ...patch } : l));
 
