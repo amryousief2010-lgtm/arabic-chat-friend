@@ -279,6 +279,52 @@ export default function LiveBatchCosts() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          <TabsContent value="alloc_log">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">سجل توزيع تكاليف نعام الدبح (تلقائي)</CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  كل صرف علف أو نافق يتوزع تلقائيًا على دفعات النعام الجاهزة بالتناسب مع عدد النعام الحي. الأحداث بحالة <Badge variant="secondary">pending</Badge> هي أحداث تكلفة لم تجد دفعات جاهزة وقت تسجيلها.
+                </p>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>التاريخ</TableHead>
+                      <TableHead>النوع</TableHead>
+                      <TableHead>إجمالي التكلفة</TableHead>
+                      <TableHead>الحالة</TableHead>
+                      <TableHead>ملاحظة</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {allocations.map((a: any) => (
+                      <TableRow key={a.id}>
+                        <TableCell className="text-xs">{a.event_date}</TableCell>
+                        <TableCell>
+                          {a.event_type === 'feed' ? <Badge className="bg-orange-600">صرف علف</Badge>
+                            : a.event_type === 'mortality' ? <Badge variant="destructive">نافق</Badge>
+                            : <Badge variant="outline">{a.event_type}</Badge>}
+                        </TableCell>
+                        <TableCell className="font-medium">{fmt(a.total_cost)} ج.م</TableCell>
+                        <TableCell>
+                          {a.status === 'allocated' ? <Badge variant="default">موزعة</Badge>
+                            : a.status === 'pending' ? <Badge variant="secondary">بانتظار التوزيع</Badge>
+                            : <Badge variant="outline">ملغية</Badge>}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{a.notes || '—'}</TableCell>
+                      </TableRow>
+                    ))}
+                    {!allocations.length && (
+                      <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">لا توجد عمليات توزيع بعد</TableCell></TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
 
