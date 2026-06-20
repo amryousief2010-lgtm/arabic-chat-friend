@@ -667,11 +667,11 @@ export default function LabTreasury() {
       return;
     }
     if (expExceeds && !isManager) {
-      toast.error(`الرصيد المتاح في ${PAYMENT_LABELS[normalizedExpensePaymentMethod]} غير كافٍ (${fmtNum(expAvailable, 2)} ج). يلزم اعتماد المدير العام أو التنفيذي.`);
+      toast.error(`الرصيد الرسمي المعتمد لخزنة المعمل غير كافٍ (${fmtNum(expAvailable, 2)} ج). يلزم اعتماد المدير العام أو التنفيذي.`);
       return;
     }
     if (expExceeds && isManager) {
-      if (!confirm(`تحذير: المبلغ يتجاوز الرصيد المتاح في ${PAYMENT_LABELS[normalizedExpensePaymentMethod]} (${fmtNum(expAvailable, 2)} ج). هل تريد المتابعة بصلاحية الإدارة؟`)) return;
+      if (!confirm(`تحذير: المبلغ يتجاوز الرصيد الرسمي المعتمد لخزنة المعمل (${fmtNum(expAvailable, 2)} ج). هل تريد المتابعة بصلاحية الإدارة؟`)) return;
     }
     const receipt_url = await uploadReceipt(expReceipt);
     const mergedDescription = customLabel
