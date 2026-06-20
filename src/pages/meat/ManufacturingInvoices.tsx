@@ -709,10 +709,8 @@ export default function ManufacturingInvoices() {
                   </div>
                 )}
 
-                {serviceCostLines.length > 0 && (
-                  <Card className="border-orange-200 bg-orange-50/60 dark:bg-orange-950/20">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base">تكاليف إضافية</CardTitle>
+                {/* Service-cost auto-table removed — extra cost is a single manual numeric field above. */}
+
                       <CardDescription>بنود خدمة تدخل في تكلفة التصنيع فقط ولا تخصم من مخزون الخامات أو التغليف.</CardDescription>
                     </CardHeader>
                     <CardContent className="p-0 overflow-x-auto">
