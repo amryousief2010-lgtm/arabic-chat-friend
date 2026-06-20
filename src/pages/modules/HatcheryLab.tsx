@@ -1156,18 +1156,26 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
             <div className="md:col-span-1"><Label>ملاحظات</Label><Input value={notes} onChange={e => setNotes(e.target.value)} /></div>
           </div>
 
-          {/* بانر وارد بيض المزرعة */}
-          {shipmentsSummary && (
+          {/* بانر آخر دفعة نقل من المزرعة */}
+          {latestTransferBatch && (
             <div className="border rounded-lg p-3 bg-purple-50 dark:bg-purple-950/20 border-purple-200 flex flex-wrap items-center justify-between gap-2">
               <div className="text-sm">
                 <div className="font-bold text-purple-700 dark:text-purple-300">
                   بيض نعام العاصمة — مزرعة الأمهات
                 </div>
                 <div className="text-xs text-muted-foreground mt-0.5">
-                  {shipmentsSummary.count} شحنة pending · إجمالي {shipmentsSummary.total.toLocaleString()} بيضة
-                  {shipmentsSummary.from && ` · من ${shipmentsSummary.from} إلى ${shipmentsSummary.to}`}
+                  آخر دفعة نقل: <b>{latestTransferBatch.total_eggs.toLocaleString()}</b> بيضة
+                  · تاريخ النقل: {latestTransferBatch.transfer_date}
+                  {latestTransferBatch.min_date !== latestTransferBatch.max_date && (
+                    <> · فترة الإنتاج: {latestTransferBatch.min_date} → {latestTransferBatch.max_date}</>
+                  )}
                   <span className="mx-1">·</span>
                   <span className="text-amber-700">وارد من المزرعة / غير مستلم في دفعة</span>
+                  {availableTransferBatches.length > 1 && (
+                    <span className="mr-2 text-muted-foreground">
+                      (+{availableTransferBatches.length - 1} دفعة نقل سابقة متاحة في القائمة)
+                    </span>
+                  )}
                 </div>
               </div>
               <Button size="sm" variant="default" onClick={loadLatestFarmShipment}>
@@ -1183,14 +1191,23 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
             </div>
             <div className="space-y-2">
               {lots.map((l, i) => {
-                const availableShipments = farmShipments.filter(
-                  (s) => s.id === l.from_shipment_id || !usedShipmentIds.has(s.id)
+                const lotSelectedIds = new Set(l.from_shipment_ids || []);
+                const availableForLot = transferBatchesData.filter(
+                  (g) =>
+                    g.shipments.every((s: any) => lotSelectedIds.has(s.id)) ||
+                    g.shipments.every((s: any) => !usedShipmentIds.has(s.id))
                 );
+                const currentKey =
+                  (l.from_shipment_ids || []).length > 0
+                    ? transferBatchesData.find((g) =>
+                        g.shipments.every((s: any) => lotSelectedIds.has(s.id))
+                      )?.key || ""
+                    : "";
                 return (
                 <Card key={i} className="p-3">
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-2 items-end">
                     <div><Label>المالك</Label>
-                      <Select value={l.owner_type} onValueChange={v => updateLot(i, { owner_type: v, source: v === "capital_ostrich" ? "mother_farm" : "external", from_shipment_id: v === "capital_ostrich" ? l.from_shipment_id : null, max_eggs: v === "capital_ostrich" ? l.max_eggs : null, shipment_label: v === "capital_ostrich" ? l.shipment_label : "" })}>
+                      <Select value={l.owner_type} onValueChange={v => updateLot(i, { owner_type: v, source: v === "capital_ostrich" ? "mother_farm" : "external", from_shipment_ids: v === "capital_ostrich" ? l.from_shipment_ids : [], max_eggs: v === "capital_ostrich" ? l.max_eggs : null, shipment_label: v === "capital_ostrich" ? l.shipment_label : "" })}>
                         <SelectTrigger /><SelectContent>
                           <SelectItem value="capital_ostrich">نعام العاصمة</SelectItem>
                           <SelectItem value="external_client">عميل خارجي</SelectItem>
@@ -1213,19 +1230,25 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
                         </Select>
                       </div>
                     )}
-                    {l.owner_type === "capital_ostrich" && availableShipments.length > 0 && (
+                    {l.owner_type === "capital_ostrich" && availableForLot.length > 0 && (
                       <div><Label>وارد بيض المزرعة المتاح</Label>
                         <Select
-                          value={l.from_shipment_id || ""}
-                          onValueChange={(v) => loadShipmentIntoLot(i, v)}
+                          value={currentKey}
+                          onValueChange={(v) => loadTransferBatchIntoLot(i, v)}
                         >
-                          <SelectTrigger><SelectValue placeholder="اختر شحنة..." /></SelectTrigger>
+                          <SelectTrigger><SelectValue placeholder="اختر دفعة نقل..." /></SelectTrigger>
                           <SelectContent>
-                            {availableShipments.map((s) => (
-                              <SelectItem key={s.id} value={s.id}>
-                                {s.production_date} — {s.egg_count} بيضة{s.family_number ? ` · أسرة ${s.family_number}` : ""}
-                              </SelectItem>
-                            ))}
+                            {availableForLot.map((g) => {
+                              const period =
+                                g.min_date === g.max_date
+                                  ? g.min_date
+                                  : `${g.min_date} → ${g.max_date}`;
+                              return (
+                                <SelectItem key={g.key} value={g.key}>
+                                  نقل {g.transfer_date} — {g.total_eggs} بيضة · فترة الإنتاج: {period}
+                                </SelectItem>
+                              );
+                            })}
                           </SelectContent>
                         </Select>
                       </div>
@@ -1241,7 +1264,7 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
                     </div>
                     <Button size="sm" variant="ghost" onClick={() => removeLot(i)} disabled={lots.length === 1}><X className="w-4 h-4" /></Button>
                   </div>
-                  {l.from_shipment_id && (
+                  {(l.from_shipment_ids?.length || 0) > 0 && (
                     <div className="mt-2 text-xs text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/20 rounded px-2 py-1">
                       منقولة من مزرعة الأمهات — {l.shipment_label}
                     </div>
