@@ -82,7 +82,23 @@ export default function LabCustomerStatement() {
         });
         setCustomers(list as Customer[]);
       });
+    supabase
+      .from("hatchery_pricing_settings")
+      .select("infertile_egg_price,completed_unhatched_price,hatch_mortality_price,chick_price,daily_brooding_price")
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }: any) => {
+        if (data) setPricing({
+          infertile_egg_price: Number(data.infertile_egg_price) || 0,
+          completed_unhatched_price: Number(data.completed_unhatched_price) || 0,
+          hatch_mortality_price: Number(data.hatch_mortality_price) || 0,
+          chick_price: Number(data.chick_price) || 0,
+          daily_brooding_price: Number(data.daily_brooding_price) || 0,
+        });
+      });
   }, []);
+
 
   useEffect(() => {
     if (!customerId) { setRows([]); setLotsByBatch({}); return; }
