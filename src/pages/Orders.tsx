@@ -1176,15 +1176,7 @@ const Orders = () => {
                         <SelectTrigger className="w-full h-9 text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {Object.entries(statusLabels)
-                            .filter(([value]) => {
-                              if (isPrivateDeliveryRep) {
-                                return value === order.status || value === 'delivered' || value === 'cancelled' || value === 'pending';
-                              }
-                              if (isShippingCompany) {
-                                return value === order.status || value === 'delivered' || value === 'cancelled' || value === 'shipped' || value === 'pending';
-                              }
-                              return true;
-                            })
+                            .filter(([value]) => value === order.status || ['pending', 'delivered', 'cancelled'].includes(value))
                             .map(([value, label]) => (
                               <SelectItem key={value} value={value}>
                                 {value === 'pending' && isPrivateDeliveryRep ? 'مؤجل' : label}
@@ -1427,15 +1419,7 @@ const Orders = () => {
                           </SelectTrigger>
                           <SelectContent>
                             {Object.entries(statusLabels)
-                              .filter(([value]) => {
-                                if (isPrivateDeliveryRep) {
-                                  return value === order.status || value === 'delivered' || value === 'cancelled' || value === 'pending';
-                                }
-                                if (isShippingCompany) {
-                                  return value === order.status || value === 'delivered' || value === 'cancelled' || value === 'shipped' || value === 'pending';
-                                }
-                                return true;
-                              })
+                              .filter(([value]) => value === order.status || ['pending', 'delivered', 'cancelled'].includes(value))
                               .map(([value, label]) => (
                                 <SelectItem key={value} value={value}>
                                   {value === 'pending' && isPrivateDeliveryRep ? 'مؤجل' : label}
