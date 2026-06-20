@@ -435,28 +435,70 @@ export default function BatchAccountDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="rounded border p-3 bg-muted/30 text-sm grid grid-cols-2 md:grid-cols-4 gap-2">
-            <Info label="اسم العميل" value={customerName} />
-            <Info label="رقم الدفعة" value={b.batch_number || "—"} />
-            <Info label="تاريخ الدخول" value={b.entry_date || "—"} />
-            <Info label="تاريخ الفقس" value={
-              <span className="inline-flex items-center gap-1">
-                {lot.hatcher_out_at?.slice(0,10) || "—"}
-                <button
-                  type="button"
-                  className="text-[10px] text-primary underline"
-                  onClick={() => { setHatchDate(lot.hatcher_out_at?.slice(0,10) || new Date().toISOString().slice(0,10)); setHatchEditOpen(true); }}
-                >تعديل</button>
-              </span>
-            } />
-            <Info label="تاريخ الاستلام" value={lot.brooding_out_at?.slice(0,10) || "لم يستلم بعد"} />
-            <Info label="عدد البيض" value={fmt(lot.eggs_in)} />
-            <Info label="عدد اللايح" value={fmt(lot.infertile_eggs)} />
-            <Info label="الكشف الثاني" value={fmt(lot.completed_unhatched)} />
-            <Info label="عدد الكتاكيت" value={fmt(lot.chicks_hatched)} />
-            <Info label="نافق الهاتش" value={fmt(num(lot.hatch_mortality_count) || Math.max(0, (num(lot.transferred_count) || num(lot.fertile_eggs) || Math.max(0, num(lot.eggs_in) - num(lot.infertile_eggs))) - num(lot.chicks_hatched) - num(lot.completed_unhatched)))} />
-            <Info label="أيام التحضين" value={fmt(lot.brooding_days)} />
-          </div>
+          {(() => {
+            const eggs = num(lot.eggs_in);
+            const damaged = num((lot as any).infertile_inedible);
+            const net = Math.max(0, eggs - damaged);
+            const infEdible = num((lot as any).infertile_edible) || num(lot.infertile_eggs);
+            const fertile = num(lot.fertile_eggs) || Math.max(0, eggs - num(lot.infertile_eggs));
+            const candle2 = num(lot.completed_unhatched);
+            const chicks = num(lot.chicks_hatched);
+            const transferred = num(lot.transferred_count) || fertile;
+            const hatchMort = num(lot.hatch_mortality_count) || Math.max(0, transferred - chicks - candle2);
+            const hatchPct = eggs > 0 ? (chicks / eggs) * 100 : 0;
+            // Estimated account total
+            const p: any = pricing || {};
+            const days = lot.hatcher_out_at && lot.brooding_out_at
+              ? Math.max(1, Math.round((new Date(lot.brooding_out_at.slice(0,10)).getTime() - new Date(lot.hatcher_out_at.slice(0,10)).getTime())/86400000)+1)
+              : (lot.hatcher_out_at ? Math.max(1, Math.round((Date.now() - new Date(lot.hatcher_out_at.slice(0,10)).getTime())/86400000)+1) : 0);
+            const estimated = invoice ? num(invoice.total_amount) :
+              num(lot.infertile_eggs) * num(p.infertile_egg_price) +
+              candle2 * num(p.completed_unhatched_price) +
+              chicks * num(p.chick_price) +
+              chicks * days * num(p.daily_brooding_price) +
+              hatchMort * (num(p.hatch_mortality_price) || 100);
+            const ownerLabel = (lot as any).owner_type === "internal" ? "داخلي" : "خارجي";
+            const headers = ["العميل","النوع","رقم دفعة العميل","بيض","تالف","صافي","لايح","مخصب 1","نافق ك2","نافق هاتشر","كتاكيت","% فقس","الحساب التقديري","تعديل"];
+            return (
+              <div className="rounded-lg border overflow-x-auto bg-card">
+                <table className="w-full text-xs">
+                  <thead className="bg-muted/50">
+                    <tr>{headers.map(h => <th key={h} className="p-2 text-center font-medium text-muted-foreground whitespace-nowrap">{h}</th>)}</tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-t">
+                      <td className="p-2 text-center font-medium">{customerName}</td>
+                      <td className="p-2 text-center"><Badge variant="outline">{ownerLabel}</Badge></td>
+                      <td className="p-2 text-center font-mono">{b.batch_number || "—"}</td>
+                      <td className="p-2 text-center">{fmt(eggs)}</td>
+                      <td className="p-2 text-center">{fmt(damaged)}</td>
+                      <td className="p-2 text-center">{fmt(net)}</td>
+                      <td className="p-2 text-center">{fmt(infEdible)}</td>
+                      <td className="p-2 text-center">{fmt(fertile)}</td>
+                      <td className="p-2 text-center">{fmt(candle2)}</td>
+                      <td className="p-2 text-center">{fmt(hatchMort)}</td>
+                      <td className="p-2 text-center font-bold">{fmt(chicks)}</td>
+                      <td className="p-2 text-center">{hatchPct.toFixed(1)}%</td>
+                      <td className="p-2 text-center font-bold text-primary">{fmtMoney(estimated)}</td>
+                      <td className="p-2 text-center">
+                        <button
+                          type="button"
+                          className="text-[11px] text-primary underline whitespace-nowrap"
+                          onClick={() => { setHatchDate(lot.hatcher_out_at?.slice(0,10) || new Date().toISOString().slice(0,10)); setHatchEditOpen(true); }}
+                        >✎ تعديل</button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div className="flex items-center justify-between gap-4 p-2 text-[11px] text-muted-foreground border-t bg-muted/20">
+                  <span>تاريخ الدخول: <b>{b.entry_date || "—"}</b></span>
+                  <span>تاريخ الفقس: <b>{lot.hatcher_out_at?.slice(0,10) || "—"}</b></span>
+                  <span>تاريخ الاستلام: <b>{lot.brooding_out_at?.slice(0,10) || "لم يستلم بعد"}</b></span>
+                  <span>أيام التحضين: <b>{fmt(lot.brooding_days)}</b></span>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Projected brooding when customer hasn't received chicks yet */}
           {!lot.brooding_out_at && num(lot.chicks_hatched) > 0 && lot.hatcher_out_at && (() => {
