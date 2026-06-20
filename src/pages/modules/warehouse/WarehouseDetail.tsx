@@ -1953,7 +1953,19 @@ const WarehouseDetail = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {isMain && canManualAdd && (
+        <ManualStockAdditionDialog
+          open={manualAddOpen}
+          onOpenChange={setManualAddOpen}
+          warehouseId={id!}
+          warehouseName={warehouse?.name}
+          items={items}
+          onSaved={fetchAll}
+        />
+      )}
     </DashboardLayout>
+
 
   );
 };
