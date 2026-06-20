@@ -29,7 +29,7 @@ type BatchInfo = {
   brooding_days: number;
 };
 
-type Customer = { id: string; name: string; customer_type: string | null };
+type Customer = { id: string; name: string; customer_type: string | null; phone?: string | null };
 type LedgerRow = {
   id: string; customer_id: string; entry_date: string; entry_type: string;
   source_type: string; source_id: string | null;
