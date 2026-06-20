@@ -7,10 +7,27 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Printer, FileDown } from "lucide-react";
+import { Printer, FileDown, FileSpreadsheet } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate } from "@/lib/printPdf";
 import { toast } from "sonner";
+import * as XLSX from "xlsx";
+
+type GroupBy = "batch" | "week" | "month";
+type BatchInfo = {
+  batch_number: string;
+  operational_batch_no: number | null;
+  entry_date: string | null;
+  receive_date: string | null;
+  received_eggs: number;
+  net_eggs: number;
+  candle1_fertile: number;
+  candle1_infertile: number;
+  candle2_dead: number;
+  hatched_chicks: number;
+  hatcher_dead: number;
+  brooding_days: number;
+};
 
 type Customer = { id: string; name: string; customer_type: string | null };
 type LedgerRow = {
