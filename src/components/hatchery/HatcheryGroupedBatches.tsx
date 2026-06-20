@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,7 @@ import BatchAddEggsDialog from "./BatchAddEggsDialog";
 import BatchAccountDialog from "./BatchAccountDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { getHatchOperationalBatchKey } from "@/lib/hatcheryBatchStage";
 
 // row[] is the same shape produced by BatchesTab.rows (id, batch_number, entry_date, machine,
 // type, customer_name, total_eggs, net_eggs, chicks, candle1_date, candle2_date, exit_date,
@@ -26,6 +27,7 @@ interface Props {
   stageMeta: Record<string, StageMeta>;
   todayStr: string;
   sortOrder?: "asc" | "desc";
+  initialFilter?: "all" | "external" | "internal" | "in_progress" | "completed" | "overdue";
   onRefresh?: () => void;
 }
 
@@ -33,9 +35,7 @@ const pct = (num: number, den: number) =>
   den > 0 ? ((num / den) * 100).toFixed(1) + "%" : "—";
 
 const groupKey = (r: any) =>
-  r.op_seq != null
-    ? `OP__${(r.machine || "—").trim()}__${r.op_seq}`
-    : `DATE__${r.entry_date || "—"}__${(r.machine || "—").trim()}`;
+  getHatchOperationalBatchKey(r);
 
 const addDaysISO = (iso: string, days: number) => {
   if (!iso) return "";
@@ -44,7 +44,7 @@ const addDaysISO = (iso: string, days: number) => {
   return d.toISOString().slice(0, 10);
 };
 
-const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr, sortOrder = "asc", onRefresh }: Props) => {
+const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr, sortOrder = "asc", initialFilter, onRefresh }: Props) => {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<
     | "all" | "external" | "internal" | "in_progress" | "completed" | "overdue"
@@ -55,6 +55,12 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr, sortOrder = "asc", 
   const [machineFilter, setMachineFilter] = useState("all");
   const [openGroup, setOpenGroup] = useState<any>(null);
   const [resultsGroup, setResultsGroup] = useState<any>(null);
+
+  useEffect(() => {
+    if (initialFilter && ["all", "external", "internal", "in_progress", "completed", "overdue"].includes(initialFilter)) {
+      setFilter(initialFilter);
+    }
+  }, [initialFilter]);
 
   const groups = useMemo(() => {
     const map = new Map<string, any>();

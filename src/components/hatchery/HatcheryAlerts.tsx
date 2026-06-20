@@ -6,6 +6,14 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { AlertTriangle, Calendar } from "lucide-react";
+import {
+  addDays,
+  computeStage,
+  getHatchOperationalBatchKey,
+  HATCH_BATCHES_LAB_QUERY_KEY,
+  HATCH_BATCHES_LAB_SELECT,
+  isOperationalHatchBatch,
+} from "@/lib/hatcheryBatchStage";
 
 interface HatcheryAlertsProps {
   settings?: any;
@@ -14,11 +22,11 @@ interface HatcheryAlertsProps {
 
 export default function HatcheryAlerts({ settings, onNavigate }: HatcheryAlertsProps) {
   const { data: dbBatches = [] } = useQuery<any[]>({
-    queryKey: ["hatch_batches_lab"],
+    queryKey: HATCH_BATCHES_LAB_QUERY_KEY,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("hatch_batches")
-        .select("*, hatch_customers(id,name,customer_type)")
+        .select(HATCH_BATCHES_LAB_SELECT)
         .order("receive_date", { ascending: false })
         .limit(1000);
       if (error) throw error;
@@ -35,39 +43,21 @@ export default function HatcheryAlerts({ settings, onNavigate }: HatcheryAlertsP
     d3.setDate(d3.getDate() + 3);
     const d3s = d3.toISOString().slice(0, 10);
 
-    const addD = (d: string, n: number) => {
-      const dt = new Date(d);
-      dt.setDate(dt.getDate() + n);
-      return dt.toISOString().slice(0, 10);
-    };
-
-    let c2Today = 0, c2_3d = 0, exitToday = 0, exit3d = 0, overdue = 0;
+    let c2Today = 0, c2_3d = 0, exitToday = 0, exit3d = 0;
+    const overdueKeys = new Set<string>();
     const ops: any[] = [];
 
-    const CLOSED_STATUSES = new Set([
-      "completed","closed","delivered","received_by_customer","finished","settled","cancelled",
-      "exited","done"
-    ]);
     dbBatches.forEach((b: any) => {
-      // Skip closed / received / exited batches — they cannot be overdue
-      if (b.status && CLOSED_STATUSES.has(String(b.status).toLowerCase())) return;
-      if (b.exit_date) return;
-      if (b.is_test === true) return;
-      // Batches with hatch results recorded (chicks hatched, candling done with results,
-      // hatcher mortality) are de-facto completed even if status/exit_date weren't set.
-      const hasResults =
-        (b.hatched_chicks || 0) > 0 ||
-        (b.candle1_fertile || 0) > 0 ||
-        (b.candle1_infertile || 0) > 0 ||
-        (b.candle2_dead || 0) > 0 ||
-        (b.hatcher_dead || 0) > 0;
-      if (hasResults) return;
+      if (!isOperationalHatchBatch(b)) return;
 
       const entry = b.entry_date || b.receive_date;
       if (!entry) return;
 
-      const expC2 = b.candle2_date || addD(entry, c2);
-      const expEx = b.exit_date || addD(entry, h);
+      const st = computeStage(b, settings);
+      if (st.stage === "completed") return;
+
+      const expC2 = st.expCandle2 || addDays(entry, c2);
+      const expEx = st.expExit || addDays(entry, h);
       const cName = b.hatch_customers?.name || "—";
 
       let stageLabel = "داخل الماكينة";
@@ -99,22 +89,20 @@ export default function HatcheryAlerts({ settings, onNavigate }: HatcheryAlertsP
         if (!action) { action = "خروج"; targetDate = expEx; }
       }
 
-      let isOverdue = false;
-      if (!b.candle1_date && t > addD(entry, c1)) {
-        isOverdue = true;
-        action = "تأخر الكشف الأول";
-        targetDate = addD(entry, c1);
-      } else if (!b.candle2_date && t > expC2) {
-        isOverdue = true;
-        action = "تأخر الكشف الثاني";
-        targetDate = expC2;
-      } else if (b.candle2_date && !b.exit_date && t > expEx) {
-        isOverdue = true;
-        action = "تأخر الفقس / الخروج";
-        targetDate = expEx;
+      const isOverdue = st.stage === "overdue";
+      if (isOverdue) {
+        overdueKeys.add(getHatchOperationalBatchKey(b));
+        action = st.overdueReason === "تجاوز موعد الكشف الأول"
+          ? "تأخر الكشف الأول"
+          : st.overdueReason === "تجاوز موعد الكشف الثاني"
+            ? "تأخر الكشف الثاني"
+            : "تأخر الفقس / الخروج";
+        targetDate = st.overdueReason === "تجاوز موعد الكشف الأول"
+          ? st.expCandle1 || ""
+          : st.overdueReason === "تجاوز موعد الكشف الثاني"
+            ? st.expCandle2 || ""
+            : st.expExit || "";
       }
-
-      if (isOverdue) overdue++;
 
       if (action) {
         ops.push({
@@ -130,7 +118,7 @@ export default function HatcheryAlerts({ settings, onNavigate }: HatcheryAlertsP
       }
     });
 
-    return { counts: { c2Today, c2_3d, exitToday, exit3d, overdue }, todayOps: ops };
+    return { counts: { c2Today, c2_3d, exitToday, exit3d, overdue: overdueKeys.size }, todayOps: ops };
   }, [dbBatches, settings]);
 
   const alertCards = [
