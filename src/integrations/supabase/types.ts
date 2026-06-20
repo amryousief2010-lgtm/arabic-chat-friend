@@ -13058,6 +13058,8 @@ export type Database = {
           butcher_3_id: string | null
           cost_allocation_done: boolean
           cost_allocation_ref: string | null
+          cost_locked_at: string | null
+          cost_locked_by: string | null
           cost_per_bird_snapshot: number
           cost_per_kg_meat: number
           created_at: string
@@ -13101,6 +13103,8 @@ export type Database = {
           butcher_3_id?: string | null
           cost_allocation_done?: boolean
           cost_allocation_ref?: string | null
+          cost_locked_at?: string | null
+          cost_locked_by?: string | null
           cost_per_bird_snapshot?: number
           cost_per_kg_meat?: number
           created_at?: string
@@ -13144,6 +13148,8 @@ export type Database = {
           butcher_3_id?: string | null
           cost_allocation_done?: boolean
           cost_allocation_ref?: string | null
+          cost_locked_at?: string | null
+          cost_locked_by?: string | null
           cost_per_bird_snapshot?: number
           cost_per_kg_meat?: number
           created_at?: string
