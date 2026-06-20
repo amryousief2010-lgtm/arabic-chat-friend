@@ -16,6 +16,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Egg, Plus, Truck, Wheat, Syringe, Users, Calendar, TrendingUp, Trash2, Search, BarChart3, Download, LayoutDashboard, Eye, Printer } from "lucide-react";
 import * as XLSX from "xlsx";
@@ -876,26 +877,96 @@ const TransfersTab = ({ transfers, families, eggs = [], qc }: any) => {
   const [rows, setRows] = useState<any[]>([emptyRow()]);
   const [autoLoaded, setAutoLoaded] = useState<{ count: number; from: string; to: string; totalQty: number } | null>(null);
   const [autoLoading, setAutoLoading] = useState(false);
+  const [selectedDays, setSelectedDays] = useState<Set<string>>(new Set());
+
+  // Per-day availability based on per-(family,date) production minus transferred quantity.
+  // This guarantees days like 18-06-2026 appear whenever they still have un-transferred eggs,
+  // independently of timezones or "last transfer date per family".
+  const availableDays = useMemo(() => {
+    const td = today();
+    const prod = new Map<string, { date: string; family_id: string; produced: number }>();
+    (eggs || []).forEach((e: any) => {
+      if (!e.family_id || !e.production_date) return;
+      if (e.production_date > td) return;
+      const k = `${e.family_id}|${e.production_date}`;
+      const cur = prod.get(k) || { date: e.production_date, family_id: e.family_id, produced: 0 };
+      cur.produced += Number(e.egg_count) || 0;
+      prod.set(k, cur);
+    });
+    const trans = new Map<string, number>();
+    (transfers || []).forEach((t: any) => {
+      if (!t.family_id || !t.transfer_date) return;
+      const k = `${t.family_id}|${t.transfer_date}`;
+      trans.set(k, (trans.get(k) || 0) + (Number(t.quantity) || 0));
+    });
+    const byDay = new Map<string, {
+      date: string; produced: number; transferred: number; remaining: number;
+      entries: { family_id: string; produced: number; transferred: number; remaining: number }[];
+    }>();
+    prod.forEach((p, k) => {
+      const transferred = trans.get(k) || 0;
+      const remaining = Math.max(0, p.produced - transferred);
+      const cur = byDay.get(p.date) || { date: p.date, produced: 0, transferred: 0, remaining: 0, entries: [] };
+      cur.produced += p.produced;
+      cur.transferred += transferred;
+      cur.remaining += remaining;
+      cur.entries.push({ family_id: p.family_id, produced: p.produced, transferred, remaining });
+      byDay.set(p.date, cur);
+    });
+    return Array.from(byDay.values())
+      .filter((d) => d.produced > 0)
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [eggs, transfers]);
+
+  const toggleDay = (d: string) => setSelectedDays((prev) => {
+    const n = new Set(prev); n.has(d) ? n.delete(d) : n.add(d); return n;
+  });
+  const toggleAllAvailable = () => setSelectedDays((prev) => {
+    const avail = availableDays.filter((d) => d.remaining > 0).map((d) => d.date);
+    if (avail.every((d) => prev.has(d))) return new Set();
+    return new Set(avail);
+  });
+
+  const selectedTotal = useMemo(() => availableDays
+    .filter((d) => selectedDays.has(d.date))
+    .reduce((s, d) => s + d.remaining, 0), [availableDays, selectedDays]);
+
+  const loadSelectedDays = () => {
+    const days = availableDays.filter((d) => selectedDays.has(d.date) && d.remaining > 0);
+    if (!days.length) { toast.error("اختر يومًا واحدًا على الأقل به رصيد متبقي للنقل"); return; }
+    const newRows = days.flatMap((d) =>
+      d.entries.filter((e) => e.remaining > 0).map((e) => ({
+        transfer_date: d.date,
+        family_id: e.family_id,
+        quantity: String(e.remaining),
+        damaged: "",
+        notes: "تحميل من اختيار أيام النقل",
+      }))
+    );
+    const totalQty = newRows.reduce((s, r) => s + (Number(r.quantity) || 0), 0);
+    const dates = newRows.map((r) => r.transfer_date).sort();
+    const minD = dates[0], maxD = dates[dates.length - 1];
+    setRows(newRows);
+    setBatchFrom(minD); setBatchTo(maxD);
+    setAutoLoaded({ count: newRows.length, from: minD, to: maxD, totalQty });
+    toast.success(`تم تحميل ${days.length} يوم (${newRows.length} سجل) — إجمالي ${totalQty.toLocaleString()} بيضة`);
+  };
 
   const resetForm = () => {
     setRows([emptyRow()]);
     setBatchFrom(today()); setBatchTo(today());
     setBatchLabel(""); setBatchNotes("");
     setAutoLoaded(null);
+    setSelectedDays(new Set());
   };
 
-  // Compute pending production per family per date (production not yet covered by transfers).
-  // Heuristic: per family, find latest transfer_date; sum egg_production rows after that date per (family, date).
+  // Compute pending production using per-(family,date) accounting:
+  // remaining = produced(family,date) - SUM(transfers(family,date)). This guarantees a day
+  // is included whenever it still has un-transferred eggs, regardless of any later transfer
+  // dates that exist for the same family. Uses local YYYY-MM-DD (no UTC shift).
   const autoLoadPending = async () => {
     setAutoLoading(true);
     try {
-      const lastTransferByFamily: Record<string, string> = {};
-      transfers.forEach((t: any) => {
-        if (!t.family_id) return;
-        const prev = lastTransferByFamily[t.family_id];
-        if (!prev || t.transfer_date > prev) lastTransferByFamily[t.family_id] = t.transfer_date;
-      });
-
       const all: any[] = [];
       let from = 0; const size = 1000;
       while (true) {
@@ -910,29 +981,51 @@ const TransfersTab = ({ transfers, families, eggs = [], qc }: any) => {
         from += size;
       }
 
+      const transAll: any[] = [];
+      {
+        let fromT = 0;
+        while (true) {
+          const { data, error } = await supabase.from("farm_transfers")
+            .select("transfer_date,family_id,quantity")
+            .range(fromT, fromT + size - 1);
+          if (error) throw error;
+          if (!data || data.length === 0) break;
+          transAll.push(...data);
+          if (data.length < size) break;
+          fromT += size;
+        }
+      }
+
       const td = today();
-      const pending = all.filter((e: any) => {
-        if (!e.family_id) return false;
-        const last = lastTransferByFamily[e.family_id];
-        if (last && e.production_date <= last) return false;
-        return e.production_date <= td;
+      const transMap = new Map<string, number>();
+      transAll.forEach((t: any) => {
+        if (!t.family_id || !t.transfer_date) return;
+        const k = `${t.family_id}|${t.transfer_date}`;
+        transMap.set(k, (transMap.get(k) || 0) + (Number(t.quantity) || 0));
       });
 
+      const prodMap = new Map<string, { date: string; family_id: string; produced: number }>();
+      all.forEach((e: any) => {
+        if (!e.family_id || !e.production_date) return;
+        if (e.production_date > td) return;
+        const k = `${e.family_id}|${e.production_date}`;
+        const cur = prodMap.get(k) || { date: e.production_date, family_id: e.family_id, produced: 0 };
+        cur.produced += Number(e.egg_count) || 0;
+        prodMap.set(k, cur);
+      });
+
+      const pending = Array.from(prodMap.entries())
+        .map(([k, p]) => ({ ...p, qty: Math.max(0, p.produced - (transMap.get(k) || 0)) }))
+        .filter((p) => p.qty > 0);
+
       if (!pending.length) {
-        toast.info("لا يوجد إنتاج جديد بعد آخر نقل");
+        toast.info("لا يوجد بيض غير منقول حاليًا");
         setRows([emptyRow()]);
         setAutoLoaded({ count: 0, from: "", to: "", totalQty: 0 });
         return;
       }
-      const map = new Map<string, { date: string; family_id: string; qty: number }>();
-      pending.forEach((e: any) => {
-        const k = `${e.family_id}|${e.production_date}`;
-        const cur = map.get(k) || { date: e.production_date, family_id: e.family_id, qty: 0 };
-        cur.qty += e.egg_count || 0;
-        map.set(k, cur);
-      });
-      const newRows = Array.from(map.values())
-        .filter((g) => g.qty > 0)
+
+      const newRows = pending
         .sort((a, b) => a.date.localeCompare(b.date) || String(a.family_id).localeCompare(String(b.family_id)))
         .map((g) => ({
           transfer_date: g.date,
@@ -955,11 +1048,10 @@ const TransfersTab = ({ transfers, families, eggs = [], qc }: any) => {
     }
   };
 
-  // Auto-load pending production when opening the dialog
+  // Open dialog — show day-selection checkboxes; user picks days then loads rows.
   const openDialog = async () => {
     resetForm();
     setOpen(true);
-    await autoLoadPending();
   };
 
   const save = useMutation({
@@ -1169,6 +1261,70 @@ ${batchNotes ? `<div class="notes"><b>ملاحظات الدفعة:</b> ${esc(bat
                   <div className="md:col-span-2"><Label>اسم/رقم الدفعة (اختياري)</Label><Input value={batchLabel} onChange={(e) => setBatchLabel(e.target.value)} placeholder="مثال: دفعة 1 - مايو" /></div>
                 </div>
                 <div><Label>ملاحظات الدفعة</Label><Textarea rows={2} value={batchNotes} onChange={(e) => setBatchNotes(e.target.value)} /></div>
+
+                {/* Day-selection checkbox panel */}
+                <div className="border rounded-md p-3 bg-purple-50/50 dark:bg-purple-950/20">
+                  <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+                    <div className="font-semibold text-purple-700 dark:text-purple-300 text-sm">
+                      اختر أيام النقل إلى معمل التفريخ ({availableDays.filter((d) => d.remaining > 0).length} يوم متاح)
+                    </div>
+                    <div className="flex gap-2 items-center text-xs">
+                      <Button type="button" size="sm" variant="ghost" onClick={toggleAllAvailable}>
+                        تحديد / إلغاء الكل
+                      </Button>
+                      <span>
+                        المحدد: <b className="text-primary">{selectedDays.size}</b> يوم —
+                        إجمالي: <b className="text-primary">{selectedTotal.toLocaleString()}</b> بيضة
+                      </span>
+                      <Button type="button" size="sm" onClick={loadSelectedDays} disabled={selectedDays.size === 0}>
+                        تحميل الأيام المحددة في الجدول
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="overflow-auto max-h-[32vh] border rounded bg-background">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-10"></TableHead>
+                          <TableHead>التاريخ</TableHead>
+                          <TableHead>المنتج</TableHead>
+                          <TableHead>المنقول سابقًا</TableHead>
+                          <TableHead>المتبقي للنقل</TableHead>
+                          <TableHead>الحالة</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {availableDays.length === 0 && (
+                          <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-4">لا يوجد إنتاج مسجل</TableCell></TableRow>
+                        )}
+                        {availableDays.map((d) => {
+                          const fully = d.remaining <= 0;
+                          return (
+                            <TableRow key={d.date} className={fully ? "opacity-60" : ""}>
+                              <TableCell>
+                                <Checkbox
+                                  checked={selectedDays.has(d.date)}
+                                  disabled={fully}
+                                  onCheckedChange={() => toggleDay(d.date)}
+                                />
+                              </TableCell>
+                              <TableCell className="font-medium">{d.date}</TableCell>
+                              <TableCell>{d.produced.toLocaleString()}</TableCell>
+                              <TableCell className="text-muted-foreground">{d.transferred.toLocaleString()}</TableCell>
+                              <TableCell className="font-bold text-purple-600">{d.remaining.toLocaleString()}</TableCell>
+                              <TableCell>
+                                {fully
+                                  ? <Badge variant="outline" className="text-emerald-700 border-emerald-300">تم نقله بالكامل</Badge>
+                                  : <Badge variant="outline" className="text-amber-700 border-amber-300">متاح للنقل</Badge>}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+
 
                 <div className="flex gap-2 flex-wrap items-center">
                   <Button type="button" size="sm" variant="secondary" onClick={autoLoadPending} disabled={autoLoading}>
