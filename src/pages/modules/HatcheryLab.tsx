@@ -838,7 +838,7 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
   const [machine, setMachine] = useState("");
   const [notes, setNotes] = useState("");
   const [lots, setLots] = useState<any[]>([
-    { owner_type: "capital_ostrich", source: "mother_farm", eggs_in: "", client_id: "", from_shipment_id: null, max_eggs: null, shipment_label: "" },
+    { owner_type: "capital_ostrich", source: "mother_farm", eggs_in: "", client_id: "", from_shipment_ids: [] as string[], max_eggs: null as number | null, shipment_label: "" },
   ]);
   const [saving, setSaving] = useState(false);
 
@@ -858,47 +858,89 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
     },
   });
 
-  // وارد بيض المزرعة المتاح (pending وغير مرتبط بأي دفعة)
-  const { data: farmShipments = [], refetch: refetchShipments } = useQuery<any[]>({
-    queryKey: ["pending_farm_shipments_for_new_batch", open],
+  // وارد بيض المزرعة المتاح (pending وغير مرتبط بأي دفعة) — مُجمَّع كدُفعات نقل
+  const { data: transferBatchesData = [], refetch: refetchShipments } = useQuery<any[]>({
+    queryKey: ["pending_farm_transfer_batches_for_new_batch", open],
     enabled: !!open,
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data: ships, error } = await (supabase as any)
         .from("farm_to_hatchery_shipments")
-        .select("id, production_date, egg_count, family_number, created_at, status, hatch_batch_id")
+        .select("id, production_date, egg_count, family_number, created_at, status, hatch_batch_id, farm_transfer_id")
         .eq("status", "pending")
         .is("hatch_batch_id", null)
         .eq("is_test", false)
-        .order("production_date", { ascending: false })
         .order("created_at", { ascending: false })
-        .limit(200);
+        .limit(1000);
       if (error) throw error;
-      return data || [];
+      const shipments = ships || [];
+      if (!shipments.length) return [];
+
+      // اجلب farm_transfers للحصول على notes (وسم دفعة النقل) و transfer_date
+      const ftIds = Array.from(new Set(shipments.map((s: any) => s.farm_transfer_id).filter(Boolean)));
+      const ftMap = new Map<string, any>();
+      if (ftIds.length) {
+        const { data: fts } = await (supabase as any)
+          .from("farm_transfers")
+          .select("id, notes, transfer_date, created_at")
+          .in("id", ftIds);
+        (fts || []).forEach((f: any) => ftMap.set(f.id, f));
+      }
+
+      // المفتاح: notes (تسمية دفعة النقل) إن وُجدت، وإلا farm_transfer_id، وإلا الشحنة نفسها
+      const groups = new Map<string, any>();
+      for (const s of shipments) {
+        const ft = s.farm_transfer_id ? ftMap.get(s.farm_transfer_id) : null;
+        const key = ft?.notes || (s.farm_transfer_id ? `ft:${s.farm_transfer_id}` : `sh:${s.id}`);
+        let g = groups.get(key);
+        if (!g) {
+          g = {
+            key,
+            label: ft?.notes || (ft ? `نقل ${ft.transfer_date}` : `شحنة ${s.production_date}`),
+            shipments: [] as any[],
+            total_eggs: 0,
+            min_date: s.production_date,
+            max_date: s.production_date,
+            transfer_date: ft?.transfer_date || s.production_date,
+            latest_created_at: s.created_at,
+          };
+          groups.set(key, g);
+        }
+        g.shipments.push(s);
+        g.total_eggs += s.egg_count || 0;
+        if (s.production_date < g.min_date) g.min_date = s.production_date;
+        if (s.production_date > g.max_date) g.max_date = s.production_date;
+        if (s.created_at > g.latest_created_at) g.latest_created_at = s.created_at;
+        if (ft?.transfer_date && ft.transfer_date > g.transfer_date) g.transfer_date = ft.transfer_date;
+      }
+
+      return Array.from(groups.values()).sort((a, b) =>
+        (b.latest_created_at || "").localeCompare(a.latest_created_at || "")
+      );
     },
   });
 
-  // الشحنات المختارة بالفعل في lots حالياً (لمنع التكرار داخل نفس الفورم)
-  const usedShipmentIds = useMemo(
-    () => new Set(lots.map((l) => l.from_shipment_id).filter(Boolean)),
-    [lots]
+  // المجموعات المختارة بالفعل في lots (لمنع التكرار)
+  const usedShipmentIds = useMemo(() => {
+    const s = new Set<string>();
+    lots.forEach((l) => (l.from_shipment_ids || []).forEach((id: string) => s.add(id)));
+    return s;
+  }, [lots]);
+
+  const availableTransferBatches = useMemo(
+    () => transferBatchesData.filter((g) => g.shipments.every((s: any) => !usedShipmentIds.has(s.id))),
+    [transferBatchesData, usedShipmentIds]
   );
 
-  // عرض إجمالي وارد المزرعة في الـ header
-  const shipmentsSummary = useMemo(() => {
-    if (!farmShipments.length) return null;
-    const total = farmShipments.reduce((s, r) => s + (r.egg_count || 0), 0);
-    const dates = farmShipments.map((r) => r.production_date).sort();
-    return {
-      count: farmShipments.length,
-      total,
-      from: dates[0],
-      to: dates[dates.length - 1],
-    };
-  }, [farmShipments]);
+  // آخر دفعة نقل فقط (للعرض في البانر)
+  const latestTransferBatch = useMemo(
+    () => availableTransferBatches[0] || null,
+    [availableTransferBatches]
+  );
 
-  const loadShipmentIntoLot = (lotIndex: number, shipmentId: string) => {
-    const sh = farmShipments.find((s) => s.id === shipmentId);
-    if (!sh) return;
+  const loadTransferBatchIntoLot = (lotIndex: number, key: string) => {
+    const g = transferBatchesData.find((x) => x.key === key);
+    if (!g) return;
+    const periodLabel = g.min_date === g.max_date ? g.min_date : `${g.min_date} → ${g.max_date}`;
     setLots((prev) =>
       prev.map((l, j) =>
         j === lotIndex
@@ -906,49 +948,48 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
               ...l,
               owner_type: "capital_ostrich",
               source: "mother_farm",
-              eggs_in: String(sh.egg_count || 0),
+              eggs_in: String(g.total_eggs),
               client_id: "",
-              from_shipment_id: sh.id,
-              max_eggs: sh.egg_count,
-              shipment_label: `${sh.production_date}${sh.family_number ? " — أسرة " + sh.family_number : ""}`,
+              from_shipment_ids: g.shipments.map((s: any) => s.id),
+              max_eggs: g.total_eggs,
+              shipment_label: `نقل ${g.transfer_date} · ${g.total_eggs} بيضة · فترة ${periodLabel}`,
             }
           : l
       )
     );
   };
 
-  // زر "تحميل وارد المزرعة" — يحمّل آخر شحنة pending في lot جديد (أو يستبدل أول lot فاضي)
+  // زر "تحميل وارد المزرعة" — يحمّل آخر دفعة نقل pending فقط
   const loadLatestFarmShipment = () => {
-    const available = farmShipments.filter((s) => !usedShipmentIds.has(s.id));
-    if (!available.length) {
-      toast.info("لا توجد شحنات وارد من المزرعة متاحة حالياً");
+    if (!latestTransferBatch) {
+      toast.info("لا توجد دفعات نقل من المزرعة متاحة حالياً");
       return;
     }
-    const latest = available[0];
-    // ابحث عن lot فاضي يمكن استبداله، وإلا أضف صفاً جديداً
     const emptyIdx = lots.findIndex(
-      (l) => !l.from_shipment_id && (!l.eggs_in || +l.eggs_in === 0) && !l.client_id
+      (l) => (!l.from_shipment_ids || l.from_shipment_ids.length === 0) && (!l.eggs_in || +l.eggs_in === 0) && !l.client_id
     );
     if (emptyIdx >= 0) {
-      loadShipmentIntoLot(emptyIdx, latest.id);
+      loadTransferBatchIntoLot(emptyIdx, latestTransferBatch.key);
     } else {
       setLots((prev) => [
         ...prev,
         {
           owner_type: "capital_ostrich",
           source: "mother_farm",
-          eggs_in: String(latest.egg_count || 0),
+          eggs_in: "",
           client_id: "",
-          from_shipment_id: latest.id,
-          max_eggs: latest.egg_count,
-          shipment_label: `${latest.production_date}${latest.family_number ? " — أسرة " + latest.family_number : ""}`,
+          from_shipment_ids: [],
+          max_eggs: null,
+          shipment_label: "",
         },
       ]);
+      // حمّل في الصف الجديد بعد إضافته
+      setTimeout(() => loadTransferBatchIntoLot(lots.length, latestTransferBatch.key), 0);
     }
-    toast.success(`تم تحميل شحنة ${latest.production_date} — ${latest.egg_count} بيضة`);
+    toast.success(`تم تحميل آخر دفعة نقل — ${latestTransferBatch.total_eggs} بيضة`);
   };
 
-  const addLot = () => setLots([...lots, { owner_type: "external_client", source: "external", eggs_in: "", client_id: "", from_shipment_id: null, max_eggs: null, shipment_label: "" }]);
+  const addLot = () => setLots([...lots, { owner_type: "external_client", source: "external", eggs_in: "", client_id: "", from_shipment_ids: [], max_eggs: null, shipment_label: "" }]);
   const removeLot = (i: number) => setLots(lots.filter((_, j) => j !== i));
   const updateLot = (i: number, patch: any) => setLots(lots.map((l, j) => j === i ? { ...l, ...patch } : l));
 
