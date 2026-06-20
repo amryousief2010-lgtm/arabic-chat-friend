@@ -44,8 +44,25 @@ export default function HatcheryAlerts({ settings, onNavigate }: HatcheryAlertsP
     let c2Today = 0, c2_3d = 0, exitToday = 0, exit3d = 0, overdue = 0;
     const ops: any[] = [];
 
+    const CLOSED_STATUSES = new Set([
+      "completed","closed","delivered","received_by_customer","finished","settled","cancelled",
+      "exited","done"
+    ]);
     dbBatches.forEach((b: any) => {
-      if (b.status === "completed" || b.exit_date) return;
+      // Skip closed / received / exited batches — they cannot be overdue
+      if (b.status && CLOSED_STATUSES.has(String(b.status).toLowerCase())) return;
+      if (b.exit_date) return;
+      if (b.is_test === true) return;
+      // Batches with hatch results recorded (chicks hatched, candling done with results,
+      // hatcher mortality) are de-facto completed even if status/exit_date weren't set.
+      const hasResults =
+        (b.hatched_chicks || 0) > 0 ||
+        (b.candle1_fertile || 0) > 0 ||
+        (b.candle1_infertile || 0) > 0 ||
+        (b.candle2_dead || 0) > 0 ||
+        (b.hatcher_dead || 0) > 0;
+      if (hasResults) return;
+
       const entry = b.entry_date || b.receive_date;
       if (!entry) return;
 
@@ -85,15 +102,15 @@ export default function HatcheryAlerts({ settings, onNavigate }: HatcheryAlertsP
       let isOverdue = false;
       if (!b.candle1_date && t > addD(entry, c1)) {
         isOverdue = true;
-        action = "متابعة تأخير";
+        action = "تأخر الكشف الأول";
         targetDate = addD(entry, c1);
       } else if (!b.candle2_date && t > expC2) {
         isOverdue = true;
-        action = "متابعة تأخير";
+        action = "تأخر الكشف الثاني";
         targetDate = expC2;
       } else if (b.candle2_date && !b.exit_date && t > expEx) {
         isOverdue = true;
-        action = "متابعة تأخير";
+        action = "تأخر الفقس / الخروج";
         targetDate = expEx;
       }
 
@@ -175,7 +192,7 @@ export default function HatcheryAlerts({ settings, onNavigate }: HatcheryAlertsP
                     <TableCell className="text-xs">{op.machine}</TableCell>
                     <TableCell className="text-xs">{op.stage}</TableCell>
                     <TableCell>
-                      <Badge variant={op.action === "متابعة تأخير" ? "destructive" : "default"} className="text-[10px]">
+                      <Badge variant={op.action.startsWith("تأخر") ? "destructive" : "default"} className="text-[10px]">
                         {op.action}
                       </Badge>
                     </TableCell>
