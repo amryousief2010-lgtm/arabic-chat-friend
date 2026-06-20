@@ -41,11 +41,9 @@ const isCairoGiza = (g?: string) => !!g && CAIRO_GIZA.some(k => g.includes(k));
 
 const WarehouseDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const { canManageWarehouses, user, isGeneralManager, isExecutiveManager, isWarehouseSupervisor } = useAuth();
+  const { canManageWarehouses, user, isGeneralManager, isExecutiveManager, isWarehouseSupervisor, isAgouzaWarehouseKeeper, isProductionManager } = useAuth();
   const [manualAddOpen, setManualAddOpen] = useState(false);
-  const canManualAdd =
-    isFeatureEnabled("allow_manual_main_warehouse_stock_addition") &&
-    (isGeneralManager || isExecutiveManager || isWarehouseSupervisor);
+
 
   const canDeleteOutletOrder = isGeneralManager || isExecutiveManager;
   const { toast } = useToast();
