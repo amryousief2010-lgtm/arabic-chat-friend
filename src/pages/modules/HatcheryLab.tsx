@@ -838,7 +838,7 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
   const [machine, setMachine] = useState("");
   const [notes, setNotes] = useState("");
   const [lots, setLots] = useState<any[]>([
-    { owner_type: "capital_ostrich", source: "mother_farm", eggs_in: "", client_id: "", from_shipment_id: null, max_eggs: null, shipment_label: "" },
+    { owner_type: "capital_ostrich", source: "mother_farm", eggs_in: "", client_id: "", from_shipment_ids: [] as string[], max_eggs: null as number | null, shipment_label: "" },
   ]);
   const [saving, setSaving] = useState(false);
 
@@ -858,47 +858,89 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
     },
   });
 
-  // وارد بيض المزرعة المتاح (pending وغير مرتبط بأي دفعة)
-  const { data: farmShipments = [], refetch: refetchShipments } = useQuery<any[]>({
-    queryKey: ["pending_farm_shipments_for_new_batch", open],
+  // وارد بيض المزرعة المتاح (pending وغير مرتبط بأي دفعة) — مُجمَّع كدُفعات نقل
+  const { data: transferBatchesData = [], refetch: refetchShipments } = useQuery<any[]>({
+    queryKey: ["pending_farm_transfer_batches_for_new_batch", open],
     enabled: !!open,
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data: ships, error } = await (supabase as any)
         .from("farm_to_hatchery_shipments")
-        .select("id, production_date, egg_count, family_number, created_at, status, hatch_batch_id")
+        .select("id, production_date, egg_count, family_number, created_at, status, hatch_batch_id, farm_transfer_id")
         .eq("status", "pending")
         .is("hatch_batch_id", null)
         .eq("is_test", false)
-        .order("production_date", { ascending: false })
         .order("created_at", { ascending: false })
-        .limit(200);
+        .limit(1000);
       if (error) throw error;
-      return data || [];
+      const shipments = ships || [];
+      if (!shipments.length) return [];
+
+      // اجلب farm_transfers للحصول على notes (وسم دفعة النقل) و transfer_date
+      const ftIds = Array.from(new Set(shipments.map((s: any) => s.farm_transfer_id).filter(Boolean)));
+      const ftMap = new Map<string, any>();
+      if (ftIds.length) {
+        const { data: fts } = await (supabase as any)
+          .from("farm_transfers")
+          .select("id, notes, transfer_date, created_at")
+          .in("id", ftIds);
+        (fts || []).forEach((f: any) => ftMap.set(f.id, f));
+      }
+
+      // المفتاح: notes (تسمية دفعة النقل) إن وُجدت، وإلا farm_transfer_id، وإلا الشحنة نفسها
+      const groups = new Map<string, any>();
+      for (const s of shipments) {
+        const ft = s.farm_transfer_id ? ftMap.get(s.farm_transfer_id) : null;
+        const key = ft?.notes || (s.farm_transfer_id ? `ft:${s.farm_transfer_id}` : `sh:${s.id}`);
+        let g = groups.get(key);
+        if (!g) {
+          g = {
+            key,
+            label: ft?.notes || (ft ? `نقل ${ft.transfer_date}` : `شحنة ${s.production_date}`),
+            shipments: [] as any[],
+            total_eggs: 0,
+            min_date: s.production_date,
+            max_date: s.production_date,
+            transfer_date: ft?.transfer_date || s.production_date,
+            latest_created_at: s.created_at,
+          };
+          groups.set(key, g);
+        }
+        g.shipments.push(s);
+        g.total_eggs += s.egg_count || 0;
+        if (s.production_date < g.min_date) g.min_date = s.production_date;
+        if (s.production_date > g.max_date) g.max_date = s.production_date;
+        if (s.created_at > g.latest_created_at) g.latest_created_at = s.created_at;
+        if (ft?.transfer_date && ft.transfer_date > g.transfer_date) g.transfer_date = ft.transfer_date;
+      }
+
+      return Array.from(groups.values()).sort((a, b) =>
+        (b.latest_created_at || "").localeCompare(a.latest_created_at || "")
+      );
     },
   });
 
-  // الشحنات المختارة بالفعل في lots حالياً (لمنع التكرار داخل نفس الفورم)
-  const usedShipmentIds = useMemo(
-    () => new Set(lots.map((l) => l.from_shipment_id).filter(Boolean)),
-    [lots]
+  // المجموعات المختارة بالفعل في lots (لمنع التكرار)
+  const usedShipmentIds = useMemo(() => {
+    const s = new Set<string>();
+    lots.forEach((l) => (l.from_shipment_ids || []).forEach((id: string) => s.add(id)));
+    return s;
+  }, [lots]);
+
+  const availableTransferBatches = useMemo(
+    () => transferBatchesData.filter((g) => g.shipments.every((s: any) => !usedShipmentIds.has(s.id))),
+    [transferBatchesData, usedShipmentIds]
   );
 
-  // عرض إجمالي وارد المزرعة في الـ header
-  const shipmentsSummary = useMemo(() => {
-    if (!farmShipments.length) return null;
-    const total = farmShipments.reduce((s, r) => s + (r.egg_count || 0), 0);
-    const dates = farmShipments.map((r) => r.production_date).sort();
-    return {
-      count: farmShipments.length,
-      total,
-      from: dates[0],
-      to: dates[dates.length - 1],
-    };
-  }, [farmShipments]);
+  // آخر دفعة نقل فقط (للعرض في البانر)
+  const latestTransferBatch = useMemo(
+    () => availableTransferBatches[0] || null,
+    [availableTransferBatches]
+  );
 
-  const loadShipmentIntoLot = (lotIndex: number, shipmentId: string) => {
-    const sh = farmShipments.find((s) => s.id === shipmentId);
-    if (!sh) return;
+  const loadTransferBatchIntoLot = (lotIndex: number, key: string) => {
+    const g = transferBatchesData.find((x) => x.key === key);
+    if (!g) return;
+    const periodLabel = g.min_date === g.max_date ? g.min_date : `${g.min_date} → ${g.max_date}`;
     setLots((prev) =>
       prev.map((l, j) =>
         j === lotIndex
@@ -906,49 +948,48 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
               ...l,
               owner_type: "capital_ostrich",
               source: "mother_farm",
-              eggs_in: String(sh.egg_count || 0),
+              eggs_in: String(g.total_eggs),
               client_id: "",
-              from_shipment_id: sh.id,
-              max_eggs: sh.egg_count,
-              shipment_label: `${sh.production_date}${sh.family_number ? " — أسرة " + sh.family_number : ""}`,
+              from_shipment_ids: g.shipments.map((s: any) => s.id),
+              max_eggs: g.total_eggs,
+              shipment_label: `نقل ${g.transfer_date} · ${g.total_eggs} بيضة · فترة ${periodLabel}`,
             }
           : l
       )
     );
   };
 
-  // زر "تحميل وارد المزرعة" — يحمّل آخر شحنة pending في lot جديد (أو يستبدل أول lot فاضي)
+  // زر "تحميل وارد المزرعة" — يحمّل آخر دفعة نقل pending فقط
   const loadLatestFarmShipment = () => {
-    const available = farmShipments.filter((s) => !usedShipmentIds.has(s.id));
-    if (!available.length) {
-      toast.info("لا توجد شحنات وارد من المزرعة متاحة حالياً");
+    if (!latestTransferBatch) {
+      toast.info("لا توجد دفعات نقل من المزرعة متاحة حالياً");
       return;
     }
-    const latest = available[0];
-    // ابحث عن lot فاضي يمكن استبداله، وإلا أضف صفاً جديداً
     const emptyIdx = lots.findIndex(
-      (l) => !l.from_shipment_id && (!l.eggs_in || +l.eggs_in === 0) && !l.client_id
+      (l) => (!l.from_shipment_ids || l.from_shipment_ids.length === 0) && (!l.eggs_in || +l.eggs_in === 0) && !l.client_id
     );
     if (emptyIdx >= 0) {
-      loadShipmentIntoLot(emptyIdx, latest.id);
+      loadTransferBatchIntoLot(emptyIdx, latestTransferBatch.key);
     } else {
       setLots((prev) => [
         ...prev,
         {
           owner_type: "capital_ostrich",
           source: "mother_farm",
-          eggs_in: String(latest.egg_count || 0),
+          eggs_in: "",
           client_id: "",
-          from_shipment_id: latest.id,
-          max_eggs: latest.egg_count,
-          shipment_label: `${latest.production_date}${latest.family_number ? " — أسرة " + latest.family_number : ""}`,
+          from_shipment_ids: [],
+          max_eggs: null,
+          shipment_label: "",
         },
       ]);
+      // حمّل في الصف الجديد بعد إضافته
+      setTimeout(() => loadTransferBatchIntoLot(lots.length, latestTransferBatch.key), 0);
     }
-    toast.success(`تم تحميل شحنة ${latest.production_date} — ${latest.egg_count} بيضة`);
+    toast.success(`تم تحميل آخر دفعة نقل — ${latestTransferBatch.total_eggs} بيضة`);
   };
 
-  const addLot = () => setLots([...lots, { owner_type: "external_client", source: "external", eggs_in: "", client_id: "", from_shipment_id: null, max_eggs: null, shipment_label: "" }]);
+  const addLot = () => setLots([...lots, { owner_type: "external_client", source: "external", eggs_in: "", client_id: "", from_shipment_ids: [], max_eggs: null, shipment_label: "" }]);
   const removeLot = (i: number) => setLots(lots.filter((_, j) => j !== i));
   const updateLot = (i: number, patch: any) => setLots(lots.map((l, j) => j === i ? { ...l, ...patch } : l));
 
@@ -957,27 +998,27 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
     if (!entry_date || !batch_type) return toast.error("بيانات ناقصة");
     if (lots.some(l => !l.eggs_in || +l.eggs_in <= 0)) return toast.error("أدخل عدد البيض لكل lot");
     if (lots.some(l => l.owner_type === "external_client" && !l.client_id)) return toast.error("اختر عميل للـ lot الخارجي");
-    // تحقق ألا يتجاوز عدد البيض الكمية المتاحة في الشحنة المرتبطة
+    // تحقق ألا يتجاوز عدد البيض الكمية المتاحة في دفعة النقل المرتبطة
     for (const l of lots) {
-      if (l.from_shipment_id && l.max_eggs != null && +l.eggs_in > +l.max_eggs) {
-        return toast.error(`عدد البيض في شحنة المزرعة (${l.shipment_label}) لا يجب أن يتجاوز ${l.max_eggs}`);
+      if ((l.from_shipment_ids?.length || 0) > 0 && l.max_eggs != null && +l.eggs_in > +l.max_eggs) {
+        return toast.error(`عدد البيض في دفعة النقل (${l.shipment_label}) لا يجب أن يتجاوز ${l.max_eggs}`);
       }
     }
-    // منع تكرار نفس الشحنة في أكثر من lot داخل نفس الفورم
-    const shipIds = lots.map(l => l.from_shipment_id).filter(Boolean);
-    if (new Set(shipIds).size !== shipIds.length) {
-      return toast.error("لا يمكن استخدام نفس شحنة المزرعة في أكثر من lot");
+    // منع تكرار نفس الشحنة في أكثر من lot
+    const allShipIds = lots.flatMap((l) => l.from_shipment_ids || []);
+    if (new Set(allShipIds).size !== allShipIds.length) {
+      return toast.error("لا يمكن استخدام نفس دفعة نقل المزرعة في أكثر من lot");
     }
     setSaving(true);
     try {
       const userId = (await supabase.auth.getUser()).data.user?.id;
 
-      // re-check shipments are still pending (لا يتم استخدام نفس البيض مرتين)
-      if (shipIds.length) {
+      // re-check shipments are still pending
+      if (allShipIds.length) {
         const { data: stillPending } = await (supabase as any)
           .from("farm_to_hatchery_shipments")
           .select("id, status, hatch_batch_id")
-          .in("id", shipIds);
+          .in("id", allShipIds);
         const blocked = (stillPending || []).filter((s: any) => s.status !== "pending" || s.hatch_batch_id);
         if (blocked.length) {
           toast.error("إحدى الشحنات تم استخدامها بالفعل في دفعة أخرى. يرجى إعادة فتح النافذة.");
@@ -1006,7 +1047,7 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
       const { error: e2 } = await supabase.from("hatchery_batch_lots" as any).insert(lotRows);
       if (e2) { toast.error(e2.message); return; }
 
-      // 2) Mirror into hatch_batches so the batch appears on the lab batches screen.
+      // 2) Mirror into hatch_batches
       const { data: maxRow } = await supabase
         .from("hatch_batches")
         .select("operational_batch_no")
@@ -1037,7 +1078,7 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
         net_eggs: +l.eggs_in,
         customer_id: l.owner_type === "external_client" ? l.client_id : internalId,
         status: "pending",
-        notes: l.from_shipment_id
+        notes: (l.from_shipment_ids?.length || 0) > 0
           ? [notes, `منقولة من مزرعة الأمهات (${l.shipment_label})`].filter(Boolean).join(" — ")
           : (notes || null),
         created_by: userId,
@@ -1049,10 +1090,11 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
         .select("id");
       if (e3) { toast.error(`فشل إنشاء سجل الدفعة في شاشة المعمل: ${e3.message}`); return; }
 
-      // 3) ربط الشحنات بسجلات hatch_batches وتحديث حالتها إلى received
+      // 3) ربط شحنات كل lot بسجل hatch_batches وتحديث حالتها إلى received
       for (let i = 0; i < lots.length; i++) {
         const l = lots[i];
-        if (!l.from_shipment_id) continue;
+        const ids: string[] = l.from_shipment_ids || [];
+        if (!ids.length) continue;
         const hbId = (insertedHatch as any[])?.[i]?.id;
         if (!hbId) continue;
         await (supabase as any)
@@ -1060,12 +1102,11 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
           .update({
             status: "received",
             hatch_batch_id: hbId,
-            received_egg_count: +l.eggs_in,
             received_at: new Date().toISOString(),
             received_by: userId,
             receipt_notes: `تم ربطها بدفعة تفريخ رقم ${opNo}`,
           })
-          .eq("id", l.from_shipment_id)
+          .in("id", ids)
           .eq("status", "pending")
           .is("hatch_batch_id", null);
       }
@@ -1077,7 +1118,7 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
           total_eggs: lots.reduce((s, l) => s + +l.eggs_in, 0),
           operational_batch_no: opNo,
           auto_numbered: true,
-          linked_farm_shipments: shipIds,
+          linked_farm_shipments: allShipIds,
         },
         created_by: userId,
       });
@@ -1115,18 +1156,26 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
             <div className="md:col-span-1"><Label>ملاحظات</Label><Input value={notes} onChange={e => setNotes(e.target.value)} /></div>
           </div>
 
-          {/* بانر وارد بيض المزرعة */}
-          {shipmentsSummary && (
+          {/* بانر آخر دفعة نقل من المزرعة */}
+          {latestTransferBatch && (
             <div className="border rounded-lg p-3 bg-purple-50 dark:bg-purple-950/20 border-purple-200 flex flex-wrap items-center justify-between gap-2">
               <div className="text-sm">
                 <div className="font-bold text-purple-700 dark:text-purple-300">
                   بيض نعام العاصمة — مزرعة الأمهات
                 </div>
                 <div className="text-xs text-muted-foreground mt-0.5">
-                  {shipmentsSummary.count} شحنة pending · إجمالي {shipmentsSummary.total.toLocaleString()} بيضة
-                  {shipmentsSummary.from && ` · من ${shipmentsSummary.from} إلى ${shipmentsSummary.to}`}
+                  آخر دفعة نقل: <b>{latestTransferBatch.total_eggs.toLocaleString()}</b> بيضة
+                  · تاريخ النقل: {latestTransferBatch.transfer_date}
+                  {latestTransferBatch.min_date !== latestTransferBatch.max_date && (
+                    <> · فترة الإنتاج: {latestTransferBatch.min_date} → {latestTransferBatch.max_date}</>
+                  )}
                   <span className="mx-1">·</span>
                   <span className="text-amber-700">وارد من المزرعة / غير مستلم في دفعة</span>
+                  {availableTransferBatches.length > 1 && (
+                    <span className="mr-2 text-muted-foreground">
+                      (+{availableTransferBatches.length - 1} دفعة نقل سابقة متاحة في القائمة)
+                    </span>
+                  )}
                 </div>
               </div>
               <Button size="sm" variant="default" onClick={loadLatestFarmShipment}>
@@ -1142,14 +1191,23 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
             </div>
             <div className="space-y-2">
               {lots.map((l, i) => {
-                const availableShipments = farmShipments.filter(
-                  (s) => s.id === l.from_shipment_id || !usedShipmentIds.has(s.id)
+                const lotSelectedIds = new Set(l.from_shipment_ids || []);
+                const availableForLot = transferBatchesData.filter(
+                  (g) =>
+                    g.shipments.every((s: any) => lotSelectedIds.has(s.id)) ||
+                    g.shipments.every((s: any) => !usedShipmentIds.has(s.id))
                 );
+                const currentKey =
+                  (l.from_shipment_ids || []).length > 0
+                    ? transferBatchesData.find((g) =>
+                        g.shipments.every((s: any) => lotSelectedIds.has(s.id))
+                      )?.key || ""
+                    : "";
                 return (
                 <Card key={i} className="p-3">
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-2 items-end">
                     <div><Label>المالك</Label>
-                      <Select value={l.owner_type} onValueChange={v => updateLot(i, { owner_type: v, source: v === "capital_ostrich" ? "mother_farm" : "external", from_shipment_id: v === "capital_ostrich" ? l.from_shipment_id : null, max_eggs: v === "capital_ostrich" ? l.max_eggs : null, shipment_label: v === "capital_ostrich" ? l.shipment_label : "" })}>
+                      <Select value={l.owner_type} onValueChange={v => updateLot(i, { owner_type: v, source: v === "capital_ostrich" ? "mother_farm" : "external", from_shipment_ids: v === "capital_ostrich" ? l.from_shipment_ids : [], max_eggs: v === "capital_ostrich" ? l.max_eggs : null, shipment_label: v === "capital_ostrich" ? l.shipment_label : "" })}>
                         <SelectTrigger /><SelectContent>
                           <SelectItem value="capital_ostrich">نعام العاصمة</SelectItem>
                           <SelectItem value="external_client">عميل خارجي</SelectItem>
@@ -1172,19 +1230,25 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
                         </Select>
                       </div>
                     )}
-                    {l.owner_type === "capital_ostrich" && availableShipments.length > 0 && (
+                    {l.owner_type === "capital_ostrich" && availableForLot.length > 0 && (
                       <div><Label>وارد بيض المزرعة المتاح</Label>
                         <Select
-                          value={l.from_shipment_id || ""}
-                          onValueChange={(v) => loadShipmentIntoLot(i, v)}
+                          value={currentKey}
+                          onValueChange={(v) => loadTransferBatchIntoLot(i, v)}
                         >
-                          <SelectTrigger><SelectValue placeholder="اختر شحنة..." /></SelectTrigger>
+                          <SelectTrigger><SelectValue placeholder="اختر دفعة نقل..." /></SelectTrigger>
                           <SelectContent>
-                            {availableShipments.map((s) => (
-                              <SelectItem key={s.id} value={s.id}>
-                                {s.production_date} — {s.egg_count} بيضة{s.family_number ? ` · أسرة ${s.family_number}` : ""}
-                              </SelectItem>
-                            ))}
+                            {availableForLot.map((g) => {
+                              const period =
+                                g.min_date === g.max_date
+                                  ? g.min_date
+                                  : `${g.min_date} → ${g.max_date}`;
+                              return (
+                                <SelectItem key={g.key} value={g.key}>
+                                  نقل {g.transfer_date} — {g.total_eggs} بيضة · فترة الإنتاج: {period}
+                                </SelectItem>
+                              );
+                            })}
                           </SelectContent>
                         </Select>
                       </div>
@@ -1200,7 +1264,7 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
                     </div>
                     <Button size="sm" variant="ghost" onClick={() => removeLot(i)} disabled={lots.length === 1}><X className="w-4 h-4" /></Button>
                   </div>
-                  {l.from_shipment_id && (
+                  {(l.from_shipment_ids?.length || 0) > 0 && (
                     <div className="mt-2 text-xs text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/20 rounded px-2 py-1">
                       منقولة من مزرعة الأمهات — {l.shipment_label}
                     </div>
