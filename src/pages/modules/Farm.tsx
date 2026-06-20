@@ -877,6 +877,80 @@ const TransfersTab = ({ transfers, families, eggs = [], qc }: any) => {
   const [rows, setRows] = useState<any[]>([emptyRow()]);
   const [autoLoaded, setAutoLoaded] = useState<{ count: number; from: string; to: string; totalQty: number } | null>(null);
   const [autoLoading, setAutoLoading] = useState(false);
+  const [selectedDays, setSelectedDays] = useState<Set<string>>(new Set());
+
+  // Per-day availability based on per-(family,date) production minus transferred quantity.
+  // This guarantees days like 18-06-2026 appear whenever they still have un-transferred eggs,
+  // independently of timezones or "last transfer date per family".
+  const availableDays = useMemo(() => {
+    const td = today();
+    const prod = new Map<string, { date: string; family_id: string; produced: number }>();
+    (eggs || []).forEach((e: any) => {
+      if (!e.family_id || !e.production_date) return;
+      if (e.production_date > td) return;
+      const k = `${e.family_id}|${e.production_date}`;
+      const cur = prod.get(k) || { date: e.production_date, family_id: e.family_id, produced: 0 };
+      cur.produced += Number(e.egg_count) || 0;
+      prod.set(k, cur);
+    });
+    const trans = new Map<string, number>();
+    (transfers || []).forEach((t: any) => {
+      if (!t.family_id || !t.transfer_date) return;
+      const k = `${t.family_id}|${t.transfer_date}`;
+      trans.set(k, (trans.get(k) || 0) + (Number(t.quantity) || 0));
+    });
+    const byDay = new Map<string, {
+      date: string; produced: number; transferred: number; remaining: number;
+      entries: { family_id: string; produced: number; transferred: number; remaining: number }[];
+    }>();
+    prod.forEach((p, k) => {
+      const transferred = trans.get(k) || 0;
+      const remaining = Math.max(0, p.produced - transferred);
+      const cur = byDay.get(p.date) || { date: p.date, produced: 0, transferred: 0, remaining: 0, entries: [] };
+      cur.produced += p.produced;
+      cur.transferred += transferred;
+      cur.remaining += remaining;
+      cur.entries.push({ family_id: p.family_id, produced: p.produced, transferred, remaining });
+      byDay.set(p.date, cur);
+    });
+    return Array.from(byDay.values())
+      .filter((d) => d.produced > 0)
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [eggs, transfers]);
+
+  const toggleDay = (d: string) => setSelectedDays((prev) => {
+    const n = new Set(prev); n.has(d) ? n.delete(d) : n.add(d); return n;
+  });
+  const toggleAllAvailable = () => setSelectedDays((prev) => {
+    const avail = availableDays.filter((d) => d.remaining > 0).map((d) => d.date);
+    if (avail.every((d) => prev.has(d))) return new Set();
+    return new Set(avail);
+  });
+
+  const selectedTotal = useMemo(() => availableDays
+    .filter((d) => selectedDays.has(d.date))
+    .reduce((s, d) => s + d.remaining, 0), [availableDays, selectedDays]);
+
+  const loadSelectedDays = () => {
+    const days = availableDays.filter((d) => selectedDays.has(d.date) && d.remaining > 0);
+    if (!days.length) { toast.error("اختر يومًا واحدًا على الأقل به رصيد متبقي للنقل"); return; }
+    const newRows = days.flatMap((d) =>
+      d.entries.filter((e) => e.remaining > 0).map((e) => ({
+        transfer_date: d.date,
+        family_id: e.family_id,
+        quantity: String(e.remaining),
+        damaged: "",
+        notes: "تحميل من اختيار أيام النقل",
+      }))
+    );
+    const totalQty = newRows.reduce((s, r) => s + (Number(r.quantity) || 0), 0);
+    const dates = newRows.map((r) => r.transfer_date).sort();
+    const minD = dates[0], maxD = dates[dates.length - 1];
+    setRows(newRows);
+    setBatchFrom(minD); setBatchTo(maxD);
+    setAutoLoaded({ count: newRows.length, from: minD, to: maxD, totalQty });
+    toast.success(`تم تحميل ${days.length} يوم (${newRows.length} سجل) — إجمالي ${totalQty.toLocaleString()} بيضة`);
+  };
 
   const resetForm = () => {
     setRows([emptyRow()]);
