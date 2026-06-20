@@ -2597,6 +2597,7 @@ export type Database = {
           id: string
           notes: string | null
           quantity: number
+          transfer_batch_id: string | null
           transfer_date: string
         }
         Insert: {
@@ -2607,6 +2608,7 @@ export type Database = {
           id?: string
           notes?: string | null
           quantity?: number
+          transfer_batch_id?: string | null
           transfer_date: string
         }
         Update: {
@@ -2617,6 +2619,7 @@ export type Database = {
           id?: string
           notes?: string | null
           quantity?: number
+          transfer_batch_id?: string | null
           transfer_date?: string
         }
         Relationships: [
