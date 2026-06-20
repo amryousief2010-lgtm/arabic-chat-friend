@@ -957,6 +957,7 @@ const TransfersTab = ({ transfers, families, eggs = [], qc }: any) => {
     setBatchFrom(today()); setBatchTo(today());
     setBatchLabel(""); setBatchNotes("");
     setAutoLoaded(null);
+    setSelectedDays(new Set());
   };
 
   // Compute pending production per family per date (production not yet covered by transfers).
