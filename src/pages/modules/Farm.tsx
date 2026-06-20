@@ -756,24 +756,63 @@ const PendingByDayPanel = ({ eggs, transfers, families, qc, familyName }: any) =
 
   const transferBatch = useMutation({
     mutationFn: async () => {
-      const rows = pendingByDay.flatMap((d) =>
+      const notesLabel = `دفعة نقل من ${batchSummary.minD} إلى ${batchSummary.maxD}`;
+      const flat = pendingByDay.flatMap((d) =>
         d.entries.filter((e: any) => e.qty > 0).map((e: any) => ({
-          transfer_date: d.date,
+          date: d.date,
           family_id: e.family_id,
-          quantity: e.qty,
-          damaged: 0,
-          notes: `دفعة نقل من ${batchSummary.minD} إلى ${batchSummary.maxD}`,
+          qty: e.qty,
+          production_id: e.records?.[0]?.id || null,
         }))
       );
-      if (!rows.length) throw new Error("لا يوجد بيض للنقل");
-      const { error } = await supabase.from("farm_transfers").insert(rows);
+      if (!flat.length) throw new Error("لا يوجد بيض للنقل");
+
+      // 1) إنشاء حركات النقل في المزرعة
+      const { data: inserted, error } = await supabase
+        .from("farm_transfers")
+        .insert(flat.map((f) => ({
+          transfer_date: f.date,
+          family_id: f.family_id,
+          quantity: f.qty,
+          damaged: 0,
+          notes: notesLabel,
+        })))
+        .select("id, transfer_date, family_id, quantity");
       if (error) throw error;
-      return { count: rows.length, qty: rows.reduce((s, r) => s + r.quantity, 0) };
+
+      // 2) إنشاء شحنات وارد للمعمل (pending) مرتبطة بكل حركة نقل
+      const shipments = (inserted || []).map((row: any, i: number) => {
+        const src = flat[i];
+        const fam = families?.find((f: any) => f.id === row.family_id);
+        return {
+          farm_transfer_id: row.id,
+          production_id: src?.production_id || null,
+          family_id: row.family_id,
+          family_number: fam?.family_number ? String(fam.family_number) : null,
+          production_date: row.transfer_date,
+          egg_count: row.quantity,
+          status: "pending" as const,
+          is_test: false,
+        };
+      });
+      if (shipments.length) {
+        const { error: shErr } = await (supabase as any)
+          .from("farm_to_hatchery_shipments")
+          .insert(shipments);
+        if (shErr) {
+          // تراجع عن النقل لو فشل إنشاء الشحنات
+          const ids = (inserted || []).map((r: any) => r.id);
+          if (ids.length) await supabase.from("farm_transfers").delete().in("id", ids);
+          throw shErr;
+        }
+      }
+      return { count: flat.length, qty: flat.reduce((s, f) => s + f.qty, 0) };
     },
     onSuccess: (r) => {
-      toast.success(`تم نقل ${r.qty} بيضة (${r.count} حركة) كدفعة واحدة إلى المعمل`);
+      toast.success(`تم نقل ${r.qty} بيضة (${r.count} حركة) كدفعة واحدة — وصلت لمعمل التفريخ كـ "بيض نعام العاصمة — مزرعة الأمهات"`);
       qc.invalidateQueries({ queryKey: ["farm_transfers"] });
       qc.invalidateQueries({ queryKey: ["farm_egg_production"] });
+      qc.invalidateQueries({ queryKey: ["farm-to-hatchery-shipments"] });
       setBusy(false); setViewOpen(false);
     },
     onError: (e: any) => { toast.error(e.message); setBusy(false); },
