@@ -838,7 +838,7 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
   const [machine, setMachine] = useState("");
   const [notes, setNotes] = useState("");
   const [lots, setLots] = useState<any[]>([
-    { owner_type: "capital_ostrich", source: "mother_farm", eggs_in: "", client_id: "" },
+    { owner_type: "capital_ostrich", source: "mother_farm", eggs_in: "", client_id: "", from_shipment_id: null, max_eggs: null, shipment_label: "" },
   ]);
   const [saving, setSaving] = useState(false);
 
@@ -858,7 +858,97 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
     },
   });
 
-  const addLot = () => setLots([...lots, { owner_type: "external_client", source: "external", eggs_in: "", client_id: "" }]);
+  // وارد بيض المزرعة المتاح (pending وغير مرتبط بأي دفعة)
+  const { data: farmShipments = [], refetch: refetchShipments } = useQuery<any[]>({
+    queryKey: ["pending_farm_shipments_for_new_batch", open],
+    enabled: !!open,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("farm_to_hatchery_shipments")
+        .select("id, production_date, egg_count, family_number, created_at, status, hatch_batch_id")
+        .eq("status", "pending")
+        .is("hatch_batch_id", null)
+        .eq("is_test", false)
+        .order("production_date", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // الشحنات المختارة بالفعل في lots حالياً (لمنع التكرار داخل نفس الفورم)
+  const usedShipmentIds = useMemo(
+    () => new Set(lots.map((l) => l.from_shipment_id).filter(Boolean)),
+    [lots]
+  );
+
+  // عرض إجمالي وارد المزرعة في الـ header
+  const shipmentsSummary = useMemo(() => {
+    if (!farmShipments.length) return null;
+    const total = farmShipments.reduce((s, r) => s + (r.egg_count || 0), 0);
+    const dates = farmShipments.map((r) => r.production_date).sort();
+    return {
+      count: farmShipments.length,
+      total,
+      from: dates[0],
+      to: dates[dates.length - 1],
+    };
+  }, [farmShipments]);
+
+  const loadShipmentIntoLot = (lotIndex: number, shipmentId: string) => {
+    const sh = farmShipments.find((s) => s.id === shipmentId);
+    if (!sh) return;
+    setLots((prev) =>
+      prev.map((l, j) =>
+        j === lotIndex
+          ? {
+              ...l,
+              owner_type: "capital_ostrich",
+              source: "mother_farm",
+              eggs_in: String(sh.egg_count || 0),
+              client_id: "",
+              from_shipment_id: sh.id,
+              max_eggs: sh.egg_count,
+              shipment_label: `${sh.production_date}${sh.family_number ? " — أسرة " + sh.family_number : ""}`,
+            }
+          : l
+      )
+    );
+  };
+
+  // زر "تحميل وارد المزرعة" — يحمّل آخر شحنة pending في lot جديد (أو يستبدل أول lot فاضي)
+  const loadLatestFarmShipment = () => {
+    const available = farmShipments.filter((s) => !usedShipmentIds.has(s.id));
+    if (!available.length) {
+      toast.info("لا توجد شحنات وارد من المزرعة متاحة حالياً");
+      return;
+    }
+    const latest = available[0];
+    // ابحث عن lot فاضي يمكن استبداله، وإلا أضف صفاً جديداً
+    const emptyIdx = lots.findIndex(
+      (l) => !l.from_shipment_id && (!l.eggs_in || +l.eggs_in === 0) && !l.client_id
+    );
+    if (emptyIdx >= 0) {
+      loadShipmentIntoLot(emptyIdx, latest.id);
+    } else {
+      setLots((prev) => [
+        ...prev,
+        {
+          owner_type: "capital_ostrich",
+          source: "mother_farm",
+          eggs_in: String(latest.egg_count || 0),
+          client_id: "",
+          from_shipment_id: latest.id,
+          max_eggs: latest.egg_count,
+          shipment_label: `${latest.production_date}${latest.family_number ? " — أسرة " + latest.family_number : ""}`,
+        },
+      ]);
+    }
+    toast.success(`تم تحميل شحنة ${latest.production_date} — ${latest.egg_count} بيضة`);
+  };
+
+  const addLot = () => setLots([...lots, { owner_type: "external_client", source: "external", eggs_in: "", client_id: "", from_shipment_id: null, max_eggs: null, shipment_label: "" }]);
   const removeLot = (i: number) => setLots(lots.filter((_, j) => j !== i));
   const updateLot = (i: number, patch: any) => setLots(lots.map((l, j) => j === i ? { ...l, ...patch } : l));
 
