@@ -264,7 +264,7 @@ export default function LiveBatchCosts() {
                           <TableCell>
                             <Button size="sm" variant="outline" onClick={() => allocate(b.id)} disabled={!b.live_receipt_id}>
                               <Calculator className="h-3 w-3 ml-1" />
-                              {b.cost_allocation_done ? "إعادة توزيع" : "توزيع التكلفة"}
+                              إعادة حساب التكلفة
                             </Button>
                           </TableCell>
                         </TableRow>
