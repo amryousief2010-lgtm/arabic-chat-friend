@@ -626,12 +626,14 @@ export default function BatchAccountDialog({
                 </div>
               )}
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm">
                 <Info label="رسوم اللايح" value={fmtMoney(invoice.infertile_amount)} />
                 <Info label="رسوم الكشف الثاني" value={fmtMoney(invoice.completed_unhatched_amount)} />
                 <Info label="رسوم الكتاكيت" value={fmtMoney(invoice.chicks_amount)} />
                 <Info label={`رسوم التحضين (${invoice.brooding_days} يوم)`} value={fmtMoney(invoice.brooding_amount)} />
                 <Info label={`رسوم نافق الهاتشر (${fmt(invoice.hatch_mortality_count)} × ${fmt(invoice.hatch_mortality_unit_price)})`} value={fmtMoney(invoice.hatch_mortality_amount)} />
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm mt-2">
                 <Info label="إجمالي المستحق" value={fmtMoney(invoice.total_amount)} highlight />
                 <Info label="إجمالي الخصومات" value={fmtMoney(invoice.discount_amount)} />
                 <Info label="إجمالي المدفوع" value={fmtMoney(invoice.paid_amount)} />
