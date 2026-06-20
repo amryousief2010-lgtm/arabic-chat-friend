@@ -1115,17 +1115,41 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
             <div className="md:col-span-1"><Label>ملاحظات</Label><Input value={notes} onChange={e => setNotes(e.target.value)} /></div>
           </div>
 
+          {/* بانر وارد بيض المزرعة */}
+          {shipmentsSummary && (
+            <div className="border rounded-lg p-3 bg-purple-50 dark:bg-purple-950/20 border-purple-200 flex flex-wrap items-center justify-between gap-2">
+              <div className="text-sm">
+                <div className="font-bold text-purple-700 dark:text-purple-300">
+                  بيض نعام العاصمة — مزرعة الأمهات
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  {shipmentsSummary.count} شحنة pending · إجمالي {shipmentsSummary.total.toLocaleString()} بيضة
+                  {shipmentsSummary.from && ` · من ${shipmentsSummary.from} إلى ${shipmentsSummary.to}`}
+                  <span className="mx-1">·</span>
+                  <span className="text-amber-700">وارد من المزرعة / غير مستلم في دفعة</span>
+                </div>
+              </div>
+              <Button size="sm" variant="default" onClick={loadLatestFarmShipment}>
+                <Plus className="w-3 h-3 ml-1" />تحميل وارد المزرعة
+              </Button>
+            </div>
+          )}
+
           <div className="border-t pt-3">
             <div className="flex justify-between items-center mb-2">
               <h4 className="font-bold">حصص الدفعة (Lots)</h4>
               <Button size="sm" variant="outline" onClick={addLot}><Plus className="w-3 h-3 ml-1" />إضافة Lot</Button>
             </div>
             <div className="space-y-2">
-              {lots.map((l, i) => (
+              {lots.map((l, i) => {
+                const availableShipments = farmShipments.filter(
+                  (s) => s.id === l.from_shipment_id || !usedShipmentIds.has(s.id)
+                );
+                return (
                 <Card key={i} className="p-3">
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-2 items-end">
                     <div><Label>المالك</Label>
-                      <Select value={l.owner_type} onValueChange={v => updateLot(i, { owner_type: v, source: v === "capital_ostrich" ? "mother_farm" : "external" })}>
+                      <Select value={l.owner_type} onValueChange={v => updateLot(i, { owner_type: v, source: v === "capital_ostrich" ? "mother_farm" : "external", from_shipment_id: v === "capital_ostrich" ? l.from_shipment_id : null, max_eggs: v === "capital_ostrich" ? l.max_eggs : null, shipment_label: v === "capital_ostrich" ? l.shipment_label : "" })}>
                         <SelectTrigger /><SelectContent>
                           <SelectItem value="capital_ostrich">نعام العاصمة</SelectItem>
                           <SelectItem value="external_client">عميل خارجي</SelectItem>
@@ -1148,11 +1172,41 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
                         </Select>
                       </div>
                     )}
-                    <div><Label>عدد البيض</Label><Input type="number" value={l.eggs_in} onChange={e => updateLot(i, { eggs_in: e.target.value })} /></div>
+                    {l.owner_type === "capital_ostrich" && availableShipments.length > 0 && (
+                      <div><Label>وارد بيض المزرعة المتاح</Label>
+                        <Select
+                          value={l.from_shipment_id || ""}
+                          onValueChange={(v) => loadShipmentIntoLot(i, v)}
+                        >
+                          <SelectTrigger><SelectValue placeholder="اختر شحنة..." /></SelectTrigger>
+                          <SelectContent>
+                            {availableShipments.map((s) => (
+                              <SelectItem key={s.id} value={s.id}>
+                                {s.production_date} — {s.egg_count} بيضة{s.family_number ? ` · أسرة ${s.family_number}` : ""}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    <div>
+                      <Label>عدد البيض{l.max_eggs != null && <span className="text-xs text-muted-foreground"> (حد أقصى {l.max_eggs})</span>}</Label>
+                      <Input
+                        type="number"
+                        value={l.eggs_in}
+                        max={l.max_eggs ?? undefined}
+                        onChange={e => updateLot(i, { eggs_in: e.target.value })}
+                      />
+                    </div>
                     <Button size="sm" variant="ghost" onClick={() => removeLot(i)} disabled={lots.length === 1}><X className="w-4 h-4" /></Button>
                   </div>
+                  {l.from_shipment_id && (
+                    <div className="mt-2 text-xs text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/20 rounded px-2 py-1">
+                      منقولة من مزرعة الأمهات — {l.shipment_label}
+                    </div>
+                  )}
                 </Card>
-              ))}
+              );})}
             </div>
           </div>
         </div>
