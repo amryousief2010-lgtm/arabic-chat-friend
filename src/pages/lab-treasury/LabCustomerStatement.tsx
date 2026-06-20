@@ -61,8 +61,10 @@ export default function LabCustomerStatement() {
   const [batchFilter, setBatchFilter] = useState<string>("");
   const [rows, setRows] = useState<LedgerRow[]>([]);
   const [lotsByBatch, setLotsByBatch] = useState<Record<string, { eggs_in: number; hatch_mortality: number }>>({});
+  const [pricing, setPricing] = useState<{ infertile_egg_price: number; completed_unhatched_price: number; hatch_mortality_price: number; chick_price: number; daily_brooding_price: number }>({ infertile_egg_price: 0, completed_unhatched_price: 0, hatch_mortality_price: 0, chick_price: 0, daily_brooding_price: 0 });
   const [quantitiesOnly, setQuantitiesOnly] = useState(false);
   const [loading, setLoading] = useState(false);
+
 
   useEffect(() => {
     supabase
@@ -80,7 +82,23 @@ export default function LabCustomerStatement() {
         });
         setCustomers(list as Customer[]);
       });
+    supabase
+      .from("hatchery_pricing_settings")
+      .select("infertile_egg_price,completed_unhatched_price,hatch_mortality_price,chick_price,daily_brooding_price")
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }: any) => {
+        if (data) setPricing({
+          infertile_egg_price: Number(data.infertile_egg_price) || 0,
+          completed_unhatched_price: Number(data.completed_unhatched_price) || 0,
+          hatch_mortality_price: Number(data.hatch_mortality_price) || 0,
+          chick_price: Number(data.chick_price) || 0,
+          daily_brooding_price: Number(data.daily_brooding_price) || 0,
+        });
+      });
   }, []);
+
 
   useEffect(() => {
     if (!customerId) { setRows([]); setLotsByBatch({}); return; }
@@ -144,12 +162,109 @@ export default function LabCustomerStatement() {
 
   const printPdf = () => {
     if (!selectedCustomer) return;
+
+    // Group rows by batch_number / operational_batch_no
+    type Agg = {
+      key: string;
+      label: string;
+      entry_date: string;
+      eggs: number;
+      lait: number;
+      candle2: number;
+      hatchMort: number;
+      chicks: number;
+      broodChicks: number;
+      broodDays: number;
+      debit: number;
+      credit: number;
+    };
+    const map = new Map<string, Agg>();
+    rows.forEach(r => {
+      const k = String(r.operational_batch_no ?? r.batch_number ?? "");
+      if (!k) return;
+      const lot = lotsByBatch[k];
+      let a = map.get(k);
+      if (!a) {
+        a = { key: k, label: k, entry_date: r.entry_date, eggs: lot?.eggs_in || 0, lait: 0, candle2: 0, hatchMort: lot?.hatch_mortality || 0, chicks: 0, broodChicks: 0, broodDays: 0, debit: 0, credit: 0 };
+        map.set(k, a);
+      }
+      if (r.entry_type === "batch_charge") {
+        a.entry_date = r.entry_date;
+        a.lait += Number(r.infertile_eggs || 0);
+        a.candle2 += Number(r.candle2_dead || 0);
+        a.chicks += Number(r.chicks || 0);
+        if (r.brooding_days) { a.broodChicks = Number(r.brooding_chicks || 0); a.broodDays = Number(r.brooding_days || 0); }
+        a.debit += Number(r.debit || 0);
+      } else {
+        a.credit += Number(r.credit || 0);
+        a.debit += Number(r.debit || 0); // adjustments
+      }
+    });
+    const batches = Array.from(map.values()).sort((x, y) => (x.entry_date || "").localeCompare(y.entry_date || ""));
+
+    const totals = batches.reduce((t, b) => ({
+      eggs: t.eggs + b.eggs, lait: t.lait + b.lait, candle2: t.candle2 + b.candle2,
+      hatchMort: t.hatchMort + b.hatchMort, chicks: t.chicks + b.chicks,
+      broodTotal: t.broodTotal + (b.broodChicks * b.broodDays),
+      debit: t.debit + b.debit, credit: t.credit + b.credit,
+    }), { eggs: 0, lait: 0, candle2: 0, hatchMort: 0, chicks: 0, broodTotal: 0, debit: 0, credit: 0 });
+
+    const P = pricing;
+    const batchRows = batches.map(b => {
+      const laitFee = b.lait * P.infertile_egg_price;
+      const candle2Fee = b.candle2 * P.completed_unhatched_price;
+      const hatchMortFee = b.hatchMort * P.hatch_mortality_price;
+      const chicksFee = b.chicks * P.chick_price;
+      const broodFee = b.broodChicks * b.broodDays * P.daily_brooding_price;
+      const hatchPct = b.eggs > 0 ? (b.chicks / b.eggs) * 100 : 0;
+      const remaining = b.debit - b.credit;
+      return `<tr>
+        <td><b>${escapeHtml(b.label)}</b></td>
+        <td>${fmtDate(b.entry_date)}</td>
+        <td class="num">${fmtNum(b.eggs)}</td>
+        <td class="num">${fmtNum(b.lait)}</td>
+        <td class="num">${fmtNum(b.candle2)}</td>
+        <td class="num">${fmtNum(b.hatchMort)}</td>
+        <td class="num">${fmtNum(b.chicks)}</td>
+        <td class="num">${b.broodDays ? `${fmtNum(b.broodChicks)}×${fmtNum(b.broodDays)}` : "—"}</td>
+        <td class="num">${fmtNum(hatchPct, 1)}%</td>
+        <td class="num">${fmtNum(laitFee, 2)}</td>
+        <td class="num">${fmtNum(candle2Fee, 2)}</td>
+        <td class="num">${fmtNum(hatchMortFee, 2)}</td>
+        <td class="num">${fmtNum(chicksFee, 2)}</td>
+        <td class="num">${fmtNum(broodFee, 2)}</td>
+        <td class="num"><b>${fmtNum(b.debit, 2)}</b></td>
+        <td class="num" style="color:#047857">${fmtNum(b.credit, 2)}</td>
+        <td class="num"><b style="color:${remaining > 0 ? "#b91c1c" : "#047857"}">${fmtNum(remaining, 2)}</b></td>
+      </tr>`;
+    }).join("");
+
+    const totalsRow = `<tr style="background:#ede9fe;font-weight:bold">
+      <td colspan="2">الإجمالي</td>
+      <td class="num">${fmtNum(totals.eggs)}</td>
+      <td class="num">${fmtNum(totals.lait)}</td>
+      <td class="num">${fmtNum(totals.candle2)}</td>
+      <td class="num">${fmtNum(totals.hatchMort)}</td>
+      <td class="num">${fmtNum(totals.chicks)}</td>
+      <td class="num">${fmtNum(totals.broodTotal)}</td>
+      <td class="num">${totals.eggs > 0 ? fmtNum((totals.chicks / totals.eggs) * 100, 1) + "%" : "—"}</td>
+      <td class="num">${fmtNum(totals.lait * P.infertile_egg_price, 2)}</td>
+      <td class="num">${fmtNum(totals.candle2 * P.completed_unhatched_price, 2)}</td>
+      <td class="num">${fmtNum(totals.hatchMort * P.hatch_mortality_price, 2)}</td>
+      <td class="num">${fmtNum(totals.chicks * P.chick_price, 2)}</td>
+      <td class="num">${fmtNum(totals.broodTotal * P.daily_brooding_price, 2)}</td>
+      <td class="num">${fmtNum(totals.debit, 2)}</td>
+      <td class="num">${fmtNum(totals.credit, 2)}</td>
+      <td class="num">${fmtNum(totals.debit - totals.credit, 2)}</td>
+    </tr>`;
+
     const headerStats = `<div class="stats">
+      <div class="stat"><div class="k">عدد الدفعات</div><div class="v num">${fmtNum(batches.length)}</div></div>
       <div class="stat"><div class="k">إجمالي المستحقات</div><div class="v num">${fmtNum(summary.debit, 2)}</div></div>
       <div class="stat"><div class="k">إجمالي المدفوعات</div><div class="v num">${fmtNum(summary.credit, 2)}</div></div>
       <div class="stat"><div class="k">الرصيد المتبقي</div><div class="v num">${fmtNum(summary.balance, 2)}</div></div>
-      <div class="stat"><div class="k">عدد الدفعات</div><div class="v num">${fmtNum(summary.batches)}</div></div>
     </div>`;
+
     const tableRows = rows.map(r => {
       const ti = treasuryImpact(r);
       return `<tr>
@@ -169,15 +284,29 @@ export default function LabCustomerStatement() {
       <td>${escapeHtml(r.notes ?? "")}</td>
     </tr>`;
     }).join("");
+
     const body = `
       <header>
-        <div><h1>كشف حساب عميل معمل التفريخ</h1>
-          <div>${escapeHtml(selectedCustomer.name)}${selectedCustomer.customer_type === "internal" ? " (داخلي)" : ""}</div>
+        <div>
+          <h1>شركة نعام العاصمة — معمل تفريخ بيض النعام</h1>
+          <div style="font-size:11px;color:#444">الهوت لاين: 01044437790</div>
+          <div style="font-size:14px;font-weight:bold;margin-top:6px">كشف حساب عميل معمل التفريخ</div>
+          <div style="margin-top:4px">العميل: <b>${escapeHtml(selectedCustomer.name)}</b>${selectedCustomer.customer_type === "internal" ? " (داخلي)" : ""}</div>
         </div>
         <div class="meta">تاريخ التقرير: ${fmtDate(new Date())}<br/>${from ? `من ${from}` : ""} ${to ? `إلى ${to}` : ""}</div>
       </header>
       ${headerStats}
-      <h2>تفاصيل الحركات</h2>
+      <h2>تفاصيل الدفعات (تشغيلي + مالي)</h2>
+      <table>
+        <thead><tr>
+          <th>الدفعة</th><th>تاريخ الدخول</th>
+          <th>بيض</th><th>لايح</th><th>كشف 2</th><th>نافق هاتشر</th><th>كتاكيت</th><th>تحضين</th><th>% فقس</th>
+          <th>رسوم لايح</th><th>رسوم كشف 2</th><th>رسوم نافق هاتشر</th><th>رسوم كتاكيت</th><th>رسوم تحضين</th>
+          <th>مدين</th><th>دائن</th><th>المتبقي</th>
+        </tr></thead>
+        <tbody>${batchRows}${totalsRow}</tbody>
+      </table>
+      <h2>تفاصيل الحركات المالية</h2>
       <table>
         <thead><tr>
           <th>التاريخ</th><th>الدفعة</th><th>نوع الحركة</th><th>البيان</th>
@@ -198,13 +327,14 @@ export default function LabCustomerStatement() {
       const vals = [
         r.entry_date, r.operational_batch_no ?? r.batch_number ?? "",
         ENTRY_LABEL[r.entry_type] || r.entry_type, (r.description||"").replace(/,/g," "),
-        r.infertile_eggs, r.infertile_eggs*50, r.candle2_dead, r.candle2_dead*100,
-        r.chicks, r.chicks*150, r.brooding_days, r.discount,
+        r.infertile_eggs, r.infertile_eggs*pricing.infertile_egg_price, r.candle2_dead, r.candle2_dead*pricing.completed_unhatched_price,
+        r.chicks, r.chicks*pricing.chick_price, r.brooding_days, r.discount,
         r.debit, r.credit, r.running_balance,
         r.payment_method||"", r.receipt_no||"", (r.notes||"").replace(/,/g," "),
       ];
       lines.push(vals.map(v => `"${String(v ?? "").replace(/"/g,'""')}"`).join(","));
     });
+
     const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
