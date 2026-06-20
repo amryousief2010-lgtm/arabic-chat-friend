@@ -914,7 +914,7 @@ const TransfersTab = ({ transfers, families, eggs = [], qc }: any) => {
 
   // Window for "available days" — defaults to last 7 days (today-6 .. today).
   // Old historical days are hidden unless the user widens the window.
-  const defaultWinFrom = "2026-06-13";
+  const defaultWinFrom = "2026-06-14";
   const [winFrom, setWinFrom] = useState<string>(defaultWinFrom);
   const [winTo, setWinTo] = useState<string>("2026-06-19");
 
