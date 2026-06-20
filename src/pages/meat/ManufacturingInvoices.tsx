@@ -226,21 +226,10 @@ export default function ManufacturingInvoices() {
     else { setProductName("أخرى"); setProductNameOther(r.product); }
     setFinishedQty(requested);
     setUnit(r.unit || "كجم");
-    setExtraCost(Number((r.wages * factor).toFixed(2)));
-    const serviceLines: ServiceCostLine[] = r.lines.filter(l => isServiceCostItem(l.name, l.code)).map(l => {
-      const quantity = Number((l.qty * factor).toFixed(3));
-      const unitCost = Number(l.price.toFixed(3));
-      return {
-        tmp: crypto.randomUUID(),
-        item_name: l.name,
-        unit: l.unit,
-        quantity,
-        unit_cost: unitCost,
-        line_total: Number((quantity * unitCost).toFixed(3)),
-        notes: "service_cost — تكلفة إضافية لا تخصم من المخزون",
-      };
-    });
-    setServiceCostLines(serviceLines);
+    // Extra/service cost is now a single MANUAL numeric field — do not auto-populate
+    // from recipe wages or auto-create service-cost line items.
+    setExtraCost(0);
+    setServiceCostLines([]);
     const buildLine = (l: { code: number; name: string; kind: Kind; unit: string; qty: number; price: number }): Line => {
       const match = resolveItem(l.name, l.kind, l.code);
       return {
@@ -720,20 +709,8 @@ export default function ManufacturingInvoices() {
                   </div>
                 )}
 
-                {serviceCostLines.length > 0 && (
-                  <Card className="border-orange-200 bg-orange-50/60 dark:bg-orange-950/20">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base">تكاليف إضافية</CardTitle>
-                      <CardDescription>بنود خدمة تدخل في تكلفة التصنيع فقط ولا تخصم من مخزون الخامات أو التغليف.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="p-0 overflow-x-auto">
-                      <Table>
-                        <TableHeader><TableRow><TableHead>البند</TableHead><TableHead>الوحدة</TableHead><TableHead>الكمية</TableHead><TableHead>سعر الوحدة</TableHead><TableHead>الإجمالي</TableHead></TableRow></TableHeader>
-                        <TableBody>{serviceCostLines.map(l => <TableRow key={l.tmp}><TableCell className="font-medium">{l.item_name}</TableCell><TableCell>{l.unit}</TableCell><TableCell>{fmt(l.quantity)}</TableCell><TableCell>{fmt(l.unit_cost)}</TableCell><TableCell className="font-semibold">{fmt(l.line_total)}</TableCell></TableRow>)}</TableBody>
-                      </Table>
-                    </CardContent>
-                  </Card>
-                )}
+                {/* Service-cost auto-table removed — extra cost is a single manual numeric field above. */}
+
 
                 {renderLineTable(rawLines, setRawLines, rawCandidates, "المواد الخام والبهارات المستخدمة")}
                 {renderLineTable(packLines, setPackLines, packCandidates, "خامات التغليف المستخدمة")}
