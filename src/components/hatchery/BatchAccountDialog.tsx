@@ -429,7 +429,7 @@ export default function BatchAccountDialog({
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent dir="rtl" className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent dir="rtl" className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>حساب الدفعة — {customerName} — {b.batch_number}</DialogTitle>
         </DialogHeader>
