@@ -92,21 +92,31 @@ export default function LiveBatchCosts() {
 
   const allocate = async (batchId: string) => {
     try {
-      const { data, error } = await supabase.rpc("apply_slaughter_cost_allocation" as any, {
+      const { data, error } = await supabase.rpc("recompute_slaughter_batch_cost" as any, {
         p_slaughter_batch_id: batchId,
       });
       if (error) throw error;
       const res = data as any;
-      if (res?.status === "already_allocated") {
-        toast.info("تم توزيع تكلفة هذه الدفعة مسبقًا");
-      } else {
-        toast.success(`تم توزيع التكلفة — تكلفة الكيلو: ${fmt(res?.cost_per_kg || 0)} ج.م`);
-      }
+      toast.success(`تمت إعادة الحساب — تكلفة الكيلو: ${fmt(res?.cost_per_kg || 0)} ج.م`);
       refresh();
     } catch (e: any) {
-      toast.error(e.message || "فشل توزيع التكلفة");
+      toast.error(e.message || "فشل إعادة حساب التكلفة");
     }
   };
+
+  const allocationsQ = useQuery({
+    queryKey: ["slaughter_cost_allocations_log"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("slaughter_cost_allocations" as any)
+        .select("id, event_type, event_date, total_cost, status, notes, created_at")
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return (data as any[]) || [];
+    },
+  });
+  const allocations = allocationsQ.data || [];
 
   return (
     <DashboardLayout>
