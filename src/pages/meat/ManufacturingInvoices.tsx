@@ -711,16 +711,6 @@ export default function ManufacturingInvoices() {
 
                 {/* Service-cost auto-table removed — extra cost is a single manual numeric field above. */}
 
-                      <CardDescription>بنود خدمة تدخل في تكلفة التصنيع فقط ولا تخصم من مخزون الخامات أو التغليف.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="p-0 overflow-x-auto">
-                      <Table>
-                        <TableHeader><TableRow><TableHead>البند</TableHead><TableHead>الوحدة</TableHead><TableHead>الكمية</TableHead><TableHead>سعر الوحدة</TableHead><TableHead>الإجمالي</TableHead></TableRow></TableHeader>
-                        <TableBody>{serviceCostLines.map(l => <TableRow key={l.tmp}><TableCell className="font-medium">{l.item_name}</TableCell><TableCell>{l.unit}</TableCell><TableCell>{fmt(l.quantity)}</TableCell><TableCell>{fmt(l.unit_cost)}</TableCell><TableCell className="font-semibold">{fmt(l.line_total)}</TableCell></TableRow>)}</TableBody>
-                      </Table>
-                    </CardContent>
-                  </Card>
-                )}
 
                 {renderLineTable(rawLines, setRawLines, rawCandidates, "المواد الخام والبهارات المستخدمة")}
                 {renderLineTable(packLines, setPackLines, packCandidates, "خامات التغليف المستخدمة")}
