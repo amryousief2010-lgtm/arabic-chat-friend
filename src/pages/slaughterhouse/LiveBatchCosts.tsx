@@ -191,7 +191,16 @@ export default function LiveBatchCosts() {
                         <TableCell className="font-medium">{r.receipt_number}</TableCell>
                         <TableCell className="text-xs">{r.receipt_date}</TableCell>
                         <TableCell>{r.bird_count}</TableCell>
-                        <TableCell><Badge variant="default">{r.current_alive_count ?? r.bird_count}</Badge></TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Badge variant={r.status === 'ready_for_slaughter' ? 'default' : 'secondary'}>
+                              {r.current_alive_count ?? r.bird_count}
+                            </Badge>
+                            {r.status === 'ready_for_slaughter' && (
+                              <Badge className="bg-emerald-600 text-[10px]">جاهزة</Badge>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell>{r.mortality_count > 0 ? <Badge variant="destructive">{r.mortality_count}</Badge> : 0}</TableCell>
                         <TableCell>{fmt(r.total_cost)}</TableCell>
                         <TableCell className="text-orange-700">{fmt(r.feed_cost_loaded)}</TableCell>
@@ -200,6 +209,23 @@ export default function LiveBatchCosts() {
                         <TableCell className="font-bold text-primary">{fmt(r.cost_per_bird_current)}</TableCell>
                         <TableCell>
                           <div className="flex gap-1 flex-wrap">
+                            <Button
+                              size="sm"
+                              variant={r.status === 'ready_for_slaughter' ? 'outline' : 'default'}
+                              className={r.status === 'ready_for_slaughter' ? '' : 'bg-emerald-600 hover:bg-emerald-700'}
+                              onClick={async () => {
+                                const newStatus = r.status === 'ready_for_slaughter' ? 'in_holding' : 'ready_for_slaughter';
+                                const { error } = await supabase
+                                  .from('slaughter_live_receipts' as any)
+                                  .update({ status: newStatus })
+                                  .eq('id', r.id);
+                                if (error) { toast.error(error.message); return; }
+                                toast.success(newStatus === 'ready_for_slaughter' ? 'تم تعليم الدفعة كجاهزة للدبح' : 'تم إلغاء حالة الجاهزية');
+                                refresh();
+                              }}
+                            >
+                              {r.status === 'ready_for_slaughter' ? 'إلغاء الجاهزية' : 'علِّم جاهزة للدبح'}
+                            </Button>
                             <Button size="sm" variant="secondary" onClick={() => { setActiveBatchId(r.id); setOpeningOpen(true); }}>
                               <Coins className="h-3 w-3 ml-1" />
                               {Number(r.opening_cost_total || 0) > 0 ? "تعديل افتتاحية" : "تكلفة افتتاحية"}
