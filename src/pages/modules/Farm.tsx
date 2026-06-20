@@ -1286,6 +1286,26 @@ ${batchNotes ? `<div class="notes"><b>ملاحظات الدفعة:</b> ${esc(bat
                       </Button>
                     </div>
                   </div>
+                  <div className="flex flex-wrap items-end gap-2 mb-2 p-2 rounded bg-background/60 border">
+                    <div className="text-xs font-medium text-purple-700 dark:text-purple-300 ml-2">
+                      فترة النقل الحالية:
+                    </div>
+                    <div>
+                      <Label className="text-xs">من تاريخ</Label>
+                      <Input type="date" value={winFrom} onChange={(e) => setWinFrom(e.target.value)} className="h-8 w-[160px]" />
+                    </div>
+                    <div>
+                      <Label className="text-xs">إلى تاريخ</Label>
+                      <Input type="date" value={winTo} onChange={(e) => setWinTo(e.target.value)} className="h-8 w-[160px]" />
+                    </div>
+                    <Button type="button" size="sm" variant="ghost" onClick={() => { setWinFrom(defaultWinFrom); setWinTo(today()); }}>
+                      آخر 7 أيام
+                    </Button>
+                    <div className="text-xs text-muted-foreground mr-auto">
+                      يتم عرض الأيام داخل هذه الفترة فقط — الأيام القديمة مخفية
+                    </div>
+                  </div>
+
                   <div className="overflow-auto max-h-[32vh] border rounded bg-background">
                     <Table>
                       <TableHeader>
