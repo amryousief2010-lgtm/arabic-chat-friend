@@ -60,6 +60,8 @@ export default function LabCustomerStatement() {
   const [to, setTo] = useState<string>(params.get("to") || "");
   const [batchFilter, setBatchFilter] = useState<string>("");
   const [rows, setRows] = useState<LedgerRow[]>([]);
+  const [lotsByBatch, setLotsByBatch] = useState<Record<string, { eggs_in: number; hatch_mortality: number }>>({});
+  const [quantitiesOnly, setQuantitiesOnly] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
