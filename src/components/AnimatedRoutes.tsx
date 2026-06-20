@@ -77,6 +77,7 @@ const HatcheryImport = lazy(() => import("@/pages/hatchery/HatcheryImport"));
 const HatchBatchesImport = lazy(() => import("@/pages/hatchery/HatchBatchesImport"));
 const HatchBatchesReview = lazy(() => import("@/pages/hatchery/HatchBatchesReview"));
 const HatcheryCustomerStatements = lazy(() => import("@/pages/hatchery/HatcheryCustomerStatements"));
+const HatcheryOperationalStatement = lazy(() => import("@/pages/hatchery/HatcheryOperationalStatement"));
 const HatchBatchEditAudit = lazy(() => import("@/pages/hatchery/HatchBatchEditAudit"));
 const HatchTestData = lazy(() => import("@/pages/hatchery/HatchTestData"));
 const LabCustomerReconciliation = lazy(() => import("@/pages/hatchery/LabCustomerReconciliation"));
@@ -771,6 +772,11 @@ const AnimatedRoutes = () => {
           <Route path="/hatchery/customer-statements" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'hatchery_manager', 'farm_manager', 'production_manager', 'accountant']}>
               <PageTransition><HatcheryCustomerStatements /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/hatchery/operational-statement" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'hatchery_manager', 'farm_manager', 'production_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper', 'lab_treasury_approver']}>
+              <PageTransition><HatcheryOperationalStatement /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/hatchery/edit-audit" element={
