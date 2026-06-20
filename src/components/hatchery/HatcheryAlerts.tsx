@@ -192,7 +192,7 @@ export default function HatcheryAlerts({ settings, onNavigate }: HatcheryAlertsP
                     <TableCell className="text-xs">{op.machine}</TableCell>
                     <TableCell className="text-xs">{op.stage}</TableCell>
                     <TableCell>
-                      <Badge variant={op.action === "متابعة تأخير" ? "destructive" : "default"} className="text-[10px]">
+                      <Badge variant={op.action.startsWith("تأخر") ? "destructive" : "default"} className="text-[10px]">
                         {op.action}
                       </Badge>
                     </TableCell>
