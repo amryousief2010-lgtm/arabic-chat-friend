@@ -83,7 +83,7 @@ export default function LabCustomerStatement() {
   }, []);
 
   useEffect(() => {
-    if (!customerId) { setRows([]); return; }
+    if (!customerId) { setRows([]); setLotsByBatch({}); return; }
     setLoading(true);
     let q = supabase
       .from("lab_customer_ledger")
@@ -93,9 +93,16 @@ export default function LabCustomerStatement() {
       .order("created_at", { ascending: true });
     if (from) q = q.gte("entry_date", from);
     if (to) q = q.lte("entry_date", to);
-    q.then(({ data, error }) => {
-      if (error) toast.error(error.message);
-      let list = (data || []) as LedgerRow[];
+    Promise.all([
+      q,
+      supabase
+        .from("hatchery_batch_lots")
+        .select("eggs_in,hatch_mortality_count,completed_unhatched,chicks_hatched,transferred_count,hatchery_batches!inner(batch_number)")
+        .eq("client_id", customerId)
+        .eq("cancelled", false),
+    ]).then(([ledRes, lotRes]: any) => {
+      if (ledRes.error) toast.error(ledRes.error.message);
+      let list = (ledRes.data || []) as LedgerRow[];
       if (batchFilter.trim()) {
         const b = batchFilter.trim();
         list = list.filter(r =>
@@ -104,6 +111,15 @@ export default function LabCustomerStatement() {
         );
       }
       setRows(list);
+      const map: Record<string, { eggs_in: number; hatch_mortality: number }> = {};
+      (lotRes.data || []).forEach((l: any) => {
+        const key = String(l.hatchery_batches?.batch_number ?? "");
+        if (!key) return;
+        const hm = Number(l.hatch_mortality_count) || Math.max(0, (Number(l.transferred_count)||0) - (Number(l.chicks_hatched)||0) - (Number(l.completed_unhatched)||0));
+        const prev = map[key] || { eggs_in: 0, hatch_mortality: 0 };
+        map[key] = { eggs_in: prev.eggs_in + (Number(l.eggs_in)||0), hatch_mortality: prev.hatch_mortality + hm };
+      });
+      setLotsByBatch(map);
       setLoading(false);
     });
     setParams(prev => {
