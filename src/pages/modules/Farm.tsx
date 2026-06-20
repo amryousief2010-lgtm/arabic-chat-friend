@@ -1700,6 +1700,7 @@ ${batchNotes ? `<div class="notes"><b>ملاحظات الدفعة:</b> ${esc(bat
       </div>
 
       <PendingByDayPanel eggs={eggs} transfers={transfers} families={families} qc={qc} familyName={familyName} />
+      <ShipmentsLogPanel families={families} qc={qc} />
       <div className="flex flex-wrap justify-between items-center gap-2 mb-3">
         <h3 className="font-bold">نقل البيض للمعمل (المنقول: {totals.q.toLocaleString()} - هالك: {totals.d.toLocaleString()})</h3>
         <div className="flex gap-2">
