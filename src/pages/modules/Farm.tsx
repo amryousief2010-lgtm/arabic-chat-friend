@@ -944,6 +944,373 @@ const PendingByDayPanel = ({ eggs, transfers, families, qc, familyName }: any) =
 
 
 
+// ============================================================================
+// Shipments Log Panel — سجل نقل البيض إلى معمل التفريخ
+// Groups farm_to_hatchery_shipments by transfer_batch_id (fallback farm_transfer_id)
+// and shows status, link to hatch_batch, with safe edit/cancel for pending unlinked.
+// ============================================================================
+const ShipmentsLogPanel = ({ families, qc }: any) => {
+  const [fFrom, setFFrom] = useState("");
+  const [fTo, setFTo] = useState("");
+  const [fStatus, setFStatus] = useState<string>("all");
+  const [fSearch, setFSearch] = useState("");
+  const [detailsBatch, setDetailsBatch] = useState<any | null>(null);
+  const [editBatch, setEditBatch] = useState<any | null>(null);
+  const [editRows, setEditRows] = useState<any[]>([]);
+  const [editNotes, setEditNotes] = useState("");
+
+  const { data: shipments = [] } = useQuery({
+    queryKey: ["farm-to-hatchery-shipments-log"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("farm_to_hatchery_shipments")
+        .select("id, farm_transfer_id, transfer_batch_id, production_id, family_id, family_number, production_date, egg_count, status, hatch_batch_id, created_at, receipt_notes")
+        .order("created_at", { ascending: false })
+        .limit(2000);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const familyName = (id: string) => families?.find((f: any) => f.id === id)?.family_number || "—";
+
+  const batches = useMemo(() => {
+    const map = new Map<string, any>();
+    (shipments as any[]).forEach((s) => {
+      const key = s.transfer_batch_id || s.farm_transfer_id || s.id;
+      const cur = map.get(key) || {
+        key,
+        transfer_batch_id: s.transfer_batch_id || null,
+        rows: [] as any[],
+        total_eggs: 0,
+        min_date: s.production_date,
+        max_date: s.production_date,
+        created_at: s.created_at,
+        statuses: new Set<string>(),
+        hatch_batch_ids: new Set<string>(),
+        days: new Set<string>(),
+      };
+      cur.rows.push(s);
+      cur.total_eggs += Number(s.egg_count) || 0;
+      if (s.production_date < cur.min_date) cur.min_date = s.production_date;
+      if (s.production_date > cur.max_date) cur.max_date = s.production_date;
+      if (s.created_at < cur.created_at) cur.created_at = s.created_at;
+      cur.statuses.add(s.status);
+      if (s.hatch_batch_id) cur.hatch_batch_ids.add(s.hatch_batch_id);
+      cur.days.add(s.production_date);
+      map.set(key, cur);
+    });
+    const arr = Array.from(map.values()).map((b) => {
+      const hasHatch = b.hatch_batch_ids.size > 0;
+      const allReceived = b.rows.every((r: any) => r.status === "received");
+      const allPending = b.rows.every((r: any) => r.status === "pending");
+      const status = hasHatch || allReceived ? "received" : allPending ? "pending" : "partial";
+      const notesSample = b.rows.map((r: any) => r.receipt_notes).filter(Boolean)[0] || "";
+      return {
+        ...b,
+        day_count: b.days.size,
+        status,
+        hatch_batch_id: Array.from(b.hatch_batch_ids)[0] || null,
+        notes: notesSample,
+        editable: status === "pending" && !hasHatch,
+      };
+    });
+    arr.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+    return arr;
+  }, [shipments]);
+
+  const filtered = useMemo(() => {
+    return batches.filter((b) => {
+      if (fFrom && b.max_date < fFrom) return false;
+      if (fTo && b.min_date > fTo) return false;
+      if (fStatus !== "all" && b.status !== fStatus) return false;
+      if (fSearch) {
+        const q = fSearch.toLowerCase();
+        const a = String(b.transfer_batch_id || "").toLowerCase();
+        const c = String(b.hatch_batch_id || "").toLowerCase();
+        if (!a.includes(q) && !c.includes(q) && !String(b.key).toLowerCase().includes(q)) return false;
+      }
+      return true;
+    });
+  }, [batches, fFrom, fTo, fStatus, fSearch]);
+
+  const statusBadge = (s: string) => {
+    if (s === "received") return <Badge className="bg-green-600">تم استلامها</Badge>;
+    if (s === "pending") return <Badge variant="secondary">في الانتظار</Badge>;
+    if (s === "partial") return <Badge className="bg-amber-500">جزئية</Badge>;
+    if (s === "rejected") return <Badge variant="destructive">ملغاة</Badge>;
+    return <Badge>{s}</Badge>;
+  };
+
+  const cancelBatch = useMutation({
+    mutationFn: async (batch: any) => {
+      if (!batch.editable) throw new Error("لا يمكن إلغاء دفعة مرتبطة أو مستلمة");
+      const shipIds = batch.rows.map((r: any) => r.id);
+      const transferIds = Array.from(new Set(batch.rows.map((r: any) => r.farm_transfer_id).filter(Boolean)));
+      if (shipIds.length) {
+        const { error } = await (supabase as any).from("farm_to_hatchery_shipments").delete().in("id", shipIds);
+        if (error) throw error;
+      }
+      if (transferIds.length) {
+        const { error } = await supabase.from("farm_transfers").delete().in("id", transferIds as string[]);
+        if (error) throw error;
+      }
+      return shipIds.length;
+    },
+    onSuccess: (n) => {
+      toast.success(`تم إلغاء دفعة النقل (${n} سجل) — رجع البيض كغير منقول`);
+      qc.invalidateQueries({ queryKey: ["farm-to-hatchery-shipments-log"] });
+      qc.invalidateQueries({ queryKey: ["farm_transfers"] });
+      qc.invalidateQueries({ queryKey: ["farm-to-hatchery-shipments"] });
+    },
+    onError: (e: any) => toast.error(e.message || "تعذّر إلغاء الدفعة"),
+  });
+
+  const openEdit = (batch: any) => {
+    if (!batch.editable) {
+      toast.error("لا يمكن تعديل دفعة مرتبطة بدفعة تفريخ أو مستلمة");
+      return;
+    }
+    setEditBatch(batch);
+    setEditRows(batch.rows.map((r: any) => ({ id: r.id, family_id: r.family_id, production_date: r.production_date, egg_count: String(r.egg_count) })));
+    setEditNotes(batch.notes || "");
+  };
+
+  const saveEdit = useMutation({
+    mutationFn: async () => {
+      if (!editBatch) throw new Error("لا توجد دفعة محددة");
+      for (const r of editRows) {
+        const qty = Math.max(0, Number(r.egg_count) || 0);
+        const orig = editBatch.rows.find((x: any) => x.id === r.id);
+        const { error: shErr } = await (supabase as any)
+          .from("farm_to_hatchery_shipments")
+          .update({ egg_count: qty, receipt_notes: editNotes || null })
+          .eq("id", r.id);
+        if (shErr) throw shErr;
+        if (orig?.farm_transfer_id) {
+          const { error: ftErr } = await supabase
+            .from("farm_transfers")
+            .update({ quantity: qty })
+            .eq("id", orig.farm_transfer_id);
+          if (ftErr) throw ftErr;
+        }
+      }
+      return editRows.length;
+    },
+    onSuccess: (n) => {
+      toast.success(`تم تحديث ${n} سجل في دفعة النقل`);
+      setEditBatch(null);
+      qc.invalidateQueries({ queryKey: ["farm-to-hatchery-shipments-log"] });
+      qc.invalidateQueries({ queryKey: ["farm_transfers"] });
+    },
+    onError: (e: any) => toast.error(e.message || "تعذّر حفظ التعديل"),
+  });
+
+  return (
+    <Card className="p-4 mb-4 border-purple-200">
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <h3 className="font-bold text-purple-700">سجل نقل البيض إلى معمل التفريخ</h3>
+        <Badge variant="outline">{filtered.length} دفعة نقل</Badge>
+      </div>
+
+      <div className="flex flex-wrap items-end gap-2 mb-3 p-2 rounded bg-purple-50/40 dark:bg-purple-950/20 border border-purple-200">
+        <div><Label className="text-xs">من تاريخ</Label><Input type="date" value={fFrom} onChange={(e) => setFFrom(e.target.value)} className="h-8 w-[150px]" /></div>
+        <div><Label className="text-xs">إلى تاريخ</Label><Input type="date" value={fTo} onChange={(e) => setFTo(e.target.value)} className="h-8 w-[150px]" /></div>
+        <div>
+          <Label className="text-xs">الحالة</Label>
+          <Select value={fStatus} onValueChange={setFStatus}>
+            <SelectTrigger className="h-8 w-[160px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">كل الحالات</SelectItem>
+              <SelectItem value="pending">في الانتظار</SelectItem>
+              <SelectItem value="received">تم استلامها</SelectItem>
+              <SelectItem value="partial">جزئية</SelectItem>
+              <SelectItem value="rejected">ملغاة</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex-1 min-w-[200px]">
+          <Label className="text-xs">بحث (رقم دفعة النقل / دفعة التفريخ)</Label>
+          <Input value={fSearch} onChange={(e) => setFSearch(e.target.value)} placeholder="ابحث..." className="h-8" />
+        </div>
+        <Button size="sm" variant="ghost" onClick={() => { setFFrom(""); setFTo(""); setFStatus("all"); setFSearch(""); }}>
+          مسح الفلاتر
+        </Button>
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="text-sm text-muted-foreground text-center py-6">لا توجد دفعات نقل مطابقة.</div>
+      ) : (
+        <div className="overflow-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>رقم دفعة النقل</TableHead>
+                <TableHead>تاريخ النقل</TableHead>
+                <TableHead>من — إلى</TableHead>
+                <TableHead className="text-center">الأيام</TableHead>
+                <TableHead className="text-center">إجمالي البيض</TableHead>
+                <TableHead>الحالة</TableHead>
+                <TableHead>دفعة تفريخ</TableHead>
+                <TableHead>ملاحظات</TableHead>
+                <TableHead className="text-center">إجراءات</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((b) => (
+                <TableRow key={b.key}>
+                  <TableCell className="font-mono text-xs">{String(b.transfer_batch_id || b.key).slice(0, 8)}</TableCell>
+                  <TableCell className="text-xs">{String(b.created_at).slice(0, 10)}</TableCell>
+                  <TableCell className="text-xs">{b.min_date} → {b.max_date}</TableCell>
+                  <TableCell className="text-center">{b.day_count}</TableCell>
+                  <TableCell className="text-center font-bold text-purple-600">{b.total_eggs.toLocaleString()}</TableCell>
+                  <TableCell>{statusBadge(b.status)}</TableCell>
+                  <TableCell className="text-xs">
+                    {b.hatch_batch_id ? (
+                      <Badge className="bg-blue-600 font-mono">{String(b.hatch_batch_id).slice(0, 8)}</Badge>
+                    ) : <span className="text-muted-foreground">—</span>}
+                  </TableCell>
+                  <TableCell className="text-xs max-w-[180px] truncate" title={b.notes}>{b.notes || "—"}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-1 justify-center">
+                      <Button size="sm" variant="outline" onClick={() => setDetailsBatch(b)} title="رؤية التفاصيل">
+                        <Eye className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={!b.editable}
+                        onClick={() => openEdit(b)}
+                        title={b.editable ? "تعديل" : "لا يمكن التعديل — مرتبطة أو مستلمة"}
+                      >
+                        تعديل
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        disabled={!b.editable || cancelBatch.isPending}
+                        onClick={() => {
+                          if (!confirm(`إلغاء دفعة نقل بإجمالي ${b.total_eggs} بيضة؟ سيرجع البيض كغير منقول.`)) return;
+                          cancelBatch.mutate(b);
+                        }}
+                        title={b.editable ? "إلغاء" : "لا يمكن الإلغاء — مرتبطة أو مستلمة"}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      <Dialog open={!!detailsBatch} onOpenChange={(v) => !v && setDetailsBatch(null)}>
+        <DialogContent dir="rtl" className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>
+              تفاصيل دفعة النقل — {detailsBatch && String(detailsBatch.transfer_batch_id || detailsBatch.key).slice(0, 8)}
+            </DialogTitle>
+          </DialogHeader>
+          {detailsBatch && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                <div className="p-2 rounded bg-purple-50 dark:bg-purple-950/30"><div className="text-xs text-muted-foreground">إجمالي</div><div className="font-bold text-purple-600">{detailsBatch.total_eggs.toLocaleString()} بيضة</div></div>
+                <div className="p-2 rounded bg-purple-50 dark:bg-purple-950/30"><div className="text-xs text-muted-foreground">الأيام</div><div className="font-bold">{detailsBatch.day_count}</div></div>
+                <div className="p-2 rounded bg-purple-50 dark:bg-purple-950/30"><div className="text-xs text-muted-foreground">من</div><div className="font-bold">{detailsBatch.min_date}</div></div>
+                <div className="p-2 rounded bg-purple-50 dark:bg-purple-950/30"><div className="text-xs text-muted-foreground">إلى</div><div className="font-bold">{detailsBatch.max_date}</div></div>
+              </div>
+              {!detailsBatch.editable && (
+                <div className="text-xs p-2 bg-amber-50 border border-amber-300 rounded text-amber-900">
+                  لا يمكن تعديل أو حذف هذه الدفعة لأنها تم استلامها في معمل التفريخ أو ربطها بدفعة تفريخ. يمكن عمل تسوية إدارية فقط.
+                </div>
+              )}
+              <div className="overflow-auto max-h-[55vh]">
+                <Table>
+                  <TableHeader><TableRow>
+                    <TableHead>التاريخ</TableHead>
+                    <TableHead>الأسرة</TableHead>
+                    <TableHead>عدد البيض</TableHead>
+                    <TableHead>الحالة</TableHead>
+                    <TableHead>دفعة تفريخ</TableHead>
+                  </TableRow></TableHeader>
+                  <TableBody>
+                    {detailsBatch.rows
+                      .slice()
+                      .sort((a: any, b: any) => String(a.production_date).localeCompare(String(b.production_date)))
+                      .map((r: any) => (
+                        <TableRow key={r.id}>
+                          <TableCell>{r.production_date}</TableCell>
+                          <TableCell>{familyName(r.family_id)}</TableCell>
+                          <TableCell className="font-semibold">{Number(r.egg_count).toLocaleString()}</TableCell>
+                          <TableCell>{statusBadge(r.status)}</TableCell>
+                          <TableCell className="font-mono text-xs">{r.hatch_batch_id ? String(r.hatch_batch_id).slice(0, 8) : "—"}</TableCell>
+                        </TableRow>
+                      ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editBatch} onOpenChange={(v) => !v && setEditBatch(null)}>
+        <DialogContent dir="rtl" className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>تعديل دفعة النقل</DialogTitle>
+          </DialogHeader>
+          {editBatch && (
+            <div className="space-y-3">
+              <div className="text-xs p-2 bg-purple-50 border border-purple-200 rounded">
+                تعديل آمن — متاح فقط للدفعات غير المستلمة وغير المرتبطة بدفعة تفريخ. تعديل الكمية يحدّث حركة النقل الأصلية كذلك.
+              </div>
+              <div>
+                <Label>ملاحظات الدفعة</Label>
+                <Textarea rows={2} value={editNotes} onChange={(e) => setEditNotes(e.target.value)} />
+              </div>
+              <div className="overflow-auto max-h-[50vh]">
+                <Table>
+                  <TableHeader><TableRow>
+                    <TableHead>التاريخ</TableHead>
+                    <TableHead>الأسرة</TableHead>
+                    <TableHead>عدد البيض</TableHead>
+                  </TableRow></TableHeader>
+                  <TableBody>
+                    {editRows.map((r, i) => (
+                      <TableRow key={r.id}>
+                        <TableCell>{r.production_date}</TableCell>
+                        <TableCell>{familyName(r.family_id)}</TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={r.egg_count}
+                            onChange={(e) => setEditRows((rs) => rs.map((x, idx) => idx === i ? { ...x, egg_count: e.target.value } : x))}
+                            className="h-8 w-[120px]"
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setEditBatch(null)}>إلغاء</Button>
+                <Button onClick={() => saveEdit.mutate()} disabled={saveEdit.isPending}>
+                  {saveEdit.isPending ? "جارٍ الحفظ..." : "حفظ التعديلات"}
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+};
+
+
 const TransfersTab = ({ transfers, families, eggs = [], qc }: any) => {
   const [open, setOpen] = useState(false);
   const [batchFrom, setBatchFrom] = useState(today());
