@@ -102,15 +102,15 @@ export default function HatcheryAlerts({ settings, onNavigate }: HatcheryAlertsP
       let isOverdue = false;
       if (!b.candle1_date && t > addD(entry, c1)) {
         isOverdue = true;
-        action = "متابعة تأخير";
+        action = "تأخر الكشف الأول";
         targetDate = addD(entry, c1);
       } else if (!b.candle2_date && t > expC2) {
         isOverdue = true;
-        action = "متابعة تأخير";
+        action = "تأخر الكشف الثاني";
         targetDate = expC2;
       } else if (b.candle2_date && !b.exit_date && t > expEx) {
         isOverdue = true;
-        action = "متابعة تأخير";
+        action = "تأخر الفقس / الخروج";
         targetDate = expEx;
       }
 
