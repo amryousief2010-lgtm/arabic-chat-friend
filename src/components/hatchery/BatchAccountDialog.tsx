@@ -379,7 +379,7 @@ export default function BatchAccountDialog({
         <tr><th>رسوم الكشف الثاني</th><td>${fmtMoney(i.completed_unhatched_amount)}</td></tr>
         <tr><th>رسوم الكتاكيت</th><td>${fmtMoney(i.chicks_amount)}</td></tr>
         <tr><th>رسوم التحضين (${i.brooding_days} يوم × ${i.brooding_chicks_count})</th><td>${fmtMoney(i.brooding_amount)}</td></tr>
-        <tr><th>رسوم نافق الهاتش (${fmt(i.hatch_mortality_count)} × ${fmt(i.hatch_mortality_unit_price)})</th><td>${fmtMoney(i.hatch_mortality_amount)}</td></tr>
+        <tr><th>رسوم نافق الهاتشر (${fmt(i.hatch_mortality_count)} × ${fmt(i.hatch_mortality_unit_price)})</th><td>${fmtMoney(i.hatch_mortality_amount)}</td></tr>
         <tr><th>إجمالي المستحق</th><td><b>${fmtMoney(i.total_amount)}</b></td></tr>
         <tr><th>إجمالي الخصومات</th><td>${fmtMoney(i.discount_amount)}</td></tr>
         <tr><th>إجمالي المدفوع</th><td>${fmtMoney(i.paid_amount)}</td></tr>
@@ -515,7 +515,7 @@ export default function BatchAccountDialog({
                   <Info label={`رسوم الكشف الثاني (${unhatched} × ${unPrice})`} value={fmtMoney(unAmt)} />
                   <Info label={`رسوم الكتاكيت (${chicks} × ${chPrice})`} value={fmtMoney(chAmt)} />
                   <Info label={`رسوم التحضين (${chicks} × ${days} × ${dailyPrice})`} value={fmtMoney(brAmt)} />
-                  <Info label={`رسوم نافق الهاتش (${hatchMort} × ${hmPrice})`} value={fmtMoney(hmAmt)} />
+                  <Info label={`رسوم نافق الهاتشر (${hatchMort} × ${hmPrice})`} value={fmtMoney(hmAmt)} />
                   <Info label="إجمالي المستحق" value={fmtMoney(total)} highlight />
                   <Info label="المدفوع" value={fmtMoney(paid)} />
                   <Info label="المتبقي" value={fmtMoney(remaining)} highlight />
@@ -631,7 +631,7 @@ export default function BatchAccountDialog({
                 <Info label="رسوم الكشف الثاني" value={fmtMoney(invoice.completed_unhatched_amount)} />
                 <Info label="رسوم الكتاكيت" value={fmtMoney(invoice.chicks_amount)} />
                 <Info label={`رسوم التحضين (${invoice.brooding_days} يوم)`} value={fmtMoney(invoice.brooding_amount)} />
-                <Info label={`رسوم نافق الهاتش (${fmt(invoice.hatch_mortality_count)} × ${fmt(invoice.hatch_mortality_unit_price)})`} value={fmtMoney(invoice.hatch_mortality_amount)} />
+                <Info label={`رسوم نافق الهاتشر (${fmt(invoice.hatch_mortality_count)} × ${fmt(invoice.hatch_mortality_unit_price)})`} value={fmtMoney(invoice.hatch_mortality_amount)} />
                 <Info label="إجمالي المستحق" value={fmtMoney(invoice.total_amount)} highlight />
                 <Info label="إجمالي الخصومات" value={fmtMoney(invoice.discount_amount)} />
                 <Info label="إجمالي المدفوع" value={fmtMoney(invoice.paid_amount)} />
