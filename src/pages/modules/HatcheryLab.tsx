@@ -1068,7 +1068,7 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
     if (lots.some(l => l.owner_type === "external_client" && !l.client_id)) return toast.error("اختر عميل للـ lot الخارجي");
     // تحقق ألا يتجاوز عدد البيض الكمية المتاحة في دفعة النقل المرتبطة
     for (const l of lots) {
-      if ((l.from_shipment_ids?.length || 0) > 0 && l.max_eggs != null && +l.eggs_in > +l.max_eggs) {
+      if (((l.from_shipment_ids?.length || 0) > 0 || (l.from_farm_transfer_ids?.length || 0) > 0) && l.max_eggs != null && +l.eggs_in > +l.max_eggs) {
         return toast.error(`عدد البيض في دفعة النقل (${l.shipment_label}) لا يجب أن يتجاوز ${l.max_eggs}`);
       }
     }
@@ -1162,7 +1162,7 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
         net_eggs: +l.eggs_in,
         customer_id: l.owner_type === "external_client" ? l.client_id : internalId,
         status: "pending",
-        notes: (l.from_shipment_ids?.length || 0) > 0
+        notes: ((l.from_shipment_ids?.length || 0) > 0 || (l.from_farm_transfer_ids?.length || 0) > 0)
           ? [notes, `منقولة من مزرعة الأمهات (${l.shipment_label})`].filter(Boolean).join(" — ")
           : (notes || null),
         created_by: userId,
@@ -1396,7 +1396,7 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
                     </div>
                     <Button size="sm" variant="ghost" onClick={() => removeLot(i)} disabled={lots.length === 1}><X className="w-4 h-4" /></Button>
                   </div>
-                  {(l.from_shipment_ids?.length || 0) > 0 && (
+                  {((l.from_shipment_ids?.length || 0) > 0 || (l.from_farm_transfer_ids?.length || 0) > 0) && (
                     <div className="mt-2 text-xs text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/20 rounded px-2 py-1">
                       منقولة من مزرعة الأمهات — {l.shipment_label}
                     </div>
