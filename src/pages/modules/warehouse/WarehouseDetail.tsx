@@ -1969,7 +1969,7 @@ const WarehouseDetail = () => {
         </DialogContent>
       </Dialog>
 
-      {isMain && canManualAdd && (
+      {canManualAdd && (
         <ManualStockAdditionDialog
           open={manualAddOpen}
           onOpenChange={setManualAddOpen}
@@ -1979,6 +1979,7 @@ const WarehouseDetail = () => {
           onSaved={fetchAll}
         />
       )}
+
     </DashboardLayout>
 
 
