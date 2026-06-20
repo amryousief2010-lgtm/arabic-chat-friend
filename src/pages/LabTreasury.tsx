@@ -426,7 +426,10 @@ export default function LabTreasury() {
   const normalizedExpensePaymentMethod = normalizePaymentMethod(expForm.payment_method);
   const expAmountRaw = String(expForm.amount ?? "").trim();
   const expAmountNum = Number(expAmountRaw) || 0;
-  const expAvailable = officialByMethod[normalizedExpensePaymentMethod] ?? 0;
+  const expMethodAvailable = officialByMethod[normalizedExpensePaymentMethod] ?? 0;
+  // Available for expense = total official lab treasury balance (pool).
+  // Per-method shown for transparency but not used to block when total covers it.
+  const expAvailable = officialTotal;
   const expExceeds = expAmountNum > 0 && expAmountNum > expAvailable;
 
   async function uploadReceipt(file: File | null): Promise<string | null> {
