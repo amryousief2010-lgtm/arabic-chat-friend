@@ -960,18 +960,13 @@ const TransfersTab = ({ transfers, families, eggs = [], qc }: any) => {
     setSelectedDays(new Set());
   };
 
-  // Compute pending production per family per date (production not yet covered by transfers).
-  // Heuristic: per family, find latest transfer_date; sum egg_production rows after that date per (family, date).
+  // Compute pending production using per-(family,date) accounting:
+  // remaining = produced(family,date) - SUM(transfers(family,date)). This guarantees a day
+  // is included whenever it still has un-transferred eggs, regardless of any later transfer
+  // dates that exist for the same family. Uses local YYYY-MM-DD (no UTC shift).
   const autoLoadPending = async () => {
     setAutoLoading(true);
     try {
-      const lastTransferByFamily: Record<string, string> = {};
-      transfers.forEach((t: any) => {
-        if (!t.family_id) return;
-        const prev = lastTransferByFamily[t.family_id];
-        if (!prev || t.transfer_date > prev) lastTransferByFamily[t.family_id] = t.transfer_date;
-      });
-
       const all: any[] = [];
       let from = 0; const size = 1000;
       while (true) {
@@ -986,13 +981,49 @@ const TransfersTab = ({ transfers, families, eggs = [], qc }: any) => {
         from += size;
       }
 
+      const transAll: any[] = [];
+      {
+        let fromT = 0;
+        while (true) {
+          const { data, error } = await supabase.from("farm_transfers")
+            .select("transfer_date,family_id,quantity")
+            .range(fromT, fromT + size - 1);
+          if (error) throw error;
+          if (!data || data.length === 0) break;
+          transAll.push(...data);
+          if (data.length < size) break;
+          fromT += size;
+        }
+      }
+
       const td = today();
-      const pending = all.filter((e: any) => {
-        if (!e.family_id) return false;
-        const last = lastTransferByFamily[e.family_id];
-        if (last && e.production_date <= last) return false;
-        return e.production_date <= td;
+      const transMap = new Map<string, number>();
+      transAll.forEach((t: any) => {
+        if (!t.family_id || !t.transfer_date) return;
+        const k = `${t.family_id}|${t.transfer_date}`;
+        transMap.set(k, (transMap.get(k) || 0) + (Number(t.quantity) || 0));
       });
+
+      const prodMap = new Map<string, { date: string; family_id: string; produced: number }>();
+      all.forEach((e: any) => {
+        if (!e.family_id || !e.production_date) return;
+        if (e.production_date > td) return;
+        const k = `${e.family_id}|${e.production_date}`;
+        const cur = prodMap.get(k) || { date: e.production_date, family_id: e.family_id, produced: 0 };
+        cur.produced += Number(e.egg_count) || 0;
+        prodMap.set(k, cur);
+      });
+
+      const pending = Array.from(prodMap.entries())
+        .map(([k, p]) => ({ ...p, qty: Math.max(0, p.produced - (transMap.get(k) || 0)) }))
+        .filter((p) => p.qty > 0);
+
+      if (!pending.length) {
+        toast.info("لا يوجد بيض غير منقول حاليًا");
+        setRows([emptyRow()]);
+        setAutoLoaded({ count: 0, from: "", to: "", totalQty: 0 });
+        return;
+      }
 
       if (!pending.length) {
         toast.info("لا يوجد إنتاج جديد بعد آخر نقل");
