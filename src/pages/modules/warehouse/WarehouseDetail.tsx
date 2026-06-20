@@ -890,12 +890,21 @@ const WarehouseDetail = () => {
               </p>
             </div>
           </div>
-          {isAgouza && canManageWarehouses && (
-            <Button onClick={openSupplyDialog} disabled={supplyNeeds.length === 0}>
-              <Truck className="w-4 h-4 ml-2" />طلب توريد من المخزن الرئيسي
-              {supplyNeeds.length > 0 && <Badge variant="destructive" className="mr-2">{supplyNeeds.length}</Badge>}
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {isMain && canManualAdd && (
+              <Button onClick={() => setManualAddOpen(true)} className="bg-emerald-600 hover:bg-emerald-700">
+                <PackagePlus className="w-4 h-4 ml-2" />
+                إضافة رصيد يدوي
+              </Button>
+            )}
+            {isAgouza && canManageWarehouses && (
+              <Button onClick={openSupplyDialog} disabled={supplyNeeds.length === 0}>
+                <Truck className="w-4 h-4 ml-2" />طلب توريد من المخزن الرئيسي
+                {supplyNeeds.length > 0 && <Badge variant="destructive" className="mr-2">{supplyNeeds.length}</Badge>}
+              </Button>
+            )}
+          </div>
+
         </div>
 
         {warehouse.description && (
