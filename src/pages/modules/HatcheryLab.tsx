@@ -865,17 +865,17 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
     queryFn: async () => {
       const { data: ships, error } = await (supabase as any)
         .from("farm_to_hatchery_shipments")
-        .select("id, production_date, egg_count, family_number, created_at, status, hatch_batch_id, farm_transfer_id")
+        .select("id, production_date, egg_count, family_number, created_at, status, hatch_batch_id, farm_transfer_id, transfer_batch_id")
         .eq("status", "pending")
         .is("hatch_batch_id", null)
         .eq("is_test", false)
         .order("created_at", { ascending: false })
-        .limit(1000);
+        .limit(2000);
       if (error) throw error;
       const shipments = ships || [];
       if (!shipments.length) return [];
 
-      // اجلب farm_transfers للحصول على notes (وسم دفعة النقل) و transfer_date
+      // اجلب farm_transfers (لتسمية الدفعة + transfer_date)
       const ftIds = Array.from(new Set(shipments.map((s: any) => s.farm_transfer_id).filter(Boolean)));
       const ftMap = new Map<string, any>();
       if (ftIds.length) {
@@ -886,11 +886,16 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
         (fts || []).forEach((f: any) => ftMap.set(f.id, f));
       }
 
-      // المفتاح: notes (تسمية دفعة النقل) إن وُجدت، وإلا farm_transfer_id، وإلا الشحنة نفسها
+      // التجميع: transfer_batch_id أولاً (دفعة نقل واحدة من نقرة واحدة)،
+      // ثم fallback: notes الموحدة، ثم farm_transfer_id، ثم الشحنة نفسها.
       const groups = new Map<string, any>();
       for (const s of shipments) {
         const ft = s.farm_transfer_id ? ftMap.get(s.farm_transfer_id) : null;
-        const key = ft?.notes || (s.farm_transfer_id ? `ft:${s.farm_transfer_id}` : `sh:${s.id}`);
+        const key =
+          (s.transfer_batch_id && `tb:${s.transfer_batch_id}`) ||
+          (ft?.notes && `notes:${ft.notes}`) ||
+          (s.farm_transfer_id && `ft:${s.farm_transfer_id}`) ||
+          `sh:${s.id}`;
         let g = groups.get(key);
         if (!g) {
           g = {
@@ -916,6 +921,7 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
       return Array.from(groups.values()).sort((a, b) =>
         (b.latest_created_at || "").localeCompare(a.latest_created_at || "")
       );
+
     },
   });
 
