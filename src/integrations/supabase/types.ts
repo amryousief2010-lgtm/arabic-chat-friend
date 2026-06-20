@@ -2490,6 +2490,7 @@ export type Database = {
           egg_count: number
           family_id: string | null
           family_number: string | null
+          farm_transfer_id: string | null
           hatch_batch_id: string | null
           id: string
           is_test: boolean
@@ -2510,6 +2511,7 @@ export type Database = {
           egg_count?: number
           family_id?: string | null
           family_number?: string | null
+          farm_transfer_id?: string | null
           hatch_batch_id?: string | null
           id?: string
           is_test?: boolean
@@ -2530,6 +2532,7 @@ export type Database = {
           egg_count?: number
           family_id?: string | null
           family_number?: string | null
+          farm_transfer_id?: string | null
           hatch_batch_id?: string | null
           id?: string
           is_test?: boolean
@@ -2550,6 +2553,13 @@ export type Database = {
             columns: ["family_id"]
             isOneToOne: false
             referencedRelation: "farm_families"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "farm_to_hatchery_shipments_farm_transfer_id_fkey"
+            columns: ["farm_transfer_id"]
+            isOneToOne: false
+            referencedRelation: "farm_transfers"
             referencedColumns: ["id"]
           },
           {
