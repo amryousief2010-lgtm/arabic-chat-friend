@@ -92,21 +92,31 @@ export default function LiveBatchCosts() {
 
   const allocate = async (batchId: string) => {
     try {
-      const { data, error } = await supabase.rpc("apply_slaughter_cost_allocation" as any, {
+      const { data, error } = await supabase.rpc("recompute_slaughter_batch_cost" as any, {
         p_slaughter_batch_id: batchId,
       });
       if (error) throw error;
       const res = data as any;
-      if (res?.status === "already_allocated") {
-        toast.info("تم توزيع تكلفة هذه الدفعة مسبقًا");
-      } else {
-        toast.success(`تم توزيع التكلفة — تكلفة الكيلو: ${fmt(res?.cost_per_kg || 0)} ج.م`);
-      }
+      toast.success(`تمت إعادة الحساب — تكلفة الكيلو: ${fmt(res?.cost_per_kg || 0)} ج.م`);
       refresh();
     } catch (e: any) {
-      toast.error(e.message || "فشل توزيع التكلفة");
+      toast.error(e.message || "فشل إعادة حساب التكلفة");
     }
   };
+
+  const allocationsQ = useQuery({
+    queryKey: ["slaughter_cost_allocations_log"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("slaughter_cost_allocations" as any)
+        .select("id, event_type, event_date, total_cost, status, notes, created_at")
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return (data as any[]) || [];
+    },
+  });
+  const allocations = allocationsQ.data || [];
 
   return (
     <DashboardLayout>
@@ -151,7 +161,8 @@ export default function LiveBatchCosts() {
         <Tabs defaultValue="batches" dir="rtl">
           <TabsList>
             <TabsTrigger value="batches">دفعات النعام الحي</TabsTrigger>
-            <TabsTrigger value="slaughter">دفعات الذبح — توزيع التكلفة</TabsTrigger>
+            <TabsTrigger value="slaughter">دفعات الذبح — التكلفة</TabsTrigger>
+            <TabsTrigger value="alloc_log">سجل توزيع التكاليف</TabsTrigger>
           </TabsList>
 
           <TabsContent value="batches">
@@ -254,7 +265,7 @@ export default function LiveBatchCosts() {
                           <TableCell>
                             <Button size="sm" variant="outline" onClick={() => allocate(b.id)} disabled={!b.live_receipt_id}>
                               <Calculator className="h-3 w-3 ml-1" />
-                              {b.cost_allocation_done ? "إعادة توزيع" : "توزيع التكلفة"}
+                              إعادة حساب التكلفة
                             </Button>
                           </TableCell>
                         </TableRow>
@@ -262,6 +273,52 @@ export default function LiveBatchCosts() {
                     })}
                     {!slaughterBatches.length && (
                       <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground">لا توجد دفعات ذبح</TableCell></TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="alloc_log">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">سجل توزيع تكاليف نعام الدبح (تلقائي)</CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  كل صرف علف أو نافق يتوزع تلقائيًا على دفعات النعام الجاهزة بالتناسب مع عدد النعام الحي. الأحداث بحالة <Badge variant="secondary">pending</Badge> هي أحداث تكلفة لم تجد دفعات جاهزة وقت تسجيلها.
+                </p>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>التاريخ</TableHead>
+                      <TableHead>النوع</TableHead>
+                      <TableHead>إجمالي التكلفة</TableHead>
+                      <TableHead>الحالة</TableHead>
+                      <TableHead>ملاحظة</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {allocations.map((a: any) => (
+                      <TableRow key={a.id}>
+                        <TableCell className="text-xs">{a.event_date}</TableCell>
+                        <TableCell>
+                          {a.event_type === 'feed' ? <Badge className="bg-orange-600">صرف علف</Badge>
+                            : a.event_type === 'mortality' ? <Badge variant="destructive">نافق</Badge>
+                            : <Badge variant="outline">{a.event_type}</Badge>}
+                        </TableCell>
+                        <TableCell className="font-medium">{fmt(a.total_cost)} ج.م</TableCell>
+                        <TableCell>
+                          {a.status === 'allocated' ? <Badge variant="default">موزعة</Badge>
+                            : a.status === 'pending' ? <Badge variant="secondary">بانتظار التوزيع</Badge>
+                            : <Badge variant="outline">ملغية</Badge>}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{a.notes || '—'}</TableCell>
+                      </TableRow>
+                    ))}
+                    {!allocations.length && (
+                      <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">لا توجد عمليات توزيع بعد</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>

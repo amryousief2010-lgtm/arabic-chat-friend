@@ -13276,6 +13276,113 @@ export type Database = {
           },
         ]
       }
+      slaughter_cost_allocation_lines: {
+        Row: {
+          allocated_cost: number
+          allocation_id: string
+          birds_at_allocation: number
+          created_at: string
+          id: string
+          receipt_id: string
+          share_ratio: number
+        }
+        Insert: {
+          allocated_cost?: number
+          allocation_id: string
+          birds_at_allocation?: number
+          created_at?: string
+          id?: string
+          receipt_id: string
+          share_ratio?: number
+        }
+        Update: {
+          allocated_cost?: number
+          allocation_id?: string
+          birds_at_allocation?: number
+          created_at?: string
+          id?: string
+          receipt_id?: string
+          share_ratio?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slaughter_cost_allocation_lines_allocation_id_fkey"
+            columns: ["allocation_id"]
+            isOneToOne: false
+            referencedRelation: "slaughter_cost_allocations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slaughter_cost_allocation_lines_receipt_id_fkey"
+            columns: ["receipt_id"]
+            isOneToOne: false
+            referencedRelation: "slaughter_live_receipts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      slaughter_cost_allocations: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          distribution_method: string
+          event_date: string
+          event_type: string
+          excluded_receipt_id: string | null
+          id: string
+          notes: string | null
+          reversed_at: string | null
+          reversed_by: string | null
+          source_id: string
+          source_table: string
+          status: string
+          total_cost: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          distribution_method?: string
+          event_date?: string
+          event_type: string
+          excluded_receipt_id?: string | null
+          id?: string
+          notes?: string | null
+          reversed_at?: string | null
+          reversed_by?: string | null
+          source_id: string
+          source_table: string
+          status?: string
+          total_cost?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          distribution_method?: string
+          event_date?: string
+          event_type?: string
+          excluded_receipt_id?: string | null
+          id?: string
+          notes?: string | null
+          reversed_at?: string | null
+          reversed_by?: string | null
+          source_id?: string
+          source_table?: string
+          status?: string
+          total_cost?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slaughter_cost_allocations_excluded_receipt_id_fkey"
+            columns: ["excluded_receipt_id"]
+            isOneToOne: false
+            referencedRelation: "slaughter_live_receipts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       slaughter_custody_audit_log: {
         Row: {
           action: string
@@ -16335,6 +16442,19 @@ export type Database = {
         }[]
       }
       dispatch_order_stock: { Args: { p_order_id: string }; Returns: Json }
+      distribute_slaughter_cost_event: {
+        Args: {
+          p_created_by: string
+          p_event_date: string
+          p_event_type: string
+          p_exclude_receipt_id?: string
+          p_notes?: string
+          p_source_id: string
+          p_source_table: string
+          p_total_cost: number
+        }
+        Returns: string
+      }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
@@ -17162,6 +17282,10 @@ export type Database = {
       }
       recompute_feed_batch_cost: { Args: { p_batch: string }; Returns: number }
       recompute_meat_batch_cost: { Args: { p_batch_id: string }; Returns: Json }
+      recompute_slaughter_batch_cost: {
+        Args: { p_slaughter_batch_id: string }
+        Returns: Json
+      }
       reject_low_yield_transfer: {
         Args: { p_batch_id: string; p_reason: string }
         Returns: Json
@@ -17302,6 +17426,15 @@ export type Database = {
       }
       reverse_feed_invoice_expense: {
         Args: { p_expense_id: string; p_reason: string }
+        Returns: undefined
+      }
+      reverse_slaughter_cost_event: {
+        Args: {
+          p_by: string
+          p_event_type: string
+          p_source_id: string
+          p_source_table: string
+        }
         Returns: undefined
       }
       reverse_slaughter_receipt: {
