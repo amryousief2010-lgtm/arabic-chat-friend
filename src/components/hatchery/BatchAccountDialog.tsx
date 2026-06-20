@@ -486,15 +486,19 @@ export default function BatchAccountDialog({
             const chicks = num(lot.chicks_hatched);
             const infertile = num(lot.infertile_eggs);
             const unhatched = num(lot.completed_unhatched);
+            const transferred = num(lot.transferred_count) || num(lot.fertile_eggs) || Math.max(0, num(lot.eggs_in) - infertile);
+            const hatchMort = Math.max(0, transferred - chicks - unhatched);
             const infPrice = num(pricing.infertile_egg_price);
             const chPrice = num(pricing.chick_price);
             const unPrice = num(pricing.completed_unhatched_price);
             const dailyPrice = num(pricing.daily_brooding_price);
+            const hmPrice = num((pricing as any).hatch_mortality_price) || 100;
             const infAmt = infertile * infPrice;
             const unAmt = unhatched * unPrice;
             const chAmt = chicks * chPrice;
             const brAmt = chicks * days * dailyPrice;
-            const total = infAmt + unAmt + chAmt + brAmt;
+            const hmAmt = hatchMort * hmPrice;
+            const total = infAmt + unAmt + chAmt + brAmt + hmAmt;
             const paid = 0; const remaining = total - paid;
             return (
               <div className="rounded-lg border-2 border-emerald-500 p-4 bg-emerald-50 dark:bg-emerald-950/30 space-y-3">
@@ -510,6 +514,7 @@ export default function BatchAccountDialog({
                   <Info label={`رسوم الكشف الثاني (${unhatched} × ${unPrice})`} value={fmtMoney(unAmt)} />
                   <Info label={`رسوم الكتاكيت (${chicks} × ${chPrice})`} value={fmtMoney(chAmt)} />
                   <Info label={`رسوم التحضين (${chicks} × ${days} × ${dailyPrice})`} value={fmtMoney(brAmt)} />
+                  <Info label={`رسوم نافق الهاتش (${hatchMort} × ${hmPrice})`} value={fmtMoney(hmAmt)} />
                   <Info label="إجمالي المستحق" value={fmtMoney(total)} highlight />
                   <Info label="المدفوع" value={fmtMoney(paid)} />
                   <Info label="المتبقي" value={fmtMoney(remaining)} highlight />
