@@ -1107,7 +1107,16 @@ const ShipmentsLogPanel = ({ families, qc }: any) => {
       return;
     }
     setEditBatch(batch);
-    setEditRows(batch.rows.map((r: any) => ({ id: r.id, family_id: r.family_id, production_date: r.production_date, egg_count: String(r.egg_count) })));
+    // Edit operates on farm_transfers rows (always present) and mirrors changes
+    // onto the matching shipment row (by farm_transfer_id) if any exists.
+    setEditRows(
+      (batch.transfers || []).map((t: any) => ({
+        id: t.id,
+        family_id: t.family_id,
+        production_date: t.transfer_date,
+        egg_count: String(t.quantity),
+      })),
+    );
     setEditNotes(batch.notes || "");
   };
 
@@ -1116,30 +1125,32 @@ const ShipmentsLogPanel = ({ families, qc }: any) => {
       if (!editBatch) throw new Error("لا توجد دفعة محددة");
       for (const r of editRows) {
         const qty = Math.max(0, Number(r.egg_count) || 0);
-        const orig = editBatch.rows.find((x: any) => x.id === r.id);
-        const { error: shErr } = await (supabase as any)
-          .from("farm_to_hatchery_shipments")
-          .update({ egg_count: qty, receipt_notes: editNotes || null })
+        const { error: ftErr } = await supabase
+          .from("farm_transfers")
+          .update({ quantity: qty, notes: editNotes || null })
           .eq("id", r.id);
-        if (shErr) throw shErr;
-        if (orig?.farm_transfer_id) {
-          const { error: ftErr } = await supabase
-            .from("farm_transfers")
-            .update({ quantity: qty })
-            .eq("id", orig.farm_transfer_id);
-          if (ftErr) throw ftErr;
+        if (ftErr) throw ftErr;
+        const ship = (editBatch.ship_rows || []).find((s: any) => s.farm_transfer_id === r.id);
+        if (ship) {
+          const { error: shErr } = await (supabase as any)
+            .from("farm_to_hatchery_shipments")
+            .update({ egg_count: qty, receipt_notes: editNotes || null })
+            .eq("id", ship.id);
+          if (shErr) throw shErr;
         }
       }
       return editRows.length;
     },
     onSuccess: (n) => {
-      toast.success(`تم تحديث ${n} سجل في دفعة النقل`);
+      toast.success(`تم تحديث ${n} حركة في دفعة النقل`);
       setEditBatch(null);
       qc.invalidateQueries({ queryKey: ["farm-to-hatchery-shipments-log"] });
+      qc.invalidateQueries({ queryKey: ["farm-transfers-log"] });
       qc.invalidateQueries({ queryKey: ["farm_transfers"] });
     },
     onError: (e: any) => toast.error(e.message || "تعذّر حفظ التعديل"),
   });
+
 
   return (
     <Card className="p-4 mb-4 border-purple-200">
