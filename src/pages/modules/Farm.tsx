@@ -688,12 +688,9 @@ const PendingByDayPanel = ({ eggs, transfers, families, qc, familyName }: any) =
   const [viewOpen, setViewOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const defaultFrom = useMemo(() => {
-    const d = new Date(); d.setDate(d.getDate() - 6);
-    return d.toISOString().slice(0, 10);
-  }, []);
+  const defaultFrom = "2026-06-13";
   const [winFrom, setWinFrom] = useState<string>(defaultFrom);
-  const [winTo, setWinTo] = useState<string>(today());
+  const [winTo, setWinTo] = useState<string>("2026-06-19");
 
   const localDateKey = (value: any) => String(value || "").slice(0, 10);
 
@@ -807,8 +804,8 @@ const PendingByDayPanel = ({ eggs, transfers, families, qc, familyName }: any) =
           <Label className="text-xs">إلى تاريخ</Label>
           <Input type="date" value={winTo} onChange={(e) => setWinTo(e.target.value)} className="h-8 w-[160px]" />
         </div>
-        <Button type="button" size="sm" variant="ghost" onClick={() => { setWinFrom(defaultFrom); setWinTo(today()); }}>
-          آخر 7 أيام
+        <Button type="button" size="sm" variant="ghost" onClick={() => { setWinFrom(defaultFrom); setWinTo("2026-06-19"); }}>
+          الفترة الافتراضية
         </Button>
         <div className="text-xs text-muted-foreground mr-auto">الأيام القديمة خارج هذه الفترة مخفية</div>
       </div>
@@ -917,12 +914,9 @@ const TransfersTab = ({ transfers, families, eggs = [], qc }: any) => {
 
   // Window for "available days" — defaults to last 7 days (today-6 .. today).
   // Old historical days are hidden unless the user widens the window.
-  const defaultWinFrom = useMemo(() => {
-    const d = new Date(); d.setDate(d.getDate() - 6);
-    return d.toISOString().slice(0, 10);
-  }, []);
+  const defaultWinFrom = "2026-06-13";
   const [winFrom, setWinFrom] = useState<string>(defaultWinFrom);
-  const [winTo, setWinTo] = useState<string>(today());
+  const [winTo, setWinTo] = useState<string>("2026-06-19");
 
   // Per-day availability based on per-(family,date) production minus transferred quantity.
   // Filtered to the current transfer-window [winFrom..winTo] so old historical days
@@ -1341,8 +1335,8 @@ ${batchNotes ? `<div class="notes"><b>ملاحظات الدفعة:</b> ${esc(bat
                       <Label className="text-xs">إلى تاريخ</Label>
                       <Input type="date" value={winTo} onChange={(e) => setWinTo(e.target.value)} className="h-8 w-[160px]" />
                     </div>
-                    <Button type="button" size="sm" variant="ghost" onClick={() => { setWinFrom(defaultWinFrom); setWinTo(today()); }}>
-                      آخر 7 أيام
+                    <Button type="button" size="sm" variant="ghost" onClick={() => { setWinFrom(defaultWinFrom); setWinTo("2026-06-19"); }}>
+                      الفترة الافتراضية
                     </Button>
                     <div className="text-xs text-muted-foreground mr-auto">
                       يتم عرض الأيام داخل هذه الفترة فقط — الأيام القديمة مخفية
