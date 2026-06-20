@@ -767,7 +767,10 @@ const PendingByDayPanel = ({ eggs, transfers, families, qc, familyName }: any) =
       );
       if (!flat.length) throw new Error("لا يوجد بيض للنقل");
 
-      // 1) إنشاء حركات النقل في المزرعة
+      // كل النقرة الواحدة على "نقل دفعة" تشترك في نفس transfer_batch_id لتجميعها كدفعة واحدة
+      const transferBatchId = (crypto as any).randomUUID?.() || `tb-${Date.now()}`;
+
+      // 1) إنشاء حركات النقل في المزرعة مع transfer_batch_id موحّد
       const { data: inserted, error } = await supabase
         .from("farm_transfers")
         .insert(flat.map((f) => ({
@@ -776,13 +779,12 @@ const PendingByDayPanel = ({ eggs, transfers, families, qc, familyName }: any) =
           quantity: f.qty,
           damaged: 0,
           notes: notesLabel,
-        })))
+          transfer_batch_id: transferBatchId,
+        })) as any)
         .select("id, transfer_date, family_id, quantity");
       if (error) throw error;
 
-      // 2) إنشاء شحنات وارد للمعمل (pending) مرتبطة بكل حركة نقل
-      // كل النقرة الواحدة على "نقل دفعة" تشترك في نفس transfer_batch_id لتجميعها كدفعة واحدة في المعمل
-      const transferBatchId = (crypto as any).randomUUID?.() || `tb-${Date.now()}`;
+      // 2) إنشاء شحنات وارد للمعمل (pending) مرتبطة بنفس transfer_batch_id
       const shipments = (inserted || []).map((row: any, i: number) => {
         const src = flat[i];
         const fam = families?.find((f: any) => f.id === row.family_id);
@@ -812,6 +814,7 @@ const PendingByDayPanel = ({ eggs, transfers, families, qc, familyName }: any) =
       }
       return { count: flat.length, qty: flat.reduce((s, f) => s + f.qty, 0) };
     },
+
     onSuccess: (r) => {
       toast.success(`تم نقل ${r.qty} بيضة (${r.count} حركة) كدفعة واحدة — وصلت لمعمل التفريخ كـ "بيض نعام العاصمة — مزرعة الأمهات"`);
       qc.invalidateQueries({ queryKey: ["farm_transfers"] });
