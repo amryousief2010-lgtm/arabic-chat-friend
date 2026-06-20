@@ -1262,6 +1262,70 @@ ${batchNotes ? `<div class="notes"><b>ملاحظات الدفعة:</b> ${esc(bat
                 </div>
                 <div><Label>ملاحظات الدفعة</Label><Textarea rows={2} value={batchNotes} onChange={(e) => setBatchNotes(e.target.value)} /></div>
 
+                {/* Day-selection checkbox panel */}
+                <div className="border rounded-md p-3 bg-purple-50/50 dark:bg-purple-950/20">
+                  <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+                    <div className="font-semibold text-purple-700 dark:text-purple-300 text-sm">
+                      اختر أيام النقل إلى معمل التفريخ ({availableDays.filter((d) => d.remaining > 0).length} يوم متاح)
+                    </div>
+                    <div className="flex gap-2 items-center text-xs">
+                      <Button type="button" size="sm" variant="ghost" onClick={toggleAllAvailable}>
+                        تحديد / إلغاء الكل
+                      </Button>
+                      <span>
+                        المحدد: <b className="text-primary">{selectedDays.size}</b> يوم —
+                        إجمالي: <b className="text-primary">{selectedTotal.toLocaleString()}</b> بيضة
+                      </span>
+                      <Button type="button" size="sm" onClick={loadSelectedDays} disabled={selectedDays.size === 0}>
+                        تحميل الأيام المحددة في الجدول
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="overflow-auto max-h-[32vh] border rounded bg-background">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-10"></TableHead>
+                          <TableHead>التاريخ</TableHead>
+                          <TableHead>المنتج</TableHead>
+                          <TableHead>المنقول سابقًا</TableHead>
+                          <TableHead>المتبقي للنقل</TableHead>
+                          <TableHead>الحالة</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {availableDays.length === 0 && (
+                          <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-4">لا يوجد إنتاج مسجل</TableCell></TableRow>
+                        )}
+                        {availableDays.map((d) => {
+                          const fully = d.remaining <= 0;
+                          return (
+                            <TableRow key={d.date} className={fully ? "opacity-60" : ""}>
+                              <TableCell>
+                                <Checkbox
+                                  checked={selectedDays.has(d.date)}
+                                  disabled={fully}
+                                  onCheckedChange={() => toggleDay(d.date)}
+                                />
+                              </TableCell>
+                              <TableCell className="font-medium">{d.date}</TableCell>
+                              <TableCell>{d.produced.toLocaleString()}</TableCell>
+                              <TableCell className="text-muted-foreground">{d.transferred.toLocaleString()}</TableCell>
+                              <TableCell className="font-bold text-purple-600">{d.remaining.toLocaleString()}</TableCell>
+                              <TableCell>
+                                {fully
+                                  ? <Badge variant="outline" className="text-emerald-700 border-emerald-300">تم نقله بالكامل</Badge>
+                                  : <Badge variant="outline" className="text-amber-700 border-amber-300">متاح للنقل</Badge>}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+
+
                 <div className="flex gap-2 flex-wrap items-center">
                   <Button type="button" size="sm" variant="secondary" onClick={autoLoadPending} disabled={autoLoading}>
                     {autoLoading ? "جارٍ التحميل..." : "تحميل الإنتاج غير المنقول"}
