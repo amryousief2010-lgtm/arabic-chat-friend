@@ -1077,6 +1077,10 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
     if (new Set(allShipIds).size !== allShipIds.length) {
       return toast.error("لا يمكن استخدام نفس دفعة نقل المزرعة في أكثر من lot");
     }
+    const allFarmTransferIds = lots.flatMap((l) => l.from_farm_transfer_ids || []);
+    if (new Set(allFarmTransferIds).size !== allFarmTransferIds.length) {
+      return toast.error("لا يمكن استخدام نفس مجموعة نقل المزرعة في أكثر من lot");
+    }
     setSaving(true);
     try {
       const userId = (await supabase.auth.getUser()).data.user?.id;
@@ -1090,6 +1094,18 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
         const blocked = (stillPending || []).filter((s: any) => s.status !== "pending" || s.hatch_batch_id);
         if (blocked.length) {
           toast.error("إحدى الشحنات تم استخدامها بالفعل في دفعة أخرى. يرجى إعادة فتح النافذة.");
+          await refetchShipments();
+          return;
+        }
+      }
+      if (allFarmTransferIds.length) {
+        const { data: linkedTransfers } = await (supabase as any)
+          .from("farm_to_hatchery_shipments")
+          .select("id, farm_transfer_id, status, hatch_batch_id")
+          .in("farm_transfer_id", allFarmTransferIds);
+        const blocked = (linkedTransfers || []).filter((s: any) => s.status !== "pending" || s.hatch_batch_id);
+        if (blocked.length) {
+          toast.error("إحدى مجموعات النقل تم استخدامها بالفعل في دفعة أخرى. يرجى إعادة فتح النافذة.");
           await refetchShipments();
           return;
         }
@@ -1158,13 +1174,57 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
         .select("id");
       if (e3) { toast.error(`فشل إنشاء سجل الدفعة في شاشة المعمل: ${e3.message}`); return; }
 
-      // 3) ربط شحنات كل lot بسجل hatch_batches وتحديث حالتها إلى received
+      // 3) ربط مجموعة نقل المزرعة الكاملة بسجل hatch_batches وتحديث حالتها إلى received
       for (let i = 0; i < lots.length; i++) {
         const l = lots[i];
         const ids: string[] = l.from_shipment_ids || [];
-        if (!ids.length) continue;
+        const transferIds: string[] = l.from_farm_transfer_ids || [];
+        if (!ids.length && !transferIds.length) continue;
         const hbId = (insertedHatch as any[])?.[i]?.id;
         if (!hbId) continue;
+        if (transferIds.length) {
+          const { data: existingShipments } = await (supabase as any)
+            .from("farm_to_hatchery_shipments")
+            .select("id, farm_transfer_id, transfer_batch_id")
+            .in("farm_transfer_id", transferIds);
+          const existingTransferIds = new Set((existingShipments || []).map((s: any) => s.farm_transfer_id).filter(Boolean));
+          const existingIds = (existingShipments || []).map((s: any) => s.id);
+          const missingTransferIds = transferIds.filter((id) => !existingTransferIds.has(id));
+
+          if (missingTransferIds.length) {
+            const { data: transferRows } = await (supabase as any)
+              .from("farm_transfers")
+              .select("id, transfer_date, family_id, quantity")
+              .in("id", missingTransferIds);
+            const familyIds = Array.from(new Set((transferRows || []).map((r: any) => r.family_id).filter(Boolean)));
+            const familyMap = new Map<string, string>();
+            if (familyIds.length) {
+              const { data: fams } = await supabase.from("farm_families").select("id, family_number").in("id", familyIds);
+              (fams || []).forEach((f: any) => familyMap.set(f.id, String(f.family_number)));
+            }
+            const transferBatchId = (existingShipments || []).find((s: any) => s.transfer_batch_id)?.transfer_batch_id || (crypto as any).randomUUID?.() || null;
+            const newShipmentRows = (transferRows || []).map((r: any) => ({
+              farm_transfer_id: r.id,
+              transfer_batch_id: transferBatchId,
+              family_id: r.family_id,
+              family_number: familyMap.get(r.family_id) || null,
+              production_date: r.transfer_date,
+              egg_count: r.quantity,
+              status: "received",
+              hatch_batch_id: hbId,
+              received_at: new Date().toISOString(),
+              received_by: userId,
+              receipt_notes: `تم ربطها بدفعة تفريخ رقم ${opNo}`,
+              is_test: false,
+            }));
+            if (newShipmentRows.length) {
+              await (supabase as any).from("farm_to_hatchery_shipments").insert(newShipmentRows);
+            }
+          }
+
+          ids.push(...existingIds.filter((id: string) => !ids.includes(id)));
+        }
+        if (!ids.length) continue;
         await (supabase as any)
           .from("farm_to_hatchery_shipments")
           .update({
