@@ -1415,8 +1415,16 @@ export default function LabTreasury() {
                   <Field label="ملاحظات"><Textarea value={expForm.notes} onChange={(e) => setExpForm({ ...expForm, notes: e.target.value })} /></Field>
                 </div>
                 <div className="md:col-span-2 lg:col-span-3 space-y-2">
-                  <div className="text-sm text-muted-foreground">
-                    الرصيد المتاح في {PAYMENT_LABELS[normalizedExpensePaymentMethod]}: <span className="font-mono font-semibold">{fmtNum(expAvailable, 2)} ج</span>
+                  <div className="text-sm text-muted-foreground space-y-1">
+                    <div>
+                      الرصيد المتاح للصرف من خزنة المعمل (الرصيد الرسمي المعتمد):{" "}
+                      <span className="font-mono font-semibold text-primary">{fmtNum(expAvailable, 2)} ج</span>
+                    </div>
+                    <div className="text-xs">
+                      منه في {PAYMENT_LABELS[normalizedExpensePaymentMethod]}:{" "}
+                      <span className="font-mono">{fmtNum(expMethodAvailable, 2)} ج</span>
+                      {" "}— التحقق يتم على إجمالي رصيد الخزنة وليس على وسيلة دفع واحدة.
+                    </div>
                   </div>
                   {expExceeds && (
                     <Alert variant="destructive">
