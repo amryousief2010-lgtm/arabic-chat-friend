@@ -38,6 +38,7 @@ import { exportOrdersToCSV, exportOrdersToPDF, exportOrdersToXLSX } from "@/util
 import EditOrderItemsDialog from "@/components/orders/EditOrderItemsDialog";
 import SwapOfferDialog from "@/components/orders/SwapOfferDialog";
 import AddOfferDialog from "@/components/orders/AddOfferDialog";
+import EditAddressWarehouseDialog from "@/components/orders/EditAddressWarehouseDialog";
 import DiscrepancyBanner from "@/components/orders/DiscrepancyBanner";
 import {
   AlertDialog,
