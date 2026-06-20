@@ -279,59 +279,73 @@ export default function LabCustomerStatement() {
               <TableHead>الدفعة</TableHead>
               <TableHead>نوع الحركة</TableHead>
               <TableHead>البيان</TableHead>
+              <TableHead>بيض داخل</TableHead>
               <TableHead>لايح</TableHead>
-              <TableHead>قيمة لايح</TableHead>
+              {!quantitiesOnly && <TableHead>قيمة لايح</TableHead>}
               <TableHead>كشف 2</TableHead>
-              <TableHead>قيمة كشف 2</TableHead>
+              {!quantitiesOnly && <TableHead>قيمة كشف 2</TableHead>}
+              <TableHead>نافق هاتش</TableHead>
+              {!quantitiesOnly && <TableHead>قيمة نافق هاتش</TableHead>}
               <TableHead>كتاكيت</TableHead>
-              <TableHead>قيمة كتاكيت</TableHead>
+              {!quantitiesOnly && <TableHead>قيمة كتاكيت</TableHead>}
               <TableHead>تحضين</TableHead>
-              <TableHead>خصم</TableHead>
-              <TableHead>مدين</TableHead>
-              <TableHead>دائن</TableHead>
-              <TableHead>الرصيد</TableHead>
-              <TableHead>طريقة الدفع</TableHead>
-              <TableHead>تأثير الخزنة</TableHead>
-              <TableHead>إيصال</TableHead>
+              {!quantitiesOnly && <>
+                <TableHead>خصم</TableHead>
+                <TableHead>مدين</TableHead>
+                <TableHead>دائن</TableHead>
+                <TableHead>الرصيد</TableHead>
+                <TableHead>طريقة الدفع</TableHead>
+                <TableHead>تأثير الخزنة</TableHead>
+                <TableHead>إيصال</TableHead>
+              </>}
               <TableHead>ملاحظات</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {!customerId && (
-              <TableRow><TableCell colSpan={19} className="text-center text-muted-foreground py-8">اختر عميلًا لعرض كشف الحساب</TableCell></TableRow>
+              <TableRow><TableCell colSpan={20} className="text-center text-muted-foreground py-8">اختر عميلًا لعرض كشف الحساب</TableCell></TableRow>
             )}
             {customerId && loading && (
-              <TableRow><TableCell colSpan={19} className="text-center py-8">جاري التحميل…</TableCell></TableRow>
+              <TableRow><TableCell colSpan={20} className="text-center py-8">جاري التحميل…</TableCell></TableRow>
             )}
             {customerId && !loading && rows.length === 0 && (
-              <TableRow><TableCell colSpan={19} className="text-center text-muted-foreground py-8">لا توجد حركات</TableCell></TableRow>
+              <TableRow><TableCell colSpan={20} className="text-center text-muted-foreground py-8">لا توجد حركات</TableCell></TableRow>
             )}
             {rows.map(r => {
               const ti = treasuryImpact(r);
+              const key = String(r.operational_batch_no ?? r.batch_number ?? "");
+              const lot = lotsByBatch[key];
+              const eggsIn = r.entry_type === "batch_charge" ? (lot?.eggs_in || 0) : 0;
+              const hatchMort = r.entry_type === "batch_charge" ? (lot?.hatch_mortality || 0) : 0;
               return (
               <TableRow key={r.id}>
                 <TableCell className="whitespace-nowrap text-xs">{r.entry_date}</TableCell>
                 <TableCell className="text-xs">{r.operational_batch_no ?? r.batch_number ?? "—"}</TableCell>
                 <TableCell><Badge variant={r.entry_type === "batch_charge" ? "destructive" : "secondary"}>{ENTRY_LABEL[r.entry_type] || r.entry_type}</Badge></TableCell>
                 <TableCell className="text-xs max-w-[200px] truncate">{r.description || "—"}</TableCell>
+                <TableCell className="text-xs font-medium">{eggsIn ? fmtNum(eggsIn) : "—"}</TableCell>
                 <TableCell className="text-xs">{r.infertile_eggs || "—"}</TableCell>
-                <TableCell className="text-xs">{r.infertile_eggs ? fmtNum(r.infertile_eggs * 50) : "—"}</TableCell>
+                {!quantitiesOnly && <TableCell className="text-xs">{r.infertile_eggs ? fmtNum(r.infertile_eggs * 50) : "—"}</TableCell>}
                 <TableCell className="text-xs">{r.candle2_dead || "—"}</TableCell>
-                <TableCell className="text-xs">{r.candle2_dead ? fmtNum(r.candle2_dead * 100) : "—"}</TableCell>
+                {!quantitiesOnly && <TableCell className="text-xs">{r.candle2_dead ? fmtNum(r.candle2_dead * 100) : "—"}</TableCell>}
+                <TableCell className="text-xs">{hatchMort || "—"}</TableCell>
+                {!quantitiesOnly && <TableCell className="text-xs">{hatchMort ? fmtNum(hatchMort * 100) : "—"}</TableCell>}
                 <TableCell className="text-xs">{r.chicks || "—"}</TableCell>
-                <TableCell className="text-xs">{r.chicks ? fmtNum(r.chicks * 150) : "—"}</TableCell>
+                {!quantitiesOnly && <TableCell className="text-xs">{r.chicks ? fmtNum(r.chicks * 150) : "—"}</TableCell>}
                 <TableCell className="text-xs">{r.brooding_days ? `${r.brooding_chicks}×${r.brooding_days}` : "—"}</TableCell>
-                <TableCell className="text-xs">{r.discount ? fmtNum(r.discount, 2) : "—"}</TableCell>
-                <TableCell className="text-xs font-medium text-red-600">{r.debit ? fmtNum(r.debit, 2) : "—"}</TableCell>
-                <TableCell className="text-xs font-medium text-green-600">{r.credit ? fmtNum(r.credit, 2) : "—"}</TableCell>
-                <TableCell className="text-xs font-bold">{fmtNum(r.running_balance, 2)}</TableCell>
-                <TableCell className="text-xs">{r.payment_method || "—"}</TableCell>
-                <TableCell className="text-xs">
-                  <Badge variant={ti.affected ? "default" : "outline"} className={ti.affected ? "bg-emerald-600 hover:bg-emerald-600" : ""}>
-                    {ti.label}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-xs">{r.receipt_no || "—"}</TableCell>
+                {!quantitiesOnly && <>
+                  <TableCell className="text-xs">{r.discount ? fmtNum(r.discount, 2) : "—"}</TableCell>
+                  <TableCell className="text-xs font-medium text-red-600">{r.debit ? fmtNum(r.debit, 2) : "—"}</TableCell>
+                  <TableCell className="text-xs font-medium text-green-600">{r.credit ? fmtNum(r.credit, 2) : "—"}</TableCell>
+                  <TableCell className="text-xs font-bold">{fmtNum(r.running_balance, 2)}</TableCell>
+                  <TableCell className="text-xs">{r.payment_method || "—"}</TableCell>
+                  <TableCell className="text-xs">
+                    <Badge variant={ti.affected ? "default" : "outline"} className={ti.affected ? "bg-emerald-600 hover:bg-emerald-600" : ""}>
+                      {ti.label}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-xs">{r.receipt_no || "—"}</TableCell>
+                </>}
                 <TableCell className="text-xs max-w-[160px] truncate">{r.notes || "—"}</TableCell>
               </TableRow>
               );
