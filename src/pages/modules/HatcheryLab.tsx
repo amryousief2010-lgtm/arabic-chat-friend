@@ -26,6 +26,16 @@ import * as XLSX from "xlsx";
 import HatcheryClientMetrics from "@/components/hatchery/HatcheryClientMetrics";
 import { printBatchStatement } from "@/lib/hatcheryStatements";
 import HatcheryGroupedBatches from "@/components/hatchery/HatcheryGroupedBatches";
+import {
+  addDays,
+  computeStage,
+  daysDiff,
+  HATCH_BATCHES_LAB_QUERY_KEY,
+  HATCH_BATCHES_LAB_SELECT,
+  isOperationalHatchBatch,
+  STAGE_META,
+  type StageKey,
+} from "@/lib/hatcheryBatchStage";
 
 
 const today = () => format(new Date(), "yyyy-MM-dd");
@@ -127,7 +137,7 @@ const HatcheryLab = () => {
     qc.invalidateQueries({ queryKey: ["hatchery_client_invoices"] });
     qc.invalidateQueries({ queryKey: ["hatchery_kpis"] });
     qc.invalidateQueries({ queryKey: ["hatchery_balances"] });
-    qc.invalidateQueries({ queryKey: ["hatch_batches_lab"] });
+    qc.invalidateQueries({ queryKey: HATCH_BATCHES_LAB_QUERY_KEY });
     qc.invalidateQueries({ queryKey: ["hatch_batches_dash"] });
     qc.invalidateQueries({ queryKey: ["hatch_next_op_no"] });
   };
@@ -277,96 +287,7 @@ const hatchStatusColor: Record<string, string> = {
   completed: "bg-emerald-600",
 };
 
-// ---- Stage + dates helpers ----
-const addDays = (d: string | Date, n: number) => {
-  const dt = typeof d === "string" ? new Date(d) : new Date(d.getTime());
-  dt.setDate(dt.getDate() + n);
-  return dt.toISOString().slice(0, 10);
-};
-const daysDiff = (a?: string | null, b?: string | null) => {
-  if (!a || !b) return null;
-  const ms = new Date(b).getTime() - new Date(a).getTime();
-  return Math.round(ms / 86400000);
-};
-
-type StageKey =
-  | "awaiting_entry" | "in_machine" | "awaiting_candle1" | "after_candle1"
-  | "awaiting_candle2" | "after_candle2" | "in_hatcher" | "completed" | "overdue";
-
-const STAGE_META: Record<StageKey, { label: string; color: string }> = {
-  awaiting_entry:   { label: "بانتظار الدخول",  color: "bg-slate-500" },
-  in_machine:       { label: "داخل الماكينة",    color: "bg-blue-500" },
-  awaiting_candle1: { label: "بانتظار الكشف الأول", color: "bg-yellow-500" },
-  after_candle1:    { label: "بعد الكشف الأول",  color: "bg-cyan-600" },
-  awaiting_candle2: { label: "بانتظار الكشف الثاني", color: "bg-yellow-600" },
-  after_candle2:    { label: "بعد الكشف الثاني",  color: "bg-indigo-500" },
-  in_hatcher:       { label: "في الهاتشر",       color: "bg-purple-500" },
-  completed:        { label: "مكتملة / خرجت",    color: "bg-emerald-600" },
-  overdue:          { label: "متأخرة عن الإجراء", color: "bg-red-600" },
-};
-
-function computeStage(b: any, settings: any): { stage: StageKey; expCandle1?: string; expCandle2?: string; expExit?: string; daysIn: number | null; overdueReason?: string; isSoon?: boolean } {
-  const candleDay = settings?.candling_day || 15;
-  const hatcherDay = settings?.transfer_to_hatcher_day || 39;
-  const candle2Default = Math.max(candleDay + 10, 25);
-  const todayStr = new Date().toISOString().slice(0, 10);
-
-  const entry = b.entry_date || b.receive_date || null;
-  const expCandle1 = entry ? addDays(entry, candleDay) : undefined;
-  const expCandle2 = entry ? addDays(entry, candle2Default) : undefined;
-  const expExit = entry ? addDays(entry, hatcherDay) : undefined;
-  const daysIn = entry ? daysDiff(entry, todayStr) : null;
-
-  // Treat batches with imported hatch results as completed even if status/exit_date
-  // weren't set explicitly (Excel sheet results: chicks, candle results, hatcher deaths).
-  const hasResults =
-    (b.hatched_chicks || 0) > 0 ||
-    (b.candle1_fertile || 0) > 0 ||
-    (b.candle1_infertile || 0) > 0 ||
-    (b.candle2_dead || 0) > 0 ||
-    (b.hatcher_dead || 0) > 0;
-  const closedStatuses = new Set(["completed","closed","delivered","received_by_customer","finished","settled","cancelled","exited","done"]);
-  if ((b.status && closedStatuses.has(String(b.status).toLowerCase())) || b.exit_date || hasResults) {
-    return { stage: "completed", expCandle1, expCandle2, expExit, daysIn };
-  }
-  if (b.status === "in_hatcher") {
-    return { stage: "in_hatcher", expCandle1, expCandle2, expExit, daysIn };
-  }
-  if (!entry) return { stage: "awaiting_entry", daysIn: null };
-
-  // overdue checks
-  const isAfter = (dueDate?: string) => dueDate && todayStr > dueDate;
-  const within = (dueDate?: string, days = 3) => {
-    if (!dueDate) return false;
-    const d = daysDiff(todayStr, dueDate);
-    return d !== null && d >= 0 && d <= days;
-  };
-
-  // After candle2 → in hatcher (around hatcher day)
-  if (b.candle2_date) {
-    if (todayStr >= (expExit || "9999-12-31")) {
-      // past exit, no exit_date recorded → overdue
-      if (isAfter(expExit)) return { stage: "overdue", expCandle1, expCandle2, expExit, daysIn, overdueReason: "تجاوز موعد الخروج" };
-    }
-    if (daysIn !== null && daysIn >= hatcherDay - 1) {
-      return { stage: "in_hatcher", expCandle1, expCandle2, expExit, daysIn, isSoon: within(expExit) };
-    }
-    return { stage: "after_candle2", expCandle1, expCandle2, expExit, daysIn, isSoon: within(expExit) };
-  }
-  if (b.candle1_date) {
-    if (isAfter(expCandle2)) {
-      return { stage: "overdue", expCandle1, expCandle2, expExit, daysIn, overdueReason: "تجاوز موعد الكشف الثاني" };
-    }
-    return { stage: "awaiting_candle2", expCandle1, expCandle2, expExit, daysIn, isSoon: within(expCandle2) };
-  }
-  if (isAfter(expCandle1)) {
-    return { stage: "overdue", expCandle1, expCandle2, expExit, daysIn, overdueReason: "تجاوز موعد الكشف الأول" };
-  }
-  if (daysIn !== null && daysIn >= 1) {
-    return { stage: "awaiting_candle1", expCandle1, expCandle2, expExit, daysIn, isSoon: within(expCandle1) };
-  }
-  return { stage: "in_machine", expCandle1, expCandle2, expExit, daysIn };
-}
+// ---- Stage + dates helpers live in @/lib/hatcheryBatchStage ----
 
 type QuickFilter =
   | "all" | "internal" | "external" | "completed" | "in_progress" | "imported"
@@ -394,11 +315,11 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
 
   // Pull imported / lab batches from hatch_batches (the table the import wrote to)
   const { data: hatchBatches = [] } = useQuery<any[]>({
-    queryKey: ["hatch_batches_lab"],
+    queryKey: HATCH_BATCHES_LAB_QUERY_KEY,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("hatch_batches")
-        .select("id, batch_number, operational_batch_no, receive_date, entry_date, machine, received_eggs, net_eggs, hatched_chicks, hatcher_dead, candle1_date, candle1_fertile, candle1_infertile, candle2_date, candle2_fertile, candle2_dead, exit_date, status, customer_id, notes, created_at, hatch_customers(id,name,customer_type)")
+        .select(HATCH_BATCHES_LAB_SELECT)
         .order("operational_batch_no", { ascending: true })
         .limit(1000);
       if (error) throw error;
@@ -424,13 +345,7 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
 
   const rows = useMemo(() => {
     return (hatchBatches as any[])
-      // Drop orphan stub rows produced by old imports (no customer, no machine, no entry).
-      // They were the source of phantom "متأخرة / لم تخرج" rows in the grouped view.
-      .filter((b) => b.customer_id || b.entry_date || b.machine)
-      // Exclude test/synthetic rows (is_test=true) from all operational displays,
-      // totals, customer reports, prints and exports. Test rows are reviewed in
-      // a dedicated admin "بيانات تجريبية / TEST" tab only.
-      .filter((b) => b.is_test !== true)
+      .filter(isOperationalHatchBatch)
       .map((b) => {
       const c = b.hatch_customers || {};
       const isInternal = c.customer_type === "internal" || /عاصمة|داخل/.test(c.name || "");
@@ -602,8 +517,9 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
             stageMeta={groupedStageMeta}
             todayStr={todayStr}
             sortOrder={sortOrder}
+            initialFilter={filter === "overdue" ? "overdue" : undefined}
             onRefresh={() => {
-              qc.invalidateQueries({ queryKey: ["hatch_batches_lab"] });
+              qc.invalidateQueries({ queryKey: HATCH_BATCHES_LAB_QUERY_KEY });
               qc.invalidateQueries({ queryKey: ["hatch_batches_dash"] });
               onRefresh?.();
             }}
