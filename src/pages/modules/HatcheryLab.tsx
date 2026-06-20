@@ -1320,22 +1320,26 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
             <div className="space-y-2">
               {lots.map((l, i) => {
                 const lotSelectedIds = new Set(l.from_shipment_ids || []);
+                const lotSelectedTransferIds = new Set(l.from_farm_transfer_ids || []);
                 const availableForLot = transferBatchesData.filter(
                   (g) =>
-                    g.shipments.every((s: any) => lotSelectedIds.has(s.id)) ||
-                    g.shipments.every((s: any) => !usedShipmentIds.has(s.id))
+                    (((g.shipments || []).length > 0 && g.shipments.every((s: any) => lotSelectedIds.has(s.id))) ||
+                      ((g.farm_transfer_ids || []).length > 0 && g.farm_transfer_ids.every((id: string) => lotSelectedTransferIds.has(id)))) ||
+                    ((g.shipments || []).every((s: any) => !usedShipmentIds.has(s.id)) &&
+                      (g.farm_transfer_ids || []).every((id: string) => !usedFarmTransferIds.has(id)))
                 );
                 const currentKey =
-                  (l.from_shipment_ids || []).length > 0
+                  (l.from_shipment_ids || []).length > 0 || (l.from_farm_transfer_ids || []).length > 0
                     ? transferBatchesData.find((g) =>
-                        g.shipments.every((s: any) => lotSelectedIds.has(s.id))
+                        ((g.shipments || []).length > 0 && g.shipments.every((s: any) => lotSelectedIds.has(s.id))) ||
+                        ((g.farm_transfer_ids || []).length > 0 && g.farm_transfer_ids.every((id: string) => lotSelectedTransferIds.has(id)))
                       )?.key || ""
                     : "";
                 return (
                 <Card key={i} className="p-3">
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-2 items-end">
                     <div><Label>المالك</Label>
-                      <Select value={l.owner_type} onValueChange={v => updateLot(i, { owner_type: v, source: v === "capital_ostrich" ? "mother_farm" : "external", from_shipment_ids: v === "capital_ostrich" ? l.from_shipment_ids : [], max_eggs: v === "capital_ostrich" ? l.max_eggs : null, shipment_label: v === "capital_ostrich" ? l.shipment_label : "" })}>
+                      <Select value={l.owner_type} onValueChange={v => updateLot(i, { owner_type: v, source: v === "capital_ostrich" ? "mother_farm" : "external", from_shipment_ids: v === "capital_ostrich" ? l.from_shipment_ids : [], from_farm_transfer_ids: v === "capital_ostrich" ? l.from_farm_transfer_ids : [], max_eggs: v === "capital_ostrich" ? l.max_eggs : null, shipment_label: v === "capital_ostrich" ? l.shipment_label : "" })}>
                         <SelectTrigger /><SelectContent>
                           <SelectItem value="capital_ostrich">نعام العاصمة</SelectItem>
                           <SelectItem value="external_client">عميل خارجي</SelectItem>
