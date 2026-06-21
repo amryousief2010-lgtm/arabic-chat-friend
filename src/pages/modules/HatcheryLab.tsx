@@ -760,6 +760,13 @@ const emptyMotherFarmLot = () => ({
   shipment_label: "",
 });
 
+const HATCHERY_INTAKE_START_TRANSFER_BATCH_ID = "5d5ca4a9-86e3-4360-a1ef-e0389e6b672a";
+const HATCHERY_INTAKE_START_CREATED_DATE = "2026-06-20";
+
+const isActiveHatcheryIntakeBatch = (g: any) =>
+  g.transfer_batch_id === HATCHERY_INTAKE_START_TRANSFER_BATCH_ID ||
+  String(g.latest_created_at || "").slice(0, 10) >= HATCHERY_INTAKE_START_CREATED_DATE;
+
 const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
   const queryClient = useQueryClient();
   const [entry_date, setEntryDate] = useState(today());
@@ -774,6 +781,7 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
     setLots([emptyMotherFarmLot()]);
     queryClient.removeQueries({ queryKey: ["pending_farm_transfer_batches_for_new_batch"] });
     queryClient.removeQueries({ queryKey: ["pending_official_farm_transfer_batches_for_new_batch"] });
+    queryClient.removeQueries({ queryKey: ["orphan_farm_shipments_review_for_new_batch"] });
   }, [open, queryClient]);
 
   // Auto-numbering preview: next operational_batch_no for the lab batches screen
