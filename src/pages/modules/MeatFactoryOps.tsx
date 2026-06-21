@@ -41,6 +41,8 @@ const TestToggle = ({ value, onChange }: { value: boolean; onChange: (v: boolean
 );
 
 const MeatFactoryOps = () => {
+  const { isGeneralManager, isExecutiveManager } = useAuth();
+  const canApprove = isGeneralManager || isExecutiveManager;
   const [raws, setRaws] = useState<Raw[]>([]);
   const [packs, setPacks] = useState<Pack[]>([]);
   const [fins, setFins] = useState<Fin[]>([]);
