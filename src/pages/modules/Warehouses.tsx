@@ -23,7 +23,6 @@ import WarehouseKpisBlock from "@/components/warehouses/WarehouseKpisBlock";
 import RestaurantMenuTab from "@/components/warehouses/RestaurantMenuTab";
 import WarehouseStockView from "@/pages/WarehouseStockView";
 import WarehouseReceiptsTab from "@/components/warehouses/WarehouseReceiptsTab";
-import { Inbox } from "lucide-react";
 
 
 const qualityLabelText: Record<string, string> = {
