@@ -1310,7 +1310,7 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
 
           {latestTransferBatch && (
             <div className="rounded-md border bg-muted/30 p-2 text-xs text-muted-foreground">
-              <b>تقرير تشخيص وارد المزرعة:</b> الدفعة المعروضة {latestTransferBatch.transfer_batch_id} · الإجمالي {latestTransferBatch.total_eggs} بيضة · الشحنات اليتيمة مستبعدة من البانر والتحميل التلقائي · دفعة 35 بيضة {availableTransferBatches.some((g) => g.transfer_batch_id === "5d5ca4a9-86e3-4360-a1ef-e0389e6b672a" && Number(g.total_eggs) === 35) ? "ظاهرة في القائمة" : "غير ظاهرة في القائمة"}
+              <b>تقرير تشخيص وارد المزرعة:</b> بداية التشغيل من دفعة {HATCHERY_INTAKE_START_TRANSFER_BATCH_ID} · الدفعة المعروضة {latestTransferBatch.transfer_batch_id} · الإجمالي {latestTransferBatch.total_eggs} بيضة · الدفعات القديمة مستبعدة من وارد التفريخ الجديد · الشحنات اليتيمة مستبعدة من البانر والتحميل التلقائي · دفعة 35 بيضة {availableTransferBatches.some((g) => g.transfer_batch_id === "5d5ca4a9-86e3-4360-a1ef-e0389e6b672a" && Number(g.total_eggs) === 35) ? "ظاهرة في القائمة" : "غير ظاهرة في القائمة"}
             </div>
           )}
 
@@ -1408,10 +1408,22 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
             </div>
           </div>
 
-          {orphanShipmentsData.length > 0 && (
+          {(excludedHistoricalTransferBatches.length > 0 || orphanShipmentsData.length > 0) && (
             <div className="border-t pt-3">
-              <h4 className="font-bold text-amber-700 mb-2">شحنات يتيمة تحتاج مراجعة</h4>
-              <div className="space-y-2">
+              <h4 className="font-bold text-amber-700 mb-2">شحنات قديمة / تحتاج مراجعة</h4>
+              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                {excludedHistoricalTransferBatches.map((g: any) => {
+                  const period = g.min_date === g.max_date ? g.min_date : `${g.min_date} → ${g.max_date}`;
+                  return (
+                    <div key={g.key} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs dark:bg-amber-950/20">
+                      <div>
+                        <span className="font-semibold">دفعة تاريخية مستبعدة — {Number(g.total_eggs || 0).toLocaleString()} بيضة</span>
+                        <span className="text-muted-foreground"> · فترة الإنتاج: {period} · الحالة: excluded_from_hatchery_intake</span>
+                      </div>
+                      <Button size="sm" variant="outline" onClick={() => toast.info("هذه الدفعة محفوظة للتاريخ وممنوعة من التحميل التلقائي في وارد التفريخ الجديد")}>مراجعة</Button>
+                    </div>
+                  );
+                })}
                 {orphanShipmentsData.map((s: any) => (
                   <div key={s.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs dark:bg-amber-950/20">
                     <div>
