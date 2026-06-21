@@ -775,14 +775,14 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
     },
   });
 
-  // وارد بيض المزرعة المتاح — مُجمَّع حسب نقرة النقل الكاملة من farm_transfers أولاً، وليس آخر سجل شحنة منفرد
+  // وارد بيض المزرعة المتاح — مُجمَّع حسب transfer_batch_id من farm_transfers (يطابق سجل نقل البيض في المزرعة)
   const { data: transferBatchesData = [], refetch: refetchShipments } = useQuery<any[]>({
     queryKey: ["pending_farm_transfer_batches_for_new_batch", open],
     enabled: !!open,
     queryFn: async () => {
       const { data: farmTransfers, error: ftError } = await (supabase as any)
         .from("farm_transfers")
-        .select("id, transfer_date, family_id, quantity, notes, created_at")
+        .select("id, transfer_date, family_id, quantity, notes, created_at, transfer_batch_id")
         .order("created_at", { ascending: false })
         .limit(2000);
       if (ftError) throw ftError;
@@ -795,32 +795,47 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
         .limit(2000);
       if (error) throw error;
       const allShipments = shipRows || [];
-      const shipments = allShipments.filter((s: any) => s.status === "pending" && !s.hatch_batch_id);
       const transfers = farmTransfers || [];
-      if (!shipments.length && !transfers.length) return [];
+      if (!allShipments.length && !transfers.length) return [];
 
-      const shipmentByTransferId = new Map<string, any[]>();
+      // index shipments by transfer_batch_id (primary) and farm_transfer_id (legacy)
+      const shipmentsByBatchId = new Map<string, any[]>();
+      const shipmentsByTransferId = new Map<string, any[]>();
       allShipments.forEach((s: any) => {
-        if (!s.farm_transfer_id) return;
-        const arr = shipmentByTransferId.get(s.farm_transfer_id) || [];
-        arr.push(s);
-        shipmentByTransferId.set(s.farm_transfer_id, arr);
+        if (s.transfer_batch_id) {
+          const arr = shipmentsByBatchId.get(s.transfer_batch_id) || [];
+          arr.push(s);
+          shipmentsByBatchId.set(s.transfer_batch_id, arr);
+        }
+        if (s.farm_transfer_id) {
+          const arr = shipmentsByTransferId.get(s.farm_transfer_id) || [];
+          arr.push(s);
+          shipmentsByTransferId.set(s.farm_transfer_id, arr);
+        }
       });
 
       const groups = new Map<string, any>();
       const secondBucket = (v: string) => (v ? v.slice(0, 19) : "");
 
-      // الأساس الصحيح: كل صفوف farm_transfers التي أُنشئت في نفس نقرة النقل وبنفس الملاحظة = دفعة نقل واحدة كاملة
+      // المصدر الأساسي: تجميع farm_transfers حسب transfer_batch_id (نفس منطق سجل نقل البيض في صفحة المزرعة)
       for (const ft of transfers) {
-        const linkedShipments = shipmentByTransferId.get(ft.id) || [];
-        const blocking = linkedShipments.some((s: any) => s.status !== "pending" || s.hatch_batch_id);
+        // اربط الشحنات المرتبطة بهذه الدفعة (إن وُجدت) للتحقق إن لم تُستلم/تُربط بدفعة تفريخ
+        const linkedShipments = [
+          ...(ft.transfer_batch_id ? (shipmentsByBatchId.get(ft.transfer_batch_id) || []) : []),
+          ...(shipmentsByTransferId.get(ft.id) || []),
+        ];
+        const dedup = Array.from(new Map(linkedShipments.map((s: any) => [s.id, s])).values());
+        const blocking = dedup.some((s: any) => s.status !== "pending" || s.hatch_batch_id);
         if (blocking) continue;
 
-        const key = `ftgroup:${secondBucket(ft.created_at)}:${ft.notes || ""}`;
+        const key = ft.transfer_batch_id
+          ? `tb:${ft.transfer_batch_id}`
+          : `legacy:${secondBucket(ft.created_at)}:${ft.notes || ""}`;
         let g = groups.get(key);
         if (!g) {
           g = {
             key,
+            transfer_batch_id: ft.transfer_batch_id || null,
             label: ft.notes || `دفعة نقل ${ft.transfer_date}`,
             shipments: [] as any[],
             farm_transfer_ids: [] as string[],
@@ -829,66 +844,65 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
             max_date: ft.transfer_date,
             transfer_date: ft.transfer_date,
             latest_created_at: ft.created_at,
+            source: "farm_transfers" as const,
           };
           groups.set(key, g);
         }
         g.farm_transfer_ids.push(ft.id);
-        linkedShipments.forEach((s: any) => {
+        dedup.forEach((s: any) => {
           if (!g.shipments.some((x: any) => x.id === s.id)) g.shipments.push(s);
         });
-        g.total_eggs += ft.quantity || 0;
+        g.total_eggs += Number(ft.quantity) || 0;
         if (ft.transfer_date < g.min_date) g.min_date = ft.transfer_date;
         if (ft.transfer_date > g.max_date) g.max_date = ft.transfer_date;
         if (ft.transfer_date > g.transfer_date) g.transfer_date = ft.transfer_date;
         if (ft.created_at > g.latest_created_at) g.latest_created_at = ft.created_at;
       }
 
-      // fallback للشحنات القديمة التي لا تملك farm_transfer_id
-      const ftIds = Array.from(new Set(shipments.map((s: any) => s.farm_transfer_id).filter(Boolean)));
-      const ftMap = new Map<string, any>();
-      if (ftIds.length) {
-        const { data: fts } = await (supabase as any)
-          .from("farm_transfers")
-          .select("id, notes, transfer_date, created_at")
-          .in("id", ftIds);
-        (fts || []).forEach((f: any) => ftMap.set(f.id, f));
-      }
+      // fallback: شحنات pending قديمة بدون farm_transfer مطابق — جمّعها حسب transfer_batch_id
+      const orphanShipments = allShipments.filter(
+        (s: any) =>
+          s.status === "pending" &&
+          !s.hatch_batch_id &&
+          !(s.transfer_batch_id && groups.has(`tb:${s.transfer_batch_id}`)) &&
+          !(s.farm_transfer_id && transfers.some((t: any) => t.id === s.farm_transfer_id))
+      );
 
-      for (const s of shipments) {
-        if (s.farm_transfer_id) continue;
-        const ft = s.farm_transfer_id ? ftMap.get(s.farm_transfer_id) : null;
+      for (const s of orphanShipments) {
         const key =
           (s.transfer_batch_id && `tb:${s.transfer_batch_id}`) ||
-          (ft?.notes && `notes:${ft.notes}`) ||
           (s.farm_transfer_id && `ft:${s.farm_transfer_id}`) ||
-          `sh:${s.id}`;
+          `orphan:${secondBucket(s.created_at)}:${s.production_date}`;
         let g = groups.get(key);
         if (!g) {
           g = {
             key,
-            label: ft?.notes || (ft ? `نقل ${ft.transfer_date}` : `شحنة ${s.production_date}`),
+            transfer_batch_id: s.transfer_batch_id || null,
+            label: `شحنة ${s.production_date}`,
             shipments: [] as any[],
             farm_transfer_ids: [] as string[],
             total_eggs: 0,
             min_date: s.production_date,
             max_date: s.production_date,
-            transfer_date: ft?.transfer_date || s.production_date,
+            transfer_date: s.production_date,
             latest_created_at: s.created_at,
+            source: "orphan_shipments" as const,
           };
           groups.set(key, g);
         }
         g.shipments.push(s);
-        g.total_eggs += s.egg_count || 0;
+        g.total_eggs += Number(s.egg_count) || 0;
         if (s.production_date < g.min_date) g.min_date = s.production_date;
         if (s.production_date > g.max_date) g.max_date = s.production_date;
         if (s.created_at > g.latest_created_at) g.latest_created_at = s.created_at;
-        if (ft?.transfer_date && ft.transfer_date > g.transfer_date) g.transfer_date = ft.transfer_date;
       }
 
-      return Array.from(groups.values()).sort((a, b) =>
-        (b.latest_created_at || "").localeCompare(a.latest_created_at || "")
-      );
-
+      // الترتيب: تاريخ النقل (transfer_date) ثم latest_created_at — يطابق "آخر دفعة نقل" في سجل المزرعة
+      return Array.from(groups.values()).sort((a, b) => {
+        const dCmp = String(b.transfer_date || "").localeCompare(String(a.transfer_date || ""));
+        if (dCmp !== 0) return dCmp;
+        return String(b.latest_created_at || "").localeCompare(String(a.latest_created_at || ""));
+      });
     },
   });
 
