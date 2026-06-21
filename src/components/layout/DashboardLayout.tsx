@@ -27,6 +27,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   useOrderNotifications();
   useDailyReminders();
   useInternalMessageRealtime();
+  useUserPresence();
+
 
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
