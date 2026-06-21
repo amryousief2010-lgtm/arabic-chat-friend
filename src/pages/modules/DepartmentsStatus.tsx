@@ -83,11 +83,11 @@ const monthsAgoISO = (n: number) => {
 const sum = (rows: any[] | null | undefined, field: string) =>
   (rows ?? []).reduce((s, r) => s + Number(r?.[field] || 0), 0);
 
-const safeQuery = async <T,>(p: Promise<{ data: T | null; error: any }>): Promise<T[]> => {
+const safeQuery = async (p: any): Promise<any[]> => {
   try {
     const r = await p;
-    if (r.error) return [];
-    return (r.data as any) ?? [];
+    if (r?.error) return [];
+    return (r?.data as any[]) ?? [];
   } catch { return []; }
 };
 
