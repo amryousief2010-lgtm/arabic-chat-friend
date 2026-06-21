@@ -20,10 +20,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Info, Loader2, PackagePlus } from "lucide-react";
+import { Info, Loader2, PackagePlus, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
+import AddManualPartyDialog from "@/components/warehouse/AddManualPartyDialog";
 
 interface InventoryItem {
   id: string;
