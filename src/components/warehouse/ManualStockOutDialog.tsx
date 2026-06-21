@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -20,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Info, Loader2, PackageMinus, Plus } from "lucide-react";
+import { Info, Loader2, PackageMinus, Plus, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
@@ -42,6 +41,15 @@ interface Props {
   onSaved?: () => void;
 }
 
+interface Row {
+  uid: string;
+  itemId: string;
+  manualKgMode: boolean;
+  packageCount: string;
+  packageWeightKg: string;
+  manualKg: string;
+}
+
 const DESTINATIONS: { value: string; label: string }[] = [
   { value: "agouza_branch", label: "فرع العجوزة" },
   { value: "private_courier", label: "مندوب خاص" },
@@ -52,6 +60,45 @@ const DESTINATIONS: { value: string; label: string }[] = [
   { value: "internal_use", label: "استخدام داخلي" },
   { value: "other", label: "أخرى" },
 ];
+
+const newRow = (): Row => ({
+  uid: Math.random().toString(36).slice(2),
+  itemId: "",
+  manualKgMode: false,
+  packageCount: "",
+  packageWeightKg: "0.5",
+  manualKg: "",
+});
+
+const rowQty = (r: Row): number => {
+  if (r.manualKgMode) {
+    const v = Number(r.manualKg);
+    return Number.isFinite(v) && v > 0 ? v : 0;
+  }
+  const c = Number(r.packageCount);
+  const w = Number(r.packageWeightKg);
+  return Number.isFinite(c) && c > 0 && Number.isFinite(w) && w > 0 ? c * w : 0;
+};
+
+const todayStamp = () => {
+  const d = new Date();
+  return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+};
+
+const generateOpNo = async () => {
+  const stamp = todayStamp();
+  const like = `MAN-OUT-${stamp}-%`;
+  const { data } = await supabase
+    .from("inventory_movements")
+    .select("reference")
+    .like("reference", like);
+  const max = (data || []).reduce((acc: number, r: any) => {
+    const m = String(r.reference || "").match(/-(\d{4})$/);
+    const n = m ? parseInt(m[1], 10) : 0;
+    return n > acc ? n : acc;
+  }, 0);
+  return `MAN-OUT-${stamp}-${String(max + 1).padStart(4, "0")}`;
+};
 
 const ManualStockOutDialog = ({
   open,
@@ -68,14 +115,9 @@ const ManualStockOutDialog = ({
   const [destOther, setDestOther] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [customers, setCustomers] = useState<{ id: string; name: string }[]>([]);
-  const [itemId, setItemId] = useState("");
-  const [packageCount, setPackageCount] = useState<string>("");
-  const [packageWeightKg, setPackageWeightKg] = useState<string>("0.5");
-  const [manualKgMode, setManualKgMode] = useState(false);
-  const [manualKg, setManualKg] = useState<string>("");
-  const [unitOverride, setUnitOverride] = useState("");
   const [reason, setReason] = useState("");
   const [notes, setNotes] = useState("");
+  const [rows, setRows] = useState<Row[]>([newRow()]);
   const [saving, setSaving] = useState(false);
   const [customParties, setCustomParties] = useState<{ id: string; name: string }[]>([]);
   const [addPartyOpen, setAddPartyOpen] = useState(false);
@@ -93,9 +135,8 @@ const ManualStockOutDialog = ({
   useEffect(() => {
     if (!open) {
       setDestKey(""); setDestOther(""); setCustomerName("");
-      setItemId(""); setPackageCount(""); setPackageWeightKg("0.5");
-      setManualKgMode(false); setManualKg("");
-      setUnitOverride(""); setReason(""); setNotes("");
+      setReason(""); setNotes("");
+      setRows([newRow()]);
     } else {
       void loadCustom();
     }
@@ -108,18 +149,11 @@ const ManualStockOutDialog = ({
     }
   }, [destKey, customers.length]);
 
-  const selected = useMemo(() => items.find((i) => i.id === itemId), [items, itemId]);
-  const unit = unitOverride || selected?.unit || "كجم";
-  const pkgCountNum = Number(packageCount);
-  const pkgWeightNum = Number(packageWeightKg);
-  const validPkg = !manualKgMode && Number.isFinite(pkgCountNum) && pkgCountNum > 0 && Number.isFinite(pkgWeightNum) && pkgWeightNum > 0;
-  const manualKgNum = Number(manualKg);
-  const validManualKg = manualKgMode && Number.isFinite(manualKgNum) && manualKgNum > 0;
-  const qtyNum = manualKgMode ? manualKgNum : (validPkg ? pkgCountNum * pkgWeightNum : 0);
-  const validQty = qtyNum > 0;
-  const stockBefore = Number(selected?.stock || 0);
-  const stockAfter = validQty ? stockBefore - qtyNum : stockBefore;
-  const exceedsStock = validQty && qtyNum > stockBefore;
+  const itemsById = useMemo(() => {
+    const m = new Map<string, InventoryItem>();
+    items.forEach(i => m.set(i.id, i));
+    return m;
+  }, [items]);
 
   const customMatch = customParties.find((p) => `custom:${p.id}` === destKey);
   const destBaseLabel = destKey === "other"
@@ -135,80 +169,140 @@ const ManualStockOutDialog = ({
     && (destKey !== "other" || destOther.trim().length > 0)
     && (destKey !== "customer" || customerName.trim().length > 0);
 
-  const canSave = !!selected && validQty && !exceedsStock
-    && reason.trim().length > 0 && validDest && !saving
-    && (manualKgMode ? validManualKg : validPkg);
+  // merge duplicate items
+  const mergedRows = useMemo(() => {
+    const acc = new Map<string, number>();
+    rows.forEach(r => {
+      if (!r.itemId) return;
+      const q = rowQty(r);
+      if (q <= 0) return;
+      acc.set(r.itemId, (acc.get(r.itemId) || 0) + q);
+    });
+    return acc;
+  }, [rows]);
 
-  const partyLabel = destLabel ? `صرف مباشر مؤقت إلى: ${destLabel}` : "صرف مباشر مؤقت";
+  // exceeds stock check (after merging)
+  const exceedRows = useMemo(() => {
+    const out: string[] = [];
+    for (const [id, q] of mergedRows.entries()) {
+      const it = itemsById.get(id);
+      const avail = Number(it?.stock || 0);
+      if (q > avail) out.push(id);
+    }
+    return out;
+  }, [mergedRows, itemsById]);
+
+  const validRows = rows.length > 0 && rows.every(r => r.itemId && rowQty(r) > 0);
+  const canSave = validDest && reason.trim().length > 0 && validRows
+    && mergedRows.size > 0 && exceedRows.length === 0 && !saving;
+
+  const updateRow = (uid: string, patch: Partial<Row>) =>
+    setRows(rs => rs.map(r => r.uid === uid ? { ...r, ...patch } : r));
+  const removeRow = (uid: string) =>
+    setRows(rs => rs.length <= 1 ? rs : rs.filter(r => r.uid !== uid));
+  const addRow = () => setRows(rs => [...rs, newRow()]);
 
   const handleSave = async () => {
     if (!validDest) { toast({ title: "اختر جهة الصرف", variant: "destructive" }); return; }
-    if (!selected) { toast({ title: "اختر الصنف", variant: "destructive" }); return; }
-    if (manualKgMode) {
-      if (!validManualKg) { toast({ title: "أدخل كمية بالكيلو موجبة أكبر من صفر", variant: "destructive" }); return; }
-    } else {
-      if (!validPkg) { toast({ title: "أدخل عدد عبوات موجب ووزن عبوة صحيح", variant: "destructive" }); return; }
+    if (!reason.trim()) { toast({ title: "أدخل سبب الصرف", variant: "destructive" }); return; }
+    if (mergedRows.size === 0) { toast({ title: "أضف صنف واحد على الأقل", variant: "destructive" }); return; }
+    for (const r of rows) {
+      if (!r.itemId) { toast({ title: "اختر الصنف في كل صف", variant: "destructive" }); return; }
+      if (rowQty(r) <= 0) { toast({ title: "أدخل كمية صحيحة لكل صنف", variant: "destructive" }); return; }
     }
-    if (exceedsStock) {
-      toast({ title: "الكمية أكبر من الرصيد المتاح", description: `المتاح: ${stockBefore} ${unit}`, variant: "destructive" });
+    if (exceedRows.length > 0) {
+      toast({ title: "الكمية أكبر من الرصيد المتاح في بعض الأصناف", variant: "destructive" });
       return;
     }
-    if (!reason.trim()) { toast({ title: "أدخل سبب الصرف", variant: "destructive" }); return; }
 
     setSaving(true);
     try {
-      const ref = `MANUAL-OUT-${Date.now()}`;
-      const pkgLine = manualKgMode
-        ? `إدخال يدوي بالكيلو: ${qtyNum} كجم`
-        : `${pkgCountNum} عبوة × ${pkgWeightNum} كجم = ${qtyNum} كجم`;
-      const combinedNotes = [
-        `صرف مباشر مؤقت`,
-        `جهة الصرف: ${destLabel}`,
-        pkgLine,
-        `السبب: ${reason.trim()}`,
-        notes.trim() ? `ملاحظات: ${notes.trim()}` : null,
-        `قبل: ${stockBefore} ${unit}`,
-        `بعد: ${stockAfter} ${unit}`,
-      ].filter(Boolean).join(" • ");
+      const opNo = await generateOpNo();
+      const performedAt = new Date().toISOString();
+      const partyLabel = `صرف مباشر مؤقت إلى: ${destLabel}`;
 
-      const partyWithPkg = manualKgMode
-        ? partyLabel
-        : `${partyLabel} — ${pkgCountNum} عبوة × ${pkgWeightNum} كجم = ${qtyNum} كجم`;
+      const byItem = new Map<string, { qty: number; pkgCount: number | null; pkgWeight: number | null; manual: boolean }>();
+      rows.forEach(r => {
+        const q = rowQty(r);
+        if (!r.itemId || q <= 0) return;
+        const cur = byItem.get(r.itemId);
+        if (cur) {
+          cur.qty += q;
+          cur.manual = cur.manual || r.manualKgMode;
+          if (r.manualKgMode) { cur.pkgCount = null; cur.pkgWeight = null; }
+        } else {
+          byItem.set(r.itemId, {
+            qty: q,
+            pkgCount: r.manualKgMode ? null : Number(r.packageCount),
+            pkgWeight: r.manualKgMode ? null : Number(r.packageWeightKg),
+            manual: r.manualKgMode,
+          });
+        }
+      });
 
-      const { error: mErr } = await supabase.from("inventory_movements").insert({
-        warehouse_id: warehouseId,
-        item_id: selected.id,
-        movement_type: "out",
-        quantity: qtyNum,
-        package_count: manualKgMode ? null : pkgCountNum,
-        package_weight_kg: manualKgMode ? null : pkgWeightNum,
-        quantity_kg: qtyNum,
-        reference: ref,
-        reference_type: "manual_out",
-        party: partyWithPkg,
-        reason: reason.trim(),
-        notes: combinedNotes,
-        module: "warehouse_manual",
-        performed_by: user?.id ?? null,
-        performed_at: new Date().toISOString(),
-      } as any);
+      const inserts: any[] = [];
+      const stockUpdates: { id: string; newStock: number }[] = [];
+
+      for (const [itemId, info] of byItem.entries()) {
+        const it = itemsById.get(itemId);
+        if (!it) continue;
+        const unit = it.unit || "كجم";
+        const stockBefore = Number(it.stock || 0);
+        const stockAfter = stockBefore - info.qty;
+        const pkgLine = info.manual
+          ? `إدخال يدوي بالكيلو: ${info.qty} كجم`
+          : `${info.pkgCount} عبوة × ${info.pkgWeight} كجم = ${info.qty} كجم`;
+        const combinedNotes = [
+          `صرف مباشر مؤقت`,
+          `رقم العملية: ${opNo}`,
+          `جهة الصرف: ${destLabel}`,
+          pkgLine,
+          `السبب: ${reason.trim()}`,
+          notes.trim() ? `ملاحظات: ${notes.trim()}` : null,
+          `قبل: ${stockBefore} ${unit}`,
+          `بعد: ${stockAfter} ${unit}`,
+        ].filter(Boolean).join(" • ");
+        const partyWithPkg = info.manual
+          ? partyLabel
+          : `${partyLabel} — ${info.pkgCount} عبوة × ${info.pkgWeight} كجم = ${info.qty} كجم`;
+
+        inserts.push({
+          warehouse_id: warehouseId,
+          item_id: itemId,
+          movement_type: "out",
+          quantity: info.qty,
+          package_count: info.pkgCount,
+          package_weight_kg: info.pkgWeight,
+          quantity_kg: info.qty,
+          reference: opNo,
+          reference_type: "manual_out",
+          party: partyWithPkg,
+          reason: reason.trim(),
+          notes: combinedNotes,
+          module: "warehouse_manual",
+          performed_by: user?.id ?? null,
+          performed_at: performedAt,
+        });
+        stockUpdates.push({ id: itemId, newStock: stockAfter });
+      }
+
+      const { error: mErr } = await supabase.from("inventory_movements").insert(inserts as any);
       if (mErr) throw mErr;
 
-      const { error: sErr } = await supabase
-        .from("inventory_items")
-        .update({ stock: stockAfter })
-        .eq("id", selected.id);
-      if (sErr) throw sErr;
+      for (const u of stockUpdates) {
+        const { error } = await supabase.from("inventory_items").update({ stock: u.newStock }).eq("id", u.id);
+        if (error) throw error;
+      }
 
       toast({
-        title: "تم الصرف",
-        description: `${selected.name}: ${stockBefore} → ${stockAfter} ${unit} (${destLabel})`,
+        title: "تم حفظ الصرف",
+        description: `${opNo} — ${stockUpdates.length} صنف (${destLabel})`,
       });
       onOpenChange(false);
       onSaved?.();
     } catch (e: any) {
       toast({
-        title: "تعذر الصرف",
+        title: "تعذر حفظ الصرف",
         description: e?.message || "خطأ غير معروف",
         variant: "destructive",
       });
@@ -217,10 +311,11 @@ const ManualStockOutDialog = ({
     }
   };
 
+  const totalQty = Array.from(mergedRows.values()).reduce((a, b) => a + b, 0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent dir="rtl" className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent dir="rtl" className="max-w-4xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 flex-wrap">
             <PackageMinus className="w-5 h-5 text-rose-600" />
@@ -230,9 +325,7 @@ const ManualStockOutDialog = ({
             </Badge>
           </DialogTitle>
           <DialogDescription className="text-xs leading-relaxed">
-            تستخدم هذه الشاشة لصرف منتجات من المخزن الرئيسي مباشرة للجهات
-            (فرع العجوزة، مندوب خاص، هيلثي تيست، كارفور، عميل، تالف، استخدام
-            داخلي...) بدون إنشاء تحويل داخلي أو فاتورة أو حركة خزنة.
+            أضف أكثر من صنف داخل نفس العملية. عند الحفظ يتم إنشاء رقم عملية واحد مشترك لكل الأصناف.
           </DialogDescription>
         </DialogHeader>
 
@@ -245,7 +338,7 @@ const ManualStockOutDialog = ({
 
         <div className="space-y-3">
           <div>
-            <Label className="text-xs">جهة الصرف / التوريد *</Label>
+            <Label className="text-xs">جهة الصرف *</Label>
             <div className="flex gap-2">
               <Select value={destKey} onValueChange={(v) => { setDestKey(v); setCustomerName(""); setDestOther(""); }}>
                 <SelectTrigger className="flex-1"><SelectValue placeholder="اختر جهة الصرف" /></SelectTrigger>
@@ -299,138 +392,147 @@ const ManualStockOutDialog = ({
             onCreated={async (p) => { await loadCustom(); setDestKey(`custom:${p.id}`); }}
           />
 
-
-          <div>
-            <Label className="text-xs">الصنف *</Label>
-            <Select value={itemId} onValueChange={setItemId}>
-              <SelectTrigger><SelectValue placeholder="اختر صنف من المخزن" /></SelectTrigger>
-              <SelectContent className="max-h-72">
-                {items.length === 0 ? (
-                  <div className="px-3 py-2 text-xs text-muted-foreground">لا توجد أصناف</div>
-                ) : items.map((i) => (
-                  <SelectItem key={i.id} value={i.id} disabled={Number(i.stock || 0) <= 0}>
-                    {i.name} {i.unit ? `(${i.unit})` : ""} — متاح: {Number(i.stock || 0)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs">سبب الصرف *</Label>
+              <Input
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="مثال: توريد للفرع، تسليم لمندوب، توريد لعميل، تالف..."
+                maxLength={200}
+              />
+            </div>
+            <div>
+              <Label className="text-xs">ملاحظات (اختياري)</Label>
+              <Input
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                maxLength={500}
+              />
+            </div>
           </div>
 
-          {canManualKg && (
-            <div className="flex items-center justify-end gap-2 text-[11px]">
-              <label className="flex items-center gap-1 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={manualKgMode}
-                  onChange={(e) => setManualKgMode(e.target.checked)}
-                />
-                إدخال يدوي بالكيلو (للمدير)
-              </label>
+          <div className="rounded border">
+            <div className="flex items-center justify-between p-2 bg-muted/40">
+              <div className="font-semibold text-sm">أصناف الصرف</div>
+              <Button type="button" size="sm" variant="outline" onClick={addRow}>
+                <Plus className="w-4 h-4 ml-1" /> إضافة صنف
+              </Button>
             </div>
-          )}
-
-          {!manualKgMode ? (
-            <div className="grid grid-cols-3 gap-2">
-              <div>
-                <Label className="text-xs">عدد العبوات *</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={packageCount}
-                  onChange={(e) => setPackageCount(e.target.value)}
-                  placeholder={selected ? `حتى ${stockBefore > 0 ? Math.floor(stockBefore / (pkgWeightNum || 0.5)) : 0}` : "مثال: 50"}
-                />
-                {exceedsStock && (
-                  <p className="text-[11px] text-destructive mt-1">
-                    الكمية أكبر من المتاح ({stockBefore} {unit})
-                  </p>
-                )}
-              </div>
-              <div>
-                <Label className="text-xs">وزن العبوة (كجم)</Label>
-                <Input
-                  type="number"
-                  min="0.001"
-                  step="any"
-                  value={packageWeightKg}
-                  onChange={(e) => setPackageWeightKg(e.target.value)}
-                  placeholder="0.5"
-                />
-              </div>
-              <div>
-                <Label className="text-xs">الكمية بالكيلو</Label>
-                <Input
-                  value={validPkg ? `${qtyNum} كجم` : "—"}
-                  readOnly
-                  className="bg-muted/50 font-bold"
-                />
-              </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead className="bg-muted/30">
+                  <tr>
+                    <th className="p-2 text-right">الصنف *</th>
+                    <th className="p-2 text-right">الوحدة</th>
+                    <th className="p-2 text-right">عدد العبوات</th>
+                    <th className="p-2 text-right">وزن العبوة</th>
+                    <th className="p-2 text-right">الكمية (كجم)</th>
+                    {canManualKg && <th className="p-2 text-right">يدوي</th>}
+                    <th className="p-2 text-right">الرصيد</th>
+                    <th className="p-2 text-right">بعد</th>
+                    <th className="p-2"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => {
+                    const it = itemsById.get(r.itemId);
+                    const unit = it?.unit || "كجم";
+                    const before = Number(it?.stock || 0);
+                    const q = rowQty(r);
+                    const after = before - q;
+                    const exceeds = it && q > before;
+                    return (
+                      <tr key={r.uid} className="border-t align-top">
+                        <td className="p-1 min-w-[180px]">
+                          <Select value={r.itemId} onValueChange={(v) => updateRow(r.uid, { itemId: v })}>
+                            <SelectTrigger className="h-8"><SelectValue placeholder="اختر الصنف" /></SelectTrigger>
+                            <SelectContent className="max-h-72">
+                              {items.length === 0 ? (
+                                <div className="px-3 py-2 text-xs text-muted-foreground">لا توجد أصناف</div>
+                              ) : items.map((i) => (
+                                <SelectItem key={i.id} value={i.id} disabled={Number(i.stock || 0) <= 0}>
+                                  {i.name} {i.unit ? `(${i.unit})` : ""} — {Number(i.stock || 0)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </td>
+                        <td className="p-1">{unit}</td>
+                        <td className="p-1">
+                          <Input
+                            type="number" min="1" step="1"
+                            className="h-8 w-20"
+                            disabled={r.manualKgMode}
+                            value={r.packageCount}
+                            onChange={(e) => updateRow(r.uid, { packageCount: e.target.value })}
+                            placeholder="50"
+                          />
+                        </td>
+                        <td className="p-1">
+                          <Input
+                            type="number" min="0.001" step="any"
+                            className="h-8 w-20"
+                            disabled={r.manualKgMode}
+                            value={r.packageWeightKg}
+                            onChange={(e) => updateRow(r.uid, { packageWeightKg: e.target.value })}
+                          />
+                        </td>
+                        <td className="p-1">
+                          {r.manualKgMode ? (
+                            <Input
+                              type="number" min="0" step="any"
+                              className="h-8 w-24"
+                              value={r.manualKg}
+                              onChange={(e) => updateRow(r.uid, { manualKg: e.target.value })}
+                              placeholder="كجم"
+                            />
+                          ) : (
+                            <span className={`font-bold ${exceeds ? "text-destructive" : ""}`}>
+                              {q > 0 ? `${q} كجم` : "—"}
+                            </span>
+                          )}
+                        </td>
+                        {canManualKg && (
+                          <td className="p-1 text-center">
+                            <input
+                              type="checkbox"
+                              checked={r.manualKgMode}
+                              onChange={(e) => updateRow(r.uid, { manualKgMode: e.target.checked })}
+                            />
+                          </td>
+                        )}
+                        <td className="p-1">{it ? before : "—"}</td>
+                        <td className={`p-1 font-semibold ${exceeds ? "text-destructive" : "text-rose-700"}`}>
+                          {it && q > 0 ? after : "—"}
+                        </td>
+                        <td className="p-1">
+                          <Button
+                            type="button" size="icon" variant="ghost"
+                            disabled={rows.length <= 1}
+                            onClick={() => removeRow(r.uid)}
+                          >
+                            <Trash2 className="w-4 h-4 text-rose-600" />
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label className="text-xs">الكمية بالكيلو *</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="any"
-                  value={manualKg}
-                  onChange={(e) => setManualKg(e.target.value)}
-                  placeholder={selected ? `حتى ${stockBefore}` : "مثال: 10"}
-                />
-                {exceedsStock && (
-                  <p className="text-[11px] text-destructive mt-1">
-                    الكمية أكبر من المتاح ({stockBefore} {unit})
-                  </p>
-                )}
+            {totalQty > 0 && (
+              <div className="p-2 text-xs bg-rose-50 dark:bg-rose-950/30 border-t flex justify-between">
+                <span>إجمالي عدد الأصناف: <b>{mergedRows.size}</b></span>
+                <span>إجمالي الكمية: <b className="text-rose-700">−{totalQty}</b> كجم</span>
               </div>
-              <div>
-                <Label className="text-xs">الوحدة</Label>
-                <Input
-                  value={unitOverride}
-                  onChange={(e) => setUnitOverride(e.target.value)}
-                  placeholder={selected?.unit || "كجم"}
-                />
+            )}
+            {exceedRows.length > 0 && (
+              <div className="p-2 text-xs bg-destructive/10 text-destructive border-t">
+                بعض الأصناف الكمية أكبر من الرصيد المتاح — راجع الجدول.
               </div>
-            </div>
-          )}
-
-          <div>
-            <Label className="text-xs">سبب الصرف *</Label>
-            <Input
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="مثال: توريد للفرع، تسليم لمندوب، توريد لعميل، تالف..."
-              maxLength={200}
-            />
+            )}
           </div>
-
-          <div>
-            <Label className="text-xs">ملاحظات (اختياري)</Label>
-            <Textarea
-              rows={2}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              maxLength={500}
-            />
-          </div>
-
-          {selected && validQty && !exceedsStock && validDest && (
-            <div className="rounded border border-rose-200 bg-rose-50 dark:bg-rose-950/30 p-2 text-xs space-y-0.5">
-              <div>جهة الصرف: <b>{destLabel}</b></div>
-              <div>قبل الصرف: <b>{stockBefore}</b> كجم</div>
-              {!manualKgMode && (
-                <>
-                  <div>عدد العبوات: <b>{pkgCountNum}</b> عبوة</div>
-                  <div>وزن العبوة: <b>{pkgWeightNum}</b> كجم</div>
-                </>
-              )}
-              <div>الكمية المصروفة: <b className="text-rose-700">−{qtyNum}</b> كجم</div>
-              <div>بعد الصرف: <b className="text-rose-700">{stockAfter}</b> كجم</div>
-            </div>
-          )}
-
         </div>
 
         <DialogFooter>
