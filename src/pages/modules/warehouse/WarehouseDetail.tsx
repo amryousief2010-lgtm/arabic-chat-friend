@@ -2089,6 +2089,77 @@ const WarehouseDetail = () => {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={!!manualDialog} onOpenChange={(v) => { if (!v) setManualDialog(null); }}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {manualGroup?.direction === "in"
+                ? <PackagePlus className="w-5 h-5 text-emerald-600" />
+                : <PackageMinus className="w-5 h-5 text-rose-600" />}
+              {manualGroup?.direction === "in" ? "تفاصيل عملية توريد مباشر" : "تفاصيل عملية صرف مباشر"}
+              {manualGroup && <span className="font-mono text-sm">{manualGroup.reference}</span>}
+            </DialogTitle>
+            <DialogDescription>
+              {manualGroup ? (() => {
+                const sample = manualGroup.movs[0] || {};
+                const partyLabel = manualGroup.direction === "in"
+                  ? extractFromNotes(sample.notes, "جهة التوريد")
+                  : extractFromNotes(sample.notes, "جهة الصرف");
+                const reason = extractFromNotes(sample.notes, "السبب");
+                return (
+                  <span className="flex flex-wrap gap-3 text-xs mt-1">
+                    <span>📅 {formatDateTime(manualGroup.date)}</span>
+                    <span>{manualGroup.direction === "in" ? "جهة التوريد" : "جهة الصرف"}: <b>{partyLabel || "—"}</b></span>
+                    <span>السبب: <b>{reason || "—"}</b></span>
+                    <span>عدد الأصناف: <b>{manualGroup.movs.length}</b></span>
+                    <span>الإجمالي: <b>{manualGroup.totalQty.toFixed(2)} كجم</b></span>
+                  </span>
+                );
+              })() : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>الصنف</TableHead>
+                  <TableHead>الكمية</TableHead>
+                  <TableHead>الوحدة</TableHead>
+                  <TableHead>عدد العبوات</TableHead>
+                  <TableHead>وزن العبوة</TableHead>
+                  <TableHead>الرصيد قبل</TableHead>
+                  <TableHead>الرصيد بعد</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {manualGroup?.movs.map((m: any) => (
+                  <TableRow key={m.id}>
+                    <TableCell className="font-medium">{m.item?.name || "—"}</TableCell>
+                    <TableCell>{Number(m.quantity).toFixed(2)}</TableCell>
+                    <TableCell>{m.item?.unit || "كجم"}</TableCell>
+                    <TableCell>{m.package_count ?? "—"}</TableCell>
+                    <TableCell>{m.package_weight_kg ?? "—"}</TableCell>
+                    <TableCell>{extractFromNotes(m.notes, "قبل") || "—"}</TableCell>
+                    <TableCell>{extractFromNotes(m.notes, "بعد") || "—"}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            {manualGroup?.movs[0]?.notes && (
+              <div className="text-xs text-muted-foreground whitespace-pre-wrap border rounded p-2 bg-muted/30">
+                {manualGroup.movs[0].notes}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={printManualBundle}><Printer className="w-4 h-4 ml-1" />طباعة</Button>
+            <Button variant="outline" onClick={() => setManualDialog(null)}>إغلاق</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
+
       {canManualAdd && (
         <ManualStockAdditionDialog
           open={manualAddOpen}
