@@ -231,6 +231,9 @@ const AnimatedRoutes = () => {
           <Route path="/auth" element={
             <PageTransition><Auth /></PageTransition>
           } />
+          <Route path="/trust" element={
+            <PageTransition><Trust /></PageTransition>
+          } />
           <Route path="/debug" element={
             <ProtectedRoute allowedRoles={['general_manager']}>
               <PageTransition><Debug /></PageTransition>
