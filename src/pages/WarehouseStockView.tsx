@@ -590,8 +590,8 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
       {/* ملخص سريع */}
       <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4`}>
         <Card
-          className={scope === "main" ? "cursor-pointer hover:border-primary/40 transition-colors" : "cursor-pointer hover:border-primary/40 transition-colors"}
-          onClick={scope === "main" ? () => { setCardSearch(""); setCardDialog("withStock"); } : () => setShowItemsTable(true)}
+          className="cursor-pointer hover:border-primary/40 transition-colors"
+          onClick={isSingleScope(scope) ? () => { setCardSearch(""); setCardDialog("withStock"); } : () => setShowItemsTable(true)}
         >
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-md bg-green-500/15 text-green-700 dark:text-green-300">
@@ -604,7 +604,10 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card
+          className={isSingleScope(scope) ? "cursor-pointer hover:border-primary/40 transition-colors" : ""}
+          onClick={isSingleScope(scope) ? () => { setTableFilter("all"); setShowItemsTable(true); } : undefined}
+        >
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-md bg-orange-500/15 text-orange-700 dark:text-orange-300">
               <Lock className="w-5 h-5" />
@@ -612,12 +615,13 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
             <div>
               <div className="text-xs text-muted-foreground">إجمالي محجوز للطلبات</div>
               <div className="text-xl font-bold">{summary.totalReservedKg} كجم</div>
+              {isSingleScope(scope) && <div className="text-[10px] text-muted-foreground">اضغط للتفاصيل</div>}
             </div>
           </CardContent>
         </Card>
         <Card
           className={`${summary.belowZero > 0 ? "border-destructive/40" : ""} cursor-pointer hover:border-primary/40 transition-colors`}
-          onClick={scope === "main" ? () => { setCardSearch(""); setCardDialog("overReserved"); } : () => setShowItemsTable(true)}
+          onClick={isSingleScope(scope) ? () => { setCardSearch(""); setCardDialog("overReserved"); } : () => setShowItemsTable(true)}
         >
           <CardContent className="p-4 flex items-center gap-3">
             <div className={`p-2 rounded-md ${summary.belowZero > 0 ? "bg-destructive/15 text-destructive" : "bg-muted text-muted-foreground"}`}>
@@ -632,7 +636,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
         </Card>
         <Card
           className="cursor-pointer hover:border-primary/40 transition-colors"
-          onClick={() => setShowItemsTable((v) => !v)}
+          onClick={() => { setTableFilter("all"); setShowItemsTable((v) => !v); }}
         >
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-md bg-blue-500/15 text-blue-700 dark:text-blue-300">
@@ -640,12 +644,62 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
             </div>
             <div>
               <div className="text-xs text-muted-foreground">عدد الأصناف</div>
-              <div className="text-xl font-bold">{filtered.length}</div>
+              <div className="text-xl font-bold">{summary.itemsCount}</div>
               <div className="text-[10px] text-muted-foreground">{showItemsTable ? "اضغط للإخفاء" : "اضغط لعرض الجدول"}</div>
             </div>
           </CardContent>
         </Card>
+
+        {isSingleScope(scope) && (
+          <>
+            <Card>
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="p-2 rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+                  <PackageCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">قيمة المخزون</div>
+                  <div className="text-xl font-bold">{summary.totalValue.toLocaleString()} ج.م</div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card
+              className={`${summary.lowStockCount > 0 ? "border-destructive/40" : ""} cursor-pointer hover:border-primary/40 transition-colors`}
+              onClick={() => { setTableFilter("lowStock"); setShowItemsTable(true); }}
+            >
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className={`p-2 rounded-md ${summary.lowStockCount > 0 ? "bg-destructive/15 text-destructive" : "bg-muted text-muted-foreground"}`}>
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">منتجات منخفضة</div>
+                  <div className={`text-xl font-bold ${summary.lowStockCount > 0 ? "text-destructive" : ""}`}>{summary.lowStockCount}</div>
+                  <div className="text-[10px] text-muted-foreground">اضغط للتفاصيل</div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="p-2 rounded-md bg-purple-500/15 text-purple-700 dark:text-purple-300">
+                  <RefreshCw className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">آخر حركة</div>
+                  <div className="text-sm font-semibold">
+                    {summary.lastMoveTs ? new Date(summary.lastMoveTs).toLocaleString("ar-EG") : "—"}
+                  </div>
+                  {summary.lastMovePid && (
+                    <div className="text-[10px] text-muted-foreground truncate max-w-[180px]">
+                      {products.find(p => p.id === summary.lastMovePid)?.name || ""}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
+
 
 
       {showItemsTable && (
