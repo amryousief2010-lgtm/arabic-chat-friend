@@ -1,17 +1,5 @@
-import { useMemo, useState } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Drumstick, Skull, Calculator, RefreshCw, Wheat, Beef, Coins } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import { OstrichFeedConsumptionDialog } from "@/components/slaughterhouse/OstrichFeedConsumptionDialog";
-import { LiveBatchMortalityDialog } from "@/components/slaughterhouse/LiveBatchMortalityDialog";
-import { OpeningCostDialog } from "@/components/slaughterhouse/OpeningCostDialog";
+import LiveBatchCostsPanel from "@/components/slaughterhouse/LiveBatchCostsPanel";
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("en-US", { maximumFractionDigits: 2 });
 
