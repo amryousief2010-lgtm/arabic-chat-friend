@@ -157,6 +157,7 @@ const Debug = lazy(() => import("@/pages/Debug"));
 const PwaDiagnostics = lazy(() => import("@/pages/PwaDiagnostics"));
 const ExecutiveDashboards = lazy(() => import("@/pages/ExecutiveDashboards"));
 const ExecutiveDashboard = lazy(() => import("@/pages/ExecutiveDashboard"));
+const ApprovalsCenter = lazy(() => import("@/pages/ApprovalsCenter"));
 const OperationsGuide = lazy(() => import("@/pages/OperationsGuide"));
 const CustomerWeightReport = lazy(() => import("@/pages/CustomerWeightReport"));
 const ManufacturingQueue = lazy(() => import("@/pages/ManufacturingQueue"));
@@ -1025,6 +1026,12 @@ const AnimatedRoutes = () => {
               <PageTransition><ExecutiveDashboard /></PageTransition>
             </ProtectedRoute>
           } />
+          <Route path="/approvals-center" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager']}>
+              <PageTransition><ApprovalsCenter /></PageTransition>
+            </ProtectedRoute>
+          } />
+
           <Route path="/operations-guide" element={
             <ProtectedRoute allowedRoles={['general_manager','executive_manager','hatchery_manager','farm_manager','meat_factory_manager','production_manager']}>
               <PageTransition><OperationsGuide /></PageTransition>
