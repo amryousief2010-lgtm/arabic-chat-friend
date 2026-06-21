@@ -21,6 +21,8 @@ import * as XLSX from "xlsx";
 import companyLogo from "@/assets/company-logo.jpg";
 import WarehouseKpisBlock from "@/components/warehouses/WarehouseKpisBlock";
 import RestaurantMenuTab from "@/components/warehouses/RestaurantMenuTab";
+import WarehouseStockView from "@/pages/WarehouseStockView";
+
 
 const qualityLabelText: Record<string, string> = {
   accepted: "مقبول",
