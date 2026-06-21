@@ -2352,9 +2352,66 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
                         : <span className="text-red-700">غير متزن — راجع توزيع unit_cost على الأصناف</span>}
                     </div>
                   </div>
+                  {/* === Breakdown by cost component (محسوبة بالعلف وبالنافق) === */}
+                  {costBreakdown.total > 0 && (
+                    <div className="border-t pt-2">
+                      <div className="font-semibold mb-1">تفصيل تكلفة الدفعة حسب المكوّن:</div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <div className="p-2 bg-blue-500/10 rounded">شراء النعام: <b>{costBreakdown.purchase.toFixed(2)} ج.م</b></div>
+                        <div className="p-2 bg-amber-500/10 rounded">العلف المحمَّل: <b>{costBreakdown.feed.toFixed(2)} ج.م</b></div>
+                        <div className="p-2 bg-red-500/10 rounded">النافق المحمَّل: <b>{costBreakdown.mortality.toFixed(2)} ج.م</b></div>
+                        <div className="p-2 bg-muted/40 rounded">تكاليف أخرى: <b>{costBreakdown.other.toFixed(2)} ج.م</b></div>
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        <div className="p-2 bg-emerald-500/10 rounded">
+                          تكلفة الكيلو (بدون علف/نافق): <b>{totalProduced > 0 ? (costBreakdown.purchase / totalProduced).toFixed(2) : "0.00"} ج.م/كجم</b>
+                        </div>
+                        <div className="p-2 bg-emerald-500/10 rounded">
+                          تكلفة الكيلو (بالعلف فقط): <b>{totalProduced > 0 ? ((costBreakdown.purchase + costBreakdown.feed) / totalProduced).toFixed(2) : "0.00"} ج.م/كجم</b>
+                        </div>
+                        <div className="p-2 bg-emerald-500/10 rounded">
+                          تكلفة الكيلو (بالنافق فقط): <b>{totalProduced > 0 ? ((costBreakdown.purchase + costBreakdown.mortality) / totalProduced).toFixed(2) : "0.00"} ج.م/كجم</b>
+                        </div>
+                        <div className="p-2 bg-emerald-600/20 rounded">
+                          تكلفة الكيلو (بالعلف + النافق + أخرى): <b>{totalProduced > 0 ? (costBreakdown.total / totalProduced).toFixed(2) : "0.00"} ج.م/كجم</b>
+                        </div>
+                      </div>
+                      {costBreakdown.sources.length > 1 && (
+                        <div className="mt-2">
+                          <div className="text-muted-foreground mb-1">تفصيل لكل دفعة استلام مساهمة:</div>
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="text-right">رقم الإستلام</TableHead>
+                                <TableHead className="text-right">عدد النعام</TableHead>
+                                <TableHead className="text-right">شراء</TableHead>
+                                <TableHead className="text-right">علف</TableHead>
+                                <TableHead className="text-right">نافق</TableHead>
+                                <TableHead className="text-right">أخرى</TableHead>
+                                <TableHead className="text-right">إجمالي</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {costBreakdown.sources.map((s, i) => (
+                                <TableRow key={i}>
+                                  <TableCell>{s.receipt_number}</TableCell>
+                                  <TableCell>{s.birds}</TableCell>
+                                  <TableCell>{s.purchase.toFixed(2)}</TableCell>
+                                  <TableCell>{s.feed.toFixed(2)}</TableCell>
+                                  <TableCell>{s.mortality.toFixed(2)}</TableCell>
+                                  <TableCell>{s.other.toFixed(2)}</TableCell>
+                                  <TableCell><b>{s.total.toFixed(2)}</b></TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <div className="text-xs text-muted-foreground border-t pt-2">
                     المعادلة: تكلفة الكيلو = إجمالي تكلفة الدفعة ÷ إجمالي كيلو الناتج.
-                    مصدر تكلفة الدفعة: snapshot النعام الحي وقت الذبح + تكلفة الذبح المباشرة + التكاليف الموزَّعة. لا يُستخدم cost_per_bird_current الحالي.
+                    مصدر تكلفة الدفعة: snapshot النعام الحي وقت الذبح (شراء + علف محمَّل + نافق محمَّل + أخرى) + تكلفة الذبح المباشرة. لا يُستخدم cost_per_bird_current الحالي.
                   </div>
                 </div>
               );
