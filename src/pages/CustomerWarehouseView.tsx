@@ -83,6 +83,8 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
   const canEditMovements = isGeneralManager || isExecutiveManager || isWarehouseSupervisor;
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [showItemsGrid, setShowItemsGrid] = useState(false);
+  const [stockFilter, setStockFilter] = useState<"all" | "withStock" | "outOfStock">("all");
   const [whId, setWhId] = useState<string | null>(null);
   const [mainWhId, setMainWhId] = useState<string | null>(null);
   const [items, setItems] = useState<InventoryItem[]>([]);
