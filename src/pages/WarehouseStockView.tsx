@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import ReservedDetailsDialog from "@/components/warehouse/ReservedDetailsDialog";
 import ManualStockAdditionDialog from "@/components/warehouse/ManualStockAdditionDialog";
 import ManualStockOutDialog from "@/components/warehouse/ManualStockOutDialog";
+import MainCardDialog from "@/components/warehouse/MainCardDialog";
 import { MAIN_WAREHOUSE_OPERATIONAL_START, MAIN_WAREHOUSE_OPERATIONAL_START_ISO } from "@/constants/warehouseOperations";
 
 interface Product { id: string; name: string; unit: string; category?: string | null; }
