@@ -97,9 +97,12 @@ const ManualStockAdditionDialog = ({
   const unit = unitOverride || selected?.unit || "";
   const qtyNum = Number(qty);
   const validQty = Number.isFinite(qtyNum) && qtyNum > 0;
+  const customMatch = customParties.find((p) => `custom:${p.id}` === sourceKey);
   const sourceLabel = sourceKey === "other"
     ? sourceOther.trim()
-    : (SUPPLY_SOURCES.find(s => s.value === sourceKey)?.label || "");
+    : customMatch
+      ? customMatch.name
+      : (SUPPLY_SOURCES.find(s => s.value === sourceKey)?.label || "");
   const validSource = !!sourceKey && (sourceKey !== "other" || sourceOther.trim().length > 0);
   const canSave = !!selected && validQty && reason.trim().length > 0 && validSource && !saving;
   const stockBefore = Number(selected?.stock || 0);
