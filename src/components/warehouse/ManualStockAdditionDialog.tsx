@@ -101,9 +101,14 @@ const ManualStockAdditionDialog = ({
 
 
   const selected = useMemo(() => items.find((i) => i.id === itemId), [items, itemId]);
-  const unit = unitOverride || selected?.unit || "";
-  const qtyNum = Number(qty);
-  const validQty = Number.isFinite(qtyNum) && qtyNum > 0;
+  const unit = unitOverride || selected?.unit || "كجم";
+  const pkgCountNum = Number(packageCount);
+  const pkgWeightNum = Number(packageWeightKg);
+  const validPkg = !manualKgMode && Number.isFinite(pkgCountNum) && pkgCountNum > 0 && Number.isFinite(pkgWeightNum) && pkgWeightNum > 0;
+  const manualKgNum = Number(manualKg);
+  const validManualKg = manualKgMode && Number.isFinite(manualKgNum) && manualKgNum > 0;
+  const qtyNum = manualKgMode ? manualKgNum : (validPkg ? pkgCountNum * pkgWeightNum : 0);
+  const validQty = qtyNum > 0;
   const customMatch = customParties.find((p) => `custom:${p.id}` === sourceKey);
   const sourceLabel = sourceKey === "other"
     ? sourceOther.trim()
@@ -111,7 +116,7 @@ const ManualStockAdditionDialog = ({
       ? customMatch.name
       : (SUPPLY_SOURCES.find(s => s.value === sourceKey)?.label || "");
   const validSource = !!sourceKey && (sourceKey !== "other" || sourceOther.trim().length > 0);
-  const canSave = !!selected && validQty && reason.trim().length > 0 && validSource && !saving;
+  const canSave = !!selected && (manualKgMode ? validManualKg : validPkg) && reason.trim().length > 0 && validSource && !saving;
   const stockBefore = Number(selected?.stock || 0);
   const stockAfter = validQty ? stockBefore + qtyNum : stockBefore;
 
@@ -120,36 +125,50 @@ const ManualStockAdditionDialog = ({
   const handleSave = async () => {
     if (!validSource) { toast({ title: "اختر جهة التوريد", variant: "destructive" }); return; }
     if (!selected) { toast({ title: "اختر الصنف", variant: "destructive" }); return; }
-    if (!validQty) { toast({ title: "أدخل كمية موجبة أكبر من صفر", variant: "destructive" }); return; }
+    if (manualKgMode) {
+      if (!validManualKg) { toast({ title: "أدخل كمية بالكيلو موجبة أكبر من صفر", variant: "destructive" }); return; }
+    } else {
+      if (!validPkg) { toast({ title: "أدخل عدد عبوات موجب ووزن عبوة صحيح", variant: "destructive" }); return; }
+    }
     if (!reason.trim()) { toast({ title: "أدخل سبب الإضافة / التوريد", variant: "destructive" }); return; }
 
     setSaving(true);
     try {
       const ref = `MANUAL-ADD-${Date.now()}`;
+      const pkgLine = manualKgMode
+        ? `إدخال يدوي بالكيلو: ${qtyNum} كجم`
+        : `${pkgCountNum} عبوة × ${pkgWeightNum} كجم = ${qtyNum} كجم`;
       const combinedNotes = [
         `توريد مباشر مؤقت`,
         `جهة التوريد: ${sourceLabel}`,
+        pkgLine,
         `السبب: ${reason.trim()}`,
         notes.trim() ? `ملاحظات: ${notes.trim()}` : null,
-        `الكمية: ${qtyNum} ${unit}`,
         `قبل: ${stockBefore} ${unit}`,
         `بعد: ${stockAfter} ${unit}`,
       ].filter(Boolean).join(" • ");
+
+      const partyWithPkg = manualKgMode
+        ? partyLabel
+        : `${partyLabel} — ${pkgCountNum} عبوة × ${pkgWeightNum} كجم = ${qtyNum} كجم`;
 
       const { error: mErr } = await supabase.from("inventory_movements").insert({
         warehouse_id: warehouseId,
         item_id: selected.id,
         movement_type: "in",
         quantity: qtyNum,
+        package_count: manualKgMode ? null : pkgCountNum,
+        package_weight_kg: manualKgMode ? null : pkgWeightNum,
+        quantity_kg: qtyNum,
         reference: ref,
         reference_type: "manual_addition",
-        party: partyLabel,
+        party: partyWithPkg,
         reason: reason.trim(),
         notes: combinedNotes,
         module: "warehouse_manual",
         performed_by: user?.id ?? null,
         performed_at: new Date().toISOString(),
-      });
+      } as any);
       if (mErr) throw mErr;
 
       const { error: sErr } = await supabase
@@ -174,6 +193,7 @@ const ManualStockAdditionDialog = ({
       setSaving(false);
     }
   };
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
