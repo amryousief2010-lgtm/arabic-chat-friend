@@ -962,9 +962,11 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
       transfer_batch_id: latestTransferBatch.transfer_batch_id,
       total_eggs: latestTransferBatch.total_eggs,
       transfer_date: latestTransferBatch.transfer_date,
+        intake_start_transfer_batch_id: HATCHERY_INTAKE_START_TRANSFER_BATCH_ID,
       production_period: `${latestTransferBatch.min_date} → ${latestTransferBatch.max_date}`,
       orphan_shipments_excluded_from_banner: true,
       orphan_shipments_count: orphanShipmentsData.length,
+        historical_batches_excluded_count: excludedHistoricalTransferBatches.length,
       official_batches_in_dropdown: availableTransferBatches.map((g) => ({
         transfer_batch_id: g.transfer_batch_id,
         total_eggs: g.total_eggs,
@@ -975,11 +977,15 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
         (g) => g.transfer_batch_id === "5d5ca4a9-86e3-4360-a1ef-e0389e6b672a" && Number(g.total_eggs) === 35
       ),
     });
-  }, [open, latestTransferBatch, availableTransferBatches, orphanShipmentsData.length]);
+  }, [open, latestTransferBatch, availableTransferBatches, orphanShipmentsData.length, excludedHistoricalTransferBatches.length]);
 
   const loadTransferBatchIntoLot = (lotIndex: number, key: string) => {
     const g = transferBatchesData.find((x) => x.key === key);
     if (!g) return;
+    if (g.hatchery_intake_state !== "active") {
+      toast.error("هذه دفعة تاريخية مستبعدة من وارد التفريخ الجديد");
+      return;
+    }
     if (g.source !== "farm_transfers" || !g.transfer_batch_id || !(g.farm_transfer_ids || []).length) {
       toast.error("لا يمكن تحميل شحنة يتيمة أو غير رسمية تلقائياً");
       return;
@@ -1008,6 +1014,10 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
   const loadLatestFarmShipment = () => {
     if (!latestTransferBatch) {
       toast.info("لا توجد دفعات نقل من المزرعة متاحة حالياً");
+      return;
+    }
+    if (latestTransferBatch.hatchery_intake_state !== "active") {
+      toast.error("لا يمكن تحميل دفعة تاريخية مستبعدة من وارد التفريخ الجديد");
       return;
     }
     if (latestTransferBatch.source !== "farm_transfers" || !latestTransferBatch.transfer_batch_id) {
