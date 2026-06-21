@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import ReservedDetailsDialog from "@/components/warehouse/ReservedDetailsDialog";
 import ManualStockAdditionDialog from "@/components/warehouse/ManualStockAdditionDialog";
 import ManualStockOutDialog from "@/components/warehouse/ManualStockOutDialog";
+import MainCardDialog from "@/components/warehouse/MainCardDialog";
 import { MAIN_WAREHOUSE_OPERATIONAL_START, MAIN_WAREHOUSE_OPERATIONAL_START_ISO } from "@/constants/warehouseOperations";
 
 interface Product { id: string; name: string; unit: string; category?: string | null; }
@@ -68,6 +69,11 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
   const [reservedDlg, setReservedDlg] = useState<{ wh: "agouza" | "main"; productId: string; productName: string; total: number } | null>(null);
   const [manualAddOpen, setManualAddOpen] = useState(false);
   const [manualOutOpen, setManualOutOpen] = useState(false);
+  const [mainCost, setMainCost] = useState<Record<string, number>>({});
+  const [mainSku, setMainSku] = useState<Record<string, string>>({});
+  const [mainLastMove, setMainLastMove] = useState<Record<string, string>>({});
+  const [cardDialog, setCardDialog] = useState<null | "withStock" | "overReserved">(null);
+  const [cardSearch, setCardSearch] = useState("");
 
 
   const fetchAll = async () => {
@@ -87,23 +93,54 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
       if (whIds.length > 0) {
         const { data: invRows } = await supabase
           .from("inventory_items")
-          .select("id, warehouse_id, product_id, stock, reserved_qty, blocked_qty")
+          .select("id, warehouse_id, product_id, stock, reserved_qty, blocked_qty, unit_cost, sku")
           .in("warehouse_id", whIds)
           .not("product_id", "is", null);
         const ag: Record<string, number> = {};
         const mn: Record<string, number> = {};
         const agIds: Record<string, string> = {};
         const mnIds: Record<string, string> = {};
+        const mnCost: Record<string, number> = {};
+        const mnSku: Record<string, string> = {};
         (invRows || []).forEach((r: any) => {
           // الرصيد الفعلي = stock (بدون خصم محجوز - المحجوز يُحسب من الأوردرات الجارية)
           const actual = Number(r.stock || 0) - Number(r.blocked_qty || 0);
           if (r.warehouse_id === agouza?.id) { ag[r.product_id] = (ag[r.product_id] || 0) + actual; agIds[r.product_id] = r.id; }
-          if (r.warehouse_id === main?.id) { mn[r.product_id] = (mn[r.product_id] || 0) + actual; mnIds[r.product_id] = r.id; }
+          if (r.warehouse_id === main?.id) {
+            mn[r.product_id] = (mn[r.product_id] || 0) + actual;
+            mnIds[r.product_id] = r.id;
+            mnCost[r.product_id] = Number(r.unit_cost || 0);
+            if (r.sku) mnSku[r.product_id] = r.sku;
+          }
         });
         setAgouzaStock(ag);
         setMainStock(mn);
         setAgouzaItemIds(agIds);
         setMainItemIds(mnIds);
+        setMainCost(mnCost);
+        setMainSku(mnSku);
+
+        // آخر حركة لكل صنف في المخزن الرئيسي
+        if (main?.id) {
+          const mainItemIdList = Object.values(mnIds);
+          if (mainItemIdList.length > 0) {
+            const { data: lastMoves } = await supabase
+              .from("inventory_movements")
+              .select("item_id, performed_at")
+              .in("item_id", mainItemIdList)
+              .order("performed_at", { ascending: false })
+              .limit(2000);
+            const itemToProduct: Record<string, string> = {};
+            Object.entries(mnIds).forEach(([pid, iid]) => { itemToProduct[iid] = pid; });
+            const lastByProduct: Record<string, string> = {};
+            (lastMoves || []).forEach((m: any) => {
+              const pid = itemToProduct[m.item_id];
+              if (pid && !lastByProduct[pid]) lastByProduct[pid] = m.performed_at;
+            });
+            setMainLastMove(lastByProduct);
+          }
+        }
+
 
         // المحجوز = أوردرات لم تُسلَّم/تُلغَ ولم تُخصم فعلًا (stock_status != dispatched)
         // المخزن الرئيسي: نتجاهل أي أوردر مسجل قبل تاريخ بداية التشغيل (Cut-off) — الجرد اليدوي الحالي هو نقطة البداية الرسمية.
@@ -401,7 +438,10 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
 
       {/* ملخص سريع */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-        <Card>
+        <Card
+          className={scope === "main" ? "cursor-pointer hover:border-primary/40 transition-colors" : ""}
+          onClick={scope === "main" ? () => { setCardSearch(""); setCardDialog("withStock"); } : undefined}
+        >
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-md bg-green-500/15 text-green-700 dark:text-green-300">
               <PackageCheck className="w-5 h-5" />
@@ -409,6 +449,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
             <div>
               <div className="text-xs text-muted-foreground">أصناف لها رصيد فعلي</div>
               <div className="text-xl font-bold">{summary.itemsWithStock}</div>
+              {scope === "main" && <div className="text-[10px] text-muted-foreground">اضغط للتفاصيل</div>}
             </div>
           </CardContent>
         </Card>
@@ -423,7 +464,10 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
             </div>
           </CardContent>
         </Card>
-        <Card className={summary.belowZero > 0 ? "border-destructive/40" : ""}>
+        <Card
+          className={`${summary.belowZero > 0 ? "border-destructive/40" : ""} ${scope === "main" ? "cursor-pointer hover:border-primary/40 transition-colors" : ""}`}
+          onClick={scope === "main" ? () => { setCardSearch(""); setCardDialog("overReserved"); } : undefined}
+        >
           <CardContent className="p-4 flex items-center gap-3">
             <div className={`p-2 rounded-md ${summary.belowZero > 0 ? "bg-destructive/15 text-destructive" : "bg-muted text-muted-foreground"}`}>
               <AlertTriangle className="w-5 h-5" />
@@ -431,10 +475,12 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
             <div>
               <div className="text-xs text-muted-foreground">أصناف محجوز أكثر من الفعلي</div>
               <div className={`text-xl font-bold ${summary.belowZero > 0 ? "text-destructive" : ""}`}>{summary.belowZero}</div>
+              {scope === "main" && <div className="text-[10px] text-muted-foreground">اضغط للتفاصيل</div>}
             </div>
           </CardContent>
         </Card>
       </div>
+
 
       <Card>
         <CardHeader>
@@ -610,6 +656,22 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
           productId={reservedDlg.productId}
           productName={reservedDlg.productName}
           totalReservedKg={reservedDlg.total}
+        />
+      )}
+
+      {scope === "main" && (
+        <MainCardDialog
+          mode={cardDialog}
+          onClose={() => setCardDialog(null)}
+          products={products}
+          mainStock={mainStock}
+          mainPending={mainPending}
+          mainCost={mainCost}
+          mainSku={mainSku}
+          mainLastMove={mainLastMove}
+          search={cardSearch}
+          onSearch={setCardSearch}
+          onOpenReserved={(pid, name, total) => setReservedDlg({ wh: "main", productId: pid, productName: name, total })}
         />
       )}
     </>
