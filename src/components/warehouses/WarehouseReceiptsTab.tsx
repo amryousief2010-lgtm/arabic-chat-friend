@@ -247,11 +247,16 @@ export default function WarehouseReceiptsTab() {
         .limit(2000);
 
       for (const tr of trs || []) {
+        const notes = (tr as any).notes || "";
+        const transferNo = (tr as any).transfer_no || "";
+        // Hide backfilled/legacy reconciliation entries from the operational receipts log.
+        // They stay in DB for audit but are not part of current operations.
+        if (/Backfilled/i.test(notes) || /^TR-BF-/i.test(transferNo)) continue;
         const items: any[] = (tr as any).items || [];
         const row: ReceiptRow = {
           id: String((tr as any).id),
           kind: "internal",
-          batch_no: (tr as any).transfer_no || `TR-${String((tr as any).id).slice(0, 8)}`,
+          batch_no: transferNo || `TR-${String((tr as any).id).slice(0, 8)}`,
           date: (tr as any).received_at || (tr as any).sent_at,
           source_label: (tr as any).source?.name || "—",
           destination_label: (tr as any).destination?.name || "—",
@@ -260,7 +265,7 @@ export default function WarehouseReceiptsTab() {
           quality: (tr as any).status === "partial_received" ? "مقبول جزئيًا" : "مقبول",
           status: (tr as any).status === "partial_received" ? "partial" : "received",
           receiver: "—",
-          notes: (tr as any).notes || undefined,
+          notes: notes || undefined,
           lines: items.map((it) => ({
             name: it.item_name || "—",
             qty: Number(it.received_qty || 0),
