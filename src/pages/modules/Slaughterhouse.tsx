@@ -1971,7 +1971,17 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
 }) => {
   const { roles } = useAuth();
   const canEditSellPrice = (roles || []).some((r: string) => r === "general_manager" || r === "executive_manager");
-  const batchCostPerKg = Number(batch.cost_per_kg_meat) || 0;
+  const b: any = batch as any;
+  // Total slaughter-batch cost = snapshot of live birds cost at slaughter time + any direct/allocated slaughter cost.
+  // Prefer total_allocatable_cost (set during recompute_slaughter_batch_cost). Fallback to total_birds_cost.
+  const batchTotalCost =
+    Number(b.total_allocatable_cost) ||
+    Number(b.total_birds_cost) ||
+    (Number(b.cost_per_bird_snapshot) || 0) * (Number(batch.birds_slaughtered) || 0) ||
+    0;
+  const storedCostPerKg = Number(batch.cost_per_kg_meat) || 0;
+  const [costAuditOpen, setCostAuditOpen] = useState(false);
+
 
   // Reconstruct merged rows by (cut_name_ar, branch_id) from split outputs (by quality_status).
   const initial = (() => {
