@@ -19,7 +19,7 @@ import { MAIN_WAREHOUSE_OPERATIONAL_START, MAIN_WAREHOUSE_OPERATIONAL_START_ISO 
 
 interface Product { id: string; name: string; unit: string; category?: string | null; }
 
-export type StockScope = "both" | "agouza" | "main";
+export type StockScope = "both" | "agouza" | "main" | "carrefour" | "healthy";
 
 interface Props { scope?: StockScope; embedded?: boolean }
 
@@ -28,7 +28,14 @@ const titleMap: Record<StockScope, { title: string; subtitle: string }> = {
   both: { title: "المتاح في المخازن", subtitle: "الفعلي • المحجوز • المتاح للبيع لكل مخزن" },
   agouza: { title: "مخزن العجوزة", subtitle: "الفعلي • المحجوز • المتاح للبيع" },
   main: { title: "المخزن الرئيسي", subtitle: "الفعلي (الجرد) • المحجوز للطلبات • المتاح للبيع" },
+  carrefour: { title: "هايبر كارفور", subtitle: "الفعلي • المحجوز • المتاح للبيع" },
+  healthy: { title: "هايبر هيلثي تيست", subtitle: "الفعلي • المحجوز • المتاح للبيع" },
 };
+
+// Single-warehouse scopes have per-warehouse add/issue buttons and clickable KPI cards
+const SINGLE_SCOPES: StockScope[] = ["main", "agouza", "carrefour", "healthy"];
+const isSingleScope = (s: StockScope) => SINGLE_SCOPES.includes(s);
+
 
 // كيلوجرامات لكل عبوة بحسب اسم المنتج. الافتراضي 0.5 كجم لكل عبوة (عبوتين/كيلو).
 const kgPerPackage = (name: string): number => {
