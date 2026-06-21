@@ -901,7 +901,8 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
         .eq("is_test", false)
         .eq("status", "pending")
         .is("hatch_batch_id", null)
-        .or("transfer_batch_id.is.null,farm_transfer_id.is.null")
+        .is("transfer_batch_id", null)
+        .is("farm_transfer_id", null)
         .order("created_at", { ascending: false })
         .limit(100);
       if (error) throw error;
