@@ -479,8 +479,17 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
     let itemsWithStock = 0;
     let totalReservedKg = 0;
     let belowZero = 0;
-    const stockSrc = scope === "agouza" ? agouzaStock : scope === "main" ? mainStock : null;
-    const pendSrc = scope === "agouza" ? agouzaPending : scope === "main" ? mainPending : null;
+    let totalValue = 0;
+    let lowStockCount = 0;
+    let lastMoveTs: string | null = null;
+    let lastMovePid: string | null = null;
+
+    const stockSrc = isSingleScope(scope) ? getStockMap(scope as SingleWh) : null;
+    const pendSrc = isSingleScope(scope) ? getPendingMap(scope as SingleWh) : null;
+    const costSrc = isSingleScope(scope) ? getCostMap(scope as SingleWh) : null;
+    const lowSrc = isSingleScope(scope) ? getLowMap(scope as SingleWh) : null;
+    const lastMoveSrc = isSingleScope(scope) ? getLastMoveMap(scope as SingleWh) : null;
+
     if (stockSrc && pendSrc) {
       filtered.forEach((p) => {
         const a = stockSrc[p.id] ?? 0;
@@ -488,9 +497,13 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
         if (a > 0) itemsWithStock++;
         totalReservedKg += r;
         if (a - r < 0) belowZero++;
+        if (costSrc) totalValue += a * (costSrc[p.id] ?? 0);
+        const lo = lowSrc?.[p.id] ?? 0;
+        if (lo > 0 && a <= lo) lowStockCount++;
+        const ts = lastMoveSrc?.[p.id];
+        if (ts && (!lastMoveTs || ts > lastMoveTs)) { lastMoveTs = ts; lastMovePid = p.id; }
       });
     } else {
-      // both
       filtered.forEach((p) => {
         const a = (agouzaStock[p.id] ?? 0) + (mainStock[p.id] ?? 0);
         const r = (agouzaPending[p.id] ?? 0) + (mainPending[p.id] ?? 0);
@@ -499,14 +512,36 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
         if (a - r < 0) belowZero++;
       });
     }
-    return { itemsWithStock, totalReservedKg: Math.round(totalReservedKg * 100) / 100, belowZero };
-  }, [filtered, scope, agouzaStock, mainStock, agouzaPending, mainPending]);
+    return {
+      itemsWithStock,
+      totalReservedKg: Math.round(totalReservedKg * 100) / 100,
+      belowZero,
+      totalValue: Math.round(totalValue * 100) / 100,
+      lowStockCount,
+      lastMoveTs,
+      lastMovePid,
+      itemsCount: filtered.length,
+    };
+  }, [filtered, scope, agouzaStock, mainStock, agouzaPending, mainPending, extraStock, extraPending, extraCost, extraLowThreshold, extraLastMove, mainCost, agouzaCost, mainLowThreshold, agouzaLowThreshold, mainLastMove, agouzaLastMove]);
 
   const { title, subtitle } = titleMap[scope];
 
   // أعمدة الجدول حسب الـ scope
-  const renderMainCols = scope !== "agouza";
-  const renderAgouzaCols = scope !== "main";
+  const renderMainCols = scope === "main" || scope === "both";
+  const renderAgouzaCols = scope === "agouza" || scope === "both";
+  const renderCarrefourCols = scope === "carrefour";
+  const renderHealthyCols = scope === "healthy";
+  const currentSingleScope: SingleWh | null = isSingleScope(scope) ? (scope as SingleWh) : null;
+  const currentWhId = currentSingleScope ? getWhId(currentSingleScope) : null;
+  const currentWhLabel = currentSingleScope ? getWhLabel(currentSingleScope) : "";
+  const currentStock = currentSingleScope ? getStockMap(currentSingleScope) : {};
+  const currentPending = currentSingleScope ? getPendingMap(currentSingleScope) : {};
+  const currentItemIds = currentSingleScope ? getItemIdsMap(currentSingleScope) : {};
+  const currentCost = currentSingleScope ? getCostMap(currentSingleScope) : {};
+  const currentSku = currentSingleScope ? getSkuMap(currentSingleScope) : {};
+  const currentLastMove = currentSingleScope ? getLastMoveMap(currentSingleScope) : {};
+
+
 
   const content = (
     <>
