@@ -342,6 +342,66 @@ export default function WarehouseReceiptsTab() {
         all.push(row);
       }
 
+      // ---------------- 4) Other receipts: manual supply + sales returns ----------------
+      // Pulls from inventory_movements (movement_type IN ('in','sales_return')) and groups
+      // lines that share the same warehouse + party + timestamp into one operation row.
+      const { data: invIn } = await supabase
+        .from("inventory_movements")
+        .select("id, movement_no, movement_type, party, reference_type, quantity, performed_at, notes, warehouse_id, item_id, warehouse:warehouses(name), item:inventory_items(product:products(name, unit))")
+        .in("movement_type", ["in", "sales_return"])
+        .order("performed_at", { ascending: false })
+        .limit(3000);
+
+      const otherGroups = new Map<string, ReceiptRow>();
+      for (const m of (invIn as any[]) || []) {
+        const refType = m.reference_type || "";
+        // Exclude system corrections, opening balances, and rows already represented
+        // by the slaughter/meat-factory/internal-transfer tabs above.
+        if (refType === "reverse_pre_start" || refType === "opening_balance") continue;
+        if (refType === "transfer" || refType === "internal_transfer") continue;
+        const isReturn = m.movement_type === "sales_return";
+        const partyRaw = (m.party || "").trim();
+        const sourceLabel = isReturn
+          ? `مرتجع${partyRaw ? ` — ${partyRaw}` : " عميل"}`
+          : (partyRaw || (refType === "customer_supply" ? "توريد عميل" : "توريد مباشر"));
+        const ts = m.performed_at || new Date().toISOString();
+        const tsBucket = String(ts).slice(0, 19); // group within same second
+        const key = `${m.warehouse_id || "-"}|${tsBucket}|${sourceLabel}|${m.movement_type}`;
+        const productName = m?.item?.product?.name || "—";
+        const unit = m?.item?.product?.unit || "وحدة";
+        if (!otherGroups.has(key)) {
+          otherGroups.set(key, {
+            id: String(m.id),
+            kind: "other",
+            batch_no: m.movement_no || `MV-${String(m.id).slice(0, 8)}`,
+            date: ts,
+            source_label: sourceLabel,
+            destination_label: m?.warehouse?.name || "—",
+            items_count: 0,
+            total_qty: 0,
+            quality: "مقبول",
+            status: "received",
+            receiver: "—",
+            notes: m.notes || undefined,
+            lines: [],
+          });
+        }
+        const row = otherGroups.get(key)!;
+        row.lines.push({
+          name: productName,
+          qty: Number(m.quantity || 0),
+          unit,
+          quality: "accepted",
+          notes: m.notes || undefined,
+          received_at: ts,
+        });
+      }
+      for (const r of otherGroups.values()) {
+        r.items_count = r.lines.length;
+        r.total_qty = r.lines.reduce((s, l) => s + (l.qty || 0), 0);
+        all.push(r);
+      }
+
       all.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       setRows(all);
     } finally {
@@ -349,9 +409,9 @@ export default function WarehouseReceiptsTab() {
     }
   }
 
-  const filtered = useMemo(() => {
+
+  const filteredAll = useMemo(() => {
     return rows.filter((r) => {
-      if (r.kind !== activeSub) return false;
       if (fromDate && new Date(r.date) < new Date(fromDate)) return false;
       if (toDate && new Date(r.date) > new Date(toDate + "T23:59:59")) return false;
       if (sourceFilter !== "all" && r.source_label !== sourceFilter) return false;
@@ -364,18 +424,21 @@ export default function WarehouseReceiptsTab() {
       }
       return true;
     });
-  }, [rows, activeSub, fromDate, toDate, sourceFilter, destFilter, statusFilter, batchSearch, itemSearch]);
+  }, [rows, fromDate, toDate, sourceFilter, destFilter, statusFilter, batchSearch, itemSearch]);
+
+  const filtered = useMemo(() => filteredAll.filter((r) => r.kind === activeSub), [filteredAll, activeSub]);
 
   const summary = useMemo(() => {
-    const ops = filtered.length;
-    const itemsCnt = filtered.reduce((s, r) => s + r.items_count, 0);
-    const totalQty = filtered.reduce((s, r) => s + r.total_qty, 0);
-    const last = filtered[0]?.date;
+    const ops = filteredAll.length;
+    const itemsCnt = filteredAll.reduce((s, r) => s + r.items_count, 0);
+    const totalQty = filteredAll.reduce((s, r) => s + r.total_qty, 0);
+    const last = filteredAll[0]?.date;
     return { ops, itemsCnt, totalQty, last };
-  }, [filtered]);
+  }, [filteredAll]);
 
-  const sourceOptions = useMemo(() => Array.from(new Set(rows.filter((r) => r.kind === activeSub).map((r) => r.source_label))).sort(), [rows, activeSub]);
-  const destOptions = useMemo(() => Array.from(new Set(rows.filter((r) => r.kind === activeSub).map((r) => r.destination_label))).sort(), [rows, activeSub]);
+  const sourceOptions = useMemo(() => Array.from(new Set(rows.map((r) => r.source_label).filter(Boolean))).sort(), [rows]);
+  const destOptions = useMemo(() => Array.from(new Set(rows.map((r) => r.destination_label).filter(Boolean))).sort(), [rows]);
+
 
   return (
     <div className="space-y-4">
