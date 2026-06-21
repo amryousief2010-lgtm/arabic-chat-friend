@@ -356,9 +356,10 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
   const renderMainCols = scope !== "agouza";
   const renderAgouzaCols = scope !== "main";
 
-  return (
-    <DashboardLayout>
-      <Header title={title} subtitle={subtitle} />
+  const content = (
+    <>
+      {!embedded && <Header title={title} subtitle={subtitle} />}
+
 
       {scope === "main" && (
         <div className="flex flex-wrap gap-2 mb-3">
