@@ -18,13 +18,17 @@ interface Props {
 
 const numFields = [
   { key: "received_eggs", label: "البيض الوارد", critical: true },
-  { key: "net_eggs", label: "البيض الصافي", critical: true },
+  { key: "excluded_eggs", label: "مستبعد (مخروم/مكسور/تالف لم يدخل الماكينة)", critical: true },
+  { key: "net_eggs", label: "البيض الصافي الداخل للماكينة", critical: true, computed: true },
   { key: "candle1_infertile", label: "لايح (كشف 1)", critical: true },
   { key: "candle1_fertile", label: "مخصب (كشف 1)", critical: true },
   { key: "candle2_dead", label: "نافق (كشف 2)", critical: true },
   { key: "hatcher_dead", label: "نافق الهاتشر", critical: true },
   { key: "hatched_chicks", label: "الكتاكيت الناتجة", critical: true },
 ];
+
+const EXCLUDED_REASONS = ["مخروم", "مكسور", "تالف", "غير صالح", "أخرى"];
+
 
 const dateFields = [
   { key: "entry_date", label: "تاريخ الدخول", critical: false },
@@ -41,11 +45,24 @@ export default function HatchBatchRowEditDialog({ row, customerName, onClose, on
     () => roles.some((r) => (ALLOWED_ROLES as readonly string[]).includes(r)),
     [roles]
   );
-  const [form, setForm] = useState<any>(() => ({ ...row }));
+  const [form, setForm] = useState<any>(() => ({
+    ...row,
+    excluded_eggs: Math.max(0, (row.received_eggs || 0) - (row.net_eggs || 0)),
+  }));
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const set = (k: string, v: any) => setForm((p: any) => ({ ...p, [k]: v }));
+  const set = (k: string, v: any) => setForm((p: any) => {
+    const next = { ...p, [k]: v };
+    // Auto-sync net_eggs = received_eggs - excluded_eggs
+    if (k === "received_eggs" || k === "excluded_eggs") {
+      const rec = Number(k === "received_eggs" ? v : next.received_eggs) || 0;
+      const exc = Math.max(0, Number(k === "excluded_eggs" ? v : next.excluded_eggs) || 0);
+      next.net_eggs = Math.max(0, rec - exc);
+    }
+    return next;
+  });
+
 
   const buildChanges = () => {
     const changes: Record<string, { before: any; after: any; critical?: boolean }> = {};
@@ -55,9 +72,12 @@ export default function HatchBatchRowEditDialog({ row, customerName, onClose, on
       { key: "machine", label: "الماكينة", critical: false },
       { key: "status", label: "الحالة", critical: true },
       { key: "notes", label: "ملاحظات", critical: false },
+      { key: "excluded_reason", label: "سبب الاستبعاد", critical: false },
     ];
     for (const f of all) {
-      const before = row[f.key] ?? null;
+      const before = f.key === "excluded_eggs"
+        ? Math.max(0, (row.received_eggs || 0) - (row.net_eggs || 0))
+        : (row[f.key] ?? null);
       let after = form[f.key];
       if (after === "") after = null;
       // normalize numbers
@@ -68,6 +88,7 @@ export default function HatchBatchRowEditDialog({ row, customerName, onClose, on
     }
     return changes;
   };
+
 
   const changes = useMemo(buildChanges, [form, row]);
   const hasCritical = Object.values(changes).some((c) => c.critical);
@@ -84,10 +105,15 @@ export default function HatchBatchRowEditDialog({ row, customerName, onClose, on
     setSaving(true);
     try {
       const payload: any = {};
-      Object.entries(changes).forEach(([k, v]) => { payload[k] = v.after; });
+      Object.entries(changes).forEach(([k, v]) => {
+        // excluded_eggs is synthetic — it's persisted through net_eggs (= received - excluded)
+        if (k === "excluded_eggs") return;
+        payload[k] = v.after;
+      });
 
       const { error } = await supabase.from("hatch_batches").update(payload).eq("id", row.id);
       if (error) throw error;
+
 
       await supabase.from("hatch_batch_edit_audit").insert({
         batch_id: row.id,
@@ -157,16 +183,46 @@ export default function HatchBatchRowEditDialog({ row, customerName, onClose, on
             </div>
           ))}
 
-          {numFields.map((f) => (
+          {numFields.map((f: any) => (
             <div key={f.key}>
-              <Label>{f.label} {f.critical && <span className="text-red-600">*</span>}</Label>
+              <Label>
+                {f.label}{" "}
+                {f.critical && <span className="text-red-600">*</span>}
+                {f.computed && <span className="text-[10px] text-muted-foreground mr-1">(يُحسب تلقائيًا = الوارد − المستبعد)</span>}
+              </Label>
               <Input
                 type="number"
+                min={0}
                 value={form[f.key] ?? ""}
                 onChange={(e) => set(f.key, e.target.value)}
+                readOnly={!!f.computed}
+                className={f.computed ? "bg-muted/40" : ""}
               />
             </div>
           ))}
+
+          <div className="md:col-span-2">
+            <Label>سبب الاستبعاد (اختياري)</Label>
+            <div className="flex flex-wrap gap-1 mb-1">
+              {EXCLUDED_REASONS.map((r) => (
+                <Button
+                  key={r}
+                  type="button"
+                  size="sm"
+                  variant={form.excluded_reason === r ? "default" : "outline"}
+                  onClick={() => set("excluded_reason", form.excluded_reason === r ? "" : r)}
+                  className="h-7 text-xs"
+                >
+                  {r}
+                </Button>
+              ))}
+            </div>
+            <Input
+              value={form.excluded_reason || ""}
+              onChange={(e) => set("excluded_reason", e.target.value)}
+              placeholder="سبب البيض المستبعد (مخروم/مكسور/تالف/...)"
+            />
+          </div>
 
           <div className="md:col-span-2">
             <Label>ملاحظات</Label>
@@ -176,6 +232,7 @@ export default function HatchBatchRowEditDialog({ row, customerName, onClose, on
               rows={2}
             />
           </div>
+
 
           <div className="md:col-span-2 border-t pt-3">
             <Label className="font-semibold">

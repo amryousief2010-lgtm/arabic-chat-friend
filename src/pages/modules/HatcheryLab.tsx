@@ -658,11 +658,11 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
 const HatchBatchDetailDialog = ({ row, onClose }: { row: any; onClose: () => void }) => {
   const b = row._raw || {};
   const meta = STAGE_META[row.stage as StageKey];
-  const fertility = b.received_eggs > 0 && b.candle1_fertile != null
-    ? ((b.candle1_fertile / b.received_eggs) * 100).toFixed(1) + "%"
+  const fertility = b.net_eggs > 0 && b.candle1_fertile != null
+    ? ((b.candle1_fertile / b.net_eggs) * 100).toFixed(1) + "%"
     : "—";
-  const hatchRate = b.received_eggs > 0 && b.hatched_chicks
-    ? ((b.hatched_chicks / b.received_eggs) * 100).toFixed(1) + "%"
+  const hatchRate = b.net_eggs > 0 && b.hatched_chicks
+    ? ((b.hatched_chicks / b.net_eggs) * 100).toFixed(1) + "%"
     : "—";
   const totalDead = (b.candle1_infertile || 0) + (b.candle2_dead || 0) + (b.hatcher_dead || 0);
   const damaged = (b.received_eggs || 0) - (b.net_eggs || 0);
@@ -714,8 +714,10 @@ const HatchBatchDetailDialog = ({ row, onClose }: { row: any; onClose: () => voi
           <Card className="p-3 space-y-1">
             <h4 className="font-semibold mb-2 text-primary">البيض والإنتاج</h4>
             <Row label="إجمالي البيض" value={fmtNum(b.received_eggs)} />
-            <Row label="التالف" value={fmtNum(damaged)} />
-            <Row label="الصافي" value={fmtNum(b.net_eggs)} />
+            <Row label="المستبعد" value={fmtNum(damaged)} />
+            {b.excluded_reason && <Row label="سبب الاستبعاد" value={b.excluded_reason} />}
+            <Row label="الصافي الداخل للماكينة" value={fmtNum(b.net_eggs)} />
+
             <Row label="لايح (كشف 1)" value={fmtNum(b.candle1_infertile)} />
             <Row label="مخصب (كشف 1)" value={fmtNum(b.candle1_fertile)} />
             <Row label="ميت كشف 2" value={fmtNum(b.candle2_dead)} />

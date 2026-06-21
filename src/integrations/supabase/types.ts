@@ -4774,6 +4774,7 @@ export type Database = {
           created_by: string | null
           customer_id: string | null
           entry_date: string | null
+          excluded_reason: string | null
           exit_date: string | null
           hatched_chicks: number | null
           hatcher_dead: number | null
@@ -4804,6 +4805,7 @@ export type Database = {
           created_by?: string | null
           customer_id?: string | null
           entry_date?: string | null
+          excluded_reason?: string | null
           exit_date?: string | null
           hatched_chicks?: number | null
           hatcher_dead?: number | null
@@ -4834,6 +4836,7 @@ export type Database = {
           created_by?: string | null
           customer_id?: string | null
           entry_date?: string | null
+          excluded_reason?: string | null
           exit_date?: string | null
           hatched_chicks?: number | null
           hatcher_dead?: number | null

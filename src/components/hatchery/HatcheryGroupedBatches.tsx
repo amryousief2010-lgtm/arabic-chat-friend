@@ -152,8 +152,9 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr, sortOrder = "asc", 
         candle1_display: fmtDates(g.candle1_dates),
         candle2_display: fmtDates(g.candle2_dates),
         exit_display: fmtDates(g.exit_dates),
-        fertility: pct(g.c1_fertile, g.total_eggs),
-        hatch_rate: pct(g.chicks, g.total_eggs),
+       fertility: pct(g.c1_fertile, g.net_eggs),
+       hatch_rate: pct(g.chicks, g.net_eggs),
+
       };
     });
 
@@ -598,7 +599,7 @@ const GroupDetailDialog = ({ group, stageMeta, onClose, onOpenResults, onRefresh
                 <TableHead>النوع</TableHead>
                 <TableHead>رقم دفعة العميل</TableHead>
                 <TableHead>بيض</TableHead>
-                <TableHead>تالف</TableHead>
+                <TableHead>مستبعد</TableHead>
                 <TableHead>صافي</TableHead>
                 <TableHead>لايح</TableHead>
                 <TableHead>مخصب 1</TableHead>
@@ -615,7 +616,8 @@ const GroupDetailDialog = ({ group, stageMeta, onClose, onOpenResults, onRefresh
               {group.customers.map((c: any) => {
                 const raw = c._raw || {};
                 const damaged = (raw.received_eggs || 0) - (raw.net_eggs || 0);
-                const rate = pct(c.chicks, c.total_eggs);
+                const rate = pct(c.chicks, c.net_eggs);
+
                 const charge = raw.charge_total ?? "—";
                 return (
                   <TableRow key={c.id}>
@@ -730,14 +732,15 @@ function exportGroupExcel(g: any) {
       "النوع": c.type === "internal" ? "عاصمة" : "خارجي",
       "رقم الدفعة": c.batch_number,
       "البيض الوارد": c.total_eggs,
-      "التالف": (raw.received_eggs || 0) - (raw.net_eggs || 0),
+      "المستبعد": (raw.received_eggs || 0) - (raw.net_eggs || 0),
       "الصافي": c.net_eggs,
       "لايح (ك1)": raw.candle1_infertile || 0,
       "مخصب (ك1)": raw.candle1_fertile || 0,
       "نافق كشف 2": raw.candle2_dead || 0,
       "نافق هاتشر": raw.hatcher_dead || 0,
       "الكتاكيت": c.chicks,
-      "نسبة الفقس": pct(c.chicks, c.total_eggs),
+      "نسبة الفقس": pct(c.chicks, c.net_eggs),
+
       "ملاحظات": raw.notes || "",
     };
   });
@@ -766,7 +769,7 @@ function printGroup(g: any) {
         <td>${fmtNum(raw.candle2_dead)}</td>
         <td>${fmtNum(raw.hatcher_dead)}</td>
         <td><b>${fmtNum(c.chicks)}</b></td>
-        <td>${pct(c.chicks, c.total_eggs)}</td>
+        <td>${pct(c.chicks, c.net_eggs)}</td>
       </tr>`;
     })
     .join("");
@@ -796,7 +799,7 @@ function printGroup(g: any) {
       <thead>
         <tr>
           <th>العميل</th><th>النوع</th><th>رقم الدفعة</th>
-          <th>البيض</th><th>التالف</th><th>الصافي</th>
+          <th>البيض</th><th>المستبعد</th><th>الصافي</th>
           <th>لايح</th><th>مخصب 1</th><th>نافق ك2</th><th>نافق هاتشر</th>
           <th>الكتاكيت</th><th>% فقس</th>
         </tr>
