@@ -1026,6 +1026,12 @@ const AnimatedRoutes = () => {
               <PageTransition><ExecutiveDashboard /></PageTransition>
             </ProtectedRoute>
           } />
+          <Route path="/approvals-center" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager']}>
+              <PageTransition><ApprovalsCenter /></PageTransition>
+            </ProtectedRoute>
+          } />
+
           <Route path="/operations-guide" element={
             <ProtectedRoute allowedRoles={['general_manager','executive_manager','hatchery_manager','farm_manager','meat_factory_manager','production_manager']}>
               <PageTransition><OperationsGuide /></PageTransition>
