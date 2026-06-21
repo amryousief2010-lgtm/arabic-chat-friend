@@ -10467,6 +10467,54 @@ export type Database = {
         }
         Relationships: []
       }
+      menu_price_changes: {
+        Row: {
+          category: string | null
+          changed_by: string | null
+          changed_by_name: string | null
+          created_at: string
+          id: string
+          item_id: string
+          item_name_ar: string
+          item_name_en: string | null
+          new_price: number
+          notes: string | null
+          old_price: number | null
+          reason: string | null
+          unit: string | null
+        }
+        Insert: {
+          category?: string | null
+          changed_by?: string | null
+          changed_by_name?: string | null
+          created_at?: string
+          id?: string
+          item_id: string
+          item_name_ar: string
+          item_name_en?: string | null
+          new_price: number
+          notes?: string | null
+          old_price?: number | null
+          reason?: string | null
+          unit?: string | null
+        }
+        Update: {
+          category?: string | null
+          changed_by?: string | null
+          changed_by_name?: string | null
+          created_at?: string
+          id?: string
+          item_id?: string
+          item_name_ar?: string
+          item_name_en?: string | null
+          new_price?: number
+          notes?: string | null
+          old_price?: number | null
+          reason?: string | null
+          unit?: string | null
+        }
+        Relationships: []
+      }
       mf_log: {
         Row: {
           created_at: string
