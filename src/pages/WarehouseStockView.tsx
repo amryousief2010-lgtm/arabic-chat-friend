@@ -438,10 +438,10 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
 
 
       {/* ملخص سريع */}
-      <div className={`grid grid-cols-1 sm:grid-cols-2 ${scope === "main" ? "lg:grid-cols-4" : "sm:grid-cols-3"} gap-3 mb-4`}>
+      <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4`}>
         <Card
-          className={scope === "main" ? "cursor-pointer hover:border-primary/40 transition-colors" : ""}
-          onClick={scope === "main" ? () => { setCardSearch(""); setCardDialog("withStock"); } : undefined}
+          className={scope === "main" ? "cursor-pointer hover:border-primary/40 transition-colors" : "cursor-pointer hover:border-primary/40 transition-colors"}
+          onClick={scope === "main" ? () => { setCardSearch(""); setCardDialog("withStock"); } : () => setShowItemsTable(true)}
         >
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-md bg-green-500/15 text-green-700 dark:text-green-300">
@@ -450,7 +450,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
             <div>
               <div className="text-xs text-muted-foreground">أصناف لها رصيد فعلي</div>
               <div className="text-xl font-bold">{summary.itemsWithStock}</div>
-              {scope === "main" && <div className="text-[10px] text-muted-foreground">اضغط للتفاصيل</div>}
+              <div className="text-[10px] text-muted-foreground">اضغط للتفاصيل</div>
             </div>
           </CardContent>
         </Card>
@@ -466,8 +466,8 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
           </CardContent>
         </Card>
         <Card
-          className={`${summary.belowZero > 0 ? "border-destructive/40" : ""} ${scope === "main" ? "cursor-pointer hover:border-primary/40 transition-colors" : ""}`}
-          onClick={scope === "main" ? () => { setCardSearch(""); setCardDialog("overReserved"); } : undefined}
+          className={`${summary.belowZero > 0 ? "border-destructive/40" : ""} cursor-pointer hover:border-primary/40 transition-colors`}
+          onClick={scope === "main" ? () => { setCardSearch(""); setCardDialog("overReserved"); } : () => setShowItemsTable(true)}
         >
           <CardContent className="p-4 flex items-center gap-3">
             <div className={`p-2 rounded-md ${summary.belowZero > 0 ? "bg-destructive/15 text-destructive" : "bg-muted text-muted-foreground"}`}>
@@ -476,39 +476,36 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
             <div>
               <div className="text-xs text-muted-foreground">أصناف محجوز أكثر من الفعلي</div>
               <div className={`text-xl font-bold ${summary.belowZero > 0 ? "text-destructive" : ""}`}>{summary.belowZero}</div>
-              {scope === "main" && <div className="text-[10px] text-muted-foreground">اضغط للتفاصيل</div>}
+              <div className="text-[10px] text-muted-foreground">اضغط للتفاصيل</div>
             </div>
           </CardContent>
         </Card>
-        {scope === "main" && (
-          <Card
-            className="cursor-pointer hover:border-primary/40 transition-colors"
-            onClick={() => setShowItemsTable((v) => !v)}
-          >
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 rounded-md bg-blue-500/15 text-blue-700 dark:text-blue-300">
-                <Package className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-xs text-muted-foreground">عدد الأصناف</div>
-                <div className="text-xl font-bold">{filtered.length}</div>
-                <div className="text-[10px] text-muted-foreground">{showItemsTable ? "اضغط للإخفاء" : "اضغط لعرض الجدول"}</div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        <Card
+          className="cursor-pointer hover:border-primary/40 transition-colors"
+          onClick={() => setShowItemsTable((v) => !v)}
+        >
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-md bg-blue-500/15 text-blue-700 dark:text-blue-300">
+              <Package className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">عدد الأصناف</div>
+              <div className="text-xl font-bold">{filtered.length}</div>
+              <div className="text-[10px] text-muted-foreground">{showItemsTable ? "اضغط للإخفاء" : "اضغط لعرض الجدول"}</div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
 
-      {(scope !== "main" || showItemsTable) && (
+      {showItemsTable && (
       <Card>
-        {scope === "main" && (
-          <div className="px-4 pt-3 flex justify-end">
-            <Button size="sm" variant="outline" onClick={() => setShowItemsTable(false)}>
-              <X className="w-4 h-4 ml-1" /> إغلاق التفاصيل
-            </Button>
-          </div>
-        )}
+        <div className="px-4 pt-3 flex justify-end">
+          <Button size="sm" variant="outline" onClick={() => setShowItemsTable(false)}>
+            <X className="w-4 h-4 ml-1" /> رجوع للمخزن
+          </Button>
+        </div>
+
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <CardTitle className="flex items-center gap-2">
