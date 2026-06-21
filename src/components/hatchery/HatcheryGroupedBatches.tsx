@@ -732,14 +732,15 @@ function exportGroupExcel(g: any) {
       "النوع": c.type === "internal" ? "عاصمة" : "خارجي",
       "رقم الدفعة": c.batch_number,
       "البيض الوارد": c.total_eggs,
-      "التالف": (raw.received_eggs || 0) - (raw.net_eggs || 0),
+      "المستبعد": (raw.received_eggs || 0) - (raw.net_eggs || 0),
       "الصافي": c.net_eggs,
       "لايح (ك1)": raw.candle1_infertile || 0,
       "مخصب (ك1)": raw.candle1_fertile || 0,
       "نافق كشف 2": raw.candle2_dead || 0,
       "نافق هاتشر": raw.hatcher_dead || 0,
       "الكتاكيت": c.chicks,
-      "نسبة الفقس": pct(c.chicks, c.total_eggs),
+      "نسبة الفقس": pct(c.chicks, c.net_eggs),
+
       "ملاحظات": raw.notes || "",
     };
   });
