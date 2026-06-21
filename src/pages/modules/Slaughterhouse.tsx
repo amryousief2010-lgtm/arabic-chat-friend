@@ -37,6 +37,7 @@ import { SlaughterBatchDialog } from "@/components/slaughterhouse/SlaughterBatch
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import { ProductionDispatchInbox } from "@/components/production/ProductionDispatchInbox";
 import RequestCorrectionDialog from "@/components/corrections/RequestCorrectionDialog";
+import LiveBatchCostsPanel from "@/components/slaughterhouse/LiveBatchCostsPanel";
 
 type Receipt = { id: string; receipt_number: string; receipt_date: string; source_type: string; source_name: string | null; bird_count: number; total_weight_kg: number; avg_weight_kg: number; price_per_kg: number; total_cost: number; dead_on_arrival: number; status: string; };
 type Batch = { id: string; batch_number: string; slaughter_date: string; shift: string; live_receipt_id: string | null; birds_slaughtered: number; total_live_weight_kg: number; total_meat_kg: number; actual_yield_pct: number; cost_per_kg_meat: number; status: string; pre_slaughter_dead: number; rejected_birds: number; };
@@ -1124,6 +1125,7 @@ const Slaughterhouse = () => {
             <TabsTrigger value="workers" className="text-xs md:text-sm whitespace-nowrap">العمال</TabsTrigger>
             <TabsTrigger value="quality" className="text-xs md:text-sm whitespace-nowrap">الجودة</TabsTrigger>
             <TabsTrigger value="audit" className="text-xs md:text-sm whitespace-nowrap gap-1"><History className="w-3 h-3" />التدقيق</TabsTrigger>
+            <TabsTrigger value="live-costs" className="text-xs md:text-sm whitespace-nowrap">تكلفة النعام الجاهز للدبح</TabsTrigger>
             <TabsTrigger value="settings" className="text-xs md:text-sm whitespace-nowrap gap-1"><SettingsIcon className="w-3 h-3" />الإعدادات</TabsTrigger>
           </TabsList>
         </div>
@@ -1804,6 +1806,11 @@ const Slaughterhouse = () => {
         {/* ========== SETTINGS ========== */}
         <TabsContent value="settings">
           <SettingsTab settings={settings} onSave={saveSettings} />
+        </TabsContent>
+
+        {/* ========== LIVE BATCH COSTS ========== */}
+        <TabsContent value="live-costs">
+          <LiveBatchCostsPanel />
         </TabsContent>
       </Tabs>
 
