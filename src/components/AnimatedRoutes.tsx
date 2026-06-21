@@ -56,6 +56,7 @@ const DuplicateOrderApprovals = lazy(() => import("@/pages/DuplicateOrderApprova
 const OrderDetails = lazy(() => import("@/pages/OrderDetails"));
 const Install = lazy(() => import("@/pages/Install"));
 const Auth = lazy(() => import("@/pages/Auth"));
+const Trust = lazy(() => import("@/pages/Trust"));
 const TeamPerformance = lazy(() => import("@/pages/TeamPerformance"));
 const SalesTargets = lazy(() => import("@/pages/SalesTargets"));
 const OfferBoxes = lazy(() => import("@/pages/OfferBoxes"));
