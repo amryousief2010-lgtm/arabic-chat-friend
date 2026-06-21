@@ -20,7 +20,7 @@ import {
 import {
   Beef, TrendingUp, Package, Scale, Plus, AlertTriangle, CheckCircle2,
   Users, ClipboardCheck, Bird, FileSpreadsheet, FileText, Truck, Trash2,
-  Settings as SettingsIcon, History, Save, Search, Printer, ShieldCheck, Pencil,
+  Settings as SettingsIcon, History, Save, Search, Printer, ShieldCheck, Pencil, Calculator,
 } from "lucide-react";
 import companyLogo from "@/assets/company-logo.jpg";
 import { supabase } from "@/integrations/supabase/client";
@@ -1971,7 +1971,23 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
 }) => {
   const { roles } = useAuth();
   const canEditSellPrice = (roles || []).some((r: string) => r === "general_manager" || r === "executive_manager");
-  const batchCostPerKg = Number(batch.cost_per_kg_meat) || 0;
+  const b: any = batch as any;
+  // Total slaughter-batch cost = snapshot of live birds cost at slaughter time + any direct/allocated slaughter cost.
+  // Prefer total_allocatable_cost (set during recompute_slaughter_batch_cost). Fallback to total_birds_cost.
+  const batchTotalCost =
+    Number(b.total_allocatable_cost) ||
+    Number(b.total_birds_cost) ||
+    (Number(b.cost_per_bird_snapshot) || 0) * (Number(batch.birds_slaughtered) || 0) ||
+    0;
+  const storedCostPerKg = Number(batch.cost_per_kg_meat) || 0;
+  // Auto-derive cost/kg when stored = 0 but we have total cost + produced kg
+  const outputsTotalKg = (outputs || []).reduce((s, o: any) => s + (Number(o.actual_weight_kg) || 0), 0);
+  const batchCostPerKg = storedCostPerKg > 0
+    ? storedCostPerKg
+    : (batchTotalCost > 0 && outputsTotalKg > 0 ? batchTotalCost / outputsTotalKg : 0);
+  const [costAuditOpen, setCostAuditOpen] = useState(false);
+
+
 
   // Reconstruct merged rows by (cut_name_ar, branch_id) from split outputs (by quality_status).
   const initial = (() => {
@@ -2209,6 +2225,92 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
           <div className="p-2 bg-amber-500/10 rounded">محجور: <b className="text-amber-600">{totalQuarantined.toFixed(1)} كجم</b></div>
           <div className="p-2 bg-muted/40 rounded">التصافي: <b className={yieldPct < 40 ? "text-red-600" : "text-emerald-600"}>{yieldPct.toFixed(1)}%</b></div>
         </div>
+
+        {/* === Cost-per-kg audit panel === */}
+        {(() => {
+          const computedCostPerKg = totalProduced > 0 ? batchTotalCost / totalProduced : 0;
+          const sumItemsCost = rows.reduce((s, r) => {
+            const w = (Number(r.actual_weight_kg) || 0) + (Number(r.damaged_weight_kg) || 0) + (Number(r.quarantined_weight_kg) || 0);
+            return s + w * (Number(r.unit_cost) || 0);
+          }, 0);
+          const diff = sumItemsCost - batchTotalCost;
+          const balanced = batchTotalCost > 0 && Math.abs(diff) <= Math.max(1, batchTotalCost * 0.01);
+          const costSource =
+            Number(b.total_allocatable_cost) > 0 ? "إجمالي تكلفة موزَّعة (snapshot)" :
+            Number(b.total_birds_cost) > 0 ? "تكلفة النعام المثبتة" :
+            (Number(b.cost_per_bird_snapshot) || 0) > 0 ? "تكلفة النعامة × عدد النعام (snapshot)" :
+            "غير محسوبة";
+          const mismatch = batchTotalCost > 0 && totalProduced > 0 && !balanced;
+          const stale = storedCostPerKg === 0 && computedCostPerKg > 0;
+          return (
+            <div className={`mb-3 border rounded p-3 text-xs space-y-2 ${mismatch ? "bg-red-500/10 border-red-300" : stale ? "bg-amber-500/10 border-amber-300" : "bg-emerald-500/5 border-emerald-200"}`}>
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="font-semibold text-sm flex items-center gap-2">
+                  💰 مراجعة تكلفة الكيلو
+                  {mismatch && <Badge variant="destructive">يوجد فرق في توزيع التكلفة</Badge>}
+                  {stale && <Badge className="bg-amber-600">تكلفة الكيلو المخزَّنة = 0 — تم احتسابها تلقائيًا</Badge>}
+                  {balanced && !stale && <Badge className="bg-emerald-600">متزن</Badge>}
+                </div>
+                <Button size="sm" variant="outline" onClick={() => setCostAuditOpen(true)}>
+                  <Calculator className="w-3 h-3 ml-1" />فحص تكلفة الكيلو
+                </Button>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <div className="p-2 bg-background/60 rounded">إجمالي تكلفة الدفعة: <b>{batchTotalCost.toFixed(2)} ج.م</b></div>
+                <div className="p-2 bg-background/60 rounded">إجمالي كيلو الناتج: <b>{totalProduced.toFixed(2)} كجم</b></div>
+                <div className="p-2 bg-background/60 rounded">تكلفة الكيلو المحسوبة: <b className="text-primary">{computedCostPerKg.toFixed(2)} ج.م/كجم</b></div>
+                <div className="p-2 bg-background/60 rounded">تكلفة الكيلو المخزَّنة: <b>{storedCostPerKg.toFixed(2)} ج.م/كجم</b></div>
+                <div className="p-2 bg-background/60 rounded">عدد النعام: <b>{batch.birds_slaughtered}</b></div>
+                <div className="p-2 bg-background/60 rounded">تاريخ الذبح: <b>{batch.slaughter_date}</b></div>
+                <div className="p-2 bg-background/60 rounded col-span-2">مصدر التكلفة: <b>{costSource}</b></div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Cost audit diagnostic dialog */}
+        <Dialog open={costAuditOpen} onOpenChange={setCostAuditOpen}>
+          <DialogContent dir="rtl" className="max-w-2xl">
+            <DialogHeader><DialogTitle>تقرير فحص تكلفة الكيلو — {batch.batch_number}</DialogTitle></DialogHeader>
+            {(() => {
+              const computed = totalProduced > 0 ? batchTotalCost / totalProduced : 0;
+              const sumItemsCost = rows.reduce((s, r) => {
+                const w = (Number(r.actual_weight_kg) || 0) + (Number(r.damaged_weight_kg) || 0) + (Number(r.quarantined_weight_kg) || 0);
+                return s + w * (Number(r.unit_cost) || 0);
+              }, 0);
+              const diff = sumItemsCost - batchTotalCost;
+              const balanced = batchTotalCost > 0 && Math.abs(diff) <= Math.max(1, batchTotalCost * 0.01);
+              return (
+                <div className="space-y-2 text-sm" dir="rtl">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="p-2 bg-muted/40 rounded">رقم دفعة الذبح: <b>{batch.batch_number}</b></div>
+                    <div className="p-2 bg-muted/40 rounded">تاريخ الذبح: <b>{batch.slaughter_date}</b></div>
+                    <div className="p-2 bg-muted/40 rounded">عدد النعام: <b>{batch.birds_slaughtered}</b></div>
+                    <div className="p-2 bg-muted/40 rounded">إجمالي تكلفة الدفعة: <b>{batchTotalCost.toFixed(2)} ج.م</b></div>
+                    <div className="p-2 bg-muted/40 rounded">إجمالي كيلو الناتج: <b>{totalProduced.toFixed(2)} كجم</b></div>
+                    <div className="p-2 bg-emerald-500/10 rounded">تكلفة الكيلو المحسوبة: <b>{computed.toFixed(2)} ج.م/كجم</b></div>
+                    <div className="p-2 bg-muted/40 rounded">تكلفة الكيلو المخزَّنة: <b>{storedCostPerKg.toFixed(2)} ج.م/كجم</b></div>
+                    <div className="p-2 bg-muted/40 rounded">مجموع تكلفة الأصناف: <b>{sumItemsCost.toFixed(2)} ج.م</b></div>
+                    <div className={`p-2 rounded col-span-2 ${balanced ? "bg-emerald-500/10" : "bg-red-500/10"}`}>
+                      الفرق (مجموع الأصناف − إجمالي الدفعة): <b className={balanced ? "text-emerald-700" : "text-red-700"}>{diff.toFixed(2)} ج.م</b>
+                      {" — "}
+                      {batchTotalCost === 0 ? <span className="text-muted-foreground">لا توجد تكلفة دفعة مثبتة</span>
+                        : balanced ? <span className="text-emerald-700">الحساب متزن ✓</span>
+                        : <span className="text-red-700">غير متزن — راجع توزيع unit_cost على الأصناف</span>}
+                    </div>
+                  </div>
+                  <div className="text-xs text-muted-foreground border-t pt-2">
+                    المعادلة: تكلفة الكيلو = إجمالي تكلفة الدفعة ÷ إجمالي كيلو الناتج.
+                    مصدر تكلفة الدفعة: snapshot النعام الحي وقت الذبح + تكلفة الذبح المباشرة + التكاليف الموزَّعة. لا يُستخدم cost_per_bird_current الحالي.
+                  </div>
+                </div>
+              );
+            })()}
+            <DialogFooter><Button variant="outline" onClick={() => setCostAuditOpen(false)}>إغلاق</Button></DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+
 
         {/* Yield breakdown panel */}
         <div className="mb-3 border rounded p-3 bg-muted/20 text-xs space-y-2">
