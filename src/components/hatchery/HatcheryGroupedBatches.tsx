@@ -615,7 +615,8 @@ const GroupDetailDialog = ({ group, stageMeta, onClose, onOpenResults, onRefresh
               {group.customers.map((c: any) => {
                 const raw = c._raw || {};
                 const damaged = (raw.received_eggs || 0) - (raw.net_eggs || 0);
-                const rate = pct(c.chicks, c.total_eggs);
+                const rate = pct(c.chicks, c.net_eggs);
+
                 const charge = raw.charge_total ?? "—";
                 return (
                   <TableRow key={c.id}>
