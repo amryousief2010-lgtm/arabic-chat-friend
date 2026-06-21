@@ -377,7 +377,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
 
 
   // خلية الرصيد الفعلي (قابلة للتعديل) — تعرض عدد العبوات والكيلو
-  const ActualCell = ({ wh, pid, name, kgValue }: { wh: "agouza" | "main"; pid: string; name: string; kgValue: number }) => {
+  const ActualCell = ({ wh, pid, name, kgValue }: { wh: SingleWh; pid: string; name: string; kgValue: number }) => {
     const per = kgPerPackage(name) || 0.5;
     const key = `${wh}:${pid}`;
     const isEditing = editingKey === key;
