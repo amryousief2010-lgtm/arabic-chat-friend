@@ -38,6 +38,7 @@ const OrderStatusAudit = lazy(() => import("@/pages/OrderStatusAudit"));
 const SendMessage = lazy(() => import("@/pages/SendMessage"));
 const FinancialReports = lazy(() => import("@/pages/FinancialReports"));
 const DepartmentMonthlyBudget = lazy(() => import("@/pages/modules/DepartmentMonthlyBudget"));
+const DepartmentsStatus = lazy(() => import("@/pages/modules/DepartmentsStatus"));
 const InternalPricesSettings = lazy(() => import("@/pages/modules/InternalPricesSettings"));
 const Orders = lazy(() => import("@/pages/Orders"));
 const Customers = lazy(() => import("@/pages/Customers"));
@@ -680,6 +681,11 @@ const AnimatedRoutes = () => {
           <Route path="/modules/department-monthly-budget" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant', 'financial_manager']}>
               <PageTransition><DepartmentMonthlyBudget /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/modules/departments-status" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant', 'financial_manager']}>
+              <PageTransition><DepartmentsStatus /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/modules/internal-prices-settings" element={
