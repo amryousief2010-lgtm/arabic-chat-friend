@@ -72,6 +72,7 @@ const WarehouseDetail = () => {
 
   // Slaughter-batch grouped movements dialog
   const [slaughterDialog, setSlaughterDialog] = useState<string | null>(null); // reference key
+  const [manualDialog, setManualDialog] = useState<string | null>(null); // MAN-IN/MAN-OUT reference key
   const [editQtyMap, setEditQtyMap] = useState<Record<string, number>>({});
   const [addItemId, setAddItemId] = useState<string>("");
   const [addItemQty, setAddItemQty] = useState<number>(0);
