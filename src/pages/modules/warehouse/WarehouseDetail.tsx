@@ -279,15 +279,22 @@ const WarehouseDetail = () => {
   const groupedMovements = useMemo(() => {
     type Row =
       | { kind: "single"; mov: any }
-      | { kind: "slaughter"; reference: string; batchNo: string; date: string; movs: any[]; totalQty: number };
+      | { kind: "slaughter"; reference: string; batchNo: string; date: string; movs: any[]; totalQty: number }
+      | { kind: "manual"; reference: string; direction: "in" | "out"; date: string; movs: any[]; totalQty: number };
     const slaughterMap = new Map<string, any[]>();
+    const manualMap = new Map<string, any[]>();
     const others: any[] = [];
     movements.forEach((m: any) => {
-      const isSlaughter = (m.party === "المجزر") && SLAUGHTER_REF_RE.test(m.reference || "");
+      const ref = m.reference || "";
+      const isSlaughter = (m.party === "المجزر") && SLAUGHTER_REF_RE.test(ref);
+      const isManualIn = /^MAN-IN-\d{8}-\d{4}$/.test(ref) && m.reference_type === "manual_addition";
+      const isManualOut = /^MAN-OUT-\d{8}-\d{4}$/.test(ref) && m.reference_type === "manual_out";
       if (isSlaughter) {
-        const key = m.reference;
-        if (!slaughterMap.has(key)) slaughterMap.set(key, []);
-        slaughterMap.get(key)!.push(m);
+        if (!slaughterMap.has(ref)) slaughterMap.set(ref, []);
+        slaughterMap.get(ref)!.push(m);
+      } else if (isManualIn || isManualOut) {
+        if (!manualMap.has(ref)) manualMap.set(ref, []);
+        manualMap.get(ref)!.push(m);
       } else {
         others.push(m);
       }
@@ -304,6 +311,16 @@ const WarehouseDetail = () => {
         totalQty: movs.reduce((s, x) => s + Number(x.quantity || 0), 0),
       });
     });
+    manualMap.forEach((movs, ref) => {
+      rows.push({
+        kind: "manual",
+        reference: ref,
+        direction: ref.startsWith("MAN-IN") ? "in" : "out",
+        date: movs[0]?.performed_at,
+        movs,
+        totalQty: movs.reduce((s, x) => s + Number(x.quantity || 0), 0),
+      });
+    });
     rows.sort((a, b) => {
       const da = a.kind === "single" ? a.mov.performed_at : a.date;
       const db = b.kind === "single" ? b.mov.performed_at : b.date;
@@ -315,6 +332,11 @@ const WarehouseDetail = () => {
   const slaughterGroup = useMemo(
     () => groupedMovements.find(r => r.kind === "slaughter" && r.reference === slaughterDialog),
     [groupedMovements, slaughterDialog]
+  ) as any;
+
+  const manualGroup = useMemo(
+    () => groupedMovements.find(r => r.kind === "manual" && r.reference === manualDialog),
+    [groupedMovements, manualDialog]
   ) as any;
 
   // الفلترة بالسنة/الشهر + التجميع للعرض
