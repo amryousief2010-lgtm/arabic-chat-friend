@@ -25,8 +25,8 @@ const SUPPLY_TYPES = ["مجزر","مصنع","فرع","هايبر","مندوب","
 const DISPATCH_TYPES = ["فرع","هايبر","مندوب","عميل","تالف / هالك","استخدام داخلي","أخرى"];
 
 const AddManualPartyDialog = ({ open, onOpenChange, kind, onCreated }: Props) => {
-  const { user, isGeneralManager, isExecutiveManager, hasRole } = useAuth() as any;
-  const allowed = isGeneralManager || isExecutiveManager || hasRole?.("warehouse_supervisor");
+  const { user, isGeneralManager, isExecutiveManager, isWarehouseSupervisor } = useAuth() as any;
+  const allowed = isGeneralManager || isExecutiveManager || isWarehouseSupervisor;
   const types = kind === "supply" ? SUPPLY_TYPES : DISPATCH_TYPES;
 
   const [name, setName] = useState("");
