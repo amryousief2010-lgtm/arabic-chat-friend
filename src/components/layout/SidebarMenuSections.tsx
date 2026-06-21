@@ -87,6 +87,7 @@ export const moduleSections: ModuleSection[] = [
     items: [
       { icon: BookOpen, label: "دليل الموظف السريع", path: "/quick-guide", roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'accountant', 'warehouse_supervisor', 'production_manager', 'marketing_sales_manager', 'financial_manager', 'quality_manager', 'farm_manager', 'hatchery_manager', 'brooding_manager', 'slaughterhouse_manager', 'meat_factory_manager', 'feed_factory_manager', 'hr_manager', 'shipping_company', 'private_delivery_rep'] },
       { icon: TrendingUp, label: "لوحة تحكم المدير التنفيذي", path: "/executive-dashboard", roles: ['general_manager', 'executive_manager'] },
+      { icon: ShieldCheck, label: "مركز الاعتمادات", path: "/approvals-center", roles: ['general_manager', 'executive_manager'] },
       { icon: BookOpen, label: "دليل تشغيل الموظفين", path: "/operations-guide", roles: ['general_manager', 'executive_manager', 'hatchery_manager', 'farm_manager', 'brooding_manager', 'feed_factory_manager', 'meat_factory_manager', 'warehouse_supervisor', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'production_manager'] },
       { icon: LayoutDashboard, label: "لوحة التحكم", path: "/", roles: ['general_manager', 'executive_manager', 'marketing_sales_manager', 'financial_manager', 'production_manager'] },
       // مخفي من السايد بار فقط - الرابط والصفحة والصلاحيات تعمل عند الفتح المباشر
