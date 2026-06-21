@@ -74,6 +74,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
   const [mainLastMove, setMainLastMove] = useState<Record<string, string>>({});
   const [cardDialog, setCardDialog] = useState<null | "withStock" | "overReserved">(null);
   const [cardSearch, setCardSearch] = useState("");
+  const [showItemsTable, setShowItemsTable] = useState(false);
 
 
   const fetchAll = async () => {
