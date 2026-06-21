@@ -21,12 +21,15 @@ interface Props {
   search: string;
   onSearch: (s: string) => void;
   onOpenReserved: (productId: string, name: string, total: number) => void;
+  warehouseName?: string;
 }
 
 export default function MainCardDialog({
   mode, onClose, products, mainStock, mainPending, mainCost, mainSku, mainLastMove,
-  search, onSearch, onOpenReserved,
+  search, onSearch, onOpenReserved, warehouseName,
 }: Props) {
+  const whLabel = warehouseName || "المخزن الرئيسي";
+
   const rows = useMemo(() => {
     const base = products.map((p) => {
       const actual = Number(mainStock[p.id] || 0);
