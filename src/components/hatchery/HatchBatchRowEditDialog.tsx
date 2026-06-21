@@ -45,11 +45,24 @@ export default function HatchBatchRowEditDialog({ row, customerName, onClose, on
     () => roles.some((r) => (ALLOWED_ROLES as readonly string[]).includes(r)),
     [roles]
   );
-  const [form, setForm] = useState<any>(() => ({ ...row }));
+  const [form, setForm] = useState<any>(() => ({
+    ...row,
+    excluded_eggs: Math.max(0, (row.received_eggs || 0) - (row.net_eggs || 0)),
+  }));
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const set = (k: string, v: any) => setForm((p: any) => ({ ...p, [k]: v }));
+  const set = (k: string, v: any) => setForm((p: any) => {
+    const next = { ...p, [k]: v };
+    // Auto-sync net_eggs = received_eggs - excluded_eggs
+    if (k === "received_eggs" || k === "excluded_eggs") {
+      const rec = Number(k === "received_eggs" ? v : next.received_eggs) || 0;
+      const exc = Math.max(0, Number(k === "excluded_eggs" ? v : next.excluded_eggs) || 0);
+      next.net_eggs = Math.max(0, rec - exc);
+    }
+    return next;
+  });
+
 
   const buildChanges = () => {
     const changes: Record<string, { before: any; after: any; critical?: boolean }> = {};
