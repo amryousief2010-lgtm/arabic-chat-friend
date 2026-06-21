@@ -147,8 +147,70 @@ export default function WarehouseReceiptsTab() {
   const [itemSearch, setItemSearch] = useState("");
 
   const [detail, setDetail] = useState<ReceiptRow | null>(null);
+  const [editTarget, setEditTarget] = useState<ReceiptRow | null>(null);
+  const [editNotes, setEditNotes] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<ReceiptRow | null>(null);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => { void loadAll(); }, []);
+
+  function openEdit(r: ReceiptRow) {
+    setEditTarget(r);
+    setEditNotes(r.notes || "");
+  }
+
+  async function saveEdit() {
+    if (!editTarget) return;
+    setBusy(true);
+    try {
+      const table = editTarget.kind === "internal" ? "warehouse_transfers"
+        : editTarget.kind === "meat_factory" ? "meat_production_transfers"
+        : editTarget.kind === "slaughter" ? "slaughter_batches"
+        : null;
+      if (!table) {
+        toast.error("هذا النوع غير قابل للتعديل من هنا");
+        return;
+      }
+      const { error } = await supabase.from(table as any).update({ notes: editNotes }).eq("id", editTarget.id);
+      if (error) throw error;
+      toast.success("تم تحديث الملاحظات");
+      setEditTarget(null);
+      await loadAll();
+    } catch (e: any) {
+      toast.error(e?.message || "تعذّر التحديث");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    // Safety: any receipt that has been received affects stock — block destructive delete.
+    if (deleteTarget.status === "received" || deleteTarget.status === "partial") {
+      toast.error("لا يمكن الحذف — هذا الاستلام مرتبط بحركة مخزون. استخدم سجل المخزون لعمل تسوية عكسية.");
+      setDeleteTarget(null);
+      return;
+    }
+    setBusy(true);
+    try {
+      const table = deleteTarget.kind === "internal" ? "warehouse_transfers"
+        : deleteTarget.kind === "meat_factory" ? "meat_production_transfers"
+        : null;
+      if (!table) {
+        toast.error("هذا النوع غير قابل للحذف من هنا");
+        return;
+      }
+      const { error } = await supabase.from(table as any).delete().eq("id", deleteTarget.id);
+      if (error) throw error;
+      toast.success("تم الحذف");
+      setDeleteTarget(null);
+      await loadAll();
+    } catch (e: any) {
+      toast.error(e?.message || "تعذّر الحذف");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function loadAll() {
     setLoading(true);
