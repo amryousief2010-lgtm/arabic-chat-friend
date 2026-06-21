@@ -271,18 +271,8 @@ export const moduleSections: ModuleSection[] = [
     items: [
       // نظرة عامة للمبيعات (قراءة فقط للمتاح)
       { icon: Warehouse, label: "المتاح في المخازن", path: "/warehouse-stock", roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'warehouse_supervisor'] },
-      // المخازن الأساسية — كل مخزن مستقل، كل موظف يرى مخزنه فقط
-      { icon: Warehouse, label: "المخزن الرئيسي", path: "/warehouse-stock/main", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'], group: "إدارة المخازن" },
-      { icon: Activity, label: "سجل حركات المخزن الرئيسي", path: "/main-warehouse-activity", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'] },
-      { icon: Warehouse, label: "مخزن العجوزة", path: "/warehouse-stock/agouza", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper'], group: "إدارة المخازن" },
-      { icon: Package, label: "مخزن التغليف والتعبئة", path: "/modules/packaging", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'meat_factory_manager', 'slaughterhouse_manager', 'production_manager'] },
-      // مخازن العملاء — للإدارة وأمناء المخازن فقط
-      { icon: Warehouse, label: "هايبر هيلثي تيست", path: "/warehouse-stock/hyper-healthy-test", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'], group: "إدارة المخازن" },
-      { icon: Warehouse, label: "هايبر كارفور", path: "/warehouse-stock/hyper-carrefour", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'], group: "إدارة المخازن" },
-      { icon: MapPin, label: "المخازن حسب الموقع الجغرافي", path: "/modules/warehouses/by-location", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager', 'agouza_warehouse_keeper', 'meat_factory_manager', 'feed_factory_manager', 'slaughterhouse_manager'] },
-      { icon: CalendarClock, label: "تواريخ بداية التشغيل الفعلي", path: "/modules/warehouses/operational-dates", roles: ['general_manager', 'executive_manager'] },
-      { icon: Package, label: "الرصيد الافتتاحي للمخازن", path: "/modules/warehouses/opening-balance", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'] },
-      { icon: BookOpen, label: "دليل تشغيل المخزن الرئيسي", path: "/warehouse-stock/main/guide", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper'] },
+      // مركز إدارة المخازن الموحّد — يجمع كل صفحات المخازن في داش بورد واحد
+      { icon: Warehouse, label: "إدارة المخازن", path: "/modules/warehouses/management-hub", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper', 'production_manager', 'quality_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'meat_factory_manager', 'feed_factory_manager', 'slaughterhouse_manager', 'accountant', 'financial_manager'] },
       { icon: ArrowLeftRight, label: "التحويلات المعلقة", path: "/modules/warehouses/pending-transfers", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper'] },
       { icon: BarChart3, label: "تقارير المخازن", path: "/modules/warehouses/reports", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'accountant', 'financial_manager'] },
       { icon: Wallet, label: "تحصيل المندوب الخاص", path: "/private-delivery-collection", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'accountant', 'financial_manager'] },
