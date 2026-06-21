@@ -96,7 +96,9 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
   const [agouzaSku, setAgouzaSku] = useState<Record<string, string>>({});
   const [agouzaLastMove, setAgouzaLastMove] = useState<Record<string, string>>({});
   const [agouzaLowThreshold, setAgouzaLowThreshold] = useState<Record<string, number>>({});
-  const [cardDialog, setCardDialog] = useState<null | "withStock" | "overReserved" | "lowStock" | "items" | "value" | "lastMove">(null);
+  const [cardDialog, setCardDialog] = useState<null | "withStock" | "overReserved">(null);
+  // Additional drill-down filters (open the items table filtered to subset)
+  const [tableFilter, setTableFilter] = useState<null | "all" | "withStock" | "lowStock" | "overReserved">(null);
   const [cardSearch, setCardSearch] = useState("");
   const [showItemsTable, setShowItemsTable] = useState(false);
 
