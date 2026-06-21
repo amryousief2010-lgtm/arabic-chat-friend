@@ -1987,6 +1987,59 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
     : (batchTotalCost > 0 && outputsTotalKg > 0 ? batchTotalCost / outputsTotalKg : 0);
   const [costAuditOpen, setCostAuditOpen] = useState(false);
 
+  // Breakdown of batch cost by component (purchase / feed / mortality / other)
+  // Computed proportionally per-source from slaughter_batch_live_sources + slaughter_live_receipts.
+  const [costBreakdown, setCostBreakdown] = useState<{
+    purchase: number; feed: number; mortality: number; other: number; total: number;
+    sources: Array<{ receipt_number: string; birds: number; per_bird: number; purchase: number; feed: number; mortality: number; other: number; total: number; }>;
+  }>({ purchase: 0, feed: 0, mortality: 0, other: 0, total: 0, sources: [] });
+
+  useEffect(() => {
+    (async () => {
+      const { data: srcs } = await supabase
+        .from("slaughter_batch_live_sources" as any)
+        .select("live_receipt_id,birds_count,cost_per_bird_snapshot,total_birds_cost")
+        .eq("slaughter_batch_id", batchId);
+      let sources: any[] = (srcs as any[]) || [];
+      // back-compat: single live_receipt_id on batch
+      if (!sources.length && (batch as any).live_receipt_id) {
+        sources = [{
+          live_receipt_id: (batch as any).live_receipt_id,
+          birds_count: Number(batch.birds_slaughtered) || 0,
+          cost_per_bird_snapshot: Number((batch as any).cost_per_bird_snapshot) || 0,
+          total_birds_cost: Number((batch as any).total_birds_cost) || 0,
+        }];
+      }
+      if (!sources.length) return;
+      const ids = Array.from(new Set(sources.map(s => s.live_receipt_id).filter(Boolean)));
+      const { data: receipts } = await supabase
+        .from("slaughter_live_receipts" as any)
+        .select("id,receipt_number,bird_count,current_alive_count,total_cost,feed_cost_loaded,mortality_cost_loaded,other_costs_loaded,total_batch_cost")
+        .in("id", ids);
+      const rMap = new Map<string, any>((receipts as any[] || []).map(r => [r.id, r]));
+      let purchase = 0, feed = 0, mortality = 0, other = 0, total = 0;
+      const sourceRows: any[] = [];
+      for (const s of sources) {
+        const r = rMap.get(s.live_receipt_id);
+        if (!r) continue;
+        const denom = Number(r.bird_count) || Number(r.current_alive_count) || 0;
+        const birds = Number(s.birds_count) || 0;
+        if (denom <= 0 || birds <= 0) continue;
+        const sharePurchase = (Number(r.total_cost) || 0) * birds / denom;
+        const shareFeed = (Number(r.feed_cost_loaded) || 0) * birds / denom;
+        const shareMort = (Number(r.mortality_cost_loaded) || 0) * birds / denom;
+        const shareOther = (Number(r.other_costs_loaded) || 0) * birds / denom;
+        const subTotal = sharePurchase + shareFeed + shareMort + shareOther;
+        purchase += sharePurchase; feed += shareFeed; mortality += shareMort; other += shareOther; total += subTotal;
+        sourceRows.push({
+          receipt_number: r.receipt_number, birds, per_bird: birds > 0 ? subTotal / birds : 0,
+          purchase: sharePurchase, feed: shareFeed, mortality: shareMort, other: shareOther, total: subTotal,
+        });
+      }
+      setCostBreakdown({ purchase, feed, mortality, other, total, sources: sourceRows });
+    })();
+  }, [batchId, batch]);
+
 
 
   // Reconstruct merged rows by (cut_name_ar, branch_id) from split outputs (by quality_status).
@@ -2299,9 +2352,66 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
                         : <span className="text-red-700">غير متزن — راجع توزيع unit_cost على الأصناف</span>}
                     </div>
                   </div>
+                  {/* === Breakdown by cost component (محسوبة بالعلف وبالنافق) === */}
+                  {costBreakdown.total > 0 && (
+                    <div className="border-t pt-2">
+                      <div className="font-semibold mb-1">تفصيل تكلفة الدفعة حسب المكوّن:</div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <div className="p-2 bg-blue-500/10 rounded">شراء النعام: <b>{costBreakdown.purchase.toFixed(2)} ج.م</b></div>
+                        <div className="p-2 bg-amber-500/10 rounded">العلف المحمَّل: <b>{costBreakdown.feed.toFixed(2)} ج.م</b></div>
+                        <div className="p-2 bg-red-500/10 rounded">النافق المحمَّل: <b>{costBreakdown.mortality.toFixed(2)} ج.م</b></div>
+                        <div className="p-2 bg-muted/40 rounded">تكاليف أخرى: <b>{costBreakdown.other.toFixed(2)} ج.م</b></div>
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        <div className="p-2 bg-emerald-500/10 rounded">
+                          تكلفة الكيلو (بدون علف/نافق): <b>{totalProduced > 0 ? (costBreakdown.purchase / totalProduced).toFixed(2) : "0.00"} ج.م/كجم</b>
+                        </div>
+                        <div className="p-2 bg-emerald-500/10 rounded">
+                          تكلفة الكيلو (بالعلف فقط): <b>{totalProduced > 0 ? ((costBreakdown.purchase + costBreakdown.feed) / totalProduced).toFixed(2) : "0.00"} ج.م/كجم</b>
+                        </div>
+                        <div className="p-2 bg-emerald-500/10 rounded">
+                          تكلفة الكيلو (بالنافق فقط): <b>{totalProduced > 0 ? ((costBreakdown.purchase + costBreakdown.mortality) / totalProduced).toFixed(2) : "0.00"} ج.م/كجم</b>
+                        </div>
+                        <div className="p-2 bg-emerald-600/20 rounded">
+                          تكلفة الكيلو (بالعلف + النافق + أخرى): <b>{totalProduced > 0 ? (costBreakdown.total / totalProduced).toFixed(2) : "0.00"} ج.م/كجم</b>
+                        </div>
+                      </div>
+                      {costBreakdown.sources.length > 1 && (
+                        <div className="mt-2">
+                          <div className="text-muted-foreground mb-1">تفصيل لكل دفعة استلام مساهمة:</div>
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="text-right">رقم الإستلام</TableHead>
+                                <TableHead className="text-right">عدد النعام</TableHead>
+                                <TableHead className="text-right">شراء</TableHead>
+                                <TableHead className="text-right">علف</TableHead>
+                                <TableHead className="text-right">نافق</TableHead>
+                                <TableHead className="text-right">أخرى</TableHead>
+                                <TableHead className="text-right">إجمالي</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {costBreakdown.sources.map((s, i) => (
+                                <TableRow key={i}>
+                                  <TableCell>{s.receipt_number}</TableCell>
+                                  <TableCell>{s.birds}</TableCell>
+                                  <TableCell>{s.purchase.toFixed(2)}</TableCell>
+                                  <TableCell>{s.feed.toFixed(2)}</TableCell>
+                                  <TableCell>{s.mortality.toFixed(2)}</TableCell>
+                                  <TableCell>{s.other.toFixed(2)}</TableCell>
+                                  <TableCell><b>{s.total.toFixed(2)}</b></TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <div className="text-xs text-muted-foreground border-t pt-2">
                     المعادلة: تكلفة الكيلو = إجمالي تكلفة الدفعة ÷ إجمالي كيلو الناتج.
-                    مصدر تكلفة الدفعة: snapshot النعام الحي وقت الذبح + تكلفة الذبح المباشرة + التكاليف الموزَّعة. لا يُستخدم cost_per_bird_current الحالي.
+                    مصدر تكلفة الدفعة: snapshot النعام الحي وقت الذبح (شراء + علف محمَّل + نافق محمَّل + أخرى) + تكلفة الذبح المباشرة. لا يُستخدم cost_per_bird_current الحالي.
                   </div>
                 </div>
               );
