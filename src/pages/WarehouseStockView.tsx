@@ -67,21 +67,39 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
   const [mainWhId, setMainWhId] = useState<string | null>(null);
   const [agouzaPending, setAgouzaPending] = useState<Record<string, number>>({});
   const [mainPending, setMainPending] = useState<Record<string, number>>({});
+
+  // Generic per-scope maps for carrefour/healthy (and could grow)
+  // Each map is: scopeKey -> productId -> value
+  const [extraWhIds, setExtraWhIds] = useState<Record<string, string | null>>({ carrefour: null, healthy: null });
+  const [extraStock, setExtraStock] = useState<Record<string, Record<string, number>>>({ carrefour: {}, healthy: {} });
+  const [extraItemIds, setExtraItemIds] = useState<Record<string, Record<string, string>>>({ carrefour: {}, healthy: {} });
+  const [extraPending, setExtraPending] = useState<Record<string, Record<string, number>>>({ carrefour: {}, healthy: {} });
+  const [extraCost, setExtraCost] = useState<Record<string, Record<string, number>>>({ carrefour: {}, healthy: {} });
+  const [extraSku, setExtraSku] = useState<Record<string, Record<string, string>>>({ carrefour: {}, healthy: {} });
+  const [extraLastMove, setExtraLastMove] = useState<Record<string, Record<string, string>>>({ carrefour: {}, healthy: {} });
+  const [extraLowThreshold, setExtraLowThreshold] = useState<Record<string, Record<string, number>>>({ carrefour: {}, healthy: {} });
+
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [mainOpeningAt, setMainOpeningAt] = useState<string | null>(null);
-  const [reservedDlg, setReservedDlg] = useState<{ wh: "agouza" | "main"; productId: string; productName: string; total: number } | null>(null);
+  const [reservedDlg, setReservedDlg] = useState<{ wh: "agouza" | "main" | "carrefour" | "healthy"; productId: string; productName: string; total: number } | null>(null);
   const [manualAddOpen, setManualAddOpen] = useState(false);
   const [manualOutOpen, setManualOutOpen] = useState(false);
   const [mainCost, setMainCost] = useState<Record<string, number>>({});
   const [mainSku, setMainSku] = useState<Record<string, string>>({});
   const [mainLastMove, setMainLastMove] = useState<Record<string, string>>({});
-  const [cardDialog, setCardDialog] = useState<null | "withStock" | "overReserved">(null);
+  const [mainLowThreshold, setMainLowThreshold] = useState<Record<string, number>>({});
+  const [agouzaCost, setAgouzaCost] = useState<Record<string, number>>({});
+  const [agouzaSku, setAgouzaSku] = useState<Record<string, string>>({});
+  const [agouzaLastMove, setAgouzaLastMove] = useState<Record<string, string>>({});
+  const [agouzaLowThreshold, setAgouzaLowThreshold] = useState<Record<string, number>>({});
+  const [cardDialog, setCardDialog] = useState<null | "withStock" | "overReserved" | "lowStock" | "items" | "value" | "lastMove">(null);
   const [cardSearch, setCardSearch] = useState("");
   const [showItemsTable, setShowItemsTable] = useState(false);
+
 
 
   const fetchAll = async () => {
