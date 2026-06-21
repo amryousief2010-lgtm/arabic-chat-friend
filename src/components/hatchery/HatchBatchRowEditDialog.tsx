@@ -72,9 +72,12 @@ export default function HatchBatchRowEditDialog({ row, customerName, onClose, on
       { key: "machine", label: "الماكينة", critical: false },
       { key: "status", label: "الحالة", critical: true },
       { key: "notes", label: "ملاحظات", critical: false },
+      { key: "excluded_reason", label: "سبب الاستبعاد", critical: false },
     ];
     for (const f of all) {
-      const before = row[f.key] ?? null;
+      const before = f.key === "excluded_eggs"
+        ? Math.max(0, (row.received_eggs || 0) - (row.net_eggs || 0))
+        : (row[f.key] ?? null);
       let after = form[f.key];
       if (after === "") after = null;
       // normalize numbers
@@ -85,6 +88,7 @@ export default function HatchBatchRowEditDialog({ row, customerName, onClose, on
     }
     return changes;
   };
+
 
   const changes = useMemo(buildChanges, [form, row]);
   const hasCritical = Object.values(changes).some((c) => c.critical);
