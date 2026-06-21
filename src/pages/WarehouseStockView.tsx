@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, RefreshCw, Warehouse, Printer, Pencil, Check, X, ArrowLeftRight, AlertTriangle, PackageCheck, Lock, PackagePlus, PackageMinus } from "lucide-react";
+import { Search, RefreshCw, Warehouse, Printer, Pencil, Check, X, ArrowLeftRight, AlertTriangle, PackageCheck, Lock, PackagePlus, PackageMinus, Package } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { printWarehouseStock } from "@/lib/printUtils";
 import { useAuth } from "@/hooks/useAuth";
