@@ -984,26 +984,82 @@ const Warehouses = () => {
                 wh: findByPatterns([/رئيسي/, /main/i]) },
             ] as const;
 
-            return TABS.map((t) => (
-              <TabsContent key={t.value} value={t.value} className="space-y-4">
-                {t.value !== "wh-activity" && (
-                  <WarehouseKpisBlock
-                    warehouseId={t.wh?.id}
-                    warehouseName={t.label}
-                    items={items}
-                    movements={movements}
-                  />
-                )}
-                <div className="rounded-lg border border-border bg-card overflow-hidden">
-                  <iframe
-                    src={`${t.path}?embed=1`}
-                    title={t.value}
-                    className="w-full"
-                    style={{ height: "calc(100vh - 260px)", minHeight: "600px", border: "none" }}
-                  />
-                </div>
-              </TabsContent>
-            ));
+            return TABS.map((t) => {
+              // Per-tab items list locked to this warehouse only (no dropdown).
+              // For Main Warehouse, also exclude meat-factory / feed / packaging
+              // categories even if mis-assigned in DB.
+              const tabItems = t.wh
+                ? items
+                    .filter((i) => i.warehouse_id === t.wh!.id)
+                    .filter((i) =>
+                      t.value === "wh-main"
+                        ? !isMainWarehouseExcludedCategory((i as any).category)
+                        : true
+                    )
+                : [];
+              return (
+                <TabsContent key={t.value} value={t.value} className="space-y-4">
+                  {t.value !== "wh-activity" && (
+                    <WarehouseKpisBlock
+                      warehouseId={t.wh?.id}
+                      warehouseName={t.label}
+                      items={items}
+                      movements={movements}
+                    />
+                  )}
+                  {t.value !== "wh-activity" && t.wh && (
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <Package className="w-4 h-4 text-primary" />
+                          أصناف {t.label}
+                          <Badge variant="outline">{tabItems.length}</Badge>
+                        </CardTitle>
+                        <CardDescription>عرض مقصور على هذا المخزن فقط</CardDescription>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        <div className="overflow-x-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>الصنف</TableHead>
+                                <TableHead>الفئة</TableHead>
+                                <TableHead>الرصيد</TableHead>
+                                <TableHead>الوحدة</TableHead>
+                                <TableHead>الحد الأدنى</TableHead>
+                                <TableHead>التكلفة</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {tabItems.length === 0 ? (
+                                <TableRow><TableCell colSpan={6} className="text-center py-6 text-muted-foreground">لا توجد أصناف لهذا المخزن</TableCell></TableRow>
+                              ) : tabItems.map((it) => (
+                                <TableRow key={it.id} className={it.stock <= it.low_stock_threshold ? "bg-destructive/5" : ""}>
+                                  <TableCell className="font-medium">{it.name}{it.sku && <span className="text-xs text-muted-foreground mr-1">({it.sku})</span>}</TableCell>
+                                  <TableCell className="text-sm text-muted-foreground">{(it as any).category || "—"}</TableCell>
+                                  <TableCell className={it.stock <= it.low_stock_threshold ? "text-destructive font-bold" : ""}>{it.stock}</TableCell>
+                                  <TableCell>{it.unit}</TableCell>
+                                  <TableCell>{it.low_stock_threshold}</TableCell>
+                                  <TableCell>{Number(it.unit_cost || 0).toFixed(2)}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                  <div className="rounded-lg border border-border bg-card overflow-hidden">
+                    <iframe
+                      src={`${t.path}?embed=1`}
+                      title={t.value}
+                      className="w-full"
+                      style={{ height: "calc(100vh - 260px)", minHeight: "600px", border: "none" }}
+                    />
+                  </div>
+                </TabsContent>
+              );
+            });
           })()}
 
           {/* RESTAURANT MENU tab (products & prices from PDF) */}
