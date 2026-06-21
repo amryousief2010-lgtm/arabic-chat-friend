@@ -152,8 +152,9 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr, sortOrder = "asc", 
         candle1_display: fmtDates(g.candle1_dates),
         candle2_display: fmtDates(g.candle2_dates),
         exit_display: fmtDates(g.exit_dates),
-        fertility: pct(g.c1_fertile, g.total_eggs),
-        hatch_rate: pct(g.chicks, g.total_eggs),
+       fertility: pct(g.c1_fertile, g.net_eggs),
+       hatch_rate: pct(g.chicks, g.net_eggs),
+
       };
     });
 
