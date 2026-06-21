@@ -500,7 +500,15 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
       </div>
 
 
+      {(scope !== "main" || showItemsTable) && (
       <Card>
+        {scope === "main" && (
+          <div className="px-4 pt-3 flex justify-end">
+            <Button size="sm" variant="outline" onClick={() => setShowItemsTable(false)}>
+              <X className="w-4 h-4 ml-1" /> إغلاق التفاصيل
+            </Button>
+          </div>
+        )}
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <CardTitle className="flex items-center gap-2">
