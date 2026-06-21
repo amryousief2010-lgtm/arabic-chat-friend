@@ -63,12 +63,16 @@ const ManualStockOutDialog = ({
 }: Props) => {
   const { user, isGeneralManager, isExecutiveManager, isWarehouseSupervisor } = useAuth() as any;
   const canAddParty = isGeneralManager || isExecutiveManager || isWarehouseSupervisor;
+  const canManualKg = isGeneralManager || isExecutiveManager;
   const [destKey, setDestKey] = useState("");
   const [destOther, setDestOther] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [customers, setCustomers] = useState<{ id: string; name: string }[]>([]);
   const [itemId, setItemId] = useState("");
-  const [qty, setQty] = useState<string>("");
+  const [packageCount, setPackageCount] = useState<string>("");
+  const [packageWeightKg, setPackageWeightKg] = useState<string>("0.5");
+  const [manualKgMode, setManualKgMode] = useState(false);
+  const [manualKg, setManualKg] = useState<string>("");
   const [unitOverride, setUnitOverride] = useState("");
   const [reason, setReason] = useState("");
   const [notes, setNotes] = useState("");
@@ -89,7 +93,9 @@ const ManualStockOutDialog = ({
   useEffect(() => {
     if (!open) {
       setDestKey(""); setDestOther(""); setCustomerName("");
-      setItemId(""); setQty(""); setUnitOverride(""); setReason(""); setNotes("");
+      setItemId(""); setPackageCount(""); setPackageWeightKg("0.5");
+      setManualKgMode(false); setManualKg("");
+      setUnitOverride(""); setReason(""); setNotes("");
     } else {
       void loadCustom();
     }
@@ -103,9 +109,14 @@ const ManualStockOutDialog = ({
   }, [destKey, customers.length]);
 
   const selected = useMemo(() => items.find((i) => i.id === itemId), [items, itemId]);
-  const unit = unitOverride || selected?.unit || "";
-  const qtyNum = Number(qty);
-  const validQty = Number.isFinite(qtyNum) && qtyNum > 0;
+  const unit = unitOverride || selected?.unit || "كجم";
+  const pkgCountNum = Number(packageCount);
+  const pkgWeightNum = Number(packageWeightKg);
+  const validPkg = !manualKgMode && Number.isFinite(pkgCountNum) && pkgCountNum > 0 && Number.isFinite(pkgWeightNum) && pkgWeightNum > 0;
+  const manualKgNum = Number(manualKg);
+  const validManualKg = manualKgMode && Number.isFinite(manualKgNum) && manualKgNum > 0;
+  const qtyNum = manualKgMode ? manualKgNum : (validPkg ? pkgCountNum * pkgWeightNum : 0);
+  const validQty = qtyNum > 0;
   const stockBefore = Number(selected?.stock || 0);
   const stockAfter = validQty ? stockBefore - qtyNum : stockBefore;
   const exceedsStock = validQty && qtyNum > stockBefore;
@@ -125,14 +136,19 @@ const ManualStockOutDialog = ({
     && (destKey !== "customer" || customerName.trim().length > 0);
 
   const canSave = !!selected && validQty && !exceedsStock
-    && reason.trim().length > 0 && validDest && !saving;
+    && reason.trim().length > 0 && validDest && !saving
+    && (manualKgMode ? validManualKg : validPkg);
 
   const partyLabel = destLabel ? `صرف مباشر مؤقت إلى: ${destLabel}` : "صرف مباشر مؤقت";
 
   const handleSave = async () => {
     if (!validDest) { toast({ title: "اختر جهة الصرف", variant: "destructive" }); return; }
     if (!selected) { toast({ title: "اختر الصنف", variant: "destructive" }); return; }
-    if (!validQty) { toast({ title: "أدخل كمية موجبة أكبر من صفر", variant: "destructive" }); return; }
+    if (manualKgMode) {
+      if (!validManualKg) { toast({ title: "أدخل كمية بالكيلو موجبة أكبر من صفر", variant: "destructive" }); return; }
+    } else {
+      if (!validPkg) { toast({ title: "أدخل عدد عبوات موجب ووزن عبوة صحيح", variant: "destructive" }); return; }
+    }
     if (exceedsStock) {
       toast({ title: "الكمية أكبر من الرصيد المتاح", description: `المتاح: ${stockBefore} ${unit}`, variant: "destructive" });
       return;
@@ -142,30 +158,40 @@ const ManualStockOutDialog = ({
     setSaving(true);
     try {
       const ref = `MANUAL-OUT-${Date.now()}`;
+      const pkgLine = manualKgMode
+        ? `إدخال يدوي بالكيلو: ${qtyNum} كجم`
+        : `${pkgCountNum} عبوة × ${pkgWeightNum} كجم = ${qtyNum} كجم`;
       const combinedNotes = [
         `صرف مباشر مؤقت`,
         `جهة الصرف: ${destLabel}`,
+        pkgLine,
         `السبب: ${reason.trim()}`,
         notes.trim() ? `ملاحظات: ${notes.trim()}` : null,
-        `الكمية: ${qtyNum} ${unit}`,
         `قبل: ${stockBefore} ${unit}`,
         `بعد: ${stockAfter} ${unit}`,
       ].filter(Boolean).join(" • ");
+
+      const partyWithPkg = manualKgMode
+        ? partyLabel
+        : `${partyLabel} — ${pkgCountNum} عبوة × ${pkgWeightNum} كجم = ${qtyNum} كجم`;
 
       const { error: mErr } = await supabase.from("inventory_movements").insert({
         warehouse_id: warehouseId,
         item_id: selected.id,
         movement_type: "out",
         quantity: qtyNum,
+        package_count: manualKgMode ? null : pkgCountNum,
+        package_weight_kg: manualKgMode ? null : pkgWeightNum,
+        quantity_kg: qtyNum,
         reference: ref,
         reference_type: "manual_out",
-        party: partyLabel,
+        party: partyWithPkg,
         reason: reason.trim(),
         notes: combinedNotes,
         module: "warehouse_manual",
         performed_by: user?.id ?? null,
         performed_at: new Date().toISOString(),
-      });
+      } as any);
       if (mErr) throw mErr;
 
       const { error: sErr } = await supabase
@@ -190,6 +216,7 @@ const ManualStockOutDialog = ({
       setSaving(false);
     }
   };
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -289,32 +316,85 @@ const ManualStockOutDialog = ({
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <Label className="text-xs">الكمية *</Label>
-              <Input
-                type="number"
-                min="0"
-                step="any"
-                value={qty}
-                onChange={(e) => setQty(e.target.value)}
-                placeholder={selected ? `حتى ${stockBefore}` : "مثال: 10"}
-              />
-              {exceedsStock && (
-                <p className="text-[11px] text-destructive mt-1">
-                  الكمية أكبر من المتاح ({stockBefore} {unit})
-                </p>
-              )}
+          {canManualKg && (
+            <div className="flex items-center justify-end gap-2 text-[11px]">
+              <label className="flex items-center gap-1 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={manualKgMode}
+                  onChange={(e) => setManualKgMode(e.target.checked)}
+                />
+                إدخال يدوي بالكيلو (للمدير)
+              </label>
             </div>
-            <div>
-              <Label className="text-xs">الوحدة</Label>
-              <Input
-                value={unitOverride}
-                onChange={(e) => setUnitOverride(e.target.value)}
-                placeholder={selected?.unit || "—"}
-              />
+          )}
+
+          {!manualKgMode ? (
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <Label className="text-xs">عدد العبوات *</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={packageCount}
+                  onChange={(e) => setPackageCount(e.target.value)}
+                  placeholder={selected ? `حتى ${stockBefore > 0 ? Math.floor(stockBefore / (pkgWeightNum || 0.5)) : 0}` : "مثال: 50"}
+                />
+                {exceedsStock && (
+                  <p className="text-[11px] text-destructive mt-1">
+                    الكمية أكبر من المتاح ({stockBefore} {unit})
+                  </p>
+                )}
+              </div>
+              <div>
+                <Label className="text-xs">وزن العبوة (كجم)</Label>
+                <Input
+                  type="number"
+                  min="0.001"
+                  step="any"
+                  value={packageWeightKg}
+                  onChange={(e) => setPackageWeightKg(e.target.value)}
+                  placeholder="0.5"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">الكمية بالكيلو</Label>
+                <Input
+                  value={validPkg ? `${qtyNum} كجم` : "—"}
+                  readOnly
+                  className="bg-muted/50 font-bold"
+                />
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">الكمية بالكيلو *</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={manualKg}
+                  onChange={(e) => setManualKg(e.target.value)}
+                  placeholder={selected ? `حتى ${stockBefore}` : "مثال: 10"}
+                />
+                {exceedsStock && (
+                  <p className="text-[11px] text-destructive mt-1">
+                    الكمية أكبر من المتاح ({stockBefore} {unit})
+                  </p>
+                )}
+              </div>
+              <div>
+                <Label className="text-xs">الوحدة</Label>
+                <Input
+                  value={unitOverride}
+                  onChange={(e) => setUnitOverride(e.target.value)}
+                  placeholder={selected?.unit || "كجم"}
+                />
+              </div>
+            </div>
+          )}
 
           <div>
             <Label className="text-xs">سبب الصرف *</Label>
@@ -339,11 +419,18 @@ const ManualStockOutDialog = ({
           {selected && validQty && !exceedsStock && validDest && (
             <div className="rounded border border-rose-200 bg-rose-50 dark:bg-rose-950/30 p-2 text-xs space-y-0.5">
               <div>جهة الصرف: <b>{destLabel}</b></div>
-              <div>قبل الصرف: <b>{stockBefore}</b> {unit}</div>
-              <div>الكمية المصروفة: <b className="text-rose-700">−{qtyNum}</b> {unit}</div>
-              <div>بعد الصرف: <b className="text-rose-700">{stockAfter}</b> {unit}</div>
+              <div>قبل الصرف: <b>{stockBefore}</b> كجم</div>
+              {!manualKgMode && (
+                <>
+                  <div>عدد العبوات: <b>{pkgCountNum}</b> عبوة</div>
+                  <div>وزن العبوة: <b>{pkgWeightNum}</b> كجم</div>
+                </>
+              )}
+              <div>الكمية المصروفة: <b className="text-rose-700">−{qtyNum}</b> كجم</div>
+              <div>بعد الصرف: <b className="text-rose-700">{stockAfter}</b> كجم</div>
             </div>
           )}
+
         </div>
 
         <DialogFooter>

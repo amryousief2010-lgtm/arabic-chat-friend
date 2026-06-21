@@ -6712,11 +6712,14 @@ export type Database = {
           movement_type: string
           notes: string | null
           order_item_id: string | null
+          package_count: number | null
+          package_weight_kg: number | null
           party: string | null
           performed_at: string
           performed_by: string | null
           product_id: string | null
           quantity: number
+          quantity_kg: number | null
           reason: string | null
           reference: string | null
           reference_id: string | null
@@ -6740,11 +6743,14 @@ export type Database = {
           movement_type: string
           notes?: string | null
           order_item_id?: string | null
+          package_count?: number | null
+          package_weight_kg?: number | null
           party?: string | null
           performed_at?: string
           performed_by?: string | null
           product_id?: string | null
           quantity: number
+          quantity_kg?: number | null
           reason?: string | null
           reference?: string | null
           reference_id?: string | null
@@ -6768,11 +6774,14 @@ export type Database = {
           movement_type?: string
           notes?: string | null
           order_item_id?: string | null
+          package_count?: number | null
+          package_weight_kg?: number | null
           party?: string | null
           performed_at?: string
           performed_by?: string | null
           product_id?: string | null
           quantity?: number
+          quantity_kg?: number | null
           reason?: string | null
           reference?: string | null
           reference_id?: string | null
