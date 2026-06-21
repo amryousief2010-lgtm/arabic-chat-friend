@@ -672,6 +672,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
           </div>
         </CardContent>
       </Card>
+      )}
 
       {reservedDlg && (
         <ReservedDetailsDialog
