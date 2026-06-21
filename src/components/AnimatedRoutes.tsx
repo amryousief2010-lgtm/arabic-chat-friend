@@ -157,6 +157,7 @@ const Debug = lazy(() => import("@/pages/Debug"));
 const PwaDiagnostics = lazy(() => import("@/pages/PwaDiagnostics"));
 const ExecutiveDashboards = lazy(() => import("@/pages/ExecutiveDashboards"));
 const ExecutiveDashboard = lazy(() => import("@/pages/ExecutiveDashboard"));
+const ApprovalsCenter = lazy(() => import("@/pages/ApprovalsCenter"));
 const OperationsGuide = lazy(() => import("@/pages/OperationsGuide"));
 const CustomerWeightReport = lazy(() => import("@/pages/CustomerWeightReport"));
 const ManufacturingQueue = lazy(() => import("@/pages/ManufacturingQueue"));
