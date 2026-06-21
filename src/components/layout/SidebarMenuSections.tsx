@@ -496,17 +496,15 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
 
                   if (!hasGroups) return section.items.map(renderLink);
 
-                  // Build ordered groups preserving first-occurrence order.
-                  const groupOrder: string[] = [];
-                  const groupMap = new Map<string, MenuItem[]>();
-                  for (const it of section.items) {
-                    const g = it.group || "أخرى";
-                    if (!groupMap.has(g)) { groupMap.set(g, []); groupOrder.push(g); }
-                    groupMap.get(g)!.push(it);
-                  }
-                  return groupOrder.map((g) => {
-                    const groupItems = groupMap.get(g)!;
-                    const groupKey = `${section.id}::${g}`;
+                  // Mixed mode: ungrouped items render flat; grouped items render in
+                  // collapsibles preserving their first-occurrence position.
+                  const renderedGroups = new Set<string>();
+                  return section.items.map((item) => {
+                    if (!item.group) return renderLink(item);
+                    if (renderedGroups.has(item.group)) return null;
+                    renderedGroups.add(item.group);
+                    const groupItems = section.items.filter((i) => i.group === item.group);
+                    const groupKey = `${section.id}::${item.group}`;
                     const groupHasActive = groupItems.some((i) => i.path === location.pathname);
                     const groupOpen = openSections[groupKey] ?? groupHasActive;
                     return (
@@ -520,7 +518,7 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
                             groupHasActive ? "bg-sidebar-accent/70 text-sidebar-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/40"
                           }`}
                         >
-                          <span className="flex-1 text-right">{g}</span>
+                          <span className="flex-1 text-right">{item.group}</span>
                           <ChevronDown className={`w-3.5 h-3.5 transition-transform ${groupOpen ? "rotate-180" : ""}`} />
                         </CollapsibleTrigger>
                         <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
