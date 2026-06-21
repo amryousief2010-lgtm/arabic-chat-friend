@@ -274,7 +274,7 @@ export const moduleSections: ModuleSection[] = [
       // المخازن الأساسية — كل مخزن مستقل، كل موظف يرى مخزنه فقط
       { icon: Warehouse, label: "المخزن الرئيسي", path: "/warehouse-stock/main", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'], group: "إدارة المخازن" },
       { icon: Activity, label: "سجل حركات المخزن الرئيسي", path: "/main-warehouse-activity", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'] },
-      { icon: Warehouse, label: "مخزن العجوزة", path: "/warehouse-stock/agouza", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper'] },
+      { icon: Warehouse, label: "مخزن العجوزة", path: "/warehouse-stock/agouza", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper'], group: "إدارة المخازن" },
       { icon: Package, label: "مخزن التغليف والتعبئة", path: "/modules/packaging", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'meat_factory_manager', 'slaughterhouse_manager', 'production_manager'] },
       // مخازن العملاء — للإدارة وأمناء المخازن فقط
       { icon: Warehouse, label: "هايبر هيلثي تيست", path: "/warehouse-stock/hyper-healthy-test", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'] },
