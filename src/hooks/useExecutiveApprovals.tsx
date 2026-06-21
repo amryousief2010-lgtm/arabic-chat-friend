@@ -289,7 +289,52 @@ export function useExecutiveApprovals() {
         };
       });
 
-      const items: ApprovalItem[] = [...treasury, ...lab, ...meatInv, ...meatMfg, ...custody, ...slaughter, ...hr].sort(
+      const mfPurchaseItems: ApprovalItem[] = [
+        ...(mfRawRes.data || []).map((p: any) => ({
+          id: p.id,
+          category: "mf_purchase" as ApprovalCategory,
+          source: "فاتورة شراء خامات (مصنع اللحوم)",
+          title: `فاتورة شراء خامات${p.invoice_no ? ` — ${p.invoice_no}` : ""}`,
+          subtitle: `${p.supplier || "بدون مورد"}${p.payment_method ? ` — ${p.payment_method === "cash" ? "نقدي" : "آجل"}` : ""}${(p.items || []).length ? ` — ${(p.items || []).length} صنف` : ""}${p.notes ? ` — ${p.notes}` : ""}`,
+          amount: Number(p.total_amount || 0),
+          created_at: p.created_at,
+          created_by: p.created_by,
+          creator_name: profiles[p.created_by] || null,
+          status: p.status,
+          raw: { ...p, _kind: "raw_purchase" },
+        })),
+        ...(mfPackRes.data || []).map((p: any) => ({
+          id: p.id,
+          category: "mf_purchase" as ApprovalCategory,
+          source: "فاتورة شراء تغليف (مصنع اللحوم)",
+          title: `فاتورة شراء تغليف${p.invoice_no ? ` — ${p.invoice_no}` : ""}`,
+          subtitle: `${p.supplier || "بدون مورد"}${p.payment_method ? ` — ${p.payment_method === "cash" ? "نقدي" : "آجل"}` : ""}${(p.items || []).length ? ` — ${(p.items || []).length} صنف` : ""}${p.notes ? ` — ${p.notes}` : ""}`,
+          amount: Number(p.total_amount || 0),
+          created_at: p.created_at,
+          created_by: p.created_by,
+          creator_name: profiles[p.created_by] || null,
+          status: p.status,
+          raw: { ...p, _kind: "pack_purchase" },
+        })),
+      ];
+
+      const mfMfgItems: ApprovalItem[] = (mfMfgRes.data || []).map((m: any) => ({
+        id: m.id,
+        category: "mf_mfg" as ApprovalCategory,
+        source: "فاتورة تصنيع (مصنع اللحوم)",
+        title: `تصنيع — ${m.fin?.name_ar || ""}${m.invoice_no ? ` — ${m.invoice_no}` : ""}`,
+        subtitle: `الناتج: ${Number(m.produced_qty || 0)} ${m.fin?.unit || ""} • خامات: ${(m.raw_lines || []).length} • تغليف: ${(m.pack_lines || []).length}${m.notes ? ` — ${m.notes}` : ""}`,
+        amount: Number(m.total_cost || 0),
+        qty: Number(m.produced_qty || 0),
+        unit: m.fin?.unit || null,
+        created_at: m.created_at,
+        created_by: m.created_by,
+        creator_name: profiles[m.created_by] || null,
+        status: m.status,
+        raw: m,
+      }));
+
+      const items: ApprovalItem[] = [...treasury, ...lab, ...meatInv, ...meatMfg, ...custody, ...slaughter, ...hr, ...mfPurchaseItems, ...mfMfgItems].sort(
         (a, b) => +new Date(b.created_at) - +new Date(a.created_at)
       );
 
@@ -303,6 +348,8 @@ export function useExecutiveApprovals() {
           custody: custody.length,
           slaughter: slaughter.length,
           hr: hr.length,
+          mf_purchase: mfPurchaseItems.length,
+          mf_mfg: mfMfgItems.length,
         },
       };
     },
