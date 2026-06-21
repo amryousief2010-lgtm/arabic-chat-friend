@@ -279,27 +279,75 @@ const ManualStockAdditionDialog = ({
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <Label className="text-xs">الكمية *</Label>
-              <Input
-                type="number"
-                min="0"
-                step="any"
-                value={qty}
-                onChange={(e) => setQty(e.target.value)}
-                placeholder="مثال: 25"
-              />
+          {canManualKg && (
+            <div className="flex items-center justify-end gap-2 text-[11px]">
+              <label className="flex items-center gap-1 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={manualKgMode}
+                  onChange={(e) => setManualKgMode(e.target.checked)}
+                />
+                إدخال يدوي بالكيلو (للمدير)
+              </label>
             </div>
-            <div>
-              <Label className="text-xs">الوحدة</Label>
-              <Input
-                value={unitOverride}
-                onChange={(e) => setUnitOverride(e.target.value)}
-                placeholder={selected?.unit || "—"}
-              />
+          )}
+
+          {!manualKgMode ? (
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <Label className="text-xs">عدد العبوات *</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={packageCount}
+                  onChange={(e) => setPackageCount(e.target.value)}
+                  placeholder="مثال: 50"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">وزن العبوة (كجم)</Label>
+                <Input
+                  type="number"
+                  min="0.001"
+                  step="any"
+                  value={packageWeightKg}
+                  onChange={(e) => setPackageWeightKg(e.target.value)}
+                  placeholder="0.5"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">الكمية بالكيلو</Label>
+                <Input
+                  value={validPkg ? `${qtyNum} كجم` : "—"}
+                  readOnly
+                  className="bg-muted/50 font-bold"
+                />
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">الكمية بالكيلو *</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={manualKg}
+                  onChange={(e) => setManualKg(e.target.value)}
+                  placeholder="مثال: 25"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">الوحدة</Label>
+                <Input
+                  value={unitOverride}
+                  onChange={(e) => setUnitOverride(e.target.value)}
+                  placeholder={selected?.unit || "كجم"}
+                />
+              </div>
+            </div>
+          )}
 
           <div>
             <Label className="text-xs">سبب الإضافة / التوريد *</Label>
@@ -324,12 +372,19 @@ const ManualStockAdditionDialog = ({
           {selected && validQty && validSource && (
             <div className="rounded border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/30 p-2 text-xs space-y-0.5">
               <div>جهة التوريد: <b>{sourceLabel}</b></div>
-              <div>قبل الإضافة: <b>{stockBefore}</b> {unit}</div>
-              <div>الكمية المضافة: <b className="text-emerald-700">+{qtyNum}</b> {unit}</div>
-              <div>بعد الإضافة: <b className="text-emerald-700">{stockAfter}</b> {unit}</div>
+              <div>قبل الإضافة: <b>{stockBefore}</b> كجم</div>
+              {!manualKgMode && (
+                <>
+                  <div>عدد العبوات: <b>{pkgCountNum}</b> عبوة</div>
+                  <div>وزن العبوة: <b>{pkgWeightNum}</b> كجم</div>
+                </>
+              )}
+              <div>الكمية المضافة: <b className="text-emerald-700">+{qtyNum}</b> كجم</div>
+              <div>بعد الإضافة: <b className="text-emerald-700">{stockAfter}</b> كجم</div>
             </div>
           )}
         </div>
+
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
