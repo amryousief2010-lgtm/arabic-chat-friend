@@ -1369,6 +1369,23 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
               );})}
             </div>
           </div>
+
+          {orphanShipmentsData.length > 0 && (
+            <div className="border-t pt-3">
+              <h4 className="font-bold text-amber-700 mb-2">شحنات يتيمة تحتاج مراجعة</h4>
+              <div className="space-y-2">
+                {orphanShipmentsData.map((s: any) => (
+                  <div key={s.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs dark:bg-amber-950/20">
+                    <div>
+                      <span className="font-semibold">{Number(s.egg_count || 0).toLocaleString()} بيضة</span>
+                      <span className="text-muted-foreground"> · تاريخ الإنشاء: {String(s.created_at || "").slice(0, 10)}</span>
+                    </div>
+                    <Button size="sm" variant="outline" onClick={() => toast.info("هذه الشحنة مستبعدة من البانر والتحميل التلقائي لحين ربطها بدفعة نقل رسمية")}>مراجعة</Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         <DialogFooter><Button onClick={save} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ الدفعة"}</Button></DialogFooter>
       </DialogContent>
