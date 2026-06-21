@@ -23,6 +23,7 @@ import WarehouseKpisBlock from "@/components/warehouses/WarehouseKpisBlock";
 import RestaurantMenuTab from "@/components/warehouses/RestaurantMenuTab";
 import WarehouseStockView from "@/pages/WarehouseStockView";
 import WarehouseReceiptsTab from "@/components/warehouses/WarehouseReceiptsTab";
+import { isMainWarehouseExcludedCategory, isMainWarehouseName } from "@/constants/warehouseCategoryFilters";
 
 
 const qualityLabelText: Record<string, string> = {
@@ -387,7 +388,18 @@ const Warehouses = () => {
     setDeleteTarget(null);
   };
 
-  const filteredItems = warehouseFilter === "all" ? items : items.filter(i => i.warehouse_id === warehouseFilter);
+  // Items tab filter: when filtering by Main Warehouse, also hide categories
+  // that belong to other warehouses (meat factory raw, feed raw, packaging)
+  // even if mis-assigned in DB. "All warehouses" stays unfiltered.
+  const mainWh = warehouses.find((w) => isMainWarehouseName(w.name));
+  const filteredItems = (() => {
+    if (warehouseFilter === "all") return items;
+    const base = items.filter((i) => i.warehouse_id === warehouseFilter);
+    if (mainWh && warehouseFilter === mainWh.id) {
+      return base.filter((i) => !isMainWarehouseExcludedCategory((i as any).category));
+    }
+    return base;
+  })();
   const lowStockItems = items.filter(i => i.stock <= i.low_stock_threshold);
   const pendingSlaughter = slaughterOutputs.filter(o => o.received_status !== 'received');
 

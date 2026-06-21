@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Package, AlertTriangle, DollarSign, Clock } from "lucide-react";
 import { formatDateTime } from "@/lib/dateFormat";
+import { isMainWarehouseExcludedCategory, isMainWarehouseName } from "@/constants/warehouseCategoryFilters";
 
 interface InventoryItem {
   id: string;
@@ -17,6 +18,7 @@ interface InventoryItem {
   stock: number;
   low_stock_threshold: number;
   unit_cost: number;
+  category?: string | null;
 }
 
 interface Movement {
@@ -48,15 +50,30 @@ export default function WarehouseKpisBlock({ warehouseId, warehouseName, items, 
   const [openDialog, setOpenDialog] = useState<DialogKey>(null);
   const [search, setSearch] = useState("");
 
-  // STRICT per-warehouse filtering — never mix items/movements from other warehouses
+  const isMain = isMainWarehouseName(warehouseName);
+
+  // STRICT per-warehouse filtering — never mix items/movements from other warehouses.
+  // For Main Warehouse: also exclude categories that belong to other warehouses
+  // (meat factory raw, feed raw, packaging) even if mis-assigned in DB.
   const whItems = useMemo(
-    () => (warehouseId ? items.filter((i) => i.warehouse_id === warehouseId) : []),
-    [items, warehouseId]
+    () => {
+      if (!warehouseId) return [] as InventoryItem[];
+      const base = items.filter((i) => i.warehouse_id === warehouseId);
+      return isMain ? base.filter((i) => !isMainWarehouseExcludedCategory(i.category)) : base;
+    },
+    [items, warehouseId, isMain]
   );
   const whMovements = useMemo(
-    () => (warehouseId ? movements.filter((m) => m.warehouse_id === warehouseId) : []),
-    [movements, warehouseId]
+    () => {
+      if (!warehouseId) return [] as Movement[];
+      const base = movements.filter((m) => m.warehouse_id === warehouseId);
+      if (!isMain) return base;
+      const allowedIds = new Set(whItems.map((i) => i.id));
+      return base.filter((m) => allowedIds.has(m.item_id));
+    },
+    [movements, warehouseId, isMain, whItems]
   );
+
   const lowItems = useMemo(
     () => whItems.filter((i) => Number(i.stock || 0) < Number(i.low_stock_threshold || 0)),
     [whItems]
