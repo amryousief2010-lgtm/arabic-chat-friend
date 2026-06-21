@@ -1409,34 +1409,9 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
             </div>
           </div>
 
-          {(excludedHistoricalTransferBatches.length > 0 || orphanShipmentsData.length > 0) && (
-            <div className="border-t pt-3">
-              <h4 className="font-bold text-amber-700 mb-2">شحنات قديمة / تحتاج مراجعة</h4>
-              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                {excludedHistoricalTransferBatches.map((g: any) => {
-                  const period = g.min_date === g.max_date ? g.min_date : `${g.min_date} → ${g.max_date}`;
-                  return (
-                    <div key={g.key} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs dark:bg-amber-950/20">
-                      <div>
-                        <span className="font-semibold">دفعة تاريخية مستبعدة — {Number(g.total_eggs || 0).toLocaleString()} بيضة</span>
-                        <span className="text-muted-foreground"> · فترة الإنتاج: {period} · الحالة: excluded_from_hatchery_intake</span>
-                      </div>
-                      <Button size="sm" variant="outline" onClick={() => toast.info("هذه الدفعة محفوظة للتاريخ وممنوعة من التحميل التلقائي في وارد التفريخ الجديد")}>مراجعة</Button>
-                    </div>
-                  );
-                })}
-                {orphanShipmentsData.map((s: any) => (
-                  <div key={s.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs dark:bg-amber-950/20">
-                    <div>
-                      <span className="font-semibold">{Number(s.egg_count || 0).toLocaleString()} بيضة</span>
-                      <span className="text-muted-foreground"> · تاريخ الإنشاء: {String(s.created_at || "").slice(0, 10)}</span>
-                    </div>
-                    <Button size="sm" variant="outline" onClick={() => toast.info("هذه الشحنة مستبعدة من البانر والتحميل التلقائي لحين ربطها بدفعة نقل رسمية")}>مراجعة</Button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* قسم "شحنات قديمة / تحتاج مراجعة" أُخفي من نافذة دفعة تفريخ جديدة بناءً على طلب المستخدم.
+              الدفعات المستبعدة والشحنات اليتيمة ما زالت محفوظة في قاعدة البيانات وتظهر في سجل نقل البيض/الأرشيف فقط. */}
+
         </div>
         <DialogFooter><Button onClick={save} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ الدفعة"}</Button></DialogFooter>
       </DialogContent>
