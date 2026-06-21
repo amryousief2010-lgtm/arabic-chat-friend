@@ -998,7 +998,7 @@ const Warehouses = () => {
                       movements={movements}
                     />
                   )}
-                  {t.value !== "wh-activity" && t.wh && (
+                  {t.value !== "wh-activity" && t.value !== "wh-main" && t.wh && (
                     <Card>
                       <CardHeader className="pb-2">
                         <CardTitle className="text-base flex items-center gap-2">

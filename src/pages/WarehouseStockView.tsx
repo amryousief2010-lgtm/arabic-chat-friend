@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, RefreshCw, Warehouse, Printer, Pencil, Check, X, ArrowLeftRight, AlertTriangle, PackageCheck, Lock, PackagePlus, PackageMinus } from "lucide-react";
+import { Search, RefreshCw, Warehouse, Printer, Pencil, Check, X, ArrowLeftRight, AlertTriangle, PackageCheck, Lock, PackagePlus, PackageMinus, Package } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { printWarehouseStock } from "@/lib/printUtils";
 import { useAuth } from "@/hooks/useAuth";
@@ -74,6 +74,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
   const [mainLastMove, setMainLastMove] = useState<Record<string, string>>({});
   const [cardDialog, setCardDialog] = useState<null | "withStock" | "overReserved">(null);
   const [cardSearch, setCardSearch] = useState("");
+  const [showItemsTable, setShowItemsTable] = useState(false);
 
 
   const fetchAll = async () => {
@@ -437,7 +438,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
 
 
       {/* ملخص سريع */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+      <div className={`grid grid-cols-1 sm:grid-cols-2 ${scope === "main" ? "lg:grid-cols-4" : "sm:grid-cols-3"} gap-3 mb-4`}>
         <Card
           className={scope === "main" ? "cursor-pointer hover:border-primary/40 transition-colors" : ""}
           onClick={scope === "main" ? () => { setCardSearch(""); setCardDialog("withStock"); } : undefined}
@@ -479,10 +480,35 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
             </div>
           </CardContent>
         </Card>
+        {scope === "main" && (
+          <Card
+            className="cursor-pointer hover:border-primary/40 transition-colors"
+            onClick={() => setShowItemsTable((v) => !v)}
+          >
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="p-2 rounded-md bg-blue-500/15 text-blue-700 dark:text-blue-300">
+                <Package className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">عدد الأصناف</div>
+                <div className="text-xl font-bold">{filtered.length}</div>
+                <div className="text-[10px] text-muted-foreground">{showItemsTable ? "اضغط للإخفاء" : "اضغط لعرض الجدول"}</div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
 
+      {(scope !== "main" || showItemsTable) && (
       <Card>
+        {scope === "main" && (
+          <div className="px-4 pt-3 flex justify-end">
+            <Button size="sm" variant="outline" onClick={() => setShowItemsTable(false)}>
+              <X className="w-4 h-4 ml-1" /> إغلاق التفاصيل
+            </Button>
+          </div>
+        )}
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <CardTitle className="flex items-center gap-2">
@@ -646,6 +672,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
           </div>
         </CardContent>
       </Card>
+      )}
 
       {reservedDlg && (
         <ReservedDetailsDialog
