@@ -923,6 +923,13 @@ const WarehouseDetail = () => {
               </Button>
             )}
 
+            {canManualOut && (
+              <Button onClick={() => setManualOutOpen(true)} className="bg-rose-600 hover:bg-rose-700">
+                <PackageMinus className="w-4 h-4 ml-2" />
+                صرف منتجات / توريد للجهات
+              </Button>
+            )}
+
             {isAgouza && canManageWarehouses && (
               <Button onClick={openSupplyDialog} disabled={supplyNeeds.length === 0}>
                 <Truck className="w-4 h-4 ml-2" />طلب توريد من المخزن الرئيسي
