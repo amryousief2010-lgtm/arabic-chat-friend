@@ -583,6 +583,7 @@ const Warehouses = () => {
                 <Beef className="w-4 h-4" /> استلام المجزر
                 {pendingSlaughter.length > 0 && <Badge variant="destructive" className="mr-1">{pendingSlaughter.length}</Badge>}
               </TabsTrigger>
+              <TabsTrigger value="receipts" className="gap-1"><Inbox className="w-4 h-4" />الاستلامات</TabsTrigger>
               <TabsTrigger value="movements">الحركات</TabsTrigger>
               <TabsTrigger value="low">منخفضة <Badge variant="destructive" className="mr-2">{lowStockItems.length}</Badge></TabsTrigger>
               <TabsTrigger value="distribution" className="gap-1"><MapPin className="w-4 h-4" />التوزيع الجغرافي</TabsTrigger>
