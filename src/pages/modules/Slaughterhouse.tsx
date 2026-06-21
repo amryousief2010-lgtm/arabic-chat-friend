@@ -2408,8 +2408,12 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
               <TableHead className="text-red-600">تالف (كجم)</TableHead>
               <TableHead className="text-amber-600">محجور (كجم)</TableHead>
               <TableHead className="text-emerald-600">المتاح (كجم)</TableHead>
-              <TableHead>السعر/كجم</TableHead>
-              <TableHead>الإجمالي</TableHead>
+              <TableHead className="text-slate-700">تكلفة/كجم</TableHead>
+              <TableHead className="text-blue-700">بيع/كجم {!canEditSellPrice && <span className="text-[10px] text-muted-foreground">(عرض فقط)</span>}</TableHead>
+              <TableHead className="text-slate-700">إجمالي التكلفة</TableHead>
+              <TableHead className="text-blue-700">إجمالي البيع</TableHead>
+              <TableHead className="text-emerald-700">الربح</TableHead>
+              <TableHead className="text-emerald-700">%</TableHead>
               <TableHead>الوجهة</TableHead>
               <TableHead>الفرع</TableHead>
               <TableHead>عبوات</TableHead>
@@ -2418,7 +2422,7 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
             <TableBody>
               {rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={12} className="text-center text-muted-foreground py-6">
+                  <TableCell colSpan={16} className="text-center text-muted-foreground py-6">
                     لم يتم إضافة أي صنف بعد. ابحث واختر صنفًا من القائمة أعلاه لبدء التقسيمة.
                   </TableCell>
                 </TableRow>
@@ -2427,6 +2431,12 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
                 const accepted = acceptedOf(r);
                 const produced = Number(r.produced_weight_kg) || 0;
                 const overAlloc = (Number(r.damaged_weight_kg) || 0) + (Number(r.quarantined_weight_kg) || 0) > produced && produced > 0;
+                const cost = Number(r.unit_cost) || 0;
+                const price = Number(r.unit_price) || 0;
+                const totalCost = accepted * cost;
+                const totalSale = accepted * price;
+                const profit = totalSale - totalCost;
+                const marginPct = totalCost > 0 ? (profit / totalCost) * 100 : 0;
                 return (
                   <TableRow key={i}>
                     <TableCell>
@@ -2452,9 +2462,31 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
                       </div>
                       {overAlloc && <div className="text-[10px] text-red-600">تجاوز المُنتَج!</div>}
                     </TableCell>
-                    <TableCell><Input className="w-20" type="number" step="0.01" value={r.unit_price || ""}
-                      onChange={e => updateRow(i, { unit_price: +e.target.value })} /></TableCell>
-                    <TableCell className="font-semibold">{(accepted * Number(r.unit_price || 0)).toFixed(0)}</TableCell>
+                    <TableCell>
+                      <Input
+                        className="w-20 bg-muted/40"
+                        type="number"
+                        step="0.01"
+                        value={r.unit_cost ?? ""}
+                        readOnly
+                        title="تكلفة الكيلو محسوبة من تكلفة دفعة الذبح"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        className="w-20"
+                        type="number"
+                        step="0.01"
+                        value={r.unit_price || ""}
+                        onChange={e => updateRow(i, { unit_price: +e.target.value })}
+                        readOnly={!canEditSellPrice}
+                        title={canEditSellPrice ? "سعر البيع لكل كجم" : "تعديل سعر البيع متاح للمدير العام/التنفيذي فقط"}
+                      />
+                    </TableCell>
+                    <TableCell className="font-semibold text-slate-700">{totalCost.toFixed(0)}</TableCell>
+                    <TableCell className="font-semibold text-blue-700">{totalSale.toFixed(0)}</TableCell>
+                    <TableCell className={"font-semibold " + (profit >= 0 ? "text-emerald-700" : "text-red-600")}>{profit.toFixed(0)}</TableCell>
+                    <TableCell className={"text-xs " + (marginPct >= 0 ? "text-emerald-700" : "text-red-600")}>{totalCost > 0 ? marginPct.toFixed(1) + "%" : "—"}</TableCell>
                     <TableCell>
                       <Select
                         value={r.destination || "warehouse"}
@@ -2489,9 +2521,53 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
                   </TableRow>
                 );
               })}
+              {rows.length > 0 && (() => {
+                const tCost = rows.reduce((s, r) => s + acceptedOf(r) * (Number(r.unit_cost) || 0), 0);
+                const tSale = rows.reduce((s, r) => s + acceptedOf(r) * (Number(r.unit_price) || 0), 0);
+                const tProfit = tSale - tCost;
+                const avgMargin = tCost > 0 ? (tProfit / tCost) * 100 : 0;
+                return (
+                  <TableRow className="bg-muted/40 font-bold border-t-2">
+                    <TableCell colSpan={8} className="text-right">الإجمالي</TableCell>
+                    <TableCell className="text-slate-700">{tCost.toFixed(0)}</TableCell>
+                    <TableCell className="text-blue-700">{tSale.toFixed(0)}</TableCell>
+                    <TableCell className={tProfit >= 0 ? "text-emerald-700" : "text-red-600"}>{tProfit.toFixed(0)}</TableCell>
+                    <TableCell className={avgMargin >= 0 ? "text-emerald-700" : "text-red-600"}>{tCost > 0 ? avgMargin.toFixed(1) + "%" : "—"}</TableCell>
+                    <TableCell colSpan={4}></TableCell>
+                  </TableRow>
+                );
+              })()}
             </TableBody>
           </Table>
         </div>
+
+        {rows.length > 0 && (() => {
+          const tCost = rows.reduce((s, r) => s + acceptedOf(r) * (Number(r.unit_cost) || 0), 0);
+          const tSale = rows.reduce((s, r) => s + acceptedOf(r) * (Number(r.unit_price) || 0), 0);
+          const tProfit = tSale - tCost;
+          const avgMargin = tCost > 0 ? (tProfit / tCost) * 100 : 0;
+          return (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3 text-sm">
+              <div className="p-3 rounded-lg border bg-slate-50 dark:bg-slate-900/40">
+                <div className="text-xs text-muted-foreground">إجمالي تكلفة الدفعة</div>
+                <div className="font-bold text-lg text-slate-700">{tCost.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م</div>
+              </div>
+              <div className="p-3 rounded-lg border bg-blue-50 dark:bg-blue-950/40">
+                <div className="text-xs text-muted-foreground">إجمالي البيع المتوقع</div>
+                <div className="font-bold text-lg text-blue-700">{tSale.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م</div>
+              </div>
+              <div className={"p-3 rounded-lg border " + (tProfit >= 0 ? "bg-emerald-50 dark:bg-emerald-950/40" : "bg-red-50 dark:bg-red-950/40")}>
+                <div className="text-xs text-muted-foreground">الربح المتوقع</div>
+                <div className={"font-bold text-lg " + (tProfit >= 0 ? "text-emerald-700" : "text-red-600")}>{tProfit.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م</div>
+              </div>
+              <div className={"p-3 rounded-lg border " + (avgMargin >= 0 ? "bg-emerald-50 dark:bg-emerald-950/40" : "bg-red-50 dark:bg-red-950/40")}>
+                <div className="text-xs text-muted-foreground">متوسط هامش الربح</div>
+                <div className={"font-bold text-lg " + (avgMargin >= 0 ? "text-emerald-700" : "text-red-600")}>{tCost > 0 ? avgMargin.toFixed(1) + "%" : "—"}</div>
+              </div>
+            </div>
+          );
+        })()}
+
         <DialogFooter><Button onClick={save} className="bg-gradient-to-r from-primary to-accent">حفظ التقسيمة</Button></DialogFooter>
 
         <AlertDialog open={!!pendingConfirm} onOpenChange={(o) => !o && setPendingConfirm(null)}>
