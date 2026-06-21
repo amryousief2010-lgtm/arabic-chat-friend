@@ -760,6 +760,13 @@ const emptyMotherFarmLot = () => ({
   shipment_label: "",
 });
 
+const HATCHERY_INTAKE_START_TRANSFER_BATCH_ID = "5d5ca4a9-86e3-4360-a1ef-e0389e6b672a";
+const HATCHERY_INTAKE_START_CREATED_DATE = "2026-06-20";
+
+const isActiveHatcheryIntakeBatch = (g: any) =>
+  g.transfer_batch_id === HATCHERY_INTAKE_START_TRANSFER_BATCH_ID ||
+  String(g.latest_created_at || "").slice(0, 10) >= HATCHERY_INTAKE_START_CREATED_DATE;
+
 const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
   const queryClient = useQueryClient();
   const [entry_date, setEntryDate] = useState(today());
@@ -774,6 +781,7 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
     setLots([emptyMotherFarmLot()]);
     queryClient.removeQueries({ queryKey: ["pending_farm_transfer_batches_for_new_batch"] });
     queryClient.removeQueries({ queryKey: ["pending_official_farm_transfer_batches_for_new_batch"] });
+    queryClient.removeQueries({ queryKey: ["orphan_farm_shipments_review_for_new_batch"] });
   }, [open, queryClient]);
 
   // Auto-numbering preview: next operational_batch_no for the lab batches screen
@@ -881,13 +889,17 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
       }
 
       // الترتيب الرسمي فقط: transfer_date desc ثم created_at desc ثم transfer_batch_id
-      return Array.from(groups.values()).filter((g) => g.total_eggs > 0).sort((a, b) => {
+      const sortedGroups = Array.from(groups.values()).filter((g) => g.total_eggs > 0).sort((a, b) => {
         const dCmp = String(b.transfer_sort_date || "").localeCompare(String(a.transfer_sort_date || ""));
         if (dCmp !== 0) return dCmp;
         const cCmp = String(b.latest_created_at || "").localeCompare(String(a.latest_created_at || ""));
         if (cCmp !== 0) return cCmp;
         return String(a.transfer_batch_id || "").localeCompare(String(b.transfer_batch_id || ""));
       });
+      return sortedGroups.map((g) => ({
+        ...g,
+        hatchery_intake_state: isActiveHatcheryIntakeBatch(g) ? "active" : "excluded_from_hatchery_intake",
+      }));
     },
   });
 
@@ -925,10 +937,16 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
 
   const availableTransferBatches = useMemo(
     () => transferBatchesData.filter((g) =>
+      g.hatchery_intake_state === "active" &&
       (g.shipments || []).every((s: any) => !usedShipmentIds.has(s.id)) &&
       (g.farm_transfer_ids || []).every((id: string) => !usedFarmTransferIds.has(id))
     ),
     [transferBatchesData, usedShipmentIds, usedFarmTransferIds]
+  );
+
+  const excludedHistoricalTransferBatches = useMemo(
+    () => transferBatchesData.filter((g) => g.hatchery_intake_state === "excluded_from_hatchery_intake"),
+    [transferBatchesData]
   );
 
   // آخر دفعة نقل فقط (للعرض في البانر)
@@ -944,9 +962,11 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
       transfer_batch_id: latestTransferBatch.transfer_batch_id,
       total_eggs: latestTransferBatch.total_eggs,
       transfer_date: latestTransferBatch.transfer_date,
+        intake_start_transfer_batch_id: HATCHERY_INTAKE_START_TRANSFER_BATCH_ID,
       production_period: `${latestTransferBatch.min_date} → ${latestTransferBatch.max_date}`,
       orphan_shipments_excluded_from_banner: true,
       orphan_shipments_count: orphanShipmentsData.length,
+        historical_batches_excluded_count: excludedHistoricalTransferBatches.length,
       official_batches_in_dropdown: availableTransferBatches.map((g) => ({
         transfer_batch_id: g.transfer_batch_id,
         total_eggs: g.total_eggs,
@@ -957,11 +977,15 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
         (g) => g.transfer_batch_id === "5d5ca4a9-86e3-4360-a1ef-e0389e6b672a" && Number(g.total_eggs) === 35
       ),
     });
-  }, [open, latestTransferBatch, availableTransferBatches, orphanShipmentsData.length]);
+  }, [open, latestTransferBatch, availableTransferBatches, orphanShipmentsData.length, excludedHistoricalTransferBatches.length]);
 
   const loadTransferBatchIntoLot = (lotIndex: number, key: string) => {
     const g = transferBatchesData.find((x) => x.key === key);
     if (!g) return;
+    if (g.hatchery_intake_state !== "active") {
+      toast.error("هذه دفعة تاريخية مستبعدة من وارد التفريخ الجديد");
+      return;
+    }
     if (g.source !== "farm_transfers" || !g.transfer_batch_id || !(g.farm_transfer_ids || []).length) {
       toast.error("لا يمكن تحميل شحنة يتيمة أو غير رسمية تلقائياً");
       return;
@@ -990,6 +1014,10 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
   const loadLatestFarmShipment = () => {
     if (!latestTransferBatch) {
       toast.info("لا توجد دفعات نقل من المزرعة متاحة حالياً");
+      return;
+    }
+    if (latestTransferBatch.hatchery_intake_state !== "active") {
+      toast.error("لا يمكن تحميل دفعة تاريخية مستبعدة من وارد التفريخ الجديد");
       return;
     }
     if (latestTransferBatch.source !== "farm_transfers" || !latestTransferBatch.transfer_batch_id) {
@@ -1282,7 +1310,7 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
 
           {latestTransferBatch && (
             <div className="rounded-md border bg-muted/30 p-2 text-xs text-muted-foreground">
-              <b>تقرير تشخيص وارد المزرعة:</b> الدفعة المعروضة {latestTransferBatch.transfer_batch_id} · الإجمالي {latestTransferBatch.total_eggs} بيضة · الشحنات اليتيمة مستبعدة من البانر والتحميل التلقائي · دفعة 35 بيضة {availableTransferBatches.some((g) => g.transfer_batch_id === "5d5ca4a9-86e3-4360-a1ef-e0389e6b672a" && Number(g.total_eggs) === 35) ? "ظاهرة في القائمة" : "غير ظاهرة في القائمة"}
+              <b>تقرير تشخيص وارد المزرعة:</b> بداية التشغيل من دفعة {HATCHERY_INTAKE_START_TRANSFER_BATCH_ID} · الدفعة المعروضة {latestTransferBatch.transfer_batch_id} · الإجمالي {latestTransferBatch.total_eggs} بيضة · الدفعات القديمة مستبعدة من وارد التفريخ الجديد · الشحنات اليتيمة مستبعدة من البانر والتحميل التلقائي · دفعة 35 بيضة {availableTransferBatches.some((g) => g.transfer_batch_id === "5d5ca4a9-86e3-4360-a1ef-e0389e6b672a" && Number(g.total_eggs) === 35) ? "ظاهرة في القائمة" : "غير ظاهرة في القائمة"}
             </div>
           )}
 
@@ -1297,10 +1325,11 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
                 const lotSelectedTransferIds = new Set(l.from_farm_transfer_ids || []);
                 const availableForLot = transferBatchesData.filter(
                   (g) =>
-                    (((g.shipments || []).length > 0 && g.shipments.every((s: any) => lotSelectedIds.has(s.id))) ||
+                    g.hatchery_intake_state === "active" &&
+                    ((((g.shipments || []).length > 0 && g.shipments.every((s: any) => lotSelectedIds.has(s.id))) ||
                       ((g.farm_transfer_ids || []).length > 0 && g.farm_transfer_ids.every((id: string) => lotSelectedTransferIds.has(id)))) ||
                     ((g.shipments || []).every((s: any) => !usedShipmentIds.has(s.id)) &&
-                      (g.farm_transfer_ids || []).every((id: string) => !usedFarmTransferIds.has(id)))
+                      (g.farm_transfer_ids || []).every((id: string) => !usedFarmTransferIds.has(id))))
                 );
                 const currentKey =
                   (l.from_shipment_ids || []).length > 0 || (l.from_farm_transfer_ids || []).length > 0
@@ -1380,10 +1409,22 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
             </div>
           </div>
 
-          {orphanShipmentsData.length > 0 && (
+          {(excludedHistoricalTransferBatches.length > 0 || orphanShipmentsData.length > 0) && (
             <div className="border-t pt-3">
-              <h4 className="font-bold text-amber-700 mb-2">شحنات يتيمة تحتاج مراجعة</h4>
-              <div className="space-y-2">
+              <h4 className="font-bold text-amber-700 mb-2">شحنات قديمة / تحتاج مراجعة</h4>
+              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                {excludedHistoricalTransferBatches.map((g: any) => {
+                  const period = g.min_date === g.max_date ? g.min_date : `${g.min_date} → ${g.max_date}`;
+                  return (
+                    <div key={g.key} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs dark:bg-amber-950/20">
+                      <div>
+                        <span className="font-semibold">دفعة تاريخية مستبعدة — {Number(g.total_eggs || 0).toLocaleString()} بيضة</span>
+                        <span className="text-muted-foreground"> · فترة الإنتاج: {period} · الحالة: excluded_from_hatchery_intake</span>
+                      </div>
+                      <Button size="sm" variant="outline" onClick={() => toast.info("هذه الدفعة محفوظة للتاريخ وممنوعة من التحميل التلقائي في وارد التفريخ الجديد")}>مراجعة</Button>
+                    </div>
+                  );
+                })}
                 {orphanShipmentsData.map((s: any) => (
                   <div key={s.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs dark:bg-amber-950/20">
                     <div>
