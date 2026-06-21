@@ -984,6 +984,58 @@ const Warehouses = () => {
               </div>
             </TabsContent>
           ))}
+
+          {/* MENU tab with sub-pages */}
+          <TabsContent value="menu" className="space-y-4">
+            {menuSubview ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setMenuSubview(null)}><ArrowLeftRight className="w-4 h-4 ml-1" />رجوع للمنيو</Button>
+                </div>
+                <div className="rounded-lg border border-border bg-card overflow-hidden">
+                  <iframe
+                    src={`${menuSubview}?embed=1`}
+                    title={menuSubview}
+                    className="w-full"
+                    style={{ height: "calc(100vh - 260px)", minHeight: "600px", border: "none" }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <Card className="cursor-pointer hover:border-primary transition-colors" onClick={() => setMenuSubview("/modules/warehouses/main-guide")}>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base"><BookOpen className="w-5 h-5 text-primary" />دليل المخزن الرئيسي</CardTitle>
+                    <CardDescription>تعليمات وتشغيل المخزن الرئيسي</CardDescription>
+                  </CardHeader>
+                </Card>
+                <Card className="cursor-pointer hover:border-primary transition-colors" onClick={() => setMenuSubview("/modules/warehouses/operational-dates")}>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base"><Calendar className="w-5 h-5 text-primary" />تواريخ بداية التشغيل الفعلي</CardTitle>
+                    <CardDescription>تواريخ بدء التشغيل الفعلي للمخازن</CardDescription>
+                  </CardHeader>
+                </Card>
+                <Card className="cursor-pointer hover:border-primary transition-colors" onClick={() => setMenuSubview("/modules/warehouses/opening-balance")}>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base"><Scale className="w-5 h-5 text-primary" />الرصيد الافتتاحي للمخازن</CardTitle>
+                    <CardDescription>إدارة الأرصدة الافتتاحية والاعتمادات</CardDescription>
+                  </CardHeader>
+                </Card>
+                <Card className="cursor-pointer hover:border-primary transition-colors" onClick={() => setMenuSubview("/modules/warehouses/dashboard")}>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base"><BarChart3 className="w-5 h-5 text-primary" />لوحة المؤشرات</CardTitle>
+                    <CardDescription>إحصائيات وتحليلات المخازن</CardDescription>
+                  </CardHeader>
+                </Card>
+                <Card className="cursor-pointer hover:border-primary transition-colors" onClick={() => { exportInventorySummaryPDF(); }}>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base"><FileText className="w-5 h-5 text-red-600" />تقرير PDF</CardTitle>
+                    <CardDescription>تقرير ملخص المخزون والمنتجات</CardDescription>
+                  </CardHeader>
+                </Card>
+              </div>
+            )}
+          </TabsContent>
         </Tabs>
       </div>
 
