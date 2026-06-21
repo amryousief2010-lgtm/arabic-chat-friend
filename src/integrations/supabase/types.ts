@@ -15257,6 +15257,42 @@ export type Database = {
           },
         ]
       }
+      warehouse_manual_parties: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          kind: string
+          name: string
+          notes: string | null
+          party_type: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          kind: string
+          name: string
+          notes?: string | null
+          party_type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          kind?: string
+          name?: string
+          notes?: string | null
+          party_type?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       warehouse_opening_balances: {
         Row: {
           approved_at: string | null
