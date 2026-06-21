@@ -1124,7 +1124,7 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
           if (missingTransferIds.length) {
             const { data: transferRows } = await (supabase as any)
               .from("farm_transfers")
-              .select("id, transfer_date, family_id, quantity")
+              .select("id, transfer_date, family_id, quantity, transfer_batch_id")
               .in("id", missingTransferIds);
             const familyIds = Array.from(new Set((transferRows || []).map((r: any) => r.family_id).filter(Boolean))) as string[];
             const familyMap = new Map<string, string>();
@@ -1132,7 +1132,11 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
               const { data: fams } = await supabase.from("farm_families").select("id, family_number").in("id", familyIds);
               (fams || []).forEach((f: any) => familyMap.set(f.id, String(f.family_number)));
             }
-            const transferBatchId = (existingShipments || []).find((s: any) => s.transfer_batch_id)?.transfer_batch_id || (crypto as any).randomUUID?.() || null;
+            // Prefer the actual transfer_batch_id from farm_transfers (so سجل النقل في المزرعة يبقى متطابق)
+            const transferBatchId =
+              (transferRows || []).find((r: any) => r.transfer_batch_id)?.transfer_batch_id ||
+              (existingShipments || []).find((s: any) => s.transfer_batch_id)?.transfer_batch_id ||
+              (crypto as any).randomUUID?.() || null;
             const newShipmentRows = (transferRows || []).map((r: any) => ({
               farm_transfer_id: r.id,
               transfer_batch_id: transferBatchId,
