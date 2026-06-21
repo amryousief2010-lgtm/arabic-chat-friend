@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { useState } from "react";
 import {
   Warehouse,
   Activity,
@@ -8,101 +8,79 @@ import {
   BookOpen,
   LucideIcon,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useAuth, AppRole } from "@/hooks/useAuth";
+import { cn } from "@/lib/utils";
 
-interface HubCard {
+interface TabItem {
+  id: string;
   icon: LucideIcon;
   label: string;
   path: string;
-  desc?: string;
-  roles?: AppRole[];
 }
 
-interface HubGroup {
-  title: string;
-  cards: HubCard[];
-}
-
-const GROUPS: HubGroup[] = [
-  {
-    title: "المخازن الرئيسية",
-    cards: [
-      { icon: Warehouse, label: "المخزن الرئيسي", path: "/warehouse-stock/main", desc: "إدارة وعرض رصيد المخزن الرئيسي" },
-      { icon: Warehouse, label: "مخزن العجوزة", path: "/warehouse-stock/agouza", desc: "إدارة رصيد مخزن العجوزة" },
-      { icon: Warehouse, label: "هايبر هيلثي تيست", path: "/warehouse-stock/hyper-healthy-test", desc: "مخزن العميل — هايبر هيلثي تيست" },
-      { icon: Warehouse, label: "هايبر كارفور", path: "/warehouse-stock/hyper-carrefour", desc: "مخزن العميل — هايبر كارفور" },
-    ],
-  },
-  {
-    title: "حركة وتشغيل المخزون",
-    cards: [
-      { icon: Activity, label: "سجل حركات المخزن الرئيسي", path: "/main-warehouse-activity", desc: "كل الحركات الواردة والصادرة" },
-      { icon: Package, label: "الرصيد الافتتاحي للمخازن", path: "/modules/warehouses/opening-balance", desc: "إدارة الأرصدة الافتتاحية لكل مخزن" },
-      { icon: CalendarClock, label: "تواريخ بداية التشغيل الفعلي", path: "/modules/warehouses/operational-dates", desc: "ضبط تواريخ بداية التشغيل" },
-    ],
-  },
-  {
-    title: "مخازن مساعدة",
-    cards: [
-      { icon: Package, label: "مخزن التغليف والتعبئة", path: "/modules/packaging", desc: "إدارة مواد التغليف والتعبئة" },
-      { icon: MapPin, label: "المخازن حسب الموقع الجغرافي", path: "/modules/warehouses/by-location", desc: "عرض المخازن مرتبة جغرافياً" },
-    ],
-  },
-  {
-    title: "أدلة وتشغيل",
-    cards: [
-      { icon: BookOpen, label: "دليل تشغيل المخزن الرئيسي", path: "/warehouse-stock/main/guide", desc: "خطوات تشغيل المخزن الرئيسي" },
-    ],
-  },
+const TABS: TabItem[] = [
+  { id: "main", icon: Warehouse, label: "المخزن الرئيسي", path: "/warehouse-stock/main" },
+  { id: "agouza", icon: Warehouse, label: "مخزن العجوزة", path: "/warehouse-stock/agouza" },
+  { id: "hht", icon: Warehouse, label: "هايبر هيلثي تيست", path: "/warehouse-stock/hyper-healthy-test" },
+  { id: "carrefour", icon: Warehouse, label: "هايبر كارفور", path: "/warehouse-stock/hyper-carrefour" },
+  { id: "activity", icon: Activity, label: "سجل حركات المخزن الرئيسي", path: "/main-warehouse-activity" },
+  { id: "opening", icon: Package, label: "الرصيد الافتتاحي للمخازن", path: "/modules/warehouses/opening-balance" },
+  { id: "operational", icon: CalendarClock, label: "تواريخ بداية التشغيل الفعلي", path: "/modules/warehouses/operational-dates" },
+  { id: "packaging", icon: Package, label: "مخزن التغليف والتعبئة", path: "/modules/packaging" },
+  { id: "by-location", icon: MapPin, label: "المخازن حسب الموقع الجغرافي", path: "/modules/warehouses/by-location" },
+  { id: "guide", icon: BookOpen, label: "دليل تشغيل المخزن الرئيسي", path: "/warehouse-stock/main/guide" },
 ];
 
 const WarehouseManagementHub = () => {
-  const { roles } = useAuth();
-  const hasAnyRole = (rs: AppRole[]) => rs.some((r) => roles.includes(r));
+  const [active, setActive] = useState<string>(TABS[0].id);
+  const activeTab = TABS.find((t) => t.id === active) ?? TABS[0];
+
+  // Build embed URL with a flag so embedded pages can hide their own chrome if they choose
+  const embedUrl = `${activeTab.path}?embed=1`;
 
   return (
-    <div className="p-4 md:p-6 space-y-8" dir="rtl">
+    <div className="p-4 md:p-6 space-y-4" dir="rtl">
       <div className="space-y-1">
         <h1 className="text-2xl md:text-3xl font-bold text-foreground">إدارة المخازن</h1>
         <p className="text-sm text-muted-foreground">
-          لوحة موحّدة لكل صفحات المخازن — اختر الصفحة التي تريد فتحها.
+          اختر القسم من الأعلى ليظهر محتواه أسفل الأزرار مباشرة.
         </p>
       </div>
 
-      {GROUPS.map((group) => (
-        <section key={group.title} className="space-y-3">
-          <h2 className="text-lg md:text-xl font-semibold text-foreground border-r-4 border-primary pr-3">
-            {group.title}
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {group.cards
-              .filter((c) => !c.roles || hasAnyRole(c.roles))
-              .map((card) => {
-                const Icon = card.icon;
-                return (
-                  <Link key={card.path} to={card.path} className="group">
-                    <Card className="h-full transition-all hover:shadow-lg hover:border-primary/50 hover:-translate-y-0.5">
-                      <CardHeader className="pb-2">
-                        <div className="flex items-center gap-3">
-                          <div className="w-11 h-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                            <Icon className="w-5 h-5" />
-                          </div>
-                          <CardTitle className="text-base font-bold">{card.label}</CardTitle>
-                        </div>
-                      </CardHeader>
-                      {card.desc && (
-                        <CardContent className="pt-0">
-                          <p className="text-xs text-muted-foreground leading-relaxed">{card.desc}</p>
-                        </CardContent>
-                      )}
-                    </Card>
-                  </Link>
-                );
-              })}
-          </div>
-        </section>
-      ))}
+      {/* Horizontal scrollable tabs */}
+      <div className="border-b border-border">
+        <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-thin">
+          {TABS.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = tab.id === active;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActive(tab.id)}
+                className={cn(
+                  "flex items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium transition-all border",
+                  isActive
+                    ? "bg-primary text-primary-foreground border-primary shadow-md"
+                    : "bg-card text-foreground border-border hover:bg-accent hover:border-primary/40",
+                )}
+              >
+                <Icon className="w-4 h-4 shrink-0" />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Embedded page content */}
+      <div className="rounded-lg border border-border bg-card overflow-hidden">
+        <iframe
+          key={activeTab.id}
+          src={embedUrl}
+          title={activeTab.label}
+          className="w-full"
+          style={{ height: "calc(100vh - 220px)", minHeight: "600px", border: "none" }}
+        />
+      </div>
     </div>
   );
 };
