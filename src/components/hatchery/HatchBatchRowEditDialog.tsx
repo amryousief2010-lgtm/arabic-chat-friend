@@ -105,10 +105,15 @@ export default function HatchBatchRowEditDialog({ row, customerName, onClose, on
     setSaving(true);
     try {
       const payload: any = {};
-      Object.entries(changes).forEach(([k, v]) => { payload[k] = v.after; });
+      Object.entries(changes).forEach(([k, v]) => {
+        // excluded_eggs is synthetic — it's persisted through net_eggs (= received - excluded)
+        if (k === "excluded_eggs") return;
+        payload[k] = v.after;
+      });
 
       const { error } = await supabase.from("hatch_batches").update(payload).eq("id", row.id);
       if (error) throw error;
+
 
       await supabase.from("hatch_batch_edit_audit").insert({
         batch_id: row.id,
