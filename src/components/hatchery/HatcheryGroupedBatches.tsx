@@ -598,7 +598,7 @@ const GroupDetailDialog = ({ group, stageMeta, onClose, onOpenResults, onRefresh
                 <TableHead>النوع</TableHead>
                 <TableHead>رقم دفعة العميل</TableHead>
                 <TableHead>بيض</TableHead>
-                <TableHead>تالف</TableHead>
+                <TableHead>مستبعد</TableHead>
                 <TableHead>صافي</TableHead>
                 <TableHead>لايح</TableHead>
                 <TableHead>مخصب 1</TableHead>
