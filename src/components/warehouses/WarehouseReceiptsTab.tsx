@@ -9,11 +9,13 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Beef, Factory, ArrowLeftRight, Printer, Eye, Inbox, Loader2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Beef, Factory, ArrowLeftRight, Printer, Eye, Inbox, Loader2, Pencil, Trash2, Package } from "lucide-react";
 import { formatDateTime } from "@/lib/dateFormat";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate, COMPANY_AR } from "@/lib/printPdf";
+import { toast } from "sonner";
 
-type ReceiptKind = "slaughter" | "meat_factory" | "internal";
+type ReceiptKind = "slaughter" | "meat_factory" | "internal" | "other";
 
 interface ReceiptLine {
   name: string;
