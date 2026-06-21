@@ -115,30 +115,65 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
       const whs = wRes.data || [];
       const agouza = whs.find((w: any) => w.name?.includes("العجوزة"));
       const main = whs.find((w: any) => w.name?.includes("الرئيسي") || w.name?.includes("المقر"));
+      const carrefour = whs.find((w: any) => w.name?.includes("كارفور") || /carrefour/i.test(w.name || ""));
+      const healthy = whs.find((w: any) => w.name?.includes("هيلثي") || /healthy/i.test(w.name || ""));
       setAgouzaWhId(agouza?.id ?? null);
       setMainWhId(main?.id ?? null);
-      const whIds = [agouza?.id, main?.id].filter(Boolean) as string[];
+      setExtraWhIds({ carrefour: carrefour?.id ?? null, healthy: healthy?.id ?? null });
+
+      const whIds = [agouza?.id, main?.id, carrefour?.id, healthy?.id].filter(Boolean) as string[];
       if (whIds.length > 0) {
         const { data: invRows } = await supabase
           .from("inventory_items")
-          .select("id, warehouse_id, product_id, stock, reserved_qty, blocked_qty, unit_cost, sku")
+          .select("id, warehouse_id, product_id, stock, reserved_qty, blocked_qty, unit_cost, sku, low_stock_threshold")
           .in("warehouse_id", whIds)
           .not("product_id", "is", null);
+
         const ag: Record<string, number> = {};
         const mn: Record<string, number> = {};
         const agIds: Record<string, string> = {};
         const mnIds: Record<string, string> = {};
         const mnCost: Record<string, number> = {};
         const mnSku: Record<string, string> = {};
+        const mnLow: Record<string, number> = {};
+        const agCost: Record<string, number> = {};
+        const agSku: Record<string, string> = {};
+        const agLow: Record<string, number> = {};
+        const exStock: Record<string, Record<string, number>> = { carrefour: {}, healthy: {} };
+        const exIds: Record<string, Record<string, string>> = { carrefour: {}, healthy: {} };
+        const exCost: Record<string, Record<string, number>> = { carrefour: {}, healthy: {} };
+        const exSku: Record<string, Record<string, string>> = { carrefour: {}, healthy: {} };
+        const exLow: Record<string, Record<string, number>> = { carrefour: {}, healthy: {} };
+
         (invRows || []).forEach((r: any) => {
-          // الرصيد الفعلي = stock (بدون خصم محجوز - المحجوز يُحسب من الأوردرات الجارية)
           const actual = Number(r.stock || 0) - Number(r.blocked_qty || 0);
-          if (r.warehouse_id === agouza?.id) { ag[r.product_id] = (ag[r.product_id] || 0) + actual; agIds[r.product_id] = r.id; }
+          if (r.warehouse_id === agouza?.id) {
+            ag[r.product_id] = (ag[r.product_id] || 0) + actual;
+            agIds[r.product_id] = r.id;
+            agCost[r.product_id] = Number(r.unit_cost || 0);
+            if (r.sku) agSku[r.product_id] = r.sku;
+            agLow[r.product_id] = Number(r.low_stock_threshold || 0);
+          }
           if (r.warehouse_id === main?.id) {
             mn[r.product_id] = (mn[r.product_id] || 0) + actual;
             mnIds[r.product_id] = r.id;
             mnCost[r.product_id] = Number(r.unit_cost || 0);
             if (r.sku) mnSku[r.product_id] = r.sku;
+            mnLow[r.product_id] = Number(r.low_stock_threshold || 0);
+          }
+          if (carrefour?.id && r.warehouse_id === carrefour.id) {
+            exStock.carrefour[r.product_id] = (exStock.carrefour[r.product_id] || 0) + actual;
+            exIds.carrefour[r.product_id] = r.id;
+            exCost.carrefour[r.product_id] = Number(r.unit_cost || 0);
+            if (r.sku) exSku.carrefour[r.product_id] = r.sku;
+            exLow.carrefour[r.product_id] = Number(r.low_stock_threshold || 0);
+          }
+          if (healthy?.id && r.warehouse_id === healthy.id) {
+            exStock.healthy[r.product_id] = (exStock.healthy[r.product_id] || 0) + actual;
+            exIds.healthy[r.product_id] = r.id;
+            exCost.healthy[r.product_id] = Number(r.unit_cost || 0);
+            if (r.sku) exSku.healthy[r.product_id] = r.sku;
+            exLow.healthy[r.product_id] = Number(r.low_stock_threshold || 0);
           }
         });
         setAgouzaStock(ag);
@@ -147,26 +182,47 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
         setMainItemIds(mnIds);
         setMainCost(mnCost);
         setMainSku(mnSku);
+        setMainLowThreshold(mnLow);
+        setAgouzaCost(agCost);
+        setAgouzaSku(agSku);
+        setAgouzaLowThreshold(agLow);
+        setExtraStock(exStock);
+        setExtraItemIds(exIds);
+        setExtraCost(exCost);
+        setExtraSku(exSku);
+        setExtraLowThreshold(exLow);
 
-        // آخر حركة لكل صنف في المخزن الرئيسي
-        if (main?.id) {
-          const mainItemIdList = Object.values(mnIds);
-          if (mainItemIdList.length > 0) {
-            const { data: lastMoves } = await supabase
-              .from("inventory_movements")
-              .select("item_id, performed_at")
-              .in("item_id", mainItemIdList)
-              .order("performed_at", { ascending: false })
-              .limit(2000);
-            const itemToProduct: Record<string, string> = {};
-            Object.entries(mnIds).forEach(([pid, iid]) => { itemToProduct[iid] = pid; });
-            const lastByProduct: Record<string, string> = {};
-            (lastMoves || []).forEach((m: any) => {
-              const pid = itemToProduct[m.item_id];
-              if (pid && !lastByProduct[pid]) lastByProduct[pid] = m.performed_at;
-            });
-            setMainLastMove(lastByProduct);
-          }
+        // آخر حركة لكل صنف لكل مخزن (نجمعها من كل الـ item ids المعروفة)
+        const allItemIds: { pid: string; iid: string; whKey: "main" | "agouza" | "carrefour" | "healthy" }[] = [];
+        Object.entries(mnIds).forEach(([pid, iid]) => allItemIds.push({ pid, iid, whKey: "main" }));
+        Object.entries(agIds).forEach(([pid, iid]) => allItemIds.push({ pid, iid, whKey: "agouza" }));
+        Object.entries(exIds.carrefour).forEach(([pid, iid]) => allItemIds.push({ pid, iid, whKey: "carrefour" }));
+        Object.entries(exIds.healthy).forEach(([pid, iid]) => allItemIds.push({ pid, iid, whKey: "healthy" }));
+        if (allItemIds.length > 0) {
+          const itemIdList = allItemIds.map(x => x.iid);
+          const { data: lastMoves } = await supabase
+            .from("inventory_movements")
+            .select("item_id, performed_at")
+            .in("item_id", itemIdList)
+            .order("performed_at", { ascending: false })
+            .limit(5000);
+          const lastByItem: Record<string, string> = {};
+          (lastMoves || []).forEach((m: any) => {
+            if (!lastByItem[m.item_id]) lastByItem[m.item_id] = m.performed_at;
+          });
+          const mainLM: Record<string, string> = {};
+          const agLM: Record<string, string> = {};
+          const exLM: Record<string, Record<string, string>> = { carrefour: {}, healthy: {} };
+          allItemIds.forEach(({ pid, iid, whKey }) => {
+            const ts = lastByItem[iid];
+            if (!ts) return;
+            if (whKey === "main") mainLM[pid] = ts;
+            else if (whKey === "agouza") agLM[pid] = ts;
+            else exLM[whKey][pid] = ts;
+          });
+          setMainLastMove(mainLM);
+          setAgouzaLastMove(agLM);
+          setExtraLastMove(exLM);
         }
 
 
@@ -191,6 +247,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
         );
         const agPend: Record<string, number> = {};
         const mnPend: Record<string, number> = {};
+        const exPend: Record<string, Record<string, number>> = { carrefour: {}, healthy: {} };
         if (orderIds.length > 0) {
           for (let i = 0; i < orderIds.length; i += 500) {
             const slice = orderIds.slice(i, i + 500);
@@ -204,11 +261,14 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
               const qty = Number(it.quantity || 0);
               if (wh === agouza?.id) agPend[it.product_id] = (agPend[it.product_id] || 0) + qty;
               if (wh === main?.id) mnPend[it.product_id] = (mnPend[it.product_id] || 0) + qty;
+              if (carrefour?.id && wh === carrefour.id) exPend.carrefour[it.product_id] = (exPend.carrefour[it.product_id] || 0) + qty;
+              if (healthy?.id && wh === healthy.id) exPend.healthy[it.product_id] = (exPend.healthy[it.product_id] || 0) + qty;
             });
           }
         }
         setAgouzaPending(agPend);
         setMainPending(mnPend);
+        setExtraPending(exPend);
 
         // آخر تاريخ Opening Balance للمخزن الرئيسي
         if (main?.id) {
@@ -226,6 +286,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
       setLoading(false);
     }
   };
+
 
 
   useEffect(() => { fetchAll(); }, []);
