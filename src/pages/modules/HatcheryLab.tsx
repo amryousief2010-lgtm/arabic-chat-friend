@@ -792,15 +792,18 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
     },
   });
 
-  // وارد بيض المزرعة المتاح — مُجمَّع حسب transfer_batch_id من farm_transfers (يطابق سجل نقل البيض في المزرعة)
+  // وارد بيض المزرعة المتاح — دفعات رسمية فقط من farm_transfers ومجمعة حسب transfer_batch_id
   const { data: transferBatchesData = [], refetch: refetchShipments } = useQuery<any[]>({
-    queryKey: ["pending_farm_transfer_batches_for_new_batch", open],
+    queryKey: ["pending_official_farm_transfer_batches_for_new_batch", open],
     enabled: !!open,
     queryFn: async () => {
       const { data: farmTransfers, error: ftError } = await (supabase as any)
         .from("farm_transfers")
         .select("id, transfer_date, family_id, quantity, notes, created_at, transfer_batch_id")
+        .not("transfer_batch_id", "is", null)
+        .order("transfer_date", { ascending: false })
         .order("created_at", { ascending: false })
+        .order("transfer_batch_id", { ascending: true })
         .limit(2000);
       if (ftError) throw ftError;
 
@@ -808,12 +811,11 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
         .from("farm_to_hatchery_shipments")
         .select("id, production_date, egg_count, family_number, created_at, status, hatch_batch_id, farm_transfer_id, transfer_batch_id")
         .eq("is_test", false)
-        .order("created_at", { ascending: false })
         .limit(2000);
       if (error) throw error;
       const allShipments = shipRows || [];
-      const transfers = farmTransfers || [];
-      if (!allShipments.length && !transfers.length) return [];
+      const transfers = (farmTransfers || []).filter((ft: any) => !!ft.transfer_batch_id);
+      if (!transfers.length) return [];
 
       // index shipments by transfer_batch_id (primary) and farm_transfer_id (legacy)
       const shipmentsByBatchId = new Map<string, any[]>();
@@ -832,9 +834,8 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
       });
 
       const groups = new Map<string, any>();
-      const secondBucket = (v: string) => (v ? v.slice(0, 19) : "");
 
-      // المصدر الأساسي: تجميع farm_transfers حسب transfer_batch_id (نفس منطق سجل نقل البيض في صفحة المزرعة)
+      // المصدر الوحيد للبانر والتحميل: farm_transfers الرسمية ذات transfer_batch_id
       for (const ft of transfers) {
         // اربط الشحنات المرتبطة بهذه الدفعة (إن وُجدت) للتحقق إن لم تُستلم/تُربط بدفعة تفريخ
         const linkedShipments = [
@@ -845,21 +846,20 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
         const blocking = dedup.some((s: any) => s.status !== "pending" || s.hatch_batch_id);
         if (blocking) continue;
 
-        const key = ft.transfer_batch_id
-          ? `tb:${ft.transfer_batch_id}`
-          : `legacy:${secondBucket(ft.created_at)}:${ft.notes || ""}`;
+        const key = `tb:${ft.transfer_batch_id}`;
         let g = groups.get(key);
         if (!g) {
           g = {
             key,
-            transfer_batch_id: ft.transfer_batch_id || null,
+            transfer_batch_id: ft.transfer_batch_id,
             label: ft.notes || `دفعة نقل ${ft.transfer_date}`,
             shipments: [] as any[],
             farm_transfer_ids: [] as string[],
             total_eggs: 0,
             min_date: ft.transfer_date,
             max_date: ft.transfer_date,
-            transfer_date: ft.transfer_date,
+            transfer_date: ft.created_at ? String(ft.created_at).slice(0, 10) : ft.transfer_date,
+            transfer_sort_date: ft.transfer_date,
             latest_created_at: ft.created_at,
             source: "farm_transfers" as const,
           };
@@ -872,54 +872,37 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
         g.total_eggs += Number(ft.quantity) || 0;
         if (ft.transfer_date < g.min_date) g.min_date = ft.transfer_date;
         if (ft.transfer_date > g.max_date) g.max_date = ft.transfer_date;
-        if (ft.transfer_date > g.transfer_date) g.transfer_date = ft.transfer_date;
+        if (ft.transfer_date > g.transfer_sort_date) g.transfer_sort_date = ft.transfer_date;
         if (ft.created_at > g.latest_created_at) g.latest_created_at = ft.created_at;
+        g.transfer_date = g.latest_created_at ? String(g.latest_created_at).slice(0, 10) : g.transfer_sort_date;
       }
 
-      // fallback: شحنات pending قديمة بدون farm_transfer مطابق — جمّعها حسب transfer_batch_id
-      const orphanShipments = allShipments.filter(
-        (s: any) =>
-          s.status === "pending" &&
-          !s.hatch_batch_id &&
-          !(s.transfer_batch_id && groups.has(`tb:${s.transfer_batch_id}`)) &&
-          !(s.farm_transfer_id && transfers.some((t: any) => t.id === s.farm_transfer_id))
-      );
-
-      for (const s of orphanShipments) {
-        const key =
-          (s.transfer_batch_id && `tb:${s.transfer_batch_id}`) ||
-          (s.farm_transfer_id && `ft:${s.farm_transfer_id}`) ||
-          `orphan:${secondBucket(s.created_at)}:${s.production_date}`;
-        let g = groups.get(key);
-        if (!g) {
-          g = {
-            key,
-            transfer_batch_id: s.transfer_batch_id || null,
-            label: `شحنة ${s.production_date}`,
-            shipments: [] as any[],
-            farm_transfer_ids: [] as string[],
-            total_eggs: 0,
-            min_date: s.production_date,
-            max_date: s.production_date,
-            transfer_date: s.production_date,
-            latest_created_at: s.created_at,
-            source: "orphan_shipments" as const,
-          };
-          groups.set(key, g);
-        }
-        g.shipments.push(s);
-        g.total_eggs += Number(s.egg_count) || 0;
-        if (s.production_date < g.min_date) g.min_date = s.production_date;
-        if (s.production_date > g.max_date) g.max_date = s.production_date;
-        if (s.created_at > g.latest_created_at) g.latest_created_at = s.created_at;
-      }
-
-      // الترتيب: تاريخ النقل (transfer_date) ثم latest_created_at — يطابق "آخر دفعة نقل" في سجل المزرعة
-      return Array.from(groups.values()).sort((a, b) => {
-        const dCmp = String(b.transfer_date || "").localeCompare(String(a.transfer_date || ""));
+      // الترتيب الرسمي فقط: transfer_date desc ثم created_at desc ثم transfer_batch_id
+      return Array.from(groups.values()).filter((g) => g.total_eggs > 0).sort((a, b) => {
+        const dCmp = String(b.transfer_sort_date || "").localeCompare(String(a.transfer_sort_date || ""));
         if (dCmp !== 0) return dCmp;
-        return String(b.latest_created_at || "").localeCompare(String(a.latest_created_at || ""));
+        const cCmp = String(b.latest_created_at || "").localeCompare(String(a.latest_created_at || ""));
+        if (cCmp !== 0) return cCmp;
+        return String(a.transfer_batch_id || "").localeCompare(String(b.transfer_batch_id || ""));
       });
+    },
+  });
+
+  const { data: orphanShipmentsData = [] } = useQuery<any[]>({
+    queryKey: ["orphan_farm_shipments_review_for_new_batch", open],
+    enabled: !!open,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("farm_to_hatchery_shipments")
+        .select("id, production_date, egg_count, created_at, status, hatch_batch_id, farm_transfer_id, transfer_batch_id")
+        .eq("is_test", false)
+        .eq("status", "pending")
+        .is("hatch_batch_id", null)
+        .is("transfer_batch_id", null)
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return data || [];
     },
   });
 
