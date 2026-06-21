@@ -1807,6 +1807,11 @@ const Slaughterhouse = () => {
         <TabsContent value="settings">
           <SettingsTab settings={settings} onSave={saveSettings} />
         </TabsContent>
+
+        {/* ========== LIVE BATCH COSTS ========== */}
+        <TabsContent value="live-costs">
+          <LiveBatchCostsPanel />
+        </TabsContent>
       </Tabs>
 
       {/* Adjust Live Stock Dialog */}
