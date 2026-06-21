@@ -567,17 +567,28 @@ const Warehouses = () => {
         </div>
 
         <Tabs defaultValue="items">
-          <TabsList>
-            <TabsTrigger value="items">الأصناف</TabsTrigger>
-            <TabsTrigger value="slaughter" className="gap-1">
-              <Beef className="w-4 h-4" /> استلام المجزر
-              {pendingSlaughter.length > 0 && <Badge variant="destructive" className="mr-1">{pendingSlaughter.length}</Badge>}
-            </TabsTrigger>
-            <TabsTrigger value="movements">الحركات</TabsTrigger>
-            <TabsTrigger value="low">منخفضة <Badge variant="destructive" className="mr-2">{lowStockItems.length}</Badge></TabsTrigger>
-            <TabsTrigger value="warehouses">المخازن</TabsTrigger>
-            <TabsTrigger value="distribution" className="gap-1"><MapPin className="w-4 h-4" />التوزيع الجغرافي</TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto pb-1">
+            <TabsList className="w-max flex-nowrap">
+              <TabsTrigger value="items">الأصناف</TabsTrigger>
+              <TabsTrigger value="slaughter" className="gap-1">
+                <Beef className="w-4 h-4" /> استلام المجزر
+                {pendingSlaughter.length > 0 && <Badge variant="destructive" className="mr-1">{pendingSlaughter.length}</Badge>}
+              </TabsTrigger>
+              <TabsTrigger value="movements">الحركات</TabsTrigger>
+              <TabsTrigger value="low">منخفضة <Badge variant="destructive" className="mr-2">{lowStockItems.length}</Badge></TabsTrigger>
+              <TabsTrigger value="warehouses">المخازن</TabsTrigger>
+              <TabsTrigger value="distribution" className="gap-1"><MapPin className="w-4 h-4" />التوزيع الجغرافي</TabsTrigger>
+              <TabsTrigger value="wh-main" className="gap-1"><Warehouse className="w-4 h-4" />المخزن الرئيسي</TabsTrigger>
+              <TabsTrigger value="wh-agouza" className="gap-1"><Warehouse className="w-4 h-4" />مخزن العجوزة</TabsTrigger>
+              <TabsTrigger value="wh-hht" className="gap-1"><Warehouse className="w-4 h-4" />هايبر هيلثي تيست</TabsTrigger>
+              <TabsTrigger value="wh-carrefour" className="gap-1"><Warehouse className="w-4 h-4" />هايبر كارفور</TabsTrigger>
+              <TabsTrigger value="wh-packaging" className="gap-1"><Package className="w-4 h-4" />التغليف والتعبئة</TabsTrigger>
+              <TabsTrigger value="wh-activity" className="gap-1"><BarChart3 className="w-4 h-4" />سجل حركات المخزن الرئيسي</TabsTrigger>
+              <TabsTrigger value="wh-opening" className="gap-1"><Package className="w-4 h-4" />الرصيد الافتتاحي</TabsTrigger>
+              <TabsTrigger value="wh-operational" className="gap-1"><Settings2 className="w-4 h-4" />تواريخ بداية التشغيل</TabsTrigger>
+              <TabsTrigger value="wh-guide" className="gap-1"><FileText className="w-4 h-4" />دليل المخزن الرئيسي</TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* ITEMS */}
           <TabsContent value="items" className="space-y-4">
