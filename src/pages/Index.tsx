@@ -228,6 +228,13 @@ const DashboardContent = () => {
         />
       </div>
 
+      {/* Active users (managers only — component handles role gating) */}
+      <div className="mb-6 max-w-md">
+        <ActiveUsersWidget />
+      </div>
+
+
+
       {/* Daily / Monthly / Yearly Sales Breakdown - Hidden for sales moderators */}
       {!isModerator && (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
