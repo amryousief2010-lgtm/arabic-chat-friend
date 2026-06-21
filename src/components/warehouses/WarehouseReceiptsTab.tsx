@@ -447,9 +447,10 @@ export default function WarehouseReceiptsTab() {
           <TabsTrigger value="slaughter" className="gap-1"><Beef className="w-4 h-4" />استلامات المجزر</TabsTrigger>
           <TabsTrigger value="meat_factory" className="gap-1"><Factory className="w-4 h-4" />استلامات مصنع اللحوم</TabsTrigger>
           <TabsTrigger value="internal" className="gap-1"><ArrowLeftRight className="w-4 h-4" />استلامات التحويلات الداخلية</TabsTrigger>
+          <TabsTrigger value="other" className="gap-1"><Package className="w-4 h-4" />استلامات أخرى</TabsTrigger>
         </TabsList>
 
-        {(["slaughter", "meat_factory", "internal"] as ReceiptKind[]).map((k) => (
+        {(["slaughter", "meat_factory", "internal", "other"] as ReceiptKind[]).map((k) => (
           <TabsContent key={k} value={k} className="space-y-3">
             <Card>
               <CardContent className="p-0">
@@ -471,9 +472,11 @@ export default function WarehouseReceiptsTab() {
                     {loading ? (
                       <TableRow><TableCell colSpan={9} className="text-center py-8"><Loader2 className="w-5 h-5 animate-spin inline" /></TableCell></TableRow>
                     ) : filtered.length === 0 ? (
-                      <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">لا توجد عمليات استلام</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">{k === "other" ? "لا توجد استلامات أخرى مسجّلة" : "لا توجد عمليات استلام"}</TableCell></TableRow>
                     ) : filtered.map((r) => {
                       const st = STATUS_LABELS[r.status] || STATUS_LABELS.received;
+                      const editable = r.kind !== "slaughter";
+                      const deletable = r.status !== "received" && r.status !== "partial" && r.kind !== "slaughter";
                       return (
                         <TableRow key={`${r.kind}-${r.id}`}>
                           <TableCell className="font-mono text-xs">{r.batch_no}</TableCell>
@@ -486,8 +489,14 @@ export default function WarehouseReceiptsTab() {
                           <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
                           <TableCell>
                             <div className="flex gap-1">
-                              <Button size="sm" variant="ghost" onClick={() => setDetail(r)} title="تفاصيل">
+                              <Button size="sm" variant="ghost" onClick={() => setDetail(r)} title="رؤية">
                                 <Eye className="w-4 h-4" />
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => openEdit(r)} title="تعديل" disabled={!editable}>
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(r)} title={deletable ? "حذف" : "محمي — مرتبط بحركة مخزون"} disabled={!deletable}>
+                                <Trash2 className={`w-4 h-4 ${deletable ? "text-destructive" : ""}`} />
                               </Button>
                               <Button size="sm" variant="ghost" onClick={() => printReceipt(r)} title="طباعة">
                                 <Printer className="w-4 h-4" />
