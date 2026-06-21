@@ -447,6 +447,12 @@ const WarehouseDetail = () => {
           if (r.kind === "slaughter") {
             return `<tr><td>${fmtDate(r.date)}</td><td>وارد المجزر</td><td>دفعة ${escapeHtml(r.batchNo)} (${r.movs.length} صنف)</td><td class="num">${fmtNum(r.totalQty, 2)} كجم</td><td>المجزر</td></tr>`;
           }
+          if (r.kind === "manual") {
+            const isIn = r.direction === "in";
+            const sample = r.movs[0] || {};
+            const party = isIn ? extractFromNotes(sample.notes, "جهة التوريد") : extractFromNotes(sample.notes, "جهة الصرف");
+            return `<tr><td>${fmtDate(r.date)}</td><td>${isIn ? "توريد مباشر" : "صرف مباشر"}</td><td><span style="font-family:monospace">${escapeHtml(r.reference)}</span> (${r.movs.length} صنف)</td><td class="num">${fmtNum(r.totalQty, 2)} كجم</td><td>${escapeHtml(party || "—")}</td></tr>`;
+          }
           const x = r.mov;
           return `<tr><td>${fmtDate(x.performed_at)}</td><td>${escapeHtml(moveLabels[x.movement_type]?.label || x.movement_type)}</td><td>${escapeHtml(x.item?.name || "—")}</td><td class="num">${fmtNum(x.quantity, 2)} ${escapeHtml(x.item?.unit || "")}</td><td>${escapeHtml(x.destination?.name || x.party || "—")}</td></tr>`;
         }).join("");
