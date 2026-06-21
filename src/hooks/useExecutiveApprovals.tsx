@@ -407,6 +407,8 @@ export function useExecutiveApprovals() {
         item.category === "custody" ? "slaughter_custody_expenses" :
         item.category === "slaughter" ? "slaughter_batches" :
         item.category === "hr" ? "hr_deductions" :
+        item.category === "mf_purchase" ? (item.raw?._kind === "pack_purchase" ? "mf_pack_purchases" : "mf_raw_purchases") :
+        item.category === "mf_mfg" ? "mf_manufacturing" :
         item.raw._source_table;
 
       const statusCol = item.category === "slaughter" ? "approval_status" : "status";
@@ -419,7 +421,8 @@ export function useExecutiveApprovals() {
         (item.category === "meat" && freshStatus === MEAT_PENDING) ||
         (item.category === "custody" && CUSTODY_PENDING.includes(freshStatus)) ||
         (item.category === "slaughter" && freshStatus === SLAUGHTER_BATCH_PENDING) ||
-        (item.category === "hr" && freshStatus === HR_PENDING);
+        (item.category === "hr" && freshStatus === HR_PENDING) ||
+        ((item.category === "mf_purchase" || item.category === "mf_mfg") && freshStatus === "draft");
       if (!isPending) {
         if (item.category === "hr" && freshStatus === "approved") {
           throw new Error("تم اعتماد هذا الخصم من قبل");
@@ -625,6 +628,13 @@ export function useExecutiveApprovals() {
             reason: r,
           });
         }
+      } else if (item.category === "mf_purchase") {
+        const tableName = item.raw?._kind === "pack_purchase" ? "mf_pack_purchases" : "mf_raw_purchases";
+        const { error } = await (supabase as any).rpc("reject_mf_invoice", { p_table: tableName, p_id: item.id, p_reason: r });
+        if (error) throw error;
+      } else if (item.category === "mf_mfg") {
+        const { error } = await (supabase as any).rpc("reject_mf_invoice", { p_table: "mf_manufacturing", p_id: item.id, p_reason: r });
+        if (error) throw error;
       }
       await refetch();
     },
@@ -636,7 +646,7 @@ export function useExecutiveApprovals() {
       isApprover,
       isLoading,
       items: data?.items ?? [],
-      counts: data?.counts ?? { all: 0, treasury: 0, lab: 0, meat: 0, custody: 0, slaughter: 0, hr: 0 },
+      counts: data?.counts ?? { all: 0, treasury: 0, lab: 0, meat: 0, custody: 0, slaughter: 0, hr: 0, mf_purchase: 0, mf_mfg: 0 },
       refetch,
       approve,
       reject,
