@@ -61,7 +61,8 @@ const ManualStockOutDialog = ({
   items,
   onSaved,
 }: Props) => {
-  const { user } = useAuth();
+  const { user, isGeneralManager, isExecutiveManager, isWarehouseSupervisor } = useAuth() as any;
+  const canAddParty = isGeneralManager || isExecutiveManager || isWarehouseSupervisor;
   const [destKey, setDestKey] = useState("");
   const [destOther, setDestOther] = useState("");
   const [customerName, setCustomerName] = useState("");
@@ -72,11 +73,25 @@ const ManualStockOutDialog = ({
   const [reason, setReason] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [customParties, setCustomParties] = useState<{ id: string; name: string }[]>([]);
+  const [addPartyOpen, setAddPartyOpen] = useState(false);
+
+  const loadCustom = async () => {
+    const { data } = await supabase
+      .from("warehouse_manual_parties" as any)
+      .select("id,name")
+      .in("kind", ["dispatch", "both"])
+      .eq("is_active", true)
+      .order("name");
+    setCustomParties((data as any) || []);
+  };
 
   useEffect(() => {
     if (!open) {
       setDestKey(""); setDestOther(""); setCustomerName("");
       setItemId(""); setQty(""); setUnitOverride(""); setReason(""); setNotes("");
+    } else {
+      void loadCustom();
     }
   }, [open]);
 
