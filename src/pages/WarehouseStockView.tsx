@@ -438,7 +438,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
 
 
       {/* ملخص سريع */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+      <div className={`grid grid-cols-1 sm:grid-cols-2 ${scope === "main" ? "lg:grid-cols-4" : "sm:grid-cols-3"} gap-3 mb-4`}>
         <Card
           className={scope === "main" ? "cursor-pointer hover:border-primary/40 transition-colors" : ""}
           onClick={scope === "main" ? () => { setCardSearch(""); setCardDialog("withStock"); } : undefined}
@@ -480,6 +480,23 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
             </div>
           </CardContent>
         </Card>
+        {scope === "main" && (
+          <Card
+            className="cursor-pointer hover:border-primary/40 transition-colors"
+            onClick={() => setShowItemsTable((v) => !v)}
+          >
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="p-2 rounded-md bg-blue-500/15 text-blue-700 dark:text-blue-300">
+                <Package className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">عدد الأصناف</div>
+                <div className="text-xl font-bold">{filtered.length}</div>
+                <div className="text-[10px] text-muted-foreground">{showItemsTable ? "اضغط للإخفاء" : "اضغط لعرض الجدول"}</div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
 
