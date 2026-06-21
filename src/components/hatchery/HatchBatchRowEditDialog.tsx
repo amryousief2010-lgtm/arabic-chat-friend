@@ -183,16 +183,46 @@ export default function HatchBatchRowEditDialog({ row, customerName, onClose, on
             </div>
           ))}
 
-          {numFields.map((f) => (
+          {numFields.map((f: any) => (
             <div key={f.key}>
-              <Label>{f.label} {f.critical && <span className="text-red-600">*</span>}</Label>
+              <Label>
+                {f.label}{" "}
+                {f.critical && <span className="text-red-600">*</span>}
+                {f.computed && <span className="text-[10px] text-muted-foreground mr-1">(يُحسب تلقائيًا = الوارد − المستبعد)</span>}
+              </Label>
               <Input
                 type="number"
+                min={0}
                 value={form[f.key] ?? ""}
                 onChange={(e) => set(f.key, e.target.value)}
+                readOnly={!!f.computed}
+                className={f.computed ? "bg-muted/40" : ""}
               />
             </div>
           ))}
+
+          <div className="md:col-span-2">
+            <Label>سبب الاستبعاد (اختياري)</Label>
+            <div className="flex flex-wrap gap-1 mb-1">
+              {EXCLUDED_REASONS.map((r) => (
+                <Button
+                  key={r}
+                  type="button"
+                  size="sm"
+                  variant={form.excluded_reason === r ? "default" : "outline"}
+                  onClick={() => set("excluded_reason", form.excluded_reason === r ? "" : r)}
+                  className="h-7 text-xs"
+                >
+                  {r}
+                </Button>
+              ))}
+            </div>
+            <Input
+              value={form.excluded_reason || ""}
+              onChange={(e) => set("excluded_reason", e.target.value)}
+              placeholder="سبب البيض المستبعد (مخروم/مكسور/تالف/...)"
+            />
+          </div>
 
           <div className="md:col-span-2">
             <Label>ملاحظات</Label>
@@ -202,6 +232,7 @@ export default function HatchBatchRowEditDialog({ row, customerName, onClose, on
               rows={2}
             />
           </div>
+
 
           <div className="md:col-span-2 border-t pt-3">
             <Label className="font-semibold">
