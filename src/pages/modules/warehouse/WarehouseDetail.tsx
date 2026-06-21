@@ -72,6 +72,7 @@ const WarehouseDetail = () => {
 
   // Slaughter-batch grouped movements dialog
   const [slaughterDialog, setSlaughterDialog] = useState<string | null>(null); // reference key
+  const [manualDialog, setManualDialog] = useState<string | null>(null); // MAN-IN/MAN-OUT reference key
   const [editQtyMap, setEditQtyMap] = useState<Record<string, number>>({});
   const [addItemId, setAddItemId] = useState<string>("");
   const [addItemQty, setAddItemQty] = useState<number>(0);
@@ -278,15 +279,22 @@ const WarehouseDetail = () => {
   const groupedMovements = useMemo(() => {
     type Row =
       | { kind: "single"; mov: any }
-      | { kind: "slaughter"; reference: string; batchNo: string; date: string; movs: any[]; totalQty: number };
+      | { kind: "slaughter"; reference: string; batchNo: string; date: string; movs: any[]; totalQty: number }
+      | { kind: "manual"; reference: string; direction: "in" | "out"; date: string; movs: any[]; totalQty: number };
     const slaughterMap = new Map<string, any[]>();
+    const manualMap = new Map<string, any[]>();
     const others: any[] = [];
     movements.forEach((m: any) => {
-      const isSlaughter = (m.party === "المجزر") && SLAUGHTER_REF_RE.test(m.reference || "");
+      const ref = m.reference || "";
+      const isSlaughter = (m.party === "المجزر") && SLAUGHTER_REF_RE.test(ref);
+      const isManualIn = /^MAN-IN-\d{8}-\d{4}$/.test(ref) && m.reference_type === "manual_addition";
+      const isManualOut = /^MAN-OUT-\d{8}-\d{4}$/.test(ref) && m.reference_type === "manual_out";
       if (isSlaughter) {
-        const key = m.reference;
-        if (!slaughterMap.has(key)) slaughterMap.set(key, []);
-        slaughterMap.get(key)!.push(m);
+        if (!slaughterMap.has(ref)) slaughterMap.set(ref, []);
+        slaughterMap.get(ref)!.push(m);
+      } else if (isManualIn || isManualOut) {
+        if (!manualMap.has(ref)) manualMap.set(ref, []);
+        manualMap.get(ref)!.push(m);
       } else {
         others.push(m);
       }
@@ -303,6 +311,16 @@ const WarehouseDetail = () => {
         totalQty: movs.reduce((s, x) => s + Number(x.quantity || 0), 0),
       });
     });
+    manualMap.forEach((movs, ref) => {
+      rows.push({
+        kind: "manual",
+        reference: ref,
+        direction: ref.startsWith("MAN-IN") ? "in" : "out",
+        date: movs[0]?.performed_at,
+        movs,
+        totalQty: movs.reduce((s, x) => s + Number(x.quantity || 0), 0),
+      });
+    });
     rows.sort((a, b) => {
       const da = a.kind === "single" ? a.mov.performed_at : a.date;
       const db = b.kind === "single" ? b.mov.performed_at : b.date;
@@ -314,6 +332,11 @@ const WarehouseDetail = () => {
   const slaughterGroup = useMemo(
     () => groupedMovements.find(r => r.kind === "slaughter" && r.reference === slaughterDialog),
     [groupedMovements, slaughterDialog]
+  ) as any;
+
+  const manualGroup = useMemo(
+    () => groupedMovements.find(r => r.kind === "manual" && r.reference === manualDialog),
+    [groupedMovements, manualDialog]
   ) as any;
 
   // الفلترة بالسنة/الشهر + التجميع للعرض
@@ -366,6 +389,54 @@ const WarehouseDetail = () => {
     openPrintWindow(`دفعة ذبح ${slaughterGroup.batchNo}`, body);
   };
 
+  const extractFromNotes = (notes: string, key: string): string => {
+    const re = new RegExp(`${key}:\\s*([^•]+)`);
+    const m = (notes || "").match(re);
+    return m ? m[1].trim() : "";
+  };
+
+  const printManualBundle = () => {
+    if (!manualGroup) return;
+    const isIn = manualGroup.direction === "in";
+    const sample = manualGroup.movs[0] || {};
+    const partyLabel = isIn
+      ? extractFromNotes(sample.notes, "جهة التوريد")
+      : extractFromNotes(sample.notes, "جهة الصرف");
+    const reason = extractFromNotes(sample.notes, "السبب");
+    const rows = manualGroup.movs.map((m: any) => {
+      const unit = m.item?.unit || "كجم";
+      const pkgC = m.package_count ?? "—";
+      const pkgW = m.package_weight_kg ?? "—";
+      return `<tr>
+        <td>${escapeHtml(m.item?.name || "—")}</td>
+        <td class="num">${fmtNum(m.quantity, 2)} ${escapeHtml(unit)}</td>
+        <td class="num">${pkgC}</td>
+        <td class="num">${pkgW}</td>
+        <td>${escapeHtml(extractFromNotes(m.notes, "قبل") || "—")}</td>
+        <td>${escapeHtml(extractFromNotes(m.notes, "بعد") || "—")}</td>
+      </tr>`;
+    }).join("");
+    const title = isIn ? `محضر توريد مباشر ${manualGroup.reference}` : `محضر صرف مباشر ${manualGroup.reference}`;
+    const body = `
+      <header>
+        <div><h1>${COMPANY_AR}</h1><div class="en">${escapeHtml(title)}</div></div>
+        <div class="meta">
+          <div>التاريخ: ${fmtDate(manualGroup.date)}</div>
+          <div>${isIn ? "جهة التوريد" : "جهة الصرف"}: <b>${escapeHtml(partyLabel || "—")}</b></div>
+          <div>السبب: <b>${escapeHtml(reason || "—")}</b></div>
+          <div>عدد الأصناف: <b>${manualGroup.movs.length}</b></div>
+          <div>إجمالي الكمية: <b>${fmtNum(manualGroup.totalQty, 2)} كجم</b></div>
+        </div>
+      </header>
+      <table>
+        <thead><tr>
+          <th>الصنف</th><th>الكمية</th><th>عدد العبوات</th><th>وزن العبوة</th><th>الرصيد قبل</th><th>الرصيد بعد</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    openPrintWindow(title, body);
+  };
+
   const printMovementsLog = () => {
     const title = `سجل حركات المخزن${movYear !== "all" ? " - " + movYear : ""}${movMonth !== "all" ? " / " + MONTH_AR[Number(movMonth) - 1] : ""}`;
     let sections = "";
@@ -375,6 +446,12 @@ const WarehouseDetail = () => {
         const monthRows = rows.map((r: any) => {
           if (r.kind === "slaughter") {
             return `<tr><td>${fmtDate(r.date)}</td><td>وارد المجزر</td><td>دفعة ${escapeHtml(r.batchNo)} (${r.movs.length} صنف)</td><td class="num">${fmtNum(r.totalQty, 2)} كجم</td><td>المجزر</td></tr>`;
+          }
+          if (r.kind === "manual") {
+            const isIn = r.direction === "in";
+            const sample = r.movs[0] || {};
+            const party = isIn ? extractFromNotes(sample.notes, "جهة التوريد") : extractFromNotes(sample.notes, "جهة الصرف");
+            return `<tr><td>${fmtDate(r.date)}</td><td>${isIn ? "توريد مباشر" : "صرف مباشر"}</td><td><span style="font-family:monospace">${escapeHtml(r.reference)}</span> (${r.movs.length} صنف)</td><td class="num">${fmtNum(r.totalQty, 2)} كجم</td><td>${escapeHtml(party || "—")}</td></tr>`;
           }
           const x = r.mov;
           return `<tr><td>${fmtDate(x.performed_at)}</td><td>${escapeHtml(moveLabels[x.movement_type]?.label || x.movement_type)}</td><td>${escapeHtml(x.item?.name || "—")}</td><td class="num">${fmtNum(x.quantity, 2)} ${escapeHtml(x.item?.unit || "")}</td><td>${escapeHtml(x.destination?.name || x.party || "—")}</td></tr>`;
@@ -1230,6 +1307,37 @@ const WarehouseDetail = () => {
                                 </TableRow>
                               );
                             }
+                            if (row.kind === "manual") {
+                              const isIn = row.direction === "in";
+                              const sample = row.movs[0] || {};
+                              const unit = sample.item?.unit || "كجم";
+                              const partyLabel = isIn
+                                ? extractFromNotes(sample.notes, "جهة التوريد")
+                                : extractFromNotes(sample.notes, "جهة الصرف");
+                              return (
+                                <TableRow key={row.reference} className={isIn ? "bg-emerald-50/40" : "bg-rose-50/40"}>
+                                  <TableCell className="text-xs">{formatDateTime(row.date)}</TableCell>
+                                  <TableCell>
+                                    <Badge className={`gap-1 ${isIn ? "bg-emerald-600 hover:bg-emerald-700" : "bg-rose-600 hover:bg-rose-700"}`}>
+                                      {isIn ? <PackagePlus className="w-3 h-3" /> : <PackageMinus className="w-3 h-3" />}
+                                      {isIn ? "توريد مباشر" : "صرف مباشر"}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell colSpan={2} className="font-medium">
+                                    <span className="font-mono">{row.reference}</span>
+                                    <span className="text-muted-foreground mr-2">({row.movs.length} صنف)</span>
+                                  </TableCell>
+                                  <TableCell>{row.totalQty.toFixed(2)} {unit}</TableCell>
+                                  <TableCell>{partyLabel || "—"}</TableCell>
+                                  <TableCell className="text-xs text-muted-foreground">{row.reference}</TableCell>
+                                  <TableCell>
+                                    <Button size="sm" variant="outline" onClick={() => setManualDialog(row.reference)}>
+                                      <Eye className="w-4 h-4 ml-1" /> تفاصيل
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            }
                             const m = row.mov;
                             const cfg = moveLabels[m.movement_type] || moveLabels.in;
                             const Icon = cfg.icon;
@@ -1986,6 +2094,77 @@ const WarehouseDetail = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!manualDialog} onOpenChange={(v) => { if (!v) setManualDialog(null); }}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {manualGroup?.direction === "in"
+                ? <PackagePlus className="w-5 h-5 text-emerald-600" />
+                : <PackageMinus className="w-5 h-5 text-rose-600" />}
+              {manualGroup?.direction === "in" ? "تفاصيل عملية توريد مباشر" : "تفاصيل عملية صرف مباشر"}
+              {manualGroup && <span className="font-mono text-sm">{manualGroup.reference}</span>}
+            </DialogTitle>
+            <DialogDescription>
+              {manualGroup ? (() => {
+                const sample = manualGroup.movs[0] || {};
+                const partyLabel = manualGroup.direction === "in"
+                  ? extractFromNotes(sample.notes, "جهة التوريد")
+                  : extractFromNotes(sample.notes, "جهة الصرف");
+                const reason = extractFromNotes(sample.notes, "السبب");
+                return (
+                  <span className="flex flex-wrap gap-3 text-xs mt-1">
+                    <span>📅 {formatDateTime(manualGroup.date)}</span>
+                    <span>{manualGroup.direction === "in" ? "جهة التوريد" : "جهة الصرف"}: <b>{partyLabel || "—"}</b></span>
+                    <span>السبب: <b>{reason || "—"}</b></span>
+                    <span>عدد الأصناف: <b>{manualGroup.movs.length}</b></span>
+                    <span>الإجمالي: <b>{manualGroup.totalQty.toFixed(2)} كجم</b></span>
+                  </span>
+                );
+              })() : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>الصنف</TableHead>
+                  <TableHead>الكمية</TableHead>
+                  <TableHead>الوحدة</TableHead>
+                  <TableHead>عدد العبوات</TableHead>
+                  <TableHead>وزن العبوة</TableHead>
+                  <TableHead>الرصيد قبل</TableHead>
+                  <TableHead>الرصيد بعد</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {manualGroup?.movs.map((m: any) => (
+                  <TableRow key={m.id}>
+                    <TableCell className="font-medium">{m.item?.name || "—"}</TableCell>
+                    <TableCell>{Number(m.quantity).toFixed(2)}</TableCell>
+                    <TableCell>{m.item?.unit || "كجم"}</TableCell>
+                    <TableCell>{m.package_count ?? "—"}</TableCell>
+                    <TableCell>{m.package_weight_kg ?? "—"}</TableCell>
+                    <TableCell>{extractFromNotes(m.notes, "قبل") || "—"}</TableCell>
+                    <TableCell>{extractFromNotes(m.notes, "بعد") || "—"}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            {manualGroup?.movs[0]?.notes && (
+              <div className="text-xs text-muted-foreground whitespace-pre-wrap border rounded p-2 bg-muted/30">
+                {manualGroup.movs[0].notes}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={printManualBundle}><Printer className="w-4 h-4 ml-1" />طباعة</Button>
+            <Button variant="outline" onClick={() => setManualDialog(null)}>إغلاق</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
 
       {canManualAdd && (
         <ManualStockAdditionDialog
