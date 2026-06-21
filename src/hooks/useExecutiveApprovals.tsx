@@ -382,6 +382,15 @@ export function useExecutiveApprovals() {
       .on("postgres_changes" as any, { event: "*", schema: "public", table: "hr_deductions" }, () =>
         queryClient.invalidateQueries({ queryKey: ["executive-approvals"] })
       )
+      .on("postgres_changes" as any, { event: "*", schema: "public", table: "mf_raw_purchases" }, () =>
+        queryClient.invalidateQueries({ queryKey: ["executive-approvals"] })
+      )
+      .on("postgres_changes" as any, { event: "*", schema: "public", table: "mf_pack_purchases" }, () =>
+        queryClient.invalidateQueries({ queryKey: ["executive-approvals"] })
+      )
+      .on("postgres_changes" as any, { event: "*", schema: "public", table: "mf_manufacturing" }, () =>
+        queryClient.invalidateQueries({ queryKey: ["executive-approvals"] })
+      )
       .subscribe();
     return () => {
       try { supabase.removeChannel(ch); } catch {}
