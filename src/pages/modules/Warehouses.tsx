@@ -738,43 +738,15 @@ const Warehouses = () => {
               </div>
             )}
 
-            {/* Received history */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">سجل المستلم</CardTitle>
-                <CardDescription>آخر عمليات الاستلام من المجزر</CardDescription>
-              </CardHeader>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>الدفعة</TableHead>
-                      <TableHead>الصنف</TableHead>
-                      <TableHead>الكمية</TableHead>
-                      <TableHead>الجودة</TableHead>
-                      <TableHead>وقت الاستلام</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {slaughterOutputs.filter(o => o.received_status === 'received').length === 0 ? (
-                      <TableRow><TableCell colSpan={5} className="text-center py-6 text-muted-foreground">لا يوجد</TableCell></TableRow>
-                    ) : slaughterOutputs.filter(o => o.received_status === 'received').map((o: any) => {
-                      const q = qualityLabels[o.quality_status] || qualityLabels.accepted;
-                      return (
-                        <TableRow key={o.id}>
-                          <TableCell className="font-mono text-xs">{o.batch?.batch_number}</TableCell>
-                          <TableCell>{o.cut_name_ar}</TableCell>
-                          <TableCell>{Number(o.actual_weight_kg).toFixed(2)} كجم</TableCell>
-                          <TableCell><Badge variant={q.variant}>{q.label}</Badge></TableCell>
-                          <TableCell className="text-xs text-muted-foreground">{o.received_at ? formatDateTime(o.received_at) : '—'}</TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+            {/* Received history — grouped by batch */}
+            <WarehouseReceiptsTab />
           </TabsContent>
+
+          {/* RECEIPTS — top-level grouped receipts hub */}
+          <TabsContent value="receipts" className="space-y-4">
+            <WarehouseReceiptsTab />
+          </TabsContent>
+
 
           {/* MOVEMENTS */}
           <TabsContent value="movements" className="space-y-4">
