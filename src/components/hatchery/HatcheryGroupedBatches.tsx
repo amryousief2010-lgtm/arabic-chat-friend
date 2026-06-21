@@ -799,7 +799,7 @@ function printGroup(g: any) {
       <thead>
         <tr>
           <th>العميل</th><th>النوع</th><th>رقم الدفعة</th>
-          <th>البيض</th><th>التالف</th><th>الصافي</th>
+          <th>البيض</th><th>المستبعد</th><th>الصافي</th>
           <th>لايح</th><th>مخصب 1</th><th>نافق ك2</th><th>نافق هاتشر</th>
           <th>الكتاكيت</th><th>% فقس</th>
         </tr>
