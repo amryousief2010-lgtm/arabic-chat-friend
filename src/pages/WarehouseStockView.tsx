@@ -68,6 +68,11 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
   const [reservedDlg, setReservedDlg] = useState<{ wh: "agouza" | "main"; productId: string; productName: string; total: number } | null>(null);
   const [manualAddOpen, setManualAddOpen] = useState(false);
   const [manualOutOpen, setManualOutOpen] = useState(false);
+  const [mainCost, setMainCost] = useState<Record<string, number>>({});
+  const [mainSku, setMainSku] = useState<Record<string, string>>({});
+  const [mainLastMove, setMainLastMove] = useState<Record<string, string>>({});
+  const [cardDialog, setCardDialog] = useState<null | "withStock" | "overReserved">(null);
+  const [cardSearch, setCardSearch] = useState("");
 
 
   const fetchAll = async () => {
