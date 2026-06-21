@@ -673,13 +673,15 @@ const Warehouses = () => {
             </CardContent></Card>
           </TabsContent>
 
-          {/* SLAUGHTER RECEIPTS */}
-          <TabsContent value="slaughter" className="space-y-4">
-            {/* Pending batches grouped */}
-            {pendingBatches.length === 0 ? (
-              <Card><CardContent className="py-10 text-center text-muted-foreground">لا توجد دفعات بانتظار الاستلام من المجزر</CardContent></Card>
-            ) : (
+
+          {/* RECEIPTS — top-level grouped receipts hub (includes pending slaughter batches) */}
+          <TabsContent value="receipts" className="space-y-4">
+            {pendingBatches.length > 0 && (
               <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Beef className="w-5 h-5 text-primary" />
+                  <h3 className="font-bold">دفعات المجزر بانتظار الاستلام <Badge variant="destructive" className="mr-1">{pendingBatches.length}</Badge></h3>
+                </div>
                 {pendingBatches.map((b: any) => {
                   const totalKg = b.outputs.reduce((s: number, o: any) => s + Number(o.actual_weight_kg || 0), 0);
                   const accepted = b.outputs.filter((o: any) => o.quality_status === 'accepted').length;
@@ -744,13 +746,6 @@ const Warehouses = () => {
                 })}
               </div>
             )}
-
-            {/* Received history — grouped by batch */}
-            <WarehouseReceiptsTab />
-          </TabsContent>
-
-          {/* RECEIPTS — top-level grouped receipts hub */}
-          <TabsContent value="receipts" className="space-y-4">
             <WarehouseReceiptsTab />
           </TabsContent>
 
