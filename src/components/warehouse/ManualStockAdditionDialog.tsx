@@ -20,10 +20,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Info, Loader2, PackagePlus } from "lucide-react";
+import { Info, Loader2, PackagePlus, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
+import AddManualPartyDialog from "@/components/warehouse/AddManualPartyDialog";
 
 interface InventoryItem {
   id: string;
@@ -60,7 +61,8 @@ const ManualStockAdditionDialog = ({
   items,
   onSaved,
 }: Props) => {
-  const { user } = useAuth();
+  const { user, isGeneralManager, isExecutiveManager, isWarehouseSupervisor } = useAuth() as any;
+  const canAddParty = isGeneralManager || isExecutiveManager || isWarehouseSupervisor;
   const [sourceKey, setSourceKey] = useState("");
   const [sourceOther, setSourceOther] = useState("");
   const [itemId, setItemId] = useState("");
@@ -69,6 +71,20 @@ const ManualStockAdditionDialog = ({
   const [reason, setReason] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [customParties, setCustomParties] = useState<{ id: string; name: string }[]>([]);
+  const [addPartyOpen, setAddPartyOpen] = useState(false);
+
+  const loadCustom = async () => {
+    const { data } = await supabase
+      .from("warehouse_manual_parties" as any)
+      .select("id,name")
+      .in("kind", ["supply", "both"])
+      .eq("is_active", true)
+      .order("name");
+    setCustomParties((data as any) || []);
+  };
+
+  useEffect(() => { if (open) void loadCustom(); }, [open]);
 
   useEffect(() => {
     if (!open) {
@@ -81,9 +97,12 @@ const ManualStockAdditionDialog = ({
   const unit = unitOverride || selected?.unit || "";
   const qtyNum = Number(qty);
   const validQty = Number.isFinite(qtyNum) && qtyNum > 0;
+  const customMatch = customParties.find((p) => `custom:${p.id}` === sourceKey);
   const sourceLabel = sourceKey === "other"
     ? sourceOther.trim()
-    : (SUPPLY_SOURCES.find(s => s.value === sourceKey)?.label || "");
+    : customMatch
+      ? customMatch.name
+      : (SUPPLY_SOURCES.find(s => s.value === sourceKey)?.label || "");
   const validSource = !!sourceKey && (sourceKey !== "other" || sourceOther.trim().length > 0);
   const canSave = !!selected && validQty && reason.trim().length > 0 && validSource && !saving;
   const stockBefore = Number(selected?.stock || 0);
@@ -177,14 +196,27 @@ const ManualStockAdditionDialog = ({
         <div className="space-y-3">
           <div>
             <Label className="text-xs">جهة التوريد *</Label>
-            <Select value={sourceKey} onValueChange={setSourceKey}>
-              <SelectTrigger><SelectValue placeholder="اختر جهة التوريد" /></SelectTrigger>
-              <SelectContent>
-                {SUPPLY_SOURCES.map(s => (
-                  <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex gap-2">
+              <Select value={sourceKey} onValueChange={setSourceKey}>
+                <SelectTrigger className="flex-1"><SelectValue placeholder="اختر جهة التوريد" /></SelectTrigger>
+                <SelectContent>
+                  {SUPPLY_SOURCES.map(s => (
+                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                  ))}
+                  {customParties.length > 0 && (
+                    <div className="px-2 pt-2 pb-1 text-[10px] text-muted-foreground">جهات مضافة</div>
+                  )}
+                  {customParties.map((p) => (
+                    <SelectItem key={p.id} value={`custom:${p.id}`}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {canAddParty && (
+                <Button type="button" variant="outline" size="icon" onClick={() => setAddPartyOpen(true)} title="إضافة جهة">
+                  <Plus className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
             {sourceKey === "other" && (
               <Input
                 className="mt-2"
@@ -195,6 +227,14 @@ const ManualStockAdditionDialog = ({
               />
             )}
           </div>
+
+          <AddManualPartyDialog
+            open={addPartyOpen}
+            onOpenChange={setAddPartyOpen}
+            kind="supply"
+            onCreated={async (p) => { await loadCustom(); setSourceKey(`custom:${p.id}`); }}
+          />
+
 
           <div>
             <Label className="text-xs">الصنف *</Label>
