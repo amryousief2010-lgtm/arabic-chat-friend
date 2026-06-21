@@ -961,15 +961,6 @@ const Warehouses = () => {
             })()}
           </TabsContent>
 
-          {/* Embedded warehouse pages */}
-          {[
-            { value: "wh-main", path: "/warehouse-stock/main" },
-            { value: "wh-agouza", path: "/warehouse-stock/agouza" },
-            { value: "wh-hht", path: "/warehouse-stock/hyper-healthy-test" },
-            { value: "wh-carrefour", path: "/warehouse-stock/hyper-carrefour" },
-            { value: "wh-packaging", path: "/modules/packaging" },
-            { value: "wh-activity", path: "/main-warehouse-activity" },
-          </TabsContent>
 
           {/* Embedded warehouse pages */}
           {[
