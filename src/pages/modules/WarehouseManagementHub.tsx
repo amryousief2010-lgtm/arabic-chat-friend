@@ -58,7 +58,8 @@ const GROUPS: HubGroup[] = [
 ];
 
 const WarehouseManagementHub = () => {
-  const { hasAnyRole } = useAuth();
+  const { roles } = useAuth();
+  const hasAnyRole = (rs: AppRole[]) => rs.some((r) => roles.includes(r));
 
   return (
     <div className="p-4 md:p-6 space-y-8" dir="rtl">
