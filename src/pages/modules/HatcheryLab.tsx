@@ -889,13 +889,17 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
       }
 
       // الترتيب الرسمي فقط: transfer_date desc ثم created_at desc ثم transfer_batch_id
-      return Array.from(groups.values()).filter((g) => g.total_eggs > 0).sort((a, b) => {
+      const sortedGroups = Array.from(groups.values()).filter((g) => g.total_eggs > 0).sort((a, b) => {
         const dCmp = String(b.transfer_sort_date || "").localeCompare(String(a.transfer_sort_date || ""));
         if (dCmp !== 0) return dCmp;
         const cCmp = String(b.latest_created_at || "").localeCompare(String(a.latest_created_at || ""));
         if (cCmp !== 0) return cCmp;
         return String(a.transfer_batch_id || "").localeCompare(String(b.transfer_batch_id || ""));
       });
+      return sortedGroups.map((g) => ({
+        ...g,
+        hatchery_intake_state: isActiveHatcheryIntakeBatch(g) ? "active" : "excluded_from_hatchery_intake",
+      }));
     },
   });
 
@@ -933,10 +937,16 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
 
   const availableTransferBatches = useMemo(
     () => transferBatchesData.filter((g) =>
+      g.hatchery_intake_state === "active" &&
       (g.shipments || []).every((s: any) => !usedShipmentIds.has(s.id)) &&
       (g.farm_transfer_ids || []).every((id: string) => !usedFarmTransferIds.has(id))
     ),
     [transferBatchesData, usedShipmentIds, usedFarmTransferIds]
+  );
+
+  const excludedHistoricalTransferBatches = useMemo(
+    () => transferBatchesData.filter((g) => g.hatchery_intake_state === "excluded_from_hatchery_intake"),
+    [transferBatchesData]
   );
 
   // آخر دفعة نقل فقط (للعرض في البانر)
