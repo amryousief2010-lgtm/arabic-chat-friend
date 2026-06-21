@@ -9,11 +9,13 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Beef, Factory, ArrowLeftRight, Printer, Eye, Inbox, Loader2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Beef, Factory, ArrowLeftRight, Printer, Eye, Inbox, Loader2, Pencil, Trash2, Package } from "lucide-react";
 import { formatDateTime } from "@/lib/dateFormat";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate, COMPANY_AR } from "@/lib/printPdf";
+import { toast } from "sonner";
 
-type ReceiptKind = "slaughter" | "meat_factory" | "internal";
+type ReceiptKind = "slaughter" | "meat_factory" | "internal" | "other";
 
 interface ReceiptLine {
   name: string;
@@ -51,6 +53,7 @@ const KIND_LABEL: Record<ReceiptKind, string> = {
   slaughter: "استلام من المجزر",
   meat_factory: "استلام من مصنع اللحوم",
   internal: "استلام تحويل داخلي",
+  other: "استلامات أخرى",
 };
 
 function summarizeQuality(lines: { quality?: string }[]): string {
@@ -144,8 +147,70 @@ export default function WarehouseReceiptsTab() {
   const [itemSearch, setItemSearch] = useState("");
 
   const [detail, setDetail] = useState<ReceiptRow | null>(null);
+  const [editTarget, setEditTarget] = useState<ReceiptRow | null>(null);
+  const [editNotes, setEditNotes] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<ReceiptRow | null>(null);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => { void loadAll(); }, []);
+
+  function openEdit(r: ReceiptRow) {
+    setEditTarget(r);
+    setEditNotes(r.notes || "");
+  }
+
+  async function saveEdit() {
+    if (!editTarget) return;
+    setBusy(true);
+    try {
+      const table = editTarget.kind === "internal" ? "warehouse_transfers"
+        : editTarget.kind === "meat_factory" ? "meat_production_transfers"
+        : editTarget.kind === "slaughter" ? "slaughter_batches"
+        : null;
+      if (!table) {
+        toast.error("هذا النوع غير قابل للتعديل من هنا");
+        return;
+      }
+      const { error } = await supabase.from(table as any).update({ notes: editNotes }).eq("id", editTarget.id);
+      if (error) throw error;
+      toast.success("تم تحديث الملاحظات");
+      setEditTarget(null);
+      await loadAll();
+    } catch (e: any) {
+      toast.error(e?.message || "تعذّر التحديث");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    // Safety: any receipt that has been received affects stock — block destructive delete.
+    if (deleteTarget.status === "received" || deleteTarget.status === "partial") {
+      toast.error("لا يمكن الحذف — هذا الاستلام مرتبط بحركة مخزون. استخدم سجل المخزون لعمل تسوية عكسية.");
+      setDeleteTarget(null);
+      return;
+    }
+    setBusy(true);
+    try {
+      const table = deleteTarget.kind === "internal" ? "warehouse_transfers"
+        : deleteTarget.kind === "meat_factory" ? "meat_production_transfers"
+        : null;
+      if (!table) {
+        toast.error("هذا النوع غير قابل للحذف من هنا");
+        return;
+      }
+      const { error } = await supabase.from(table as any).delete().eq("id", deleteTarget.id);
+      if (error) throw error;
+      toast.success("تم الحذف");
+      setDeleteTarget(null);
+      await loadAll();
+    } catch (e: any) {
+      toast.error(e?.message || "تعذّر الحذف");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function loadAll() {
     setLoading(true);
@@ -247,11 +312,16 @@ export default function WarehouseReceiptsTab() {
         .limit(2000);
 
       for (const tr of trs || []) {
+        const notes = (tr as any).notes || "";
+        const transferNo = (tr as any).transfer_no || "";
+        // Hide backfilled/legacy reconciliation entries from the operational receipts log.
+        // They stay in DB for audit but are not part of current operations.
+        if (/Backfilled/i.test(notes) || /^TR-BF-/i.test(transferNo)) continue;
         const items: any[] = (tr as any).items || [];
         const row: ReceiptRow = {
           id: String((tr as any).id),
           kind: "internal",
-          batch_no: (tr as any).transfer_no || `TR-${String((tr as any).id).slice(0, 8)}`,
+          batch_no: transferNo || `TR-${String((tr as any).id).slice(0, 8)}`,
           date: (tr as any).received_at || (tr as any).sent_at,
           source_label: (tr as any).source?.name || "—",
           destination_label: (tr as any).destination?.name || "—",
@@ -260,7 +330,7 @@ export default function WarehouseReceiptsTab() {
           quality: (tr as any).status === "partial_received" ? "مقبول جزئيًا" : "مقبول",
           status: (tr as any).status === "partial_received" ? "partial" : "received",
           receiver: "—",
-          notes: (tr as any).notes || undefined,
+          notes: notes || undefined,
           lines: items.map((it) => ({
             name: it.item_name || "—",
             qty: Number(it.received_qty || 0),
@@ -362,6 +432,8 @@ export default function WarehouseReceiptsTab() {
                 <SelectItem value="partial">مقبول جزئيًا</SelectItem>
                 <SelectItem value="rejected">مرفوض</SelectItem>
                 <SelectItem value="pending">بانتظار المراجعة</SelectItem>
+                <SelectItem value="cancelled">ملغى</SelectItem>
+                <SelectItem value="archived">مؤرشف</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -375,9 +447,10 @@ export default function WarehouseReceiptsTab() {
           <TabsTrigger value="slaughter" className="gap-1"><Beef className="w-4 h-4" />استلامات المجزر</TabsTrigger>
           <TabsTrigger value="meat_factory" className="gap-1"><Factory className="w-4 h-4" />استلامات مصنع اللحوم</TabsTrigger>
           <TabsTrigger value="internal" className="gap-1"><ArrowLeftRight className="w-4 h-4" />استلامات التحويلات الداخلية</TabsTrigger>
+          <TabsTrigger value="other" className="gap-1"><Package className="w-4 h-4" />استلامات أخرى</TabsTrigger>
         </TabsList>
 
-        {(["slaughter", "meat_factory", "internal"] as ReceiptKind[]).map((k) => (
+        {(["slaughter", "meat_factory", "internal", "other"] as ReceiptKind[]).map((k) => (
           <TabsContent key={k} value={k} className="space-y-3">
             <Card>
               <CardContent className="p-0">
@@ -399,9 +472,11 @@ export default function WarehouseReceiptsTab() {
                     {loading ? (
                       <TableRow><TableCell colSpan={9} className="text-center py-8"><Loader2 className="w-5 h-5 animate-spin inline" /></TableCell></TableRow>
                     ) : filtered.length === 0 ? (
-                      <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">لا توجد عمليات استلام</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">{k === "other" ? "لا توجد استلامات أخرى مسجّلة" : "لا توجد عمليات استلام"}</TableCell></TableRow>
                     ) : filtered.map((r) => {
                       const st = STATUS_LABELS[r.status] || STATUS_LABELS.received;
+                      const editable = r.kind !== "slaughter";
+                      const deletable = r.status !== "received" && r.status !== "partial" && r.kind !== "slaughter";
                       return (
                         <TableRow key={`${r.kind}-${r.id}`}>
                           <TableCell className="font-mono text-xs">{r.batch_no}</TableCell>
@@ -414,8 +489,14 @@ export default function WarehouseReceiptsTab() {
                           <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
                           <TableCell>
                             <div className="flex gap-1">
-                              <Button size="sm" variant="ghost" onClick={() => setDetail(r)} title="تفاصيل">
+                              <Button size="sm" variant="ghost" onClick={() => setDetail(r)} title="رؤية">
                                 <Eye className="w-4 h-4" />
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => openEdit(r)} title="تعديل" disabled={!editable}>
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(r)} title={deletable ? "حذف" : "محمي — مرتبط بحركة مخزون"} disabled={!deletable}>
+                                <Trash2 className={`w-4 h-4 ${deletable ? "text-destructive" : ""}`} />
                               </Button>
                               <Button size="sm" variant="ghost" onClick={() => printReceipt(r)} title="طباعة">
                                 <Printer className="w-4 h-4" />
@@ -480,6 +561,42 @@ export default function WarehouseReceiptsTab() {
           <DialogFooter className="gap-2">
             {detail && <Button onClick={() => printReceipt(detail)}><Printer className="w-4 h-4 ml-1" />طباعة</Button>}
             <Button variant="outline" onClick={() => setDetail(null)}>إغلاق</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit dialog — notes only */}
+      <Dialog open={!!editTarget} onOpenChange={(o) => !o && setEditTarget(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>تعديل الاستلام {editTarget?.batch_no}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">يُسمح بتعديل الملاحظات فقط. الكميات والأصناف محمية لأنها أثّرت على المخزون.</Label>
+            <Textarea rows={5} value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="ملاحظات الاستلام..." />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button onClick={saveEdit} disabled={busy}>{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "حفظ"}</Button>
+            <Button variant="outline" onClick={() => setEditTarget(null)}>إلغاء</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation */}
+      <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>تأكيد الحذف</DialogTitle>
+          </DialogHeader>
+          <div className="text-sm">
+            هل أنت متأكد من حذف الاستلام <b className="font-mono">{deleteTarget?.batch_no}</b>؟
+            <div className="mt-2 text-xs text-muted-foreground">
+              لن يتم عكس أي حركة مخزون. إذا كان الاستلام مؤثرًا على المخزون سيتم منع الحذف تلقائيًا.
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="destructive" onClick={confirmDelete} disabled={busy}>{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "حذف"}</Button>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>إلغاء</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
