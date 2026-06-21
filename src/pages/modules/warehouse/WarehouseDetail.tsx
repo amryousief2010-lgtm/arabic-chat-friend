@@ -389,6 +389,54 @@ const WarehouseDetail = () => {
     openPrintWindow(`دفعة ذبح ${slaughterGroup.batchNo}`, body);
   };
 
+  const extractFromNotes = (notes: string, key: string): string => {
+    const re = new RegExp(`${key}:\\s*([^•]+)`);
+    const m = (notes || "").match(re);
+    return m ? m[1].trim() : "";
+  };
+
+  const printManualBundle = () => {
+    if (!manualGroup) return;
+    const isIn = manualGroup.direction === "in";
+    const sample = manualGroup.movs[0] || {};
+    const partyLabel = isIn
+      ? extractFromNotes(sample.notes, "جهة التوريد")
+      : extractFromNotes(sample.notes, "جهة الصرف");
+    const reason = extractFromNotes(sample.notes, "السبب");
+    const rows = manualGroup.movs.map((m: any) => {
+      const unit = m.item?.unit || "كجم";
+      const pkgC = m.package_count ?? "—";
+      const pkgW = m.package_weight_kg ?? "—";
+      return `<tr>
+        <td>${escapeHtml(m.item?.name || "—")}</td>
+        <td class="num">${fmtNum(m.quantity, 2)} ${escapeHtml(unit)}</td>
+        <td class="num">${pkgC}</td>
+        <td class="num">${pkgW}</td>
+        <td>${escapeHtml(extractFromNotes(m.notes, "قبل") || "—")}</td>
+        <td>${escapeHtml(extractFromNotes(m.notes, "بعد") || "—")}</td>
+      </tr>`;
+    }).join("");
+    const title = isIn ? `محضر توريد مباشر ${manualGroup.reference}` : `محضر صرف مباشر ${manualGroup.reference}`;
+    const body = `
+      <header>
+        <div><h1>${COMPANY_AR}</h1><div class="en">${escapeHtml(title)}</div></div>
+        <div class="meta">
+          <div>التاريخ: ${fmtDate(manualGroup.date)}</div>
+          <div>${isIn ? "جهة التوريد" : "جهة الصرف"}: <b>${escapeHtml(partyLabel || "—")}</b></div>
+          <div>السبب: <b>${escapeHtml(reason || "—")}</b></div>
+          <div>عدد الأصناف: <b>${manualGroup.movs.length}</b></div>
+          <div>إجمالي الكمية: <b>${fmtNum(manualGroup.totalQty, 2)} كجم</b></div>
+        </div>
+      </header>
+      <table>
+        <thead><tr>
+          <th>الصنف</th><th>الكمية</th><th>عدد العبوات</th><th>وزن العبوة</th><th>الرصيد قبل</th><th>الرصيد بعد</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    openPrintWindow(title, body);
+  };
+
   const printMovementsLog = () => {
     const title = `سجل حركات المخزن${movYear !== "all" ? " - " + movYear : ""}${movMonth !== "all" ? " / " + MONTH_AR[Number(movMonth) - 1] : ""}`;
     let sections = "";
