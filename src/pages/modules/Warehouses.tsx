@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Warehouse, Trash2, Edit, ArrowDown, ArrowUp, ArrowLeftRight, Settings2, Package, AlertTriangle, BarChart3, Upload, Beef, CheckCircle2, Printer, FileSpreadsheet, FileText, MapPin, Menu, BookOpen, Calendar, Scale, UtensilsCrossed } from "lucide-react";
+import { Plus, Warehouse, Trash2, Edit, ArrowDown, ArrowUp, ArrowLeftRight, Settings2, Package, AlertTriangle, BarChart3, Upload, Beef, CheckCircle2, Printer, FileSpreadsheet, FileText, MapPin, Menu, BookOpen, Calendar, Scale, UtensilsCrossed, Inbox } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -22,6 +22,7 @@ import companyLogo from "@/assets/company-logo.jpg";
 import WarehouseKpisBlock from "@/components/warehouses/WarehouseKpisBlock";
 import RestaurantMenuTab from "@/components/warehouses/RestaurantMenuTab";
 import WarehouseStockView from "@/pages/WarehouseStockView";
+import WarehouseReceiptsTab from "@/components/warehouses/WarehouseReceiptsTab";
 
 
 const qualityLabelText: Record<string, string> = {
@@ -581,6 +582,7 @@ const Warehouses = () => {
                 <Beef className="w-4 h-4" /> استلام المجزر
                 {pendingSlaughter.length > 0 && <Badge variant="destructive" className="mr-1">{pendingSlaughter.length}</Badge>}
               </TabsTrigger>
+              <TabsTrigger value="receipts" className="gap-1"><Inbox className="w-4 h-4" />الاستلامات</TabsTrigger>
               <TabsTrigger value="movements">الحركات</TabsTrigger>
               <TabsTrigger value="low">منخفضة <Badge variant="destructive" className="mr-2">{lowStockItems.length}</Badge></TabsTrigger>
               <TabsTrigger value="distribution" className="gap-1"><MapPin className="w-4 h-4" />التوزيع الجغرافي</TabsTrigger>
@@ -735,43 +737,15 @@ const Warehouses = () => {
               </div>
             )}
 
-            {/* Received history */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">سجل المستلم</CardTitle>
-                <CardDescription>آخر عمليات الاستلام من المجزر</CardDescription>
-              </CardHeader>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>الدفعة</TableHead>
-                      <TableHead>الصنف</TableHead>
-                      <TableHead>الكمية</TableHead>
-                      <TableHead>الجودة</TableHead>
-                      <TableHead>وقت الاستلام</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {slaughterOutputs.filter(o => o.received_status === 'received').length === 0 ? (
-                      <TableRow><TableCell colSpan={5} className="text-center py-6 text-muted-foreground">لا يوجد</TableCell></TableRow>
-                    ) : slaughterOutputs.filter(o => o.received_status === 'received').map((o: any) => {
-                      const q = qualityLabels[o.quality_status] || qualityLabels.accepted;
-                      return (
-                        <TableRow key={o.id}>
-                          <TableCell className="font-mono text-xs">{o.batch?.batch_number}</TableCell>
-                          <TableCell>{o.cut_name_ar}</TableCell>
-                          <TableCell>{Number(o.actual_weight_kg).toFixed(2)} كجم</TableCell>
-                          <TableCell><Badge variant={q.variant}>{q.label}</Badge></TableCell>
-                          <TableCell className="text-xs text-muted-foreground">{o.received_at ? formatDateTime(o.received_at) : '—'}</TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+            {/* Received history — grouped by batch */}
+            <WarehouseReceiptsTab />
           </TabsContent>
+
+          {/* RECEIPTS — top-level grouped receipts hub */}
+          <TabsContent value="receipts" className="space-y-4">
+            <WarehouseReceiptsTab />
+          </TabsContent>
+
 
           {/* MOVEMENTS */}
           <TabsContent value="movements" className="space-y-4">

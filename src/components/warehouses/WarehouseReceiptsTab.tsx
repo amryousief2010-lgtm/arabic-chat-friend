@@ -1,0 +1,488 @@
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Beef, Factory, ArrowLeftRight, Printer, Eye, Inbox, Loader2 } from "lucide-react";
+import { formatDateTime } from "@/lib/dateFormat";
+import { openPrintWindow, escapeHtml, fmtNum, fmtDate, COMPANY_AR } from "@/lib/printPdf";
+
+type ReceiptKind = "slaughter" | "meat_factory" | "internal";
+
+interface ReceiptLine {
+  name: string;
+  qty: number;
+  unit: string;
+  quality?: string;
+  notes?: string;
+  received_at?: string;
+}
+
+interface ReceiptRow {
+  id: string;
+  kind: ReceiptKind;
+  batch_no: string;
+  date: string; // ISO
+  source_label: string;
+  destination_label: string;
+  items_count: number;
+  total_qty: number;
+  quality: string; // مقبول / مرفوض / مقبول جزئيًا / —
+  status: string; // received / pending / partial / rejected
+  receiver: string;
+  notes?: string;
+  lines: ReceiptLine[];
+}
+
+const STATUS_LABELS: Record<string, { label: string; variant: any }> = {
+  received: { label: "مقبول", variant: "default" },
+  partial: { label: "مقبول جزئيًا", variant: "secondary" },
+  rejected: { label: "مرفوض", variant: "destructive" },
+  pending: { label: "بانتظار المراجعة", variant: "outline" },
+};
+
+const KIND_LABEL: Record<ReceiptKind, string> = {
+  slaughter: "استلام من المجزر",
+  meat_factory: "استلام من مصنع اللحوم",
+  internal: "استلام تحويل داخلي",
+};
+
+function summarizeQuality(lines: { quality?: string }[]): string {
+  if (!lines.length) return "—";
+  const accepted = lines.filter((l) => l.quality === "accepted" || l.quality === "مقبول").length;
+  const rejected = lines.filter((l) => l.quality === "rejected" || l.quality === "مرفوض").length;
+  if (rejected && accepted) return "مقبول جزئيًا";
+  if (rejected && !accepted) return "مرفوض";
+  return "مقبول";
+}
+
+function qualityLabel(q?: string) {
+  if (q === "accepted") return "مقبول";
+  if (q === "rejected") return "مرفوض";
+  if (q === "quarantined") return "حجر صحي";
+  return q || "—";
+}
+
+function printReceipt(row: ReceiptRow) {
+  const linesHtml = row.lines
+    .map(
+      (l, i) => `
+    <tr>
+      <td class="num">${i + 1}</td>
+      <td>${escapeHtml(l.name)}</td>
+      <td class="num">${fmtNum(l.qty, 2)}</td>
+      <td>${escapeHtml(l.unit)}</td>
+      <td>${escapeHtml(qualityLabel(l.quality))}</td>
+      <td>${escapeHtml(l.notes || "—")}</td>
+    </tr>`
+    )
+    .join("");
+
+  const body = `
+    <header>
+      <div>
+        <h1>${COMPANY_AR}</h1>
+        <div class="en">محضر استلام مخزون — ${escapeHtml(KIND_LABEL[row.kind])}</div>
+      </div>
+      <div class="meta">
+        <div>رقم الدفعة: <b>${escapeHtml(row.batch_no)}</b></div>
+        <div>التاريخ: ${escapeHtml(fmtDate(row.date))}</div>
+        <div>الوقت: ${escapeHtml(formatDateTime(row.date))}</div>
+      </div>
+    </header>
+
+    <div class="stats">
+      <div class="stat"><div class="k">المصدر</div><div class="v">${escapeHtml(row.source_label)}</div></div>
+      <div class="stat"><div class="k">المخزن المستلم</div><div class="v">${escapeHtml(row.destination_label)}</div></div>
+      <div class="stat"><div class="k">عدد الأصناف</div><div class="v">${row.items_count}</div></div>
+      <div class="stat"><div class="k">إجمالي الكمية</div><div class="v">${fmtNum(row.total_qty, 2)}</div></div>
+    </div>
+
+    <h2>تفاصيل الأصناف</h2>
+    <table>
+      <thead><tr>
+        <th>م</th><th>الصنف</th><th>الكمية</th><th>الوحدة</th><th>الجودة</th><th>ملاحظات</th>
+      </tr></thead>
+      <tbody>${linesHtml || `<tr><td colspan="6" style="text-align:center;color:#888">لا توجد أصناف</td></tr>`}</tbody>
+    </table>
+
+    ${row.notes ? `<h2>ملاحظات عامة</h2><div style="border:1px solid #ddd;padding:8px;border-radius:4px;background:#fafafa">${escapeHtml(row.notes)}</div>` : ""}
+
+    <h2>الاعتماد والتوقيع</h2>
+    <table>
+      <thead><tr><th>المستلم</th><th>المراجع</th><th>المدير</th></tr></thead>
+      <tbody><tr>
+        <td style="height:60px">${escapeHtml(row.receiver || "—")}</td>
+        <td></td>
+        <td></td>
+      </tr></tbody>
+    </table>
+
+    <footer>${COMPANY_AR} — محضر استلام مخزون — ${escapeHtml(row.batch_no)}</footer>
+  `;
+  openPrintWindow(`محضر استلام ${row.batch_no}`, body);
+}
+
+export default function WarehouseReceiptsTab() {
+  const [loading, setLoading] = useState(true);
+  const [rows, setRows] = useState<ReceiptRow[]>([]);
+  const [activeSub, setActiveSub] = useState<ReceiptKind>("slaughter");
+
+  // filters
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [sourceFilter, setSourceFilter] = useState<string>("all");
+  const [destFilter, setDestFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [batchSearch, setBatchSearch] = useState("");
+  const [itemSearch, setItemSearch] = useState("");
+
+  const [detail, setDetail] = useState<ReceiptRow | null>(null);
+
+  useEffect(() => { void loadAll(); }, []);
+
+  async function loadAll() {
+    setLoading(true);
+    try {
+      const all: ReceiptRow[] = [];
+
+      // ---------------- 1) Slaughter receipts ----------------
+      const { data: outs } = await supabase
+        .from("slaughter_batch_outputs")
+        .select("id, batch_id, cut_name_ar, actual_weight_kg, quality_status, received_at, received_warehouse_id, received_by, notes, batch:slaughter_batches(batch_number, slaughter_date)")
+        .eq("received_status", "received")
+        .order("received_at", { ascending: false })
+        .limit(2000);
+
+      const slaughterGroups = new Map<string, ReceiptRow>();
+      for (const o of outs || []) {
+        const batch: any = (o as any).batch;
+        const key = String(o.batch_id);
+        if (!slaughterGroups.has(key)) {
+          slaughterGroups.set(key, {
+            id: key,
+            kind: "slaughter",
+            batch_no: batch?.batch_number || "—",
+            date: (o as any).received_at || batch?.slaughter_date || new Date().toISOString(),
+            source_label: "المجزر",
+            destination_label: "مخزون مصنع اللحوم / الخامات",
+            items_count: 0,
+            total_qty: 0,
+            quality: "—",
+            status: "received",
+            receiver: "—",
+            lines: [],
+          });
+        }
+        const row = slaughterGroups.get(key)!;
+        row.lines.push({
+          name: (o as any).cut_name_ar || "—",
+          qty: Number((o as any).actual_weight_kg || 0),
+          unit: "كجم",
+          quality: (o as any).quality_status,
+          notes: (o as any).notes,
+          received_at: (o as any).received_at,
+        });
+      }
+      for (const r of slaughterGroups.values()) {
+        r.items_count = r.lines.length;
+        r.total_qty = r.lines.reduce((s, l) => s + (l.qty || 0), 0);
+        r.quality = summarizeQuality(r.lines);
+        r.status = r.quality === "مرفوض" ? "rejected" : r.quality === "مقبول جزئيًا" ? "partial" : "received";
+        all.push(r);
+      }
+
+      // ---------------- 2) Meat factory production transfers ----------------
+      const { data: mpts } = await supabase
+        .from("meat_production_transfers")
+        .select("id, transfer_no, quantity, unit_cost, destination_warehouse_id, created_at, created_by, notes, product:meat_factory_products(name_ar), warehouse:warehouses!meat_production_transfers_destination_warehouse_id_fkey(name)")
+        .order("created_at", { ascending: false })
+        .limit(2000);
+
+      const mfGroups = new Map<string, ReceiptRow>();
+      for (const t of mpts || []) {
+        const key = (t as any).transfer_no || (t as any).id;
+        if (!mfGroups.has(key)) {
+          mfGroups.set(key, {
+            id: String((t as any).id),
+            kind: "meat_factory",
+            batch_no: (t as any).transfer_no || `MF-${String((t as any).id).slice(0, 8)}`,
+            date: (t as any).created_at,
+            source_label: "مصنع اللحوم",
+            destination_label: (t as any).warehouse?.name || "—",
+            items_count: 0,
+            total_qty: 0,
+            quality: "مقبول",
+            status: "received",
+            receiver: "—",
+            notes: (t as any).notes || undefined,
+            lines: [],
+          });
+        }
+        const r = mfGroups.get(key)!;
+        r.lines.push({
+          name: (t as any).product?.name_ar || "—",
+          qty: Number((t as any).quantity || 0),
+          unit: "وحدة",
+        });
+      }
+      for (const r of mfGroups.values()) {
+        r.items_count = r.lines.length;
+        r.total_qty = r.lines.reduce((s, l) => s + (l.qty || 0), 0);
+        all.push(r);
+      }
+
+      // ---------------- 3) Internal warehouse transfers (received) ----------------
+      const { data: trs } = await supabase
+        .from("warehouse_transfers")
+        .select("id, transfer_no, status, received_at, sent_at, notes, source:warehouses!warehouse_transfers_source_warehouse_id_fkey(name), destination:warehouses!warehouse_transfers_destination_warehouse_id_fkey(name), items:warehouse_transfer_items(id, item_name, unit, received_qty, sent_qty, receive_notes, line_status)")
+        .in("status", ["received", "partial_received", "completed"])
+        .order("received_at", { ascending: false })
+        .limit(2000);
+
+      for (const tr of trs || []) {
+        const items: any[] = (tr as any).items || [];
+        const row: ReceiptRow = {
+          id: String((tr as any).id),
+          kind: "internal",
+          batch_no: (tr as any).transfer_no || `TR-${String((tr as any).id).slice(0, 8)}`,
+          date: (tr as any).received_at || (tr as any).sent_at,
+          source_label: (tr as any).source?.name || "—",
+          destination_label: (tr as any).destination?.name || "—",
+          items_count: items.length,
+          total_qty: items.reduce((s, l) => s + Number(l.received_qty || 0), 0),
+          quality: (tr as any).status === "partial_received" ? "مقبول جزئيًا" : "مقبول",
+          status: (tr as any).status === "partial_received" ? "partial" : "received",
+          receiver: "—",
+          notes: (tr as any).notes || undefined,
+          lines: items.map((it) => ({
+            name: it.item_name || "—",
+            qty: Number(it.received_qty || 0),
+            unit: it.unit || "",
+            quality: it.line_status === "rejected" ? "rejected" : "accepted",
+            notes: it.receive_notes,
+          })),
+        };
+        all.push(row);
+      }
+
+      all.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setRows(all);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const filtered = useMemo(() => {
+    return rows.filter((r) => {
+      if (r.kind !== activeSub) return false;
+      if (fromDate && new Date(r.date) < new Date(fromDate)) return false;
+      if (toDate && new Date(r.date) > new Date(toDate + "T23:59:59")) return false;
+      if (sourceFilter !== "all" && r.source_label !== sourceFilter) return false;
+      if (destFilter !== "all" && r.destination_label !== destFilter) return false;
+      if (statusFilter !== "all" && r.status !== statusFilter) return false;
+      if (batchSearch.trim() && !r.batch_no.toLowerCase().includes(batchSearch.trim().toLowerCase())) return false;
+      if (itemSearch.trim()) {
+        const q = itemSearch.trim().toLowerCase();
+        if (!r.lines.some((l) => (l.name || "").toLowerCase().includes(q))) return false;
+      }
+      return true;
+    });
+  }, [rows, activeSub, fromDate, toDate, sourceFilter, destFilter, statusFilter, batchSearch, itemSearch]);
+
+  const summary = useMemo(() => {
+    const ops = filtered.length;
+    const itemsCnt = filtered.reduce((s, r) => s + r.items_count, 0);
+    const totalQty = filtered.reduce((s, r) => s + r.total_qty, 0);
+    const last = filtered[0]?.date;
+    return { ops, itemsCnt, totalQty, last };
+  }, [filtered]);
+
+  const sourceOptions = useMemo(() => Array.from(new Set(rows.filter((r) => r.kind === activeSub).map((r) => r.source_label))).sort(), [rows, activeSub]);
+  const destOptions = useMemo(() => Array.from(new Set(rows.filter((r) => r.kind === activeSub).map((r) => r.destination_label))).sort(), [rows, activeSub]);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
+          <Inbox className="w-6 h-6 text-primary" />
+        </div>
+        <div>
+          <h2 className="text-xl font-bold">سجل الاستلامات</h2>
+          <p className="text-sm text-muted-foreground">عرض مجمّع لكل عمليات الاستلام حسب الدفعة</p>
+        </div>
+      </div>
+
+      {/* Summary */}
+      <div className="grid gap-3 md:grid-cols-4">
+        <Card><CardHeader className="pb-2"><CardDescription>عدد عمليات الاستلام</CardDescription><CardTitle className="text-2xl">{summary.ops}</CardTitle></CardHeader></Card>
+        <Card><CardHeader className="pb-2"><CardDescription>إجمالي الأصناف</CardDescription><CardTitle className="text-2xl">{summary.itemsCnt}</CardTitle></CardHeader></Card>
+        <Card><CardHeader className="pb-2"><CardDescription>إجمالي الكمية</CardDescription><CardTitle className="text-2xl">{summary.totalQty.toFixed(2)}</CardTitle></CardHeader></Card>
+        <Card><CardHeader className="pb-2"><CardDescription>آخر عملية</CardDescription><CardTitle className="text-sm font-medium leading-tight">{summary.last ? formatDateTime(summary.last) : "—"}</CardTitle></CardHeader></Card>
+      </div>
+
+      {/* Filters */}
+      <Card>
+        <CardContent className="pt-4 grid gap-3 md:grid-cols-4">
+          <div><Label className="text-xs">من تاريخ</Label><Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} /></div>
+          <div><Label className="text-xs">إلى تاريخ</Label><Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} /></div>
+          <div>
+            <Label className="text-xs">المصدر</Label>
+            <Select value={sourceFilter} onValueChange={setSourceFilter}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">الكل</SelectItem>
+                {sourceOptions.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">المخزن المستلم</Label>
+            <Select value={destFilter} onValueChange={setDestFilter}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">الكل</SelectItem>
+                {destOptions.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">الحالة</Label>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">الكل</SelectItem>
+                <SelectItem value="received">مقبول</SelectItem>
+                <SelectItem value="partial">مقبول جزئيًا</SelectItem>
+                <SelectItem value="rejected">مرفوض</SelectItem>
+                <SelectItem value="pending">بانتظار المراجعة</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div><Label className="text-xs">رقم الدفعة</Label><Input value={batchSearch} onChange={(e) => setBatchSearch(e.target.value)} placeholder="SB-..." /></div>
+          <div className="md:col-span-2"><Label className="text-xs">بحث باسم الصنف</Label><Input value={itemSearch} onChange={(e) => setItemSearch(e.target.value)} placeholder="مثال: لحمه" /></div>
+        </CardContent>
+      </Card>
+
+      <Tabs value={activeSub} onValueChange={(v) => setActiveSub(v as ReceiptKind)}>
+        <TabsList>
+          <TabsTrigger value="slaughter" className="gap-1"><Beef className="w-4 h-4" />استلامات المجزر</TabsTrigger>
+          <TabsTrigger value="meat_factory" className="gap-1"><Factory className="w-4 h-4" />استلامات مصنع اللحوم</TabsTrigger>
+          <TabsTrigger value="internal" className="gap-1"><ArrowLeftRight className="w-4 h-4" />استلامات التحويلات الداخلية</TabsTrigger>
+        </TabsList>
+
+        {(["slaughter", "meat_factory", "internal"] as ReceiptKind[]).map((k) => (
+          <TabsContent key={k} value={k} className="space-y-3">
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>رقم الدفعة</TableHead>
+                      <TableHead>التاريخ</TableHead>
+                      <TableHead>المصدر</TableHead>
+                      <TableHead>المخزن المستلم</TableHead>
+                      <TableHead>عدد الأصناف</TableHead>
+                      <TableHead>إجمالي الكمية</TableHead>
+                      <TableHead>الجودة</TableHead>
+                      <TableHead>الحالة</TableHead>
+                      <TableHead>إجراءات</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {loading ? (
+                      <TableRow><TableCell colSpan={9} className="text-center py-8"><Loader2 className="w-5 h-5 animate-spin inline" /></TableCell></TableRow>
+                    ) : filtered.length === 0 ? (
+                      <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">لا توجد عمليات استلام</TableCell></TableRow>
+                    ) : filtered.map((r) => {
+                      const st = STATUS_LABELS[r.status] || STATUS_LABELS.received;
+                      return (
+                        <TableRow key={`${r.kind}-${r.id}`}>
+                          <TableCell className="font-mono text-xs">{r.batch_no}</TableCell>
+                          <TableCell className="text-xs">{formatDateTime(r.date)}</TableCell>
+                          <TableCell>{r.source_label}</TableCell>
+                          <TableCell>{r.destination_label}</TableCell>
+                          <TableCell className="text-center">{r.items_count}</TableCell>
+                          <TableCell>{r.total_qty.toFixed(2)}</TableCell>
+                          <TableCell><Badge variant="outline">{r.quality}</Badge></TableCell>
+                          <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              <Button size="sm" variant="ghost" onClick={() => setDetail(r)} title="تفاصيل">
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => printReceipt(r)} title="طباعة">
+                                <Printer className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        ))}
+      </Tabs>
+
+      {/* Details dialog */}
+      <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              تفاصيل دفعة الاستلام
+              {detail && <Badge variant="outline" className="font-mono">{detail.batch_no}</Badge>}
+            </DialogTitle>
+          </DialogHeader>
+          {detail && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                <div><div className="text-muted-foreground text-xs">النوع</div><div>{KIND_LABEL[detail.kind]}</div></div>
+                <div><div className="text-muted-foreground text-xs">التاريخ</div><div>{formatDateTime(detail.date)}</div></div>
+                <div><div className="text-muted-foreground text-xs">المصدر</div><div>{detail.source_label}</div></div>
+                <div><div className="text-muted-foreground text-xs">المخزن المستلم</div><div>{detail.destination_label}</div></div>
+              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>الصنف</TableHead>
+                    <TableHead>الكمية</TableHead>
+                    <TableHead>الوحدة</TableHead>
+                    <TableHead>الجودة</TableHead>
+                    <TableHead>وقت الاستلام</TableHead>
+                    <TableHead>ملاحظات</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {detail.lines.map((l, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="font-medium">{l.name}</TableCell>
+                      <TableCell>{Number(l.qty).toFixed(2)}</TableCell>
+                      <TableCell>{l.unit}</TableCell>
+                      <TableCell><Badge variant="outline">{qualityLabel(l.quality)}</Badge></TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{l.received_at ? formatDateTime(l.received_at) : formatDateTime(detail.date)}</TableCell>
+                      <TableCell className="text-xs">{l.notes || "—"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              {detail.notes && <div className="text-sm border rounded p-2 bg-muted/30"><b>ملاحظات:</b> {detail.notes}</div>}
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            {detail && <Button onClick={() => printReceipt(detail)}><Printer className="w-4 h-4 ml-1" />طباعة</Button>}
+            <Button variant="outline" onClick={() => setDetail(null)}>إغلاق</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
