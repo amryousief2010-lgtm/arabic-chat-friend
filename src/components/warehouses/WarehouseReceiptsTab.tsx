@@ -410,9 +410,8 @@ export default function WarehouseReceiptsTab() {
   }
 
 
-  const filtered = useMemo(() => {
+  const filteredAll = useMemo(() => {
     return rows.filter((r) => {
-      if (r.kind !== activeSub) return false;
       if (fromDate && new Date(r.date) < new Date(fromDate)) return false;
       if (toDate && new Date(r.date) > new Date(toDate + "T23:59:59")) return false;
       if (sourceFilter !== "all" && r.source_label !== sourceFilter) return false;
@@ -425,18 +424,21 @@ export default function WarehouseReceiptsTab() {
       }
       return true;
     });
-  }, [rows, activeSub, fromDate, toDate, sourceFilter, destFilter, statusFilter, batchSearch, itemSearch]);
+  }, [rows, fromDate, toDate, sourceFilter, destFilter, statusFilter, batchSearch, itemSearch]);
+
+  const filtered = useMemo(() => filteredAll.filter((r) => r.kind === activeSub), [filteredAll, activeSub]);
 
   const summary = useMemo(() => {
-    const ops = filtered.length;
-    const itemsCnt = filtered.reduce((s, r) => s + r.items_count, 0);
-    const totalQty = filtered.reduce((s, r) => s + r.total_qty, 0);
-    const last = filtered[0]?.date;
+    const ops = filteredAll.length;
+    const itemsCnt = filteredAll.reduce((s, r) => s + r.items_count, 0);
+    const totalQty = filteredAll.reduce((s, r) => s + r.total_qty, 0);
+    const last = filteredAll[0]?.date;
     return { ops, itemsCnt, totalQty, last };
-  }, [filtered]);
+  }, [filteredAll]);
 
-  const sourceOptions = useMemo(() => Array.from(new Set(rows.filter((r) => r.kind === activeSub).map((r) => r.source_label))).sort(), [rows, activeSub]);
-  const destOptions = useMemo(() => Array.from(new Set(rows.filter((r) => r.kind === activeSub).map((r) => r.destination_label))).sort(), [rows, activeSub]);
+  const sourceOptions = useMemo(() => Array.from(new Set(rows.map((r) => r.source_label).filter(Boolean))).sort(), [rows]);
+  const destOptions = useMemo(() => Array.from(new Set(rows.map((r) => r.destination_label).filter(Boolean))).sort(), [rows]);
+
 
   return (
     <div className="space-y-4">
