@@ -548,7 +548,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
       {!embedded && <Header title={title} subtitle={subtitle} />}
 
 
-      {scope === "main" && (
+      {isSingleScope(scope) && currentWhId && (
         <div className="flex flex-wrap gap-2 mb-3">
           <Button size="sm" onClick={() => setManualAddOpen(true)} className="bg-emerald-600 hover:bg-emerald-700">
             <PackagePlus className="w-4 h-4 ml-1" /> إضافة رصيد / توريد مباشر
@@ -559,30 +559,31 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
         </div>
       )}
 
-      {scope === "main" && mainWhId && (
+      {isSingleScope(scope) && currentWhId && (
         <>
           <ManualStockAdditionDialog
             open={manualAddOpen}
             onOpenChange={setManualAddOpen}
-            warehouseId={mainWhId}
-            warehouseName="المخزن الرئيسي"
+            warehouseId={currentWhId}
+            warehouseName={currentWhLabel}
             items={products
-              .filter((p) => mainItemIds[p.id])
-              .map((p) => ({ id: mainItemIds[p.id], name: p.name, unit: p.unit, stock: mainStock[p.id] || 0 }))}
+              .filter((p) => currentItemIds[p.id])
+              .map((p) => ({ id: currentItemIds[p.id], name: p.name, unit: p.unit, stock: currentStock[p.id] || 0 }))}
             onSaved={fetchAll}
           />
           <ManualStockOutDialog
             open={manualOutOpen}
             onOpenChange={setManualOutOpen}
-            warehouseId={mainWhId}
-            warehouseName="المخزن الرئيسي"
+            warehouseId={currentWhId}
+            warehouseName={currentWhLabel}
             items={products
-              .filter((p) => mainItemIds[p.id])
-              .map((p) => ({ id: mainItemIds[p.id], name: p.name, unit: p.unit, stock: mainStock[p.id] || 0 }))}
+              .filter((p) => currentItemIds[p.id])
+              .map((p) => ({ id: currentItemIds[p.id], name: p.name, unit: p.unit, stock: currentStock[p.id] || 0 }))}
             onSaved={fetchAll}
           />
         </>
       )}
+
 
 
 
