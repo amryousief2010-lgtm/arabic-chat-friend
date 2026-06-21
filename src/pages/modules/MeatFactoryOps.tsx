@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Factory, Package, Boxes, Coins, Plus, Printer, FileSpreadsheet, CheckCircle2, History, Trash2, ArrowRightLeft, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 import * as XLSX from "xlsx";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate, COMPANY_AR } from "@/lib/printPdf";
 
@@ -25,7 +26,8 @@ const fmt = (n: number | null | undefined, d = 2) => (n == null ? "—" : Number
 
 const STATUS_BADGE = (s: string) => {
   if (s === "posted") return <Badge className="bg-emerald-600">معتمدة</Badge>;
-  if (s === "draft") return <Badge variant="outline">مسودة</Badge>;
+  if (s === "draft") return <Badge variant="outline" className="border-amber-400 text-amber-700">بانتظار الاعتماد</Badge>;
+  if (s === "rejected") return <Badge variant="destructive">مرفوضة</Badge>;
   if (s === "cancelled") return <Badge variant="destructive">ملغاة</Badge>;
   return <Badge>{s}</Badge>;
 };
