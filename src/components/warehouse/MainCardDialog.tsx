@@ -21,12 +21,15 @@ interface Props {
   search: string;
   onSearch: (s: string) => void;
   onOpenReserved: (productId: string, name: string, total: number) => void;
+  warehouseName?: string;
 }
 
 export default function MainCardDialog({
   mode, onClose, products, mainStock, mainPending, mainCost, mainSku, mainLastMove,
-  search, onSearch, onOpenReserved,
+  search, onSearch, onOpenReserved, warehouseName,
 }: Props) {
+  const whLabel = warehouseName || "المخزن الرئيسي";
+
   const rows = useMemo(() => {
     const base = products.map((p) => {
       const actual = Number(mainStock[p.id] || 0);
@@ -73,7 +76,7 @@ export default function MainCardDialog({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${isOver ? "over-reserved" : "items-with-stock"}-main-warehouse.csv`;
+    a.download = `${isOver ? "over-reserved" : "items-with-stock"}-${(whLabel || "warehouse").replace(/\s+/g, "-")}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -86,7 +89,7 @@ export default function MainCardDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {isOver ? <AlertTriangle className="w-5 h-5 text-destructive" /> : <PackageCheck className="w-5 h-5 text-green-600" />}
-            {isOver ? "أصناف محجوز أكثر من الفعلي — المخزن الرئيسي" : "أصناف لها رصيد فعلي — المخزن الرئيسي"}
+            {isOver ? `أصناف محجوز أكثر من الفعلي — ${whLabel}` : `أصناف لها رصيد فعلي — ${whLabel}`}
             <Badge variant={isOver ? "destructive" : "outline"}>{rows.length}</Badge>
           </DialogTitle>
         </DialogHeader>

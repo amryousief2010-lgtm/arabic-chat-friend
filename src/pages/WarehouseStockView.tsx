@@ -19,7 +19,7 @@ import { MAIN_WAREHOUSE_OPERATIONAL_START, MAIN_WAREHOUSE_OPERATIONAL_START_ISO 
 
 interface Product { id: string; name: string; unit: string; category?: string | null; }
 
-export type StockScope = "both" | "agouza" | "main";
+export type StockScope = "both" | "agouza" | "main" | "carrefour" | "healthy";
 
 interface Props { scope?: StockScope; embedded?: boolean }
 
@@ -28,7 +28,14 @@ const titleMap: Record<StockScope, { title: string; subtitle: string }> = {
   both: { title: "المتاح في المخازن", subtitle: "الفعلي • المحجوز • المتاح للبيع لكل مخزن" },
   agouza: { title: "مخزن العجوزة", subtitle: "الفعلي • المحجوز • المتاح للبيع" },
   main: { title: "المخزن الرئيسي", subtitle: "الفعلي (الجرد) • المحجوز للطلبات • المتاح للبيع" },
+  carrefour: { title: "هايبر كارفور", subtitle: "الفعلي • المحجوز • المتاح للبيع" },
+  healthy: { title: "هايبر هيلثي تيست", subtitle: "الفعلي • المحجوز • المتاح للبيع" },
 };
+
+// Single-warehouse scopes have per-warehouse add/issue buttons and clickable KPI cards
+const SINGLE_SCOPES: StockScope[] = ["main", "agouza", "carrefour", "healthy"];
+const isSingleScope = (s: StockScope) => SINGLE_SCOPES.includes(s);
+
 
 // كيلوجرامات لكل عبوة بحسب اسم المنتج. الافتراضي 0.5 كجم لكل عبوة (عبوتين/كيلو).
 const kgPerPackage = (name: string): number => {
@@ -60,21 +67,41 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
   const [mainWhId, setMainWhId] = useState<string | null>(null);
   const [agouzaPending, setAgouzaPending] = useState<Record<string, number>>({});
   const [mainPending, setMainPending] = useState<Record<string, number>>({});
+
+  // Generic per-scope maps for carrefour/healthy (and could grow)
+  // Each map is: scopeKey -> productId -> value
+  const [extraWhIds, setExtraWhIds] = useState<Record<string, string | null>>({ carrefour: null, healthy: null });
+  const [extraStock, setExtraStock] = useState<Record<string, Record<string, number>>>({ carrefour: {}, healthy: {} });
+  const [extraItemIds, setExtraItemIds] = useState<Record<string, Record<string, string>>>({ carrefour: {}, healthy: {} });
+  const [extraPending, setExtraPending] = useState<Record<string, Record<string, number>>>({ carrefour: {}, healthy: {} });
+  const [extraCost, setExtraCost] = useState<Record<string, Record<string, number>>>({ carrefour: {}, healthy: {} });
+  const [extraSku, setExtraSku] = useState<Record<string, Record<string, string>>>({ carrefour: {}, healthy: {} });
+  const [extraLastMove, setExtraLastMove] = useState<Record<string, Record<string, string>>>({ carrefour: {}, healthy: {} });
+  const [extraLowThreshold, setExtraLowThreshold] = useState<Record<string, Record<string, number>>>({ carrefour: {}, healthy: {} });
+
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [mainOpeningAt, setMainOpeningAt] = useState<string | null>(null);
-  const [reservedDlg, setReservedDlg] = useState<{ wh: "agouza" | "main"; productId: string; productName: string; total: number } | null>(null);
+  const [reservedDlg, setReservedDlg] = useState<{ wh: "agouza" | "main" | "carrefour" | "healthy"; productId: string; productName: string; total: number } | null>(null);
   const [manualAddOpen, setManualAddOpen] = useState(false);
   const [manualOutOpen, setManualOutOpen] = useState(false);
   const [mainCost, setMainCost] = useState<Record<string, number>>({});
   const [mainSku, setMainSku] = useState<Record<string, string>>({});
   const [mainLastMove, setMainLastMove] = useState<Record<string, string>>({});
+  const [mainLowThreshold, setMainLowThreshold] = useState<Record<string, number>>({});
+  const [agouzaCost, setAgouzaCost] = useState<Record<string, number>>({});
+  const [agouzaSku, setAgouzaSku] = useState<Record<string, string>>({});
+  const [agouzaLastMove, setAgouzaLastMove] = useState<Record<string, string>>({});
+  const [agouzaLowThreshold, setAgouzaLowThreshold] = useState<Record<string, number>>({});
   const [cardDialog, setCardDialog] = useState<null | "withStock" | "overReserved">(null);
+  // Additional drill-down filters (open the items table filtered to subset)
+  const [tableFilter, setTableFilter] = useState<null | "all" | "withStock" | "lowStock" | "overReserved">(null);
   const [cardSearch, setCardSearch] = useState("");
   const [showItemsTable, setShowItemsTable] = useState(false);
+
 
 
   const fetchAll = async () => {
@@ -88,30 +115,65 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
       const whs = wRes.data || [];
       const agouza = whs.find((w: any) => w.name?.includes("العجوزة"));
       const main = whs.find((w: any) => w.name?.includes("الرئيسي") || w.name?.includes("المقر"));
+      const carrefour = whs.find((w: any) => w.name?.includes("كارفور") || /carrefour/i.test(w.name || ""));
+      const healthy = whs.find((w: any) => w.name?.includes("هيلثي") || /healthy/i.test(w.name || ""));
       setAgouzaWhId(agouza?.id ?? null);
       setMainWhId(main?.id ?? null);
-      const whIds = [agouza?.id, main?.id].filter(Boolean) as string[];
+      setExtraWhIds({ carrefour: carrefour?.id ?? null, healthy: healthy?.id ?? null });
+
+      const whIds = [agouza?.id, main?.id, carrefour?.id, healthy?.id].filter(Boolean) as string[];
       if (whIds.length > 0) {
         const { data: invRows } = await supabase
           .from("inventory_items")
-          .select("id, warehouse_id, product_id, stock, reserved_qty, blocked_qty, unit_cost, sku")
+          .select("id, warehouse_id, product_id, stock, reserved_qty, blocked_qty, unit_cost, sku, low_stock_threshold")
           .in("warehouse_id", whIds)
           .not("product_id", "is", null);
+
         const ag: Record<string, number> = {};
         const mn: Record<string, number> = {};
         const agIds: Record<string, string> = {};
         const mnIds: Record<string, string> = {};
         const mnCost: Record<string, number> = {};
         const mnSku: Record<string, string> = {};
+        const mnLow: Record<string, number> = {};
+        const agCost: Record<string, number> = {};
+        const agSku: Record<string, string> = {};
+        const agLow: Record<string, number> = {};
+        const exStock: Record<string, Record<string, number>> = { carrefour: {}, healthy: {} };
+        const exIds: Record<string, Record<string, string>> = { carrefour: {}, healthy: {} };
+        const exCost: Record<string, Record<string, number>> = { carrefour: {}, healthy: {} };
+        const exSku: Record<string, Record<string, string>> = { carrefour: {}, healthy: {} };
+        const exLow: Record<string, Record<string, number>> = { carrefour: {}, healthy: {} };
+
         (invRows || []).forEach((r: any) => {
-          // الرصيد الفعلي = stock (بدون خصم محجوز - المحجوز يُحسب من الأوردرات الجارية)
           const actual = Number(r.stock || 0) - Number(r.blocked_qty || 0);
-          if (r.warehouse_id === agouza?.id) { ag[r.product_id] = (ag[r.product_id] || 0) + actual; agIds[r.product_id] = r.id; }
+          if (r.warehouse_id === agouza?.id) {
+            ag[r.product_id] = (ag[r.product_id] || 0) + actual;
+            agIds[r.product_id] = r.id;
+            agCost[r.product_id] = Number(r.unit_cost || 0);
+            if (r.sku) agSku[r.product_id] = r.sku;
+            agLow[r.product_id] = Number(r.low_stock_threshold || 0);
+          }
           if (r.warehouse_id === main?.id) {
             mn[r.product_id] = (mn[r.product_id] || 0) + actual;
             mnIds[r.product_id] = r.id;
             mnCost[r.product_id] = Number(r.unit_cost || 0);
             if (r.sku) mnSku[r.product_id] = r.sku;
+            mnLow[r.product_id] = Number(r.low_stock_threshold || 0);
+          }
+          if (carrefour?.id && r.warehouse_id === carrefour.id) {
+            exStock.carrefour[r.product_id] = (exStock.carrefour[r.product_id] || 0) + actual;
+            exIds.carrefour[r.product_id] = r.id;
+            exCost.carrefour[r.product_id] = Number(r.unit_cost || 0);
+            if (r.sku) exSku.carrefour[r.product_id] = r.sku;
+            exLow.carrefour[r.product_id] = Number(r.low_stock_threshold || 0);
+          }
+          if (healthy?.id && r.warehouse_id === healthy.id) {
+            exStock.healthy[r.product_id] = (exStock.healthy[r.product_id] || 0) + actual;
+            exIds.healthy[r.product_id] = r.id;
+            exCost.healthy[r.product_id] = Number(r.unit_cost || 0);
+            if (r.sku) exSku.healthy[r.product_id] = r.sku;
+            exLow.healthy[r.product_id] = Number(r.low_stock_threshold || 0);
           }
         });
         setAgouzaStock(ag);
@@ -120,26 +182,47 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
         setMainItemIds(mnIds);
         setMainCost(mnCost);
         setMainSku(mnSku);
+        setMainLowThreshold(mnLow);
+        setAgouzaCost(agCost);
+        setAgouzaSku(agSku);
+        setAgouzaLowThreshold(agLow);
+        setExtraStock(exStock);
+        setExtraItemIds(exIds);
+        setExtraCost(exCost);
+        setExtraSku(exSku);
+        setExtraLowThreshold(exLow);
 
-        // آخر حركة لكل صنف في المخزن الرئيسي
-        if (main?.id) {
-          const mainItemIdList = Object.values(mnIds);
-          if (mainItemIdList.length > 0) {
-            const { data: lastMoves } = await supabase
-              .from("inventory_movements")
-              .select("item_id, performed_at")
-              .in("item_id", mainItemIdList)
-              .order("performed_at", { ascending: false })
-              .limit(2000);
-            const itemToProduct: Record<string, string> = {};
-            Object.entries(mnIds).forEach(([pid, iid]) => { itemToProduct[iid] = pid; });
-            const lastByProduct: Record<string, string> = {};
-            (lastMoves || []).forEach((m: any) => {
-              const pid = itemToProduct[m.item_id];
-              if (pid && !lastByProduct[pid]) lastByProduct[pid] = m.performed_at;
-            });
-            setMainLastMove(lastByProduct);
-          }
+        // آخر حركة لكل صنف لكل مخزن (نجمعها من كل الـ item ids المعروفة)
+        const allItemIds: { pid: string; iid: string; whKey: "main" | "agouza" | "carrefour" | "healthy" }[] = [];
+        Object.entries(mnIds).forEach(([pid, iid]) => allItemIds.push({ pid, iid, whKey: "main" }));
+        Object.entries(agIds).forEach(([pid, iid]) => allItemIds.push({ pid, iid, whKey: "agouza" }));
+        Object.entries(exIds.carrefour).forEach(([pid, iid]) => allItemIds.push({ pid, iid, whKey: "carrefour" }));
+        Object.entries(exIds.healthy).forEach(([pid, iid]) => allItemIds.push({ pid, iid, whKey: "healthy" }));
+        if (allItemIds.length > 0) {
+          const itemIdList = allItemIds.map(x => x.iid);
+          const { data: lastMoves } = await supabase
+            .from("inventory_movements")
+            .select("item_id, performed_at")
+            .in("item_id", itemIdList)
+            .order("performed_at", { ascending: false })
+            .limit(5000);
+          const lastByItem: Record<string, string> = {};
+          (lastMoves || []).forEach((m: any) => {
+            if (!lastByItem[m.item_id]) lastByItem[m.item_id] = m.performed_at;
+          });
+          const mainLM: Record<string, string> = {};
+          const agLM: Record<string, string> = {};
+          const exLM: Record<string, Record<string, string>> = { carrefour: {}, healthy: {} };
+          allItemIds.forEach(({ pid, iid, whKey }) => {
+            const ts = lastByItem[iid];
+            if (!ts) return;
+            if (whKey === "main") mainLM[pid] = ts;
+            else if (whKey === "agouza") agLM[pid] = ts;
+            else exLM[whKey][pid] = ts;
+          });
+          setMainLastMove(mainLM);
+          setAgouzaLastMove(agLM);
+          setExtraLastMove(exLM);
         }
 
 
@@ -164,6 +247,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
         );
         const agPend: Record<string, number> = {};
         const mnPend: Record<string, number> = {};
+        const exPend: Record<string, Record<string, number>> = { carrefour: {}, healthy: {} };
         if (orderIds.length > 0) {
           for (let i = 0; i < orderIds.length; i += 500) {
             const slice = orderIds.slice(i, i + 500);
@@ -177,11 +261,14 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
               const qty = Number(it.quantity || 0);
               if (wh === agouza?.id) agPend[it.product_id] = (agPend[it.product_id] || 0) + qty;
               if (wh === main?.id) mnPend[it.product_id] = (mnPend[it.product_id] || 0) + qty;
+              if (carrefour?.id && wh === carrefour.id) exPend.carrefour[it.product_id] = (exPend.carrefour[it.product_id] || 0) + qty;
+              if (healthy?.id && wh === healthy.id) exPend.healthy[it.product_id] = (exPend.healthy[it.product_id] || 0) + qty;
             });
           }
         }
         setAgouzaPending(agPend);
         setMainPending(mnPend);
+        setExtraPending(exPend);
 
         // آخر تاريخ Opening Balance للمخزن الرئيسي
         if (main?.id) {
@@ -201,14 +288,38 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
   };
 
 
+
   useEffect(() => { fetchAll(); }, []);
 
+  type SingleWh = "agouza" | "main" | "carrefour" | "healthy";
+
+  const getStockMap = (wh: SingleWh): Record<string, number> =>
+    wh === "agouza" ? agouzaStock : wh === "main" ? mainStock : extraStock[wh] || {};
+  const getPendingMap = (wh: SingleWh): Record<string, number> =>
+    wh === "agouza" ? agouzaPending : wh === "main" ? mainPending : extraPending[wh] || {};
+  const getItemIdsMap = (wh: SingleWh): Record<string, string> =>
+    wh === "agouza" ? agouzaItemIds : wh === "main" ? mainItemIds : extraItemIds[wh] || {};
+  const getCostMap = (wh: SingleWh): Record<string, number> =>
+    wh === "agouza" ? agouzaCost : wh === "main" ? mainCost : extraCost[wh] || {};
+  const getSkuMap = (wh: SingleWh): Record<string, string> =>
+    wh === "agouza" ? agouzaSku : wh === "main" ? mainSku : extraSku[wh] || {};
+  const getLastMoveMap = (wh: SingleWh): Record<string, string> =>
+    wh === "agouza" ? agouzaLastMove : wh === "main" ? mainLastMove : extraLastMove[wh] || {};
+  const getLowMap = (wh: SingleWh): Record<string, number> =>
+    wh === "agouza" ? agouzaLowThreshold : wh === "main" ? mainLowThreshold : extraLowThreshold[wh] || {};
+  const getWhId = (wh: SingleWh): string | null =>
+    wh === "agouza" ? agouzaWhId : wh === "main" ? mainWhId : extraWhIds[wh] ?? null;
+  const getWhLabel = (wh: SingleWh): string =>
+    wh === "agouza" ? "مخزن العجوزة" :
+    wh === "main" ? "المخزن الرئيسي" :
+    wh === "carrefour" ? "هايبر كارفور" : "هايبر هيلثي تيست";
+
   // حفظ تعديل الرصيد الفعلي (الجرد) — لا يأخذ المحجوز في الاعتبار
-  const saveStock = async (wh: "agouza" | "main", productId: string, newActualKg: number) => {
+  const saveStock = async (wh: SingleWh, productId: string, newActualKg: number) => {
     if (isNaN(newActualKg) || newActualKg < 0) { toast.error("أدخل قيمة صحيحة"); return; }
-    const whId = wh === "agouza" ? agouzaWhId : mainWhId;
+    const whId = getWhId(wh);
     if (!whId) return;
-    const itemId = (wh === "agouza" ? agouzaItemIds : mainItemIds)[productId];
+    const itemId = getItemIdsMap(wh)[productId];
 
     // المخزن الرئيسي: لازم سبب + يمر عبر RPC مدقَّق يسجل حركة تعديل جرد
     if (wh === "main") {
@@ -247,9 +358,11 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
           .select("id")
           .single();
         if (error) throw error;
-        setAgouzaItemIds((m) => ({ ...m, [productId]: data!.id }));
+        if (wh === "agouza") setAgouzaItemIds((m) => ({ ...m, [productId]: data!.id }));
+        else setExtraItemIds((m) => ({ ...m, [wh]: { ...(m[wh] || {}), [productId]: data!.id } }));
       }
-      setAgouzaStock((s) => ({ ...s, [productId]: newActualKg }));
+      if (wh === "agouza") setAgouzaStock((s) => ({ ...s, [productId]: newActualKg }));
+      else setExtraStock((s) => ({ ...s, [wh]: { ...(s[wh] || {}), [productId]: newActualKg } }));
       toast.success("تم تحديث الرصيد الفعلي");
       setEditingKey(null);
 
@@ -260,10 +373,11 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
     }
   };
 
-  const canEditFor = (wh: "agouza" | "main") => wh === "agouza" ? canEditAgouza : canEditAll;
+  const canEditFor = (wh: SingleWh) => wh === "agouza" ? canEditAgouza : canEditAll;
+
 
   // خلية الرصيد الفعلي (قابلة للتعديل) — تعرض عدد العبوات والكيلو
-  const ActualCell = ({ wh, pid, name, kgValue }: { wh: "agouza" | "main"; pid: string; name: string; kgValue: number }) => {
+  const ActualCell = ({ wh, pid, name, kgValue }: { wh: SingleWh; pid: string; name: string; kgValue: number }) => {
     const per = kgPerPackage(name) || 0.5;
     const key = `${wh}:${pid}`;
     const isEditing = editingKey === key;
@@ -365,8 +479,17 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
     let itemsWithStock = 0;
     let totalReservedKg = 0;
     let belowZero = 0;
-    const stockSrc = scope === "agouza" ? agouzaStock : scope === "main" ? mainStock : null;
-    const pendSrc = scope === "agouza" ? agouzaPending : scope === "main" ? mainPending : null;
+    let totalValue = 0;
+    let lowStockCount = 0;
+    let lastMoveTs: string | null = null;
+    let lastMovePid: string | null = null;
+
+    const stockSrc = isSingleScope(scope) ? getStockMap(scope as SingleWh) : null;
+    const pendSrc = isSingleScope(scope) ? getPendingMap(scope as SingleWh) : null;
+    const costSrc = isSingleScope(scope) ? getCostMap(scope as SingleWh) : null;
+    const lowSrc = isSingleScope(scope) ? getLowMap(scope as SingleWh) : null;
+    const lastMoveSrc = isSingleScope(scope) ? getLastMoveMap(scope as SingleWh) : null;
+
     if (stockSrc && pendSrc) {
       filtered.forEach((p) => {
         const a = stockSrc[p.id] ?? 0;
@@ -374,9 +497,13 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
         if (a > 0) itemsWithStock++;
         totalReservedKg += r;
         if (a - r < 0) belowZero++;
+        if (costSrc) totalValue += a * (costSrc[p.id] ?? 0);
+        const lo = lowSrc?.[p.id] ?? 0;
+        if (lo > 0 && a <= lo) lowStockCount++;
+        const ts = lastMoveSrc?.[p.id];
+        if (ts && (!lastMoveTs || ts > lastMoveTs)) { lastMoveTs = ts; lastMovePid = p.id; }
       });
     } else {
-      // both
       filtered.forEach((p) => {
         const a = (agouzaStock[p.id] ?? 0) + (mainStock[p.id] ?? 0);
         const r = (agouzaPending[p.id] ?? 0) + (mainPending[p.id] ?? 0);
@@ -385,21 +512,43 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
         if (a - r < 0) belowZero++;
       });
     }
-    return { itemsWithStock, totalReservedKg: Math.round(totalReservedKg * 100) / 100, belowZero };
-  }, [filtered, scope, agouzaStock, mainStock, agouzaPending, mainPending]);
+    return {
+      itemsWithStock,
+      totalReservedKg: Math.round(totalReservedKg * 100) / 100,
+      belowZero,
+      totalValue: Math.round(totalValue * 100) / 100,
+      lowStockCount,
+      lastMoveTs,
+      lastMovePid,
+      itemsCount: filtered.length,
+    };
+  }, [filtered, scope, agouzaStock, mainStock, agouzaPending, mainPending, extraStock, extraPending, extraCost, extraLowThreshold, extraLastMove, mainCost, agouzaCost, mainLowThreshold, agouzaLowThreshold, mainLastMove, agouzaLastMove]);
 
   const { title, subtitle } = titleMap[scope];
 
   // أعمدة الجدول حسب الـ scope
-  const renderMainCols = scope !== "agouza";
-  const renderAgouzaCols = scope !== "main";
+  const renderMainCols = scope === "main" || scope === "both";
+  const renderAgouzaCols = scope === "agouza" || scope === "both";
+  const renderCarrefourCols = scope === "carrefour";
+  const renderHealthyCols = scope === "healthy";
+  const currentSingleScope: SingleWh | null = isSingleScope(scope) ? (scope as SingleWh) : null;
+  const currentWhId = currentSingleScope ? getWhId(currentSingleScope) : null;
+  const currentWhLabel = currentSingleScope ? getWhLabel(currentSingleScope) : "";
+  const currentStock = currentSingleScope ? getStockMap(currentSingleScope) : {};
+  const currentPending = currentSingleScope ? getPendingMap(currentSingleScope) : {};
+  const currentItemIds = currentSingleScope ? getItemIdsMap(currentSingleScope) : {};
+  const currentCost = currentSingleScope ? getCostMap(currentSingleScope) : {};
+  const currentSku = currentSingleScope ? getSkuMap(currentSingleScope) : {};
+  const currentLastMove = currentSingleScope ? getLastMoveMap(currentSingleScope) : {};
+
+
 
   const content = (
     <>
       {!embedded && <Header title={title} subtitle={subtitle} />}
 
 
-      {scope === "main" && (
+      {isSingleScope(scope) && currentWhId && (
         <div className="flex flex-wrap gap-2 mb-3">
           <Button size="sm" onClick={() => setManualAddOpen(true)} className="bg-emerald-600 hover:bg-emerald-700">
             <PackagePlus className="w-4 h-4 ml-1" /> إضافة رصيد / توريد مباشر
@@ -410,26 +559,26 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
         </div>
       )}
 
-      {scope === "main" && mainWhId && (
+      {isSingleScope(scope) && currentWhId && (
         <>
           <ManualStockAdditionDialog
             open={manualAddOpen}
             onOpenChange={setManualAddOpen}
-            warehouseId={mainWhId}
-            warehouseName="المخزن الرئيسي"
+            warehouseId={currentWhId}
+            warehouseName={currentWhLabel}
             items={products
-              .filter((p) => mainItemIds[p.id])
-              .map((p) => ({ id: mainItemIds[p.id], name: p.name, unit: p.unit, stock: mainStock[p.id] || 0 }))}
+              .filter((p) => currentItemIds[p.id])
+              .map((p) => ({ id: currentItemIds[p.id], name: p.name, unit: p.unit, stock: currentStock[p.id] || 0 }))}
             onSaved={fetchAll}
           />
           <ManualStockOutDialog
             open={manualOutOpen}
             onOpenChange={setManualOutOpen}
-            warehouseId={mainWhId}
-            warehouseName="المخزن الرئيسي"
+            warehouseId={currentWhId}
+            warehouseName={currentWhLabel}
             items={products
-              .filter((p) => mainItemIds[p.id])
-              .map((p) => ({ id: mainItemIds[p.id], name: p.name, unit: p.unit, stock: mainStock[p.id] || 0 }))}
+              .filter((p) => currentItemIds[p.id])
+              .map((p) => ({ id: currentItemIds[p.id], name: p.name, unit: p.unit, stock: currentStock[p.id] || 0 }))}
             onSaved={fetchAll}
           />
         </>
@@ -437,11 +586,12 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
 
 
 
+
       {/* ملخص سريع */}
       <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4`}>
         <Card
-          className={scope === "main" ? "cursor-pointer hover:border-primary/40 transition-colors" : "cursor-pointer hover:border-primary/40 transition-colors"}
-          onClick={scope === "main" ? () => { setCardSearch(""); setCardDialog("withStock"); } : () => setShowItemsTable(true)}
+          className="cursor-pointer hover:border-primary/40 transition-colors"
+          onClick={isSingleScope(scope) ? () => { setCardSearch(""); setCardDialog("withStock"); } : () => setShowItemsTable(true)}
         >
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-md bg-green-500/15 text-green-700 dark:text-green-300">
@@ -454,7 +604,10 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card
+          className={isSingleScope(scope) ? "cursor-pointer hover:border-primary/40 transition-colors" : ""}
+          onClick={isSingleScope(scope) ? () => { setTableFilter("all"); setShowItemsTable(true); } : undefined}
+        >
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-md bg-orange-500/15 text-orange-700 dark:text-orange-300">
               <Lock className="w-5 h-5" />
@@ -462,12 +615,13 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
             <div>
               <div className="text-xs text-muted-foreground">إجمالي محجوز للطلبات</div>
               <div className="text-xl font-bold">{summary.totalReservedKg} كجم</div>
+              {isSingleScope(scope) && <div className="text-[10px] text-muted-foreground">اضغط للتفاصيل</div>}
             </div>
           </CardContent>
         </Card>
         <Card
           className={`${summary.belowZero > 0 ? "border-destructive/40" : ""} cursor-pointer hover:border-primary/40 transition-colors`}
-          onClick={scope === "main" ? () => { setCardSearch(""); setCardDialog("overReserved"); } : () => setShowItemsTable(true)}
+          onClick={isSingleScope(scope) ? () => { setCardSearch(""); setCardDialog("overReserved"); } : () => setShowItemsTable(true)}
         >
           <CardContent className="p-4 flex items-center gap-3">
             <div className={`p-2 rounded-md ${summary.belowZero > 0 ? "bg-destructive/15 text-destructive" : "bg-muted text-muted-foreground"}`}>
@@ -482,7 +636,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
         </Card>
         <Card
           className="cursor-pointer hover:border-primary/40 transition-colors"
-          onClick={() => setShowItemsTable((v) => !v)}
+          onClick={() => { setTableFilter("all"); setShowItemsTable((v) => !v); }}
         >
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-md bg-blue-500/15 text-blue-700 dark:text-blue-300">
@@ -490,12 +644,62 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
             </div>
             <div>
               <div className="text-xs text-muted-foreground">عدد الأصناف</div>
-              <div className="text-xl font-bold">{filtered.length}</div>
+              <div className="text-xl font-bold">{summary.itemsCount}</div>
               <div className="text-[10px] text-muted-foreground">{showItemsTable ? "اضغط للإخفاء" : "اضغط لعرض الجدول"}</div>
             </div>
           </CardContent>
         </Card>
+
+        {isSingleScope(scope) && (
+          <>
+            <Card>
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="p-2 rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+                  <PackageCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">قيمة المخزون</div>
+                  <div className="text-xl font-bold">{summary.totalValue.toLocaleString()} ج.م</div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card
+              className={`${summary.lowStockCount > 0 ? "border-destructive/40" : ""} cursor-pointer hover:border-primary/40 transition-colors`}
+              onClick={() => { setTableFilter("lowStock"); setShowItemsTable(true); }}
+            >
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className={`p-2 rounded-md ${summary.lowStockCount > 0 ? "bg-destructive/15 text-destructive" : "bg-muted text-muted-foreground"}`}>
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">منتجات منخفضة</div>
+                  <div className={`text-xl font-bold ${summary.lowStockCount > 0 ? "text-destructive" : ""}`}>{summary.lowStockCount}</div>
+                  <div className="text-[10px] text-muted-foreground">اضغط للتفاصيل</div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="p-2 rounded-md bg-purple-500/15 text-purple-700 dark:text-purple-300">
+                  <RefreshCw className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">آخر حركة</div>
+                  <div className="text-sm font-semibold">
+                    {summary.lastMoveTs ? new Date(summary.lastMoveTs).toLocaleString("ar-EG") : "—"}
+                  </div>
+                  {summary.lastMovePid && (
+                    <div className="text-[10px] text-muted-foreground truncate max-w-[180px]">
+                      {products.find(p => p.id === summary.lastMovePid)?.name || ""}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
+
 
 
       {showItemsTable && (
@@ -602,14 +806,30 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
                   {renderMainCols && <th className="p-2 font-semibold whitespace-nowrap">الرئيسي — الفعلي</th>}
                   {renderMainCols && <th className="p-2 font-semibold whitespace-nowrap">الرئيسي — المحجوز</th>}
                   {renderMainCols && <th className="p-2 font-semibold whitespace-nowrap">الرئيسي — المتاح</th>}
+                  {(renderCarrefourCols || renderHealthyCols) && <th className="p-2 font-semibold whitespace-nowrap">الفعلي</th>}
+                  {(renderCarrefourCols || renderHealthyCols) && <th className="p-2 font-semibold whitespace-nowrap">المحجوز</th>}
+                  {(renderCarrefourCols || renderHealthyCols) && <th className="p-2 font-semibold whitespace-nowrap">المتاح</th>}
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((p) => {
+                {filtered
+                  .filter((p) => {
+                    if (!currentSingleScope) return true;
+                    const a = currentStock[p.id] ?? 0;
+                    const r = currentPending[p.id] ?? 0;
+                    const lo = (currentSingleScope ? getLowMap(currentSingleScope) : {})[p.id] ?? 0;
+                    if (tableFilter === "withStock") return a > 0;
+                    if (tableFilter === "lowStock") return lo > 0 && a <= lo;
+                    if (tableFilter === "overReserved") return r > a;
+                    return true;
+                  })
+                  .map((p) => {
                   const aActual = agouzaStock[p.id] ?? 0;
                   const aPend = agouzaPending[p.id] ?? 0;
                   const mActual = mainStock[p.id] ?? 0;
                   const mPend = mainPending[p.id] ?? 0;
+                  const cActual = currentSingleScope ? (currentStock[p.id] ?? 0) : 0;
+                  const cPend = currentSingleScope ? (currentPending[p.id] ?? 0) : 0;
                   return (
                     <tr key={p.id} className="border-t hover:bg-muted/30">
                       <td className="p-2 font-bold text-green-600 dark:text-green-400">{p.name}</td>
@@ -620,11 +840,18 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
                       {renderMainCols && <td className="p-2"><ActualCell wh="main" pid={p.id} name={p.name} kgValue={mActual} /></td>}
                       {renderMainCols && <td className="p-2"><ReservedCell pending={mPend} name={p.name} onOpen={() => setReservedDlg({ wh: "main", productId: p.id, productName: p.name, total: mPend })} /></td>}
                       {renderMainCols && <td className="p-2"><AvailableCell actual={mActual} pending={mPend} name={p.name} /></td>}
+                      {(renderCarrefourCols || renderHealthyCols) && currentSingleScope && (
+                        <>
+                          <td className="p-2"><ActualCell wh={currentSingleScope} pid={p.id} name={p.name} kgValue={cActual} /></td>
+                          <td className="p-2"><ReservedCell pending={cPend} name={p.name} onOpen={() => setReservedDlg({ wh: currentSingleScope, productId: p.id, productName: p.name, total: cPend })} /></td>
+                          <td className="p-2"><AvailableCell actual={cActual} pending={cPend} name={p.name} /></td>
+                        </>
+                      )}
                     </tr>
                   );
                 })}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">لا توجد منتجات</td></tr>
+                  <tr><td colSpan={10} className="p-6 text-center text-muted-foreground">لا توجد منتجات</td></tr>
                 )}
               </tbody>
             </table>
@@ -637,6 +864,8 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
               const aPend = agouzaPending[p.id] ?? 0;
               const mActual = mainStock[p.id] ?? 0;
               const mPend = mainPending[p.id] ?? 0;
+              const cActual = currentSingleScope ? (currentStock[p.id] ?? 0) : 0;
+              const cPend = currentSingleScope ? (currentPending[p.id] ?? 0) : 0;
               return (
                 <div key={p.id} className="border rounded-lg p-3 bg-card space-y-2">
                   <div>
@@ -663,6 +892,16 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
                       </div>
                     </div>
                   )}
+                  {(renderCarrefourCols || renderHealthyCols) && currentSingleScope && (
+                    <div className="border-t pt-2">
+                      <div className="text-xs font-semibold mb-1 text-muted-foreground">{currentWhLabel}</div>
+                      <div className="grid grid-cols-3 gap-1 text-[11px]">
+                        <div><div className="text-muted-foreground mb-0.5">الفعلي</div><ActualCell wh={currentSingleScope} pid={p.id} name={p.name} kgValue={cActual} /></div>
+                        <div><div className="text-muted-foreground mb-0.5">المحجوز</div><ReservedCell pending={cPend} name={p.name} onOpen={() => setReservedDlg({ wh: currentSingleScope, productId: p.id, productName: p.name, total: cPend })} /></div>
+                        <div><div className="text-muted-foreground mb-0.5">المتاح</div><AvailableCell actual={cActual} pending={cPend} name={p.name} /></div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -675,27 +914,28 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
         <ReservedDetailsDialog
           open={!!reservedDlg}
           onOpenChange={(o) => { if (!o) setReservedDlg(null); }}
-          warehouseId={(reservedDlg.wh === "agouza" ? agouzaWhId : mainWhId) || ""}
-          warehouseName={reservedDlg.wh === "agouza" ? "مخزن العجوزة" : "المخزن الرئيسي"}
+          warehouseId={getWhId(reservedDlg.wh) || ""}
+          warehouseName={getWhLabel(reservedDlg.wh)}
           productId={reservedDlg.productId}
           productName={reservedDlg.productName}
           totalReservedKg={reservedDlg.total}
         />
       )}
 
-      {scope === "main" && (
+      {isSingleScope(scope) && currentSingleScope && (
         <MainCardDialog
           mode={cardDialog}
           onClose={() => setCardDialog(null)}
           products={products}
-          mainStock={mainStock}
-          mainPending={mainPending}
-          mainCost={mainCost}
-          mainSku={mainSku}
-          mainLastMove={mainLastMove}
+          mainStock={currentStock}
+          mainPending={currentPending}
+          mainCost={currentCost}
+          mainSku={currentSku}
+          mainLastMove={currentLastMove}
           search={cardSearch}
           onSearch={setCardSearch}
-          onOpenReserved={(pid, name, total) => setReservedDlg({ wh: "main", productId: pid, productName: name, total })}
+          onOpenReserved={(pid, name, total) => setReservedDlg({ wh: currentSingleScope, productId: pid, productName: name, total })}
+          warehouseName={currentWhLabel}
         />
       )}
     </>
@@ -706,3 +946,4 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
 
 
 export default WarehouseStockView;
+
