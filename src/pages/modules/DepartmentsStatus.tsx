@@ -97,18 +97,18 @@ const safeQuery = async (p: any): Promise<any[]> => {
 
 async function collectHatchery(range: DateRange): Promise<DeptSnapshot> {
   const [invoices, payments, txns] = await Promise.all([
-    safeQuery<any>(supabase.from("hatchery_client_invoices")
+    safeQuery(supabase.from("hatchery_client_invoices")
       .select("invoice_total, collected_amount, remaining_amount, payment_status, created_at")
       .gte("created_at", range.from).lte("created_at", range.to + "T23:59:59")),
-    safeQuery<any>(supabase.from("hatchery_invoice_payments")
+    safeQuery(supabase.from("hatchery_invoice_payments")
       .select("amount, paid_at")
       .gte("paid_at", range.from).lte("paid_at", range.to + "T23:59:59")),
-    safeQuery<any>(supabase.from("hatchery_treasury_txns")
+    safeQuery(supabase.from("hatchery_treasury_txns")
       .select("direction, amount, txn_date, category")
       .gte("txn_date", range.from).lte("txn_date", range.to)),
   ]);
   // Treasury full balance is cumulative — show overall not just range
-  const fullTxns = await safeQuery<any>(supabase.from("hatchery_treasury_txns")
+  const fullTxns = await safeQuery(supabase.from("hatchery_treasury_txns")
     .select("direction, amount, txn_date"));
 
   const revenue = sum(invoices, "invoice_total");
@@ -134,13 +134,13 @@ async function collectHatchery(range: DateRange): Promise<DeptSnapshot> {
 
 async function collectMotherFarm(range: DateRange): Promise<DeptSnapshot> {
   const [eggs, feed, deaths] = await Promise.all([
-    safeQuery<any>(supabase.from("farm_egg_production")
+    safeQuery(supabase.from("farm_egg_production")
       .select("count, log_date")
       .gte("log_date", range.from).lte("log_date", range.to)),
-    safeQuery<any>(supabase.from("farm_feed_log")
+    safeQuery(supabase.from("farm_feed_log")
       .select("quantity_kg, cost, log_date")
       .gte("log_date", range.from).lte("log_date", range.to)),
-    safeQuery<any>(supabase.from("farm_egg_waste")
+    safeQuery(supabase.from("farm_egg_waste")
       .select("count, log_date")
       .gte("log_date", range.from).lte("log_date", range.to)),
   ]);
@@ -159,20 +159,20 @@ async function collectMotherFarm(range: DateRange): Promise<DeptSnapshot> {
 
 async function collectSlaughterhouse(range: DateRange): Promise<DeptSnapshot> {
   const [expensesRows, expensesPending, openings, batches] = await Promise.all([
-    safeQuery<any>(supabase.from("slaughter_custody_expenses")
+    safeQuery(supabase.from("slaughter_custody_expenses")
       .select("amount, expense_date, status")
       .eq("status", "approved")
       .gte("expense_date", range.from).lte("expense_date", range.to)),
-    safeQuery<any>(supabase.from("slaughter_custody_expenses")
+    safeQuery(supabase.from("slaughter_custody_expenses")
       .select("amount, status")
-      .in("status", ["pending", "submitted"])),
-    safeQuery<any>(supabase.from("slaughter_custody_opening_balances")
+      .not("status","eq","approved")),
+    safeQuery(supabase.from("slaughter_custody_opening_balances")
       .select("amount")),
-    safeQuery<any>(supabase.from("slaughter_batches")
+    safeQuery(supabase.from("slaughter_batches")
       .select("slaughter_date, total_cost, status")
       .gte("slaughter_date", range.from).lte("slaughter_date", range.to)),
   ]);
-  const allApproved = await safeQuery<any>(supabase.from("slaughter_custody_expenses")
+  const allApproved = await safeQuery(supabase.from("slaughter_custody_expenses")
     .select("amount, status").eq("status", "approved"));
   const opening = sum(openings, "amount");
   const balance = opening - sum(allApproved, "amount");
@@ -194,22 +194,22 @@ async function collectSlaughterhouse(range: DateRange): Promise<DeptSnapshot> {
 
 async function collectMeatFactory(range: DateRange): Promise<DeptSnapshot> {
   const [purchases, sales, txns, txnsAll] = await Promise.all([
-    safeQuery<any>(supabase.from("meat_factory_purchases")
+    safeQuery(supabase.from("meat_factory_purchases")
       .select("total_amount, purchase_date, status")
       .eq("status", "approved")
       .gte("purchase_date", range.from).lte("purchase_date", range.to)),
-    safeQuery<any>(supabase.from("meat_factory_sales")
+    safeQuery(supabase.from("meat_factory_sales")
       .select("total_amount, sale_date, status")
       .eq("status", "approved")
       .gte("sale_date", range.from).lte("sale_date", range.to)),
-    safeQuery<any>(supabase.from("meat_factory_treasury_txns")
+    safeQuery(supabase.from("meat_factory_treasury_txns")
       .select("direction, amount, txn_date")
       .gte("txn_date", range.from).lte("txn_date", range.to)),
-    safeQuery<any>(supabase.from("meat_factory_treasury_txns")
+    safeQuery(supabase.from("meat_factory_treasury_txns")
       .select("direction, amount")),
   ]);
-  const pendingRows = await safeQuery<any>(supabase.from("meat_factory_purchases")
-    .select("total_amount, status").in("status", ["pending", "draft"]));
+  const pendingRows = await safeQuery(supabase.from("meat_factory_purchases")
+    .select("total_amount, status").not("status","eq","approved"));
   const purchasesTotal = sum(purchases, "total_amount");
   const revenue = sum(sales, "total_amount");
   const expenses = sum(txns.filter(t => t.direction === "out"), "amount");
@@ -231,10 +231,10 @@ async function collectMeatFactory(range: DateRange): Promise<DeptSnapshot> {
 
 async function collectWarehouses(_range: DateRange): Promise<DeptSnapshot> {
   const [items, movements] = await Promise.all([
-    safeQuery<any>(supabase.from("inventory_items")
+    safeQuery(supabase.from("inventory_items")
       .select("stock, unit_cost, warehouse_id, warehouse:warehouses(name)")
       .eq("is_active", true)),
-    safeQuery<any>(supabase.from("inventory_movements")
+    safeQuery(supabase.from("inventory_movements")
       .select("performed_at, movement_type").order("performed_at", { ascending: false }).limit(1)),
   ]);
   const inventoryValue = items.reduce((s, it) => s + Number(it.stock || 0) * Number(it.unit_cost || 0), 0);
@@ -252,7 +252,7 @@ async function collectWarehouses(_range: DateRange): Promise<DeptSnapshot> {
 
 async function collectMarketingSales(range: DateRange): Promise<DeptSnapshot> {
   const [orders] = await Promise.all([
-    safeQuery<any>(supabase.from("orders")
+    safeQuery(supabase.from("orders")
       .select("total, payment_status, status, created_at")
       .neq("status", "cancelled")
       .gte("created_at", range.from).lte("created_at", range.to + "T23:59:59")),
@@ -275,19 +275,19 @@ async function collectMarketingSales(range: DateRange): Promise<DeptSnapshot> {
 
 async function collectTreasuries(_range: DateRange): Promise<DeptSnapshot> {
   const [main, lab, hat, meat, slaughterOpen, slaughterExp] = await Promise.all([
-    safeQuery<any>(supabase.from("main_treasury_transactions")
+    safeQuery(supabase.from("main_treasury_transactions")
       .select("txn_type, amount, status").eq("status", "approved")),
-    safeQuery<any>(supabase.from("lab_treasury_movements")
+    safeQuery(supabase.from("lab_treasury_movements")
       .select("movement_type, amount, status").eq("status", "approved")),
-    safeQuery<any>(supabase.from("hatchery_treasury_txns").select("direction, amount")),
-    safeQuery<any>(supabase.from("meat_factory_treasury_txns").select("direction, amount")),
-    safeQuery<any>(supabase.from("slaughter_custody_opening_balances").select("amount")),
-    safeQuery<any>(supabase.from("slaughter_custody_expenses").select("amount, status").eq("status", "approved")),
+    safeQuery(supabase.from("hatchery_treasury_txns").select("direction, amount")),
+    safeQuery(supabase.from("meat_factory_treasury_txns").select("direction, amount")),
+    safeQuery(supabase.from("slaughter_custody_opening_balances").select("amount")),
+    safeQuery(supabase.from("slaughter_custody_expenses").select("amount, status").eq("status", "approved")),
   ]);
-  const mainPending = await safeQuery<any>(supabase.from("main_treasury_transactions")
-    .select("amount, status").in("status", ["pending", "submitted"]));
-  const labPending = await safeQuery<any>(supabase.from("lab_treasury_movements")
-    .select("amount, status").in("status", ["pending", "submitted"]));
+  const mainPending = await safeQuery(supabase.from("main_treasury_transactions")
+    .select("amount, status").not("status","eq","approved"));
+  const labPending = await safeQuery(supabase.from("lab_treasury_movements")
+    .select("amount, status").not("status","eq","approved"));
 
   const mainIn = sum(main.filter(t => ["deposit", "income", "in"].includes(t.txn_type)), "amount");
   const mainOut = sum(main.filter(t => ["withdrawal", "expense", "out", "transfer"].includes(t.txn_type)), "amount");
@@ -313,13 +313,13 @@ async function collectTreasuries(_range: DateRange): Promise<DeptSnapshot> {
 }
 
 async function collectAdmin(range: DateRange): Promise<DeptSnapshot> {
-  const rows = await safeQuery<any>(supabase.from("main_treasury_transactions")
+  const rows = await safeQuery(supabase.from("main_treasury_transactions")
     .select("amount, txn_type, status, txn_date")
     .eq("status", "approved")
     .in("txn_type", ["expense", "withdrawal"])
     .gte("txn_date", range.from).lte("txn_date", range.to));
-  const pendingRows = await safeQuery<any>(supabase.from("main_treasury_transactions")
-    .select("amount, status").in("status", ["pending", "submitted"]));
+  const pendingRows = await safeQuery(supabase.from("main_treasury_transactions")
+    .select("amount, status").not("status","eq","approved"));
   const expenses = sum(rows, "amount");
   const last = rows.map(r => r.txn_date).filter(Boolean).sort().pop();
   return {
