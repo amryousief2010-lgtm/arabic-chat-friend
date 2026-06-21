@@ -458,7 +458,7 @@ export default function BatchAccountDialog({
               chicks * days * num(p.daily_brooding_price) +
               hatchMort * (num(p.hatch_mortality_price) || 100);
             const ownerLabel = (lot as any).owner_type === "internal" ? "داخلي" : "خارجي";
-            const headers = ["العميل","النوع","رقم دفعة العميل","بيض","تالف","صافي","لايح","مخصب 1","نافق ك2","نافق هاتشر","كتاكيت","% فقس","الحساب التقديري","تعديل"];
+            const headers = ["العميل","النوع","رقم دفعة العميل","بيض","مستبعد","صافي","لايح","مخصب 1","نافق ك2","نافق هاتشر","كتاكيت","% فقس","الحساب التقديري","تعديل"];
             return (
               <div className="rounded-lg border overflow-x-auto bg-card">
                 <table className="w-full text-xs">
