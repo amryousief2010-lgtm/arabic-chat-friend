@@ -969,9 +969,16 @@ const Warehouses = () => {
             { value: "wh-carrefour", path: "/warehouse-stock/hyper-carrefour" },
             { value: "wh-packaging", path: "/modules/packaging" },
             { value: "wh-activity", path: "/main-warehouse-activity" },
-            { value: "wh-opening", path: "/modules/warehouses/opening-balance" },
-            { value: "wh-operational", path: "/modules/warehouses/operational-dates" },
-            { value: "wh-guide", path: "/warehouse-stock/main/guide" },
+          </TabsContent>
+
+          {/* Embedded warehouse pages */}
+          {[
+            { value: "wh-main", path: "/warehouse-stock/main" },
+            { value: "wh-agouza", path: "/warehouse-stock/agouza" },
+            { value: "wh-hht", path: "/warehouse-stock/hyper-healthy-test" },
+            { value: "wh-carrefour", path: "/warehouse-stock/hyper-carrefour" },
+            { value: "wh-packaging", path: "/modules/packaging" },
+            { value: "wh-activity", path: "/main-warehouse-activity" },
           ].map((t) => (
             <TabsContent key={t.value} value={t.value} className="space-y-4">
               <div className="rounded-lg border border-border bg-card overflow-hidden">
