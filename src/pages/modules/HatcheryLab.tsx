@@ -933,9 +933,35 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
     [availableTransferBatches]
   );
 
+  useEffect(() => {
+    if (!open || !latestTransferBatch) return;
+    console.info("[HatcheryLab] تشخيص وارد المزرعة الرسمي", {
+      bannerBatch: latestTransferBatch.label,
+      transfer_batch_id: latestTransferBatch.transfer_batch_id,
+      total_eggs: latestTransferBatch.total_eggs,
+      transfer_date: latestTransferBatch.transfer_date,
+      production_period: `${latestTransferBatch.min_date} → ${latestTransferBatch.max_date}`,
+      orphan_shipments_excluded_from_banner: true,
+      orphan_shipments_count: orphanShipmentsData.length,
+      official_batches_in_dropdown: availableTransferBatches.map((g) => ({
+        transfer_batch_id: g.transfer_batch_id,
+        total_eggs: g.total_eggs,
+        transfer_date: g.transfer_date,
+        production_period: `${g.min_date} → ${g.max_date}`,
+      })),
+      target_35_batch_visible: availableTransferBatches.some(
+        (g) => g.transfer_batch_id === "5d5ca4a9-86e3-4360-a1ef-e0389e6b672a" && Number(g.total_eggs) === 35
+      ),
+    });
+  }, [open, latestTransferBatch, availableTransferBatches, orphanShipmentsData.length]);
+
   const loadTransferBatchIntoLot = (lotIndex: number, key: string) => {
     const g = transferBatchesData.find((x) => x.key === key);
     if (!g) return;
+    if (g.source !== "farm_transfers" || !g.transfer_batch_id || !(g.farm_transfer_ids || []).length) {
+      toast.error("لا يمكن تحميل شحنة يتيمة أو غير رسمية تلقائياً");
+      return;
+    }
     const periodLabel = g.min_date === g.max_date ? g.min_date : `${g.min_date} → ${g.max_date}`;
     setLots((prev) =>
       prev.map((l, j) =>
@@ -960,6 +986,10 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
   const loadLatestFarmShipment = () => {
     if (!latestTransferBatch) {
       toast.info("لا توجد دفعات نقل من المزرعة متاحة حالياً");
+      return;
+    }
+    if (latestTransferBatch.source !== "farm_transfers" || !latestTransferBatch.transfer_batch_id) {
+      toast.error("لا يمكن تحميل شحنة غير رسمية من وارد المزرعة");
       return;
     }
     const emptyIdx = lots.findIndex(
