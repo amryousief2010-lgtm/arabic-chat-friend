@@ -76,7 +76,7 @@ export default function MainCardDialog({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${isOver ? "over-reserved" : "items-with-stock"}-main-warehouse.csv`;
+    a.download = `${isOver ? "over-reserved" : "items-with-stock"}-${(whLabel || "warehouse").replace(/\s+/g, "-")}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
