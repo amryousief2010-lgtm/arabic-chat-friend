@@ -612,8 +612,11 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
           totalReservedKg={reservedDlg.total}
         />
       )}
-    </DashboardLayout>
+    </>
   );
+
+  return embedded ? content : <DashboardLayout>{content}</DashboardLayout>;
 };
+
 
 export default WarehouseStockView;
