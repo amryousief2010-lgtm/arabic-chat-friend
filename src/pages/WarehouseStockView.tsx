@@ -20,7 +20,8 @@ interface Product { id: string; name: string; unit: string; category?: string | 
 
 export type StockScope = "both" | "agouza" | "main";
 
-interface Props { scope?: StockScope }
+interface Props { scope?: StockScope; embedded?: boolean }
+
 
 const titleMap: Record<StockScope, { title: string; subtitle: string }> = {
   both: { title: "المتاح في المخازن", subtitle: "الفعلي • المحجوز • المتاح للبيع لكل مخزن" },
@@ -44,7 +45,7 @@ const formatPackages = (kg: number, name: string): string => {
   return `${rounded} عبوة`;
 };
 
-const WarehouseStockView = ({ scope = "both" }: Props) => {
+const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
   const { isExecutiveManager, isGeneralManager, canManageAgouzaStock, isAgouzaWarehouseKeeper } = useAuth();
   const navigate = useNavigate();
   const canEditAll = isExecutiveManager || isGeneralManager;
@@ -355,9 +356,10 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
   const renderMainCols = scope !== "agouza";
   const renderAgouzaCols = scope !== "main";
 
-  return (
-    <DashboardLayout>
-      <Header title={title} subtitle={subtitle} />
+  const content = (
+    <>
+      {!embedded && <Header title={title} subtitle={subtitle} />}
+
 
       {scope === "main" && (
         <div className="flex flex-wrap gap-2 mb-3">
@@ -610,8 +612,11 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
           totalReservedKg={reservedDlg.total}
         />
       )}
-    </DashboardLayout>
+    </>
   );
+
+  return embedded ? content : <DashboardLayout>{content}</DashboardLayout>;
 };
+
 
 export default WarehouseStockView;
