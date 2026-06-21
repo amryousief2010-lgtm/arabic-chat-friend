@@ -535,6 +535,11 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
                             {unreadInternalMessages > 99 ? "99+" : unreadInternalMessages}
                           </Badge>
                         )}
+                        {showApprovalsBadge && (
+                          <Badge className="h-5 min-w-5 px-1.5 text-xs bg-purple-600 hover:bg-purple-700">
+                            {approvalsCount > 99 ? "99+" : approvalsCount}
+                          </Badge>
+                        )}
                       </Link>
                     );
                   };
