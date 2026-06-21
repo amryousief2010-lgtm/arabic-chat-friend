@@ -298,16 +298,16 @@ const MeatFactoryOps = () => {
 
           {/* ===== PURCHASES ===== */}
           <TabsContent value="rawpurchase">
-            <RawPurchaseTab raws={raws} list={rawPurchases} onReload={loadAll} onPost={(id) => post("post_mf_raw_purchase", id)} onPrint={printDoc} onExcel={exportSheet} />
+            <RawPurchaseTab raws={raws} list={rawPurchases} onReload={loadAll} onPost={(id) => post("post_mf_raw_purchase", id)} onPrint={printDoc} onExcel={exportSheet} canApprove={canApprove} />
           </TabsContent>
 
           <TabsContent value="packpurchase">
-            <PackPurchaseTab packs={packs} list={packPurchases} onReload={loadAll} onPost={(id) => post("post_mf_pack_purchase", id)} onPrint={printDoc} onExcel={exportSheet} />
+            <PackPurchaseTab packs={packs} list={packPurchases} onReload={loadAll} onPost={(id) => post("post_mf_pack_purchase", id)} onPrint={printDoc} onExcel={exportSheet} canApprove={canApprove} />
           </TabsContent>
 
           {/* ===== MANUFACTURING ===== */}
           <TabsContent value="mfg">
-            <ManufacturingTab raws={raws} packs={packs} fins={fins} list={mfgInvoices} onReload={loadAll} onPost={(id) => post("post_mf_manufacturing", id)} onPrint={printDoc} onExcel={exportSheet} />
+            <ManufacturingTab raws={raws} packs={packs} fins={fins} list={mfgInvoices} onReload={loadAll} onPost={(id) => post("post_mf_manufacturing", id)} onPrint={printDoc} onExcel={exportSheet} canApprove={canApprove} />
           </TabsContent>
 
           {/* ===== SALES ===== */}
