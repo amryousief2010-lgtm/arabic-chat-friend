@@ -526,6 +526,7 @@ export function useExecutiveApprovals() {
             performed_by: user.id,
             reason: `اعتماد خصم موظف (${HR_TYPE_LABEL[item.raw.deduction_type] || item.raw.deduction_type})`,
           });
+        }
       } else if (item.category === "mf_purchase") {
         const rpcName = item.raw?._kind === "pack_purchase" ? "post_mf_pack_purchase" : "post_mf_raw_purchase";
         const { error } = await (supabase as any).rpc(rpcName, { p_id: item.id });
@@ -533,7 +534,6 @@ export function useExecutiveApprovals() {
       } else if (item.category === "mf_mfg") {
         const { error } = await (supabase as any).rpc("post_mf_manufacturing", { p_id: item.id });
         if (error) throw error;
-      }
       }
       await refetch();
     },
