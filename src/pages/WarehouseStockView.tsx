@@ -360,59 +360,42 @@ const WarehouseStockView = ({ scope = "both" }: Props) => {
       <Header title={title} subtitle={subtitle} />
 
       {scope === "main" && (
-        <Card className="mb-3 border-amber-500/40 bg-amber-500/5">
-          <CardContent className="p-3 flex items-center gap-3 text-sm">
-            <div className="p-2 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-300">
-              <Lock className="w-4 h-4" />
-            </div>
-            <div className="flex-1">
-              <div className="text-xs text-muted-foreground">تاريخ بداية تشغيل المخزن الرئيسي (Cut-off)</div>
-              <div className="font-semibold">
-                الجرد اليدوي الحالي معتمد كنقطة بداية رسمية بتاريخ {MAIN_WAREHOUSE_OPERATIONAL_START}
-              </div>
-              <div className="text-[11px] text-muted-foreground">
-                الأوردرات المسجلة قبل هذا التاريخ لا تُخصم ولا تدخل في المحجوز للمخزن الرئيسي. فقط الأوردرات من {MAIN_WAREHOUSE_OPERATIONAL_START} وما بعدها هي التي تؤثر على المخزن الرئيسي.
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {scope === "main" && mainOpeningAt && (
-        <Card className="mb-3 border-primary/30 bg-primary/5">
-          <CardContent className="p-3 flex items-center gap-3 text-sm">
-            <div className="p-2 rounded-md bg-primary/15 text-primary">
-              <PackageCheck className="w-4 h-4" />
-            </div>
-            <div className="flex-1">
-              <div className="text-xs text-muted-foreground">رصيد افتتاحي معتمد (Zero-base)</div>
-              <div className="font-semibold">
-                تم تثبيت الجرد الحالي كنقطة صفر بتاريخ{" "}
-                {new Date(mainOpeningAt).toLocaleString("ar-EG", { dateStyle: "medium", timeStyle: "short" })}
-              </div>
-              <div className="text-[11px] text-muted-foreground">
-                أي تغيير بعد ذلك يكون عبر: توريد دبح/مصنع، مرتجعات معتمدة، صرف طلبات، تحويلات، أو تعديل جرد بصلاحية المدير.
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {(scope === "main" || scope === "agouza") && (
         <div className="flex flex-wrap gap-2 mb-3">
-          <Button variant="outline" size="sm" onClick={() => navigate("/modules/warehouses/opening-balance")}>
-            <PackageCheck className="w-4 h-4 ml-1" /> الرصيد الافتتاحي
+          <Button size="sm" onClick={() => setManualAddOpen(true)} className="bg-emerald-600 hover:bg-emerald-700">
+            <PackagePlus className="w-4 h-4 ml-1" /> إضافة رصيد / توريد مباشر
           </Button>
-          <Button variant="outline" size="sm" onClick={() => navigate("/warehouse-stock/main/guide")}>
-            <Search className="w-4 h-4 ml-1" /> دليل تشغيل المخزن
+          <Button size="sm" onClick={() => setManualOutOpen(true)} className="bg-rose-600 hover:bg-rose-700">
+            <PackageMinus className="w-4 h-4 ml-1" /> صرف منتجات / توريد للجهات
           </Button>
-          {(isGeneralManager || isExecutiveManager) && (
-            <Button variant="outline" size="sm" onClick={() => navigate("/modules/warehouses/operational-dates")}>
-              <Lock className="w-4 h-4 ml-1" /> تواريخ بداية التشغيل
-            </Button>
-          )}
         </div>
       )}
+
+      {scope === "main" && mainWhId && (
+        <>
+          <ManualStockAdditionDialog
+            open={manualAddOpen}
+            onOpenChange={setManualAddOpen}
+            warehouseId={mainWhId}
+            warehouseName="المخزن الرئيسي"
+            items={products
+              .filter((p) => mainItemIds[p.id])
+              .map((p) => ({ id: mainItemIds[p.id], name: p.name, unit: p.unit, stock: mainStock[p.id] || 0 }))}
+            onSaved={fetchAll}
+          />
+          <ManualStockOutDialog
+            open={manualOutOpen}
+            onOpenChange={setManualOutOpen}
+            warehouseId={mainWhId}
+            warehouseName="المخزن الرئيسي"
+            items={products
+              .filter((p) => mainItemIds[p.id])
+              .map((p) => ({ id: mainItemIds[p.id], name: p.name, unit: p.unit, stock: mainStock[p.id] || 0 }))}
+            onSaved={fetchAll}
+          />
+        </>
+      )}
+
+
 
       {/* ملخص سريع */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
