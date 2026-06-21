@@ -769,7 +769,7 @@ function printGroup(g: any) {
         <td>${fmtNum(raw.candle2_dead)}</td>
         <td>${fmtNum(raw.hatcher_dead)}</td>
         <td><b>${fmtNum(c.chicks)}</b></td>
-        <td>${pct(c.chicks, c.total_eggs)}</td>
+        <td>${pct(c.chicks, c.net_eggs)}</td>
       </tr>`;
     })
     .join("");
