@@ -53,6 +53,7 @@ const KIND_LABEL: Record<ReceiptKind, string> = {
   slaughter: "استلام من المجزر",
   meat_factory: "استلام من مصنع اللحوم",
   internal: "استلام تحويل داخلي",
+  other: "استلامات أخرى",
 };
 
 function summarizeQuality(lines: { quality?: string }[]): string {
