@@ -1279,6 +1279,12 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
             </div>
           )}
 
+          {latestTransferBatch && (
+            <div className="rounded-md border bg-muted/30 p-2 text-xs text-muted-foreground">
+              <b>تقرير تشخيص وارد المزرعة:</b> الدفعة المعروضة {latestTransferBatch.transfer_batch_id} · الإجمالي {latestTransferBatch.total_eggs} بيضة · الشحنات اليتيمة مستبعدة من البانر والتحميل التلقائي · دفعة 35 بيضة {availableTransferBatches.some((g) => g.transfer_batch_id === "5d5ca4a9-86e3-4360-a1ef-e0389e6b672a" && Number(g.total_eggs) === 35) ? "ظاهرة في القائمة" : "غير ظاهرة في القائمة"}
+            </div>
+          )}
+
           <div className="border-t pt-3">
             <div className="flex justify-between items-center mb-2">
               <h4 className="font-bold">حصص الدفعة (Lots)</h4>
