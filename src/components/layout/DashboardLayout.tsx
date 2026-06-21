@@ -11,6 +11,8 @@ import UnreadMessagesBanner from "@/components/internal-messages/UnreadMessagesB
 import { useOrderNotifications } from "@/hooks/useOrderNotifications";
 import { useDailyReminders } from "@/hooks/useDailyReminders";
 import { useInternalMessageRealtime } from "@/hooks/useInternalMessageRealtime";
+import { useUserPresence } from "@/hooks/useUserPresence";
+
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
 import { useQueryClient } from "@tanstack/react-query";
@@ -25,6 +27,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   useOrderNotifications();
   useDailyReminders();
   useInternalMessageRealtime();
+  useUserPresence();
+
 
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();

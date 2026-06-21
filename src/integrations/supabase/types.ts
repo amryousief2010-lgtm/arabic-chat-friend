@@ -15189,6 +15189,45 @@ export type Database = {
         }
         Relationships: []
       }
+      user_presence: {
+        Row: {
+          created_at: string
+          current_page: string | null
+          last_seen_at: string
+          role: string | null
+          session_started_at: string
+          status: string
+          updated_at: string
+          user_agent: string | null
+          user_id: string
+          user_name: string | null
+        }
+        Insert: {
+          created_at?: string
+          current_page?: string | null
+          last_seen_at?: string
+          role?: string | null
+          session_started_at?: string
+          status?: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id: string
+          user_name?: string | null
+        }
+        Update: {
+          created_at?: string
+          current_page?: string | null
+          last_seen_at?: string
+          role?: string | null
+          session_started_at?: string
+          status?: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string
+          user_name?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string

@@ -6,6 +6,8 @@ import { exportToPDF, exportToExcel } from "@/utils/exportReports";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import Header from "@/components/layout/Header";
 import StatCard from "@/components/dashboard/StatCard";
+import ActiveUsersWidget from "@/components/ActiveUsersWidget";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -225,6 +227,13 @@ const DashboardContent = () => {
           to="/low-stock"
         />
       </div>
+
+      {/* Active users (managers only — component handles role gating) */}
+      <div className="mb-6 max-w-md">
+        <ActiveUsersWidget />
+      </div>
+
+
 
       {/* Daily / Monthly / Yearly Sales Breakdown - Hidden for sales moderators */}
       {!isModerator && (
