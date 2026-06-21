@@ -1125,6 +1125,7 @@ const Slaughterhouse = () => {
             <TabsTrigger value="workers" className="text-xs md:text-sm whitespace-nowrap">العمال</TabsTrigger>
             <TabsTrigger value="quality" className="text-xs md:text-sm whitespace-nowrap">الجودة</TabsTrigger>
             <TabsTrigger value="audit" className="text-xs md:text-sm whitespace-nowrap gap-1"><History className="w-3 h-3" />التدقيق</TabsTrigger>
+            <TabsTrigger value="live-costs" className="text-xs md:text-sm whitespace-nowrap">تكلفة النعام الجاهز للدبح</TabsTrigger>
             <TabsTrigger value="settings" className="text-xs md:text-sm whitespace-nowrap gap-1"><SettingsIcon className="w-3 h-3" />الإعدادات</TabsTrigger>
           </TabsList>
         </div>
