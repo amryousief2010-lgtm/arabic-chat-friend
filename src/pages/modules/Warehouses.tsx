@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Warehouse, Trash2, Edit, ArrowDown, ArrowUp, ArrowLeftRight, Settings2, Package, AlertTriangle, BarChart3, Upload, Beef, CheckCircle2, Printer, FileSpreadsheet, FileText, MapPin, Menu, BookOpen, Calendar, Scale } from "lucide-react";
+import { Plus, Warehouse, Trash2, Edit, ArrowDown, ArrowUp, ArrowLeftRight, Settings2, Package, AlertTriangle, BarChart3, Upload, Beef, CheckCircle2, Printer, FileSpreadsheet, FileText, MapPin, Menu, BookOpen, Calendar, Scale, UtensilsCrossed } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -19,6 +19,8 @@ import { useToast } from "@/hooks/use-toast";
 import { formatDateTime } from "@/lib/dateFormat";
 import * as XLSX from "xlsx";
 import companyLogo from "@/assets/company-logo.jpg";
+import WarehouseKpisBlock from "@/components/warehouses/WarehouseKpisBlock";
+import RestaurantMenuTab from "@/components/warehouses/RestaurantMenuTab";
 
 const qualityLabelText: Record<string, string> = {
   accepted: "مقبول",
@@ -567,7 +569,7 @@ const Warehouses = () => {
           </Card>
         </div>
 
-        <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); if (v === "menu") setMenuSubview(null); }} defaultValue="items">
+        <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); if (v === "more") setMenuSubview(null); }} defaultValue="items">
           <div className="overflow-x-auto pb-1">
             <TabsList className="w-max flex-nowrap">
               <TabsTrigger value="items">الأصناف</TabsTrigger>
@@ -584,9 +586,11 @@ const Warehouses = () => {
               <TabsTrigger value="wh-carrefour" className="gap-1"><Warehouse className="w-4 h-4" />هايبر كارفور</TabsTrigger>
               <TabsTrigger value="wh-packaging" className="gap-1"><Package className="w-4 h-4" />التغليف والتعبئة</TabsTrigger>
               <TabsTrigger value="wh-activity" className="gap-1"><BarChart3 className="w-4 h-4" />سجل حركات المخزن الرئيسي</TabsTrigger>
-              <TabsTrigger value="menu" className="gap-1"><Menu className="w-4 h-4" />المنيو</TabsTrigger>
+              <TabsTrigger value="menu" className="gap-1"><UtensilsCrossed className="w-4 h-4" />المنيو</TabsTrigger>
+              <TabsTrigger value="more" className="gap-1"><Menu className="w-4 h-4" />المزيد</TabsTrigger>
             </TabsList>
           </div>
+
 
           {/* ITEMS */}
           <TabsContent value="items" className="space-y-4">
@@ -964,33 +968,60 @@ const Warehouses = () => {
           </TabsContent>
 
 
-          {/* Embedded warehouse pages */}
-          {[
-            { value: "wh-main", path: "/warehouse-stock/main" },
-            { value: "wh-agouza", path: "/warehouse-stock/agouza" },
-            { value: "wh-hht", path: "/warehouse-stock/hyper-healthy-test" },
-            { value: "wh-carrefour", path: "/warehouse-stock/hyper-carrefour" },
-            { value: "wh-packaging", path: "/modules/packaging" },
-            { value: "wh-activity", path: "/main-warehouse-activity" },
-          ].map((t) => (
-            <TabsContent key={t.value} value={t.value} className="space-y-4">
-              <div className="rounded-lg border border-border bg-card overflow-hidden">
-                <iframe
-                  src={`${t.path}?embed=1`}
-                  title={t.value}
-                  className="w-full"
-                  style={{ height: "calc(100vh - 260px)", minHeight: "600px", border: "none" }}
-                />
-              </div>
-            </TabsContent>
-          ))}
+          {/* Embedded warehouse pages with per-warehouse KPI cards on top */}
+          {(() => {
+            const findByPatterns = (patterns: RegExp[]) =>
+              warehouses.find((w) => patterns.some((p) => p.test(w.name)));
+            const findByType = (type: string) => warehouses.find((w) => w.type === type);
 
-          {/* MENU tab with sub-pages */}
+            const TABS = [
+              { value: "wh-main", path: "/warehouse-stock/main", label: "المخزن الرئيسي",
+                wh: findByPatterns([/رئيسي/, /main/i]) },
+              { value: "wh-agouza", path: "/warehouse-stock/agouza", label: "مخزن العجوزة",
+                wh: findByPatterns([/عجوزة/, /agouza/i]) },
+              { value: "wh-hht", path: "/warehouse-stock/hyper-healthy-test", label: "هايبر هيلثي تيست",
+                wh: findByPatterns([/هيلثي/, /healthy/i]) },
+              { value: "wh-carrefour", path: "/warehouse-stock/hyper-carrefour", label: "هايبر كارفور",
+                wh: findByPatterns([/كارفور/, /carrefour/i]) },
+              { value: "wh-packaging", path: "/modules/packaging", label: "التغليف والتعبئة",
+                wh: findByPatterns([/تغليف/, /تعبئة/, /packaging/i]) || findByType("packaging") },
+              { value: "wh-activity", path: "/main-warehouse-activity", label: "سجل حركات المخزن الرئيسي",
+                wh: findByPatterns([/رئيسي/, /main/i]) },
+            ] as const;
+
+            return TABS.map((t) => (
+              <TabsContent key={t.value} value={t.value} className="space-y-4">
+                {t.value !== "wh-activity" && (
+                  <WarehouseKpisBlock
+                    warehouseId={t.wh?.id}
+                    warehouseName={t.label}
+                    items={items}
+                    movements={movements}
+                  />
+                )}
+                <div className="rounded-lg border border-border bg-card overflow-hidden">
+                  <iframe
+                    src={`${t.path}?embed=1`}
+                    title={t.value}
+                    className="w-full"
+                    style={{ height: "calc(100vh - 260px)", minHeight: "600px", border: "none" }}
+                  />
+                </div>
+              </TabsContent>
+            ));
+          })()}
+
+          {/* RESTAURANT MENU tab (products & prices from PDF) */}
           <TabsContent value="menu" className="space-y-4">
+            <RestaurantMenuTab />
+          </TabsContent>
+
+          {/* MORE tab — admin / less-used sub-pages */}
+          <TabsContent value="more" className="space-y-4">
             {menuSubview ? (
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setMenuSubview(null)}><ArrowLeftRight className="w-4 h-4 ml-1" />رجوع للمنيو</Button>
+                  <Button variant="outline" size="sm" onClick={() => setMenuSubview(null)}><ArrowLeftRight className="w-4 h-4 ml-1" />رجوع للقائمة</Button>
                 </div>
                 <div className="rounded-lg border border-border bg-card overflow-hidden">
                   <iframe
