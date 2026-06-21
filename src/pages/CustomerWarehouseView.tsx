@@ -1027,9 +1027,12 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
           </TabsList>
 
           <TabsContent value="stock" className="space-y-4">
-            {/* ملخص الرصيد */}
+            {/* ملخص الرصيد - كروت قابلة للضغط */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+              <Card
+                className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20 cursor-pointer hover:border-primary/40 transition-colors"
+                onClick={() => { setStockFilter("all"); setShowItemsGrid(true); }}
+              >
                 <CardContent className="p-4 flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
                     <Package className="w-5 h-5 text-primary" />
@@ -1037,10 +1040,14 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
                   <div>
                     <p className="text-xs text-muted-foreground">عدد الأصناف</p>
                     <p className="text-xl font-bold text-primary">{filteredItems.length}</p>
+                    <p className="text-[10px] text-muted-foreground">اضغط لعرض التفاصيل</p>
                   </div>
                 </CardContent>
               </Card>
-              <Card className="bg-gradient-to-br from-success/10 to-success/5 border-success/20">
+              <Card
+                className="bg-gradient-to-br from-success/10 to-success/5 border-success/20 cursor-pointer hover:border-success/40 transition-colors"
+                onClick={() => { setStockFilter("withStock"); setShowItemsGrid(true); }}
+              >
                 <CardContent className="p-4 flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-success/20 flex items-center justify-center">
                     <CheckCircle2 className="w-5 h-5 text-success" />
@@ -1048,10 +1055,14 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
                   <div>
                     <p className="text-xs text-muted-foreground">بها رصيد</p>
                     <p className="text-xl font-bold text-success">{filteredItems.filter((i) => Number(i.stock) > 0).length}</p>
+                    <p className="text-[10px] text-muted-foreground">اضغط لعرض التفاصيل</p>
                   </div>
                 </CardContent>
               </Card>
-              <Card className="bg-gradient-to-br from-secondary/10 to-secondary/5 border-secondary/20">
+              <Card
+                className="bg-gradient-to-br from-secondary/10 to-secondary/5 border-secondary/20 cursor-pointer hover:border-secondary/40 transition-colors"
+                onClick={() => { setStockFilter("outOfStock"); setShowItemsGrid(true); }}
+              >
                 <CardContent className="p-4 flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-secondary/20 flex items-center justify-center">
                     <AlertTriangle className="w-5 h-5 text-secondary" />
@@ -1059,6 +1070,7 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
                   <div>
                     <p className="text-xs text-muted-foreground">نفذ رصيدها</p>
                     <p className="text-xl font-bold text-secondary">{filteredItems.filter((i) => Number(i.stock) <= 0).length}</p>
+                    <p className="text-[10px] text-muted-foreground">اضغط لعرض التفاصيل</p>
                   </div>
                 </CardContent>
               </Card>
@@ -1074,49 +1086,71 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
               </Button>
             </div>
 
-            {/* عرض المنتجات كبطاقات */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {filteredItems.length === 0 ? (
-                <div className="col-span-full text-center py-12 text-muted-foreground">
-                  {loading ? "جاري التحميل..." : "لا توجد منتجات بعد. ابدأ بتسجيل أول توريد."}
+            {/* عرض المنتجات كبطاقات - يظهر فقط عند الضغط على أحد الكروت */}
+            {showItemsGrid && (
+              <>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="text-sm font-semibold">
+                    {stockFilter === "all" ? "كل الأصناف" : stockFilter === "withStock" ? "الأصناف التي بها رصيد" : "الأصناف التي نفذ رصيدها"}
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => setShowItemsGrid(false)}>
+                    إغلاق التفاصيل
+                  </Button>
                 </div>
-              ) : (
-                filteredItems.map((it) => {
-                  const stock = Number(it.stock);
-                  const isLow = stock <= 0;
-                  const isMedium = !isLow && stock < 10;
-                  const unitLabel = it.unit || "كجم";
-                  return (
-                    <Card key={it.id} className={`overflow-hidden border-l-4 transition-all duration-200 hover:shadow-lg ${isLow ? "border-l-destructive" : isMedium ? "border-l-warning" : "border-l-success"}`}>
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between gap-2">
-                          <h4 className="font-bold text-foreground truncate flex-1" title={it.name}>{it.name}</h4>
-                          {canEditMovements && (
-                            <div className="flex gap-1 shrink-0">
-                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openItemEdit(it)} title="تعديل الرصيد">
-                                <Pencil className="w-3.5 h-3.5" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteItem(it)} title="حذف وإرجاع للرئيسي">
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </Button>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {(() => {
+                    const list = filteredItems.filter((it) => {
+                      const s = Number(it.stock);
+                      if (stockFilter === "withStock") return s > 0;
+                      if (stockFilter === "outOfStock") return s <= 0;
+                      return true;
+                    });
+                    if (list.length === 0) {
+                      return (
+                        <div className="col-span-full text-center py-12 text-muted-foreground">
+                          {loading ? "جاري التحميل..." : "لا توجد منتجات مطابقة."}
+                        </div>
+                      );
+                    }
+                    return list.map((it) => {
+                      const stock = Number(it.stock);
+                      const isLow = stock <= 0;
+                      const isMedium = !isLow && stock < 10;
+                      const unitLabel = it.unit || "كجم";
+                      return (
+                        <Card key={it.id} className={`overflow-hidden border-l-4 transition-all duration-200 hover:shadow-lg ${isLow ? "border-l-destructive" : isMedium ? "border-l-warning" : "border-l-success"}`}>
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between gap-2">
+                              <h4 className="font-bold text-foreground truncate flex-1" title={it.name}>{it.name}</h4>
+                              {canEditMovements && (
+                                <div className="flex gap-1 shrink-0">
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openItemEdit(it)} title="تعديل الرصيد">
+                                    <Pencil className="w-3.5 h-3.5" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteItem(it)} title="حذف وإرجاع للرئيسي">
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </Button>
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </div>
 
-                        <div className="mt-3 flex items-baseline gap-2">
-                          <div className="text-3xl font-extrabold text-foreground">{stock.toLocaleString("ar-EG")}</div>
-                          <div className="text-sm text-muted-foreground">{unitLabel}</div>
-                        </div>
+                            <div className="mt-3 flex items-baseline gap-2">
+                              <div className="text-3xl font-extrabold text-foreground">{stock.toLocaleString("ar-EG")}</div>
+                              <div className="text-sm text-muted-foreground">{unitLabel}</div>
+                            </div>
 
-                        <div className={`mt-2 text-xs font-semibold ${isLow ? "text-destructive" : isMedium ? "text-warning" : "text-success"}`}>
-                          {isLow ? "نفذت الكمية" : isMedium ? "رصيد متوسط" : "رصيد جيد"}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })
-              )}
-            </div>
+                            <div className={`mt-2 text-xs font-semibold ${isLow ? "text-destructive" : isMedium ? "text-warning" : "text-success"}`}>
+                              {isLow ? "نفذت الكمية" : isMedium ? "رصيد متوسط" : "رصيد جيد"}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    });
+                  })()}
+                </div>
+              </>
+            )}
+
           </TabsContent>
 
           <TabsContent value="movements">
