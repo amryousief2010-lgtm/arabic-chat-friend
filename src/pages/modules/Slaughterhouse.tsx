@@ -1992,8 +1992,9 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
           quarantined_weight_kg: 0,
           package_count: Number(o.package_count) || 0,
           standard_weight_kg: Number(o.standard_weight_kg) || 0,
-          unit_cost: Number(o.unit_cost) || 0,
+          unit_cost: Number(o.unit_cost) || batchCostPerKg,
           unit_price: Number(o.unit_price) || 0,
+
           destination: o.destination,
           branch_id: o.branch_id || "",
         };
