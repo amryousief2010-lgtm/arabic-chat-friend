@@ -574,7 +574,9 @@ const Warehouses = () => {
         <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); if (v === "more") setMenuSubview(null); }} defaultValue="items">
           <div className="overflow-x-auto pb-1">
             <TabsList className="w-max flex-nowrap">
+              <TabsTrigger value="available" className="gap-1"><Warehouse className="w-4 h-4" />المتاح في المخازن</TabsTrigger>
               <TabsTrigger value="items">الأصناف</TabsTrigger>
+
               <TabsTrigger value="slaughter" className="gap-1">
                 <Beef className="w-4 h-4" /> استلام المجزر
                 {pendingSlaughter.length > 0 && <Badge variant="destructive" className="mr-1">{pendingSlaughter.length}</Badge>}
