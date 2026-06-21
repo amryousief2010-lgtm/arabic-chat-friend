@@ -1998,6 +1998,17 @@ const WarehouseDetail = () => {
         />
       )}
 
+      {canManualOut && (
+        <ManualStockOutDialog
+          open={manualOutOpen}
+          onOpenChange={setManualOutOpen}
+          warehouseId={id!}
+          warehouseName={warehouse?.name}
+          items={items}
+          onSaved={fetchAll}
+        />
+      )}
+
     </DashboardLayout>
 
 
