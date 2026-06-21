@@ -272,13 +272,13 @@ export const moduleSections: ModuleSection[] = [
       // نظرة عامة للمبيعات (قراءة فقط للمتاح)
       { icon: Warehouse, label: "المتاح في المخازن", path: "/warehouse-stock", roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'warehouse_supervisor'] },
       // المخازن الأساسية — كل مخزن مستقل، كل موظف يرى مخزنه فقط
-      { icon: Warehouse, label: "المخزن الرئيسي", path: "/warehouse-stock/main", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'] },
+      { icon: Warehouse, label: "المخزن الرئيسي", path: "/warehouse-stock/main", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'], group: "إدارة المخازن" },
       { icon: Activity, label: "سجل حركات المخزن الرئيسي", path: "/main-warehouse-activity", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'] },
-      { icon: Warehouse, label: "مخزن العجوزة", path: "/warehouse-stock/agouza", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper'] },
+      { icon: Warehouse, label: "مخزن العجوزة", path: "/warehouse-stock/agouza", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper'], group: "إدارة المخازن" },
       { icon: Package, label: "مخزن التغليف والتعبئة", path: "/modules/packaging", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'meat_factory_manager', 'slaughterhouse_manager', 'production_manager'] },
       // مخازن العملاء — للإدارة وأمناء المخازن فقط
-      { icon: Warehouse, label: "هايبر هيلثي تيست", path: "/warehouse-stock/hyper-healthy-test", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'] },
-      { icon: Warehouse, label: "هايبر كارفور", path: "/warehouse-stock/hyper-carrefour", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'] },
+      { icon: Warehouse, label: "هايبر هيلثي تيست", path: "/warehouse-stock/hyper-healthy-test", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'], group: "إدارة المخازن" },
+      { icon: Warehouse, label: "هايبر كارفور", path: "/warehouse-stock/hyper-carrefour", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'], group: "إدارة المخازن" },
       { icon: MapPin, label: "المخازن حسب الموقع الجغرافي", path: "/modules/warehouses/by-location", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager', 'agouza_warehouse_keeper', 'meat_factory_manager', 'feed_factory_manager', 'slaughterhouse_manager'] },
       { icon: CalendarClock, label: "تواريخ بداية التشغيل الفعلي", path: "/modules/warehouses/operational-dates", roles: ['general_manager', 'executive_manager'] },
       { icon: Package, label: "الرصيد الافتتاحي للمخازن", path: "/modules/warehouses/opening-balance", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'] },
@@ -496,17 +496,15 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
 
                   if (!hasGroups) return section.items.map(renderLink);
 
-                  // Build ordered groups preserving first-occurrence order.
-                  const groupOrder: string[] = [];
-                  const groupMap = new Map<string, MenuItem[]>();
-                  for (const it of section.items) {
-                    const g = it.group || "أخرى";
-                    if (!groupMap.has(g)) { groupMap.set(g, []); groupOrder.push(g); }
-                    groupMap.get(g)!.push(it);
-                  }
-                  return groupOrder.map((g) => {
-                    const groupItems = groupMap.get(g)!;
-                    const groupKey = `${section.id}::${g}`;
+                  // Mixed mode: ungrouped items render flat; grouped items render in
+                  // collapsibles preserving their first-occurrence position.
+                  const renderedGroups = new Set<string>();
+                  return section.items.map((item) => {
+                    if (!item.group) return renderLink(item);
+                    if (renderedGroups.has(item.group)) return null;
+                    renderedGroups.add(item.group);
+                    const groupItems = section.items.filter((i) => i.group === item.group);
+                    const groupKey = `${section.id}::${item.group}`;
                     const groupHasActive = groupItems.some((i) => i.path === location.pathname);
                     const groupOpen = openSections[groupKey] ?? groupHasActive;
                     return (
@@ -520,7 +518,7 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
                             groupHasActive ? "bg-sidebar-accent/70 text-sidebar-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/40"
                           }`}
                         >
-                          <span className="flex-1 text-right">{g}</span>
+                          <span className="flex-1 text-right">{item.group}</span>
                           <ChevronDown className={`w-3.5 h-3.5 transition-transform ${groupOpen ? "rotate-180" : ""}`} />
                         </CollapsibleTrigger>
                         <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
