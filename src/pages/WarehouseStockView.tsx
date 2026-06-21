@@ -20,7 +20,8 @@ interface Product { id: string; name: string; unit: string; category?: string | 
 
 export type StockScope = "both" | "agouza" | "main";
 
-interface Props { scope?: StockScope }
+interface Props { scope?: StockScope; embedded?: boolean }
+
 
 const titleMap: Record<StockScope, { title: string; subtitle: string }> = {
   both: { title: "المتاح في المخازن", subtitle: "الفعلي • المحجوز • المتاح للبيع لكل مخزن" },
