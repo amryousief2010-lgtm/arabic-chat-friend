@@ -1969,6 +1969,10 @@ const BirdsDialog = ({ receiptId, receipt, birds, onClose, onUpdate }: {
 const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCutNames, onClose, onUpdate }: {
   batchId: string; batch: Batch; yields: Yield[]; outputs: Output[]; branches: Branch[]; yieldCutNames: string[]; onClose: () => void; onUpdate: () => void;
 }) => {
+  const { roles } = useAuth();
+  const canEditSellPrice = (roles || []).some((r: string) => r === "general_manager" || r === "executive_manager");
+  const batchCostPerKg = Number(batch.cost_per_kg_meat) || 0;
+
   // Reconstruct merged rows by (cut_name_ar, branch_id) from split outputs (by quality_status).
   const initial = (() => {
     if (!outputs.length) return [] as any[];
