@@ -1987,6 +1987,59 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
     : (batchTotalCost > 0 && outputsTotalKg > 0 ? batchTotalCost / outputsTotalKg : 0);
   const [costAuditOpen, setCostAuditOpen] = useState(false);
 
+  // Breakdown of batch cost by component (purchase / feed / mortality / other)
+  // Computed proportionally per-source from slaughter_batch_live_sources + slaughter_live_receipts.
+  const [costBreakdown, setCostBreakdown] = useState<{
+    purchase: number; feed: number; mortality: number; other: number; total: number;
+    sources: Array<{ receipt_number: string; birds: number; per_bird: number; purchase: number; feed: number; mortality: number; other: number; total: number; }>;
+  }>({ purchase: 0, feed: 0, mortality: 0, other: 0, total: 0, sources: [] });
+
+  useEffect(() => {
+    (async () => {
+      const { data: srcs } = await supabase
+        .from("slaughter_batch_live_sources" as any)
+        .select("live_receipt_id,birds_count,cost_per_bird_snapshot,total_birds_cost")
+        .eq("slaughter_batch_id", batchId);
+      let sources: any[] = (srcs as any[]) || [];
+      // back-compat: single live_receipt_id on batch
+      if (!sources.length && (batch as any).live_receipt_id) {
+        sources = [{
+          live_receipt_id: (batch as any).live_receipt_id,
+          birds_count: Number(batch.birds_slaughtered) || 0,
+          cost_per_bird_snapshot: Number((batch as any).cost_per_bird_snapshot) || 0,
+          total_birds_cost: Number((batch as any).total_birds_cost) || 0,
+        }];
+      }
+      if (!sources.length) return;
+      const ids = Array.from(new Set(sources.map(s => s.live_receipt_id).filter(Boolean)));
+      const { data: receipts } = await supabase
+        .from("slaughter_live_receipts" as any)
+        .select("id,receipt_number,bird_count,current_alive_count,total_cost,feed_cost_loaded,mortality_cost_loaded,other_costs_loaded,total_batch_cost")
+        .in("id", ids);
+      const rMap = new Map<string, any>((receipts as any[] || []).map(r => [r.id, r]));
+      let purchase = 0, feed = 0, mortality = 0, other = 0, total = 0;
+      const sourceRows: any[] = [];
+      for (const s of sources) {
+        const r = rMap.get(s.live_receipt_id);
+        if (!r) continue;
+        const denom = Number(r.bird_count) || Number(r.current_alive_count) || 0;
+        const birds = Number(s.birds_count) || 0;
+        if (denom <= 0 || birds <= 0) continue;
+        const sharePurchase = (Number(r.total_cost) || 0) * birds / denom;
+        const shareFeed = (Number(r.feed_cost_loaded) || 0) * birds / denom;
+        const shareMort = (Number(r.mortality_cost_loaded) || 0) * birds / denom;
+        const shareOther = (Number(r.other_costs_loaded) || 0) * birds / denom;
+        const subTotal = sharePurchase + shareFeed + shareMort + shareOther;
+        purchase += sharePurchase; feed += shareFeed; mortality += shareMort; other += shareOther; total += subTotal;
+        sourceRows.push({
+          receipt_number: r.receipt_number, birds, per_bird: birds > 0 ? subTotal / birds : 0,
+          purchase: sharePurchase, feed: shareFeed, mortality: shareMort, other: shareOther, total: subTotal,
+        });
+      }
+      setCostBreakdown({ purchase, feed, mortality, other, total, sources: sourceRows });
+    })();
+  }, [batchId, batch]);
+
 
 
   // Reconstruct merged rows by (cut_name_ar, branch_id) from split outputs (by quality_status).
