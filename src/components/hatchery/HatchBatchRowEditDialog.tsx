@@ -18,13 +18,17 @@ interface Props {
 
 const numFields = [
   { key: "received_eggs", label: "البيض الوارد", critical: true },
-  { key: "net_eggs", label: "البيض الصافي", critical: true },
+  { key: "excluded_eggs", label: "مستبعد (مخروم/مكسور/تالف لم يدخل الماكينة)", critical: true },
+  { key: "net_eggs", label: "البيض الصافي الداخل للماكينة", critical: true, computed: true },
   { key: "candle1_infertile", label: "لايح (كشف 1)", critical: true },
   { key: "candle1_fertile", label: "مخصب (كشف 1)", critical: true },
   { key: "candle2_dead", label: "نافق (كشف 2)", critical: true },
   { key: "hatcher_dead", label: "نافق الهاتشر", critical: true },
   { key: "hatched_chicks", label: "الكتاكيت الناتجة", critical: true },
 ];
+
+const EXCLUDED_REASONS = ["مخروم", "مكسور", "تالف", "غير صالح", "أخرى"];
+
 
 const dateFields = [
   { key: "entry_date", label: "تاريخ الدخول", critical: false },
