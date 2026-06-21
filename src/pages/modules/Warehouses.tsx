@@ -968,33 +968,60 @@ const Warehouses = () => {
           </TabsContent>
 
 
-          {/* Embedded warehouse pages */}
-          {[
-            { value: "wh-main", path: "/warehouse-stock/main" },
-            { value: "wh-agouza", path: "/warehouse-stock/agouza" },
-            { value: "wh-hht", path: "/warehouse-stock/hyper-healthy-test" },
-            { value: "wh-carrefour", path: "/warehouse-stock/hyper-carrefour" },
-            { value: "wh-packaging", path: "/modules/packaging" },
-            { value: "wh-activity", path: "/main-warehouse-activity" },
-          ].map((t) => (
-            <TabsContent key={t.value} value={t.value} className="space-y-4">
-              <div className="rounded-lg border border-border bg-card overflow-hidden">
-                <iframe
-                  src={`${t.path}?embed=1`}
-                  title={t.value}
-                  className="w-full"
-                  style={{ height: "calc(100vh - 260px)", minHeight: "600px", border: "none" }}
-                />
-              </div>
-            </TabsContent>
-          ))}
+          {/* Embedded warehouse pages with per-warehouse KPI cards on top */}
+          {(() => {
+            const findByPatterns = (patterns: RegExp[]) =>
+              warehouses.find((w) => patterns.some((p) => p.test(w.name)));
+            const findByType = (type: string) => warehouses.find((w) => w.type === type);
 
-          {/* MENU tab with sub-pages */}
+            const TABS = [
+              { value: "wh-main", path: "/warehouse-stock/main", label: "المخزن الرئيسي",
+                wh: findByPatterns([/رئيسي/, /main/i]) },
+              { value: "wh-agouza", path: "/warehouse-stock/agouza", label: "مخزن العجوزة",
+                wh: findByPatterns([/عجوزة/, /agouza/i]) },
+              { value: "wh-hht", path: "/warehouse-stock/hyper-healthy-test", label: "هايبر هيلثي تيست",
+                wh: findByPatterns([/هيلثي/, /healthy/i]) },
+              { value: "wh-carrefour", path: "/warehouse-stock/hyper-carrefour", label: "هايبر كارفور",
+                wh: findByPatterns([/كارفور/, /carrefour/i]) },
+              { value: "wh-packaging", path: "/modules/packaging", label: "التغليف والتعبئة",
+                wh: findByPatterns([/تغليف/, /تعبئة/, /packaging/i]) || findByType("packaging") },
+              { value: "wh-activity", path: "/main-warehouse-activity", label: "سجل حركات المخزن الرئيسي",
+                wh: findByPatterns([/رئيسي/, /main/i]) },
+            ] as const;
+
+            return TABS.map((t) => (
+              <TabsContent key={t.value} value={t.value} className="space-y-4">
+                {t.value !== "wh-activity" && (
+                  <WarehouseKpisBlock
+                    warehouseId={t.wh?.id}
+                    warehouseName={t.label}
+                    items={items}
+                    movements={movements}
+                  />
+                )}
+                <div className="rounded-lg border border-border bg-card overflow-hidden">
+                  <iframe
+                    src={`${t.path}?embed=1`}
+                    title={t.value}
+                    className="w-full"
+                    style={{ height: "calc(100vh - 260px)", minHeight: "600px", border: "none" }}
+                  />
+                </div>
+              </TabsContent>
+            ));
+          })()}
+
+          {/* RESTAURANT MENU tab (products & prices from PDF) */}
           <TabsContent value="menu" className="space-y-4">
+            <RestaurantMenuTab />
+          </TabsContent>
+
+          {/* MORE tab — admin / less-used sub-pages */}
+          <TabsContent value="more" className="space-y-4">
             {menuSubview ? (
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setMenuSubview(null)}><ArrowLeftRight className="w-4 h-4 ml-1" />رجوع للمنيو</Button>
+                  <Button variant="outline" size="sm" onClick={() => setMenuSubview(null)}><ArrowLeftRight className="w-4 h-4 ml-1" />رجوع للقائمة</Button>
                 </div>
                 <div className="rounded-lg border border-border bg-card overflow-hidden">
                   <iframe
