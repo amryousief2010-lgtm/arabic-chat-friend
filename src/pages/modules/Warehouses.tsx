@@ -595,8 +595,13 @@ const Warehouses = () => {
             </TabsList>
           </div>
 
+          {/* AVAILABLE — المتاح في المخازن (نفس محتوى /warehouse-stock) */}
+          <TabsContent value="available" className="space-y-4">
+            <WarehouseStockView embedded />
+          </TabsContent>
 
           {/* ITEMS */}
+
           <TabsContent value="items" className="space-y-4">
             <div className="flex justify-between gap-2 flex-wrap">
               <Select value={warehouseFilter} onValueChange={setWarehouseFilter}>
