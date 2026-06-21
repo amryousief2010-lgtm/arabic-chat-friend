@@ -359,15 +359,73 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
     s.items.some((i) => i.path === location.pathname)
   )?.id;
 
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => ({
-    [activeSectionId ?? "overview"]: true,
-    overview: true,
-    sales: activeSectionId === "sales" || activeSectionId === undefined,
-  }));
+  const SCROLL_KEY = "sidebarScrollTop";
+  const SECTIONS_KEY = "openedSidebarSections";
+
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
+    let saved: Record<string, boolean> = {};
+    try {
+      const raw = sessionStorage.getItem(SECTIONS_KEY);
+      if (raw) saved = JSON.parse(raw);
+    } catch {}
+    return {
+      overview: true,
+      sales: activeSectionId === "sales" || activeSectionId === undefined,
+      ...saved,
+      [activeSectionId ?? "overview"]: true,
+    };
+  });
+
+  // Persist open sections
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(SECTIONS_KEY, JSON.stringify(openSections));
+    } catch {}
+  }, [openSections]);
+
+  const navRef = useRef<HTMLElement | null>(null);
+
+  // Restore scroll on mount
+  useEffect(() => {
+    const el = navRef.current;
+    if (!el) return;
+    try {
+      const saved = sessionStorage.getItem(SCROLL_KEY);
+      if (saved) {
+        const top = parseInt(saved, 10);
+        if (!Number.isNaN(top)) {
+          // Defer to after layout/paint
+          requestAnimationFrame(() => {
+            el.scrollTop = top;
+          });
+        }
+      }
+    } catch {}
+  }, []);
+
+  // Save scroll on user scroll (throttled via rAF)
+  useEffect(() => {
+    const el = navRef.current;
+    if (!el) return;
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        try {
+          sessionStorage.setItem(SCROLL_KEY, String(el.scrollTop));
+        } catch {}
+        ticking = false;
+      });
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
 
   const toggleSection = (id: string) => {
     setOpenSections((prev) => ({ ...prev, [id]: !prev[id] }));
   };
+
 
   const visibleSections = moduleSections
     .map((section) => ({
