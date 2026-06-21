@@ -108,6 +108,15 @@ const WarehouseDetail = () => {
     return false;
   }, [isMain, isAgouza, isGeneralManager, isExecutiveManager, isProductionManager, isWarehouseSupervisor, isAgouzaWarehouseKeeper, canManageWarehouses]);
 
+  // صلاحية الصرف اليدوي / التوريد المباشر للجهات:
+  //  • فعّال فقط للمخزن الرئيسي حاليًا
+  //  • للأدوار: المدير العام / المدير التنفيذي / مسؤول المخزن الرئيسي
+  const canManualOut = useMemo(() => {
+    if (!isFeatureEnabled("allow_manual_warehouse_stock_out")) return false;
+    if (!isMain) return false;
+    return isGeneralManager || isExecutiveManager || isWarehouseSupervisor;
+  }, [isMain, isGeneralManager, isExecutiveManager, isWarehouseSupervisor]);
+
 
 
   const fetchAll = async () => {
