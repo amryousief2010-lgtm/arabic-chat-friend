@@ -87,23 +87,54 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
       if (whIds.length > 0) {
         const { data: invRows } = await supabase
           .from("inventory_items")
-          .select("id, warehouse_id, product_id, stock, reserved_qty, blocked_qty")
+          .select("id, warehouse_id, product_id, stock, reserved_qty, blocked_qty, unit_cost, sku")
           .in("warehouse_id", whIds)
           .not("product_id", "is", null);
         const ag: Record<string, number> = {};
         const mn: Record<string, number> = {};
         const agIds: Record<string, string> = {};
         const mnIds: Record<string, string> = {};
+        const mnCost: Record<string, number> = {};
+        const mnSku: Record<string, string> = {};
         (invRows || []).forEach((r: any) => {
           // الرصيد الفعلي = stock (بدون خصم محجوز - المحجوز يُحسب من الأوردرات الجارية)
           const actual = Number(r.stock || 0) - Number(r.blocked_qty || 0);
           if (r.warehouse_id === agouza?.id) { ag[r.product_id] = (ag[r.product_id] || 0) + actual; agIds[r.product_id] = r.id; }
-          if (r.warehouse_id === main?.id) { mn[r.product_id] = (mn[r.product_id] || 0) + actual; mnIds[r.product_id] = r.id; }
+          if (r.warehouse_id === main?.id) {
+            mn[r.product_id] = (mn[r.product_id] || 0) + actual;
+            mnIds[r.product_id] = r.id;
+            mnCost[r.product_id] = Number(r.unit_cost || 0);
+            if (r.sku) mnSku[r.product_id] = r.sku;
+          }
         });
         setAgouzaStock(ag);
         setMainStock(mn);
         setAgouzaItemIds(agIds);
         setMainItemIds(mnIds);
+        setMainCost(mnCost);
+        setMainSku(mnSku);
+
+        // آخر حركة لكل صنف في المخزن الرئيسي
+        if (main?.id) {
+          const mainItemIdList = Object.values(mnIds);
+          if (mainItemIdList.length > 0) {
+            const { data: lastMoves } = await supabase
+              .from("inventory_movements")
+              .select("item_id, performed_at")
+              .in("item_id", mainItemIdList)
+              .order("performed_at", { ascending: false })
+              .limit(2000);
+            const itemToProduct: Record<string, string> = {};
+            Object.entries(mnIds).forEach(([pid, iid]) => { itemToProduct[iid] = pid; });
+            const lastByProduct: Record<string, string> = {};
+            (lastMoves || []).forEach((m: any) => {
+              const pid = itemToProduct[m.item_id];
+              if (pid && !lastByProduct[pid]) lastByProduct[pid] = m.performed_at;
+            });
+            setMainLastMove(lastByProduct);
+          }
+        }
+
 
         // المحجوز = أوردرات لم تُسلَّم/تُلغَ ولم تُخصم فعلًا (stock_status != dispatched)
         // المخزن الرئيسي: نتجاهل أي أوردر مسجل قبل تاريخ بداية التشغيل (Cut-off) — الجرد اليدوي الحالي هو نقطة البداية الرسمية.
