@@ -214,13 +214,8 @@ export const moduleSections: ModuleSection[] = [
       { group: "التصنيع والتشغيل", icon: Factory, label: "تصنيع المنتجات (شاشة قديمة)", path: "/modules/meat-factory", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'quality_manager'] },
       // المشتريات والموردين
       { group: "المشتريات والموردين", icon: ShoppingCart, label: "فواتير مشتريات مصنع اللحوم", path: "/meat-factory/purchase-invoices", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'warehouse_supervisor', 'accountant', 'financial_manager'] },
-      // مخازن مصنع اللحوم
-      { group: "مخازن مصنع اللحوم", icon: Boxes, label: "المخزون الموحد", path: "/meat-factory/inventory", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'financial_manager', 'warehouse_supervisor', 'accountant', 'quality_manager'] },
-      { group: "مخازن مصنع اللحوم", icon: Beef, label: "خامات / بهارات / تغليف", path: "/meat-factory/factory-warehouses", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'financial_manager', 'warehouse_supervisor', 'accountant'] },
-      { group: "مخازن مصنع اللحوم", icon: Package, label: "مواد التغليف والتعبئة", path: "/meat-factory/packaging-inventory", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'warehouse_supervisor', 'accountant', 'financial_manager'] },
-      { group: "مخازن مصنع اللحوم", icon: Activity, label: "سجل الحركات", path: "/modules/warehouses/movements-log", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'accountant', 'financial_manager'] },
-      { group: "مخازن مصنع اللحوم", icon: ClipboardList, label: "جرد وتسوية المخزون", path: "/modules/warehouses/stocktaking", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'] },
-      { group: "مخازن مصنع اللحوم", icon: FileText, label: "التقارير", path: "/meat-factory/reports", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'accountant', 'financial_manager', 'warehouse_supervisor', 'quality_manager'] },
+      // مخازن مصنع اللحوم — صفحة موحدة واحدة تجمع كل الشاشات كـ Tabs
+      { group: "مخازن مصنع اللحوم", icon: Boxes, label: "المخزون الموحد", path: "/meat-factory/unified-inventory", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'financial_manager', 'warehouse_supervisor', 'accountant', 'quality_manager'] },
     ],
   },
   {
