@@ -483,7 +483,7 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
   return (
     <div className="space-y-4">
       {/* Premium header card */}
-      <Card className="border-0 shadow-md overflow-hidden">
+      <Card className="relative border-0 shadow-md overflow-hidden">
         <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-purple-600 via-fuchsia-500 to-orange-500" />
         <div className="p-4 sm:p-5 bg-gradient-to-br from-background to-muted/30">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
