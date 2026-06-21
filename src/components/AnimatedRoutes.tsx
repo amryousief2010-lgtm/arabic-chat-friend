@@ -56,6 +56,7 @@ const DuplicateOrderApprovals = lazy(() => import("@/pages/DuplicateOrderApprova
 const OrderDetails = lazy(() => import("@/pages/OrderDetails"));
 const Install = lazy(() => import("@/pages/Install"));
 const Auth = lazy(() => import("@/pages/Auth"));
+const Trust = lazy(() => import("@/pages/Trust"));
 const TeamPerformance = lazy(() => import("@/pages/TeamPerformance"));
 const SalesTargets = lazy(() => import("@/pages/SalesTargets"));
 const OfferBoxes = lazy(() => import("@/pages/OfferBoxes"));
@@ -229,6 +230,9 @@ const AnimatedRoutes = () => {
         <Routes location={location} key={location.pathname}>
           <Route path="/auth" element={
             <PageTransition><Auth /></PageTransition>
+          } />
+          <Route path="/trust" element={
+            <PageTransition><Trust /></PageTransition>
           } />
           <Route path="/debug" element={
             <ProtectedRoute allowedRoles={['general_manager']}>
