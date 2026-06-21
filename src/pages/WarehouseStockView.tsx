@@ -45,7 +45,7 @@ const formatPackages = (kg: number, name: string): string => {
   return `${rounded} عبوة`;
 };
 
-const WarehouseStockView = ({ scope = "both" }: Props) => {
+const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
   const { isExecutiveManager, isGeneralManager, canManageAgouzaStock, isAgouzaWarehouseKeeper } = useAuth();
   const navigate = useNavigate();
   const canEditAll = isExecutiveManager || isGeneralManager;
