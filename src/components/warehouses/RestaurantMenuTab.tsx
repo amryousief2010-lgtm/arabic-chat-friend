@@ -72,7 +72,7 @@ const DEFAULT_MENU: MenuItem[] = [
   { id: "minced", category: "أعضاء وأجزاء", name_ar: "لحم مفروم", name_en: "MINCED MEAT", price: 320, unit: "L.E/Kg" },
 ];
 
-const HOTLINE = "16677";
+const HOTLINE = "01044437790";
 
 interface PriceChange {
   id: string;
