@@ -63,10 +63,14 @@ const ManualStockAdditionDialog = ({
 }: Props) => {
   const { user, isGeneralManager, isExecutiveManager, isWarehouseSupervisor } = useAuth() as any;
   const canAddParty = isGeneralManager || isExecutiveManager || isWarehouseSupervisor;
+  const canManualKg = isGeneralManager || isExecutiveManager;
   const [sourceKey, setSourceKey] = useState("");
   const [sourceOther, setSourceOther] = useState("");
   const [itemId, setItemId] = useState("");
-  const [qty, setQty] = useState<string>("");
+  const [packageCount, setPackageCount] = useState<string>("");
+  const [packageWeightKg, setPackageWeightKg] = useState<string>("0.5");
+  const [manualKgMode, setManualKgMode] = useState(false);
+  const [manualKg, setManualKg] = useState<string>("");
   const [unitOverride, setUnitOverride] = useState("");
   const [reason, setReason] = useState("");
   const [notes, setNotes] = useState("");
@@ -89,9 +93,12 @@ const ManualStockAdditionDialog = ({
   useEffect(() => {
     if (!open) {
       setSourceKey(""); setSourceOther("");
-      setItemId(""); setQty(""); setUnitOverride(""); setReason(""); setNotes("");
+      setItemId(""); setPackageCount(""); setPackageWeightKg("0.5");
+      setManualKgMode(false); setManualKg("");
+      setUnitOverride(""); setReason(""); setNotes("");
     }
   }, [open]);
+
 
   const selected = useMemo(() => items.find((i) => i.id === itemId), [items, itemId]);
   const unit = unitOverride || selected?.unit || "";
