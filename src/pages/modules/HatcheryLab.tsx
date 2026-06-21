@@ -749,15 +749,32 @@ const HatchBatchDetailDialog = ({ row, onClose }: { row: any; onClose: () => voi
 // ============================================================
 // New Batch Dialog
 // ============================================================
+const emptyMotherFarmLot = () => ({
+  owner_type: "capital_ostrich",
+  source: "mother_farm",
+  eggs_in: "",
+  client_id: "",
+  from_shipment_ids: [] as string[],
+  from_farm_transfer_ids: [] as string[],
+  max_eggs: null as number | null,
+  shipment_label: "",
+});
+
 const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
+  const queryClient = useQueryClient();
   const [entry_date, setEntryDate] = useState(today());
   const [batch_type, setBatchType] = useState<"internal" | "external" | "mixed">("mixed");
   const [machine, setMachine] = useState("");
   const [notes, setNotes] = useState("");
-  const [lots, setLots] = useState<any[]>([
-    { owner_type: "capital_ostrich", source: "mother_farm", eggs_in: "", client_id: "", from_shipment_ids: [] as string[], from_farm_transfer_ids: [] as string[], max_eggs: null as number | null, shipment_label: "" },
-  ]);
+  const [lots, setLots] = useState<any[]>([emptyMotherFarmLot()]);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setLots([emptyMotherFarmLot()]);
+    queryClient.removeQueries({ queryKey: ["pending_farm_transfer_batches_for_new_batch"] });
+    queryClient.removeQueries({ queryKey: ["pending_official_farm_transfer_batches_for_new_batch"] });
+  }, [open, queryClient]);
 
   // Auto-numbering preview: next operational_batch_no for the lab batches screen
   const { data: nextOpNo } = useQuery<number>({
