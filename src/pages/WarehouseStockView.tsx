@@ -480,39 +480,6 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-              <PackageCheck className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">أصناف لها رصيد فعلي</div>
-              <div className="text-xl font-bold">{summary.itemsWithStock}</div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 rounded-md bg-orange-500/15 text-orange-700 dark:text-orange-300">
-              <Lock className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">إجمالي محجوز للطلبات</div>
-              <div className="text-xl font-bold">{summary.totalReservedKg} كجم</div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className={summary.belowZero > 0 ? "border-destructive/40" : ""}>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className={`p-2 rounded-md ${summary.belowZero > 0 ? "bg-destructive/15 text-destructive" : "bg-muted text-muted-foreground"}`}>
-              <AlertTriangle className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">أصناف محجوز أكثر من الفعلي</div>
-              <div className={`text-xl font-bold ${summary.belowZero > 0 ? "text-destructive" : ""}`}>{summary.belowZero}</div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
 
       <Card>
         <CardHeader>
