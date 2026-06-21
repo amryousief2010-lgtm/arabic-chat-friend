@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Dialog,
   DialogContent,
@@ -18,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, PackagePlus } from "lucide-react";
+import { Info, Loader2, PackagePlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
@@ -39,18 +41,17 @@ interface Props {
   onSaved?: () => void;
 }
 
-/**
- * Manual Stock Addition — يستخدمه مسؤول المخزن الرئيسي مؤقتًا لإضافة رصيد
- * مباشرة دون فاتورة أو نقل من المجزر/مصنع اللحوم.
- *
- * أثر العملية:
- *  - إنشاء صف في inventory_movements بنوع 'in' وreference_type='manual_addition'
- *  - زيادة stock الصنف في inventory_items بنفس الكمية
- *  - تسجيل السبب والملاحظات و"قبل/بعد" في حقل notes للحركة (للمراجعة)
- *
- * ما لا يحدث: لا حركة خزنة، لا فاتورة، لا أمر نقل من المجزر/المصنع، لا تعديل
- * على أي مخزون آخر.
- */
+const SUPPLY_SOURCES: { value: string; label: string }[] = [
+  { value: "slaughterhouse", label: "المجزر" },
+  { value: "meat_factory", label: "مصنع اللحوم" },
+  { value: "return_agouza", label: "مرتجع من العجوزة" },
+  { value: "return_private_courier", label: "مرتجع مندوب خاص" },
+  { value: "return_healthy_test", label: "مرتجع هيلثي تيست" },
+  { value: "return_carrefour", label: "مرتجع كارفور" },
+  { value: "return_customer", label: "مرتجع عميل" },
+  { value: "other", label: "أخرى" },
+];
+
 const ManualStockAdditionDialog = ({
   open,
   onOpenChange,
@@ -60,6 +61,8 @@ const ManualStockAdditionDialog = ({
   onSaved,
 }: Props) => {
   const { user } = useAuth();
+  const [sourceKey, setSourceKey] = useState("");
+  const [sourceOther, setSourceOther] = useState("");
   const [itemId, setItemId] = useState("");
   const [qty, setQty] = useState<string>("");
   const [unitOverride, setUnitOverride] = useState("");
@@ -69,6 +72,7 @@ const ManualStockAdditionDialog = ({
 
   useEffect(() => {
     if (!open) {
+      setSourceKey(""); setSourceOther("");
       setItemId(""); setQty(""); setUnitOverride(""); setReason(""); setNotes("");
     }
   }, [open]);
@@ -77,30 +81,28 @@ const ManualStockAdditionDialog = ({
   const unit = unitOverride || selected?.unit || "";
   const qtyNum = Number(qty);
   const validQty = Number.isFinite(qtyNum) && qtyNum > 0;
-  const canSave = !!selected && validQty && reason.trim().length > 0 && !saving;
+  const sourceLabel = sourceKey === "other"
+    ? sourceOther.trim()
+    : (SUPPLY_SOURCES.find(s => s.value === sourceKey)?.label || "");
+  const validSource = !!sourceKey && (sourceKey !== "other" || sourceOther.trim().length > 0);
+  const canSave = !!selected && validQty && reason.trim().length > 0 && validSource && !saving;
   const stockBefore = Number(selected?.stock || 0);
   const stockAfter = validQty ? stockBefore + qtyNum : stockBefore;
 
+  const partyLabel = sourceLabel ? `توريد مباشر مؤقت من: ${sourceLabel}` : "توريد مباشر مؤقت";
+
   const handleSave = async () => {
-    if (!selected) {
-      toast({ title: "اختر الصنف", variant: "destructive" });
-      return;
-    }
-    if (!validQty) {
-      toast({ title: "أدخل كمية موجبة أكبر من صفر", variant: "destructive" });
-      return;
-    }
-    if (!reason.trim()) {
-      toast({ title: "أدخل سبب الإضافة اليدوية", variant: "destructive" });
-      return;
-    }
+    if (!validSource) { toast({ title: "اختر جهة التوريد", variant: "destructive" }); return; }
+    if (!selected) { toast({ title: "اختر الصنف", variant: "destructive" }); return; }
+    if (!validQty) { toast({ title: "أدخل كمية موجبة أكبر من صفر", variant: "destructive" }); return; }
+    if (!reason.trim()) { toast({ title: "أدخل سبب الإضافة / التوريد", variant: "destructive" }); return; }
 
     setSaving(true);
     try {
-      // 1) سجّل حركة المخزن
       const ref = `MANUAL-ADD-${Date.now()}`;
       const combinedNotes = [
-        `توريد مباشر مؤقت / إضافة يدوية مؤقتة`,
+        `توريد مباشر مؤقت`,
+        `جهة التوريد: ${sourceLabel}`,
         `السبب: ${reason.trim()}`,
         notes.trim() ? `ملاحظات: ${notes.trim()}` : null,
         `الكمية: ${qtyNum} ${unit}`,
@@ -115,7 +117,7 @@ const ManualStockAdditionDialog = ({
         quantity: qtyNum,
         reference: ref,
         reference_type: "manual_addition",
-        party: "توريد مباشر مؤقت",
+        party: partyLabel,
         reason: reason.trim(),
         notes: combinedNotes,
         module: "warehouse_manual",
@@ -124,7 +126,6 @@ const ManualStockAdditionDialog = ({
       });
       if (mErr) throw mErr;
 
-      // 2) حدّث رصيد الصنف فقط (لا خزنة، لا فاتورة، لا نقل)
       const { error: sErr } = await supabase
         .from("inventory_items")
         .update({ stock: stockAfter })
@@ -133,7 +134,7 @@ const ManualStockAdditionDialog = ({
 
       toast({
         title: "تمت الإضافة اليدوية",
-        description: `${selected.name}: ${stockBefore} → ${stockAfter} ${unit}`,
+        description: `${selected.name}: ${stockBefore} → ${stockAfter} ${unit} (${sourceLabel})`,
       });
       onOpenChange(false);
       onSaved?.();
@@ -150,21 +151,51 @@ const ManualStockAdditionDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent dir="rtl" className="max-w-lg">
+      <DialogContent dir="rtl" className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 flex-wrap">
             <PackagePlus className="w-5 h-5 text-emerald-600" />
-            إضافة رصيد / توريد مباشر — {warehouseName || "المخزن"}
+            إضافة رصيد / توريد مباشر — {warehouseName || "المخزن الرئيسي"}
+            <Badge variant="secondary" className="bg-amber-100 text-amber-800 border border-amber-300">
+              توريد مباشر مؤقت
+            </Badge>
           </DialogTitle>
           <DialogDescription className="text-xs leading-relaxed">
-            صلاحية مؤقتة للسيطرة على المخزون. لن يتم إنشاء تحويل داخلي ولا
-            خصم من أي مخزن آخر ولا فاتورة ولا حركة خزنة. تُسجَّل الحركة في
-            سجل المخزن باسم <b>"توريد مباشر مؤقت"</b> ومميَّزة كإضافة يدوية.
+            تستخدم هذه الشاشة لإضافة توريد مباشر أو مرتجع إلى المخزن الرئيسي
+            بدون إنشاء تحويل داخلي أو خصم من أي مخزن آخر. يتم تسجيل الحركة في
+            سجل المخزن كمصدر <b>توريد مباشر مؤقت</b>.
           </DialogDescription>
-
         </DialogHeader>
 
+        <Alert className="border-amber-300 bg-amber-50 dark:bg-amber-950/30">
+          <Info className="h-4 w-4 text-amber-700" />
+          <AlertDescription className="text-xs text-amber-900 dark:text-amber-200">
+            هذه العملية لا تخصم من أي مخزن آخر ولا تنشئ خزنة أو فاتورة أو تحويل داخلي.
+          </AlertDescription>
+        </Alert>
+
         <div className="space-y-3">
+          <div>
+            <Label className="text-xs">جهة التوريد *</Label>
+            <Select value={sourceKey} onValueChange={setSourceKey}>
+              <SelectTrigger><SelectValue placeholder="اختر جهة التوريد" /></SelectTrigger>
+              <SelectContent>
+                {SUPPLY_SOURCES.map(s => (
+                  <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {sourceKey === "other" && (
+              <Input
+                className="mt-2"
+                value={sourceOther}
+                onChange={(e) => setSourceOther(e.target.value)}
+                placeholder="اكتب جهة التوريد"
+                maxLength={120}
+              />
+            )}
+          </div>
+
           <div>
             <Label className="text-xs">الصنف *</Label>
             <Select value={itemId} onValueChange={setItemId}>
@@ -204,11 +235,11 @@ const ManualStockAdditionDialog = ({
           </div>
 
           <div>
-            <Label className="text-xs">سبب الإضافة *</Label>
+            <Label className="text-xs">سبب الإضافة / التوريد *</Label>
             <Input
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="مثال: تسوية رصيد افتتاحي، إدخال رصيد سابق، تصحيح جرد"
+              placeholder="مثال: تسوية رصيد، مرتجع تشغيل، تصحيح جرد، توريد مباشر مؤقت"
               maxLength={200}
             />
           </div>
@@ -223,8 +254,9 @@ const ManualStockAdditionDialog = ({
             />
           </div>
 
-          {selected && validQty && (
+          {selected && validQty && validSource && (
             <div className="rounded border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/30 p-2 text-xs space-y-0.5">
+              <div>جهة التوريد: <b>{sourceLabel}</b></div>
               <div>قبل الإضافة: <b>{stockBefore}</b> {unit}</div>
               <div>الكمية المضافة: <b className="text-emerald-700">+{qtyNum}</b> {unit}</div>
               <div>بعد الإضافة: <b className="text-emerald-700">{stockAfter}</b> {unit}</div>
