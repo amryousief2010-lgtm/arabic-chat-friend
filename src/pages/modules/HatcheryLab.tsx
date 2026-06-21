@@ -817,10 +817,13 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
       const transfers = (farmTransfers || []).filter((ft: any) => !!ft.transfer_batch_id);
       if (!transfers.length) return [];
 
-      // index shipments by transfer_batch_id (primary) and farm_transfer_id (legacy)
+      // لا تدخل أي شحنة يتيمة في البانر/التحميل: الشحنات الرسمية فقط هي المرتبطة بسجل farm_transfer_id
+      const officialLinkedShipments = allShipments.filter((s: any) => !!s.farm_transfer_id);
+
+      // index official shipments by transfer_batch_id (primary) and farm_transfer_id (legacy)
       const shipmentsByBatchId = new Map<string, any[]>();
       const shipmentsByTransferId = new Map<string, any[]>();
-      allShipments.forEach((s: any) => {
+      officialLinkedShipments.forEach((s: any) => {
         if (s.transfer_batch_id) {
           const arr = shipmentsByBatchId.get(s.transfer_batch_id) || [];
           arr.push(s);
@@ -899,6 +902,7 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
         .eq("status", "pending")
         .is("hatch_batch_id", null)
         .is("transfer_batch_id", null)
+        .is("farm_transfer_id", null)
         .order("created_at", { ascending: false })
         .limit(100);
       if (error) throw error;
