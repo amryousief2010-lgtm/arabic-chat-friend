@@ -1301,6 +1301,37 @@ const WarehouseDetail = () => {
                                 </TableRow>
                               );
                             }
+                            if (row.kind === "manual") {
+                              const isIn = row.direction === "in";
+                              const sample = row.movs[0] || {};
+                              const unit = sample.item?.unit || "كجم";
+                              const partyLabel = isIn
+                                ? extractFromNotes(sample.notes, "جهة التوريد")
+                                : extractFromNotes(sample.notes, "جهة الصرف");
+                              return (
+                                <TableRow key={row.reference} className={isIn ? "bg-emerald-50/40" : "bg-rose-50/40"}>
+                                  <TableCell className="text-xs">{formatDateTime(row.date)}</TableCell>
+                                  <TableCell>
+                                    <Badge className={`gap-1 ${isIn ? "bg-emerald-600 hover:bg-emerald-700" : "bg-rose-600 hover:bg-rose-700"}`}>
+                                      {isIn ? <PackagePlus className="w-3 h-3" /> : <PackageMinus className="w-3 h-3" />}
+                                      {isIn ? "توريد مباشر" : "صرف مباشر"}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell colSpan={2} className="font-medium">
+                                    <span className="font-mono">{row.reference}</span>
+                                    <span className="text-muted-foreground mr-2">({row.movs.length} صنف)</span>
+                                  </TableCell>
+                                  <TableCell>{row.totalQty.toFixed(2)} {unit}</TableCell>
+                                  <TableCell>{partyLabel || "—"}</TableCell>
+                                  <TableCell className="text-xs text-muted-foreground">{row.reference}</TableCell>
+                                  <TableCell>
+                                    <Button size="sm" variant="outline" onClick={() => setManualDialog(row.reference)}>
+                                      <Eye className="w-4 h-4 ml-1" /> تفاصيل
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            }
                             const m = row.mov;
                             const cfg = moveLabels[m.movement_type] || moveLabels.in;
                             const Icon = cfg.icon;
