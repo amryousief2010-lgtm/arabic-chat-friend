@@ -145,6 +145,7 @@ const MeatRecipes = lazy(() => import("@/pages/meat/MeatRecipes"));
 const MeatRawInventory = lazy(() => import("@/pages/meat/MeatRawInventory"));
 const MeatPackagingInventory = lazy(() => import("@/pages/meat/MeatPackagingInventory"));
 const MeatFactoryInventory = lazy(() => import("@/pages/meat/MeatFactoryInventory"));
+const UnifiedMeatInventory = lazy(() => import("@/pages/meat/UnifiedMeatInventory"));
 const MeatFactoryReports = lazy(() => import("@/pages/meat/MeatFactoryReports"));
 const FactoryOverview = lazy(() => import("@/pages/factory/FactoryOverview"));
 const FactoryReports = lazy(() => import("@/pages/factory/FactoryReports"));
@@ -610,6 +611,11 @@ const AnimatedRoutes = () => {
           <Route path="/meat-factory/inventory" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'quality_manager', 'accountant', 'financial_manager', 'warehouse_supervisor']}>
               <PageTransition><MeatFactoryInventory /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/meat-factory/unified-inventory" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'quality_manager', 'accountant', 'financial_manager', 'warehouse_supervisor']}>
+              <PageTransition><UnifiedMeatInventory /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/meat-factory/raw-inventory" element={
