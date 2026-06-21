@@ -44,6 +44,7 @@ const WarehouseDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { canManageWarehouses, user, isGeneralManager, isExecutiveManager, isWarehouseSupervisor, isAgouzaWarehouseKeeper, isProductionManager } = useAuth();
   const [manualAddOpen, setManualAddOpen] = useState(false);
+  const [manualOutOpen, setManualOutOpen] = useState(false);
 
 
   const canDeleteOutletOrder = isGeneralManager || isExecutiveManager;
