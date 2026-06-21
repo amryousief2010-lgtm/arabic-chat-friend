@@ -657,6 +657,22 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
           totalReservedKg={reservedDlg.total}
         />
       )}
+
+      {scope === "main" && (
+        <MainCardDialog
+          mode={cardDialog}
+          onClose={() => setCardDialog(null)}
+          products={products}
+          mainStock={mainStock}
+          mainPending={mainPending}
+          mainCost={mainCost}
+          mainSku={mainSku}
+          mainLastMove={mainLastMove}
+          search={cardSearch}
+          onSearch={setCardSearch}
+          onOpenReserved={(pid, name, total) => setReservedDlg({ wh: "main", productId: pid, productName: name, total })}
+        />
+      )}
     </>
   );
 
