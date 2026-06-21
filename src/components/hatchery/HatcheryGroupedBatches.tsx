@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Search, Printer, FileSpreadsheet, Eye, Sparkles, Pencil, Plus, Lock, Wallet } from "lucide-react";
+import { Search, Printer, FileSpreadsheet, Eye, Sparkles, Pencil, Plus, Lock, Wallet, SlidersHorizontal, X, Activity, AlertTriangle, CheckCircle2, Clock, FileText, Layers } from "lucide-react";
 import { openPrintWindow, escapeHtml, fmtNum } from "@/lib/printPdf";
 import * as XLSX from "xlsx";
 import HatchResultsEntryDialog from "./HatchResultsEntryDialog";
@@ -229,8 +229,18 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr, sortOrder = "asc", 
     });
   }, [groups, search, filter, fromDate, toDate, machineFilter, todayStr]);
 
-  const counts = useMemo(
-    () => ({
+  const counts = useMemo(() => {
+    const today = todayStr;
+    const in3 = addDaysISO(today, 3);
+    const exitingSoon = groups.filter((g) => {
+      const ex = g.expectedExit;
+      return ex && !g.exited && ex >= today && ex <= in3;
+    }).length;
+    const candle2Today = groups.filter((g) => {
+      const c2 = g.candle2_display || g.expCandle2;
+      return c2 && String(c2).includes(today);
+    }).length;
+    return {
       all: groups.length,
       external: groups.filter((g) => g.has_external).length,
       internal: groups.filter((g) => g.has_internal).length,
@@ -239,92 +249,206 @@ const HatcheryGroupedBatches = ({ rows, stageMeta, todayStr, sortOrder = "asc", 
       completed: groups.filter((g) => g.stage === "completed").length,
       overdue: groups.filter((g) => g.stage === "overdue").length,
       exited: groups.filter((g) => g.exited).length,
-    }),
-    [groups]
-  );
+      candle2_today: candle2Today,
+      exit_in_3: exitingSoon,
+      notBilled: groups.filter((g) => g.has_external && !g.exited).length,
+    };
+  }, [groups, todayStr]);
 
-  const FilterBtn = ({ k, label, n, tone }: any) => (
-    <Button
-      size="sm"
-      variant={filter === k ? "default" : "outline"}
-      onClick={() => setFilter(k)}
-      className={tone}
-    >
-      {label}{" "}
-      {typeof n === "number" && (
-        <Badge variant="secondary" className="mr-2 text-[10px]">
-          {n}
-        </Badge>
-      )}
-    </Button>
+  const hasActiveFilter = !!(fromDate || toDate || (machineFilter !== "all") || search || filter !== "all");
+
+  // Premium pill — color reflects the status (active = filled, inactive = soft tinted)
+  const Pill = ({
+    k,
+    label,
+    n,
+    palette = "neutral",
+  }: {
+    k: typeof filter;
+    label: string;
+    n?: number;
+    palette?: "neutral" | "emerald" | "purple" | "orange" | "red" | "green" | "blue" | "violet" | "slate" | "amber";
+  }) => {
+    const active = filter === k;
+    const palettes: Record<string, { active: string; idle: string; badgeActive: string; badgeIdle: string }> = {
+      neutral: {
+        active: "bg-foreground text-background border-foreground",
+        idle: "bg-background text-foreground border-border hover:bg-muted",
+        badgeActive: "bg-background/20 text-background",
+        badgeIdle: "bg-muted text-foreground",
+      },
+      emerald: {
+        active: "bg-emerald-600 text-white border-emerald-600 shadow-sm shadow-emerald-600/20",
+        idle: "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-900",
+        badgeActive: "bg-white/25 text-white",
+        badgeIdle: "bg-emerald-600 text-white",
+      },
+      green: {
+        active: "bg-green-500 text-white border-green-500",
+        idle: "bg-green-50 text-green-700 border-green-200 hover:bg-green-100 dark:bg-green-950/30 dark:text-green-300 dark:border-green-900",
+        badgeActive: "bg-white/25 text-white",
+        badgeIdle: "bg-green-500 text-white",
+      },
+      purple: {
+        active: "bg-purple-600 text-white border-purple-600 shadow-sm shadow-purple-600/20",
+        idle: "bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100 dark:bg-purple-950/30 dark:text-purple-300 dark:border-purple-900",
+        badgeActive: "bg-white/25 text-white",
+        badgeIdle: "bg-purple-600 text-white",
+      },
+      violet: {
+        active: "bg-violet-600 text-white border-violet-600",
+        idle: "bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100 dark:bg-violet-950/30 dark:text-violet-300 dark:border-violet-900",
+        badgeActive: "bg-white/25 text-white",
+        badgeIdle: "bg-violet-600 text-white",
+      },
+      orange: {
+        active: "bg-orange-500 text-white border-orange-500",
+        idle: "bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100 dark:bg-orange-950/30 dark:text-orange-300 dark:border-orange-900",
+        badgeActive: "bg-white/25 text-white",
+        badgeIdle: "bg-orange-500 text-white",
+      },
+      amber: {
+        active: "bg-amber-500 text-white border-amber-500",
+        idle: "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-900",
+        badgeActive: "bg-white/25 text-white",
+        badgeIdle: "bg-amber-500 text-white",
+      },
+      red: {
+        active: "bg-red-600 text-white border-red-600",
+        idle: "bg-red-50 text-red-700 border-red-200 hover:bg-red-100 dark:bg-red-950/30 dark:text-red-300 dark:border-red-900",
+        badgeActive: "bg-white/25 text-white",
+        badgeIdle: "bg-red-600 text-white",
+      },
+      blue: {
+        active: "bg-blue-600 text-white border-blue-600",
+        idle: "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-900",
+        badgeActive: "bg-white/25 text-white",
+        badgeIdle: "bg-blue-600 text-white",
+      },
+      slate: {
+        active: "bg-slate-700 text-white border-slate-700",
+        idle: "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 dark:bg-slate-900/40 dark:text-slate-300 dark:border-slate-800",
+        badgeActive: "bg-white/25 text-white",
+        badgeIdle: "bg-slate-700 text-white",
+      },
+    };
+    const p = palettes[palette];
+    return (
+      <button
+        type="button"
+        onClick={() => setFilter(k as any)}
+        className={`group inline-flex items-center gap-1.5 rounded-full border px-3 h-8 text-xs font-medium transition-all ${active ? p.active : p.idle}`}
+      >
+        <span className="whitespace-nowrap">{label}</span>
+        {typeof n === "number" && (
+          <span className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold ${active ? p.badgeActive : p.badgeIdle}`}>
+            {n}
+          </span>
+        )}
+      </button>
+    );
+  };
+
+  const SummaryCard = ({ icon: Icon, label, value, tone }: any) => (
+    <div className={`relative overflow-hidden rounded-xl border bg-card p-3 flex items-center gap-3 ${tone || ""}`}>
+      <div className="shrink-0 w-9 h-9 rounded-lg bg-gradient-to-br from-muted to-muted/40 flex items-center justify-center">
+        <Icon className="w-4 h-4 text-foreground/70" />
+      </div>
+      <div className="min-w-0">
+        <div className="text-[11px] text-muted-foreground leading-tight">{label}</div>
+        <div className="text-lg font-bold leading-tight">{value}</div>
+      </div>
+    </div>
   );
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[220px]">
-          <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="بحث: رقم دفعة / عميل / ماكينة / تاريخ..."
-            className="pr-9"
-          />
-        </div>
-        <Input
-          type="date"
-          value={fromDate}
-          onChange={(e) => setFromDate(e.target.value)}
-          className="w-[150px]"
-          placeholder="من"
-        />
-        <Input
-          type="date"
-          value={toDate}
-          onChange={(e) => setToDate(e.target.value)}
-          className="w-[150px]"
-          placeholder="إلى"
-        />
-        <select
-          value={machineFilter}
-          onChange={(e) => setMachineFilter(e.target.value)}
-          className="border rounded-md px-2 py-1 text-sm bg-background"
-        >
-          <option value="all">كل الماكينات</option>
-          {machineOptions.map((m) => (
-            <option key={m} value={m}>
-              {m}
-            </option>
-          ))}
-        </select>
-        {(fromDate || toDate || machineFilter !== "all" || search) && (
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              setFromDate("");
-              setToDate("");
-              setMachineFilter("all");
-              setSearch("");
-            }}
-          >
-            مسح الفلاتر
-          </Button>
-        )}
+    <div className="space-y-4">
+      {/* Summary strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+        <SummaryCard icon={Layers}        label="إجمالي الدفعات"        value={counts.all} />
+        <SummaryCard icon={Activity}      label="الدفعات النشطة"        value={counts.in_progress + counts.in_hatcher} />
+        <SummaryCard icon={AlertTriangle} label="الدفعات المتأخرة"      value={counts.overdue} />
+        <SummaryCard icon={Clock}         label="تخرج خلال 3 أيام"      value={counts.exit_in_3} />
+        <SummaryCard icon={CheckCircle2}  label="دفعات مكتملة"          value={counts.completed} />
+        <SummaryCard icon={FileText}      label="غير محسوبة للعملاء"   value={counts.notBilled} />
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <FilterBtn k="all" label="الكل" n={counts.all} />
-        <FilterBtn k="completed" label="مكتملة / خرجت" n={counts.completed} tone="text-emerald-700" />
-        <FilterBtn k="in_hatcher" label="في الهاتشر" n={counts.in_hatcher} tone="text-purple-700" />
-        <FilterBtn k="in_progress" label="قادمة" n={counts.in_progress} />
-        <FilterBtn k="overdue" label="متأخرة" n={counts.overdue} tone="text-red-600" />
-        <FilterBtn k="exited" label="تم حساب العملاء عليها" n={counts.exited} tone="text-emerald-700" />
-        <FilterBtn k="external" label="بها عملاء خارجيين" n={counts.external} />
-        <FilterBtn k="internal" label="بها نعام العاصمة" n={counts.internal} />
-        <FilterBtn k="candle2_today" label="كشف 2 اليوم" />
-        <FilterBtn k="exit_in_3" label="خروج خلال 3 أيام" />
-      </div>
+      {/* Filters card */}
+      <Card className="border-border/60 shadow-sm">
+        <CardHeader className="py-3 px-4 border-b bg-muted/30 flex flex-row items-center justify-between space-y-0">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <SlidersHorizontal className="w-4 h-4 text-muted-foreground" />
+            فلاتر البحث
+          </CardTitle>
+          {hasActiveFilter && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => {
+                setFromDate("");
+                setToDate("");
+                setMachineFilter("all");
+                setSearch("");
+                setFilter("all");
+              }}
+            >
+              <X className="w-3.5 h-3.5 ml-1" /> مسح الفلاتر
+            </Button>
+          )}
+        </CardHeader>
+        <CardContent className="p-3 sm:p-4 space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-2">
+            <div className="relative lg:col-span-5">
+              <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="بحث: رقم دفعة / عميل / ماكينة / تاريخ..."
+                className="pr-9 h-9"
+              />
+            </div>
+            <Input
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="h-9 lg:col-span-3"
+              placeholder="من"
+            />
+            <Input
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              className="h-9 lg:col-span-2"
+              placeholder="إلى"
+            />
+            <select
+              value={machineFilter}
+              onChange={(e) => setMachineFilter(e.target.value)}
+              className="h-9 border rounded-md px-2 text-sm bg-background lg:col-span-2"
+            >
+              <option value="all">كل الماكينات</option>
+              {machineOptions.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Status pills */}
+          <div className="flex flex-wrap gap-1.5 pt-1 overflow-x-auto -mx-1 px-1">
+            <Pill k="all"            label="الكل"                 n={counts.all}          palette="neutral" />
+            <Pill k="completed"      label="مكتملة / خرجت"        n={counts.completed}    palette="emerald" />
+            <Pill k="in_hatcher"     label="في الهاتشر"            n={counts.in_hatcher}   palette="purple" />
+            <Pill k="in_progress"    label="قادمة"                 n={counts.in_progress}  palette="orange" />
+            <Pill k="overdue"        label="متأخرة"                n={counts.overdue}      palette="red" />
+            <Pill k="exited"         label="تم حساب العملاء عليها" n={counts.exited}       palette="green" />
+            <Pill k="external"       label="بها عملاء خارجيين"     n={counts.external}     palette="blue" />
+            <Pill k="internal"       label="بها نعام العاصمة"      n={counts.internal}     palette="violet" />
+            <Pill k="candle2_today"  label="كشف 2 اليوم"           n={counts.candle2_today} palette="slate" />
+            <Pill k="exit_in_3"      label="خروج خلال 3 أيام"      n={counts.exit_in_3}    palette="amber" />
+          </div>
+        </CardContent>
+      </Card>
 
       <Card className="overflow-x-auto">
         <Table>

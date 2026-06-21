@@ -481,34 +481,63 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
   } as Record<string, { label: string; color: string }>;
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2 justify-between">
-        <div className="flex gap-1 p-1 bg-muted rounded-lg">
-          <Button
-            size="sm"
-            variant={viewMode === "grouped" ? "default" : "ghost"}
-            onClick={() => setViewMode("grouped")}
-          >
-            عرض مجمع (دفعة تشغيلية)
-          </Button>
-          <Button
-            size="sm"
-            variant={viewMode === "detailed" ? "default" : "ghost"}
-            onClick={() => setViewMode("detailed")}
-          >
-            عرض تفصيلي (لكل عميل)
-          </Button>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex gap-1 p-1 bg-muted rounded-lg">
-            <Button size="sm" variant={sortOrder === "asc" ? "default" : "ghost"} onClick={() => setSortOrder("asc")}>الأقدم أولًا</Button>
-            <Button size="sm" variant={sortOrder === "desc" ? "default" : "ghost"} onClick={() => setSortOrder("desc")}>الأحدث أولًا</Button>
+    <div className="space-y-4">
+      {/* Premium header card */}
+      <Card className="relative border-0 shadow-md overflow-hidden">
+        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-purple-600 via-fuchsia-500 to-orange-500" />
+        <div className="p-4 sm:p-5 bg-gradient-to-br from-background to-muted/30">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div className="flex items-start gap-3 min-w-0">
+              <div className="shrink-0 w-11 h-11 rounded-xl bg-gradient-to-br from-purple-600 to-fuchsia-600 text-white flex items-center justify-center shadow-lg">
+                <FlaskConical className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-lg sm:text-xl font-bold leading-tight">دفعات معمل التفريخ</h2>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                  إدارة دفعات التفريخ، متابعة الماكينات، الكشف، الفقس، والخروج
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {/* View mode (طريقة العرض) */}
+              <div className="inline-flex items-center gap-1 p-1 bg-muted/70 rounded-lg border">
+                <Button
+                  size="sm"
+                  variant={viewMode === "grouped" ? "default" : "ghost"}
+                  onClick={() => setViewMode("grouped")}
+                  className="h-8 text-xs"
+                >
+                  عرض مجمع
+                </Button>
+                <Button
+                  size="sm"
+                  variant={viewMode === "detailed" ? "default" : "ghost"}
+                  onClick={() => setViewMode("detailed")}
+                  className="h-8 text-xs"
+                >
+                  تفصيلي لكل عميل
+                </Button>
+              </div>
+
+              {/* Sort */}
+              <div className="inline-flex items-center gap-1 p-1 bg-muted/70 rounded-lg border">
+                <Button size="sm" variant={sortOrder === "asc" ? "default" : "ghost"} className="h-8 text-xs" onClick={() => setSortOrder("asc")}>الأقدم أولًا</Button>
+                <Button size="sm" variant={sortOrder === "desc" ? "default" : "ghost"} className="h-8 text-xs" onClick={() => setSortOrder("desc")}>الأحدث أولًا</Button>
+              </div>
+
+              {canManage && (
+                <Button
+                  onClick={() => setShowNew(true)}
+                  className="h-9 bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-700 hover:to-fuchsia-700 text-white shadow-md"
+                >
+                  <Plus className="w-4 h-4 ml-1" />دفعة جديدة
+                </Button>
+              )}
+            </div>
           </div>
-          {canManage && (
-            <Button onClick={() => setShowNew(true)}><Plus className="w-4 h-4 ml-1" />دفعة جديدة</Button>
-          )}
         </div>
-      </div>
+      </Card>
 
       {viewMode === "grouped" ? (
         <>
