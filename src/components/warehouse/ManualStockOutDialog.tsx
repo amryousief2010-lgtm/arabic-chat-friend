@@ -110,9 +110,12 @@ const ManualStockOutDialog = ({
   const stockAfter = validQty ? stockBefore - qtyNum : stockBefore;
   const exceedsStock = validQty && qtyNum > stockBefore;
 
+  const customMatch = customParties.find((p) => `custom:${p.id}` === destKey);
   const destBaseLabel = destKey === "other"
     ? destOther.trim()
-    : (DESTINATIONS.find(d => d.value === destKey)?.label || "");
+    : customMatch
+      ? customMatch.name
+      : (DESTINATIONS.find(d => d.value === destKey)?.label || "");
   const destLabel = destKey === "customer" && customerName.trim()
     ? `عميل / ${customerName.trim()}`
     : destBaseLabel;
