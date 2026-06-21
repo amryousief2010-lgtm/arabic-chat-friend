@@ -222,6 +222,8 @@ const Warehouses = () => {
   const [deleteTarget, setDeleteTarget] = useState<{ type: "warehouse" | "item"; id: string; name: string } | null>(null);
 
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState("items");
+  const [menuSubview, setMenuSubview] = useState<string | null>(null);
 
   const fetchAll = async () => {
     setLoading(true);
