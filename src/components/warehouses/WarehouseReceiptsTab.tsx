@@ -432,6 +432,8 @@ export default function WarehouseReceiptsTab() {
                 <SelectItem value="partial">مقبول جزئيًا</SelectItem>
                 <SelectItem value="rejected">مرفوض</SelectItem>
                 <SelectItem value="pending">بانتظار المراجعة</SelectItem>
+                <SelectItem value="cancelled">ملغى</SelectItem>
+                <SelectItem value="archived">مؤرشف</SelectItem>
               </SelectContent>
             </Select>
           </div>
