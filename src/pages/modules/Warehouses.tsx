@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Warehouse, Trash2, Edit, ArrowDown, ArrowUp, ArrowLeftRight, Settings2, Package, AlertTriangle, BarChart3, Upload, Beef, CheckCircle2, Printer, FileSpreadsheet, FileText, MapPin } from "lucide-react";
+import { Plus, Warehouse, Trash2, Edit, ArrowDown, ArrowUp, ArrowLeftRight, Settings2, Package, AlertTriangle, BarChart3, Upload, Beef, CheckCircle2, Printer, FileSpreadsheet, FileText, MapPin, Menu, BookOpen, Calendar, Scale } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -222,6 +222,8 @@ const Warehouses = () => {
   const [deleteTarget, setDeleteTarget] = useState<{ type: "warehouse" | "item"; id: string; name: string } | null>(null);
 
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState("items");
+  const [menuSubview, setMenuSubview] = useState<string | null>(null);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -549,7 +551,6 @@ const Warehouses = () => {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <Link to="/modules/warehouses/dashboard"><Button variant="outline" size="sm"><BarChart3 className="w-4 h-4 ml-2" />لوحة المؤشرات</Button></Link>
             <Button variant="outline" size="sm" onClick={exportInventorySummaryPDF}><FileText className="w-4 h-4 ml-2 text-red-600" />تقرير PDF</Button>
             {isGeneralManager && (<Link to="/modules/warehouses/import"><Button variant="outline" size="sm"><Upload className="w-4 h-4 ml-2" />استيراد CSV</Button></Link>)}
             {!canManageWarehouses && (<Badge variant="outline">عرض فقط</Badge>)}
@@ -566,7 +567,7 @@ const Warehouses = () => {
           </Card>
         </div>
 
-        <Tabs defaultValue="items">
+        <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); if (v === "menu") setMenuSubview(null); }} defaultValue="items">
           <div className="overflow-x-auto pb-1">
             <TabsList className="w-max flex-nowrap">
               <TabsTrigger value="items">الأصناف</TabsTrigger>
@@ -583,6 +584,7 @@ const Warehouses = () => {
               <TabsTrigger value="wh-carrefour" className="gap-1"><Warehouse className="w-4 h-4" />هايبر كارفور</TabsTrigger>
               <TabsTrigger value="wh-packaging" className="gap-1"><Package className="w-4 h-4" />التغليف والتعبئة</TabsTrigger>
               <TabsTrigger value="wh-activity" className="gap-1"><BarChart3 className="w-4 h-4" />سجل حركات المخزن الرئيسي</TabsTrigger>
+              <TabsTrigger value="menu" className="gap-1"><Menu className="w-4 h-4" />المنيو</TabsTrigger>
             </TabsList>
           </div>
 
@@ -982,6 +984,58 @@ const Warehouses = () => {
               </div>
             </TabsContent>
           ))}
+
+          {/* MENU tab with sub-pages */}
+          <TabsContent value="menu" className="space-y-4">
+            {menuSubview ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setMenuSubview(null)}><ArrowLeftRight className="w-4 h-4 ml-1" />رجوع للمنيو</Button>
+                </div>
+                <div className="rounded-lg border border-border bg-card overflow-hidden">
+                  <iframe
+                    src={`${menuSubview}?embed=1`}
+                    title={menuSubview}
+                    className="w-full"
+                    style={{ height: "calc(100vh - 260px)", minHeight: "600px", border: "none" }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <Card className="cursor-pointer hover:border-primary transition-colors" onClick={() => setMenuSubview("/modules/warehouses/main-guide")}>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base"><BookOpen className="w-5 h-5 text-primary" />دليل المخزن الرئيسي</CardTitle>
+                    <CardDescription>تعليمات وتشغيل المخزن الرئيسي</CardDescription>
+                  </CardHeader>
+                </Card>
+                <Card className="cursor-pointer hover:border-primary transition-colors" onClick={() => setMenuSubview("/modules/warehouses/operational-dates")}>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base"><Calendar className="w-5 h-5 text-primary" />تواريخ بداية التشغيل الفعلي</CardTitle>
+                    <CardDescription>تواريخ بدء التشغيل الفعلي للمخازن</CardDescription>
+                  </CardHeader>
+                </Card>
+                <Card className="cursor-pointer hover:border-primary transition-colors" onClick={() => setMenuSubview("/modules/warehouses/opening-balance")}>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base"><Scale className="w-5 h-5 text-primary" />الرصيد الافتتاحي للمخازن</CardTitle>
+                    <CardDescription>إدارة الأرصدة الافتتاحية والاعتمادات</CardDescription>
+                  </CardHeader>
+                </Card>
+                <Card className="cursor-pointer hover:border-primary transition-colors" onClick={() => setMenuSubview("/modules/warehouses/dashboard")}>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base"><BarChart3 className="w-5 h-5 text-primary" />لوحة المؤشرات</CardTitle>
+                    <CardDescription>إحصائيات وتحليلات المخازن</CardDescription>
+                  </CardHeader>
+                </Card>
+                <Card className="cursor-pointer hover:border-primary transition-colors" onClick={() => { exportInventorySummaryPDF(); }}>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base"><FileText className="w-5 h-5 text-red-600" />تقرير PDF</CardTitle>
+                    <CardDescription>تقرير ملخص المخزون والمنتجات</CardDescription>
+                  </CardHeader>
+                </Card>
+              </div>
+            )}
+          </TabsContent>
         </Tabs>
       </div>
 
