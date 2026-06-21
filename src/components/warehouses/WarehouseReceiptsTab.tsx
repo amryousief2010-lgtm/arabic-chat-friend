@@ -564,6 +564,42 @@ export default function WarehouseReceiptsTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit dialog — notes only */}
+      <Dialog open={!!editTarget} onOpenChange={(o) => !o && setEditTarget(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>تعديل الاستلام {editTarget?.batch_no}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">يُسمح بتعديل الملاحظات فقط. الكميات والأصناف محمية لأنها أثّرت على المخزون.</Label>
+            <Textarea rows={5} value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="ملاحظات الاستلام..." />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button onClick={saveEdit} disabled={busy}>{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "حفظ"}</Button>
+            <Button variant="outline" onClick={() => setEditTarget(null)}>إلغاء</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation */}
+      <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>تأكيد الحذف</DialogTitle>
+          </DialogHeader>
+          <div className="text-sm">
+            هل أنت متأكد من حذف الاستلام <b className="font-mono">{deleteTarget?.batch_no}</b>؟
+            <div className="mt-2 text-xs text-muted-foreground">
+              لن يتم عكس أي حركة مخزون. إذا كان الاستلام مؤثرًا على المخزون سيتم منع الحذف تلقائيًا.
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="destructive" onClick={confirmDelete} disabled={busy}>{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "حذف"}</Button>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>إلغاء</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
