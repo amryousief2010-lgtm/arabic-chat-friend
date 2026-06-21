@@ -291,12 +291,35 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
 
   useEffect(() => { fetchAll(); }, []);
 
+  type SingleWh = "agouza" | "main" | "carrefour" | "healthy";
+
+  const getStockMap = (wh: SingleWh): Record<string, number> =>
+    wh === "agouza" ? agouzaStock : wh === "main" ? mainStock : extraStock[wh] || {};
+  const getPendingMap = (wh: SingleWh): Record<string, number> =>
+    wh === "agouza" ? agouzaPending : wh === "main" ? mainPending : extraPending[wh] || {};
+  const getItemIdsMap = (wh: SingleWh): Record<string, string> =>
+    wh === "agouza" ? agouzaItemIds : wh === "main" ? mainItemIds : extraItemIds[wh] || {};
+  const getCostMap = (wh: SingleWh): Record<string, number> =>
+    wh === "agouza" ? agouzaCost : wh === "main" ? mainCost : extraCost[wh] || {};
+  const getSkuMap = (wh: SingleWh): Record<string, string> =>
+    wh === "agouza" ? agouzaSku : wh === "main" ? mainSku : extraSku[wh] || {};
+  const getLastMoveMap = (wh: SingleWh): Record<string, string> =>
+    wh === "agouza" ? agouzaLastMove : wh === "main" ? mainLastMove : extraLastMove[wh] || {};
+  const getLowMap = (wh: SingleWh): Record<string, number> =>
+    wh === "agouza" ? agouzaLowThreshold : wh === "main" ? mainLowThreshold : extraLowThreshold[wh] || {};
+  const getWhId = (wh: SingleWh): string | null =>
+    wh === "agouza" ? agouzaWhId : wh === "main" ? mainWhId : extraWhIds[wh] ?? null;
+  const getWhLabel = (wh: SingleWh): string =>
+    wh === "agouza" ? "مخزن العجوزة" :
+    wh === "main" ? "المخزن الرئيسي" :
+    wh === "carrefour" ? "هايبر كارفور" : "هايبر هيلثي تيست";
+
   // حفظ تعديل الرصيد الفعلي (الجرد) — لا يأخذ المحجوز في الاعتبار
-  const saveStock = async (wh: "agouza" | "main", productId: string, newActualKg: number) => {
+  const saveStock = async (wh: SingleWh, productId: string, newActualKg: number) => {
     if (isNaN(newActualKg) || newActualKg < 0) { toast.error("أدخل قيمة صحيحة"); return; }
-    const whId = wh === "agouza" ? agouzaWhId : mainWhId;
+    const whId = getWhId(wh);
     if (!whId) return;
-    const itemId = (wh === "agouza" ? agouzaItemIds : mainItemIds)[productId];
+    const itemId = getItemIdsMap(wh)[productId];
 
     // المخزن الرئيسي: لازم سبب + يمر عبر RPC مدقَّق يسجل حركة تعديل جرد
     if (wh === "main") {
@@ -335,9 +358,11 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
           .select("id")
           .single();
         if (error) throw error;
-        setAgouzaItemIds((m) => ({ ...m, [productId]: data!.id }));
+        if (wh === "agouza") setAgouzaItemIds((m) => ({ ...m, [productId]: data!.id }));
+        else setExtraItemIds((m) => ({ ...m, [wh]: { ...(m[wh] || {}), [productId]: data!.id } }));
       }
-      setAgouzaStock((s) => ({ ...s, [productId]: newActualKg }));
+      if (wh === "agouza") setAgouzaStock((s) => ({ ...s, [productId]: newActualKg }));
+      else setExtraStock((s) => ({ ...s, [wh]: { ...(s[wh] || {}), [productId]: newActualKg } }));
       toast.success("تم تحديث الرصيد الفعلي");
       setEditingKey(null);
 
@@ -348,7 +373,8 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
     }
   };
 
-  const canEditFor = (wh: "agouza" | "main") => wh === "agouza" ? canEditAgouza : canEditAll;
+  const canEditFor = (wh: SingleWh) => wh === "agouza" ? canEditAgouza : canEditAll;
+
 
   // خلية الرصيد الفعلي (قابلة للتعديل) — تعرض عدد العبوات والكيلو
   const ActualCell = ({ wh, pid, name, kgValue }: { wh: "agouza" | "main"; pid: string; name: string; kgValue: number }) => {
