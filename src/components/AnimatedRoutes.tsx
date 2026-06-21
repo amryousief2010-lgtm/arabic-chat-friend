@@ -935,6 +935,11 @@ const AnimatedRoutes = () => {
               <PageTransition><Warehouses /></PageTransition>
             </ProtectedRoute>
           } />
+          <Route path="/modules/warehouses/management-hub" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper', 'production_manager', 'quality_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'meat_factory_manager', 'feed_factory_manager', 'slaughterhouse_manager', 'accountant', 'financial_manager']}>
+              <PageTransition><WarehouseManagementHub /></PageTransition>
+            </ProtectedRoute>
+          } />
           <Route path="/modules/warehouses/by-location" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager', 'agouza_warehouse_keeper', 'meat_factory_manager', 'feed_factory_manager', 'slaughterhouse_manager']}>
               <PageTransition><WarehousesByLocation /></PageTransition>
