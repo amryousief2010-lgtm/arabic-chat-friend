@@ -23,6 +23,11 @@ interface DashboardLayoutProps {
 }
 
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
+  // Embed mode: when loaded inside an iframe/tab via ?embed=1, render only the
+  // children without sidebar/header/widgets so the parent app shell is not duplicated.
+  const isEmbed = typeof window !== "undefined"
+    && new URLSearchParams(window.location.search).get("embed") === "1";
+
   // Enable real-time order notifications + daily/weekly role reminders
   useOrderNotifications();
   useDailyReminders();
@@ -49,6 +54,14 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const { currentIndex, totalPages, canGoNext, canGoPrev } = useSwipeNavigation({
     isEnabled: isMobile,
   });
+
+  if (isEmbed) {
+    return (
+      <div className="min-h-screen bg-background">
+        <main className="p-4 md:p-6">{children}</main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
