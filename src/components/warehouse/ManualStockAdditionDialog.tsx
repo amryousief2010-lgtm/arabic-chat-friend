@@ -196,14 +196,27 @@ const ManualStockAdditionDialog = ({
         <div className="space-y-3">
           <div>
             <Label className="text-xs">جهة التوريد *</Label>
-            <Select value={sourceKey} onValueChange={setSourceKey}>
-              <SelectTrigger><SelectValue placeholder="اختر جهة التوريد" /></SelectTrigger>
-              <SelectContent>
-                {SUPPLY_SOURCES.map(s => (
-                  <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex gap-2">
+              <Select value={sourceKey} onValueChange={setSourceKey}>
+                <SelectTrigger className="flex-1"><SelectValue placeholder="اختر جهة التوريد" /></SelectTrigger>
+                <SelectContent>
+                  {SUPPLY_SOURCES.map(s => (
+                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                  ))}
+                  {customParties.length > 0 && (
+                    <div className="px-2 pt-2 pb-1 text-[10px] text-muted-foreground">جهات مضافة</div>
+                  )}
+                  {customParties.map((p) => (
+                    <SelectItem key={p.id} value={`custom:${p.id}`}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {canAddParty && (
+                <Button type="button" variant="outline" size="icon" onClick={() => setAddPartyOpen(true)} title="إضافة جهة">
+                  <Plus className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
             {sourceKey === "other" && (
               <Input
                 className="mt-2"
@@ -214,6 +227,14 @@ const ManualStockAdditionDialog = ({
               />
             )}
           </div>
+
+          <AddManualPartyDialog
+            open={addPartyOpen}
+            onOpenChange={setAddPartyOpen}
+            kind="supply"
+            onCreated={async (p) => { await loadCustom(); setSourceKey(`custom:${p.id}`); }}
+          />
+
 
           <div>
             <Label className="text-xs">الصنف *</Label>
