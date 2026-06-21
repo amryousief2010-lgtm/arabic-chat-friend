@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-export type ApprovalCategory = "treasury" | "meat" | "custody" | "slaughter" | "lab" | "hr";
+export type ApprovalCategory = "treasury" | "meat" | "custody" | "slaughter" | "lab" | "hr" | "mf_purchase" | "mf_mfg";
 
 export type ApprovalItem = {
   id: string;
@@ -64,7 +64,7 @@ export function useExecutiveApprovals() {
     refetchOnWindowFocus: true,
     staleTime: 15_000,
     queryFn: async () => {
-      const [treasuryRes, labRes, meatInvRes, meatMfgRes, custodyRes, slaughterRes, hrRes] = await Promise.all([
+      const [treasuryRes, labRes, meatInvRes, meatMfgRes, custodyRes, slaughterRes, hrRes, mfRawRes, mfPackRes, mfMfgRes] = await Promise.all([
         (supabase as any)
           .from("main_treasury_transactions")
           .select("id, reference_no, txn_type, amount, txn_date, counterparty, description, status, created_at, created_by, payment_method, deposit_purpose, incoming_source")
@@ -107,10 +107,28 @@ export function useExecutiveApprovals() {
           .eq("status", HR_PENDING)
           .order("created_at", { ascending: false })
           .limit(200),
+        (supabase as any)
+          .from("mf_raw_purchases")
+          .select("id, invoice_no, invoice_date, supplier, payment_method, total_amount, notes, status, created_at, created_by, items:mf_raw_purchase_items(qty, unit_price, total, raw:meat_raw_inventory(name_ar, unit))")
+          .eq("status", "draft")
+          .order("created_at", { ascending: false })
+          .limit(200),
+        (supabase as any)
+          .from("mf_pack_purchases")
+          .select("id, invoice_no, invoice_date, supplier, payment_method, total_amount, notes, status, created_at, created_by, items:mf_pack_purchase_items(qty, unit_price, total, pack:meat_packaging_inventory(name_ar, unit))")
+          .eq("status", "draft")
+          .order("created_at", { ascending: false })
+          .limit(200),
+        (supabase as any)
+          .from("mf_manufacturing")
+          .select("id, invoice_no, mfg_date, produced_qty, extra_cost, total_cost, notes, status, created_at, created_by, fin:meat_finished_inventory(name_ar, unit), raw_lines:mf_mfg_raw_lines(qty, raw:meat_raw_inventory(name_ar, unit)), pack_lines:mf_mfg_pack_lines(qty, pack:meat_packaging_inventory(name_ar, unit))")
+          .eq("status", "draft")
+          .order("created_at", { ascending: false })
+          .limit(200),
       ]);
 
       const allCreators: string[] = [];
-      [treasuryRes, labRes, meatInvRes, meatMfgRes, custodyRes, slaughterRes, hrRes].forEach((r) =>
+      [treasuryRes, labRes, meatInvRes, meatMfgRes, custodyRes, slaughterRes, hrRes, mfRawRes, mfPackRes, mfMfgRes].forEach((r) =>
         (r.data || []).forEach((x: any) => x.created_by && allCreators.push(x.created_by))
       );
       const profiles = await resolveProfiles(allCreators);
@@ -271,7 +289,52 @@ export function useExecutiveApprovals() {
         };
       });
 
-      const items: ApprovalItem[] = [...treasury, ...lab, ...meatInv, ...meatMfg, ...custody, ...slaughter, ...hr].sort(
+      const mfPurchaseItems: ApprovalItem[] = [
+        ...(mfRawRes.data || []).map((p: any) => ({
+          id: p.id,
+          category: "mf_purchase" as ApprovalCategory,
+          source: "فاتورة شراء خامات (مصنع اللحوم)",
+          title: `فاتورة شراء خامات${p.invoice_no ? ` — ${p.invoice_no}` : ""}`,
+          subtitle: `${p.supplier || "بدون مورد"}${p.payment_method ? ` — ${p.payment_method === "cash" ? "نقدي" : "آجل"}` : ""}${(p.items || []).length ? ` — ${(p.items || []).length} صنف` : ""}${p.notes ? ` — ${p.notes}` : ""}`,
+          amount: Number(p.total_amount || 0),
+          created_at: p.created_at,
+          created_by: p.created_by,
+          creator_name: profiles[p.created_by] || null,
+          status: p.status,
+          raw: { ...p, _kind: "raw_purchase" },
+        })),
+        ...(mfPackRes.data || []).map((p: any) => ({
+          id: p.id,
+          category: "mf_purchase" as ApprovalCategory,
+          source: "فاتورة شراء تغليف (مصنع اللحوم)",
+          title: `فاتورة شراء تغليف${p.invoice_no ? ` — ${p.invoice_no}` : ""}`,
+          subtitle: `${p.supplier || "بدون مورد"}${p.payment_method ? ` — ${p.payment_method === "cash" ? "نقدي" : "آجل"}` : ""}${(p.items || []).length ? ` — ${(p.items || []).length} صنف` : ""}${p.notes ? ` — ${p.notes}` : ""}`,
+          amount: Number(p.total_amount || 0),
+          created_at: p.created_at,
+          created_by: p.created_by,
+          creator_name: profiles[p.created_by] || null,
+          status: p.status,
+          raw: { ...p, _kind: "pack_purchase" },
+        })),
+      ];
+
+      const mfMfgItems: ApprovalItem[] = (mfMfgRes.data || []).map((m: any) => ({
+        id: m.id,
+        category: "mf_mfg" as ApprovalCategory,
+        source: "فاتورة تصنيع (مصنع اللحوم)",
+        title: `تصنيع — ${m.fin?.name_ar || ""}${m.invoice_no ? ` — ${m.invoice_no}` : ""}`,
+        subtitle: `الناتج: ${Number(m.produced_qty || 0)} ${m.fin?.unit || ""} • خامات: ${(m.raw_lines || []).length} • تغليف: ${(m.pack_lines || []).length}${m.notes ? ` — ${m.notes}` : ""}`,
+        amount: Number(m.total_cost || 0),
+        qty: Number(m.produced_qty || 0),
+        unit: m.fin?.unit || null,
+        created_at: m.created_at,
+        created_by: m.created_by,
+        creator_name: profiles[m.created_by] || null,
+        status: m.status,
+        raw: m,
+      }));
+
+      const items: ApprovalItem[] = [...treasury, ...lab, ...meatInv, ...meatMfg, ...custody, ...slaughter, ...hr, ...mfPurchaseItems, ...mfMfgItems].sort(
         (a, b) => +new Date(b.created_at) - +new Date(a.created_at)
       );
 
@@ -285,6 +348,8 @@ export function useExecutiveApprovals() {
           custody: custody.length,
           slaughter: slaughter.length,
           hr: hr.length,
+          mf_purchase: mfPurchaseItems.length,
+          mf_mfg: mfMfgItems.length,
         },
       };
     },
@@ -317,6 +382,15 @@ export function useExecutiveApprovals() {
       .on("postgres_changes" as any, { event: "*", schema: "public", table: "hr_deductions" }, () =>
         queryClient.invalidateQueries({ queryKey: ["executive-approvals"] })
       )
+      .on("postgres_changes" as any, { event: "*", schema: "public", table: "mf_raw_purchases" }, () =>
+        queryClient.invalidateQueries({ queryKey: ["executive-approvals"] })
+      )
+      .on("postgres_changes" as any, { event: "*", schema: "public", table: "mf_pack_purchases" }, () =>
+        queryClient.invalidateQueries({ queryKey: ["executive-approvals"] })
+      )
+      .on("postgres_changes" as any, { event: "*", schema: "public", table: "mf_manufacturing" }, () =>
+        queryClient.invalidateQueries({ queryKey: ["executive-approvals"] })
+      )
       .subscribe();
     return () => {
       try { supabase.removeChannel(ch); } catch {}
@@ -333,6 +407,8 @@ export function useExecutiveApprovals() {
         item.category === "custody" ? "slaughter_custody_expenses" :
         item.category === "slaughter" ? "slaughter_batches" :
         item.category === "hr" ? "hr_deductions" :
+        item.category === "mf_purchase" ? (item.raw?._kind === "pack_purchase" ? "mf_pack_purchases" : "mf_raw_purchases") :
+        item.category === "mf_mfg" ? "mf_manufacturing" :
         item.raw._source_table;
 
       const statusCol = item.category === "slaughter" ? "approval_status" : "status";
@@ -345,7 +421,8 @@ export function useExecutiveApprovals() {
         (item.category === "meat" && freshStatus === MEAT_PENDING) ||
         (item.category === "custody" && CUSTODY_PENDING.includes(freshStatus)) ||
         (item.category === "slaughter" && freshStatus === SLAUGHTER_BATCH_PENDING) ||
-        (item.category === "hr" && freshStatus === HR_PENDING);
+        (item.category === "hr" && freshStatus === HR_PENDING) ||
+        ((item.category === "mf_purchase" || item.category === "mf_mfg") && freshStatus === "draft");
       if (!isPending) {
         if (item.category === "hr" && freshStatus === "approved") {
           throw new Error("تم اعتماد هذا الخصم من قبل");
@@ -453,6 +530,13 @@ export function useExecutiveApprovals() {
             reason: `اعتماد خصم موظف (${HR_TYPE_LABEL[item.raw.deduction_type] || item.raw.deduction_type})`,
           });
         }
+      } else if (item.category === "mf_purchase") {
+        const rpcName = item.raw?._kind === "pack_purchase" ? "post_mf_pack_purchase" : "post_mf_raw_purchase";
+        const { error } = await (supabase as any).rpc(rpcName, { p_id: item.id });
+        if (error) throw error;
+      } else if (item.category === "mf_mfg") {
+        const { error } = await (supabase as any).rpc("post_mf_manufacturing", { p_id: item.id });
+        if (error) throw error;
       }
       await refetch();
     },
@@ -544,6 +628,13 @@ export function useExecutiveApprovals() {
             reason: r,
           });
         }
+      } else if (item.category === "mf_purchase") {
+        const tableName = item.raw?._kind === "pack_purchase" ? "mf_pack_purchases" : "mf_raw_purchases";
+        const { error } = await (supabase as any).rpc("reject_mf_invoice", { p_table: tableName, p_id: item.id, p_reason: r });
+        if (error) throw error;
+      } else if (item.category === "mf_mfg") {
+        const { error } = await (supabase as any).rpc("reject_mf_invoice", { p_table: "mf_manufacturing", p_id: item.id, p_reason: r });
+        if (error) throw error;
       }
       await refetch();
     },
@@ -555,7 +646,7 @@ export function useExecutiveApprovals() {
       isApprover,
       isLoading,
       items: data?.items ?? [],
-      counts: data?.counts ?? { all: 0, treasury: 0, lab: 0, meat: 0, custody: 0, slaughter: 0, hr: 0 },
+      counts: data?.counts ?? { all: 0, treasury: 0, lab: 0, meat: 0, custody: 0, slaughter: 0, hr: 0, mf_purchase: 0, mf_mfg: 0 },
       refetch,
       approve,
       reject,

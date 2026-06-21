@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Bell, CheckCircle2, XCircle, ShieldAlert, Wallet, Beef, Drumstick, FlaskConical, Scissors, Eye, UsersRound } from "lucide-react";
+import { Bell, CheckCircle2, XCircle, ShieldAlert, Wallet, Beef, Drumstick, FlaskConical, Scissors, Eye, UsersRound, ShoppingCart, Factory } from "lucide-react";
 import { useExecutiveApprovals, type ApprovalItem, type ApprovalCategory } from "@/hooks/useExecutiveApprovals";
 import ApprovalDetailsDialog from "./ApprovalDetailsDialog";
 
@@ -25,6 +25,8 @@ const CAT_LABEL: Record<ApprovalCategory, string> = {
   slaughter: "تقسيمة الدبح",
   lab: "المعمل",
   hr: "خصومات الموظفين",
+  mf_purchase: "فواتير شراء",
+  mf_mfg: "فواتير تصنيع",
 };
 const CAT_ICON: Record<ApprovalCategory, JSX.Element> = {
   treasury: <Wallet className="h-4 w-4" />,
@@ -33,6 +35,8 @@ const CAT_ICON: Record<ApprovalCategory, JSX.Element> = {
   slaughter: <Scissors className="h-4 w-4" />,
   lab: <FlaskConical className="h-4 w-4" />,
   hr: <UsersRound className="h-4 w-4" />,
+  mf_purchase: <ShoppingCart className="h-4 w-4" />,
+  mf_mfg: <Factory className="h-4 w-4" />,
 };
 const CAT_COLOR: Record<ApprovalCategory, string> = {
   treasury: "bg-amber-100 text-amber-800 border-amber-300",
@@ -41,6 +45,8 @@ const CAT_COLOR: Record<ApprovalCategory, string> = {
   slaughter: "bg-rose-100 text-rose-800 border-rose-300",
   lab: "bg-blue-100 text-blue-800 border-blue-300",
   hr: "bg-purple-100 text-purple-800 border-purple-300",
+  mf_purchase: "bg-emerald-100 text-emerald-800 border-emerald-300",
+  mf_mfg: "bg-indigo-100 text-indigo-800 border-indigo-300",
 };
 
 export default function ExecutiveApprovalsAlert() {
@@ -144,14 +150,16 @@ export default function ExecutiveApprovalsAlert() {
             </div>
           ) : (
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="flex-1 overflow-hidden flex flex-col">
-              <TabsList className="grid grid-cols-7 w-full">
+              <TabsList className="grid grid-cols-9 w-full">
                 <TabsTrigger value="all">الكل ({counts.all})</TabsTrigger>
                 <TabsTrigger value="treasury">الخزن ({counts.treasury})</TabsTrigger>
+                <TabsTrigger value="mf_purchase">فواتير شراء ({counts.mf_purchase})</TabsTrigger>
+                <TabsTrigger value="mf_mfg">فواتير تصنيع ({counts.mf_mfg})</TabsTrigger>
                 <TabsTrigger value="meat">مصنع اللحوم ({counts.meat})</TabsTrigger>
                 <TabsTrigger value="slaughter">تقسيمة الدبح ({counts.slaughter})</TabsTrigger>
                 <TabsTrigger value="custody">عهدة الدبح ({counts.custody})</TabsTrigger>
                 <TabsTrigger value="lab">المعمل ({counts.lab})</TabsTrigger>
-                <TabsTrigger value="hr">خصومات الموظفين ({counts.hr})</TabsTrigger>
+                <TabsTrigger value="hr">خصومات ({counts.hr})</TabsTrigger>
               </TabsList>
 
               <TabsContent value={activeTab} className="flex-1 overflow-y-auto mt-3 space-y-2">

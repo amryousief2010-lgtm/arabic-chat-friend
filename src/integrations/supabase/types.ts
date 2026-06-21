@@ -10564,6 +10564,9 @@ export type Database = {
           posted_by: string | null
           produced_qty: number
           raw_cost: number
+          rejected_at: string | null
+          rejected_by: string | null
+          rejection_reason: string | null
           status: string
           total_cost: number
           unit_cost: number
@@ -10584,6 +10587,9 @@ export type Database = {
           posted_by?: string | null
           produced_qty: number
           raw_cost?: number
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
           status?: string
           total_cost?: number
           unit_cost?: number
@@ -10604,6 +10610,9 @@ export type Database = {
           posted_by?: string | null
           produced_qty?: number
           raw_cost?: number
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
           status?: string
           total_cost?: number
           unit_cost?: number
@@ -10760,6 +10769,9 @@ export type Database = {
           payment_method: string
           posted_at: string | null
           posted_by: string | null
+          rejected_at: string | null
+          rejected_by: string | null
+          rejection_reason: string | null
           status: string
           supplier: string
           total_amount: number
@@ -10776,6 +10788,9 @@ export type Database = {
           payment_method: string
           posted_at?: string | null
           posted_by?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
           status?: string
           supplier: string
           total_amount?: number
@@ -10792,6 +10807,9 @@ export type Database = {
           payment_method?: string
           posted_at?: string | null
           posted_by?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
           status?: string
           supplier?: string
           total_amount?: number
@@ -10856,6 +10874,9 @@ export type Database = {
           payment_method: string
           posted_at: string | null
           posted_by: string | null
+          rejected_at: string | null
+          rejected_by: string | null
+          rejection_reason: string | null
           status: string
           supplier: string
           total_amount: number
@@ -10872,6 +10893,9 @@ export type Database = {
           payment_method: string
           posted_at?: string | null
           posted_by?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
           status?: string
           supplier: string
           total_amount?: number
@@ -10888,6 +10912,9 @@ export type Database = {
           payment_method?: string
           posted_at?: string | null
           posted_by?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
           status?: string
           supplier?: string
           total_amount?: number
@@ -16003,6 +16030,7 @@ export type Database = {
       }
     }
     Functions: {
+      _assert_mf_invoice_approver: { Args: never; Returns: undefined }
       _recon_assert_manager: { Args: never; Returns: undefined }
       _recon_transition: {
         Args: {
@@ -17326,6 +17354,10 @@ export type Database = {
       reject_meat_purchase: {
         Args: { p_purchase_id: string; p_reason?: string }
         Returns: string
+      }
+      reject_mf_invoice: {
+        Args: { p_id: string; p_reason: string; p_table: string }
+        Returns: undefined
       }
       reject_proposal: {
         Args: { p_id: string; p_note?: string }

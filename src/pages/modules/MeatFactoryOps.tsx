@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Factory, Package, Boxes, Coins, Plus, Printer, FileSpreadsheet, CheckCircle2, History, Trash2, ArrowRightLeft, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 import * as XLSX from "xlsx";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate, COMPANY_AR } from "@/lib/printPdf";
 
@@ -25,7 +26,8 @@ const fmt = (n: number | null | undefined, d = 2) => (n == null ? "—" : Number
 
 const STATUS_BADGE = (s: string) => {
   if (s === "posted") return <Badge className="bg-emerald-600">معتمدة</Badge>;
-  if (s === "draft") return <Badge variant="outline">مسودة</Badge>;
+  if (s === "draft") return <Badge variant="outline" className="border-amber-400 text-amber-700">بانتظار الاعتماد</Badge>;
+  if (s === "rejected") return <Badge variant="destructive">مرفوضة</Badge>;
   if (s === "cancelled") return <Badge variant="destructive">ملغاة</Badge>;
   return <Badge>{s}</Badge>;
 };
@@ -39,6 +41,8 @@ const TestToggle = ({ value, onChange }: { value: boolean; onChange: (v: boolean
 );
 
 const MeatFactoryOps = () => {
+  const { isGeneralManager, isExecutiveManager } = useAuth();
+  const canApprove = isGeneralManager || isExecutiveManager;
   const [raws, setRaws] = useState<Raw[]>([]);
   const [packs, setPacks] = useState<Pack[]>([]);
   const [fins, setFins] = useState<Fin[]>([]);
@@ -294,16 +298,16 @@ const MeatFactoryOps = () => {
 
           {/* ===== PURCHASES ===== */}
           <TabsContent value="rawpurchase">
-            <RawPurchaseTab raws={raws} list={rawPurchases} onReload={loadAll} onPost={(id) => post("post_mf_raw_purchase", id)} onPrint={printDoc} onExcel={exportSheet} />
+            <RawPurchaseTab raws={raws} list={rawPurchases} onReload={loadAll} onPost={(id) => post("post_mf_raw_purchase", id)} onPrint={printDoc} onExcel={exportSheet} canApprove={canApprove} />
           </TabsContent>
 
           <TabsContent value="packpurchase">
-            <PackPurchaseTab packs={packs} list={packPurchases} onReload={loadAll} onPost={(id) => post("post_mf_pack_purchase", id)} onPrint={printDoc} onExcel={exportSheet} />
+            <PackPurchaseTab packs={packs} list={packPurchases} onReload={loadAll} onPost={(id) => post("post_mf_pack_purchase", id)} onPrint={printDoc} onExcel={exportSheet} canApprove={canApprove} />
           </TabsContent>
 
           {/* ===== MANUFACTURING ===== */}
           <TabsContent value="mfg">
-            <ManufacturingTab raws={raws} packs={packs} fins={fins} list={mfgInvoices} onReload={loadAll} onPost={(id) => post("post_mf_manufacturing", id)} onPrint={printDoc} onExcel={exportSheet} />
+            <ManufacturingTab raws={raws} packs={packs} fins={fins} list={mfgInvoices} onReload={loadAll} onPost={(id) => post("post_mf_manufacturing", id)} onPrint={printDoc} onExcel={exportSheet} canApprove={canApprove} />
           </TabsContent>
 
           {/* ===== SALES ===== */}
@@ -437,7 +441,7 @@ const InventoryCard = ({ title, items, onExcel, onPrint }: any) => (
 );
 
 // ===== Raw Purchase Tab =====
-const RawPurchaseTab = ({ raws, list, onReload, onPost, onPrint, onExcel }: any) => {
+const RawPurchaseTab = ({ raws, list, onReload, onPost, onPrint, onExcel, canApprove }: any) => {
   const [open, setOpen] = useState(false);
   const [supplier, setSupplier] = useState("");
   const [pmethod, setPmethod] = useState<"cash" | "credit">("cash");
@@ -518,7 +522,7 @@ const RawPurchaseTab = ({ raws, list, onReload, onPost, onPrint, onExcel }: any)
                 <TableCell className="font-bold">{fmt(p.total_amount)}</TableCell>
                 <TableCell>{STATUS_BADGE(p.status)}</TableCell>
                 <TableCell className="flex gap-1">
-                  {p.status === "draft" && <Button size="sm" onClick={() => onPost(p.id)}><CheckCircle2 className="h-4 w-4 ml-1" />اعتماد</Button>}
+                  {p.status === "draft" && canApprove && <Button size="sm" onClick={() => onPost(p.id)}><CheckCircle2 className="h-4 w-4 ml-1" />اعتماد</Button>}
                   <Button size="icon" variant="outline" onClick={() => onPrint("فاتورة شراء خامات", "فاتورة شراء خامات", p.invoice_no, p.status, ["الصنف", "الكمية", "الوحدة", "السعر", "الإجمالي"], (p.items || []).map((it: any) => [it.raw?.name_ar, fmt(it.qty), it.raw?.unit, fmt(it.unit_price), fmt(it.total)]), [{ label: "الإجمالي", value: fmt(p.total_amount) }, { label: "طريقة الدفع", value: p.payment_method === "cash" ? "نقدي" : "آجل" }], p.notes)}><Printer className="h-4 w-4" /></Button>
                 </TableCell>
               </TableRow>
@@ -532,7 +536,7 @@ const RawPurchaseTab = ({ raws, list, onReload, onPost, onPrint, onExcel }: any)
 };
 
 // ===== Pack Purchase Tab =====
-const PackPurchaseTab = ({ packs, list, onReload, onPost, onPrint, onExcel }: any) => {
+const PackPurchaseTab = ({ packs, list, onReload, onPost, onPrint, onExcel, canApprove }: any) => {
   const [open, setOpen] = useState(false);
   const [supplier, setSupplier] = useState("");
   const [pmethod, setPmethod] = useState<"cash" | "credit">("cash");
@@ -613,7 +617,7 @@ const PackPurchaseTab = ({ packs, list, onReload, onPost, onPrint, onExcel }: an
                 <TableCell className="font-bold">{fmt(p.total_amount)}</TableCell>
                 <TableCell>{STATUS_BADGE(p.status)}</TableCell>
                 <TableCell className="flex gap-1">
-                  {p.status === "draft" && <Button size="sm" onClick={() => onPost(p.id)}><CheckCircle2 className="h-4 w-4 ml-1" />اعتماد</Button>}
+                  {p.status === "draft" && canApprove && <Button size="sm" onClick={() => onPost(p.id)}><CheckCircle2 className="h-4 w-4 ml-1" />اعتماد</Button>}
                   <Button size="icon" variant="outline" onClick={() => onPrint("فاتورة شراء تغليف", "فاتورة شراء تغليف", p.invoice_no, p.status, ["العلبة", "العدد", "السعر", "الإجمالي"], (p.items || []).map((it: any) => [it.pack?.name_ar, fmt(it.qty), fmt(it.unit_price), fmt(it.total)]), [{ label: "الإجمالي", value: fmt(p.total_amount) }], p.notes)}><Printer className="h-4 w-4" /></Button>
                 </TableCell>
               </TableRow>
@@ -626,7 +630,7 @@ const PackPurchaseTab = ({ packs, list, onReload, onPost, onPrint, onExcel }: an
 };
 
 // ===== Manufacturing Tab =====
-const ManufacturingTab = ({ raws, packs, fins, list, onReload, onPost, onPrint, onExcel }: any) => {
+const ManufacturingTab = ({ raws, packs, fins, list, onReload, onPost, onPrint, onExcel, canApprove }: any) => {
   const [open, setOpen] = useState(false);
   const [finishedId, setFinishedId] = useState("");
   const [producedQty, setProducedQty] = useState("");
@@ -734,7 +738,7 @@ const ManufacturingTab = ({ raws, packs, fins, list, onReload, onPost, onPrint, 
                 <TableCell>{fmt(m.unit_cost)}</TableCell>
                 <TableCell>{STATUS_BADGE(m.status)}</TableCell>
                 <TableCell className="flex gap-1">
-                  {m.status === "draft" && <Button size="sm" onClick={() => onPost(m.id)}><CheckCircle2 className="h-4 w-4 ml-1" />اعتماد</Button>}
+                  {m.status === "draft" && canApprove && <Button size="sm" onClick={() => onPost(m.id)}><CheckCircle2 className="h-4 w-4 ml-1" />اعتماد</Button>}
                   <Button size="icon" variant="outline" onClick={() => {
                     const rows: string[][] = [];
                     rows.push(["المنتج النهائي", m.fin?.name_ar, fmt(m.produced_qty), "", fmt(m.total_cost)]);
