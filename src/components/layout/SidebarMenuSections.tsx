@@ -54,6 +54,7 @@ import {
 import { useAuth, AppRole } from "@/hooks/useAuth";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
 import { useLabTreasuryApprovals } from "@/hooks/useLabTreasuryApprovals";
+import { useExecutiveApprovals } from "@/hooks/useExecutiveApprovals";
 import { useUnreadInternalMessages } from "@/hooks/useUnreadInternalMessages";
 import { findModeratorByName } from "@/constants/moderators";
 import { Badge } from "@/components/ui/badge";
