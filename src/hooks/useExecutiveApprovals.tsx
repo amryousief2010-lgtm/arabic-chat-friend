@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-export type ApprovalCategory = "treasury" | "meat" | "custody" | "slaughter" | "lab" | "hr";
+export type ApprovalCategory = "treasury" | "meat" | "custody" | "slaughter" | "lab" | "hr" | "mf_purchase" | "mf_mfg";
 
 export type ApprovalItem = {
   id: string;
@@ -64,7 +64,7 @@ export function useExecutiveApprovals() {
     refetchOnWindowFocus: true,
     staleTime: 15_000,
     queryFn: async () => {
-      const [treasuryRes, labRes, meatInvRes, meatMfgRes, custodyRes, slaughterRes, hrRes] = await Promise.all([
+      const [treasuryRes, labRes, meatInvRes, meatMfgRes, custodyRes, slaughterRes, hrRes, mfRawRes, mfPackRes, mfMfgRes] = await Promise.all([
         (supabase as any)
           .from("main_treasury_transactions")
           .select("id, reference_no, txn_type, amount, txn_date, counterparty, description, status, created_at, created_by, payment_method, deposit_purpose, incoming_source")
@@ -107,10 +107,28 @@ export function useExecutiveApprovals() {
           .eq("status", HR_PENDING)
           .order("created_at", { ascending: false })
           .limit(200),
+        (supabase as any)
+          .from("mf_raw_purchases")
+          .select("id, invoice_no, invoice_date, supplier, payment_method, total_amount, notes, status, created_at, created_by, items:mf_raw_purchase_items(qty, unit_price, total, raw:meat_raw_inventory(name_ar, unit))")
+          .eq("status", "draft")
+          .order("created_at", { ascending: false })
+          .limit(200),
+        (supabase as any)
+          .from("mf_pack_purchases")
+          .select("id, invoice_no, invoice_date, supplier, payment_method, total_amount, notes, status, created_at, created_by, items:mf_pack_purchase_items(qty, unit_price, total, pack:meat_packaging_inventory(name_ar, unit))")
+          .eq("status", "draft")
+          .order("created_at", { ascending: false })
+          .limit(200),
+        (supabase as any)
+          .from("mf_manufacturing")
+          .select("id, invoice_no, mfg_date, produced_qty, extra_cost, total_cost, notes, status, created_at, created_by, fin:meat_finished_inventory(name_ar, unit), raw_lines:mf_mfg_raw_lines(qty, raw:meat_raw_inventory(name_ar, unit)), pack_lines:mf_mfg_pack_lines(qty, pack:meat_packaging_inventory(name_ar, unit))")
+          .eq("status", "draft")
+          .order("created_at", { ascending: false })
+          .limit(200),
       ]);
 
       const allCreators: string[] = [];
-      [treasuryRes, labRes, meatInvRes, meatMfgRes, custodyRes, slaughterRes, hrRes].forEach((r) =>
+      [treasuryRes, labRes, meatInvRes, meatMfgRes, custodyRes, slaughterRes, hrRes, mfRawRes, mfPackRes, mfMfgRes].forEach((r) =>
         (r.data || []).forEach((x: any) => x.created_by && allCreators.push(x.created_by))
       );
       const profiles = await resolveProfiles(allCreators);
