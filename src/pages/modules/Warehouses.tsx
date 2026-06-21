@@ -567,7 +567,7 @@ const Warehouses = () => {
           </Card>
         </div>
 
-        <Tabs defaultValue="items">
+        <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); if (v === "menu") setMenuSubview(null); }} defaultValue="items">
           <div className="overflow-x-auto pb-1">
             <TabsList className="w-max flex-nowrap">
               <TabsTrigger value="items">الأصناف</TabsTrigger>
@@ -584,6 +584,7 @@ const Warehouses = () => {
               <TabsTrigger value="wh-carrefour" className="gap-1"><Warehouse className="w-4 h-4" />هايبر كارفور</TabsTrigger>
               <TabsTrigger value="wh-packaging" className="gap-1"><Package className="w-4 h-4" />التغليف والتعبئة</TabsTrigger>
               <TabsTrigger value="wh-activity" className="gap-1"><BarChart3 className="w-4 h-4" />سجل حركات المخزن الرئيسي</TabsTrigger>
+              <TabsTrigger value="menu" className="gap-1"><Menu className="w-4 h-4" />المنيو</TabsTrigger>
             </TabsList>
           </div>
 
