@@ -1326,10 +1326,10 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
                 const availableForLot = transferBatchesData.filter(
                   (g) =>
                     g.hatchery_intake_state === "active" &&
-                    (((g.shipments || []).length > 0 && g.shipments.every((s: any) => lotSelectedIds.has(s.id))) ||
+                    ((((g.shipments || []).length > 0 && g.shipments.every((s: any) => lotSelectedIds.has(s.id))) ||
                       ((g.farm_transfer_ids || []).length > 0 && g.farm_transfer_ids.every((id: string) => lotSelectedTransferIds.has(id)))) ||
                     ((g.shipments || []).every((s: any) => !usedShipmentIds.has(s.id)) &&
-                      (g.farm_transfer_ids || []).every((id: string) => !usedFarmTransferIds.has(id)))
+                      (g.farm_transfer_ids || []).every((id: string) => !usedFarmTransferIds.has(id))))
                 );
                 const currentKey =
                   (l.from_shipment_ids || []).length > 0 || (l.from_farm_transfer_ids || []).length > 0
