@@ -435,7 +435,7 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
     .filter((section) => hasAnyRole(section.roles) && section.items.length > 0);
 
   return (
-    <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+    <nav ref={navRef} className="flex-1 p-3 space-y-1 overflow-y-auto">
       {visibleSections.map((section) => {
         const isOpen = openSections[section.id] ?? false;
         const hasActiveItem = section.items.some((i) => i.path === location.pathname);
