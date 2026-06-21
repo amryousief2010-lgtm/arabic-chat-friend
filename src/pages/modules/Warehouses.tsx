@@ -576,7 +576,6 @@ const Warehouses = () => {
               </TabsTrigger>
               <TabsTrigger value="movements">الحركات</TabsTrigger>
               <TabsTrigger value="low">منخفضة <Badge variant="destructive" className="mr-2">{lowStockItems.length}</Badge></TabsTrigger>
-              <TabsTrigger value="warehouses">المخازن</TabsTrigger>
               <TabsTrigger value="distribution" className="gap-1"><MapPin className="w-4 h-4" />التوزيع الجغرافي</TabsTrigger>
               <TabsTrigger value="wh-main" className="gap-1"><Warehouse className="w-4 h-4" />المخزن الرئيسي</TabsTrigger>
               <TabsTrigger value="wh-agouza" className="gap-1"><Warehouse className="w-4 h-4" />مخزن العجوزة</TabsTrigger>
@@ -584,9 +583,6 @@ const Warehouses = () => {
               <TabsTrigger value="wh-carrefour" className="gap-1"><Warehouse className="w-4 h-4" />هايبر كارفور</TabsTrigger>
               <TabsTrigger value="wh-packaging" className="gap-1"><Package className="w-4 h-4" />التغليف والتعبئة</TabsTrigger>
               <TabsTrigger value="wh-activity" className="gap-1"><BarChart3 className="w-4 h-4" />سجل حركات المخزن الرئيسي</TabsTrigger>
-              <TabsTrigger value="wh-opening" className="gap-1"><Package className="w-4 h-4" />الرصيد الافتتاحي</TabsTrigger>
-              <TabsTrigger value="wh-operational" className="gap-1"><Settings2 className="w-4 h-4" />تواريخ بداية التشغيل</TabsTrigger>
-              <TabsTrigger value="wh-guide" className="gap-1"><FileText className="w-4 h-4" />دليل المخزن الرئيسي</TabsTrigger>
             </TabsList>
           </div>
 
