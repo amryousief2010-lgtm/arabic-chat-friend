@@ -806,14 +806,30 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
                   {renderMainCols && <th className="p-2 font-semibold whitespace-nowrap">الرئيسي — الفعلي</th>}
                   {renderMainCols && <th className="p-2 font-semibold whitespace-nowrap">الرئيسي — المحجوز</th>}
                   {renderMainCols && <th className="p-2 font-semibold whitespace-nowrap">الرئيسي — المتاح</th>}
+                  {(renderCarrefourCols || renderHealthyCols) && <th className="p-2 font-semibold whitespace-nowrap">الفعلي</th>}
+                  {(renderCarrefourCols || renderHealthyCols) && <th className="p-2 font-semibold whitespace-nowrap">المحجوز</th>}
+                  {(renderCarrefourCols || renderHealthyCols) && <th className="p-2 font-semibold whitespace-nowrap">المتاح</th>}
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((p) => {
+                {filtered
+                  .filter((p) => {
+                    if (!currentSingleScope) return true;
+                    const a = currentStock[p.id] ?? 0;
+                    const r = currentPending[p.id] ?? 0;
+                    const lo = (currentSingleScope ? getLowMap(currentSingleScope) : {})[p.id] ?? 0;
+                    if (tableFilter === "withStock") return a > 0;
+                    if (tableFilter === "lowStock") return lo > 0 && a <= lo;
+                    if (tableFilter === "overReserved") return r > a;
+                    return true;
+                  })
+                  .map((p) => {
                   const aActual = agouzaStock[p.id] ?? 0;
                   const aPend = agouzaPending[p.id] ?? 0;
                   const mActual = mainStock[p.id] ?? 0;
                   const mPend = mainPending[p.id] ?? 0;
+                  const cActual = currentSingleScope ? (currentStock[p.id] ?? 0) : 0;
+                  const cPend = currentSingleScope ? (currentPending[p.id] ?? 0) : 0;
                   return (
                     <tr key={p.id} className="border-t hover:bg-muted/30">
                       <td className="p-2 font-bold text-green-600 dark:text-green-400">{p.name}</td>
@@ -824,11 +840,18 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
                       {renderMainCols && <td className="p-2"><ActualCell wh="main" pid={p.id} name={p.name} kgValue={mActual} /></td>}
                       {renderMainCols && <td className="p-2"><ReservedCell pending={mPend} name={p.name} onOpen={() => setReservedDlg({ wh: "main", productId: p.id, productName: p.name, total: mPend })} /></td>}
                       {renderMainCols && <td className="p-2"><AvailableCell actual={mActual} pending={mPend} name={p.name} /></td>}
+                      {(renderCarrefourCols || renderHealthyCols) && currentSingleScope && (
+                        <>
+                          <td className="p-2"><ActualCell wh={currentSingleScope} pid={p.id} name={p.name} kgValue={cActual} /></td>
+                          <td className="p-2"><ReservedCell pending={cPend} name={p.name} onOpen={() => setReservedDlg({ wh: currentSingleScope, productId: p.id, productName: p.name, total: cPend })} /></td>
+                          <td className="p-2"><AvailableCell actual={cActual} pending={cPend} name={p.name} /></td>
+                        </>
+                      )}
                     </tr>
                   );
                 })}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">لا توجد منتجات</td></tr>
+                  <tr><td colSpan={10} className="p-6 text-center text-muted-foreground">لا توجد منتجات</td></tr>
                 )}
               </tbody>
             </table>
@@ -841,6 +864,8 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
               const aPend = agouzaPending[p.id] ?? 0;
               const mActual = mainStock[p.id] ?? 0;
               const mPend = mainPending[p.id] ?? 0;
+              const cActual = currentSingleScope ? (currentStock[p.id] ?? 0) : 0;
+              const cPend = currentSingleScope ? (currentPending[p.id] ?? 0) : 0;
               return (
                 <div key={p.id} className="border rounded-lg p-3 bg-card space-y-2">
                   <div>
@@ -867,6 +892,16 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
                       </div>
                     </div>
                   )}
+                  {(renderCarrefourCols || renderHealthyCols) && currentSingleScope && (
+                    <div className="border-t pt-2">
+                      <div className="text-xs font-semibold mb-1 text-muted-foreground">{currentWhLabel}</div>
+                      <div className="grid grid-cols-3 gap-1 text-[11px]">
+                        <div><div className="text-muted-foreground mb-0.5">الفعلي</div><ActualCell wh={currentSingleScope} pid={p.id} name={p.name} kgValue={cActual} /></div>
+                        <div><div className="text-muted-foreground mb-0.5">المحجوز</div><ReservedCell pending={cPend} name={p.name} onOpen={() => setReservedDlg({ wh: currentSingleScope, productId: p.id, productName: p.name, total: cPend })} /></div>
+                        <div><div className="text-muted-foreground mb-0.5">المتاح</div><AvailableCell actual={cActual} pending={cPend} name={p.name} /></div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -879,27 +914,28 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
         <ReservedDetailsDialog
           open={!!reservedDlg}
           onOpenChange={(o) => { if (!o) setReservedDlg(null); }}
-          warehouseId={(reservedDlg.wh === "agouza" ? agouzaWhId : mainWhId) || ""}
-          warehouseName={reservedDlg.wh === "agouza" ? "مخزن العجوزة" : "المخزن الرئيسي"}
+          warehouseId={getWhId(reservedDlg.wh) || ""}
+          warehouseName={getWhLabel(reservedDlg.wh)}
           productId={reservedDlg.productId}
           productName={reservedDlg.productName}
           totalReservedKg={reservedDlg.total}
         />
       )}
 
-      {scope === "main" && (
+      {isSingleScope(scope) && currentSingleScope && (
         <MainCardDialog
           mode={cardDialog}
           onClose={() => setCardDialog(null)}
           products={products}
-          mainStock={mainStock}
-          mainPending={mainPending}
-          mainCost={mainCost}
-          mainSku={mainSku}
-          mainLastMove={mainLastMove}
+          mainStock={currentStock}
+          mainPending={currentPending}
+          mainCost={currentCost}
+          mainSku={currentSku}
+          mainLastMove={currentLastMove}
           search={cardSearch}
           onSearch={setCardSearch}
-          onOpenReserved={(pid, name, total) => setReservedDlg({ wh: "main", productId: pid, productName: name, total })}
+          onOpenReserved={(pid, name, total) => setReservedDlg({ wh: currentSingleScope, productId: pid, productName: name, total })}
+          warehouseName={currentWhLabel}
         />
       )}
     </>
@@ -910,3 +946,4 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
 
 
 export default WarehouseStockView;
+
