@@ -19,9 +19,10 @@ import { printSupplyRequest, printOrderInvoice } from "@/lib/printUtils";
 import InboundSupplyTab from "@/components/warehouse/InboundSupplyTab";
 import { SlaughterToMainWarehouseInbox } from "@/components/warehouse/SlaughterToMainWarehouseInbox";
 import ManualStockAdditionDialog from "@/components/warehouse/ManualStockAdditionDialog";
+import ManualStockOutDialog from "@/components/warehouse/ManualStockOutDialog";
 import { isFeatureEnabled } from "@/config/featureFlags";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate, COMPANY_AR } from "@/lib/printPdf";
-import { Printer, PackagePlus } from "lucide-react";
+import { Printer, PackagePlus, PackageMinus } from "lucide-react";
 
 
 import * as XLSX from "xlsx";
@@ -43,6 +44,7 @@ const WarehouseDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { canManageWarehouses, user, isGeneralManager, isExecutiveManager, isWarehouseSupervisor, isAgouzaWarehouseKeeper, isProductionManager } = useAuth();
   const [manualAddOpen, setManualAddOpen] = useState(false);
+  const [manualOutOpen, setManualOutOpen] = useState(false);
 
 
   const canDeleteOutletOrder = isGeneralManager || isExecutiveManager;
@@ -105,6 +107,15 @@ const WarehouseDetail = () => {
     if (!isMain && !isAgouza && canManageWarehouses) return true;
     return false;
   }, [isMain, isAgouza, isGeneralManager, isExecutiveManager, isProductionManager, isWarehouseSupervisor, isAgouzaWarehouseKeeper, canManageWarehouses]);
+
+  // صلاحية الصرف اليدوي / التوريد المباشر للجهات:
+  //  • فعّال فقط للمخزن الرئيسي حاليًا
+  //  • للأدوار: المدير العام / المدير التنفيذي / مسؤول المخزن الرئيسي
+  const canManualOut = useMemo(() => {
+    if (!isFeatureEnabled("allow_manual_warehouse_stock_out")) return false;
+    if (!isMain) return false;
+    return isGeneralManager || isExecutiveManager || isWarehouseSupervisor;
+  }, [isMain, isGeneralManager, isExecutiveManager, isWarehouseSupervisor]);
 
 
 
@@ -909,6 +920,13 @@ const WarehouseDetail = () => {
               <Button onClick={() => setManualAddOpen(true)} className="bg-emerald-600 hover:bg-emerald-700">
                 <PackagePlus className="w-4 h-4 ml-2" />
                 إضافة رصيد / توريد مباشر
+              </Button>
+            )}
+
+            {canManualOut && (
+              <Button onClick={() => setManualOutOpen(true)} className="bg-rose-600 hover:bg-rose-700">
+                <PackageMinus className="w-4 h-4 ml-2" />
+                صرف منتجات / توريد للجهات
               </Button>
             )}
 
@@ -1973,6 +1991,17 @@ const WarehouseDetail = () => {
         <ManualStockAdditionDialog
           open={manualAddOpen}
           onOpenChange={setManualAddOpen}
+          warehouseId={id!}
+          warehouseName={warehouse?.name}
+          items={items}
+          onSaved={fetchAll}
+        />
+      )}
+
+      {canManualOut && (
+        <ManualStockOutDialog
+          open={manualOutOpen}
+          onOpenChange={setManualOutOpen}
           warehouseId={id!}
           warehouseName={warehouse?.name}
           items={items}
