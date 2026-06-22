@@ -20,6 +20,7 @@ import { openPrintWindow } from "@/lib/printPdf";
 import { MarketProfitabilityCard, MarketPricesTab, useMarketPrices } from "./BroodingMarketPrices";
 import { MovementsLog } from "@/components/MovementsLog";
 import FeedInternalDebtDashboard from "@/components/feed/FeedInternalDebtDashboard";
+import ChickTradingTab from "@/components/chick-trading/ChickTradingTab";
 
 // ===== Types =====
 type Batch = {
