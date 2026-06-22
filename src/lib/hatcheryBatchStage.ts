@@ -5,7 +5,7 @@ export type StageKey =
 export const HATCH_BATCHES_LAB_QUERY_KEY = ["hatch_batches_lab"] as const;
 
 export const HATCH_BATCHES_LAB_SELECT =
-  "id, batch_number, operational_batch_no, receive_date, entry_date, machine, received_eggs, net_eggs, hatched_chicks, hatcher_dead, candle1_date, candle1_fertile, candle1_infertile, candle2_date, candle2_fertile, candle2_dead, exit_date, status, customer_id, notes, created_at, is_test, hatch_customers(id,name,customer_type)";
+  "id, batch_number, operational_batch_no, receive_date, entry_date, machine, received_eggs, net_eggs, excluded_eggs, excluded_reason, hatched_chicks, hatcher_dead, candle1_date, candle1_fertile, candle1_infertile, candle2_date, candle2_fertile, candle2_dead, exit_date, status, customer_id, notes, created_at, is_test, hatch_customers(id,name,customer_type)";
 
 export const CLOSED_HATCH_BATCH_STATUSES = new Set([
   "completed",
