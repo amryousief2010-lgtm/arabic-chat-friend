@@ -63,6 +63,18 @@ export default function ManufacturingInvoices() {
   const [saving, setSaving] = useState(false);
   const [invoiceUuid, setInvoiceUuid] = useState<string>(() => crypto.randomUUID());
 
+  // Carryover dough — OUT (this invoice produces leftover dough)
+  const [hasCarryoverOut, setHasCarryoverOut] = useState(false);
+  const [carryoverOutQty, setCarryoverOutQty] = useState<number>(0);
+  const [carryoverOutProduct, setCarryoverOutProduct] = useState<string>("");
+  const [carryoverOutNotes, setCarryoverOutNotes] = useState<string>("");
+
+  // Carryover dough — IN (this invoice consumes available leftover dough)
+  type CarryRow = { id: string; source_invoice_no: string | null; source_product_name: string; remaining_qty_kg: number; unit_cost: number; production_date: string; status: string };
+  const [availableCarryovers, setAvailableCarryovers] = useState<CarryRow[]>([]);
+  const [carryoverInId, setCarryoverInId] = useState<string>("");
+  const [carryoverInQty, setCarryoverInQty] = useState<number>(0);
+
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [viewing, setViewing] = useState<Invoice | null>(null);
   const [viewLines, setViewLines] = useState<any[]>([]);
@@ -80,11 +92,16 @@ export default function ManufacturingInvoices() {
   }, [mappings]);
 
   const fetchAll = async () => {
-    const [whs, inv, ri, mp] = await Promise.all([
+    const [whs, inv, ri, mp, cd] = await Promise.all([
       supabase.from("warehouses").select("id, name, type").order("name"),
       supabase.from("meat_manufacturing_invoices" as any).select("*").order("created_at", { ascending: false }).limit(200),
       supabase.from("meat_factory_raw_items" as any).select("id,name,unit,current_stock,avg_cost,kind,is_active,code").eq("is_active", true).order("name"),
       supabase.from("meat_recipe_item_mappings" as any).select("id,recipe_item_name,recipe_item_kind,mapped_raw_item_id,mapped_raw_item_name"),
+      supabase.from("meat_factory_carryover_dough" as any)
+        .select("id,source_invoice_no,source_product_name,remaining_qty_kg,unit_cost,production_date,status")
+        .in("status", ["available", "partial"])
+        .gt("remaining_qty_kg", 0)
+        .order("created_at", { ascending: false }),
     ]);
     if (whs.data) {
       const factory = whs.data.filter(w => w.name?.includes("مصنع اللحوم"));
@@ -96,6 +113,7 @@ export default function ManufacturingInvoices() {
     if (inv.data) setInvoices(inv.data as any);
     if (ri.data) setItems(ri.data as any);
     if (mp.data) setMappings(mp.data as any);
+    if (cd.data) setAvailableCarryovers(cd.data as any);
   };
 
   useEffect(() => { fetchAll(); }, []);
@@ -131,9 +149,35 @@ export default function ManufacturingInvoices() {
   const spiceCost = useMemo(() => rawLines.filter(l => l.kind === "spice").reduce((s,l) => s + Number(l.line_total||0), 0), [rawLines]);
   const packCost = useMemo(() => packLines.reduce((s,l) => s + Number(l.line_total||0), 0), [packLines]);
   const serviceCost = useMemo(() => serviceCostLines.reduce((s,l) => s + Number(l.line_total||0), 0), [serviceCostLines]);
-  const totalExtraCost = Number(extraCost || 0) + serviceCost;
+
+  // Carryover-IN selected balance & its monetary cost
+  const selectedCarryover = useMemo(
+    () => availableCarryovers.find(c => c.id === carryoverInId) || null,
+    [availableCarryovers, carryoverInId]
+  );
+  const carryoverInCost = useMemo(() => {
+    if (!selectedCarryover || !carryoverInQty) return 0;
+    return Number(carryoverInQty) * Number(selectedCarryover.unit_cost || 0);
+  }, [selectedCarryover, carryoverInQty]);
+  const carryoverInError = useMemo(() => {
+    if (!selectedCarryover) return null;
+    const q = Number(carryoverInQty || 0);
+    if (q <= 0) return null;
+    if (q > Number(selectedCarryover.remaining_qty_kg || 0)) return "الكمية المستخدمة أكبر من المتاح من العجينة المرحلة";
+    return null;
+  }, [selectedCarryover, carryoverInQty]);
+
+  const totalExtraCost = Number(extraCost || 0) + serviceCost + carryoverInCost;
   const totalCost = rawCost + spiceCost + packCost + totalExtraCost;
+  // Unit cost is computed over the sellable finished qty only — carryover-out qty is parked, not sold.
   const unitCost = finishedQty > 0 ? totalCost / finishedQty : 0;
+
+  // Unit cost imputed to leftover dough (for accounting): materials only, distributed over (finished + leftover)
+  const carryoverOutUnitCost = useMemo(() => {
+    const materials = rawCost + spiceCost + packCost;
+    const denom = Number(finishedQty || 0) + Number(carryoverOutQty || 0);
+    return denom > 0 ? materials / denom : 0;
+  }, [rawCost, spiceCost, packCost, finishedQty, carryoverOutQty]);
 
   const finalProductName = productName === "أخرى" ? productNameOther.trim() : productName;
 
@@ -142,6 +186,8 @@ export default function ManufacturingInvoices() {
     setServiceCostLines([]);
     setProductName(""); setProductNameOther(""); setFinishedQty(0); setNotes("");
     setExtraCost(0); setDestinationKind("factory_warehouse");
+    setHasCarryoverOut(false); setCarryoverOutQty(0); setCarryoverOutProduct(""); setCarryoverOutNotes("");
+    setCarryoverInId(""); setCarryoverInQty(0);
     setInvoiceUuid(crypto.randomUUID());
   };
 
@@ -343,6 +389,22 @@ export default function ManufacturingInvoices() {
       return;
     }
 
+    // Carryover-OUT validation
+    if (hasCarryoverOut) {
+      if (!carryoverOutQty || Number(carryoverOutQty) <= 0) {
+        toast.error("أدخل كمية العجينة المتبقية بالكيلو");
+        return;
+      }
+    }
+    // Carryover-IN validation
+    if (carryoverInId) {
+      if (carryoverInError) { toast.error(carryoverInError); return; }
+      if (!carryoverInQty || Number(carryoverInQty) <= 0) {
+        toast.error("أدخل كمية العجينة المرحلة المستخدمة");
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       const existing = await supabase.from("meat_manufacturing_invoices" as any)
@@ -352,6 +414,13 @@ export default function ManufacturingInvoices() {
       const { data: noRes, error: noErr } = await supabase.rpc("gen_meat_invoice_no" as any);
       if (noErr) throw noErr;
       const invoiceNo = noRes as unknown as string;
+
+      const carryoverInNote = carryoverInId && selectedCarryover
+        ? `[carryover_in] استخدام ${fmt(carryoverInQty)} كجم عجينة مرحلة من ${selectedCarryover.source_product_name} (فاتورة ${selectedCarryover.source_invoice_no || "—"}) × ${fmt(selectedCarryover.unit_cost)} = ${fmt(carryoverInCost)}`
+        : "";
+      const carryoverOutNote = hasCarryoverOut
+        ? `[carryover_out] تم حفظ ${fmt(carryoverOutQty)} كجم عجينة متبقية برصيد العجينة المرحلة بتكلفة ${fmt(carryoverOutUnitCost)} ج/كجم${carryoverOutNotes ? " — " + carryoverOutNotes : ""}`
+        : "";
 
       const { data: inv, error: insErr } = await supabase.from("meat_manufacturing_invoices" as any).insert({
         invoice_no: invoiceNo,
@@ -366,7 +435,12 @@ export default function ManufacturingInvoices() {
         extra_cost: totalExtraCost, total_manufacturing_cost: totalCost,
         unit_cost: unitCost,
         status: "draft",
-        notes: [notes, ...serviceCostLines.map(l => `[service_cost] ${l.item_name}: ${fmt(l.quantity)} ${l.unit} × ${fmt(l.unit_cost)} = ${fmt(l.line_total)}`)].filter(Boolean).join("\n") || null,
+        notes: [
+          notes,
+          ...serviceCostLines.map(l => `[service_cost] ${l.item_name}: ${fmt(l.quantity)} ${l.unit} × ${fmt(l.unit_cost)} = ${fmt(l.line_total)}`),
+          carryoverInNote,
+          carryoverOutNote,
+        ].filter(Boolean).join("\n") || null,
         created_by: user?.id || null,
       } as any).select("id").single();
       if (insErr) throw insErr;
@@ -382,6 +456,46 @@ export default function ManufacturingInvoices() {
       if (linesErr) {
         await supabase.from("meat_manufacturing_invoices" as any).delete().eq("id", (inv as any).id);
         throw new Error("فشل حفظ بنود الفاتورة، لم يتم إنشاء الفاتورة");
+      }
+
+      // Carryover-OUT: insert leftover dough balance
+      if (hasCarryoverOut && Number(carryoverOutQty) > 0) {
+        const { error: coErr } = await supabase.from("meat_factory_carryover_dough" as any).insert({
+          source_invoice_id: (inv as any).id,
+          source_invoice_no: invoiceNo,
+          source_product_name: carryoverOutProduct?.trim() || finalProductName,
+          production_date: new Date().toISOString().slice(0, 10),
+          original_qty_kg: Number(carryoverOutQty),
+          remaining_qty_kg: Number(carryoverOutQty),
+          unit_cost: Number(carryoverOutUnitCost.toFixed(4)),
+          status: "available",
+          notes: carryoverOutNotes?.trim() || null,
+          created_by: user?.id || null,
+          created_by_name: (user as any)?.user_metadata?.full_name || user?.email || null,
+        });
+        if (coErr) toast.warning("الفاتورة محفوظة لكن تعذر حفظ رصيد العجينة المتبقية: " + coErr.message);
+      }
+
+      // Carryover-IN: record usage + decrement remaining
+      if (carryoverInId && selectedCarryover && Number(carryoverInQty) > 0) {
+        const { error: uErr } = await supabase.from("meat_factory_carryover_dough_usage" as any).insert({
+          carryover_id: carryoverInId,
+          used_in_invoice_id: (inv as any).id,
+          used_in_invoice_no: invoiceNo,
+          used_qty_kg: Number(carryoverInQty),
+          unit_cost_at_use: Number(selectedCarryover.unit_cost),
+          used_by: user?.id || null,
+          used_by_name: (user as any)?.user_metadata?.full_name || user?.email || null,
+        });
+        if (uErr) toast.warning("تعذر تسجيل استخدام العجينة المرحلة: " + uErr.message);
+        else {
+          const newRemaining = Math.max(0, Number(selectedCarryover.remaining_qty_kg) - Number(carryoverInQty));
+          const newStatus = newRemaining <= 0.0001 ? "used" : "partial";
+          await supabase.from("meat_factory_carryover_dough" as any).update({
+            remaining_qty_kg: newRemaining,
+            status: newStatus,
+          }).eq("id", carryoverInId);
+        }
       }
 
       toast.success(`تم حفظ الفاتورة ${invoiceNo} بحالة مسودة — اضغط اعتماد للخصم`);
@@ -774,6 +888,116 @@ export default function ManufacturingInvoices() {
                   );
                 })()}
 
+
+                {/* ===== Carryover dough IN — use available leftover dough ===== */}
+                <Card className="border-emerald-200 bg-emerald-50/50 dark:bg-emerald-950/20">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2 text-emerald-800 dark:text-emerald-200">
+                      استخدام عجينة مرحلة (اختياري)
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      اختر يدويًا رصيد عجينة متبقية من فاتورة سابقة لإضافة قيمتها لهذه الفاتورة. الخامات لن تُخصم مرة أخرى.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <Label className="text-xs">رصيد العجينة المرحلة</Label>
+                      <Select value={carryoverInId || "__none__"} onValueChange={v => { setCarryoverInId(v === "__none__" ? "" : v); setCarryoverInQty(0); }}>
+                        <SelectTrigger><SelectValue placeholder="— بدون —" /></SelectTrigger>
+                        <SelectContent className="max-h-72">
+                          <SelectItem value="__none__">— بدون استخدام عجينة مرحلة —</SelectItem>
+                          {availableCarryovers.map(c => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.source_product_name} — متاح {fmt(c.remaining_qty_kg)} كجم × {fmt(c.unit_cost)} ج
+                              {c.source_invoice_no ? ` (فاتورة ${c.source_invoice_no})` : ""}
+                            </SelectItem>
+                          ))}
+                          {availableCarryovers.length === 0 && (
+                            <div className="text-xs text-muted-foreground px-3 py-2">لا يوجد رصيد عجينة مرحلة متاح</div>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">الكمية المستخدمة (كجم)</Label>
+                      <Input
+                        type="number" step="0.001" min={0}
+                        max={selectedCarryover?.remaining_qty_kg || undefined}
+                        disabled={!carryoverInId}
+                        value={carryoverInQty || ""}
+                        onChange={e => setCarryoverInQty(Number(e.target.value))}
+                      />
+                      {selectedCarryover && (
+                        <div className="text-[11px] text-muted-foreground mt-1">
+                          المتاح: <b className="text-emerald-700">{fmt(selectedCarryover.remaining_qty_kg)}</b> كجم — تكلفة الكيلو: <b>{fmt(selectedCarryover.unit_cost)}</b> ج
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <Label className="text-xs">قيمة العجينة المستخدمة</Label>
+                      <div className="h-10 flex items-center px-3 rounded-md border bg-background font-bold text-emerald-700">
+                        {fmt(carryoverInCost)} ج
+                      </div>
+                      {carryoverInError && (
+                        <div className="text-[11px] text-rose-700 mt-1 flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3" /> {carryoverInError}
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* ===== Carryover dough OUT — leftover dough from this invoice ===== */}
+                <Card className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/20">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2 text-amber-800 dark:text-amber-200">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={hasCarryoverOut}
+                          onChange={e => setHasCarryoverOut(e.target.checked)}
+                          className="w-4 h-4 accent-amber-600"
+                        />
+                        يوجد عجينة متبقية
+                      </label>
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      سجّل العجينة الصالحة التي تبقّت في المكبس/الماكينة لتدخل كرصيد في فاتورة تصنيع لاحقة. لن تُحتسب تالف ولن تدخل المنتج النهائي.
+                    </CardDescription>
+                  </CardHeader>
+                  {hasCarryoverOut && (
+                    <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div>
+                        <Label className="text-xs">الكمية المتبقية (كجم)</Label>
+                        <Input
+                          type="number" step="0.001" min={0}
+                          value={carryoverOutQty || ""}
+                          onChange={e => setCarryoverOutQty(Number(e.target.value))}
+                        />
+                        <div className="text-[11px] text-muted-foreground mt-1">
+                          تكلفة الكيلو المحتسبة: <b className="text-amber-700">{fmt(carryoverOutUnitCost)}</b> ج
+                          (الخامات ÷ المنتج + المتبقي)
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-xs">نوع العجينة / المنتج الأصلي</Label>
+                        <Input
+                          placeholder={finalProductName || "مثال: عجينة كفتة"}
+                          value={carryoverOutProduct}
+                          onChange={e => setCarryoverOutProduct(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">ملاحظات</Label>
+                        <Input
+                          placeholder="اختياري"
+                          value={carryoverOutNotes}
+                          onChange={e => setCarryoverOutNotes(e.target.value)}
+                        />
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
 
                 <Card className="border-purple-200 bg-purple-50/50 dark:bg-purple-950/20">
                   <CardContent className="pt-4 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">

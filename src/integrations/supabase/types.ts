@@ -8803,6 +8803,134 @@ export type Database = {
         }
         Relationships: []
       }
+      meat_factory_carryover_dough: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          damaged_at: string | null
+          damaged_by: string | null
+          damaged_by_name: string | null
+          damaged_reason: string | null
+          id: string
+          notes: string | null
+          original_qty_kg: number
+          production_date: string
+          remaining_qty_kg: number
+          source_invoice_id: string | null
+          source_invoice_no: string | null
+          source_product_name: string
+          status: string
+          total_value: number | null
+          unit_cost: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          damaged_at?: string | null
+          damaged_by?: string | null
+          damaged_by_name?: string | null
+          damaged_reason?: string | null
+          id?: string
+          notes?: string | null
+          original_qty_kg: number
+          production_date?: string
+          remaining_qty_kg: number
+          source_invoice_id?: string | null
+          source_invoice_no?: string | null
+          source_product_name: string
+          status?: string
+          total_value?: number | null
+          unit_cost?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          damaged_at?: string | null
+          damaged_by?: string | null
+          damaged_by_name?: string | null
+          damaged_reason?: string | null
+          id?: string
+          notes?: string | null
+          original_qty_kg?: number
+          production_date?: string
+          remaining_qty_kg?: number
+          source_invoice_id?: string | null
+          source_invoice_no?: string | null
+          source_product_name?: string
+          status?: string
+          total_value?: number | null
+          unit_cost?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meat_factory_carryover_dough_source_invoice_id_fkey"
+            columns: ["source_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "meat_manufacturing_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meat_factory_carryover_dough_usage: {
+        Row: {
+          carryover_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          unit_cost_at_use: number
+          used_by: string | null
+          used_by_name: string | null
+          used_in_invoice_id: string | null
+          used_in_invoice_no: string | null
+          used_qty_kg: number
+        }
+        Insert: {
+          carryover_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          unit_cost_at_use?: number
+          used_by?: string | null
+          used_by_name?: string | null
+          used_in_invoice_id?: string | null
+          used_in_invoice_no?: string | null
+          used_qty_kg: number
+        }
+        Update: {
+          carryover_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          unit_cost_at_use?: number
+          used_by?: string | null
+          used_by_name?: string | null
+          used_in_invoice_id?: string | null
+          used_in_invoice_no?: string | null
+          used_qty_kg?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meat_factory_carryover_dough_usage_carryover_id_fkey"
+            columns: ["carryover_id"]
+            isOneToOne: false
+            referencedRelation: "meat_factory_carryover_dough"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meat_factory_carryover_dough_usage_used_in_invoice_id_fkey"
+            columns: ["used_in_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "meat_manufacturing_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meat_factory_finished_items: {
         Row: {
           avg_cost: number
