@@ -3729,6 +3729,7 @@ export type Database = {
       feed_production_invoices: {
         Row: {
           bags: number
+          client_request_id: string | null
           created_at: string
           created_by: string | null
           id: string
@@ -3744,6 +3745,7 @@ export type Database = {
         }
         Insert: {
           bags?: number
+          client_request_id?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -3759,6 +3761,7 @@ export type Database = {
         }
         Update: {
           bags?: number
+          client_request_id?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
