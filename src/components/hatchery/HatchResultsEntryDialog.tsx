@@ -331,6 +331,8 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
                 <TableHead>العميل</TableHead>
                 <TableHead>رقم الدفعة</TableHead>
                 <TableHead>عدد البيض</TableHead>
+                <TableHead className="text-amber-700">مستبعد</TableHead>
+                <TableHead className="bg-emerald-50 dark:bg-emerald-950/30">صافي بعد الاستبعاد</TableHead>
                 <TableHead>لايح (ك1)</TableHead>
                 <TableHead className="bg-emerald-50 dark:bg-emerald-950/30">صافي بعد ك1</TableHead>
                 <TableHead>لايح/نافق (ك2)</TableHead>
