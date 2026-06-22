@@ -1065,7 +1065,7 @@ export default function ManufacturingInvoices() {
                 <div><Label>ملاحظات</Label><Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="اختياري" /></div>
 
                 <div className="flex justify-end">
-                  <Button onClick={submitDraft} disabled={saving} className="bg-purple-600 hover:bg-purple-700">
+                  <Button onClick={() => submitDraft()} disabled={saving} className="bg-purple-600 hover:bg-purple-700">
                     {saving ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <CheckCircle2 className="w-4 h-4 ml-1" />}
                     حفظ الفاتورة (مسودة)
                   </Button>
