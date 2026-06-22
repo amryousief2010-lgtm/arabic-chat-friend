@@ -810,6 +810,7 @@ export default function ManufacturingInvoices() {
                   <div><b>إجمالي الخامات:</b> {fmt(viewing.raw_cost)}</div>
                   <div><b>إجمالي البهارات:</b> {fmt(viewing.spice_cost)}</div>
                   <div><b>إجمالي التغليف:</b> {fmt(viewing.packaging_cost)}</div>
+                  <div><b>إجمالي المواد الخدمية:</b> {fmt(viewing.extra_cost)}</div>
                   <div><b>الإجمالي:</b> {fmt(viewing.total_manufacturing_cost)}</div>
                   <div><b>تكلفة الوحدة:</b> {fmt(viewing.unit_cost)}</div>
                   <div><b>التاريخ:</b> {(viewing.created_at || "").slice(0,10)}</div>
