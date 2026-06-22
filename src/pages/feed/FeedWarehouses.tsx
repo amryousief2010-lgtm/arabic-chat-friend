@@ -1843,11 +1843,24 @@ function ProductionDialog({ open, onOpenChange, rawMaterials, products, onSaved 
           {lines.map((l) => {
             const m = rawMaterials.find((r: any) => r.id === l.raw_id);
             const available = Number(m?.stock || 0);
-            const cost = Number(m?.unit_cost || 0);
+            const defaultCost = Number(m?.unit_cost || 0);
+            const effectiveCost = l.unit_cost_touched ? Number(l.unit_cost || 0) : (defaultCost || Number(l.unit_cost || 0));
+            const missingDefault = !!m && defaultCost <= 0 && !l.unit_cost_touched;
             return (
               <div key={l.id} className="grid grid-cols-12 gap-2 items-end border-b pb-2">
-                <div className="col-span-6">
-                  <Select value={l.raw_id} onValueChange={(v) => setLines(lines.map((x) => x.id === l.id ? { ...x, raw_id: v } : x))}>
+                <div className="col-span-5">
+                  <Select
+                    value={l.raw_id}
+                    onValueChange={(v) => {
+                      const sel = rawMaterials.find((r: any) => r.id === v);
+                      setLines(lines.map((x) => x.id === l.id ? {
+                        ...x,
+                        raw_id: v,
+                        // auto-prefill price only if user hasn't manually overridden it
+                        unit_cost: x.unit_cost_touched ? x.unit_cost : Number(sel?.unit_cost || 0),
+                      } : x));
+                    }}
+                  >
                     <SelectTrigger><SelectValue placeholder="اختر الخامة"/></SelectTrigger>
                     <SelectContent>
                       {rawMaterials.map((r: any) => (
@@ -1855,10 +1868,27 @@ function ProductionDialog({ open, onOpenChange, rawMaterials, products, onSaved 
                       ))}
                     </SelectContent>
                   </Select>
-                  {m && <div className="text-xs text-muted-foreground mt-1">المتاح: {fmt(available)} • تكلفة الكيلو: {fmt(cost)} ج</div>}
+                  {m && (
+                    <div className="text-xs text-muted-foreground mt-1">
+                      المتاح: {fmt(available)} {m.unit || "كجم"}
+                      {missingDefault && (
+                        <span className="text-destructive font-semibold mr-2">⚠ لا يوجد سعر افتراضي — أدخل سعر الوحدة</span>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <div className="col-span-3"><Input type="number" placeholder="الكمية كجم" value={l.qty || ""} onChange={(e) => setLines(lines.map((x) => x.id === l.id ? { ...x, qty: Number(e.target.value) } : x))} /></div>
-                <div className="col-span-2 text-sm font-bold text-left">{fmt(l.qty * cost)} ج</div>
+                <div className="col-span-2"><Input type="number" placeholder="الكمية" value={l.qty || ""} onChange={(e) => setLines(lines.map((x) => x.id === l.id ? { ...x, qty: Number(e.target.value) } : x))} /></div>
+                <div className="col-span-2">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="سعر الوحدة"
+                    value={l.unit_cost || ""}
+                    onChange={(e) => setLines(lines.map((x) => x.id === l.id ? { ...x, unit_cost: Number(e.target.value), unit_cost_touched: true } : x))}
+                    className={missingDefault ? "border-destructive" : ""}
+                  />
+                </div>
+                <div className="col-span-2 text-sm font-bold text-left">{fmt(Number(l.qty || 0) * effectiveCost)} ج</div>
                 <div className="col-span-1"><Button size="icon" variant="ghost" onClick={() => setLines(lines.filter((x) => x.id !== l.id))}><Trash2 className="h-4 w-4"/></Button></div>
               </div>
             );
