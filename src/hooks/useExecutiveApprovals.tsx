@@ -134,7 +134,7 @@ export function useExecutiveApprovals() {
       ]);
 
       const allCreators: string[] = [];
-      [treasuryRes, labRes, meatInvRes, meatMfgRes, custodyRes, slaughterRes, hrRes, mfRawRes, mfPackRes, mfMfgRes].forEach((r) =>
+      [treasuryRes, labRes, meatInvRes, meatMfgRes, custodyRes, slaughterRes, hrRes, mfRawRes, mfPackRes, mfMfgRes, mfPurchasesRes].forEach((r) =>
         (r.data || []).forEach((x: any) => x.created_by && allCreators.push(x.created_by))
       );
       const profiles = await resolveProfiles(allCreators);
