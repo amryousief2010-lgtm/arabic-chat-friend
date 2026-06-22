@@ -169,15 +169,12 @@ export default function ManufacturingInvoices() {
 
   const totalExtraCost = Number(extraCost || 0) + serviceCost + carryoverInCost;
   const totalCost = rawCost + spiceCost + packCost + totalExtraCost;
-  // Unit cost is computed over the sellable finished qty only — carryover-out qty is parked, not sold.
-  const unitCost = finishedQty > 0 ? totalCost / finishedQty : 0;
-
-  // Unit cost imputed to leftover dough (for accounting): materials only, distributed over (finished + leftover)
-  const carryoverOutUnitCost = useMemo(() => {
-    const materials = rawCost + spiceCost + packCost;
-    const denom = Number(finishedQty || 0) + Number(carryoverOutQty || 0);
-    return denom > 0 ? materials / denom : 0;
-  }, [rawCost, spiceCost, packCost, finishedQty, carryoverOutQty]);
+  // Unit cost is distributed over (finished + leftover dough): both share the same raw/packaging/extra batch.
+  const totalManufacturedQty = Number(finishedQty || 0) + Number(carryoverOutQty || 0);
+  const unitCost = totalManufacturedQty > 0 ? totalCost / totalManufacturedQty : 0;
+  const carryoverOutUnitCost = unitCost;
+  const finishedProductCost = Number(finishedQty || 0) * unitCost;
+  const carryoverOutValue = Number(carryoverOutQty || 0) * unitCost;
 
   const finalProductName = productName === "أخرى" ? productNameOther.trim() : productName;
 
