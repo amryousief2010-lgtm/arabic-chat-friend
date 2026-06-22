@@ -20,6 +20,7 @@ import { exportCSV } from "@/lib/csvExport";
 import { openPrintWindow } from "@/lib/printPdf";
 import { kpi as lvKpi, LV_PERIOD, lvTotalSalesValue, lvInternalSalesValue } from "@/data/feedFactoryLV";
 import FeedInvoiceDetailsDialog, { printInvoice as printFeedInvoice } from "@/components/feed/FeedInvoiceDetailsDialog";
+import FeedFactoryTreasuryPanel from "@/components/feed/FeedFactoryTreasuryPanel";
 
 type Line = { id: string; ref_id: string; qty: number; price: number };
 const newLine = (): Line => ({ id: crypto.randomUUID(), ref_id: "", qty: 0, price: 0 });
