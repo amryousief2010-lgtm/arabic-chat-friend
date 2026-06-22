@@ -60,8 +60,9 @@ const toNum = (v: any) => {
  * Validates that no stage exceeds the remaining net from the previous stage.
  */
 const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
-  const { roles } = useAuth();
+  const { roles, user, profile } = useAuth();
   const canReopen = roles?.some((r) => r === "general_manager" || r === "executive_manager");
+  const isManager = !!canReopen;
   const isLocked = (group.customers || []).every((c: any) => {
     const s = c._raw?.status ?? c.status;
     return s === "completed" || s === "closed";
@@ -70,6 +71,11 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
   const [exitDate, setExitDate] = useState(today);
   const [saving, setSaving] = useState(false);
   const [confirmReopen, setConfirmReopen] = useState(false);
+  // Manager override flow for editing a locked batch
+  const [managerOverride, setManagerOverride] = useState(false);
+  const [overrideReason, setOverrideReason] = useState("");
+  // Snapshot of values at open (for audit before/after when manager edits a locked batch)
+  const [snapshot, setSnapshot] = useState<Record<string, any>>({});
   const [drafts, setDrafts] = useState<Record<string, RowDraft>>(() => {
     const m: Record<string, RowDraft> = {};
     (group.customers || []).forEach((c: any) => {
@@ -91,6 +97,9 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
     return m;
   });
 
+  // Effective edit lock: locked AND (not manager OR manager hasn't opted into override)
+  const editLocked = isLocked && !(isManager && managerOverride);
+
   // Authoritative load: re-fetch excluded_eggs (+ related result fields) from DB on open
   // to guarantee we never display a stale value from a cached _raw payload.
   useEffect(() => {
@@ -106,6 +115,9 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
         return;
       }
       console.log("[HatchResults] DB SELECT after open:", data);
+      const snap: Record<string, any> = {};
+      for (const row of data || []) snap[row.id] = row;
+      setSnapshot(snap);
       setDrafts((prev) => {
         const next = { ...prev };
         for (const row of data || []) {
@@ -238,17 +250,40 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
     try {
       const { data: u } = await supabase.auth.getUser();
       const actor_id = u?.user?.id;
-      const actor_name = (u?.user?.user_metadata as any)?.full_name || u?.user?.email || null;
-      const auditRows = rows.map((r) => ({
-        batch_id: r.id,
-        batch_number: r.batch_number,
-        operational_batch_no: group.op_number,
-        customer_name: r.customer_name,
-        actor_id,
-        actor_name,
-        changes: { action: closing ? "close_hatching_batch" : "save_hatching_results" },
-        reason: closing ? "إقفال الدفعة بعد اكتمال النتائج" : "حفظ مرحلي لنتائج الفقس",
-      }));
+      const actor_name = profile?.full_name || (u?.user?.user_metadata as any)?.full_name || u?.user?.email || null;
+      const actor_roles = (roles || []).join(",");
+      const overrideActive = isLocked && isManager && managerOverride;
+      const auditRows = rows.map((r) => {
+        const before = snapshot[r.id] || {};
+        const after = {
+          excluded_eggs: toNum(r.excluded_eggs),
+          net_eggs: Math.max(0, toNum(r.total_eggs) - toNum(r.excluded_eggs)),
+          candle1_infertile: toNum(r.candle1_infertile),
+          candle2_dead: toNum(r.candle2_dead),
+          hatcher_dead: toNum(r.hatcher_dead),
+          hatched_chicks: toNum(r.hatched_chicks),
+          notes: r.notes || null,
+        };
+        return {
+          batch_id: r.id,
+          batch_number: r.batch_number,
+          operational_batch_no: group.op_number,
+          customer_name: r.customer_name,
+          actor_id,
+          actor_name,
+          changes: {
+            action: overrideActive
+              ? "manager_edit_locked_batch"
+              : (closing ? "close_hatching_batch" : "save_hatching_results"),
+            roles: actor_roles,
+            before,
+            after,
+          },
+          reason: overrideActive
+            ? `تعديل دفعة مقفلة بصلاحية إدارية — ${overrideReason.trim()}`
+            : (closing ? "إقفال الدفعة بعد اكتمال النتائج" : "حفظ مرحلي لنتائج الفقس"),
+        };
+      });
       await supabase.from("hatch_batch_edit_audit" as any).insert(auditRows);
     } catch {
       /* audit best-effort */
@@ -264,12 +299,28 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
   };
 
   const handleSave = async () => {
+    if (isLocked && !isManager) {
+      toast.error("لا يمكن تعديل هذه الدفعة لأنها مقفلة. التعديل متاح فقط للمدير العام أو المدير التنفيذي.");
+      return;
+    }
+    if (isLocked && isManager && !managerOverride) {
+      toast.error("هذه الدفعة مقفلة. فعّل 'تعديل بصلاحية إدارية' وأدخل سبب التعديل أولًا.");
+      return;
+    }
+    if (isLocked && isManager && managerOverride && overrideReason.trim().length < 5) {
+      toast.error("يجب إدخال سبب التعديل (5 أحرف على الأقل) قبل حفظ تعديلات الدفعة المقفلة.");
+      return;
+    }
     const err = validateAll();
     if (err) { toast.error(err); return; }
     setSaving(true);
     try {
       await persistRows(false);
-      toast.success(`تم حفظ النتائج لـ ${Object.keys(drafts).length} عميل — الدفعة لا تزال مفتوحة للتعديل`);
+      toast.success(
+        isLocked && managerOverride
+          ? "تم حفظ التعديل على الدفعة المقفلة وتسجيله في سجل التدقيق"
+          : `تم حفظ النتائج لـ ${Object.keys(drafts).length} عميل — الدفعة لا تزال مفتوحة للتعديل`
+      );
       onSaved?.();
       onClose();
     } catch (e: any) {
@@ -345,10 +396,57 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 flex-wrap">
             إدخال نتائج الفقس — {group.op_number}
+            {isLocked ? (
+              <Badge className="bg-rose-600 text-white flex items-center gap-1">
+                <Lock className="w-3 h-3" /> دفعة مقفلة
+              </Badge>
+            ) : (
+              <Badge className="bg-emerald-600 text-white">مفتوحة للتعديل</Badge>
+            )}
             <Badge className="bg-purple-500 text-white">في الهاتشر</Badge>
             <Badge variant="outline">{group.customers.length} عميل</Badge>
           </DialogTitle>
         </DialogHeader>
+
+        {isLocked && !isManager && (
+          <div className="rounded-md border border-rose-300 bg-rose-50 dark:bg-rose-950/30 p-3 text-sm text-rose-800 dark:text-rose-200 flex items-start gap-2">
+            <Lock className="w-4 h-4 mt-0.5 shrink-0" />
+            <div>
+              <div className="font-bold">لا يمكن تعديل هذه الدفعة لأنها مقفلة.</div>
+              <div className="text-xs">التعديل متاح فقط للمدير العام أو المدير التنفيذي. يمكنك الاطلاع على النتائج فقط.</div>
+            </div>
+          </div>
+        )}
+
+        {isLocked && isManager && (
+          <div className="rounded-md border border-amber-400 bg-amber-50 dark:bg-amber-950/30 p-3 text-sm text-amber-900 dark:text-amber-200 space-y-2">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+              <div className="font-semibold">هذه الدفعة مقفلة. أي تعديل سيتم تسجيله في سجل التدقيق.</div>
+            </div>
+            {!managerOverride ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-amber-500 text-amber-800"
+                onClick={() => setManagerOverride(true)}
+              >
+                <Unlock className="w-4 h-4 ml-1" /> تفعيل التعديل بصلاحية إدارية
+              </Button>
+            ) : (
+              <div className="space-y-1">
+                <label className="text-xs font-semibold">سبب التعديل (إلزامي — 5 أحرف على الأقل):</label>
+                <Textarea
+                  value={overrideReason}
+                  onChange={(e) => setOverrideReason(e.target.value)}
+                  rows={2}
+                  placeholder="مثال: تصحيح خطأ إدخال في عدد الكتاكيت بعد المراجعة..."
+                  className="text-xs"
+                />
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="rounded-md border bg-amber-50 dark:bg-amber-950/30 border-amber-300 p-3 text-xs text-amber-900 dark:text-amber-200 space-y-1">
           <div>• <b>المستبعد</b> = البيض المخروم/المكسور/غير الصالح الذي لم يدخل التشغيل. <b>صافي بعد الاستبعاد</b> = عدد البيض − المستبعد.</div>
@@ -356,6 +454,7 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
           <div>• عدد الكتاكيت + نافق الهاتشر يجب أن لا يتجاوزا صافي بعد ك2. المستبعد لا يدخل في رسوم التشغيل المالية.</div>
           <div>• لن يتم تعديل خزنة المعمل ولا تسجيل أي حركة مالية ولا تحصيل تلقائي.</div>
         </div>
+
 
         <div className="flex items-end gap-3 mt-3">
           <div>
@@ -413,6 +512,8 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
                         max={r.total_eggs}
                         value={r.excluded_eggs}
                         onChange={(e) => update(r.id, "excluded_eggs", e.target.value)}
+                        readOnly={editLocked}
+                        disabled={editLocked}
                         className="w-20 h-8 border-amber-400"
                       />
                     </TableCell>
@@ -426,6 +527,8 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
                         max={c.netAfterExcl}
                         value={r.candle1_infertile}
                         onChange={(e) => update(r.id, "candle1_infertile", e.target.value)}
+                        readOnly={editLocked}
+                        disabled={editLocked}
                         className="w-20 h-8"
                       />
                     </TableCell>
@@ -439,6 +542,8 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
                         max={c.netC1}
                         value={r.candle2_dead}
                         onChange={(e) => update(r.id, "candle2_dead", e.target.value)}
+                        readOnly={editLocked}
+                        disabled={editLocked}
                         className="w-20 h-8"
                       />
                     </TableCell>
@@ -452,6 +557,8 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
                         max={c.netC2}
                         value={r.hatcher_dead}
                         onChange={(e) => update(r.id, "hatcher_dead", e.target.value)}
+                        readOnly={editLocked}
+                        disabled={editLocked}
                         className="w-20 h-8"
                       />
                     </TableCell>
@@ -462,6 +569,8 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
                         max={c.netC2}
                         value={r.hatched_chicks}
                         onChange={(e) => update(r.id, "hatched_chicks", e.target.value)}
+                        readOnly={editLocked}
+                        disabled={editLocked}
                         className="w-24 h-8 font-bold border-primary"
                       />
                     </TableCell>
@@ -469,6 +578,8 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
                       <Textarea
                         value={r.notes}
                         onChange={(e) => update(r.id, "notes", e.target.value)}
+                        readOnly={editLocked}
+                        disabled={editLocked}
                         className="min-h-[36px] text-xs"
                         rows={1}
                       />
@@ -509,23 +620,38 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
           <Button variant="outline" onClick={onClose} disabled={saving}>
             إلغاء
           </Button>
-          <Button onClick={handleSave} disabled={saving} className="min-w-[140px]">
-            {saving ? (
-              <Loader2 className="w-4 h-4 ml-1 animate-spin" />
-            ) : (
-              <Save className="w-4 h-4 ml-1" />
-            )}
-            حفظ النتائج
-          </Button>
-          <Button
-            variant="destructive"
-            onClick={() => setConfirmClose(true)}
-            disabled={saving || !!firstError || !anyResultsEntered}
-            title={firstError ? firstError : (!anyResultsEntered ? "أدخل نتائج الفقس أولًا" : undefined)}
-          >
-            <Lock className="w-4 h-4 ml-1" />
-            إقفال الدفعة
-          </Button>
+          {!isLocked && (
+            <Button
+              onClick={handleSave}
+              disabled={saving}
+              className="min-w-[140px]"
+            >
+              {saving ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <Save className="w-4 h-4 ml-1" />}
+              حفظ النتائج
+            </Button>
+          )}
+          {isLocked && isManager && managerOverride && (
+            <Button
+              onClick={handleSave}
+              disabled={saving || overrideReason.trim().length < 5}
+              className="min-w-[180px] bg-amber-600 hover:bg-amber-700"
+              title={overrideReason.trim().length < 5 ? "أدخل سبب التعديل (5 أحرف على الأقل)" : undefined}
+            >
+              {saving ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <Save className="w-4 h-4 ml-1" />}
+              حفظ تعديل بصلاحية إدارية
+            </Button>
+          )}
+          {!isLocked && (
+            <Button
+              variant="destructive"
+              onClick={() => setConfirmClose(true)}
+              disabled={saving || !!firstError || !anyResultsEntered}
+              title={firstError ? firstError : (!anyResultsEntered ? "أدخل نتائج الفقس أولًا" : undefined)}
+            >
+              <Lock className="w-4 h-4 ml-1" />
+              إقفال الدفعة
+            </Button>
+          )}
           {isLocked && canReopen && (
             <Button
               variant="outline"
@@ -538,6 +664,7 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
             </Button>
           )}
         </DialogFooter>
+
 
 
         <AlertDialog open={confirmReopen} onOpenChange={setConfirmReopen}>
