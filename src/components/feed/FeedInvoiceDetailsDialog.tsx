@@ -173,7 +173,12 @@ export default function FeedInvoiceDetailsDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between gap-2 flex-wrap">
             <span>تفاصيل فاتورة تصنيع — {inv?.prod_no}</span>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
+              {canAddItems && items.length === 0 && (
+                <Button size="sm" variant="warning" onClick={() => setAddItemsOpen(true)}>
+                  <PackagePlus className="h-4 w-4 ml-1" />استكمال الخامات
+                </Button>
+              )}
               {canAddExpense && (
                 <Button size="sm" onClick={() => setAddOpen(true)}>
                   <Plus className="h-4 w-4 ml-1" />إضافة مصروف على التصنيع
@@ -185,6 +190,16 @@ export default function FeedInvoiceDetailsDialog({
             </div>
           </DialogTitle>
         </DialogHeader>
+
+        {items.length === 0 && (
+          <div className="flex items-start gap-2 border-2 border-amber-500/60 bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 p-3 rounded">
+            <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0" />
+            <div className="text-sm">
+              <div className="font-bold">تحتاج مراجعة — فاتورة بدون خامات</div>
+              <div>هذه الفاتورة لا تحتوي على خامات تصنيع، برجاء مراجعتها قبل اعتمادها{canAddItems ? ' أو استكمال الخامات الناقصة.' : '.'}</div>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm bg-muted/40 p-3 rounded">
           <div><b>التاريخ:</b> {inv?.prod_date}</div>
