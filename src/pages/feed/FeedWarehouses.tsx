@@ -1438,16 +1438,21 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
         saleId = head.id;
       }
       for (const l of valid) {
-        if (isInternal && l.kind !== "finished") throw new Error("التوريد الداخلي يقبل علف جاهز فقط — لا يقبل خامات");
         // Internal sales: force unit_price = unit_cost so debt/total are cost-based, not sale-price-based
         let unitPrice = l.price;
         if (isInternal) {
-          const prod: any = products.find((x: any) => x.id === l.ref_id);
-          unitPrice = Number(prod?.latest_unit_cost || 0);
+          if (l.kind === "finished") {
+            const prod: any = products.find((x: any) => x.id === l.ref_id);
+            unitPrice = Number(prod?.latest_unit_cost || 0);
+          } else {
+            const mat: any = materials.find((x: any) => x.id === l.ref_id);
+            unitPrice = Number(mat?.unit_cost || 0);
+          }
         }
         const payload: any = { sale_id: saleId, quantity: l.qty, unit_price: unitPrice };
         if (l.kind === "finished") payload.feed_product_id = l.ref_id;
         else payload.raw_material_id = l.ref_id;
+
         const { error } = await supabase.from("feed_sale_items").insert(payload);
         if (error) throw error;
       }
@@ -1475,7 +1480,7 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
           </Select>
           {isInternal && (
             <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
-              ⚠️ توريد داخلي: سيتم خصم الكمية من مخزون المصنع وإضافتها تلقائياً للمخزن الداخلي المحدد. لن تُسجَّل كبيع خارجي. لا يمكن تكرار نفس بند الفاتورة في المخزن الداخلي.
+              ⚠️ التوريد الداخلي يقبل العلف الجاهز والخامات المسموح بيعها داخليًا. سيتم خصم الكمية من المخزن المناسب (المنتجات الجاهزة أو خامات مصنع العلف) تلقائياً. لا تُسجَّل كبيع خارجي ولا تُنشأ خزنة.
             </div>
           )}
         </div>
