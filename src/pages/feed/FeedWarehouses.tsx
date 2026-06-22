@@ -263,7 +263,15 @@ export default function FeedWarehouses() {
     queryKey: ["feed-treasury"],
     queryFn: async () => {
       const { data, error } = await (supabase as any).from("feed_factory_treasury_txns").select("*").order("txn_date", { ascending: false }).order("created_at", { ascending: false }).limit(500);
-      if (error) throw error; return data || [];
+      if (error) throw error;
+      const rows = data || [];
+      const ids = Array.from(new Set(rows.map((r: any) => r.created_by).filter(Boolean)));
+      let nameMap: Record<string, string> = {};
+      if (ids.length) {
+        const { data: profs } = await (supabase as any).from("profile_directory").select("id,full_name").in("id", ids);
+        (profs || []).forEach((p: any) => { nameMap[p.id] = p.full_name; });
+      }
+      return rows.map((r: any) => ({ ...r, created_by_name: r.created_by ? (nameMap[r.created_by] || null) : null }));
     },
   });
   const prodInvQ = useQuery({
