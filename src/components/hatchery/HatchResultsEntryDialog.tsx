@@ -512,6 +512,8 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
                         max={r.total_eggs}
                         value={r.excluded_eggs}
                         onChange={(e) => update(r.id, "excluded_eggs", e.target.value)}
+                        readOnly={editLocked}
+                        disabled={editLocked}
                         className="w-20 h-8 border-amber-400"
                       />
                     </TableCell>
@@ -525,6 +527,8 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
                         max={c.netAfterExcl}
                         value={r.candle1_infertile}
                         onChange={(e) => update(r.id, "candle1_infertile", e.target.value)}
+                        readOnly={editLocked}
+                        disabled={editLocked}
                         className="w-20 h-8"
                       />
                     </TableCell>
@@ -538,6 +542,8 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
                         max={c.netC1}
                         value={r.candle2_dead}
                         onChange={(e) => update(r.id, "candle2_dead", e.target.value)}
+                        readOnly={editLocked}
+                        disabled={editLocked}
                         className="w-20 h-8"
                       />
                     </TableCell>
@@ -551,6 +557,8 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
                         max={c.netC2}
                         value={r.hatcher_dead}
                         onChange={(e) => update(r.id, "hatcher_dead", e.target.value)}
+                        readOnly={editLocked}
+                        disabled={editLocked}
                         className="w-20 h-8"
                       />
                     </TableCell>
@@ -561,6 +569,8 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
                         max={c.netC2}
                         value={r.hatched_chicks}
                         onChange={(e) => update(r.id, "hatched_chicks", e.target.value)}
+                        readOnly={editLocked}
+                        disabled={editLocked}
                         className="w-24 h-8 font-bold border-primary"
                       />
                     </TableCell>
@@ -568,6 +578,8 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
                       <Textarea
                         value={r.notes}
                         onChange={(e) => update(r.id, "notes", e.target.value)}
+                        readOnly={editLocked}
+                        disabled={editLocked}
                         className="min-h-[36px] text-xs"
                         rows={1}
                       />
