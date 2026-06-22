@@ -102,6 +102,17 @@ export default function ManufacturingInvoices() {
 
   const rawCandidates = useMemo(() => items.filter(i => i.kind === "raw" || i.kind === "spice"), [items]);
   const packCandidates = useMemo(() => items.filter(i => i.kind === "packaging"), [items]);
+  // Search box for the packaging picker
+  const [packSearch, setPackSearch] = useState("");
+  const packCandidatesFiltered = useMemo(() => {
+    const q = packSearch.trim().toLowerCase();
+    return packCandidates.filter(c => {
+      const hasStock = Number(c.current_stock || 0) > 0;
+      if (!hasStock) return false;
+      if (!q) return true;
+      return (c.name || "").toLowerCase().includes(q);
+    });
+  }, [packCandidates, packSearch]);
 
   const updateLine = (setter: (fn: (ls: Line[]) => Line[]) => void, candidates: RawItem[], tmp: string, patch: Partial<Line>) => {
     setter(ls => ls.map(l => {
