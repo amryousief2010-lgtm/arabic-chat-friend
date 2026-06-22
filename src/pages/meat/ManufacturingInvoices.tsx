@@ -1350,7 +1350,7 @@ export default function ManufacturingInvoices() {
                               )}
                               <TableRow>
                                 <TableCell colSpan={5} className="text-end font-semibold">إجمالي المواد الخدمية</TableCell>
-                                <TableCell className="font-bold text-purple-700">{fmt(Number(viewing.extra_cost || 0))}</TableCell>
+                                <TableCell className="font-bold text-purple-700">{fmt(Math.max(Number(viewing.extra_cost || 0), svcTotal))}</TableCell>
                                 <TableCell />
                               </TableRow>
                             </TableBody>
