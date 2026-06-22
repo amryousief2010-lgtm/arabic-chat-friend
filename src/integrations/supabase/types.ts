@@ -1890,6 +1890,7 @@ export type Database = {
           collected_by: string | null
           collection_main_account_id: string | null
           collection_treasury: string | null
+          cost_per_chick_snapshot: number
           created_at: string
           created_by: string | null
           customer_name: string
@@ -1898,11 +1899,13 @@ export type Database = {
           notes: string | null
           payment_method: string
           phone: string | null
+          profit_snapshot: number
           quantity: number
           sale_date: string
           sale_no: string
           status: string
           total: number
+          total_cost_snapshot: number
           treasury_destination: string | null
           unit_price: number
           updated_at: string
@@ -1918,6 +1921,7 @@ export type Database = {
           collected_by?: string | null
           collection_main_account_id?: string | null
           collection_treasury?: string | null
+          cost_per_chick_snapshot?: number
           created_at?: string
           created_by?: string | null
           customer_name: string
@@ -1926,11 +1930,13 @@ export type Database = {
           notes?: string | null
           payment_method: string
           phone?: string | null
+          profit_snapshot?: number
           quantity: number
           sale_date?: string
           sale_no: string
           status?: string
           total: number
+          total_cost_snapshot?: number
           treasury_destination?: string | null
           unit_price: number
           updated_at?: string
@@ -1946,6 +1952,7 @@ export type Database = {
           collected_by?: string | null
           collection_main_account_id?: string | null
           collection_treasury?: string | null
+          cost_per_chick_snapshot?: number
           created_at?: string
           created_by?: string | null
           customer_name?: string
@@ -1954,11 +1961,13 @@ export type Database = {
           notes?: string | null
           payment_method?: string
           phone?: string | null
+          profit_snapshot?: number
           quantity?: number
           sale_date?: string
           sale_no?: string
           status?: string
           total?: number
+          total_cost_snapshot?: number
           treasury_destination?: string | null
           unit_price?: number
           updated_at?: string
@@ -17036,6 +17045,7 @@ export type Database = {
           collected_by: string | null
           collection_main_account_id: string | null
           collection_treasury: string | null
+          cost_per_chick_snapshot: number
           created_at: string
           created_by: string | null
           customer_name: string
@@ -17044,11 +17054,13 @@ export type Database = {
           notes: string | null
           payment_method: string
           phone: string | null
+          profit_snapshot: number
           quantity: number
           sale_date: string
           sale_no: string
           status: string
           total: number
+          total_cost_snapshot: number
           treasury_destination: string | null
           unit_price: number
           updated_at: string
@@ -17134,6 +17146,7 @@ export type Database = {
           collected_by: string | null
           collection_main_account_id: string | null
           collection_treasury: string | null
+          cost_per_chick_snapshot: number
           created_at: string
           created_by: string | null
           customer_name: string
@@ -17142,11 +17155,13 @@ export type Database = {
           notes: string | null
           payment_method: string
           phone: string | null
+          profit_snapshot: number
           quantity: number
           sale_date: string
           sale_no: string
           status: string
           total: number
+          total_cost_snapshot: number
           treasury_destination: string | null
           unit_price: number
           updated_at: string

@@ -169,15 +169,23 @@ const NewSaleDialog = ({ batches, onSaved }: { batches: Batch[]; onSaved: () => 
     sale_date: new Date().toISOString().slice(0, 10), notes: "",
   });
   const selected = open_batches.find(b => b.id === f.batch_id);
-  // current cost = derived locally (we only show purchase-based estimate)
-  const costPerChick = selected
-    ? ((selected.original_count * selected.unit_purchase_price) +
-       selected.transport_cost + selected.disinfection_cost + selected.other_costs) /
-      Math.max(1, selected.current_count + selected.sold_count)
-    : 0;
+  const [pnl, setPnl] = useState<any>(null);
+  const [loadingPnl, setLoadingPnl] = useState(false);
+  useEffect(() => {
+    if (!f.batch_id) { setPnl(null); return; }
+    setLoadingPnl(true);
+    (async () => {
+      const { data } = await supabase.rpc("chick_trading_batch_pnl" as any, { _batch_id: f.batch_id });
+      setPnl(data);
+      setLoadingPnl(false);
+    })();
+  }, [f.batch_id]);
+  const costPerChick = pnl?.current_cost_per_chick ? Number(pnl.current_cost_per_chick) : 0;
   const profitPer = f.unit_price - costPerChick;
   const total = f.quantity * f.unit_price;
-  const totalProfit = (f.unit_price - costPerChick) * f.quantity;
+  const totalSoldCost = f.quantity * costPerChick;
+  const totalProfit = total - totalSoldCost;
+  const noCost = !!selected && (!pnl || Number(pnl?.total_cost || 0) === 0);
 
   const save = async () => {
     if (!f.batch_id) return toast.error("اختر الدفعة");
@@ -259,16 +267,28 @@ const NewSaleDialog = ({ batches, onSaved }: { batches: Batch[]; onSaved: () => 
           <div className="col-span-2"><Label>ملاحظات</Label>
             <Textarea value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} /></div>
           {selected && (
-            <div className="col-span-2 p-3 rounded-md bg-orange-50 border border-orange-200 grid grid-cols-2 gap-2 text-sm">
-              <div>المتاح: <strong>{selected.current_count}</strong></div>
-              <div>تكلفة الكتكوت عليّا: <strong>{fmtEGP(costPerChick)}</strong></div>
-              <div>سعر البيع: <strong>{fmtEGP(f.unit_price)}</strong></div>
-              <div className={profitPer >= 0 ? "text-emerald-700" : "text-red-700"}>
-                ربح/كتكوت: <strong>{fmtEGP(profitPer)}</strong>
-              </div>
-              <div>إجمالي البيع: <strong>{fmtEGP(total)}</strong></div>
-              <div className={totalProfit >= 0 ? "text-emerald-700" : "text-red-700"}>
-                إجمالي الربح المتوقع: <strong>{fmtEGP(totalProfit)}</strong>
+            <div className="col-span-2 space-y-2">
+              {loadingPnl && <div className="text-xs text-muted-foreground">جاري حساب التكلفة...</div>}
+              {noCost && !loadingPnl && (
+                <div className="p-2 rounded-md bg-amber-50 border border-amber-300 text-amber-800 text-xs">
+                  ⚠️ لا توجد تكلفة محسوبة لهذه الدفعة، برجاء مراجعة الشراء والمصروفات.
+                </div>
+              )}
+              <div className="p-3 rounded-md bg-orange-50 border border-orange-200 grid grid-cols-2 gap-2 text-sm">
+                <div>المتاح للبيع: <strong>{selected.current_count}</strong></div>
+                <div>إجمالي تكلفة الدفعة: <strong>{fmtEGP(Number(pnl?.total_cost || 0))}</strong></div>
+                <div className="col-span-2 border-t border-orange-200 pt-2">
+                  تكلفة الكتكوت عليّا: <strong className="text-orange-800">{fmtEGP(costPerChick)}</strong>
+                </div>
+                <div>سعر البيع للكتكوت: <strong>{fmtEGP(f.unit_price)}</strong></div>
+                <div className={profitPer >= 0 ? "text-emerald-700" : "text-red-700"}>
+                  ربح/كتكوت: <strong>{fmtEGP(profitPer)}</strong>
+                </div>
+                <div>إجمالي تكلفة المباع: <strong>{fmtEGP(totalSoldCost)}</strong></div>
+                <div>إجمالي البيع: <strong>{fmtEGP(total)}</strong></div>
+                <div className={`col-span-2 border-t border-orange-200 pt-2 ${totalProfit >= 0 ? "text-emerald-700" : "text-red-700"}`}>
+                  إجمالي الربح المتوقع: <strong>{fmtEGP(totalProfit)}</strong>
+                </div>
               </div>
             </div>
           )}
