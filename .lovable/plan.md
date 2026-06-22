@@ -1,73 +1,63 @@
 
-## الهدف
-السماح في شاشة "دفعة ذبح جديدة" باختيار أكثر من دفعة نعام كمصدر، مع خصم العدد من كل دفعة، وحساب تكلفة دقيقة قابلة للتوزيع على نواتج الذبح.
+# ميزة "رصيد العجينة المرحلة" — مصنع اللحوم فقط
 
-## 1) تغييرات قاعدة البيانات (Migration)
-إنشاء جدول الربط الجديد:
+ميزة لتسجيل العجينة المتبقية في نهاية تشغيل التصنيع (كفتة/برجر/سجق…)، حفظها كرصيد، واستخدامها يدويًا في فاتورة تصنيع لاحقة بدون احتسابها تالف ولا خصم خامات مرتين.
 
-```text
-slaughter_batch_live_sources
-  id                       uuid PK
-  slaughter_batch_id       uuid FK → slaughter_batches(id) ON DELETE CASCADE
-  live_receipt_id          uuid FK → slaughter_live_receipts(id) RESTRICT
-  birds_count              int  > 0
-  cost_per_bird_snapshot   numeric(14,4)   -- لقطة وقت الدبح
-  total_birds_cost         numeric(14,4)   -- birds_count × snapshot
-  notes                    text
-  reference_id             text UNIQUE      -- slaughter_source_{batch}_{receipt}
-  created_by               uuid
-  created_at, updated_at   timestamptz
-  UNIQUE (slaughter_batch_id, live_receipt_id)  -- منع تكرار نفس الدفعة
-```
+## السلوك المطلوب
 
-- GRANT للقراءة/الكتابة لـ `authenticated` و `ALL` لـ `service_role`.
-- RLS مفعّل + سياسات بنفس صلاحيات `slaughter_batches`.
-- Trigger `BEFORE INSERT` يتحقق أن `birds_count ≤ current_alive_count` للدفعة المصدر، ويخصم تلقائيًا من `slaughter_live_receipts.current_alive_count`، ويكتب سطر في `slaughter_audit_log`.
-- `cost_per_bird_snapshot` تُلتقط تلقائيًا من الدفعة المصدر إن لم يحدد المستخدم قيمة.
+### 1) فاتورة تصنيع حالية
+- خيار "يوجد عجينة متبقية" في نافذة التصنيع.
+- عند تفعيله تظهر: كمية بالكيلو، نوع العجينة/المنتج الأصلي، ملاحظات.
+- عند الحفظ:
+  - المنتج النهائي وحده يدخل مخزون المنتج الجاهز (السلوك الحالي).
+  - الكمية المتبقية تُسجَّل كسطر في رصيد "العجينة المرحلة" بتكلفة الكيلو المحسوبة من الفاتورة (إجمالي تكلفة الخامات ÷ (المنتج النهائي + العجينة المتبقية)).
+  - لا تالف، لا خزنة، لا فاتورة شراء.
 
-## 2) واجهة `SlaughterBatchDialog`
-- استبدال حقل "استلام حي مرتبط" الفردي بقسم **"مصادر النعام الداخل للدبح"**.
-- جدول صفوف ديناميكي، كل صف:
-  - Select لدفعة النعام (يستبعد الدفعات المختارة بالفعل).
-  - عرض: العدد المتاح + تكلفة النعامة الحالية.
-  - Input لعدد المسحوب (validation: 1 ≤ x ≤ available).
-  - حقل محسوب: إجمالي تكلفة المصدر.
-- زر **"+ إضافة دفعة أخرى"**.
-- إجمالي عدد النعام وإجمالي تكلفة المصادر معروضان في الأسفل.
-- تعبئة `birds_slaughtered` و `total_live_weight_kg` تلقائيًا (وزن تقريبي بناءً على المتوسط من الدفعات المصدر) مع إمكانية التعديل.
-- منع الحفظ لو:
-  - لا يوجد مصدر واحد على الأقل.
-  - أي صف عدده > المتاح.
-  - تكرار نفس الدفعة.
+### 2) صفحة "العجينة المرحلة" داخل مصنع اللحوم
+أعمدة الجدول: رقم الفاتورة الأصلية، المنتج الأصلي، الكمية المتبقية، الكمية المتاحة (بعد الاستخدامات), تاريخ الإنتاج, تكلفة الكيلو, إجمالي القيمة, الحالة (متاح / مستخدم جزئيًا / مستخدم بالكامل / تالف), ملاحظات.
+- زر "إعدام/تالف" يظهر للمدير العام والمدير التنفيذي فقط.
 
-## 3) `saveBatch` في `Slaughterhouse.tsx`
-- بعد `INSERT` في `slaughter_batches` نأخذ `batch.id` ونعمل `INSERT` متعدد في `slaughter_batch_live_sources` مع `reference_id = slaughter_source_{batch.id}_{receipt.id}`.
-- إذا فشل أي إدراج، نعمل rollback يدوي للدفعة (حذف `slaughter_batches`) لتجنّب البقايا.
-- الخصم من `current_alive_count` يحدث تلقائيًا عبر الـ trigger في الـ DB.
-- نحفظ `live_receipt_id` (القديم) = أول مصدر للحفاظ على التوافق مع الكود الحالي.
+### 3) فاتورة تصنيع جديدة
+- قسم "استخدام عجينة مرحلة" مع Dropdown يعرض كل الأرصدة المتاحة (status = available + remaining > 0).
+- المستخدم يختار يدويًا أي رصيد + يكتب الكمية المستخدمة (لا تتجاوز المتاح).
+- لا تخصم خامات مقابلها — التكلفة تضاف لإجمالي تكلفة الفاتورة الجديدة كسطر منفصل (kind = "carryover_dough").
+- عند الحفظ: ينقص الـ remaining_qty من سطر الرصيد، وتنقل الحالة إلى "مستخدم جزئيًا" أو "مستخدم بالكامل" تلقائيًا.
 
-## 4) شاشة تفاصيل الدفعة
-إضافة كرت "مصادر النعام" يعرض من `slaughter_batch_live_sources`:
-رقم الدفعة، عدد المسحوب، تكلفة النعامة وقت الدبح، إجمالي التكلفة، العدد المتبقي حاليًا في الدفعة المصدر.
+## التفاصيل التقنية
 
-## 5) توزيع التكلفة على نواتج الذبح
-- `إجمالي تكلفة النعام للدبح = SUM(total_birds_cost)`.
-- يضاف لمصروفات الدبح المباشرة الموجودة حاليًا.
-- منطق توزيع `cost_per_kg` الحالي يبقى كما هو، لكن المصدر الجديد للتكلفة هو الجدول الجديد.
+### Migration
+جدول جديد `meat_factory_carryover_dough`:
+- `source_invoice_id` FK → meat_manufacturing_invoices, `source_product_name`, `production_date`
+- `original_qty_kg` numeric, `remaining_qty_kg` numeric, `unit_cost` numeric, `total_value` numeric (محسوب)
+- `status` text check in ('available','partial','used','damaged') default 'available'
+- `notes`, `damaged_by`, `damaged_at`, `damaged_reason`
+- RLS: SELECT للموظفين المصرح لهم، INSERT/UPDATE عبر إجراءات الفاتورة، حذف ممنوع
+- GRANT SELECT/INSERT/UPDATE على authenticated، GRANT ALL على service_role
 
-## 6) منع التكرار + Audit
-- `UNIQUE (slaughter_batch_id, live_receipt_id)` على مستوى DB.
-- `UNIQUE reference_id` كحاجز ثاني.
-- Trigger يسجّل في `slaughter_audit_log` كل سحب نعام مع snapshot.
+جدول `meat_factory_carryover_dough_usage`:
+- `carryover_id` FK، `used_in_invoice_id` FK، `used_qty_kg`، `used_at`، `used_by`
+- يستخدم لاحتساب remaining ولعرض تتبع كامل
 
-## ملفات ستُعدّل
-- migration جديد (جدول + trigger + RLS + GRANT).
-- `src/components/slaughterhouse/SlaughterBatchDialog.tsx` (Step 1: استبدال الـ Select بجدول صفوف).
-- `src/pages/modules/Slaughterhouse.tsx` (`saveBatch` + كرت تفاصيل المصادر).
-- `BatchDraft` يضيف `sources: Array<{ live_receipt_id; birds_count }>`.
+تعديل `meat_manufacturing_invoice_lines`: إضافة `kind` value جديدة `'carryover_dough'` (لو الحقل enum يحتاج migration؛ لو text لا يحتاج تعديل بنية).
 
-## ملاحظة
-دفعات النعام الحالية المتاحة بعد التسوية: `OPENING-LIVE-OSTRICH-21` (13 حي، تكلفة 17,769.23). يمكن استخدامها لاختبار السيناريو، مع ملاحظة أنه لا توجد دفعة ثانية فعّالة الآن لاختبار المصدر المزدوج (LR-20260602-7312 حالتها rejected).
+### Frontend
+- `src/pages/meat/ManufacturingInvoices.tsx`: إضافة قسم "عجينة متبقية" في نافذة إنشاء/تعديل الفاتورة + قسم "استخدام عجينة مرحلة".
+- صفحة جديدة `src/pages/meat/CarryoverDough.tsx` + route ضمن مصنع اللحوم.
+- Sidebar entry تحت "مصنع اللحوم" → "العجينة المرحلة".
+- زر "إعدام" محمي بـ `useAuth().roles` يشمل general_manager/executive_manager فقط.
 
----
-موافقتك تعني تنفيذ الـ migration أولًا، ثم تعديل الواجهة وحفظ الدفعة دفعة واحدة بعد قبول الـ migration.
+## ما لن يتغيّر
+- مخزون المنتجات الجاهزة وآلية احتسابها الحالية.
+- خصم الخامات في الفاتورة الأصلية (يبقى كما هو — العجينة المتبقية جزء من نفس الخامات).
+- فواتير التصنيع القديمة لا تُمسّ.
+- لا خزنة ولا تحصيل ولا فاتورة شراء.
+
+## خطوات التنفيذ
+1. Migration: إنشاء `meat_factory_carryover_dough` + `meat_factory_carryover_dough_usage` + RLS + GRANTs.
+2. تعديل نافذة إنشاء فاتورة التصنيع لإضافة قسم "عجينة متبقية" والكتابة في الجدول الجديد عند الحفظ.
+3. تعديل نفس النافذة لإضافة قسم "استخدام عجينة مرحلة" — اختيار + إدراج سطر تكلفة + خصم من الرصيد.
+4. صفحة `CarryoverDough.tsx` + route + رابط بالـ sidebar.
+5. زر "إعدام" بصلاحية المدير فقط مع AlertDialog + audit log.
+6. اختبار: فاتورة → عجينة 1كجم → ظهور في الرصيد → استخدامها في فاتورة جديدة → تحقق من تكلفة + رصيد متبقي.
+
+هل أبدأ بالـ migration وبعدها الواجهات؟
