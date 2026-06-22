@@ -363,7 +363,7 @@ export default function FeedFactoryTreasuryPanel({
               })}
               {!filtered.length && (
                 <TableRow>
-                  <TableCell colSpan={canManageAll ? 10 : 9} className="text-center text-muted-foreground py-10">
+                  <TableCell colSpan={canManageAll ? 11 : 10} className="text-center text-muted-foreground py-10">
                     لا توجد حركات مطابقة للفلاتر الحالية
                   </TableCell>
                 </TableRow>
