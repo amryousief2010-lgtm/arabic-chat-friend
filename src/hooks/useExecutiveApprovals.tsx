@@ -64,7 +64,7 @@ export function useExecutiveApprovals() {
     refetchOnWindowFocus: true,
     staleTime: 15_000,
     queryFn: async () => {
-      const [treasuryRes, labRes, meatInvRes, meatMfgRes, custodyRes, slaughterRes, hrRes, mfRawRes, mfPackRes, mfMfgRes] = await Promise.all([
+      const [treasuryRes, labRes, meatInvRes, meatMfgRes, custodyRes, slaughterRes, hrRes, mfRawRes, mfPackRes, mfMfgRes, mfPurchasesRes] = await Promise.all([
         (supabase as any)
           .from("main_treasury_transactions")
           .select("id, reference_no, txn_type, amount, txn_date, counterparty, description, status, created_at, created_by, payment_method, deposit_purpose, incoming_source")
@@ -122,6 +122,12 @@ export function useExecutiveApprovals() {
         (supabase as any)
           .from("mf_manufacturing")
           .select("id, invoice_no, mfg_date, produced_qty, extra_cost, total_cost, notes, status, created_at, created_by, fin:meat_finished_inventory(name_ar, unit), raw_lines:mf_mfg_raw_lines(qty, raw:meat_raw_inventory(name_ar, unit)), pack_lines:mf_mfg_pack_lines(qty, pack:meat_packaging_inventory(name_ar, unit))")
+          .eq("status", "draft")
+          .order("created_at", { ascending: false })
+          .limit(200),
+        (supabase as any)
+          .from("meat_factory_purchases")
+          .select("id, invoice_no, purchase_date, supplier, invoice_type, payment_method, receipt_no, total_amount, notes, status, created_at, created_by, lines:meat_factory_purchase_lines(quantity, unit_price, line_total, unit, kind, raw_item_name)")
           .eq("status", "draft")
           .order("created_at", { ascending: false })
           .limit(200),
