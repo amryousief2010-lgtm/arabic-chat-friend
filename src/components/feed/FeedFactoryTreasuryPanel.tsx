@@ -291,6 +291,7 @@ export default function FeedFactoryTreasuryPanel({
                 <TableHead>التصنيف</TableHead>
                 <TableHead>الجهة</TableHead>
                 <TableHead>البيان</TableHead>
+                <TableHead>بواسطة</TableHead>
                 <TableHead className="text-success">وارد</TableHead>
                 <TableHead className="text-destructive">منصرف</TableHead>
                 <TableHead>الرصيد بعد</TableHead>
