@@ -371,7 +371,30 @@ export default function ManufacturingInvoices() {
     toast.success(`تم ربط "${recipeName}" بـ "${it.name}" — سيتم تطبيقه تلقائيًا في التركيبات القادمة`);
   };
 
-  const submitDraft = async () => {
+  const findSimilarInvoice = async (): Promise<SimilarInv | null> => {
+    // Look back 24 hours for an invoice with the same product + finished_qty, not cancelled
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data } = await supabase.from("meat_manufacturing_invoices" as any)
+      .select("id, invoice_no, product_name, finished_qty, unit, status, created_at, created_by")
+      .eq("product_name", finalProductName)
+      .eq("finished_qty", finishedQty)
+      .eq("factory_warehouse_id", factoryWarehouseId)
+      .neq("status", "cancelled")
+      .gte("created_at", since)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!data) return null;
+    const row: any = data;
+    let creatorName: string | null = null;
+    if (row.created_by) {
+      const { data: prof } = await supabase.from("profiles").select("full_name, email").eq("id", row.created_by).maybeSingle();
+      creatorName = (prof as any)?.full_name || (prof as any)?.email || null;
+    }
+    return { ...row, created_by_name: creatorName };
+  };
+
+  const submitDraft = async (override?: { reason: string; similarId: string }) => {
     if (!factoryWarehouseId) { toast.error("اختر مخزن مصنع اللحوم"); return; }
     if (!finalProductName) { toast.error("اختر/أدخل اسم المنتج النهائي"); return; }
     if (!finishedQty || finishedQty <= 0) { toast.error("أدخل كمية المنتج التام"); return; }
@@ -409,11 +432,23 @@ export default function ManufacturingInvoices() {
       }
     }
 
+    // Duplicate-invoice guard (skip if user already confirmed override)
+    if (!override) {
+      const similar = await findSimilarInvoice();
+      if (similar) {
+        setSimilarFound(similar);
+        setOverrideReason("");
+        return; // wait for user decision via dialog
+      }
+    }
+
     setSaving(true);
     try {
       const existing = await supabase.from("meat_manufacturing_invoices" as any)
         .select("id, invoice_no").eq("manufacturing_invoice_uuid", invoiceUuid).maybeSingle();
       if (existing.data) { toast.info("الفاتورة محفوظة بالفعل"); await fetchAll(); resetForm(); setTab("list"); return; }
+
+
 
       const { data: noRes, error: noErr } = await supabase.rpc("gen_meat_invoice_no" as any);
       if (noErr) throw noErr;
