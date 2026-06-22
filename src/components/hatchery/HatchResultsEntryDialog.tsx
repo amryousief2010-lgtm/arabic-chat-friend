@@ -250,17 +250,40 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
     try {
       const { data: u } = await supabase.auth.getUser();
       const actor_id = u?.user?.id;
-      const actor_name = (u?.user?.user_metadata as any)?.full_name || u?.user?.email || null;
-      const auditRows = rows.map((r) => ({
-        batch_id: r.id,
-        batch_number: r.batch_number,
-        operational_batch_no: group.op_number,
-        customer_name: r.customer_name,
-        actor_id,
-        actor_name,
-        changes: { action: closing ? "close_hatching_batch" : "save_hatching_results" },
-        reason: closing ? "إقفال الدفعة بعد اكتمال النتائج" : "حفظ مرحلي لنتائج الفقس",
-      }));
+      const actor_name = profile?.full_name || (u?.user?.user_metadata as any)?.full_name || u?.user?.email || null;
+      const actor_roles = (roles || []).join(",");
+      const overrideActive = isLocked && isManager && managerOverride;
+      const auditRows = rows.map((r) => {
+        const before = snapshot[r.id] || {};
+        const after = {
+          excluded_eggs: toNum(r.excluded_eggs),
+          net_eggs: Math.max(0, toNum(r.total_eggs) - toNum(r.excluded_eggs)),
+          candle1_infertile: toNum(r.candle1_infertile),
+          candle2_dead: toNum(r.candle2_dead),
+          hatcher_dead: toNum(r.hatcher_dead),
+          hatched_chicks: toNum(r.hatched_chicks),
+          notes: r.notes || null,
+        };
+        return {
+          batch_id: r.id,
+          batch_number: r.batch_number,
+          operational_batch_no: group.op_number,
+          customer_name: r.customer_name,
+          actor_id,
+          actor_name,
+          changes: {
+            action: overrideActive
+              ? "manager_edit_locked_batch"
+              : (closing ? "close_hatching_batch" : "save_hatching_results"),
+            roles: actor_roles,
+            before,
+            after,
+          },
+          reason: overrideActive
+            ? `تعديل دفعة مقفلة بصلاحية إدارية — ${overrideReason.trim()}`
+            : (closing ? "إقفال الدفعة بعد اكتمال النتائج" : "حفظ مرحلي لنتائج الفقس"),
+        };
+      });
       await supabase.from("hatch_batch_edit_audit" as any).insert(auditRows);
     } catch {
       /* audit best-effort */
