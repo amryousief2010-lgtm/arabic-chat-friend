@@ -57,6 +57,57 @@ export default function MeatPurchaseInvoices() {
   const [viewLines, setViewLines] = useState<any[]>([]);
   const [actLoading, setActLoading] = useState(false);
 
+  // edit metadata dialog (general/executive only)
+  const [editing, setEditing] = useState<Purchase | null>(null);
+  const [editForm, setEditForm] = useState({ invoice_type: "mixed", supplier: "", payment_method: "cash", purchase_date: "", notes: "", receipt_no: "", reason: "" });
+  const [editSaving, setEditSaving] = useState(false);
+  const openEdit = (p: Purchase) => {
+    setEditing(p);
+    setEditForm({
+      invoice_type: p.invoice_type || "mixed",
+      supplier: p.supplier || "",
+      payment_method: p.payment_method || "cash",
+      purchase_date: p.purchase_date,
+      notes: p.notes || "",
+      receipt_no: p.receipt_no || "",
+      reason: "",
+    });
+  };
+  const saveEdit = async () => {
+    if (!editing) return;
+    if (!editForm.reason.trim()) { toast.error("أدخل سبب التعديل"); return; }
+    setEditSaving(true);
+    try {
+      const before = {
+        invoice_type: editing.invoice_type, supplier: editing.supplier,
+        payment_method: editing.payment_method, purchase_date: editing.purchase_date,
+        notes: editing.notes, receipt_no: editing.receipt_no,
+      };
+      const after = {
+        invoice_type: editForm.invoice_type, supplier: editForm.supplier.trim(),
+        payment_method: editForm.payment_method, purchase_date: editForm.purchase_date,
+        notes: editForm.notes || null, receipt_no: editForm.receipt_no || null,
+      };
+      const { error } = await supabase.from("meat_factory_purchases" as any).update(after).eq("id", editing.id);
+      if (error) throw error;
+      await supabase.from("meat_factory_audit_log" as any).insert({
+        table_name: "meat_factory_purchases",
+        row_id: editing.id,
+        action: "update_invoice_meta",
+        old_value: before as any,
+        new_value: { ...after, reason: editForm.reason.trim() } as any,
+        performed_by: user?.id || null,
+      } as any);
+      toast.success("تم حفظ التعديل وتسجيله في سجل المراجعة");
+      setEditing(null);
+      await refresh();
+    } catch (e: any) {
+      toast.error(e.message || "فشل التعديل");
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
   // filters
   const [fStatus, setFStatus] = useState<string>("all");
   const [fSupplier, setFSupplier] = useState("");
