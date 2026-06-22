@@ -399,7 +399,56 @@ export default function ApprovalDetailsDialog({
           )}
         </div>
 
-        <DialogFooter className="border-t pt-3">
+        <DialogFooter className="border-t pt-3 gap-2">
+          {item.category === "mf_purchase" && r._kind === "meat_factory_purchase" && (
+            <Button variant="outline" onClick={() => {
+              const kindLabel: any = { raw: "خامات", spice: "بهارات", packaging: "تغليف", mixed: "mixed" };
+              const payLabel: any = { cash: "نقدي", credit: "آجل", transfer: "تحويل", other: "أخرى" };
+              const rowsHtml = (lines || []).map((l: any) => `
+                <tr>
+                  <td>${l.raw_item_name || "—"}</td>
+                  <td style="text-align:center">${({raw:"خامات",spice:"بهارات",packaging:"تغليف"} as any)[l.kind] || l.kind}</td>
+                  <td style="text-align:center">${l.unit || ""}</td>
+                  <td style="text-align:center">${fmtNum(l.quantity, 3)}</td>
+                  <td style="text-align:center">${fmtNum(l.unit_price)}</td>
+                  <td style="text-align:center"><b>${fmtMoney(l.line_total)}</b></td>
+                </tr>`).join("");
+              const sum = (k: string) => (lines || []).filter((l: any) => l.kind === k).reduce((s: number, l: any) => s + Number(l.line_total || 0), 0);
+              const body = `
+                <h1 style="text-align:center;margin:0">شركة نعام العاصمة</h1>
+                <h2 style="text-align:center;margin:4px 0 16px;color:#666">فاتورة مشتريات مصنع اللحوم</h2>
+                <table style="width:100%;border-collapse:collapse;margin-bottom:12px">
+                  <tr><td><b>رقم الفاتورة:</b> ${r.invoice_no || "— لم تُعتمد —"}</td><td><b>التاريخ:</b> ${r.purchase_date || "—"}</td></tr>
+                  <tr><td><b>المورد:</b> ${r.supplier || "—"}</td><td><b>نوع الفاتورة:</b> ${kindLabel[r.invoice_type] || r.invoice_type || "—"}</td></tr>
+                  <tr><td><b>طريقة الدفع:</b> ${payLabel[r.payment_method] || r.payment_method || "—"}</td><td><b>رقم الإيصال:</b> ${r.receipt_no || "—"}</td></tr>
+                  <tr><td><b>المسجِّل:</b> ${item.creator_name || "—"}</td><td><b>تاريخ التسجيل:</b> ${fmtDateTime(item.created_at)}</td></tr>
+                  <tr><td colspan="2"><b>الحالة:</b> ${r.invoice_no ? "معتمدة" : "في انتظار الاعتماد"}</td></tr>
+                </table>
+                <table style="width:100%;border-collapse:collapse;border:1px solid #999">
+                  <thead><tr style="background:#f3f4f6">
+                    <th style="border:1px solid #999;padding:6px">الصنف</th>
+                    <th style="border:1px solid #999;padding:6px">القسم</th>
+                    <th style="border:1px solid #999;padding:6px">الوحدة</th>
+                    <th style="border:1px solid #999;padding:6px">الكمية</th>
+                    <th style="border:1px solid #999;padding:6px">سعر الوحدة</th>
+                    <th style="border:1px solid #999;padding:6px">الإجمالي</th>
+                  </tr></thead>
+                  <tbody>${rowsHtml || `<tr><td colspan="6" style="padding:8px;text-align:center;color:#888">لا توجد بنود</td></tr>`}</tbody>
+                </table>
+                <table style="width:100%;border-collapse:collapse;margin-top:12px">
+                  <tr><td><b>إجمالي الخامات:</b> ${fmtMoney(sum("raw"))}</td><td><b>إجمالي البهارات:</b> ${fmtMoney(sum("spice"))}</td></tr>
+                  <tr><td><b>إجمالي التغليف:</b> ${fmtMoney(sum("packaging"))}</td><td style="font-size:14px"><b>الإجمالي النهائي:</b> <span style="color:#7c3aed;font-weight:bold">${fmtMoney(r.total_amount)}</span></td></tr>
+                </table>
+                ${r.notes ? `<div style="margin-top:12px;padding:8px;background:#fffbeb;border:1px solid #fde68a"><b>ملاحظات:</b> ${r.notes}</div>` : ""}
+                <div style="margin-top:30px;display:flex;justify-content:space-between">
+                  <div>المسجِّل: ${item.creator_name || "—"}<br/><br/>التوقيع: ____________</div>
+                  <div>اعتماد المدير: ____________<br/><br/>التوقيع: ____________</div>
+                </div>`;
+              openPrintWindow(`فاتورة مشتريات مصنع اللحوم - ${r.invoice_no || r.id?.slice(0,8) || ""}`, body);
+            }}>
+              <Printer className="h-4 w-4 ml-1" />طباعة
+            </Button>
+          )}
           <Button variant="outline" onClick={onClose}>إغلاق</Button>
         </DialogFooter>
       </DialogContent>
