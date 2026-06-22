@@ -96,21 +96,24 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
 
   // Per-row computed values + errors
   const computed = useMemo(() => {
-    const map: Record<string, { netC1: number; netC2: number; error: string | null }> = {};
+    const map: Record<string, { netAfterExcl: number; netC1: number; netC2: number; error: string | null }> = {};
     for (const r of Object.values(drafts)) {
       const eggs = toNum(r.total_eggs);
+      const excl = toNum(r.excluded_eggs);
       const c1 = toNum(r.candle1_infertile);
       const c2 = toNum(r.candle2_dead);
       const hd = toNum(r.hatcher_dead);
       const ch = toNum(r.hatched_chicks);
-      const netC1 = Math.max(0, eggs - c1);
+      const netAfterExcl = Math.max(0, eggs - excl);
+      const netC1 = Math.max(0, netAfterExcl - c1);
       const netC2 = Math.max(0, netC1 - c2);
       let error: string | null = null;
-      if (c1 < 0 || c2 < 0 || hd < 0 || ch < 0) error = "لا يمكن إدخال أرقام سالبة";
-      else if (c1 > eggs) error = "عدد البيض اللايح في الكشف الأول لا يمكن أن يكون أكبر من عدد البيض الداخل";
+      if (excl < 0 || c1 < 0 || c2 < 0 || hd < 0 || ch < 0) error = "لا يمكن إدخال أرقام سالبة";
+      else if (excl > eggs) error = "عدد البيض المستبعد لا يمكن أن يتجاوز عدد البيض الكلي";
+      else if (c1 > netAfterExcl) error = "عدد البيض اللايح في الكشف الأول لا يمكن أن يكون أكبر من الصافي بعد الاستبعاد";
       else if (c2 > netC1) error = "عدد اللايح في الكشف الثاني لا يمكن أن يكون أكبر من صافي البيض بعد الكشف الأول";
       else if (ch + hd > netC2) error = "عدد الكتاكيت + نافق الهاتشر لا يمكن أن يتجاوز صافي البيض بعد الكشف الثاني";
-      map[r.id] = { netC1, netC2, error };
+      map[r.id] = { netAfterExcl, netC1, netC2, error };
     }
     return map;
   }, [drafts]);
@@ -118,8 +121,10 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
   const totals = useMemo(() => {
     return Object.values(drafts).reduce(
       (acc, r) => {
-        const c = computed[r.id] || { netC1: 0, netC2: 0, error: null };
+        const c = computed[r.id] || { netAfterExcl: 0, netC1: 0, netC2: 0, error: null };
         acc.eggs += toNum(r.total_eggs);
+        acc.excl += toNum(r.excluded_eggs);
+        acc.netExcl += c.netAfterExcl;
         acc.c1 += toNum(r.candle1_infertile);
         acc.netC1 += c.netC1;
         acc.c2 += toNum(r.candle2_dead);
@@ -128,7 +133,7 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
         acc.chicks += toNum(r.hatched_chicks);
         return acc;
       },
-      { eggs: 0, c1: 0, netC1: 0, c2: 0, netC2: 0, hd: 0, chicks: 0 }
+      { eggs: 0, excl: 0, netExcl: 0, c1: 0, netC1: 0, c2: 0, netC2: 0, hd: 0, chicks: 0 }
     );
   }, [drafts, computed]);
 
