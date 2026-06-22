@@ -169,15 +169,21 @@ const NewSaleDialog = ({ batches, onSaved }: { batches: Batch[]; onSaved: () => 
     sale_date: new Date().toISOString().slice(0, 10), notes: "",
   });
   const selected = open_batches.find(b => b.id === f.batch_id);
-  // current cost = derived locally (we only show purchase-based estimate)
-  const costPerChick = selected
-    ? ((selected.original_count * selected.unit_purchase_price) +
-       selected.transport_cost + selected.disinfection_cost + selected.other_costs) /
-      Math.max(1, selected.current_count + selected.sold_count)
-    : 0;
+  const [pnl, setPnl] = useState<any>(null);
+  const [loadingPnl, setLoadingPnl] = useState(false);
+  useEffect(() => {
+    if (!f.batch_id) { setPnl(null); return; }
+    setLoadingPnl(true);
+    supabase.rpc("chick_trading_batch_pnl" as any, { _batch_id: f.batch_id })
+      .then(({ data }) => setPnl(data))
+      .finally(() => setLoadingPnl(false));
+  }, [f.batch_id]);
+  const costPerChick = pnl?.current_cost_per_chick ? Number(pnl.current_cost_per_chick) : 0;
   const profitPer = f.unit_price - costPerChick;
   const total = f.quantity * f.unit_price;
-  const totalProfit = (f.unit_price - costPerChick) * f.quantity;
+  const totalSoldCost = f.quantity * costPerChick;
+  const totalProfit = total - totalSoldCost;
+  const noCost = !!selected && (!pnl || Number(pnl?.total_cost || 0) === 0);
 
   const save = async () => {
     if (!f.batch_id) return toast.error("اختر الدفعة");
