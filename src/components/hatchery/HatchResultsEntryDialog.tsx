@@ -91,6 +91,43 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
     return m;
   });
 
+  // Authoritative load: re-fetch excluded_eggs (+ related result fields) from DB on open
+  // to guarantee we never display a stale value from a cached _raw payload.
+  useEffect(() => {
+    (async () => {
+      const ids = (group.customers || []).map((c: any) => c.id).filter(Boolean);
+      if (!ids.length) return;
+      const { data, error } = await supabase
+        .from("hatch_batches")
+        .select("id, batch_number, received_eggs, excluded_eggs, net_eggs, candle1_infertile, candle2_dead, hatcher_dead, hatched_chicks, notes")
+        .in("id", ids);
+      if (error) {
+        console.error("[HatchResults] load excluded_eggs failed:", error);
+        return;
+      }
+      console.log("[HatchResults] DB SELECT after open:", data);
+      setDrafts((prev) => {
+        const next = { ...prev };
+        for (const row of data || []) {
+          if (!next[row.id]) continue;
+          next[row.id] = {
+            ...next[row.id],
+            total_eggs: row.received_eggs ?? next[row.id].total_eggs,
+            net_eggs: row.net_eggs ?? next[row.id].net_eggs,
+            excluded_eggs: row.excluded_eggs ?? 0,
+            candle1_infertile: row.candle1_infertile ?? 0,
+            candle2_dead: row.candle2_dead ?? 0,
+            hatcher_dead: row.hatcher_dead ?? 0,
+            hatched_chicks: row.hatched_chicks ?? 0,
+            notes: row.notes ?? "",
+          };
+        }
+        return next;
+      });
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const update = (id: string, field: keyof RowDraft, value: any) =>
     setDrafts((p) => ({ ...p, [id]: { ...p[id], [field]: value } }));
 
