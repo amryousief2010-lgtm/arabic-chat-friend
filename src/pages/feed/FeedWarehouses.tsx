@@ -1321,6 +1321,11 @@ function PurchaseDialog({ open, onOpenChange, materials, onSaved, editPurchase }
           <div><Label>رقم فاتورة المورد</Label><Input value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} /></div>
           <div><Label>التاريخ</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
         </div>
+        {dateWarning && (
+          <div className={`text-xs rounded-md p-2 border ${dateWarning.level === "error" ? "bg-destructive/10 text-destructive border-destructive/30" : dateWarning.level === "warn" ? "bg-amber-500/10 text-amber-700 border-amber-500/30" : "bg-muted text-muted-foreground border-border"}`}>
+            {dateWarning.msg}
+          </div>
+        )}
         <div className="space-y-2">
           <div className="flex items-center justify-between"><Label>بنود الشراء</Label><Button size="sm" variant="outline" onClick={() => setLines([...lines, newLine()])}><Plus className="h-3 w-3 ml-1" />بند</Button></div>
           {lines.map((l) => (
