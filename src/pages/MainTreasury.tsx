@@ -162,6 +162,14 @@ export default function MainTreasury() {
   const totalBalance = useMemo(() => balances.reduce((s,b)=>s+Number(b.current_balance||0), 0), [balances]);
   const totalPending = useMemo(() => balances.reduce((s,b)=>s+Number(b.pending_amount||0), 0), [balances]);
   const pendingTxns = useMemo(() => txns.filter(t => t.status === "pending_approval"), [txns]);
+  const filteredLogTxns = useMemo(() => txns.filter(t =>
+    (logFilter.account_id === "all" || t.account_id === logFilter.account_id) &&
+    (logFilter.txn_type === "all" || t.txn_type === logFilter.txn_type) &&
+    (logFilter.status === "all" || t.status === logFilter.status) &&
+    (!logFilter.from || t.txn_date >= logFilter.from) &&
+    (!logFilter.to || t.txn_date <= logFilter.to) &&
+    (!logFilter.search || `${t.reference_no} ${t.description} ${t.counterparty||""}`.toLowerCase().includes(logFilter.search.toLowerCase()))
+  ), [txns, logFilter]);
   const monthExpenses = useMemo(() => {
     const m = new Date(); m.setDate(1);
     return txns.filter(t => t.status === "posted" && t.txn_type === "expense" && new Date(t.txn_date) >= m)
