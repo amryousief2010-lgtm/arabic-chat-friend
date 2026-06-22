@@ -605,6 +605,74 @@ export default function MeatPurchaseInvoices() {
           </DialogContent>
         </Dialog>
 
+        <Dialog open={!!editing} onOpenChange={(v) => !v && setEditing(null)}>
+          <DialogContent className="max-w-2xl" dir="rtl">
+            <DialogHeader>
+              <DialogTitle>تعديل بيانات الفاتورة {editing?.invoice_no || "—"}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 text-sm">
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+                تعديل البيانات الأساسية فقط (النوع، المورد، الدفع، التاريخ، الملاحظات، رقم الإيصال). لا يمكن تعديل الكميات أو الأسعار أو الأصناف من هنا — استخدم إجراء التصحيح/الإلغاء وإعادة الاعتماد.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <Label>نوع الفاتورة</Label>
+                  <Select value={editForm.invoice_type} onValueChange={(v) => setEditForm(s => ({ ...s, invoice_type: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="raw">خامات</SelectItem>
+                      <SelectItem value="spice">بهارات</SelectItem>
+                      <SelectItem value="packaging">تغليف</SelectItem>
+                      <SelectItem value="mixed">مختلطة</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>اسم المورد</Label>
+                  <Input value={editForm.supplier} onChange={e => setEditForm(s => ({ ...s, supplier: e.target.value }))} />
+                </div>
+                <div>
+                  <Label>طريقة الدفع</Label>
+                  <Select value={editForm.payment_method} onValueChange={(v) => setEditForm(s => ({ ...s, payment_method: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cash">نقدي</SelectItem>
+                      <SelectItem value="credit">آجل</SelectItem>
+                      <SelectItem value="transfer">تحويل</SelectItem>
+                      <SelectItem value="other">أخرى</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>التاريخ</Label>
+                  <Input type="date" value={editForm.purchase_date} onChange={e => setEditForm(s => ({ ...s, purchase_date: e.target.value }))} />
+                </div>
+                <div className="md:col-span-2">
+                  <Label>رقم الإيصال اليدوي</Label>
+                  <Input value={editForm.receipt_no} onChange={e => setEditForm(s => ({ ...s, receipt_no: e.target.value }))} />
+                </div>
+                <div className="md:col-span-2">
+                  <Label>ملاحظات</Label>
+                  <Textarea value={editForm.notes} onChange={e => setEditForm(s => ({ ...s, notes: e.target.value }))} />
+                </div>
+                <div className="md:col-span-2">
+                  <Label>سبب التعديل *</Label>
+                  <Textarea value={editForm.reason} onChange={e => setEditForm(s => ({ ...s, reason: e.target.value }))} placeholder="مطلوب للتسجيل في سجل المراجعة" />
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditing(null)}>إلغاء</Button>
+              <Button onClick={saveEdit} disabled={editSaving} className="bg-red-600 hover:bg-red-700">
+                {editSaving ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <Pencil className="w-4 h-4 ml-1" />}
+                حفظ التعديل
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+
+
         <Dialog open={newItemDlg.open} onOpenChange={(v) => !v && setNewItemDlg({ open: false, lineTmp: null })}>
           <DialogContent className="max-w-lg" dir="rtl">
             <DialogHeader>
