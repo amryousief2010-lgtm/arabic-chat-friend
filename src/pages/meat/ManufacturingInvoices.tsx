@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Factory, Plus, Trash2, CheckCircle2, Send, Loader2, Printer, Eye, ChefHat, AlertTriangle, Link2 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import recipesData from "@/data/meatRecipes.json";
+import { parseServiceCostsFromNotes, userNotesFromInvoice, type ServiceCostRow } from "@/lib/meatServiceCosts";
 
 type MeatRecipe = { key: string; product: string; code: number; batch_qty: number; unit: string; wages: number; lines: { code: number; name: string; kind: "raw"|"spice"|"packaging"; unit: string; qty: number; price: number; total: number }[] };
 const MEAT_RECIPES = recipesData as MeatRecipe[];
@@ -467,19 +468,43 @@ export default function ManufacturingInvoices() {
       <table><thead><tr><th>الصنف</th><th>النوع</th><th>الوحدة</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th><th>المخزون قبل</th><th>المخزون بعد</th></tr></thead>
       <tbody>${packRows.map(rowHtml).join("") || `<tr><td colspan="8" style="text-align:center">لا توجد</td></tr>`}</tbody></table>
 
-      <h2>تكاليف إضافية</h2>
-      <table><thead><tr><th>البند</th></tr></thead>
-      <tbody>${serviceNotesFromInvoice(inv.notes).map(n => `<tr><td>${esc(n.replace("[service_cost]", "" ).trim())}</td></tr>`).join("") || `<tr><td style="text-align:center">لا توجد بنود خدمة منفصلة</td></tr>`}</tbody></table>
+      <h2>المواد الخدمية / التكاليف الإضافية</h2>
+      ${(() => {
+        const svc = parseServiceCostsFromNotes(inv.notes);
+        const svcTotal = svc.reduce((s, r) => s + Number(r.total || 0), 0);
+        const residual = Math.max(0, Number(inv.extra_cost || 0) - svcTotal);
+        if (svc.length === 0 && residual === 0) {
+          return `<table><tbody><tr><td style="text-align:center;color:#666">لا توجد مواد خدمية في هذه الفاتورة</td></tr></tbody></table>`;
+        }
+        const rows = svc.map(r => `<tr>
+          <td>${esc(r.name || "مادة خدمية")}</td>
+          <td>تكلفة تشغيل</td>
+          <td>${r.quantity != null ? fmt(r.quantity) : "—"}</td>
+          <td>${esc(r.unit || "—")}</td>
+          <td>${r.unit_cost != null ? fmt(r.unit_cost) : "—"}</td>
+          <td>${r.total != null ? fmt(r.total) : "—"}</td>
+          <td>${esc(r.name || "")}</td>
+        </tr>`).join("");
+        const residualRow = residual > 0 ? `<tr>
+          <td>تكلفة إضافية</td><td>تكلفة تشغيل</td><td>—</td><td>—</td><td>—</td>
+          <td>${fmt(residual)}</td><td>رقم إجمالي بدون كمية</td>
+        </tr>` : "";
+        return `<table>
+          <thead><tr><th>اسم البند</th><th>النوع</th><th>الكمية</th><th>الوحدة</th><th>سعر الوحدة</th><th>الإجمالي</th><th>ملاحظات</th></tr></thead>
+          <tbody>${rows}${residualRow}</tbody>
+          <tfoot><tr><td colspan="5" style="text-align:left">إجمالي المواد الخدمية</td><td colspan="2">${fmt(inv.extra_cost)} ج</td></tr></tfoot>
+        </table>`;
+      })()}
 
       <div class="summary">
         <table>
           <tr><th>إجمالي تكلفة الخامات</th><td>${fmt(inv.raw_cost)} ج</td><th>إجمالي تكلفة البهارات</th><td>${fmt(inv.spice_cost)} ج</td></tr>
-          <tr><th>إجمالي تكلفة التغليف</th><td>${fmt(inv.packaging_cost)} ج</td><th>تكلفة إضافية</th><td>${fmt(inv.extra_cost)} ج</td></tr>
+          <tr><th>إجمالي تكلفة التغليف</th><td>${fmt(inv.packaging_cost)} ج</td><th>إجمالي المواد الخدمية</th><td>${fmt(inv.extra_cost)} ج</td></tr>
           <tr><th>إجمالي تكلفة التصنيع</th><td>${fmt(inv.total_manufacturing_cost)} ج</td><th>تكلفة الوحدة</th><td>${fmt(inv.unit_cost)} ج / ${esc(inv.unit)}</td></tr>
         </table>
       </div>
 
-      ${inv.notes ? `<div style="margin-top:14px"><b>ملاحظات:</b> ${esc(inv.notes)}</div>` : ""}
+      ${userNotesFromInvoice(inv.notes) ? `<div style="margin-top:14px"><b>ملاحظات:</b> ${esc(userNotesFromInvoice(inv.notes))}</div>` : ""}
       <div class="signs"><div>مسؤول مصنع اللحوم</div><div>مشرف المخزن</div><div>المدير المعتمد</div></div>
       <div style="text-align:center;margin-top:18px"><button onclick="window.print()" style="padding:8px 22px;background:#7c3aed;color:#fff;border:0;border-radius:6px;cursor:pointer">طباعة</button></div>
       </body></html>`);
@@ -809,6 +834,7 @@ export default function ManufacturingInvoices() {
                   <div><b>إجمالي الخامات:</b> {fmt(viewing.raw_cost)}</div>
                   <div><b>إجمالي البهارات:</b> {fmt(viewing.spice_cost)}</div>
                   <div><b>إجمالي التغليف:</b> {fmt(viewing.packaging_cost)}</div>
+                  <div><b>إجمالي المواد الخدمية:</b> {fmt(viewing.extra_cost)}</div>
                   <div><b>الإجمالي:</b> {fmt(viewing.total_manufacturing_cost)}</div>
                   <div><b>تكلفة الوحدة:</b> {fmt(viewing.unit_cost)}</div>
                   <div><b>التاريخ:</b> {(viewing.created_at || "").slice(0,10)}</div>
@@ -869,19 +895,65 @@ export default function ManufacturingInvoices() {
                       </Table>
                     </div>
                   );
+                  const svcRows = parseServiceCostsFromNotes(viewing.notes);
+                  const svcTotal = svcRows.reduce((s, r) => s + Number(r.total || 0), 0);
+                  const extraResidual = Math.max(0, Number(viewing.extra_cost || 0) - svcTotal);
                   return (
                     <div className="space-y-4">
-                      {serviceNotesFromInvoice(viewing.notes).length > 0 && (
-                        <div className="space-y-1">
-                          <h3 className="font-semibold text-sm text-purple-700">تكاليف إضافية</h3>
-                          <Table>
-                            <TableHeader><TableRow><TableHead>البند</TableHead></TableRow></TableHeader>
-                            <TableBody>{serviceNotesFromInvoice(viewing.notes).map((n, idx) => <TableRow key={idx}><TableCell>{n.replace("[service_cost]", "").trim()}</TableCell></TableRow>)}</TableBody>
-                          </Table>
-                        </div>
-                      )}
                       {renderTable(rawSpice, "المواد الخام والبهارات المستخدمة", "لا توجد خامات/بهارات")}
                       {renderTable(pack, "خامات التغليف المستخدمة", "لا توجد خامات تغليف")}
+
+                      <div className="space-y-1">
+                        <h3 className="font-semibold text-sm text-purple-700">المواد الخدمية / التكاليف الإضافية</h3>
+                        {svcRows.length === 0 && extraResidual === 0 ? (
+                          <div className="text-xs text-muted-foreground border rounded-md px-3 py-2 bg-muted/30">
+                            لا توجد مواد خدمية في هذه الفاتورة
+                          </div>
+                        ) : (
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>اسم البند</TableHead>
+                                <TableHead>النوع</TableHead>
+                                <TableHead>الكمية</TableHead>
+                                <TableHead>الوحدة</TableHead>
+                                <TableHead>سعر الوحدة</TableHead>
+                                <TableHead>الإجمالي</TableHead>
+                                <TableHead>ملاحظات</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {svcRows.map((r, idx) => (
+                                <TableRow key={idx}>
+                                  <TableCell className="font-medium">{r.name || "مادة خدمية"}</TableCell>
+                                  <TableCell><Badge variant="outline">تكلفة تشغيل</Badge></TableCell>
+                                  <TableCell>{r.quantity != null ? fmt(r.quantity) : "—"}</TableCell>
+                                  <TableCell>{r.unit || "—"}</TableCell>
+                                  <TableCell>{r.unit_cost != null ? fmt(r.unit_cost) : "—"}</TableCell>
+                                  <TableCell className="font-semibold">{r.total != null ? fmt(r.total) : "—"}</TableCell>
+                                  <TableCell className="text-xs text-muted-foreground">{r.name}</TableCell>
+                                </TableRow>
+                              ))}
+                              {extraResidual > 0 && (
+                                <TableRow>
+                                  <TableCell className="font-medium">تكلفة إضافية</TableCell>
+                                  <TableCell><Badge variant="outline">تكلفة تشغيل</Badge></TableCell>
+                                  <TableCell>—</TableCell>
+                                  <TableCell>—</TableCell>
+                                  <TableCell>—</TableCell>
+                                  <TableCell className="font-semibold">{fmt(extraResidual)}</TableCell>
+                                  <TableCell className="text-xs text-muted-foreground">رقم إجمالي بدون كمية</TableCell>
+                                </TableRow>
+                              )}
+                              <TableRow>
+                                <TableCell colSpan={5} className="text-end font-semibold">إجمالي المواد الخدمية</TableCell>
+                                <TableCell className="font-bold text-purple-700">{fmt(Number(viewing.extra_cost || 0))}</TableCell>
+                                <TableCell />
+                              </TableRow>
+                            </TableBody>
+                          </Table>
+                        )}
+                      </div>
                     </div>
                   );
                 })()}

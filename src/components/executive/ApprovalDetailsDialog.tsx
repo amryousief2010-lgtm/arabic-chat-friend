@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { ApprovalItem } from "@/hooks/useExecutiveApprovals";
+import { parseServiceCostsFromNotes } from "@/lib/meatServiceCosts";
 
 const fmtMoney = (n: any) =>
   `${Number(n || 0).toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م`;
@@ -141,8 +142,10 @@ export default function ApprovalDetailsDialog({
                 <Row label="رقم الفاتورة" value={r.invoice_no} />
                 <Row label="المنتج" value={r.product_name} />
                 <Row label="الكمية المنتجة" value={`${fmtNum(r.finished_qty, 3)} ${r.unit || ""}`} />
-                <Row label="تكلفة الخامات" value={fmtMoney(r.materials_total_cost)} />
-                <Row label="تكلفة التغليف" value={fmtMoney(r.packaging_cost)} />
+                <Row label="إجمالي الخامات" value={fmtMoney(r.raw_cost)} />
+                <Row label="إجمالي البهارات" value={fmtMoney(r.spice_cost)} />
+                <Row label="إجمالي التغليف" value={fmtMoney(r.packaging_cost)} />
+                <Row label="إجمالي المواد الخدمية / التكاليف الإضافية" value={fmtMoney(r.extra_cost)} />
                 <Row label="إجمالي تكلفة التصنيع" value={fmtMoney(r.total_manufacturing_cost)} />
                 <Row label="ملاحظات" value={r.notes} />
               </>
@@ -262,6 +265,58 @@ export default function ApprovalDetailsDialog({
                   </div>
                 </>
               )}
+
+              {r._source_table === "meat_manufacturing_invoices" && (() => {
+                const svc = parseServiceCostsFromNotes(r.notes);
+                const svcTotal = svc.reduce((s, x) => s + Number(x.total || 0), 0);
+                const residual = Math.max(0, Number(r.extra_cost || 0) - svcTotal);
+                if (svc.length === 0 && residual === 0) return null;
+                return (
+                  <>
+                    <div className="font-semibold text-sm mt-3 mb-2 text-primary">المواد الخدمية / التكاليف الإضافية</div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead className="bg-muted/50">
+                          <tr>
+                            <th className="p-1.5 text-right">اسم البند</th>
+                            <th className="p-1.5">النوع</th>
+                            <th className="p-1.5">الكمية</th>
+                            <th className="p-1.5">الوحدة</th>
+                            <th className="p-1.5">سعر الوحدة</th>
+                            <th className="p-1.5">الإجمالي</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {svc.map((x, idx) => (
+                            <tr key={idx} className="border-b">
+                              <td className="p-1.5">{x.name || "مادة خدمية"}</td>
+                              <td className="p-1.5 text-center">تكلفة تشغيل</td>
+                              <td className="p-1.5 text-center tabular-nums">{x.quantity != null ? fmtNum(x.quantity, 3) : "—"}</td>
+                              <td className="p-1.5 text-center">{x.unit || "—"}</td>
+                              <td className="p-1.5 text-center tabular-nums">{x.unit_cost != null ? fmtNum(x.unit_cost) : "—"}</td>
+                              <td className="p-1.5 text-center tabular-nums font-semibold">{x.total != null ? fmtMoney(x.total) : "—"}</td>
+                            </tr>
+                          ))}
+                          {residual > 0 && (
+                            <tr className="border-b">
+                              <td className="p-1.5">تكلفة إضافية</td>
+                              <td className="p-1.5 text-center">تكلفة تشغيل</td>
+                              <td className="p-1.5 text-center">—</td>
+                              <td className="p-1.5 text-center">—</td>
+                              <td className="p-1.5 text-center">—</td>
+                              <td className="p-1.5 text-center tabular-nums font-semibold">{fmtMoney(residual)}</td>
+                            </tr>
+                          )}
+                          <tr>
+                            <td colSpan={5} className="p-1.5 text-end font-semibold">إجمالي المواد الخدمية</td>
+                            <td className="p-1.5 text-center tabular-nums font-bold text-primary">{fmtMoney(r.extra_cost)}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           )}
         </div>
