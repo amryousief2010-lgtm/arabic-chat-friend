@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -1735,7 +1735,12 @@ function ProductionDialog({ open, onOpenChange, rawMaterials, products, onSaved 
   const estTotalCost = estMaterialsCost + Number(laborCost || 0) + estExpensesCost;
   const estUnitCost = qtyProduced > 0 ? estTotalCost / qtyProduced : 0;
 
+  // Stable idempotency key per dialog session — regenerated on each open.
+  const requestIdRef = useRef<string>(crypto.randomUUID());
+  useEffect(() => { if (open) requestIdRef.current = crypto.randomUUID(); }, [open]);
+
   const save = async () => {
+    if (saving) return; // hard guard against double-clicks
     if (!productId) return toast.error("اختر منتج العلف الناتج");
     if (!qtyProduced || qtyProduced <= 0) return toast.error("اكتب الكمية المنتجة");
     const valid = lines.filter((l) => l.raw_id && l.qty > 0);
@@ -1743,13 +1748,22 @@ function ProductionDialog({ open, onOpenChange, rawMaterials, products, onSaved 
     const validExp = expenses.filter((e) => e.amount > 0);
 
     setSaving(true);
+    let createdHeadId: string | null = null;
     try {
       const { data: { user } } = await supabase.auth.getUser();
       const { data: head, error: e1 } = await (supabase as any).from("feed_production_invoices").insert({
         prod_date: date, product_id: productId, qty_produced: qtyProduced,
         bags, labor_cost: Number(laborCost || 0), notes, created_by: user?.id,
+        client_request_id: requestIdRef.current,
       }).select("id").single();
-      if (e1) throw e1;
+      if (e1) {
+        const msg = (e1.message || "").toLowerCase();
+        if (msg.includes("duplicate") || msg.includes("unique") || (e1 as any).code === "23505") {
+          throw new Error("تم تسجيل هذه عملية التصنيع بالفعل، لا يمكن تكرارها.");
+        }
+        throw e1;
+      }
+      createdHeadId = head.id;
       const { error: e2 } = await (supabase as any).from("feed_production_invoice_items").insert(
         valid.map((l) => ({ invoice_id: head.id, raw_material_id: l.raw_id, quantity: l.qty }))
       );
@@ -1778,9 +1792,16 @@ function ProductionDialog({ open, onOpenChange, rawMaterials, products, onSaved 
         if (eExp) throw new Error(`فشل حفظ مصروف "${EXPENSE_TYPES_FORM.find(t=>t.v===exp.expense_type)?.l}": ${eExp.message}`);
       }
 
+      createdHeadId = null; // success — skip rollback
       toast.success(`تم تسجيل فاتورة التصنيع${validExp.length ? ` مع ${validExp.length} مصروف` : ""}`);
       onOpenChange(false); onSaved();
-    } catch (err: any) { toast.error(err.message || "فشل الحفظ"); }
+    } catch (err: any) {
+      // Roll back the orphan head invoice if a later step failed, to avoid empty/duplicate rows.
+      if (createdHeadId) {
+        try { await (supabase as any).from("feed_production_invoices").delete().eq("id", createdHeadId); } catch {}
+      }
+      toast.error(err.message || "فشل الحفظ");
+    }
     finally { setSaving(false); }
   };
 
