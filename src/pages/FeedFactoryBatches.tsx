@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Loader2, Wheat } from "lucide-react";
+import { CancelFeedBatchDialog } from "@/components/feed/CancelFeedBatchDialog";
 
 const STATUSES = ["draft", "under_review", "approved", "closed", "cancelled"] as const;
 
@@ -17,6 +18,7 @@ export default function FeedFactoryBatches() {
   const [loading, setLoading] = useState(true);
   const [openDetail, setOpenDetail] = useState<any>(null);
   const [busy, setBusy] = useState(false);
+  const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -113,16 +115,22 @@ export default function FeedFactoryBatches() {
             {openDetail?.status === "approved" && (
               <Button disabled={busy} onClick={() => act("feed_batch_close", { p_batch_id: openDetail.id })}>إغلاق + ترحيل للمخزون</Button>
             )}
-            {openDetail && !["closed", "cancelled"].includes(openDetail.status) && (
-              <Button variant="destructive" disabled={busy} onClick={() => {
-                const r = prompt("سبب الإلغاء"); if (!r) return;
-                act("feed_batch_cancel", { p_batch_id: openDetail.id, p_reason: r });
-              }}>إلغاء الدفعة</Button>
+            {openDetail && openDetail.status !== "cancelled" && (
+              <Button variant="destructive" disabled={busy} onClick={() => setCancelTargetId(openDetail.id)}>
+                إلغاء الدفعة
+              </Button>
             )}
             <Button variant="outline" onClick={() => setOpenDetail(null)}>إغلاق</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <CancelFeedBatchDialog
+        batchId={cancelTargetId}
+        open={!!cancelTargetId}
+        onClose={() => setCancelTargetId(null)}
+        onCancelled={() => { setOpenDetail(null); load(); }}
+      />
     </div>
   );
 }

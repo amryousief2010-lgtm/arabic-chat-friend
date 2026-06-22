@@ -16907,10 +16907,13 @@ export type Database = {
         }
         Returns: Json
       }
-      feed_batch_cancel: {
-        Args: { p_batch_id: string; p_reason: string }
-        Returns: Json
-      }
+      feed_batch_cancel:
+        | { Args: { p_batch_id: string; p_reason: string }; Returns: Json }
+        | {
+            Args: { p_batch_id: string; p_force?: boolean; p_reason: string }
+            Returns: Json
+          }
+      feed_batch_cancel_preview: { Args: { p_batch_id: string }; Returns: Json }
       feed_batch_close: { Args: { p_batch_id: string }; Returns: Json }
       feed_batch_submit_review: { Args: { p_batch_id: string }; Returns: Json }
       feed_factory_dashboard_stats: {
