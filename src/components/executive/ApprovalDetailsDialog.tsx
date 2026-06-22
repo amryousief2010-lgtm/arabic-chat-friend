@@ -67,6 +67,13 @@ export default function ApprovalDetailsDialog({
             setLines(raw || []);
             setPackLines(pack || []);
           }
+        } else if (item.category === "mf_purchase" && item.raw?._kind === "meat_factory_purchase") {
+          const { data } = await (supabase as any)
+            .from("meat_factory_purchase_lines")
+            .select("*")
+            .eq("purchase_id", item.id)
+            .order("created_at");
+          if (!cancel) setLines(data || []);
         }
       } finally {
         if (!cancel) setLoading(false);
