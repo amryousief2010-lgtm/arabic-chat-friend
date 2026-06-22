@@ -1483,7 +1483,112 @@ export default function ManufacturingInvoices() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Cancel / void invoice with inventory reversal */}
+        <Dialog open={!!cancelTarget} onOpenChange={(v) => { if (!v) { setCancelTarget(null); setCancelReason(""); setCancelForce(false); setCancelImpact(null); } }}>
+          <DialogContent dir="rtl" className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-red-700">
+                <Ban className="w-5 h-5" />
+                إلغاء فاتورة تصنيع {cancelTarget?.invoice_no || ""}
+              </DialogTitle>
+            </DialogHeader>
+            {cancelTarget && (
+              <div className="space-y-3 text-sm max-h-[65vh] overflow-y-auto">
+                <div className="rounded border bg-amber-50 p-3 space-y-1 text-xs">
+                  <div><b>رقم الفاتورة:</b> {cancelTarget.invoice_no || "—"}</div>
+                  <div><b>المنتج النهائي:</b> {cancelTarget.product_name} — {fmt(cancelTarget.finished_qty)} {cancelTarget.unit}</div>
+                  <div><b>الحالة الحالية:</b> {statusBadge(cancelTarget.status)}</div>
+                </div>
+
+                {cancelTarget.status === "draft" ? (
+                  <div className="rounded border border-blue-200 bg-blue-50 p-3 text-blue-800 text-xs">
+                    هذه الفاتورة مسودة ولم تؤثر على المخزون — سيتم تحويلها إلى حالة "ملغاة" فقط دون أي حركات عكسية.
+                  </div>
+                ) : (
+                  <>
+                    <div className="rounded border border-red-200 bg-red-50 p-3 space-y-2">
+                      <div className="font-semibold text-red-800">سيتم تنفيذ الحركات العكسية التالية:</div>
+                      <div className="text-xs space-y-1">
+                        <div><b>1) إعادة الخامات والتغليف للمخزون:</b></div>
+                        {!cancelImpact ? (
+                          <div className="text-muted-foreground">جارٍ تحميل البنود...</div>
+                        ) : cancelImpact.lines.length === 0 ? (
+                          <div className="text-amber-700">لا توجد بنود خامات مسجلة لهذه الفاتورة.</div>
+                        ) : (
+                          <ul className="list-disc pr-5 space-y-0.5">
+                            {cancelImpact.lines.map((l: any) => (
+                              <li key={l.id}>
+                                {l.item_name} — {fmt(l.quantity)} {l.unit} <span className="text-muted-foreground">[{KIND_LABEL[(l.kind as Kind) || "raw"]}]</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                      <div className="text-xs space-y-1">
+                        <div><b>2) خصم المنتج النهائي من المخزون:</b></div>
+                        <div className="pr-5">
+                          {cancelImpact?.finishedItemName || cancelTarget.product_name} — يجب خصم {fmt(cancelTarget.finished_qty)} {cancelTarget.unit}
+                          <span className="text-muted-foreground"> (المتاح حالياً: {cancelImpact?.finishedStock != null ? fmt(cancelImpact.finishedStock) : "—"})</span>
+                        </div>
+                        {cancelImpact && cancelImpact.finishedStock != null && cancelImpact.finishedStock + 0.0001 < cancelTarget.finished_qty && (
+                          <div className="text-red-700 font-semibold pr-5">
+                            ⚠️ الرصيد الحالي أقل من الكمية المطلوب عكسها — جزء من المنتج تم صرفه أو بيعه.
+                            {canForceCancel
+                              ? " يمكنك تفعيل الإلغاء الجزئي أدناه."
+                              : " لا يمكن الإلغاء — يجب طلب تسوية إدارية من المدير العام/التنفيذي."}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {cancelImpact && cancelImpact.finishedStock != null && cancelImpact.finishedStock + 0.0001 < cancelTarget.finished_qty && canForceCancel && (
+                      <label className="flex items-start gap-2 text-xs text-amber-800 border border-amber-300 bg-amber-50 rounded p-2">
+                        <input type="checkbox" className="mt-0.5" checked={cancelForce} onChange={(e) => setCancelForce(e.target.checked)} />
+                        <span>
+                          إلغاء جزئي بصلاحية المدير — سيتم عكس الكمية المتاحة فقط ({fmt(cancelImpact.finishedStock)} {cancelTarget.unit}) وتسجيل الفرق في سجل التدقيق.
+                        </span>
+                      </label>
+                    )}
+                  </>
+                )}
+
+                <div>
+                  <Label className="text-red-800">سبب الإلغاء (إلزامي)</Label>
+                  <Textarea
+                    value={cancelReason}
+                    onChange={(e) => setCancelReason(e.target.value)}
+                    placeholder="اكتب سبب واضح للإلغاء — مطلوب للأرشيف وسجل التدقيق"
+                    rows={3}
+                  />
+                </div>
+              </div>
+            )}
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={() => { setCancelTarget(null); setCancelReason(""); setCancelForce(false); setCancelImpact(null); }}>
+                تراجع
+              </Button>
+              <Button
+                disabled={
+                  cancelling ||
+                  cancelReason.trim().length < 3 ||
+                  (cancelTarget?.status === "approved"
+                    && cancelImpact != null
+                    && cancelImpact.finishedStock != null
+                    && cancelImpact.finishedStock + 0.0001 < (cancelTarget?.finished_qty || 0)
+                    && !(canForceCancel && cancelForce))
+                }
+                className="bg-red-600 hover:bg-red-700"
+                onClick={submitCancel}
+              >
+                {cancelling ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <Ban className="w-4 h-4 ml-1" />}
+                تأكيد الإلغاء وعكس المخزون
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
+
 
     </DashboardLayout>
   );
