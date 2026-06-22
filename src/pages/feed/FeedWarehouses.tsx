@@ -171,6 +171,7 @@ export default function FeedWarehouses() {
   const [countOpen, setCountOpen] = useState(false);
   const [editRaw, setEditRaw] = useState<any | null>(null);
   const [editProd, setEditProd] = useState<any | null>(null);
+  const [showArchivedRaw, setShowArchivedRaw] = useState(false);
   const [treasuryOpen, setTreasuryOpen] = useState(false);
   const [productionOpen, setProductionOpen] = useState(false);
   const [detailsInv, setDetailsInv] = useState<any | null>(null);
@@ -230,6 +231,56 @@ export default function FeedWarehouses() {
       if (error) throw error; return data || [];
     },
   });
+  const archivedRawQ = useQuery({
+    queryKey: ["feed-raw-materials-archived"],
+    enabled: showArchivedRaw,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("feed_raw_materials").select("*").eq("is_active", false).order("name");
+      if (error) throw error; return data || [];
+    },
+  });
+
+  const deleteRawMaterial = async (r: any) => {
+    if (!canEditStock) return;
+    try {
+      const [p1, p2, p3, p4, p5] = await Promise.all([
+        (supabase as any).from("feed_raw_purchase_items").select("id", { count: "exact", head: true }).eq("raw_material_id", r.id),
+        (supabase as any).from("feed_production_invoice_items").select("id", { count: "exact", head: true }).eq("raw_material_id", r.id),
+        (supabase as any).from("feed_material_issues").select("id", { count: "exact", head: true }).eq("raw_material_id", r.id),
+        (supabase as any).from("feed_recipe_items").select("id", { count: "exact", head: true }).eq("raw_material_id", r.id),
+        (supabase as any).from("feed_batch_consumption").select("id", { count: "exact", head: true }).eq("raw_material_id", r.id),
+      ]);
+      const used = (p1.count || 0) + (p2.count || 0) + (p3.count || 0) + (p4.count || 0) + (p5.count || 0);
+      if (used > 0) {
+        if (!window.confirm("هذه الخامة مستخدمة في فواتير أو حركات سابقة، لذلك سيتم أرشفتها بدل حذفها نهائيًا. متابعة؟")) return;
+        const { error } = await supabase.from("feed_raw_materials").update({ is_active: false } as any).eq("id", r.id);
+        if (error) throw error;
+        await (supabase as any).from("feed_audit_log").insert({ table_name: "feed_raw_materials", row_id: r.id, action: "archive", old_value: { is_active: true, name: r.name }, new_value: { is_active: false }, notes: `أُرشف لاستخدامه في ${used} سجل` });
+        toast.success("تم أرشفة الخامة");
+      } else {
+        if (!window.confirm(`سيتم حذف الخامة "${r.name}" نهائيًا (غير مستخدمة). متابعة؟`)) return;
+        const { error } = await supabase.from("feed_raw_materials").delete().eq("id", r.id);
+        if (error) throw error;
+        await (supabase as any).from("feed_audit_log").insert({ table_name: "feed_raw_materials", row_id: r.id, action: "delete", old_value: { name: r.name, unit: r.unit, unit_cost: r.unit_cost }, new_value: null, notes: "حذف نهائي - غير مستخدمة" });
+        toast.success("تم حذف الخامة");
+      }
+      qc.invalidateQueries({ queryKey: ["feed-raw-materials"] });
+      qc.invalidateQueries({ queryKey: ["feed-raw-materials-archived"] });
+    } catch (e: any) {
+      toast.error(e?.message || "تعذر الحذف");
+    }
+  };
+
+  const reactivateRaw = async (r: any) => {
+    if (!canEditStock) return;
+    const { error } = await supabase.from("feed_raw_materials").update({ is_active: true } as any).eq("id", r.id);
+    if (error) { toast.error(error.message); return; }
+    await (supabase as any).from("feed_audit_log").insert({ table_name: "feed_raw_materials", row_id: r.id, action: "reactivate", old_value: { is_active: false }, new_value: { is_active: true }, notes: "إعادة تفعيل" });
+    toast.success("تم إعادة التفعيل");
+    qc.invalidateQueries({ queryKey: ["feed-raw-materials"] });
+    qc.invalidateQueries({ queryKey: ["feed-raw-materials-archived"] });
+  };
+
   const prodQ = useQuery({
     queryKey: ["feed-products"],
     queryFn: async () => {
@@ -527,6 +578,7 @@ export default function FeedWarehouses() {
                 <div className="flex gap-2">
                   <Button size="sm" variant="outline" onClick={() => printRawList(rawQ.data || [])}><Printer className="h-4 w-4 ml-1"/>طباعة</Button>
                   <Button size="sm" variant="outline" onClick={exportRaw}><FileSpreadsheet className="h-4 w-4 ml-1"/>Excel</Button>
+                  {canEditStock && <Button size="sm" variant={showArchivedRaw ? "default" : "outline"} onClick={() => setShowArchivedRaw(v => !v)}>{showArchivedRaw ? "إخفاء المؤرشفة" : "عرض المؤرشفة"}</Button>}
                   {canEditStock && <Button onClick={() => setEditRaw({})}><Plus className="h-4 w-4 ml-1" />إضافة خامة</Button>}
                 </div>
               </CardHeader>
@@ -560,7 +612,7 @@ export default function FeedWarehouses() {
                           <TableCell className={margin > 0 ? "text-green-600 font-semibold" : margin < 0 ? "text-destructive" : ""}>{sp > 0 ? fmt(margin) : "—"}</TableCell>
                           <TableCell className="text-xs">{sp > 0 ? `${marginPct.toFixed(1)}%` : "—"}</TableCell>
                           <TableCell className="text-muted-foreground text-xs">{r.supplier || "-"}</TableCell>
-                          {canEditStock && <TableCell><Button size="icon" variant="ghost" onClick={() => setEditRaw(r)}><Pencil className="h-4 w-4" /></Button></TableCell>}
+                          {canEditStock && <TableCell><div className="flex gap-1"><Button size="icon" variant="ghost" onClick={() => setEditRaw(r)} title="تعديل"><Pencil className="h-4 w-4" /></Button><Button size="icon" variant="ghost" className="text-destructive" onClick={() => deleteRawMaterial(r)} title="حذف / أرشفة"><Trash2 className="h-4 w-4" /></Button></div></TableCell>}
                         </TableRow>
                       );
                     })}
@@ -577,6 +629,27 @@ export default function FeedWarehouses() {
                   )}
                 </Table>
 
+                {showArchivedRaw && (
+                  <div className="mt-6 border-t pt-4">
+                    <div className="text-sm font-semibold mb-2 text-muted-foreground">الخامات المؤرشفة ({archivedRawQ.data?.length || 0})</div>
+                    <Table>
+                      <TableHeader><TableRow><TableHead>الصنف</TableHead><TableHead>الوحدة</TableHead><TableHead>آخر سعر</TableHead><TableHead>الرصيد</TableHead><TableHead>ملاحظات</TableHead>{canEditStock && <TableHead></TableHead>}</TableRow></TableHeader>
+                      <TableBody>
+                        {(archivedRawQ.data || []).map((r: any) => (
+                          <TableRow key={r.id} className="opacity-70">
+                            <TableCell className="font-medium">{r.name}</TableCell>
+                            <TableCell>{r.unit}</TableCell>
+                            <TableCell>{fmt(Number(r.unit_cost || 0))}</TableCell>
+                            <TableCell>{fmt(Number(r.stock || 0))}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground max-w-[300px] truncate" title={r.notes || ""}>{r.notes || "—"}</TableCell>
+                            {canEditStock && <TableCell><div className="flex gap-1"><Button size="sm" variant="outline" onClick={() => reactivateRaw(r)}><Undo2 className="h-3.5 w-3.5 ml-1" />إعادة تفعيل</Button><Button size="icon" variant="ghost" className="text-destructive" onClick={() => deleteRawMaterial(r)}><Trash2 className="h-4 w-4" /></Button></div></TableCell>}
+                          </TableRow>
+                        ))}
+                        {!archivedRawQ.data?.length && <TableRow><TableCell colSpan={canEditStock ? 6 : 5} className="text-center text-muted-foreground py-4">لا توجد خامات مؤرشفة</TableCell></TableRow>}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
