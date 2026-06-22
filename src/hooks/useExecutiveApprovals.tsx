@@ -322,6 +322,23 @@ export function useExecutiveApprovals() {
           status: p.status,
           raw: { ...p, _kind: "pack_purchase" },
         })),
+        ...(mfPurchasesRes.data || []).map((p: any) => {
+          const typeLabel: Record<string, string> = { raw: "خامات", spice: "بهارات", packaging: "تغليف", mixed: "mixed" };
+          const payLabel: Record<string, string> = { cash: "نقدي", credit: "آجل", transfer: "تحويل", other: "أخرى" };
+          return {
+            id: p.id,
+            category: "mf_purchase" as ApprovalCategory,
+            source: "فاتورة مشتريات مصنع اللحوم",
+            title: `فاتورة مشتريات مصنع اللحوم${p.invoice_no ? ` — ${p.invoice_no}` : ""}`,
+            subtitle: `${p.supplier || "بدون مورد"} — ${typeLabel[p.invoice_type] || p.invoice_type || ""}${p.payment_method ? ` — ${payLabel[p.payment_method] || p.payment_method}` : ""}${(p.lines || []).length ? ` — ${(p.lines || []).length} صنف` : ""}${p.notes ? ` — ${p.notes}` : ""}`,
+            amount: Number(p.total_amount || 0),
+            created_at: p.created_at,
+            created_by: p.created_by,
+            creator_name: profiles[p.created_by] || null,
+            status: p.status,
+            raw: { ...p, _kind: "meat_factory_purchase" },
+          };
+        }),
       ];
 
       const mfMfgItems: ApprovalItem[] = (mfMfgRes.data || []).map((m: any) => ({
