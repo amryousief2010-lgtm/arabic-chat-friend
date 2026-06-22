@@ -63,6 +63,18 @@ export default function ManufacturingInvoices() {
   const [saving, setSaving] = useState(false);
   const [invoiceUuid, setInvoiceUuid] = useState<string>(() => crypto.randomUUID());
 
+  // Carryover dough — OUT (this invoice produces leftover dough)
+  const [hasCarryoverOut, setHasCarryoverOut] = useState(false);
+  const [carryoverOutQty, setCarryoverOutQty] = useState<number>(0);
+  const [carryoverOutProduct, setCarryoverOutProduct] = useState<string>("");
+  const [carryoverOutNotes, setCarryoverOutNotes] = useState<string>("");
+
+  // Carryover dough — IN (this invoice consumes available leftover dough)
+  type CarryRow = { id: string; source_invoice_no: string | null; source_product_name: string; remaining_qty_kg: number; unit_cost: number; production_date: string; status: string };
+  const [availableCarryovers, setAvailableCarryovers] = useState<CarryRow[]>([]);
+  const [carryoverInId, setCarryoverInId] = useState<string>("");
+  const [carryoverInQty, setCarryoverInQty] = useState<number>(0);
+
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [viewing, setViewing] = useState<Invoice | null>(null);
   const [viewLines, setViewLines] = useState<any[]>([]);
