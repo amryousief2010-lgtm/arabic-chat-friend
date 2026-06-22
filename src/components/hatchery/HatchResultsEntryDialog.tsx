@@ -396,10 +396,57 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 flex-wrap">
             إدخال نتائج الفقس — {group.op_number}
+            {isLocked ? (
+              <Badge className="bg-rose-600 text-white flex items-center gap-1">
+                <Lock className="w-3 h-3" /> دفعة مقفلة
+              </Badge>
+            ) : (
+              <Badge className="bg-emerald-600 text-white">مفتوحة للتعديل</Badge>
+            )}
             <Badge className="bg-purple-500 text-white">في الهاتشر</Badge>
             <Badge variant="outline">{group.customers.length} عميل</Badge>
           </DialogTitle>
         </DialogHeader>
+
+        {isLocked && !isManager && (
+          <div className="rounded-md border border-rose-300 bg-rose-50 dark:bg-rose-950/30 p-3 text-sm text-rose-800 dark:text-rose-200 flex items-start gap-2">
+            <Lock className="w-4 h-4 mt-0.5 shrink-0" />
+            <div>
+              <div className="font-bold">لا يمكن تعديل هذه الدفعة لأنها مقفلة.</div>
+              <div className="text-xs">التعديل متاح فقط للمدير العام أو المدير التنفيذي. يمكنك الاطلاع على النتائج فقط.</div>
+            </div>
+          </div>
+        )}
+
+        {isLocked && isManager && (
+          <div className="rounded-md border border-amber-400 bg-amber-50 dark:bg-amber-950/30 p-3 text-sm text-amber-900 dark:text-amber-200 space-y-2">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+              <div className="font-semibold">هذه الدفعة مقفلة. أي تعديل سيتم تسجيله في سجل التدقيق.</div>
+            </div>
+            {!managerOverride ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-amber-500 text-amber-800"
+                onClick={() => setManagerOverride(true)}
+              >
+                <Unlock className="w-4 h-4 ml-1" /> تفعيل التعديل بصلاحية إدارية
+              </Button>
+            ) : (
+              <div className="space-y-1">
+                <label className="text-xs font-semibold">سبب التعديل (إلزامي — 5 أحرف على الأقل):</label>
+                <Textarea
+                  value={overrideReason}
+                  onChange={(e) => setOverrideReason(e.target.value)}
+                  rows={2}
+                  placeholder="مثال: تصحيح خطأ إدخال في عدد الكتاكيت بعد المراجعة..."
+                  className="text-xs"
+                />
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="rounded-md border bg-amber-50 dark:bg-amber-950/30 border-amber-300 p-3 text-xs text-amber-900 dark:text-amber-200 space-y-1">
           <div>• <b>المستبعد</b> = البيض المخروم/المكسور/غير الصالح الذي لم يدخل التشغيل. <b>صافي بعد الاستبعاد</b> = عدد البيض − المستبعد.</div>
@@ -407,6 +454,7 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
           <div>• عدد الكتاكيت + نافق الهاتشر يجب أن لا يتجاوزا صافي بعد ك2. المستبعد لا يدخل في رسوم التشغيل المالية.</div>
           <div>• لن يتم تعديل خزنة المعمل ولا تسجيل أي حركة مالية ولا تحصيل تلقائي.</div>
         </div>
+
 
         <div className="flex items-end gap-3 mt-3">
           <div>
