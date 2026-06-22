@@ -80,6 +80,7 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
         batch_number: c.batch_number,
         total_eggs: raw.received_eggs ?? c.total_eggs ?? 0,
         net_eggs: raw.net_eggs ?? c.net_eggs ?? 0,
+        excluded_eggs: raw.excluded_eggs ?? 0,
         candle1_infertile: raw.candle1_infertile ?? 0,
         candle2_dead: raw.candle2_dead ?? 0,
         hatcher_dead: raw.hatcher_dead ?? 0,
