@@ -157,9 +157,13 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
     const rows = Object.values(drafts);
     for (const r of rows) {
       const eggs = toNum(r.total_eggs);
+      const excl = toNum(r.excluded_eggs);
+      const netAfterExcl = Math.max(0, eggs - excl);
       const c1 = toNum(r.candle1_infertile);
-      const netC1 = Math.max(0, eggs - c1);
+      const netC1 = Math.max(0, netAfterExcl - c1);
       const payload: any = {
+        excluded_eggs: excl,
+        net_eggs: netAfterExcl,
         candle1_infertile: c1,
         candle1_fertile: netC1,
         candle2_dead: toNum(r.candle2_dead),
