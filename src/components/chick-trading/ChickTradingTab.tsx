@@ -267,16 +267,28 @@ const NewSaleDialog = ({ batches, onSaved }: { batches: Batch[]; onSaved: () => 
           <div className="col-span-2"><Label>ملاحظات</Label>
             <Textarea value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} /></div>
           {selected && (
-            <div className="col-span-2 p-3 rounded-md bg-orange-50 border border-orange-200 grid grid-cols-2 gap-2 text-sm">
-              <div>المتاح: <strong>{selected.current_count}</strong></div>
-              <div>تكلفة الكتكوت عليّا: <strong>{fmtEGP(costPerChick)}</strong></div>
-              <div>سعر البيع: <strong>{fmtEGP(f.unit_price)}</strong></div>
-              <div className={profitPer >= 0 ? "text-emerald-700" : "text-red-700"}>
-                ربح/كتكوت: <strong>{fmtEGP(profitPer)}</strong>
-              </div>
-              <div>إجمالي البيع: <strong>{fmtEGP(total)}</strong></div>
-              <div className={totalProfit >= 0 ? "text-emerald-700" : "text-red-700"}>
-                إجمالي الربح المتوقع: <strong>{fmtEGP(totalProfit)}</strong>
+            <div className="col-span-2 space-y-2">
+              {loadingPnl && <div className="text-xs text-muted-foreground">جاري حساب التكلفة...</div>}
+              {noCost && !loadingPnl && (
+                <div className="p-2 rounded-md bg-amber-50 border border-amber-300 text-amber-800 text-xs">
+                  ⚠️ لا توجد تكلفة محسوبة لهذه الدفعة، برجاء مراجعة الشراء والمصروفات.
+                </div>
+              )}
+              <div className="p-3 rounded-md bg-orange-50 border border-orange-200 grid grid-cols-2 gap-2 text-sm">
+                <div>المتاح للبيع: <strong>{selected.current_count}</strong></div>
+                <div>إجمالي تكلفة الدفعة: <strong>{fmtEGP(Number(pnl?.total_cost || 0))}</strong></div>
+                <div className="col-span-2 border-t border-orange-200 pt-2">
+                  تكلفة الكتكوت عليّا: <strong className="text-orange-800">{fmtEGP(costPerChick)}</strong>
+                </div>
+                <div>سعر البيع للكتكوت: <strong>{fmtEGP(f.unit_price)}</strong></div>
+                <div className={profitPer >= 0 ? "text-emerald-700" : "text-red-700"}>
+                  ربح/كتكوت: <strong>{fmtEGP(profitPer)}</strong>
+                </div>
+                <div>إجمالي تكلفة المباع: <strong>{fmtEGP(totalSoldCost)}</strong></div>
+                <div>إجمالي البيع: <strong>{fmtEGP(total)}</strong></div>
+                <div className={`col-span-2 border-t border-orange-200 pt-2 ${totalProfit >= 0 ? "text-emerald-700" : "text-red-700"}`}>
+                  إجمالي الربح المتوقع: <strong>{fmtEGP(totalProfit)}</strong>
+                </div>
               </div>
             </div>
           )}
