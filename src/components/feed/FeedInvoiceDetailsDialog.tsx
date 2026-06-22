@@ -174,7 +174,7 @@ export default function FeedInvoiceDetailsDialog({
           <DialogTitle className="flex items-center justify-between gap-2 flex-wrap">
             <span>تفاصيل فاتورة تصنيع — {inv?.prod_no}</span>
             <div className="flex gap-2 flex-wrap">
-              {canAddItems && items.length === 0 && (
+              {canAddItems && items.length === 0 && Number(inv?.total_cost || 0) === 0 && (
                 <Button size="sm" variant="default" className="bg-amber-600 hover:bg-amber-700 text-white" onClick={() => setAddItemsOpen(true)}>
                   <PackagePlus className="h-4 w-4 ml-1" />استكمال الخامات
                 </Button>
