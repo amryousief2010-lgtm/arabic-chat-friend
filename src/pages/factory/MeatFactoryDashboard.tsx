@@ -315,6 +315,109 @@ export default function MeatFactoryDashboard() {
           <Stat to="/meat-factory/recipes" icon={FileText} color="text-purple-600" label="تركيبات التصنيع" value="9 تركيبات" hint="مرجع جاهز" />
         </div>
 
+        {/* إجمالي تصنيع هذا الشهر — مؤشر بارز ثابت على الشهر الحالي */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          <Card
+            onClick={() => setMonthOpen(true)}
+            className="lg:col-span-1 cursor-pointer hover:shadow-lg transition border-2 border-orange-300 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30"
+          >
+            <CardContent className="pt-5 pb-5">
+              <div className="flex items-center gap-2 text-sm text-orange-700">
+                <Scale className="w-5 h-5" /> إجمالي تصنيع هذا الشهر
+              </div>
+              <div className="mt-2 text-4xl font-extrabold text-orange-700">
+                {fmt(monthTotalKg)} <span className="text-2xl">كجم</span>
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                {monthApproved.length} فاتورة معتمدة — إجمالي تكلفة {fmt(monthTotalCost)} ج
+              </div>
+              <div className="mt-2 text-[11px] text-orange-700/80">اضغط لعرض تفاصيل الفواتير</div>
+            </CardContent>
+          </Card>
+
+          <Card className="lg:col-span-2">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Scale className="w-4 h-4 text-orange-600" /> تفصيل التصنيع حسب المنتج — هذا الشهر
+              </CardTitle>
+              <CardDescription>فواتير معتمدة فقط</CardDescription>
+            </CardHeader>
+            <CardContent className="p-0 overflow-x-auto">
+              <Table>
+                <TableHeader><TableRow>
+                  <TableHead>المنتج</TableHead>
+                  <TableHead>عدد الفواتير</TableHead>
+                  <TableHead>الكمية المصنعة</TableHead>
+                  <TableHead>إجمالي التكلفة</TableHead>
+                  <TableHead>متوسط الكيلو</TableHead>
+                </TableRow></TableHeader>
+                <TableBody>
+                  {monthByProduct.length === 0 ? (
+                    <TableRow><TableCell colSpan={5} className="text-center py-6 text-muted-foreground">0 كجم — لا توجد فواتير تصنيع هذا الشهر</TableCell></TableRow>
+                  ) : (
+                    <>
+                      {monthByProduct.map(r => (
+                        <TableRow key={r.product}>
+                          <TableCell className="font-medium">{r.product}</TableCell>
+                          <TableCell>{r.invoices}</TableCell>
+                          <TableCell className="font-bold">{fmt(r.qty)} كجم</TableCell>
+                          <TableCell>{fmt(r.total)} ج</TableCell>
+                          <TableCell>{r.qty > 0 ? `${fmt(r.total / r.qty)} ج/كجم` : "—"}</TableCell>
+                        </TableRow>
+                      ))}
+                      <TableRow className="bg-orange-50 dark:bg-orange-950/20 font-bold">
+                        <TableCell>الإجمالي</TableCell>
+                        <TableCell>{monthApproved.length}</TableCell>
+                        <TableCell className="text-orange-700">{fmt(monthTotalKg)} كجم</TableCell>
+                        <TableCell>{fmt(monthTotalCost)} ج</TableCell>
+                        <TableCell>{monthTotalKg > 0 ? `${fmt(monthTotalCost / monthTotalKg)} ج/كجم` : "—"}</TableCell>
+                      </TableRow>
+                    </>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Dialog open={monthOpen} onOpenChange={setMonthOpen}>
+          <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto" dir="rtl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Scale className="w-5 h-5 text-orange-600" />
+                فواتير تصنيع هذا الشهر — إجمالي {fmt(monthTotalKg)} كجم
+              </DialogTitle>
+            </DialogHeader>
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>رقم الفاتورة</TableHead><TableHead>التاريخ</TableHead>
+                <TableHead>المنتج</TableHead><TableHead>الكمية المنتجة</TableHead>
+                <TableHead>الحالة</TableHead><TableHead>إجمالي التكلفة</TableHead>
+                <TableHead>تكلفة الكيلو</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {monthApproved.length === 0 ? (
+                  <TableRow><TableCell colSpan={7} className="text-center py-6 text-muted-foreground">لا توجد فواتير</TableCell></TableRow>
+                ) : monthApproved.map((inv: any) => {
+                  const qty = Number(inv.finished_qty || 0);
+                  const cost = Number(inv.total_manufacturing_cost || inv.materials_total_cost || 0);
+                  return (
+                    <TableRow key={inv.id} className="cursor-pointer hover:bg-muted/40" onClick={() => window.location.assign(`/meat-factory/manufacturing?invoice=${inv.id}`)}>
+                      <TableCell className="font-mono text-xs">{inv.invoice_no}</TableCell>
+                      <TableCell className="text-xs">{new Date(inv.created_at).toLocaleDateString("ar-EG")}</TableCell>
+                      <TableCell>{inv.product_name}</TableCell>
+                      <TableCell className="font-bold">{fmt(qty)} كجم</TableCell>
+                      <TableCell><Badge className="bg-emerald-600">{inv.status}</Badge></TableCell>
+                      <TableCell>{fmt(cost)} ج</TableCell>
+                      <TableCell>{qty > 0 ? `${fmt(cost / qty)} ج/كجم` : "—"}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </DialogContent>
+        </Dialog>
+
         {/* Alerts */}
         {(alerts.lowItems.length || alerts.zeroItems.length || alerts.drafts.length || alerts.noLines.length || alerts.lowPack.length || alerts.idleSlaughter.length) > 0 && (
           <Card className="border-amber-300 bg-amber-50/40 dark:bg-amber-950/20">
