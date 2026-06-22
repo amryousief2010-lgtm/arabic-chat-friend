@@ -1678,8 +1678,8 @@ function TreasuryDialog({ open, onOpenChange, onSaved }: { open: boolean; onOpen
 }
 
 // ============ PRODUCTION DIALOG ============
-type ProdLine = { id: string; raw_id: string; qty: number };
-const newProdLine = (): ProdLine => ({ id: crypto.randomUUID(), raw_id: "", qty: 0 });
+type ProdLine = { id: string; raw_id: string; qty: number; unit_cost: number; unit_cost_touched: boolean };
+const newProdLine = (): ProdLine => ({ id: crypto.randomUUID(), raw_id: "", qty: 0, unit_cost: 0, unit_cost_touched: false });
 
 type ExpLine = {
   id: string;
