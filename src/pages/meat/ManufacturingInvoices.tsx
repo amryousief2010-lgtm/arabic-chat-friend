@@ -102,6 +102,17 @@ export default function ManufacturingInvoices() {
 
   const rawCandidates = useMemo(() => items.filter(i => i.kind === "raw" || i.kind === "spice"), [items]);
   const packCandidates = useMemo(() => items.filter(i => i.kind === "packaging"), [items]);
+  // Search box for the packaging picker
+  const [packSearch, setPackSearch] = useState("");
+  const packCandidatesFiltered = useMemo(() => {
+    const q = packSearch.trim().toLowerCase();
+    return packCandidates.filter(c => {
+      const hasStock = Number(c.current_stock || 0) > 0;
+      if (!hasStock) return false;
+      if (!q) return true;
+      return (c.name || "").toLowerCase().includes(q);
+    });
+  }, [packCandidates, packSearch]);
 
   const updateLine = (setter: (fn: (ls: Line[]) => Line[]) => void, candidates: RawItem[], tmp: string, patch: Partial<Line>) => {
     setter(ls => ls.map(l => {
@@ -738,7 +749,30 @@ export default function ManufacturingInvoices() {
 
 
                 {renderLineTable(rawLines, setRawLines, rawCandidates, "المواد الخام والبهارات المستخدمة")}
-                {renderLineTable(packLines, setPackLines, packCandidates, "خامات التغليف المستخدمة")}
+                {(() => {
+                  const totalPackInStock = packCandidates.filter(c => Number(c.current_stock || 0) > 0).length;
+                  return (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={packSearch}
+                          onChange={e => setPackSearch(e.target.value)}
+                          placeholder="ابحث في خامات التغليف (طبق، أكياس، استيكر، علبة …)"
+                          className="max-w-md"
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          {packCandidatesFiltered.length} / {totalPackInStock} متاح
+                        </span>
+                      </div>
+                      {totalPackInStock === 0 && (
+                        <div className="text-xs text-amber-700 dark:text-amber-300 border border-amber-300 bg-amber-50 dark:bg-amber-950/20 rounded p-2">
+                          ⚠ لا توجد أي خامة تغليف برصيد متاح. تأكد من اعتماد فاتورة شراء التغليف الخاصة بالأطباق/الأكياس.
+                        </div>
+                      )}
+                      {renderLineTable(packLines, setPackLines, packCandidatesFiltered, "خامات التغليف المستخدمة")}
+                    </div>
+                  );
+                })()}
 
 
                 <Card className="border-purple-200 bg-purple-50/50 dark:bg-purple-950/20">
