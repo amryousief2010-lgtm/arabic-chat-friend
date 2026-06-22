@@ -468,19 +468,43 @@ export default function ManufacturingInvoices() {
       <table><thead><tr><th>الصنف</th><th>النوع</th><th>الوحدة</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th><th>المخزون قبل</th><th>المخزون بعد</th></tr></thead>
       <tbody>${packRows.map(rowHtml).join("") || `<tr><td colspan="8" style="text-align:center">لا توجد</td></tr>`}</tbody></table>
 
-      <h2>تكاليف إضافية</h2>
-      <table><thead><tr><th>البند</th></tr></thead>
-      <tbody>${serviceNotesFromInvoice(inv.notes).map(n => `<tr><td>${esc(n.replace("[service_cost]", "" ).trim())}</td></tr>`).join("") || `<tr><td style="text-align:center">لا توجد بنود خدمة منفصلة</td></tr>`}</tbody></table>
+      <h2>المواد الخدمية / التكاليف الإضافية</h2>
+      ${(() => {
+        const svc = parseServiceCostsFromNotes(inv.notes);
+        const svcTotal = svc.reduce((s, r) => s + Number(r.total || 0), 0);
+        const residual = Math.max(0, Number(inv.extra_cost || 0) - svcTotal);
+        if (svc.length === 0 && residual === 0) {
+          return `<table><tbody><tr><td style="text-align:center;color:#666">لا توجد مواد خدمية في هذه الفاتورة</td></tr></tbody></table>`;
+        }
+        const rows = svc.map(r => `<tr>
+          <td>${esc(r.name || "مادة خدمية")}</td>
+          <td>تكلفة تشغيل</td>
+          <td>${r.quantity != null ? fmt(r.quantity) : "—"}</td>
+          <td>${esc(r.unit || "—")}</td>
+          <td>${r.unit_cost != null ? fmt(r.unit_cost) : "—"}</td>
+          <td>${r.total != null ? fmt(r.total) : "—"}</td>
+          <td>${esc(r.name || "")}</td>
+        </tr>`).join("");
+        const residualRow = residual > 0 ? `<tr>
+          <td>تكلفة إضافية</td><td>تكلفة تشغيل</td><td>—</td><td>—</td><td>—</td>
+          <td>${fmt(residual)}</td><td>رقم إجمالي بدون كمية</td>
+        </tr>` : "";
+        return `<table>
+          <thead><tr><th>اسم البند</th><th>النوع</th><th>الكمية</th><th>الوحدة</th><th>سعر الوحدة</th><th>الإجمالي</th><th>ملاحظات</th></tr></thead>
+          <tbody>${rows}${residualRow}</tbody>
+          <tfoot><tr><td colspan="5" style="text-align:left">إجمالي المواد الخدمية</td><td colspan="2">${fmt(inv.extra_cost)} ج</td></tr></tfoot>
+        </table>`;
+      })()}
 
       <div class="summary">
         <table>
           <tr><th>إجمالي تكلفة الخامات</th><td>${fmt(inv.raw_cost)} ج</td><th>إجمالي تكلفة البهارات</th><td>${fmt(inv.spice_cost)} ج</td></tr>
-          <tr><th>إجمالي تكلفة التغليف</th><td>${fmt(inv.packaging_cost)} ج</td><th>تكلفة إضافية</th><td>${fmt(inv.extra_cost)} ج</td></tr>
+          <tr><th>إجمالي تكلفة التغليف</th><td>${fmt(inv.packaging_cost)} ج</td><th>إجمالي المواد الخدمية</th><td>${fmt(inv.extra_cost)} ج</td></tr>
           <tr><th>إجمالي تكلفة التصنيع</th><td>${fmt(inv.total_manufacturing_cost)} ج</td><th>تكلفة الوحدة</th><td>${fmt(inv.unit_cost)} ج / ${esc(inv.unit)}</td></tr>
         </table>
       </div>
 
-      ${inv.notes ? `<div style="margin-top:14px"><b>ملاحظات:</b> ${esc(inv.notes)}</div>` : ""}
+      ${userNotesFromInvoice(inv.notes) ? `<div style="margin-top:14px"><b>ملاحظات:</b> ${esc(userNotesFromInvoice(inv.notes))}</div>` : ""}
       <div class="signs"><div>مسؤول مصنع اللحوم</div><div>مشرف المخزن</div><div>المدير المعتمد</div></div>
       <div style="text-align:center;margin-top:18px"><button onclick="window.print()" style="padding:8px 22px;background:#7c3aed;color:#fff;border:0;border-radius:6px;cursor:pointer">طباعة</button></div>
       </body></html>`);
