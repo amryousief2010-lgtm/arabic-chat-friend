@@ -1357,6 +1357,11 @@ export default function ManufacturingInvoices() {
               {viewing?.status === "draft" && isApprover && (
                 <Button className="bg-emerald-600 hover:bg-emerald-700" disabled={busy} onClick={() => viewing && approve(viewing.id)}><CheckCircle2 className="w-4 h-4 ml-1" />اعتماد</Button>
               )}
+              {viewing && isApprover && (viewing.status === "draft" || viewing.status === "approved") && (
+                <Button variant="outline" className="border-red-300 text-red-700 hover:bg-red-50" onClick={() => viewing && openCancel(viewing)}>
+                  <Ban className="w-4 h-4 ml-1" />إلغاء الفاتورة
+                </Button>
+              )}
               <Button variant="outline" onClick={() => setViewing(null)}>إغلاق</Button>
             </DialogFooter>
           </DialogContent>
