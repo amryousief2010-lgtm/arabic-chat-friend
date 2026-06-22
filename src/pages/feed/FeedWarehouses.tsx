@@ -1774,7 +1774,13 @@ function ProductionDialog({ open, onOpenChange, rawMaterials, products, onSaved 
       }
       createdHeadId = head.id;
       const { error: e2 } = await (supabase as any).from("feed_production_invoice_items").insert(
-        valid.map((l) => ({ invoice_id: head.id, raw_material_id: l.raw_id, quantity: l.qty }))
+        resolved.map(({ l, uc }) => ({
+          invoice_id: head.id,
+          raw_material_id: l.raw_id,
+          quantity: l.qty,
+          unit_cost: uc,
+          line_cost: Number((uc * Number(l.qty)).toFixed(4)),
+        }))
       );
       if (e2) throw e2;
       const { error: e3 } = await (supabase as any).rpc("finalize_feed_production", { _invoice_id: head.id });
