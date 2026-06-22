@@ -723,6 +723,8 @@ export default function ManufacturingInvoices() {
         const svc = parseServiceCostsFromNotes(inv.notes);
         const svcTotal = svc.reduce((s, r) => s + Number(r.total || 0), 0);
         const residual = Math.max(0, Number(inv.extra_cost || 0) - svcTotal);
+        const effectiveExtra = Math.max(Number(inv.extra_cost || 0), svcTotal);
+        (inv as any).__effective_extra = effectiveExtra;
         if (svc.length === 0 && residual === 0) {
           return `<table><tbody><tr><td style="text-align:center;color:#666">لا توجد مواد خدمية في هذه الفاتورة</td></tr></tbody></table>`;
         }
@@ -742,17 +744,24 @@ export default function ManufacturingInvoices() {
         return `<table>
           <thead><tr><th>اسم البند</th><th>النوع</th><th>الكمية</th><th>الوحدة</th><th>سعر الوحدة</th><th>الإجمالي</th><th>ملاحظات</th></tr></thead>
           <tbody>${rows}${residualRow}</tbody>
-          <tfoot><tr><td colspan="5" style="text-align:left">إجمالي المواد الخدمية</td><td colspan="2">${fmt(inv.extra_cost)} ج</td></tr></tfoot>
+          <tfoot><tr><td colspan="5" style="text-align:left">إجمالي المواد الخدمية</td><td colspan="2">${fmt(effectiveExtra)} ج</td></tr></tfoot>
         </table>`;
       })()}
 
-      <div class="summary">
+      ${(() => {
+        const effectiveExtra = Number((inv as any).__effective_extra ?? inv.extra_cost ?? 0);
+        const base = Number(inv.raw_cost || 0) + Number(inv.spice_cost || 0) + Number(inv.packaging_cost || 0);
+        const effectiveTotal = Math.max(Number(inv.total_manufacturing_cost || 0), base + effectiveExtra);
+        const qty = Number(inv.finished_qty || 0);
+        const effectiveUnit = qty > 0 ? effectiveTotal / qty : Number(inv.unit_cost || 0);
+        return `<div class="summary">
         <table>
           <tr><th>إجمالي تكلفة الخامات</th><td>${fmt(inv.raw_cost)} ج</td><th>إجمالي تكلفة البهارات</th><td>${fmt(inv.spice_cost)} ج</td></tr>
-          <tr><th>إجمالي تكلفة التغليف</th><td>${fmt(inv.packaging_cost)} ج</td><th>إجمالي المواد الخدمية</th><td>${fmt(inv.extra_cost)} ج</td></tr>
-          <tr><th>إجمالي تكلفة التصنيع</th><td>${fmt(inv.total_manufacturing_cost)} ج</td><th>تكلفة الوحدة</th><td>${fmt(inv.unit_cost)} ج / ${esc(inv.unit)}</td></tr>
+          <tr><th>إجمالي تكلفة التغليف</th><td>${fmt(inv.packaging_cost)} ج</td><th>إجمالي المواد الخدمية</th><td>${fmt(effectiveExtra)} ج</td></tr>
+          <tr><th>إجمالي تكلفة التصنيع</th><td>${fmt(effectiveTotal)} ج</td><th>تكلفة الوحدة</th><td>${fmt(effectiveUnit)} ج / ${esc(inv.unit)}</td></tr>
         </table>
-      </div>
+      </div>`;
+      })()}
 
       ${userNotesFromInvoice(inv.notes) ? `<div style="margin-top:14px"><b>ملاحظات:</b> ${esc(userNotesFromInvoice(inv.notes))}</div>` : ""}
       <div class="signs"><div>مسؤول مصنع اللحوم</div><div>مشرف المخزن</div><div>المدير المعتمد</div></div>
@@ -1220,18 +1229,28 @@ export default function ManufacturingInvoices() {
             <DialogHeader><DialogTitle>تفاصيل فاتورة {viewing?.invoice_no}</DialogTitle></DialogHeader>
             {viewing && (
               <div className="space-y-3 text-sm max-h-[70vh] overflow-y-auto">
-                <div className="grid grid-cols-3 gap-2">
-                  <div><b>المنتج:</b> {viewing.product_name}</div>
-                  <div><b>الكمية:</b> {fmt(viewing.finished_qty)} {viewing.unit}</div>
-                  <div><b>الحالة:</b> {statusBadge(viewing.status)}</div>
-                  <div><b>إجمالي الخامات:</b> {fmt(viewing.raw_cost)}</div>
-                  <div><b>إجمالي البهارات:</b> {fmt(viewing.spice_cost)}</div>
-                  <div><b>إجمالي التغليف:</b> {fmt(viewing.packaging_cost)}</div>
-                  <div><b>إجمالي المواد الخدمية:</b> {fmt(viewing.extra_cost)}</div>
-                  <div><b>الإجمالي:</b> {fmt(viewing.total_manufacturing_cost)}</div>
-                  <div><b>تكلفة الوحدة:</b> {fmt(viewing.unit_cost)}</div>
-                  <div><b>التاريخ:</b> {(viewing.created_at || "").slice(0,10)}</div>
-                </div>
+                {(() => {
+                  const svcTotal = parseServiceCostsFromNotes(viewing.notes).reduce((s, x) => s + Number(x.total || 0), 0);
+                  const effExtra = Math.max(Number(viewing.extra_cost || 0), svcTotal);
+                  const base = Number(viewing.raw_cost || 0) + Number(viewing.spice_cost || 0) + Number(viewing.packaging_cost || 0);
+                  const effTotal = Math.max(Number(viewing.total_manufacturing_cost || 0), base + effExtra);
+                  const qty = Number(viewing.finished_qty || 0);
+                  const effUnit = qty > 0 ? effTotal / qty : Number(viewing.unit_cost || 0);
+                  return (
+                    <div className="grid grid-cols-3 gap-2">
+                      <div><b>المنتج:</b> {viewing.product_name}</div>
+                      <div><b>الكمية:</b> {fmt(viewing.finished_qty)} {viewing.unit}</div>
+                      <div><b>الحالة:</b> {statusBadge(viewing.status)}</div>
+                      <div><b>إجمالي الخامات:</b> {fmt(viewing.raw_cost)}</div>
+                      <div><b>إجمالي البهارات:</b> {fmt(viewing.spice_cost)}</div>
+                      <div><b>إجمالي التغليف:</b> {fmt(viewing.packaging_cost)}</div>
+                      <div><b>إجمالي المواد الخدمية:</b> {fmt(effExtra)}</div>
+                      <div><b>الإجمالي:</b> {fmt(effTotal)}</div>
+                      <div><b>تكلفة الوحدة:</b> {fmt(effUnit)}</div>
+                      <div><b>التاريخ:</b> {(viewing.created_at || "").slice(0,10)}</div>
+                    </div>
+                  );
+                })()}
                 {viewLines.length === 0 ? (
                   <div className="border-2 border-dashed border-amber-400 bg-amber-50 dark:bg-amber-950/20 rounded-lg p-4 space-y-3">
                     <div className="text-amber-900 dark:text-amber-200 text-sm font-semibold">
@@ -1340,7 +1359,7 @@ export default function ManufacturingInvoices() {
                               )}
                               <TableRow>
                                 <TableCell colSpan={5} className="text-end font-semibold">إجمالي المواد الخدمية</TableCell>
-                                <TableCell className="font-bold text-purple-700">{fmt(Number(viewing.extra_cost || 0))}</TableCell>
+                                <TableCell className="font-bold text-purple-700">{fmt(Math.max(Number(viewing.extra_cost || 0), svcTotal))}</TableCell>
                                 <TableCell />
                               </TableRow>
                             </TableBody>
