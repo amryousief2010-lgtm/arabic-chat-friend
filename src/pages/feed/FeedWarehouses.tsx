@@ -171,6 +171,7 @@ export default function FeedWarehouses() {
   const [countOpen, setCountOpen] = useState(false);
   const [editRaw, setEditRaw] = useState<any | null>(null);
   const [editProd, setEditProd] = useState<any | null>(null);
+  const [showArchivedRaw, setShowArchivedRaw] = useState(false);
   const [treasuryOpen, setTreasuryOpen] = useState(false);
   const [productionOpen, setProductionOpen] = useState(false);
   const [detailsInv, setDetailsInv] = useState<any | null>(null);
