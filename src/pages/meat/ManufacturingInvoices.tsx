@@ -723,6 +723,8 @@ export default function ManufacturingInvoices() {
         const svc = parseServiceCostsFromNotes(inv.notes);
         const svcTotal = svc.reduce((s, r) => s + Number(r.total || 0), 0);
         const residual = Math.max(0, Number(inv.extra_cost || 0) - svcTotal);
+        const effectiveExtra = Math.max(Number(inv.extra_cost || 0), svcTotal);
+        (inv as any).__effective_extra = effectiveExtra;
         if (svc.length === 0 && residual === 0) {
           return `<table><tbody><tr><td style="text-align:center;color:#666">لا توجد مواد خدمية في هذه الفاتورة</td></tr></tbody></table>`;
         }
@@ -742,17 +744,24 @@ export default function ManufacturingInvoices() {
         return `<table>
           <thead><tr><th>اسم البند</th><th>النوع</th><th>الكمية</th><th>الوحدة</th><th>سعر الوحدة</th><th>الإجمالي</th><th>ملاحظات</th></tr></thead>
           <tbody>${rows}${residualRow}</tbody>
-          <tfoot><tr><td colspan="5" style="text-align:left">إجمالي المواد الخدمية</td><td colspan="2">${fmt(inv.extra_cost)} ج</td></tr></tfoot>
+          <tfoot><tr><td colspan="5" style="text-align:left">إجمالي المواد الخدمية</td><td colspan="2">${fmt(effectiveExtra)} ج</td></tr></tfoot>
         </table>`;
       })()}
 
-      <div class="summary">
+      ${(() => {
+        const effectiveExtra = Number((inv as any).__effective_extra ?? inv.extra_cost ?? 0);
+        const base = Number(inv.raw_cost || 0) + Number(inv.spice_cost || 0) + Number(inv.packaging_cost || 0);
+        const effectiveTotal = Math.max(Number(inv.total_manufacturing_cost || 0), base + effectiveExtra);
+        const qty = Number(inv.finished_qty || 0);
+        const effectiveUnit = qty > 0 ? effectiveTotal / qty : Number(inv.unit_cost || 0);
+        return `<div class="summary">
         <table>
           <tr><th>إجمالي تكلفة الخامات</th><td>${fmt(inv.raw_cost)} ج</td><th>إجمالي تكلفة البهارات</th><td>${fmt(inv.spice_cost)} ج</td></tr>
-          <tr><th>إجمالي تكلفة التغليف</th><td>${fmt(inv.packaging_cost)} ج</td><th>إجمالي المواد الخدمية</th><td>${fmt(inv.extra_cost)} ج</td></tr>
-          <tr><th>إجمالي تكلفة التصنيع</th><td>${fmt(inv.total_manufacturing_cost)} ج</td><th>تكلفة الوحدة</th><td>${fmt(inv.unit_cost)} ج / ${esc(inv.unit)}</td></tr>
+          <tr><th>إجمالي تكلفة التغليف</th><td>${fmt(inv.packaging_cost)} ج</td><th>إجمالي المواد الخدمية</th><td>${fmt(effectiveExtra)} ج</td></tr>
+          <tr><th>إجمالي تكلفة التصنيع</th><td>${fmt(effectiveTotal)} ج</td><th>تكلفة الوحدة</th><td>${fmt(effectiveUnit)} ج / ${esc(inv.unit)}</td></tr>
         </table>
-      </div>
+      </div>`;
+      })()}
 
       ${userNotesFromInvoice(inv.notes) ? `<div style="margin-top:14px"><b>ملاحظات:</b> ${esc(userNotesFromInvoice(inv.notes))}</div>` : ""}
       <div class="signs"><div>مسؤول مصنع اللحوم</div><div>مشرف المخزن</div><div>المدير المعتمد</div></div>
