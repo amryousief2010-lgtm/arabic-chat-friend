@@ -31,6 +31,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { OpeningBalancesPanel, ExternalCollectionsPanel, ExternalSummaryCard, TotalLabFundsCard } from "@/pages/lab-treasury/LabTreasuryExtras";
 import { PremiumStat, HeroSummary, SectionTitle, StatusPill, DashboardSkeleton, EmptyState, ActivityTimeline, getCairoNow } from "@/components/treasury/PremiumUI";
 import LabExpenseAnalytics from "@/components/treasury/LabExpenseAnalytics";
+import LogSummaryCards from "@/components/treasury/LogSummaryCards";
 import LabHatcheryClientsRevenue from "@/components/treasury/LabHatcheryClientsRevenue";
 import LabToCustodyTransferDialog from "@/components/treasury/LabToCustodyTransferDialog";
 
