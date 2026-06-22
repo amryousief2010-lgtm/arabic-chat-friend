@@ -2684,23 +2684,37 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
                     </TableCell>
                     <TableCell>
                       <Input
-                        className="w-20 bg-muted/40"
+                        className={"w-24 " + (canEditCostPrice ? "" : "bg-muted/40")}
                         type="number"
                         step="0.01"
+                        min={0}
+                        inputMode="decimal"
                         value={r.unit_cost ?? ""}
-                        readOnly
-                        title="تكلفة الكيلو محسوبة من تكلفة دفعة الذبح"
+                        onChange={e => {
+                          const v = Math.max(0, +e.target.value || 0);
+                          updateRow(i, { unit_cost: v });
+                        }}
+                        readOnly={!canEditCostPrice}
+                        placeholder={batchCostPerKg ? batchCostPerKg.toFixed(2) : "0"}
+                        title={canEditCostPrice
+                          ? "تكلفة الكيلو — يمكن تعديلها يدويًا، وإلا يتم استخدام تكلفة دفعة الذبح"
+                          : "لا تملك صلاحية تعديل السعر"}
                       />
                     </TableCell>
                     <TableCell>
                       <Input
-                        className="w-20"
+                        className={"w-24 " + (canEditSellPrice ? "" : "bg-muted/40")}
                         type="number"
                         step="0.01"
-                        value={r.unit_price || ""}
-                        onChange={e => updateRow(i, { unit_price: +e.target.value })}
+                        min={0}
+                        inputMode="decimal"
+                        value={r.unit_price ?? ""}
+                        onChange={e => {
+                          const v = Math.max(0, +e.target.value || 0);
+                          updateRow(i, { unit_price: v });
+                        }}
                         readOnly={!canEditSellPrice}
-                        title={canEditSellPrice ? "سعر البيع لكل كجم" : "تعديل سعر البيع متاح للمدير العام/التنفيذي فقط"}
+                        title={canEditSellPrice ? "سعر البيع لكل كجم" : "لا تملك صلاحية تعديل السعر"}
                       />
                     </TableCell>
                     <TableCell className="font-semibold text-slate-700">{totalCost.toFixed(0)}</TableCell>
