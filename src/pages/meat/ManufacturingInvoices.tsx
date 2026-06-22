@@ -1303,7 +1303,100 @@ export default function ManufacturingInvoices() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Duplicate-invoice warning */}
+        <Dialog open={!!similarFound} onOpenChange={(v) => { if (!v) { setSimilarFound(null); setOverrideReason(""); } }}>
+          <DialogContent dir="rtl" className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-amber-700">
+                <AlertTriangle className="w-5 h-5" />
+                تنبيه: توجد فاتورة تصنيع مشابهة
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 text-sm">
+              <p className="text-muted-foreground">
+                توجد فاتورة تصنيع مسجلة بالفعل بنفس المنتج والكمية ونفس المخزن خلال آخر 24 ساعة. برجاء مراجعتها قبل المتابعة لتجنب التكرار.
+              </p>
+              {similarFound && (
+                <div className="rounded border bg-amber-50 p-3 space-y-1">
+                  <div><b>رقم الفاتورة:</b> {similarFound.invoice_no || "—"}</div>
+                  <div><b>المنتج:</b> {similarFound.product_name}</div>
+                  <div><b>الكمية:</b> {fmt(similarFound.finished_qty)} {similarFound.unit}</div>
+                  <div><b>الحالة:</b> <Badge variant="outline">{similarFound.status}</Badge></div>
+                  <div><b>تاريخ الإنشاء:</b> {new Date(similarFound.created_at).toLocaleString("ar-EG")}</div>
+                  <div><b>المستخدم:</b> {similarFound.created_by_name || "—"}</div>
+                </div>
+              )}
+              {canOverrideDuplicate ? (
+                <div>
+                  <Label className="text-amber-800">سبب المتابعة رغم التشابه (إلزامي للمدير)</Label>
+                  <Textarea
+                    value={overrideReason}
+                    onChange={(e) => setOverrideReason(e.target.value)}
+                    placeholder="مثال: فاتورة مستقلة وليست مكررة — تشغيلة منفصلة"
+                    rows={2}
+                  />
+                </div>
+              ) : (
+                <div className="rounded border border-red-200 bg-red-50 p-2 text-red-700 text-xs">
+                  لا يمكنك حفظ هذه الفاتورة بسبب التشابه القوي. للمتابعة يلزم اعتماد المدير العام أو التنفيذي.
+                </div>
+              )}
+            </div>
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={() => { setSimilarFound(null); setOverrideReason(""); }}>
+                إلغاء الحفظ
+              </Button>
+              {similarFound && (
+                <Button variant="secondary" onClick={() => {
+                  const inv = invoices.find(i => i.id === similarFound.id);
+                  if (inv) { setViewing(inv); openView(inv); }
+                  setSimilarFound(null);
+                  setOverrideReason("");
+                  setTab("list");
+                }}>
+                  <Eye className="w-4 h-4 ml-1" /> عرض الفاتورة المشابهة
+                </Button>
+              )}
+              {canOverrideDuplicate && similarFound && (
+                <Button
+                  disabled={saving || overrideReason.trim().length < 5}
+                  className="bg-amber-600 hover:bg-amber-700"
+                  onClick={async () => {
+                    // Audit log (best-effort) BEFORE re-running the save
+                    try {
+                      await supabase.from("meat_factory_audit_log" as any).insert({
+                        table_name: "meat_manufacturing_invoices",
+                        row_id: similarFound.id,
+                        action: "duplicate_override_attempt",
+                        new_value: {
+                          similar_invoice_id: similarFound.id,
+                          similar_invoice_no: similarFound.invoice_no,
+                          attempted_product: finalProductName,
+                          attempted_qty: finishedQty,
+                          attempted_factory_warehouse_id: factoryWarehouseId,
+                          override_reason: overrideReason.trim(),
+                          attempted_at: new Date().toISOString(),
+                        },
+                        performed_by: user?.id || null,
+                      });
+                    } catch { /* non-fatal */ }
+                    const sid = similarFound.id;
+                    const reason = overrideReason.trim();
+                    setSimilarFound(null);
+                    setOverrideReason("");
+                    await submitDraft({ reason, similarId: sid });
+                  }}
+                >
+                  {saving ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <CheckCircle2 className="w-4 h-4 ml-1" />}
+                  متابعة رغم التشابه
+                </Button>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
+
     </DashboardLayout>
   );
 }
