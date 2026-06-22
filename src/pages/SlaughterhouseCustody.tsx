@@ -19,6 +19,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate } from "@/lib/printPdf";
 import * as XLSX from "xlsx";
 import CustodyExpenseAnalytics from "@/components/treasury/CustodyExpenseAnalytics";
+import LogSummaryCards from "@/components/treasury/LogSummaryCards";
 import VehicleExpenseAnalysis from "@/components/treasury/VehicleExpenseAnalysis";
 import IncomingCustodyTransfers from "@/components/treasury/IncomingCustodyTransfers";
 
