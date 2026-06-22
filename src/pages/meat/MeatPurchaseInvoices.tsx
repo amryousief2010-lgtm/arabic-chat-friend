@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ShoppingCart, Plus, Trash2, CheckCircle2, XCircle, Printer, Loader2, Eye } from "lucide-react";
+import { ShoppingCart, Plus, Trash2, CheckCircle2, XCircle, Printer, Loader2, Eye, Pencil } from "lucide-react";
 
 type Kind = "raw" | "spice" | "packaging";
 type Item = { id: string; name: string; unit: string; current_stock: number; avg_cost: number; kind: Kind; is_active: boolean };
