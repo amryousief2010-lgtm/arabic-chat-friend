@@ -1977,7 +1977,8 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
   batchId: string; batch: Batch; yields: Yield[]; outputs: Output[]; branches: Branch[]; yieldCutNames: string[]; onClose: () => void; onUpdate: () => void;
 }) => {
   const { roles } = useAuth();
-  const canEditSellPrice = (roles || []).some((r: string) => r === "general_manager" || r === "executive_manager");
+  const canEditSellPrice = (roles || []).some((r: string) => r === "general_manager" || r === "executive_manager" || r === "slaughterhouse_manager");
+  const canEditCostPrice = (roles || []).some((r: string) => r === "general_manager" || r === "executive_manager" || r === "slaughterhouse_manager");
   const b: any = batch as any;
   // Total slaughter-batch cost = snapshot of live birds cost at slaughter time + any direct/allocated slaughter cost.
   // Prefer total_allocatable_cost (set during recompute_slaughter_batch_cost). Fallback to total_birds_cost.
