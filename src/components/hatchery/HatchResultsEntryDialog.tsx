@@ -39,6 +39,7 @@ type RowDraft = {
   batch_number: string;
   total_eggs: number;
   net_eggs: number;
+  excluded_eggs: number | string;
   candle1_infertile: number | string;
   candle2_dead: number | string;
   hatcher_dead: number | string;
@@ -79,6 +80,7 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
         batch_number: c.batch_number,
         total_eggs: raw.received_eggs ?? c.total_eggs ?? 0,
         net_eggs: raw.net_eggs ?? c.net_eggs ?? 0,
+        excluded_eggs: raw.excluded_eggs ?? 0,
         candle1_infertile: raw.candle1_infertile ?? 0,
         candle2_dead: raw.candle2_dead ?? 0,
         hatcher_dead: raw.hatcher_dead ?? 0,
@@ -94,21 +96,24 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
 
   // Per-row computed values + errors
   const computed = useMemo(() => {
-    const map: Record<string, { netC1: number; netC2: number; error: string | null }> = {};
+    const map: Record<string, { netAfterExcl: number; netC1: number; netC2: number; error: string | null }> = {};
     for (const r of Object.values(drafts)) {
       const eggs = toNum(r.total_eggs);
+      const excl = toNum(r.excluded_eggs);
       const c1 = toNum(r.candle1_infertile);
       const c2 = toNum(r.candle2_dead);
       const hd = toNum(r.hatcher_dead);
       const ch = toNum(r.hatched_chicks);
-      const netC1 = Math.max(0, eggs - c1);
+      const netAfterExcl = Math.max(0, eggs - excl);
+      const netC1 = Math.max(0, netAfterExcl - c1);
       const netC2 = Math.max(0, netC1 - c2);
       let error: string | null = null;
-      if (c1 < 0 || c2 < 0 || hd < 0 || ch < 0) error = "لا يمكن إدخال أرقام سالبة";
-      else if (c1 > eggs) error = "عدد البيض اللايح في الكشف الأول لا يمكن أن يكون أكبر من عدد البيض الداخل";
+      if (excl < 0 || c1 < 0 || c2 < 0 || hd < 0 || ch < 0) error = "لا يمكن إدخال أرقام سالبة";
+      else if (excl > eggs) error = "عدد البيض المستبعد لا يمكن أن يتجاوز عدد البيض الكلي";
+      else if (c1 > netAfterExcl) error = "عدد البيض اللايح في الكشف الأول لا يمكن أن يكون أكبر من الصافي بعد الاستبعاد";
       else if (c2 > netC1) error = "عدد اللايح في الكشف الثاني لا يمكن أن يكون أكبر من صافي البيض بعد الكشف الأول";
       else if (ch + hd > netC2) error = "عدد الكتاكيت + نافق الهاتشر لا يمكن أن يتجاوز صافي البيض بعد الكشف الثاني";
-      map[r.id] = { netC1, netC2, error };
+      map[r.id] = { netAfterExcl, netC1, netC2, error };
     }
     return map;
   }, [drafts]);
@@ -116,8 +121,10 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
   const totals = useMemo(() => {
     return Object.values(drafts).reduce(
       (acc, r) => {
-        const c = computed[r.id] || { netC1: 0, netC2: 0, error: null };
+        const c = computed[r.id] || { netAfterExcl: 0, netC1: 0, netC2: 0, error: null };
         acc.eggs += toNum(r.total_eggs);
+        acc.excl += toNum(r.excluded_eggs);
+        acc.netExcl += c.netAfterExcl;
         acc.c1 += toNum(r.candle1_infertile);
         acc.netC1 += c.netC1;
         acc.c2 += toNum(r.candle2_dead);
@@ -126,7 +133,7 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
         acc.chicks += toNum(r.hatched_chicks);
         return acc;
       },
-      { eggs: 0, c1: 0, netC1: 0, c2: 0, netC2: 0, hd: 0, chicks: 0 }
+      { eggs: 0, excl: 0, netExcl: 0, c1: 0, netC1: 0, c2: 0, netC2: 0, hd: 0, chicks: 0 }
     );
   }, [drafts, computed]);
 
@@ -150,9 +157,13 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
     const rows = Object.values(drafts);
     for (const r of rows) {
       const eggs = toNum(r.total_eggs);
+      const excl = toNum(r.excluded_eggs);
+      const netAfterExcl = Math.max(0, eggs - excl);
       const c1 = toNum(r.candle1_infertile);
-      const netC1 = Math.max(0, eggs - c1);
+      const netC1 = Math.max(0, netAfterExcl - c1);
       const payload: any = {
+        excluded_eggs: excl,
+        net_eggs: netAfterExcl,
         candle1_infertile: c1,
         candle1_fertile: netC1,
         candle2_dead: toNum(r.candle2_dead),
@@ -285,8 +296,9 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
         </DialogHeader>
 
         <div className="rounded-md border bg-amber-50 dark:bg-amber-950/30 border-amber-300 p-3 text-xs text-amber-900 dark:text-amber-200 space-y-1">
-          <div>• <b>صافي بعد ك1</b> = عدد البيض − لايح الكشف الأول. <b>صافي بعد ك2</b> = صافي ك1 − لايح/نافق الكشف الثاني.</div>
-          <div>• عدد الكتاكيت + نافق الهاتشر يجب أن لا يتجاوزا صافي بعد ك2.</div>
+          <div>• <b>المستبعد</b> = البيض المخروم/المكسور/غير الصالح الذي لم يدخل التشغيل. <b>صافي بعد الاستبعاد</b> = عدد البيض − المستبعد.</div>
+          <div>• <b>صافي بعد ك1</b> = صافي بعد الاستبعاد − لايح الكشف الأول. <b>صافي بعد ك2</b> = صافي ك1 − لايح/نافق الكشف الثاني.</div>
+          <div>• عدد الكتاكيت + نافق الهاتشر يجب أن لا يتجاوزا صافي بعد ك2. المستبعد لا يدخل في رسوم التشغيل المالية.</div>
           <div>• لن يتم تعديل خزنة المعمل ولا تسجيل أي حركة مالية ولا تحصيل تلقائي.</div>
         </div>
 
@@ -319,6 +331,8 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
                 <TableHead>العميل</TableHead>
                 <TableHead>رقم الدفعة</TableHead>
                 <TableHead>عدد البيض</TableHead>
+                <TableHead className="text-amber-700">مستبعد</TableHead>
+                <TableHead className="bg-emerald-50 dark:bg-emerald-950/30">صافي بعد الاستبعاد</TableHead>
                 <TableHead>لايح (ك1)</TableHead>
                 <TableHead className="bg-emerald-50 dark:bg-emerald-950/30">صافي بعد ك1</TableHead>
                 <TableHead>لايح/نافق (ك2)</TableHead>
@@ -330,7 +344,7 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
             </TableHeader>
             <TableBody>
               {Object.values(drafts).map((r) => {
-                const c = computed[r.id] || { netC1: 0, netC2: 0, error: null };
+                const c = computed[r.id] || { netAfterExcl: 0, netC1: 0, netC2: 0, error: null };
                 const hasError = !!c.error;
                 return (
                   <TableRow key={r.id} className={hasError ? "bg-rose-50/50 dark:bg-rose-950/20" : ""}>
@@ -342,6 +356,19 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
                         type="number"
                         min={0}
                         max={r.total_eggs}
+                        value={r.excluded_eggs}
+                        onChange={(e) => update(r.id, "excluded_eggs", e.target.value)}
+                        className="w-20 h-8 border-amber-400"
+                      />
+                    </TableCell>
+                    <TableCell className="bg-emerald-50/60 dark:bg-emerald-950/20 font-bold text-emerald-700 dark:text-emerald-400">
+                      {c.netAfterExcl}
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={c.netAfterExcl}
                         value={r.candle1_infertile}
                         onChange={(e) => update(r.id, "candle1_infertile", e.target.value)}
                         className="w-20 h-8"
@@ -398,13 +425,19 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
           </Table>
         </Card>
 
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-2 mt-3 text-xs">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2 mt-3 text-xs">
           <Card className="p-2"><div className="text-muted-foreground">إجمالي البيض</div><div className="font-bold">{totals.eggs}</div></Card>
+          <Card className="p-2 border-amber-300 border-2"><div className="text-muted-foreground">إجمالي المستبعد</div><div className="font-bold text-amber-700">{totals.excl}</div></Card>
+          <Card className="p-2 border-emerald-300 border-2"><div className="text-muted-foreground">صافي بعد الاستبعاد</div><div className="font-bold text-emerald-700">{totals.netExcl}</div></Card>
           <Card className="p-2"><div className="text-muted-foreground">لايح ك1</div><div className="font-bold">{totals.c1}</div></Card>
           <Card className="p-2 border-emerald-300 border-2"><div className="text-muted-foreground">صافي بعد ك1</div><div className="font-bold text-emerald-700">{totals.netC1}</div></Card>
           <Card className="p-2"><div className="text-muted-foreground">لايح/نافق ك2</div><div className="font-bold">{totals.c2}</div></Card>
           <Card className="p-2 border-emerald-300 border-2"><div className="text-muted-foreground">صافي بعد ك2</div><div className="font-bold text-emerald-700">{totals.netC2}</div></Card>
-          <Card className="p-2 border-primary border-2"><div className="text-muted-foreground">إجمالي الكتاكيت</div><div className="font-bold text-primary">{totals.chicks}</div></Card>
+          <Card className="p-2 border-primary border-2">
+            <div className="text-muted-foreground">إجمالي الكتاكيت</div>
+            <div className="font-bold text-primary">{totals.chicks}</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">نسبة الفقس: {totals.netExcl > 0 ? ((totals.chicks / totals.netExcl) * 100).toFixed(1) : "0"}%</div>
+          </Card>
         </div>
 
         <DialogFooter className="gap-2 mt-3 flex-wrap">
