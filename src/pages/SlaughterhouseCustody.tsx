@@ -694,6 +694,12 @@ export default function SlaughterhouseCustody() {
               </Select>
             </div>
 
+            <LogSummaryCards
+              typeFilter="expense"
+              expenses={visibleExpenses.map((e) => ({ amount: Number(e.amount), payment_method: e.payment_method }))}
+              title="ملخص المصروفات حسب الفلتر الحالي"
+            />
+
             <Card><CardContent className="p-0 overflow-x-auto">
               <Table>
                 <TableHeader><TableRow>
