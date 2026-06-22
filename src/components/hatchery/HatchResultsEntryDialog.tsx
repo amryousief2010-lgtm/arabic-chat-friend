@@ -344,7 +344,7 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
             </TableHeader>
             <TableBody>
               {Object.values(drafts).map((r) => {
-                const c = computed[r.id] || { netC1: 0, netC2: 0, error: null };
+                const c = computed[r.id] || { netAfterExcl: 0, netC1: 0, netC2: 0, error: null };
                 const hasError = !!c.error;
                 return (
                   <TableRow key={r.id} className={hasError ? "bg-rose-50/50 dark:bg-rose-950/20" : ""}>
@@ -356,6 +356,19 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
                         type="number"
                         min={0}
                         max={r.total_eggs}
+                        value={r.excluded_eggs}
+                        onChange={(e) => update(r.id, "excluded_eggs", e.target.value)}
+                        className="w-20 h-8 border-amber-400"
+                      />
+                    </TableCell>
+                    <TableCell className="bg-emerald-50/60 dark:bg-emerald-950/20 font-bold text-emerald-700 dark:text-emerald-400">
+                      {c.netAfterExcl}
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={c.netAfterExcl}
                         value={r.candle1_infertile}
                         onChange={(e) => update(r.id, "candle1_infertile", e.target.value)}
                         className="w-20 h-8"
