@@ -31,6 +31,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { OpeningBalancesPanel, ExternalCollectionsPanel, ExternalSummaryCard, TotalLabFundsCard } from "@/pages/lab-treasury/LabTreasuryExtras";
 import { PremiumStat, HeroSummary, SectionTitle, StatusPill, DashboardSkeleton, EmptyState, ActivityTimeline, getCairoNow } from "@/components/treasury/PremiumUI";
 import LabExpenseAnalytics from "@/components/treasury/LabExpenseAnalytics";
+import LogSummaryCards from "@/components/treasury/LogSummaryCards";
 import LabHatcheryClientsRevenue from "@/components/treasury/LabHatcheryClientsRevenue";
 import LabToCustodyTransferDialog from "@/components/treasury/LabToCustodyTransferDialog";
 
@@ -1493,6 +1494,12 @@ export default function LabTreasury() {
                 <Field label="العميل"><Input value={fCustomer} onChange={(e) => setFCustomer(e.target.value)} placeholder="بحث..." /></Field>
               </CardContent>
             </Card>
+
+            <LogSummaryCards
+              typeFilter={(fType as "all" | "income" | "expense") || "all"}
+              incomes={filtered.filter((m) => m.movement_type === "income").map((m) => ({ amount: Number(m.amount), payment_method: m.payment_method }))}
+              expenses={filtered.filter((m) => m.movement_type === "expense").map((m) => ({ amount: Number(m.amount), payment_method: m.payment_method }))}
+            />
 
             <div className="flex gap-2 flex-wrap">
               <Button variant="outline" onClick={exportExcel} className="gap-2"><FileSpreadsheet className="w-4 h-4" />Excel</Button>

@@ -19,6 +19,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate } from "@/lib/printPdf";
 import * as XLSX from "xlsx";
 import CustodyExpenseAnalytics from "@/components/treasury/CustodyExpenseAnalytics";
+import LogSummaryCards from "@/components/treasury/LogSummaryCards";
 import VehicleExpenseAnalysis from "@/components/treasury/VehicleExpenseAnalysis";
 import IncomingCustodyTransfers from "@/components/treasury/IncomingCustodyTransfers";
 
@@ -692,6 +693,12 @@ export default function SlaughterhouseCustody() {
                 </SelectContent>
               </Select>
             </div>
+
+            <LogSummaryCards
+              typeFilter="expense"
+              expenses={visibleExpenses.map((e) => ({ amount: Number(e.amount), payment_method: e.payment_method }))}
+              title="ملخص المصروفات حسب الفلتر الحالي"
+            />
 
             <Card><CardContent className="p-0 overflow-x-auto">
               <Table>
