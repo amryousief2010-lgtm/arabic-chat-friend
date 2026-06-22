@@ -174,9 +174,11 @@ const NewSaleDialog = ({ batches, onSaved }: { batches: Batch[]; onSaved: () => 
   useEffect(() => {
     if (!f.batch_id) { setPnl(null); return; }
     setLoadingPnl(true);
-    supabase.rpc("chick_trading_batch_pnl" as any, { _batch_id: f.batch_id })
-      .then(({ data }) => setPnl(data))
-      .finally(() => setLoadingPnl(false));
+    (async () => {
+      const { data } = await supabase.rpc("chick_trading_batch_pnl" as any, { _batch_id: f.batch_id });
+      setPnl(data);
+      setLoadingPnl(false);
+    })();
   }, [f.batch_id]);
   const costPerChick = pnl?.current_cost_per_chick ? Number(pnl.current_cost_per_chick) : 0;
   const profitPer = f.unit_price - costPerChick;
