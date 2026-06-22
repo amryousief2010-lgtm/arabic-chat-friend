@@ -1,0 +1,1 @@
+ALTER TABLE public.hatch_batches ADD COLUMN IF NOT EXISTS excluded_eggs integer NOT NULL DEFAULT 0;
