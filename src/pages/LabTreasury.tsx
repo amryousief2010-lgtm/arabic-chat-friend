@@ -1495,6 +1495,12 @@ export default function LabTreasury() {
               </CardContent>
             </Card>
 
+            <LogSummaryCards
+              typeFilter={(fType as "all" | "income" | "expense") || "all"}
+              incomes={filtered.filter((m) => m.movement_type === "income").map((m) => ({ amount: Number(m.amount), payment_method: m.payment_method }))}
+              expenses={filtered.filter((m) => m.movement_type === "expense").map((m) => ({ amount: Number(m.amount), payment_method: m.payment_method }))}
+            />
+
             <div className="flex gap-2 flex-wrap">
               <Button variant="outline" onClick={exportExcel} className="gap-2"><FileSpreadsheet className="w-4 h-4" />Excel</Button>
               <Button variant="outline" onClick={() => printReport("كشف حركة خزنة المعمل والحضانات")} className="gap-2"><Printer className="w-4 h-4" />طباعة / PDF</Button>
