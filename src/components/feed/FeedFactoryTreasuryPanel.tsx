@@ -325,6 +325,20 @@ export default function FeedFactoryTreasuryPanel({
                     <TableCell className="text-xs text-muted-foreground max-w-[260px] truncate" title={t.note || ""}>
                       {t.note || "—"}
                     </TableCell>
+                    <TableCell className="text-xs whitespace-nowrap" title={t.created_at ? new Date(t.created_at).toLocaleString("ar-EG") : ""}>
+                      {t.created_by_name ? (
+                        <div className="flex flex-col">
+                          <span className="font-medium">{t.created_by_name}</span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {t.ref_table === "feed_raw_purchases" ? "تلقائي من فاتورة شراء"
+                              : t.ref_table === "feed_sales" ? "تلقائي من فاتورة بيع"
+                              : t.ref_table ? "تلقائي" : "إدخال يدوي"}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-success font-bold tabular-nums">
                       {t.direction === "in" ? fmt(t.amount) : "—"}
                     </TableCell>
