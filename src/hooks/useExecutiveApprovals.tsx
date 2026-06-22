@@ -557,9 +557,14 @@ export function useExecutiveApprovals() {
           });
         }
       } else if (item.category === "mf_purchase") {
-        const rpcName = item.raw?._kind === "pack_purchase" ? "post_mf_pack_purchase" : "post_mf_raw_purchase";
-        const { error } = await (supabase as any).rpc(rpcName, { p_id: item.id });
-        if (error) throw error;
+        if (item.raw?._kind === "meat_factory_purchase") {
+          const { error } = await (supabase as any).rpc("approve_meat_purchase", { p_purchase_id: item.id });
+          if (error) throw error;
+        } else {
+          const rpcName = item.raw?._kind === "pack_purchase" ? "post_mf_pack_purchase" : "post_mf_raw_purchase";
+          const { error } = await (supabase as any).rpc(rpcName, { p_id: item.id });
+          if (error) throw error;
+        }
       } else if (item.category === "mf_mfg") {
         const { error } = await (supabase as any).rpc("post_mf_manufacturing", { p_id: item.id });
         if (error) throw error;
