@@ -145,19 +145,28 @@ export default function ApprovalDetailsDialog({
               </>
             )}
 
-            {item.category === "meat" && r._source_table === "meat_manufacturing_invoices" && (
-              <>
-                <Row label="رقم الفاتورة" value={r.invoice_no} />
-                <Row label="المنتج" value={r.product_name} />
-                <Row label="الكمية المنتجة" value={`${fmtNum(r.finished_qty, 3)} ${r.unit || ""}`} />
-                <Row label="إجمالي الخامات" value={fmtMoney(r.raw_cost)} />
-                <Row label="إجمالي البهارات" value={fmtMoney(r.spice_cost)} />
-                <Row label="إجمالي التغليف" value={fmtMoney(r.packaging_cost)} />
-                <Row label="إجمالي المواد الخدمية / التكاليف الإضافية" value={fmtMoney(r.extra_cost)} />
-                <Row label="إجمالي تكلفة التصنيع" value={fmtMoney(r.total_manufacturing_cost)} />
-                <Row label="ملاحظات" value={r.notes} />
-              </>
-            )}
+            {item.category === "meat" && r._source_table === "meat_manufacturing_invoices" && (() => {
+              const svcTotal = parseServiceCostsFromNotes(r.notes).reduce((s, x) => s + Number(x.total || 0), 0);
+              const effectiveExtra = Math.max(Number(r.extra_cost || 0), svcTotal);
+              const baseCosts = Number(r.raw_cost || 0) + Number(r.spice_cost || 0) + Number(r.packaging_cost || 0);
+              const effectiveTotal = Math.max(Number(r.total_manufacturing_cost || 0), baseCosts + effectiveExtra);
+              const qty = Number(r.finished_qty || 0);
+              const effectiveUnit = qty > 0 ? effectiveTotal / qty : Number(r.unit_cost || 0);
+              return (
+                <>
+                  <Row label="رقم الفاتورة" value={r.invoice_no} />
+                  <Row label="المنتج" value={r.product_name} />
+                  <Row label="الكمية المنتجة" value={`${fmtNum(r.finished_qty, 3)} ${r.unit || ""}`} />
+                  <Row label="إجمالي الخامات" value={fmtMoney(r.raw_cost)} />
+                  <Row label="إجمالي البهارات" value={fmtMoney(r.spice_cost)} />
+                  <Row label="إجمالي التغليف" value={fmtMoney(r.packaging_cost)} />
+                  <Row label="إجمالي المواد الخدمية / التكاليف الإضافية" value={fmtMoney(effectiveExtra)} />
+                  <Row label="إجمالي تكلفة التصنيع" value={fmtMoney(effectiveTotal)} />
+                  <Row label="تكلفة الوحدة" value={fmtMoney(effectiveUnit)} />
+                  <Row label="ملاحظات" value={r.notes} />
+                </>
+              );
+            })()}
 
             {item.category === "meat" && r._source_table === "meat_factory_manufacturing" && (
               <>
