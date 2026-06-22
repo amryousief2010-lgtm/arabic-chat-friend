@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { ArrowRight, Loader2, Wheat, AlertTriangle, Printer, FileText } from "lucide-react";
 import { exportBatchPDF } from "@/utils/exportBatchPDF";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate } from "@/lib/printPdf";
+import { CancelFeedBatchDialog } from "@/components/feed/CancelFeedBatchDialog";
 
 export default function FeedBatchDetail() {
   const { id } = useParams<{ id: string }>();
@@ -23,6 +24,7 @@ export default function FeedBatchDetail() {
   const [whs, setWhs] = useState<any[]>([]);
   const [busy, setBusy] = useState(false);
   const [fields, setFields] = useState<any>({});
+  const [cancelOpen, setCancelOpen] = useState(false);
 
   const load = async () => {
     if (!id) return;
@@ -243,8 +245,17 @@ export default function FeedBatchDetail() {
         {["draft", "planned"].includes(batch.status) && <Button disabled={busy} onClick={() => rpc("feed_batch_submit_review", { p_batch_id: id })}>إرسال للمراجعة</Button>}
         {batch.status === "under_review" && <Button disabled={busy} onClick={() => rpc("feed_batch_approve", { p_batch_id: id, p_override_negative: false })}>اعتماد</Button>}
         {batch.status === "approved" && <Button disabled={busy} onClick={() => rpc("feed_batch_close", { p_batch_id: id })}>إغلاق + ترحيل للمخزون</Button>}
-        {batch && !isLocked && <Button variant="destructive" disabled={busy} onClick={() => { const r = prompt("سبب الإلغاء"); if (r) rpc("feed_batch_cancel", { p_batch_id: id, p_reason: r }); }}>إلغاء</Button>}
+        {batch && batch.status !== "cancelled" && (
+          <Button variant="destructive" disabled={busy} onClick={() => setCancelOpen(true)}>إلغاء الفاتورة</Button>
+        )}
       </div>
+
+      <CancelFeedBatchDialog
+        batchId={id || null}
+        open={cancelOpen}
+        onClose={() => setCancelOpen(false)}
+        onCancelled={load}
+      />
 
       <Card>
         <CardHeader><CardTitle>التكاليف</CardTitle></CardHeader>
