@@ -1264,9 +1264,23 @@ function PurchaseDialog({ open, onOpenChange, materials, onSaved, editPurchase }
     }
   }, [editPurchase?.id, open]);
 
+  const dateWarning = useMemo(() => {
+    if (!date) return null;
+    const today = new Date(); today.setHours(0,0,0,0);
+    const d = new Date(date); d.setHours(0,0,0,0);
+    const diff = Math.round((d.getTime() - today.getTime()) / 86400000);
+    if (diff > 0) return { level: "error" as const, msg: `⚠ التاريخ في المستقبل بـ ${diff} يوم — تأكد من صحته` };
+    if (diff < -30) return { level: "warn" as const, msg: `⚠ التاريخ قديم بـ ${Math.abs(diff)} يوم — تأكد من صحته` };
+    if (diff < -7) return { level: "info" as const, msg: `تنبيه: التاريخ متأخر ${Math.abs(diff)} يوم عن اليوم` };
+    return null;
+  }, [date]);
+
   const save = async () => {
     const valid = lines.filter((l) => l.ref_id && l.qty > 0 && l.price >= 0);
     if (!valid.length) return toast.error("أضف بنداً واحداً على الأقل");
+    if (dateWarning && dateWarning.level !== "info") {
+      if (!window.confirm(`${dateWarning.msg}\n\nهل تريد المتابعة؟`)) return;
+    }
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
