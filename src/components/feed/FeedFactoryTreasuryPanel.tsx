@@ -16,6 +16,10 @@ type Txn = {
   direction: "in" | "out"; kind: string; amount: number;
   party: string | null; note: string | null;
   created_at: string;
+  created_by?: string | null;
+  created_by_name?: string | null;
+  ref_table?: string | null;
+  ref_id?: string | null;
 };
 
 const fmt = (n: number) =>
@@ -287,6 +291,7 @@ export default function FeedFactoryTreasuryPanel({
                 <TableHead>التصنيف</TableHead>
                 <TableHead>الجهة</TableHead>
                 <TableHead>البيان</TableHead>
+                <TableHead>بواسطة</TableHead>
                 <TableHead className="text-success">وارد</TableHead>
                 <TableHead className="text-destructive">منصرف</TableHead>
                 <TableHead>الرصيد بعد</TableHead>
@@ -320,6 +325,20 @@ export default function FeedFactoryTreasuryPanel({
                     <TableCell className="text-xs text-muted-foreground max-w-[260px] truncate" title={t.note || ""}>
                       {t.note || "—"}
                     </TableCell>
+                    <TableCell className="text-xs whitespace-nowrap" title={t.created_at ? new Date(t.created_at).toLocaleString("ar-EG") : ""}>
+                      {t.created_by_name ? (
+                        <div className="flex flex-col">
+                          <span className="font-medium">{t.created_by_name}</span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {t.ref_table === "feed_raw_purchases" ? "تلقائي من فاتورة شراء"
+                              : t.ref_table === "feed_sales" ? "تلقائي من فاتورة بيع"
+                              : t.ref_table ? "تلقائي" : "إدخال يدوي"}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-success font-bold tabular-nums">
                       {t.direction === "in" ? fmt(t.amount) : "—"}
                     </TableCell>
@@ -344,7 +363,7 @@ export default function FeedFactoryTreasuryPanel({
               })}
               {!filtered.length && (
                 <TableRow>
-                  <TableCell colSpan={canManageAll ? 10 : 9} className="text-center text-muted-foreground py-10">
+                  <TableCell colSpan={canManageAll ? 11 : 10} className="text-center text-muted-foreground py-10">
                     لا توجد حركات مطابقة للفلاتر الحالية
                   </TableCell>
                 </TableRow>
