@@ -1678,8 +1678,8 @@ function TreasuryDialog({ open, onOpenChange, onSaved }: { open: boolean; onOpen
 }
 
 // ============ PRODUCTION DIALOG ============
-type ProdLine = { id: string; raw_id: string; qty: number };
-const newProdLine = (): ProdLine => ({ id: crypto.randomUUID(), raw_id: "", qty: 0 });
+type ProdLine = { id: string; raw_id: string; qty: number; unit_cost: number; unit_cost_touched: boolean };
+const newProdLine = (): ProdLine => ({ id: crypto.randomUUID(), raw_id: "", qty: 0, unit_cost: 0, unit_cost_touched: false });
 
 type ExpLine = {
   id: string;
@@ -1729,7 +1729,8 @@ function ProductionDialog({ open, onOpenChange, rawMaterials, products, onSaved 
 
   const estMaterialsCost = useMemo(() => lines.reduce((s, l) => {
     const m = rawMaterials.find((r: any) => r.id === l.raw_id);
-    return s + (Number(m?.unit_cost || 0) * Number(l.qty || 0));
+    const uc = l.unit_cost_touched ? Number(l.unit_cost || 0) : Number(m?.unit_cost || l.unit_cost || 0);
+    return s + uc * Number(l.qty || 0);
   }, 0), [lines, rawMaterials]);
   const estExpensesCost = useMemo(() => expenses.reduce((s, e) => s + Number(e.amount || 0), 0), [expenses]);
   const estTotalCost = estMaterialsCost + Number(laborCost || 0) + estExpensesCost;
@@ -1745,6 +1746,14 @@ function ProductionDialog({ open, onOpenChange, rawMaterials, products, onSaved 
     if (!qtyProduced || qtyProduced <= 0) return toast.error("اكتب الكمية المنتجة");
     const valid = lines.filter((l) => l.raw_id && l.qty > 0);
     if (!valid.length) return toast.error("أضف خامة واحدة على الأقل");
+    // Resolve unit_cost per line (editable override → falls back to default)
+    const resolved = valid.map((l) => {
+      const m = rawMaterials.find((r: any) => r.id === l.raw_id);
+      const uc = l.unit_cost_touched ? Number(l.unit_cost || 0) : Number(m?.unit_cost ?? l.unit_cost ?? 0);
+      return { l, m, uc };
+    });
+    const missing = resolved.find((x) => !x.uc || x.uc <= 0);
+    if (missing) return toast.error(`الصنف "${missing.m?.name || "غير معروف"}" لا يحتوي على سعر افتراضي، برجاء إدخال سعر الوحدة.`);
     const validExp = expenses.filter((e) => e.amount > 0);
 
     setSaving(true);
@@ -1765,7 +1774,13 @@ function ProductionDialog({ open, onOpenChange, rawMaterials, products, onSaved 
       }
       createdHeadId = head.id;
       const { error: e2 } = await (supabase as any).from("feed_production_invoice_items").insert(
-        valid.map((l) => ({ invoice_id: head.id, raw_material_id: l.raw_id, quantity: l.qty }))
+        resolved.map(({ l, uc }) => ({
+          invoice_id: head.id,
+          raw_material_id: l.raw_id,
+          quantity: l.qty,
+          unit_cost: uc,
+          line_cost: Number((uc * Number(l.qty)).toFixed(4)),
+        }))
       );
       if (e2) throw e2;
       const { error: e3 } = await (supabase as any).rpc("finalize_feed_production", { _invoice_id: head.id });
@@ -1825,14 +1840,34 @@ function ProductionDialog({ open, onOpenChange, rawMaterials, products, onSaved 
         </div>
         <div className="space-y-2">
           <div className="flex items-center justify-between"><Label>الخامات المستهلكة</Label><Button size="sm" variant="outline" onClick={() => setLines([...lines, newProdLine()])}><Plus className="h-3 w-3 ml-1" />خامة</Button></div>
+          <div className="grid grid-cols-12 gap-2 text-xs text-muted-foreground font-semibold px-1">
+            <div className="col-span-5">الصنف</div>
+            <div className="col-span-2">الكمية</div>
+            <div className="col-span-2">سعر الوحدة</div>
+            <div className="col-span-2 text-left">الإجمالي</div>
+            <div className="col-span-1"></div>
+          </div>
           {lines.map((l) => {
             const m = rawMaterials.find((r: any) => r.id === l.raw_id);
             const available = Number(m?.stock || 0);
-            const cost = Number(m?.unit_cost || 0);
+            const defaultCost = Number(m?.unit_cost || 0);
+            const effectiveCost = l.unit_cost_touched ? Number(l.unit_cost || 0) : (defaultCost || Number(l.unit_cost || 0));
+            const missingDefault = !!m && defaultCost <= 0 && !l.unit_cost_touched;
             return (
               <div key={l.id} className="grid grid-cols-12 gap-2 items-end border-b pb-2">
-                <div className="col-span-6">
-                  <Select value={l.raw_id} onValueChange={(v) => setLines(lines.map((x) => x.id === l.id ? { ...x, raw_id: v } : x))}>
+                <div className="col-span-5">
+                  <Select
+                    value={l.raw_id}
+                    onValueChange={(v) => {
+                      const sel = rawMaterials.find((r: any) => r.id === v);
+                      setLines(lines.map((x) => x.id === l.id ? {
+                        ...x,
+                        raw_id: v,
+                        // auto-prefill price only if user hasn't manually overridden it
+                        unit_cost: x.unit_cost_touched ? x.unit_cost : Number(sel?.unit_cost || 0),
+                      } : x));
+                    }}
+                  >
                     <SelectTrigger><SelectValue placeholder="اختر الخامة"/></SelectTrigger>
                     <SelectContent>
                       {rawMaterials.map((r: any) => (
@@ -1840,10 +1875,27 @@ function ProductionDialog({ open, onOpenChange, rawMaterials, products, onSaved 
                       ))}
                     </SelectContent>
                   </Select>
-                  {m && <div className="text-xs text-muted-foreground mt-1">المتاح: {fmt(available)} • تكلفة الكيلو: {fmt(cost)} ج</div>}
+                  {m && (
+                    <div className="text-xs text-muted-foreground mt-1">
+                      المتاح: {fmt(available)} {m.unit || "كجم"}
+                      {missingDefault && (
+                        <span className="text-destructive font-semibold mr-2">⚠ لا يوجد سعر افتراضي — أدخل سعر الوحدة</span>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <div className="col-span-3"><Input type="number" placeholder="الكمية كجم" value={l.qty || ""} onChange={(e) => setLines(lines.map((x) => x.id === l.id ? { ...x, qty: Number(e.target.value) } : x))} /></div>
-                <div className="col-span-2 text-sm font-bold text-left">{fmt(l.qty * cost)} ج</div>
+                <div className="col-span-2"><Input type="number" placeholder="الكمية" value={l.qty || ""} onChange={(e) => setLines(lines.map((x) => x.id === l.id ? { ...x, qty: Number(e.target.value) } : x))} /></div>
+                <div className="col-span-2">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="سعر الوحدة"
+                    value={l.unit_cost || ""}
+                    onChange={(e) => setLines(lines.map((x) => x.id === l.id ? { ...x, unit_cost: Number(e.target.value), unit_cost_touched: true } : x))}
+                    className={missingDefault ? "border-destructive" : ""}
+                  />
+                </div>
+                <div className="col-span-2 text-sm font-bold text-left">{fmt(Number(l.qty || 0) * effectiveCost)} ج</div>
                 <div className="col-span-1"><Button size="icon" variant="ghost" onClick={() => setLines(lines.filter((x) => x.id !== l.id))}><Trash2 className="h-4 w-4"/></Button></div>
               </div>
             );
