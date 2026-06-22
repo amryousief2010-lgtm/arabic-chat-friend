@@ -537,7 +537,29 @@ export default function ManufacturingInvoices() {
         }
       }
 
+      // If this save was an authorized duplicate-override, record final audit pointing at the new invoice
+      if (override) {
+        try {
+          await supabase.from("meat_factory_audit_log" as any).insert({
+            table_name: "meat_manufacturing_invoices",
+            row_id: (inv as any).id,
+            action: "duplicate_override_saved",
+            new_value: {
+              new_invoice_id: (inv as any).id,
+              new_invoice_no: invoiceNo,
+              similar_invoice_id: override.similarId,
+              override_reason: override.reason,
+              product: finalProductName,
+              finished_qty: finishedQty,
+              factory_warehouse_id: factoryWarehouseId,
+            },
+            performed_by: user?.id || null,
+          });
+        } catch { /* non-fatal */ }
+      }
+
       toast.success(`تم حفظ الفاتورة ${invoiceNo} بحالة مسودة — اضغط اعتماد للخصم`);
+
       resetForm();
       await fetchAll();
       setTab("list");
