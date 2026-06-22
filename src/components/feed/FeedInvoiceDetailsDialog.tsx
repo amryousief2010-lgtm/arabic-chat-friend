@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Printer, Undo2 } from "lucide-react";
+import { Plus, Printer, Undo2, AlertTriangle, PackagePlus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 const fmt = (n: any) => Number(n || 0).toLocaleString("ar-EG", { maximumFractionDigits: 2 });
@@ -113,7 +113,9 @@ export default function FeedInvoiceDetailsDialog({
   const { roles } = useAuth();
   const canAddExpense = roles.some(r => ["general_manager","executive_manager","feed_factory_manager","warehouse_supervisor","financial_manager","accountant","cost_accountant"].includes(r));
   const canReverse = roles.some(r => ["general_manager","executive_manager"].includes(r));
+  const canAddItems = roles.some(r => ["general_manager","executive_manager","feed_factory_manager","warehouse_supervisor","production_manager"].includes(r));
   const [addOpen, setAddOpen] = useState(false);
+  const [addItemsOpen, setAddItemsOpen] = useState(false);
 
   const expQ = useQuery({
     queryKey: ["feed-inv-expenses", invoice?.id],
@@ -171,7 +173,12 @@ export default function FeedInvoiceDetailsDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between gap-2 flex-wrap">
             <span>تفاصيل فاتورة تصنيع — {inv?.prod_no}</span>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
+              {canAddItems && items.length === 0 && (
+                <Button size="sm" variant="default" className="bg-amber-600 hover:bg-amber-700 text-white" onClick={() => setAddItemsOpen(true)}>
+                  <PackagePlus className="h-4 w-4 ml-1" />استكمال الخامات
+                </Button>
+              )}
               {canAddExpense && (
                 <Button size="sm" onClick={() => setAddOpen(true)}>
                   <Plus className="h-4 w-4 ml-1" />إضافة مصروف على التصنيع
@@ -183,6 +190,16 @@ export default function FeedInvoiceDetailsDialog({
             </div>
           </DialogTitle>
         </DialogHeader>
+
+        {items.length === 0 && (
+          <div className="flex items-start gap-2 border-2 border-amber-500/60 bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 p-3 rounded">
+            <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0" />
+            <div className="text-sm">
+              <div className="font-bold">تحتاج مراجعة — فاتورة بدون خامات</div>
+              <div>هذه الفاتورة لا تحتوي على خامات تصنيع، برجاء مراجعتها قبل اعتمادها{canAddItems ? ' أو استكمال الخامات الناقصة.' : '.'}</div>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm bg-muted/40 p-3 rounded">
           <div><b>التاريخ:</b> {inv?.prod_date}</div>
@@ -254,6 +271,16 @@ export default function FeedInvoiceDetailsDialog({
             qc.invalidateQueries({ queryKey: ["feed-treasury"] });
           }}
         />
+
+        <AddRawMaterialsDialog
+          open={addItemsOpen}
+          onOpenChange={setAddItemsOpen}
+          invoiceId={invoice.id}
+          onSaved={() => {
+            qc.invalidateQueries({ queryKey: ["feed-inv-detail", invoice.id] });
+            qc.invalidateQueries({ queryKey: ["feed-prod-invoices"] });
+          }}
+        />
       </DialogContent>
     </Dialog>
   );
@@ -321,6 +348,121 @@ function AddExpenseDialog({ open, onOpenChange, invoiceId, onSaved }:
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>إلغاء</Button>
           <Button onClick={save} disabled={saving}>{saving ? "..." : "حفظ المصروف"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AddRawMaterialsDialog({ open, onOpenChange, invoiceId, onSaved }:
+  { open: boolean; onOpenChange: (v: boolean) => void; invoiceId: string; onSaved: () => void }) {
+  const [rows, setRows] = useState<Array<{ raw_material_id: string; quantity: number; unit_cost: number }>>([
+    { raw_material_id: "", quantity: 0, unit_cost: 0 },
+  ]);
+  const [saving, setSaving] = useState(false);
+
+  const matsQ = useQuery({
+    queryKey: ["feed-raw-materials-active"],
+    enabled: open,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("feed_raw_materials")
+        .select("id,name,unit,unit_cost,stock,is_active")
+        .eq("is_active", true)
+        .order("name");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+  const mats = matsQ.data || [];
+
+  const updateRow = (i: number, patch: Partial<typeof rows[0]>) => {
+    setRows(prev => prev.map((r, idx) => {
+      if (idx !== i) return r;
+      const next = { ...r, ...patch };
+      if (patch.raw_material_id) {
+        const m = mats.find((x: any) => x.id === patch.raw_material_id);
+        if (m && !next.unit_cost) next.unit_cost = Number(m.unit_cost) || 0;
+      }
+      return next;
+    }));
+  };
+
+  const save = async () => {
+    const clean = rows.filter(r => r.raw_material_id && r.quantity > 0);
+    if (!clean.length) return toast.error("أضف صنف واحد على الأقل بكمية صحيحة");
+    setSaving(true);
+    try {
+      const payload = clean.map(r => ({
+        invoice_id: invoiceId,
+        raw_material_id: r.raw_material_id,
+        quantity: r.quantity,
+        unit_cost: r.unit_cost,
+        line_cost: Number((r.quantity * r.unit_cost).toFixed(2)),
+      }));
+      const { error } = await (supabase as any).from("feed_production_invoice_items").insert(payload);
+      if (error) throw error;
+      toast.success("تم استكمال الخامات");
+      setRows([{ raw_material_id: "", quantity: 0, unit_cost: 0 }]);
+      onSaved();
+      onOpenChange(false);
+    } catch (err: any) {
+      toast.error(err.message || "فشل الحفظ");
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent dir="rtl" className="max-w-3xl">
+        <DialogHeader><DialogTitle>استكمال خامات التصنيع</DialogTitle></DialogHeader>
+        <div className="text-xs text-muted-foreground mb-2">
+          سيتم خصم الخامات من المخزون وتحديث تكلفة الفاتورة تلقائيًا.
+        </div>
+        <div className="space-y-2">
+          {rows.map((r, i) => {
+            const m = mats.find((x: any) => x.id === r.raw_material_id);
+            return (
+              <div key={i} className="grid grid-cols-12 gap-2 items-end border p-2 rounded">
+                <div className="col-span-5">
+                  <Label>الخامة</Label>
+                  <Select value={r.raw_material_id} onValueChange={v => updateRow(i, { raw_material_id: v })}>
+                    <SelectTrigger><SelectValue placeholder="اختر خامة" /></SelectTrigger>
+                    <SelectContent>
+                      {mats.map((x: any) => (
+                        <SelectItem key={x.id} value={x.id}>
+                          {x.name} (متاح: {fmt(x.stock)} {x.unit})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="col-span-2">
+                  <Label>الكمية {m ? `(${m.unit})` : ""}</Label>
+                  <Input type="number" value={r.quantity || ""} onChange={e => updateRow(i, { quantity: Number(e.target.value) })} />
+                </div>
+                <div className="col-span-2">
+                  <Label>سعر الوحدة</Label>
+                  <Input type="number" value={r.unit_cost || ""} onChange={e => updateRow(i, { unit_cost: Number(e.target.value) })} />
+                </div>
+                <div className="col-span-2 text-sm">
+                  <div className="text-muted-foreground">الإجمالي</div>
+                  <div className="font-bold">{fmt(r.quantity * r.unit_cost)} ج.م</div>
+                </div>
+                <div className="col-span-1 flex justify-end">
+                  <Button size="icon" variant="ghost" onClick={() => setRows(prev => prev.filter((_, idx) => idx !== i))} disabled={rows.length === 1}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <Button variant="outline" size="sm" onClick={() => setRows(prev => [...prev, { raw_material_id: "", quantity: 0, unit_cost: 0 }])}>
+          <Plus className="h-4 w-4 ml-1" />إضافة سطر آخر
+        </Button>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>إلغاء</Button>
+          <Button onClick={save} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ الخامات"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
