@@ -115,6 +115,9 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
         return;
       }
       console.log("[HatchResults] DB SELECT after open:", data);
+      const snap: Record<string, any> = {};
+      for (const row of data || []) snap[row.id] = row;
+      setSnapshot(snap);
       setDrafts((prev) => {
         const next = { ...prev };
         for (const row of data || []) {
