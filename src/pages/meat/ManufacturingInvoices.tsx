@@ -604,6 +604,53 @@ export default function ManufacturingInvoices() {
 
   };
 
+  const openCancel = async (inv: Invoice) => {
+    if (!isApprover) { toast.error("الإلغاء متاح للمدير العام/التنفيذي/مدير المصنع/الإنتاج فقط"); return; }
+    if (inv.status === "cancelled") { toast.info("الفاتورة ملغاة بالفعل"); return; }
+    if (inv.status === "transferred") { toast.error("لا يمكن إلغاء فاتورة تم تحويل منتجها — اعمل تسوية إدارية"); return; }
+    setCancelTarget(inv);
+    setCancelReason("");
+    setCancelForce(false);
+    setCancelImpact(null);
+    try {
+      const [{ data: ls }, { data: fi }] = await Promise.all([
+        supabase.from("meat_manufacturing_invoice_lines" as any).select("*").eq("invoice_id", inv.id).order("kind"),
+        inv.finished_item_id
+          ? supabase.from("inventory_items").select("name, stock").eq("id", inv.finished_item_id).maybeSingle()
+          : Promise.resolve({ data: null } as any),
+      ]);
+      setCancelImpact({
+        lines: ls || [],
+        finishedStock: fi ? Number((fi as any).stock || 0) : null,
+        finishedItemName: fi ? (fi as any).name : null,
+      });
+    } catch (e: any) {
+      toast.error("تعذر تحميل بيانات الفاتورة: " + e.message);
+    }
+  };
+
+  const submitCancel = async () => {
+    if (!cancelTarget) return;
+    const reason = cancelReason.trim();
+    if (reason.length < 3) { toast.error("اكتب سبب الإلغاء (٣ أحرف على الأقل)"); return; }
+    setCancelling(true);
+    const { data, error } = await supabase.rpc("cancel_meat_manufacturing_invoice" as any, {
+      p_invoice_id: cancelTarget.id,
+      p_reason: reason,
+      p_force_partial: !!cancelForce,
+    });
+    setCancelling(false);
+    if (error) { toast.error(error.message); return; }
+    const r: any = data || {};
+    toast.success(r.message || "تم إلغاء الفاتورة وعكس أثر المخزون");
+    setCancelTarget(null);
+    setCancelReason("");
+    setCancelForce(false);
+    setCancelImpact(null);
+    setViewing(null);
+    await fetchAll();
+  };
+
   const openTransfer = (inv: Invoice) => { setTransferInv(inv); setTransferDestId(mainWarehouses[0]?.id || ""); };
   const submitTransfer = async () => {
     if (!transferInv || !transferDestId) { toast.error("اختر المخزن الرئيسي"); return; }
