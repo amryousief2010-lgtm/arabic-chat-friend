@@ -39,6 +39,7 @@ type RowDraft = {
   batch_number: string;
   total_eggs: number;
   net_eggs: number;
+  excluded_eggs: number | string;
   candle1_infertile: number | string;
   candle2_dead: number | string;
   hatcher_dead: number | string;
