@@ -1746,6 +1746,14 @@ function ProductionDialog({ open, onOpenChange, rawMaterials, products, onSaved 
     if (!qtyProduced || qtyProduced <= 0) return toast.error("اكتب الكمية المنتجة");
     const valid = lines.filter((l) => l.raw_id && l.qty > 0);
     if (!valid.length) return toast.error("أضف خامة واحدة على الأقل");
+    // Resolve unit_cost per line (editable override → falls back to default)
+    const resolved = valid.map((l) => {
+      const m = rawMaterials.find((r: any) => r.id === l.raw_id);
+      const uc = l.unit_cost_touched ? Number(l.unit_cost || 0) : Number(m?.unit_cost ?? l.unit_cost ?? 0);
+      return { l, m, uc };
+    });
+    const missing = resolved.find((x) => !x.uc || x.uc <= 0);
+    if (missing) return toast.error(`الصنف "${missing.m?.name || "غير معروف"}" لا يحتوي على سعر افتراضي، برجاء إدخال سعر الوحدة.`);
     const validExp = expenses.filter((e) => e.amount > 0);
 
     setSaving(true);
