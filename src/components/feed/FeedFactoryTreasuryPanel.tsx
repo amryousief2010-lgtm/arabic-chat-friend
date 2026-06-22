@@ -16,6 +16,10 @@ type Txn = {
   direction: "in" | "out"; kind: string; amount: number;
   party: string | null; note: string | null;
   created_at: string;
+  created_by?: string | null;
+  created_by_name?: string | null;
+  ref_table?: string | null;
+  ref_id?: string | null;
 };
 
 const fmt = (n: number) =>
