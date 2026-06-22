@@ -357,6 +357,7 @@ export default function ApprovalDetailsDialog({
                 const svc = parseServiceCostsFromNotes(r.notes);
                 const svcTotal = svc.reduce((s, x) => s + Number(x.total || 0), 0);
                 const residual = Math.max(0, Number(r.extra_cost || 0) - svcTotal);
+                const effectiveExtra = Math.max(Number(r.extra_cost || 0), svcTotal);
                 if (svc.length === 0 && residual === 0) return null;
                 return (
                   <>
