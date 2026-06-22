@@ -174,7 +174,7 @@ export default function FeedInvoiceDetailsDialog({
           <DialogTitle className="flex items-center justify-between gap-2 flex-wrap">
             <span>تفاصيل فاتورة تصنيع — {inv?.prod_no}</span>
             <div className="flex gap-2 flex-wrap">
-              {canAddItems && items.length === 0 && (
+              {canAddItems && items.length === 0 && Number(inv?.total_cost || 0) === 0 && (
                 <Button size="sm" variant="default" className="bg-amber-600 hover:bg-amber-700 text-white" onClick={() => setAddItemsOpen(true)}>
                   <PackagePlus className="h-4 w-4 ml-1" />استكمال الخامات
                 </Button>
@@ -276,6 +276,8 @@ export default function FeedInvoiceDetailsDialog({
           open={addItemsOpen}
           onOpenChange={setAddItemsOpen}
           invoiceId={invoice.id}
+          invoiceProductName={inv?.feed_products?.name || "—"}
+          invoiceQty={Number(inv?.qty_produced || 0)}
           onSaved={() => {
             qc.invalidateQueries({ queryKey: ["feed-inv-detail", invoice.id] });
             qc.invalidateQueries({ queryKey: ["feed-prod-invoices"] });
@@ -354,11 +356,12 @@ function AddExpenseDialog({ open, onOpenChange, invoiceId, onSaved }:
   );
 }
 
-function AddRawMaterialsDialog({ open, onOpenChange, invoiceId, onSaved }:
-  { open: boolean; onOpenChange: (v: boolean) => void; invoiceId: string; onSaved: () => void }) {
+function AddRawMaterialsDialog({ open, onOpenChange, invoiceId, invoiceProductName, invoiceQty, onSaved }:
+  { open: boolean; onOpenChange: (v: boolean) => void; invoiceId: string; invoiceProductName: string; invoiceQty: number; onSaved: () => void }) {
   const [rows, setRows] = useState<Array<{ raw_material_id: string; quantity: number; unit_cost: number }>>([
     { raw_material_id: "", quantity: 0, unit_cost: 0 },
   ]);
+  const [step, setStep] = useState<"entry" | "preview">("entry");
   const [saving, setSaving] = useState(false);
 
   const matsQ = useQuery({
@@ -382,28 +385,74 @@ function AddRawMaterialsDialog({ open, onOpenChange, invoiceId, onSaved }:
       const next = { ...r, ...patch };
       if (patch.raw_material_id) {
         const m = mats.find((x: any) => x.id === patch.raw_material_id);
-        if (m && !next.unit_cost) next.unit_cost = Number(m.unit_cost) || 0;
+        if (m) next.unit_cost = Number(m.unit_cost) || 0;
       }
       return next;
     }));
   };
 
-  const save = async () => {
-    const clean = rows.filter(r => r.raw_material_id && r.quantity > 0);
-    if (!clean.length) return toast.error("أضف صنف واحد على الأقل بكمية صحيحة");
+  const cleanRows = useMemo(() => rows
+    .filter(r => r.raw_material_id && r.quantity > 0)
+    .map(r => {
+      const m = mats.find((x: any) => x.id === r.raw_material_id);
+      return {
+        ...r,
+        name: m?.name || "—",
+        unit: m?.unit || "كجم",
+        stockBefore: Number(m?.stock || 0),
+        stockAfter: Number(m?.stock || 0) - Number(r.quantity || 0),
+        lineTotal: Number((r.quantity || 0) * (r.unit_cost || 0)),
+      };
+    }), [rows, mats]);
+
+  const totalCost = cleanRows.reduce((s, r) => s + r.lineTotal, 0);
+  const overStock = cleanRows.some(r => r.stockAfter < 0);
+
+  const goPreview = () => {
+    if (!cleanRows.length) return toast.error("أضف صنف واحد على الأقل بكمية صحيحة");
+    if (overStock) return toast.error("بعض الخامات الكمية المطلوبة أكبر من الرصيد المتاح");
+    setStep("preview");
+  };
+
+  const confirmSave = async () => {
     setSaving(true);
     try {
-      const payload = clean.map(r => ({
+      // Re-check: ensure no items were added meanwhile
+      const { data: existing, error: chkErr } = await (supabase as any)
+        .from("feed_production_invoice_items")
+        .select("id", { count: "exact", head: true })
+        .eq("invoice_id", invoiceId);
+      if (chkErr) throw chkErr;
+      const { count } = existing as any;
+      if ((count ?? 0) > 0) {
+        throw new Error("الفاتورة تم استكمالها بالفعل من جلسة أخرى — أعد فتح التفاصيل.");
+      }
+      const { data: invChk, error: invErr } = await (supabase as any)
+        .from("feed_production_invoices")
+        .select("total_cost")
+        .eq("id", invoiceId).single();
+      if (invErr) throw invErr;
+      if (Number(invChk?.total_cost || 0) > 0) {
+        throw new Error("هذه الفاتورة لها أثر مخزني سابق، لا يمكن استكمالها إلا من خلال تصحيح إداري.");
+      }
+
+      const payload = cleanRows.map(r => ({
         invoice_id: invoiceId,
         raw_material_id: r.raw_material_id,
         quantity: r.quantity,
         unit_cost: r.unit_cost,
-        line_cost: Number((r.quantity * r.unit_cost).toFixed(2)),
+        line_cost: Number(r.lineTotal.toFixed(2)),
       }));
-      const { error } = await (supabase as any).from("feed_production_invoice_items").insert(payload);
-      if (error) throw error;
-      toast.success("تم استكمال الخامات");
+      const { error: insErr } = await (supabase as any).from("feed_production_invoice_items").insert(payload);
+      if (insErr) throw insErr;
+
+      // Finalize: adds finished product to stock + updates invoice totals (once)
+      const { error: finErr } = await (supabase as any).rpc("finalize_feed_production", { _invoice_id: invoiceId });
+      if (finErr) throw finErr;
+
+      toast.success("تم استكمال الفاتورة بنجاح");
       setRows([{ raw_material_id: "", quantity: 0, unit_cost: 0 }]);
+      setStep("entry");
       onSaved();
       onOpenChange(false);
     } catch (err: any) {
@@ -411,59 +460,131 @@ function AddRawMaterialsDialog({ open, onOpenChange, invoiceId, onSaved }:
     } finally { setSaving(false); }
   };
 
+  const handleOpenChange = (v: boolean) => {
+    if (!v) { setStep("entry"); }
+    onOpenChange(v);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent dir="rtl" className="max-w-3xl">
-        <DialogHeader><DialogTitle>استكمال خامات التصنيع</DialogTitle></DialogHeader>
-        <div className="text-xs text-muted-foreground mb-2">
-          سيتم خصم الخامات من المخزون وتحديث تكلفة الفاتورة تلقائيًا.
-        </div>
-        <div className="space-y-2">
-          {rows.map((r, i) => {
-            const m = mats.find((x: any) => x.id === r.raw_material_id);
-            return (
-              <div key={i} className="grid grid-cols-12 gap-2 items-end border p-2 rounded">
-                <div className="col-span-5">
-                  <Label>الخامة</Label>
-                  <Select value={r.raw_material_id} onValueChange={v => updateRow(i, { raw_material_id: v })}>
-                    <SelectTrigger><SelectValue placeholder="اختر خامة" /></SelectTrigger>
-                    <SelectContent>
-                      {mats.map((x: any) => (
-                        <SelectItem key={x.id} value={x.id}>
-                          {x.name} (متاح: {fmt(x.stock)} {x.unit})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="col-span-2">
-                  <Label>الكمية {m ? `(${m.unit})` : ""}</Label>
-                  <Input type="number" value={r.quantity || ""} onChange={e => updateRow(i, { quantity: Number(e.target.value) })} />
-                </div>
-                <div className="col-span-2">
-                  <Label>سعر الوحدة</Label>
-                  <Input type="number" value={r.unit_cost || ""} onChange={e => updateRow(i, { unit_cost: Number(e.target.value) })} />
-                </div>
-                <div className="col-span-2 text-sm">
-                  <div className="text-muted-foreground">الإجمالي</div>
-                  <div className="font-bold">{fmt(r.quantity * r.unit_cost)} ج.م</div>
-                </div>
-                <div className="col-span-1 flex justify-end">
-                  <Button size="icon" variant="ghost" onClick={() => setRows(prev => prev.filter((_, idx) => idx !== i))} disabled={rows.length === 1}>
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                </div>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent dir="rtl" className="max-w-3xl max-h-[92vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>
+            {step === "entry" ? "استكمال خامات التصنيع" : "مراجعة قبل الاعتماد"}
+          </DialogTitle>
+        </DialogHeader>
+
+        {step === "entry" && (
+          <>
+            <div className="text-xs text-muted-foreground mb-2">
+              أدخل الخامات الناقصة. سيتم استخدام سعر الخامة من بطاقة المخزون. اضغط "مراجعة" لعرض الأثر قبل التأكيد.
+            </div>
+            <div className="space-y-2">
+              {rows.map((r, i) => {
+                const m = mats.find((x: any) => x.id === r.raw_material_id);
+                const after = Number(m?.stock || 0) - Number(r.quantity || 0);
+                return (
+                  <div key={i} className="grid grid-cols-12 gap-2 items-end border p-2 rounded">
+                    <div className="col-span-5">
+                      <Label>الخامة</Label>
+                      <Select value={r.raw_material_id} onValueChange={v => updateRow(i, { raw_material_id: v })}>
+                        <SelectTrigger><SelectValue placeholder="اختر خامة" /></SelectTrigger>
+                        <SelectContent>
+                          {mats.map((x: any) => (
+                            <SelectItem key={x.id} value={x.id}>
+                              {x.name} (متاح: {fmt(x.stock)} {x.unit})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="col-span-2">
+                      <Label>الكمية {m ? `(${m.unit})` : ""}</Label>
+                      <Input type="number" min={0} value={r.quantity || ""} onChange={e => updateRow(i, { quantity: Math.max(0, Number(e.target.value)) })} />
+                      {m && r.quantity > 0 && after < 0 && (
+                        <div className="text-[10px] text-destructive mt-1">يتجاوز المتاح</div>
+                      )}
+                    </div>
+                    <div className="col-span-2">
+                      <Label>سعر الوحدة</Label>
+                      <Input type="number" value={r.unit_cost || ""} readOnly className="bg-muted/40" title="السعر مأخوذ من بطاقة الخامة" />
+                    </div>
+                    <div className="col-span-2 text-sm">
+                      <div className="text-muted-foreground">الإجمالي</div>
+                      <div className="font-bold">{fmt(r.quantity * r.unit_cost)} ج.م</div>
+                    </div>
+                    <div className="col-span-1 flex justify-end">
+                      <Button size="icon" variant="ghost" onClick={() => setRows(prev => prev.filter((_, idx) => idx !== i))} disabled={rows.length === 1}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setRows(prev => [...prev, { raw_material_id: "", quantity: 0, unit_cost: 0 }])}>
+              <Plus className="h-4 w-4 ml-1" />إضافة سطر آخر
+            </Button>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => handleOpenChange(false)}>إلغاء</Button>
+              <Button onClick={goPreview}>مراجعة</Button>
+            </DialogFooter>
+          </>
+        )}
+
+        {step === "preview" && (
+          <>
+            <div className="flex items-start gap-2 border-2 border-amber-500/60 bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 p-3 rounded text-sm">
+              <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0" />
+              <div>
+                <div className="font-bold">معاينة الأثر قبل التأكيد</div>
+                <div>سيتم خصم الخامات من المخزون مرة واحدة، وإضافة <b>{fmt(invoiceQty)} كجم</b> من <b>{invoiceProductName}</b> للمخزون النهائي، وتحديث تكلفة الفاتورة. لا يتم إنشاء أي خزنة أو فاتورة جديدة.</div>
               </div>
-            );
-          })}
-        </div>
-        <Button variant="outline" size="sm" onClick={() => setRows(prev => [...prev, { raw_material_id: "", quantity: 0, unit_cost: 0 }])}>
-          <Plus className="h-4 w-4 ml-1" />إضافة سطر آخر
-        </Button>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>إلغاء</Button>
-          <Button onClick={save} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ الخامات"}</Button>
-        </DialogFooter>
+            </div>
+
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>الخامة</TableHead>
+                  <TableHead>الكمية</TableHead>
+                  <TableHead>الوحدة</TableHead>
+                  <TableHead>سعر الوحدة</TableHead>
+                  <TableHead>الإجمالي</TableHead>
+                  <TableHead>الرصيد قبل</TableHead>
+                  <TableHead>الرصيد بعد</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {cleanRows.map((r, i) => (
+                  <TableRow key={i}>
+                    <TableCell className="font-medium">{r.name}</TableCell>
+                    <TableCell>{fmt(r.quantity)}</TableCell>
+                    <TableCell>{r.unit}</TableCell>
+                    <TableCell>{fmt(r.unit_cost)}</TableCell>
+                    <TableCell className="font-bold">{fmt(r.lineTotal)} ج.م</TableCell>
+                    <TableCell>{fmt(r.stockBefore)}</TableCell>
+                    <TableCell className={r.stockAfter < 0 ? "text-destructive font-bold" : ""}>{fmt(r.stockAfter)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+
+            <div className="border-2 border-primary rounded p-3 space-y-1 text-sm">
+              <div className="flex justify-between"><span>إجمالي تكلفة الخامات</span><b>{fmt(totalCost)} ج.م</b></div>
+              <div className="flex justify-between"><span>الكمية المنتجة</span><b>{fmt(invoiceQty)} كجم</b></div>
+              <div className="flex justify-between"><span>تكلفة الكيلو (تقديري)</span><b>{fmt(invoiceQty > 0 ? totalCost / invoiceQty : 0)} ج/كجم</b></div>
+              <div className="flex justify-between border-t pt-1"><span>خصم من المخزون؟</span><b className="text-amber-700">نعم — مرة واحدة</b></div>
+              <div className="flex justify-between"><span>إضافة المنتج النهائي للمخزون؟</span><b className="text-amber-700">نعم — مرة واحدة</b></div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setStep("entry")} disabled={saving}>رجوع للتعديل</Button>
+              <Button onClick={confirmSave} disabled={saving} className="bg-amber-600 hover:bg-amber-700 text-white">
+                {saving ? "جاري الحفظ..." : "تأكيد واستكمال الفاتورة"}
+              </Button>
+            </DialogFooter>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );
