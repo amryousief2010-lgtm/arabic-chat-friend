@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Factory, Plus, Trash2, CheckCircle2, Send, Loader2, Printer, Eye, ChefHat, AlertTriangle, Link2 } from "lucide-react";
+import { Factory, Plus, Trash2, CheckCircle2, Send, Loader2, Printer, Eye, ChefHat, AlertTriangle, Link2, Ban } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import recipesData from "@/data/meatRecipes.json";
 import { parseServiceCostsFromNotes, userNotesFromInvoice, type ServiceCostRow } from "@/lib/meatServiceCosts";
@@ -87,6 +87,15 @@ export default function ManufacturingInvoices() {
   const [similarFound, setSimilarFound] = useState<SimilarInv | null>(null);
   const [overrideReason, setOverrideReason] = useState("");
   const canOverrideDuplicate = roles?.some(r => r === "general_manager" || r === "executive_manager");
+
+  // Cancel/void
+  type CancelImpact = { lines: any[]; finishedStock: number | null; finishedItemName?: string | null };
+  const [cancelTarget, setCancelTarget] = useState<Invoice | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelForce, setCancelForce] = useState(false);
+  const [cancelImpact, setCancelImpact] = useState<CancelImpact | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+  const canForceCancel = roles?.some(r => r === "general_manager" || r === "executive_manager");
 
 
   type Mapping = { id?: string; recipe_item_name: string; recipe_item_kind: Kind; mapped_raw_item_id: string; mapped_raw_item_name: string };
@@ -593,6 +602,53 @@ export default function ManufacturingInvoices() {
     setViewing(null);
     await fetchAll();
 
+  };
+
+  const openCancel = async (inv: Invoice) => {
+    if (!isApprover) { toast.error("الإلغاء متاح للمدير العام/التنفيذي/مدير المصنع/الإنتاج فقط"); return; }
+    if (inv.status === "cancelled") { toast.info("الفاتورة ملغاة بالفعل"); return; }
+    if (inv.status === "transferred") { toast.error("لا يمكن إلغاء فاتورة تم تحويل منتجها — اعمل تسوية إدارية"); return; }
+    setCancelTarget(inv);
+    setCancelReason("");
+    setCancelForce(false);
+    setCancelImpact(null);
+    try {
+      const [{ data: ls }, { data: fi }] = await Promise.all([
+        supabase.from("meat_manufacturing_invoice_lines" as any).select("*").eq("invoice_id", inv.id).order("kind"),
+        inv.finished_item_id
+          ? supabase.from("inventory_items").select("name, stock").eq("id", inv.finished_item_id).maybeSingle()
+          : Promise.resolve({ data: null } as any),
+      ]);
+      setCancelImpact({
+        lines: ls || [],
+        finishedStock: fi ? Number((fi as any).stock || 0) : null,
+        finishedItemName: fi ? (fi as any).name : null,
+      });
+    } catch (e: any) {
+      toast.error("تعذر تحميل بيانات الفاتورة: " + e.message);
+    }
+  };
+
+  const submitCancel = async () => {
+    if (!cancelTarget) return;
+    const reason = cancelReason.trim();
+    if (reason.length < 3) { toast.error("اكتب سبب الإلغاء (٣ أحرف على الأقل)"); return; }
+    setCancelling(true);
+    const { data, error } = await supabase.rpc("cancel_meat_manufacturing_invoice" as any, {
+      p_invoice_id: cancelTarget.id,
+      p_reason: reason,
+      p_force_partial: !!cancelForce,
+    });
+    setCancelling(false);
+    if (error) { toast.error(error.message); return; }
+    const r: any = data || {};
+    toast.success(r.message || "تم إلغاء الفاتورة وعكس أثر المخزون");
+    setCancelTarget(null);
+    setCancelReason("");
+    setCancelForce(false);
+    setCancelImpact(null);
+    setViewing(null);
+    await fetchAll();
   };
 
   const openTransfer = (inv: Invoice) => { setTransferInv(inv); setTransferDestId(mainWarehouses[0]?.id || ""); };
@@ -1143,6 +1199,11 @@ export default function ManufacturingInvoices() {
                             {inv.status === "transferred" && inv.transfer_no && (
                               <span className="text-xs text-muted-foreground">#{inv.transfer_no}</span>
                             )}
+                            {isApprover && (inv.status === "draft" || inv.status === "approved") && (
+                              <Button size="sm" variant="outline" className="border-red-300 text-red-700 hover:bg-red-50" onClick={() => openCancel(inv)}>
+                                <Ban className="w-3 h-3 ml-1" />إلغاء
+                              </Button>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -1296,6 +1357,11 @@ export default function ManufacturingInvoices() {
               {viewing?.status === "draft" && isApprover && (
                 <Button className="bg-emerald-600 hover:bg-emerald-700" disabled={busy} onClick={() => viewing && approve(viewing.id)}><CheckCircle2 className="w-4 h-4 ml-1" />اعتماد</Button>
               )}
+              {viewing && isApprover && (viewing.status === "draft" || viewing.status === "approved") && (
+                <Button variant="outline" className="border-red-300 text-red-700 hover:bg-red-50" onClick={() => viewing && openCancel(viewing)}>
+                  <Ban className="w-4 h-4 ml-1" />إلغاء الفاتورة
+                </Button>
+              )}
               <Button variant="outline" onClick={() => setViewing(null)}>إغلاق</Button>
             </DialogFooter>
           </DialogContent>
@@ -1417,7 +1483,112 @@ export default function ManufacturingInvoices() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Cancel / void invoice with inventory reversal */}
+        <Dialog open={!!cancelTarget} onOpenChange={(v) => { if (!v) { setCancelTarget(null); setCancelReason(""); setCancelForce(false); setCancelImpact(null); } }}>
+          <DialogContent dir="rtl" className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-red-700">
+                <Ban className="w-5 h-5" />
+                إلغاء فاتورة تصنيع {cancelTarget?.invoice_no || ""}
+              </DialogTitle>
+            </DialogHeader>
+            {cancelTarget && (
+              <div className="space-y-3 text-sm max-h-[65vh] overflow-y-auto">
+                <div className="rounded border bg-amber-50 p-3 space-y-1 text-xs">
+                  <div><b>رقم الفاتورة:</b> {cancelTarget.invoice_no || "—"}</div>
+                  <div><b>المنتج النهائي:</b> {cancelTarget.product_name} — {fmt(cancelTarget.finished_qty)} {cancelTarget.unit}</div>
+                  <div><b>الحالة الحالية:</b> {statusBadge(cancelTarget.status)}</div>
+                </div>
+
+                {cancelTarget.status === "draft" ? (
+                  <div className="rounded border border-blue-200 bg-blue-50 p-3 text-blue-800 text-xs">
+                    هذه الفاتورة مسودة ولم تؤثر على المخزون — سيتم تحويلها إلى حالة "ملغاة" فقط دون أي حركات عكسية.
+                  </div>
+                ) : (
+                  <>
+                    <div className="rounded border border-red-200 bg-red-50 p-3 space-y-2">
+                      <div className="font-semibold text-red-800">سيتم تنفيذ الحركات العكسية التالية:</div>
+                      <div className="text-xs space-y-1">
+                        <div><b>1) إعادة الخامات والتغليف للمخزون:</b></div>
+                        {!cancelImpact ? (
+                          <div className="text-muted-foreground">جارٍ تحميل البنود...</div>
+                        ) : cancelImpact.lines.length === 0 ? (
+                          <div className="text-amber-700">لا توجد بنود خامات مسجلة لهذه الفاتورة.</div>
+                        ) : (
+                          <ul className="list-disc pr-5 space-y-0.5">
+                            {cancelImpact.lines.map((l: any) => (
+                              <li key={l.id}>
+                                {l.item_name} — {fmt(l.quantity)} {l.unit} <span className="text-muted-foreground">[{KIND_LABEL[(l.kind as Kind) || "raw"]}]</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                      <div className="text-xs space-y-1">
+                        <div><b>2) خصم المنتج النهائي من المخزون:</b></div>
+                        <div className="pr-5">
+                          {cancelImpact?.finishedItemName || cancelTarget.product_name} — يجب خصم {fmt(cancelTarget.finished_qty)} {cancelTarget.unit}
+                          <span className="text-muted-foreground"> (المتاح حالياً: {cancelImpact?.finishedStock != null ? fmt(cancelImpact.finishedStock) : "—"})</span>
+                        </div>
+                        {cancelImpact && cancelImpact.finishedStock != null && cancelImpact.finishedStock + 0.0001 < cancelTarget.finished_qty && (
+                          <div className="text-red-700 font-semibold pr-5">
+                            ⚠️ الرصيد الحالي أقل من الكمية المطلوب عكسها — جزء من المنتج تم صرفه أو بيعه.
+                            {canForceCancel
+                              ? " يمكنك تفعيل الإلغاء الجزئي أدناه."
+                              : " لا يمكن الإلغاء — يجب طلب تسوية إدارية من المدير العام/التنفيذي."}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {cancelImpact && cancelImpact.finishedStock != null && cancelImpact.finishedStock + 0.0001 < cancelTarget.finished_qty && canForceCancel && (
+                      <label className="flex items-start gap-2 text-xs text-amber-800 border border-amber-300 bg-amber-50 rounded p-2">
+                        <input type="checkbox" className="mt-0.5" checked={cancelForce} onChange={(e) => setCancelForce(e.target.checked)} />
+                        <span>
+                          إلغاء جزئي بصلاحية المدير — سيتم عكس الكمية المتاحة فقط ({fmt(cancelImpact.finishedStock)} {cancelTarget.unit}) وتسجيل الفرق في سجل التدقيق.
+                        </span>
+                      </label>
+                    )}
+                  </>
+                )}
+
+                <div>
+                  <Label className="text-red-800">سبب الإلغاء (إلزامي)</Label>
+                  <Textarea
+                    value={cancelReason}
+                    onChange={(e) => setCancelReason(e.target.value)}
+                    placeholder="اكتب سبب واضح للإلغاء — مطلوب للأرشيف وسجل التدقيق"
+                    rows={3}
+                  />
+                </div>
+              </div>
+            )}
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={() => { setCancelTarget(null); setCancelReason(""); setCancelForce(false); setCancelImpact(null); }}>
+                تراجع
+              </Button>
+              <Button
+                disabled={
+                  cancelling ||
+                  cancelReason.trim().length < 3 ||
+                  (cancelTarget?.status === "approved"
+                    && cancelImpact != null
+                    && cancelImpact.finishedStock != null
+                    && cancelImpact.finishedStock + 0.0001 < (cancelTarget?.finished_qty || 0)
+                    && !(canForceCancel && cancelForce))
+                }
+                className="bg-red-600 hover:bg-red-700"
+                onClick={submitCancel}
+              >
+                {cancelling ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <Ban className="w-4 h-4 ml-1" />}
+                تأكيد الإلغاء وعكس المخزون
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
+
 
     </DashboardLayout>
   );

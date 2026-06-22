@@ -10142,6 +10142,9 @@ export type Database = {
         Row: {
           approved_at: string | null
           approved_by: string | null
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           created_at: string
           created_by: string | null
           destination_kind: string
@@ -10171,6 +10174,9 @@ export type Database = {
         Insert: {
           approved_at?: string | null
           approved_by?: string | null
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           created_at?: string
           created_by?: string | null
           destination_kind?: string
@@ -10200,6 +10206,9 @@ export type Database = {
         Update: {
           approved_at?: string | null
           approved_by?: string | null
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           created_at?: string
           created_by?: string | null
           destination_kind?: string
@@ -16582,6 +16591,14 @@ export type Database = {
       cancel_hatchery_batch: {
         Args: { _batch_id: string; _reason: string }
         Returns: undefined
+      }
+      cancel_meat_manufacturing_invoice: {
+        Args: {
+          p_force_partial?: boolean
+          p_invoice_id: string
+          p_reason: string
+        }
+        Returns: Json
       }
       cancel_meat_sales_return: { Args: { p_id: string }; Returns: string }
       cancel_mf_invoice: {
