@@ -397,7 +397,7 @@ export default function ApprovalDetailsDialog({
                           )}
                           <tr>
                             <td colSpan={5} className="p-1.5 text-end font-semibold">إجمالي المواد الخدمية</td>
-                            <td className="p-1.5 text-center tabular-nums font-bold text-primary">{fmtMoney(r.extra_cost)}</td>
+                            <td className="p-1.5 text-center tabular-nums font-bold text-primary">{fmtMoney(effectiveExtra)}</td>
                           </tr>
                         </tbody>
                       </table>
