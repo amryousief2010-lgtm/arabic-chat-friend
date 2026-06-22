@@ -213,8 +213,26 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
         payload.exit_date = exitDate;
         payload.status = "completed";
       }
-      const { error } = await supabase.from("hatch_batches").update(payload).eq("id", r.id);
+      console.log("[HatchResults] UPDATE payload:", { id: r.id, batch: r.batch_number, excluded_eggs: payload.excluded_eggs, net_eggs: payload.net_eggs });
+      const { data: updRow, error } = await supabase
+        .from("hatch_batches")
+        .update(payload)
+        .eq("id", r.id)
+        .select("id, batch_number, excluded_eggs, net_eggs")
+        .single();
       if (error) throw error;
+      console.log("[HatchResults] UPDATE returned row:", updRow);
+      // Verification SELECT — confirms what's actually in the DB
+      const { data: verifyRow } = await supabase
+        .from("hatch_batches")
+        .select("id, batch_number, excluded_eggs, net_eggs")
+        .eq("id", r.id)
+        .maybeSingle();
+      console.log("[HatchResults] VERIFY SELECT after update:", verifyRow);
+      if (verifyRow && Number(verifyRow.excluded_eggs ?? 0) !== excl) {
+        console.error("[HatchResults] MISMATCH! sent=", excl, "stored=", verifyRow.excluded_eggs);
+        throw new Error(`فشل التحقق من حفظ المستبعد للدفعة ${r.batch_number}: المرسل=${excl}, المخزن=${verifyRow.excluded_eggs}`);
+      }
     }
     // Best-effort audit log (RLS may restrict; ignore failures)
     try {
