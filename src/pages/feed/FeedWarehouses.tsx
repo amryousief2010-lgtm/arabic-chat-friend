@@ -578,6 +578,7 @@ export default function FeedWarehouses() {
                 <div className="flex gap-2">
                   <Button size="sm" variant="outline" onClick={() => printRawList(rawQ.data || [])}><Printer className="h-4 w-4 ml-1"/>طباعة</Button>
                   <Button size="sm" variant="outline" onClick={exportRaw}><FileSpreadsheet className="h-4 w-4 ml-1"/>Excel</Button>
+                  {canEditStock && <Button size="sm" variant={showArchivedRaw ? "default" : "outline"} onClick={() => setShowArchivedRaw(v => !v)}>{showArchivedRaw ? "إخفاء المؤرشفة" : "عرض المؤرشفة"}</Button>}
                   {canEditStock && <Button onClick={() => setEditRaw({})}><Plus className="h-4 w-4 ml-1" />إضافة خامة</Button>}
                 </div>
               </CardHeader>
