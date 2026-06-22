@@ -149,9 +149,35 @@ export default function ManufacturingInvoices() {
   const spiceCost = useMemo(() => rawLines.filter(l => l.kind === "spice").reduce((s,l) => s + Number(l.line_total||0), 0), [rawLines]);
   const packCost = useMemo(() => packLines.reduce((s,l) => s + Number(l.line_total||0), 0), [packLines]);
   const serviceCost = useMemo(() => serviceCostLines.reduce((s,l) => s + Number(l.line_total||0), 0), [serviceCostLines]);
-  const totalExtraCost = Number(extraCost || 0) + serviceCost;
+
+  // Carryover-IN selected balance & its monetary cost
+  const selectedCarryover = useMemo(
+    () => availableCarryovers.find(c => c.id === carryoverInId) || null,
+    [availableCarryovers, carryoverInId]
+  );
+  const carryoverInCost = useMemo(() => {
+    if (!selectedCarryover || !carryoverInQty) return 0;
+    return Number(carryoverInQty) * Number(selectedCarryover.unit_cost || 0);
+  }, [selectedCarryover, carryoverInQty]);
+  const carryoverInError = useMemo(() => {
+    if (!selectedCarryover) return null;
+    const q = Number(carryoverInQty || 0);
+    if (q <= 0) return null;
+    if (q > Number(selectedCarryover.remaining_qty_kg || 0)) return "الكمية المستخدمة أكبر من المتاح من العجينة المرحلة";
+    return null;
+  }, [selectedCarryover, carryoverInQty]);
+
+  const totalExtraCost = Number(extraCost || 0) + serviceCost + carryoverInCost;
   const totalCost = rawCost + spiceCost + packCost + totalExtraCost;
+  // Unit cost is computed over the sellable finished qty only — carryover-out qty is parked, not sold.
   const unitCost = finishedQty > 0 ? totalCost / finishedQty : 0;
+
+  // Unit cost imputed to leftover dough (for accounting): materials only, distributed over (finished + leftover)
+  const carryoverOutUnitCost = useMemo(() => {
+    const materials = rawCost + spiceCost + packCost;
+    const denom = Number(finishedQty || 0) + Number(carryoverOutQty || 0);
+    return denom > 0 ? materials / denom : 0;
+  }, [rawCost, spiceCost, packCost, finishedQty, carryoverOutQty]);
 
   const finalProductName = productName === "أخرى" ? productNameOther.trim() : productName;
 
@@ -160,6 +186,8 @@ export default function ManufacturingInvoices() {
     setServiceCostLines([]);
     setProductName(""); setProductNameOther(""); setFinishedQty(0); setNotes("");
     setExtraCost(0); setDestinationKind("factory_warehouse");
+    setHasCarryoverOut(false); setCarryoverOutQty(0); setCarryoverOutProduct(""); setCarryoverOutNotes("");
+    setCarryoverInId(""); setCarryoverInQty(0);
     setInvoiceUuid(crypto.randomUUID());
   };
 
