@@ -60,8 +60,9 @@ const toNum = (v: any) => {
  * Validates that no stage exceeds the remaining net from the previous stage.
  */
 const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
-  const { roles } = useAuth();
+  const { roles, user, profile } = useAuth();
   const canReopen = roles?.some((r) => r === "general_manager" || r === "executive_manager");
+  const isManager = !!canReopen;
   const isLocked = (group.customers || []).every((c: any) => {
     const s = c._raw?.status ?? c.status;
     return s === "completed" || s === "closed";
@@ -70,6 +71,11 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
   const [exitDate, setExitDate] = useState(today);
   const [saving, setSaving] = useState(false);
   const [confirmReopen, setConfirmReopen] = useState(false);
+  // Manager override flow for editing a locked batch
+  const [managerOverride, setManagerOverride] = useState(false);
+  const [overrideReason, setOverrideReason] = useState("");
+  // Snapshot of values at open (for audit before/after when manager edits a locked batch)
+  const [snapshot, setSnapshot] = useState<Record<string, any>>({});
   const [drafts, setDrafts] = useState<Record<string, RowDraft>>(() => {
     const m: Record<string, RowDraft> = {};
     (group.customers || []).forEach((c: any) => {
@@ -90,6 +96,9 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
     });
     return m;
   });
+
+  // Effective edit lock: locked AND (not manager OR manager hasn't opted into override)
+  const editLocked = isLocked && !(isManager && managerOverride);
 
   // Authoritative load: re-fetch excluded_eggs (+ related result fields) from DB on open
   // to guarantee we never display a stale value from a cached _raw payload.
