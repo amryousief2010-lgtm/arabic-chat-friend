@@ -16,8 +16,9 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   FlaskConical, Egg, Bird, Plus, Search, AlertTriangle, FileText, Wallet,
-  Settings as SettingsIcon, Printer, FileSpreadsheet, X, Activity, TrendingUp, ClipboardCheck,
+  Settings as SettingsIcon, Printer, FileSpreadsheet, X, Activity, TrendingUp, ClipboardCheck, Tag,
 } from "lucide-react";
+import ChickTradingTab from "@/components/chick-trading/ChickTradingTab";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -164,6 +165,7 @@ const HatcheryLab = () => {
             <TabsTrigger value="batches"><FlaskConical className="w-4 h-4 ml-1" />الدفعات</TabsTrigger>
             <TabsTrigger value="invoices"><FileText className="w-4 h-4 ml-1" />الفواتير</TabsTrigger>
             <TabsTrigger value="balances"><Wallet className="w-4 h-4 ml-1" />مديونية العملاء</TabsTrigger>
+            <TabsTrigger value="chick_trading"><Tag className="w-4 h-4 ml-1" />تجارة كتاكيت</TabsTrigger>
             <TabsTrigger value="settings"><SettingsIcon className="w-4 h-4 ml-1" />الإعدادات</TabsTrigger>
           </TabsList>
 
@@ -182,6 +184,10 @@ const HatcheryLab = () => {
 
           <TabsContent value="balances">
             <BalancesTab balances={balances} />
+          </TabsContent>
+
+          <TabsContent value="chick_trading">
+            <ChickTradingTab />
           </TabsContent>
 
           <TabsContent value="settings">

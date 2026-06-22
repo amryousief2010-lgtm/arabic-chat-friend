@@ -1673,6 +1673,306 @@ export type Database = {
         }
         Relationships: []
       }
+      chick_trading_audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          details: Json | null
+          entity_id: string | null
+          entity_type: string
+          id: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      chick_trading_batches: {
+        Row: {
+          age_at_purchase: number
+          attachment_url: string | null
+          batch_no: string
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          created_at: string
+          created_by: string | null
+          current_count: number
+          dead_count: number
+          disinfection_cost: number
+          id: string
+          main_account_id: string | null
+          notes: string | null
+          original_count: number
+          other_costs: number
+          purchase_date: string
+          purchase_total: number
+          sold_count: number
+          status: string
+          supplier_name: string
+          transport_cost: number
+          treasury_source: string
+          unit_purchase_price: number
+          updated_at: string
+        }
+        Insert: {
+          age_at_purchase?: number
+          attachment_url?: string | null
+          batch_no: string
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          current_count: number
+          dead_count?: number
+          disinfection_cost?: number
+          id?: string
+          main_account_id?: string | null
+          notes?: string | null
+          original_count: number
+          other_costs?: number
+          purchase_date?: string
+          purchase_total?: number
+          sold_count?: number
+          status?: string
+          supplier_name: string
+          transport_cost?: number
+          treasury_source: string
+          unit_purchase_price?: number
+          updated_at?: string
+        }
+        Update: {
+          age_at_purchase?: number
+          attachment_url?: string | null
+          batch_no?: string
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          current_count?: number
+          dead_count?: number
+          disinfection_cost?: number
+          id?: string
+          main_account_id?: string | null
+          notes?: string | null
+          original_count?: number
+          other_costs?: number
+          purchase_date?: string
+          purchase_total?: number
+          sold_count?: number
+          status?: string
+          supplier_name?: string
+          transport_cost?: number
+          treasury_source?: string
+          unit_purchase_price?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      chick_trading_expenses: {
+        Row: {
+          amount: number
+          batch_id: string
+          created_at: string
+          created_by: string | null
+          expense_date: string
+          expense_type: string
+          id: string
+          main_account_id: string | null
+          notes: string | null
+          quantity: number | null
+          treasury_source: string
+          unit: string | null
+        }
+        Insert: {
+          amount: number
+          batch_id: string
+          created_at?: string
+          created_by?: string | null
+          expense_date?: string
+          expense_type: string
+          id?: string
+          main_account_id?: string | null
+          notes?: string | null
+          quantity?: number | null
+          treasury_source?: string
+          unit?: string | null
+        }
+        Update: {
+          amount?: number
+          batch_id?: string
+          created_at?: string
+          created_by?: string | null
+          expense_date?: string
+          expense_type?: string
+          id?: string
+          main_account_id?: string | null
+          notes?: string | null
+          quantity?: number | null
+          treasury_source?: string
+          unit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chick_trading_expenses_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "chick_trading_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chick_trading_mortality: {
+        Row: {
+          batch_id: string
+          count: number
+          created_at: string
+          created_by: string | null
+          id: string
+          mortality_date: string
+          reason: string | null
+        }
+        Insert: {
+          batch_id: string
+          count: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          mortality_date?: string
+          reason?: string | null
+        }
+        Update: {
+          batch_id?: string
+          count?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          mortality_date?: string
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chick_trading_mortality_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "chick_trading_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chick_trading_sales: {
+        Row: {
+          address: string | null
+          batch_id: string
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          collected: boolean
+          collected_at: string | null
+          collected_by: string | null
+          collection_main_account_id: string | null
+          collection_treasury: string | null
+          created_at: string
+          created_by: string | null
+          customer_name: string
+          id: string
+          main_account_id: string | null
+          notes: string | null
+          payment_method: string
+          phone: string | null
+          quantity: number
+          sale_date: string
+          sale_no: string
+          status: string
+          total: number
+          treasury_destination: string | null
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          batch_id: string
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          collected?: boolean
+          collected_at?: string | null
+          collected_by?: string | null
+          collection_main_account_id?: string | null
+          collection_treasury?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_name: string
+          id?: string
+          main_account_id?: string | null
+          notes?: string | null
+          payment_method: string
+          phone?: string | null
+          quantity: number
+          sale_date?: string
+          sale_no: string
+          status?: string
+          total: number
+          treasury_destination?: string | null
+          unit_price: number
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          batch_id?: string
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          collected?: boolean
+          collected_at?: string | null
+          collected_by?: string | null
+          collection_main_account_id?: string | null
+          collection_treasury?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string
+          id?: string
+          main_account_id?: string | null
+          notes?: string | null
+          payment_method?: string
+          phone?: string | null
+          quantity?: number
+          sale_date?: string
+          sale_no?: string
+          status?: string
+          total?: number
+          treasury_destination?: string | null
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chick_trading_sales_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "chick_trading_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       correction_request_audit: {
         Row: {
           action: string
@@ -16309,6 +16609,19 @@ export type Database = {
     }
     Functions: {
       _assert_mf_invoice_approver: { Args: never; Returns: undefined }
+      _ct_write_treasury: {
+        Args: {
+          _actor: string
+          _amount: number
+          _description: string
+          _kind: string
+          _main_account_id: string
+          _source: string
+          _source_id: string
+          _source_table: string
+        }
+        Returns: undefined
+      }
       _recon_assert_manager: { Args: never; Returns: undefined }
       _recon_transition: {
         Args: {
@@ -16648,6 +16961,202 @@ export type Database = {
           source_warehouse_id: string
           source_warehouse_name: string
         }[]
+      }
+      chick_trading_add_expense: {
+        Args: {
+          _amount: number
+          _batch_id: string
+          _expense_date: string
+          _expense_type: string
+          _main_account_id: string
+          _notes: string
+          _quantity: number
+          _treasury_source: string
+          _unit: string
+        }
+        Returns: {
+          amount: number
+          batch_id: string
+          created_at: string
+          created_by: string | null
+          expense_date: string
+          expense_type: string
+          id: string
+          main_account_id: string | null
+          notes: string | null
+          quantity: number | null
+          treasury_source: string
+          unit: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "chick_trading_expenses"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      chick_trading_add_mortality: {
+        Args: {
+          _batch_id: string
+          _count: number
+          _mortality_date: string
+          _reason: string
+        }
+        Returns: {
+          batch_id: string
+          count: number
+          created_at: string
+          created_by: string | null
+          id: string
+          mortality_date: string
+          reason: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "chick_trading_mortality"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      chick_trading_batch_pnl: { Args: { _batch_id: string }; Returns: Json }
+      chick_trading_cancel_sale: {
+        Args: { _reason: string; _sale_id: string }
+        Returns: undefined
+      }
+      chick_trading_collect_sale: {
+        Args: { _main_account_id: string; _sale_id: string; _treasury: string }
+        Returns: {
+          address: string | null
+          batch_id: string
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          collected: boolean
+          collected_at: string | null
+          collected_by: string | null
+          collection_main_account_id: string | null
+          collection_treasury: string | null
+          created_at: string
+          created_by: string | null
+          customer_name: string
+          id: string
+          main_account_id: string | null
+          notes: string | null
+          payment_method: string
+          phone: string | null
+          quantity: number
+          sale_date: string
+          sale_no: string
+          status: string
+          total: number
+          treasury_destination: string | null
+          unit_price: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "chick_trading_sales"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      chick_trading_create_purchase: {
+        Args: {
+          _age: number
+          _attachment_url: string
+          _count: number
+          _disinfection: number
+          _main_account_id: string
+          _notes: string
+          _other: number
+          _purchase_date: string
+          _supplier: string
+          _transport: number
+          _treasury_source: string
+          _unit_price: number
+        }
+        Returns: {
+          age_at_purchase: number
+          attachment_url: string | null
+          batch_no: string
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          created_at: string
+          created_by: string | null
+          current_count: number
+          dead_count: number
+          disinfection_cost: number
+          id: string
+          main_account_id: string | null
+          notes: string | null
+          original_count: number
+          other_costs: number
+          purchase_date: string
+          purchase_total: number
+          sold_count: number
+          status: string
+          supplier_name: string
+          transport_cost: number
+          treasury_source: string
+          unit_purchase_price: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "chick_trading_batches"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      chick_trading_create_sale: {
+        Args: {
+          _address: string
+          _batch_id: string
+          _customer: string
+          _main_account_id: string
+          _notes: string
+          _payment_method: string
+          _phone: string
+          _quantity: number
+          _sale_date: string
+          _treasury_destination: string
+          _unit_price: number
+        }
+        Returns: {
+          address: string | null
+          batch_id: string
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          collected: boolean
+          collected_at: string | null
+          collected_by: string | null
+          collection_main_account_id: string | null
+          collection_treasury: string | null
+          created_at: string
+          created_by: string | null
+          customer_name: string
+          id: string
+          main_account_id: string | null
+          notes: string | null
+          payment_method: string
+          phone: string | null
+          quantity: number
+          sale_date: string
+          sale_no: string
+          status: string
+          total: number
+          treasury_destination: string | null
+          unit_price: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "chick_trading_sales"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       compare_period_to_snapshot: {
         Args: { p_raise_alert?: boolean; p_snapshot_id: string }
@@ -17509,6 +18018,11 @@ export type Database = {
         }
       }
       next_brooding_movement_no: { Args: never; Returns: string }
+      next_chick_trading_batch_no: {
+        Args: { _purchase_date: string }
+        Returns: string
+      }
+      next_chick_trading_sale_no: { Args: never; Returns: string }
       next_feed_factory_movement_no: { Args: never; Returns: string }
       next_feed_transfer_ref: { Args: never; Returns: string }
       normalize_ar: { Args: { s: string }; Returns: string }
@@ -17974,11 +18488,14 @@ export type Database = {
         | "other"
         | "advance_issue"
         | "advance_difference_payout"
+        | "chick_trading_purchase"
+        | "chick_trading_expense"
       lab_treasury_income_category:
         | "hatching"
         | "chick_sales"
         | "other"
         | "advance_return"
+        | "chick_trading_sale"
       lab_treasury_movement_type: "income" | "expense"
       lab_treasury_payment_method:
         | "cash"
@@ -18294,12 +18811,15 @@ export const Constants = {
         "other",
         "advance_issue",
         "advance_difference_payout",
+        "chick_trading_purchase",
+        "chick_trading_expense",
       ],
       lab_treasury_income_category: [
         "hatching",
         "chick_sales",
         "other",
         "advance_return",
+        "chick_trading_sale",
       ],
       lab_treasury_movement_type: ["income", "expense"],
       lab_treasury_payment_method: [
