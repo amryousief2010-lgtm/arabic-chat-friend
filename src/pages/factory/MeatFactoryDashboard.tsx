@@ -47,10 +47,43 @@ export default function MeatFactoryDashboard() {
   const [to, setTo] = useState<string>("");
   const [kindFilter, setKindFilter] = useState<string>("all");
   const [productFilter, setProductFilter] = useState<string>("all");
+  const [monthOpen, setMonthOpen] = useState(false);
 
   const b = rangeBounds(range, from, to);
   const fromISO = b.fromDate.toISOString();
   const toISO = b.toDate.toISOString();
+
+  // Always fetch CURRENT month invoices (independent of selected range) for the
+  // "إجمالي تصنيع هذا الشهر" prominent card + dialog
+  const monthBounds = useMemo(() => {
+    const now = new Date();
+    const { year, monthIndex0 } = currentCairoYearMonth(now);
+    return { fromISO: cairoMonthStartUTC(year, monthIndex0).toISOString(), toISO: now.toISOString() };
+  }, []);
+  const { data: monthInvoices = [] } = useQuery({
+    queryKey: ["mfd-month-inv", monthBounds.fromISO, monthBounds.toISO],
+    queryFn: async () => (await supabase.from("meat_manufacturing_invoices" as any)
+      .select("*").gte("created_at", monthBounds.fromISO).lte("created_at", monthBounds.toISO)
+      .order("created_at", { ascending: false })).data || [],
+  });
+  const monthInvoicesArr = monthInvoices as any[];
+  const monthApproved = useMemo(
+    () => monthInvoicesArr.filter(i => i.status === "approved" || i.status === "transferred" || i.status === "completed" || i.status === "posted"),
+    [monthInvoicesArr]
+  );
+  const monthTotalKg = useMemo(() => monthApproved.reduce((s, i) => s + Number(i.finished_qty || 0), 0), [monthApproved]);
+  const monthTotalCost = useMemo(() => monthApproved.reduce((s, i) => s + Number(i.total_manufacturing_cost || i.materials_total_cost || 0), 0), [monthApproved]);
+  const monthByProduct = useMemo(() => {
+    const m: Record<string, { product: string; invoices: number; qty: number; total: number }> = {};
+    for (const inv of monthApproved) {
+      const key = inv.product_name || "—";
+      if (!m[key]) m[key] = { product: key, invoices: 0, qty: 0, total: 0 };
+      m[key].invoices += 1;
+      m[key].qty += Number(inv.finished_qty || 0);
+      m[key].total += Number(inv.total_manufacturing_cost || inv.materials_total_cost || 0);
+    }
+    return Object.values(m).sort((a, b) => b.qty - a.qty);
+  }, [monthApproved]);
 
   const { data: items = [] } = useQuery({
     queryKey: ["mfd-items"],
