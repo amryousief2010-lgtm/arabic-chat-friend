@@ -1840,6 +1840,13 @@ function ProductionDialog({ open, onOpenChange, rawMaterials, products, onSaved 
         </div>
         <div className="space-y-2">
           <div className="flex items-center justify-between"><Label>الخامات المستهلكة</Label><Button size="sm" variant="outline" onClick={() => setLines([...lines, newProdLine()])}><Plus className="h-3 w-3 ml-1" />خامة</Button></div>
+          <div className="grid grid-cols-12 gap-2 text-xs text-muted-foreground font-semibold px-1">
+            <div className="col-span-5">الصنف</div>
+            <div className="col-span-2">الكمية</div>
+            <div className="col-span-2">سعر الوحدة</div>
+            <div className="col-span-2 text-left">الإجمالي</div>
+            <div className="col-span-1"></div>
+          </div>
           {lines.map((l) => {
             const m = rawMaterials.find((r: any) => r.id === l.raw_id);
             const available = Number(m?.stock || 0);
