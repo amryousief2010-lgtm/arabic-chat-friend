@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Factory, Plus, Trash2, CheckCircle2, Send, Loader2, Printer, Eye, ChefHat, AlertTriangle, Link2 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import recipesData from "@/data/meatRecipes.json";
+import { parseServiceCostsFromNotes, userNotesFromInvoice, type ServiceCostRow } from "@/lib/meatServiceCosts";
 
 type MeatRecipe = { key: string; product: string; code: number; batch_qty: number; unit: string; wages: number; lines: { code: number; name: string; kind: "raw"|"spice"|"packaging"; unit: string; qty: number; price: number; total: number }[] };
 const MEAT_RECIPES = recipesData as MeatRecipe[];
