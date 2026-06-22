@@ -414,6 +414,9 @@ export function useExecutiveApprovals() {
       .on("postgres_changes" as any, { event: "*", schema: "public", table: "mf_manufacturing" }, () =>
         queryClient.invalidateQueries({ queryKey: ["executive-approvals"] })
       )
+      .on("postgres_changes" as any, { event: "*", schema: "public", table: "meat_factory_purchases" }, () =>
+        queryClient.invalidateQueries({ queryKey: ["executive-approvals"] })
+      )
       .subscribe();
     return () => {
       try { supabase.removeChannel(ch); } catch {}
