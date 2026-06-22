@@ -1264,9 +1264,23 @@ function PurchaseDialog({ open, onOpenChange, materials, onSaved, editPurchase }
     }
   }, [editPurchase?.id, open]);
 
+  const dateWarning = useMemo(() => {
+    if (!date) return null;
+    const today = new Date(); today.setHours(0,0,0,0);
+    const d = new Date(date); d.setHours(0,0,0,0);
+    const diff = Math.round((d.getTime() - today.getTime()) / 86400000);
+    if (diff > 0) return { level: "error" as const, msg: `⚠ التاريخ في المستقبل بـ ${diff} يوم — تأكد من صحته` };
+    if (diff < -30) return { level: "warn" as const, msg: `⚠ التاريخ قديم بـ ${Math.abs(diff)} يوم — تأكد من صحته` };
+    if (diff < -7) return { level: "info" as const, msg: `تنبيه: التاريخ متأخر ${Math.abs(diff)} يوم عن اليوم` };
+    return null;
+  }, [date]);
+
   const save = async () => {
     const valid = lines.filter((l) => l.ref_id && l.qty > 0 && l.price >= 0);
     if (!valid.length) return toast.error("أضف بنداً واحداً على الأقل");
+    if (dateWarning && dateWarning.level !== "info") {
+      if (!window.confirm(`${dateWarning.msg}\n\nهل تريد المتابعة؟`)) return;
+    }
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -1307,6 +1321,11 @@ function PurchaseDialog({ open, onOpenChange, materials, onSaved, editPurchase }
           <div><Label>رقم فاتورة المورد</Label><Input value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} /></div>
           <div><Label>التاريخ</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
         </div>
+        {dateWarning && (
+          <div className={`text-xs rounded-md p-2 border ${dateWarning.level === "error" ? "bg-destructive/10 text-destructive border-destructive/30" : dateWarning.level === "warn" ? "bg-amber-500/10 text-amber-700 border-amber-500/30" : "bg-muted text-muted-foreground border-border"}`}>
+            {dateWarning.msg}
+          </div>
+        )}
         <div className="space-y-2">
           <div className="flex items-center justify-between"><Label>بنود الشراء</Label><Button size="sm" variant="outline" onClick={() => setLines([...lines, newLine()])}><Plus className="h-3 w-3 ml-1" />بند</Button></div>
           {lines.map((l) => (
