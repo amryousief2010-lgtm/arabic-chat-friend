@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ShoppingCart, Plus, Trash2, CheckCircle2, XCircle, Printer, Loader2, Eye } from "lucide-react";
+import { ShoppingCart, Plus, Trash2, CheckCircle2, XCircle, Printer, Loader2, Eye, Pencil } from "lucide-react";
 
 type Kind = "raw" | "spice" | "packaging";
 type Item = { id: string; name: string; unit: string; current_stock: number; avg_cost: number; kind: Kind; is_active: boolean };
@@ -56,6 +56,57 @@ export default function MeatPurchaseInvoices() {
   const [viewing, setViewing] = useState<Purchase | null>(null);
   const [viewLines, setViewLines] = useState<any[]>([]);
   const [actLoading, setActLoading] = useState(false);
+
+  // edit metadata dialog (general/executive only)
+  const [editing, setEditing] = useState<Purchase | null>(null);
+  const [editForm, setEditForm] = useState({ invoice_type: "mixed", supplier: "", payment_method: "cash", purchase_date: "", notes: "", receipt_no: "", reason: "" });
+  const [editSaving, setEditSaving] = useState(false);
+  const openEdit = (p: Purchase) => {
+    setEditing(p);
+    setEditForm({
+      invoice_type: p.invoice_type || "mixed",
+      supplier: p.supplier || "",
+      payment_method: p.payment_method || "cash",
+      purchase_date: p.purchase_date,
+      notes: p.notes || "",
+      receipt_no: p.receipt_no || "",
+      reason: "",
+    });
+  };
+  const saveEdit = async () => {
+    if (!editing) return;
+    if (!editForm.reason.trim()) { toast.error("أدخل سبب التعديل"); return; }
+    setEditSaving(true);
+    try {
+      const before = {
+        invoice_type: editing.invoice_type, supplier: editing.supplier,
+        payment_method: editing.payment_method, purchase_date: editing.purchase_date,
+        notes: editing.notes, receipt_no: editing.receipt_no,
+      };
+      const after = {
+        invoice_type: editForm.invoice_type, supplier: editForm.supplier.trim(),
+        payment_method: editForm.payment_method, purchase_date: editForm.purchase_date,
+        notes: editForm.notes || null, receipt_no: editForm.receipt_no || null,
+      };
+      const { error } = await supabase.from("meat_factory_purchases" as any).update(after).eq("id", editing.id);
+      if (error) throw error;
+      await supabase.from("meat_factory_audit_log" as any).insert({
+        table_name: "meat_factory_purchases",
+        row_id: editing.id,
+        action: "update_invoice_meta",
+        old_value: before as any,
+        new_value: { ...after, reason: editForm.reason.trim() } as any,
+        performed_by: user?.id || null,
+      } as any);
+      toast.success("تم حفظ التعديل وتسجيله في سجل المراجعة");
+      setEditing(null);
+      await refresh();
+    } catch (e: any) {
+      toast.error(e.message || "فشل التعديل");
+    } finally {
+      setEditSaving(false);
+    }
+  };
 
   // filters
   const [fStatus, setFStatus] = useState<string>("all");
@@ -486,6 +537,9 @@ export default function MeatPurchaseInvoices() {
                         <TableCell className="space-x-1 space-x-reverse">
                           <Button size="sm" variant="outline" onClick={() => openView(p)}><Eye className="w-3 h-3 ml-1" />عرض</Button>
                           <Button size="sm" variant="outline" onClick={() => printInvoice(p)}><Printer className="w-3 h-3 ml-1" />طباعة</Button>
+                          {isApprover && (
+                            <Button size="sm" variant="outline" onClick={() => openEdit(p)}><Pencil className="w-3 h-3 ml-1" />تعديل بيانات الفاتورة</Button>
+                          )}
                           {isApprover && p.status === "draft" && (
                             <>
                               <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => approve(p.id)}><CheckCircle2 className="w-3 h-3 ml-1" />اعتماد</Button>
@@ -550,6 +604,74 @@ export default function MeatPurchaseInvoices() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <Dialog open={!!editing} onOpenChange={(v) => !v && setEditing(null)}>
+          <DialogContent className="max-w-2xl" dir="rtl">
+            <DialogHeader>
+              <DialogTitle>تعديل بيانات الفاتورة {editing?.invoice_no || "—"}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 text-sm">
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+                تعديل البيانات الأساسية فقط (النوع، المورد، الدفع، التاريخ، الملاحظات، رقم الإيصال). لا يمكن تعديل الكميات أو الأسعار أو الأصناف من هنا — استخدم إجراء التصحيح/الإلغاء وإعادة الاعتماد.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <Label>نوع الفاتورة</Label>
+                  <Select value={editForm.invoice_type} onValueChange={(v) => setEditForm(s => ({ ...s, invoice_type: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="raw">خامات</SelectItem>
+                      <SelectItem value="spice">بهارات</SelectItem>
+                      <SelectItem value="packaging">تغليف</SelectItem>
+                      <SelectItem value="mixed">مختلطة</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>اسم المورد</Label>
+                  <Input value={editForm.supplier} onChange={e => setEditForm(s => ({ ...s, supplier: e.target.value }))} />
+                </div>
+                <div>
+                  <Label>طريقة الدفع</Label>
+                  <Select value={editForm.payment_method} onValueChange={(v) => setEditForm(s => ({ ...s, payment_method: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cash">نقدي</SelectItem>
+                      <SelectItem value="credit">آجل</SelectItem>
+                      <SelectItem value="transfer">تحويل</SelectItem>
+                      <SelectItem value="other">أخرى</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>التاريخ</Label>
+                  <Input type="date" value={editForm.purchase_date} onChange={e => setEditForm(s => ({ ...s, purchase_date: e.target.value }))} />
+                </div>
+                <div className="md:col-span-2">
+                  <Label>رقم الإيصال اليدوي</Label>
+                  <Input value={editForm.receipt_no} onChange={e => setEditForm(s => ({ ...s, receipt_no: e.target.value }))} />
+                </div>
+                <div className="md:col-span-2">
+                  <Label>ملاحظات</Label>
+                  <Textarea value={editForm.notes} onChange={e => setEditForm(s => ({ ...s, notes: e.target.value }))} />
+                </div>
+                <div className="md:col-span-2">
+                  <Label>سبب التعديل *</Label>
+                  <Textarea value={editForm.reason} onChange={e => setEditForm(s => ({ ...s, reason: e.target.value }))} placeholder="مطلوب للتسجيل في سجل المراجعة" />
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditing(null)}>إلغاء</Button>
+              <Button onClick={saveEdit} disabled={editSaving} className="bg-red-600 hover:bg-red-700">
+                {editSaving ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <Pencil className="w-4 h-4 ml-1" />}
+                حفظ التعديل
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+
 
         <Dialog open={newItemDlg.open} onOpenChange={(v) => !v && setNewItemDlg({ open: false, lineTmp: null })}>
           <DialogContent className="max-w-lg" dir="rtl">
