@@ -299,12 +299,28 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
   };
 
   const handleSave = async () => {
+    if (isLocked && !isManager) {
+      toast.error("لا يمكن تعديل هذه الدفعة لأنها مقفلة. التعديل متاح فقط للمدير العام أو المدير التنفيذي.");
+      return;
+    }
+    if (isLocked && isManager && !managerOverride) {
+      toast.error("هذه الدفعة مقفلة. فعّل 'تعديل بصلاحية إدارية' وأدخل سبب التعديل أولًا.");
+      return;
+    }
+    if (isLocked && isManager && managerOverride && overrideReason.trim().length < 5) {
+      toast.error("يجب إدخال سبب التعديل (5 أحرف على الأقل) قبل حفظ تعديلات الدفعة المقفلة.");
+      return;
+    }
     const err = validateAll();
     if (err) { toast.error(err); return; }
     setSaving(true);
     try {
       await persistRows(false);
-      toast.success(`تم حفظ النتائج لـ ${Object.keys(drafts).length} عميل — الدفعة لا تزال مفتوحة للتعديل`);
+      toast.success(
+        isLocked && managerOverride
+          ? "تم حفظ التعديل على الدفعة المقفلة وتسجيله في سجل التدقيق"
+          : `تم حفظ النتائج لـ ${Object.keys(drafts).length} عميل — الدفعة لا تزال مفتوحة للتعديل`
+      );
       onSaved?.();
       onClose();
     } catch (e: any) {
