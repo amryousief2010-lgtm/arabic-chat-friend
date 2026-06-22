@@ -425,13 +425,19 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
           </Table>
         </Card>
 
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-2 mt-3 text-xs">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2 mt-3 text-xs">
           <Card className="p-2"><div className="text-muted-foreground">إجمالي البيض</div><div className="font-bold">{totals.eggs}</div></Card>
+          <Card className="p-2 border-amber-300 border-2"><div className="text-muted-foreground">إجمالي المستبعد</div><div className="font-bold text-amber-700">{totals.excl}</div></Card>
+          <Card className="p-2 border-emerald-300 border-2"><div className="text-muted-foreground">صافي بعد الاستبعاد</div><div className="font-bold text-emerald-700">{totals.netExcl}</div></Card>
           <Card className="p-2"><div className="text-muted-foreground">لايح ك1</div><div className="font-bold">{totals.c1}</div></Card>
           <Card className="p-2 border-emerald-300 border-2"><div className="text-muted-foreground">صافي بعد ك1</div><div className="font-bold text-emerald-700">{totals.netC1}</div></Card>
           <Card className="p-2"><div className="text-muted-foreground">لايح/نافق ك2</div><div className="font-bold">{totals.c2}</div></Card>
           <Card className="p-2 border-emerald-300 border-2"><div className="text-muted-foreground">صافي بعد ك2</div><div className="font-bold text-emerald-700">{totals.netC2}</div></Card>
-          <Card className="p-2 border-primary border-2"><div className="text-muted-foreground">إجمالي الكتاكيت</div><div className="font-bold text-primary">{totals.chicks}</div></Card>
+          <Card className="p-2 border-primary border-2">
+            <div className="text-muted-foreground">إجمالي الكتاكيت</div>
+            <div className="font-bold text-primary">{totals.chicks}</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">نسبة الفقس: {totals.netExcl > 0 ? ((totals.chicks / totals.netExcl) * 100).toFixed(1) : "0"}%</div>
+          </Card>
         </div>
 
         <DialogFooter className="gap-2 mt-3 flex-wrap">
