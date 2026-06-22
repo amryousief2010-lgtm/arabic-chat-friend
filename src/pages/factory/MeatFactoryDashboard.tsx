@@ -9,8 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Legend } from "recharts";
-import { Factory, AlertTriangle, Beef, Package, Wallet, Truck, ShoppingCart, Boxes, TrendingDown, CheckCircle2, FileText } from "lucide-react";
+import { Factory, AlertTriangle, Beef, Package, Wallet, Truck, ShoppingCart, Boxes, TrendingDown, CheckCircle2, FileText, Scale } from "lucide-react";
 import { cairoMonthStartUTC, cairoTodayStartUTC, currentCairoYearMonth } from "@/lib/cairoDate";
 
 const PURPLE = "#7c3aed", ORANGE = "#ea580c", BLUE = "#2563eb", AMBER = "#d97706", GREEN = "#059669", RED = "#dc2626";
