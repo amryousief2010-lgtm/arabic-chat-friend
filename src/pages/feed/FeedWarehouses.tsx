@@ -612,7 +612,7 @@ export default function FeedWarehouses() {
                           <TableCell className={margin > 0 ? "text-green-600 font-semibold" : margin < 0 ? "text-destructive" : ""}>{sp > 0 ? fmt(margin) : "—"}</TableCell>
                           <TableCell className="text-xs">{sp > 0 ? `${marginPct.toFixed(1)}%` : "—"}</TableCell>
                           <TableCell className="text-muted-foreground text-xs">{r.supplier || "-"}</TableCell>
-                          {canEditStock && <TableCell><Button size="icon" variant="ghost" onClick={() => setEditRaw(r)}><Pencil className="h-4 w-4" /></Button></TableCell>}
+                          {canEditStock && <TableCell><div className="flex gap-1"><Button size="icon" variant="ghost" onClick={() => setEditRaw(r)} title="تعديل"><Pencil className="h-4 w-4" /></Button><Button size="icon" variant="ghost" className="text-destructive" onClick={() => deleteRawMaterial(r)} title="حذف / أرشفة"><Trash2 className="h-4 w-4" /></Button></div></TableCell>}
                         </TableRow>
                       );
                     })}
