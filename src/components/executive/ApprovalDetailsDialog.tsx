@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, FileText } from "lucide-react";
+import { Loader2, FileText, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { ApprovalItem } from "@/hooks/useExecutiveApprovals";
 import { parseServiceCostsFromNotes } from "@/lib/meatServiceCosts";
+import { openPrintWindow } from "@/lib/printPdf";
 
 const fmtMoney = (n: any) =>
   `${Number(n || 0).toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م`;
