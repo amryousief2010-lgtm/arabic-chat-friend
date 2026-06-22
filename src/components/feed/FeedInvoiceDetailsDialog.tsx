@@ -276,6 +276,8 @@ export default function FeedInvoiceDetailsDialog({
           open={addItemsOpen}
           onOpenChange={setAddItemsOpen}
           invoiceId={invoice.id}
+          invoiceProductName={inv?.feed_products?.name || "—"}
+          invoiceQty={Number(inv?.qty_produced || 0)}
           onSaved={() => {
             qc.invalidateQueries({ queryKey: ["feed-inv-detail", invoice.id] });
             qc.invalidateQueries({ queryKey: ["feed-prod-invoices"] });
