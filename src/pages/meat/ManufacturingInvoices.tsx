@@ -169,15 +169,12 @@ export default function ManufacturingInvoices() {
 
   const totalExtraCost = Number(extraCost || 0) + serviceCost + carryoverInCost;
   const totalCost = rawCost + spiceCost + packCost + totalExtraCost;
-  // Unit cost is computed over the sellable finished qty only — carryover-out qty is parked, not sold.
-  const unitCost = finishedQty > 0 ? totalCost / finishedQty : 0;
-
-  // Unit cost imputed to leftover dough (for accounting): materials only, distributed over (finished + leftover)
-  const carryoverOutUnitCost = useMemo(() => {
-    const materials = rawCost + spiceCost + packCost;
-    const denom = Number(finishedQty || 0) + Number(carryoverOutQty || 0);
-    return denom > 0 ? materials / denom : 0;
-  }, [rawCost, spiceCost, packCost, finishedQty, carryoverOutQty]);
+  // Unit cost is distributed over (finished + leftover dough): both share the same raw/packaging/extra batch.
+  const totalManufacturedQty = Number(finishedQty || 0) + Number(carryoverOutQty || 0);
+  const unitCost = totalManufacturedQty > 0 ? totalCost / totalManufacturedQty : 0;
+  const carryoverOutUnitCost = unitCost;
+  const finishedProductCost = Number(finishedQty || 0) * unitCost;
+  const carryoverOutValue = Number(carryoverOutQty || 0) * unitCost;
 
   const finalProductName = productName === "أخرى" ? productNameOther.trim() : productName;
 
@@ -1004,9 +1001,14 @@ export default function ManufacturingInvoices() {
                     <div><div className="text-muted-foreground">إجمالي الخامات</div><div className="font-bold text-lg">{fmt(rawCost)}</div></div>
                     <div><div className="text-muted-foreground">إجمالي البهارات</div><div className="font-bold text-lg">{fmt(spiceCost)}</div></div>
                     <div><div className="text-muted-foreground">إجمالي التغليف</div><div className="font-bold text-lg">{fmt(packCost)}</div></div>
-                    <div><div className="text-muted-foreground">تكلفة إضافية</div><div className="font-bold text-lg">{fmt(totalExtraCost)}</div></div>
-                    <div className="col-span-2"><div className="text-muted-foreground">إجمالي تكلفة التصنيع</div><div className="font-bold text-xl text-purple-700">{fmt(totalCost)} ج</div></div>
-                    <div className="col-span-2"><div className="text-muted-foreground">تكلفة الوحدة</div><div className="font-bold text-xl text-purple-700">{fmt(unitCost)} ج / {unit}</div></div>
+                    <div><div className="text-muted-foreground">مصروفات إضافية</div><div className="font-bold text-lg">{fmt(totalExtraCost)}</div></div>
+                    <div className="col-span-2"><div className="text-muted-foreground">إجمالي تكلفة الفاتورة</div><div className="font-bold text-xl text-purple-700">{fmt(totalCost)} ج</div></div>
+                    <div><div className="text-muted-foreground">المنتج النهائي</div><div className="font-bold text-lg">{fmt(finishedQty)} {unit}</div></div>
+                    <div><div className="text-muted-foreground">عجينة متبقية</div><div className="font-bold text-lg text-amber-700">{fmt(carryoverOutQty)} {unit}</div></div>
+                    <div className="col-span-2"><div className="text-muted-foreground">إجمالي كمية التصنيع</div><div className="font-bold text-lg">{fmt(totalManufacturedQty)} {unit}</div></div>
+                    <div className="col-span-2"><div className="text-muted-foreground">تكلفة الكيلو (على {fmt(totalManufacturedQty)} {unit})</div><div className="font-bold text-xl text-purple-700">{fmt(unitCost)} ج / {unit}</div></div>
+                    <div><div className="text-muted-foreground">تكلفة المنتج النهائي</div><div className="font-bold text-lg text-emerald-700">{fmt(finishedProductCost)} ج</div></div>
+                    <div><div className="text-muted-foreground">قيمة العجينة المرحلة</div><div className="font-bold text-lg text-amber-700">{fmt(carryoverOutValue)} ج</div></div>
                   </CardContent>
                 </Card>
 
