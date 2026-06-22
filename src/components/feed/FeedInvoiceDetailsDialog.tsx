@@ -113,7 +113,9 @@ export default function FeedInvoiceDetailsDialog({
   const { roles } = useAuth();
   const canAddExpense = roles.some(r => ["general_manager","executive_manager","feed_factory_manager","warehouse_supervisor","financial_manager","accountant","cost_accountant"].includes(r));
   const canReverse = roles.some(r => ["general_manager","executive_manager"].includes(r));
+  const canAddItems = roles.some(r => ["general_manager","executive_manager","feed_factory_manager","warehouse_supervisor","production_manager"].includes(r));
   const [addOpen, setAddOpen] = useState(false);
+  const [addItemsOpen, setAddItemsOpen] = useState(false);
 
   const expQ = useQuery({
     queryKey: ["feed-inv-expenses", invoice?.id],
