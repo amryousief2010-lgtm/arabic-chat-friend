@@ -620,23 +620,38 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
           <Button variant="outline" onClick={onClose} disabled={saving}>
             إلغاء
           </Button>
-          <Button onClick={handleSave} disabled={saving} className="min-w-[140px]">
-            {saving ? (
-              <Loader2 className="w-4 h-4 ml-1 animate-spin" />
-            ) : (
-              <Save className="w-4 h-4 ml-1" />
-            )}
-            حفظ النتائج
-          </Button>
-          <Button
-            variant="destructive"
-            onClick={() => setConfirmClose(true)}
-            disabled={saving || !!firstError || !anyResultsEntered}
-            title={firstError ? firstError : (!anyResultsEntered ? "أدخل نتائج الفقس أولًا" : undefined)}
-          >
-            <Lock className="w-4 h-4 ml-1" />
-            إقفال الدفعة
-          </Button>
+          {!isLocked && (
+            <Button
+              onClick={handleSave}
+              disabled={saving}
+              className="min-w-[140px]"
+            >
+              {saving ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <Save className="w-4 h-4 ml-1" />}
+              حفظ النتائج
+            </Button>
+          )}
+          {isLocked && isManager && managerOverride && (
+            <Button
+              onClick={handleSave}
+              disabled={saving || overrideReason.trim().length < 5}
+              className="min-w-[180px] bg-amber-600 hover:bg-amber-700"
+              title={overrideReason.trim().length < 5 ? "أدخل سبب التعديل (5 أحرف على الأقل)" : undefined}
+            >
+              {saving ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <Save className="w-4 h-4 ml-1" />}
+              حفظ تعديل بصلاحية إدارية
+            </Button>
+          )}
+          {!isLocked && (
+            <Button
+              variant="destructive"
+              onClick={() => setConfirmClose(true)}
+              disabled={saving || !!firstError || !anyResultsEntered}
+              title={firstError ? firstError : (!anyResultsEntered ? "أدخل نتائج الفقس أولًا" : undefined)}
+            >
+              <Lock className="w-4 h-4 ml-1" />
+              إقفال الدفعة
+            </Button>
+          )}
           {isLocked && canReopen && (
             <Button
               variant="outline"
@@ -649,6 +664,7 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
             </Button>
           )}
         </DialogFooter>
+
 
 
         <AlertDialog open={confirmReopen} onOpenChange={setConfirmReopen}>
