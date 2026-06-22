@@ -775,14 +775,7 @@ export default function MainTreasury() {
             <div className="md:col-span-3"><Label className="text-xs">بحث (مرجع/وصف/مستفيد)</Label><Input value={logFilter.search} onChange={e=>setLogFilter({...logFilter, search:e.target.value})}/></div>
             <div className="md:col-span-2 flex items-end gap-2">
               <Button variant="outline" size="sm" className="gap-1" onClick={()=>{
-                const rows = txns.filter(t =>
-                  (logFilter.account_id === "all" || t.account_id === logFilter.account_id) &&
-                  (logFilter.txn_type === "all" || t.txn_type === logFilter.txn_type) &&
-                  (logFilter.status === "all" || t.status === logFilter.status) &&
-                  (!logFilter.from || t.txn_date >= logFilter.from) &&
-                  (!logFilter.to || t.txn_date <= logFilter.to) &&
-                  (!logFilter.search || `${t.reference_no} ${t.description} ${t.counterparty||""}`.toLowerCase().includes(logFilter.search.toLowerCase()))
-                ).map(t => ({
+                const rows = filteredLogTxns.map(t => ({
                   "المرجع": t.reference_no, "التاريخ": t.txn_date,
                   "النوع": TYPE_LBL[t.txn_type] || t.txn_type,
                   "الحساب": accounts.find(a=>a.id===t.account_id)?.name || "",
@@ -799,6 +792,20 @@ export default function MainTreasury() {
               <Button variant="outline" size="sm" className="gap-1" onClick={()=>setLogFilter({ account_id:"all", txn_type:"all", status:"all", from:"", to:"", search:"" })}>إعادة ضبط الفلاتر</Button>
             </div>
           </CardContent></Card>
+
+          <LogSummaryCards
+            typeFilter={
+              logFilter.txn_type === "all" ? "all" :
+              (["deposit","transfer_from_custody","bank_deposit"].includes(logFilter.txn_type) ? "income" : "expense")
+            }
+            incomes={filteredLogTxns
+              .filter(t => ["deposit","transfer_from_custody","bank_deposit"].includes(t.txn_type))
+              .map(t => ({ amount: Number(t.amount), payment_method: t.payment_method || undefined }))}
+            expenses={filteredLogTxns
+              .filter(t => !["deposit","transfer_from_custody","bank_deposit"].includes(t.txn_type))
+              .map(t => ({ amount: Number(t.amount), payment_method: t.payment_method || undefined }))}
+          />
+
           <Card><CardContent className="p-0 overflow-x-auto">
             <Table>
               <TableHeader><TableRow>
@@ -807,17 +814,8 @@ export default function MainTreasury() {
                 <TableHead>الوصف</TableHead><TableHead>الحالة</TableHead><TableHead>طباعة</TableHead>
               </TableRow></TableHeader>
               <TableBody>
-                {(() => {
-                  const filtered = txns.filter(t =>
-                    (logFilter.account_id === "all" || t.account_id === logFilter.account_id) &&
-                    (logFilter.txn_type === "all" || t.txn_type === logFilter.txn_type) &&
-                    (logFilter.status === "all" || t.status === logFilter.status) &&
-                    (!logFilter.from || t.txn_date >= logFilter.from) &&
-                    (!logFilter.to || t.txn_date <= logFilter.to) &&
-                    (!logFilter.search || `${t.reference_no} ${t.description} ${t.counterparty||""}`.toLowerCase().includes(logFilter.search.toLowerCase()))
-                  );
-                  if (filtered.length === 0) return <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">لا توجد حركات مطابقة</TableCell></TableRow>;
-                  return filtered.map(t => {
+                {filteredLogTxns.length === 0 ? <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">لا توجد حركات مطابقة</TableCell></TableRow>
+                : filteredLogTxns.map(t => {
                   const acc = accounts.find(a => a.id === t.account_id);
                   const cat = cats.find(c => c.id === t.category_id);
                   return (
@@ -833,12 +831,12 @@ export default function MainTreasury() {
                       <TableCell><Button size="sm" variant="ghost" onClick={()=>printVoucher(t)}><Printer className="h-4 w-4"/></Button></TableCell>
                     </TableRow>
                   );
-                  });
-                })()}
+                })}
               </TableBody>
             </Table>
           </CardContent></Card>
         </TabsContent>
+
 
         {/* Transfers Log */}
         <TabsContent value="transfers" className="mt-4">
