@@ -142,8 +142,10 @@ export default function ApprovalDetailsDialog({
                 <Row label="رقم الفاتورة" value={r.invoice_no} />
                 <Row label="المنتج" value={r.product_name} />
                 <Row label="الكمية المنتجة" value={`${fmtNum(r.finished_qty, 3)} ${r.unit || ""}`} />
-                <Row label="تكلفة الخامات" value={fmtMoney(r.materials_total_cost)} />
-                <Row label="تكلفة التغليف" value={fmtMoney(r.packaging_cost)} />
+                <Row label="إجمالي الخامات" value={fmtMoney(r.raw_cost)} />
+                <Row label="إجمالي البهارات" value={fmtMoney(r.spice_cost)} />
+                <Row label="إجمالي التغليف" value={fmtMoney(r.packaging_cost)} />
+                <Row label="إجمالي المواد الخدمية / التكاليف الإضافية" value={fmtMoney(r.extra_cost)} />
                 <Row label="إجمالي تكلفة التصنيع" value={fmtMoney(r.total_manufacturing_cost)} />
                 <Row label="ملاحظات" value={r.notes} />
               </>
