@@ -271,6 +271,16 @@ export default function FeedInvoiceDetailsDialog({
             qc.invalidateQueries({ queryKey: ["feed-treasury"] });
           }}
         />
+
+        <AddRawMaterialsDialog
+          open={addItemsOpen}
+          onOpenChange={setAddItemsOpen}
+          invoiceId={invoice.id}
+          onSaved={() => {
+            qc.invalidateQueries({ queryKey: ["feed-inv-detail", invoice.id] });
+            qc.invalidateQueries({ queryKey: ["feed-prod-invoices"] });
+          }}
+        />
       </DialogContent>
     </Dialog>
   );
