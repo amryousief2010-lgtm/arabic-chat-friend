@@ -1729,7 +1729,8 @@ function ProductionDialog({ open, onOpenChange, rawMaterials, products, onSaved 
 
   const estMaterialsCost = useMemo(() => lines.reduce((s, l) => {
     const m = rawMaterials.find((r: any) => r.id === l.raw_id);
-    return s + (Number(m?.unit_cost || 0) * Number(l.qty || 0));
+    const uc = l.unit_cost_touched ? Number(l.unit_cost || 0) : Number(m?.unit_cost || l.unit_cost || 0);
+    return s + uc * Number(l.qty || 0);
   }, 0), [lines, rawMaterials]);
   const estExpensesCost = useMemo(() => expenses.reduce((s, e) => s + Number(e.amount || 0), 0), [expenses]);
   const estTotalCost = estMaterialsCost + Number(laborCost || 0) + estExpensesCost;
