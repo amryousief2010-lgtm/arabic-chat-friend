@@ -629,6 +629,27 @@ export default function FeedWarehouses() {
                   )}
                 </Table>
 
+                {showArchivedRaw && (
+                  <div className="mt-6 border-t pt-4">
+                    <div className="text-sm font-semibold mb-2 text-muted-foreground">الخامات المؤرشفة ({archivedRawQ.data?.length || 0})</div>
+                    <Table>
+                      <TableHeader><TableRow><TableHead>الصنف</TableHead><TableHead>الوحدة</TableHead><TableHead>آخر سعر</TableHead><TableHead>الرصيد</TableHead><TableHead>ملاحظات</TableHead>{canEditStock && <TableHead></TableHead>}</TableRow></TableHeader>
+                      <TableBody>
+                        {(archivedRawQ.data || []).map((r: any) => (
+                          <TableRow key={r.id} className="opacity-70">
+                            <TableCell className="font-medium">{r.name}</TableCell>
+                            <TableCell>{r.unit}</TableCell>
+                            <TableCell>{fmt(Number(r.unit_cost || 0))}</TableCell>
+                            <TableCell>{fmt(Number(r.stock || 0))}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground max-w-[300px] truncate" title={r.notes || ""}>{r.notes || "—"}</TableCell>
+                            {canEditStock && <TableCell><div className="flex gap-1"><Button size="sm" variant="outline" onClick={() => reactivateRaw(r)}><Undo2 className="h-3.5 w-3.5 ml-1" />إعادة تفعيل</Button><Button size="icon" variant="ghost" className="text-destructive" onClick={() => deleteRawMaterial(r)}><Trash2 className="h-4 w-4" /></Button></div></TableCell>}
+                          </TableRow>
+                        ))}
+                        {!archivedRawQ.data?.length && <TableRow><TableCell colSpan={canEditStock ? 6 : 5} className="text-center text-muted-foreground py-4">لا توجد خامات مؤرشفة</TableCell></TableRow>}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
