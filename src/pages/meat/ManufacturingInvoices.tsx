@@ -1199,6 +1199,11 @@ export default function ManufacturingInvoices() {
                             {inv.status === "transferred" && inv.transfer_no && (
                               <span className="text-xs text-muted-foreground">#{inv.transfer_no}</span>
                             )}
+                            {isApprover && (inv.status === "draft" || inv.status === "approved") && (
+                              <Button size="sm" variant="outline" className="border-red-300 text-red-700 hover:bg-red-50" onClick={() => openCancel(inv)}>
+                                <Ban className="w-3 h-3 ml-1" />إلغاء
+                              </Button>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}
