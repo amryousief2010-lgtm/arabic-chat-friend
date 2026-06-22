@@ -212,6 +212,7 @@ export const moduleSections: ModuleSection[] = [
       { group: "التصنيع والتشغيل", icon: Factory, label: "فاتورة تصنيع / سجل الفواتير", path: "/meat-factory/manufacturing", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager'] },
       { group: "التصنيع والتشغيل", icon: Factory, label: "تركيبات التصنيع (مرجع)", path: "/meat-factory/recipes", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'quality_manager', 'accountant', 'financial_manager'] },
       { group: "التصنيع والتشغيل", icon: Factory, label: "تصنيع المنتجات (شاشة قديمة)", path: "/modules/meat-factory", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'quality_manager'] },
+      { group: "التصنيع والتشغيل", icon: Factory, label: "العجينة المرحلة", path: "/meat-factory/carryover-dough", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'quality_manager', 'accountant', 'financial_manager', 'warehouse_supervisor'] },
       // المشتريات والموردين
       { group: "المشتريات والموردين", icon: ShoppingCart, label: "فواتير مشتريات مصنع اللحوم", path: "/meat-factory/purchase-invoices", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'warehouse_supervisor', 'accountant', 'financial_manager'] },
       // مخازن مصنع اللحوم — صفحة موحدة واحدة تجمع كل الشاشات كـ Tabs
