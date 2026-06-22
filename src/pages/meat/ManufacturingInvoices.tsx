@@ -1220,18 +1220,28 @@ export default function ManufacturingInvoices() {
             <DialogHeader><DialogTitle>تفاصيل فاتورة {viewing?.invoice_no}</DialogTitle></DialogHeader>
             {viewing && (
               <div className="space-y-3 text-sm max-h-[70vh] overflow-y-auto">
-                <div className="grid grid-cols-3 gap-2">
-                  <div><b>المنتج:</b> {viewing.product_name}</div>
-                  <div><b>الكمية:</b> {fmt(viewing.finished_qty)} {viewing.unit}</div>
-                  <div><b>الحالة:</b> {statusBadge(viewing.status)}</div>
-                  <div><b>إجمالي الخامات:</b> {fmt(viewing.raw_cost)}</div>
-                  <div><b>إجمالي البهارات:</b> {fmt(viewing.spice_cost)}</div>
-                  <div><b>إجمالي التغليف:</b> {fmt(viewing.packaging_cost)}</div>
-                  <div><b>إجمالي المواد الخدمية:</b> {fmt(viewing.extra_cost)}</div>
-                  <div><b>الإجمالي:</b> {fmt(viewing.total_manufacturing_cost)}</div>
-                  <div><b>تكلفة الوحدة:</b> {fmt(viewing.unit_cost)}</div>
-                  <div><b>التاريخ:</b> {(viewing.created_at || "").slice(0,10)}</div>
-                </div>
+                {(() => {
+                  const svcTotal = parseServiceCostsFromNotes(viewing.notes).reduce((s, x) => s + Number(x.total || 0), 0);
+                  const effExtra = Math.max(Number(viewing.extra_cost || 0), svcTotal);
+                  const base = Number(viewing.raw_cost || 0) + Number(viewing.spice_cost || 0) + Number(viewing.packaging_cost || 0);
+                  const effTotal = Math.max(Number(viewing.total_manufacturing_cost || 0), base + effExtra);
+                  const qty = Number(viewing.finished_qty || 0);
+                  const effUnit = qty > 0 ? effTotal / qty : Number(viewing.unit_cost || 0);
+                  return (
+                    <div className="grid grid-cols-3 gap-2">
+                      <div><b>المنتج:</b> {viewing.product_name}</div>
+                      <div><b>الكمية:</b> {fmt(viewing.finished_qty)} {viewing.unit}</div>
+                      <div><b>الحالة:</b> {statusBadge(viewing.status)}</div>
+                      <div><b>إجمالي الخامات:</b> {fmt(viewing.raw_cost)}</div>
+                      <div><b>إجمالي البهارات:</b> {fmt(viewing.spice_cost)}</div>
+                      <div><b>إجمالي التغليف:</b> {fmt(viewing.packaging_cost)}</div>
+                      <div><b>إجمالي المواد الخدمية:</b> {fmt(effExtra)}</div>
+                      <div><b>الإجمالي:</b> {fmt(effTotal)}</div>
+                      <div><b>تكلفة الوحدة:</b> {fmt(effUnit)}</div>
+                      <div><b>التاريخ:</b> {(viewing.created_at || "").slice(0,10)}</div>
+                    </div>
+                  );
+                })()}
                 {viewLines.length === 0 ? (
                   <div className="border-2 border-dashed border-amber-400 bg-amber-50 dark:bg-amber-950/20 rounded-lg p-4 space-y-3">
                     <div className="text-amber-900 dark:text-amber-200 text-sm font-semibold">
