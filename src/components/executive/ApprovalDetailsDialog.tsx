@@ -265,6 +265,58 @@ export default function ApprovalDetailsDialog({
                   </div>
                 </>
               )}
+
+              {r._source_table === "meat_manufacturing_invoices" && (() => {
+                const svc = parseServiceCostsFromNotes(r.notes);
+                const svcTotal = svc.reduce((s, x) => s + Number(x.total || 0), 0);
+                const residual = Math.max(0, Number(r.extra_cost || 0) - svcTotal);
+                if (svc.length === 0 && residual === 0) return null;
+                return (
+                  <>
+                    <div className="font-semibold text-sm mt-3 mb-2 text-primary">المواد الخدمية / التكاليف الإضافية</div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead className="bg-muted/50">
+                          <tr>
+                            <th className="p-1.5 text-right">اسم البند</th>
+                            <th className="p-1.5">النوع</th>
+                            <th className="p-1.5">الكمية</th>
+                            <th className="p-1.5">الوحدة</th>
+                            <th className="p-1.5">سعر الوحدة</th>
+                            <th className="p-1.5">الإجمالي</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {svc.map((x, idx) => (
+                            <tr key={idx} className="border-b">
+                              <td className="p-1.5">{x.name || "مادة خدمية"}</td>
+                              <td className="p-1.5 text-center">تكلفة تشغيل</td>
+                              <td className="p-1.5 text-center tabular-nums">{x.quantity != null ? fmtNum(x.quantity, 3) : "—"}</td>
+                              <td className="p-1.5 text-center">{x.unit || "—"}</td>
+                              <td className="p-1.5 text-center tabular-nums">{x.unit_cost != null ? fmtNum(x.unit_cost) : "—"}</td>
+                              <td className="p-1.5 text-center tabular-nums font-semibold">{x.total != null ? fmtMoney(x.total) : "—"}</td>
+                            </tr>
+                          ))}
+                          {residual > 0 && (
+                            <tr className="border-b">
+                              <td className="p-1.5">تكلفة إضافية</td>
+                              <td className="p-1.5 text-center">تكلفة تشغيل</td>
+                              <td className="p-1.5 text-center">—</td>
+                              <td className="p-1.5 text-center">—</td>
+                              <td className="p-1.5 text-center">—</td>
+                              <td className="p-1.5 text-center tabular-nums font-semibold">{fmtMoney(residual)}</td>
+                            </tr>
+                          )}
+                          <tr>
+                            <td colSpan={5} className="p-1.5 text-end font-semibold">إجمالي المواد الخدمية</td>
+                            <td className="p-1.5 text-center tabular-nums font-bold text-primary">{fmtMoney(r.extra_cost)}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           )}
         </div>
