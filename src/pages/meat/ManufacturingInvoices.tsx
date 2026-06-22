@@ -88,6 +88,15 @@ export default function ManufacturingInvoices() {
   const [overrideReason, setOverrideReason] = useState("");
   const canOverrideDuplicate = roles?.some(r => r === "general_manager" || r === "executive_manager");
 
+  // Cancel/void
+  type CancelImpact = { lines: any[]; finishedStock: number | null; finishedItemName?: string | null };
+  const [cancelTarget, setCancelTarget] = useState<Invoice | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelForce, setCancelForce] = useState(false);
+  const [cancelImpact, setCancelImpact] = useState<CancelImpact | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+  const canForceCancel = roles?.some(r => r === "general_manager" || r === "executive_manager");
+
 
   type Mapping = { id?: string; recipe_item_name: string; recipe_item_kind: Kind; mapped_raw_item_id: string; mapped_raw_item_name: string };
   const [mappings, setMappings] = useState<Mapping[]>([]);
