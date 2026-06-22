@@ -2628,7 +2628,7 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
               <TableHead className="text-red-600">تالف (كجم)</TableHead>
               <TableHead className="text-amber-600">محجور (كجم)</TableHead>
               <TableHead className="text-emerald-600">المتاح (كجم)</TableHead>
-              <TableHead className="text-slate-700">تكلفة/كجم</TableHead>
+              <TableHead className="text-slate-700">تكلفة/كجم {!canEditCostPrice && <span className="text-[10px] text-muted-foreground">(عرض فقط)</span>}</TableHead>
               <TableHead className="text-blue-700">بيع/كجم {!canEditSellPrice && <span className="text-[10px] text-muted-foreground">(عرض فقط)</span>}</TableHead>
               <TableHead className="text-slate-700">إجمالي التكلفة</TableHead>
               <TableHead className="text-blue-700">إجمالي البيع</TableHead>
