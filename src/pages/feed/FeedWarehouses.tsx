@@ -20,6 +20,7 @@ import { exportCSV } from "@/lib/csvExport";
 import { openPrintWindow } from "@/lib/printPdf";
 import { kpi as lvKpi, LV_PERIOD, lvTotalSalesValue, lvInternalSalesValue } from "@/data/feedFactoryLV";
 import FeedInvoiceDetailsDialog, { printInvoice as printFeedInvoice } from "@/components/feed/FeedInvoiceDetailsDialog";
+import FeedFactoryTreasuryPanel from "@/components/feed/FeedFactoryTreasuryPanel";
 
 type Line = { id: string; ref_id: string; qty: number; price: number };
 const newLine = (): Line => ({ id: crypto.randomUUID(), ref_id: "", qty: 0, price: 0 });
@@ -966,40 +967,19 @@ export default function FeedWarehouses() {
 
           {/* TREASURY */}
           <TabsContent value="treasury">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
-                <div>
-                  <CardTitle className="flex items-center gap-2"><Wallet className="h-5 w-5 text-success"/>خزنة مصنع الأعلاف</CardTitle>
-                  <CardDescription>الرصيد الحالي: <span className={`font-bold ${treasuryBalance<0?'text-destructive':'text-success'}`}>{fmt(treasuryBalance)} ج.م</span> — البيع يضيف للخزنة والشراء يخصم منها تلقائياً</CardDescription>
-                </div>
-                <div className="flex gap-2 flex-wrap">
-                  <Button size="sm" variant="outline" onClick={() => printTreasury(treasuryQ.data || [], treasuryBalance)}><Printer className="h-4 w-4 ml-1"/>طباعة</Button>
-                  <Button size="sm" variant="outline" onClick={exportTreasury}><FileSpreadsheet className="h-4 w-4 ml-1"/>Excel</Button>
-                  {canTreasury && <Button onClick={() => setTreasuryOpen(true)}><Plus className="h-4 w-4 ml-1"/>حركة جديدة</Button>}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader><TableRow><TableHead>الرقم</TableHead><TableHead>التاريخ</TableHead><TableHead>النوع</TableHead><TableHead>الجهة</TableHead><TableHead>البيان</TableHead><TableHead>وارد</TableHead><TableHead>منصرف</TableHead>{canManageAll && <TableHead className="w-16">حذف</TableHead>}</TableRow></TableHeader>
-                  <TableBody>
-                    {(treasuryQ.data || []).map((t: any) => (
-                      <TableRow key={t.id}>
-                        <TableCell className="font-mono text-xs">{t.txn_no}</TableCell>
-                        <TableCell>{t.txn_date}</TableCell>
-                        <TableCell><Badge variant="outline">{KIND_LABEL[t.kind] || t.kind}</Badge></TableCell>
-                        <TableCell>{t.party || "-"}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{t.note || "-"}</TableCell>
-                        <TableCell className="text-success font-bold">{t.direction === "in" ? fmt(t.amount) : "-"}</TableCell>
-                        <TableCell className="text-destructive font-bold">{t.direction === "out" ? fmt(t.amount) : "-"}</TableCell>
-                        {canManageAll && <TableCell>{t.kind !== "sale" && t.kind !== "purchase" && <Button size="icon" variant="ghost" className="text-destructive" onClick={() => delTreasury(t)}><Trash2 className="h-4 w-4" /></Button>}</TableCell>}
-                      </TableRow>
-                    ))}
-                    {!treasuryQ.data?.length && <TableRow><TableCell colSpan={canManageAll ? 8 : 7} className="text-center text-muted-foreground py-6">لا توجد حركات بعد</TableCell></TableRow>}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+            <FeedFactoryTreasuryPanel
+              txns={(treasuryQ.data || []) as any}
+              balance={treasuryBalance}
+              canManageAll={canManageAll}
+              canTreasury={canTreasury}
+              onNew={() => setTreasuryOpen(true)}
+              onDelete={delTreasury}
+              onPrint={() => printTreasury(treasuryQ.data || [], treasuryBalance)}
+              onExport={exportTreasury}
+              onRefresh={() => treasuryQ.refetch()}
+            />
           </TabsContent>
+
 
           {/* STOCK COUNTS */}
           <TabsContent value="counts">
