@@ -82,6 +82,13 @@ export default function ManufacturingInvoices() {
   const [transferDestId, setTransferDestId] = useState<string>("");
   const [busy, setBusy] = useState(false);
 
+  // Duplicate-detection
+  type SimilarInv = { id: string; invoice_no: string | null; product_name: string; finished_qty: number; unit: string; status: string; created_at: string; created_by: string | null; created_by_name?: string | null };
+  const [similarFound, setSimilarFound] = useState<SimilarInv | null>(null);
+  const [overrideReason, setOverrideReason] = useState("");
+  const canOverrideDuplicate = roles?.some(r => r === "general_manager" || r === "executive_manager");
+
+
   type Mapping = { id?: string; recipe_item_name: string; recipe_item_kind: Kind; mapped_raw_item_id: string; mapped_raw_item_name: string };
   const [mappings, setMappings] = useState<Mapping[]>([]);
   const mapKey = (name: string, kind: Kind) => `${(name || "").trim().toLowerCase()}|${kind}`;
@@ -364,7 +371,30 @@ export default function ManufacturingInvoices() {
     toast.success(`تم ربط "${recipeName}" بـ "${it.name}" — سيتم تطبيقه تلقائيًا في التركيبات القادمة`);
   };
 
-  const submitDraft = async () => {
+  const findSimilarInvoice = async (): Promise<SimilarInv | null> => {
+    // Look back 24 hours for an invoice with the same product + finished_qty, not cancelled
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data } = await supabase.from("meat_manufacturing_invoices" as any)
+      .select("id, invoice_no, product_name, finished_qty, unit, status, created_at, created_by")
+      .eq("product_name", finalProductName)
+      .eq("finished_qty", finishedQty)
+      .eq("factory_warehouse_id", factoryWarehouseId)
+      .neq("status", "cancelled")
+      .gte("created_at", since)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!data) return null;
+    const row: any = data;
+    let creatorName: string | null = null;
+    if (row.created_by) {
+      const { data: prof } = await supabase.from("profiles").select("full_name, email").eq("id", row.created_by).maybeSingle();
+      creatorName = (prof as any)?.full_name || (prof as any)?.email || null;
+    }
+    return { ...row, created_by_name: creatorName };
+  };
+
+  const submitDraft = async (override?: { reason: string; similarId: string }) => {
     if (!factoryWarehouseId) { toast.error("اختر مخزن مصنع اللحوم"); return; }
     if (!finalProductName) { toast.error("اختر/أدخل اسم المنتج النهائي"); return; }
     if (!finishedQty || finishedQty <= 0) { toast.error("أدخل كمية المنتج التام"); return; }
@@ -402,11 +432,23 @@ export default function ManufacturingInvoices() {
       }
     }
 
+    // Duplicate-invoice guard (skip if user already confirmed override)
+    if (!override) {
+      const similar = await findSimilarInvoice();
+      if (similar) {
+        setSimilarFound(similar);
+        setOverrideReason("");
+        return; // wait for user decision via dialog
+      }
+    }
+
     setSaving(true);
     try {
       const existing = await supabase.from("meat_manufacturing_invoices" as any)
         .select("id, invoice_no").eq("manufacturing_invoice_uuid", invoiceUuid).maybeSingle();
       if (existing.data) { toast.info("الفاتورة محفوظة بالفعل"); await fetchAll(); resetForm(); setTab("list"); return; }
+
+
 
       const { data: noRes, error: noErr } = await supabase.rpc("gen_meat_invoice_no" as any);
       if (noErr) throw noErr;
@@ -495,7 +537,29 @@ export default function ManufacturingInvoices() {
         }
       }
 
+      // If this save was an authorized duplicate-override, record final audit pointing at the new invoice
+      if (override) {
+        try {
+          await supabase.from("meat_factory_audit_log" as any).insert({
+            table_name: "meat_manufacturing_invoices",
+            row_id: (inv as any).id,
+            action: "duplicate_override_saved",
+            new_value: {
+              new_invoice_id: (inv as any).id,
+              new_invoice_no: invoiceNo,
+              similar_invoice_id: override.similarId,
+              override_reason: override.reason,
+              product: finalProductName,
+              finished_qty: finishedQty,
+              factory_warehouse_id: factoryWarehouseId,
+            },
+            performed_by: user?.id || null,
+          });
+        } catch { /* non-fatal */ }
+      }
+
       toast.success(`تم حفظ الفاتورة ${invoiceNo} بحالة مسودة — اضغط اعتماد للخصم`);
+
       resetForm();
       await fetchAll();
       setTab("list");
@@ -1023,7 +1087,7 @@ export default function ManufacturingInvoices() {
                 <div><Label>ملاحظات</Label><Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="اختياري" /></div>
 
                 <div className="flex justify-end">
-                  <Button onClick={submitDraft} disabled={saving} className="bg-purple-600 hover:bg-purple-700">
+                  <Button onClick={() => submitDraft()} disabled={saving} className="bg-purple-600 hover:bg-purple-700">
                     {saving ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <CheckCircle2 className="w-4 h-4 ml-1" />}
                     حفظ الفاتورة (مسودة)
                   </Button>
@@ -1261,7 +1325,100 @@ export default function ManufacturingInvoices() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Duplicate-invoice warning */}
+        <Dialog open={!!similarFound} onOpenChange={(v) => { if (!v) { setSimilarFound(null); setOverrideReason(""); } }}>
+          <DialogContent dir="rtl" className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-amber-700">
+                <AlertTriangle className="w-5 h-5" />
+                تنبيه: توجد فاتورة تصنيع مشابهة
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 text-sm">
+              <p className="text-muted-foreground">
+                توجد فاتورة تصنيع مسجلة بالفعل بنفس المنتج والكمية ونفس المخزن خلال آخر 24 ساعة. برجاء مراجعتها قبل المتابعة لتجنب التكرار.
+              </p>
+              {similarFound && (
+                <div className="rounded border bg-amber-50 p-3 space-y-1">
+                  <div><b>رقم الفاتورة:</b> {similarFound.invoice_no || "—"}</div>
+                  <div><b>المنتج:</b> {similarFound.product_name}</div>
+                  <div><b>الكمية:</b> {fmt(similarFound.finished_qty)} {similarFound.unit}</div>
+                  <div><b>الحالة:</b> <Badge variant="outline">{similarFound.status}</Badge></div>
+                  <div><b>تاريخ الإنشاء:</b> {new Date(similarFound.created_at).toLocaleString("ar-EG")}</div>
+                  <div><b>المستخدم:</b> {similarFound.created_by_name || "—"}</div>
+                </div>
+              )}
+              {canOverrideDuplicate ? (
+                <div>
+                  <Label className="text-amber-800">سبب المتابعة رغم التشابه (إلزامي للمدير)</Label>
+                  <Textarea
+                    value={overrideReason}
+                    onChange={(e) => setOverrideReason(e.target.value)}
+                    placeholder="مثال: فاتورة مستقلة وليست مكررة — تشغيلة منفصلة"
+                    rows={2}
+                  />
+                </div>
+              ) : (
+                <div className="rounded border border-red-200 bg-red-50 p-2 text-red-700 text-xs">
+                  لا يمكنك حفظ هذه الفاتورة بسبب التشابه القوي. للمتابعة يلزم اعتماد المدير العام أو التنفيذي.
+                </div>
+              )}
+            </div>
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={() => { setSimilarFound(null); setOverrideReason(""); }}>
+                إلغاء الحفظ
+              </Button>
+              {similarFound && (
+                <Button variant="secondary" onClick={() => {
+                  const inv = invoices.find(i => i.id === similarFound.id);
+                  if (inv) { setViewing(inv); openView(inv); }
+                  setSimilarFound(null);
+                  setOverrideReason("");
+                  setTab("list");
+                }}>
+                  <Eye className="w-4 h-4 ml-1" /> عرض الفاتورة المشابهة
+                </Button>
+              )}
+              {canOverrideDuplicate && similarFound && (
+                <Button
+                  disabled={saving || overrideReason.trim().length < 5}
+                  className="bg-amber-600 hover:bg-amber-700"
+                  onClick={async () => {
+                    // Audit log (best-effort) BEFORE re-running the save
+                    try {
+                      await supabase.from("meat_factory_audit_log" as any).insert({
+                        table_name: "meat_manufacturing_invoices",
+                        row_id: similarFound.id,
+                        action: "duplicate_override_attempt",
+                        new_value: {
+                          similar_invoice_id: similarFound.id,
+                          similar_invoice_no: similarFound.invoice_no,
+                          attempted_product: finalProductName,
+                          attempted_qty: finishedQty,
+                          attempted_factory_warehouse_id: factoryWarehouseId,
+                          override_reason: overrideReason.trim(),
+                          attempted_at: new Date().toISOString(),
+                        },
+                        performed_by: user?.id || null,
+                      });
+                    } catch { /* non-fatal */ }
+                    const sid = similarFound.id;
+                    const reason = overrideReason.trim();
+                    setSimilarFound(null);
+                    setOverrideReason("");
+                    await submitDraft({ reason, similarId: sid });
+                  }}
+                >
+                  {saving ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <CheckCircle2 className="w-4 h-4 ml-1" />}
+                  متابعة رغم التشابه
+                </Button>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
+
     </DashboardLayout>
   );
 }
