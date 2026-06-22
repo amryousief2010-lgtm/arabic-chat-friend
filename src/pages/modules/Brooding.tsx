@@ -777,6 +777,12 @@ const Brooding = () => {
             />
           </TabsContent>
 
+          {/* CHICK TRADING */}
+          <TabsContent value="chick_trading">
+            <ChickTradingTab />
+          </TabsContent>
+
+
 
 
 
