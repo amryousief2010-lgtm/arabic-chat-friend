@@ -231,6 +231,56 @@ export default function FeedWarehouses() {
       if (error) throw error; return data || [];
     },
   });
+  const archivedRawQ = useQuery({
+    queryKey: ["feed-raw-materials-archived"],
+    enabled: showArchivedRaw,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("feed_raw_materials").select("*").eq("is_active", false).order("name");
+      if (error) throw error; return data || [];
+    },
+  });
+
+  const deleteRawMaterial = async (r: any) => {
+    if (!canEditStock) return;
+    try {
+      const [p1, p2, p3, p4, p5] = await Promise.all([
+        (supabase as any).from("feed_raw_purchase_items").select("id", { count: "exact", head: true }).eq("raw_material_id", r.id),
+        (supabase as any).from("feed_production_invoice_items").select("id", { count: "exact", head: true }).eq("raw_material_id", r.id),
+        (supabase as any).from("feed_material_issues").select("id", { count: "exact", head: true }).eq("raw_material_id", r.id),
+        (supabase as any).from("feed_recipe_items").select("id", { count: "exact", head: true }).eq("raw_material_id", r.id),
+        (supabase as any).from("feed_batch_consumption").select("id", { count: "exact", head: true }).eq("raw_material_id", r.id),
+      ]);
+      const used = (p1.count || 0) + (p2.count || 0) + (p3.count || 0) + (p4.count || 0) + (p5.count || 0);
+      if (used > 0) {
+        if (!window.confirm("هذه الخامة مستخدمة في فواتير أو حركات سابقة، لذلك سيتم أرشفتها بدل حذفها نهائيًا. متابعة؟")) return;
+        const { error } = await supabase.from("feed_raw_materials").update({ is_active: false } as any).eq("id", r.id);
+        if (error) throw error;
+        await (supabase as any).from("feed_audit_log").insert({ table_name: "feed_raw_materials", row_id: r.id, action: "archive", old_value: { is_active: true, name: r.name }, new_value: { is_active: false }, notes: `أُرشف لاستخدامه في ${used} سجل` });
+        toast.success("تم أرشفة الخامة");
+      } else {
+        if (!window.confirm(`سيتم حذف الخامة "${r.name}" نهائيًا (غير مستخدمة). متابعة؟`)) return;
+        const { error } = await supabase.from("feed_raw_materials").delete().eq("id", r.id);
+        if (error) throw error;
+        await (supabase as any).from("feed_audit_log").insert({ table_name: "feed_raw_materials", row_id: r.id, action: "delete", old_value: { name: r.name, unit: r.unit, unit_cost: r.unit_cost }, new_value: null, notes: "حذف نهائي - غير مستخدمة" });
+        toast.success("تم حذف الخامة");
+      }
+      qc.invalidateQueries({ queryKey: ["feed-raw-materials"] });
+      qc.invalidateQueries({ queryKey: ["feed-raw-materials-archived"] });
+    } catch (e: any) {
+      toast.error(e?.message || "تعذر الحذف");
+    }
+  };
+
+  const reactivateRaw = async (r: any) => {
+    if (!canEditStock) return;
+    const { error } = await supabase.from("feed_raw_materials").update({ is_active: true } as any).eq("id", r.id);
+    if (error) { toast.error(error.message); return; }
+    await (supabase as any).from("feed_audit_log").insert({ table_name: "feed_raw_materials", row_id: r.id, action: "reactivate", old_value: { is_active: false }, new_value: { is_active: true }, notes: "إعادة تفعيل" });
+    toast.success("تم إعادة التفعيل");
+    qc.invalidateQueries({ queryKey: ["feed-raw-materials"] });
+    qc.invalidateQueries({ queryKey: ["feed-raw-materials-archived"] });
+  };
+
   const prodQ = useQuery({
     queryKey: ["feed-products"],
     queryFn: async () => {
