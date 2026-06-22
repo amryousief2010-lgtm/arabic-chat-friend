@@ -515,12 +515,20 @@ export default function ManufacturingInvoices() {
       return;
     }
     setBusy(true);
-    const { error } = await supabase.rpc("approve_meat_manufacturing_invoice" as any, { p_invoice_id: id });
+    const { data, error } = await supabase.rpc("approve_meat_manufacturing_invoice" as any, { p_invoice_id: id });
     setBusy(false);
     if (error) { toast.error(error.message); return; }
-    toast.success("تم اعتماد الفاتورة وخصم الخامات والتغليف");
+    const r: any = data || {};
+    if (r.already_approved) {
+      toast.info(r.message || "الفاتورة معتمدة بالفعل");
+    } else if (r.moves_skipped > 0 || r.finished_movement_existed) {
+      toast.success(r.message || "تم اعتماد الفاتورة مع منع التكرار");
+    } else {
+      toast.success("تم اعتماد الفاتورة وخصم الخامات والتغليف");
+    }
     setViewing(null);
     await fetchAll();
+
   };
 
   const openTransfer = (inv: Invoice) => { setTransferInv(inv); setTransferDestId(mainWarehouses[0]?.id || ""); };
