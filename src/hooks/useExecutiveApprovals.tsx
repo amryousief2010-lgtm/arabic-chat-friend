@@ -64,7 +64,7 @@ export function useExecutiveApprovals() {
     refetchOnWindowFocus: true,
     staleTime: 15_000,
     queryFn: async () => {
-      const [treasuryRes, labRes, meatInvRes, meatMfgRes, custodyRes, slaughterRes, hrRes, mfRawRes, mfPackRes, mfMfgRes] = await Promise.all([
+      const [treasuryRes, labRes, meatInvRes, meatMfgRes, custodyRes, slaughterRes, hrRes, mfRawRes, mfPackRes, mfMfgRes, mfPurchasesRes] = await Promise.all([
         (supabase as any)
           .from("main_treasury_transactions")
           .select("id, reference_no, txn_type, amount, txn_date, counterparty, description, status, created_at, created_by, payment_method, deposit_purpose, incoming_source")
@@ -125,10 +125,16 @@ export function useExecutiveApprovals() {
           .eq("status", "draft")
           .order("created_at", { ascending: false })
           .limit(200),
+        (supabase as any)
+          .from("meat_factory_purchases")
+          .select("id, invoice_no, purchase_date, supplier, invoice_type, payment_method, receipt_no, total_amount, notes, status, created_at, created_by, lines:meat_factory_purchase_lines(quantity, unit_price, line_total, unit, kind, raw_item_name)")
+          .eq("status", "draft")
+          .order("created_at", { ascending: false })
+          .limit(200),
       ]);
 
       const allCreators: string[] = [];
-      [treasuryRes, labRes, meatInvRes, meatMfgRes, custodyRes, slaughterRes, hrRes, mfRawRes, mfPackRes, mfMfgRes].forEach((r) =>
+      [treasuryRes, labRes, meatInvRes, meatMfgRes, custodyRes, slaughterRes, hrRes, mfRawRes, mfPackRes, mfMfgRes, mfPurchasesRes].forEach((r) =>
         (r.data || []).forEach((x: any) => x.created_by && allCreators.push(x.created_by))
       );
       const profiles = await resolveProfiles(allCreators);
@@ -316,6 +322,23 @@ export function useExecutiveApprovals() {
           status: p.status,
           raw: { ...p, _kind: "pack_purchase" },
         })),
+        ...(mfPurchasesRes.data || []).map((p: any) => {
+          const typeLabel: Record<string, string> = { raw: "خامات", spice: "بهارات", packaging: "تغليف", mixed: "mixed" };
+          const payLabel: Record<string, string> = { cash: "نقدي", credit: "آجل", transfer: "تحويل", other: "أخرى" };
+          return {
+            id: p.id,
+            category: "mf_purchase" as ApprovalCategory,
+            source: "فاتورة مشتريات مصنع اللحوم",
+            title: `فاتورة مشتريات مصنع اللحوم${p.invoice_no ? ` — ${p.invoice_no}` : ""}`,
+            subtitle: `${p.supplier || "بدون مورد"} — ${typeLabel[p.invoice_type] || p.invoice_type || ""}${p.payment_method ? ` — ${payLabel[p.payment_method] || p.payment_method}` : ""}${(p.lines || []).length ? ` — ${(p.lines || []).length} صنف` : ""}${p.notes ? ` — ${p.notes}` : ""}`,
+            amount: Number(p.total_amount || 0),
+            created_at: p.created_at,
+            created_by: p.created_by,
+            creator_name: profiles[p.created_by] || null,
+            status: p.status,
+            raw: { ...p, _kind: "meat_factory_purchase" },
+          };
+        }),
       ];
 
       const mfMfgItems: ApprovalItem[] = (mfMfgRes.data || []).map((m: any) => ({
@@ -391,6 +414,9 @@ export function useExecutiveApprovals() {
       .on("postgres_changes" as any, { event: "*", schema: "public", table: "mf_manufacturing" }, () =>
         queryClient.invalidateQueries({ queryKey: ["executive-approvals"] })
       )
+      .on("postgres_changes" as any, { event: "*", schema: "public", table: "meat_factory_purchases" }, () =>
+        queryClient.invalidateQueries({ queryKey: ["executive-approvals"] })
+      )
       .subscribe();
     return () => {
       try { supabase.removeChannel(ch); } catch {}
@@ -407,7 +433,7 @@ export function useExecutiveApprovals() {
         item.category === "custody" ? "slaughter_custody_expenses" :
         item.category === "slaughter" ? "slaughter_batches" :
         item.category === "hr" ? "hr_deductions" :
-        item.category === "mf_purchase" ? (item.raw?._kind === "pack_purchase" ? "mf_pack_purchases" : "mf_raw_purchases") :
+        item.category === "mf_purchase" ? (item.raw?._kind === "meat_factory_purchase" ? "meat_factory_purchases" : item.raw?._kind === "pack_purchase" ? "mf_pack_purchases" : "mf_raw_purchases") :
         item.category === "mf_mfg" ? "mf_manufacturing" :
         item.raw._source_table;
 
@@ -531,9 +557,14 @@ export function useExecutiveApprovals() {
           });
         }
       } else if (item.category === "mf_purchase") {
-        const rpcName = item.raw?._kind === "pack_purchase" ? "post_mf_pack_purchase" : "post_mf_raw_purchase";
-        const { error } = await (supabase as any).rpc(rpcName, { p_id: item.id });
-        if (error) throw error;
+        if (item.raw?._kind === "meat_factory_purchase") {
+          const { error } = await (supabase as any).rpc("approve_meat_purchase", { p_purchase_id: item.id });
+          if (error) throw error;
+        } else {
+          const rpcName = item.raw?._kind === "pack_purchase" ? "post_mf_pack_purchase" : "post_mf_raw_purchase";
+          const { error } = await (supabase as any).rpc(rpcName, { p_id: item.id });
+          if (error) throw error;
+        }
       } else if (item.category === "mf_mfg") {
         const { error } = await (supabase as any).rpc("post_mf_manufacturing", { p_id: item.id });
         if (error) throw error;
@@ -629,9 +660,14 @@ export function useExecutiveApprovals() {
           });
         }
       } else if (item.category === "mf_purchase") {
-        const tableName = item.raw?._kind === "pack_purchase" ? "mf_pack_purchases" : "mf_raw_purchases";
-        const { error } = await (supabase as any).rpc("reject_mf_invoice", { p_table: tableName, p_id: item.id, p_reason: r });
-        if (error) throw error;
+        if (item.raw?._kind === "meat_factory_purchase") {
+          const { error } = await (supabase as any).rpc("reject_meat_purchase", { p_purchase_id: item.id, p_reason: r });
+          if (error) throw error;
+        } else {
+          const tableName = item.raw?._kind === "pack_purchase" ? "mf_pack_purchases" : "mf_raw_purchases";
+          const { error } = await (supabase as any).rpc("reject_mf_invoice", { p_table: tableName, p_id: item.id, p_reason: r });
+          if (error) throw error;
+        }
       } else if (item.category === "mf_mfg") {
         const { error } = await (supabase as any).rpc("reject_mf_invoice", { p_table: "mf_manufacturing", p_id: item.id, p_reason: r });
         if (error) throw error;

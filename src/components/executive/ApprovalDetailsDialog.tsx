@@ -67,6 +67,13 @@ export default function ApprovalDetailsDialog({
             setLines(raw || []);
             setPackLines(pack || []);
           }
+        } else if (item.category === "mf_purchase" && item.raw?._kind === "meat_factory_purchase") {
+          const { data } = await (supabase as any)
+            .from("meat_factory_purchase_lines")
+            .select("*")
+            .eq("purchase_id", item.id)
+            .order("created_at");
+          if (!cancel) setLines(data || []);
         }
       } finally {
         if (!cancel) setLoading(false);
@@ -186,7 +193,62 @@ export default function ApprovalDetailsDialog({
                 <Row label="ملاحظات" value={r.notes} />
               </>
             )}
+
+            {item.category === "mf_purchase" && r._kind === "meat_factory_purchase" && (
+              <>
+                <Row label="رقم الفاتورة" value={r.invoice_no || "— لم تُعتمد —"} />
+                <Row label="تاريخ الفاتورة" value={r.purchase_date} />
+                <Row label="المورد" value={r.supplier} />
+                <Row label="نوع الفاتورة" value={({ raw: "خامات", spice: "بهارات", packaging: "تغليف", mixed: "mixed" } as any)[r.invoice_type] || r.invoice_type} />
+                <Row label="طريقة الدفع" value={({ cash: "نقدي", credit: "آجل", transfer: "تحويل", other: "أخرى" } as any)[r.payment_method] || r.payment_method} />
+                <Row label="رقم الإيصال" value={r.receipt_no} />
+                <Row label="الإجمالي" value={fmtMoney(r.total_amount)} />
+                <Row label="ملاحظات" value={r.notes} />
+              </>
+            )}
           </div>
+
+          {/* Lines for meat factory purchase invoice */}
+          {item.category === "mf_purchase" && r._kind === "meat_factory_purchase" && (
+            <div className="rounded-lg border p-3">
+              <div className="font-semibold text-sm mb-2 text-primary">بنود الفاتورة</div>
+              {loading ? (
+                <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+              ) : !lines || lines.length === 0 ? (
+                <div className="text-xs text-muted-foreground text-center py-2">لا توجد بنود مسجلة</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        <th className="p-1.5 text-right">الصنف</th>
+                        <th className="p-1.5">القسم</th>
+                        <th className="p-1.5">الوحدة</th>
+                        <th className="p-1.5">الكمية</th>
+                        <th className="p-1.5">سعر الوحدة</th>
+                        <th className="p-1.5">الإجمالي</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {lines.map((l: any, idx: number) => {
+                        const kindLabel: any = { raw: "خامات", spice: "بهارات", packaging: "تغليف" };
+                        return (
+                          <tr key={idx} className="border-b">
+                            <td className="p-1.5">{l.raw_item_name || "—"}</td>
+                            <td className="p-1.5 text-center">{kindLabel[l.kind] || l.kind}</td>
+                            <td className="p-1.5 text-center">{l.unit}</td>
+                            <td className="p-1.5 text-center tabular-nums">{fmtNum(l.quantity, 3)}</td>
+                            <td className="p-1.5 text-center tabular-nums">{fmtNum(l.unit_price)}</td>
+                            <td className="p-1.5 text-center tabular-nums font-semibold">{fmtMoney(l.line_total)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Lines for meat manufacturing */}
           {item.category === "meat" && (
