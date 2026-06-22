@@ -440,11 +440,21 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
           </Card>
         </div>
 
-        <DialogFooter className="gap-2 mt-3 flex-wrap">
+        {firstError && (
+          <div className="mt-3 flex items-start gap-2 text-xs text-rose-700 bg-rose-50 border border-rose-300 rounded px-3 py-2 font-medium">
+            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+            <div>
+              <div className="font-bold">لا يمكن الحفظ — يوجد خطأ في القيم المدخلة:</div>
+              <div>{firstError}</div>
+            </div>
+          </div>
+        )}
+
+        <DialogFooter className="gap-2 mt-3 flex-wrap sticky bottom-0 bg-background pt-3 border-t z-10">
           <Button variant="outline" onClick={onClose} disabled={saving}>
             إلغاء
           </Button>
-          <Button onClick={handleSave} disabled={saving || !!firstError}>
+          <Button onClick={handleSave} disabled={saving} className="min-w-[140px]">
             {saving ? (
               <Loader2 className="w-4 h-4 ml-1 animate-spin" />
             ) : (
@@ -456,7 +466,7 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
             variant="destructive"
             onClick={() => setConfirmClose(true)}
             disabled={saving || !!firstError || !anyResultsEntered}
-            title={!anyResultsEntered ? "أدخل نتائج الفقس أولًا" : undefined}
+            title={firstError ? firstError : (!anyResultsEntered ? "أدخل نتائج الفقس أولًا" : undefined)}
           >
             <Lock className="w-4 h-4 ml-1" />
             إقفال الدفعة
@@ -473,6 +483,7 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
             </Button>
           )}
         </DialogFooter>
+
 
         <AlertDialog open={confirmReopen} onOpenChange={setConfirmReopen}>
           <AlertDialogContent dir="rtl">
