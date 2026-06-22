@@ -889,7 +889,117 @@ export default function ManufacturingInvoices() {
                 })()}
 
 
-                <Card className="border-purple-200 bg-purple-50/50 dark:bg-purple-950/20">
+                {/* ===== Carryover dough IN — use available leftover dough ===== */}
+                <Card className="border-emerald-200 bg-emerald-50/50 dark:bg-emerald-950/20">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2 text-emerald-800 dark:text-emerald-200">
+                      استخدام عجينة مرحلة (اختياري)
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      اختر يدويًا رصيد عجينة متبقية من فاتورة سابقة لإضافة قيمتها لهذه الفاتورة. الخامات لن تُخصم مرة أخرى.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <Label className="text-xs">رصيد العجينة المرحلة</Label>
+                      <Select value={carryoverInId || "__none__"} onValueChange={v => { setCarryoverInId(v === "__none__" ? "" : v); setCarryoverInQty(0); }}>
+                        <SelectTrigger><SelectValue placeholder="— بدون —" /></SelectTrigger>
+                        <SelectContent className="max-h-72">
+                          <SelectItem value="__none__">— بدون استخدام عجينة مرحلة —</SelectItem>
+                          {availableCarryovers.map(c => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.source_product_name} — متاح {fmt(c.remaining_qty_kg)} كجم × {fmt(c.unit_cost)} ج
+                              {c.source_invoice_no ? ` (فاتورة ${c.source_invoice_no})` : ""}
+                            </SelectItem>
+                          ))}
+                          {availableCarryovers.length === 0 && (
+                            <div className="text-xs text-muted-foreground px-3 py-2">لا يوجد رصيد عجينة مرحلة متاح</div>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">الكمية المستخدمة (كجم)</Label>
+                      <Input
+                        type="number" step="0.001" min={0}
+                        max={selectedCarryover?.remaining_qty_kg || undefined}
+                        disabled={!carryoverInId}
+                        value={carryoverInQty || ""}
+                        onChange={e => setCarryoverInQty(Number(e.target.value))}
+                      />
+                      {selectedCarryover && (
+                        <div className="text-[11px] text-muted-foreground mt-1">
+                          المتاح: <b className="text-emerald-700">{fmt(selectedCarryover.remaining_qty_kg)}</b> كجم — تكلفة الكيلو: <b>{fmt(selectedCarryover.unit_cost)}</b> ج
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <Label className="text-xs">قيمة العجينة المستخدمة</Label>
+                      <div className="h-10 flex items-center px-3 rounded-md border bg-background font-bold text-emerald-700">
+                        {fmt(carryoverInCost)} ج
+                      </div>
+                      {carryoverInError && (
+                        <div className="text-[11px] text-rose-700 mt-1 flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3" /> {carryoverInError}
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* ===== Carryover dough OUT — leftover dough from this invoice ===== */}
+                <Card className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/20">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2 text-amber-800 dark:text-amber-200">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={hasCarryoverOut}
+                          onChange={e => setHasCarryoverOut(e.target.checked)}
+                          className="w-4 h-4 accent-amber-600"
+                        />
+                        يوجد عجينة متبقية
+                      </label>
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      سجّل العجينة الصالحة التي تبقّت في المكبس/الماكينة لتدخل كرصيد في فاتورة تصنيع لاحقة. لن تُحتسب تالف ولن تدخل المنتج النهائي.
+                    </CardDescription>
+                  </CardHeader>
+                  {hasCarryoverOut && (
+                    <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div>
+                        <Label className="text-xs">الكمية المتبقية (كجم)</Label>
+                        <Input
+                          type="number" step="0.001" min={0}
+                          value={carryoverOutQty || ""}
+                          onChange={e => setCarryoverOutQty(Number(e.target.value))}
+                        />
+                        <div className="text-[11px] text-muted-foreground mt-1">
+                          تكلفة الكيلو المحتسبة: <b className="text-amber-700">{fmt(carryoverOutUnitCost)}</b> ج
+                          (الخامات ÷ المنتج + المتبقي)
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-xs">نوع العجينة / المنتج الأصلي</Label>
+                        <Input
+                          placeholder={finalProductName || "مثال: عجينة كفتة"}
+                          value={carryoverOutProduct}
+                          onChange={e => setCarryoverOutProduct(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">ملاحظات</Label>
+                        <Input
+                          placeholder="اختياري"
+                          value={carryoverOutNotes}
+                          onChange={e => setCarryoverOutNotes(e.target.value)}
+                        />
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+
+
                   <CardContent className="pt-4 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                     <div><div className="text-muted-foreground">إجمالي الخامات</div><div className="font-bold text-lg">{fmt(rawCost)}</div></div>
                     <div><div className="text-muted-foreground">إجمالي البهارات</div><div className="font-bold text-lg">{fmt(spiceCost)}</div></div>
