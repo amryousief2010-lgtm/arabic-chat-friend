@@ -660,9 +660,14 @@ export function useExecutiveApprovals() {
           });
         }
       } else if (item.category === "mf_purchase") {
-        const tableName = item.raw?._kind === "pack_purchase" ? "mf_pack_purchases" : "mf_raw_purchases";
-        const { error } = await (supabase as any).rpc("reject_mf_invoice", { p_table: tableName, p_id: item.id, p_reason: r });
-        if (error) throw error;
+        if (item.raw?._kind === "meat_factory_purchase") {
+          const { error } = await (supabase as any).rpc("reject_meat_purchase", { p_purchase_id: item.id, p_reason: r });
+          if (error) throw error;
+        } else {
+          const tableName = item.raw?._kind === "pack_purchase" ? "mf_pack_purchases" : "mf_raw_purchases";
+          const { error } = await (supabase as any).rpc("reject_mf_invoice", { p_table: tableName, p_id: item.id, p_reason: r });
+          if (error) throw error;
+        }
       } else if (item.category === "mf_mfg") {
         const { error } = await (supabase as any).rpc("reject_mf_invoice", { p_table: "mf_manufacturing", p_id: item.id, p_reason: r });
         if (error) throw error;
