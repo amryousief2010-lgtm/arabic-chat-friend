@@ -82,6 +82,13 @@ export default function ManufacturingInvoices() {
   const [transferDestId, setTransferDestId] = useState<string>("");
   const [busy, setBusy] = useState(false);
 
+  // Duplicate-detection
+  type SimilarInv = { id: string; invoice_no: string | null; product_name: string; finished_qty: number; unit: string; status: string; created_at: string; created_by: string | null; created_by_name?: string | null };
+  const [similarFound, setSimilarFound] = useState<SimilarInv | null>(null);
+  const [overrideReason, setOverrideReason] = useState("");
+  const canOverrideDuplicate = roles?.some(r => r === "general_manager" || r === "executive_manager");
+
+
   type Mapping = { id?: string; recipe_item_name: string; recipe_item_kind: Kind; mapped_raw_item_id: string; mapped_raw_item_name: string };
   const [mappings, setMappings] = useState<Mapping[]>([]);
   const mapKey = (name: string, kind: Kind) => `${(name || "").trim().toLowerCase()}|${kind}`;
