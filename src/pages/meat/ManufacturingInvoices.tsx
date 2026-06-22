@@ -92,11 +92,16 @@ export default function ManufacturingInvoices() {
   }, [mappings]);
 
   const fetchAll = async () => {
-    const [whs, inv, ri, mp] = await Promise.all([
+    const [whs, inv, ri, mp, cd] = await Promise.all([
       supabase.from("warehouses").select("id, name, type").order("name"),
       supabase.from("meat_manufacturing_invoices" as any).select("*").order("created_at", { ascending: false }).limit(200),
       supabase.from("meat_factory_raw_items" as any).select("id,name,unit,current_stock,avg_cost,kind,is_active,code").eq("is_active", true).order("name"),
       supabase.from("meat_recipe_item_mappings" as any).select("id,recipe_item_name,recipe_item_kind,mapped_raw_item_id,mapped_raw_item_name"),
+      supabase.from("meat_factory_carryover_dough" as any)
+        .select("id,source_invoice_no,source_product_name,remaining_qty_kg,unit_cost,production_date,status")
+        .in("status", ["available", "partial"])
+        .gt("remaining_qty_kg", 0)
+        .order("created_at", { ascending: false }),
     ]);
     if (whs.data) {
       const factory = whs.data.filter(w => w.name?.includes("مصنع اللحوم"));
@@ -108,6 +113,7 @@ export default function ManufacturingInvoices() {
     if (inv.data) setInvoices(inv.data as any);
     if (ri.data) setItems(ri.data as any);
     if (mp.data) setMappings(mp.data as any);
+    if (cd.data) setAvailableCarryovers(cd.data as any);
   };
 
   useEffect(() => { fetchAll(); }, []);
