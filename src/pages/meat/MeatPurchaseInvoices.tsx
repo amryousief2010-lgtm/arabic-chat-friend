@@ -537,6 +537,9 @@ export default function MeatPurchaseInvoices() {
                         <TableCell className="space-x-1 space-x-reverse">
                           <Button size="sm" variant="outline" onClick={() => openView(p)}><Eye className="w-3 h-3 ml-1" />عرض</Button>
                           <Button size="sm" variant="outline" onClick={() => printInvoice(p)}><Printer className="w-3 h-3 ml-1" />طباعة</Button>
+                          {isApprover && (
+                            <Button size="sm" variant="outline" onClick={() => openEdit(p)}><Pencil className="w-3 h-3 ml-1" />تعديل بيانات الفاتورة</Button>
+                          )}
                           {isApprover && p.status === "draft" && (
                             <>
                               <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => approve(p.id)}><CheckCircle2 className="w-3 h-3 ml-1" />اعتماد</Button>
