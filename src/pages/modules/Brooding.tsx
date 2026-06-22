@@ -20,6 +20,7 @@ import { openPrintWindow } from "@/lib/printPdf";
 import { MarketProfitabilityCard, MarketPricesTab, useMarketPrices } from "./BroodingMarketPrices";
 import { MovementsLog } from "@/components/MovementsLog";
 import FeedInternalDebtDashboard from "@/components/feed/FeedInternalDebtDashboard";
+import ChickTradingTab from "@/components/chick-trading/ChickTradingTab";
 
 // ===== Types =====
 type Batch = {
@@ -429,6 +430,7 @@ const Brooding = () => {
             <TabsTrigger value="recipes" className="text-sky-600 data-[state=active]:bg-sky-600 data-[state=active]:text-white">تركيبة علف التسمين</TabsTrigger>
             <TabsTrigger value="market_prices" className="text-indigo-600 data-[state=active]:bg-indigo-600 data-[state=active]:text-white">أسعار السوق</TabsTrigger>
             <TabsTrigger value="movements" className="text-violet-600 data-[state=active]:bg-violet-600 data-[state=active]:text-white">سجل الحركات</TabsTrigger>
+            <TabsTrigger value="chick_trading" className="text-orange-600 data-[state=active]:bg-orange-600 data-[state=active]:text-white">تجارة كتاكيت</TabsTrigger>
             {canManage && <TabsTrigger value="settings" className="text-fuchsia-600 data-[state=active]:bg-fuchsia-600 data-[state=active]:text-white">الإعدادات</TabsTrigger>}
           </TabsList>
 
@@ -774,6 +776,12 @@ const Brooding = () => {
               batches={batches.map((b) => ({ id: b.id, batch_no: b.batch_number }))}
             />
           </TabsContent>
+
+          {/* CHICK TRADING */}
+          <TabsContent value="chick_trading">
+            <ChickTradingTab />
+          </TabsContent>
+
 
 
 
