@@ -433,7 +433,7 @@ export function useExecutiveApprovals() {
         item.category === "custody" ? "slaughter_custody_expenses" :
         item.category === "slaughter" ? "slaughter_batches" :
         item.category === "hr" ? "hr_deductions" :
-        item.category === "mf_purchase" ? (item.raw?._kind === "pack_purchase" ? "mf_pack_purchases" : "mf_raw_purchases") :
+        item.category === "mf_purchase" ? (item.raw?._kind === "meat_factory_purchase" ? "meat_factory_purchases" : item.raw?._kind === "pack_purchase" ? "mf_pack_purchases" : "mf_raw_purchases") :
         item.category === "mf_mfg" ? "mf_manufacturing" :
         item.raw._source_table;
 
