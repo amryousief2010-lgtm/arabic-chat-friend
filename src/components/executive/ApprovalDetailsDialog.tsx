@@ -248,6 +248,21 @@ export default function ApprovalDetailsDialog({
                   </table>
                 </div>
               )}
+
+              {/* Totals breakdown */}
+              {lines && lines.length > 0 && (() => {
+                const sum = (k: string) => lines.filter((l: any) => l.kind === k).reduce((s: number, l: any) => s + Number(l.line_total || 0), 0);
+                const raw = sum("raw"), spice = sum("spice"), pack = sum("packaging");
+                const total = raw + spice + pack;
+                return (
+                  <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                    <div className="rounded border bg-muted/30 p-2"><div className="text-muted-foreground">إجمالي الخامات</div><div className="font-bold tabular-nums">{fmtMoney(raw)}</div></div>
+                    <div className="rounded border bg-muted/30 p-2"><div className="text-muted-foreground">إجمالي البهارات</div><div className="font-bold tabular-nums">{fmtMoney(spice)}</div></div>
+                    <div className="rounded border bg-muted/30 p-2"><div className="text-muted-foreground">إجمالي التغليف</div><div className="font-bold tabular-nums">{fmtMoney(pack)}</div></div>
+                    <div className="rounded border bg-primary/10 border-primary/30 p-2"><div className="text-muted-foreground">الإجمالي النهائي</div><div className="font-bold tabular-nums text-primary">{fmtMoney(r.total_amount || total)}</div></div>
+                  </div>
+                );
+              })()}
             </div>
           )}
 
