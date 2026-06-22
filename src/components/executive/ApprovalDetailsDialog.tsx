@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { ApprovalItem } from "@/hooks/useExecutiveApprovals";
+import { parseServiceCostsFromNotes } from "@/lib/meatServiceCosts";
 
 const fmtMoney = (n: any) =>
   `${Number(n || 0).toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م`;
