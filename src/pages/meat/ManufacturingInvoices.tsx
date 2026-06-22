@@ -999,7 +999,7 @@ export default function ManufacturingInvoices() {
                   )}
                 </Card>
 
-
+                <Card className="border-purple-200 bg-purple-50/50 dark:bg-purple-950/20">
                   <CardContent className="pt-4 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                     <div><div className="text-muted-foreground">إجمالي الخامات</div><div className="font-bold text-lg">{fmt(rawCost)}</div></div>
                     <div><div className="text-muted-foreground">إجمالي البهارات</div><div className="font-bold text-lg">{fmt(spiceCost)}</div></div>
