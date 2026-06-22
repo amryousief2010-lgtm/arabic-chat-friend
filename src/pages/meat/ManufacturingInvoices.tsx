@@ -389,6 +389,22 @@ export default function ManufacturingInvoices() {
       return;
     }
 
+    // Carryover-OUT validation
+    if (hasCarryoverOut) {
+      if (!carryoverOutQty || Number(carryoverOutQty) <= 0) {
+        toast.error("أدخل كمية العجينة المتبقية بالكيلو");
+        return;
+      }
+    }
+    // Carryover-IN validation
+    if (carryoverInId) {
+      if (carryoverInError) { toast.error(carryoverInError); return; }
+      if (!carryoverInQty || Number(carryoverInQty) <= 0) {
+        toast.error("أدخل كمية العجينة المرحلة المستخدمة");
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       const existing = await supabase.from("meat_manufacturing_invoices" as any)
@@ -398,6 +414,13 @@ export default function ManufacturingInvoices() {
       const { data: noRes, error: noErr } = await supabase.rpc("gen_meat_invoice_no" as any);
       if (noErr) throw noErr;
       const invoiceNo = noRes as unknown as string;
+
+      const carryoverInNote = carryoverInId && selectedCarryover
+        ? `[carryover_in] استخدام ${fmt(carryoverInQty)} كجم عجينة مرحلة من ${selectedCarryover.source_product_name} (فاتورة ${selectedCarryover.source_invoice_no || "—"}) × ${fmt(selectedCarryover.unit_cost)} = ${fmt(carryoverInCost)}`
+        : "";
+      const carryoverOutNote = hasCarryoverOut
+        ? `[carryover_out] تم حفظ ${fmt(carryoverOutQty)} كجم عجينة متبقية برصيد العجينة المرحلة بتكلفة ${fmt(carryoverOutUnitCost)} ج/كجم${carryoverOutNotes ? " — " + carryoverOutNotes : ""}`
+        : "";
 
       const { data: inv, error: insErr } = await supabase.from("meat_manufacturing_invoices" as any).insert({
         invoice_no: invoiceNo,
@@ -412,7 +435,12 @@ export default function ManufacturingInvoices() {
         extra_cost: totalExtraCost, total_manufacturing_cost: totalCost,
         unit_cost: unitCost,
         status: "draft",
-        notes: [notes, ...serviceCostLines.map(l => `[service_cost] ${l.item_name}: ${fmt(l.quantity)} ${l.unit} × ${fmt(l.unit_cost)} = ${fmt(l.line_total)}`)].filter(Boolean).join("\n") || null,
+        notes: [
+          notes,
+          ...serviceCostLines.map(l => `[service_cost] ${l.item_name}: ${fmt(l.quantity)} ${l.unit} × ${fmt(l.unit_cost)} = ${fmt(l.line_total)}`),
+          carryoverInNote,
+          carryoverOutNote,
+        ].filter(Boolean).join("\n") || null,
         created_by: user?.id || null,
       } as any).select("id").single();
       if (insErr) throw insErr;
@@ -428,6 +456,46 @@ export default function ManufacturingInvoices() {
       if (linesErr) {
         await supabase.from("meat_manufacturing_invoices" as any).delete().eq("id", (inv as any).id);
         throw new Error("فشل حفظ بنود الفاتورة، لم يتم إنشاء الفاتورة");
+      }
+
+      // Carryover-OUT: insert leftover dough balance
+      if (hasCarryoverOut && Number(carryoverOutQty) > 0) {
+        const { error: coErr } = await supabase.from("meat_factory_carryover_dough" as any).insert({
+          source_invoice_id: (inv as any).id,
+          source_invoice_no: invoiceNo,
+          source_product_name: carryoverOutProduct?.trim() || finalProductName,
+          production_date: new Date().toISOString().slice(0, 10),
+          original_qty_kg: Number(carryoverOutQty),
+          remaining_qty_kg: Number(carryoverOutQty),
+          unit_cost: Number(carryoverOutUnitCost.toFixed(4)),
+          status: "available",
+          notes: carryoverOutNotes?.trim() || null,
+          created_by: user?.id || null,
+          created_by_name: (user as any)?.user_metadata?.full_name || user?.email || null,
+        });
+        if (coErr) toast.warning("الفاتورة محفوظة لكن تعذر حفظ رصيد العجينة المتبقية: " + coErr.message);
+      }
+
+      // Carryover-IN: record usage + decrement remaining
+      if (carryoverInId && selectedCarryover && Number(carryoverInQty) > 0) {
+        const { error: uErr } = await supabase.from("meat_factory_carryover_dough_usage" as any).insert({
+          carryover_id: carryoverInId,
+          used_in_invoice_id: (inv as any).id,
+          used_in_invoice_no: invoiceNo,
+          used_qty_kg: Number(carryoverInQty),
+          unit_cost_at_use: Number(selectedCarryover.unit_cost),
+          used_by: user?.id || null,
+          used_by_name: (user as any)?.user_metadata?.full_name || user?.email || null,
+        });
+        if (uErr) toast.warning("تعذر تسجيل استخدام العجينة المرحلة: " + uErr.message);
+        else {
+          const newRemaining = Math.max(0, Number(selectedCarryover.remaining_qty_kg) - Number(carryoverInQty));
+          const newStatus = newRemaining <= 0.0001 ? "used" : "partial";
+          await supabase.from("meat_factory_carryover_dough" as any).update({
+            remaining_qty_kg: newRemaining,
+            status: newStatus,
+          }).eq("id", carryoverInId);
+        }
       }
 
       toast.success(`تم حفظ الفاتورة ${invoiceNo} بحالة مسودة — اضغط اعتماد للخصم`);
