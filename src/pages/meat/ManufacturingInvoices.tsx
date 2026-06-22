@@ -871,19 +871,65 @@ export default function ManufacturingInvoices() {
                       </Table>
                     </div>
                   );
+                  const svcRows = parseServiceCostsFromNotes(viewing.notes);
+                  const svcTotal = svcRows.reduce((s, r) => s + Number(r.total || 0), 0);
+                  const extraResidual = Math.max(0, Number(viewing.extra_cost || 0) - svcTotal);
                   return (
                     <div className="space-y-4">
-                      {serviceNotesFromInvoice(viewing.notes).length > 0 && (
-                        <div className="space-y-1">
-                          <h3 className="font-semibold text-sm text-purple-700">تكاليف إضافية</h3>
-                          <Table>
-                            <TableHeader><TableRow><TableHead>البند</TableHead></TableRow></TableHeader>
-                            <TableBody>{serviceNotesFromInvoice(viewing.notes).map((n, idx) => <TableRow key={idx}><TableCell>{n.replace("[service_cost]", "").trim()}</TableCell></TableRow>)}</TableBody>
-                          </Table>
-                        </div>
-                      )}
                       {renderTable(rawSpice, "المواد الخام والبهارات المستخدمة", "لا توجد خامات/بهارات")}
                       {renderTable(pack, "خامات التغليف المستخدمة", "لا توجد خامات تغليف")}
+
+                      <div className="space-y-1">
+                        <h3 className="font-semibold text-sm text-purple-700">المواد الخدمية / التكاليف الإضافية</h3>
+                        {svcRows.length === 0 && extraResidual === 0 ? (
+                          <div className="text-xs text-muted-foreground border rounded-md px-3 py-2 bg-muted/30">
+                            لا توجد مواد خدمية في هذه الفاتورة
+                          </div>
+                        ) : (
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>اسم البند</TableHead>
+                                <TableHead>النوع</TableHead>
+                                <TableHead>الكمية</TableHead>
+                                <TableHead>الوحدة</TableHead>
+                                <TableHead>سعر الوحدة</TableHead>
+                                <TableHead>الإجمالي</TableHead>
+                                <TableHead>ملاحظات</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {svcRows.map((r, idx) => (
+                                <TableRow key={idx}>
+                                  <TableCell className="font-medium">{r.name || "مادة خدمية"}</TableCell>
+                                  <TableCell><Badge variant="outline">تكلفة تشغيل</Badge></TableCell>
+                                  <TableCell>{r.quantity != null ? fmt(r.quantity) : "—"}</TableCell>
+                                  <TableCell>{r.unit || "—"}</TableCell>
+                                  <TableCell>{r.unit_cost != null ? fmt(r.unit_cost) : "—"}</TableCell>
+                                  <TableCell className="font-semibold">{r.total != null ? fmt(r.total) : "—"}</TableCell>
+                                  <TableCell className="text-xs text-muted-foreground">{r.name}</TableCell>
+                                </TableRow>
+                              ))}
+                              {extraResidual > 0 && (
+                                <TableRow>
+                                  <TableCell className="font-medium">تكلفة إضافية</TableCell>
+                                  <TableCell><Badge variant="outline">تكلفة تشغيل</Badge></TableCell>
+                                  <TableCell>—</TableCell>
+                                  <TableCell>—</TableCell>
+                                  <TableCell>—</TableCell>
+                                  <TableCell className="font-semibold">{fmt(extraResidual)}</TableCell>
+                                  <TableCell className="text-xs text-muted-foreground">رقم إجمالي بدون كمية</TableCell>
+                                </TableRow>
+                              )}
+                              <TableRow>
+                                <TableCell colSpan={5} className="text-end font-semibold">إجمالي المواد الخدمية</TableCell>
+                                <TableCell className="font-bold text-purple-700">{fmt(Number(viewing.extra_cost || 0))}</TableCell>
+                                <TableCell />
+                              </TableRow>
+                            </TableBody>
+                          </Table>
+                        )}
+                      </div>
                     </div>
                   );
                 })()}
