@@ -182,6 +182,8 @@ const ManualStockAdditionDialog = ({
 
   const handleSave = async () => {
     if (!validSource) { toast({ title: "اختر جهة التوريد", variant: "destructive" }); return; }
+    if (!supplier.trim()) { toast({ title: "أدخل القائم بالتوريد", variant: "destructive" }); return; }
+    if (!deliveryDate) { toast({ title: "اختر تاريخ التوريد", variant: "destructive" }); return; }
     if (!reason.trim()) { toast({ title: "أدخل سبب الإضافة / التوريد", variant: "destructive" }); return; }
     if (mergedRows.size === 0) { toast({ title: "أضف صنف واحد على الأقل", variant: "destructive" }); return; }
     for (const r of rows) {
