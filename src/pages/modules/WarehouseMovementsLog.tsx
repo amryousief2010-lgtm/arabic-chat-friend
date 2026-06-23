@@ -26,11 +26,15 @@ interface Mov {
   movement_type: string;
   quantity: number;
   unit_cost: number | null;
+  reference: string | null;
   reference_id: string | null;
   reference_type: string | null;
   performed_by: string | null;
   reason: string | null;
   notes: string | null;
+  party: string | null;
+  package_count: number | null;
+  package_weight_kg: number | null;
   approval_status: string;
   module: string | null;
 }
