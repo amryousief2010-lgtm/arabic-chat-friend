@@ -25,7 +25,7 @@ import {
   Wallet, TrendingUp, TrendingDown, CircleDollarSign, Banknote, Smartphone, Building2,
   CreditCard, CheckCircle2, XCircle, Printer, FileSpreadsheet, Plus, Lock, Unlock,
   ShieldAlert, ScrollText, AlertTriangle, FileCheck2, Link as LinkIcon, Users, Boxes,
-  Sparkles, Activity, Clock, FileText, ArrowRightLeft, Receipt,
+  Sparkles, Activity, Clock, FileText, ArrowRightLeft, Receipt, Eye, Trash2,
 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { OpeningBalancesPanel, ExternalCollectionsPanel, ExternalSummaryCard, TotalLabFundsCard } from "@/pages/lab-treasury/LabTreasuryExtras";
