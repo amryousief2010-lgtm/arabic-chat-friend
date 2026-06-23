@@ -25,7 +25,7 @@ import {
   Wallet, TrendingUp, TrendingDown, CircleDollarSign, Banknote, Smartphone, Building2,
   CreditCard, CheckCircle2, XCircle, Printer, FileSpreadsheet, Plus, Lock, Unlock,
   ShieldAlert, ScrollText, AlertTriangle, FileCheck2, Link as LinkIcon, Users, Boxes,
-  Sparkles, Activity, Clock, FileText, ArrowRightLeft, Receipt,
+  Sparkles, Activity, Clock, FileText, ArrowRightLeft, Receipt, Eye, Trash2,
 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { OpeningBalancesPanel, ExternalCollectionsPanel, ExternalSummaryCard, TotalLabFundsCard } from "@/pages/lab-treasury/LabTreasuryExtras";
@@ -240,6 +240,7 @@ export default function LabTreasury() {
   const [fPayment, setFPayment] = useState<string>("all");
   const [fStatus, setFStatus] = useState<string>("all");
   const [fCustomer, setFCustomer] = useState("");
+  const [fSource, setFSource] = useState<string>("all"); // all | manual | auto | cancelled
 
   // forms
   const [incForm, setIncForm] = useState({
@@ -294,6 +295,7 @@ export default function LabTreasury() {
   // dialogs
   const [rejectDlg, setRejectDlg] = useState<{ open: boolean; movement: Movement | null; reason: string }>({ open: false, movement: null, reason: "" });
   const [deleteDlg, setDeleteDlg] = useState<{ open: boolean; movement: Movement | null; reason: string }>({ open: false, movement: null, reason: "" });
+  const [detailsDlg, setDetailsDlg] = useState<{ open: boolean; movement: Movement | null }>({ open: false, movement: null });
   const [closeDayDlg, setCloseDayDlg] = useState<{ open: boolean; date: string; notes: string }>({ open: false, date: today(), notes: "" });
   const [reopenDlg, setReopenDlg] = useState<{ open: boolean; closure: DayClosure | null; reason: string }>({ open: false, closure: null, reason: "" });
 
@@ -418,9 +420,12 @@ export default function LabTreasury() {
       if (fStatus !== "all" && m.status !== fStatus) return false;
       if (fCategory !== "all" && m.income_category !== fCategory && m.expense_category !== fCategory) return false;
       if (fCustomer && !(m.customer_name || "").toLowerCase().includes(fCustomer.toLowerCase())) return false;
+      if (fSource === "manual" && m.source_table) return false;
+      if (fSource === "auto" && !m.source_table) return false;
+      if (fSource === "cancelled" && m.status !== "rejected") return false;
       return true;
     });
-  }, [movements, fromDate, toDate, fType, fCategory, fPayment, fStatus, fCustomer]);
+  }, [movements, fromDate, toDate, fType, fCategory, fPayment, fStatus, fCustomer, fSource]);
 
   // ---- Expense balance check (UI warning) ----
   const normalizedIncomePaymentMethod = normalizePaymentMethod(incForm.payment_method);
@@ -810,6 +815,58 @@ export default function LabTreasury() {
       default:
         toast.info(`المصدر: ${m.source_table} #${m.source_id?.slice(0, 8) || ""}`);
     }
+  }
+
+  // ---- Print voucher (سند صرف / إيصال إيراد) ----
+  function printVoucher(m: Movement) {
+    const isIncome = m.movement_type === "income";
+    const title = isIncome ? "إيصال إيراد خزنة" : "سند صرف خزنة";
+    const catLabel = isIncome
+      ? INCOME_LABELS[m.income_category as IncomeCat] || "—"
+      : EXPENSE_LABELS[m.expense_category as ExpenseCat] || "—";
+    const userName = profiles[m.created_by || ""] || "—";
+    const sourceLabel = m.source_table
+      ? (m.source_table === "brooding_chick_sales" ? `تلقائي — بيع كتاكيت ${m.source_ref || ""}`
+        : m.source_table === "hatch_customer_payments" ? `تلقائي — دفع تفريخ ${m.source_ref || ""}`
+        : m.source_table === "hatchery_invoice_payments" ? `تلقائي — فاتورة تفريخ ${m.source_ref || ""}`
+        : `تلقائي — ${m.source_table} ${m.source_ref || ""}`)
+      : "يدوي";
+    const html = `
+      <div style="font-family: 'Cairo', sans-serif; padding: 24px; max-width: 720px; margin: 0 auto;">
+        <div style="text-align:center; border-bottom: 2px solid #6d28d9; padding-bottom: 12px; margin-bottom: 16px;">
+          <h1 style="margin:0; color:#6d28d9;">شركة نعام العاصمة</h1>
+          <h2 style="margin:6px 0 0; color:#1f2937;">${title}</h2>
+          <div style="font-size:12px; color:#6b7280; margin-top:4px;">خزنة المعمل والحضانات</div>
+        </div>
+        <table style="width:100%; border-collapse: collapse; font-size: 14px;">
+          <tbody>
+            <tr><td style="padding:6px 8px; background:#f9fafb; width:35%;">رقم الحركة</td><td style="padding:6px 8px;">${escapeHtml(m.id.slice(0, 8))}</td></tr>
+            <tr><td style="padding:6px 8px; background:#f9fafb;">التاريخ</td><td style="padding:6px 8px;">${escapeHtml(m.movement_date)}</td></tr>
+            <tr><td style="padding:6px 8px; background:#f9fafb;">الخزنة</td><td style="padding:6px 8px;">المعمل والحضانات</td></tr>
+            <tr><td style="padding:6px 8px; background:#f9fafb;">التصنيف</td><td style="padding:6px 8px;">${escapeHtml(catLabel)}</td></tr>
+            <tr><td style="padding:6px 8px; background:#f9fafb;">البيان</td><td style="padding:6px 8px;">${escapeHtml(m.description || "—")}</td></tr>
+            ${m.customer_name ? `<tr><td style="padding:6px 8px; background:#f9fafb;">العميل</td><td style="padding:6px 8px;">${escapeHtml(m.customer_name)}</td></tr>` : ""}
+            ${m.beneficiary ? `<tr><td style="padding:6px 8px; background:#f9fafb;">المستفيد</td><td style="padding:6px 8px;">${escapeHtml(m.beneficiary)}</td></tr>` : ""}
+            <tr><td style="padding:10px 8px; background:#fef3c7; font-weight:bold;">المبلغ</td><td style="padding:10px 8px; font-weight:bold; font-size:18px; color:${isIncome ? "#15803d" : "#b91c1c"};">${fmtNum(Number(m.amount), 2)} ج.م</td></tr>
+            <tr><td style="padding:6px 8px; background:#f9fafb;">طريقة الدفع</td><td style="padding:6px 8px;">${escapeHtml(PAYMENT_LABELS[m.payment_method])}</td></tr>
+            <tr><td style="padding:6px 8px; background:#f9fafb;">الحالة</td><td style="padding:6px 8px;">${escapeHtml(STATUS_LABELS[m.status])}</td></tr>
+            <tr><td style="padding:6px 8px; background:#f9fafb;">المصدر</td><td style="padding:6px 8px;">${escapeHtml(sourceLabel)}</td></tr>
+            <tr><td style="padding:6px 8px; background:#f9fafb;">سجّل بواسطة</td><td style="padding:6px 8px;">${escapeHtml(userName)}</td></tr>
+            <tr><td style="padding:6px 8px; background:#f9fafb;">تاريخ التسجيل</td><td style="padding:6px 8px;">${escapeHtml(fmtDate(m.created_at))}</td></tr>
+            ${m.notes ? `<tr><td style="padding:6px 8px; background:#f9fafb;">ملاحظات</td><td style="padding:6px 8px;">${escapeHtml(m.notes)}</td></tr>` : ""}
+          </tbody>
+        </table>
+        <div style="display:flex; justify-content:space-between; margin-top:48px; font-size:13px;">
+          <div style="text-align:center;">
+            <div style="border-top:1px solid #1f2937; padding-top:6px; width:180px;">توقيع ${isIncome ? "المُسلِّم" : "المستلم"}</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="border-top:1px solid #1f2937; padding-top:6px; width:180px;">توقيع المسؤول</div>
+          </div>
+        </div>
+      </div>
+    `;
+    openPrintWindow(title, html);
   }
 
   // ---- Operational reports (server-side via RPC) ----
@@ -1450,7 +1507,7 @@ export default function LabTreasury() {
           <TabsContent value="log" className="space-y-3">
             <Card>
               <CardHeader><CardTitle>فلاتر</CardTitle></CardHeader>
-              <CardContent className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
+              <CardContent className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2">
                 <Field label="من"><Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} /></Field>
                 <Field label="إلى"><Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} /></Field>
                 <Field label="النوع">
@@ -1492,6 +1549,17 @@ export default function LabTreasury() {
                   </Select>
                 </Field>
                 <Field label="العميل"><Input value={fCustomer} onChange={(e) => setFCustomer(e.target.value)} placeholder="بحث..." /></Field>
+                <Field label="المصدر">
+                  <Select value={fSource} onValueChange={setFSource}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">الكل</SelectItem>
+                      <SelectItem value="manual">يدوي</SelectItem>
+                      <SelectItem value="auto">تلقائي</SelectItem>
+                      <SelectItem value="cancelled">ملغى / مرفوض</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
               </CardContent>
             </Card>
 
@@ -1520,14 +1588,14 @@ export default function LabTreasury() {
                       <TableHead>الحالة</TableHead>
                       <TableHead>المصدر</TableHead>
                       <TableHead>سجّل بواسطة</TableHead>
-                      {isManager && <TableHead>إجراءات</TableHead>}
+                      <TableHead>إجراءات</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {loading ? (
-                      <TableRow><TableCell colSpan={isManager ? 10 : 9} className="text-center py-8">جارٍ التحميل...</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={10} className="text-center py-8">جارٍ التحميل...</TableCell></TableRow>
                     ) : filtered.length === 0 ? (
-                      <TableRow><TableCell colSpan={isManager ? 10 : 9} className="text-center py-8 text-muted-foreground">لا توجد حركات</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">لا توجد حركات</TableCell></TableRow>
                     ) : filtered.map((m) => (
                       <TableRow key={m.id} className={closedDates.has(m.movement_date) ? "bg-muted/30" : ""}>
                         <TableCell>
@@ -1579,11 +1647,21 @@ export default function LabTreasury() {
                           })()}
                         </TableCell>
                         <TableCell className="text-xs">{profiles[m.created_by || ""] || "—"}</TableCell>
-                        {isManager && (
-                          <TableCell>
-                            <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setDeleteDlg({ open: true, movement: m, reason: "" })}>حذف</Button>
-                          </TableCell>
-                        )}
+                        <TableCell>
+                          <div className="flex gap-1 items-center">
+                            <Button size="icon" variant="ghost" title="عرض التفاصيل" onClick={() => setDetailsDlg({ open: true, movement: m })}>
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button size="icon" variant="ghost" title="طباعة سند" onClick={() => printVoucher(m)}>
+                              <Printer className="w-4 h-4" />
+                            </Button>
+                            {isManager && (
+                              <Button size="icon" variant="ghost" className="text-destructive" title="حذف / إلغاء" onClick={() => setDeleteDlg({ open: true, movement: m, reason: "" })}>
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -1952,6 +2030,80 @@ export default function LabTreasury() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Details Dialog */}
+      <Dialog open={detailsDlg.open} onOpenChange={(o) => setDetailsDlg({ open: o, movement: o ? detailsDlg.movement : null })}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Receipt className="w-5 h-5" />
+              تفاصيل الحركة
+            </DialogTitle>
+            <DialogDescription>كل بيانات الحركة المسجلة في الخزنة</DialogDescription>
+          </DialogHeader>
+          {detailsDlg.movement && (() => {
+            const m = detailsDlg.movement;
+            const isIncome = m.movement_type === "income";
+            const catLabel = isIncome
+              ? INCOME_LABELS[m.income_category as IncomeCat] || "—"
+              : EXPENSE_LABELS[m.expense_category as ExpenseCat] || "—";
+            const sourceLabel = m.source_table
+              ? (m.source_table === "brooding_chick_sales" ? "تلقائي — بيع كتاكيت"
+                : m.source_table === "hatch_customer_payments" ? "تلقائي — دفع تفريخ"
+                : m.source_table === "hatchery_invoice_payments" ? "تلقائي — فاتورة تفريخ"
+                : `تلقائي — ${m.source_table}`)
+              : "يدوي";
+            const Row = ({ k, v }: { k: string; v: React.ReactNode }) => (
+              <div className="grid grid-cols-3 gap-2 py-2 border-b text-sm">
+                <div className="text-muted-foreground">{k}</div>
+                <div className="col-span-2 font-medium">{v}</div>
+              </div>
+            );
+            return (
+              <div className="space-y-1">
+                <Row k="رقم الحركة" v={<span className="font-mono text-xs">{m.id}</span>} />
+                <Row k="التاريخ" v={m.movement_date} />
+                <Row k="النوع" v={isIncome ? <Badge>إيراد</Badge> : <Badge variant="destructive">مصروف</Badge>} />
+                <Row k="التصنيف" v={catLabel} />
+                <Row k="البيان" v={m.description || "—"} />
+                <Row k="المبلغ" v={<span className={`font-mono font-bold ${isIncome ? "text-emerald-600" : "text-red-600"}`}>{fmtNum(Number(m.amount), 2)} ج.م</span>} />
+                <Row k="طريقة الدفع" v={PAYMENT_LABELS[m.payment_method]} />
+                <Row k="الخزنة" v="خزنة المعمل والحضانات" />
+                <Row k="المصدر" v={
+                  m.source_table ? (
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary">{sourceLabel}</Badge>
+                      {m.source_ref && (
+                        <Button size="sm" variant="link" className="h-auto p-0" onClick={() => openSource(m)}>
+                          <LinkIcon className="w-3 h-3 me-1" />{m.source_ref}
+                        </Button>
+                      )}
+                    </div>
+                  ) : <Badge variant="outline">يدوي</Badge>
+                } />
+                {m.customer_name && <Row k="العميل" v={m.customer_name} />}
+                {m.beneficiary && <Row k="المستفيد" v={m.beneficiary} />}
+                <Row k="سجّل بواسطة" v={profiles[m.created_by || ""] || "—"} />
+                <Row k="تاريخ التسجيل" v={fmtDate(m.created_at)} />
+                <Row k="الحالة" v={<StatusBadge s={m.status} />} />
+                {m.approved_by && <Row k="اعتمد بواسطة" v={`${profiles[m.approved_by] || "—"} - ${m.approved_at ? fmtDate(m.approved_at) : ""}`} />}
+                {m.rejected_by && <Row k="رفض بواسطة" v={`${profiles[m.rejected_by] || "—"} - ${m.rejected_at ? fmtDate(m.rejected_at) : ""}`} />}
+                {m.rejection_reason && <Row k="سبب الرفض" v={<span className="text-destructive">{m.rejection_reason}</span>} />}
+                {m.notes && <Row k="ملاحظات" v={m.notes} />}
+                {m.receipt_url && <Row k="المرفق" v={<a href={m.receipt_url} target="_blank" rel="noreferrer" className="text-primary underline">عرض الإيصال</a>} />}
+              </div>
+            );
+          })()}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => detailsDlg.movement && printVoucher(detailsDlg.movement)} className="gap-2">
+              <Printer className="w-4 h-4" />طباعة سند
+            </Button>
+            <Button onClick={() => setDetailsDlg({ open: false, movement: null })}>إغلاق</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
 
       {/* Close Day Dialog */}
       <Dialog open={closeDayDlg.open} onOpenChange={(o) => setCloseDayDlg({ ...closeDayDlg, open: o })}>
