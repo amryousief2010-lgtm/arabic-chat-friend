@@ -1549,6 +1549,17 @@ export default function LabTreasury() {
                   </Select>
                 </Field>
                 <Field label="العميل"><Input value={fCustomer} onChange={(e) => setFCustomer(e.target.value)} placeholder="بحث..." /></Field>
+                <Field label="المصدر">
+                  <Select value={fSource} onValueChange={setFSource}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">الكل</SelectItem>
+                      <SelectItem value="manual">يدوي</SelectItem>
+                      <SelectItem value="auto">تلقائي</SelectItem>
+                      <SelectItem value="cancelled">ملغى / مرفوض</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
               </CardContent>
             </Card>
 
