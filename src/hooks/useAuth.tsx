@@ -242,12 +242,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    // Clear local state BEFORE the network round-trip so the UI never shows
+    // the previous user's name/role during sign-out.
     setUser(null);
     setSession(null);
     setRole(null);
+    setRoles([]);
     setProfile(null);
+    await supabase.auth.signOut();
   };
+
 
   // Role checks — consider ALL of the user's roles, not only the primary one.
   const has = (r: AppRole) => roles.includes(r);
