@@ -153,6 +153,7 @@ const ManualStockAdditionDialog = ({
       setDeliveryDate(new Date().toISOString().slice(0, 10));
       setNotes("");
       setRows([newRow()]);
+      setLastSaved(null);
     }
   }, [open]);
 
