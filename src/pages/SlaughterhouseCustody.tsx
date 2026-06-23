@@ -387,11 +387,28 @@ export default function SlaughterhouseCustody() {
 
   // ===== Derived =====
   const visibleExpenses = useMemo(() => {
-    return expenses.filter((e) =>
-      (fStatus === "all" || e.status === fStatus) &&
-      (fCat === "all" || e.category === fCat)
-    );
-  }, [expenses, fStatus, fCat]);
+    return expenses.filter((e) => {
+      const isCancelled = e.status === "rejected";
+      if (fSource === "manual" && isCancelled) return false;
+      if (fSource === "auto") return false; // custody expenses are always manual
+      if (fSource === "cancelled" && !isCancelled) return false;
+      return (fStatus === "all" || e.status === fStatus) &&
+        (fCat === "all" || e.category === fCat);
+    });
+  }, [expenses, fStatus, fCat, fSource]);
+
+  // Resolve creator names for displayed expenses
+  useEffect(() => {
+    const ids = Array.from(new Set(expenses.map(e => e.created_by).filter(Boolean)));
+    const missing = ids.filter(id => !creatorNames[id]);
+    if (!missing.length) return;
+    (supabase as any).from("profile_directory").select("id, full_name").in("id", missing).then(({ data }: any) => {
+      const m: Record<string,string> = {};
+      (data || []).forEach((p: any) => { if (p.full_name) m[p.id] = p.full_name; });
+      if (Object.keys(m).length) setCreatorNames(prev => ({ ...prev, ...m }));
+    });
+  }, [expenses]);
+
 
   const currentBalance = balance?.current_balance ?? 0;
   const limitAmt = weekUsage?.limit_amount ?? 0;
