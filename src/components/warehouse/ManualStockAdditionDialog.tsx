@@ -172,7 +172,7 @@ const ManualStockAdditionDialog = ({
   }, [rows]);
 
   const validRows = rows.length > 0 && rows.every(r => r.itemId && rowQty(r) > 0);
-  const canSave = validSource && reason.trim().length > 0 && validRows && mergedRows.size > 0 && !saving;
+  const canSave = validSource && reason.trim().length > 0 && supplier.trim().length > 0 && !!deliveryDate && validRows && mergedRows.size > 0 && !saving;
 
   const updateRow = (uid: string, patch: Partial<Row>) =>
     setRows(rs => rs.map(r => r.uid === uid ? { ...r, ...patch } : r));
