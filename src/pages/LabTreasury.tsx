@@ -420,9 +420,12 @@ export default function LabTreasury() {
       if (fStatus !== "all" && m.status !== fStatus) return false;
       if (fCategory !== "all" && m.income_category !== fCategory && m.expense_category !== fCategory) return false;
       if (fCustomer && !(m.customer_name || "").toLowerCase().includes(fCustomer.toLowerCase())) return false;
+      if (fSource === "manual" && m.source_table) return false;
+      if (fSource === "auto" && !m.source_table) return false;
+      if (fSource === "cancelled" && m.status !== "rejected") return false;
       return true;
     });
-  }, [movements, fromDate, toDate, fType, fCategory, fPayment, fStatus, fCustomer]);
+  }, [movements, fromDate, toDate, fType, fCategory, fPayment, fStatus, fCustomer, fSource]);
 
   // ---- Expense balance check (UI warning) ----
   const normalizedIncomePaymentMethod = normalizePaymentMethod(incForm.payment_method);
