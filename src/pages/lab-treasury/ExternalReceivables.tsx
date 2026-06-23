@@ -234,17 +234,33 @@ export default function ExternalReceivables({ embedded = false }: Props) {
       labMovementId = m?.id || null;
     }
 
-    const { error } = await (supabase as any).from("lab_treasury_external_receivable_settlements").insert({
-      receivable_id: r.id,
-      amount: amt,
-      settlement_date: payDlg.settlement_date,
-      destination_treasury: payDlg.destination,
-      payment_method: payDlg.payment_method,
-      notes: payDlg.notes || null,
-      lab_movement_id: labMovementId,
-      created_by: user?.id ?? null,
-    });
-    if (error) return toast.error("تعذر تسجيل الدفعة: " + error.message);
+    const isHist = r.id.startsWith("hist:");
+    if (isHist) {
+      const realId = r.id.slice(5);
+      const { error } = await (supabase as any).from("lab_treasury_historical_receivable_settlements").insert({
+        receivable_id: realId,
+        amount: amt,
+        settlement_date: payDlg.settlement_date,
+        note: [payDlg.notes, `وجهة: ${DEST_LBL[payDlg.destination]}`, `طريقة: ${PM_LBL[payDlg.payment_method] || payDlg.payment_method}`]
+          .filter(Boolean).join(" | "),
+        lab_movement_id: labMovementId,
+        status: "approved",
+        created_by: user?.id ?? null,
+      });
+      if (error) return toast.error("تعذر تسجيل الدفعة: " + error.message);
+    } else {
+      const { error } = await (supabase as any).from("lab_treasury_external_receivable_settlements").insert({
+        receivable_id: r.id,
+        amount: amt,
+        settlement_date: payDlg.settlement_date,
+        destination_treasury: payDlg.destination,
+        payment_method: payDlg.payment_method,
+        notes: payDlg.notes || null,
+        lab_movement_id: labMovementId,
+        created_by: user?.id ?? null,
+      });
+      if (error) return toast.error("تعذر تسجيل الدفعة: " + error.message);
+    }
 
     toast.success(payDlg.destination === "lab"
       ? "تم تسجيل السداد + إيراد بانتظار الاعتماد في خزنة المعمل"
@@ -255,6 +271,7 @@ export default function ExternalReceivables({ embedded = false }: Props) {
 
   async function deleteReceivable(r: Receivable) {
     if (!canWrite) return;
+    if (r.id.startsWith("hist:")) return toast.error("لا يمكن حذف مستحق سابق من هنا");
     const paidCount = settlements.filter(s => s.receivable_id === r.id).length;
     if (paidCount > 0) return toast.error("لا يمكن حذف مستحق له دفعات سداد");
     if (!confirm(`حذف المستحق: ${r.description}?`)) return;
