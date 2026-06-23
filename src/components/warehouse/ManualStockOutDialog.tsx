@@ -19,11 +19,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Info, Loader2, PackageMinus, Plus, Trash2 } from "lucide-react";
+import { Info, Loader2, PackageMinus, Plus, Printer, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import AddManualPartyDialog from "@/components/warehouse/AddManualPartyDialog";
+import { printWarehouseSlip, SlipItemRow } from "@/lib/printWarehouseSlip";
 
 interface InventoryItem {
   id: string;
