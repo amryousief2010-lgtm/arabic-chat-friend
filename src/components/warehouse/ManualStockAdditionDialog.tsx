@@ -557,14 +557,28 @@ const ManualStockAdditionDialog = ({
           </div>
         </div>
 
+        {lastSaved && (
+          <Alert className="border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30">
+            <Info className="h-4 w-4 text-emerald-700" />
+            <AlertDescription className="text-xs text-emerald-900 dark:text-emerald-200 flex items-center justify-between gap-2 flex-wrap">
+              <span>تم حفظ التوريد برقم <b>{lastSaved.opNo}</b> — يمكنك طباعة محضر التوريد الآن.</span>
+              <Button size="sm" variant="outline" onClick={handlePrint} className="border-emerald-400">
+                <Printer className="w-4 h-4 ml-1" /> طباعة محضر التوريد
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-            إلغاء
+            {lastSaved ? "إغلاق" : "إلغاء"}
           </Button>
-          <Button onClick={handleSave} disabled={!canSave} className="bg-emerald-600 hover:bg-emerald-700">
-            {saving ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <PackagePlus className="w-4 h-4 ml-1" />}
-            حفظ التوريد
-          </Button>
+          {!lastSaved && (
+            <Button onClick={handleSave} disabled={!canSave} className="bg-emerald-600 hover:bg-emerald-700">
+              {saving ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <PackagePlus className="w-4 h-4 ml-1" />}
+              حفظ التوريد
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
