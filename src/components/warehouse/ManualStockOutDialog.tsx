@@ -329,13 +329,18 @@ const ManualStockOutDialog = ({
         const pkgLine = info.manual
           ? `إدخال يدوي بالكيلو: ${info.qty} كجم`
           : `${info.pkgCount} عبوة × ${info.pkgWeight} كجم = ${info.qty} كجم`;
+        const reservedNow = Number(reservedByItem[itemId] || 0);
+        const availableAfter = stockBefore - reservedNow - info.qty;
         const combinedNotes = [
           `صرف مباشر مؤقت`,
           `رقم العملية: ${opNo}`,
           `جهة الصرف: ${destLabel}`,
           pkgLine,
+          `السبب: ${category}`,
           `القائم بالتوريد: ${reason.trim()}`,
           `تاريخ التوريد: ${deliveryDate}`,
+          reservedNow > 0 ? `محجوز للطلبات: ${reservedNow} ${unit}` : null,
+          availableAfter < 0 ? `⚠️ المتاح بعد الصرف: ${availableAfter} ${unit} — اعتماد مدير: ${profile?.full_name || ""} • سبب: ${overrideReason.trim()}` : null,
           notes.trim() ? `ملاحظات: ${notes.trim()}` : null,
           `قبل: ${stockBefore} ${unit}`,
           `بعد: ${stockAfter} ${unit}`,
@@ -355,7 +360,7 @@ const ManualStockOutDialog = ({
           reference: opNo,
           reference_type: "manual_out",
           party: partyWithPkg,
-          reason: reason.trim(),
+          reason: category,
           notes: combinedNotes,
           module: "warehouse_manual",
           performed_by: user?.id ?? null,
