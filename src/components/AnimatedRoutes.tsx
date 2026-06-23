@@ -995,6 +995,16 @@ const AnimatedRoutes = () => {
               <PageTransition><WarehouseReports /></PageTransition>
             </ProtectedRoute>
           } />
+          <Route path="/modules/warehouses/daily-report" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'accountant', 'financial_manager']}>
+              <PageTransition><WarehouseDailyReport /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/modules/warehouses/adjustments-log" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'accountant', 'financial_manager']}>
+              <PageTransition><WarehouseAdjustmentsLog /></PageTransition>
+            </ProtectedRoute>
+          } />
           <Route path="/modules/warehouses/main-guide" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper']}>
               <PageTransition><MainWarehouseGuide /></PageTransition>
