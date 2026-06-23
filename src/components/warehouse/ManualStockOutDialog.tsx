@@ -206,7 +206,8 @@ const ManualStockOutDialog = ({
 
   const handleSave = async () => {
     if (!validDest) { toast({ title: "اختر جهة الصرف", variant: "destructive" }); return; }
-    if (!reason.trim()) { toast({ title: "أدخل سبب الصرف", variant: "destructive" }); return; }
+    if (!reason.trim()) { toast({ title: "أدخل اسم القائم بالتوريد", variant: "destructive" }); return; }
+    if (!deliveryDate) { toast({ title: "اختر تاريخ التوريد", variant: "destructive" }); return; }
     if (mergedRows.size === 0) { toast({ title: "أضف صنف واحد على الأقل", variant: "destructive" }); return; }
     for (const r of rows) {
       if (!r.itemId) { toast({ title: "اختر الصنف في كل صف", variant: "destructive" }); return; }
