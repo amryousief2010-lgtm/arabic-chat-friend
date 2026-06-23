@@ -24,6 +24,8 @@ import RestaurantMenuTab from "@/components/warehouses/RestaurantMenuTab";
 import WarehouseStockView from "@/pages/WarehouseStockView";
 import WarehouseReceiptsTab from "@/components/warehouses/WarehouseReceiptsTab";
 import { isMainWarehouseExcludedCategory, isMainWarehouseName } from "@/constants/warehouseCategoryFilters";
+import MainWarehouseActivity from "@/pages/MainWarehouseActivity";
+import WarehouseReports from "@/pages/modules/WarehouseReports";
 
 
 const qualityLabelText: Record<string, string> = {
@@ -600,6 +602,7 @@ const Warehouses = () => {
               <TabsTrigger value="wh-carrefour" className="gap-1"><Warehouse className="w-4 h-4" />هايبر كارفور</TabsTrigger>
               <TabsTrigger value="wh-packaging" className="gap-1"><Package className="w-4 h-4" />التغليف والتعبئة</TabsTrigger>
               <TabsTrigger value="wh-activity" className="gap-1"><BarChart3 className="w-4 h-4" />سجل حركات المخزن الرئيسي</TabsTrigger>
+              <TabsTrigger value="reports" className="gap-1"><FileText className="w-4 h-4" />التقارير</TabsTrigger>
               <TabsTrigger value="menu" className="gap-1"><UtensilsCrossed className="w-4 h-4" />المنيو</TabsTrigger>
               <TabsTrigger value="more" className="gap-1"><Menu className="w-4 h-4" />المزيد</TabsTrigger>
             </TabsList>
@@ -961,17 +964,17 @@ const Warehouses = () => {
             const findByType = (type: string) => warehouses.find((w) => w.type === type);
 
             const TABS = [
-              { value: "wh-main", path: "/warehouse-stock/main", label: "المخزن الرئيسي",
+              { value: "wh-main", scope: "main", label: "المخزن الرئيسي",
                 wh: findByPatterns([/رئيسي/, /main/i]) },
-              { value: "wh-agouza", path: "/warehouse-stock/agouza", label: "مخزن العجوزة",
+              { value: "wh-agouza", scope: "agouza", label: "مخزن العجوزة",
                 wh: findByPatterns([/عجوزة/, /agouza/i]) },
-              { value: "wh-hht", path: "/warehouse-stock/hyper-healthy-test", label: "هايبر هيلثي تيست",
+              { value: "wh-hht", scope: "healthy", label: "هايبر هيلثي تيست",
                 wh: findByPatterns([/هيلثي/, /healthy/i]) },
-              { value: "wh-carrefour", path: "/warehouse-stock/hyper-carrefour", label: "هايبر كارفور",
+              { value: "wh-carrefour", scope: "carrefour", label: "هايبر كارفور",
                 wh: findByPatterns([/كارفور/, /carrefour/i]) },
-              { value: "wh-packaging", path: "/modules/packaging", label: "التغليف والتعبئة",
+              { value: "wh-packaging", label: "التغليف والتعبئة",
                 wh: findByPatterns([/تغليف/, /تعبئة/, /packaging/i]) || findByType("packaging") },
-              { value: "wh-activity", path: "/main-warehouse-activity", label: "سجل حركات المخزن الرئيسي",
+              { value: "wh-activity", label: "سجل حركات المخزن الرئيسي",
                 wh: findByPatterns([/رئيسي/, /main/i]) },
             ] as const;
 
