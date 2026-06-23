@@ -868,7 +868,6 @@ export default function LabTreasury() {
     `;
     openPrintWindow(title, html);
   }
-  }
 
   // ---- Operational reports (server-side via RPC) ----
   const [opReportType, setOpReportType] = useState<"hatching_customer" | "hatching_batch" | "chicksales_batch" | "chicksales_customer" | "net">("hatching_customer");
