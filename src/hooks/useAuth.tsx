@@ -143,11 +143,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
+    let currentUserId: string | null = null;
+
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        const newUserId = session?.user?.id ?? null;
         setSession(session);
         setUser(session?.user ?? null);
+
+        // Whenever the signed-in user changes (sign-in, sign-out, account
+        // switch), immediately wipe role/profile state so the UI cannot show
+        // the previous user's name or permissions during the async refetch.
+        if (newUserId !== currentUserId) {
+          setRole(null);
+          setRoles([]);
+          setProfile(null);
+          currentUserId = newUserId;
+        }
 
         // Skip INITIAL_SESSION — handled by getSession() below to avoid duplicate
         // role/profile fetches (4 extra round-trips on every page load).
@@ -155,12 +168,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         // Defer role fetch with setTimeout to prevent deadlock
         if (session?.user) {
+          const uid = session.user.id;
           setTimeout(() => {
-            fetchUserRoles(session.user.id).then(({ primary, all }) => {
+            fetchUserRoles(uid).then(({ primary, all }) => {
+              // Guard against late responses after the user changed again.
+              if (currentUserId !== uid) return;
               setRole(primary);
               setRoles(all);
             });
-            fetchUserProfile(session.user.id).then(setProfile);
+            fetchUserProfile(uid).then((p) => {
+              if (currentUserId !== uid) return;
+              setProfile(p);
+            });
           }, 0);
         } else {
           setRole(null);
@@ -174,14 +193,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      
+      currentUserId = session?.user?.id ?? null;
+
       if (session?.user) {
+        const uid = session.user.id;
         Promise.all([
-          fetchUserRoles(session.user.id).then(({ primary, all }) => {
+          fetchUserRoles(uid).then(({ primary, all }) => {
+            if (currentUserId !== uid) return;
             setRole(primary);
             setRoles(all);
           }),
-          fetchUserProfile(session.user.id).then(setProfile),
+          fetchUserProfile(uid).then((p) => {
+            if (currentUserId !== uid) return;
+            setProfile(p);
+          }),
         ]).finally(() => setLoading(false));
       } else {
         setLoading(false);
@@ -190,6 +215,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     return () => subscription.unsubscribe();
   }, []);
+
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
@@ -216,12 +242,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    // Clear local state BEFORE the network round-trip so the UI never shows
+    // the previous user's name/role during sign-out.
     setUser(null);
     setSession(null);
     setRole(null);
+    setRoles([]);
     setProfile(null);
+    await supabase.auth.signOut();
   };
+
 
   // Role checks — consider ALL of the user's roles, not only the primary one.
   const has = (r: AppRole) => roles.includes(r);
