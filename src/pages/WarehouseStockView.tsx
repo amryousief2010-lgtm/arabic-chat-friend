@@ -102,6 +102,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
   const [tableFilter, setTableFilter] = useState<null | "all" | "withStock" | "lowStock" | "overReserved">(null);
   const [cardSearch, setCardSearch] = useState("");
   const [showItemsTable, setShowItemsTable] = useState(false);
+  const [movDlg, setMovDlg] = useState<null | { itemId: string; name: string; unit: string; stock: number; whId: string; whLabel: string }>(null);
 
 
 
