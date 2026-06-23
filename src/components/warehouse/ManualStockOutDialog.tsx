@@ -195,7 +195,7 @@ const ManualStockOutDialog = ({
   }, [mergedRows, itemsById]);
 
   const validRows = rows.length > 0 && rows.every(r => r.itemId && rowQty(r) > 0);
-  const canSave = validDest && reason.trim().length > 0 && validRows
+  const canSave = validDest && reason.trim().length > 0 && deliveryDate.length > 0 && validRows
     && mergedRows.size > 0 && exceedRows.length === 0 && !saving;
 
   const updateRow = (uid: string, patch: Partial<Row>) =>
