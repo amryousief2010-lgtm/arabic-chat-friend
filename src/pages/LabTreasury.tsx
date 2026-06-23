@@ -1068,6 +1068,21 @@ export default function LabTreasury() {
             <Button
               variant="outline"
               size="sm"
+              onClick={() => navigate("/lab-treasury/external-receivables")}
+              className="gap-2 border-amber-400/50 bg-gradient-to-br from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 hover:border-amber-500 shadow-sm transition-all"
+              title="مستحقات خزنة المعمل الموجودة عند خزائن أخرى"
+            >
+              <Wallet className="w-4 h-4 text-amber-700" />
+              <span className="text-amber-900 font-semibold">مستحقات الخزنة عند الغير</span>
+              {externalReceivablesRem > 0 && (
+                <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 font-mono mr-1">
+                  {fmtNum(externalReceivablesRem, 0)} ج
+                </Badge>
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={printCensus}
               className="gap-2 relative overflow-hidden border-primary/30 bg-gradient-to-br from-background to-primary/5 hover:from-primary/5 hover:to-primary/10 hover:border-primary/50 shadow-sm hover:shadow-md hover:shadow-primary/10 transition-all"
             >
