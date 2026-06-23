@@ -1219,10 +1219,11 @@ const WarehouseDetail = () => {
                 <TableHeader><TableRow>
                   <TableHead>الصنف</TableHead><TableHead>الفئة</TableHead><TableHead>الرصيد</TableHead>
                   <TableHead>الوحدة</TableHead><TableHead>الحد الأدنى</TableHead><TableHead>التكلفة</TableHead>
+                  <TableHead className="text-center">سجل الحركة</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
                   {items.length === 0 ? (
-                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">لا توجد أصناف بهذا المخزن</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">لا توجد أصناف بهذا المخزن</TableCell></TableRow>
                   ) : items.map(it => (
                     <TableRow key={it.id} className={Number(it.stock) <= Number(it.low_stock_threshold) ? "bg-destructive/5" : ""}>
                       <TableCell className="font-medium flex items-center gap-2"><Package className="w-4 h-4 text-muted-foreground" />{it.name}{it.sku && <span className="text-xs text-muted-foreground">({it.sku})</span>}</TableCell>
@@ -1231,6 +1232,11 @@ const WarehouseDetail = () => {
                       <TableCell>{it.unit}</TableCell>
                       <TableCell>{it.low_stock_threshold}</TableCell>
                       <TableCell>{Number(it.unit_cost).toFixed(2)}</TableCell>
+                      <TableCell className="text-center">
+                        <Button size="sm" variant="outline" onClick={() => setItemMovItem(it)} className="gap-1">
+                          <History className="w-4 h-4" /> سجل الحركة
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
