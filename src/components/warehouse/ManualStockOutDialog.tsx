@@ -263,6 +263,7 @@ const ManualStockOutDialog = ({
   const handleSave = async () => {
     if (!validDest) { toast({ title: "اختر جهة الصرف", variant: "destructive" }); return; }
     if (!reason.trim()) { toast({ title: "أدخل اسم القائم بالتوريد", variant: "destructive" }); return; }
+    if (!isValidAdjustmentReason(category)) { toast({ title: "اختر سبب الصرف من القائمة (إجباري)", variant: "destructive" }); return; }
     if (!deliveryDate) { toast({ title: "اختر تاريخ التوريد", variant: "destructive" }); return; }
     if (mergedRows.size === 0) { toast({ title: "أضف صنف واحد على الأقل", variant: "destructive" }); return; }
     for (const r of rows) {
@@ -270,8 +271,24 @@ const ManualStockOutDialog = ({
       if (rowQty(r) <= 0) { toast({ title: "أدخل كمية صحيحة لكل صنف", variant: "destructive" }); return; }
     }
     if (exceedRows.length > 0) {
-      toast({ title: "الكمية أكبر من الرصيد المتاح في بعض الأصناف", variant: "destructive" });
+      toast({ title: "الكمية أكبر من الرصيد الفعلي في بعض الأصناف", variant: "destructive" });
       return;
+    }
+    if (hasNegativeAfter) {
+      if (!isManager) {
+        toast({
+          title: "صرف يجعل المتاح بالسالب — يتطلب صلاحية المدير العام أو التنفيذي",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (!overrideNegative || overrideReason.trim().length < 3) {
+        toast({
+          title: "فعّل تأكيد المدير وسجّل سببًا واضحًا (≥ ٣ حروف) للصرف بالسالب",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     setSaving(true);
