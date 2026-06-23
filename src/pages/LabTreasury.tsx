@@ -814,6 +814,7 @@ export default function LabTreasury() {
         break;
       default:
         toast.info(`المصدر: ${m.source_table} #${m.source_id?.slice(0, 8) || ""}`);
+    }
   }
 
   // ---- Print voucher (سند صرف / إيصال إيراد) ----
