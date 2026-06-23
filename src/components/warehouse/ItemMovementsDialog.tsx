@@ -59,6 +59,9 @@ const ItemMovementsDialog = ({ open, onOpenChange, item, warehouseId, warehouseN
   const [typeFilter, setTypeFilter] = useState<"all" | "in" | "out">("all");
   const [partyFilter, setPartyFilter] = useState<string>("all");
   const [search, setSearch] = useState<string>("");
+  // إقفال تاريخي: افتراضي = الحركات الحالية (>= cutoff). يمكن عرض الأرشيف أو الكل.
+  const [archiveScope, setArchiveScope] = useState<"current" | "archived" | "all">("current");
+  const cutoffMs = useMemo(() => new Date(MAIN_WAREHOUSE_OPERATIONAL_START_ISO).getTime(), []);
 
   useEffect(() => {
     if (!open || !item?.id) return;
