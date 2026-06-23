@@ -2196,6 +2196,14 @@ const WarehouseDetail = () => {
         />
       )}
 
+      <ItemMovementsDialog
+        open={!!itemMovItem}
+        onOpenChange={(o) => { if (!o) setItemMovItem(null); }}
+        item={itemMovItem}
+        warehouseId={id!}
+        warehouseName={warehouse?.name}
+      />
+
     </DashboardLayout>
 
 
