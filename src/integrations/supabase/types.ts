@@ -15557,6 +15557,158 @@ export type Database = {
         }
         Relationships: []
       }
+      stocktaking_lines: {
+        Row: {
+          actual_qty: number
+          created_at: string
+          created_by: string | null
+          diff: number | null
+          diff_value: number | null
+          id: string
+          item_id: string
+          notes: string | null
+          reason: string
+          session_id: string
+          system_qty: number
+          unit_cost: number
+          updated_at: string
+        }
+        Insert: {
+          actual_qty: number
+          created_at?: string
+          created_by?: string | null
+          diff?: number | null
+          diff_value?: number | null
+          id?: string
+          item_id: string
+          notes?: string | null
+          reason: string
+          session_id: string
+          system_qty?: number
+          unit_cost?: number
+          updated_at?: string
+        }
+        Update: {
+          actual_qty?: number
+          created_at?: string
+          created_by?: string | null
+          diff?: number | null
+          diff_value?: number | null
+          id?: string
+          item_id?: string
+          notes?: string | null
+          reason?: string
+          session_id?: string
+          system_qty?: number
+          unit_cost?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stocktaking_lines_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stocktaking_lines_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "v_inventory_balances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stocktaking_lines_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_stock_availability"
+            referencedColumns: ["inventory_item_id"]
+          },
+          {
+            foreignKeyName: "stocktaking_lines_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "stocktaking_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stocktaking_sessions: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          count_date: string
+          created_at: string
+          created_by: string | null
+          id: string
+          net_value: number
+          notes: string | null
+          reference_id: string | null
+          session_no: string
+          status: string
+          stocktaker_name: string
+          total_decrease: number
+          total_increase: number
+          warehouse_id: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          count_date?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          net_value?: number
+          notes?: string | null
+          reference_id?: string | null
+          session_no: string
+          status?: string
+          stocktaker_name: string
+          total_decrease?: number
+          total_increase?: number
+          warehouse_id: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          count_date?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          net_value?: number
+          notes?: string | null
+          reference_id?: string | null
+          session_no?: string
+          status?: string
+          stocktaker_name?: string
+          total_decrease?: number
+          total_increase?: number
+          warehouse_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stocktaking_sessions_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_stock_availability"
+            referencedColumns: ["warehouse_id"]
+          },
+          {
+            foreignKeyName: "stocktaking_sessions_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suppressed_emails: {
         Row: {
           created_at: string
@@ -17002,6 +17154,10 @@ export type Database = {
         Args: { p_batch_id: string }
         Returns: undefined
       }
+      approve_stocktaking_session: {
+        Args: { p_session_id: string }
+        Returns: string
+      }
       approve_warehouse_opening_balance: {
         Args: { p_id: string }
         Returns: string
@@ -17095,6 +17251,10 @@ export type Database = {
       cancel_meat_sales_return: { Args: { p_id: string }; Returns: string }
       cancel_mf_invoice: {
         Args: { p_id: string; p_reason: string; p_source_type: string }
+        Returns: undefined
+      }
+      cancel_stocktaking_session: {
+        Args: { p_session_id: string }
         Returns: undefined
       }
       cancel_transfer: {
@@ -17379,6 +17539,15 @@ export type Database = {
         }
         Returns: string
       }
+      create_stocktaking_session: {
+        Args: {
+          p_count_date?: string
+          p_notes?: string
+          p_stocktaker_name: string
+          p_warehouse_id: string
+        }
+        Returns: string
+      }
       customer_has_other_order_today: {
         Args: { p_customer_id: string; p_user_id: string }
         Returns: boolean
@@ -17414,6 +17583,10 @@ export type Database = {
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
+      }
+      delete_stocktaking_line: {
+        Args: { p_line_id: string }
+        Returns: undefined
       }
       dismiss_proposal: {
         Args: { p_id: string; p_reason: string }
@@ -18574,6 +18747,16 @@ export type Database = {
       update_transfer_request_quantities: {
         Args: { p_lines: Json; p_transfer_id: string }
         Returns: Json
+      }
+      upsert_stocktaking_line: {
+        Args: {
+          p_actual_qty: number
+          p_item_id: string
+          p_notes?: string
+          p_reason: string
+          p_session_id: string
+        }
+        Returns: string
       }
       validate_feed_bom: { Args: { p_recipe_id: string }; Returns: Json }
       validate_meat_bom: {
