@@ -6,7 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, RefreshCw, Warehouse, Printer, Pencil, Check, X, ArrowLeftRight, AlertTriangle, PackageCheck, Lock, PackagePlus, PackageMinus, Package, History } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Search, RefreshCw, Warehouse, Printer, Pencil, Check, X, ArrowLeftRight, AlertTriangle, PackageCheck, Lock, PackagePlus, PackageMinus, Package, History, Wallet, Clock, Boxes } from "lucide-react";
 import ItemMovementsDialog from "@/components/warehouse/ItemMovementsDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { printWarehouseStock } from "@/lib/printUtils";
@@ -17,6 +19,7 @@ import ManualStockAdditionDialog from "@/components/warehouse/ManualStockAdditio
 import ManualStockOutDialog from "@/components/warehouse/ManualStockOutDialog";
 import MainCardDialog from "@/components/warehouse/MainCardDialog";
 import { MAIN_WAREHOUSE_OPERATIONAL_START, MAIN_WAREHOUSE_OPERATIONAL_START_ISO } from "@/constants/warehouseOperations";
+import companyLogo from "@/assets/company-logo.jpg";
 
 interface Product { id: string; name: string; unit: string; category?: string | null; }
 
