@@ -235,12 +235,19 @@ export default function LabTreasury() {
 
   useEffect(() => {
     (async () => {
-      const { data } = await (supabase as any)
-        .from("lab_treasury_external_receivables")
-        .select("amount,paid_amount,status")
-        .neq("status", "paid");
-      const sum = (data || []).reduce((s: number, r: any) => s + (Number(r.amount) - Number(r.paid_amount)), 0);
-      setExternalReceivablesRem(sum);
+      const [r1, r2] = await Promise.all([
+        (supabase as any)
+          .from("lab_treasury_external_receivables")
+          .select("amount,paid_amount,status")
+          .neq("status", "paid"),
+        (supabase as any)
+          .from("lab_treasury_historical_receivables")
+          .select("total_amount,paid_amount")
+          .neq("status", "paid"),
+      ]);
+      const newSum = (r1.data || []).reduce((s: number, r: any) => s + (Number(r.amount) - Number(r.paid_amount)), 0);
+      const histSum = (r2.data || []).reduce((s: number, r: any) => s + (Number(r.total_amount) - Number(r.paid_amount)), 0);
+      setExternalReceivablesRem(newSum + histSum);
     })();
   }, []);
 
