@@ -240,6 +240,7 @@ export default function LabTreasury() {
   const [fPayment, setFPayment] = useState<string>("all");
   const [fStatus, setFStatus] = useState<string>("all");
   const [fCustomer, setFCustomer] = useState("");
+  const [fSource, setFSource] = useState<string>("all"); // all | manual | auto | cancelled
 
   // forms
   const [incForm, setIncForm] = useState({
