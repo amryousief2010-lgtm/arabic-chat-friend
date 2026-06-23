@@ -3204,6 +3204,9 @@ export type Database = {
       feed_factory_treasury_txns: {
         Row: {
           amount: number
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           created_at: string
           created_by: string | null
           direction: string
@@ -3213,11 +3216,15 @@ export type Database = {
           party: string | null
           ref_id: string | null
           ref_table: string | null
+          status: string
           txn_date: string
           txn_no: string
         }
         Insert: {
           amount: number
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           created_at?: string
           created_by?: string | null
           direction: string
@@ -3227,11 +3234,15 @@ export type Database = {
           party?: string | null
           ref_id?: string | null
           ref_table?: string | null
+          status?: string
           txn_date?: string
           txn_no: string
         }
         Update: {
           amount?: number
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           created_at?: string
           created_by?: string | null
           direction?: string
@@ -3241,6 +3252,7 @@ export type Database = {
           party?: string | null
           ref_id?: string | null
           ref_table?: string | null
+          status?: string
           txn_date?: string
           txn_no?: string
         }
@@ -17456,6 +17468,10 @@ export type Database = {
           sales_today: number
           sales_year: number
         }[]
+      }
+      feed_treasury_cancel_txn: {
+        Args: { p_id: string; p_reason: string }
+        Returns: Json
       }
       finalize_feed_production: {
         Args: { _invoice_id: string }
