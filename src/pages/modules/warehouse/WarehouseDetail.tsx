@@ -1216,7 +1216,6 @@ const WarehouseDetail = () => {
                 <TableHeader><TableRow>
                   <TableHead>الصنف</TableHead><TableHead>الفئة</TableHead><TableHead>الرصيد</TableHead>
                   <TableHead>الوحدة</TableHead><TableHead>الحد الأدنى</TableHead><TableHead>التكلفة</TableHead>
-                  <TableHead className="text-center">سجل الحركة</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
                   {items.length === 0 ? (
