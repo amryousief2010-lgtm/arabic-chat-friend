@@ -549,20 +549,46 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
 
 
   const content = (
-    <>
+    <TooltipProvider delayDuration={200}>
       {!embedded && <Header title={title} subtitle={subtitle} />}
 
-
-      {isSingleScope(scope) && currentWhId && (
-        <div className="flex flex-wrap gap-2 mb-3">
-          <Button size="sm" onClick={() => setManualAddOpen(true)} className="bg-emerald-600 hover:bg-emerald-700">
-            <PackagePlus className="w-4 h-4 ml-1" /> إضافة رصيد / توريد مباشر
-          </Button>
-          <Button size="sm" onClick={() => setManualOutOpen(true)} className="bg-rose-600 hover:bg-rose-700">
-            <PackageMinus className="w-4 h-4 ml-1" /> صرف منتجات / توريد للجهات
-          </Button>
-        </div>
+      {/* Premium hero header */}
+      {isSingleScope(scope) && (
+        <Card className="mb-4 overflow-hidden border-primary/10 shadow-sm">
+          <div className="relative bg-gradient-to-l from-primary/8 via-background to-orange-500/8 p-5">
+            <div className="flex flex-col md:flex-row md:items-center gap-4">
+              <div className="flex items-center gap-3">
+                <div className="h-14 w-14 rounded-2xl bg-white shadow-sm ring-1 ring-primary/15 flex items-center justify-center overflow-hidden shrink-0">
+                  <img src={companyLogo} alt="نعام العاصمة" className="h-12 w-12 object-contain" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold tracking-tight flex items-center gap-2">
+                    <Warehouse className="w-5 h-5 text-primary" />
+                    {title}
+                  </h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    الفعلي • المحجوز للطلبات • المتاح للبيع
+                  </p>
+                </div>
+              </div>
+              {currentWhId && (
+                <div className="md:ms-auto flex flex-wrap gap-2">
+                  <Button size="sm" onClick={() => setManualAddOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 shadow-sm h-9">
+                    <PackagePlus className="w-4 h-4 ml-1.5" /> إضافة رصيد / توريد
+                  </Button>
+                  <Button size="sm" onClick={() => setManualOutOpen(true)} className="bg-rose-600 hover:bg-rose-700 shadow-sm h-9">
+                    <PackageMinus className="w-4 h-4 ml-1.5" /> صرف / توريد للجهات
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={fetchAll} disabled={loading} className="h-9">
+                    <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        </Card>
       )}
+
 
       {isSingleScope(scope) && currentWhId && (
         <>
