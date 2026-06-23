@@ -56,7 +56,8 @@ export default function WarehouseStocktaking() {
     const reason = reasons[it.id];
     if (a === undefined || a === "") { toast.error("أدخل الكمية الفعلية"); return; }
     if (!reason || reason.trim().length < 3) { toast.error("اكتب سبب التسوية"); return; }
-    if (!canApprove) { toast.error("التسوية تتطلب صلاحية مدير"); return; }
+    if (!stocktaker.trim()) { toast.error("اكتب اسم القائم بالجرد"); return; }
+    if (!canApprove) { toast.error("اعتماد وتعديل الجرد النهائي متاح فقط للمدير العام أو المدير التنفيذي."); return; }
     setBusy(it.id);
     try {
       const { error } = await supabase.rpc("submit_stock_adjustment", {
