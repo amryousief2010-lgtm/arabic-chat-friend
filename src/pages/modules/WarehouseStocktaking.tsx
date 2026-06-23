@@ -16,7 +16,7 @@ import { toast } from "sonner";
 interface Item { id: string; name: string; unit: string; stock: number; unit_cost: number; warehouse_id: string }
 
 export default function WarehouseStocktaking() {
-  const { isGeneralManager, isExecutiveManager } = useAuth();
+  const { isGeneralManager, isExecutiveManager, profile, role } = useAuth();
   const canApprove = isGeneralManager || isExecutiveManager;
   const [warehouses, setWarehouses] = useState<{ id: string; name: string }[]>([]);
   const [activeWh, setActiveWh] = useState<string>("");
@@ -26,6 +26,9 @@ export default function WarehouseStocktaking() {
   const [busy, setBusy] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
+  const [stocktaker, setStocktaker] = useState<string>("عبدالمنعم عثمان");
+  const [countDate, setCountDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+
 
   useEffect(() => {
     supabase.from("warehouses").select("id, name").eq("is_active", true).order("name").then(({ data }) => {
@@ -53,7 +56,8 @@ export default function WarehouseStocktaking() {
     const reason = reasons[it.id];
     if (a === undefined || a === "") { toast.error("أدخل الكمية الفعلية"); return; }
     if (!reason || reason.trim().length < 3) { toast.error("اكتب سبب التسوية"); return; }
-    if (!canApprove) { toast.error("التسوية تتطلب صلاحية مدير"); return; }
+    if (!stocktaker.trim()) { toast.error("اكتب اسم القائم بالجرد"); return; }
+    if (!canApprove) { toast.error("اعتماد وتعديل الجرد النهائي متاح فقط للمدير العام أو المدير التنفيذي."); return; }
     setBusy(it.id);
     try {
       const { error } = await supabase.rpc("submit_stock_adjustment", {
@@ -112,6 +116,14 @@ export default function WarehouseStocktaking() {
                 </Select>
               </div>
               <div className="flex-1 min-w-[200px]">
+                <Label className="text-xs">القائم بالجرد / مسؤول المخزن *</Label>
+                <Input value={stocktaker} onChange={(e) => setStocktaker(e.target.value)} placeholder="اسم القائم بالجرد" />
+              </div>
+              <div className="w-[180px]">
+                <Label className="text-xs">تاريخ الجرد *</Label>
+                <Input type="date" value={countDate} onChange={(e) => setCountDate(e.target.value)} />
+              </div>
+              <div className="flex-1 min-w-[200px]">
                 <Label className="text-xs">بحث</Label>
                 <div className="relative">
                   <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -119,6 +131,16 @@ export default function WarehouseStocktaking() {
                 </div>
               </div>
             </div>
+
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription className="text-xs">
+                <strong>القائم بالجرد:</strong> {stocktaker || "—"} — يجهّز الأرقام ويسجل الفروق.
+                <br />
+                <strong>المعتمد:</strong> {canApprove ? `${profile?.full_name || "—"} (${role})` : "المدير العام / المدير التنفيذي فقط"} — اعتماد الرصيد النهائي وتثبيت التسوية متاح لهذين الدورين فقط.
+              </AlertDescription>
+            </Alert>
+
 
             <div className="overflow-x-auto">
               <Table>
