@@ -22,9 +22,10 @@ const Row = ({ k, v, color }: { k: string; v: string; color?: string }) => (
   </div>
 );
 
-const MainWarehouseGuide = () => {
-  return (
-    <DashboardLayout>
+interface MainWarehouseGuideProps { embedded?: boolean }
+
+const MainWarehouseGuide = ({ embedded = false }: MainWarehouseGuideProps) => {
+  const content = (
       <div className="space-y-6 max-w-6xl mx-auto pb-12">
         {/* Hero */}
         <div className="flex items-center gap-4 bg-gradient-to-l from-primary/10 to-transparent p-5 rounded-2xl">
@@ -238,8 +239,9 @@ const MainWarehouseGuide = () => {
           </ol>
         </Section>
       </div>
-    </DashboardLayout>
   );
+
+  return embedded ? content : <DashboardLayout>{content}</DashboardLayout>;
 };
 
 export default MainWarehouseGuide;
