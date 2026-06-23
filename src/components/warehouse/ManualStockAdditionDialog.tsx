@@ -28,7 +28,7 @@ import AddManualPartyDialog from "@/components/warehouse/AddManualPartyDialog";
 import { printWarehouseSlip, SlipItemRow } from "@/lib/printWarehouseSlip";
 import { STOCK_ADJUSTMENT_REASONS, isValidAdjustmentReason } from "@/lib/warehouseAdjustmentReasons";
 import { useStocktakingLock } from "@/hooks/useStocktakingLock";
-import { ShieldCheck, Lock } from "lucide-react";
+import { Lock } from "lucide-react";
 
 interface InventoryItem {
   id: string;
