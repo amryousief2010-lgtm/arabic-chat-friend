@@ -370,6 +370,16 @@ const ManualStockAdditionDialog = ({
           </AlertDescription>
         </Alert>
 
+        {lock && (
+          <Alert className="border-violet-300 bg-violet-50 dark:bg-violet-950/30">
+            <Lock className="h-4 w-4 text-violet-700" />
+            <AlertDescription className="text-xs text-violet-900 dark:text-violet-200">
+              <b>تم اعتماد جرد رسمي</b> لهذا المخزن (جلسة {lock.sessionNo} — {new Date(lock.approvedAt).toLocaleString("ar-EG-u-nu-latn")}).
+              أي توريد بعد هذا التاريخ يُسجَّل كحركة موثقة بسبب وصاحب توريد ولا يعدّل الرصيد المعتمد إلا بحركة رسمية.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <div className="space-y-3">
           <div>
             <Label className="text-xs">جهة التوريد *</Label>
