@@ -1507,7 +1507,7 @@ export default function LabTreasury() {
           <TabsContent value="log" className="space-y-3">
             <Card>
               <CardHeader><CardTitle>فلاتر</CardTitle></CardHeader>
-              <CardContent className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
+              <CardContent className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2">
                 <Field label="من"><Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} /></Field>
                 <Field label="إلى"><Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} /></Field>
                 <Field label="النوع">
