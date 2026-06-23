@@ -565,6 +565,24 @@ export default function ExternalReceivables({ embedded = false }: Props) {
                 <div className="text-xs text-muted-foreground">
                   مصدر: {viewDlg.row.source_type} {viewDlg.row.source_id ? `(${viewDlg.row.source_id.slice(0,8)})` : ""}
                 </div>
+              {viewDlg.row.id.startsWith("hist:") && (histItemsByRid[viewDlg.row.id] || []).length > 0 && (
+                <div className="mt-3">
+                  <h3 className="font-bold mb-1">تفاصيل بنود المستحق السابق</h3>
+                  <Table>
+                    <TableHeader><TableRow>
+                      <TableHead>التاريخ</TableHead><TableHead>البيان</TableHead><TableHead>المبلغ</TableHead>
+                    </TableRow></TableHeader>
+                    <TableBody>
+                      {histItemsByRid[viewDlg.row.id].map((it: any) => (
+                        <TableRow key={it.id}>
+                          <TableCell className="whitespace-nowrap">{fmtDateAr(it.entry_date)}</TableCell>
+                          <TableCell>{it.description}</TableCell>
+                          <TableCell className="font-mono">{fmtNum(Number(it.amount), 2)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
               <div className="mt-3">
                 <h3 className="font-bold mb-1">دفعات السداد</h3>
