@@ -25,7 +25,7 @@ import IncomingCustodyTransfers from "@/components/treasury/IncomingCustodyTrans
 
 import {
   Wallet, Plus, ShieldAlert, CheckCircle2, XCircle, MessageSquare, Upload,
-  Printer, FileSpreadsheet, AlertTriangle, ScrollText, Beef, Sparkles, Clock, Activity, Receipt, TrendingDown, Trash2, Pencil,
+  Printer, FileSpreadsheet, AlertTriangle, ScrollText, Beef, Sparkles, Clock, Activity, Receipt, TrendingDown, Trash2, Pencil, Eye,
 } from "lucide-react";
 import { PremiumStat, HeroSummary, SectionTitle, StatusPill, DashboardSkeleton, EmptyState, ActivityTimeline, ProgressRing, getCairoNow } from "@/components/treasury/PremiumUI";
 
@@ -113,28 +113,74 @@ export default function SlaughterhouseCustody() {
   // Filters
   const [fStatus, setFStatus] = useState<string>("all");
   const [fCat, setFCat] = useState<string>("all");
+  const [fSource, setFSource] = useState<string>("all"); // all | manual | auto | cancelled
 
   // Dialogs
   const [reviewDlg, setReviewDlg] = useState<{ open: boolean; exp: Expense | null; action: "approve" | "reject" | "clarify" | "approve_over"; reason: string }>({ open: false, exp: null, action: "approve", reason: "" });
   const [commentDlg, setCommentDlg] = useState<{ open: boolean; exp: Expense | null; body: string }>({ open: false, exp: null, body: "" });
   const [editDlg, setEditDlg] = useState<{ open: boolean; exp: Expense | null; form: { expense_date: string; category: Category; description: string; amount: string; payment_method: PM; beneficiary: string; notes: string } }>({ open: false, exp: null, form: { expense_date: "", category: "maintenance", description: "", amount: "", payment_method: "cash", beneficiary: "", notes: "" } });
+  const [detailsDlg, setDetailsDlg] = useState<{ open: boolean; exp: Expense | null }>({ open: false, exp: null });
+  const [cancelDlg, setCancelDlg] = useState<{ open: boolean; exp: Expense | null; reason: string }>({ open: false, exp: null, reason: "" });
+  const [creatorNames, setCreatorNames] = useState<Record<string,string>>({});
 
   const canEditAny = isGeneralManager || isExecutiveManager;
 
-  async function deleteExpense(exp: Expense) {
-    const ok = window.confirm(
-      `هل أنت متأكد من حذف هذا المصروف؟\n\n` +
-      `البند: ${CAT_LBL[exp.category] || exp.category}\n` +
-      `المبلغ: ${Number(exp.amount).toLocaleString("ar-EG")} ج\n` +
-      `التاريخ: ${exp.expense_date}\n\n` +
-      `سيتم إرجاع المبلغ تلقائيًا إلى رصيد الخزنة، وإلغاء أي خصم HR مرتبط (مثل سلف الموظفين).`
-    );
-    if (!ok) return;
+  async function confirmCancelExpense() {
+    if (!cancelDlg.exp) return;
+    const reason = cancelDlg.reason.trim();
+    if (reason.length < 3) return toast.error("سبب الإلغاء إلزامي (3 أحرف على الأقل)");
+    if (!canEditAny) return toast.error("الإلغاء/الحذف متاح للمدير العام أو التنفيذي فقط");
+    const exp = cancelDlg.exp;
+    // Audit first with reason, then delete (delete trigger also audits)
+    try {
+      await (supabase as any).from("slaughter_custody_audit_log").insert({
+        action: "cancel_expense", entity: "expense", entity_id: exp.id, actor_id: user?.id || null,
+        payload: { reason, snapshot: exp },
+      });
+    } catch {}
     const { error } = await (supabase as any).from("slaughter_custody_expenses").delete().eq("id", exp.id);
-    if (error) return toast.error("فشل الحذف: " + error.message);
-    toast.success("تم حذف المصروف وإرجاع المبلغ للخزنة");
+    if (error) return toast.error("فشل الإلغاء: " + error.message);
+    toast.success("تم إلغاء المصروف وإرجاع المبلغ للخزنة، وتم تسجيله في سجل التدقيق");
+    setCancelDlg({ open: false, exp: null, reason: "" });
     fetchAll();
   }
+
+  function printExpenseVoucher(e: Expense) {
+    const title = "سند صرف عهدة المجزر";
+    const catLabel = CAT_LBL[e.category] || e.category;
+    const userName = creatorNames[e.created_by] || "—";
+    const html = `
+      <div style="font-family: 'Cairo', sans-serif; padding: 24px; max-width: 720px; margin: 0 auto;">
+        <div style="text-align:center; border-bottom: 2px solid #b91c1c; padding-bottom: 12px; margin-bottom: 16px;">
+          <h1 style="margin:0; color:#b91c1c;">شركة نعام العاصمة</h1>
+          <h2 style="margin:6px 0 0; color:#1f2937;">${title}</h2>
+          <div style="font-size:12px; color:#6b7280; margin-top:4px;">خزنة عهدة المجزر</div>
+        </div>
+        <table style="width:100%; border-collapse: collapse; font-size: 14px;">
+          <tbody>
+            <tr><td style="padding:6px 8px; background:#f9fafb; width:35%;">رقم المصروف</td><td style="padding:6px 8px;">${escapeHtml(e.id.slice(0,8))}</td></tr>
+            <tr><td style="padding:6px 8px; background:#f9fafb;">التاريخ</td><td style="padding:6px 8px;">${escapeHtml(e.expense_date)}</td></tr>
+            <tr><td style="padding:6px 8px; background:#f9fafb;">البند</td><td style="padding:6px 8px;">${escapeHtml(catLabel)}</td></tr>
+            <tr><td style="padding:6px 8px; background:#f9fafb;">الوصف</td><td style="padding:6px 8px;">${escapeHtml(e.description || "—")}</td></tr>
+            ${e.beneficiary ? `<tr><td style="padding:6px 8px; background:#f9fafb;">المستفيد</td><td style="padding:6px 8px;">${escapeHtml(e.beneficiary)}</td></tr>` : ""}
+            <tr><td style="padding:10px 8px; background:#fef3c7; font-weight:bold;">المبلغ</td><td style="padding:10px 8px; font-weight:bold; font-size:18px; color:#b91c1c;">${fmtNum(Number(e.amount),2)} ج.م</td></tr>
+            <tr><td style="padding:6px 8px; background:#f9fafb;">طريقة الدفع</td><td style="padding:6px 8px;">${escapeHtml(PM_LBL[e.payment_method])}</td></tr>
+            <tr><td style="padding:6px 8px; background:#f9fafb;">الحالة</td><td style="padding:6px 8px;">${escapeHtml(ST_LBL[e.status])}</td></tr>
+            <tr><td style="padding:6px 8px; background:#f9fafb;">سجّل بواسطة</td><td style="padding:6px 8px;">${escapeHtml(userName)}</td></tr>
+            <tr><td style="padding:6px 8px; background:#f9fafb;">تاريخ التسجيل</td><td style="padding:6px 8px;">${escapeHtml(fmtDate(e.created_at))}</td></tr>
+            ${e.notes ? `<tr><td style="padding:6px 8px; background:#f9fafb;">ملاحظات</td><td style="padding:6px 8px;">${escapeHtml(e.notes)}</td></tr>` : ""}
+            ${e.rejection_reason ? `<tr><td style="padding:6px 8px; background:#fee2e2;">سبب الرفض / الإلغاء</td><td style="padding:6px 8px;">${escapeHtml(e.rejection_reason)}</td></tr>` : ""}
+          </tbody>
+        </table>
+        <div style="display:flex; justify-content:space-between; margin-top:48px; font-size:13px;">
+          <div style="text-align:center;"><div style="border-top:1px solid #1f2937; padding-top:6px; width:180px;">توقيع المستلم</div></div>
+          <div style="text-align:center;"><div style="border-top:1px solid #1f2937; padding-top:6px; width:180px;">توقيع المسؤول</div></div>
+        </div>
+      </div>
+    `;
+    openPrintWindow(title, html);
+  }
+
 
 
   async function saveEdit() {
@@ -704,12 +750,13 @@ export default function SlaughterhouseCustody() {
               <Table>
                 <TableHeader><TableRow>
                   <TableHead>التاريخ</TableHead><TableHead>البند</TableHead><TableHead>الوصف</TableHead>
-                  <TableHead>المبلغ</TableHead><TableHead>الدفع</TableHead><TableHead>الحالة</TableHead>
-                  <TableHead>إجراء</TableHead>
+                  <TableHead>المبلغ</TableHead><TableHead>الدفع</TableHead><TableHead>المصدر</TableHead><TableHead>الحالة</TableHead>
+                  <TableHead>إجراءات</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
                   {visibleExpenses.map((e) => {
                     const expComments = comments.filter((c) => c.expense_id === e.id);
+                    const isCancelled = e.status === "rejected";
                     return (
                       <TableRow key={e.id} className={e.over_limit ? "bg-orange-50 dark:bg-orange-950/20" : ""}>
                         <TableCell>{e.expense_date}</TableCell>
@@ -717,12 +764,17 @@ export default function SlaughterhouseCustody() {
                         <TableCell className="text-xs max-w-xs truncate" title={e.description}>{e.description}</TableCell>
                         <TableCell className="font-mono">{fmtNum(e.amount, 2)}</TableCell>
                         <TableCell className="text-xs">{PM_LBL[e.payment_method]}</TableCell>
+                        <TableCell className="text-xs">
+                          {isCancelled ? <Badge variant="destructive">ملغى</Badge> : <Badge variant="outline">يدوي</Badge>}
+                        </TableCell>
                         <TableCell>
                           <Badge variant={e.status === "approved" ? "default" : e.status === "rejected" ? "destructive" : "secondary"}>{ST_LBL[e.status]}</Badge>
                           {e.rejection_reason && <div className="text-[10px] text-destructive mt-1">{e.rejection_reason}</div>}
                           {!!expComments.length && <div className="text-[10px] text-muted-foreground mt-1">{expComments.length} تعليق</div>}
                         </TableCell>
                         <TableCell className="space-x-1 space-x-reverse">
+                          <Button size="icon" variant="ghost" title="عرض التفاصيل" onClick={() => setDetailsDlg({ open: true, exp: e })}><Eye className="w-4 h-4" /></Button>
+                          <Button size="icon" variant="ghost" title="طباعة سند صرف" onClick={() => printExpenseVoucher(e)}><Printer className="w-4 h-4" /></Button>
                           {isManager && (e.status === "pending_review" || e.status === "clarification_needed") && (
                             <>
                               <Button size="sm" variant="default" onClick={() => setReviewDlg({ open: true, exp: e, action: "approve", reason: "" })}><CheckCircle2 className="w-3 h-3" /></Button>
@@ -754,15 +806,15 @@ export default function SlaughterhouseCustody() {
                             })}><Pencil className="w-3 h-3 ml-1" />تعديل</Button>
                           )}
                           {canEditAny && (
-                            <Button size="sm" variant="destructive" title="حذف المصروف وإرجاع المبلغ للخزنة" onClick={() => deleteExpense(e)}>
-                              <Trash2 className="w-3 h-3 ml-1" />حذف
+                            <Button size="icon" variant="ghost" className="text-destructive" title="إلغاء / حذف المصروف (سبب إلزامي)" onClick={() => setCancelDlg({ open: true, exp: e, reason: "" })}>
+                              <Trash2 className="w-4 h-4" />
                             </Button>
                           )}
                         </TableCell>
                       </TableRow>
                     );
                   })}
-                  {!visibleExpenses.length && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">لا توجد مصروفات</TableCell></TableRow>}
+                  {!visibleExpenses.length && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">لا توجد مصروفات</TableCell></TableRow>}
                 </TableBody>
               </Table>
             </CardContent></Card>

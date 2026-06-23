@@ -12,9 +12,9 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Wallet, Plus, Printer, CheckCircle2, XCircle, ArrowDownToLine, ArrowUpFromLine, Send, ShieldCheck, AlertTriangle, Banknote, Building2, Smartphone, FileDown, History } from "lucide-react";
+import { Wallet, Plus, Printer, CheckCircle2, XCircle, ArrowDownToLine, ArrowUpFromLine, Send, ShieldCheck, AlertTriangle, Banknote, Building2, Smartphone, FileDown, History, Eye, Trash2, Link2 } from "lucide-react";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate } from "@/lib/printPdf";
 import * as XLSX from "xlsx";
 import BankAccountPanel from "@/components/main-treasury/BankAccountPanel";
@@ -31,6 +31,7 @@ type Txn = {
   requires_dual_approval: boolean; rejection_reason: string | null; created_at: string; created_by: string;
   approver_1_id: string | null; approver_1_at: string | null; approver_2_id: string | null; posted_at: string | null;
   payment_method: string | null;
+  transfer_group_id: string | null;
 };
 type CustodyTransfer = { id: string; main_txn_id: string; custody_keeper_id: string; amount: number; transfer_date: string; status: string; received_at: string|null };
 
@@ -60,6 +61,7 @@ export default function MainTreasury() {
   const isApprover = rs.some(r => ["main_treasury_approver","general_manager","executive_manager","financial_manager"].includes(r));
   const isAccountant = rs.includes("main_treasury_accountant");
   const canWrite = isApprover || isAccountant;
+  const canCancel = rs.some(r => ["general_manager","executive_manager"].includes(r));
 
 
   const [loading, setLoading] = useState(true);
@@ -88,11 +90,14 @@ export default function MainTreasury() {
   const [rejectDlg, setRejectDlg] = useState<{open:boolean; txn?:Txn; reason:string}>({ open:false, reason:"" });
   const [newCatDlg, setNewCatDlg] = useState<{open:boolean; label:string; notes:string; busy:boolean}>({ open:false, label:"", notes:"", busy:false });
   const [editOpenBal, setEditOpenBal] = useState<{open:boolean; account?:Account; value:string}>({ open:false, value:"" });
-  const [logFilter, setLogFilter] = useState({ account_id: "all", txn_type: "all", status: "all", from: "", to: "", search: "" });
+  const [logFilter, setLogFilter] = useState({ account_id: "all", txn_type: "all", status: "all", from: "", to: "", search: "", source: "all" });
   const [busy, setBusy] = useState(false);
   const [txnUuid, setTxnUuid] = useState<string>(() => crypto.randomUUID());
   const [transferUuid, setTransferUuid] = useState<string>(() => crypto.randomUUID());
   const [auditLog, setAuditLog] = useState<Array<{id:string;txn_id:string|null;action:string;old_status:string|null;new_status:string|null;performed_at:string;performed_by:string;details:any}>>([]);
+  const [detailsDlg, setDetailsDlg] = useState<{ open: boolean; txn: Txn | null }>({ open: false, txn: null });
+  const [cancelDlg, setCancelDlg] = useState<{ open: boolean; txn: Txn | null; reason: string }>({ open: false, txn: null, reason: "" });
+  const [creatorNames, setCreatorNames] = useState<Record<string,string>>({});
 
   async function fetchAll() {
     setLoading(true);
@@ -138,6 +143,33 @@ export default function MainTreasury() {
   }
   useEffect(() => { if (user) fetchAll(); /* eslint-disable-next-line */ }, [user?.id]);
 
+  // Resolve names of creators for displayed transactions
+  useEffect(() => {
+    const ids = Array.from(new Set(txns.map(t => t.created_by).filter(Boolean)));
+    const missing = ids.filter(id => !creatorNames[id]);
+    if (missing.length === 0) return;
+    (supabase as any).from("profile_directory").select("id, full_name").in("id", missing).then(({ data }: any) => {
+      const m: Record<string,string> = {};
+      (data || []).forEach((p: any) => { if (p.full_name) m[p.id] = p.full_name; });
+      if (Object.keys(m).length) setCreatorNames(prev => ({ ...prev, ...m }));
+    });
+  }, [txns]);
+
+  async function cancelTxn() {
+    if (!cancelDlg.txn) return;
+    const reason = cancelDlg.reason.trim();
+    if (reason.length < 3) return toast.error("سبب الإلغاء إلزامي (3 أحرف على الأقل)");
+    if (!canCancel) return toast.error("الإلغاء متاح للمدير العام أو التنفيذي فقط");
+    setBusy(true);
+    const { error } = await (supabase as any).rpc("mt_reject_txn", { p_txn_id: cancelDlg.txn.id, p_reason: reason });
+    setBusy(false);
+    if (error) return toast.error(error.message || "لا يمكن إلغاء هذه الحركة (قد تكون مُرحَّلة بالفعل)");
+    toast.success("تم إلغاء الحركة وتسجيلها في سجل التدقيق");
+    setCancelDlg({ open: false, txn: null, reason: "" });
+    fetchAll();
+  }
+
+
   const lastTransferTxn = useMemo(() => {
     const list = txns.filter(t => t.txn_type === "transfer_to_custody")
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -162,14 +194,21 @@ export default function MainTreasury() {
   const totalBalance = useMemo(() => balances.reduce((s,b)=>s+Number(b.current_balance||0), 0), [balances]);
   const totalPending = useMemo(() => balances.reduce((s,b)=>s+Number(b.pending_amount||0), 0), [balances]);
   const pendingTxns = useMemo(() => txns.filter(t => t.status === "pending_approval"), [txns]);
-  const filteredLogTxns = useMemo(() => txns.filter(t =>
-    (logFilter.account_id === "all" || t.account_id === logFilter.account_id) &&
-    (logFilter.txn_type === "all" || t.txn_type === logFilter.txn_type) &&
-    (logFilter.status === "all" || t.status === logFilter.status) &&
-    (!logFilter.from || t.txn_date >= logFilter.from) &&
-    (!logFilter.to || t.txn_date <= logFilter.to) &&
-    (!logFilter.search || `${t.reference_no} ${t.description} ${t.counterparty||""}`.toLowerCase().includes(logFilter.search.toLowerCase()))
-  ), [txns, logFilter]);
+  const filteredLogTxns = useMemo(() => txns.filter(t => {
+    const isAuto = !!t.transfer_group_id || /^transfer_/.test(t.txn_type);
+    const isCancelled = ["rejected","reversed"].includes(t.status);
+    if (logFilter.source === "manual" && (isAuto || isCancelled)) return false;
+    if (logFilter.source === "auto" && !isAuto) return false;
+    if (logFilter.source === "cancelled" && !isCancelled) return false;
+    return (
+      (logFilter.account_id === "all" || t.account_id === logFilter.account_id) &&
+      (logFilter.txn_type === "all" || t.txn_type === logFilter.txn_type) &&
+      (logFilter.status === "all" || t.status === logFilter.status) &&
+      (!logFilter.from || t.txn_date >= logFilter.from) &&
+      (!logFilter.to || t.txn_date <= logFilter.to) &&
+      (!logFilter.search || `${t.reference_no} ${t.description} ${t.counterparty||""}`.toLowerCase().includes(logFilter.search.toLowerCase()))
+    );
+  }), [txns, logFilter]);
   const monthExpenses = useMemo(() => {
     const m = new Date(); m.setDate(1);
     return txns.filter(t => t.status === "posted" && t.txn_type === "expense" && new Date(t.txn_date) >= m)
@@ -778,6 +817,17 @@ export default function MainTreasury() {
                 </SelectContent>
               </Select>
             </div>
+            <div><Label className="text-xs">المصدر</Label>
+              <Select value={logFilter.source} onValueChange={v=>setLogFilter({...logFilter, source:v})}>
+                <SelectTrigger><SelectValue/></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">الكل</SelectItem>
+                  <SelectItem value="manual">يدوي</SelectItem>
+                  <SelectItem value="auto">تلقائي (تحويلات)</SelectItem>
+                  <SelectItem value="cancelled">ملغى / مرفوض</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div><Label className="text-xs">من تاريخ</Label><Input type="date" value={logFilter.from} onChange={e=>setLogFilter({...logFilter, from:e.target.value})}/></div>
             <div><Label className="text-xs">إلى تاريخ</Label><Input type="date" value={logFilter.to} onChange={e=>setLogFilter({...logFilter, to:e.target.value})}/></div>
             <div className="md:col-span-3"><Label className="text-xs">بحث (مرجع/وصف/مستفيد)</Label><Input value={logFilter.search} onChange={e=>setLogFilter({...logFilter, search:e.target.value})}/></div>
@@ -797,7 +847,7 @@ export default function MainTreasury() {
                 XLSX.utils.book_append_sheet(wb, ws, "حركات الخزنة");
                 XLSX.writeFile(wb, `main-treasury-${today()}.xlsx`);
               }}><FileDown className="h-4 w-4"/>تصدير Excel</Button>
-              <Button variant="outline" size="sm" className="gap-1" onClick={()=>setLogFilter({ account_id:"all", txn_type:"all", status:"all", from:"", to:"", search:"" })}>إعادة ضبط الفلاتر</Button>
+              <Button variant="outline" size="sm" className="gap-1" onClick={()=>setLogFilter({ account_id:"all", txn_type:"all", status:"all", from:"", to:"", search:"", source:"all" })}>إعادة ضبط الفلاتر</Button>
             </div>
           </CardContent></Card>
 
@@ -819,13 +869,16 @@ export default function MainTreasury() {
               <TableHeader><TableRow>
                 <TableHead>المرجع</TableHead><TableHead>التاريخ</TableHead><TableHead>النوع</TableHead>
                 <TableHead>الحساب</TableHead><TableHead>المبلغ</TableHead><TableHead>البند</TableHead>
-                <TableHead>الوصف</TableHead><TableHead>الحالة</TableHead><TableHead>طباعة</TableHead>
+                <TableHead>الوصف</TableHead><TableHead>المصدر</TableHead><TableHead>الحالة</TableHead><TableHead>إجراءات</TableHead>
               </TableRow></TableHeader>
               <TableBody>
-                {filteredLogTxns.length === 0 ? <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">لا توجد حركات مطابقة</TableCell></TableRow>
+                {filteredLogTxns.length === 0 ? <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">لا توجد حركات مطابقة</TableCell></TableRow>
                 : filteredLogTxns.map(t => {
                   const acc = accounts.find(a => a.id === t.account_id);
                   const cat = cats.find(c => c.id === t.category_id);
+                  const isAuto = !!t.transfer_group_id || /^transfer_/.test(t.txn_type);
+                  const isCancelled = ["rejected","reversed"].includes(t.status);
+                  const canCancelThis = canCancel && ["draft","pending_approval"].includes(t.status);
                   return (
                     <TableRow key={t.id}>
                       <TableCell className="font-mono text-xs">{t.reference_no}</TableCell>
@@ -835,8 +888,24 @@ export default function MainTreasury() {
                       <TableCell className="font-mono font-bold">{fmtNum(t.amount,2)}</TableCell>
                       <TableCell>{cat?.label || "—"}</TableCell>
                       <TableCell className="max-w-[250px] truncate">{t.description}</TableCell>
+                      <TableCell className="text-xs">
+                        {isCancelled ? <Badge variant="destructive">ملغى</Badge>
+                          : isAuto ? (
+                            <Button size="sm" variant="link" className="h-auto p-0 text-xs gap-1" onClick={()=>{ if (t.transfer_group_id) toast.info(`مجموعة التحويل: ${t.transfer_group_id.slice(0,8)}`); }}>
+                              <Link2 className="h-3 w-3"/>تلقائي
+                            </Button>
+                          ) : <Badge variant="outline">يدوي</Badge>}
+                      </TableCell>
                       <TableCell><Badge variant={STATUS_TONE[t.status]}>{STATUS_LBL[t.status]}</Badge></TableCell>
-                      <TableCell><Button size="sm" variant="ghost" onClick={()=>printVoucher(t)}><Printer className="h-4 w-4"/></Button></TableCell>
+                      <TableCell className="space-x-1 space-x-reverse">
+                        <Button size="icon" variant="ghost" title="عرض التفاصيل" onClick={()=>setDetailsDlg({ open:true, txn:t })}><Eye className="h-4 w-4"/></Button>
+                        <Button size="icon" variant="ghost" title="طباعة سند" onClick={()=>printVoucher(t)}><Printer className="h-4 w-4"/></Button>
+                        {canCancel && (
+                          <Button size="icon" variant="ghost" className="text-destructive" title={canCancelThis ? "إلغاء الحركة" : "لا يمكن إلغاء حركة مُرحَّلة"} disabled={!canCancelThis} onClick={()=>setCancelDlg({ open:true, txn:t, reason:"" })}>
+                            <Trash2 className="h-4 w-4"/>
+                          </Button>
+                        )}
+                      </TableCell>
                     </TableRow>
                   );
                 })}
@@ -1061,6 +1130,66 @@ export default function MainTreasury() {
           })() : null}
           <DialogFooter>
             <Button variant="outline" onClick={() => setLastDetailOpen(false)}>إغلاق</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Details Dialog */}
+      <Dialog open={detailsDlg.open} onOpenChange={(o)=>setDetailsDlg({ open:o, txn: o ? detailsDlg.txn : null })}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>تفاصيل الحركة</DialogTitle>
+            <DialogDescription>كل بيانات الحركة المالية ومصدرها والمسؤول عنها.</DialogDescription>
+          </DialogHeader>
+          {detailsDlg.txn && (() => {
+            const t = detailsDlg.txn;
+            const acc = accounts.find(a => a.id === t.account_id);
+            const cat = cats.find(c => c.id === t.category_id);
+            const isAuto = !!t.transfer_group_id || /^transfer_/.test(t.txn_type);
+            const Row = ({ k, v }: { k: string; v: any }) => (
+              <div className="grid grid-cols-3 gap-2 py-1.5 border-b last:border-0">
+                <div className="text-xs text-muted-foreground">{k}</div>
+                <div className="col-span-2 text-sm">{v ?? "—"}</div>
+              </div>
+            );
+            return (
+              <div className="text-sm">
+                <Row k="رقم المرجع" v={<span className="font-mono">{t.reference_no}</span>} />
+                <Row k="التاريخ" v={t.txn_date} />
+                <Row k="النوع" v={TYPE_LBL[t.txn_type] || t.txn_type} />
+                <Row k="الحساب" v={acc?.name} />
+                <Row k="المبلغ" v={<span className="font-mono font-bold">{fmtNum(t.amount,2)} ج.م</span>} />
+                <Row k="البند" v={cat?.label} />
+                <Row k="المستفيد / الجهة" v={t.counterparty} />
+                <Row k="الوصف" v={t.description} />
+                <Row k="طريقة الدفع" v={t.payment_method || "—"} />
+                <Row k="الحالة" v={<Badge variant={STATUS_TONE[t.status]}>{STATUS_LBL[t.status]}</Badge>} />
+                <Row k="المصدر" v={isAuto ? `تلقائي${t.transfer_group_id ? ` — مجموعة تحويل ${t.transfer_group_id.slice(0,8)}` : ""}` : "يدوي"} />
+                <Row k="سجّل بواسطة" v={creatorNames[t.created_by] || t.created_by.slice(0,8)} />
+                <Row k="تاريخ التسجيل" v={fmtDate(t.created_at)} />
+                {t.posted_at && <Row k="تاريخ الترحيل" v={fmtDate(t.posted_at)} />}
+                {t.rejection_reason && <Row k="سبب الرفض / الإلغاء" v={<span className="text-destructive">{t.rejection_reason}</span>} />}
+              </div>
+            );
+          })()}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={()=>detailsDlg.txn && printVoucher(detailsDlg.txn)} className="gap-2"><Printer className="h-4 w-4"/>طباعة سند</Button>
+            <Button onClick={()=>setDetailsDlg({ open:false, txn:null })}>إغلاق</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel Dialog */}
+      <Dialog open={cancelDlg.open} onOpenChange={(o)=>setCancelDlg({ ...cancelDlg, open:o })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>إلغاء الحركة</DialogTitle>
+            <DialogDescription>سبب الإلغاء إلزامي ويُسجل في سجل التدقيق (Audit Log). متاح للمدير العام والتنفيذي فقط، وللمعاملات غير المُرحَّلة.</DialogDescription>
+          </DialogHeader>
+          <Textarea placeholder="اكتب سبب الإلغاء..." value={cancelDlg.reason} onChange={(e)=>setCancelDlg({ ...cancelDlg, reason: e.target.value })} rows={4}/>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={()=>setCancelDlg({ open:false, txn:null, reason:"" })}>تراجع</Button>
+            <Button variant="destructive" onClick={cancelTxn} disabled={busy}>تأكيد الإلغاء</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
