@@ -1588,14 +1588,14 @@ export default function LabTreasury() {
                       <TableHead>الحالة</TableHead>
                       <TableHead>المصدر</TableHead>
                       <TableHead>سجّل بواسطة</TableHead>
-                      {isManager && <TableHead>إجراءات</TableHead>}
+                      <TableHead>إجراءات</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {loading ? (
-                      <TableRow><TableCell colSpan={isManager ? 10 : 9} className="text-center py-8">جارٍ التحميل...</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={10} className="text-center py-8">جارٍ التحميل...</TableCell></TableRow>
                     ) : filtered.length === 0 ? (
-                      <TableRow><TableCell colSpan={isManager ? 10 : 9} className="text-center py-8 text-muted-foreground">لا توجد حركات</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">لا توجد حركات</TableCell></TableRow>
                     ) : filtered.map((m) => (
                       <TableRow key={m.id} className={closedDates.has(m.movement_date) ? "bg-muted/30" : ""}>
                         <TableCell>
