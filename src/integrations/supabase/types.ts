@@ -7839,6 +7839,125 @@ export type Database = {
           },
         ]
       }
+      lab_treasury_external_receivable_settlements: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          destination_treasury: string
+          id: string
+          lab_movement_id: string | null
+          notes: string | null
+          payment_method: string
+          receivable_id: string
+          settlement_date: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          destination_treasury?: string
+          id?: string
+          lab_movement_id?: string | null
+          notes?: string | null
+          payment_method?: string
+          receivable_id: string
+          settlement_date?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          destination_treasury?: string
+          id?: string
+          lab_movement_id?: string | null
+          notes?: string | null
+          payment_method?: string
+          receivable_id?: string
+          settlement_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_treasury_external_receivable_settlemen_lab_movement_id_fkey"
+            columns: ["lab_movement_id"]
+            isOneToOne: false
+            referencedRelation: "lab_treasury_movements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_treasury_external_receivable_settlemen_lab_movement_id_fkey"
+            columns: ["lab_movement_id"]
+            isOneToOne: false
+            referencedRelation: "v_lab_treasury_potential_duplicates"
+            referencedColumns: ["duplicate_id"]
+          },
+          {
+            foreignKeyName: "lab_treasury_external_receivable_settlemen_lab_movement_id_fkey"
+            columns: ["lab_movement_id"]
+            isOneToOne: false
+            referencedRelation: "v_lab_treasury_potential_duplicates"
+            referencedColumns: ["first_id"]
+          },
+          {
+            foreignKeyName: "lab_treasury_external_receivable_settlements_receivable_id_fkey"
+            columns: ["receivable_id"]
+            isOneToOne: false
+            referencedRelation: "lab_treasury_external_receivables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lab_treasury_external_receivables: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          description: string
+          entry_date: string
+          id: string
+          notes: string | null
+          paid_amount: number
+          party: string
+          party_label: string | null
+          source_id: string | null
+          source_type: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          description: string
+          entry_date?: string
+          id?: string
+          notes?: string | null
+          paid_amount?: number
+          party: string
+          party_label?: string | null
+          source_id?: string | null
+          source_type?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          entry_date?: string
+          id?: string
+          notes?: string | null
+          paid_amount?: number
+          party?: string
+          party_label?: string | null
+          source_id?: string | null
+          source_type?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       lab_treasury_historical_receivable_items: {
         Row: {
           amount: number
