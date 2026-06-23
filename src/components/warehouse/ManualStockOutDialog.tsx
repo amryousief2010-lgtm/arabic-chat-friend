@@ -115,7 +115,8 @@ const ManualStockOutDialog = ({
   const [destOther, setDestOther] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [customers, setCustomers] = useState<{ id: string; name: string }[]>([]);
-  const [reason, setReason] = useState("");
+  const [reason, setReason] = useState(""); // stores القائم بالتوريد (supplier)
+  const [deliveryDate, setDeliveryDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
   const [rows, setRows] = useState<Row[]>([newRow()]);
   const [saving, setSaving] = useState(false);
@@ -136,6 +137,7 @@ const ManualStockOutDialog = ({
     if (!open) {
       setDestKey(""); setDestOther(""); setCustomerName("");
       setReason(""); setNotes("");
+      setDeliveryDate(new Date().toISOString().slice(0, 10));
       setRows([newRow()]);
     } else {
       void loadCustom();
@@ -193,7 +195,7 @@ const ManualStockOutDialog = ({
   }, [mergedRows, itemsById]);
 
   const validRows = rows.length > 0 && rows.every(r => r.itemId && rowQty(r) > 0);
-  const canSave = validDest && reason.trim().length > 0 && validRows
+  const canSave = validDest && reason.trim().length > 0 && deliveryDate.length > 0 && validRows
     && mergedRows.size > 0 && exceedRows.length === 0 && !saving;
 
   const updateRow = (uid: string, patch: Partial<Row>) =>
@@ -204,7 +206,8 @@ const ManualStockOutDialog = ({
 
   const handleSave = async () => {
     if (!validDest) { toast({ title: "اختر جهة الصرف", variant: "destructive" }); return; }
-    if (!reason.trim()) { toast({ title: "أدخل سبب الصرف", variant: "destructive" }); return; }
+    if (!reason.trim()) { toast({ title: "أدخل اسم القائم بالتوريد", variant: "destructive" }); return; }
+    if (!deliveryDate) { toast({ title: "اختر تاريخ التوريد", variant: "destructive" }); return; }
     if (mergedRows.size === 0) { toast({ title: "أضف صنف واحد على الأقل", variant: "destructive" }); return; }
     for (const r of rows) {
       if (!r.itemId) { toast({ title: "اختر الصنف في كل صف", variant: "destructive" }); return; }
@@ -257,7 +260,8 @@ const ManualStockOutDialog = ({
           `رقم العملية: ${opNo}`,
           `جهة الصرف: ${destLabel}`,
           pkgLine,
-          `السبب: ${reason.trim()}`,
+          `القائم بالتوريد: ${reason.trim()}`,
+          `تاريخ التوريد: ${deliveryDate}`,
           notes.trim() ? `ملاحظات: ${notes.trim()}` : null,
           `قبل: ${stockBefore} ${unit}`,
           `بعد: ${stockAfter} ${unit}`,
@@ -392,14 +396,22 @@ const ManualStockOutDialog = ({
             onCreated={async (p) => { await loadCustom(); setDestKey(`custom:${p.id}`); }}
           />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
-              <Label className="text-xs">سبب الصرف *</Label>
+              <Label className="text-xs">القائم بالتوريد *</Label>
               <Input
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                placeholder="مثال: توريد للفرع، تسليم لمندوب، توريد لعميل، تالف..."
+                placeholder="اسم من قام بالتسليم (مثال: عبدالمنعم عثمان، محمد شعلة، مندوب التوريد)"
                 maxLength={200}
+              />
+            </div>
+            <div>
+              <Label className="text-xs">تاريخ التوريد *</Label>
+              <Input
+                type="date"
+                value={deliveryDate}
+                onChange={(e) => setDeliveryDate(e.target.value)}
               />
             </div>
             <div>
