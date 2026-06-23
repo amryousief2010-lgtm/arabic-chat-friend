@@ -1131,8 +1131,16 @@ const Orders = () => {
                 let hash = 0;
                 for (let i = 0; i < order.id.length; i++) hash = (hash * 31 + order.id.charCodeAt(i)) >>> 0;
                 const cardColor = cardPalette[hash % cardPalette.length];
+                const isDuplicatePhone = duplicatePhoneOrderIds.has(order.id);
                 return (
-                  <div key={order.id} className={`rounded-lg border p-3 space-y-2 ${cardColor}`}>
+                  <div
+                    key={order.id}
+                    className={
+                      isDuplicatePhone
+                        ? "rounded-lg border-2 border-red-500 bg-red-50 dark:bg-red-950/40 ring-2 ring-red-400/60 p-3 space-y-2 shadow-md"
+                        : `rounded-lg border p-3 space-y-2 ${cardColor}`
+                    }
+                  >
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <Checkbox
@@ -1142,14 +1150,23 @@ const Orders = () => {
                         />
                         <span className="font-mono font-semibold text-sm">{order.order_number}</span>
                       </div>
-                      <Badge className={`${statusColors[order.status]} flex items-center gap-1 text-xs`}>
-                        {getStatusIcon(order.status)}
-                        {statusLabels[order.status]}
-                      </Badge>
+                      <div className="flex items-center gap-1">
+                        {isDuplicatePhone && (
+                          <Badge className="bg-red-600 hover:bg-red-600 text-white text-[10px] gap-1">
+                            <AlertCircle className="w-3 h-3" /> رقم مكرر
+                          </Badge>
+                        )}
+                        <Badge className={`${statusColors[order.status]} flex items-center gap-1 text-xs`}>
+                          {getStatusIcon(order.status)}
+                          {statusLabels[order.status]}
+                        </Badge>
+                      </div>
                     </div>
 
-                    <div className="flex items-center justify-between gap-2 text-sm">
-                      <span className="font-semibold truncate">{order.customer_name}</span>
+                    <div className={`flex items-center justify-between gap-2 rounded-md px-2 py-1.5 ${isDuplicatePhone ? "bg-red-100 dark:bg-red-900/40 border border-red-300" : "bg-primary/10 border border-primary/20"}`}>
+                      <span className={`font-bold text-base md:text-lg truncate ${isDuplicatePhone ? "text-red-700 dark:text-red-200" : "text-primary"}`}>
+                        {order.customer_name}
+                      </span>
                       <Badge variant="secondary" className="text-xs shrink-0">{order.moderator_name}</Badge>
                     </div>
                     {order.customer_phone && (
