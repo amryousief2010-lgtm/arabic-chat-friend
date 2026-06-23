@@ -865,7 +865,7 @@ export default function LabTreasury() {
         </div>
       </div>
     `;
-    openPrintWindow({ title, bodyHtml: html });
+    openPrintWindow(title, html);
   }
   }
 
