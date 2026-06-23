@@ -257,6 +257,7 @@ const ManualStockOutDialog = ({
 
       const inserts: any[] = [];
       const stockUpdates: { id: string; newStock: number }[] = [];
+      const slipRows: SlipItemRow[] = [];
 
       for (const [itemId, info] of byItem.entries()) {
         const it = itemsById.get(itemId);
@@ -300,6 +301,15 @@ const ManualStockOutDialog = ({
           performed_at: performedAt,
         });
         stockUpdates.push({ id: itemId, newStock: stockAfter });
+        slipRows.push({
+          name: it.name,
+          unit,
+          packageCount: info.pkgCount,
+          packageWeightKg: info.pkgWeight,
+          quantity: info.qty,
+          stockBefore,
+          stockAfter,
+        });
       }
 
       const { error: mErr } = await supabase.from("inventory_movements").insert(inserts as any);
@@ -310,11 +320,21 @@ const ManualStockOutDialog = ({
         if (error) throw error;
       }
 
+      setLastSaved({
+        opNo,
+        partyLabel: destLabel,
+        supplier: reason.trim(),
+        deliveryDate,
+        performedByName: profile?.full_name || "",
+        performedAt,
+        notes: notes.trim(),
+        rows: slipRows,
+      });
+
       toast({
         title: "تم حفظ الصرف",
         description: `${opNo} — ${stockUpdates.length} صنف (${destLabel})`,
       });
-      onOpenChange(false);
       onSaved?.();
     } catch (e: any) {
       toast({
@@ -325,6 +345,22 @@ const ManualStockOutDialog = ({
     } finally {
       setSaving(false);
     }
+  };
+
+  const handlePrint = () => {
+    if (!lastSaved) return;
+    printWarehouseSlip({
+      kind: "out",
+      opNo: lastSaved.opNo,
+      warehouseName: warehouseName || "المخزن الرئيسي",
+      partyLabel: lastSaved.partyLabel,
+      supplier: lastSaved.supplier,
+      deliveryDate: lastSaved.deliveryDate,
+      performedByName: lastSaved.performedByName,
+      performedAt: lastSaved.performedAt,
+      notes: lastSaved.notes,
+      rows: lastSaved.rows,
+    });
   };
 
   const totalQty = Array.from(mergedRows.values()).reduce((a, b) => a + b, 0);
