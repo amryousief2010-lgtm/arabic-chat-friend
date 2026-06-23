@@ -67,7 +67,9 @@ const isIn = (mt: string, qty: number) =>
 const isOut = (mt: string, qty: number) =>
   ["out","stock_out","sales_dispatch","waste_loss"].includes(mt) || qty < 0;
 
-export default function MainWarehouseActivity() {
+interface MainWarehouseActivityProps { embedded?: boolean }
+
+export default function MainWarehouseActivity({ embedded = false }: MainWarehouseActivityProps) {
   const { isGeneralManager } = useAuth();
   // أرشيف ما قبل بداية تشغيل المخزن الرئيسي (2026-06-18) متاح للمدير العام فقط.
   // المدير التنفيذي ومسؤول/مشرف المخزن لا يرون الأرشيف ولا زر التبديل.
@@ -199,12 +201,14 @@ export default function MainWarehouseActivity() {
     return { ins, outs, opening, total: filtered.length };
   }, [filtered]);
 
-  return (
-    <DashboardLayout>
+  const content = (
+    <>
+      {!embedded && (
       <Header
         title="سجل حركات المخزن الرئيسي"
         subtitle="كل وارد وصادر بعد تثبيت الـ Opening Balance — مع المستخدم المنفذ ومصدر الحركة"
       />
+      )}
 
       <Card className={`mb-3 ${showArchive ? "border-amber-500/40 bg-amber-500/5" : "border-primary/30 bg-primary/5"}`}>
         <CardContent className="p-3 flex flex-col sm:flex-row sm:items-center gap-3 text-sm">
@@ -364,6 +368,8 @@ export default function MainWarehouseActivity() {
           </div>
         </CardContent>
       </Card>
-    </DashboardLayout>
+    </>
   );
+
+  return embedded ? content : <DashboardLayout>{content}</DashboardLayout>;
 }
