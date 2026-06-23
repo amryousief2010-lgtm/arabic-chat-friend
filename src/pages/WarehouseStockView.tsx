@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, RefreshCw, Warehouse, Printer, Pencil, Check, X, ArrowLeftRight, AlertTriangle, PackageCheck, Lock, PackagePlus, PackageMinus, Package } from "lucide-react";
+import { Search, RefreshCw, Warehouse, Printer, Pencil, Check, X, ArrowLeftRight, AlertTriangle, PackageCheck, Lock, PackagePlus, PackageMinus, Package, History } from "lucide-react";
+import ItemMovementsDialog from "@/components/warehouse/ItemMovementsDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { printWarehouseStock } from "@/lib/printUtils";
 import { useAuth } from "@/hooks/useAuth";
@@ -101,6 +102,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
   const [tableFilter, setTableFilter] = useState<null | "all" | "withStock" | "lowStock" | "overReserved">(null);
   const [cardSearch, setCardSearch] = useState("");
   const [showItemsTable, setShowItemsTable] = useState(false);
+  const [movDlg, setMovDlg] = useState<null | { itemId: string; name: string; unit: string; stock: number; whId: string; whLabel: string }>(null);
 
 
 
@@ -809,6 +811,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
                   {(renderCarrefourCols || renderHealthyCols) && <th className="p-2 font-semibold whitespace-nowrap">الفعلي</th>}
                   {(renderCarrefourCols || renderHealthyCols) && <th className="p-2 font-semibold whitespace-nowrap">المحجوز</th>}
                   {(renderCarrefourCols || renderHealthyCols) && <th className="p-2 font-semibold whitespace-nowrap">المتاح</th>}
+                  <th className="p-2 font-semibold whitespace-nowrap text-center">سجل الحركة</th>
                 </tr>
               </thead>
               <tbody>
@@ -847,11 +850,32 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
                           <td className="p-2"><AvailableCell actual={cActual} pending={cPend} name={p.name} /></td>
                         </>
                       )}
+                      <td className="p-2 text-center">
+                        {(() => {
+                          const whKey: SingleWh | null = currentSingleScope ?? (renderMainCols && mainItemIds[p.id] ? "main" : renderAgouzaCols && agouzaItemIds[p.id] ? "agouza" : null);
+                          const iid = whKey ? getItemIdsMap(whKey)[p.id] : null;
+                          const whId = whKey ? getWhId(whKey) : null;
+                          const stockVal = whKey === "main" ? mActual : whKey === "agouza" ? aActual : cActual;
+                          if (!iid || !whId) return <span className="text-muted-foreground text-xs">—</span>;
+                          return (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 px-2 gap-1"
+                              title={`سجل حركة ${p.name}`}
+                              onClick={() => setMovDlg({ itemId: iid, name: p.name, unit: p.unit, stock: stockVal, whId, whLabel: getWhLabel(whKey!) })}
+                            >
+                              <History className="w-4 h-4" />
+                              <span className="hidden lg:inline text-xs">سجل الحركة</span>
+                            </Button>
+                          );
+                        })()}
+                      </td>
                     </tr>
                   );
                 })}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={10} className="p-6 text-center text-muted-foreground">لا توجد منتجات</td></tr>
+                  <tr><td colSpan={11} className="p-6 text-center text-muted-foreground">لا توجد منتجات</td></tr>
                 )}
               </tbody>
             </table>
@@ -936,6 +960,16 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
           onSearch={setCardSearch}
           onOpenReserved={(pid, name, total) => setReservedDlg({ wh: currentSingleScope, productId: pid, productName: name, total })}
           warehouseName={currentWhLabel}
+        />
+      )}
+
+      {movDlg && (
+        <ItemMovementsDialog
+          open={!!movDlg}
+          onOpenChange={(o) => { if (!o) setMovDlg(null); }}
+          item={{ id: movDlg.itemId, name: movDlg.name, unit: movDlg.unit, stock: movDlg.stock }}
+          warehouseId={movDlg.whId}
+          warehouseName={movDlg.whLabel}
         />
       )}
     </>
