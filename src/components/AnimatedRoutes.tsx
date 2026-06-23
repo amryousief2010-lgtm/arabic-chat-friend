@@ -196,6 +196,7 @@ const MyLabCollections = lazy(() => import("@/pages/MyLabCollections"));
 const SlaughterhouseCustody = lazy(() => import("@/pages/SlaughterhouseCustody"));
 const MainTreasury = lazy(() => import("@/pages/MainTreasury"));
 const LabHistoricalReceivables = lazy(() => import("@/pages/lab-treasury/HistoricalReceivables"));
+const LabExternalReceivables = lazy(() => import("@/pages/lab-treasury/ExternalReceivables"));
 const LabCustomerDebts = lazy(() => import("@/pages/lab-treasury/LabCustomerDebts"));
 const LabCustomerStatement = lazy(() => import("@/pages/lab-treasury/LabCustomerStatement"));
 const LabCustomerBalances = lazy(() => import("@/pages/lab-treasury/LabCustomerBalances"));
@@ -740,6 +741,11 @@ const AnimatedRoutes = () => {
           <Route path="/lab-treasury/historical-receivables" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'lab_treasury_keeper', 'lab_treasury_approver', 'lab_external_collector', 'slaughterhouse_manager', 'slaughterhouse_custody_keeper']}>
               <PageTransition><LabHistoricalReceivables /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/lab-treasury/external-receivables" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'lab_treasury_keeper', 'lab_treasury_approver', 'accountant', 'financial_manager', 'slaughterhouse_manager', 'slaughterhouse_custody_keeper']}>
+              <PageTransition><LabExternalReceivables /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/lab-treasury/customer-debts" element={

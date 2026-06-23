@@ -231,6 +231,18 @@ export default function LabTreasury() {
   const [openingByMethod, setOpeningByMethod] = useState<Record<PaymentMethod, number>>({ cash: 0, vodafone_cash: 0, instapay: 0, bank_transfer: 0 });
   const [officialByMethod, setOfficialByMethod] = useState<Record<PaymentMethod, number>>({ cash: 0, vodafone_cash: 0, instapay: 0, bank_transfer: 0 });
   const [loading, setLoading] = useState(true);
+  const [externalReceivablesRem, setExternalReceivablesRem] = useState<number>(0);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await (supabase as any)
+        .from("lab_treasury_external_receivables")
+        .select("amount,paid_amount,status")
+        .neq("status", "paid");
+      const sum = (data || []).reduce((s: number, r: any) => s + (Number(r.amount) - Number(r.paid_amount)), 0);
+      setExternalReceivablesRem(sum);
+    })();
+  }, []);
 
   // filters
   const [fromDate, setFromDate] = useState("");
@@ -1052,6 +1064,21 @@ export default function LabTreasury() {
             >
               <Users className="w-4 h-4" />
               كشف حساب العملاء
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate("/lab-treasury/external-receivables")}
+              className="gap-2 border-amber-400/50 bg-gradient-to-br from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 hover:border-amber-500 shadow-sm transition-all"
+              title="مستحقات خزنة المعمل الموجودة عند خزائن أخرى"
+            >
+              <Wallet className="w-4 h-4 text-amber-700" />
+              <span className="text-amber-900 font-semibold">مستحقات الخزنة عند الغير</span>
+              {externalReceivablesRem > 0 && (
+                <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 font-mono mr-1">
+                  {fmtNum(externalReceivablesRem, 0)} ج
+                </Badge>
+              )}
             </Button>
             <Button
               variant="outline"
