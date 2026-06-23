@@ -359,7 +359,24 @@ const ManualStockAdditionDialog = ({
             onCreated={async (p) => { await loadCustom(); setSourceKey(`custom:${p.id}`); }}
           />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <Label className="text-xs">القائم بالتوريد *</Label>
+              <Input
+                value={supplier}
+                onChange={(e) => setSupplier(e.target.value)}
+                placeholder="مثال: عبدالمنعم عثمان، محمد شعلة، مسؤول المجزر"
+                maxLength={120}
+              />
+            </div>
+            <div>
+              <Label className="text-xs">تاريخ التوريد *</Label>
+              <Input
+                type="date"
+                value={deliveryDate}
+                onChange={(e) => setDeliveryDate(e.target.value)}
+              />
+            </div>
             <div>
               <Label className="text-xs">سبب الإضافة / التوريد *</Label>
               <Input
@@ -369,7 +386,7 @@ const ManualStockAdditionDialog = ({
                 maxLength={200}
               />
             </div>
-            <div>
+            <div className="md:col-span-3">
               <Label className="text-xs">ملاحظات (اختياري)</Label>
               <Input
                 value={notes}
