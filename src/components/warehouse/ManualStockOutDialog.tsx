@@ -154,7 +154,8 @@ const ManualStockOutDialog = ({
   useEffect(() => {
     if (!open) {
       setDestKey(""); setDestOther(""); setCustomerName("");
-      setReason(""); setNotes("");
+      setReason(""); setNotes(""); setCategory("");
+      setOverrideNegative(false); setOverrideReason("");
       setDeliveryDate(new Date().toISOString().slice(0, 10));
       setRows([newRow()]);
       setLastSaved(null);
@@ -162,6 +163,13 @@ const ManualStockOutDialog = ({
       void loadCustom();
     }
   }, [open]);
+
+  const { lock } = useStocktakingLock(open ? warehouseId : null);
+  const selectedItemIds = useMemo(
+    () => Array.from(new Set(rows.map((r) => r.itemId).filter(Boolean))),
+    [rows]
+  );
+  const { reservedByItem } = useReservedQuantities(open ? warehouseId : null, selectedItemIds);
 
   useEffect(() => {
     if (destKey === "customer" && customers.length === 0) {
@@ -202,20 +210,48 @@ const ManualStockOutDialog = ({
     return acc;
   }, [rows]);
 
-  // exceeds stock check (after merging)
-  const exceedRows = useMemo(() => {
-    const out: string[] = [];
+  // Reservation analysis per merged row
+  const reservationAnalysis = useMemo(() => {
+    const out: Array<{
+      itemId: string; name: string; unit: string;
+      stock: number; reserved: number; available: number;
+      requested: number; availableAfter: number; reservedFlag: boolean; negative: boolean;
+    }> = [];
     for (const [id, q] of mergedRows.entries()) {
       const it = itemsById.get(id);
-      const avail = Number(it?.stock || 0);
-      if (q > avail) out.push(id);
+      if (!it) continue;
+      const stock = Number(it.stock || 0);
+      const reserved = Number(reservedByItem[id] || 0);
+      const available = stock - reserved;
+      const availableAfter = available - q;
+      out.push({
+        itemId: id,
+        name: it.name,
+        unit: it.unit || "كجم",
+        stock, reserved, available,
+        requested: q,
+        availableAfter,
+        reservedFlag: reserved > 0,
+        negative: availableAfter < 0,
+      });
     }
     return out;
-  }, [mergedRows, itemsById]);
+  }, [mergedRows, itemsById, reservedByItem]);
+
+  const hasReservedConflict = reservationAnalysis.some((r) => r.reservedFlag);
+  const hasNegativeAfter = reservationAnalysis.some((r) => r.negative);
+  const negativeBlocked = hasNegativeAfter && (!isManager || !overrideNegative || overrideReason.trim().length < 3);
 
   const validRows = rows.length > 0 && rows.every(r => r.itemId && rowQty(r) > 0);
-  const canSave = validDest && reason.trim().length > 0 && deliveryDate.length > 0 && validRows
-    && mergedRows.size > 0 && exceedRows.length === 0 && !saving;
+  const canSave = validDest
+    && reason.trim().length > 0
+    && isValidAdjustmentReason(category)
+    && deliveryDate.length > 0
+    && validRows
+    && mergedRows.size > 0
+    && exceedRows.length === 0
+    && !negativeBlocked
+    && !saving;
 
   const updateRow = (uid: string, patch: Partial<Row>) =>
     setRows(rs => rs.map(r => r.uid === uid ? { ...r, ...patch } : r));
