@@ -721,36 +721,32 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
 
 
       {showItemsTable && (
-      <Card>
-        <div className="px-4 pt-3 flex justify-end">
-          <Button size="sm" variant="outline" onClick={() => setShowItemsTable(false)}>
-            <X className="w-4 h-4 ml-1" /> رجوع للمخزن
-          </Button>
-        </div>
-
-        <CardHeader>
+      <Card className="rounded-xl border-border/60 shadow-sm overflow-hidden">
+        <CardHeader className="pb-3 border-b bg-muted/30">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <CardTitle className="flex items-center gap-2">
-              <Warehouse className="w-5 h-5 text-primary" />
+            <CardTitle className="flex items-center gap-2 text-base">
+              <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                <Warehouse className="w-4 h-4" />
+              </div>
               المنتجات والكميات
             </CardTitle>
             <div className="flex gap-2 items-center flex-wrap">
-              <div className="relative flex-1 sm:w-64">
+              <div className="relative flex-1 sm:w-72">
                 <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   placeholder="بحث باسم المنتج..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="pr-9"
+                  className="pr-9 h-9 bg-background"
                 />
               </div>
-              <Button size="sm" variant="outline" onClick={fetchAll} disabled={loading}>
-                <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+              <Button size="sm" variant="ghost" onClick={() => setShowItemsTable(false)} className="h-9">
+                <X className="w-4 h-4 ml-1" /> رجوع
               </Button>
               {scope === "agouza" && (isAgouzaWarehouseKeeper || canEditAll) && agouzaWhId && (
                 <Button
                   size="sm"
-                  className="gap-1"
+                  className="gap-1 h-9"
                   onClick={() => navigate(`/modules/warehouses/${agouzaWhId}`)}
                 >
                   <ArrowLeftRight className="w-4 h-4" />
@@ -761,27 +757,25 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
                 const rows = filtered.map(p => ({
                   name: p.name,
                   unit: p.unit,
-                  // legacy fields = available (للحفاظ على التوافق)
                   agouza: (agouzaStock[p.id] ?? 0) - (agouzaPending[p.id] ?? 0),
                   main: (mainStock[p.id] ?? 0) - (mainPending[p.id] ?? 0),
-                  // الحقول الجديدة: الفعلي والمحجوز
                   agouza_actual: agouzaStock[p.id] ?? 0,
                   agouza_reserved: agouzaPending[p.id] ?? 0,
                   main_actual: mainStock[p.id] ?? 0,
                   main_reserved: mainPending[p.id] ?? 0,
                 }));
                 const filter = search.trim() || undefined;
-                const btn = "inline-flex items-center gap-1 h-8 px-3 text-xs rounded-md border bg-background hover:bg-muted transition";
+                const btn = "inline-flex items-center gap-1.5 h-9 px-3 text-xs rounded-md border bg-background hover:bg-muted hover:border-primary/30 transition-colors";
                 const renderViewButtons = (mode: "agouza" | "main") => (
                   <>
                     <button className={btn} title="طباعة الجرد الفعلي قبل المحجوز" onClick={() => printWarehouseStock(rows, { filter, mode, view: "actual" })}>
-                      <Printer className="w-4 h-4" /> الفعلي
+                      <Printer className="w-3.5 h-3.5" /> الفعلي
                     </button>
                     <button className={btn} title="طباعة المتاح للبيع بعد المحجوز" onClick={() => printWarehouseStock(rows, { filter, mode, view: "available" })}>
-                      <Printer className="w-4 h-4" /> المتاح للبيع
+                      <Printer className="w-3.5 h-3.5" /> المتاح
                     </button>
                     <button className={btn} title="طباعة الفعلي والمحجوز والمتاح في 3 أعمدة" onClick={() => printWarehouseStock(rows, { filter, mode, view: "full" })}>
-                      <Printer className="w-4 h-4" /> 3 أعمدة
+                      <Printer className="w-3.5 h-3.5" /> 3 أعمدة
                     </button>
                   </>
                 );
@@ -790,47 +784,51 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
                 return (
                   <>
                     <button className={btn} onClick={() => printWarehouseStock(rows, { filter, mode: "agouza", view: "full" })}>
-                      <Printer className="w-4 h-4" /> العجوزة
+                      <Printer className="w-3.5 h-3.5" /> العجوزة
                     </button>
                     <button className={btn} onClick={() => printWarehouseStock(rows, { filter, mode: "main", view: "full" })}>
-                      <Printer className="w-4 h-4" /> الرئيسي
+                      <Printer className="w-3.5 h-3.5" /> الرئيسي
                     </button>
                     <button className={btn} onClick={() => printWarehouseStock(rows, { filter, mode: "both", view: "full" })}>
-                      <Printer className="w-4 h-4" /> الإجمالي
+                      <Printer className="w-3.5 h-3.5" /> الإجمالي
                     </button>
                   </>
                 );
               })()}
-
             </div>
           </div>
-          <div className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
-            <span className="inline-flex items-center gap-1 me-3"><Badge variant="outline" className="px-1.5">الفعلي</Badge> الجرد على أرض الواقع</span>
-            <span className="inline-flex items-center gap-1 me-3"><Badge className="bg-orange-500/15 text-orange-700 border border-orange-500/30 hover:bg-orange-500/15 px-1.5">المحجوز</Badge> طلبات لم تُصرف/تُسلَّم بعد</span>
-            <span className="inline-flex items-center gap-1"><Badge className="bg-green-500/15 text-green-700 border-green-500/30 px-1.5">المتاح</Badge> = الفعلي − المحجوز</span>
+          <div className="text-[11px] text-muted-foreground mt-1 leading-relaxed flex flex-wrap gap-x-3 gap-y-1">
+            <span className="inline-flex items-center gap-1"><Badge variant="outline" className="px-1.5 py-0">الفعلي</Badge> الجرد على أرض الواقع</span>
+            <span className="inline-flex items-center gap-1"><Badge className="bg-orange-500/15 text-orange-700 border border-orange-500/30 hover:bg-orange-500/15 px-1.5 py-0">المحجوز</Badge> طلبات لم تُصرف بعد</span>
+            <span className="inline-flex items-center gap-1"><Badge className="bg-emerald-500/15 text-emerald-700 border border-emerald-500/30 hover:bg-emerald-500/15 px-1.5 py-0">المتاح</Badge> = الفعلي − المحجوز</span>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {/* Desktop table */}
-          <div className="hidden md:block border rounded-lg overflow-x-auto">
-            <table className="w-full text-right text-sm">
-              <thead className="bg-muted/60 text-xs">
-                <tr>
-                  <th className="p-2 font-semibold">المنتج</th>
-                  <th className="p-2 font-semibold">الوحدة</th>
-                  {renderAgouzaCols && <th className="p-2 font-semibold whitespace-nowrap">العجوزة — الفعلي</th>}
-                  {renderAgouzaCols && <th className="p-2 font-semibold whitespace-nowrap">العجوزة — المحجوز</th>}
-                  {renderAgouzaCols && <th className="p-2 font-semibold whitespace-nowrap">العجوزة — المتاح</th>}
-                  {renderMainCols && <th className="p-2 font-semibold whitespace-nowrap">الرئيسي — الفعلي</th>}
-                  {renderMainCols && <th className="p-2 font-semibold whitespace-nowrap">الرئيسي — المحجوز</th>}
-                  {renderMainCols && <th className="p-2 font-semibold whitespace-nowrap">الرئيسي — المتاح</th>}
-                  {(renderCarrefourCols || renderHealthyCols) && <th className="p-2 font-semibold whitespace-nowrap">الفعلي</th>}
-                  {(renderCarrefourCols || renderHealthyCols) && <th className="p-2 font-semibold whitespace-nowrap">المحجوز</th>}
-                  {(renderCarrefourCols || renderHealthyCols) && <th className="p-2 font-semibold whitespace-nowrap">المتاح</th>}
-                  <th className="p-2 font-semibold whitespace-nowrap text-center">سجل الحركة</th>
+          <div className="hidden md:block overflow-x-auto max-h-[70vh]">
+            <table className="w-full text-right text-sm border-collapse">
+              <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur supports-[backdrop-filter]:bg-muted/60 text-xs">
+                <tr className="border-b">
+                  <th className="p-3 font-semibold text-muted-foreground">المنتج</th>
+                  <th className="p-3 font-semibold text-muted-foreground">الوحدة</th>
+                  {renderAgouzaCols && <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">العجوزة — الفعلي</th>}
+                  {renderAgouzaCols && <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">العجوزة — المحجوز</th>}
+                  {renderAgouzaCols && <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">العجوزة — المتاح</th>}
+                  {renderMainCols && <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">الرئيسي — الفعلي</th>}
+                  {renderMainCols && <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">الرئيسي — المحجوز</th>}
+                  {renderMainCols && <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">الرئيسي — المتاح</th>}
+                  {(renderCarrefourCols || renderHealthyCols) && <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">الفعلي</th>}
+                  {(renderCarrefourCols || renderHealthyCols) && <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">المحجوز</th>}
+                  {(renderCarrefourCols || renderHealthyCols) && <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">المتاح</th>}
+                  <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap text-center sticky left-0 bg-muted/80 backdrop-blur">إجراءات</th>
                 </tr>
               </thead>
               <tbody>
+                {loading && filtered.length === 0 && Array.from({ length: 6 }).map((_, i) => (
+                  <tr key={`sk-${i}`} className="border-b">
+                    <td colSpan={11} className="p-3"><Skeleton className="h-8 w-full" /></td>
+                  </tr>
+                ))}
                 {filtered
                   .filter((p) => {
                     if (!currentSingleScope) return true;
@@ -850,52 +848,79 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
                   const cActual = currentSingleScope ? (currentStock[p.id] ?? 0) : 0;
                   const cPend = currentSingleScope ? (currentPending[p.id] ?? 0) : 0;
                   return (
-                    <tr key={p.id} className="border-t hover:bg-muted/30">
-                      <td className="p-2 font-bold text-green-600 dark:text-green-400">{p.name}</td>
-                      <td className="p-2 text-muted-foreground">{p.unit}</td>
-                      {renderAgouzaCols && <td className="p-2"><ActualCell wh="agouza" pid={p.id} name={p.name} kgValue={aActual} /></td>}
-                      {renderAgouzaCols && <td className="p-2"><ReservedCell pending={aPend} name={p.name} onOpen={() => setReservedDlg({ wh: "agouza", productId: p.id, productName: p.name, total: aPend })} /></td>}
-                      {renderAgouzaCols && <td className="p-2"><AvailableCell actual={aActual} pending={aPend} name={p.name} /></td>}
-                      {renderMainCols && <td className="p-2"><ActualCell wh="main" pid={p.id} name={p.name} kgValue={mActual} /></td>}
-                      {renderMainCols && <td className="p-2"><ReservedCell pending={mPend} name={p.name} onOpen={() => setReservedDlg({ wh: "main", productId: p.id, productName: p.name, total: mPend })} /></td>}
-                      {renderMainCols && <td className="p-2"><AvailableCell actual={mActual} pending={mPend} name={p.name} /></td>}
+                    <tr key={p.id} className="border-b border-border/50 hover:bg-primary/[0.03] transition-colors group">
+                      <td className="p-3 font-semibold text-foreground">{p.name}</td>
+                      <td className="p-3 text-muted-foreground text-xs">{p.unit}</td>
+                      {renderAgouzaCols && <td className="p-3"><ActualCell wh="agouza" pid={p.id} name={p.name} kgValue={aActual} /></td>}
+                      {renderAgouzaCols && <td className="p-3"><ReservedCell pending={aPend} name={p.name} onOpen={() => setReservedDlg({ wh: "agouza", productId: p.id, productName: p.name, total: aPend })} /></td>}
+                      {renderAgouzaCols && <td className="p-3"><AvailableCell actual={aActual} pending={aPend} name={p.name} /></td>}
+                      {renderMainCols && <td className="p-3"><ActualCell wh="main" pid={p.id} name={p.name} kgValue={mActual} /></td>}
+                      {renderMainCols && <td className="p-3"><ReservedCell pending={mPend} name={p.name} onOpen={() => setReservedDlg({ wh: "main", productId: p.id, productName: p.name, total: mPend })} /></td>}
+                      {renderMainCols && <td className="p-3"><AvailableCell actual={mActual} pending={mPend} name={p.name} /></td>}
                       {(renderCarrefourCols || renderHealthyCols) && currentSingleScope && (
                         <>
-                          <td className="p-2"><ActualCell wh={currentSingleScope} pid={p.id} name={p.name} kgValue={cActual} /></td>
-                          <td className="p-2"><ReservedCell pending={cPend} name={p.name} onOpen={() => setReservedDlg({ wh: currentSingleScope, productId: p.id, productName: p.name, total: cPend })} /></td>
-                          <td className="p-2"><AvailableCell actual={cActual} pending={cPend} name={p.name} /></td>
+                          <td className="p-3"><ActualCell wh={currentSingleScope} pid={p.id} name={p.name} kgValue={cActual} /></td>
+                          <td className="p-3"><ReservedCell pending={cPend} name={p.name} onOpen={() => setReservedDlg({ wh: currentSingleScope, productId: p.id, productName: p.name, total: cPend })} /></td>
+                          <td className="p-3"><AvailableCell actual={cActual} pending={cPend} name={p.name} /></td>
                         </>
                       )}
-                      <td className="p-2 text-center">
+                      <td className="p-2 text-center sticky left-0 bg-card group-hover:bg-primary/[0.03] transition-colors">
                         {(() => {
                           const whKey: SingleWh | null = currentSingleScope ?? (renderMainCols && mainItemIds[p.id] ? "main" : renderAgouzaCols && agouzaItemIds[p.id] ? "agouza" : null);
                           const iid = whKey ? getItemIdsMap(whKey)[p.id] : null;
                           const whId = whKey ? getWhId(whKey) : null;
                           const stockVal = whKey === "main" ? mActual : whKey === "agouza" ? aActual : cActual;
+                          const hasReserved = (whKey === "main" ? mPend : whKey === "agouza" ? aPend : cPend) > 0;
                           if (!iid || !whId) return <span className="text-muted-foreground text-xs">—</span>;
                           return (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-8 px-2 gap-1"
-                              title={`سجل حركة ${p.name}`}
-                              onClick={() => setMovDlg({ itemId: iid, name: p.name, unit: p.unit, stock: stockVal, whId, whLabel: getWhLabel(whKey!) })}
-                            >
-                              <History className="w-4 h-4" />
-                              <span className="hidden lg:inline text-xs">سجل الحركة</span>
-                            </Button>
+                            <div className="flex items-center justify-center gap-1">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    type="button"
+                                    className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-violet-500/10 text-violet-700 dark:text-violet-300 hover:bg-violet-500/20 transition-colors"
+                                    onClick={() => setMovDlg({ itemId: iid, name: p.name, unit: p.unit, stock: stockVal, whId, whLabel: getWhLabel(whKey!) })}
+                                  >
+                                    <History className="w-4 h-4" />
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">سجل حركة الصنف</TooltipContent>
+                              </Tooltip>
+                              {hasReserved && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button
+                                      type="button"
+                                      className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-orange-500/10 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20 transition-colors"
+                                      onClick={() => setReservedDlg({ wh: whKey!, productId: p.id, productName: p.name, total: whKey === "main" ? mPend : whKey === "agouza" ? aPend : cPend })}
+                                    >
+                                      <Lock className="w-4 h-4" />
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top">الحجوزات</TooltipContent>
+                                </Tooltip>
+                              )}
+                            </div>
                           );
                         })()}
                       </td>
                     </tr>
                   );
                 })}
-                {filtered.length === 0 && (
-                  <tr><td colSpan={11} className="p-6 text-center text-muted-foreground">لا توجد منتجات</td></tr>
+                {!loading && filtered.length === 0 && (
+                  <tr><td colSpan={11} className="p-12 text-center text-muted-foreground">
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+                        <Package className="w-6 h-6 opacity-50" />
+                      </div>
+                      <div className="text-sm">لا توجد منتجات مطابقة</div>
+                    </div>
+                  </td></tr>
                 )}
               </tbody>
             </table>
           </div>
+
 
           {/* Mobile cards */}
           <div className="md:hidden space-y-2">
