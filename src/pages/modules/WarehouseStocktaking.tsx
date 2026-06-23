@@ -16,7 +16,7 @@ import { toast } from "sonner";
 interface Item { id: string; name: string; unit: string; stock: number; unit_cost: number; warehouse_id: string }
 
 export default function WarehouseStocktaking() {
-  const { isGeneralManager, isExecutiveManager } = useAuth();
+  const { isGeneralManager, isExecutiveManager, profile, role } = useAuth();
   const canApprove = isGeneralManager || isExecutiveManager;
   const [warehouses, setWarehouses] = useState<{ id: string; name: string }[]>([]);
   const [activeWh, setActiveWh] = useState<string>("");
@@ -26,6 +26,9 @@ export default function WarehouseStocktaking() {
   const [busy, setBusy] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
+  const [stocktaker, setStocktaker] = useState<string>("عبدالمنعم عثمان");
+  const [countDate, setCountDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+
 
   useEffect(() => {
     supabase.from("warehouses").select("id, name").eq("is_active", true).order("name").then(({ data }) => {
