@@ -26,6 +26,10 @@ import WarehouseReceiptsTab from "@/components/warehouses/WarehouseReceiptsTab";
 import { isMainWarehouseExcludedCategory, isMainWarehouseName } from "@/constants/warehouseCategoryFilters";
 import MainWarehouseActivity from "@/pages/MainWarehouseActivity";
 import WarehouseReports from "@/pages/modules/WarehouseReports";
+import MainWarehouseGuide from "@/pages/MainWarehouseGuide";
+import WarehouseOpeningBalance from "@/pages/modules/WarehouseOpeningBalance";
+import WarehouseOperationalDates from "@/pages/modules/WarehouseOperationalDates";
+import WarehouseDashboard from "@/pages/modules/warehouse/WarehouseDashboard";
 
 
 const qualityLabelText: Record<string, string> = {
@@ -202,7 +206,7 @@ const movementTypeLabels: Record<string, { label: string; icon: typeof ArrowDown
 };
 
 const Warehouses = () => {
-  const { canManageWarehouses, user, isGeneralManager } = useAuth();
+  const { canManageWarehouses, user, isGeneralManager, isExecutiveManager } = useAuth();
   const { toast } = useToast();
   const [warehouses, setWarehouses] = useState<WarehouseRow[]>([]);
   const [items, setItems] = useState<InventoryItem[]>([]);
