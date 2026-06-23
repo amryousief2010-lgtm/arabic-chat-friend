@@ -109,7 +109,7 @@ const ManualStockOutDialog = ({
   items,
   onSaved,
 }: Props) => {
-  const { user, isGeneralManager, isExecutiveManager, isWarehouseSupervisor } = useAuth() as any;
+  const { user, profile, isGeneralManager, isExecutiveManager, isWarehouseSupervisor } = useAuth() as any;
   const canAddParty = isGeneralManager || isExecutiveManager || isWarehouseSupervisor;
   const canManualKg = isGeneralManager || isExecutiveManager;
   const [destKey, setDestKey] = useState("");
@@ -123,6 +123,16 @@ const ManualStockOutDialog = ({
   const [saving, setSaving] = useState(false);
   const [customParties, setCustomParties] = useState<{ id: string; name: string }[]>([]);
   const [addPartyOpen, setAddPartyOpen] = useState(false);
+  const [lastSaved, setLastSaved] = useState<{
+    opNo: string;
+    partyLabel: string;
+    supplier: string;
+    deliveryDate: string;
+    performedByName: string;
+    performedAt: string;
+    notes: string;
+    rows: SlipItemRow[];
+  } | null>(null);
 
   const loadCustom = async () => {
     const { data } = await supabase
