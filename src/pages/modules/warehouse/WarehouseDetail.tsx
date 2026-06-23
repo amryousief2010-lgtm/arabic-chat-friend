@@ -20,8 +20,6 @@ import InboundSupplyTab from "@/components/warehouse/InboundSupplyTab";
 import { SlaughterToMainWarehouseInbox } from "@/components/warehouse/SlaughterToMainWarehouseInbox";
 import ManualStockAdditionDialog from "@/components/warehouse/ManualStockAdditionDialog";
 import ManualStockOutDialog from "@/components/warehouse/ManualStockOutDialog";
-import ItemMovementsDialog from "@/components/warehouse/ItemMovementsDialog";
-import { History } from "lucide-react";
 import { isFeatureEnabled } from "@/config/featureFlags";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate, COMPANY_AR } from "@/lib/printPdf";
 import { Printer, PackagePlus, PackageMinus } from "lucide-react";
