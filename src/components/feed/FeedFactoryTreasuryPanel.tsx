@@ -20,6 +20,8 @@ type Txn = {
   created_by_name?: string | null;
   ref_table?: string | null;
   ref_id?: string | null;
+  status?: string | null;
+  cancellation_reason?: string | null;
 };
 
 const fmt = (n: number) =>
@@ -93,6 +95,7 @@ export default function FeedFactoryTreasuryPanel({
   const totals = useMemo(() => {
     let inSum = 0, outSum = 0;
     txns.forEach((t) => {
+      if (t.status === "cancelled") return;
       const a = Number(t.amount || 0);
       if (t.direction === "in") inSum += a; else outSum += a;
     });
@@ -106,7 +109,7 @@ export default function FeedFactoryTreasuryPanel({
     setParty(""); setFromDate(""); setToDate("");
   };
 
-  // Compute running balance ASC, then map by id for the displayed rows
+  // Compute running balance ASC, then map by id for the displayed rows (cancelled rows do not affect balance)
   const runningBalance = useMemo(() => {
     const asc = [...txns].sort((a, b) => {
       const d = +new Date(a.txn_date) - +new Date(b.txn_date);
@@ -116,7 +119,9 @@ export default function FeedFactoryTreasuryPanel({
     const map: Record<string, number> = {};
     let bal = 0;
     asc.forEach((t) => {
-      bal += t.direction === "in" ? Number(t.amount || 0) : -Number(t.amount || 0);
+      if (t.status !== "cancelled") {
+        bal += t.direction === "in" ? Number(t.amount || 0) : -Number(t.amount || 0);
+      }
       map[t.id] = bal;
     });
     return map;
@@ -301,9 +306,15 @@ export default function FeedFactoryTreasuryPanel({
             <TableBody>
               {filtered.map((t) => {
                 const after = runningBalance[t.id] ?? 0;
+                const isCancelled = t.status === "cancelled";
                 return (
-                  <TableRow key={t.id} className="hover:bg-muted/40">
-                    <TableCell className="font-mono text-xs">{t.txn_no}</TableCell>
+                  <TableRow key={t.id} className={`hover:bg-muted/40 ${isCancelled ? "opacity-60 line-through" : ""}`}>
+                    <TableCell className="font-mono text-xs">
+                      {t.txn_no}
+                      {isCancelled && (
+                        <Badge variant="destructive" className="ml-1 text-[10px] no-underline">ملغاة</Badge>
+                      )}
+                    </TableCell>
                     <TableCell className="whitespace-nowrap text-xs">{t.txn_date}</TableCell>
                     <TableCell>
                       {t.direction === "in" ? (
@@ -322,8 +333,11 @@ export default function FeedFactoryTreasuryPanel({
                       </Badge>
                     </TableCell>
                     <TableCell className="text-xs">{t.party || "—"}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground max-w-[260px] truncate" title={t.note || ""}>
+                    <TableCell className="text-xs text-muted-foreground max-w-[260px] truncate" title={(t.note || "") + (t.cancellation_reason ? ` | سبب الإلغاء: ${t.cancellation_reason}` : "")}>
                       {t.note || "—"}
+                      {isCancelled && t.cancellation_reason && (
+                        <div className="text-[10px] text-destructive no-underline">سبب الإلغاء: {t.cancellation_reason}</div>
+                      )}
                     </TableCell>
                     <TableCell className="text-xs whitespace-nowrap" title={t.created_at ? new Date(t.created_at).toLocaleString("ar-EG") : ""}>
                       {t.created_by_name ? (
@@ -350,9 +364,9 @@ export default function FeedFactoryTreasuryPanel({
                     </TableCell>
                     {canManageAll && (
                       <TableCell>
-                        {t.kind !== "sale" && t.kind !== "purchase" && (
+                        {!isCancelled && t.kind !== "sale" && t.kind !== "purchase" && (
                           <Button size="icon" variant="ghost" className="text-destructive"
-                                  onClick={() => onDelete(t)}>
+                                  onClick={() => onDelete(t)} title="إلغاء الحركة وإرجاع المبلغ للخزنة">
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         )}

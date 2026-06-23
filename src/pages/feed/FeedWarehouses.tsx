@@ -202,10 +202,27 @@ export default function FeedWarehouses() {
   };
   const delTreasury = async (t: any) => {
     if (t.kind === "sale" || t.kind === "purchase") return toast.error("هذه الحركة ناتجة عن فاتورة — احذف الفاتورة من تبويبها.");
-    if (!confirmDel(`حذف حركة الخزنة ${t.txn_no}؟`)) return;
-    const { error } = await (supabase as any).from("feed_factory_treasury_txns").delete().eq("id", t.id);
-    if (error) return toast.error(error.message);
-    toast.success("تم حذف الحركة");
+    if (t.status === "cancelled") return toast.error("هذه الحركة ملغاة بالفعل.");
+    const restore = t.direction === "out" ? Number(t.amount || 0) : -Number(t.amount || 0);
+    const before = (treasuryQ.data || []).filter((x: any) => x.status !== "cancelled").reduce((s: number, x: any) => s + (x.direction === "in" ? 1 : -1) * Number(x.amount || 0), 0);
+    const after = before + restore;
+    const msg = `سيتم إلغاء حركة الخزنة ${t.txn_no}\nالمبلغ: ${Number(t.amount).toLocaleString("ar-EG")} ج.م (${t.direction === "in" ? "وارد" : "منصرف"})\nرصيد الخزنة قبل الإلغاء: ${before.toLocaleString("ar-EG")} ج.م\nرصيد الخزنة بعد الإلغاء: ${after.toLocaleString("ar-EG")} ج.م\n\nاكتب سبب الإلغاء (إجباري):`;
+    const reason = window.prompt(msg, "");
+    if (reason === null) return;
+    if (reason.trim().length < 3) return toast.error("سبب الإلغاء إجباري (3 أحرف على الأقل).");
+    const { error } = await (supabase as any).rpc("feed_treasury_cancel_txn", { p_id: t.id, p_reason: reason.trim() });
+    if (error) {
+      const map: Record<string, string> = {
+        AUTH_REQUIRED: "سجل الدخول أولاً.",
+        CANCEL_REASON_REQUIRED: "سبب الإلغاء إجباري.",
+        PERMISSION_DENIED: "لا تملك صلاحية إلغاء حركات الخزنة.",
+        TXN_NOT_FOUND: "الحركة غير موجودة.",
+        ALREADY_CANCELLED: "هذه الحركة ملغاة بالفعل.",
+        LINKED_TO_INVOICE: "الحركة مرتبطة بفاتورة — احذفها من الفاتورة.",
+      };
+      return toast.error(map[(error as any).message] || (error as any).message);
+    }
+    toast.success(`تم إلغاء الحركة وإرجاع المبلغ للخزنة (${Math.abs(restore).toLocaleString("ar-EG")} ج.م).`);
     qc.invalidateQueries({ queryKey: ["feed-treasury"] });
   };
   const delCount = async (c: any) => {
@@ -337,8 +354,8 @@ export default function FeedWarehouses() {
 
   const rawValue = useMemo(() => (rawQ.data || []).reduce((s: number, r: any) => s + Number(r.stock || 0) * Number(r.unit_cost || 0), 0), [rawQ.data]);
   const finishedValue = useMemo(() => (prodQ.data || []).reduce((s: number, p: any) => s + Number(p.current_stock || 0) * Number(p.latest_unit_cost || 0), 0), [prodQ.data]);
-  const treasuryBalance = useMemo(() => (treasuryQ.data || []).reduce((s: number, t: any) => s + (t.direction === "in" ? 1 : -1) * Number(t.amount || 0), 0), [treasuryQ.data]);
-  const loanFromNaam = useMemo(() => (treasuryQ.data || []).filter((t: any) => t.kind === "loan_from_naam").reduce((s: number, t: any) => s + Number(t.amount), 0) - (treasuryQ.data || []).filter((t: any) => t.kind === "loan_to_naam").reduce((s: number, t: any) => s + Number(t.amount), 0), [treasuryQ.data]);
+  const treasuryBalance = useMemo(() => (treasuryQ.data || []).filter((t: any) => t.status !== "cancelled").reduce((s: number, t: any) => s + (t.direction === "in" ? 1 : -1) * Number(t.amount || 0), 0), [treasuryQ.data]);
+  const loanFromNaam = useMemo(() => (treasuryQ.data || []).filter((t: any) => t.status !== "cancelled" && t.kind === "loan_from_naam").reduce((s: number, t: any) => s + Number(t.amount), 0) - (treasuryQ.data || []).filter((t: any) => t.status !== "cancelled" && t.kind === "loan_to_naam").reduce((s: number, t: any) => s + Number(t.amount), 0), [treasuryQ.data]);
 
   const exportRaw = () => exportCSV("raw_materials.csv", (rawQ.data||[]).map((r:any)=>{const sp=Number(r.sale_price||0);const uc=Number(r.unit_cost||0);return ({الصنف:r.name,الكود:r.item_code||"",الرصيد:r.stock,الوحدة:r.unit,متوسط_التكلفة:uc,سعر_البيع:sp,القيمة_تكلفة:Number(r.stock)*uc,القيمة_بيع:Number(r.stock)*sp,هامش_الربح:sp>0?sp-uc:0,نسبة_الهامش:sp>0?((sp-uc)/sp*100).toFixed(2)+"%":"",المورد:r.supplier||""});}));
   const getReadyRaws = () => (rawQ.data||[]).filter((r:any)=>{const n=String(r.name||"").toLowerCase();return n.includes("بريمكس")||n.includes("دريس")||n.includes("premix")||n.includes("dress");});
