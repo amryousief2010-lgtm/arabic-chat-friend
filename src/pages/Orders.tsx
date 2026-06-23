@@ -31,7 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus, Trash2, Pencil, ChevronDown, ChevronUp, PackageOpen, PackagePlus, FileDown, FileText, KeyRound, MapPin, Printer } from "lucide-react";
+import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus, Trash2, Pencil, ChevronDown, ChevronUp, PackageOpen, PackagePlus, FileDown, FileText, KeyRound, MapPin, Printer, AlertCircle, AlertTriangle } from "lucide-react";
 import { printOrderInvoice } from "@/lib/printUtils";
 import { cairoMonthStartUTC, cairoYearStartUTC, currentCairoYearMonth, cairoTodayStartUTC } from "@/lib/cairoDate";
 import { exportOrdersToCSV, exportOrdersToPDF, exportOrdersToXLSX } from "@/utils/exportOrders";
@@ -641,6 +641,41 @@ const Orders = () => {
     return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment && matchesRoute && matchesWarehouseScope && matchesOperationalStart;
   }), [orders, filterStatus, debouncedSearch, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, filterFulfillment, filterRoute, isWarehouseSupervisor, isGeneralManager, isExecutiveManager]);
 
+  // Detect duplicate orders by customer phone — every order after the earliest one
+  // for the same normalized phone is flagged as duplicate (shown red in the UI).
+  const duplicatePhoneOrderIds = useMemo(() => {
+    const groups = new Map<string, { id: string; created_at: string }[]>();
+    for (const o of orders) {
+      const norm = (o.customer_phone || "").replace(/[^\d]/g, "");
+      if (norm.length < 6) continue;
+      const arr = groups.get(norm) || [];
+      arr.push({ id: o.id, created_at: o.created_at });
+      groups.set(norm, arr);
+    }
+    const dups = new Set<string>();
+    for (const arr of groups.values()) {
+      if (arr.length < 2) continue;
+      arr.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      for (let i = 1; i < arr.length; i++) dups.add(arr[i].id);
+    }
+    return dups;
+  }, [orders]);
+
+  // One-time popup alert for م. آلاء حامد (مديرة المبيعات) when she opens the app
+  // and there are duplicate-phone orders to review.
+  const [showDupAlert, setShowDupAlert] = useState(false);
+  const [dupAlertOrders, setDupAlertOrders] = useState<Order[]>([]);
+  useEffect(() => {
+    if (!user?.id || user.id !== SALES_MANAGER_ID) return;
+    if (orders.length === 0) return;
+    if (sessionStorage.getItem('dup-alert-shown') === '1') return;
+    const dups = orders.filter((o) => duplicatePhoneOrderIds.has(o.id));
+    if (dups.length === 0) return;
+    setDupAlertOrders(dups.slice(0, 10));
+    setShowDupAlert(true);
+    sessionStorage.setItem('dup-alert-shown', '1');
+  }, [user?.id, orders, duplicatePhoneOrderIds]);
+
   const availableGovernorates = Array.from(
     new Set(orders.map(o => (o.governorate || "").trim()).filter(Boolean))
   ).sort((a, b) => a.localeCompare(b, 'ar'));
@@ -1096,8 +1131,16 @@ const Orders = () => {
                 let hash = 0;
                 for (let i = 0; i < order.id.length; i++) hash = (hash * 31 + order.id.charCodeAt(i)) >>> 0;
                 const cardColor = cardPalette[hash % cardPalette.length];
+                const isDuplicatePhone = duplicatePhoneOrderIds.has(order.id);
                 return (
-                  <div key={order.id} className={`rounded-lg border p-3 space-y-2 ${cardColor}`}>
+                  <div
+                    key={order.id}
+                    className={
+                      isDuplicatePhone
+                        ? "rounded-lg border-2 border-red-500 bg-red-50 dark:bg-red-950/40 ring-2 ring-red-400/60 p-3 space-y-2 shadow-md"
+                        : `rounded-lg border p-3 space-y-2 ${cardColor}`
+                    }
+                  >
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <Checkbox
@@ -1107,14 +1150,23 @@ const Orders = () => {
                         />
                         <span className="font-mono font-semibold text-sm">{order.order_number}</span>
                       </div>
-                      <Badge className={`${statusColors[order.status]} flex items-center gap-1 text-xs`}>
-                        {getStatusIcon(order.status)}
-                        {statusLabels[order.status]}
-                      </Badge>
+                      <div className="flex items-center gap-1">
+                        {isDuplicatePhone && (
+                          <Badge className="bg-red-600 hover:bg-red-600 text-white text-[10px] gap-1">
+                            <AlertCircle className="w-3 h-3" /> رقم مكرر
+                          </Badge>
+                        )}
+                        <Badge className={`${statusColors[order.status]} flex items-center gap-1 text-xs`}>
+                          {getStatusIcon(order.status)}
+                          {statusLabels[order.status]}
+                        </Badge>
+                      </div>
                     </div>
 
-                    <div className="flex items-center justify-between gap-2 text-sm">
-                      <span className="font-semibold truncate">{order.customer_name}</span>
+                    <div className={`flex items-center justify-between gap-2 rounded-md px-2 py-1.5 ${isDuplicatePhone ? "bg-red-100 dark:bg-red-900/40 border border-red-300" : "bg-primary/10 border border-primary/20"}`}>
+                      <span className={`font-bold text-base md:text-lg truncate ${isDuplicatePhone ? "text-red-700 dark:text-red-200" : "text-primary"}`}>
+                        {order.customer_name}
+                      </span>
                       <Badge variant="secondary" className="text-xs shrink-0">{order.moderator_name}</Badge>
                     </div>
                     {order.customer_phone && (
@@ -1841,6 +1893,40 @@ const Orders = () => {
       {!isSalesModerator && isPrivateDeliveryRep && (
         <ModeratorQuickAccessCards privateDeliveryOnly />
       )}
+
+      {/* Popup alert for م. آلاء حامد عند فتح التطبيق إذا كان هناك طلبات بأرقام مكررة */}
+      <Dialog open={showDupAlert} onOpenChange={setShowDupAlert}>
+        <DialogContent className="max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="w-5 h-5" />
+              تنبيه: طلبات بأرقام هواتف مكررة
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              تم رصد {dupAlertOrders.length} طلب لعملاء سبق تسجيل طلب لهم بنفس رقم الهاتف.
+              برجاء المراجعة لتجنب التكرار.
+            </p>
+            <div className="max-h-64 overflow-auto space-y-2">
+              {dupAlertOrders.map((o) => (
+                <div key={o.id} className="border border-red-300 bg-red-50 dark:bg-red-950/40 rounded-md p-2 text-sm">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-xs">{o.order_number}</span>
+                    <span className="font-bold text-red-700 dark:text-red-200">{o.customer_name}</span>
+                  </div>
+                  {o.customer_phone && (
+                    <div className="text-xs font-mono text-muted-foreground" dir="ltr">{o.customer_phone}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+            <Button className="w-full" onClick={() => setShowDupAlert(false)}>
+              فهمت، سأراجع الطلبات
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };
