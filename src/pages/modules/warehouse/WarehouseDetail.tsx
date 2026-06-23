@@ -45,8 +45,6 @@ const WarehouseDetail = () => {
   const { canManageWarehouses, user, isGeneralManager, isExecutiveManager, isWarehouseSupervisor, isAgouzaWarehouseKeeper, isProductionManager } = useAuth();
   const [manualAddOpen, setManualAddOpen] = useState(false);
   const [manualOutOpen, setManualOutOpen] = useState(false);
-  const [itemMovItem, setItemMovItem] = useState<any | null>(null);
-
 
   const canDeleteOutletOrder = isGeneralManager || isExecutiveManager;
   const { toast } = useToast();
