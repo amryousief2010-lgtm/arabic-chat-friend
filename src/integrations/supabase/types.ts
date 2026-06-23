@@ -15939,6 +15939,45 @@ export type Database = {
           },
         ]
       }
+      warehouse_archive_audit: {
+        Row: {
+          archived_movements_count: number
+          archived_reservations_count: number
+          created_at: string
+          cutoff_date: string
+          id: string
+          performed_by: string | null
+          performed_by_name: string | null
+          reason: string | null
+          warehouse_id: string | null
+          warehouse_name: string | null
+        }
+        Insert: {
+          archived_movements_count?: number
+          archived_reservations_count?: number
+          created_at?: string
+          cutoff_date: string
+          id?: string
+          performed_by?: string | null
+          performed_by_name?: string | null
+          reason?: string | null
+          warehouse_id?: string | null
+          warehouse_name?: string | null
+        }
+        Update: {
+          archived_movements_count?: number
+          archived_reservations_count?: number
+          created_at?: string
+          cutoff_date?: string
+          id?: string
+          performed_by?: string | null
+          performed_by_name?: string | null
+          reason?: string | null
+          warehouse_id?: string | null
+          warehouse_name?: string | null
+        }
+        Relationships: []
+      }
       warehouse_manual_parties: {
         Row: {
           created_at: string
