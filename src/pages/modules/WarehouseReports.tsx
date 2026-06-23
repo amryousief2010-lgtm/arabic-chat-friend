@@ -25,7 +25,9 @@ const exportSheet = (name: string, data: any[]) => {
   XLSX.writeFile(wb, `${name}.xlsx`);
 };
 
-export default function WarehouseReports() {
+interface WarehouseReportsProps { embedded?: boolean }
+
+export default function WarehouseReports({ embedded = false }: WarehouseReportsProps) {
   const [warehouses, setWarehouses] = useState<{ id: string; name: string }[]>([]);
   const [whFilter, setWhFilter] = useState<string>("all");
   const [stocks, setStocks] = useState<Stock[]>([]);
@@ -101,9 +103,8 @@ export default function WarehouseReports() {
     return Object.values(map);
   }, [stocks, warehouses]);
 
-  return (
-    <DashboardLayout>
-      <div className="space-y-4 p-4" dir="rtl">
+  const content = (
+      <div className={`space-y-4 ${embedded ? "" : "p-4"}`} dir="rtl">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
             <BarChart3 className="w-6 h-6 text-primary" />
@@ -266,8 +267,9 @@ export default function WarehouseReports() {
           </TabsContent>
         </Tabs>
       </div>
-    </DashboardLayout>
   );
+
+  return embedded ? content : <DashboardLayout>{content}</DashboardLayout>;
 }
 
 // ---------- subcomponents ----------

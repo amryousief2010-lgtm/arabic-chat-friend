@@ -17,7 +17,9 @@ const warehouseTypes: Record<string, string> = {
 const moveIcons: Record<string, any> = { in: ArrowDown, out: ArrowUp, transfer: ArrowLeftRight, adjustment: Settings2 };
 const moveLabels: Record<string, string> = { in: "إضافة", out: "صرف", transfer: "تحويل", adjustment: "تسوية" };
 
-const WarehouseDashboard = () => {
+interface WarehouseDashboardProps { embedded?: boolean }
+
+const WarehouseDashboard = ({ embedded = false }: WarehouseDashboardProps) => {
   const { canManageWarehouses, isGeneralManager } = useAuth();
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [items, setItems] = useState<any[]>([]);
@@ -65,8 +67,7 @@ const WarehouseDashboard = () => {
   }, [movements]);
   const totalValue = items.reduce((s, i) => s + Number(i.stock) * Number(i.unit_cost), 0);
 
-  return (
-    <DashboardLayout>
+  const content = (
       <div className="space-y-6">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
@@ -175,8 +176,9 @@ const WarehouseDashboard = () => {
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
   );
+
+  return embedded ? content : <DashboardLayout>{content}</DashboardLayout>;
 };
 
 export default WarehouseDashboard;

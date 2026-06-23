@@ -34,7 +34,9 @@ type Draft = { qty: string; unit_cost: string; notes: string };
 
 const TARGETS = ["المخزن الرئيسي", "العجوزة"];
 
-export default function WarehouseOpeningBalance() {
+interface WarehouseOpeningBalanceProps { embedded?: boolean }
+
+export default function WarehouseOpeningBalance({ embedded = false }: WarehouseOpeningBalanceProps) {
   const { isGeneralManager, isExecutiveManager, user } = useAuth();
   const canApprove = isGeneralManager || isExecutiveManager;
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
@@ -334,9 +336,8 @@ export default function WarehouseOpeningBalance() {
 
   const activeWhObj = warehouses.find((w) => w.id === activeWh);
 
-  return (
-    <DashboardLayout>
-      <div className="space-y-6 p-4" dir="rtl">
+  const content = (
+      <div className={`space-y-6 ${embedded ? "" : "p-4"}`} dir="rtl">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
             <PackagePlus className="w-6 h-6 text-primary" />
@@ -516,6 +517,7 @@ export default function WarehouseOpeningBalance() {
           ))}
         </Tabs>
       </div>
-    </DashboardLayout>
   );
+
+  return embedded ? content : <DashboardLayout>{content}</DashboardLayout>;
 }

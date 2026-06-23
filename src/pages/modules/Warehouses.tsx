@@ -24,6 +24,12 @@ import RestaurantMenuTab from "@/components/warehouses/RestaurantMenuTab";
 import WarehouseStockView from "@/pages/WarehouseStockView";
 import WarehouseReceiptsTab from "@/components/warehouses/WarehouseReceiptsTab";
 import { isMainWarehouseExcludedCategory, isMainWarehouseName } from "@/constants/warehouseCategoryFilters";
+import MainWarehouseActivity from "@/pages/MainWarehouseActivity";
+import WarehouseReports from "@/pages/modules/WarehouseReports";
+import MainWarehouseGuide from "@/pages/MainWarehouseGuide";
+import WarehouseOpeningBalance from "@/pages/modules/WarehouseOpeningBalance";
+import WarehouseOperationalDates from "@/pages/modules/WarehouseOperationalDates";
+import WarehouseDashboard from "@/pages/modules/warehouse/WarehouseDashboard";
 
 
 const qualityLabelText: Record<string, string> = {
@@ -200,7 +206,7 @@ const movementTypeLabels: Record<string, { label: string; icon: typeof ArrowDown
 };
 
 const Warehouses = () => {
-  const { canManageWarehouses, user, isGeneralManager } = useAuth();
+  const { canManageWarehouses, user, isGeneralManager, isExecutiveManager } = useAuth();
   const { toast } = useToast();
   const [warehouses, setWarehouses] = useState<WarehouseRow[]>([]);
   const [items, setItems] = useState<InventoryItem[]>([]);
@@ -600,6 +606,7 @@ const Warehouses = () => {
               <TabsTrigger value="wh-carrefour" className="gap-1"><Warehouse className="w-4 h-4" />هايبر كارفور</TabsTrigger>
               <TabsTrigger value="wh-packaging" className="gap-1"><Package className="w-4 h-4" />التغليف والتعبئة</TabsTrigger>
               <TabsTrigger value="wh-activity" className="gap-1"><BarChart3 className="w-4 h-4" />سجل حركات المخزن الرئيسي</TabsTrigger>
+              <TabsTrigger value="reports" className="gap-1"><FileText className="w-4 h-4" />التقارير</TabsTrigger>
               <TabsTrigger value="menu" className="gap-1"><UtensilsCrossed className="w-4 h-4" />المنيو</TabsTrigger>
               <TabsTrigger value="more" className="gap-1"><Menu className="w-4 h-4" />المزيد</TabsTrigger>
             </TabsList>
@@ -961,17 +968,17 @@ const Warehouses = () => {
             const findByType = (type: string) => warehouses.find((w) => w.type === type);
 
             const TABS = [
-              { value: "wh-main", path: "/warehouse-stock/main", label: "المخزن الرئيسي",
+              { value: "wh-main", scope: "main", label: "المخزن الرئيسي",
                 wh: findByPatterns([/رئيسي/, /main/i]) },
-              { value: "wh-agouza", path: "/warehouse-stock/agouza", label: "مخزن العجوزة",
+              { value: "wh-agouza", scope: "agouza", label: "مخزن العجوزة",
                 wh: findByPatterns([/عجوزة/, /agouza/i]) },
-              { value: "wh-hht", path: "/warehouse-stock/hyper-healthy-test", label: "هايبر هيلثي تيست",
+              { value: "wh-hht", scope: "healthy", label: "هايبر هيلثي تيست",
                 wh: findByPatterns([/هيلثي/, /healthy/i]) },
-              { value: "wh-carrefour", path: "/warehouse-stock/hyper-carrefour", label: "هايبر كارفور",
+              { value: "wh-carrefour", scope: "carrefour", label: "هايبر كارفور",
                 wh: findByPatterns([/كارفور/, /carrefour/i]) },
-              { value: "wh-packaging", path: "/modules/packaging", label: "التغليف والتعبئة",
+              { value: "wh-packaging", label: "التغليف والتعبئة",
                 wh: findByPatterns([/تغليف/, /تعبئة/, /packaging/i]) || findByType("packaging") },
-              { value: "wh-activity", path: "/main-warehouse-activity", label: "سجل حركات المخزن الرئيسي",
+              { value: "wh-activity", label: "سجل حركات المخزن الرئيسي",
                 wh: findByPatterns([/رئيسي/, /main/i]) },
             ] as const;
 
@@ -1040,18 +1047,19 @@ const Warehouses = () => {
                       </CardContent>
                     </Card>
                   )}
-                  <div className="rounded-lg border border-border bg-card overflow-hidden">
-                    <iframe
-                      src={`${t.path}?embed=1`}
-                      title={t.value}
-                      className="w-full"
-                      style={{ height: "calc(100vh - 260px)", minHeight: "600px", border: "none" }}
-                    />
-                  </div>
+                  {t.value === "wh-activity" ? (
+                    <MainWarehouseActivity embedded />
+                  ) : "scope" in t ? (
+                    <WarehouseStockView scope={t.scope} embedded />
+                  ) : null}
                 </TabsContent>
               );
             });
           })()}
+
+          <TabsContent value="reports" className="space-y-4">
+            <WarehouseReports embedded />
+          </TabsContent>
 
           {/* RESTAURANT MENU tab (products & prices from PDF) */}
           <TabsContent value="menu" className="space-y-4">
@@ -1065,14 +1073,21 @@ const Warehouses = () => {
                 <div className="flex items-center gap-2">
                   <Button variant="outline" size="sm" onClick={() => setMenuSubview(null)}><ArrowLeftRight className="w-4 h-4 ml-1" />رجوع للقائمة</Button>
                 </div>
-                <div className="rounded-lg border border-border bg-card overflow-hidden">
-                  <iframe
-                    src={`${menuSubview}?embed=1`}
-                    title={menuSubview}
-                    className="w-full"
-                    style={{ height: "calc(100vh - 260px)", minHeight: "600px", border: "none" }}
-                  />
-                </div>
+                {menuSubview === "/modules/warehouses/main-guide" ? (
+                  <MainWarehouseGuide embedded />
+                ) : menuSubview === "/modules/warehouses/operational-dates" ? (
+                  isGeneralManager || isExecutiveManager ? (
+                    <WarehouseOperationalDates embedded />
+                  ) : (
+                    <Card><CardContent className="py-10 text-center text-muted-foreground">هذا الجزء مخصص للإدارة فقط.</CardContent></Card>
+                  )
+                ) : menuSubview === "/modules/warehouses/opening-balance" ? (
+                  <WarehouseOpeningBalance embedded />
+                ) : menuSubview === "/modules/warehouses/dashboard" ? (
+                  <WarehouseDashboard embedded />
+                ) : (
+                  <Card><CardContent className="py-10 text-center text-muted-foreground">القسم غير متاح أو غير مسجل.</CardContent></Card>
+                )}
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
