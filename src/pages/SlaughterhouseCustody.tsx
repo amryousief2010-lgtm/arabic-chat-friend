@@ -755,6 +755,15 @@ export default function SlaughterhouseCustody() {
                   {(Object.keys(CAT_LBL) as Category[]).map((k) => <SelectItem key={k} value={k}>{CAT_LBL[k]}</SelectItem>)}
                 </SelectContent>
               </Select>
+              <Select value={fSource} onValueChange={setFSource}>
+                <SelectTrigger className="w-56"><SelectValue placeholder="المصدر" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">كل المصادر</SelectItem>
+                  <SelectItem value="manual">يدوي</SelectItem>
+                  <SelectItem value="auto">تلقائي</SelectItem>
+                  <SelectItem value="cancelled">ملغى / مرفوض</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <LogSummaryCards
