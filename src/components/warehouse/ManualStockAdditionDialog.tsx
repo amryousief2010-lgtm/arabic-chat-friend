@@ -20,11 +20,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Info, Loader2, PackagePlus, Plus, Trash2 } from "lucide-react";
+import { Info, Loader2, PackagePlus, Plus, Printer, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import AddManualPartyDialog from "@/components/warehouse/AddManualPartyDialog";
+import { printWarehouseSlip, SlipItemRow } from "@/lib/printWarehouseSlip";
 
 interface InventoryItem {
   id: string;
@@ -109,7 +110,7 @@ const ManualStockAdditionDialog = ({
   items,
   onSaved,
 }: Props) => {
-  const { user, isGeneralManager, isExecutiveManager, isWarehouseSupervisor } = useAuth() as any;
+  const { user, profile, isGeneralManager, isExecutiveManager, isWarehouseSupervisor } = useAuth() as any;
   const canAddParty = isGeneralManager || isExecutiveManager || isWarehouseSupervisor;
   const canManualKg = isGeneralManager || isExecutiveManager;
   const [sourceKey, setSourceKey] = useState("");
@@ -122,6 +123,16 @@ const ManualStockAdditionDialog = ({
   const [saving, setSaving] = useState(false);
   const [customParties, setCustomParties] = useState<{ id: string; name: string }[]>([]);
   const [addPartyOpen, setAddPartyOpen] = useState(false);
+  const [lastSaved, setLastSaved] = useState<{
+    opNo: string;
+    partyLabel: string;
+    supplier: string;
+    deliveryDate: string;
+    performedByName: string;
+    performedAt: string;
+    notes: string;
+    rows: SlipItemRow[];
+  } | null>(null);
 
   const loadCustom = async () => {
     const { data } = await supabase
@@ -142,6 +153,7 @@ const ManualStockAdditionDialog = ({
       setDeliveryDate(new Date().toISOString().slice(0, 10));
       setNotes("");
       setRows([newRow()]);
+      setLastSaved(null);
     }
   }, [open]);
 
@@ -220,6 +232,7 @@ const ManualStockAdditionDialog = ({
 
       const inserts: any[] = [];
       const stockUpdates: { id: string; newStock: number }[] = [];
+      const slipRows: SlipItemRow[] = [];
 
       for (const [itemId, info] of byItem.entries()) {
         const it = itemsById.get(itemId);
@@ -264,6 +277,15 @@ const ManualStockAdditionDialog = ({
           performed_at: performedAt,
         });
         stockUpdates.push({ id: itemId, newStock: stockAfter });
+        slipRows.push({
+          name: it.name,
+          unit,
+          packageCount: info.pkgCount,
+          packageWeightKg: info.pkgWeight,
+          quantity: info.qty,
+          stockBefore,
+          stockAfter,
+        });
       }
 
       const { error: mErr } = await supabase.from("inventory_movements").insert(inserts as any);
@@ -274,11 +296,21 @@ const ManualStockAdditionDialog = ({
         if (error) throw error;
       }
 
+      setLastSaved({
+        opNo,
+        partyLabel: sourceLabel,
+        supplier: supplier.trim(),
+        deliveryDate,
+        performedByName: profile?.full_name || "",
+        performedAt,
+        notes: notes.trim(),
+        rows: slipRows,
+      });
+
       toast({
         title: "تم حفظ التوريد",
         description: `${opNo} — ${stockUpdates.length} صنف (${sourceLabel})`,
       });
-      onOpenChange(false);
       onSaved?.();
     } catch (e: any) {
       toast({
@@ -289,6 +321,22 @@ const ManualStockAdditionDialog = ({
     } finally {
       setSaving(false);
     }
+  };
+
+  const handlePrint = () => {
+    if (!lastSaved) return;
+    printWarehouseSlip({
+      kind: "in",
+      opNo: lastSaved.opNo,
+      warehouseName: warehouseName || "المخزن الرئيسي",
+      partyLabel: lastSaved.partyLabel,
+      supplier: lastSaved.supplier,
+      deliveryDate: lastSaved.deliveryDate,
+      performedByName: lastSaved.performedByName,
+      performedAt: lastSaved.performedAt,
+      notes: lastSaved.notes,
+      rows: lastSaved.rows,
+    });
   };
 
   const totalQty = Array.from(mergedRows.values()).reduce((a, b) => a + b, 0);
@@ -509,14 +557,28 @@ const ManualStockAdditionDialog = ({
           </div>
         </div>
 
+        {lastSaved && (
+          <Alert className="border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30">
+            <Info className="h-4 w-4 text-emerald-700" />
+            <AlertDescription className="text-xs text-emerald-900 dark:text-emerald-200 flex items-center justify-between gap-2 flex-wrap">
+              <span>تم حفظ التوريد برقم <b>{lastSaved.opNo}</b> — يمكنك طباعة محضر التوريد الآن.</span>
+              <Button size="sm" variant="outline" onClick={handlePrint} className="border-emerald-400">
+                <Printer className="w-4 h-4 ml-1" /> طباعة محضر التوريد
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-            إلغاء
+            {lastSaved ? "إغلاق" : "إلغاء"}
           </Button>
-          <Button onClick={handleSave} disabled={!canSave} className="bg-emerald-600 hover:bg-emerald-700">
-            {saving ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <PackagePlus className="w-4 h-4 ml-1" />}
-            حفظ التوريد
-          </Button>
+          {!lastSaved && (
+            <Button onClick={handleSave} disabled={!canSave} className="bg-emerald-600 hover:bg-emerald-700">
+              {saving ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <PackagePlus className="w-4 h-4 ml-1" />}
+              حفظ التوريد
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

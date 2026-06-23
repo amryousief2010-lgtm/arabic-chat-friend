@@ -8,10 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Activity, RefreshCw, Download, Lock, Filter, Archive } from "lucide-react";
+import { Activity, RefreshCw, Download, Lock, Filter, Archive, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { MAIN_WAREHOUSE_OPERATIONAL_START, MAIN_WAREHOUSE_OPERATIONAL_START_ISO } from "@/constants/warehouseOperations";
+import { printWarehouseSlip, SlipItemRow } from "@/lib/printWarehouseSlip";
 import * as XLSX from "xlsx";
 
 interface Mov {
@@ -25,11 +26,15 @@ interface Mov {
   movement_type: string;
   quantity: number;
   unit_cost: number | null;
+  reference: string | null;
   reference_id: string | null;
   reference_type: string | null;
   performed_by: string | null;
   reason: string | null;
   notes: string | null;
+  party: string | null;
+  package_count: number | null;
+  package_weight_kg: number | null;
   approval_status: string;
   module: string | null;
 }
@@ -87,7 +92,7 @@ export default function WarehouseMovementsLog() {
 
       let q = supabase
         .from("inventory_movements")
-        .select("id, movement_no, performed_at, warehouse_id, destination_warehouse_id, source_warehouse_id, item_id, movement_type, quantity, unit_cost, reference_id, reference_type, performed_by, reason, notes, approval_status, module")
+        .select("id, movement_no, performed_at, warehouse_id, destination_warehouse_id, source_warehouse_id, item_id, movement_type, quantity, unit_cost, reference, reference_id, reference_type, performed_by, reason, notes, party, package_count, package_weight_kg, approval_status, module")
         .gte("performed_at", effectiveFrom)
         .lte("performed_at", to + "T23:59:59")
         .order("performed_at", { ascending: false })
@@ -132,6 +137,90 @@ export default function WarehouseMovementsLog() {
   }, [rows, itemFilter, items]);
 
   const whName = (id: string | null) => (id ? warehouses.find((w) => w.id === id)?.name || "—" : "—");
+
+  // Track first occurrence of each manual operation reference so we only show one print button per op.
+  const firstByRef = useMemo(() => {
+    const seen = new Set<string>();
+    const map = new Map<string, boolean>();
+    for (const m of filteredRows) {
+      const isManual = m.reference_type === "manual_addition" || m.reference_type === "manual_out";
+      const ref = m.reference || m.reference_id;
+      if (isManual && ref && !seen.has(ref)) {
+        seen.add(ref);
+        map.set(m.id, true);
+      }
+    }
+    return map;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, itemFilter, items]);
+
+  const parseField = (notes: string | null, label: string): string => {
+    if (!notes) return "";
+    const re = new RegExp(`${label}:\\s*([^•]+?)(?=\\s*•|$)`);
+    const m = notes.match(re);
+    return m ? m[1].trim() : "";
+  };
+
+  const printManualOp = async (mov: Mov) => {
+    const ref = mov.reference || mov.reference_id;
+    if (!ref) return;
+    const refCol = mov.reference ? "reference" : "reference_id";
+    const { data } = await supabase
+      .from("inventory_movements")
+      .select("item_id, quantity, package_count, package_weight_kg, notes, party, reason, performed_at, warehouse_id, performed_by, reference_type")
+      .eq(refCol, ref)
+      .order("id");
+    const list = (data || []) as any[];
+    if (list.length === 0) return;
+    // Ensure item names + user name
+    const missingItems = list.map(r => r.item_id).filter(id => !items[id]);
+    if (missingItems.length) {
+      const { data: its } = await supabase.from("inventory_items").select("id, name, unit").in("id", missingItems);
+      const im = { ...items };
+      (its || []).forEach((it: any) => { im[it.id] = { name: it.name, unit: it.unit }; });
+      setItems(im);
+    }
+    const performerId = list[0].performed_by;
+    let performerName = users[performerId || ""] || "";
+    if (performerId && !performerName) {
+      const { data: prof } = await supabase.from("profiles").select("full_name").eq("id", performerId).maybeSingle();
+      performerName = (prof as any)?.full_name || "";
+    }
+    const itemsMap = items;
+    const slipRows: SlipItemRow[] = list.map(r => {
+      const it = itemsMap[r.item_id];
+      return {
+        name: it?.name || r.item_id,
+        unit: it?.unit || "كجم",
+        packageCount: r.package_count,
+        packageWeightKg: r.package_weight_kg,
+        quantity: Number(r.quantity || 0),
+        stockBefore: Number(parseField(r.notes, "قبل").replace(/[^\d.\-]/g, "")) || null,
+        stockAfter: Number(parseField(r.notes, "بعد").replace(/[^\d.\-]/g, "")) || null,
+      };
+    });
+    const first = list[0];
+    const kind: "in" | "out" = first.reference_type === "manual_out" ? "out" : "in";
+    const partyKey = kind === "in" ? "جهة التوريد" : "جهة الصرف";
+    const partyLabel = parseField(first.notes, partyKey) || (first.party || "").split("—")[0]?.replace(/^.+?: /, "").trim() || "";
+    const supplier = parseField(first.notes, "القائم بالتوريد");
+    const deliveryDate = parseField(first.notes, "تاريخ التوريد");
+    const extraNotes = parseField(first.notes, "ملاحظات");
+
+    printWarehouseSlip({
+      kind,
+      opNo: String(ref),
+      warehouseName: whName(first.warehouse_id),
+      partyLabel,
+      supplier,
+      deliveryDate,
+      performedByName: performerName,
+      performedAt: first.performed_at,
+      notes: extraNotes,
+      rows: slipRows,
+    });
+  };
+
 
   const exportXlsx = () => {
     const data = filteredRows.map((m) => ({
@@ -262,14 +351,18 @@ export default function WarehouseMovementsLog() {
                     <TableHead>المستخدم</TableHead>
                     <TableHead>السبب</TableHead>
                     <TableHead>الحالة</TableHead>
+                    <TableHead>طباعة</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loading ? (
-                    <TableRow><TableCell colSpan={13} className="text-center py-8 text-muted-foreground">جاري التحميل...</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={14} className="text-center py-8 text-muted-foreground">جاري التحميل...</TableCell></TableRow>
                   ) : filteredRows.length === 0 ? (
-                    <TableRow><TableCell colSpan={13} className="text-center py-8 text-muted-foreground">لا توجد حركات بالفلاتر الحالية.</TableCell></TableRow>
-                  ) : filteredRows.map((m) => (
+                    <TableRow><TableCell colSpan={14} className="text-center py-8 text-muted-foreground">لا توجد حركات بالفلاتر الحالية.</TableCell></TableRow>
+                  ) : filteredRows.map((m) => {
+                    const isManual = m.reference_type === "manual_addition" || m.reference_type === "manual_out";
+                    const showPrint = isManual && firstByRef.get(m.id);
+                    return (
                     <TableRow key={m.id}>
                       <TableCell className="font-mono text-xs">{m.movement_no || "—"}</TableCell>
                       <TableCell className="text-xs">{new Date(m.performed_at).toLocaleString("ar-EG")}</TableCell>
@@ -280,12 +373,19 @@ export default function WarehouseMovementsLog() {
                       <TableCell className="text-xs">{items[m.item_id]?.unit || "—"}</TableCell>
                       <TableCell className="text-xs">{whName(m.source_warehouse_id)}</TableCell>
                       <TableCell className="text-xs">{whName(m.destination_warehouse_id)}</TableCell>
-                      <TableCell className="font-mono text-xs max-w-[200px] truncate" title={m.reference_id || ""}>{m.reference_id || "—"}</TableCell>
+                      <TableCell className="font-mono text-xs max-w-[200px] truncate" title={m.reference || m.reference_id || ""}>{m.reference || m.reference_id || "—"}</TableCell>
                       <TableCell className="text-xs">{users[m.performed_by || ""] || "—"}</TableCell>
                       <TableCell className="text-xs max-w-[180px] truncate" title={m.reason || ""}>{m.reason || "—"}</TableCell>
                       <TableCell><Badge className={STATUS_COLORS[m.approval_status] || ""}>{m.approval_status}</Badge></TableCell>
+                      <TableCell>
+                        {showPrint ? (
+                          <Button size="sm" variant="outline" onClick={() => printManualOp(m)} title="طباعة محضر العملية">
+                            <Printer className="w-3 h-3 ml-1" /> طباعة
+                          </Button>
+                        ) : null}
+                      </TableCell>
                     </TableRow>
-                  ))}
+                  );})}
                 </TableBody>
               </Table>
             </div>
