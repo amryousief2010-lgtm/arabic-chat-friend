@@ -850,11 +850,32 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
                           <td className="p-2"><AvailableCell actual={cActual} pending={cPend} name={p.name} /></td>
                         </>
                       )}
+                      <td className="p-2 text-center">
+                        {(() => {
+                          const whKey: SingleWh | null = currentSingleScope ?? (renderMainCols && mainItemIds[p.id] ? "main" : renderAgouzaCols && agouzaItemIds[p.id] ? "agouza" : null);
+                          const iid = whKey ? getItemIdsMap(whKey)[p.id] : null;
+                          const whId = whKey ? getWhId(whKey) : null;
+                          const stockVal = whKey === "main" ? mActual : whKey === "agouza" ? aActual : cActual;
+                          if (!iid || !whId) return <span className="text-muted-foreground text-xs">—</span>;
+                          return (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 px-2 gap-1"
+                              title={`سجل حركة ${p.name}`}
+                              onClick={() => setMovDlg({ itemId: iid, name: p.name, unit: p.unit, stock: stockVal, whId, whLabel: getWhLabel(whKey!) })}
+                            >
+                              <History className="w-4 h-4" />
+                              <span className="hidden lg:inline text-xs">سجل الحركة</span>
+                            </Button>
+                          );
+                        })()}
+                      </td>
                     </tr>
                   );
                 })}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={10} className="p-6 text-center text-muted-foreground">لا توجد منتجات</td></tr>
+                  <tr><td colSpan={11} className="p-6 text-center text-muted-foreground">لا توجد منتجات</td></tr>
                 )}
               </tbody>
             </table>
