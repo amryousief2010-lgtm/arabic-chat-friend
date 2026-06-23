@@ -294,6 +294,17 @@ const ItemMovementsDialog = ({ open, onOpenChange, item, warehouseId, warehouseN
                 </Select>
               </div>
               <div>
+                <label className="text-xs text-muted-foreground">الأرشيف</label>
+                <Select value={archiveScope} onValueChange={(v) => setArchiveScope(v as any)}>
+                  <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="current">الحركات الحالية (من {MAIN_WAREHOUSE_OPERATIONAL_START})</SelectItem>
+                    <SelectItem value="archived">المؤرشف (قبل {MAIN_WAREHOUSE_OPERATIONAL_START})</SelectItem>
+                    <SelectItem value="all">الكل</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
                 <label className="text-xs text-muted-foreground">الجهة</label>
                 <Select value={partyFilter} onValueChange={setPartyFilter}>
                   <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
