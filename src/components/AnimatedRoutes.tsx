@@ -196,6 +196,7 @@ const MyLabCollections = lazy(() => import("@/pages/MyLabCollections"));
 const SlaughterhouseCustody = lazy(() => import("@/pages/SlaughterhouseCustody"));
 const MainTreasury = lazy(() => import("@/pages/MainTreasury"));
 const LabHistoricalReceivables = lazy(() => import("@/pages/lab-treasury/HistoricalReceivables"));
+const LabExternalReceivables = lazy(() => import("@/pages/lab-treasury/ExternalReceivables"));
 const LabCustomerDebts = lazy(() => import("@/pages/lab-treasury/LabCustomerDebts"));
 const LabCustomerStatement = lazy(() => import("@/pages/lab-treasury/LabCustomerStatement"));
 const LabCustomerBalances = lazy(() => import("@/pages/lab-treasury/LabCustomerBalances"));
