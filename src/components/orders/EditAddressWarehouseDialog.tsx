@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -25,10 +25,25 @@ interface Props {
   orderId: string;
   initialAddress: string | null;
   initialWarehouseId: string | null;
-  onSaved?: (next: { delivery_address: string | null; source_warehouse_id: string | null; source_warehouse_name: string | null }) => void;
+  initialFulfillmentType?: string | null;
+  initialShippingCompany?: string | null;
+  onSaved?: (next: {
+    delivery_address: string | null;
+    source_warehouse_id: string | null;
+    source_warehouse_name: string | null;
+    fulfillment_type: string | null;
+    shipping_company: string | null;
+  }) => void;
 }
 
 type Wh = { id: string; name: string };
+type FKey =
+  | "pickup_main"
+  | "delivery_main"
+  | "pickup_agouza"
+  | "delivery_agouza"
+  | "shipping_company"
+  | "";
 
 export default function EditAddressWarehouseDialog({
   open,
@@ -36,42 +51,102 @@ export default function EditAddressWarehouseDialog({
   orderId,
   initialAddress,
   initialWarehouseId,
+  initialFulfillmentType,
+  initialShippingCompany,
   onSaved,
 }: Props) {
   const [address, setAddress] = useState(initialAddress || "");
-  const [whId, setWhId] = useState<string>(initialWarehouseId || "");
   const [warehouses, setWarehouses] = useState<Wh[]>([]);
+  const [fKey, setFKey] = useState<FKey>("");
+  const [shippingCompany, setShippingCompany] = useState<string>(initialShippingCompany || "");
   const [saving, setSaving] = useState(false);
 
+  const mainWh = useMemo(
+    () => warehouses.find((w) => w.name?.includes("الرئيسي") || w.name?.includes("المقر")),
+    [warehouses]
+  );
+  const agouzaWh = useMemo(
+    () => warehouses.find((w) => w.name?.includes("العجوزة")),
+    [warehouses]
+  );
+
+  // Initialize fKey from initial values once warehouses load
   useEffect(() => {
     if (!open) return;
     setAddress(initialAddress || "");
-    setWhId(initialWarehouseId || "");
+    setShippingCompany(initialShippingCompany || "");
     (async () => {
       const { data } = await supabase
         .from("warehouses")
         .select("id, name")
         .eq("is_active", true)
         .order("name");
-      setWarehouses((data || []) as Wh[]);
+      const list = (data || []) as Wh[];
+      setWarehouses(list);
+
+      const wh = list.find((w) => w.id === initialWarehouseId);
+      const isAgouza = !!wh?.name?.includes("العجوزة");
+      const isMain = !!(wh?.name?.includes("الرئيسي") || wh?.name?.includes("المقر"));
+      const ft = (initialFulfillmentType || "").toLowerCase();
+      if (isAgouza && ft === "pickup") setFKey("pickup_agouza");
+      else if (isAgouza) setFKey("delivery_agouza");
+      else if (isMain && ft === "pickup") setFKey("pickup_main");
+      else if (isMain) setFKey("delivery_main");
+      else if (initialShippingCompany) setFKey("shipping_company");
+      else setFKey("");
     })();
-  }, [open, initialAddress, initialWarehouseId]);
+  }, [open, initialAddress, initialWarehouseId, initialFulfillmentType, initialShippingCompany]);
 
   const save = async () => {
+    if (!fKey) {
+      toast.error("اختر طريقة التسليم");
+      return;
+    }
     setSaving(true);
     try {
+      let source_warehouse_id: string | null = null;
+      let fulfillment_type: string | null = null;
+      let shipping: string | null = null;
+
+      if (fKey === "shipping_company") {
+        source_warehouse_id = null;
+        fulfillment_type = "delivery";
+        shipping = shippingCompany.trim() || null;
+        if (!shipping) {
+          toast.error("اكتب اسم شركة الشحن");
+          setSaving(false);
+          return;
+        }
+      } else {
+        const isAgouza = fKey.endsWith("_agouza");
+        const wh = isAgouza ? agouzaWh : mainWh;
+        if (!wh) {
+          toast.error(isAgouza ? "لم يتم العثور على مخزن العجوزة" : "لم يتم العثور على المخزن الرئيسي");
+          setSaving(false);
+          return;
+        }
+        source_warehouse_id = wh.id;
+        fulfillment_type = fKey.startsWith("pickup") ? "pickup" : "delivery";
+        shipping = fKey === "delivery_main" ? "مندوب خاص" : null;
+      }
+
       const patch: any = {
         delivery_address: address.trim() || null,
-        source_warehouse_id: whId || null,
+        source_warehouse_id,
+        fulfillment_type,
+        shipping_company: shipping,
       };
       const { error } = await supabase.from("orders").update(patch).eq("id", orderId);
       if (error) throw error;
-      const whName = warehouses.find((w) => w.id === whId)?.name || null;
-      toast.success("تم تحديث العنوان ومخزن الاستلام");
+
+      const whName = warehouses.find((w) => w.id === source_warehouse_id)?.name || null;
+      toast.success("تم تحديث طريقة التسليم");
       onSaved?.({
         delivery_address: patch.delivery_address,
-        source_warehouse_id: patch.source_warehouse_id,
+        source_warehouse_id,
         source_warehouse_name: whName,
+        fulfillment_type,
+        shipping_company: shipping,
       });
       onOpenChange(false);
     } catch (e: any) {
@@ -85,9 +160,37 @@ export default function EditAddressWarehouseDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>تعديل العنوان ومخزن الاستلام</DialogTitle>
+          <DialogTitle>تعديل طريقة التسليم والعنوان</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
+          <div>
+            <Label>طريقة التسليم</Label>
+            <Select value={fKey} onValueChange={(v) => setFKey(v as FKey)}>
+              <SelectTrigger>
+                <SelectValue placeholder="اختر طريقة التسليم" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pickup_main">استلام من المخزن الرئيسي</SelectItem>
+                <SelectItem value="delivery_main">توصيل بالمندوب الخاص (كيمو)</SelectItem>
+                <SelectItem value="pickup_agouza">استلام من مخزن العجوزة</SelectItem>
+                <SelectItem value="delivery_agouza">توصيل من منفذ العجوزة</SelectItem>
+                <SelectItem value="shipping_company">شركة شحن</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {fKey === "shipping_company" && (
+            <div>
+              <Label>اسم شركة الشحن</Label>
+              <input
+                className="w-full border rounded-md h-9 px-3 text-sm bg-background"
+                value={shippingCompany}
+                onChange={(e) => setShippingCompany(e.target.value)}
+                placeholder="مثل: بوسطة / أرامكس / ..."
+              />
+            </div>
+          )}
+
           <div>
             <Label>عنوان التوصيل</Label>
             <Textarea
@@ -96,21 +199,6 @@ export default function EditAddressWarehouseDialog({
               rows={3}
               placeholder="عنوان التوصيل الكامل"
             />
-          </div>
-          <div>
-            <Label>مخزن الاستلام / التوصيل</Label>
-            <Select value={whId} onValueChange={setWhId}>
-              <SelectTrigger>
-                <SelectValue placeholder="اختر المخزن" />
-              </SelectTrigger>
-              <SelectContent>
-                {warehouses.map((w) => (
-                  <SelectItem key={w.id} value={w.id}>
-                    {w.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
         </div>
         <DialogFooter>
