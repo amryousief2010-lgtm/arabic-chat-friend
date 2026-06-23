@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/select";
 import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus, Trash2, Pencil, ChevronDown, ChevronUp, PackageOpen, PackagePlus, FileDown, FileText, KeyRound, MapPin, Printer, AlertCircle, AlertTriangle } from "lucide-react";
 import { printOrderInvoice } from "@/lib/printUtils";
-import { cairoMonthStartUTC, cairoYearStartUTC, currentCairoYearMonth, cairoTodayStartUTC } from "@/lib/cairoDate";
+import { cairoMonthStartUTC, cairoYearStartUTC, currentCairoYearMonth, cairoTodayStartUTC, toCairoDateString } from "@/lib/cairoDate";
 import { exportOrdersToCSV, exportOrdersToPDF, exportOrdersToXLSX } from "@/utils/exportOrders";
 import EditOrderItemsDialog from "@/components/orders/EditOrderItemsDialog";
 import SwapOfferDialog from "@/components/orders/SwapOfferDialog";
@@ -642,15 +642,17 @@ const Orders = () => {
   }), [orders, filterStatus, debouncedSearch, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, filterFulfillment, filterRoute, isWarehouseSupervisor, isGeneralManager, isExecutiveManager]);
 
   // Detect duplicate orders by customer phone — every order after the earliest one
-  // for the same normalized phone is flagged as duplicate (shown red in the UI).
+  // for the same normalized phone *in the same Cairo month* is flagged as duplicate.
   const duplicatePhoneOrderIds = useMemo(() => {
     const groups = new Map<string, { id: string; created_at: string }[]>();
     for (const o of orders) {
       const norm = (o.customer_phone || "").replace(/[^\d]/g, "");
       if (norm.length < 6) continue;
-      const arr = groups.get(norm) || [];
+      const monthKey = toCairoDateString(o.created_at).slice(0, 7); // YYYY-MM
+      const key = `${norm}#${monthKey}`;
+      const arr = groups.get(key) || [];
       arr.push({ id: o.id, created_at: o.created_at });
-      groups.set(norm, arr);
+      groups.set(key, arr);
     }
     const dups = new Set<string>();
     for (const arr of groups.values()) {
