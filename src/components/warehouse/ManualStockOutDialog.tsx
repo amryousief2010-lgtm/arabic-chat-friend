@@ -454,6 +454,16 @@ const ManualStockOutDialog = ({
           </AlertDescription>
         </Alert>
 
+        {lock && (
+          <Alert className="border-violet-300 bg-violet-50 dark:bg-violet-950/30">
+            <Lock className="h-4 w-4 text-violet-700" />
+            <AlertDescription className="text-xs text-violet-900 dark:text-violet-200">
+              <b>تم اعتماد جرد رسمي</b> لهذا المخزن (جلسة {lock.sessionNo} — {new Date(lock.approvedAt).toLocaleString("ar-EG-u-nu-latn")}).
+              أي صرف بعد هذا التاريخ يُسجَّل كحركة موثقة بسبب وصاحب صرف ولا يعدّل الرصيد المعتمد إلا بحركة رسمية.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <div className="space-y-3">
           <div>
             <Label className="text-xs">جهة الصرف *</Label>
@@ -521,6 +531,17 @@ const ManualStockOutDialog = ({
               />
             </div>
             <div>
+              <Label className="text-xs">سبب الصرف *</Label>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger><SelectValue placeholder="اختر السبب (إجباري)" /></SelectTrigger>
+                <SelectContent>
+                  {STOCK_ADJUSTMENT_REASONS.map((r) => (
+                    <SelectItem key={r} value={r}>{r}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <Label className="text-xs">تاريخ التوريد *</Label>
               <Input
                 type="date"
@@ -537,6 +558,74 @@ const ManualStockOutDialog = ({
               />
             </div>
           </div>
+
+          {/* Reservation warning panel */}
+          {hasReservedConflict && (
+            <Alert className="border-amber-400 bg-amber-50 dark:bg-amber-950/30">
+              <AlertTriangle className="h-4 w-4 text-amber-700" />
+              <AlertDescription className="text-xs text-amber-900 dark:text-amber-200 space-y-1">
+                <div className="font-bold">
+                  هذا الصنف عليه كمية محجوزة للطلبات. برجاء التأكد قبل الصرف.
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[11px] mt-1">
+                    <thead>
+                      <tr className="text-amber-900/80">
+                        <th className="text-right p-1">الصنف</th>
+                        <th className="text-right p-1">الرصيد الفعلي</th>
+                        <th className="text-right p-1">المحجوز</th>
+                        <th className="text-right p-1">المتاح للبيع</th>
+                        <th className="text-right p-1">المطلوب صرفه</th>
+                        <th className="text-right p-1">المتاح بعد الصرف</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reservationAnalysis.filter((r) => r.reservedFlag || r.negative).map((r) => (
+                        <tr key={r.itemId} className="border-t border-amber-200">
+                          <td className="p-1 font-medium">{r.name}</td>
+                          <td className="p-1 font-mono">{r.stock}</td>
+                          <td className="p-1 font-mono text-amber-800">{r.reserved}</td>
+                          <td className="p-1 font-mono">{r.available}</td>
+                          <td className="p-1 font-mono text-rose-700">−{r.requested}</td>
+                          <td className={`p-1 font-mono font-bold ${r.availableAfter < 0 ? "text-rose-700" : "text-emerald-700"}`}>
+                            {r.availableAfter}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {hasNegativeAfter && (
+            <Alert className="border-rose-400 bg-rose-50 dark:bg-rose-950/30">
+              <ShieldAlert className="h-4 w-4 text-rose-700" />
+              <AlertDescription className="text-xs text-rose-900 dark:text-rose-200 space-y-2">
+                <div className="font-bold">
+                  ⚠️ هذا الصرف سيجعل المتاح بالسالب لبعض الأصناف.
+                </div>
+                {!isManager ? (
+                  <div>الحفظ يتطلب صلاحية المدير العام أو المدير التنفيذي.</div>
+                ) : (
+                  <>
+                    <label className="flex items-center gap-2">
+                      <input type="checkbox" checked={overrideNegative}
+                             onChange={(e) => setOverrideNegative(e.target.checked)} />
+                      <span>أؤكد كمدير الصرف بالسالب على مسؤوليتي.</span>
+                    </label>
+                    <Input
+                      placeholder="سبب اعتماد المدير للصرف بالسالب (إجباري)"
+                      value={overrideReason}
+                      onChange={(e) => setOverrideReason(e.target.value)}
+                      maxLength={300}
+                    />
+                  </>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
 
           <div className="rounded border">
             <div className="flex items-center justify-between p-2 bg-muted/40">
