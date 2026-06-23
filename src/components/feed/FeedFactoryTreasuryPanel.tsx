@@ -306,9 +306,15 @@ export default function FeedFactoryTreasuryPanel({
             <TableBody>
               {filtered.map((t) => {
                 const after = runningBalance[t.id] ?? 0;
+                const isCancelled = t.status === "cancelled";
                 return (
-                  <TableRow key={t.id} className="hover:bg-muted/40">
-                    <TableCell className="font-mono text-xs">{t.txn_no}</TableCell>
+                  <TableRow key={t.id} className={`hover:bg-muted/40 ${isCancelled ? "opacity-60 line-through" : ""}`}>
+                    <TableCell className="font-mono text-xs">
+                      {t.txn_no}
+                      {isCancelled && (
+                        <Badge variant="destructive" className="ml-1 text-[10px] no-underline">ملغاة</Badge>
+                      )}
+                    </TableCell>
                     <TableCell className="whitespace-nowrap text-xs">{t.txn_date}</TableCell>
                     <TableCell>
                       {t.direction === "in" ? (
@@ -327,8 +333,11 @@ export default function FeedFactoryTreasuryPanel({
                       </Badge>
                     </TableCell>
                     <TableCell className="text-xs">{t.party || "—"}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground max-w-[260px] truncate" title={t.note || ""}>
+                    <TableCell className="text-xs text-muted-foreground max-w-[260px] truncate" title={(t.note || "") + (t.cancellation_reason ? ` | سبب الإلغاء: ${t.cancellation_reason}` : "")}>
                       {t.note || "—"}
+                      {isCancelled && t.cancellation_reason && (
+                        <div className="text-[10px] text-destructive no-underline">سبب الإلغاء: {t.cancellation_reason}</div>
+                      )}
                     </TableCell>
                     <TableCell className="text-xs whitespace-nowrap" title={t.created_at ? new Date(t.created_at).toLocaleString("ar-EG") : ""}>
                       {t.created_by_name ? (
@@ -355,9 +364,9 @@ export default function FeedFactoryTreasuryPanel({
                     </TableCell>
                     {canManageAll && (
                       <TableCell>
-                        {t.kind !== "sale" && t.kind !== "purchase" && (
+                        {!isCancelled && t.kind !== "sale" && t.kind !== "purchase" && (
                           <Button size="icon" variant="ghost" className="text-destructive"
-                                  onClick={() => onDelete(t)}>
+                                  onClick={() => onDelete(t)} title="إلغاء الحركة وإرجاع المبلغ للخزنة">
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         )}
