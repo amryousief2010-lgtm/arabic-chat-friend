@@ -121,6 +121,9 @@ const ItemMovementsDialog = ({ open, onOpenChange, item, warehouseId, warehouseN
 
   const filtered = useMemo(() => {
     return rows.filter((r) => {
+      const t = new Date(r.performed_at).getTime();
+      if (archiveScope === "current" && t < cutoffMs) return false;
+      if (archiveScope === "archived" && t >= cutoffMs) return false;
       if (typeFilter !== "all" && r._dir !== typeFilter) return false;
       if (dateFrom && new Date(r.performed_at) < new Date(dateFrom)) return false;
       if (dateTo) {
@@ -135,7 +138,21 @@ const ItemMovementsDialog = ({ open, onOpenChange, item, warehouseId, warehouseN
       }
       return true;
     });
-  }, [rows, typeFilter, dateFrom, dateTo, partyFilter, search]);
+  }, [rows, typeFilter, dateFrom, dateTo, partyFilter, search, archiveScope, cutoffMs]);
+
+  const filteredReservations = useMemo(() => {
+    return reservations.filter((r) => {
+      const created = r.orders?.created_at ? new Date(r.orders.created_at).getTime() : 0;
+      if (archiveScope === "current") return created >= cutoffMs;
+      if (archiveScope === "archived") return created < cutoffMs;
+      return true;
+    });
+  }, [reservations, archiveScope, cutoffMs]);
+
+  const archivedCount = useMemo(
+    () => rows.filter((r) => new Date(r.performed_at).getTime() < cutoffMs).length,
+    [rows, cutoffMs]
+  );
 
   const parties = useMemo(() => {
     const set = new Set<string>();
